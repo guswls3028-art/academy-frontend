@@ -8,7 +8,7 @@ import { gotoAndSettle } from "./wait";
 import { safeNativeTransportKind } from "./releaseApiBoundary";
 
 export type HomeworkFlowFailurePhase =
-  | "feedback-setup" | "feedback-score-edit" | "feedback-order" | "feedback-report"
+  | "feedback-setup" | "feedback-score-edit" | "feedback-correction" | "feedback-order" | "feedback-report"
   | "feedback-results" | "feedback-restore-order" | "feedback-criteria" | "feedback-post-criteria"
   | "criteria-setup" | "criteria-open" | "criteria-invalid-input" | "criteria-save"
   | "criteria-reload" | "criteria-api" | "criteria-parent" | "criteria-preview"

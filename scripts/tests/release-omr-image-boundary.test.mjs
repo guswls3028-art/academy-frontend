@@ -171,3 +171,68 @@ test("OMR R2 image refuses redirects, invalid upstream bytes/status and transpor
   for (const options of [{ status: 301 }, { status: 307 }, { status: 403 }, { contentType: "text/html" },
     { body: Buffer.from("not-a-jpeg") }, { fetchError: true }]) assertRejected(await exercise(options), 1);
 });
+
+
+const pdfQuery = new URLSearchParams(query);
+pdfQuery.set("X-Amz-Expires", "900");
+const pdfUrl = `${origin}/academy-development-artifacts/tenants/352/ai/submissions/123/${"a".repeat(32)}.pdf?${pdfQuery}`;
+const pdfBytes = Buffer.from("%PDF-1.7\nclosed boundary fixture\n%%EOF");
+async function previewPdf(options = {}) {
+  let handler;
+  const context = { request: { fetch: async () => assert.fail("No external direct request") },
+    exposeBinding: async () => {}, addInitScript: async () => {}, on() {},
+    route: async (_pattern, callback) => { handler = callback; } };
+  const guard = await installReleaseContextGuard(context, options.boundary ?? boundary);
+  const register = async patch => {
+    const item = { ...options, ...patch };
+    const headers = { origin: boundary.webOrigin, authorization: "Bearer fixture", "x-tenant-code": boundary.tenantCode, ...item.apiHeaders };
+    await handler({ request: () => ({ url: () => boundary.apiOrigin + (item.apiPath ?? "/api/v1/submissions/submissions/123/preview/"),
+      method: () => item.apiMethod ?? "GET", resourceType: () => "fetch", allHeaders: async () => headers,
+      headerValue: async name => headers[name] ?? null, postDataJSON: () => null, postDataBuffer: () => null }),
+      abort: async () => {}, continue: async () => assert.fail("unguarded API"),
+      fetch: async () => ({ status: () => item.apiStatus ?? 200, headers: () => ({ "content-type": item.apiMime ?? "application/json",
+        "cache-control": item.cache ?? "no-store", "access-control-allow-origin": item.corsOrigin ?? boundary.webOrigin,
+        "access-control-allow-credentials": "true" }), json: async () => ({ url: item.registerUrl ?? pdfUrl, ...item.payload }) }),
+      fulfill: async () => {} });
+  };
+  if (options.register !== false) await register({});
+  if (options.replace) await register(options.replace);
+  const fetched = [], fulfilled = [];
+  let aborted = 0;
+  const headers = options.headers ?? { referer: boundary.webOrigin + "/private" };
+  for (let i = 0; i < (options.reads ?? 1); i++) await handler({ request: () => ({ url: () => options.url ?? options.registerUrl ?? pdfUrl,
+    method: () => options.method ?? "GET", resourceType: () => options.resourceType ?? "document", allHeaders: async () => headers,
+    headerValue: async name => headers[name] ?? null, postDataJSON: () => null, postDataBuffer: () => options.requestBody ?? null }),
+    abort: async () => { aborted++; }, continue: async () => assert.fail("unguarded PDF"),
+    fetch: async settings => { fetched.push(settings); return { status: () => options.status ?? 200,
+      headers: () => ({ "content-type": options.mime ?? "application/pdf", "set-cookie": "private", location: "https://foreign.invalid" }),
+      body: async () => options.bytes ?? pdfBytes }; }, fulfill: async response => fulfilled.push(response) });
+  return { guard, fetched, fulfilled, aborted };
+}
+
+test("staff-issued development OMR PDF is relayed twice for embed and popup with only PDF bytes and safe headers", async () => {
+  const result = await previewPdf({ reads: 2 }); result.guard.assertClean();
+  assert.equal(result.aborted, 0);
+  assert.deepEqual(result.fetched, Array(2).fill({ url: pdfUrl, method: "GET", headers: { accept: "application/pdf" }, maxRedirects: 0 }));
+  assert.deepEqual(result.fulfilled, Array(2).fill({ status: 200, headers: { "content-type": "application/pdf", "cache-control": "no-store" }, body: pdfBytes }));
+  assert.throws(() => assertReleaseRequestSafe(boundary, pdfUrl, "GET"), /escaped/);
+});
+
+test("OMR original PDF requires one authenticated no-store response and exact tenant, submission, key and signature", async () => {
+  for (const options of [{ register: false }, { apiStatus: 403 }, { apiStatus: 404 }, { apiMethod: "POST" },
+    { apiPath: "/api/v1/submissions/submissions/124/preview/" }, { apiHeaders: { authorization: "" } },
+    { apiHeaders: { "x-tenant-code": "qa-other" } }, { apiHeaders: { "x-student-id": "123" } },
+    { cache: "public" }, { apiMime: "text/plain" }, { corsOrigin: "*" }, { payload: { extra: "private" } },
+    { replace: { apiStatus: 404 } }, { method: "HEAD" }, { method: "POST" }, { resourceType: "fetch" }, { resourceType: "image" },
+    { requestBody: Buffer.from("private") }, ...["authorization", "proxy-authorization", "cookie", "x-api-key", "x-student-id", "x-tenant-code"].map(key => ({ headers: { [key]: "private" } })),
+    ...[pdfUrl.replace(origin, "https://foreign.invalid"), pdfUrl.replace("academy-development-artifacts", "academy-production-artifacts"),
+      pdfUrl.replace("tenants/352", "tenants/353"), pdfUrl.replace("submissions/123", "submissions/124"),
+      pdfUrl.replace("a".repeat(32) + ".pdf", "original.pdf"), pdfUrl.replace(".pdf?", ".jpg?"),
+      pdfUrl.replace("/123/", "/999/../123/"), pdfUrl.replace("Expires=900", "Expires=901"),
+      pdfUrl.replace("SignedHeaders=host", "SignedHeaders=content-type"), pdfUrl + "&extra=private", pdfUrl + "#private"].map(registerUrl => ({ registerUrl })),
+    { url: pdfUrl.replace("a".repeat(64), "b".repeat(64)) }]) assertRejected(await previewPdf(options));
+  for (const options of [{ status: 302 }, { status: 206 }, { status: 404 }, { mime: "text/html" },
+    { bytes: Buffer.from("not a PDF") }, { bytes: Buffer.concat([pdfBytes, Buffer.alloc(10 * 1024 * 1024)]) }]) {
+    assertRejected(await previewPdf(options), 1);
+  }
+});

@@ -486,13 +486,37 @@ async function recoverMissingOmrConfiguration(
 
   await page.setViewportSize({ width: 390, height: 900 });
   await gotoAndSettle(page, `${BASE}/workspace/results/submissions`, { timeout: 45_000 });
-  await page.getByTestId(`submission-preview-${submissionId}`).click();
+  const previewPath = `/submissions/submissions/${submissionId}/preview/`;
+  const originalDocument = (response: Response) => response.request().method() === "GET"
+    && response.request().resourceType() === "document"
+    && new URL(response.url()).pathname === `/academy-development-artifacts/${original.file_key}`;
+  const [issued, embedded] = await Promise.all([
+    page.waitForResponse(response => matchesApiResponse(response, "GET", previewPath)),
+    page.waitForResponse(originalDocument),
+    page.getByTestId(`submission-preview-${submissionId}`).click(),
+  ]);
+  expect(issued.status()).toBe(200);
+  const payload = await issued.json() as { url: string };
+  const assertOriginal = (response: Response) => {
+    // A signed address must never enter an assertion message or saved report.
+    expect(response.url() === payload.url, "Expected the issued original PDF").toBe(true);
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toBe("application/pdf");
+  };
+  assertOriginal(embedded);
   const preview = page.getByRole("dialog", { name: "제출물 확인" });
-  const popupPromise = page.waitForEvent("popup");
-  await preview.getByRole("link", { name: "새 창에서 원본 열기" }).click();
-  const popup = await popupPromise;
-  await popup.waitForLoadState("domcontentloaded");
-  await popup.close();
+  await expect(preview.locator("iframe")).toBeVisible();
+  const [popup, opened] = await Promise.all([
+    page.waitForEvent("popup"), page.context().waitForEvent("response", originalDocument),
+    preview.getByRole("link", { name: "새 창에서 원본 열기" }).click(),
+  ]);
+  try {
+    assertOriginal(opened);
+    expect(opened.request() !== embedded.request()).toBe(true);
+    await popup.waitForLoadState("domcontentloaded");
+    expect(popup.url() === payload.url, "Expected the original PDF in the popup").toBe(true);
+  }
+  finally { await popup.close(); }
   await preview.getByRole("checkbox").check();
   await preview.getByRole("button", { name: "확인하고 학생 지정" }).click();
   const assignedResponse = page.waitForResponse((response) => matchesApiResponse(response, "POST", detailPath));

@@ -179,7 +179,7 @@ test("closed workflow failure observations reject private fields and impossible 
     if (marker === "releaseHomeworkFlowFailure") invalid.push(
       { ...sample, threshold: null }, { ...sample, threshold: 80 }, { ...sample, threshold: "95" },
       { ...sample, viewport: null }, { ...sample, phase: "criteria-invalid-input", threshold: 90 },
-      { ...sample, phase: "criteria-setup" }, { ...sample, phase: "feedback-score-edit" },
+      { ...sample, phase: "criteria-setup" }, { ...sample, phase: "feedback-score-edit" }, { ...sample, phase: "feedback-correction" },
       { ...sample, phase: "feedback-setup", threshold: null },
     );
     for (const value of invalid) {

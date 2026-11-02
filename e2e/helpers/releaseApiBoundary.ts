@@ -171,6 +171,18 @@ function isExactDevelopmentResourceReaderAsset(boundary: ReleaseBoundary, rawUrl
     && UUID.test(target.pathname.slice(prefix.length).split("/")[0]) && hasExactHostSignature(target, 300);
 }
 
+function isExactOmrPreviewPdf(boundary: ReleaseBoundary, rawUrl: string, submissionId: string): boolean {
+  if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId)
+    || Number(boundary.omrR2TenantId) < 1 || !/^[1-9][0-9]*$/.test(submissionId)
+    || !Number.isSafeInteger(Number(submissionId))) return false;
+  const target = URL.canParse(rawUrl) ? new URL(rawUrl) : null;
+  if (!target || target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
+    || rawUrl !== target.origin + target.pathname + target.search) return false;
+  const prefix = `/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/ai/submissions/${submissionId}/`;
+  return target.pathname.startsWith(prefix) && /^[a-f0-9]{32}\.pdf$/.test(target.pathname.slice(prefix.length))
+    && target.searchParams.get("X-Amz-Expires") === "900" && hasExactHostSignature(target, 900);
+}
+
 function isExactDevelopmentOmrImage(boundary: ReleaseBoundary, rawUrl: string, method: string): boolean {
   if (boundary.mode !== "development" || method !== "GET"
     || !Number.isSafeInteger(boundary.omrR2TenantId) || Number(boundary.omrR2TenantId) < 1) return false;
@@ -1121,6 +1133,7 @@ export async function installReleaseContextGuard(
   const communityImageUrls = new Map<string, "image/png" | "image/jpeg" | "image/webp">();
   const communityFileUrls = new Map<string, { contentType: string; sizeBytes: number; disposition: string }>();
   const resourceDownloadUrls = new Set<string>();
+  const omrPreviewPdfs = new Map<string, string>();
   const resourceReaderUrls = new Map<string, string>();
   const acceptedPptJobs = new Set<string>();
   const acceptedPayrollJobs = new Map<string, string>();
@@ -1386,6 +1399,23 @@ export async function installReleaseContextGuard(
         await route.fulfill({ response, body });
         return;
       }
+      if (request.method() === "GET" && request.resourceType() === "document"
+        && [...omrPreviewPdfs.values()].includes(upstream)) {
+        const headers = await request.allHeaders();
+        if (bodyBytes || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
+          .some(key => headers[key])) { await reject("credentials"); return; }
+        const response = await route.fetch({ url: upstream, method: "GET", headers: { accept: "application/pdf" }, maxRedirects: 0 });
+        if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
+        if (response.status() !== 200 || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== "application/pdf") {
+          await reject("transport"); return;
+        }
+        const body = await response.body();
+        if (body.length > 10 * 1024 * 1024 || body.subarray(0, 5).toString("ascii") !== "%PDF-") {
+          await reject("transport"); return;
+        }
+        await route.fulfill({ status: 200, headers: { "content-type": "application/pdf", "cache-control": "no-store" }, body });
+        return;
+      }
       const documentDownload = request.method() === "GET"
         ? [...documentDownloadUrls.values()].find((item) => item.url === upstream) : undefined;
       if (documentDownload && ["document", "other"].includes(request.resourceType())) {
@@ -1549,6 +1579,18 @@ export async function installReleaseContextGuard(
           throw new Error("Real API CORS boundary mismatch");
         }
         const pptTarget = new URL(upstream);
+        const omrPreview = /^\/api\/v1\/submissions\/submissions\/([1-9][0-9]*)\/preview\/$/.exec(pptTarget.pathname);
+        if (boundary.mode === "development" && omrPreview && !pptTarget.search && request.method() === "GET") {
+          const submissionId = omrPreview[1];
+          omrPreviewPdfs.delete(submissionId);
+          if (response.status() === 200 && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json"
+            && response.headers()["cache-control"] === "no-store" && /^Bearer \S+$/.test(headers.authorization ?? "")
+            && headers["x-tenant-code"] === boundary.tenantCode && !headers["x-student-id"] && omrPreviewPdfs.size < 4) {
+            const payload: unknown = await response.json();
+            if (isRecord(payload) && Object.keys(payload).length === 1 && typeof payload.url === "string"
+              && isExactOmrPreviewPdf(boundary, payload.url, submissionId)) omrPreviewPdfs.set(submissionId, payload.url);
+          }
+        }
         if (boundary.mode === "development" && request.method() === "POST" && !pptTarget.search
           && response.status() >= 200 && response.status() < 300
           && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json"

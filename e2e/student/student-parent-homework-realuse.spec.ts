@@ -235,12 +235,13 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
         await expect(edit).toBeVisible();
         await staffPage.reload();
         await verifyMixed(originalOrder, [created.homeworkId!], width === 1366 ? 1 : 0);
-        checkpoint.phase = "feedback-order";
+        checkpoint.phase = "feedback-correction";
         await verifyScoreCorrectionWhileEditing(staffPage, parentPage, request, admin.access, {
           sessionId: created.sessionId!, enrollmentId: created.enrollmentId!,
           homeworkId: created.homeworkId!, homeworkTitle, studentName, maxScore: 100,
         });
         // Put both items after the total, reorder there, and prove completion never enters the sum.
+        checkpoint.phase = "feedback-order";
         await staffPage.getByRole("button", { name: "과제 총점 합산 설정", exact: true }).click();
         await totals.getByRole("checkbox", { name: `${homeworkTitle} 합산에 포함`, exact: true }).uncheck();
         await totals.getByRole("button", { name: "합산 설정 저장", exact: true }).click();

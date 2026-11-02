@@ -9,7 +9,7 @@ export async function verifyScoreCorrectionWhileEditing(
 ) {
   const scoresPath = `/results/admin/sessions/${target.sessionId}/scores/`;
   type Scores = { rows: Array<{ enrollment_id: number; homeworks: Array<{
-    homework_id: number; block: { score: number | null; correction_status: string | null; correction_note: string; teacher_resolved: boolean };
+    homework_id: number; block: { score: number | null; passed: boolean | null; correction_status: string | null; correction_note: string; teacher_resolved: boolean };
   }> }> };
   const readBlock = async () => {
     const scores = await expectApi<Scores>(request, "GET", scoresPath, access);
@@ -17,10 +17,14 @@ export async function verifyScoreCorrectionWhileEditing(
       .homeworks.find(homework => homework.homework_id === target.homeworkId)!.block;
   };
   const before = await readBlock();
-  expect(before.teacher_resolved).toBe(false);
+  expect(before).toMatchObject({ score: 92, passed: true, teacher_resolved: false });
   const scoreCell = page.locator(`[data-score-cell="homework:${target.enrollmentId}:${target.homeworkId}"]`);
-  const beforeAchievement = await scoreCell.getAttribute("data-achievement");
-  expect(beforeAchievement).not.toBeNull();
+  const expectOriginalScore = async () => {
+    await expect(scoreCell).toHaveAttribute("data-pass-status", "pass");
+    await expect(scoreCell).not.toHaveAttribute("data-achievement");
+    await expect(scoreCell.getByText("통과 인정", { exact: true })).toHaveCount(0);
+  };
+  await expectOriginalScore();
   const open = async () => {
     await page.locator('tbody tr[role="button"] [data-col-type="name"]')
       .filter({ hasText: target.studentName }).click();
@@ -65,6 +69,5 @@ export async function verifyScoreCorrectionWhileEditing(
   await expect(reopened.getByRole("button", { name: "미완료", exact: true })).toHaveAttribute("aria-pressed", "true");
   expect(await readBlock()).toMatchObject({ score: before.score, correction_status: "PENDING", correction_note: "", teacher_resolved: false });
   await page.reload();
-  await expect(scoreCell).toHaveAttribute("data-achievement", beforeAchievement!);
-  await expect(scoreCell.getByText("통과 인정", { exact: true })).toHaveCount(0);
+  await expectOriginalScore();
 }

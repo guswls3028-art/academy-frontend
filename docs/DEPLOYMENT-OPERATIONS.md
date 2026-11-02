@@ -423,6 +423,18 @@ Set-Cookie·Location 등 upstream header는 전달하지 않는다. direct APIRe
 검증하므로 IAM/SSM 변경은 없다. `release-omr-image-boundary.test.mjs`를 공식 canary 계약
 suite가 실행하며, 실제 이미지 decode와 OMR 흐름·cleanup zero는 별도 실사용 gate로 남는다.
 
+배정 전 OMR 원본 PDF의 미리보기·새 창은 격리 staff의 해당 제출물 preview GET에서
+실제 200 JSON, `Cache-Control: no-store`, tenant·CORS 확인을 거쳐 받은 단일 URL로
+검증한다. 해당 Setup tenant/제출물의 `ai/submissions/<id>/<32 hex>.pdf`, 개발 bucket,
+900초·host 단독 SigV4를 모두 확인한 주소만 그 browser context에서 document GET으로
+중계한다. GET은 PDF Accept만 전달하고 redirect를 따르지 않는다. 200 PDF MIME과
+10 MiB 이하 `%PDF-` 원본 bytes를 확인한 뒤 안전한 응답 헤더만 반환한다. 미리보기와
+새 창에서 각각 같은 원본의 응답을 확인하고 나서 학생을 지정한다. 서명 주소는 기록하지 않는다.
+
+과제 실사용은 일반 숫자 셀의 통과 표시와 원점수를 확인한 뒤 교사 완료 확정·비고·학부모
+표시와 reload, 미완료 복원 후의 원점수·통과 상태를 검사한다. 이 단계의 오류는
+`feedback-correction`, 이어지는 열 정렬·합산·저장 오류는 `feedback-order`로 구분한다.
+
 과제 PNG 미리보기는 같은 검증된 Setup tenant와 개발 bucket에서만 읽는다.
 인증·tenant·실제 CORS 검사를 통과한
 `GET /api/v1/submissions/submissions/homework/<id>/media/<media_id>/preview/`의

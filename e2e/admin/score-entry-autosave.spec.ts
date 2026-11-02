@@ -764,6 +764,59 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   });
 }
 
+for (const width of [1366, 390]) {
+  test(`@homework-correction ${width}px 일반 점수 → 교사 완료 → 미완료 복원 후 원점수와 통과 표시를 유지한다`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openScores(page, { includeHomework: true, initialHomeworkScores: [92, null], homeworkAssignedRows: [true, false] });
+    const scoresPath = "/api/v1/results/admin/sessions/9002/scores/";
+    const initial = await page.evaluate(async path => (await fetch(path)).json(), scoresPath);
+    const block = initial.rows[0].homeworks[0].block;
+    Object.assign(block, { teacher_resolved: false, correction_status: "PENDING", correction_note: "", correction_updated_at: null });
+    await page.route(`**${scoresPath}`, route => route.fulfill({ json: initial }));
+    const decisions: boolean[] = [];
+    await page.route("**/api/v1/results/admin/sessions/9002/score-correction/", async route => {
+      const body = route.request().postDataJSON();
+      expect(body).toMatchObject({ source_type: "homework", source_id: 9151, enrollment_id: 9201 });
+      decisions.push(body.completed);
+      Object.assign(block, { teacher_resolved: body.completed, correction_status: body.completed ? "COMPLETED" : "PENDING",
+        correction_note: body.note, correction_updated_at: `2026-09-01T12:00:0${decisions.length}Z` });
+      await route.fulfill({ json: block });
+    });
+    await page.reload();
+    const cell = page.locator('[data-score-cell="homework:9201:9151"]');
+    const normal = async () => {
+      await expect(cell).toContainText("92");
+      await expect(cell).toHaveAttribute("data-pass-status", "pass");
+      await expect(cell).not.toHaveAttribute("data-achievement");
+      await expect(cell.getByText("통과 인정", { exact: true })).toHaveCount(0);
+    };
+    const drawer = page.locator(".student-scores-drawer");
+    const open = async () => {
+      await page.locator('tbody tr[role="button"] [data-col-type="name"]').filter({ hasText: "자동저장학생1" }).click();
+      await drawer.locator(".student-scores-drawer__hw-card").getByText("단원 복습", { exact: true }).click();
+    };
+    await normal();
+    await page.getByRole("button", { name: "수정", exact: true }).click();
+    await open();
+    await drawer.getByRole("textbox", { name: "교사 완료 판정 비고" }).fill("보완 검사 완료");
+    await drawer.getByRole("button", { name: "완료 확정", exact: true }).click();
+    await expect(cell).toHaveAttribute("data-achievement", "REMEDIATED");
+    await expect(cell.getByText("통과 인정", { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(cell).toHaveAttribute("data-achievement", "REMEDIATED");
+    await expect(cell).toContainText("92");
+    await open();
+    await expect(drawer.getByRole("textbox", { name: "교사 완료 판정 비고" })).toHaveValue("보완 검사 완료");
+    await drawer.getByRole("textbox", { name: "교사 완료 판정 비고" }).fill("");
+    await drawer.getByRole("button", { name: "미완료", exact: true }).click();
+    await expect(drawer.getByRole("button", { name: "미완료", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.reload();
+    await normal();
+    expect(decisions).toEqual([true, false]);
+    expect(block).toMatchObject({ score: 92, passed: true, teacher_resolved: false, correction_note: "", correction_status: "PENDING" });
+  });
+}
+
 test("같은 계정의 다른 화면이 선택한 과제 셀을 표시하고 다른 셀은 입력한다", async ({ page }) => {
   await openScores(page, {
     includeHomework: true,
