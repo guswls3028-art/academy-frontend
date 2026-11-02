@@ -1,10 +1,17 @@
-import type { Page } from "@playwright/test";
+import type { Page, Response } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
 import { reloadStudentApp } from "./qaStudentParentScenario";
 
 export type CorrectionScores = { rows: Array<{ enrollment_id: number; homeworks: Array<{
   homework_id: number; block: { score: number | null; passed: boolean | null; correction_status: string | null; correction_note: string; teacher_resolved: boolean };
 }> }> };
+
+export function isExplicitScoreFinish(response: Response, sessionId: number) {
+  const request = response.request();
+  if (request.method() !== "POST" || new URL(response.url()).pathname !== `/api/v1/results/admin/sessions/${sessionId}/score-draft/commit/`) return false;
+  const payload = request.postDataJSON();
+  return payload?.release_lease === true && payload.release_if_empty !== true;
+}
 
 /** Shared by the disposable release scenario and its closed browser regression. */
 export async function verifyScoreCorrectionWhileEditing(
@@ -61,9 +68,7 @@ export async function verifyScoreCorrectionWhileEditing(
   const finish = page.getByRole("button", { name: "점수 입력 마침", exact: true });
   await expect(finish).toBeEnabled();
   const [released] = await Promise.all([
-    page.waitForResponse(response => response.request().method() === "POST"
-      && new URL(response.url()).pathname === `/api/v1/results/admin/sessions/${target.sessionId}/score-draft/commit/`
-      && response.request().postDataJSON()?.release_lease === true),
+    page.waitForResponse(response => isExplicitScoreFinish(response, target.sessionId)),
     finish.click(),
   ]);
   expect(released.status()).toBe(204);

@@ -1,6 +1,6 @@
 import type { Browser, Page } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
-import { verifyScoreCorrectionWhileEditing } from "./verifyScoreCorrectionWhileEditing";
+import { isExplicitScoreFinish, verifyScoreCorrectionWhileEditing } from "./verifyScoreCorrectionWhileEditing";
 
 /** Closed browser counterpart to the isolated score correction and ordering journey. */
 export async function runHomeworkCorrectionFixture(page: Page, browser: Browser, width: number, token: string) {
@@ -14,6 +14,15 @@ export async function runHomeworkCorrectionFixture(page: Page, browser: Browser,
     return response.json();
   }, scoresPath);
   const scores = await readScores();
+  // A conditional page-exit release also returns 204, but cannot acknowledge Finish.
+  const commitPath = `${base}/score-draft/commit/`;
+  const [pageExit] = await Promise.all([
+    page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === commitPath),
+    page.evaluate(path => fetch(path, { method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ release_lease: true, release_if_empty: true }) }).then(response => response.status), commitPath),
+  ]);
+  expect(pageExit.status()).toBe(204);
+  expect(isExplicitScoreFinish(pageExit, sessionId)).toBe(false);
   const numeric = scores.meta.homeworks[0], row = scores.rows[0], item = row.homeworks[0];
   const block = item.block;
   Object.assign(block, { teacher_resolved: false, correction_status: "PENDING", correction_note: "", correction_updated_at: null });
