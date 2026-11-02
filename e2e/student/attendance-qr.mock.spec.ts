@@ -142,8 +142,13 @@ for (const width of [390, 1366]) {
     await page.goto(`${BASE}/workspace/clinic/home`);
     await page.getByRole("button", { name: "출결 QR 출력", exact: true }).click();
     await page.getByLabel("인쇄할 이름").fill("301호 출결");
-    await expect(page.getByRole("textbox", { name: /^클리닉 장소/ })).toHaveAccessibleName("클리닉 장소");
-    await page.getByLabel("클리닉 장소", { exact: true }).fill("301호");
+    const location = page.getByLabel("클리닉 장소", { exact: true });
+    await expect(location).toHaveCount(1);
+    await expect(location).toHaveAccessibleName("클리닉 장소");
+    await expect(location).toHaveAccessibleDescription("일정에 등록된 장소 이름과 정확히 같게 입력해 주세요. 비우면 이 학원의 모든 장소에서 사용할 수 있습니다.");
+    await page.locator("label").filter({ hasText: /^클리닉 장소$/ }).click();
+    await expect(location).toBeFocused();
+    await location.fill("301호");
     await page.getByRole("button", { name: "QR 발급", exact: true }).click();
     const poster = page.getByLabel("출결 QR 인쇄 미리보기");
     await expect(poster.locator("svg")).toBeVisible();
@@ -170,6 +175,12 @@ for (const width of [390, 1366]) {
     await expect(printContent.locator("body")).toContainText("들어올 때 등원 · 나갈 때 하원");
     await printFrame.evaluate((node: HTMLIFrameElement) => node.contentWindow?.dispatchEvent(new Event("afterprint")));
     await expect(printFrame).toHaveCount(0);
+    await page.reload();
+    await page.getByRole("button", { name: "출결 QR 출력", exact: true }).click();
+    await expect(poster).toContainText("301호");
+    await expect(poster.locator("svg")).toBeVisible();
+    expect(state.points).toHaveLength(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await page.screenshot({ path: test.info().outputPath(`qr-poster-${width}.png`), fullPage: true });
     state.role = "student";
     await page.goto(`${BASE}/student/attendance/scan`);

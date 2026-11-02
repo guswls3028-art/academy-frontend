@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { QRCode } from "antd";
 import { Printer, ScanLine } from "lucide-react";
@@ -22,6 +22,7 @@ export default function AttendanceQrManager({ kind, lectureId }: Props) {
 }
 
 function QrManagerDialog({ kind, lectureId, onClose }: Props & { onClose: () => void }) {
+  const locationId = useId();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
   const poster = useRef<HTMLDivElement>(null);
@@ -113,7 +114,11 @@ function QrManagerDialog({ kind, lectureId, onClose }: Props & { onClose: () => 
         <details open={!selected} className={styles.create}><summary>새 출결 QR 만들기</summary>
           <form onSubmit={(event) => { event.preventDefault(); setError(""); mutation.mutate({ mode: "create" }); }}>
             <label className={styles.field}>인쇄할 이름<input required maxLength={100} value={label} onChange={(event) => setLabel(event.target.value)} placeholder="예: 301호 수업 출석" /></label>
-            {kind === "clinic" && <label className={styles.field}>클리닉 장소<input maxLength={100} value={location} onChange={(event) => setLocation(event.target.value)} placeholder="비우면 모든 클리닉 장소" /><small>일정에 등록된 장소 이름과 정확히 같게 입력해 주세요. 비우면 이 학원의 모든 장소에서 사용할 수 있습니다.</small></label>}
+            {kind === "clinic" && <div className={styles.field}>
+              <label htmlFor={locationId}>클리닉 장소</label>
+              <input id={locationId} aria-describedby={`${locationId}-help`} maxLength={100} value={location} onChange={(event) => setLocation(event.target.value)} placeholder="비우면 모든 클리닉 장소" />
+              <small id={`${locationId}-help`}>일정에 등록된 장소 이름과 정확히 같게 입력해 주세요. 비우면 이 학원의 모든 장소에서 사용할 수 있습니다.</small>
+            </div>}
             <Button type="submit" intent="primary" loading={mutation.isPending} disabled={!label.trim()}>QR 발급</Button>
           </form>
         </details>

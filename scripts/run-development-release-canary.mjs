@@ -115,6 +115,7 @@ const SAFE_FAILURE_SOURCE_FILES = new Set([
   "firstLoginGuide.ts", "qaStudentParentScenario.ts", "releaseApiBoundary.ts", "strictBrowser.ts", "wait.ts",
   "verifyAssessmentCopy.ts",
   "verifyOnlineWrittenSubmission.ts",
+  "qrAttendanceRealuse.ts", "qrCameraInput.ts",
   "excelEnrollmentRealuse.ts", "excelAssessmentRealuse.ts", "excelImport.ts",
   "attendanceExcelRealuse.ts", "homeworkCriteriaRealuse.ts",
 ]);
