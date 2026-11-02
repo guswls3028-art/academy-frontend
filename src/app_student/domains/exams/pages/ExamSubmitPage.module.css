@@ -169,3 +169,12 @@
 .submitButton {
   width: 100%;
 }
+
+/* Keep the pointer target in place after the confirmation dialog closes.
+   Color, shadow and brightness still distinguish hover and press. */
+.pageStack .submitButton:hover,
+.pageStack .submitButton:active,
+.recoveryActions :global(.stu-btn--primary):hover,
+.recoveryActions :global(.stu-btn--primary):active {
+  transform: none;
+}

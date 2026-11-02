@@ -233,24 +233,43 @@ test.describe("학생 수학 숫자 단답", () => {
   });
 });
 
-test("늦은 제출 확인이 다른 탭의 새 답안과 제출 식별자를 지우지 않는다", async ({ page }) => {
-  const { submissions } = await installApi(page, "student", false, { loseResponse: true });
-  await page.goto(`${BASE}/student/exams/901/submit`);
-  await page.getByLabel("1번 답", { exact: true }).fill("3");
-  await page.getByRole("button", { name: "제출하기", exact: true }).click();
-  await page.getByRole("button", { name: "제출", exact: true }).click();
-  await expect(page.getByRole("button", { name: "같은 제출 다시 확인" })).toBeVisible();
-  const next = { ...submissions[0], client_request_id: "20000000-0000-4000-8000-000000000002",
-    answers: [{ exam_question_id: 1001, answer: "5" }] };
-  await page.evaluate((payload) => {
-    localStorage.setItem("exam-draft:901:hakwonplus:user:11:submission", JSON.stringify(payload));
-    localStorage.setItem("exam-draft:901:hakwonplus:user:11", JSON.stringify({ 1001: "5" }));
-  }, next);
-  await page.getByRole("button", { name: "같은 제출 다시 확인" }).click();
-  await expect(page).toHaveURL(/\/student\/exams\/901\/result$/);
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("exam-draft:901:hakwonplus:user:11:submission")!))).toEqual(next);
-  expect(await page.evaluate(() => localStorage.getItem("exam-draft:901:hakwonplus:user:11"))).toBe('{"1001":"5"}');
-});
+for (const width of [1366, 390]) {
+  test(`${width}px 늦은 제출 확인이 다른 탭의 새 답안과 제출 식별자를 지우지 않는다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { submissions } = await installApi(page, "student", false, { loseResponse: true });
+    await page.goto(`${BASE}/student/exams/901/submit`);
+    await page.getByLabel("1번 답", { exact: true }).fill("3");
+    await page.getByRole("button", { name: "제출하기", exact: true }).click();
+    await page.getByRole("button", { name: "제출", exact: true }).click();
+    await expect(page.getByRole("button", { name: "같은 제출 다시 확인" })).toBeVisible();
+    const next = { ...submissions[0], client_request_id: "20000000-0000-4000-8000-000000000002",
+      answers: [{ exam_question_id: 1001, answer: "5" }] };
+    await page.evaluate((payload) => {
+      localStorage.setItem("exam-draft:901:hakwonplus:user:11:submission", JSON.stringify(payload));
+      localStorage.setItem("exam-draft:901:hakwonplus:user:11", JSON.stringify({ 1001: "5" }));
+    }, next);
+    const retry = page.getByRole("button", { name: "같은 제출 다시 확인", exact: true });
+    await page.mouse.move(0, 0);
+    await retry.scrollIntoViewIfNeeded();
+    const box = await retry.boundingBox();
+    expect(box).not.toBeNull();
+    const edge = { x: box!.x + box!.width / 2, y: box!.y + box!.height - 0.5 };
+    await page.mouse.move(edge.x, edge.y);
+    const stableHit = await retry.evaluate(async (button, point) => {
+      for (let frame = 0; frame < 6; frame++) {
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        if (!button.contains(document.elementFromPoint(point.x, point.y))) return false;
+      }
+      return true;
+    }, edge);
+    expect(stableHit, "The lower edge of the retry control must stay clickable").toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`numeric-retry-${width}.png`) });
+    await retry.click();
+    await expect(page).toHaveURL(/\/student\/exams\/901\/result$/);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem("exam-draft:901:hakwonplus:user:11:submission")!))).toEqual(next);
+    expect(await page.evaluate(() => localStorage.getItem("exam-draft:901:hakwonplus:user:11"))).toBe('{"1001":"5"}');
+  });
+}
 
 test("다른 기기 응시로 거절된 요청은 답안을 보존하고 새 재응시를 허용한다", async ({ page }) => {
   const { submissions } = await installApi(page, "student", false, { otherDeviceAttempt: true });
