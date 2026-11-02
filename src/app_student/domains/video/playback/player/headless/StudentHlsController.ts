@@ -10,31 +10,14 @@ import type { ErrorData, LevelSwitchedData, Level } from "hls.js";
 import { clamp, getEpochSec } from "../design/utils";
 import { resolveStudentVideoPlayUrl } from "../playbackUrl";
 import { PlaybackSessionEnd } from "./playbackSessionEnd";
+import { normalizeControllerPolicy as normalizePolicy } from "./controllerTypes";
 import type { ControllerOptions, ControllerState, EventType, Policy, QualityLevel } from "./controllerTypes";
 export type { ControllerOptions, ControllerState, EventType, Policy, QualityLevel } from "./controllerTypes";
 import { acquirePlaybackEventBatches, type PlaybackEventBatches } from "./playbackEventBatches";
 
 const ignoreBestEffortError = () => undefined;
 
-function normalizePolicy(p: Partial<Policy> | null | undefined): Policy {
-  const policy: Policy = { ...(p || {}) };
-  const seek = { ...(policy.seek || {}) };
-  const playbackRate = { ...(policy.playback_rate || {}) };
-  const watermark = { ...(policy.watermark || {}) };
-  if (policy.monitoring_enabled == null) {
-    policy.monitoring_enabled = policy.access_mode === "PROCTORED_CLASS";
-  }
-  if (policy.allow_seek == null) policy.allow_seek = true;
-  if (!seek.mode) seek.mode = "free";
-  if (seek.grace_seconds == null) seek.grace_seconds = 3;
-  if (playbackRate.max == null) playbackRate.max = 16;
-  if (playbackRate.ui_control == null) playbackRate.ui_control = true;
-  if (watermark.enabled == null) watermark.enabled = false;
-  policy.seek = seek;
-  policy.playback_rate = playbackRate;
-  policy.watermark = watermark;
-  return policy;
-}
+
 
 async function postHeartbeat(token: string) {
   if (token.startsWith("student-")) return;
