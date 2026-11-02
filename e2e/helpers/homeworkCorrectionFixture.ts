@@ -1,3 +1,4 @@
+import { verifyMixedHomeworkScoreEdit } from "./verifyMixedHomeworkScoreEdit";
 import type { Browser, Page } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
 import { isExplicitScoreFinish, verifyScoreCorrectionWhileEditing } from "./verifyScoreCorrectionWhileEditing";
@@ -27,13 +28,32 @@ export async function runHomeworkCorrectionFixture(page: Page, browser: Browser,
   const block = item.block;
   Object.assign(block, { teacher_resolved: false, correction_status: "PENDING", correction_note: "", correction_updated_at: null });
   const completion = { ...numeric, homework_id: completionId, title: completionTitle, grading_mode: "COMPLETION", max_score: 1 };
-  const completionItem = { homework_id: completionId, title: completionTitle, block: { ...block, score: 1, max_score: 1, passed: true } };
+  const completionFor = (score: number | null) => ({ homework_id: completionId, title: completionTitle,
+    block: { ...block, score, max_score: 1, passed: score === null ? null : score === 1, updated_at: score === null ? null : block.updated_at } });
+  const completionItem = completionFor(width === 1366 ? null : 1);
+  const peer = scores.rows[1], peerItem = peer.homeworks[0], peerCompletion = completionFor(width === 1366 ? null : 0);
+  let version = 0;
+  await page.route("**/api/v1/homework/scores/quick/", async route => {
+    expect(route.request().method()).toBe("PATCH");
+    const data = route.request().postDataJSON();
+    expect([enrollmentId, peer.enrollment_id]).toContain(data.enrollment_id);
+    expect([homeworkId, completionId]).toContain(data.homework_id);
+    const target = data.enrollment_id === enrollmentId ? (data.homework_id === homeworkId ? item : completionItem)
+      : (data.homework_id === homeworkId ? peerItem : peerCompletion);
+    if ((data.expected_updated_at ?? null) !== (target.block.updated_at ?? null)) {
+      return route.fulfill({ status: 409, json: { code: "SCORE_CELL_CONFLICT", server_value: target.block } });
+    }
+    Object.assign(target.block, { score: data.score, passed: data.score >= (data.homework_id === completionId ? 1 : 80),
+      updated_at: `2026-09-02T12:00:${String(++version).padStart(2, "0")}Z` });
+    return route.fulfill({ json: target.block });
+  });
   const config = { version: 1, exam_ids: [9101], exam_order: [9101], homework_ids: [homeworkId], homework_order: [homeworkId, completionId] };
   const decisions: boolean[] = [];
   await page.route(`**${scoresPath}`, route => {
     scores.meta.total_config = config;
     scores.meta.homeworks = config.homework_order.map(id => id === homeworkId ? numeric : completion);
     row.homeworks = config.homework_order.map(id => id === homeworkId ? item : completionItem);
+    peer.homeworks = config.homework_order.map(id => id === homeworkId ? peerItem : peerCompletion);
     row.homework_total = config.homework_ids.length ? { score: block.score, max_score: 100, selected_count: 1, scored_count: 1, complete: true } : null;
     return route.fulfill({ json: scores });
   });
@@ -84,6 +104,12 @@ export async function runHomeworkCorrectionFixture(page: Page, browser: Browser,
     });
     await parentPage.goto(new URL("/student/grades", page.url()).href);
     await page.reload();
+    await verifyMixedHomeworkScoreEdit(page, width, readScores, { enrollmentId, homeworkId, completionId, studentName,
+      comparisonName: peer.student_name, homeworkTitle, completionTitle });
+    const persisted = await readScores();
+    expect(persisted.rows[0].homeworks.map((h: { block: { score: number } }) => h.block.score)).toEqual([92, width === 1366 ? 1 : 0]);
+    expect(persisted.rows[1].homeworks.map((h: { block: { score: number } }) => h.block.score)).toEqual([60, width === 1366 ? 0 : 1]);
+    expect(persisted.rows[0].homework_total).toMatchObject({ score: 92, max_score: 100 });
     await verifyScoreCorrectionWhileEditing(page, parentPage, readScores, { sessionId, enrollmentId, homeworkId, homeworkTitle, studentName, maxScore: 100 });
     expect(parentReads).toContain(true);
     expect(decisions).toEqual([true, false]);

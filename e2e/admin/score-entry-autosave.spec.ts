@@ -769,7 +769,7 @@ for (const width of [1366, 390]) {
   test(`@homework-correction ${width}px 일반 점수 → 교사 완료 → 미완료 복원 후 원점수와 통과 표시를 유지한다`, async ({ page, browser }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width, height: 900 });
-    await openScores(page, { includeHomework: true, initialHomeworkScores: [92, null], homeworkAssignedRows: [true, false] });
+    await openScores(page, { includeHomework: true, initialHomeworkScores: [92, width === 1366 ? null : 60], homeworkAssignedRows: [true, true] });
     await runHomeworkCorrectionFixture(page, browser, width, createLocalJwt());
   });
 }

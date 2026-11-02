@@ -117,7 +117,7 @@ const SAFE_FAILURE_SOURCE_FILES = new Set([
   "verifyOnlineWrittenSubmission.ts",
   "qrAttendanceRealuse.ts", "qrCameraInput.ts",
   "excelEnrollmentRealuse.ts", "excelAssessmentRealuse.ts", "excelImport.ts",
-  "attendanceExcelRealuse.ts", "homeworkCriteriaRealuse.ts", "verifyScoreCorrectionWhileEditing.ts",
+  "attendanceExcelRealuse.ts", "homeworkCriteriaRealuse.ts", "verifyScoreCorrectionWhileEditing.ts", "verifyMixedHomeworkScoreEdit.ts",
 ]);
 const FLOW_FAILURE_KINDS = new Set(["boundary", "assertion", "locator-timeout", "transport", "other"]);
 const LEARNING_FAILURE_PHASES = new Set([
