@@ -47,7 +47,7 @@ async function installWatchScenario(page: Page, completed = false) {
         session: { id: 394, title: "개념과 적용", order: 1 }, items: videos,
       });
     }
-    if (path === "/media/videos/562/review-watch/" && state.reviewRemaining !== null) {
+    if (path === "/student/video/videos/562/review-watch/" && state.reviewRemaining !== null) {
       if (request.postDataJSON().prepare) state.prepared = true;
       if (request.postDataJSON().playing) state.playingSignal = true;
       return json({ stream: "test-review", used_ms: 14000 - state.reviewRemaining, remaining_ms: state.reviewRemaining });

@@ -160,6 +160,7 @@ export class StudentHlsController {
   subscribe(listener: Listener): () => void {
     if (this.disposed) return () => {};
     this.listeners.add(listener);
+    listener(this.state);
     return () => this.listeners.delete(listener);
   }
 

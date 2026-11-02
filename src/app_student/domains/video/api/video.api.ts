@@ -123,7 +123,7 @@ function normalizeStudentVideoItem(video: StudentVideoListItem): StudentVideoLis
 export type ReviewWatch = { stream: string; used_ms: number; remaining_ms: number | null };
 
 export async function prepareReviewPlayback(videoId: number, enrollmentId: number | null, stream: string) {
-  const { data } = await api.post<ReviewWatch & { retry_after_ms?: number }>(`/media/videos/${videoId}/review-watch/`, {
+  const { data } = await api.post<ReviewWatch & { retry_after_ms?: number }>(`/student/video/videos/${videoId}/review-watch/`, {
     stream, sequence: 1, prepare: true, ...(enrollmentId ? { enrollment: enrollmentId } : {}),
   });
   if (data.stream !== stream || data.remaining_ms === 0) throw new Error("복습 시청시간을 모두 사용했습니다.");
@@ -133,7 +133,7 @@ export async function prepareReviewPlayback(videoId: number, enrollmentId: numbe
 export async function reportReviewWatch(
   videoId: number, enrollmentId: number | null, stream: string, sequence: number, playing: boolean,
 ) {
-  const result = await api.post<ReviewWatch>(`/media/videos/${videoId}/review-watch/`, {
+  const result = await api.post<ReviewWatch>(`/student/video/videos/${videoId}/review-watch/`, {
     stream, sequence, playing, ...(enrollmentId ? { enrollment: enrollmentId } : {}),
   });
   if (result.data?.stream !== stream || !Number.isFinite(result.data.used_ms)
