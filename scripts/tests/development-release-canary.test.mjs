@@ -905,8 +905,8 @@ test("student-parent real-use selects the intended child and uses supported clin
     assert.match(source, /selectParentStudentThroughUi\(page,/);
   }
   assert.match(clinicSource, /createQaFamily\([^;]+\{ withStudentPhones: true \}\)/s);
-  assert.match(clinicSource, /remove\("DELETE", `\/clinic\/sessions\/\$\{sessionId\}\/`\)/);
-  assert.doesNotMatch(clinicSource, /remove\("DELETE", `\/clinic\/participants\//);
+  assert.match(clinicSource, /remove\(`\/clinic\/sessions\/\$\{sessionId\}\/`\)/);
+  assert.doesNotMatch(clinicSource, /remove\(`\/clinic\/participants\//);
   assert.match(clinicSource, /verify clinic participant \$\{participantId\} absent/);
 });
 
@@ -1957,6 +1957,26 @@ test("long-video result observation preserves only allowlisted execution facts",
     errorCount: 1,
   });
   assert.doesNotMatch(JSON.stringify(observed), /secret-token|student-name/);
+});
+
+test("QR failure observation retains safe helper locations without raw locator or credentials", () => {
+  const report = completeFlowReport();
+  const suite = report.suites.find(value => value.specs[0].file.endsWith("student-parent-clinic-realuse.spec.ts"));
+  const failed = suite.specs[0].tests[0];
+  failed.status = "unexpected";
+  failed.results[0] = { status: "failed", errors: [
+    { message: "locator.fill: Timeout secret-token student-name", location: { file: "/private/path/qrAttendanceRealuse.ts", line: 33, column: 70 } },
+    { message: "private camera details", location: { file: "/private/path/qrCameraInput.ts", line: 61, column: 9 } },
+    { message: "private file", location: { file: "/private/path/secret-token.ts", line: 1, column: 1 } },
+  ] };
+  const observed = observeReleaseTestResult(JSON.stringify(report));
+  assert.deepEqual(observed.failureLocations, [
+    { specFile: "student-parent-clinic-realuse.spec.ts", sourceFile: "qrAttendanceRealuse.ts", line: 33, column: 70 },
+    { specFile: "student-parent-clinic-realuse.spec.ts", sourceFile: "qrCameraInput.ts", line: 61, column: 9 },
+  ]);
+  assert.equal(observed.reportedTestErrors[0].kind, "locator-timeout");
+  assert.equal(observed.reportedTestErrors[2].sourceFile, null);
+  assert.doesNotMatch(JSON.stringify(observed), /secret-token|student-name|private|locator\.fill/);
 });
 
 test("long-video response capture failures are explicitly joined instead of becoming unhandled", () => {

@@ -45,6 +45,7 @@ let sessionId: number | undefined;
 let participantId: number | undefined;
 let lectureId: number | undefined;
 let enrollmentId: number | undefined;
+let qrClassSessionId: number | undefined;
 let originalAutoApproval: boolean | undefined;
 
 const runStamp = Date.now();
@@ -92,25 +93,29 @@ async function cleanup(request: APIRequestContext): Promise<void> {
       expect(restored.auto_approve_booking).toBe(originalAutoApproval);
     } catch { failures.push("clinic auto-approval setting restore failed"); }
   }
-  const remove = async (method: string, path: string) => {
+  const remove = async (path: string) => {
     try {
-      const result = await api(request, method, path, adminAccess);
-      if (![200, 202, 204, 404].includes(result.status)) failures.push(`${method} ${path} -> ${result.status}`);
+      const result = await api(request, "DELETE", path, adminAccess);
+      if (![204, 404].includes(result.status)) {
+        failures.push(`DELETE ${path} -> ${result.status}`);
+        return false;
+      }
+      const residue = await api(request, "GET", path, adminAccess);
+      if (residue.status !== 404) {
+        failures.push(`verify ${path} absent -> ${residue.status}`);
+        return false;
+      }
+      return true;
     } catch (error) {
-      failures.push(`${method} ${path} -> ${String(error)}`);
+      failures.push(`cleanup ${path} -> ${String(error)}`);
+      return false;
     }
   };
-  if (sessionId) await remove("DELETE", `/clinic/sessions/${sessionId}/`);
-  if (enrollmentId) await remove("DELETE", `/enrollments/${enrollmentId}/`);
-  if (lectureId) await remove("DELETE", `/lectures/lectures/${lectureId}/`);
+  if (sessionId) await remove(`/clinic/sessions/${sessionId}/`);
+  const enrollmentRemoved = !enrollmentId || await remove(`/enrollments/${enrollmentId}/`);
+  const qrSessionRemoved = !qrClassSessionId || (enrollmentRemoved && await remove(`/lectures/sessions/${qrClassSessionId}/`));
+  if (lectureId && enrollmentRemoved && qrSessionRemoved) await remove(`/lectures/lectures/${lectureId}/`);
   await cleanupQaFamily(request, adminAccess, family);
-  for (const path of [
-    ...(enrollmentId ? [`/enrollments/${enrollmentId}/`] : []),
-    ...(lectureId ? [`/lectures/lectures/${lectureId}/`] : []),
-  ]) {
-    const residue = await api(request, "GET", path, adminAccess);
-    if (residue.status !== 404) failures.push(`verify ${path} absent -> ${residue.status}`);
-  }
   if (sessionId) {
     const residue = await api(request, "GET", `/clinic/sessions/${sessionId}/`, adminAccess);
     if (residue.status !== 404) failures.push(`verify clinic session ${sessionId} absent -> ${residue.status}`);
@@ -324,7 +329,8 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
         });
       }
       if (!lectureId || !enrollmentId) throw new Error("QR scenario requires its owned lecture and enrollment");
-      await verifyQrAttendanceRealuse({ page, teacherPage, request, testInfo, family, adminAccess: admin.access, lectureId, enrollmentId });
+      await verifyQrAttendanceRealuse({ page, teacherPage, request, testInfo, family, adminAccess: admin.access, lectureId, enrollmentId,
+        recordClassSession: id => { qrClassSessionId = id; } });
       teacherBoundary.assertClean();
       teacherBrowser.assertZeroDefects();
     } finally {

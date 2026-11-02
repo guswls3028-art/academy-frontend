@@ -787,7 +787,7 @@ async function verifyDirectAnswerEntry(
     const release = page.waitForResponse((response) => matchesApiResponse(response, "POST", `${draftPath}commit/`)
       && response.request().postDataJSON()?.release_lease === true);
     await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
-    expect((await release).status()).toBe(200);
+    expect((await release).status()).toBe(204);
     await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
     await page.reload({ waitUntil: "domcontentloaded" });
     const readback = await openAnswer();

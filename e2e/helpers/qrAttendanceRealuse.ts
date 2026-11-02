@@ -9,9 +9,10 @@ type Point = { id: number; token: string; active: boolean };
 type Participant = { id: number; status: string; checked_in_at: string | null; checked_out_at: string | null; completed_at: string | null };
 
 /** Exact qa-* family owned by the existing clinic scenario; never production fixtures. */
-export async function verifyQrAttendanceRealuse({ page, teacherPage, request, testInfo, family, adminAccess, lectureId, enrollmentId }: {
+export async function verifyQrAttendanceRealuse({ page, teacherPage, request, testInfo, family, adminAccess, lectureId, enrollmentId, recordClassSession }: {
   page: Page; teacherPage: Page; request: APIRequestContext; testInfo: TestInfo; family: QaFamily;
   adminAccess: string; lectureId: number; enrollmentId: number;
+  recordClassSession: (id: number) => void;
 }) {
   assertQaStudentParentRuntime();
   const student = family.students[0];
@@ -61,6 +62,8 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
     await expectApi(request, "PATCH", `/lectures/lectures/${lectureId}/`, adminAccess, { start_date: today });
     const session = await expectApi<{ id: number }>(request, "POST", "/lectures/sessions/", adminAccess, { lecture: lectureId, title: label, date: today, order: 1 });
     classSessionId = session.id;
+    // The parent owns enrollment targets; it must remove those before this session.
+    recordClassSession(classSessionId);
     await expectApi(request, "POST", "/enrollments/session-enrollments/bulk_create/", adminAccess, { session: classSessionId, enrollments: [enrollmentId] });
     await expectApi(request, "POST", "/lectures/attendance/bulk_create/", adminAccess, { session: classSessionId, students: [student.id] });
     const classSign = await createSign(`/workspace/lectures/${lectureId}/sessions/${classSessionId}/attendance`, "class");
@@ -143,7 +146,6 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
     }
     for (const path of [
       ...(clinicSessionId ? [`/clinic/sessions/${clinicSessionId}/`] : []),
-      ...(classSessionId ? [`/lectures/sessions/${classSessionId}/`] : []),
     ]) {
       try {
         const removed = await api(request, "DELETE", path, adminAccess);
