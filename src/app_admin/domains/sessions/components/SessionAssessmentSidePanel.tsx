@@ -298,7 +298,8 @@ export default function SessionAssessmentSidePanel({
     return readAssessmentItemId(searchParams, "homework");
   }, [searchParams]);
 
-  const { data: exams = [], isLoading: examsLoading, isError: examsError, isFetching: examsFetching, refetch: refetchExams } = useQuery({
+  const { data: exams = [], isLoading: examsLoading, isError: examsError, isFetching: examsFetching,
+    isSuccess: examsSuccess, fetchStatus: examsFetchStatus, refetch: refetchExams } = useQuery({
     queryKey: sessionAssessmentQueryKeys.exams(sessionId),
     queryFn: () => fetchAdminSessionExams(sessionId),
     enabled: !!sessionId,
@@ -329,7 +330,8 @@ export default function SessionAssessmentSidePanel({
     return map;
   }, [examsSummary]);
 
-  const { data: homeworks = [], isLoading: hwLoading, isError: hwError, isFetching: hwFetching, refetch: refetchHomeworks } = useQuery({
+  const { data: homeworks = [], isLoading: hwLoading, isError: hwError, isFetching: hwFetching,
+    isSuccess: hwSuccess, fetchStatus: hwFetchStatus, refetch: refetchHomeworks } = useQuery({
     queryKey: sessionAssessmentQueryKeys.homeworks(sessionId),
     queryFn: async (): Promise<HomeworkItem[]> => {
       const rows: AssessmentHomeworkListItem[] = await fetchSessionHomeworks(sessionId);
@@ -356,7 +358,8 @@ export default function SessionAssessmentSidePanel({
     display: kind === resolvedActiveKind ? "block" : "none",
   });
 
-  // Auto-select or repair deleted/stale exam/homework query params on assessment tabs.
+  // Only a successful settled list can repair selection. Cached rows may not
+  // include an assessment just created while its refetch is running or paused.
   useEffect(() => {
     if (!sessionId || !lectureId) return;
     if (
@@ -366,7 +369,7 @@ export default function SessionAssessmentSidePanel({
     const path = location.pathname;
     const basePath = `/workspace/lectures/${lectureId}/sessions/${sessionId}`;
     if (path.startsWith(`${basePath}/exams`)) {
-      if (examsLoading) return;
+      if (!examsSuccess || examsFetchStatus !== "idle") return;
       const examIds = exams
         .map((exam) => Number((exam as SessionExamRow).exam_id))
         .filter((id) => Number.isFinite(id));
@@ -394,7 +397,7 @@ export default function SessionAssessmentSidePanel({
         );
       }
     } else if (path.startsWith(`${basePath}/assignments`)) {
-      if (hwLoading) return;
+      if (!hwSuccess || hwFetchStatus !== "idle") return;
       const homeworkIds = homeworks
         .map((homework) => Number(homework.id))
         .filter((id) => Number.isFinite(id));
@@ -422,7 +425,7 @@ export default function SessionAssessmentSidePanel({
         );
       }
     }
-  }, [location.pathname, location.search, location.state, skipAutoSelect, sessionId, lectureId, examId, homeworkId, exams, homeworks, examsLoading, hwLoading, navigate]);
+  }, [location.pathname, location.search, location.state, skipAutoSelect, sessionId, lectureId, examId, homeworkId, exams, homeworks, examsSuccess, examsFetchStatus, hwSuccess, hwFetchStatus, navigate]);
 
   const invalidateExams = () => qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.exams(sessionId) });
   const invalidateExamsSummary = () => qc.invalidateQueries({ queryKey: sessionAssessmentQueryKeys.examsSummary(sessionId) });

@@ -6,7 +6,7 @@ const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5194";
 test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "Local synthetic API only");
 test.use({ serviceWorkers: "block" });
 
-async function setup(page: Page, kind: "exam" | "homework", failSecond = false) {
+async function setup(page: Page, kind: "exam" | "homework", failSecond = false, holdTargetRefresh = false) {
   await installTenantOneInitScript(page);
   const jwt = `e30.${Buffer.from(JSON.stringify({ exp: 2_000_000_000, user_id: 12, tenant_code: "hakwonplus" })).toString("base64url")}.signature`;
   await page.addInitScript((token) => {
@@ -23,7 +23,12 @@ async function setup(page: Page, kind: "exam" | "homework", failSecond = false) 
     grading_mode: "SCORE", effective_cutline_mode: "PERCENT", effective_cutline_value: 80,
     created_at: "2026-10-01T09:00:00+09:00",
   }));
-  const state = { failSecond, failLectures: false, failSessions: false, pages: [] as number[], created: [] as Record<string, unknown>[] };
+  let releaseTargetRefresh = () => {};
+  const targetRefresh = new Promise<void>((resolve) => { releaseTargetRefresh = resolve; });
+  if (!holdTargetRefresh) releaseTargetRefresh();
+  const state = { failSecond, failLectures: false, failSessions: false,
+    failTargetRefresh: false, targetRefreshRequests: 0, targetRowsRemoved: false, releaseTargetRefresh,
+    pages: [] as number[], created: [] as Record<string, unknown>[] };
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace(/^\/api\/v1/, "");
@@ -38,8 +43,16 @@ async function setup(page: Page, kind: "exam" | "homework", failSecond = false) 
     if (path === "/lectures/lectures/71/") return json(lecture);
     if (path === "/lectures/sessions/") return state.failSessions ? json({ detail: "QA session failure" }, 400) : json(sessions);
     if (/^\/lectures\/sessions\/(72|73)\/$/.test(path)) return json(sessions.find((session) => path.includes(`/${session.id}/`)));
+    const targetList = /^\/results\/admin\/sessions\/73\/exams\/(?:summary\/)?$/.test(path)
+      || (path === "/homeworks/" && url.searchParams.get("session_id") === "73");
+    if (method === "GET" && targetList && state.created.length > 0) {
+      state.targetRefreshRequests++;
+      await targetRefresh;
+      if (state.failTargetRefresh) return json({ detail: "QA target refresh failure" }, 400);
+    }
+    const targetRows = state.targetRowsRemoved ? [] : state.created;
     // Session projections use exam_id, unlike the exam detail/create response's id.
-    const sessionExams = kind === "exam" ? state.created.map((exam) => ({ ...exam, exam_id: exam.id })) : [];
+    const sessionExams = kind === "exam" ? targetRows.map((exam) => ({ ...exam, exam_id: exam.id })) : [];
     if (/^\/results\/admin\/sessions\/\d+\/exams\/summary\/$/.test(path)) return json({ exams: sessionExams });
     if (/^\/results\/admin\/sessions\/\d+\/exams\/$/.test(path)) return json(sessionExams);
     if (path === (kind === "exam" ? "/exams/" : "/homeworks/")) {
@@ -47,10 +60,13 @@ async function setup(page: Page, kind: "exam" | "homework", failSecond = false) 
         const payload = route.request().postDataJSON() as Record<string, unknown>;
         const created = { ...payload, id: 9001 + state.created.length, exam_type: "regular" };
         state.created.push(created);
+        // Drive TanStack's real online manager before invalidation: the cached
+        // target list remains successful while its refetch is paused offline.
+        if (holdTargetRefresh) await page.evaluate(() => window.dispatchEvent(new Event("offline")));
         return json(created, 201);
       }
       if (url.searchParams.get("session_id") === "74") return json({ count: 1, next: null, results: [{ ...rows[0], id: 1700, title: `다음 차시 ${label}`, session_id: 74 }] });
-      if (url.searchParams.get("session_id") !== "72") return json({ count: state.created.length, next: null, results: state.created });
+      if (url.searchParams.get("session_id") !== "72") return json({ count: targetRows.length, next: null, results: targetRows });
       const pageNumber = Number(url.searchParams.get("page") || 1);
       const size = Math.min(500, Number(url.searchParams.get("page_size") || 20));
       state.pages.push(pageNumber);
@@ -84,6 +100,60 @@ for (const width of [390, 1366]) {
   });
 
   for (const kind of ["exam", "homework"] as const) {
+    test(`평가 복사 선택은 지연된 목록과 재조회 오류에도 유지된다 ${width}px ${kind}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const state = await setup(page, kind, false, true);
+      const label = kind === "exam" ? "시험" : "과제";
+      const queryKey = kind === "exam" ? "examId" : "homeworkId";
+      const target = `${BASE}/workspace/lectures/71/sessions/73/${kind === "exam" ? "exams" : "assignments"}`;
+      await gotoAndSettle(page, target);
+      await page.getByRole("button", { name: `${label} 추가`, exact: true }).first().click();
+      const dialog = page.getByRole("dialog").filter({ hasText: "다른 차시에서 복사" });
+      await dialog.getByText("다른 차시에서 복사", { exact: true }).click();
+      await dialog.getByRole("combobox", { name: "강의 선택", exact: true }).selectOption("71");
+      await dialog.getByRole("combobox", { name: "차시 선택", exact: true }).selectOption("74");
+      await dialog.getByRole("checkbox").check();
+      try {
+        await dialog.getByRole("button", { name: "불러오기", exact: true }).click();
+        await expect(dialog).toHaveCount(0);
+        // Let React commit the paused query state before checking selection.
+        await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+        expect(state.targetRefreshRequests).toBe(0);
+        await expect(page).toHaveURL(`${target}?${queryKey}=9001`);
+        await page.evaluate(() => window.dispatchEvent(new Event("online")));
+        await expect.poll(() => state.targetRefreshRequests).toBeGreaterThan(0);
+        await expect(page).toHaveURL(`${target}?${queryKey}=9001`);
+        const heading = page.getByRole("heading", { name: `다음 차시 ${label}`, exact: true });
+        await expect(heading).toBeVisible();
+
+        state.failTargetRefresh = true;
+        state.releaseTargetRefresh();
+        const error = page.getByRole("alert").filter({ hasText: `${label} 목록을 불러오지 못했습니다` });
+        await expect(error).toBeVisible();
+        await expect(page).toHaveURL(`${target}?${queryKey}=9001`);
+        await expect(heading).toBeVisible();
+        state.failTargetRefresh = false;
+        await error.getByRole("button", { name: "다시 불러오기", exact: true }).click();
+        await expect(error).toHaveCount(0);
+        await expect(heading).toBeVisible();
+        await page.screenshot({ path: test.info().outputPath(`assessment-copy-refresh-${kind}-${width}.png`), animations: "disabled" });
+        await page.reload();
+        await expect(page).toHaveURL(`${target}?${queryKey}=9001`);
+        await expect(heading).toBeVisible();
+        expect(state.created).toHaveLength(1);
+        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+
+        // A successful, settled list remains authoritative for truly removed rows.
+        state.targetRowsRemoved = true;
+        await page.reload();
+        await expect(page).toHaveURL(target);
+        await expect(heading).toHaveCount(0);
+      } finally {
+        await page.evaluate(() => window.dispatchEvent(new Event("online")));
+        state.releaseTargetRefresh();
+      }
+    });
+
     for (const failSecond of [false, true]) {
       test(`평가 복사는 검색 결과만 선택하고 목록 오류를 복구한다 ${width}px ${kind} failure=${failSecond}`, async ({ page }) => {
         await page.setViewportSize({ width, height: 900 });
