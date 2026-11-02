@@ -1,5 +1,6 @@
 // PATH: src/app_student/domains/video/playback/player/StudentVideoPlayer.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useReviewWatch } from "./useReviewWatch";
 
 import "./player.css";
 
@@ -138,6 +139,10 @@ export default function StudentVideoPlayer({
   onLeaveProgressRef.current = onLeaveProgress;
 
   const { ready, playing, buffering, duration, current, volume, muted, rate, toast, qualities, currentQuality, reconnecting } = ctrlState;
+  const reviewRemaining = useReviewWatch(video.id, enrollmentId ?? null, bootstrap.review_watch, playing && !buffering, (reason) => {
+    controllerRef.current?.pause();
+    onFatalRef.current?.(reason);
+  });
 
   useEffect(() => {
     currentRef.current = current;
@@ -717,6 +722,7 @@ export default function StudentVideoPlayer({
 
   return (
     <div className={`svpRoot ${theater ? "svpTheater" : ""}`}>
+      {reviewRemaining !== null && <p className="svpReviewRemaining">남은 복습시간 {Math.floor(Math.ceil(reviewRemaining / 1000) / 60)}분 {Math.ceil(reviewRemaining / 1000) % 60}초</p>}
       <div className="svpLayout">
         <div className="svpPlayerCol">
           <div

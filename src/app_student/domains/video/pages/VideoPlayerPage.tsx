@@ -251,6 +251,7 @@ export default function VideoPlayerPage() {
     const realExpiresAt = playbackData.playback_expires_at;
     const accessMode = (playbackData.policy?.access_mode || "FREE_REVIEW") as "FREE_REVIEW" | "PROCTORED_CLASS";
     const b: PlaybackBootstrap = {
+      review_watch: playbackData.review_watch,
       token: realToken || `student-${videoId}-${Date.now()}`,
       session_id: realSessionId || null,
       expires_at: realExpiresAt || null,

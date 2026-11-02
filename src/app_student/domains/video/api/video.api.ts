@@ -120,7 +120,23 @@ function normalizeStudentVideoItem(video: StudentVideoListItem): StudentVideoLis
   };
 }
 
+export type ReviewWatch = { stream: string; used_ms: number; remaining_ms: number | null };
+
+export async function reportReviewWatch(
+  videoId: number, enrollmentId: number | null, stream: string, sequence: number, playing: boolean,
+) {
+  const result = await api.post<ReviewWatch>(`/media/videos/${videoId}/review-watch/`, {
+    stream, sequence, playing, ...(enrollmentId ? { enrollment: enrollmentId } : {}),
+  });
+  if (result.data?.stream !== stream || !Number.isFinite(result.data.used_ms)
+      || !(result.data.remaining_ms === null || Number.isFinite(result.data.remaining_ms))) {
+    throw new Error("복습 시청시간을 확인할 수 없습니다.");
+  }
+  return result.data;
+}
+
 export type StudentVideoPlayback = {
+  review_watch?: ReviewWatch | null;
   video: StudentVideoListItem;
   hls_url?: string | null;
   mp4_url?: string | null;
@@ -208,7 +224,7 @@ export async function fetchStudentVideoPlayback(
     params: Object.keys(params).length > 0 ? params : undefined,
   };
   // Release after every serving API supports v2; the actual response selects it.
-  const res = await api.post(path, { event_protocol_version: 2 }, config);
+  const res = await api.post(path, { event_protocol_version: 2, review_watch: true }, config);
   const data = res?.data;
   if (data == null || typeof data !== "object") {
     throw new Error("재생 정보를 받지 못했습니다.");
