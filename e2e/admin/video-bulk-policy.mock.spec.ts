@@ -273,6 +273,47 @@ async function openStudentPolicy(page: Page, state: MockState) {
   await expect(page.getByRole("heading", { name: "발전과 에너지원1" })).toBeVisible({ timeout: 60_000 });
 }
 
+for (const width of [1366, 390]) {
+  test(`review limit saves, reloads and filters students at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = makeState();
+    await openVideos(page, state);
+    const video = state.videos[0];
+    let enabled = false;
+    await page.route(`**/api/v1/media/videos/${video.id}/stats/**`, route => route.fulfill({
+      json: { video: { ...video, duration: 3600, session_id: SESSION_ID }, students: [] },
+    }));
+    await page.route(`**/api/v1/media/videos/${video.id}/review-watch/report/**`, route => route.fulfill({
+      json: { enabled, duration: 3600, threshold_ms: 5040000, students: [
+        { student_id: 1, student_name: "복습 기준 도달 학생", used_ms: 5040000, started_at: "2026-11-03T00:00:00Z" },
+        { student_id: 2, student_name: "복습 진행 학생", used_ms: 600000, started_at: "2026-11-03T00:00:00Z" },
+      ] },
+    }));
+    await page.route(`**/api/v1/media/videos/${video.id}/`, route => {
+      if (route.request().method() !== "PATCH") return route.fallback();
+      const body = route.request().postDataJSON();
+      expect(body).toEqual({ review_watch_limit_enabled: true });
+      enabled = body.review_watch_limit_enabled;
+      return route.fulfill({ json: { ...video, review_watch_limit_enabled: enabled } });
+    });
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/videos/${video.id}`);
+    const settings = page.getByRole("button", { name: /시청 정책 · 관리자 메모/ });
+    await settings.click();
+    await page.getByRole("button", { name: "시간 제한 꺼짐" }).click();
+    await expect(page.getByRole("button", { name: "시간 제한 켜짐" })).toBeVisible();
+    await page.reload();
+    await settings.click();
+    await expect(page.getByRole("button", { name: "시간 제한 켜짐" })).toBeVisible();
+    await page.getByText("학생별 누적 재생시간 · 기준 도달 1명").click();
+    await page.getByLabel("원본의 1.4배 이상만 보기").check();
+    await expect(page.getByText("복습 기준 도달 학생", {exact: true})).toBeVisible();
+    await expect(page.getByText("복습 진행 학생", {exact: true})).toHaveCount(0);
+    const panel = page.locator("section.review-watch");
+    expect(await panel.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    await info.attach("review-watch-settings", { body: await panel.screenshot(), contentType: "image/png" });
+  });
+}
+
 function makeState(): MockState {
   return {
     videos: [
