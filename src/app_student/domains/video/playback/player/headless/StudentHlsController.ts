@@ -4,6 +4,7 @@
  * After dispose(), zero callbacks can run — guards enforce no setState from video events.
  */
 import studentApi from "@student/shared/api/student.api";
+import { prepareReviewPlayback } from "../../../api/video.api";
 import type Hls from "hls.js";
 import type { ErrorData, LevelSwitchedData, Level } from "hls.js";
 import { clamp, getEpochSec } from "../design/utils";
@@ -73,6 +74,7 @@ type Listener = (state: ControllerState) => void;
 export class StudentHlsController {
   private el: HTMLVideoElement | null = null;
   private hls: Hls | null = null;
+  private playGeneration = 0;
   private disposed = false;
   private listeners = new Set<Listener>();
   private opts: ControllerOptions;
@@ -175,6 +177,13 @@ export class StudentHlsController {
 
   play() {
     if (this.disposed || !this.el) return;
+    if (this.opts.reviewStream) {
+      const generation = ++this.playGeneration;
+      // Claim native user activation before awaiting the authenticated startup grant.
+      this.el.play()?.catch(ignoreBestEffortError);
+      void this.startReviewPlayback(generation, this.opts.reviewStream);
+      return;
+    }
     try {
       this.el.play()?.catch(ignoreBestEffortError);
     } catch {
@@ -182,8 +191,28 @@ export class StudentHlsController {
     }
   }
 
+  private async startReviewPlayback(generation: number, stream: string) {
+    try {
+      const wait = await prepareReviewPlayback(this.opts.videoId, this.opts.enrollmentId, stream);
+      if (this.disposed || generation !== this.playGeneration) return;
+      if (wait > 0) {
+        this.showToast("재생을 준비하고 있어요.", "info");
+        this.timeouts.push(setTimeout(() => {
+          if (!this.disposed && generation === this.playGeneration) void this.startReviewPlayback(generation, stream);
+        }, wait + 50));
+        return;
+      }
+      this.hls?.startLoad();
+      this.el?.play()?.catch(ignoreBestEffortError);
+    } catch {
+      if (!this.disposed && generation === this.playGeneration) this.opts.onFatal?.("복습 재생 권한을 확인하지 못했습니다. 다시 열어 주세요.");
+    }
+  }
+
   pause() {
     if (this.disposed || !this.el) return;
+    this.playGeneration++;
+    if (this.opts.reviewStream) this.hls?.stopLoad();
     try {
       this.el.pause();
     } catch {
@@ -604,6 +633,7 @@ export class StudentHlsController {
 
     if (canNative) {
       el.src = url;
+      if (this.opts.reviewStream) this.setState({ ready: true });
       this.bindVideoEvents();
       this.startIntervals();
       this.startDocListeners();
@@ -618,6 +648,7 @@ export class StudentHlsController {
       if (Hls && Hls.isSupported()) {
         const hls = new Hls({
           lowLatencyMode: false,
+          autoStartLoad: !this.opts.reviewStream,
           backBufferLength: 30,
           maxBufferLength: 60,
           maxMaxBufferLength: 120,
@@ -630,6 +661,7 @@ export class StudentHlsController {
         // Manifest 파싱 시 화질 목록 수집 → ControllerState에 노출
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           if (this.disposed) return;
+          if (this.opts.reviewStream) this.setState({ ready: true });
           this.publishQualities();
         });
         // 프래그먼트 1개 정상 버퍼링 시 재시도 카운터 리셋
@@ -773,7 +805,7 @@ export class StudentHlsController {
       if (t > this.maxWatchedRef) this.maxWatchedRef = t;
     };
 
-    const onPlay = () => this.guard(() => this.setState({ playing: true, buffering: false }));
+    const onPlay = () => this.guard(() => this.setState({ playing: true, buffering: el.readyState < HTMLMediaElement.HAVE_FUTURE_DATA }));
     const onPause = () => this.guard(() => this.setState({ playing: false }));
     const onWaiting = () => this.guard(() => this.setState({ buffering: true }));
     const onPlaying = () => this.guard(() => this.setState({ buffering: false }));

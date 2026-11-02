@@ -1,5 +1,6 @@
 import type { VideoCommentItem } from "../../src/app_student/domains/video/api/video.api";
 import type { Page } from "@playwright/test";
+import { syntheticLongVideoAsset } from "../../scripts/run-development-release-canary.mjs";
 import { expect, test } from "../fixtures/strictTest";
 import { guardUnmockedYouTubeRequests, installYouTubeSdkFixture } from "../helpers/youtubeSdkFixture";
 import { installStudentYoutubeScenario, YOUTUBE_QA_VIDEO_ID } from "../helpers/studentYoutubeScenario";
@@ -12,7 +13,8 @@ async function installWatchScenario(page: Page, completed = false) {
   const vendorRequests = await guardUnmockedYouTubeRequests(page);
   const youtube = await installYouTubeSdkFixture(page);
   await installStudentYoutubeScenario(page);
-  const state = { reviewRemaining: null as number | null, commentsFail: false, playlistFail: false, likeFail: false, liked: false,
+  const state = { reviewRemaining: null as number | null, prepared: false, playingSignal: false,
+    commentsFail: false, playlistFail: false, likeFail: false, liked: false,
     comments: [{ id: 701, content: "수업에서 이해한 개념을 다시 확인했습니다.", author_type: "student",
       author_name: "합성 학생", author_photo_url: null, is_edited: false, is_deleted: false,
       is_mine: true, created_at: "2026-10-01T03:00:00Z", reply_count: 0, replies: [] }] as VideoCommentItem[],
@@ -46,7 +48,8 @@ async function installWatchScenario(page: Page, completed = false) {
       });
     }
     if (path === "/media/videos/562/review-watch/" && state.reviewRemaining !== null) {
-      if (request.postDataJSON().playing) state.reviewRemaining = 0;
+      if (request.postDataJSON().prepare) state.prepared = true;
+      if (request.postDataJSON().playing) state.playingSignal = true;
       return json({ stream: "test-review", used_ms: 14000 - state.reviewRemaining, remaining_ms: state.reviewRemaining });
     }
     const playback = path.match(/^\/student\/video\/videos\/(562|563)\/playback\/$/);
@@ -56,15 +59,16 @@ async function installWatchScenario(page: Page, completed = false) {
       });
       if (state.reviewRemaining === 0) return json({ detail: "이 영상의 복습 시청시간을 모두 사용했습니다." }, 403);
       const video = videos.find((item) => item.id === Number(playback[1]))!;
-      return json({ video: { ...video, is_liked: state.liked, like_count: state.liked ? 1 : 0,
+      const hosted = state.reviewRemaining !== null;
+      return json({ video: { ...video, ...(hosted ? { source_type: "s3", youtube_video_id: null } : {}), is_liked: state.liked, like_count: state.liked ? 1 : 0,
         comment_count: state.comments.length, view_count: 12 },
         review_watch: state.reviewRemaining === null ? null : { stream: "test-review", used_ms: 0, remaining_ms: state.reviewRemaining },
-        play_url: `https://www.youtube.com/embed/${YOUTUBE_QA_VIDEO_ID}`,
+        play_url: hosted ? `${BASE}/__qa__/video-long/master.m3u8` : `https://www.youtube.com/embed/${YOUTUBE_QA_VIDEO_ID}`,
         playback_token: `synthetic-watch-${video.id}`, playback_session_id: null,
         playback_expires_at: Math.floor(Date.now() / 1000) + 900, policy_version: 1,
         policy: { access_mode: "FREE_REVIEW", monitoring_enabled: false, allow_seek: true,
           playback_rate: { max: 2, ui_control: true },
-          source: { type: "youtube", provider: "youtube", youtube_video_id: YOUTUBE_QA_VIDEO_ID } },
+          source: hosted ? { type: "s3", provider: "uploaded" } : { type: "youtube", provider: "youtube", youtube_video_id: YOUTUBE_QA_VIDEO_ID } },
       });
     }
     if (/^\/student\/video\/videos\/(562|563)\/comments\/$/.test(path)) {
@@ -99,9 +103,19 @@ for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: 840 });
     const { state } = await installWatchScenario(page);
     state.reviewRemaining = 14000;
+    await page.route("**/__qa__/video-long/**", async route => {
+      const path = new URL(route.request().url()).pathname;
+      if (!path.endsWith(".m3u8") && !state.prepared) return route.fulfill({ status: 429 });
+      const asset = syntheticLongVideoAsset(path);
+      return route.fulfill({ contentType: asset.contentType, body: asset.body });
+    });
     await openWatch(page);
     await expect(page.getByText("남은 복습시간 0분 14초")).toBeVisible();
-    await page.getByRole("button", { name: "재생", exact: true }).first().click();
+    await page.locator("button.svpBigPlay").click();
+    await expect.poll(() => page.locator("video").evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(0);
+    expect(state.prepared).toBe(true);
+    await expect.poll(() => state.playingSignal).toBe(true);
+    state.reviewRemaining = 0;
     const exhausted = page.getByText("이 영상의 복습 시청시간을 모두 사용했습니다.");
     await expect(exhausted).toBeVisible();
     await page.reload();

@@ -57,6 +57,7 @@ export interface ControllerState {
 }
 
 export interface ControllerOptions {
+  reviewStream?: string;
   eventProtocolVersion?: 1 | 2;
   sessionId?: string | null;
   expiresAt?: number | null;

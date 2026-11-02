@@ -9,6 +9,8 @@ import {
   formatClock,
   formatDateTimeKorean,
   getOrCreateDeviceId,
+  getActiveFullscreenElement,
+  isIOSWebKitRuntime,
   safeParseFloat,
 } from "./design/utils";
 import {
@@ -51,19 +53,7 @@ type Props = {
   onLeaveProgress?: (data: LeaveProgressPayload) => void;
 };
 
-function getActiveFullscreenElement(): Element | null {
-  return (
-    document.fullscreenElement ||
-    document.webkitFullscreenElement ||
-    document.mozFullScreenElement ||
-    null
-  );
-}
 
-function isIOSWebKitRuntime(): boolean {
-  const ua = navigator.userAgent || "";
-  return /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-}
 
 export default function StudentVideoPlayer({
   video,
@@ -152,7 +142,9 @@ export default function StudentVideoPlayer({
     setSkipBudget(policySkipBudget);
   }, [policySkipBudget]);
 
+  const reviewStream = bootstrap.review_watch?.remaining_ms != null ? bootstrap.review_watch.stream : undefined;
   const mediaIdentity = JSON.stringify({
+    reviewStream,
     videoId: video.id,
     enrollmentId,
     source: isYoutube ? "youtube" : "hls",
@@ -169,6 +161,7 @@ export default function StudentVideoPlayer({
   }
   const controllerIdentity = JSON.stringify(controllerIdentityRef.current);
   const controllerConfigRef = useRef({
+    reviewStream,
     videoId: video.id,
     playUrl: bootstrap.play_url || video.hls_url || "",
     policy: bootstrap.policy,
@@ -183,6 +176,7 @@ export default function StudentVideoPlayer({
     youtubeVideoId: video.youtube_video_id || bootstrap.youtube_video_id || policy.source?.youtube_video_id || null,
   });
   controllerConfigRef.current = {
+    reviewStream,
     videoId: video.id,
     playUrl: bootstrap.play_url || video.hls_url || "",
     policy: bootstrap.policy,
@@ -225,7 +219,7 @@ export default function StudentVideoPlayer({
       });
       ctrl.attach(attachTarget as HTMLDivElement);
     } else {
-      ctrl = new StudentHlsController(commonOptions);
+      ctrl = new StudentHlsController({ ...commonOptions, reviewStream: config.reviewStream });
       ctrl.attach(attachTarget as HTMLVideoElement);
     }
     controllerRef.current = ctrl;
@@ -786,7 +780,7 @@ export default function StudentVideoPlayer({
                   className="svpVideo"
                   playsInline
                   controls={false}
-                  preload="metadata"
+                  preload={reviewStream ? "none" : "metadata"}
                   poster={video.thumbnail_url || undefined}
                 />
               )}
