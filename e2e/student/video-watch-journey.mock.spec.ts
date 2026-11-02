@@ -112,7 +112,9 @@ for (const width of [1366, 390]) {
         const file = target.pathname.split("/").pop();
         const asset = syntheticLongVideoAsset(`/__qa__/video-long/${file}`);
         if (target.hostname === "api.hakwonplus.com") {
-          if (file === "master.m3u8") return new Response(asset.body.toString().replace("init.mp4", "init.mp4?tenant=godmin").replace("media.m4s", "media.m4s?tenant=godmin"));
+          const mac = "a".repeat(43);
+          if (file === "master.m3u8") return new Response(asset.body.toString().replace("init.mp4", `init.mp4?tenant=godmin&part=init.${mac}`).replace("media.m4s", `media.m4s?tenant=godmin&part=0-900000.${mac}`));
+          expect(target.searchParams.get("part")).toBe(`${file === "init.mp4" ? "init" : "0-900000"}.${mac}`);
           if (!state.prepared) return new Response(null, {status: 429});
           return Response.redirect(`https://${"a".repeat(32)}.r2.cloudflarestorage.com/academy-development-artifacts/tenants/1/video/hls/562/${file}?X-Amz-Signature=synthetic`, 302);
         }

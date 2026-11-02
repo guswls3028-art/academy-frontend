@@ -16,14 +16,17 @@ export async function proxyReviewMedia(request: Request, fetchUpstream: typeof f
   // Never send a preview, localhost or unregistered host to production admission.
   if (url.protocol !== "https:" || url.port || url.hostname === "localhost" || url.hostname === "127.0.0.1"
       || !Object.hasOwn(HOSTNAME_TO_TENANT_CODE, url.hostname)
-      || HOSTNAME_TO_TENANT_CODE[url.hostname] !== tenant || !match || url.searchParams.size !== 1) return reject(404);
+      || HOSTNAME_TO_TENANT_CODE[url.hostname] !== tenant || !match) return reject(404);
+  const part = url.searchParams.get("part");
+  if (url.searchParams.size !== (part === null ? 1 : 2)
+      || (part !== null && !/^(?:init|\d{1,16}-\d{1,16})\.[\w-]{43}$/.test(part))) return reject(404);
   const [, stream, asset] = match;
   if (asset.split("/").some(part => !part || part === "." || part === "..")) return reject(404);
   const range = request.headers.get("Range");
   if (range && !/^bytes=(?:\d+-\d*|-\d+)$/.test(range)) return reject(416);
 
   try {
-    const admission = await fetchUpstream(`${apiOrigin}/api/v1/media/review-stream/${stream}/${asset}?tenant=${encodeURIComponent(tenant)}`, {
+    const admission = await fetchUpstream(`${apiOrigin}/api/v1/media/review-stream/${stream}/${asset}${url.search}`, {
       headers: { "X-Tenant-Code": tenant }, redirect: "manual", cache: "no-store",
     });
     if (admission.status !== 302) {

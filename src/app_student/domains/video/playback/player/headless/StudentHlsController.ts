@@ -194,7 +194,8 @@ export class StudentHlsController {
 
   private async startReviewPlayback(generation: number, stream: string) {
     try {
-      const wait = await prepareReviewPlayback(this.opts.videoId, this.opts.enrollmentId, stream);
+      const position = this.el?.readyState ? this.el.currentTime : this.opts.initialPosition || 0;
+      const wait = await prepareReviewPlayback(this.opts.videoId, this.opts.enrollmentId, stream, position);
       if (this.disposed || generation !== this.playGeneration) return;
       if (wait > 0) {
         this.showToast("재생을 준비하고 있어요.", "info");
@@ -203,7 +204,7 @@ export class StudentHlsController {
         }, wait + 50));
         return;
       }
-      this.hls?.startLoad();
+      this.hls?.startLoad(position);
       this.el?.play()?.catch(ignoreBestEffortError);
     } catch {
       if (!this.disposed && generation === this.playGeneration) this.opts.onFatal?.("복습 재생 권한을 확인하지 못했습니다. 다시 열어 주세요.");

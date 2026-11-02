@@ -3,10 +3,12 @@ import { reportReviewWatch, type ReviewWatch } from "../../api/reviewWatch.api";
 
 export function useReviewWatch(
   videoId: number, enrollmentId: number | null, watch: ReviewWatch | null | undefined,
-  playing: boolean, stop: (reason: string) => void,
+  playing: boolean, position: number, stop: (reason: string) => void,
 ) {
   const stream = watch?.stream;
   const sequence = useRef({ value: 0 }).current;
+  const positionRef = useRef(position);
+  positionRef.current = position;
   const stopRef = useRef(stop);
   stopRef.current = stop;
   const budget = useRef<number | null>(null);
@@ -17,7 +19,7 @@ export function useReviewWatch(
     setRemaining(budget.current);
     if (!stream) return;
     return () => {
-      void reportReviewWatch(videoId, enrollmentId, stream, ++sequence.value, false).catch(() => {
+      void reportReviewWatch(videoId, enrollmentId, stream, ++sequence.value, false, positionRef.current).catch(() => {
         // Abrupt disconnects are bounded by the server's active-signal timeout.
       });
     };
@@ -45,7 +47,7 @@ export function useReviewWatch(
       busy = true;
       try {
         const sentAt = performance.now();
-        const data = await reportReviewWatch(videoId, enrollmentId, stream, ++sequence.value, playing);
+        const data = await reportReviewWatch(videoId, enrollmentId, stream, ++sequence.value, playing, positionRef.current);
         if (!live) return;
         lastAck = performance.now();
         if (data.remaining_ms === 0) {

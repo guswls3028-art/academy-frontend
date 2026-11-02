@@ -129,7 +129,7 @@ export default function StudentVideoPlayer({
   onLeaveProgressRef.current = onLeaveProgress;
 
   const { ready, playing, buffering, duration, current, volume, muted, rate, toast, qualities, currentQuality, reconnecting } = ctrlState;
-  const reviewRemaining = useReviewWatch(video.id, enrollmentId ?? null, bootstrap.review_watch, playing && !buffering, (reason) => {
+  const reviewRemaining = useReviewWatch(video.id, enrollmentId ?? null, bootstrap.review_watch, playing && !buffering, current, (reason) => {
     controllerRef.current?.pause();
     onFatalRef.current?.(reason);
   });
