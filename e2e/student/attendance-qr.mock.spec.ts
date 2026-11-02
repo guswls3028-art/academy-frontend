@@ -149,6 +149,8 @@ for (const width of [390, 1366]) {
     await page.locator("label").filter({ hasText: /^클리닉 장소$/ }).click();
     await expect(location).toBeFocused();
     await location.fill("301호");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: test.info().outputPath(`qr-location-${width}.png`), fullPage: true });
     await page.getByRole("button", { name: "QR 발급", exact: true }).click();
     const poster = page.getByLabel("출결 QR 인쇄 미리보기");
     await expect(poster.locator("svg")).toBeVisible();
