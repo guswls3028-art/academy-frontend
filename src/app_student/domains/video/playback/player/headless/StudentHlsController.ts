@@ -4,36 +4,20 @@
  * After dispose(), zero callbacks can run — guards enforce no setState from video events.
  */
 import studentApi from "@student/shared/api/student.api";
+import { prepareReviewPlayback } from "../../../api/reviewWatch.api";
 import type Hls from "hls.js";
 import type { ErrorData, LevelSwitchedData, Level } from "hls.js";
 import { clamp, getEpochSec } from "../design/utils";
 import { resolveStudentVideoPlayUrl } from "../playbackUrl";
 import { PlaybackSessionEnd } from "./playbackSessionEnd";
+import { normalizeControllerPolicy as normalizePolicy } from "./controllerTypes";
 import type { ControllerOptions, ControllerState, EventType, Policy, QualityLevel } from "./controllerTypes";
 export type { ControllerOptions, ControllerState, EventType, Policy, QualityLevel } from "./controllerTypes";
 import { acquirePlaybackEventBatches, type PlaybackEventBatches } from "./playbackEventBatches";
 
 const ignoreBestEffortError = () => undefined;
 
-function normalizePolicy(p: Partial<Policy> | null | undefined): Policy {
-  const policy: Policy = { ...(p || {}) };
-  const seek = { ...(policy.seek || {}) };
-  const playbackRate = { ...(policy.playback_rate || {}) };
-  const watermark = { ...(policy.watermark || {}) };
-  if (policy.monitoring_enabled == null) {
-    policy.monitoring_enabled = policy.access_mode === "PROCTORED_CLASS";
-  }
-  if (policy.allow_seek == null) policy.allow_seek = true;
-  if (!seek.mode) seek.mode = "free";
-  if (seek.grace_seconds == null) seek.grace_seconds = 3;
-  if (playbackRate.max == null) playbackRate.max = 16;
-  if (playbackRate.ui_control == null) playbackRate.ui_control = true;
-  if (watermark.enabled == null) watermark.enabled = false;
-  policy.seek = seek;
-  policy.playback_rate = playbackRate;
-  policy.watermark = watermark;
-  return policy;
-}
+
 
 async function postHeartbeat(token: string) {
   if (token.startsWith("student-")) return;
@@ -73,6 +57,8 @@ type Listener = (state: ControllerState) => void;
 export class StudentHlsController {
   private el: HTMLVideoElement | null = null;
   private hls: Hls | null = null;
+  private playGeneration = 0;
+  private nativeGestureUntil = 0;
   private disposed = false;
   private listeners = new Set<Listener>();
   private opts: ControllerOptions;
@@ -158,6 +144,7 @@ export class StudentHlsController {
   subscribe(listener: Listener): () => void {
     if (this.disposed) return () => {};
     this.listeners.add(listener);
+    listener(this.state);
     return () => this.listeners.delete(listener);
   }
 
@@ -175,6 +162,12 @@ export class StudentHlsController {
 
   play() {
     if (this.disposed || !this.el) return;
+    if (this.opts.reviewStream) {
+      const generation = ++this.playGeneration;
+      if (performance.now() < this.nativeGestureUntil) this.playPreparedMedia(generation);
+      else void this.startReviewPlayback(generation, this.opts.reviewStream);
+      return;
+    }
     try {
       this.el.play()?.catch(ignoreBestEffortError);
     } catch {
@@ -182,8 +175,45 @@ export class StudentHlsController {
     }
   }
 
+  private playPreparedMedia(generation: number) {
+    this.el?.play()?.catch((error: DOMException) => {
+      if (this.disposed || generation !== this.playGeneration) return;
+      if (error.name === "NotAllowedError") {
+        this.nativeGestureUntil = performance.now() + 15_000;
+        this.showToast("재생 준비가 끝났어요. 재생을 눌러 주세요.", "info");
+      }
+    });
+  }
+
+  private async startReviewPlayback(generation: number, stream: string) {
+    try {
+      const position = this.el?.readyState ? this.el.currentTime : this.opts.initialPosition || 0;
+      const wait = await prepareReviewPlayback(this.opts.videoId, this.opts.enrollmentId, stream, position);
+      if (this.disposed || generation !== this.playGeneration) return;
+      if (wait > 0) {
+        this.showToast("재생을 준비하고 있어요.", "info");
+        this.timeouts.push(setTimeout(() => {
+          if (!this.disposed && generation === this.playGeneration) void this.startReviewPlayback(generation, stream);
+        }, wait + 50));
+        return;
+      }
+      if (!this.hls && this.el && !this.el.getAttribute("src")) {
+        const url = resolveStudentVideoPlayUrl(this.opts.playUrl || "");
+        if (!url) throw new Error("Invalid review playback URL");
+        this.el.src = url;
+      }
+      this.hls?.startLoad(position);
+      this.playPreparedMedia(generation);
+    } catch {
+      if (!this.disposed && generation === this.playGeneration) this.opts.onFatal?.("복습 재생 권한을 확인하지 못했습니다. 다시 열어 주세요.");
+    }
+  }
+
   pause() {
     if (this.disposed || !this.el) return;
+    this.playGeneration++;
+    this.nativeGestureUntil = 0;
+    if (this.opts.reviewStream) this.hls?.stopLoad();
     try {
       this.el.pause();
     } catch {
@@ -591,7 +621,7 @@ export class StudentHlsController {
     } catch {
       ignoreBestEffortError();
     }
-    el.src = "";
+    el.removeAttribute("src");
 
     const url = resolveStudentVideoPlayUrl(this.opts.playUrl || "");
     if (!url) {
@@ -603,7 +633,8 @@ export class StudentHlsController {
       el.canPlayType("application/vnd.apple.mpegurl") || el.canPlayType("application/x-mpegURL");
 
     if (canNative) {
-      el.src = url;
+      if (this.opts.reviewStream) this.setState({ ready: true });
+      else el.src = url;
       this.bindVideoEvents();
       this.startIntervals();
       this.startDocListeners();
@@ -618,6 +649,7 @@ export class StudentHlsController {
       if (Hls && Hls.isSupported()) {
         const hls = new Hls({
           lowLatencyMode: false,
+          autoStartLoad: !this.opts.reviewStream,
           backBufferLength: 30,
           maxBufferLength: 60,
           maxMaxBufferLength: 120,
@@ -630,6 +662,7 @@ export class StudentHlsController {
         // Manifest 파싱 시 화질 목록 수집 → ControllerState에 노출
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           if (this.disposed) return;
+          if (this.opts.reviewStream) this.setState({ ready: true });
           this.publishQualities();
         });
         // 프래그먼트 1개 정상 버퍼링 시 재시도 카운터 리셋
@@ -719,11 +752,14 @@ export class StudentHlsController {
 
         hls.loadSource(url);
         hls.attachMedia(el);
-      } else {
+      } else if (!this.opts.reviewStream) {
         el.src = url;
+      } else {
+        this.setState({ ready: true });
       }
     } catch {
-      el.src = url;
+      if (this.opts.reviewStream) this.setState({ ready: true });
+      else el.src = url;
     }
 
     this.bindVideoEvents();
@@ -773,7 +809,7 @@ export class StudentHlsController {
       if (t > this.maxWatchedRef) this.maxWatchedRef = t;
     };
 
-    const onPlay = () => this.guard(() => this.setState({ playing: true, buffering: false }));
+    const onPlay = () => this.guard(() => this.setState({ playing: true, buffering: el.readyState < el.HAVE_FUTURE_DATA }));
     const onPause = () => this.guard(() => this.setState({ playing: false }));
     const onWaiting = () => this.guard(() => this.setState({ buffering: true }));
     const onPlaying = () => this.guard(() => this.setState({ buffering: false }));

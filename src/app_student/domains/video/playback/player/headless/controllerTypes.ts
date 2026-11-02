@@ -27,6 +27,26 @@ export interface Policy {
   watermark?: { enabled?: boolean };
 }
 
+export function normalizeControllerPolicy(p: Partial<Policy> | null | undefined): Policy {
+  const policy: Policy = { ...(p || {}) };
+  const seek = { ...(policy.seek || {}) };
+  const playbackRate = { ...(policy.playback_rate || {}) };
+  const watermark = { ...(policy.watermark || {}) };
+  if (policy.monitoring_enabled == null) {
+    policy.monitoring_enabled = policy.access_mode === "PROCTORED_CLASS";
+  }
+  if (policy.allow_seek == null) policy.allow_seek = true;
+  if (!seek.mode) seek.mode = "free";
+  if (seek.grace_seconds == null) seek.grace_seconds = 3;
+  if (playbackRate.max == null) playbackRate.max = 16;
+  if (playbackRate.ui_control == null) playbackRate.ui_control = true;
+  if (watermark.enabled == null) watermark.enabled = false;
+  policy.seek = seek;
+  policy.playback_rate = playbackRate;
+  policy.watermark = watermark;
+  return policy;
+}
+
 export interface QualityLevel {
   /** hls.js levels[] 인덱스. -1 = Auto(ABR). */
   index: number;
@@ -57,6 +77,7 @@ export interface ControllerState {
 }
 
 export interface ControllerOptions {
+  reviewStream?: string;
   eventProtocolVersion?: 1 | 2;
   sessionId?: string | null;
   expiresAt?: number | null;

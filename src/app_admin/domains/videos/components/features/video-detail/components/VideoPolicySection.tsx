@@ -5,6 +5,7 @@ import ToggleSwitch from "@admin/domains/videos/ui/ToggleSwitch";
 import { useVideoPolicy } from "@admin/domains/videos/hooks/useVideoPolicy";
 import type { VideoPolicy } from "@admin/domains/videos/hooks/useVideoPolicy";
 import { Button } from "@/shared/ui/ds";
+import ReviewWatchPanel from "./ReviewWatchPanel";
 import "./VideoPolicySection.css";
 
 interface Props {
@@ -26,6 +27,7 @@ export default function VideoPolicySection({ videoId, initial }: Props) {
 
   return (
     <div className="space-y-4">
+      <ReviewWatchPanel videoId={videoId} />
       {/* POLICY CONTROLS */}
       <div className="video-policy-panel">
         <div className="video-policy-controls">

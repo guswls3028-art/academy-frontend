@@ -30,7 +30,7 @@ for (const width of [390, 1366]) for (const role of ["student", "parent"]) {
       if (route.request().method() === "GET") return route.fulfill({ json: {
         ok: true, access_mode: "PROCTORED_CLASS", monitoring_enabled: true, policy_version: 1,
       } });
-      expect(route.request().postDataJSON()).toEqual({ event_protocol_version: 2 });
+      expect(route.request().postDataJSON()).toEqual({ event_protocol_version: 2, review_watch: true });
       grants++;
       return route.fulfill({ json: {
         video: { id: 562, session_id: 394, enrollment_id: 1304, title: YOUTUBE_QA_TITLE,

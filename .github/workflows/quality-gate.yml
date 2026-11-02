@@ -163,6 +163,7 @@ jobs:
             dist/
             functions/
             src/core/router/workspaceRoutes.ts
+            src/shared/tenant/tenants/
           retention-days: 1
 
   # ── 2. 동일 산출물 Cloudflare preview 검증 (운영 도메인 영향 없음) ──

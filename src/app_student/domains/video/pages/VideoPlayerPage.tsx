@@ -246,14 +246,13 @@ export default function VideoPlayerPage() {
 
     // All modes use a backend current-access token. PROCTORED_CLASS alone has
     // a monitoring session id; the placeholder remains for rolling compatibility.
-    const realToken = playbackData.playback_token;
-    const realSessionId = playbackData.playback_session_id;
-    const realExpiresAt = playbackData.playback_expires_at;
+
     const accessMode = (playbackData.policy?.access_mode || "FREE_REVIEW") as "FREE_REVIEW" | "PROCTORED_CLASS";
     const b: PlaybackBootstrap = {
-      token: realToken || `student-${videoId}-${Date.now()}`,
-      session_id: realSessionId || null,
-      expires_at: realExpiresAt || null,
+      review_watch: playbackData.review_watch,
+      token: playbackData.playback_token || `student-${videoId}-${Date.now()}`,
+      session_id: playbackData.playback_session_id || null,
+      expires_at: playbackData.playback_expires_at || null,
       event_protocol_version: playbackData.event_protocol_version ?? 1,
       policy_version: Number(playbackData.policy_version),
       access_mode: accessMode,

@@ -1,4 +1,13 @@
 /* PATH: src/student/domains/video/playback/player/player.css */
+.svpReviewRemaining {
+  margin: 0;
+  padding: .5rem .75rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--svp-text);
+  background: var(--svp-card);
+}
+
 :root {
   --svp-bg: #0f0f10;
   --svp-card: #151517;

@@ -1,0 +1,12 @@
+.review-watch { padding: 1rem; border: 1px solid var(--color-border-divider, #d9dee3); border-radius: 8px; }
+.review-watch__head, .review-watch li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
+.review-watch h3, .review-watch p { margin: 0 0 .5rem; }
+.review-watch details { margin-top: .75rem; }
+.review-watch summary { cursor: pointer; padding-block: .4rem; }
+.review-watch ul { list-style: none; padding: 0; max-height: 20rem; overflow: auto; }
+.review-watch li { border-top: 1px solid var(--color-border-divider, #d9dee3); padding: .5rem 0; overflow-wrap: anywhere; }
+.review-watch small { display: block; }
+@media (prefers-reduced-motion: no-preference) {
+  .review-watch details[open] ul { animation: review-watch-appear .16s ease-out; }
+  @keyframes review-watch-appear { from { opacity: 0; transform: translateY(-2px); } }
+}

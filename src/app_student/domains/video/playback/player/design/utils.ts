@@ -1,6 +1,20 @@
 // PATH: src/app_student/domains/video/playback/player/design/utils.ts
 import { getLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 
+export function getActiveFullscreenElement(): Element | null {
+  return (
+    document.fullscreenElement ||
+    document.webkitFullscreenElement ||
+    document.mozFullScreenElement ||
+    null
+  );
+}
+
+export function isIOSWebKitRuntime(): boolean {
+  const ua = navigator.userAgent || "";
+  return /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
 export function clamp(v: number, min: number, max: number) {
   const n = Number(v);
   if (!Number.isFinite(n)) return min;
