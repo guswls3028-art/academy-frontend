@@ -1,4 +1,5 @@
 import type { APIRequestContext, BrowserContext, Frame, Request } from "@playwright/test";
+import { createHash } from "node:crypto";
 
 export type ReleaseBoundary = {
   mode: "readonly" | "development";
@@ -169,6 +170,18 @@ function isExactDevelopmentResourceReaderAsset(boundary: ReleaseBoundary, rawUrl
     && rawUrl === `${target.origin}${target.pathname}${target.search}` && target.pathname.startsWith(prefix)
     && /^[0-9a-f-]{36}\/(?:image-\d+\.(?:webp|gif|png)|pages\.pdf)$/.test(target.pathname.slice(prefix.length))
     && UUID.test(target.pathname.slice(prefix.length).split("/")[0]) && hasExactHostSignature(target, 300);
+}
+
+function isExactOmrPreviewPdf(boundary: ReleaseBoundary, rawUrl: string, submissionId: string): boolean {
+  if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId)
+    || Number(boundary.omrR2TenantId) < 1 || !/^[1-9][0-9]*$/.test(submissionId)
+    || !Number.isSafeInteger(Number(submissionId))) return false;
+  const target = URL.canParse(rawUrl) ? new URL(rawUrl) : null;
+  if (!target || target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
+    || rawUrl !== target.origin + target.pathname + target.search) return false;
+  const prefix = `/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/ai/submissions/${submissionId}/`;
+  return target.pathname.startsWith(prefix) && /^[a-f0-9]{32}\.pdf$/.test(target.pathname.slice(prefix.length))
+    && target.searchParams.get("X-Amz-Expires") === "900" && hasExactHostSignature(target, 900);
 }
 
 function isExactDevelopmentOmrImage(boundary: ReleaseBoundary, rawUrl: string, method: string): boolean {
@@ -571,17 +584,34 @@ export function isPublicVideoBotConfirmation(value: unknown): boolean {
     && value.currentTime === 0 && value.initialTime !== null;
 }
 
-export function emitPublicVideoAvailability(viewport: number, outcome: "played-paused" | "bot-confirmation",
-  playback: unknown, emit: (value: unknown) => void = value => console.log(JSON.stringify(value))) {
-  const confirmed = validPublicVideoPlayback(playback) && playback.identityMatches === true
+export function isPublicVideoPlayedPaused(playback: unknown): boolean {
+  return validPublicVideoPlayback(playback) && playback.identityMatches === true
     && playback.paused && !playback.ended && playback.playerState === 2
     && playback.readyState >= 2 && playback.width > 0 && playback.height > 0
     && playback.currentTime !== null && playback.initialTime !== null && playback.currentTime > playback.initialTime + 1
     && playback.mediaError === null && !playback.adShowing && !playback.adInterrupting
     && !playback.errorVisible && playback.errorClass === "none";
+}
+
+export function emitPublicVideoAvailability(viewport: number, outcome: "played-paused" | "bot-confirmation",
+  playback: unknown, emit: (value: unknown) => void = value => console.log(JSON.stringify(value))) {
   if (![1366, 390].includes(viewport) || (outcome === "bot-confirmation" ? !isPublicVideoBotConfirmation(playback)
-    : outcome !== "played-paused" || !confirmed)) throw new Error("Invalid public video availability evidence");
+    : outcome !== "played-paused" || !isPublicVideoPlayedPaused(playback))) throw new Error("Invalid public video availability evidence");
   emit({ publicVideoAvailability: { schema: "public-video-availability/v1", viewport, outcome, playback } });
+}
+
+export type PublicVideoObservationPhase = "ready" | "play" | "pause";
+export type PublicVideoObservationReason = "provider-state" | "observation-timeout" | "control-timeout";
+export function emitPublicVideoNotDemonstrated(viewport: number, phase: PublicVideoObservationPhase,
+  reason: PublicVideoObservationReason, playback: unknown,
+  emit: (value: unknown) => void = value => console.log(JSON.stringify(value))) {
+  if (![1366, 390].includes(viewport) || !["ready", "play", "pause"].includes(phase)
+    || !["provider-state", "observation-timeout", "control-timeout"].includes(reason)
+    || (playback !== null && (!validPublicVideoPlayback(playback) || playback.identityMatches === false))) {
+    throw new Error("Invalid public video availability evidence");
+  }
+  emit({ publicVideoAvailability: { schema: "public-video-availability/v1", viewport,
+    outcome: "not-demonstrated", phase, reason, playback } });
 }
 
 export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | "public-video-primary" | "context-check" | "assessment-copy" | "assessment-copy-cleanup",
@@ -691,6 +721,7 @@ function safeTransportMethod(method: string): RequestTransportDiagnostic["method
 }
 
 export type ReleaseContextGuard = {
+  omrPreviewReads: (submissionId: number) => Array<{ sizeBytes: number; sha256: string }>;
   observations: ObservationCounts;
   authentication: ObservationCounts;
   transport: RequestTransportCounts & {
@@ -1104,6 +1135,7 @@ export async function installReleaseContextGuard(
   const communityImageUrls = new Map<string, "image/png" | "image/jpeg" | "image/webp">();
   const communityFileUrls = new Map<string, { contentType: string; sizeBytes: number; disposition: string }>();
   const resourceDownloadUrls = new Set<string>();
+  const omrPreviewPdfs = new Map<string, { url: string; reads: Array<{ sizeBytes: number; sha256: string }> }>();
   const resourceReaderUrls = new Map<string, string>();
   const acceptedPptJobs = new Set<string>();
   const acceptedPayrollJobs = new Map<string, string>();
@@ -1369,6 +1401,25 @@ export async function installReleaseContextGuard(
         await route.fulfill({ response, body });
         return;
       }
+      const issuedPdf = omrPreviewPdfs.size ? [...omrPreviewPdfs.values()].find(item => item.url === upstream) : undefined;
+      if (issuedPdf
+        && request.method() === "GET" && request.resourceType() === "document") {
+        const headers = await request.allHeaders();
+        if (bodyBytes || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
+          .some(key => headers[key])) { await reject("credentials"); return; }
+        const response = await route.fetch({ url: upstream, method: "GET", headers: { accept: "application/pdf" }, maxRedirects: 0 });
+        if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
+        if (response.status() !== 200 || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== "application/pdf") {
+          await reject("transport"); return;
+        }
+        const body = await response.body();
+        if (body.length > 10 * 1024 * 1024 || body.subarray(0, 5).toString("ascii") !== "%PDF-") {
+          await reject("transport"); return;
+        }
+        await route.fulfill({ status: 200, headers: { "content-type": "application/pdf", "cache-control": "no-store" }, body });
+        if (issuedPdf.reads.length < 3) issuedPdf.reads.push({ sizeBytes: body.length, sha256: createHash("sha256").update(body).digest("hex") });
+        return;
+      }
       const documentDownload = request.method() === "GET"
         ? [...documentDownloadUrls.values()].find((item) => item.url === upstream) : undefined;
       if (documentDownload && ["document", "other"].includes(request.resourceType())) {
@@ -1532,6 +1583,18 @@ export async function installReleaseContextGuard(
           throw new Error("Real API CORS boundary mismatch");
         }
         const pptTarget = new URL(upstream);
+        const omrPreview = /^\/api\/v1\/submissions\/submissions\/([1-9][0-9]*)\/preview\/$/.exec(pptTarget.pathname);
+        if (boundary.mode === "development" && omrPreview && !pptTarget.search && request.method() === "GET") {
+          const submissionId = omrPreview[1];
+          omrPreviewPdfs.delete(submissionId);
+          if (response.status() === 200 && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json"
+            && response.headers()["cache-control"] === "no-store" && /^Bearer \S+$/.test(headers.authorization ?? "")
+            && headers["x-tenant-code"] === boundary.tenantCode && !headers["x-student-id"] && omrPreviewPdfs.size < 4) {
+            const payload: unknown = await response.json();
+            if (isRecord(payload) && Object.keys(payload).length === 1 && typeof payload.url === "string"
+              && isExactOmrPreviewPdf(boundary, payload.url, submissionId)) omrPreviewPdfs.set(submissionId, { url: payload.url, reads: [] });
+          }
+        }
         if (boundary.mode === "development" && request.method() === "POST" && !pptTarget.search
           && response.status() >= 200 && response.status() < 300
           && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json"
@@ -1768,6 +1831,7 @@ export async function installReleaseContextGuard(
     await route.continue();
   };
   const guard: ReleaseContextGuard = {
+    omrPreviewReads: submissionId => omrPreviewPdfs.get(String(submissionId))?.reads.map(read => ({ ...read })) ?? [],
     observations,
     authentication,
     transport,

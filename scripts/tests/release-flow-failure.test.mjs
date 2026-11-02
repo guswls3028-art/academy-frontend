@@ -179,7 +179,7 @@ test("closed workflow failure observations reject private fields and impossible 
     if (marker === "releaseHomeworkFlowFailure") invalid.push(
       { ...sample, threshold: null }, { ...sample, threshold: 80 }, { ...sample, threshold: "95" },
       { ...sample, viewport: null }, { ...sample, phase: "criteria-invalid-input", threshold: 90 },
-      { ...sample, phase: "criteria-setup" }, { ...sample, phase: "feedback-score-edit" },
+      { ...sample, phase: "criteria-setup" }, { ...sample, phase: "feedback-score-edit" }, { ...sample, phase: "feedback-correction" },
       { ...sample, phase: "feedback-setup", threshold: null },
     );
     for (const value of invalid) {
@@ -517,7 +517,7 @@ test("actual workflow producer phases and transport kinds survive the official d
   const learning = stripTypeScriptTypes(learningBody).replace(/^export /gm, "");
   const homework = stripTypeScriptTypes(homeworkBody).replace(/^export /gm, "");
   const phases = [...homeworkSource.slice(homeworkSource.indexOf("export type HomeworkFlowFailurePhase"), homeworkSource.indexOf("export type HomeworkFlowCheckpoint")).matchAll(/"([^"]+)"/g)].map(match => match[1]);
-  assert.equal(new Set(phases).size, 20);
+  assert.equal(new Set(phases).size, 21);
   const output = [];
   const learningApi = new Function("safeNativeTransportKind", "console", learning + "; return { phases: LEARNING_FLOW_PHASES, emit: emitLearningFlowFailure };")(
     policyModule.safeNativeTransportKind, { info: value => output.push(JSON.parse(value)) });

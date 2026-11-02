@@ -117,7 +117,7 @@ const SAFE_FAILURE_SOURCE_FILES = new Set([
   "verifyOnlineWrittenSubmission.ts",
   "qrAttendanceRealuse.ts", "qrCameraInput.ts",
   "excelEnrollmentRealuse.ts", "excelAssessmentRealuse.ts", "excelImport.ts",
-  "attendanceExcelRealuse.ts", "homeworkCriteriaRealuse.ts",
+  "attendanceExcelRealuse.ts", "homeworkCriteriaRealuse.ts", "verifyScoreCorrectionWhileEditing.ts",
 ]);
 const FLOW_FAILURE_KINDS = new Set(["boundary", "assertion", "locator-timeout", "transport", "other"]);
 const LEARNING_FAILURE_PHASES = new Set([
@@ -127,7 +127,7 @@ const LEARNING_FAILURE_PHASES = new Set([
   "attendance-prepare", "attendance-submit", "attendance-download", "attendance-workbook", "attendance-restore",
 ]);
 const HOMEWORK_FAILURE_PHASES = new Set([
-  "feedback-setup", "feedback-score-edit", "feedback-order", "feedback-report", "feedback-results",
+  "feedback-setup", "feedback-score-edit", "feedback-correction", "feedback-order", "feedback-report", "feedback-results",
   "feedback-restore-order", "feedback-criteria", "feedback-post-criteria", "criteria-setup", "criteria-open", "criteria-invalid-input",
   "criteria-save", "criteria-reload", "criteria-api", "criteria-parent", "criteria-preview",
   "preview-compose", "preview-preflight", "preview-personalization", "preview-final",
@@ -415,8 +415,12 @@ function validPublicVideoPlayback(value) {
 
 function validPublicVideoAvailability(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)
-    || Object.keys(value).sort().join(",") !== "outcome,playback,schema,viewport"
-    || value.schema !== "public-video-availability/v1" || ![1366, 390].includes(value.viewport)
+    || value.schema !== "public-video-availability/v1" || ![1366, 390].includes(value.viewport)) return false;
+  if (value.outcome === "not-demonstrated") return Object.keys(value).sort().join(",") === "outcome,phase,playback,reason,schema,viewport"
+    && ["ready", "play", "pause"].includes(value.phase)
+    && ["provider-state", "observation-timeout", "control-timeout"].includes(value.reason)
+    && (value.playback === null || (validPublicVideoPlayback(value.playback) && value.playback.identityMatches !== false));
+  if (Object.keys(value).sort().join(",") !== "outcome,playback,schema,viewport"
     || !validPublicVideoPlayback(value.playback)) return false;
   const p = value.playback;
   if (p.identityMatches !== true || p.mediaError !== null || p.adShowing || p.adInterrupting || !p.paused || p.ended) return false;

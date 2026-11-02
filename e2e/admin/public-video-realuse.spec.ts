@@ -3,11 +3,14 @@ import { expect, test } from "../fixtures/strictTest";
 import { api, assertNoHorizontalOverflow, assertQaStudentParentRuntime,
   QA_ADMIN_PASSWORD, QA_ADMIN_USER, QA_BASE, QA_TENANT, STUDENT_PARENT_REALUSE_ENABLED } from "../helpers/qaStudentParentScenario";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
-import { emitPublicVideoAvailability, emitReleaseTestFailure, isPublicVideoBotConfirmation, installReleaseContextGuard, installReleaseRequestGuard, releaseBoundaryFromEnv, type PublicVideoJourneyStage, type PublicVideoPlaybackObservation } from "../helpers/releaseApiBoundary";
+import { emitPublicVideoAvailability, emitPublicVideoNotDemonstrated, emitReleaseTestFailure, isPublicVideoBotConfirmation, isPublicVideoPlayedPaused, installReleaseContextGuard, installReleaseRequestGuard, releaseBoundaryFromEnv, type PublicVideoJourneyStage, type PublicVideoPlaybackObservation, type PublicVideoObservationPhase, type PublicVideoObservationReason } from "../helpers/releaseApiBoundary";
+import type { Page } from "@playwright/test";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import type { ManagedVideo, VideoShowcase } from "../../src/landing/api/publicVideos";
 
-function readPublicVideoPlayback(node: Element, { initialTime, expectedId }: { initialTime: number; expectedId: string }) {
+function readPublicVideoPlayback(nodes: Element[], { initialTime, expectedId }: { initialTime: number; expectedId: string }) {
+  const node = nodes[0];
+  if (!node) return undefined;
   const video = node as HTMLVideoElement;
   const moviePlayer = video.closest("#movie_player") as (Element & {
     getPlayerState?: () => unknown; getVideoData?: () => { video_id?: unknown };
@@ -17,39 +20,116 @@ function readPublicVideoPlayback(node: Element, { initialTime, expectedId }: { i
     && video.currentTime > initialTime + 1 && moviePlayer !== null
     && !moviePlayer.classList.contains("ad-showing") && !moviePlayer.classList.contains("ad-interrupting");
   const paused = video.paused;
-  try {
-    const finiteTime = (value: number) => Number.isFinite(value) && value >= 0 && value <= 604800 ? value : null;
-    const playerState = moviePlayer?.getPlayerState?.();
-    const playerError = moviePlayer?.querySelector(".ytp-error");
-    let errorVisible = !!playerError && playerError.getBoundingClientRect().width > 0
-      && playerError.getBoundingClientRect().height > 0;
-    for (let ancestor: Element | null = playerError; ancestor && errorVisible; ancestor = ancestor.parentElement) {
-      const style = getComputedStyle(ancestor);
-      errorVisible = !["hidden", "collapse"].includes(style.visibility) && style.display !== "none"
-        && style.contentVisibility !== "hidden" && Number.parseFloat(style.opacity) !== 0;
-    }
-    const errorText = errorVisible ? playerError?.textContent ?? "" : "";
-    const normalizedError = errorText.replace(/\s+/g, " ").replace(/[’‘]/g, "'").trim();
-    // Exact prompt observed in the retained hosted-browser screenshot. Generic
-    // mentions of bots/robots or a second error must never become non-blocking.
-    const botConfirmation = /^Sign in to confirm you're not a bot(?:[.!]?\s*This helps protect our community\.?)?(?:\s*Sign in)?(?:\s*Learn more)?$/i.test(normalizedError);
-    const snapshot: PublicVideoPlaybackObservation = {
-      paused: video.paused, ended: video.ended, readyState: video.readyState, networkState: video.networkState,
-      width: video.videoWidth, height: video.videoHeight, currentTime: finiteTime(video.currentTime),
-      initialTime: finiteTime(initialTime), duration: finiteTime(video.duration), mediaError: video.error?.code ?? null,
-      adShowing: moviePlayer?.classList.contains("ad-showing") ?? false,
-      adInterrupting: moviePlayer?.classList.contains("ad-interrupting") ?? false,
-      playerState: playerState === -1 || playerState === 0 || playerState === 1 || playerState === 2 || playerState === 3 || playerState === 5 ? playerState : null,
-      identityMatches: typeof moviePlayer?.getVideoData === "function" ? moviePlayer.getVideoData()?.video_id === expectedId : null,
-      errorVisible, errorClass: botConfirmation ? "bot-check"
-        : /unavailable|사용할 수 없/i.test(errorText) ? "unavailable"
-          : /embedding|다른 웹사이트/i.test(errorText) ? "embedding-disabled" : errorText.trim() ? "other" : "none",
-    };
-    return { snapshot, playing, paused };
-  } catch {
-    // Optional provider diagnostics must not change either playback assertion.
-    return { snapshot: undefined, playing, paused };
+  const finiteTime = (value: number) => Number.isFinite(value) && value >= 0 && value <= 604800 ? value : null;
+  const playerState = moviePlayer?.getPlayerState?.();
+  const observedId = moviePlayer?.getVideoData?.()?.video_id;
+  const playerError = moviePlayer?.querySelector(".ytp-error");
+  let errorVisible = !!playerError && playerError.getBoundingClientRect().width > 0
+    && playerError.getBoundingClientRect().height > 0;
+  for (let ancestor: Element | null = playerError; ancestor && errorVisible; ancestor = ancestor.parentElement) {
+    const style = getComputedStyle(ancestor);
+    errorVisible = !["hidden", "collapse"].includes(style.visibility) && style.display !== "none"
+      && style.contentVisibility !== "hidden" && Number.parseFloat(style.opacity) !== 0;
   }
+  const errorText = errorVisible ? playerError?.textContent ?? "" : "";
+  const normalizedError = errorText.replace(/\s+/g, " ").replace(/[’‘]/g, "'").trim();
+  // Keep this specific classification distinct from other provider states.
+  const botConfirmation = /^Sign in to confirm you're not a bot(?:[.!]?\s*This helps protect our community\.?)?(?:\s*Sign in)?(?:\s*Learn more)?$/i.test(normalizedError);
+  const snapshot: PublicVideoPlaybackObservation = {
+    paused: video.paused, ended: video.ended, readyState: video.readyState, networkState: video.networkState,
+    width: video.videoWidth, height: video.videoHeight, currentTime: finiteTime(video.currentTime),
+    initialTime: finiteTime(initialTime), duration: finiteTime(video.duration), mediaError: video.error?.code ?? null,
+    adShowing: moviePlayer?.classList.contains("ad-showing") ?? false,
+    adInterrupting: moviePlayer?.classList.contains("ad-interrupting") ?? false,
+    playerState: playerState === -1 || playerState === 0 || playerState === 1 || playerState === 2 || playerState === 3 || playerState === 5 ? playerState : null,
+    identityMatches: typeof observedId === "string" && observedId.trim() ? observedId === expectedId : null,
+    errorVisible, errorClass: botConfirmation ? "bot-check"
+      : /unavailable|사용할 수 없/i.test(errorText) ? "unavailable"
+        : /embedding|다른 웹사이트/i.test(errorText) ? "embedding-disabled" : errorText.trim() ? "other" : "none",
+  };
+  return { snapshot, playing, paused };
+}
+
+/** Only the external player's controls/waits are observational. Evaluation,
+ * identity, context and transport errors escape to the strict application test. */
+async function observePublicVideoPlayback(visitor: Page, expectedId: string,
+  onStage: (stage: PublicVideoJourneyStage) => void,
+  onSnapshot: (snapshot: PublicVideoPlaybackObservation | undefined) => void) {
+  const player = visitor.frameLocator("iframe");
+  const media = player.locator("#movie_player video.html5-main-video").first();
+  const playButton = player.getByRole("button", { name: /^(?:Play(?: video)?|동영상 재생|재생)(?: \(k\))?$/i }).filter({ visible: true }).first();
+  let playback: PublicVideoPlaybackObservation | undefined;
+  let initialTime = 0;
+  const observationDeadline = Date.now() + 60_000;
+  const remaining = () => Math.max(0, observationDeadline - Date.now());
+  const read = async () => {
+    if (!remaining()) return undefined;
+    // One nonwaiting DOM query: a detached/missing video is not a locator wait.
+    const result = await media.evaluateAll(readPublicVideoPlayback, { initialTime, expectedId });
+    playback = result?.snapshot;
+    onSnapshot(playback);
+    if (playback?.identityMatches === false) throw new Error("Public video provider identity mismatch");
+    return result;
+  };
+  const unavailable = () => !!playback && (playback.errorVisible || playback.mediaError !== null
+    || playback.adShowing || playback.adInterrupting || playback.ended);
+  const observed = (phase: PublicVideoObservationPhase, reason: PublicVideoObservationReason) =>
+    isPublicVideoBotConfirmation(playback)
+      ? { outcome: "bot-confirmation" as const, playback }
+      : { outcome: "not-demonstrated" as const, phase, reason, playback: playback ?? null };
+  const wait = async (predicate: () => Promise<boolean>) => {
+    const deadline = Math.min(observationDeadline, Date.now() + 30_000);
+    while (Date.now() < deadline) {
+      const ready = await predicate();
+      if (Date.now() >= deadline) return false;
+      if (ready) return true;
+      const sleep = Math.min(250, deadline - Date.now());
+      // Bounded external observation cadence; no application assertion waits here.
+      // eslint-disable-next-line no-restricted-syntax
+      if (sleep > 0) await visitor.waitForTimeout(sleep);
+    }
+    return false;
+  };
+  const control = async (action: (timeout: number) => Promise<unknown>) => {
+    const timeout = Math.min(30_000, remaining());
+    if (!timeout) return false;
+    try { await action(timeout); return true; }
+    catch (error) {
+      // Timeout from this one provider control is observable. All other errors
+      // (including a closed context or failed evaluation) retain their identity.
+      if (!(error instanceof Error) || error.name !== "TimeoutError") throw error;
+      if (remaining()) await read();
+      return false;
+    }
+  };
+  onStage("player-ready");
+  if (!await wait(async () => { await read(); return unavailable() || await playButton.isVisible(); })) {
+    return observed("ready", "observation-timeout");
+  }
+  if (unavailable()) return observed("ready", "provider-state");
+  initialTime = playback?.currentTime ?? 0;
+  onStage("player-playing");
+  if (!await control(timeout => playButton.click({ timeout }))) return observed("play", "control-timeout");
+  let played = false;
+  if (!await wait(async () => {
+    const result = await read();
+    played = result?.playing === true && playback?.identityMatches === true && !unavailable();
+    return unavailable() || played;
+  })) return observed("play", "observation-timeout");
+  if (!played) return observed("play", "provider-state");
+  onStage("player-paused");
+  if (!await control(timeout => player.locator("#movie_player").hover({ timeout }))) return observed("pause", "control-timeout");
+  const pauseButton = player.getByRole("button", { name: /^(?:Pause|일시중지|일시 중지)(?: ?\(k\))?$/i }).filter({ visible: true }).first();
+  if (!await wait(async () => { await read(); return unavailable() || await pauseButton.isVisible(); })) {
+    return observed("pause", "observation-timeout");
+  }
+  if (unavailable()) return observed("pause", "provider-state");
+  if (!await control(timeout => pauseButton.click({ timeout }))) return observed("pause", "control-timeout");
+  if (!await wait(async () => { await read(); return unavailable() || isPublicVideoPlayedPaused(playback); })) {
+    return observed("pause", "observation-timeout");
+  }
+  if (!isPublicVideoPlayedPaused(playback)) return observed("pause", "provider-state");
+  return { outcome: "played-paused" as const, playback };
 }
 
 test.setTimeout(240_000);
@@ -153,66 +233,27 @@ test.describe("[real-use] public video publishing", () => {
         const embedUrl = new URL(await visitor.locator("iframe").getAttribute("src") ?? "");
         expect(embedUrl.origin).toBe("https://www.youtube.com");
         expect(embedUrl.pathname).toBe(`/embed/${row.youtube_video_id}`);
-        journeyStage = "player-ready";
-        const player = visitor.frameLocator("iframe");
-        const playButton = player.getByRole("button", { name: /^(?:Play(?: video)?|동영상 재생|재생)(?: \(k\))?$/i }).filter({ visible: true }).first();
+        expect([...embedUrl.searchParams.keys()].sort()).toEqual(["autoplay", "origin", "playsinline"]);
+        expect(embedUrl.searchParams.get("autoplay")).toBe("0");
+        expect(embedUrl.searchParams.get("playsinline")).toBe("1");
+        expect(embedUrl.searchParams.get("origin")).toBe(new URL(QA_BASE).origin);
+        const originalEmbed = await visitor.locator("iframe").elementHandle();
+        expect(originalEmbed).not.toBeNull();
         activeVisitor = visitor;
-        const media = player.locator("#movie_player video.html5-main-video").first();
-        let startedAt = 0;
-        const readPlayback = async () => {
-          if (!await media.count()) return undefined;
-          const result = await media.evaluate(readPublicVideoPlayback, { initialTime: startedAt, expectedId: row.youtube_video_id });
-          playbackObservation = result.snapshot;
-          return result;
-        };
-        const clickControl = async (control: typeof playButton) => {
-          try { await control.click({ timeout: 30_000 }); return true; }
-          catch (error) {
-            // Only a vanished player control with a freshly identified bot
-            // prompt is provider unavailability. Transport/evaluation errors escape.
-            if (!(error instanceof Error) || error.name !== "TimeoutError") throw error;
-            await readPlayback();
-            if (!isPublicVideoBotConfirmation(playbackObservation)) throw error;
-            return false;
-          }
-        };
-        // An identified provider bot prompt is an availability result, never proof
-        // of playback. All application assertions and strict boundaries still run.
-        await expect.poll(async () => {
-          await readPlayback();
-          return isPublicVideoBotConfirmation(playbackObservation)
-            || (await playButton.isVisible() && !await player.locator(".ytp-error").isVisible());
-        }, { timeout: 30_000 }).toBe(true);
-        if (!isPublicVideoBotConfirmation(playbackObservation)) {
-          journeyStage = "player-playing";
-          if (await clickControl(playButton)) {
-            // Some legitimate players attach their video element only on Play.
-            startedAt = await media.evaluate(node => (node as HTMLVideoElement).currentTime);
-            expect(Number.isFinite(startedAt)).toBe(true);
-            await expect.poll(async () => {
-              const result = await readPlayback();
-              return isPublicVideoBotConfirmation(playbackObservation) || result?.playing === true;
-            }, { timeout: 30_000 }).toBe(true);
-          }
-          if (!isPublicVideoBotConfirmation(playbackObservation)) {
-            journeyStage = "player-paused";
-            await player.locator("#movie_player").hover();
-            const pauseButton = player.getByRole("button", { name: /^(?:Pause|일시중지|일시 중지)(?: ?\(k\))?$/i }).filter({ visible: true }).first();
-            await expect.poll(async () => {
-              await readPlayback();
-              return isPublicVideoBotConfirmation(playbackObservation) || await pauseButton.isVisible();
-            }).toBe(true);
-            if (!isPublicVideoBotConfirmation(playbackObservation) && await clickControl(pauseButton)) {
-              await expect.poll(async () => {
-                const result = await readPlayback();
-                return isPublicVideoBotConfirmation(playbackObservation)
-                  || (result?.paused === true && result.snapshot?.playerState === 2);
-              }).toBe(true);
-            }
-            if (!isPublicVideoBotConfirmation(playbackObservation)) await expect(player.locator(".ytp-error")).toBeHidden();
-          }
+        const provider = await observePublicVideoPlayback(visitor, row.youtube_video_id,
+          stage => { journeyStage = stage; }, snapshot => { playbackObservation = snapshot; });
+        // These are application assertions, outside the external observer. A
+        // removed/replaced/hidden iframe cannot be classified as unavailable.
+        expect(await originalEmbed!.evaluate(node => node.isConnected)).toBe(true);
+        await expect(visitor.locator("iframe")).toHaveCount(1);
+        await expect(visitor.locator("iframe")).toBeVisible();
+        await expect(visitor.locator("iframe")).toHaveAttribute("src", embedUrl.href);
+        await originalEmbed!.dispose();
+        if (provider.outcome === "not-demonstrated") {
+          emitPublicVideoNotDemonstrated(width, provider.phase, provider.reason, provider.playback);
+        } else {
+          emitPublicVideoAvailability(width, provider.outcome, provider.playback);
         }
-        emitPublicVideoAvailability(width, isPublicVideoBotConfirmation(playbackObservation) ? "bot-confirmation" : "played-paused", playbackObservation);
         await assertNoHorizontalOverflow(visitor); await visitor.screenshot({ path: testInfo.outputPath(`public-video-${width}.png`), fullPage: true, animations: "disabled" });
         playbackObservation = undefined;
         journeyStage = "public-catalog";
