@@ -1045,6 +1045,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         const el = homeworkInputRefs.current[`${cell.enrollmentId}-${cell.homeworkId}`];
         if (!el) return false;
         if (el.dataset.completionState) {
+          // Selecting the cell during a pointer press must not move focus (and
+          // scroll the table) away from the option the teacher is pressing.
+          const active = el.ownerDocument.activeElement;
+          if (active instanceof HTMLButtonElement && !active.disabled && el.contains(active)) return true;
           const button = el.querySelector<HTMLButtonElement>('button[aria-pressed="true"]');
           if (!button || button.disabled) return false;
           button.focus();

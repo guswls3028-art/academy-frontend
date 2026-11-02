@@ -180,7 +180,8 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
         checkpoint.phase = "feedback-score-edit";
         checkpoint.viewport = width as 1366 | 390;
         await verifyMixedHomeworkScoreEdit(staffPage, width, () => expectApi<CorrectionScores>(request, "GET", scoresPath, admin.access), {
-          enrollmentId: created.enrollmentId!, homeworkId: created.homeworkId!, completionId: completion.id,
+          sessionId: created.sessionId!, enrollmentId: created.enrollmentId!, comparisonEnrollmentId: created.previewEnrollmentId!,
+          homeworkId: created.homeworkId!, completionId: completion.id,
           studentName, comparisonName: previewStudent.name, homeworkTitle, completionTitle,
         });
         await verifyMixed(originalOrder, [created.homeworkId!], width === 1366 ? 1 : 0);

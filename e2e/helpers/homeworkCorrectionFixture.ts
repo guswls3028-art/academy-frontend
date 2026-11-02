@@ -104,11 +104,9 @@ export async function runHomeworkCorrectionFixture(page: Page, browser: Browser,
     });
     await parentPage.goto(new URL("/student/grades", page.url()).href);
     await page.reload();
-    await verifyMixedHomeworkScoreEdit(page, width, readScores, { enrollmentId, homeworkId, completionId, studentName,
+    await verifyMixedHomeworkScoreEdit(page, width, readScores, { sessionId, enrollmentId, comparisonEnrollmentId: peer.enrollment_id, homeworkId, completionId, studentName,
       comparisonName: peer.student_name, homeworkTitle, completionTitle });
     const persisted = await readScores();
-    expect(persisted.rows[0].homeworks.map((h: { block: { score: number } }) => h.block.score)).toEqual([92, width === 1366 ? 1 : 0]);
-    expect(persisted.rows[1].homeworks.map((h: { block: { score: number } }) => h.block.score)).toEqual([60, width === 1366 ? 0 : 1]);
     expect(persisted.rows[0].homework_total).toMatchObject({ score: 92, max_score: 100 });
     await verifyScoreCorrectionWhileEditing(page, parentPage, readScores, { sessionId, enrollmentId, homeworkId, homeworkTitle, studentName, maxScore: 100 });
     expect(parentReads).toContain(true);
