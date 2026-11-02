@@ -1,6 +1,7 @@
 import type { VideoCommentItem } from "../../src/app_student/domains/video/api/video.api";
 import type { Page } from "@playwright/test";
 import { syntheticLongVideoAsset } from "../../scripts/run-development-release-canary.mjs";
+import { proxyReviewMedia } from "../../functions/review-media/[[path]]";
 import { expect, test } from "../fixtures/strictTest";
 import { guardUnmockedYouTubeRequests, installYouTubeSdkFixture } from "../helpers/youtubeSdkFixture";
 import { installStudentYoutubeScenario, YOUTUBE_QA_VIDEO_ID } from "../helpers/studentYoutubeScenario";
@@ -63,7 +64,7 @@ async function installWatchScenario(page: Page, completed = false) {
       return json({ video: { ...video, ...(hosted ? { source_type: "s3", youtube_video_id: null } : {}), is_liked: state.liked, like_count: state.liked ? 1 : 0,
         comment_count: state.comments.length, view_count: 12 },
         review_watch: state.reviewRemaining === null ? null : { stream: "test-review", used_ms: 0, remaining_ms: state.reviewRemaining },
-        play_url: hosted ? `${BASE}/__qa__/video-long/master.m3u8` : `https://www.youtube.com/embed/${YOUTUBE_QA_VIDEO_ID}`,
+        play_url: hosted ? "/api/v1/media/review-stream/11111111-1111-4111-8111-111111111111/master.m3u8?tenant=qa" : `https://www.youtube.com/embed/${YOUTUBE_QA_VIDEO_ID}`,
         playback_token: `synthetic-watch-${video.id}`, playback_session_id: null,
         playback_expires_at: Math.floor(Date.now() / 1000) + 900, policy_version: 1,
         policy: { access_mode: "FREE_REVIEW", monitoring_enabled: false, allow_seek: true,
@@ -103,11 +104,19 @@ for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: 840 });
     const { state } = await installWatchScenario(page);
     state.reviewRemaining = 14000;
-    await page.route("**/__qa__/video-long/**", async route => {
-      const path = new URL(route.request().url()).pathname;
-      if (!path.endsWith(".m3u8") && !state.prepared) return route.fulfill({ status: 429 });
-      const asset = syntheticLongVideoAsset(path);
-      return route.fulfill({ contentType: asset.contentType, body: asset.body });
+    await page.route("**/review-media/**", async route => {
+      const response = await proxyReviewMedia(new Request(route.request().url()), async input => {
+        const target = new URL(String(input));
+        const file = target.pathname.split("/").pop();
+        const asset = syntheticLongVideoAsset(`/__qa__/video-long/${file}`);
+        if (target.hostname === "api.hakwonplus.com") {
+          if (file === "master.m3u8") return new Response(asset.body.toString().replace("init.mp4", "init.mp4?tenant=qa").replace("media.m4s", "media.m4s?tenant=qa"));
+          if (!state.prepared) return new Response(null, {status: 429});
+          return Response.redirect(`https://${"a".repeat(32)}.r2.cloudflarestorage.com/academy-development-artifacts/tenants/1/video/hls/562/${file}?X-Amz-Signature=synthetic`, 302);
+        }
+        return new Response(asset.body, {headers: { "Content-Type": asset.contentType }});
+      });
+      return route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) });
     });
     await openWatch(page);
     await expect(page.getByText("남은 복습시간 0분 14초")).toBeVisible();

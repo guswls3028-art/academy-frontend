@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { reportReviewWatch, type ReviewWatch } from "../../api/video.api";
+import { reportReviewWatch, type ReviewWatch } from "../../api/reviewWatch.api";
 
 export function useReviewWatch(
   videoId: number, enrollmentId: number | null, watch: ReviewWatch | null | undefined,

@@ -1,6 +1,10 @@
 export function resolveStudentVideoPlayUrl(playUrl: string): string | null {
   let url = playUrl || "";
   if (!url) return null;
+  const reviewPrefix = "/api/v1/media/review-stream/";
+  if (url.startsWith(reviewPrefix)) {
+    return new URL(`/review-media/${url.slice(reviewPrefix.length)}`, window.location.origin).href;
+  }
   try {
     new URL(url);
     return url;

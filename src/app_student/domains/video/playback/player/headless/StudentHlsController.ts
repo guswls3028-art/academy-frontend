@@ -4,7 +4,7 @@
  * After dispose(), zero callbacks can run — guards enforce no setState from video events.
  */
 import studentApi from "@student/shared/api/student.api";
-import { prepareReviewPlayback } from "../../../api/video.api";
+import { prepareReviewPlayback } from "../../../api/reviewWatch.api";
 import type Hls from "hls.js";
 import type { ErrorData, LevelSwitchedData, Level } from "hls.js";
 import { clamp, getEpochSec } from "../design/utils";
@@ -806,7 +806,7 @@ export class StudentHlsController {
       if (t > this.maxWatchedRef) this.maxWatchedRef = t;
     };
 
-    const onPlay = () => this.guard(() => this.setState({ playing: true, buffering: el.readyState < HTMLMediaElement.HAVE_FUTURE_DATA }));
+    const onPlay = () => this.guard(() => this.setState({ playing: true, buffering: el.readyState < el.HAVE_FUTURE_DATA }));
     const onPause = () => this.guard(() => this.setState({ playing: false }));
     const onWaiting = () => this.guard(() => this.setState({ buffering: true }));
     const onPlaying = () => this.guard(() => this.setState({ buffering: false }));
