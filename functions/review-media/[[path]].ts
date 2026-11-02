@@ -1,5 +1,7 @@
 // The browser uses one origin for playlists and fragments. The API admits every
 // request; Cloudflare streams the admitted fragment without sending video bytes through Django.
+import { HOSTNAME_TO_TENANT_CODE } from "../../src/shared/tenant/tenants";
+
 const apiOrigin = "https://api.hakwonplus.com";
 const videoStorage = /^[a-f0-9]{32}\.r2\.cloudflarestorage\.com$/;
 const noStore = { "Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer" };
@@ -10,7 +12,11 @@ export async function proxyReviewMedia(request: Request, fetchUpstream: typeof f
   const url = new URL(request.url);
   const match = /^\/review-media\/([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})\/([a-zA-Z0-9._/-]+)$/.exec(url.pathname);
   const tenant = url.searchParams.get("tenant") ?? "";
-  if (!match || !/^[a-zA-Z0-9_-]{1,64}$/.test(tenant) || url.searchParams.size !== 1) return reject(404);
+  // The deployment artifact carries the same domain registry as the role app.
+  // Never send a preview, localhost or unregistered host to production admission.
+  if (url.protocol !== "https:" || url.port || url.hostname === "localhost" || url.hostname === "127.0.0.1"
+      || !Object.hasOwn(HOSTNAME_TO_TENANT_CODE, url.hostname)
+      || HOSTNAME_TO_TENANT_CODE[url.hostname] !== tenant || !match || url.searchParams.size !== 1) return reject(404);
   const [, stream, asset] = match;
   if (asset.split("/").some(part => !part || part === "." || part === "..")) return reject(404);
   const range = request.headers.get("Range");

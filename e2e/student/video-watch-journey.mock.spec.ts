@@ -64,7 +64,7 @@ async function installWatchScenario(page: Page, completed = false) {
       return json({ video: { ...video, ...(hosted ? { source_type: "s3", youtube_video_id: null } : {}), is_liked: state.liked, like_count: state.liked ? 1 : 0,
         comment_count: state.comments.length, view_count: 12 },
         review_watch: state.reviewRemaining === null ? null : { stream: "test-review", used_ms: 0, remaining_ms: state.reviewRemaining },
-        play_url: hosted ? "/api/v1/media/review-stream/11111111-1111-4111-8111-111111111111/master.m3u8?tenant=qa" : `https://www.youtube.com/embed/${YOUTUBE_QA_VIDEO_ID}`,
+        play_url: hosted ? "/api/v1/media/review-stream/11111111-1111-4111-8111-111111111111/master.m3u8?tenant=godmin" : `https://www.youtube.com/embed/${YOUTUBE_QA_VIDEO_ID}`,
         playback_token: `synthetic-watch-${video.id}`, playback_session_id: null,
         playback_expires_at: Math.floor(Date.now() / 1000) + 900, policy_version: 1,
         policy: { access_mode: "FREE_REVIEW", monitoring_enabled: false, allow_seek: true,
@@ -105,12 +105,14 @@ for (const width of [1366, 390]) {
     const { state } = await installWatchScenario(page);
     state.reviewRemaining = 14000;
     await page.route("**/review-media/**", async route => {
-      const response = await proxyReviewMedia(new Request(route.request().url()), async input => {
+      const browserUrl = new URL(route.request().url());
+      const fixtureRequest = new Request(`https://godmin.kr${browserUrl.pathname}${browserUrl.search}`);
+      const response = await proxyReviewMedia(fixtureRequest, async input => {
         const target = new URL(String(input));
         const file = target.pathname.split("/").pop();
         const asset = syntheticLongVideoAsset(`/__qa__/video-long/${file}`);
         if (target.hostname === "api.hakwonplus.com") {
-          if (file === "master.m3u8") return new Response(asset.body.toString().replace("init.mp4", "init.mp4?tenant=qa").replace("media.m4s", "media.m4s?tenant=qa"));
+          if (file === "master.m3u8") return new Response(asset.body.toString().replace("init.mp4", "init.mp4?tenant=godmin").replace("media.m4s", "media.m4s?tenant=godmin"));
           if (!state.prepared) return new Response(null, {status: 429});
           return Response.redirect(`https://${"a".repeat(32)}.r2.cloudflarestorage.com/academy-development-artifacts/tenants/1/video/hls/562/${file}?X-Amz-Signature=synthetic`, 302);
         }
@@ -132,6 +134,19 @@ for (const width of [1366, 390]) {
     await expect(page.getByRole("button", { name: "뒤로가기" })).toBeVisible();
   });
 }
+
+test("review media rejects preview hosts and tenant mismatches before admission", async () => {
+  const path = "/review-media/11111111-1111-4111-8111-111111111111/master.m3u8";
+  let calls = 0;
+  const upstream = async () => { calls++; return new Response("#EXTM3U"); };
+  for (const origin of ["https://candidate.pages.dev", "https://unregistered.invalid", "http://localhost"]) {
+    expect((await proxyReviewMedia(new Request(`${origin}${path}?tenant=godmin`), upstream)).status).toBe(404);
+  }
+  expect((await proxyReviewMedia(new Request(`https://godmin.kr${path}?tenant=another`), upstream)).status).toBe(404);
+  expect(calls).toBe(0);
+  expect((await proxyReviewMedia(new Request(`https://dev.hakwonplus.com${path}?tenant=hakwonplus`), upstream)).status).toBe(200);
+  expect(calls).toBe(1);
+});
 
 async function openWatch(page: Page) {
   await page.goto(`${BASE}/student/video/play?video=562&enrollment=1304&session=394`);
