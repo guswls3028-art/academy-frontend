@@ -8,7 +8,9 @@ import type { Page } from "@playwright/test";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import type { ManagedVideo, VideoShowcase } from "../../src/landing/api/publicVideos";
 
-function readPublicVideoPlayback(node: Element, { initialTime, expectedId }: { initialTime: number; expectedId: string }) {
+function readPublicVideoPlayback(nodes: Element[], { initialTime, expectedId }: { initialTime: number; expectedId: string }) {
+  const node = nodes[0];
+  if (!node) return undefined;
   const video = node as HTMLVideoElement;
   const moviePlayer = video.closest("#movie_player") as (Element & {
     getPlayerState?: () => unknown; getVideoData?: () => { video_id?: unknown };
@@ -20,6 +22,7 @@ function readPublicVideoPlayback(node: Element, { initialTime, expectedId }: { i
   const paused = video.paused;
   const finiteTime = (value: number) => Number.isFinite(value) && value >= 0 && value <= 604800 ? value : null;
   const playerState = moviePlayer?.getPlayerState?.();
+  const observedId = moviePlayer?.getVideoData?.()?.video_id;
   const playerError = moviePlayer?.querySelector(".ytp-error");
   let errorVisible = !!playerError && playerError.getBoundingClientRect().width > 0
     && playerError.getBoundingClientRect().height > 0;
@@ -39,7 +42,7 @@ function readPublicVideoPlayback(node: Element, { initialTime, expectedId }: { i
     adShowing: moviePlayer?.classList.contains("ad-showing") ?? false,
     adInterrupting: moviePlayer?.classList.contains("ad-interrupting") ?? false,
     playerState: playerState === -1 || playerState === 0 || playerState === 1 || playerState === 2 || playerState === 3 || playerState === 5 ? playerState : null,
-    identityMatches: typeof moviePlayer?.getVideoData === "function" ? moviePlayer.getVideoData()?.video_id === expectedId : null,
+    identityMatches: typeof observedId === "string" && observedId.trim() ? observedId === expectedId : null,
     errorVisible, errorClass: botConfirmation ? "bot-check"
       : /unavailable|사용할 수 없/i.test(errorText) ? "unavailable"
         : /embedding|다른 웹사이트/i.test(errorText) ? "embedding-disabled" : errorText.trim() ? "other" : "none",
@@ -57,8 +60,12 @@ async function observePublicVideoPlayback(visitor: Page, expectedId: string,
   const playButton = player.getByRole("button", { name: /^(?:Play(?: video)?|동영상 재생|재생)(?: \(k\))?$/i }).filter({ visible: true }).first();
   let playback: PublicVideoPlaybackObservation | undefined;
   let initialTime = 0;
+  const observationDeadline = Date.now() + 60_000;
+  const remaining = () => Math.max(0, observationDeadline - Date.now());
   const read = async () => {
-    const result = await media.count() ? await media.evaluate(readPublicVideoPlayback, { initialTime, expectedId }) : undefined;
+    if (!remaining()) return undefined;
+    // One nonwaiting DOM query: a detached/missing video is not a locator wait.
+    const result = await media.evaluateAll(readPublicVideoPlayback, { initialTime, expectedId });
     playback = result?.snapshot;
     onSnapshot(playback);
     if (playback?.identityMatches === false) throw new Error("Public video provider identity mismatch");
@@ -70,23 +77,28 @@ async function observePublicVideoPlayback(visitor: Page, expectedId: string,
     isPublicVideoBotConfirmation(playback)
       ? { outcome: "bot-confirmation" as const, playback }
       : { outcome: "not-demonstrated" as const, phase, reason, playback: playback ?? null };
-  const observationDeadline = Date.now() + 60_000;
-  const controlTimeout = () => Math.max(1, Math.min(30_000, observationDeadline - Date.now()));
   const wait = async (predicate: () => Promise<boolean>) => {
     const deadline = Math.min(observationDeadline, Date.now() + 30_000);
-    do {
-      if (await predicate()) return true;
+    while (Date.now() < deadline) {
+      const ready = await predicate();
       if (Date.now() >= deadline) return false;
-      await visitor.waitForTimeout(250);
-    } while (true);
+      if (ready) return true;
+      const sleep = Math.min(250, deadline - Date.now());
+      // Bounded external observation cadence; no application assertion waits here.
+      // eslint-disable-next-line no-restricted-syntax
+      if (sleep > 0) await visitor.waitForTimeout(sleep);
+    }
+    return false;
   };
-  const control = async (action: () => Promise<unknown>) => {
-    try { await action(); return true; }
+  const control = async (action: (timeout: number) => Promise<unknown>) => {
+    const timeout = Math.min(30_000, remaining());
+    if (!timeout) return false;
+    try { await action(timeout); return true; }
     catch (error) {
       // Timeout from this one provider control is observable. All other errors
       // (including a closed context or failed evaluation) retain their identity.
       if (!(error instanceof Error) || error.name !== "TimeoutError") throw error;
-      await read();
+      if (remaining()) await read();
       return false;
     }
   };
@@ -97,7 +109,7 @@ async function observePublicVideoPlayback(visitor: Page, expectedId: string,
   if (unavailable()) return observed("ready", "provider-state");
   initialTime = playback?.currentTime ?? 0;
   onStage("player-playing");
-  if (!await control(() => playButton.click({ timeout: controlTimeout() }))) return observed("play", "control-timeout");
+  if (!await control(timeout => playButton.click({ timeout }))) return observed("play", "control-timeout");
   let played = false;
   if (!await wait(async () => {
     const result = await read();
@@ -106,13 +118,13 @@ async function observePublicVideoPlayback(visitor: Page, expectedId: string,
   })) return observed("play", "observation-timeout");
   if (!played) return observed("play", "provider-state");
   onStage("player-paused");
-  if (!await control(() => player.locator("#movie_player").hover({ timeout: controlTimeout() }))) return observed("pause", "control-timeout");
+  if (!await control(timeout => player.locator("#movie_player").hover({ timeout }))) return observed("pause", "control-timeout");
   const pauseButton = player.getByRole("button", { name: /^(?:Pause|일시중지|일시 중지)(?: ?\(k\))?$/i }).filter({ visible: true }).first();
   if (!await wait(async () => { await read(); return unavailable() || await pauseButton.isVisible(); })) {
     return observed("pause", "observation-timeout");
   }
   if (unavailable()) return observed("pause", "provider-state");
-  if (!await control(() => pauseButton.click({ timeout: controlTimeout() }))) return observed("pause", "control-timeout");
+  if (!await control(timeout => pauseButton.click({ timeout }))) return observed("pause", "control-timeout");
   if (!await wait(async () => { await read(); return unavailable() || isPublicVideoPlayedPaused(playback); })) {
     return observed("pause", "observation-timeout");
   }
@@ -221,9 +233,22 @@ test.describe("[real-use] public video publishing", () => {
         const embedUrl = new URL(await visitor.locator("iframe").getAttribute("src") ?? "");
         expect(embedUrl.origin).toBe("https://www.youtube.com");
         expect(embedUrl.pathname).toBe(`/embed/${row.youtube_video_id}`);
+        expect([...embedUrl.searchParams.keys()].sort()).toEqual(["autoplay", "origin", "playsinline"]);
+        expect(embedUrl.searchParams.get("autoplay")).toBe("0");
+        expect(embedUrl.searchParams.get("playsinline")).toBe("1");
+        expect(embedUrl.searchParams.get("origin")).toBe(new URL(QA_BASE).origin);
+        const originalEmbed = await visitor.locator("iframe").elementHandle();
+        expect(originalEmbed).not.toBeNull();
         activeVisitor = visitor;
         const provider = await observePublicVideoPlayback(visitor, row.youtube_video_id,
           stage => { journeyStage = stage; }, snapshot => { playbackObservation = snapshot; });
+        // These are application assertions, outside the external observer. A
+        // removed/replaced/hidden iframe cannot be classified as unavailable.
+        expect(await originalEmbed!.evaluate(node => node.isConnected)).toBe(true);
+        await expect(visitor.locator("iframe")).toHaveCount(1);
+        await expect(visitor.locator("iframe")).toBeVisible();
+        await expect(visitor.locator("iframe")).toHaveAttribute("src", embedUrl.href);
+        await originalEmbed!.dispose();
         if (provider.outcome === "not-demonstrated") {
           emitPublicVideoNotDemonstrated(width, provider.phase, provider.reason, provider.playback);
         } else {

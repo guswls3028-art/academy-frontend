@@ -972,10 +972,14 @@ cleanup은 모두 계속 필수다. 외부 관측 뒤에도 후반 앱 여정을
   있으면 검증된 닫힌 snapshot만 허용한다. 이 결과는 실패 원인이 공급자라고 단정하거나
   사용자의 브라우저에서 재생이 불가능하다는 뜻도 아니다.
 
-관측은 폭마다 총 60초, 각 wait/control 최대 30초로 제한한다. provider control의
+provider wait/control은 폭마다 총 60초 예산, 각 호출 최대 30초로 제한한다.
+미디어는 단일 nonwaiting DOM query로 읽어 node 교체로 인한 추가 locator wait를 만들지
+않는다. 다음 호출·sleep·timeout 후 read는 남은 예산 안에서만 시작한다. provider control의
 Playwright TimeoutError만 해당 control 경계에서 기록한다. evaluate/transport/
 context crash와 그 밖의 예외는 전파한다. 관측된 identityMatches=false는 즉시 실패하며,
-식별을 아직 관측하지 못한 null은 재생 성공으로 인정하지 않는다. 외부 요청·redirect·
+식별을 아직 관측하지 못한 null(미반환/빈 ID 포함)은 재생 성공으로 인정하지 않는다.
+관측 뒤 emitter 전에 원 앱 iframe의 연결 유지·단일 개수·가시성·같은 exact src를 다시
+검사한다. iframe 제거·교체·숨김이나 잘못된 영상/params는 외부 가용성으로 통과하지 않는다. 외부 요청·redirect·
 인증·tenant·strict browser 결함은 기존대로 실패한다. 전체 test의 catch로 앱 오류를
 삼키지 않는다. parser는 원 spec의 닫힌 schema/enum/수치만 보존하며 추가 키·중복 폭·
 누락·다른 spec·잘못된 관측을 거부한다. 정상 승격은 두 폭의 유효한 관측, 앱 41건 통과,

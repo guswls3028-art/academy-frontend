@@ -80,11 +80,13 @@ test("bounded provider observations keep every external state separate from appl
   const spec = stripTypeScriptTypes(readFileSync(new URL("../../e2e/admin/public-video-realuse.spec.ts", import.meta.url), "utf8"))
     .replace(/^import[\s\S]*?;\r?\n/gm, "");
   for (const mode of ["normal", "lazy-media", "bot-before", "bot-after", "buffering", "unavailable", "media-error", "ad",
-    "missing-media", "ready-timeout", "pause-timeout", "control-timeout", "unknown-identity", "wrong-identity", "transport", "context-closed"]) {
+    "missing-media", "ready-timeout", "pause-timeout", "control-timeout", "unknown-identity", "wrong-identity", "transport", "context-closed", "click-transport", "evaluate-timeout", "media-replaced"]) {
     let state = ["bot-before", "unavailable", "media-error", "ad", "wrong-identity"].includes(mode) ? "blocked" : "ready";
     let now = 0;
     const calls = [], stages = [], snapshots = [];
     const failure = new Error(mode === "context-closed" ? "Target page, context or browser has been closed" : "controlled transport failure");
+    if (mode === "evaluate-timeout") failure.name = "TimeoutError";
+    let sampleCount = 0;
     const playback = () => state === "blocked" ? { ...botPlayback,
       ...(mode === "unavailable" ? { errorClass: "unavailable" } : {}),
       ...(mode === "media-error" ? { errorClass: "none", errorVisible: false, mediaError: 2 } : {}),
@@ -93,17 +95,20 @@ test("bounded provider observations keep every external state separate from appl
       : state === "paused" ? pausedPlayback
         : state === "playing" ? { ...pausedPlayback, paused: false, playerState: 1, identityMatches: mode === "unknown-identity" ? null : true }
           : { ...botPlayback, playerState: mode === "buffering" ? 3 : -1, errorVisible: false, errorClass: "none" };
-    const media = { first() { return this; }, count: async () => mode === "missing-media" || (mode === "lazy-media" && !calls.includes("play")) ? 0 : 1,
-      evaluate: async (_fn, args) => {
-        if (mode === "transport" || mode === "context-closed") throw failure;
-        const snapshot = { ...playback(), initialTime: args.initialTime };
-        return { snapshot, playing: state === "playing", paused: snapshot.paused };
-      } };
+    const media = { first() { return this; }, evaluateAll: async (_fn, args) => {
+      sampleCount++;
+      if (["transport", "context-closed", "evaluate-timeout"].includes(mode)) throw failure;
+      if (mode === "missing-media" || (mode === "lazy-media" && !calls.includes("play")) || (mode === "media-replaced" && calls.includes("play"))) return undefined;
+      const snapshot = { ...playback(), initialTime: args.initialTime };
+      return { snapshot, playing: state === "playing", paused: snapshot.paused };
+    } };
     const button = kind => ({ filter() { return this; }, first() { return this; },
       isVisible: async () => mode !== "ready-timeout" && !(mode === "pause-timeout" && kind === "pause"),
-      click: async () => {
+      click: async ({ timeout }) => {
         calls.push(kind);
-        if (mode === "control-timeout") { const error = new Error("bounded provider action timeout"); error.name = "TimeoutError"; throw error; }
+        if (mode === "click-transport") throw failure;
+        if (mode === "media-replaced") now = 59_999;
+        if (mode === "control-timeout") { now += timeout; const error = new Error("bounded provider action timeout"); error.name = "TimeoutError"; throw error; }
         state = kind === "play" ? mode === "bot-after" ? "blocked" : ["buffering", "missing-media"].includes(mode) ? "ready" : "playing" : "paused";
       } });
     const frame = { getByRole: (_role, options) => button(options.name.test("Play") ? "play" : "pause"),
@@ -113,7 +118,7 @@ test("bounded provider observations keep every external state separate from appl
       isPublicVideoBotConfirmation: policy.isPublicVideoBotConfirmation, isPublicVideoPlayedPaused: policy.isPublicVideoPlayedPaused };
     runInNewContext(spec + "\nglobalThis.observe = observePublicVideoPlayback;", scope);
     const run = () => scope.observe(visitor, id, stage => stages.push(stage), value => snapshots.push(value));
-    if (["wrong-identity", "transport", "context-closed"].includes(mode)) {
+    if (["wrong-identity", "transport", "context-closed", "click-transport", "evaluate-timeout"].includes(mode)) {
       await assert.rejects(run(), mode === "wrong-identity" ? /identity mismatch/ : error => error === failure);
       continue;
     }
@@ -124,6 +129,8 @@ test("bounded provider observations keep every external state separate from appl
     if (positive) assert.deepEqual(calls, ["play", "pause"]);
     if (mode === "buffering") { assert.equal(result.phase, "play"); assert.equal(result.reason, "observation-timeout"); assert.equal(result.playback.playerState, 3); }
     if (mode === "missing-media") assert.equal(result.playback, null);
+    if (mode === "media-replaced") { assert.equal(now, 60_000); assert.equal(sampleCount, 2); assert.equal(result.playback, null); }
+    if (mode === "control-timeout") { assert.equal(result.phase, "play"); assert.equal(result.reason, "control-timeout"); }
     if (mode === "pause-timeout") assert.equal(result.phase, "pause");
     const output = [];
     for (const viewport of [1366, 390]) {
@@ -158,17 +165,26 @@ test("actual application continuation stays outside provider observation and pre
   const start = spec.indexOf("        activeVisitor = visitor;");
   const end = spec.indexOf("        playbackObservation = undefined;", start);
   assert.ok(start > 0 && end > start);
-  const applicationError = new Error("application overflow failure");
-  const output = [];
-  const run = runInNewContext(`(async () => { let activeVisitor, journeyStage, playbackObservation; ${spec.slice(start, end)} })`, {
-    visitor: {}, row: { youtube_video_id: id }, width: 390,
-    observePublicVideoPlayback: async () => ({ outcome: "not-demonstrated", phase: "play", reason: "observation-timeout", playback: null }),
-    emitPublicVideoNotDemonstrated: (...args) => policy.emitPublicVideoNotDemonstrated(...args, value => output.push(value)),
-    assertNoHorizontalOverflow: async () => { throw applicationError; },
-  });
-  await assert.rejects(run(), error => error === applicationError);
-  assert.equal(output.length, 1);
-  assert.equal(output[0].publicVideoAvailability.outcome, "not-demonstrated");
+  for (const mode of ["overflow", "replaced", "removed", "hidden", "changed-src"]) {
+    const applicationError = new Error("application overflow failure");
+    const output = [];
+    const iframe = {};
+    const expected = value => ({
+      toBe: other => assert.equal(value, other),
+      toHaveCount: async count => assert.equal(mode === "removed" ? 0 : 1, count),
+      toBeVisible: async () => assert.notEqual(mode, "hidden"),
+      toHaveAttribute: async (key, src) => { assert.equal(key, "src"); assert.equal(mode === "changed-src" ? "different" : embed, src); },
+    });
+    const run = runInNewContext(`(async () => { let activeVisitor, journeyStage, playbackObservation; ${spec.slice(start, end)} })`, {
+      visitor: { locator: () => iframe }, row: { youtube_video_id: id }, width: 390, expect: expected,
+      originalEmbed: { evaluate: async () => mode !== "replaced", dispose: async () => {} }, embedUrl: new URL(embed),
+      observePublicVideoPlayback: async () => ({ outcome: "not-demonstrated", phase: "play", reason: "observation-timeout", playback: null }),
+      emitPublicVideoNotDemonstrated: (...args) => policy.emitPublicVideoNotDemonstrated(...args, value => output.push(value)),
+      assertNoHorizontalOverflow: async () => { throw applicationError; },
+    });
+    await assert.rejects(run(), mode === "overflow" ? error => error === applicationError : undefined);
+    assert.equal(output.length, mode === "overflow" ? 1 : 0, "invalid application iframe must fail before emitting provider availability");
+  }
 });
 
 test("only API-shaped sources with fixed canonical and thumbnail addresses are registered", () => {
@@ -609,8 +625,13 @@ test("actual public-video sampler preserves failed playback predicates and emits
       getVideoData: () => ({ video_id: "private-video-id" }), querySelector: () => null, ...playerOverrides };
     const video = { paused: false, ended: false, readyState: 4, networkState: 1, videoWidth: 1280, videoHeight: 720,
       currentTime: 28.157, duration: 716, error: null, closest: () => player, ...overrides };
-    return scope.readPlayback(video, { initialTime, expectedId: "private-video-id" });
+    return scope.readPlayback([video], { initialTime, expectedId: "private-video-id" });
   };
+  assert.equal(scope.readPlayback([], { initialTime: 0, expectedId: "private-video-id" }), undefined);
+  for (const video_id of [undefined, "", "   ", null]) {
+    assert.equal(sample({}, [], { getVideoData: () => ({ video_id }) }).snapshot.identityMatches, null);
+  }
+  assert.equal(sample({}, [], { getVideoData: () => ({ video_id: "other-video" }) }).snapshot.identityMatches, false);
   const cases = [
     [sample(), true, false], [sample({ paused: true }), false, true],
     [sample({ readyState: 1, networkState: 2, currentTime: 0 }), false, false],
