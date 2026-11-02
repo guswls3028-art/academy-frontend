@@ -142,11 +142,14 @@ for (const width of [390, 1366]) {
     await page.goto(`${BASE}/workspace/clinic/home`);
     await page.getByRole("button", { name: "출결 QR 출력", exact: true }).click();
     await page.getByLabel("인쇄할 이름").fill("301호 출결");
+    await expect(page.getByRole("textbox", { name: /^클리닉 장소/ })).toHaveAccessibleName("클리닉 장소");
+    await page.getByLabel("클리닉 장소", { exact: true }).fill("301호");
     await page.getByRole("button", { name: "QR 발급", exact: true }).click();
     const poster = page.getByLabel("출결 QR 인쇄 미리보기");
     await expect(poster.locator("svg")).toBeVisible();
     const photo = await poster.locator(".ant-qrcode").screenshot();
     expect(state.points[0].kind).toBe("clinic");
+    expect(state.points[0].location).toBe("301호");
     // Observe the exact print document without opening an OS print dialog.
     await page.evaluate(() => {
       const append = document.body.appendChild.bind(document.body);
