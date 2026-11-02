@@ -75,6 +75,7 @@ export class StudentHlsController {
   private el: HTMLVideoElement | null = null;
   private hls: Hls | null = null;
   private playGeneration = 0;
+  private nativeGestureUntil = 0;
   private disposed = false;
   private listeners = new Set<Listener>();
   private opts: ControllerOptions;
@@ -180,9 +181,8 @@ export class StudentHlsController {
     if (this.disposed || !this.el) return;
     if (this.opts.reviewStream) {
       const generation = ++this.playGeneration;
-      // Claim native user activation before awaiting the authenticated startup grant.
-      this.el.play()?.catch(ignoreBestEffortError);
-      void this.startReviewPlayback(generation, this.opts.reviewStream);
+      if (performance.now() < this.nativeGestureUntil) this.playPreparedMedia(generation);
+      else void this.startReviewPlayback(generation, this.opts.reviewStream);
       return;
     }
     try {
@@ -190,6 +190,16 @@ export class StudentHlsController {
     } catch {
       ignoreBestEffortError();
     }
+  }
+
+  private playPreparedMedia(generation: number) {
+    this.el?.play()?.catch((error: DOMException) => {
+      if (this.disposed || generation !== this.playGeneration) return;
+      if (error.name === "NotAllowedError") {
+        this.nativeGestureUntil = performance.now() + 15_000;
+        this.showToast("재생 준비가 끝났어요. 재생을 눌러 주세요.", "info");
+      }
+    });
   }
 
   private async startReviewPlayback(generation: number, stream: string) {
@@ -204,8 +214,13 @@ export class StudentHlsController {
         }, wait + 50));
         return;
       }
+      if (!this.hls && this.el && !this.el.getAttribute("src")) {
+        const url = resolveStudentVideoPlayUrl(this.opts.playUrl || "");
+        if (!url) throw new Error("Invalid review playback URL");
+        this.el.src = url;
+      }
       this.hls?.startLoad(position);
-      this.el?.play()?.catch(ignoreBestEffortError);
+      this.playPreparedMedia(generation);
     } catch {
       if (!this.disposed && generation === this.playGeneration) this.opts.onFatal?.("복습 재생 권한을 확인하지 못했습니다. 다시 열어 주세요.");
     }
@@ -214,6 +229,7 @@ export class StudentHlsController {
   pause() {
     if (this.disposed || !this.el) return;
     this.playGeneration++;
+    this.nativeGestureUntil = 0;
     if (this.opts.reviewStream) this.hls?.stopLoad();
     try {
       this.el.pause();
@@ -622,7 +638,7 @@ export class StudentHlsController {
     } catch {
       ignoreBestEffortError();
     }
-    el.src = "";
+    el.removeAttribute("src");
 
     const url = resolveStudentVideoPlayUrl(this.opts.playUrl || "");
     if (!url) {
@@ -634,8 +650,8 @@ export class StudentHlsController {
       el.canPlayType("application/vnd.apple.mpegurl") || el.canPlayType("application/x-mpegURL");
 
     if (canNative) {
-      el.src = url;
       if (this.opts.reviewStream) this.setState({ ready: true });
+      else el.src = url;
       this.bindVideoEvents();
       this.startIntervals();
       this.startDocListeners();
@@ -753,11 +769,14 @@ export class StudentHlsController {
 
         hls.loadSource(url);
         hls.attachMedia(el);
-      } else {
+      } else if (!this.opts.reviewStream) {
         el.src = url;
+      } else {
+        this.setState({ ready: true });
       }
     } catch {
-      el.src = url;
+      if (this.opts.reviewStream) this.setState({ ready: true });
+      else el.src = url;
     }
 
     this.bindVideoEvents();

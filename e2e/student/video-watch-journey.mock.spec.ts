@@ -14,7 +14,7 @@ async function installWatchScenario(page: Page, completed = false) {
   const vendorRequests = await guardUnmockedYouTubeRequests(page);
   const youtube = await installYouTubeSdkFixture(page);
   await installStudentYoutubeScenario(page);
-  const state = { reviewRemaining: null as number | null, prepared: false, playingSignal: false,
+  const state = { reviewRemaining: null as number | null, prepared: false, prepareRetry: false, playingSignal: false,
     commentsFail: false, playlistFail: false, likeFail: false, liked: false,
     comments: [{ id: 701, content: "수업에서 이해한 개념을 다시 확인했습니다.", author_type: "student",
       author_name: "합성 학생", author_photo_url: null, is_edited: false, is_deleted: false,
@@ -49,6 +49,10 @@ async function installWatchScenario(page: Page, completed = false) {
       });
     }
     if (path === "/student/video/videos/562/review-watch/" && state.reviewRemaining !== null) {
+      if (request.postDataJSON().prepare && state.prepareRetry) {
+        state.prepareRetry = false;
+        return json({ stream: "test-review", used_ms: 0, remaining_ms: state.reviewRemaining, retry_after_ms: 600 });
+      }
       if (request.postDataJSON().prepare) state.prepared = true;
       if (request.postDataJSON().playing) state.playingSignal = true;
       return json({ stream: "test-review", used_ms: 14000 - state.reviewRemaining, remaining_ms: state.reviewRemaining });
@@ -104,6 +108,7 @@ for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: 840 });
     const { state } = await installWatchScenario(page);
     state.reviewRemaining = 14000;
+    state.prepareRetry = true;
     await page.route("**/review-media/**", async route => {
       const browserUrl = new URL(route.request().url());
       const fixtureRequest = new Request(`https://godmin.kr${browserUrl.pathname}${browserUrl.search}`);
@@ -115,7 +120,7 @@ for (const width of [1366, 390]) {
           const mac = "a".repeat(43);
           if (file === "master.m3u8") return new Response(asset.body.toString().replace("init.mp4", `init.mp4?tenant=godmin&part=init.${mac}`).replace("media.m4s", `media.m4s?tenant=godmin&part=0-900000.${mac}`));
           expect(target.searchParams.get("part")).toBe(`${file === "init.mp4" ? "init" : "0-900000"}.${mac}`);
-          if (!state.prepared) return new Response(null, {status: 429});
+          expect(state.prepared).toBe(true);
           return Response.redirect(`https://${"a".repeat(32)}.r2.cloudflarestorage.com/academy-development-artifacts/tenants/1/video/hls/562/${file}?X-Amz-Signature=synthetic`, 302);
         }
         return new Response(asset.body, {headers: { "Content-Type": asset.contentType }});

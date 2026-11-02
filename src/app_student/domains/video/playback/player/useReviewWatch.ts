@@ -46,15 +46,14 @@ export function useReviewWatch(
       if (busy || !live) return;
       busy = true;
       try {
-        const sentAt = performance.now();
         const data = await reportReviewWatch(videoId, enrollmentId, stream, ++sequence.value, playing, positionRef.current);
         if (!live) return;
         lastAck = performance.now();
         if (data.remaining_ms === 0) {
           fail("이 영상의 복습 시청시간을 모두 사용했습니다.");
         } else {
-          startDeadline(data.remaining_ms === null ? null :
-            Math.max(0, data.remaining_ms - (playing ? lastAck - sentAt : 0)));
+          // Count the confirmed allowance from its acknowledgement so the ledger reaches zero before the UI stops.
+          startDeadline(data.remaining_ms);
         }
       } catch (error) {
         if (budget.current !== null) {
