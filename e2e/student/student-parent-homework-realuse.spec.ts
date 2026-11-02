@@ -33,7 +33,8 @@ import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 import { applyHomeworkPreviewCsp, homeworkHeic } from "../helpers/homeworkHeicFixture";
 import { emitHomeworkFlowFailure, verifyHomeworkCriteria, type HomeworkFlowCheckpoint } from "../helpers/homeworkCriteriaRealuse";
-import { verifyScoreCorrectionWhileEditing } from "../helpers/verifyScoreCorrectionWhileEditing";
+import { verifyMixedHomeworkScoreEdit } from "../helpers/verifyMixedHomeworkScoreEdit";
+import { type CorrectionScores, verifyScoreCorrectionWhileEditing } from "../helpers/verifyScoreCorrectionWhileEditing";
 import { verifyAssessmentTitle } from "../helpers/assessmentTitleRealuse";
 import { withOwnedScoreLeaseCleanup } from "../helpers/scoreLeaseCleanup";
 
@@ -178,65 +179,14 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       for (const width of [1366, 390]) {
         checkpoint.phase = "feedback-score-edit";
         checkpoint.viewport = width as 1366 | 390;
-        await staffPage.setViewportSize({ width, height: 900 });
-        await staffPage.reload();
-        const cell = staffPage.locator(`[data-score-cell="homework:${created.enrollmentId}:${completion.id}"]`);
-        await expect(cell).toBeVisible();
-        const edit = staffPage.getByRole("button", { name: "수정", exact: true });
-        if (await edit.isVisible()) await edit.click();
-        const numeric = staffPage.getByRole("textbox", { name: `${studentName} · ${homeworkTitle} 점수 입력`, exact: true });
-        const readNumericScore = async () => {
-          const data = await expectApi<{ rows: Array<{ enrollment_id: number; homeworks: Array<{ homework_id: number; block: { score: number | null } }> }> }>(request, "GET", scoresPath, admin.access);
-          return data.rows.find(row => row.enrollment_id === created.enrollmentId)!
-            .homeworks.find(item => item.homework_id === created.homeworkId)!.block.score;
-        };
-        await numeric.click();
-        await numeric.fill("97");
-        await numeric.press("Escape");
-        await expect(numeric).toHaveText("92");
-        await staffPage.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
-        await expect(edit).toBeVisible();
-        expect(await readNumericScore()).toBe(92);
-        await edit.click();
-        await numeric.click();
-        await numeric.fill("92.5%");
-        const fractionalSave = staffPage.waitForResponse(response => response.request().method() === "PATCH"
-          && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
-          && response.request().postDataJSON()?.homework_id === created.homeworkId);
-        await staffPage.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
-        expect((await fractionalSave).status()).toBe(200);
-        await expect(edit).toBeVisible();
-        expect(await readNumericScore()).toBe(92.5);
-        await staffPage.reload();
-        await edit.click();
-        await expect(numeric).toHaveText("92.5");
-        await numeric.click();
-        await numeric.fill("92");
-        const previewNumeric = staffPage.getByRole("textbox", { name: `${previewStudent.name} · ${homeworkTitle} 점수 입력`, exact: true });
-        await previewNumeric.click();
-        await previewNumeric.fill("60");
-        await staffPage.getByRole("group", { name: `${previewStudent.name} · ${completionTitle} 완료 상태`, exact: true })
-          .getByRole("button", { name: width === 1366 ? "미통과" : "통과", exact: true }).click();
-        const state = cell.getByRole("group", { name: `${studentName} · ${completionTitle} 완료 상태`, exact: true });
-        const scored = staffPage.waitForResponse(response => response.request().method() === "PATCH"
-          && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
-          && response.request().postDataJSON()?.homework_id === completion.id
-          && response.request().postDataJSON()?.enrollment_id === created.enrollmentId);
-        if (width === 1366) {
-          await state.locator('button[aria-pressed="true"]').focus();
-          await staffPage.keyboard.press("1");
-        } else await state.getByRole("button", { name: "미통과", exact: true }).click();
-        await expect(state.getByRole("button", { name: width === 1366 ? "통과" : "미통과", exact: true }))
-          .toHaveAttribute("aria-pressed", "true");
-        await staffPage.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
-        const scoreResponse = await scored;
-        expect(scoreResponse.status()).toBe(200);
-        expect(await scoreResponse.json()).toMatchObject({ score: width === 1366 ? 1 : 0 });
-        await expect(edit).toBeVisible();
-        await staffPage.reload();
+        await verifyMixedHomeworkScoreEdit(staffPage, width, () => expectApi<CorrectionScores>(request, "GET", scoresPath, admin.access), {
+          sessionId: created.sessionId!, enrollmentId: created.enrollmentId!, comparisonEnrollmentId: created.previewEnrollmentId!,
+          homeworkId: created.homeworkId!, completionId: completion.id,
+          studentName, comparisonName: previewStudent.name, homeworkTitle, completionTitle,
+        });
         await verifyMixed(originalOrder, [created.homeworkId!], width === 1366 ? 1 : 0);
         checkpoint.phase = "feedback-correction";
-        await verifyScoreCorrectionWhileEditing(staffPage, parentPage, request, admin.access, {
+        await verifyScoreCorrectionWhileEditing(staffPage, parentPage, () => expectApi<CorrectionScores>(request, "GET", scoresPath, admin.access), {
           sessionId: created.sessionId!, enrollmentId: created.enrollmentId!,
           homeworkId: created.homeworkId!, homeworkTitle, studentName, maxScore: 100,
         });
