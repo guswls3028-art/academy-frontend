@@ -196,8 +196,6 @@ export default function StudentVideoPlayer({
     const attachTarget = isYoutube ? youtubeMountRef.current : videoElRef.current;
     if (!attachTarget) return;
 
-    let active = true;
-    let resolvingFailure = false;
     const commonOptions = {
       videoId: config.videoId,
       playUrl: config.playUrl,
@@ -209,18 +207,7 @@ export default function StudentVideoPlayer({
       enrollmentId: config.enrollmentId,
       initialPosition: config.initialPosition,
       initialProgress: config.initialProgress,
-      onFatal: (reason: string) => {
-        if (!active || resolvingFailure) return;
-        if (!config.reviewStream) {
-          onFatalRef.current?.(reason);
-          return;
-        }
-        resolvingFailure = true;
-        controllerRef.current?.pause();
-        void settleMediaFailure(reason).then((message) => {
-          if (active) onFatalRef.current?.(message);
-        });
-      },
+      onFatal: settleMediaFailure,
       onEnded: () => onEndedRef.current?.(),
       onLeaveProgress: (data: LeaveProgressPayload) => onLeaveProgressRef.current?.(data),
     };
@@ -240,7 +227,6 @@ export default function StudentVideoPlayer({
     const unsub = ctrl.subscribe(setCtrlState);
 
     return () => {
-      active = false;
       unsub();
       ctrl.dispose();
       controllerRef.current = null;

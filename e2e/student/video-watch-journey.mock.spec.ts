@@ -163,8 +163,10 @@ for (const exhausted of [true, false]) {
       if (exhausted) state.reviewRemaining = 0;
       return route.fulfill({ status: 403 });
     });
+    // Some engines load the manifest on attach, while native playback can wait for a gesture.
+    const denied = page.waitForResponse(response => response.url().includes("/review-media/") && response.status() === 403);
     await openWatch(page);
-    await page.locator("button.svpBigPlay").click();
+    await Promise.race([denied, page.locator("button.svpBigPlay").click()]);
     if (exhausted) {
       await expect(page.getByText("이 영상의 복습 시청시간을 모두 사용했습니다.")).toBeVisible();
       await expect(page.getByRole("button", { name: "다시 시도", exact: true })).toHaveCount(0);

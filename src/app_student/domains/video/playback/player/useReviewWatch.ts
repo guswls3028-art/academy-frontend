@@ -7,6 +7,7 @@ export function useReviewWatch(
 ) {
   const stream = watch?.stream;
   const sequence = useRef({ value: 0 }).current;
+  const failureGeneration = useRef(0);
   const positionRef = useRef(position);
   positionRef.current = position;
   const stopRef = useRef(stop);
@@ -20,6 +21,7 @@ export function useReviewWatch(
     setRemaining(budget.current);
     if (!stream) return;
     return () => {
+      failureGeneration.current++;
       void reportReviewWatch(videoId, enrollmentId, stream, ++sequence.value, false, positionRef.current).catch(() => {
         // Abrupt disconnects are bounded by the server's active-signal timeout.
       });
@@ -101,15 +103,19 @@ export function useReviewWatch(
   }, [stream, videoId, enrollmentId, playing, sequence]);
 
   const limitedStream = watch?.remaining_ms != null ? stream : undefined;
-  const settleMediaFailure = useCallback(async (fallback: string) => {
-    if (!limitedStream) return fallback;
-    try {
-      // The last denied fragment can reach the player before its next usage heartbeat.
-      const final = await reportReviewWatch(videoId, enrollmentId, limitedStream, ++sequence.value, false, positionRef.current);
-      return final.remaining_ms === 0 ? REVIEW_EXHAUSTED : fallback;
-    } catch {
-      return fallback;
+  const settleMediaFailure = useCallback(async (reason: string) => {
+    const generation = ++failureGeneration.current;
+    let message = reason;
+    if (limitedStream) {
+      try {
+        // The last denied fragment can reach the player before its next usage heartbeat.
+        const final = await reportReviewWatch(videoId, enrollmentId, limitedStream, ++sequence.value, false, positionRef.current);
+        if (final.remaining_ms === 0) message = REVIEW_EXHAUSTED;
+      } catch {
+        // Keep the player's recovery action if the server cannot confirm exhaustion.
+      }
     }
+    if (generation === failureGeneration.current) stopRef.current(message);
   }, [limitedStream, videoId, enrollmentId, sequence]);
 
   return { remaining, reconnecting, settleMediaFailure };
