@@ -18,35 +18,53 @@ function duration(ms: number) {
 
 export default function ReviewWatchPanel({ videoId }: { videoId: number }) {
   const [reachedOnly, setReachedOnly] = useState(false);
+  const [pendingLimit, setPendingLimit] = useState<boolean | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [nameFilter, setNameFilter] = useState("");
   const client = useQueryClient();
   const key = ["video-review-watch", videoId] as const;
   const report = useQuery({
     queryKey: key,
+    refetchInterval: reportOpen ? 30_000 : false,
     queryFn: async () => (await api.get<Report>(`/media/videos/${videoId}/review-watch/report/`)).data,
   });
   const toggle = useMutation({
     mutationFn: (enabled: boolean) => api.patch(`/media/videos/${videoId}/`, { review_watch_limit_enabled: enabled }),
-    onSuccess: () => client.invalidateQueries({ queryKey: key }),
+    onSuccess: async (_, enabled) => {
+      client.setQueryData<Report>(key, current => current && { ...current, enabled });
+      setPendingLimit(null);
+      await client.invalidateQueries({ queryKey: key });
+    },
+    onError: () => { void client.invalidateQueries({ queryKey: key }); },
   });
   const data = report.data;
   if (report.isError) return <section className="review-watch"><p role="alert">복습 시청 기록을 불러오지 못했습니다.</p><Button onClick={() => void report.refetch()}>다시 불러오기</Button></section>;
   if (!data) return <p role="status">복습 시청 기록을 불러오는 중…</p>;
   const reached = data.students.filter(row => data.threshold_ms > 0 && row.used_ms >= data.threshold_ms);
-  const rows = reachedOnly ? reached : data.students;
+  const term = nameFilter.trim();
+  const rows = (reachedOnly ? reached : data.students).filter(row => row.student_name.includes(term));
   return <section className="review-watch">
     <div className="review-watch__head"><div>
       <h3>복습 시청시간</h3>
       <p>{data.duration ? `학생 한 명당 원본의 1.4배 · ${duration(data.threshold_ms)}` : "영상 길이가 확인되면 한도를 설정할 수 있습니다."}</p>
-    </div><Button size="sm" aria-pressed={data.enabled} disabled={!data.duration || toggle.isPending}
-      onClick={() => toggle.mutate(!data.enabled)}>{toggle.isPending ? "저장 중…" : data.enabled ? "시간 제한 켜짐" : "시간 제한 꺼짐"}</Button></div>
-    {toggle.isError && <p role="alert">설정을 저장하지 못했습니다. 다시 시도해 주세요.</p>}
-    <details><summary>학생별 누적 재생시간 · 기준 도달 {reached.length}명</summary>
+    </div><Button size="sm" aria-pressed={data.enabled} disabled={(!data.enabled && !data.duration) || toggle.isPending}
+      onClick={() => { toggle.reset(); setPendingLimit(!data.enabled); }}>{data.enabled ? "시간 제한 켜짐" : "시간 제한 꺼짐"}</Button></div>
+    {pendingLimit !== null && pendingLimit !== data.enabled && <div className="review-watch__confirm" role="group" aria-label="복습 시청시간 변경 확인">
+      <p>{pendingLimit
+        ? `제한을 켜면 학생당 ${duration(data.threshold_ms)}까지 복습할 수 있습니다. 이미 기준에 도달한 학생 ${reached.length}명은 다시 열 수 없습니다.`
+        : "제한을 끄면 한도에 도달한 학생도 다시 볼 수 있습니다. 누적 재생시간은 계속 기록됩니다."}</p>
+      <Button size="sm" disabled={toggle.isPending} onClick={() => toggle.mutate(pendingLimit)}>{toggle.isPending ? "저장 중…" : pendingLimit ? "제한 켜기" : "제한 끄기"}</Button>
+      <Button size="sm" disabled={toggle.isPending} onClick={() => { setPendingLimit(null); toggle.reset(); }}>취소</Button>
+    </div>
+    {toggle.isError && pendingLimit !== data.enabled && <p role="alert">저장 결과를 확인하지 못했습니다. 현재 설정을 확인한 뒤 다시 시도해 주세요.</p>}
+    <details onToggle={event => setReportOpen(event.currentTarget.open)}><summary>학생별 누적 재생시간 · 기준 도달 {reached.length}명</summary>
       <p>집계를 시작한 뒤 실제로 재생한 시간을 합산합니다. 계정 공유 여부는 별도 확인이 필요합니다.</p>
       <label><input type="checkbox" checked={reachedOnly} onChange={e => setReachedOnly(e.target.checked)} /> 원본의 1.4배 이상만 보기</label>
+      <label className="review-watch__search">학생 이름 검색 <input type="search" value={nameFilter} onChange={event => setNameFilter(event.target.value)} /></label>
       {rows.length ? <ul>{rows.map(row => <li key={row.student_id}>
         <div><strong>{row.student_name}</strong><small>{new Date(row.started_at).toLocaleDateString("ko-KR")} 집계 시작</small></div>
         <div>{duration(row.used_ms)}{data.duration ? <small>원본의 {(row.used_ms / (data.duration * 1000)).toFixed(2)}배</small> : null}</div>
-      </li>)}</ul> : <p>{reachedOnly ? "기준에 도달한 학생이 없습니다." : "아직 집계된 복습 재생시간이 없습니다."}</p>}
+      </li>)}</ul> : <p>{term ? "조건에 맞는 학생이 없습니다." : reachedOnly ? "기준에 도달한 학생이 없습니다." : "아직 집계된 복습 재생시간이 없습니다."}</p>}
     </details>
   </section>;
 }

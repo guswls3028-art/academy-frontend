@@ -2,6 +2,10 @@
 .review-watch__head, .review-watch li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; }
 .review-watch h3, .review-watch p { margin: 0 0 .5rem; }
 .review-watch details { margin-top: .75rem; }
+.review-watch__confirm { padding: .75rem; margin-top: .5rem; border-inline-start: 3px solid var(--color-border-divider); }
+.review-watch__confirm button + button { margin-inline-start: .5rem; }
+.review-watch__search { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; margin-block: .75rem; }
+.review-watch__search input { min-width: 0; max-width: 100%; }
 .review-watch summary { cursor: pointer; padding-block: .4rem; }
 .review-watch ul { list-style: none; padding: 0; max-height: 20rem; overflow: auto; }
 .review-watch li { border-top: 1px solid var(--color-border-divider, #d9dee3); padding: .5rem 0; overflow-wrap: anywhere; }

@@ -300,6 +300,11 @@ for (const width of [1366, 390]) {
     const settings = page.getByRole("button", { name: /시청 정책 · 관리자 메모/ });
     await settings.click();
     await page.getByRole("button", { name: "시간 제한 꺼짐" }).click();
+    await expect(page.getByText(/학생당 84분 0초.*기준에 도달한 학생 1명/)).toBeVisible();
+    await page.getByRole("group", {name: "복습 시청시간 변경 확인"}).getByRole("button", {name: "취소"}).click();
+    expect(enabled).toBe(false);
+    await page.getByRole("button", { name: "시간 제한 꺼짐" }).click();
+    await page.getByRole("button", { name: "제한 켜기", exact: true }).click();
     await expect(page.getByRole("button", { name: "시간 제한 켜짐" })).toBeVisible();
     await page.reload();
     await settings.click();
@@ -308,6 +313,10 @@ for (const width of [1366, 390]) {
     await page.getByLabel("원본의 1.4배 이상만 보기").check();
     await expect(page.getByText("복습 기준 도달 학생", {exact: true})).toBeVisible();
     await expect(page.getByText("복습 진행 학생", {exact: true})).toHaveCount(0);
+    await page.getByLabel("학생 이름 검색").fill("없는 이름");
+    await expect(page.getByText("조건에 맞는 학생이 없습니다.")).toBeVisible();
+    await page.getByLabel("학생 이름 검색").fill("");
+    await expect(page.getByText("복습 기준 도달 학생", {exact: true})).toBeVisible();
     const panel = page.locator("section.review-watch");
     expect(await panel.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     await info.attach("review-watch-settings", { body: await panel.screenshot(), contentType: "image/png" });

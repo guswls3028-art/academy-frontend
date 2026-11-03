@@ -3,8 +3,8 @@
  * Hls.js / HTMLVideoElement events / timers live here, NOT in React.
  * After dispose(), zero callbacks can run — guards enforce no setState from video events.
  */
-import studentApi from "@student/shared/api/student.api";
-import { prepareReviewPlayback } from "../../../api/reviewWatch.api";
+import { postEvents, postHeartbeat, postRefresh } from "./playbackTransport";
+import { prepareReviewPlayback, REVIEW_EXHAUSTED } from "../../../api/reviewWatch.api";
 import type Hls from "hls.js";
 import type { ErrorData, LevelSwitchedData, Level } from "hls.js";
 import { clamp, getEpochSec } from "../design/utils";
@@ -19,38 +19,7 @@ const ignoreBestEffortError = () => undefined;
 
 
 
-async function postHeartbeat(token: string) {
-  if (token.startsWith("student-")) return;
-  try {
-    await studentApi.post(`/media/playback/heartbeat/`, { token });
-  } catch {
-    ignoreBestEffortError();
-  }
-}
 
-async function postRefresh(token: string) {
-  if (token.startsWith("student-")) return;
-  await studentApi.post(`/media/playback/refresh/`, { token });
-}
-
-async function postEvents(
-  token: string,
-  events: Array<{ type: EventType; occurred_at: number; payload?: Record<string, unknown> }>,
-  videoId: number,
-  enrollmentId: number | null
-) {
-  if (!events.length || token.startsWith("student-")) return;
-  try {
-    await studentApi.post(`/media/playback/events/`, {
-      token,
-      video_id: videoId,
-      enrollment_id: enrollmentId,
-      events: events.map((e) => ({ type: e.type, occurred_at: e.occurred_at, payload: e.payload || {} })),
-    });
-  } catch {
-    ignoreBestEffortError();
-  }
-}
 
 type Listener = (state: ControllerState) => void;
 
@@ -58,6 +27,7 @@ export class StudentHlsController {
   private el: HTMLVideoElement | null = null;
   private hls: Hls | null = null;
   private playGeneration = 0;
+  private pendingPreparation: Promise<number> = Promise.resolve(0);
   private nativeGestureUntil = 0;
   private disposed = false;
   private listeners = new Set<Listener>();
@@ -185,15 +155,19 @@ export class StudentHlsController {
     });
   }
 
-  private async startReviewPlayback(generation: number, stream: string) {
+  private async startReviewPlayback(generation: number, stream: string, seekTo?: number) {
     try {
-      const position = this.el?.readyState ? this.el.currentTime : this.opts.initialPosition || 0;
-      const wait = await prepareReviewPlayback(this.opts.videoId, this.opts.enrollmentId, stream, position);
+      const position = seekTo ?? (this.el?.readyState ? this.el.currentTime : this.opts.initialPosition || 0);
+      // Serialize admission: a slow earlier drag must never replace the grant for the final playhead.
+      this.pendingPreparation = this.pendingPreparation.catch(() => 0).then(() =>
+        this.disposed || generation !== this.playGeneration ? 0 :
+          prepareReviewPlayback(this.opts.videoId, this.opts.enrollmentId, stream, position));
+      const wait = await this.pendingPreparation;
       if (this.disposed || generation !== this.playGeneration) return;
       if (wait > 0) {
-        this.showToast("재생을 준비하고 있어요.", "info");
+        this.showToast(`약 ${Math.ceil(wait / 1000)}초 후 재생을 준비합니다.`, "info");
         this.timeouts.push(setTimeout(() => {
-          if (!this.disposed && generation === this.playGeneration) void this.startReviewPlayback(generation, stream);
+          if (!this.disposed && generation === this.playGeneration) void this.startReviewPlayback(generation, stream, seekTo);
         }, wait + 50));
         return;
       }
@@ -202,10 +176,18 @@ export class StudentHlsController {
         if (!url) throw new Error("Invalid review playback URL");
         this.el.src = url;
       }
-      this.hls?.startLoad(position);
-      this.playPreparedMedia(generation);
-    } catch {
-      if (!this.disposed && generation === this.playGeneration) this.opts.onFatal?.("복습 재생 권한을 확인하지 못했습니다. 다시 열어 주세요.");
+      if (seekTo !== undefined && this.el) {
+        this.el.currentTime = position;
+        if (!this.el.paused) this.hls?.startLoad(position);
+      } else {
+        this.hls?.startLoad(position);
+        this.playPreparedMedia(generation);
+      }
+    } catch (error) {
+      if (!this.disposed && generation === this.playGeneration) {
+        this.opts.onFatal?.(error instanceof Error && error.message === REVIEW_EXHAUSTED ?
+          REVIEW_EXHAUSTED : "복습 재생 권한을 확인하지 못했습니다. 다시 열어 주세요.");
+      }
     }
   }
 
@@ -225,6 +207,11 @@ export class StudentHlsController {
     if (this.disposed || !this.el) return;
     const d = Number(this.el.duration) || 0;
     const safe = clamp(t, 0, Math.max(0, d));
+    if (this.opts.reviewStream) {
+      this.nativeGestureUntil = 0;
+      void this.startReviewPlayback(++this.playGeneration, this.opts.reviewStream, safe);
+      return;
+    }
     try {
       this.el.currentTime = safe;
     } catch {

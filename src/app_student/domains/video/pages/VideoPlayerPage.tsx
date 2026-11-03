@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 
 import EmptyState from "../../../layout/EmptyState";
+import { isReviewLimitExhausted } from "../api/reviewWatch.api";
 import {
   checkStudentVideoAccess,
   fetchStudentVideoPlayback,
@@ -745,6 +746,7 @@ export default function VideoPlayerPage() {
   }, []);
 
   /* ─── Render ─── */
+  const exhausted = isReviewLimitExhausted(fatalError || loadError, playbackQuery.error);
   const items = playlistItems;
   const hasPlaylist = items.length > 0;
   const [drawerOpen, setDrawerOpen] = useState(true);
@@ -760,9 +762,9 @@ export default function VideoPlayerPage() {
       ) : (loadError || fatalError) ? (
         <div className="vpp-error">
           <EmptyState
-            title="재생을 시작할 수 없어요"
+            title={exhausted ? "복습 시청시간을 모두 사용했어요" : "재생을 시작할 수 없어요"}
             description={fatalError || loadError || "잠시 후 다시 시도해 주세요."}
-            onRetry={() => { void retryPlayback(); }}
+            onRetry={exhausted ? undefined : () => { void retryPlayback(); }}
           />
           <button type="button" className="vpp-back-btn" onClick={() => nav(videoListUrl)} aria-label="뒤로가기">
             <IconChevronRight className="vpp-icon-back" aria-hidden="true" />

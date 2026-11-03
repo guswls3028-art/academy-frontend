@@ -27,7 +27,7 @@ export default function VideoPolicySection({ videoId, initial }: Props) {
 
   return (
     <div className="space-y-4">
-      <ReviewWatchPanel videoId={videoId} />
+      <ReviewWatchPanel key={videoId} videoId={videoId} />
       {/* POLICY CONTROLS */}
       <div className="video-policy-panel">
         <div className="video-policy-controls">
