@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchTenantInfo } from "@/shared/api/contracts/tenantInfo";
+import { originalDurationSeconds, reviewLimitLabel } from "@admin/domains/videos/utils/reviewDuration";
 import { accountQueryKeys } from "@/shared/api/queryKeys/account";
 import {
   ChevronDown,
@@ -47,12 +48,7 @@ function titleFromFilename(filename: string): string {
   return withoutExtension || filename.trim() || "영상";
 }
 
-function originalDurationSeconds(input: string): number | null {
-  const match = /^(\d{1,6})(?::([0-5]\d))?$/.exec(input.trim());
-  if (!match) return null;
-  const seconds = Number(match[1]) * 60 + Number(match[2] || 0);
-  return seconds > 0 ? seconds : null;
-}
+
 
 export default function VideoUploadModal({ sessionId, folderId = null, isPublic = false, isOpen, onClose }: Props) {
   const qc = useQueryClient();
@@ -568,7 +564,8 @@ export default function VideoUploadModal({ sessionId, folderId = null, isPublic 
                   onChange={event => setOriginalLength(event.target.value)} disabled={isUploading} />
                 <p id="youtube-review-length-help">{originalLength.trim() && originalDuration === null
                   ? "분 또는 분:초로 입력해 주세요. 초는 00~59까지 가능합니다."
-                  : durationRequired ? "학원 플레이어에서 원본 길이의 1.4배까지 복습할 수 있습니다." : "분 또는 분:초로 입력할 수 있습니다."}</p>
+                  : durationRequired && originalDuration ? `학생당 복습 한도 ${reviewLimitLabel(originalDuration)}`
+                    : durationRequired ? "원본 길이를 입력하면 학생당 복습 한도를 확인할 수 있습니다." : "분 또는 분:초로 입력할 수 있습니다."}</p>
               </div>}
               {youtubeVideoId ? (
                 <div className="video-upload-modal__youtube-preview">
