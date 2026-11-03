@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { reportReviewWatch, REVIEW_EXHAUSTED, type ReviewWatch } from "../../api/reviewWatch.api";
 
 export function useReviewWatch(
@@ -100,5 +100,17 @@ export function useReviewWatch(
     };
   }, [stream, videoId, enrollmentId, playing, sequence]);
 
-  return { remaining, reconnecting };
+  const limitedStream = watch?.remaining_ms != null ? stream : undefined;
+  const settleMediaFailure = useCallback(async (fallback: string) => {
+    if (!limitedStream) return fallback;
+    try {
+      // The last denied fragment can reach the player before its next usage heartbeat.
+      const final = await reportReviewWatch(videoId, enrollmentId, limitedStream, ++sequence.value, false, positionRef.current);
+      return final.remaining_ms === 0 ? REVIEW_EXHAUSTED : fallback;
+    } catch {
+      return fallback;
+    }
+  }, [limitedStream, videoId, enrollmentId, sequence]);
+
+  return { remaining, reconnecting, settleMediaFailure };
 }

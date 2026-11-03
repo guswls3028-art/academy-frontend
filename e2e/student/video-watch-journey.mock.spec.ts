@@ -155,6 +155,26 @@ for (const width of [1366, 390]) {
   });
 }
 
+for (const exhausted of [true, false]) {
+  test(`review media denial shows the confirmed ${exhausted ? "exhausted" : "recoverable"} state`, async ({ page }) => {
+    const { state } = await installWatchScenario(page);
+    state.reviewRemaining = 14000;
+    await page.route("**/review-media/**", route => {
+      if (exhausted) state.reviewRemaining = 0;
+      return route.fulfill({ status: 403 });
+    });
+    await openWatch(page);
+    await page.locator("button.svpBigPlay").click();
+    if (exhausted) {
+      await expect(page.getByText("이 영상의 복습 시청시간을 모두 사용했습니다.")).toBeVisible();
+      await expect(page.getByRole("button", { name: "다시 시도", exact: true })).toHaveCount(0);
+    } else {
+      await expect(page.getByRole("button", { name: "다시 시도", exact: true })).toBeVisible();
+      await expect(page.getByText("이 영상의 복습 시청시간을 모두 사용했습니다.")).toHaveCount(0);
+    }
+  });
+}
+
 test("review media rejects preview hosts and tenant mismatches before admission", async () => {
   const path = "/review-media/11111111-1111-4111-8111-111111111111/master.m3u8";
   let calls = 0;

@@ -129,7 +129,7 @@ export default function StudentVideoPlayer({
   onLeaveProgressRef.current = onLeaveProgress;
 
   const { ready, playing, buffering, duration, current, volume, muted, rate, toast, qualities, currentQuality, reconnecting } = ctrlState;
-  const { remaining: reviewRemaining, reconnecting: reviewReconnecting } = useReviewWatch(video.id, enrollmentId ?? null, bootstrap.review_watch, playing && !buffering, current, (reason) => {
+  const { remaining: reviewRemaining, reconnecting: reviewReconnecting, settleMediaFailure } = useReviewWatch(video.id, enrollmentId ?? null, bootstrap.review_watch, playing && !buffering, current, (reason) => {
     controllerRef.current?.pause();
     onFatalRef.current?.(reason);
   });
@@ -196,6 +196,8 @@ export default function StudentVideoPlayer({
     const attachTarget = isYoutube ? youtubeMountRef.current : videoElRef.current;
     if (!attachTarget) return;
 
+    let active = true;
+    let resolvingFailure = false;
     const commonOptions = {
       videoId: config.videoId,
       playUrl: config.playUrl,
@@ -207,7 +209,18 @@ export default function StudentVideoPlayer({
       enrollmentId: config.enrollmentId,
       initialPosition: config.initialPosition,
       initialProgress: config.initialProgress,
-      onFatal: (reason: string) => onFatalRef.current?.(reason),
+      onFatal: (reason: string) => {
+        if (!active || resolvingFailure) return;
+        if (!config.reviewStream) {
+          onFatalRef.current?.(reason);
+          return;
+        }
+        resolvingFailure = true;
+        controllerRef.current?.pause();
+        void settleMediaFailure(reason).then((message) => {
+          if (active) onFatalRef.current?.(message);
+        });
+      },
       onEnded: () => onEndedRef.current?.(),
       onLeaveProgress: (data: LeaveProgressPayload) => onLeaveProgressRef.current?.(data),
     };
@@ -227,11 +240,12 @@ export default function StudentVideoPlayer({
     const unsub = ctrl.subscribe(setCtrlState);
 
     return () => {
+      active = false;
       unsub();
       ctrl.dispose();
       controllerRef.current = null;
     };
-  }, [controllerIdentity, isYoutube]);
+  }, [controllerIdentity, isYoutube, settleMediaFailure]);
 
   useEffect(() => {
     const ctrl = controllerRef.current;
