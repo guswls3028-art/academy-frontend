@@ -2,10 +2,9 @@
 // 영상 추가 모달 — 다건 파일 큐에서 제목과 재생 순서를 확정한 뒤 업로드
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchTenantInfo } from "@/shared/api/contracts/tenantInfo";
-import { originalDurationSeconds, reviewLimitLabel } from "@admin/domains/videos/utils/reviewDuration";
-import { accountQueryKeys } from "@/shared/api/queryKeys/account";
+import { useQueryClient } from "@tanstack/react-query";
+import { originalDurationSeconds } from "@/shared/media/video/reviewDuration";
+import ReviewLimitOption from "@/shared/media/video/ReviewLimitOption";
 import {
   ChevronDown,
   ChevronLeft,
@@ -34,11 +33,11 @@ type UploadItem = {
   id: string;
   file: File;
   title: string;
+  reviewLimit: boolean;
 };
 type Props = {
   sessionId: number;
   folderId?: number | null;
-  isPublic?: boolean;
   isOpen: boolean;
   onClose: () => void;
 };
@@ -50,7 +49,7 @@ function titleFromFilename(filename: string): string {
 
 
 
-export default function VideoUploadModal({ sessionId, folderId = null, isPublic = false, isOpen, onClose }: Props) {
+export default function VideoUploadModal({ sessionId, folderId = null, isOpen, onClose }: Props) {
   const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const nextItemIdRef = useRef(0);
@@ -64,10 +63,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isPublic 
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [originalLength, setOriginalLength] = useState("");
-  const [durationRequested, setDurationRequested] = useState(false);
-  const tenantInfo = useQuery({ queryKey: accountQueryKeys.tenantInfo, queryFn: fetchTenantInfo, enabled: isOpen && !isPublic });
-  const defaultLimit = !isPublic && tenantInfo.data?.review_limit_new_uploads === true;
-  const durationRequired = defaultLimit || durationRequested;
+  const [youtubeLimit, setYoutubeLimit] = useState(false);
   const originalDuration = originalDurationSeconds(originalLength);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -95,7 +91,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isPublic 
     setDraggedItemIndex(null);
     setYoutubeUrl("");
     setOriginalLength("");
-    setDurationRequested(false);
+    setYoutubeLimit(false);
     setShowWatermark(true);
     setAllowSkip(false);
     setMaxSpeed(1);
@@ -109,10 +105,10 @@ export default function VideoUploadModal({ sessionId, folderId = null, isPublic 
     () => {
       if (!Number.isFinite(sessionId) || sessionId <= 0) return false;
       if (uploadMode === "youtube") return baseTitle.trim().length > 0 && !!youtubeVideoId &&
-        (!(durationRequired || originalLength.trim()) || originalDuration !== null);
+        (!youtubeLimit || originalDuration !== null);
       return uploadItems.length > 0 && uploadItems.every((item) => item.title.trim().length > 0);
     },
-    [sessionId, baseTitle, uploadItems, uploadMode, youtubeVideoId, durationRequired, originalLength, originalDuration]
+    [sessionId, baseTitle, uploadItems, uploadMode, youtubeVideoId, youtubeLimit, originalDuration]
   );
 
   const addFiles = useCallback((files: File[]) => {
@@ -127,6 +123,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isPublic 
         id: `video-upload-item-${nextItemIdRef.current++}`,
         file,
         title: titleFromFilename(file.name),
+        reviewLimit: false,
       })),
     ]);
   }, []);
@@ -178,7 +175,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isPublic 
 
         // 서버가 init 시 order를 배정하므로 큐 순서대로 직렬화한다.
         // 실제 R2 전송은 아래에서 기존처럼 동시 2개를 유지한다.
-        for (const { id, file, title } of items) {
+        for (const { id, file, title, reviewLimit } of items) {
           try {
             const init = await initVideoUpload({
               sessionId,
@@ -186,6 +183,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isPublic 
               title,
               description,
               folderId,
+              reviewLimit,
               showWatermark,
               allowSkip,
               maxSpeed,
@@ -290,7 +288,8 @@ export default function VideoUploadModal({ sessionId, folderId = null, isPublic 
         session: sessionId,
         title,
         url,
-        ...(originalDuration !== null ? { duration: originalDuration } : {}),
+        review_watch_limit_enabled: youtubeLimit,
+        ...(youtubeLimit && originalDuration !== null ? { duration: originalDuration } : {}),
         ...(folderId ? { folder: folderId } : {}),
         show_watermark: showWatermark,
         allow_skip: allowSkip,
@@ -301,7 +300,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isPublic 
       onClose();
     } catch (error) {
       const err = error as { response?: { data?: { detail?: string; code?: string } }; message?: string };
-      if (err.response?.data?.code === "review_duration_required") setDurationRequested(true);
+
       feedback.error(err?.response?.data?.detail || err?.message || "YouTube 링크 추가에 실패했습니다.");
     } finally {
       if (mountedRef.current) {
@@ -318,6 +317,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isPublic 
     sessionId,
     showWatermark,
     originalDuration,
+    youtubeLimit,
     youtubeUrl,
   ]);
 
@@ -484,6 +484,9 @@ export default function VideoUploadModal({ sessionId, folderId = null, isPublic 
                               disabled={isUploading}
                             />
                           </label>
+                          <label><input type="checkbox" checked={item.reviewLimit} disabled={isUploading}
+                            aria-label={`${index + 1}번째 영상 복습시간 1.4배 제한`}
+                            onChange={event => { const checked = event.target.checked; setUploadItems(prev => prev.map(row => row.id === item.id ? { ...row, reviewLimit: checked } : row)); }} /> 복습시간 1.4배 제한</label>
                         </div>
                         <div className="video-upload-modal__queue-actions" aria-label={`${index + 1}번째 영상 순서와 삭제`}>
                           <button
@@ -557,16 +560,8 @@ export default function VideoUploadModal({ sessionId, folderId = null, isPublic 
                   disabled={isUploading}
                 />
               </div>
-              {!isPublic && <div>
-                <label className="modal-section-label" htmlFor="youtube-review-length">원본 영상 길이{durationRequired ? " (필수)" : " (선택)"}</label>
-                <input id="youtube-review-length" className="ds-input" type="text" value={originalLength}
-                  placeholder="예: 60 또는 60:30" aria-describedby="youtube-review-length-help"
-                  onChange={event => setOriginalLength(event.target.value)} disabled={isUploading} />
-                <p id="youtube-review-length-help">{originalLength.trim() && originalDuration === null
-                  ? "분 또는 분:초로 입력해 주세요. 초는 00~59까지 가능합니다."
-                  : durationRequired && originalDuration ? `학생당 복습 한도 ${reviewLimitLabel(originalDuration)}`
-                    : durationRequired ? "원본 길이를 입력하면 학생당 복습 한도를 확인할 수 있습니다." : "분 또는 분:초로 입력할 수 있습니다."}</p>
-              </div>}
+              <ReviewLimitOption checked={youtubeLimit} onChange={setYoutubeLimit} disabled={isUploading}
+                originalLength={originalLength} onLengthChange={setOriginalLength} />
               {youtubeVideoId ? (
                 <div className="video-upload-modal__youtube-preview">
                   <img
@@ -605,7 +600,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isPublic 
           </div>
           )}
 
-          {uploadMode === "file" && defaultLimit && <p>새 수업 영상에는 원본 길이의 1.4배 복습 제한이 적용됩니다.</p>}
+          {uploadMode === "file" && <p>복습시간 제한은 파일마다 선택합니다. 선택한 60분 영상은 학생 한 명당 누적 84분까지 복습할 수 있습니다.</p>}
           {/* 재생 정책 */}
           <div className="modal-form-group modal-form-group--neutral video-upload-modal__row">
             <div className="video-upload-modal__policy-row">

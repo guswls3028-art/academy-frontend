@@ -13,7 +13,7 @@ async function setup(page: Page, role: string, superuser: boolean, failure?: "te
   const jwt = `${encode({ alg: "none" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "hakwonplus", user_id: 12 })}.sig`;
   await page.addInitScript((token) => { localStorage.setItem("access", token); localStorage.setItem("refresh", `${token}-refresh`); }, jwt);
   const state = { failedRead: failure, failSave: false, patches: 0, consultReads: 0, bankReads: 0, tenantReads: 0 };
-  let tenant = { name: "QA 학원", phone: "", headquarters_phone: "02-0000-0000", academies: [{ name: "기존 본원", phone: "02-0000-0000" }, { name: "기존 분원", phone: "02-0000-0001" }], og_title: "기존 소개", og_description: "기존 설명", og_image_url: "", pass_label: "", fail_label: "", review_limit_new_uploads: false };
+  let tenant = { name: "QA 학원", phone: "", headquarters_phone: "02-0000-0000", academies: [{ name: "기존 본원", phone: "02-0000-0000" }, { name: "기존 분원", phone: "02-0000-0001" }], og_title: "기존 소개", og_description: "기존 설명", og_image_url: "", pass_label: "", fail_label: "" };
   let legal = { company_name: "기존 사업자", representative: "기존 대표", business_number: "", ecommerce_number: "", address: "", support_email: "", support_phone: "", privacy_officer_name: "", privacy_officer_contact: "", terms_version: "1", privacy_version: "1", effective_date: "2026-10-09" };
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -56,18 +56,6 @@ async function setup(page: Page, role: string, superuser: boolean, failure?: "te
   });
   return { state, tenant: () => tenant, legal: () => legal };
 }
-
-test("학원 대표가 새 업로드 복습 기본값을 확인하고 저장한다", async ({ page }) => {
-  const api = await setup(page, "owner", false);
-  await gotoAndSettle(page, `${BASE}/workspace/settings/organization`);
-  const toggle = page.getByLabel("새 업로드에 기본 적용");
-  await toggle.check();
-  expect(api.state.patches).toBe(0);
-  await page.getByRole("button", {name: "복습 기본값 저장"}).click();
-  await expect.poll(() => api.tenant().review_limit_new_uploads).toBe(true);
-  await page.reload();
-  await expect(toggle).toBeChecked();
-});
 
 for (const width of [1366, 390]) {
   test(`동시 학원 편집 충돌에서 최신 목록 확인 후 저장·재조회 ${width}px`, async ({ page }, testInfo) => {

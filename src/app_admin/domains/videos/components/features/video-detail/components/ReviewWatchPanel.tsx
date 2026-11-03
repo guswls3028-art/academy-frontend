@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { Button } from "@/shared/ui/ds";
 import { expectedUpdatedAtHeaders, isStaleResourceConflict } from "@/shared/api/optimisticConcurrency";
-import { originalDurationSeconds, reviewLimitLabel } from "@admin/domains/videos/utils/reviewDuration";
+import { originalDurationSeconds, reviewLimitLabel } from "@/shared/media/video/reviewDuration";
 import "./ReviewWatchPanel.css";
 
 interface Report {

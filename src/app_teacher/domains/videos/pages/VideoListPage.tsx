@@ -13,6 +13,8 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { extractYouTubeVideoId, isYouTubeSource, youtubeThumbnailUrl } from "@/shared/media/video/youtube";
 import CompactVideoThumbnail from "../components/CompactVideoThumbnail";
+import ReviewLimitOption from "@/shared/media/video/ReviewLimitOption";
+import { originalDurationSeconds } from "@/shared/media/video/reviewDuration";
 import { fetchVideos, retryVideo, uploadInit, uploadComplete, deleteVideo, preparePublicSession, createYoutubeVideo } from "../api";
 import { teacherVideoQueryKeys } from "../queryKeys";
 import { VIDEO_STATUS_LABEL, type VideoStatus } from "@/shared/api/contracts/videos";
@@ -63,6 +65,9 @@ export default function VideoListPage() {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [fileOptionsOpen, setFileOptionsOpen] = useState(false);
+  const [fileLimit, setFileLimit] = useState(false);
+  const chooseUploadOptions = () => { setFileLimit(false); setFileOptionsOpen(true); };
   const [uploading, setUploading] = useState(false);
   const [retryingList, setRetryingList] = useState(false);
   const [youtubeOpen, setYoutubeOpen] = useState(false);
@@ -106,7 +111,7 @@ export default function VideoListPage() {
   });
 
   const youtubeMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async ({ limited, duration }: { limited: boolean; duration?: number }) => {
       const title = youtubeTitle.trim();
       const url = youtubeUrl.trim();
       if (!title || !extractYouTubeVideoId(url)) {
@@ -117,6 +122,8 @@ export default function VideoListPage() {
         session: pub.session_id,
         title,
         url,
+        review_watch_limit_enabled: limited,
+        ...(limited ? { duration } : {}),
         allow_skip: false,
         max_speed: 1,
         show_watermark: true,
@@ -135,10 +142,12 @@ export default function VideoListPage() {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setFileOptionsOpen(false);
     setUploading(true);
     try {
       const pub = await preparePublicSession();
-      const init = await uploadInit({ session: pub.session_id, title: file.name.replace(/\.[^.]+$/, ""), filename: file.name, content_type: file.type || "video/mp4" });
+      const init = await uploadInit({ session: pub.session_id, title: file.name.replace(/\.[^.]+$/, ""), filename: file.name,
+        content_type: file.type || "video/mp4", review_watch_limit_enabled: fileLimit });
       const put = await fetch(init.upload_url, { method: "PUT", body: file, headers: { "Content-Type": file.type || "video/mp4" } });
       if (!put.ok) throw new Error(`video_upload_put_failed_${put.status}`);
       await uploadComplete(init.id);
@@ -208,13 +217,13 @@ export default function VideoListPage() {
           >
             <Youtube size={ICON.xs} /> 링크 추가
           </button>
-          <button onClick={() => fileRef.current?.click()} disabled={uploading}
+          <button onClick={chooseUploadOptions} disabled={uploading}
             className="flex items-center gap-1 text-xs font-bold cursor-pointer whitespace-nowrap"
             style={{ padding: "8px 14px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", opacity: uploading ? 0.5 : 1, minHeight: 36 }}>
             <Upload size={ICON.xs} /> {uploading ? "업로드 중…" : "영상 업로드"}
           </button>
         </div>
-        <input ref={fileRef} type="file" accept="video/*" onChange={handleUpload} style={{ display: "none" }} />
+
       </div>
 
       {/* 검색 + 정렬 */}
@@ -323,7 +332,7 @@ export default function VideoListPage() {
               <EmptyActionButton onClick={() => setYoutubeOpen(true)}>
                 링크 추가
               </EmptyActionButton>
-              <EmptyActionButton variant="secondary" onClick={() => fileRef.current?.click()}>
+              <EmptyActionButton variant="secondary" onClick={chooseUploadOptions}>
                 영상 업로드
               </EmptyActionButton>
             </div>
@@ -437,7 +446,12 @@ export default function VideoListPage() {
           })}
         </div>
       )}
-      <YoutubeLinkSheet
+      <BottomSheet open={fileOptionsOpen} onClose={() => setFileOptionsOpen(false)} title="영상 업로드 설정">
+        <input ref={fileRef} type="file" accept="video/*" onChange={handleUpload} hidden />
+        <ReviewLimitOption checked={fileLimit} onChange={setFileLimit} />
+        <button type="button" className="w-full p-3 mt-3 font-bold" onClick={() => fileRef.current?.click()}>파일 선택</button>
+      </BottomSheet>
+      {youtubeOpen && <YoutubeLinkSheet
         open={youtubeOpen}
         title={youtubeTitle}
         url={youtubeUrl}
@@ -447,8 +461,8 @@ export default function VideoListPage() {
         onClose={() => {
           if (!youtubeMut.isPending) setYoutubeOpen(false);
         }}
-        onSubmit={() => youtubeMut.mutate()}
-      />
+        onSubmit={(limited, duration) => youtubeMut.mutate({ limited, duration })}
+      />}
     </div>
   );
 }
@@ -470,10 +484,13 @@ function YoutubeLinkSheet({
   onTitleChange: (value: string) => void;
   onUrlChange: (value: string) => void;
   onClose: () => void;
-  onSubmit: () => void;
+  onSubmit: (limited: boolean, duration?: number) => void;
 }) {
+  const [limited, setLimited] = useState(false);
+  const [length, setLength] = useState("");
+  const duration = originalDurationSeconds(length);
   const youtubeId = useMemo(() => extractYouTubeVideoId(url), [url]);
-  const canSubmit = title.trim().length > 0 && !!youtubeId && !submitting;
+  const canSubmit = title.trim().length > 0 && !!youtubeId && !submitting && (!limited || duration !== null);
   if (!open) return null;
 
   return (
@@ -482,7 +499,7 @@ function YoutubeLinkSheet({
         className="w-full"
         onSubmit={(e) => {
           e.preventDefault();
-          if (canSubmit) onSubmit();
+          if (canSubmit) onSubmit(limited, duration ?? undefined);
         }}
       >
         <label className="block mb-3">
@@ -513,6 +530,7 @@ function YoutubeLinkSheet({
           </div>
         </label>
 
+        <ReviewLimitOption checked={limited} onChange={setLimited} disabled={submitting} originalLength={length} onLengthChange={setLength} />
         {youtubeId ? (
           <div className="flex items-center gap-3 mb-4 rounded-lg" style={{ padding: 10, background: "var(--tc-surface-soft)", border: "1px solid var(--tc-border)" }}>
             <img src={youtubeThumbnailUrl(youtubeId)} alt="" style={{ width: 92, height: 52, objectFit: "cover", borderRadius: 8 }} />

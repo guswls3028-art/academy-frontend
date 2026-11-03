@@ -16,14 +16,13 @@ export type TenantInfo = {
   og_title?: string;
   og_description?: string;
   og_image_url?: string;
-  review_limit_new_uploads?: boolean;
   /** 합/불 라벨 커스텀. 빈 문자열이면 기본값(합격/불합격) 사용. */
   pass_label?: string;
   fail_label?: string;
 };
 
 export type UpdateTenantInfoPayload =
-  Partial<Pick<TenantInfo, "name" | "phone" | "headquarters_phone" | "og_title" | "og_description" | "og_image_url" | "pass_label" | "fail_label" | "review_limit_new_uploads">>
+  Partial<Pick<TenantInfo, "name" | "phone" | "headquarters_phone" | "og_title" | "og_description" | "og_image_url" | "pass_label" | "fail_label">>
   & { academies?: AcademyEntry[]; expected_academies?: AcademyEntry[] };
 
 export async function fetchTenantInfo(): Promise<TenantInfo> {

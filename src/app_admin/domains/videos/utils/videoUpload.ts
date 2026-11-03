@@ -12,6 +12,7 @@ export interface VideoUploadParams {
   title: string;
   description?: string;
   folderId?: number | null;
+  reviewLimit?: boolean;
   showWatermark: boolean;
   allowSkip: boolean;
   maxSpeed: number;
@@ -83,6 +84,7 @@ export async function initVideoUpload(params: VideoUploadParams): Promise<InitVi
     title: title.trim(),
     filename: file.name,
     content_type: file.type || "video/mp4",
+    review_watch_limit_enabled: params.reviewLimit ?? false,
     show_watermark: showWatermark,
     allow_skip: allowSkip,
     max_speed: maxSpeed,

@@ -168,7 +168,6 @@ export default function OrganizationSettingsPage() {
   const [newPhone, setNewPhone] = useState("");
   const [editSnapshot, setEditSnapshot] = useState<AcademyEntry[] | null>(null);
   const [conflict, setConflict] = useState(false);
-  const [uploadLimit, setUploadLimit] = useState<boolean | null>(null);
 
   const { user } = useAuth();
   const isOwner = user?.tenantRole === "owner";
@@ -178,16 +177,6 @@ export default function OrganizationSettingsPage() {
     queryKey: accountQueryKeys.tenantInfo,
     queryFn: fetchTenantInfo,
     enabled: !!isOwner,
-  });
-
-  const saveUploadLimit = useMutation({
-    mutationFn: (enabled: boolean) => updateTenantInfo({ review_limit_new_uploads: enabled }),
-    onSuccess: data => {
-      qc.setQueryData(accountQueryKeys.tenantInfo, data);
-      setUploadLimit(null);
-      feedback.success("새 영상의 복습 기본값을 저장했습니다.");
-    },
-    onError: () => { void tenantQ.refetch(); },
   });
 
   const updateMut = useMutation({
@@ -447,18 +436,6 @@ export default function OrganizationSettingsPage() {
       </section>
 
       {/* ── 카카오톡 미리보기 설정 ── */}
-      {isOwner && typeof tenantQ.data?.review_limit_new_uploads === "boolean" && <section className={s.section}>
-        <h2 className={s.sectionTitle}>새 수업 영상의 복습 제한</h2>
-        <p>새 수강생 전용 파일과 YouTube 수업 영상에 학생별 원본 길이의 1.4배 한도를 적용합니다. 이미 올린 영상은 영상 상세에서 관리합니다.</p>
-        <label><input type="checkbox" checked={uploadLimit ?? tenantQ.data.review_limit_new_uploads}
-          disabled={saveUploadLimit.isPending} onChange={event => { saveUploadLimit.reset(); setUploadLimit(event.target.checked); }} /> 새 업로드에 기본 적용</label>
-        {uploadLimit !== null && uploadLimit !== tenantQ.data.review_limit_new_uploads && <Button
-          size="sm" disabled={saveUploadLimit.isPending} onClick={() => saveUploadLimit.mutate(uploadLimit)}>
-          {saveUploadLimit.isPending ? "저장 중…" : "복습 기본값 저장"}
-        </Button>}
-        {saveUploadLimit.isError && uploadLimit !== tenantQ.data.review_limit_new_uploads && <p role="alert">저장 결과를 확인하지 못했습니다. 현재 기본값을 확인하고 다시 시도해 주세요.</p>}
-      </section>}
-
       <OgPreviewSection tenantData={tenantQ.data} saving={updateMut.isPending} />
 
       {/* ── 합/불 라벨 커스텀 ── */}

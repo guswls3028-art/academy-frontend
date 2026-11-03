@@ -19,7 +19,7 @@ function fakeJwt(): string {
 }
 
 type UploadEvidence = {
-  initRequests: Array<{ title: string; filename: string }>;
+  initRequests: Array<{ title: string; filename: string; limited: boolean }>;
   activeInitRequests: number;
   maxActiveInitRequests: number;
   completedVideoIds: number[];
@@ -131,13 +131,13 @@ async function installApp(page: Page): Promise<UploadEvidence> {
       ]);
     }
     if (path === "/media/videos/upload/init/" && request.method() === "POST") {
-      const body = request.postDataJSON() as { title: string; filename: string };
+      const body = request.postDataJSON() as { title: string; filename: string; review_watch_limit_enabled: boolean };
       evidence.activeInitRequests += 1;
       evidence.maxActiveInitRequests = Math.max(
         evidence.maxActiveInitRequests,
         evidence.activeInitRequests,
       );
-      evidence.initRequests.push({ title: body.title, filename: body.filename });
+      evidence.initRequests.push({ title: body.title, filename: body.filename, limited: body.review_watch_limit_enabled });
       await new Promise((resolve) => setTimeout(resolve, 40));
       evidence.activeInitRequests -= 1;
       const videoId = 9200 + evidence.initRequests.length;
@@ -268,6 +268,8 @@ test("다건 영상은 선택·드롭·개별 제목·재생 순서를 업로드
 
   await expect(dialog.getByLabel("1번째 영상 제목")).toHaveValue("01 함수의 극한");
   await expect(dialog.getByLabel("2번째 영상 제목")).toHaveValue("02 연속성");
+  await expect(dialog.getByLabel("1번째 영상 복습시간 1.4배 제한")).not.toBeChecked();
+  await dialog.getByLabel("1번째 영상 복습시간 1.4배 제한").check();
 
   await dialog.getByRole("button", { name: "영상 파일 추가" }).evaluate((dropZone) => {
     const dataTransfer = new DataTransfer();
@@ -291,9 +293,9 @@ test("다건 영상은 선택·드롭·개별 제목·재생 순서를 업로드
 
   await dialog.getByRole("button", { name: "업로드 (3개)" }).click();
   await expect.poll(() => evidence.initRequests).toEqual([
-    { title: "미분 활용 핵심 정리", filename: "03 미분 활용.webm" },
-    { title: "01 함수의 극한", filename: "01 함수의 극한.mp4" },
-    { title: "02 연속성", filename: "02 연속성.MOV" },
+    { title: "미분 활용 핵심 정리", filename: "03 미분 활용.webm", limited: false },
+    { title: "01 함수의 극한", filename: "01 함수의 극한.mp4", limited: true },
+    { title: "02 연속성", filename: "02 연속성.MOV", limited: false },
   ]);
   expect(evidence.maxActiveInitRequests).toBe(1);
   await expect.poll(() => evidence.completedVideoIds.length).toBe(3);
