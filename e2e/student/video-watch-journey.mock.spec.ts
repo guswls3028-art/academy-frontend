@@ -16,6 +16,7 @@ async function installWatchScenario(page: Page, completed = false) {
   await installStudentYoutubeScenario(page);
   const state = { reviewRemaining: null as number | null, prepared: false, prepareRetry: false, playingSignal: false,
     commentsFail: false, playlistFail: false, likeFail: false, liked: false,
+    losePlayingAck: false, lostSequence: 0, recoveredSequence: 0,
     comments: [{ id: 701, content: "수업에서 이해한 개념을 다시 확인했습니다.", author_type: "student",
       author_name: "합성 학생", author_photo_url: null, is_edited: false, is_deleted: false,
       is_mine: true, created_at: "2026-10-01T03:00:00Z", reply_count: 0, replies: [] }] as VideoCommentItem[],
@@ -54,7 +55,15 @@ async function installWatchScenario(page: Page, completed = false) {
         return json({ stream: "test-review", used_ms: 0, remaining_ms: state.reviewRemaining, retry_after_ms: 600 });
       }
       if (request.postDataJSON().prepare) state.prepared = true;
-      if (request.postDataJSON().playing) state.playingSignal = true;
+      if (request.postDataJSON().playing) {
+        if (state.losePlayingAck) {
+          state.losePlayingAck = false;
+          state.lostSequence = request.postDataJSON().sequence;
+          return json({ detail: "일시적인 연결 오류" }, 503);
+        }
+        if (!state.playingSignal) state.recoveredSequence = request.postDataJSON().sequence;
+        state.playingSignal = true;
+      }
       return json({ stream: "test-review", used_ms: 14000 - state.reviewRemaining, remaining_ms: state.reviewRemaining });
     }
     const playback = path.match(/^\/student\/video\/videos\/(562|563)\/playback\/$/);
@@ -109,6 +118,7 @@ for (const width of [1366, 390]) {
     const { state } = await installWatchScenario(page);
     state.reviewRemaining = 14000;
     state.prepareRetry = true;
+    state.losePlayingAck = true;
     await page.route("**/review-media/**", async route => {
       const browserUrl = new URL(route.request().url());
       const fixtureRequest = new Request(`https://godmin.kr${browserUrl.pathname}${browserUrl.search}`);
@@ -133,12 +143,37 @@ for (const width of [1366, 390]) {
     await expect.poll(() => page.locator("video").evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(0);
     expect(state.prepared).toBe(true);
     await expect.poll(() => state.playingSignal).toBe(true);
+    expect(state.lostSequence).toBeGreaterThan(0);
+    expect(state.recoveredSequence).toBe(state.lostSequence);
     state.reviewRemaining = 0;
     const exhausted = page.getByText("이 영상의 복습 시청시간을 모두 사용했습니다.");
     await expect(exhausted).toBeVisible();
     await page.reload();
     await expect(exhausted).toBeVisible();
+    await expect(page.getByRole("button", { name: "다시 시도", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "뒤로가기" })).toBeVisible();
+  });
+}
+
+for (const exhausted of [true, false]) {
+  test(`review media denial shows the confirmed ${exhausted ? "exhausted" : "recoverable"} state`, async ({ page }) => {
+    const { state } = await installWatchScenario(page);
+    state.reviewRemaining = 14000;
+    await page.route("**/review-media/**", route => {
+      if (exhausted) state.reviewRemaining = 0;
+      return route.fulfill({ status: 403 });
+    });
+    // Some engines load the manifest on attach, while native playback can wait for a gesture.
+    const denied = page.waitForResponse(response => response.url().includes("/review-media/") && response.status() === 403);
+    await openWatch(page);
+    await Promise.race([denied, page.locator("button.svpBigPlay").click()]);
+    if (exhausted) {
+      await expect(page.getByText("이 영상의 복습 시청시간을 모두 사용했습니다.")).toBeVisible();
+      await expect(page.getByRole("button", { name: "다시 시도", exact: true })).toHaveCount(0);
+    } else {
+      await expect(page.getByRole("button", { name: "다시 시도", exact: true })).toBeVisible();
+      await expect(page.getByText("이 영상의 복습 시청시간을 모두 사용했습니다.")).toHaveCount(0);
+    }
   });
 }
 

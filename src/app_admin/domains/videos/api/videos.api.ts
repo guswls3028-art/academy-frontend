@@ -53,6 +53,8 @@ export interface UploadInitResponse {
 }
 
 export interface YoutubeVideoCreatePayload {
+  duration?: number;
+  review_watch_limit_enabled?: boolean;
   session: number;
   title: string;
   url: string;
@@ -153,6 +155,7 @@ export async function fetchPolicyImpact(params: {
 }
 
 export async function uploadInit(payload: {
+  review_watch_limit_enabled?: boolean;
   session: number;
   title: string;
   filename: string;

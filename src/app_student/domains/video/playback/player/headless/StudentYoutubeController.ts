@@ -1,4 +1,4 @@
-import studentApi from "@student/shared/api/student.api";
+import { postEvents, postHeartbeat, postRefresh } from "./playbackTransport";
 import { extractYouTubeVideoId } from "@/shared/media/video/youtube";
 import { clamp, getEpochSec } from "../design/utils";
 import { PlaybackSessionEnd } from "./playbackSessionEnd";
@@ -109,38 +109,7 @@ function loadYouTubeIframeApi(): Promise<YouTubeApi> {
   return youtubeApiPromise;
 }
 
-async function postHeartbeat(token: string) {
-  if (token.startsWith("student-")) return;
-  try {
-    await studentApi.post(`/media/playback/heartbeat/`, { token });
-  } catch {
-    ignoreBestEffortError();
-  }
-}
 
-async function postRefresh(token: string) {
-  if (token.startsWith("student-")) return;
-  await studentApi.post(`/media/playback/refresh/`, { token });
-}
-
-async function postEvents(
-  token: string,
-  events: Array<{ type: EventType; occurred_at: number; payload?: Record<string, unknown> }>,
-  videoId: number,
-  enrollmentId: number | null
-) {
-  if (!events.length || token.startsWith("student-")) return;
-  try {
-    await studentApi.post(`/media/playback/events/`, {
-      token,
-      video_id: videoId,
-      enrollment_id: enrollmentId,
-      events: events.map((e) => ({ type: e.type, occurred_at: e.occurred_at, payload: e.payload || {} })),
-    });
-  } catch {
-    ignoreBestEffortError();
-  }
-}
 
 export class StudentYoutubeController {
   private mount: HTMLElement | null = null;

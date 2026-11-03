@@ -785,15 +785,28 @@ test("영상 추가 정책은 자유 이동의 정확한 상태를 표시하고 
     .toBeLessThanOrEqual(policyRowMetrics.clientWidth + 1);
   await page.screenshot({ path: testInfo.outputPath("video-policy-390.png"), fullPage: true });
 
+  await page.route("https://i.ytimg.com/vi/dQw4w9WgXcQ/**", route => route.fulfill({
+    contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="90"/>',
+  }));
   await dialog.getByRole("tab", { name: "YouTube 링크" }).click();
   await dialog.getByPlaceholder(/제목/).fill("정책 저장 확인 영상");
   await dialog.getByPlaceholder("https://youtu.be/...").fill("https://youtu.be/dQw4w9WgXcQ");
+  const limit = dialog.getByLabel("복습시간 1.4배 제한", {exact:true});
+  await expect(limit).not.toBeChecked();
+  await expect(dialog.getByRole("button", {name:"링크 추가"})).toBeEnabled();
+  await limit.check();
+  const length = dialog.getByLabel(/원본 영상 길이/);
+  await length.fill("60:75");
+  await expect(dialog.getByRole("button", { name: "링크 추가" })).toBeDisabled();
+  await length.fill("60:30");
   await dialog.getByRole("button", { name: "링크 추가" }).click();
 
   await expect.poll(() => state.createdVideoPayloads?.length ?? 0).toBe(1);
   expect(state.createdVideoPayloads?.[0]).toMatchObject({
     session: REGULAR_SESSION_ID,
     title: "정책 저장 확인 영상",
+    duration: 3630,
+    review_watch_limit_enabled: true,
     show_watermark: false,
     allow_skip: true,
     max_speed: 1,

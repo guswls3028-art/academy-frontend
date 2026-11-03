@@ -129,7 +129,7 @@ export default function StudentVideoPlayer({
   onLeaveProgressRef.current = onLeaveProgress;
 
   const { ready, playing, buffering, duration, current, volume, muted, rate, toast, qualities, currentQuality, reconnecting } = ctrlState;
-  const reviewRemaining = useReviewWatch(video.id, enrollmentId ?? null, bootstrap.review_watch, playing && !buffering, current, (reason) => {
+  const { remaining: reviewRemaining, reconnecting: reviewReconnecting, settleMediaFailure } = useReviewWatch(video.id, enrollmentId ?? null, bootstrap.review_watch, playing && !buffering, current, (reason) => {
     controllerRef.current?.pause();
     onFatalRef.current?.(reason);
   });
@@ -207,7 +207,7 @@ export default function StudentVideoPlayer({
       enrollmentId: config.enrollmentId,
       initialPosition: config.initialPosition,
       initialProgress: config.initialProgress,
-      onFatal: (reason: string) => onFatalRef.current?.(reason),
+      onFatal: settleMediaFailure,
       onEnded: () => onEndedRef.current?.(),
       onLeaveProgress: (data: LeaveProgressPayload) => onLeaveProgressRef.current?.(data),
     };
@@ -231,7 +231,7 @@ export default function StudentVideoPlayer({
       ctrl.dispose();
       controllerRef.current = null;
     };
-  }, [controllerIdentity, isYoutube]);
+  }, [controllerIdentity, isYoutube, settleMediaFailure]);
 
   useEffect(() => {
     const ctrl = controllerRef.current;
@@ -717,6 +717,7 @@ export default function StudentVideoPlayer({
   return (
     <div className={`svpRoot ${theater ? "svpTheater" : ""}`}>
       {reviewRemaining !== null && <p className="svpReviewRemaining">남은 복습시간 {Math.floor(Math.ceil(reviewRemaining / 1000) / 60)}분 {Math.ceil(reviewRemaining / 1000) % 60}초</p>}
+      {reviewReconnecting && <p role="status" className="svpReviewRemaining">시청 기록 연결을 복구하는 중입니다.</p>}
       <div className="svpLayout">
         <div className="svpPlayerCol">
           <div

@@ -280,11 +280,13 @@ for (const width of [1366, 390]) {
     await openVideos(page, state);
     const video = state.videos[0];
     let enabled = false;
+    let length = 3600;
+    const updatedAt = "2026-11-03T00:00:00Z";
     await page.route(`**/api/v1/media/videos/${video.id}/stats/**`, route => route.fulfill({
       json: { video: { ...video, duration: 3600, session_id: SESSION_ID }, students: [] },
     }));
     await page.route(`**/api/v1/media/videos/${video.id}/review-watch/report/**`, route => route.fulfill({
-      json: { enabled, duration: 3600, threshold_ms: 5040000, students: [
+      json: { enabled, duration: length, threshold_ms: length * 1400, source_type: "youtube", updated_at: updatedAt, students: [
         { student_id: 1, student_name: "복습 기준 도달 학생", used_ms: 5040000, started_at: "2026-11-03T00:00:00Z" },
         { student_id: 2, student_name: "복습 진행 학생", used_ms: 600000, started_at: "2026-11-03T00:00:00Z" },
       ] },
@@ -292,14 +294,20 @@ for (const width of [1366, 390]) {
     await page.route(`**/api/v1/media/videos/${video.id}/`, route => {
       if (route.request().method() !== "PATCH") return route.fallback();
       const body = route.request().postDataJSON();
-      expect(body).toEqual({ review_watch_limit_enabled: true });
-      enabled = body.review_watch_limit_enabled;
+      expect(route.request().headers()["x-expected-updated-at"]).toBe(updatedAt);
+      if ("duration" in body) length = body.duration;
+      else { expect(body).toEqual({ review_watch_limit_enabled: true }); enabled = true; }
       return route.fulfill({ json: { ...video, review_watch_limit_enabled: enabled } });
     });
     await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/videos/${video.id}`);
     const settings = page.getByRole("button", { name: /시청 정책 · 관리자 메모/ });
     await settings.click();
     await page.getByRole("button", { name: "시간 제한 꺼짐" }).click();
+    await expect(page.getByText(/학생당 84분 0초.*기준에 도달한 학생 1명/)).toBeVisible();
+    await page.getByRole("group", {name: "복습 시청시간 변경 확인"}).getByRole("button", {name: "취소"}).click();
+    expect(enabled).toBe(false);
+    await page.getByRole("button", { name: "시간 제한 꺼짐" }).click();
+    await page.getByRole("button", { name: "제한 켜기", exact: true }).click();
     await expect(page.getByRole("button", { name: "시간 제한 켜짐" })).toBeVisible();
     await page.reload();
     await settings.click();
@@ -308,6 +316,16 @@ for (const width of [1366, 390]) {
     await page.getByLabel("원본의 1.4배 이상만 보기").check();
     await expect(page.getByText("복습 기준 도달 학생", {exact: true})).toBeVisible();
     await expect(page.getByText("복습 진행 학생", {exact: true})).toHaveCount(0);
+    await page.getByLabel("학생 이름 검색").fill("없는 이름");
+    await expect(page.getByText("조건에 맞는 학생이 없습니다.")).toBeVisible();
+    await page.getByLabel("학생 이름 검색").fill("");
+    await expect(page.getByText("복습 기준 도달 학생", {exact: true})).toBeVisible();
+    await page.getByRole("button", {name: "YouTube 원본 길이 수정"}).click();
+    await page.getByLabel("원본 길이 (분 또는 분:초)").fill("61");
+    await expect(page.getByText(/변경 후 복습 기준 85분 24초/)).toBeVisible();
+    await page.getByRole("button", {name: "원본 길이 저장"}).click();
+    await expect.poll(() => length).toBe(3660);
+    await expect(page.getByText(/학생 한 명당 원본의 1.4배 · 85분 24초/)).toBeVisible();
     const panel = page.locator("section.review-watch");
     expect(await panel.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     await info.attach("review-watch-settings", { body: await panel.screenshot(), contentType: "image/png" });

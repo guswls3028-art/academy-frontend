@@ -10,6 +10,7 @@ const FAILURE = "공개 영상 공간을 준비하지 못했습니다. 다시 �
 async function installApp(page: Page, role: "admin" | "teacher") {
   const state = {
     prepared: false, readFails: false, failNextPrepare: true,
+    uploadLimits: [] as boolean[],
     videoListFails: false, videoListReads: 0,
     videoListWait: null as Promise<void> | null,
     prepares: 0, uploads: 0, completes: 0, youtube: 0,
@@ -77,6 +78,7 @@ async function installApp(page: Page, role: "admin" | "teacher") {
     if (path === "/media/videos/upload/init/" && method === "POST") {
       expect(state.prepared).toBe(true);
       expect(request.postDataJSON().session).toBe(SESSION.session_id);
+      state.uploadLimits.push(request.postDataJSON().review_watch_limit_enabled);
       state.uploads += 1;
       return json({ video: { id: 9202 }, upload_url: `${BASE}/mock-public-video-upload`, file_key: "mock-only" }, 201);
     }
@@ -285,16 +287,27 @@ for (const width of [390, 1366]) {
     const state = await installApp(page, "teacher");
     await page.setViewportSize({ width, height: 900 });
     await gotoAndSettle(page, `${BASE}/workspace/mobile/videos`, { timeout: 45_000 });
-    const input = page.locator('input[type="file"]');
     const file = { name: "first-video.mp4", mimeType: "video/mp4", buffer: Buffer.from("fixture-only") };
-    await input.setInputFiles(file);
+    const options = page.getByRole("dialog", {name:"영상 업로드 설정"});
+    const chooseFile = async () => {
+      const chooser = page.waitForEvent("filechooser");
+      await options.getByRole("button", {name: "파일 선택"}).click();
+      await (await chooser).setFiles(file);
+    };
+    await page.getByRole("button", {name:"영상 업로드", exact:true}).first().click();
+    await expect(options.getByLabel("복습시간 1.4배 제한")).not.toBeChecked();
+    await chooseFile();
     await expect(page.getByText(FAILURE, { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "영상 업로드", exact: true }).first()).toBeEnabled();
     expect(state.uploads).toBe(0);
-    await input.setInputFiles(file);
+    await page.getByRole("button", {name:"영상 업로드",exact:true}).first().click();
+    await expect(options.getByLabel("복습시간 1.4배 제한")).not.toBeChecked();
+    await options.getByLabel("복습시간 1.4배 제한").check();
+    await chooseFile();
     await expect(page.getByText("first-video", { exact: true })).toBeVisible();
     expect(state.prepares).toBe(2);
     expect(state.uploads).toBe(1);
+    expect(state.uploadLimits).toEqual([true]);
     expect(state.completes).toBe(1);
     await page.reload();
     await expect(page.getByText("first-video", { exact: true })).toBeVisible();

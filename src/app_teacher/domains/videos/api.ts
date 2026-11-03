@@ -83,6 +83,7 @@ export async function uploadInit(payload: {
   title: string;
   filename: string;
   content_type: string;
+  review_watch_limit_enabled?: boolean;
 }) {
   const res = await api.post("/media/videos/upload/init/", payload);
   const data = res.data as {
@@ -108,6 +109,8 @@ export async function uploadComplete(videoId: number) {
 }
 
 export async function createYoutubeVideo(payload: {
+  review_watch_limit_enabled?: boolean;
+  duration?: number;
   session: number;
   title: string;
   url: string;

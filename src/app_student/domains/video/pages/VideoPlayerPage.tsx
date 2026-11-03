@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 
 import EmptyState from "../../../layout/EmptyState";
+import VideoPlaybackError from "../components/VideoPlaybackError";
 import {
   checkStudentVideoAccess,
   fetchStudentVideoPlayback,
@@ -745,6 +746,7 @@ export default function VideoPlayerPage() {
   }, []);
 
   /* ─── Render ─── */
+
   const items = playlistItems;
   const hasPlaylist = items.length > 0;
   const [drawerOpen, setDrawerOpen] = useState(true);
@@ -758,17 +760,8 @@ export default function VideoPlayerPage() {
           </div>
         </div>
       ) : (loadError || fatalError) ? (
-        <div className="vpp-error">
-          <EmptyState
-            title="재생을 시작할 수 없어요"
-            description={fatalError || loadError || "잠시 후 다시 시도해 주세요."}
-            onRetry={() => { void retryPlayback(); }}
-          />
-          <button type="button" className="vpp-back-btn" onClick={() => nav(videoListUrl)} aria-label="뒤로가기">
-            <IconChevronRight className="vpp-icon-back" aria-hidden="true" />
-            <span>뒤로가기</span>
-          </button>
-        </div>
+        <VideoPlaybackError message={fatalError || loadError} error={playbackQuery.error}
+          onRetry={() => { void retryPlayback(); }} onBack={() => nav(videoListUrl)} />
       ) : video && boot ? (
         <>
           {/* ─── 플레이어 ─── */}
