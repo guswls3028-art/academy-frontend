@@ -55,7 +55,7 @@ export default function ReviewWatchPanel({ videoId }: { videoId: number }) {
         : "제한을 끄면 한도에 도달한 학생도 다시 볼 수 있습니다. 누적 재생시간은 계속 기록됩니다."}</p>
       <Button size="sm" disabled={toggle.isPending} onClick={() => toggle.mutate(pendingLimit)}>{toggle.isPending ? "저장 중…" : pendingLimit ? "제한 켜기" : "제한 끄기"}</Button>
       <Button size="sm" disabled={toggle.isPending} onClick={() => { setPendingLimit(null); toggle.reset(); }}>취소</Button>
-    </div>
+    </div>}
     {toggle.isError && pendingLimit !== data.enabled && <p role="alert">저장 결과를 확인하지 못했습니다. 현재 설정을 확인한 뒤 다시 시도해 주세요.</p>}
     <details onToggle={event => setReportOpen(event.currentTarget.open)}><summary>학생별 누적 재생시간 · 기준 도달 {reached.length}명</summary>
       <p>집계를 시작한 뒤 실제로 재생한 시간을 합산합니다. 계정 공유 여부는 별도 확인이 필요합니다.</p>
