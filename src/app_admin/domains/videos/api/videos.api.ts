@@ -53,6 +53,7 @@ export interface UploadInitResponse {
 }
 
 export interface YoutubeVideoCreatePayload {
+  duration?: number;
   session: number;
   title: string;
   url: string;

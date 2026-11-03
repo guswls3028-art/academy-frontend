@@ -605,6 +605,7 @@ async function installApi(page: Page, state: MockState) {
     }
     if (path === "/results/admin/clinic-targets/") return json([]);
     if (path === "/staffs/currently-working/") return json([]);
+    if (path === "/core/tenant-info/" && method === "GET") return json({review_limit_new_uploads: true});
     if (path === "/media/videos/youtube/" && method === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       state.createdVideoPayloads ??= [];
@@ -788,12 +789,17 @@ test("영상 추가 정책은 자유 이동의 정확한 상태를 표시하고 
   await dialog.getByRole("tab", { name: "YouTube 링크" }).click();
   await dialog.getByPlaceholder(/제목/).fill("정책 저장 확인 영상");
   await dialog.getByPlaceholder("https://youtu.be/...").fill("https://youtu.be/dQw4w9WgXcQ");
+  const length = dialog.getByLabel(/원본 영상 길이/);
+  await length.fill("60:75");
+  await expect(dialog.getByRole("button", { name: "링크 추가" })).toBeDisabled();
+  await length.fill("60:30");
   await dialog.getByRole("button", { name: "링크 추가" }).click();
 
   await expect.poll(() => state.createdVideoPayloads?.length ?? 0).toBe(1);
   expect(state.createdVideoPayloads?.[0]).toMatchObject({
     session: REGULAR_SESSION_ID,
     title: "정책 저장 확인 영상",
+    duration: 3630,
     show_watermark: false,
     allow_skip: true,
     max_speed: 1,

@@ -2,7 +2,9 @@
 // 영상 추가 모달 — 다건 파일 큐에서 제목과 재생 순서를 확정한 뒤 업로드
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { fetchTenantInfo } from "@/shared/api/contracts/tenantInfo";
+import { accountQueryKeys } from "@/shared/api/queryKeys/account";
 import {
   ChevronDown,
   ChevronLeft,
@@ -35,6 +37,7 @@ type UploadItem = {
 type Props = {
   sessionId: number;
   folderId?: number | null;
+  isPublic?: boolean;
   isOpen: boolean;
   onClose: () => void;
 };
@@ -44,7 +47,14 @@ function titleFromFilename(filename: string): string {
   return withoutExtension || filename.trim() || "영상";
 }
 
-export default function VideoUploadModal({ sessionId, folderId = null, isOpen, onClose }: Props) {
+function originalDurationSeconds(input: string): number | null {
+  const match = /^(\d{1,6})(?::([0-5]\d))?$/.exec(input.trim());
+  if (!match) return null;
+  const seconds = Number(match[1]) * 60 + Number(match[2] || 0);
+  return seconds > 0 ? seconds : null;
+}
+
+export default function VideoUploadModal({ sessionId, folderId = null, isPublic = false, isOpen, onClose }: Props) {
   const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const nextItemIdRef = useRef(0);
@@ -57,6 +67,12 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
   const [isFileDragOver, setIsFileDragOver] = useState(false);
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [originalLength, setOriginalLength] = useState("");
+  const [durationRequested, setDurationRequested] = useState(false);
+  const tenantInfo = useQuery({ queryKey: accountQueryKeys.tenantInfo, queryFn: fetchTenantInfo, enabled: isOpen && !isPublic });
+  const defaultLimit = !isPublic && tenantInfo.data?.review_limit_new_uploads === true;
+  const durationRequired = defaultLimit || durationRequested;
+  const originalDuration = originalDurationSeconds(originalLength);
   const [isUploading, setIsUploading] = useState(false);
 
   const [showWatermark, setShowWatermark] = useState(true);
@@ -82,6 +98,8 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
     setIsFileDragOver(false);
     setDraggedItemIndex(null);
     setYoutubeUrl("");
+    setOriginalLength("");
+    setDurationRequested(false);
     setShowWatermark(true);
     setAllowSkip(false);
     setMaxSpeed(1);
@@ -94,10 +112,11 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
   const canSubmit = useMemo(
     () => {
       if (!Number.isFinite(sessionId) || sessionId <= 0) return false;
-      if (uploadMode === "youtube") return baseTitle.trim().length > 0 && !!youtubeVideoId;
+      if (uploadMode === "youtube") return baseTitle.trim().length > 0 && !!youtubeVideoId &&
+        (!(durationRequired || originalLength.trim()) || originalDuration !== null);
       return uploadItems.length > 0 && uploadItems.every((item) => item.title.trim().length > 0);
     },
-    [sessionId, baseTitle, uploadItems, uploadMode, youtubeVideoId]
+    [sessionId, baseTitle, uploadItems, uploadMode, youtubeVideoId, durationRequired, originalLength, originalDuration]
   );
 
   const addFiles = useCallback((files: File[]) => {
@@ -275,6 +294,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
         session: sessionId,
         title,
         url,
+        ...(originalDuration !== null ? { duration: originalDuration } : {}),
         ...(folderId ? { folder: folderId } : {}),
         show_watermark: showWatermark,
         allow_skip: allowSkip,
@@ -284,7 +304,8 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
       qc.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideosScoped(sessionId) });
       onClose();
     } catch (error) {
-      const err = error as { response?: { data?: { detail?: string } }; message?: string };
+      const err = error as { response?: { data?: { detail?: string; code?: string } }; message?: string };
+      if (err.response?.data?.code === "review_duration_required") setDurationRequested(true);
       feedback.error(err?.response?.data?.detail || err?.message || "YouTube 링크 추가에 실패했습니다.");
     } finally {
       if (mountedRef.current) {
@@ -300,6 +321,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
     qc,
     sessionId,
     showWatermark,
+    originalDuration,
     youtubeUrl,
   ]);
 
@@ -539,6 +561,15 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
                   disabled={isUploading}
                 />
               </div>
+              {!isPublic && <div>
+                <label className="modal-section-label" htmlFor="youtube-review-length">원본 영상 길이{durationRequired ? " (필수)" : " (선택)"}</label>
+                <input id="youtube-review-length" className="ds-input" type="text" value={originalLength}
+                  placeholder="예: 60 또는 60:30" aria-describedby="youtube-review-length-help"
+                  onChange={event => setOriginalLength(event.target.value)} disabled={isUploading} />
+                <p id="youtube-review-length-help">{originalLength.trim() && originalDuration === null
+                  ? "분 또는 분:초로 입력해 주세요. 초는 00~59까지 가능합니다."
+                  : durationRequired ? "학원 플레이어에서 원본 길이의 1.4배까지 복습할 수 있습니다." : "분 또는 분:초로 입력할 수 있습니다."}</p>
+              </div>}
               {youtubeVideoId ? (
                 <div className="video-upload-modal__youtube-preview">
                   <img
@@ -577,6 +608,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
           </div>
           )}
 
+          {uploadMode === "file" && defaultLimit && <p>새 수업 영상에는 원본 길이의 1.4배 복습 제한이 적용됩니다.</p>}
           {/* 재생 정책 */}
           <div className="modal-form-group modal-form-group--neutral video-upload-modal__row">
             <div className="video-upload-modal__policy-row">

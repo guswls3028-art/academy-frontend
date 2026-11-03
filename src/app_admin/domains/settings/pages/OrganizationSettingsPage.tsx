@@ -449,7 +449,7 @@ export default function OrganizationSettingsPage() {
       {/* ── 카카오톡 미리보기 설정 ── */}
       {isOwner && typeof tenantQ.data?.review_limit_new_uploads === "boolean" && <section className={s.section}>
         <h2 className={s.sectionTitle}>새 수업 영상의 복습 제한</h2>
-        <p>이후 업로드하는 수강생 전용 영상에 학생별 원본 길이의 1.4배 한도를 적용합니다. 이미 올린 영상은 영상 상세에서 관리합니다.</p>
+        <p>새 수강생 전용 파일과 YouTube 수업 영상에 학생별 원본 길이의 1.4배 한도를 적용합니다. 이미 올린 영상은 영상 상세에서 관리합니다.</p>
         <label><input type="checkbox" checked={uploadLimit ?? tenantQ.data.review_limit_new_uploads}
           disabled={saveUploadLimit.isPending} onChange={event => { saveUploadLimit.reset(); setUploadLimit(event.target.checked); }} /> 새 업로드에 기본 적용</label>
         {uploadLimit !== null && uploadLimit !== tenantQ.data.review_limit_new_uploads && <Button
