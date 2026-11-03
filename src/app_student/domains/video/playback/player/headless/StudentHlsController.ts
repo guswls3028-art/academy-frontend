@@ -906,11 +906,12 @@ export class StudentHlsController {
       // 브라우저의 일반 MediaError(code=4)로 먼저 오분류하지 않는다.
       if (this.hls) return;
       let message = "재생 오류가 발생했습니다.";
-      if (errorCode === 4 || errorMessage.includes("404") || errorMessage.includes("Not Found")) {
+      const sourceFailed = errorCode === 4 || errorMessage.includes("404") || errorMessage.includes("Not Found");
+      if (sourceFailed) {
         message = "영상 서비스에서 재생 파일을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
-        this.opts.onFatal?.(message);
       } else if (errorCode === 2) message = "영상 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.";
       else if (errorCode === 3) message = "비디오 디코딩 오류가 발생했습니다.";
+      if (this.opts.reviewStream || sourceFailed) this.opts.onFatal?.(message);
       this.setState({ toast: { text: message, kind: "danger" } });
     };
 
