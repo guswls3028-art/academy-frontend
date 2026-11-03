@@ -6,8 +6,7 @@ export function useReviewWatch(
   playing: boolean, position: number, stop: (reason: string) => void,
 ) {
   const stream = watch?.stream;
-  const sequence = useRef({ value: 0 }).current;
-  const failureGeneration = useRef(0);
+  const sequence = useRef({ value: 0, failureGeneration: 0 }).current;
   const positionRef = useRef(position);
   positionRef.current = position;
   const stopRef = useRef(stop);
@@ -21,7 +20,7 @@ export function useReviewWatch(
     setRemaining(budget.current);
     if (!stream) return;
     return () => {
-      failureGeneration.current++;
+      sequence.failureGeneration++;
       void reportReviewWatch(videoId, enrollmentId, stream, ++sequence.value, false, positionRef.current).catch(() => {
         // Abrupt disconnects are bounded by the server's active-signal timeout.
       });
@@ -104,7 +103,7 @@ export function useReviewWatch(
 
   const limitedStream = watch?.remaining_ms != null ? stream : undefined;
   const settleMediaFailure = useCallback(async (reason: string) => {
-    const generation = ++failureGeneration.current;
+    const generation = ++sequence.failureGeneration;
     let message = reason;
     if (limitedStream) {
       try {
@@ -115,7 +114,7 @@ export function useReviewWatch(
         // Keep the player's recovery action if the server cannot confirm exhaustion.
       }
     }
-    if (generation === failureGeneration.current) stopRef.current(message);
+    if (generation === sequence.failureGeneration) stopRef.current(message);
   }, [limitedStream, videoId, enrollmentId, sequence]);
 
   return { remaining, reconnecting, settleMediaFailure };
