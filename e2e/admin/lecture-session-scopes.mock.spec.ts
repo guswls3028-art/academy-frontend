@@ -786,6 +786,9 @@ test("영상 추가 정책은 자유 이동의 정확한 상태를 표시하고 
     .toBeLessThanOrEqual(policyRowMetrics.clientWidth + 1);
   await page.screenshot({ path: testInfo.outputPath("video-policy-390.png"), fullPage: true });
 
+  await page.route("https://i.ytimg.com/vi/dQw4w9WgXcQ/**", route => route.fulfill({
+    contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="90"/>',
+  }));
   await dialog.getByRole("tab", { name: "YouTube 링크" }).click();
   await dialog.getByPlaceholder(/제목/).fill("정책 저장 확인 영상");
   await dialog.getByPlaceholder("https://youtu.be/...").fill("https://youtu.be/dQw4w9WgXcQ");
