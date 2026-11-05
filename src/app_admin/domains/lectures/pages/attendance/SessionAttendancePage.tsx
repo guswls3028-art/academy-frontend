@@ -45,6 +45,7 @@ import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api"
 import { substituteScoreVars, buildScoreVars, buildScoreDetail } from "@/shared/scoring/scoreReport";
 import { fetchSessionScores } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
+import { sessionScheduleQueryKeys } from "@/shared/api/queryKeys/sessionSchedules";
 import useAuth from "@/auth/hooks/useAuth";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { adminLectureQueryKeys } from "../../queryKeys";
@@ -54,11 +55,13 @@ import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import ArrivalPlanCell, { type ArrivalPlanPayload } from "./ArrivalPlanCell";
 import AttendanceStatusInlineRail from "./AttendanceStatusInlineRail";
 import AttendanceSortButtons from "./AttendanceSortButtons";
+import AttendanceStatusFilter from "./AttendanceStatusFilter";
 import { useBulkPresentUndo } from "./useBulkPresentUndo";
 import StudentLectureMemo from "@/shared/ui/enrollment/StudentLectureMemo";
 import { DEFAULT_ATTENDANCE_SORT, getStoredAttendanceSort, type AttendanceSort, type AttendanceSortColumn } from "./attendanceSort";
 import "./attendance-ui.css";
 import AttendanceQrManager from "@/shared/ui/attendance/AttendanceQrManager";
+import { useSessionScheduleScope } from "@/shared/hooks/useSessionScheduleScope";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
 const PAGE_SIZE = 50;
@@ -83,6 +86,7 @@ export default function SessionAttendancePage({
   onOpenEnrollModal,
 }: SessionAttendancePageProps) {
   const location = useLocation();
+  const schedule = useSessionScheduleScope();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -105,23 +109,12 @@ export default function SessionAttendancePage({
     getStoredAttendanceSort(sortStorageKey, previousSortStorageKey)
   ));
   const [page, setPage] = useState(1);
-  const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
-  const statusTriggerRef = useRef<HTMLButtonElement>(null);
-  const statusPopoverRef = useRef<HTMLDivElement>(null);
   /** 상태 뱃지 클릭 시 테이블 외부 가로 팝오버로 표시. null이면 닫힘 */
   const [notifModal, setNotifModal] = useState<{ type: "check_in" | "absent"; open: boolean }>({ type: "check_in", open: false });
   const [openStatusRowAttId, setOpenStatusRowAttId] = useState<number | null>(null);
   const statusRowPopoverRef = useRef<HTMLDivElement>(null);
   const statusRowTriggerRef = useRef<HTMLElement | null>(null);
 
-  // SSOT floating position — 상태필터 popover. RAF로 mount 후 실측치 사용
-  const statusPopoverAnchor = useFloatingPosition(statusTriggerRef, statusPopoverRef, statusPopoverOpen, {
-    placement: "top",
-    gap: 4,
-    margin: 8,
-    estimateHeight: 90,
-    estimateWidth: 420,
-  });
   // SSOT floating position — 행별 상태변경 popover. openStatusRowAttId 값 변경 자체가 재계산 트리거
   const statusRowPopoverAnchor = useFloatingPosition(statusRowTriggerRef, statusRowPopoverRef, openStatusRowAttId, {
     placement: "top",
@@ -141,20 +134,15 @@ export default function SessionAttendancePage({
   }, [search, statusFilter]);
 
   useEffect(() => {
+    setSelectedIds([]);
+    setPage(1);
+    setOpenStatusRowAttId(null);
+  }, [sessionId, schedule]);
+
+  useEffect(() => {
     setPage(1);
     setSort(getStoredAttendanceSort(sortStorageKey, previousSortStorageKey));
   }, [previousSortStorageKey, sortStorageKey]);
-
-  useEffect(() => {
-    if (!statusPopoverOpen) return;
-    const close = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (statusTriggerRef.current?.contains(target) || statusPopoverRef.current?.contains(target)) return;
-      setStatusPopoverOpen(false);
-    };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [statusPopoverOpen]);
 
   /** 출결 상태 행 팝오버: 바깥 클릭 시 닫기 */
   useEffect(() => {
@@ -170,7 +158,7 @@ export default function SessionAttendancePage({
   }, [openStatusRowAttId]);
 
   const { data: attendanceResult, isLoading, isError, isFetching, refetch } = useQuery({
-    queryKey: adminLectureQueryKeys.attendance(sessionId, page, search, statusFilter, sort),
+    queryKey: adminLectureQueryKeys.attendance(sessionId, page, search, statusFilter, sort, schedule),
     queryFn: () =>
       fetchAttendance(sessionId, {
         page,
@@ -178,6 +166,7 @@ export default function SessionAttendancePage({
         search: search.trim() || undefined,
         status: statusFilter || undefined,
         ordering: sort,
+        schedule,
       }),
     enabled: Number.isFinite(sessionId),
   });
@@ -202,6 +191,7 @@ export default function SessionAttendancePage({
     }) =>
       updateAttendance(id, { status, confirm_secession, secession_scope }),
     onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: sessionScheduleQueryKeys.session(sessionId) });
       qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
       if (Number.isFinite(lectureId)) {
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
@@ -354,6 +344,7 @@ export default function SessionAttendancePage({
       await Promise.all([
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) }),
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId) }),
+        qc.invalidateQueries({ queryKey: sessionScheduleQueryKeys.session(sessionId) }),
         qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) }),
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForPdf(sessionId) }),
       ]);
@@ -405,7 +396,7 @@ export default function SessionAttendancePage({
         try {
           const [templates, scoresData] = await Promise.all([
             fetchMessageTemplates("grades"),
-            fetchSessionScores(sessionId),
+            fetchSessionScores(sessionId, schedule),
           ]);
           // backend SSOT meta 1순위 → qc cache → ""
           const lecture = qc.getQueryData<{ title?: string; name?: string }>(
@@ -533,7 +524,7 @@ export default function SessionAttendancePage({
 
   const handleBulkSetPresent = async () => {
     const ok = await confirm({
-      title: "전체 현장 출석으로 바꿀까요?",
+      title: schedule === undefined ? "전체 현장 출석으로 바꿀까요?" : "선택한 수업일을 현장 출석으로 바꿀까요?",
       message: "미입력·결석·지각 등 현재 상태가 있는 학생을 '현장'으로 바꿉니다.\n\n• 이미 현장인 학생은 그대로 유지됩니다.\n• 퇴원·비활성 학생은 변경하지 않습니다.\n• 변경 직후 10분 동안 이전 상태로 되돌릴 수 있습니다.",
       danger: false,
       confirmText: "전체 현장 적용",
@@ -541,7 +532,7 @@ export default function SessionAttendancePage({
     if (!ok) return;
     setBulkPresentBusy(true);
     try {
-      const result = await bulkSetPresent(sessionId);
+      const result = await bulkSetPresent(sessionId, schedule);
       qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
       qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
@@ -598,7 +589,7 @@ export default function SessionAttendancePage({
         결석 알림 발송
       </Button>
       <Button type="button" intent="secondary" size="sm" onClick={handleBulkSetPresent} disabled={bulkPresentBusy}>
-        {bulkPresentBusy ? "처리 중…" : "전체 현장 출석"}
+        {bulkPresentBusy ? "처리 중…" : schedule === undefined ? "전체 현장 출석" : "수업일 현장 출석"}
       </Button>
       {onOpenEnrollModal && (
         <Button type="button" intent="primary" size="sm" onClick={onOpenEnrollModal}>
@@ -611,62 +602,7 @@ export default function SessionAttendancePage({
   const filterSlot = (
     <>
       <AttendanceSortButtons sort={sort} onChange={changeSort} />
-      <span ref={statusTriggerRef}>
-        <Button
-          type="button"
-          intent="secondary"
-          size="sm"
-          onClick={(e) => { e.stopPropagation(); setStatusPopoverOpen((v) => !v); }}
-          aria-haspopup="true"
-          aria-expanded={statusPopoverOpen}
-          aria-label="출결 상태 필터"
-        >
-          {statusFilter ? ATTENDANCE_META[statusFilter as AttendanceStatus].label : "상태필터"}
-        </Button>
-      </span>
-      {statusPopoverOpen && statusPopoverAnchor &&
-        createPortal(
-          <div
-            ref={statusPopoverRef}
-            className="attendance-popover fixed flex items-center gap-2 rounded-lg border p-2 shadow-lg"
-            style={{
-              left: statusPopoverAnchor.left,
-              top: statusPopoverAnchor.top,
-              zIndex: 9999,
-              background: "var(--color-bg-surface)",
-              borderColor: "var(--color-border-divider)",
-              maxWidth: `${window.innerWidth - 16}px`,
-              overflowX: "auto",
-              flexWrap: "nowrap",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <SelectionButton
-              type="button"
-              selected={!statusFilter}
-              label="전체"
-              size="sm"
-              className="attendance-popover-item"
-              onClick={() => { setStatusFilter(""); setStatusPopoverOpen(false); }}
-            />
-            {STATUS_LIST.map((code) => {
-              const selected = statusFilter === code;
-              return (
-                <SelectionButton
-                  key={code}
-                  type="button"
-                  className="attendance-popover-item"
-                  label={ATTENDANCE_META[code].label}
-                  selected={selected}
-                  tone={selected || code === "INACTIVE" || code === "SECESSION" ? ATTENDANCE_META[code].tone : "neutral"}
-                  size="sm"
-                  onClick={() => { setStatusFilter(code); setStatusPopoverOpen(false); }}
-                />
-              );
-            })}
-          </div>,
-          document.body
-        )}
+      <AttendanceStatusFilter value={statusFilter} onChange={setStatusFilter} />
     </>
   );
 

@@ -151,6 +151,7 @@ export default function SessionListPage() {
   }, []);
 
   // 날짜별 그룹
+  const unassignedSessions = sessions.filter(s => s.schedule_configured && !s.date);
   const sessionsByDate = useMemo(() => {
     const map = new Map<string, StudentSession[]>();
     sessions.forEach((s) => {
@@ -270,6 +271,11 @@ export default function SessionListPage() {
               datesWithSessions={datesWithSessions}
               dateStatusMap={dateStatusMap}
             />
+            {unassignedSessions.length > 0 && <section className="stu-section stu-section--nested" aria-label="수업일 미배정">
+              <div className={styles.selectedSectionTitle}>수업일 미배정 · {unassignedSessions.length}개</div>
+              <p className="stu-muted">배정된 날짜가 생기면 달력에 표시됩니다. 수업 자료는 지금도 확인할 수 있어요.</p>
+              <SessionList sessions={unassignedSessions} />
+            </section>}
             {selectedDate ? (
               <div className="stu-section stu-section--nested">
                 <div className={styles.selectedSectionTitle}>
@@ -551,6 +557,7 @@ function SessionList({
                 {s.title}
               </div>
               <div className={`stu-muted ${styles.sessionMeta}`}>
+                {s.schedule_configured && !s.date ? '수업일 미배정' : s.schedule_label ? `${s.schedule_label} · ` : ''}
                 {showDate && s.date && <>{formatYmd(s.date)} · </>}
                 {s.start_time && s.start_time.slice(0, 5)}
                 {s.status ? ` · ${s.status}` : isPast ? " · 완료" : ""}

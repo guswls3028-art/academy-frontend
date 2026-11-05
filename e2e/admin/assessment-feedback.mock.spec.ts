@@ -685,7 +685,9 @@ for (const width of [1366, 390]) {
     await expect(row.locator(".assessment-total-value").last()).toHaveText("25 / 100");
     // Reordering an excluded column does not change the explicitly selected total.
     if (width === 1366) {
-      await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "둘째 시험 작업 선택", exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "첫 시험 작업 선택", exact: true }) }));
+      await expect(page.getByRole("region", { name: "수업일 선택" }).getByRole("button", { name: "수업일 관리", exact: true })).toBeEnabled();
+      // The title/edit buttons intentionally cancel drag; use the visible kind badge.
+      await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "둘째 시험 작업 선택", exact: true }) }).locator(".scores-table-kind-badge").dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "첫 시험 작업 선택", exact: true }) }).locator(".scores-table-kind-badge"));
     } else {
       await page.getByRole("button", { name: "둘째 시험 이전 순서로 이동", exact: true }).click();
     }
@@ -697,7 +699,7 @@ for (const width of [1366, 390]) {
     await page.screenshot({ path: testInfo.outputPath(`assessment-main-column-inclusion-${width}.png`), animations: "disabled" });
     // Completion-only items can move anywhere without entering the sum.
     if (width === 1366) {
-      await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "준비물 통과형 작업 선택", exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "첫 과제 작업 선택", exact: true }) }));
+      await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "준비물 통과형 작업 선택", exact: true }) }).locator(".scores-table-kind-badge").dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "첫 과제 작업 선택", exact: true }) }).locator(".scores-table-kind-badge"));
     } else {
       await page.getByRole("button", { name: "준비물 통과형 이전 순서로 이동", exact: true }).click();
       await expect.poll(() => harness.writes.length).toBe(4);

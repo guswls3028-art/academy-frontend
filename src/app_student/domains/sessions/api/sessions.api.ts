@@ -8,6 +8,9 @@ export type StudentSession = SessionOrderLike & {
   id: number;
   title: string;
   date?: string | null;
+  schedule_label?: string | null;
+  schedule_configured?: boolean;
+  end_time?: string | null;
   status?: string | null;
   exam_ids?: number[] | null;
   type?: "session" | "clinic";

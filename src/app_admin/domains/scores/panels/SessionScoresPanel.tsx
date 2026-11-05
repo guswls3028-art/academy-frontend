@@ -39,6 +39,7 @@ type Props = {
   lectureId?: number;
   search?: string;
   isEditMode?: boolean;
+  schedule?: string;
   onRequestAnswerEdit?: () => Promise<boolean>;
   /** 수정 중 알림톡 등 저장된 점수 소비 액션을 잠시 막는 상태 */
   hasUnsavedChanges?: boolean;
@@ -108,6 +109,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   lectureId,
   search = "",
   isEditMode = false,
+  schedule,
   onRequestAnswerEdit,
   hasUnsavedChanges = false,
   hasPendingScoreChanges = hasUnsavedChanges,
@@ -147,8 +149,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   /** 답안 상세 드로어 (StudentScoresDrawer → 답안 상세 보기) */
   const [answerDetail, setAnswerDetail] = useState<{ examId: number; enrollmentId: number; examTitle: string } | null>(null);
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: scoresQueryKeys.sessionScores(sessionId),
-    queryFn: () => fetchSessionScores(sessionId),
+    queryKey: scoresQueryKeys.sessionScoresScope(sessionId, schedule),
+    queryFn: () => fetchSessionScores(sessionId, schedule),
     enabled: Number.isFinite(sessionId) && sessionId > 0,
     refetchInterval: isEditMode ? 1_500 : false,
     refetchIntervalInBackground: false,
@@ -163,10 +165,10 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const openTotals = () => { if (meta) setTotalsEditor({ sessionId, meta }); };
   const attendancePageSize = allRows.length > 50 ? Math.min(allRows.length, 500) : undefined;
   const { data: attendanceList } = useQuery({
-    queryKey: [...scoresQueryKeys.attendance(sessionId), attendancePageSize ?? "default"] as const,
+    queryKey: scoresQueryKeys.attendanceScope(sessionId, attendancePageSize, schedule),
     queryFn: () => fetchAttendance(
       sessionId,
-      attendancePageSize ? { page_size: attendancePageSize } : undefined,
+      { page_size: attendancePageSize, schedule },
     ),
     enabled: Number.isFinite(sessionId) && sessionId > 0 && allRows.length > 0,
   });

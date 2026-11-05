@@ -40,6 +40,7 @@ import { verifySubmissionInbox } from "../helpers/verifySubmissionInbox";
 import { verifyOnlineWrittenSubmission } from "../helpers/verifyOnlineWrittenSubmission";
 import { verifyExcelAssessment } from "./excelAssessmentRealuse";
 import { withOwnedScoreLeaseCleanup } from "../helpers/scoreLeaseCleanup";
+import { verifySessionSchedules } from '../helpers/verifySessionSchedules';
 
 // This scenario now spans submission, feedback, templates, grading, copy and
 // attendance and online written-answer journeys. Budget the combined flow without relaxing any individual
@@ -469,6 +470,9 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     }, (sessionId) => { created.copySessionIds.push(sessionId); }));
     await test.step("attendance priority and absent scores", () => verifyAttendancePriorityAndAbsentScores(page, request, admin, created.family!, testInfo));
     await test.step("ended-course todos and restored eligibility", () => verifyEndedCourseTodos(page, request, admin, primary, primaryTokens));
+    await test.step('weekday schedules, scoped rosters, student dates and preserved records', () => verifySessionSchedules(page, request, admin, primaryTokens, created.family!, {
+      lectureId: created.lectureId!, sessionId: created.sessionId!, enrollmentIds: created.enrollmentIds,
+    }, testInfo));
     await test.step("online written submission and teacher grading", () => verifyOnlineWrittenSubmission(page, request, admin, primaryTokens, {
       lectureId: created.lectureId!, sessionId: created.sessionId!,
       enrollmentId: created.primaryEnrollmentId!, studentName: primary.name,

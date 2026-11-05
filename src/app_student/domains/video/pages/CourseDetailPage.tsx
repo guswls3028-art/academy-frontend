@@ -9,6 +9,7 @@ import {
   fetchVideoMe,
   fetchStudentSessionVideos,
   type StudentSessionVideosResponse,
+  type StudentVideoMeSession,
 } from "../api/video.api";
 import EmptyState from "@student/layout/EmptyState";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
@@ -200,7 +201,7 @@ export default function CourseDetailPage() {
   }, [videoMe, lectureIdNum]);
 
   // React #310 방지: 훅은 early return 이전에 항상 호출되어야 함
-  const sessionsForQuery = useMemo(() => {
+  const sessionsForQuery = useMemo<StudentVideoMeSession[]>(() => {
     if (isLoading) return [];
     if (!isPublic && !lecture) return [];
     return isPublic
@@ -357,7 +358,7 @@ export default function CourseDetailPage() {
                   <SessionBox
                     key={session.id}
                     sessionId={session.id}
-                    sessionTitle={session.title}
+                    sessionTitle={[session.title, session.schedule_configured && !session.date ? '수업일 미배정' : session.schedule_label].filter(Boolean).join(' · ')}
                     enrollmentId={enrollmentIdForQuery}
                     order={session.order}
                     isPublic={isPublic}

@@ -56,7 +56,7 @@ export default function SessionAttendanceSummary({ sessionId }: Props) {
 
   return (
     <section className={styles.root} aria-label={`차시 출결 집계: ${accessibleSummary}`}>
-      <span className={styles.eyebrow}>출결 원장</span>
+      <span className={styles.eyebrow}>전체 출결</span>
       <span className={`${styles.item} ${styles.total}`}>
         <span>총</span>
         <strong>{total}</strong>

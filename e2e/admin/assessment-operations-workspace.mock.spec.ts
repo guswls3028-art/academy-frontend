@@ -115,6 +115,12 @@ async function installApi(page: Page, state: MockState) {
     }
     if (path === "/lectures/sessions/") return json([session]);
     if (path === `/lectures/sessions/${SESSION_ID}/`) return json(session);
+    if (path === `/lectures/sessions/${SESSION_ID}/schedules/` && method === "GET") {
+      return json({
+        version: `assessment-session-${SESSION_ID}-unconfigured`,
+        schedules: [], roster: [], unassigned_enrollment_ids: [],
+      });
+    }
     if (path === "/lectures/sections/") return json([]);
     if (path === `/results/admin/sessions/${SESSION_ID}/exams/`) {
       return json([{
@@ -342,7 +348,7 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await expect(page.getByLabel("앞쪽 선택형 문항 수")).toBeDisabled();
 
   await page.getByLabel("합격 기준").fill("");
-  await expect(page.getByRole("alert")).toContainText("합격 기준을 입력해 주세요.");
+  await expect(page.getByRole("alert").filter({ hasText: "합격 기준을 입력해 주세요." })).toBeVisible();
   await expect(page.getByRole("button", { name: "운영 설정 저장", exact: true })).toBeDisabled();
   await page.getByLabel("합격 기준").fill("80");
 
