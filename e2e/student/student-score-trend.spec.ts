@@ -515,11 +515,15 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
         await page.screenshot({ path: testInfo.outputPath(`completion-only-${viewer}-${width}.png`) });
         await page.getByRole("tab", { name: "요약", exact: true }).click();
         await page.getByRole("button", { name: "과제 현황 2" }).click();
-        await expect(page.getByText("확인할 과제가 없습니다.", { exact: true })).toBeVisible();
-        await expect(page.getByText(/모든 과제를 완료했습니다/)).toBeVisible();
+        await expect(page.getByRole("group", { name: "과제 상태 필터" }).getByRole("button", { name: "확인 필요 1", exact: true })).toHaveAttribute("aria-pressed", "true");
+        await expect(page.getByText("확인할 과제가 없습니다.", { exact: true })).toHaveCount(0);
         await page.getByRole("group", { name: "과제 상태 필터" }).getByRole("button", { name: "전체 2" }).click();
         await expect(page.getByText("2건", { exact: true })).toBeVisible();
         await expect(page.getByText(/평균 득점률/)).toHaveCount(0);
+        summary.homeworks = completion.map((item) => ({ ...item, score: 1, passed: true, achievement: "PASS" }));
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(page.getByText("확인할 과제가 없습니다.", { exact: true })).toBeVisible();
+        await expect(page.getByText(/모든 과제를 완료했습니다/)).toBeVisible();
       });
     }
   }
@@ -640,6 +644,7 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
       await expect(page.getByText("첫 강좌 과제", { exact: true })).toBeVisible();
       await expect(page.getByText("둘째 강좌 과제", { exact: true })).toBeVisible();
       await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("group", { name: "과제 상태 필터" }).getByRole("button", { name: "전체 2" }).click();
       await expect(page.getByText("첫 강좌 과제", { exact: true })).toBeVisible();
       await expect(page.getByText("수학", { exact: true })).toHaveCount(2);
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

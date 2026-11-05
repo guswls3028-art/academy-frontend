@@ -821,7 +821,9 @@ test.describe("시험·과제 수동 검사 상태", () => {
     await expect(row.getByText("검수 대기", { exact: true })).toHaveCount(0);
     await row.locator('[data-col-type="name"]').click();
     const drawer = page.locator(".student-scores-drawer");
-    await expect(drawer.getByText(/보완 필요/)).toBeVisible();
+    const pendingCorrection = drawer.getByRole("button", { name: "보완 필요에서 교사 통과로 변경", exact: true });
+    await expect(pendingCorrection).toBeVisible();
+    await expect(pendingCorrection).toHaveAttribute("aria-pressed", "false");
   });
 
   test("공유시험 비대상 시험은 학생 이수율과 클리닉 판정에 포함하지 않는다", async ({ page }) => {
