@@ -14,7 +14,13 @@ export default function VideoWatchLogsPage() {
   const params = useParams();
   const videoId = Number(params.videoId);
   const studentId = params.studentId ? Number(params.studentId) : null;
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [routeParams, setSearchParams] = useSearchParams();
+  const [pendingSearch, setPendingSearch] = useState<string | null>(null);
+  // BrowserRouter commits query changes in a transition. Keep controlled
+  // inputs immediate, but only while their draft matches the current address;
+  // browser back/forward therefore remains authoritative.
+  const searchParams = pendingSearch !== null && pendingSearch === new URLSearchParams(window.location.search).toString()
+    ? new URLSearchParams(pendingSearch) : routeParams;
   const [activityOpen, setActivityOpen] = useState(false);
   const client = useQueryClient();
   const heading = useRef<HTMLHeadingElement>(null);
@@ -43,12 +49,17 @@ export default function VideoWatchLogsPage() {
   const rawPage = Number(searchParams.get("page") || 1);
   const page = Math.min(pages, Number.isSafeInteger(rawPage) && rawPage > 0 ? rawPage : 1);
   const setFilter = (name: string, value: string) => {
-    setSearchParams(previous => {
-      const next = new URLSearchParams(previous);
-      if (value) next.set(name, value); else next.delete(name);
-      if (name !== "page") next.delete("page");
-      return next;
-    }, { replace: true });
+    const next = new URLSearchParams(window.location.search);
+    if (value) next.set(name, value); else next.delete(name);
+    if (name !== "page") next.delete("page");
+    setPendingSearch(next.toString());
+    setSearchParams(next, { replace: true });
+  };
+  const resetFilters = () => {
+    const next = new URLSearchParams(window.location.search);
+    ["q", "reached", "page"].forEach(key => next.delete(key));
+    setPendingSearch(next.toString());
+    setSearchParams(next, { replace: true });
   };
   const retry = () => { void query.refetch(); void video.refetch(); void client.invalidateQueries({ queryKey: watchLogQueryKeys.activityScope(videoId) }); };
 
@@ -95,7 +106,7 @@ export default function VideoWatchLogsPage() {
           <span className="watch-logs__detail-label">상세 보기 →</span>
         </Link>)}
         {!rows.length && <div className="watch-logs__state"><h2>{term || reachedOnly ? "조건에 맞는 학생이 없습니다" : "아직 누적 재생 기록이 없습니다"}</h2><p>{term || reachedOnly ? "검색어나 기준 필터를 바꿔 보세요." : "학생이 영상을 재생하면 누적 시간이 이곳에 표시됩니다."}</p>
-          {(term || reachedOnly) && <Button intent="secondary" onClick={() => setSearchParams(previous => { const next = new URLSearchParams(previous); ["q", "reached", "page"].forEach(k => next.delete(k)); return next; }, { replace: true })}>필터 초기화</Button>}</div>}
+          {(term || reachedOnly) && <Button intent="secondary" onClick={resetFilters}>필터 초기화</Button>}</div>}
       </section>
       {pages > 1 && <nav className="watch-logs__pagination" aria-label="학생 목록 페이지"><Button intent="ghost" disabled={page <= 1} onClick={() => setFilter("page", String(page - 1))}>이전</Button><span>{page} / {pages}</span><Button intent="ghost" disabled={page >= pages} onClick={() => setFilter("page", String(page + 1))}>다음</Button></nav>}
       <p className="watch-logs__muted">누적 시간은 집계 시작 이후의 기록입니다. 시간 제한을 꺼도 계속 집계하며, 기준 도달만으로 부정 이용을 단정하지 않습니다.</p>
