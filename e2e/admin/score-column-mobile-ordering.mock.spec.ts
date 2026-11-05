@@ -436,45 +436,61 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
     });
   }
 
-  test("@assessment-edit 실패한 저장과 빠른 닫기 뒤 입력을 복구하고 재저장한다", async ({ page }) => {
-    const harness = await openScores(page);
-    let failNextSave = true;
-    await page.route(`**/api/v1/exams/${EXAM_IDS[0]}/`, async (route) => {
-      if (route.request().method() === "PATCH" && failNextSave) {
-        failNextSave = false;
-        await route.fulfill({ status: 500, json: { detail: "일시적인 저장 오류입니다. 다시 시도해 주세요." } });
-        return;
+  for (const kind of ["exam", "homework"] as const) {
+    test(`@assessment-edit ${kind} 실패한 저장 오류가 화면에 보이고 빠른 닫기 뒤 복구한다`, async ({ page }, testInfo) => {
+      test.setTimeout(180_000);
+      await page.setViewportSize({ width: 390, height: 844 });
+      const harness = await openScores(page);
+      const label = kind === "exam" ? "시험" : "과제";
+      const modalName = kind === "exam" ? "시험 설정" : "과제 수정";
+      const id = kind === "exam" ? EXAM_IDS[0] : HOMEWORK_IDS[0];
+      let failNextSave = true;
+      await page.route(`**/api/v1/${kind === "exam" ? "exams" : "homeworks"}/${id}/`, async (route) => {
+        if (route.request().method() === "PATCH" && failNextSave) {
+          failNextSave = false;
+          await route.fulfill({ status: 503, json: { detail: "일시적인 저장 오류입니다. 다시 시도해 주세요." } });
+          return;
+        }
+        await route.fallback();
+      });
+      const openEditor = async (title: string) => {
+        await page.getByRole("button", { name: `${title} 작업 선택`, exact: true }).click();
+        await page.getByRole("menuitem", { name: kind === "exam" ? /^시험 설정/ : /^과제 수정/ }).click();
+      };
+      await openEditor(`첫 ${label}`);
+      const dialog = page.getByRole("dialog", { name: modalName, exact: true });
+      const title = dialog.getByRole("textbox", { name: `${label}명`, exact: true });
+      await title.fill(`저장 실패 후 복구된 ${label}`);
+      await dialog.getByRole("spinbutton", { name: /^만점/ }).fill("125");
+      await dialog.getByRole("button", { name: "저장", exact: true }).click();
+      await expect(dialog.getByRole("alert")).toContainText("일시적인 저장 오류");
+      for (const height of [844, 600]) {
+        await page.setViewportSize({ width: 390, height });
+        await expect(dialog.getByRole("alert")).toBeInViewport({ ratio: 1 });
+        await expect(dialog.getByRole("button", { name: "저장", exact: true })).toBeInViewport({ ratio: 1 });
+        await page.screenshot({ path: testInfo.outputPath(`assessment-save-error-${kind}-390x${height}.png`), animations: "disabled" });
       }
-      await route.fallback();
+      await expect(title).toHaveValue(`저장 실패 후 복구된 ${label}`);
+      await title.fill(`빠르게 닫은 ${label} 초안`);
+      await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+      await page.getByRole("alertdialog", { name: `${label} 수정 닫기` }).getByRole("button", { name: "닫기", exact: true }).click();
+      await expect(dialog).not.toBeVisible();
+      expect(harness.titlePatches).toEqual([]);
+      await openEditor(`첫 ${label}`);
+      await dialog.getByRole("button", { name: "이어서 편집", exact: true }).click();
+      await expect(title).toHaveValue(`빠르게 닫은 ${label} 초안`);
+      await expect(dialog.getByRole("alert")).toHaveCount(0);
+      await dialog.getByRole("button", { name: "저장", exact: true }).click();
+      await expect(dialog).not.toBeVisible();
+      await reloadScores(page);
+      await openEditor(`빠르게 닫은 ${label} 초안`);
+      await expect(title).toHaveValue(`빠르게 닫은 ${label} 초안`);
+      await expect(dialog.getByRole("spinbutton", { name: /^만점/ })).toHaveValue("125");
+      await expect(dialog.getByTestId("assessment-draft-recovery")).toHaveCount(0);
+      expect(harness.titlePatches).toEqual([{ kind, payload: { title: `빠르게 닫은 ${label} 초안`, max_score: 125 } }]);
+      expect(harness.unexpectedMutations).toEqual([]);
     });
-    const openEditor = async (title: string) => {
-      await page.getByRole("button", { name: `${title} 작업 선택`, exact: true }).click();
-      await page.getByRole("menuitem", { name: /^시험 설정/ }).click();
-    };
-    await openEditor("첫 시험");
-    const dialog = page.getByRole("dialog", { name: "시험 설정", exact: true });
-    const title = dialog.getByRole("textbox", { name: "시험명", exact: true });
-    await title.fill("저장 실패 후 복구된 시험");
-    await dialog.getByRole("button", { name: "저장", exact: true }).click();
-    await expect(dialog.getByRole("alert")).toContainText("일시적인 저장 오류");
-    await expect(title).toHaveValue("저장 실패 후 복구된 시험");
-    await title.fill("빠르게 닫은 시험 초안");
-    await dialog.getByRole("button", { name: "닫기", exact: true }).click();
-    await page.getByRole("alertdialog", { name: "시험 수정 닫기" }).getByRole("button", { name: "닫기", exact: true }).click();
-    await expect(dialog).not.toBeVisible();
-    expect(harness.titlePatches).toEqual([]);
-    await openEditor("첫 시험");
-    await dialog.getByRole("button", { name: "이어서 편집", exact: true }).click();
-    await expect(title).toHaveValue("빠르게 닫은 시험 초안");
-    await dialog.getByRole("button", { name: "저장", exact: true }).click();
-    await expect(dialog).not.toBeVisible();
-    await reloadScores(page);
-    await openEditor("빠르게 닫은 시험 초안");
-    await expect(title).toHaveValue("빠르게 닫은 시험 초안");
-    await expect(dialog.getByTestId("assessment-draft-recovery")).toHaveCount(0);
-    expect(harness.titlePatches).toEqual([{ kind: "exam", payload: { title: "빠르게 닫은 시험 초안" } }]);
-    expect(harness.unexpectedMutations).toEqual([]);
-  });
+  }
 
   test("390px에서 키보드·터치 순서 변경, 실패 유지와 retry를 보장한다", async ({ page }) => {
     const { reorderPayloads, unexpectedMutations } = await openScores(page);

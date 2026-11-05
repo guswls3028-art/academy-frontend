@@ -3,6 +3,7 @@ import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { AssessmentEditGuardProvider } from "@/shared/ui/assessment/AssessmentEditGuard";
+import formStyles from "@/shared/ui/assessment/AssessmentSetupForm.module.css";
 import ShowcasePublishModal from "./ShowcasePublishModal";
 
 const ExamPolicyPanel = lazy(() => import("@admin/domains/exams/public/ExamPolicyPanel"));
@@ -21,6 +22,7 @@ export default function ExamHeaderQuickEdit({ examId, examTitle, sessionId, open
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveAllowed, setSaveAllowed] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const formId = `exam-policy-editor-${examId}`;
   const [showcaseOpen, setShowcaseOpen] = useState(false);
   const close = async () => {
@@ -34,12 +36,14 @@ export default function ExamHeaderQuickEdit({ examId, examTitle, sessionId, open
     onOpenChange(false);
     setDirty(false);
     setSaveAllowed(false);
+    setSaveError("");
     return true;
   };
   const handleSaved = useCallback(() => {
     setDirty(false);
     setSaving(false);
     setSaveAllowed(false);
+    setSaveError("");
     onOpenChange(false);
   }, [onOpenChange]);
 
@@ -48,9 +52,10 @@ export default function ExamHeaderQuickEdit({ examId, examTitle, sessionId, open
       <ModalHeader type="action" title="시험 설정" subtitle={examTitle} noIcon />
       <ModalBody>
         {open && <Suspense fallback={<p role="status">시험 설정을 불러오는 중…</p>}><AssessmentEditGuardProvider>
-          <ExamPolicyPanel examId={examId} sessionId={sessionId} editing formId={formId} onSaveAllowedChange={setSaveAllowed} onDirtyChange={setDirty} onSavingChange={setSaving} onSaved={handleSaved} />
+          <ExamPolicyPanel examId={examId} sessionId={sessionId} editing formId={formId} onSaveAllowedChange={setSaveAllowed} onSaveErrorChange={setSaveError} onDirtyChange={setDirty} onSavingChange={setSaving} onSaved={handleSaved} />
         </AssessmentEditGuardProvider></Suspense>}
       </ModalBody>
+      {saveError && <p role="alert" className={formStyles.modalSaveError}><strong>저장하지 못했습니다.</strong> {saveError}</p>}
       <ModalFooter right={<><Button intent="secondary" onClick={() => { void close(); }} disabled={saving}>닫기</Button><Button intent="primary" type="submit" form={formId} disabled={!saveAllowed || saving} loading={saving}>저장</Button></>}
         left={<Button intent="ghost" size="sm" disabled={saving} data-testid={`showcase-publish-trigger-${examId}`} onClick={() => { void close().then((closed) => { if (closed) setShowcaseOpen(true); }); }}>성적 통계 게시</Button>} />
     </AdminModal>

@@ -9,6 +9,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { AssessmentEditGuardProvider } from "@/shared/ui/assessment/AssessmentEditGuard";
+import formStyles from "@/shared/ui/assessment/AssessmentSetupForm.module.css";
 import { deleteHomework, HomeworkPolicyPanel } from "@admin/domains/homework/public/scoreHeaderActions";
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/public/assessmentQueries";
 import { scoresQueryKeys } from "../api/queryKeys";
@@ -33,6 +34,7 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveAllowed, setSaveAllowed] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const formId = `homework-policy-editor-${homeworkId}`;
   const [deleting, setDeleting] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -48,6 +50,7 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
     setEditOpen(false);
     setDirty(false);
     setSaveAllowed(false);
+    setSaveError("");
   };
 
   const handleDelete = async () => {
@@ -75,7 +78,7 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
     }
   };
 
-  const handleSaved = useCallback(() => { setEditOpen(false); setDirty(false); setSaving(false); setSaveAllowed(false); }, []);
+  const handleSaved = useCallback(() => { setEditOpen(false); setDirty(false); setSaving(false); setSaveAllowed(false); setSaveError(""); }, []);
 
   const menu = (
     <div className={styles.menu} role="menu" aria-label={`${homeworkTitle} 작업 선택`} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
@@ -119,10 +122,11 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
         <ModalBody>
             {editOpen && (
               <AssessmentEditGuardProvider>
-                <HomeworkPolicyPanel homeworkId={homeworkId} editing formId={formId} onSaveAllowedChange={setSaveAllowed} onDirtyChange={setDirty} onSavingChange={setSaving} onSaved={handleSaved} />
+                <HomeworkPolicyPanel homeworkId={homeworkId} editing formId={formId} onSaveAllowedChange={setSaveAllowed} onSaveErrorChange={setSaveError} onDirtyChange={setDirty} onSavingChange={setSaving} onSaved={handleSaved} />
               </AssessmentEditGuardProvider>
             )}
         </ModalBody>
+        {saveError && <p role="alert" className={formStyles.modalSaveError}><strong>저장하지 못했습니다.</strong> {saveError}</p>}
         <ModalFooter right={<><Button intent="secondary" onClick={() => { void closeEdit(); }} disabled={saving}>닫기</Button><Button intent="primary" type="submit" form={formId} disabled={!saveAllowed || saving} loading={saving}>저장</Button></>} />
       </AdminModal>
     </>

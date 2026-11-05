@@ -72,6 +72,7 @@ export default function HomeworkPolicyPanel({
   editing = false,
   formId,
   onSaveAllowedChange,
+  onSaveErrorChange,
 }: {
   homeworkId: number;
   onDirtyChange?: (dirty: boolean) => void;
@@ -80,6 +81,7 @@ export default function HomeworkPolicyPanel({
   editing?: boolean;
   formId?: string;
   onSaveAllowedChange?: (allowed: boolean) => void;
+  onSaveErrorChange?: (error: string) => void;
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -219,6 +221,10 @@ export default function HomeworkPolicyPanel({
   useEffect(() => { onSavingChange?.(updateMutation.isPending || loadingLatest); }, [updateMutation.isPending, loadingLatest, onSavingChange]);
   const saveAllowed = Boolean(form && baseUpdatedAtRef.current && !isError && !loadingLatest && dirty && !validationError && !conflictDetected && !remoteChanged && !updateMutation.isPending);
   useEffect(() => { onSaveAllowedChange?.(saveAllowed); }, [saveAllowed, onSaveAllowedChange]);
+  const saveError = updateMutation.isError && !conflictDetected
+    ? extractApiError(updateMutation.error, "과제 운영 설정을 저장하지 못했습니다. 입력을 유지했으니 다시 시도해 주세요.")
+    : "";
+  useEffect(() => { onSaveErrorChange?.(saveError); }, [saveError, onSaveErrorChange]);
 
   if (isError && (!homework || !form)) {
     return <EmptyState mode="embedded" scope="panel" tone="error" title="과제 설정을 불러오지 못했습니다." actions={<Button onClick={() => void refetch()}>다시 시도</Button>} />;
@@ -473,6 +479,7 @@ export default function HomeworkPolicyPanel({
         )}
         {validationError && <p className={formStyles.error} role="alert">{validationError}</p>}
         {latestError && <p className={formStyles.error} role="alert">{latestError}</p>}
+        {!editing && saveError && <p className={formStyles.error} role="alert">{saveError}</p>}
       </div>
 
       {!editing && <div className={formStyles.footer}>

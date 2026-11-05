@@ -153,6 +153,7 @@ export default function ExamPolicyPanel({
   onSaved,
   formId,
   onSaveAllowedChange,
+  onSaveErrorChange,
 }: {
   examId: number;
   lectureId?: number;
@@ -164,6 +165,7 @@ export default function ExamPolicyPanel({
   onSaved?: () => void;
   formId?: string;
   onSaveAllowedChange?: (allowed: boolean) => void;
+  onSaveErrorChange?: (error: string) => void;
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -296,6 +298,10 @@ export default function ExamPolicyPanel({
   useEffect(() => { onSavingChange?.(patchMutation.isPending); }, [patchMutation.isPending, onSavingChange]);
   const saveAllowed = Boolean(form && baseUpdatedAtRef.current && !isError && !loadingLatest && dirty && !validationError && !conflictDetected && !remoteChanged && !patchMutation.isPending);
   useEffect(() => { onSaveAllowedChange?.(saveAllowed); }, [saveAllowed, onSaveAllowedChange]);
+  const saveError = patchMutation.isError && !conflictDetected
+    ? getApiErrorMessage(patchMutation.error, "시험 운영 설정을 저장하지 못했습니다. 입력을 유지했으니 다시 시도해 주세요.")
+    : "";
+  useEffect(() => { onSaveErrorChange?.(saveError); }, [saveError, onSaveErrorChange]);
 
   const questionChoiceCount = questions.filter(
     (question) => question.question_kind === "choice",
@@ -683,7 +689,7 @@ export default function ExamPolicyPanel({
           )}
           {validationError && <p className={formStyles.error} role="alert">{validationError}</p>}
           {latestError && <p className={formStyles.error} role="alert">{latestError}</p>}
-          {patchMutation.isError && !conflictDetected && <p className={formStyles.error} role="alert">{getApiErrorMessage(patchMutation.error, "시험 운영 설정을 저장하지 못했습니다. 입력을 유지했으니 다시 시도해 주세요.")}</p>}
+          {!editing && saveError && <p className={formStyles.error} role="alert">{saveError}</p>}
         </div>
 
         {!editing && <div className={formStyles.footer}>
