@@ -105,7 +105,9 @@ export default defineConfig(({ mode }) => {
                   normalized.includes("/node_modules/react-dom/") ||
                   normalized.includes("/node_modules/react-router/") ||
                   normalized.includes("/node_modules/scheduler/") ||
-                  normalized.includes("react/jsx")
+                  normalized.includes("react/jsx") ||
+                  // Shared transform helpers must not make Query load PDF.js.
+                  normalized.startsWith("\0@oxc-project+runtime@")
                 );
               },
               priority: 50,
