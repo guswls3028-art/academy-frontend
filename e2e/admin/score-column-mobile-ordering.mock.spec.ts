@@ -376,11 +376,11 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
           await dialog.getByRole('checkbox', { name: '학생 성적 공개', exact: true }).uncheck();
           await dialog.locator('summary').filter({ hasText: '응시 기간·정답 공개·재응시' }).click();
           await expect(dialog.getByLabel(/^응시 시작/)).toBeVisible();
-          await expect(dialog.getByLabel('정답 공개', { exact: true })).toBeVisible();
+          await expect(dialog.getByRole('combobox', { name: /^정답 공개/ })).toBeVisible();
           await dialog.getByRole('button', { name: '저장', exact: true }).click();
           await expect(dialog).not.toBeVisible();
           expect(harness.titlePatches.at(-1)).toEqual({ kind, payload: { max_score: 120, pass_score: 70, student_results_published: false } });
-          await page.reload();
+          await page.reload({ waitUntil: "domcontentloaded" });
           await page.getByRole('button', { name: `${next} 작업 선택`, exact: true }).click();
           await page.getByRole('menuitem', { name: /^시험 설정/ }).click();
           await expect(dialog.getByRole('spinbutton', { name: '만점', exact: true })).toHaveValue('120');
@@ -395,7 +395,7 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
           await dialog.getByRole('button', { name: '저장', exact: true }).click();
           await expect(dialog).not.toBeVisible();
           expect(harness.titlePatches.at(-1)).toEqual({ kind, payload: { max_score: 120, meta: { due_date: '2026-12-01' } } });
-          await page.reload();
+          await page.reload({ waitUntil: "domcontentloaded" });
           await page.getByRole('button', { name: `${next} 작업 선택`, exact: true }).click();
           await page.getByRole('menuitem', { name: /^과제 수정/ }).click();
           await expect(dialog.getByRole('spinbutton', { name: '만점', exact: true })).toHaveValue('120');
@@ -404,7 +404,7 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
           await expect(dialog).not.toBeVisible();
         }
       }
-      await page.reload();
+      await page.reload({ waitUntil: "domcontentloaded" });
       await expect(page.getByRole('button', { name: '수정된 시험 제목 서술형 소수 배점 1793679432205 작업 선택', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: '수정된 과제 제목 수학 개념복습 1793679432205 작업 선택', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: /제목 수정$/ })).toHaveCount(0);
@@ -460,7 +460,7 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
     await expect(title).toHaveValue("빠르게 닫은 시험 초안");
     await dialog.getByRole("button", { name: "저장", exact: true }).click();
     await expect(dialog).not.toBeVisible();
-    await page.reload();
+    await page.reload({ waitUntil: "domcontentloaded" });
     await openEditor("빠르게 닫은 시험 초안");
     await expect(title).toHaveValue("빠르게 닫은 시험 초안");
     await expect(dialog.getByTestId("assessment-draft-recovery")).toHaveCount(0);
