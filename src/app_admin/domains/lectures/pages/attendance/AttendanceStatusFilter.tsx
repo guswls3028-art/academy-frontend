@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Button, SelectionButton } from "@/shared/ui/ds";
 import { ATTENDANCE_META, ORDERED_ATTENDANCE_STATUS, type AttendanceStatus } from "@/shared/ui/badges/attendanceStatus";
 import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
+import styles from "./AttendanceStatusFilter.module.css";
 
 type Props = {
   value: string;
@@ -55,17 +56,9 @@ export default function AttendanceStatusFilter({ value, onChange }: Props) {
       {open && anchor && createPortal(
         <div
           ref={popoverRef}
-          className="attendance-popover fixed flex items-center gap-2 rounded-lg border p-2 shadow-lg"
-          style={{
-            left: anchor.left,
-            top: anchor.top,
-            zIndex: 9999,
-            background: "var(--color-bg-surface)",
-            borderColor: "var(--color-border-divider)",
-            maxWidth: `${window.innerWidth - 16}px`,
-            overflowX: "auto",
-            flexWrap: "nowrap",
-          }}
+          className={`attendance-popover fixed flex items-center gap-2 rounded-lg border p-2 shadow-lg ${styles.popover}`}
+          // eslint-disable-next-line no-restricted-syntax -- Portal coordinates are measured at runtime by useFloatingPosition.
+          style={{ left: anchor.left, top: anchor.top }}
           onClick={(event) => event.stopPropagation()}
         >
           <SelectionButton
