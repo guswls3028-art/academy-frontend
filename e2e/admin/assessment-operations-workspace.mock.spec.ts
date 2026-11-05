@@ -438,7 +438,8 @@ test("0점 합격 기준을 저장하고 서버 필드 오류를 입력값과 �
   await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
 
   await expect.poll(() => state.examPatchPayloads.length).toBe(1);
-  expect(state.examPatchPayloads[0]).toMatchObject({ max_score: 16, pass_score: 0 });
+  expect(state.examPatchPayloads[0]).toEqual({ max_score: 16 });
+  expect(state.exam.pass_score).toBe(0);
   await expect(page.getByLabel("만점")).toHaveValue("16");
   await expect(page.getByRole("button", { name: "전체 재채점", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
@@ -483,6 +484,41 @@ function recoveryExamState(): MockState {
     selectedEnrollmentIds: [601, 602],
   };
 }
+
+test("@assessment-edit 상세 운영 폼의 제목 수정은 기존 응시 시각과 비활성 재응시 정책을 보존한다", async ({ page }) => {
+  const state = recoveryExamState();
+  state.exam = {
+    ...state.exam,
+    open_at: "2026-12-15T09:12:34.567+09:00",
+    close_at: "2026-12-15T22:45:56.789+09:00",
+    allow_retake: false,
+    max_attempts: 7,
+    essay_numbering: "separate",
+    student_results_published: false,
+  };
+  const original = { ...state.exam };
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await openExam(page, state);
+  const title = page.getByRole("textbox", { name: "시험명", exact: true });
+  await title.fill("시각과 정책을 유지한 시험");
+  const saved = page.waitForResponse(response => response.request().method() === "PATCH"
+    && new URL(response.url()).pathname === `/api/v1/exams/${EXAM_ID}/`);
+  await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+  const response = await saved;
+  expect(response.status()).toBe(200);
+  expect(response.request().headers()["x-expected-updated-at"]).toBe(original.updated_at);
+  expect(state.examPatchPayloads).toEqual([{ title: "시각과 정책을 유지한 시험" }]);
+  await expect(page.getByRole("button", { name: "운영 설정 저장", exact: true })).toBeDisabled();
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator("#assessment-policy > details > summary").click();
+  await expect(title).toHaveValue("시각과 정책을 유지한 시험");
+  expect(state.exam).toEqual({
+    ...original,
+    title: "시각과 정책을 유지한 시험",
+    updated_at: "2026-08-03T01:00:00Z",
+  });
+  await expect(page.getByLabel("학생 성적 공개")).not.toBeChecked();
+});
 
 for (const width of [1366, 1100, 390]) {
   test(`@assessment-workspace-layout ${width}px 시험 목록과 작업 영역을 배치하고 선택을 복원한다`, async ({ page }, testInfo) => {

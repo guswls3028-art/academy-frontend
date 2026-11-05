@@ -268,9 +268,11 @@ export default function ExamPolicyPanel({
       if (!baseFormRef.current || !baseUpdatedAtRef.current) throw new Error("최신 시험 설정을 확인해 주세요.");
       const next = toPayload(nextForm);
       const base = toPayload(baseFormRef.current);
-      const payload = editing
-        ? Object.fromEntries(Object.entries(next).filter(([key, value]) => value !== base[key as keyof typeof base]))
-        : { ...next, title: next.title !== base.title ? next.title : undefined };
+      // Compare normalized form values in every entry point. Unchanged values
+      // must retain server precision and policies hidden behind advanced fields.
+      const payload = Object.fromEntries(
+        Object.entries(next).filter(([key, value]) => value !== base[key as keyof typeof base]),
+      );
       return updateAdminExam(examId, payload, baseUpdatedAtRef.current);
     },
     onSuccess: async (updated) => {
@@ -417,7 +419,6 @@ export default function ExamPolicyPanel({
           </div>
         </div>}
 
-        <form id={formId} onSubmit={(event) => { event.preventDefault(); if (saveAllowed) patchMutation.mutate(form); }}>
         {isError && <div role="alert" className={formStyles.inlineStatus}>최신 설정을 확인하지 못했습니다. 입력을 유지했습니다.<Button type="button" intent="secondary" size="sm" onClick={() => void refetch()}>다시 시도</Button></div>}
         <details className={formStyles.policyDisclosure} open={editing || undefined}>
           <summary>
@@ -432,6 +433,7 @@ export default function ExamPolicyPanel({
             </span>
             <span className={formStyles.policyEditLabel}>설정 변경</span>
           </summary>
+        <form id={formId} onSubmit={(event) => { event.preventDefault(); if (saveAllowed) patchMutation.mutate(form); }}>
         <fieldset disabled={loadingLatest || patchMutation.isPending} className="m-0 min-w-0 border-0 p-0">
         {loadingLatest && <p role="status" className={formStyles.description}>최신 설정을 확인하고 있습니다. 확인이 끝나면 편집할 수 있습니다.</p>}
         <div className={formStyles.body}>
@@ -708,8 +710,8 @@ export default function ExamPolicyPanel({
           </Button>
         </div>}
         </fieldset>
-        </details>
         </form>
+        </details>
       </section>
 
       {!editing && <section id="assessment-answer-key" tabIndex={-1} className={formStyles.section}>
