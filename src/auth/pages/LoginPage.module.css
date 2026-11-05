@@ -655,7 +655,7 @@
 .signupSegmentWrap {
   background: #F3F4F6;
   border-radius: 8px;
-  padding: 4px;
+  padding: 0;
   display: flex;
   gap: 0;
   margin-bottom: 12px;

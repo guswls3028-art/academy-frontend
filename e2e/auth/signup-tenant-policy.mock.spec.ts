@@ -26,7 +26,9 @@ for (const width of [390, 1366]) {
     const help = dialog.getByRole("button", { name: "회원가입 안내 보기", exact: true });
     await expect(close).toHaveCSS("height", width === 390 ? "44px" : "40px");
     await expect(help).toHaveCSS("height", width === 390 ? "44px" : "32px");
-    await expect(dialog.getByRole("button", { name: "남", exact: true })).toHaveCSS("height", "44px");
+    const gender = dialog.getByRole("button", { name: "남", exact: true });
+    await expect(gender).toHaveCSS("height", "44px");
+    await expect.poll(() => gender.evaluate((button) => Math.round(button.parentElement!.getBoundingClientRect().height))).toBe(44);
     await expect(dialog.locator("#signup-name")).toHaveCSS("height", "44px");
     await expect(dialog.getByLabel("휴대전화 앞 4자리")).toHaveCSS("height", "44px");
     if (width === 390) await expect(trigger).toHaveCSS("min-height", "44px");
