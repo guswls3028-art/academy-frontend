@@ -323,8 +323,8 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
       await page.setViewportSize({ width, height: 844 });
       const harness = await openScores(page);
       for (const [kind, previous, next, actionName, dialogName] of [
-        ['exam', '첫 시험', '수정된 시험 제목', '시험 설정', '시험 설정'],
-        ['homework', '첫 과제', '수정된 과제 제목', '과제 수정', '과제 수정'],
+        ['exam', '첫 시험', '수정된 시험 제목 서술형 소수 배점 1793679432205', '시험 설정', '시험 설정'],
+        ['homework', '첫 과제', '수정된 과제 제목 수학 개념복습 1793679432205', '과제 수정', '과제 수정'],
       ] as const) {
         await expect(page.getByRole('button', { name: `${previous} 제목 수정`, exact: true })).toHaveCount(0);
         const trigger = page.getByRole('button', { name: `${previous} 작업 선택`, exact: true });
@@ -396,17 +396,25 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
         }
       }
       await page.reload();
-      await expect(page.getByRole('button', { name: '수정된 시험 제목 작업 선택', exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: '수정된 과제 제목 작업 선택', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: '수정된 시험 제목 서술형 소수 배점 1793679432205 작업 선택', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: '수정된 과제 제목 수학 개념복습 1793679432205 작업 선택', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: /제목 수정$/ })).toHaveCount(0);
       await expectDocumentOverflowZero(page);
       expect(harness.unexpectedMutations).toEqual([]);
-      for (const [kind, label] of [["exam", "시험"], ["homework", "과제"]]) {
-        const target = page.getByRole("button", { name: `수정된 ${label} 제목 작업 선택`, exact: true });
+      for (const [kind, title] of [["exam", "수정된 시험 제목 서술형 소수 배점 1793679432205"], ["homework", "수정된 과제 제목 수학 개념복습 1793679432205"]]) {
+        const target = page.getByRole("button", { name: `${title} 작업 선택`, exact: true });
         await target.scrollIntoViewIfNeeded();
         await expect(target).toBeInViewport();
         expect((await target.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+        const titleBox = await target.locator('.scores-table-head-title').boundingBox();
+        expect(titleBox?.height).toBeLessThanOrEqual(40);
+        expect((await target.locator('xpath=ancestor::th').boundingBox())?.height).toBeLessThan(180);
         await page.screenshot({ path: testInfo.outputPath(`assessment-header-${width}-${kind}.png`), animations: "disabled" });
+        await target.click();
+        const menu = page.getByRole('menu', { name: `${title} 작업 선택`, exact: true });
+        await expect(menu.getByText(title, { exact: true })).toBeVisible();
+        await page.screenshot({ path: testInfo.outputPath(`assessment-long-title-menu-${width}-${kind}.png`), animations: "disabled" });
+        await target.click();
       }
     });
   }

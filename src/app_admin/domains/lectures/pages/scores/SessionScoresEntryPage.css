@@ -555,6 +555,15 @@
   color: var(--color-brand-primary);
 }
 
+.scores-table-exam-link .scores-table-head-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
 .scores-table-exam-link:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--color-brand-primary) 45%, transparent);
   outline-offset: 1px;

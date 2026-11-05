@@ -76,7 +76,7 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
   const menu = (
     <div className={styles.menu} role="menu" aria-label={`${homeworkTitle} 작업 선택`} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
       <div className={styles.menuHeader}>
-        <span>과제 작업</span>
+        <span className={styles.menuTitle}>{homeworkTitle}</span>
         <div className={styles.menuHeaderActions}>
           <button type="button" role="menuitem" className={`${styles.headerAction} ${styles.headerActionDanger}`} disabled={deleting || deleteLocked} title={deleteLocked ? "진행 중인 점수 입력을 저장한 뒤 삭제할 수 있습니다." : undefined} onClick={() => { void handleDelete(); }}>{deleting ? "삭제 중…" : "삭제"}</button>
         </div>
