@@ -1,3 +1,4 @@
+import { verifyMonitoredHlsGestures } from "../helpers/monitoredHlsGestures";
 import type { VideoCommentItem } from "../../src/app_student/domains/video/api/video.api";
 import type { Page } from "@playwright/test";
 import { syntheticLongVideoAsset } from "../../scripts/run-development-release-canary.mjs";
@@ -405,5 +406,11 @@ for (const width of [1366, 390]) {
       const box = link.getBoundingClientRect();
       return link.contains(document.elementFromPoint(box.left + box.width / 2, box.bottom - 3));
     })).toBe(true);
+  });
+}
+
+for (const speedLocked of [true, false]) {
+  test(`monitored HLS gestures ${speedLocked ? "locked taps never attempt speed changes" : "restore only an active long press once"}`, async ({ page }, info) => {
+    await verifyMonitoredHlsGestures({ page, info, speedLocked, base: BASE, installScenario: installWatchScenario, openPlayer: openWatch });
   });
 }
