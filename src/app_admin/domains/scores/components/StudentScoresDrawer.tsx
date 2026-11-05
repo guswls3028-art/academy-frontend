@@ -1722,7 +1722,7 @@ function CorrectionStatusControl({
       <div
         className="ssd-correction-control__actions"
         role="group"
-        aria-label={`${title} 상태`}
+        aria-label={`${title} 변경`}
         title={disabledReason}
       >
         <Button
