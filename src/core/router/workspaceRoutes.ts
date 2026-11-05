@@ -61,6 +61,13 @@ export function parseMobileWorkspaceReturnPath(candidate: string): string | null
   if (!parsed) return null;
   const { pathname, searchParams } = parsed;
 
+  if (pathname === `${WORKSPACE_PATHS.mobile}/menu`) {
+    if (!hasOnlySearchParams(searchParams, ["group"])) return null;
+    const group = searchParams.get("group");
+    if (group != null && !["today", "classes", "resources", "account", "help"].includes(group)) return null;
+    return `${WORKSPACE_PATHS.mobile}/menu${group ? `?group=${group}` : ""}`;
+  }
+
   const simplePatterns = [
     /^\/workspace\/mobile\/(assistant|guide|classes|students|message-log|message-templates|messaging-settings|notifications|exams|videos|clinic|counseling|results|submissions|profile|settings|staff|my-records|billing|desktop-only|fees|storage|tools)$/,
     /^\/workspace\/mobile\/(exams\/(templates|bundles)|clinic\/(reports|remote)|fees\/invoices|storage\/inventory|settings\/(organization|appearance)|tools\/(problem-solver|stopwatch)|developer\/(bug|feedback))$/,
@@ -123,6 +130,13 @@ export function resolveFullWorkspaceDestination(candidate: string): string | nul
   if (!mobilePath) return null;
   const parsed = new URL(mobilePath, "https://workspace.invalid");
   const { pathname, searchParams } = parsed;
+
+  if (pathname === `${WORKSPACE_PATHS.mobile}/menu`) {
+    const group = searchParams.get("group");
+    return group === "account" ? "/workspace/management"
+      : group === "classes" || group === "resources" ? "/workspace/learning"
+        : "/workspace/dashboard";
+  }
 
   const student = pathname.match(/^\/workspace\/mobile\/students\/([1-9]\d*)$/);
   if (student) return `/workspace/students/${Number(student[1])}`;

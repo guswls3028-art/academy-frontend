@@ -14,6 +14,34 @@ const examQuestions = [
   { id: 2, sheet: 1, number: 2, question_kind: "essay", score: 50 },
 ] as const;
 
+async function expectAssessmentHeaderActionLayout(page: Page) {
+  const buttons = page.locator(".assessment-detail-header__actions")
+    .locator(":scope > button, :scope > div > button");
+  await expect(buttons).toHaveCount(3);
+  await expect.poll(() => buttons.evaluateAll((elements) => {
+    const metrics = elements.map((button) => {
+      const box = button.getBoundingClientRect();
+      const group = button.closest(".assessment-detail-header__actions")!.getBoundingClientRect();
+      const style = getComputedStyle(button);
+      const label = button.querySelector(".ds-button__label")!;
+      const icon = button.querySelector("svg")!;
+      return {
+        size: [Math.round(box.height), style.paddingLeft, style.paddingRight, style.fontSize,
+          Math.round(icon.getBoundingClientRect().width)],
+        touchTarget: box.height >= 44 && box.width >= 44,
+        contained: box.left >= group.left - 1 && box.right <= group.right + 1,
+        labelFits: label.scrollWidth <= label.clientWidth + 1 && getComputedStyle(label).whiteSpace === "nowrap",
+      };
+    });
+    return {
+      sameSize: metrics.every(({ size }) => JSON.stringify(size) === JSON.stringify(metrics[0].size)),
+      touchTargets: metrics.every(({ touchTarget }) => touchTarget),
+      contained: metrics.every(({ contained }) => contained),
+      labelsFit: metrics.every(({ labelFits }) => labelFits),
+    };
+  })).toEqual({ sameSize: true, touchTargets: true, contained: true, labelsFit: true });
+}
+
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   return `${encode({ alg: "none" })}.${encode({
@@ -323,8 +351,10 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   const primaryAction = page.getByTestId("assessment-primary-action");
   await expect(workflow).toBeVisible();
   await expect(primaryAction).toHaveText("제출 현황 보기");
+  await expectAssessmentHeaderActionLayout(page);
   await expect.poll(() => primaryAction.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
   await page.setViewportSize({ width: 1100, height: 800 });
+  await expectAssessmentHeaderActionLayout(page);
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth))
     .toBe(true);
@@ -399,6 +429,7 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await expect(page.getByLabel("학생 응시 인원 공개")).not.toBeChecked();
 
   await page.setViewportSize({ width: 390, height: 844 });
+  await expectAssessmentHeaderActionLayout(page);
   await expect(page.getByText("시험 운영 준비 완료", { exact: true })).toBeVisible();
   await expect(page.getByText("시험 운영 설정", { exact: true })).toBeVisible();
   if (await page.locator("#assessment-policy > details").getAttribute("open") === null) {
@@ -969,6 +1000,7 @@ test("@policy-recovery 열린 시험 템플릿은 재조회 실패 후 이름을
   expect(state.templateSaves).toEqual([{ title: "보존할 시험 템플릿" }]);
   await page.reload();
   await expect(page.getByRole("button", { name: "템플릿으로 저장됨" })).toBeVisible();
+  await expectAssessmentHeaderActionLayout(page);
 });
 
 test("@policy-recovery 390px 열린 원본 업로드는 재조회 실패 동안 파일을 보존하고 복구 후 업로드한다", async ({ page }, testInfo) => {

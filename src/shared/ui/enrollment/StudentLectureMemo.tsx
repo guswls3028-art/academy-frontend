@@ -18,12 +18,13 @@ type Props = {
   lectureTitle?: string | null;
   lectureMemo?: string | null;
   studentMemo?: string | null;
+  compact?: boolean;
 };
 
 export default function StudentLectureMemo(props: Props) {
   const [open, setOpen] = useState(false);
   return (
-    <div className={styles.root} data-student-memos={props.enrollmentId}>
+    <div className={styles.root} data-student-memos={props.enrollmentId} data-compact={props.compact || undefined}>
       <button
         type="button"
         className={styles.preview}

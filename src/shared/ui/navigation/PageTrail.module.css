@@ -1,0 +1,19 @@
+.trail {
+  --trail-text: var(--color-text-secondary);
+  --trail-accent: var(--color-brand-primary);
+  color: var(--trail-text);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+.trail[data-tone="student"] {
+  --trail-text: var(--stu-text-muted);
+  --trail-accent: var(--stu-primary);
+}
+.trail ol { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0; padding: 0; list-style: none; }
+.trail li { display: flex; align-items: center; gap: 10px; min-width: 0; overflow-wrap: anywhere; }
+.trail a { color: inherit; text-decoration: underline; text-underline-offset: 4px; text-decoration-color: transparent; padding-block: 4px; }
+.trail a:hover { color: var(--trail-accent); text-decoration-color: currentColor; }
+.trail a:focus-visible { outline: 2px solid var(--trail-accent); outline-offset: 3px; border-radius: 3px; }
+.separator { opacity: .55; }
+@media (max-width: 600px) { .trail a { padding-block: 8px; } }

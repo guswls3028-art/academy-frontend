@@ -2,7 +2,7 @@
  * 학생 앱 전역 레이아웃 — 전체화면 고정, 모바일 특화
  * 테넌트별 테마: STUDENT_THEME_BY_TENANT → data-student-theme → theme/tenants/{theme}.css
  */
-import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import { Outlet, useLocation } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { UsersRound } from "lucide-react";
@@ -110,6 +110,15 @@ export default function StudentLayout() {
 
 function StudentLayoutInner() {
   const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+  const previousPath = useRef(location.pathname);
+  useLayoutEffect(() => {
+    // The menu is a new destination, not an extension of the scrolled home.
+    if (location.pathname === "/student/menu" || previousPath.current === "/student/menu") {
+      mainRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }
+    previousPath.current = location.pathname;
+  }, [location.pathname]);
   const tenantCode = getTenantCodeForApiRequest();
   const { isDark } = useStudentTheme();
   useFavicon();
@@ -300,7 +309,7 @@ function StudentLayoutInner() {
         {studentContextReady && <PlaybackSaveNotice />}
       </header>
 
-      <main className="student-layout__main">
+      <main ref={mainRef} className="student-layout__main">
         <div className="student-layout__content">
           {/* 자녀 전환 시 이전 쿼리 observer의 placeholder와 로컬 화면 상태도 폐기한다. */}
           {studentContextReady && <Outlet key={selectedParentStudentId ?? "self"} />}

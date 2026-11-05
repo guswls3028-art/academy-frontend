@@ -3,7 +3,7 @@
  */
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
-import { useParams, useNavigate, useSearchParams, Link, useLocation } from "react-router";
+import { useParams, useSearchParams, Link, useLocation } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchVideoMe, fetchStudentSessionVideos, fetchStudentVideoPlayback, type StudentVideoListItem } from "../api/video.api";
 import EmptyState from "@student/layout/EmptyState";
@@ -171,7 +171,6 @@ export default function SessionDetailPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const nav = useNavigate();
   const qc = useQueryClient();
   const { user } = useAuthContext();
   const queryScope = studentVideoQueryScope(user);
@@ -252,10 +251,13 @@ export default function SessionDetailPage() {
   const lecture = videoCatalog?.lectures.find((item) => item.sessions.some((session) => session.id === sessionIdNum));
   const sessionTitle = lecture?.sessions.find((session) => session.id === sessionIdNum)?.title || routeState.sessionTitle || "재생 목록";
   const courseTitle = lecture?.title || routeState.courseTitle || "영상 학습";
+  const parentPath = lecture ? `/student/video/courses/${lecture.id}` : routeState.isPublic ? "/student/video/courses/public" : "/student/video";
+  const parentLabel = lecture || routeState.isPublic ? "차시 목록" : "영상 목록";
+
 
   if (isLoading) {
     return (
-      <StudentPageShell title="" noSectionFrame>
+      <StudentPageShell title="" noSectionFrame breadcrumbs={[{ label: parentLabel, to: parentPath }]}>
         <div className="video-page-content video-detail-skel">
           <div className="stu-skel video-detail-skel__hero" />
           <div className="stu-skel video-detail-skel__body video-detail-skel__body--compact" />
@@ -266,7 +268,7 @@ export default function SessionDetailPage() {
 
   if (is403) {
     return (
-      <StudentPageShell title="" noSectionFrame>
+      <StudentPageShell title="" noSectionFrame breadcrumbs={[{ label: parentLabel, to: parentPath }]}>
         <div className="video-page-content">
           <EmptyState
             title="영상을 볼 수 없습니다"
@@ -279,7 +281,7 @@ export default function SessionDetailPage() {
 
   if (isError && !is403) {
     return (
-      <StudentPageShell title="" noSectionFrame>
+      <StudentPageShell title="" noSectionFrame breadcrumbs={[{ label: parentLabel, to: parentPath }]}>
         <div className="video-page-content">
           <EmptyState
             title="재생 목록을 불러오지 못했어요"
@@ -293,7 +295,7 @@ export default function SessionDetailPage() {
 
   if (!sessionIdNum || videos.length === 0) {
     return (
-      <StudentPageShell title="" noSectionFrame>
+      <StudentPageShell title="" noSectionFrame breadcrumbs={[{ label: parentLabel, to: parentPath }]}>
         <div className="video-page-content">
           <EmptyState
             title="차시를 찾을 수 없습니다"
@@ -305,13 +307,8 @@ export default function SessionDetailPage() {
   }
 
   return (
-    <StudentPageShell title="" noSectionFrame>
+    <StudentPageShell title="" noSectionFrame breadcrumbs={[{ label: parentLabel, to: parentPath }]}>
       <div className="video-page-content">
-        <button type="button" className="video-back" onClick={() => nav(-1)}>
-          <IconChevronRight className="video-back__icon" aria-hidden="true" />
-          <span>차시 목록</span>
-        </button>
-
         <section className="video-hero">
           <div className="video-hero__eyebrow">
             <IconPlay className="video-hero__icon" aria-hidden="true" />

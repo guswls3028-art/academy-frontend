@@ -1,0 +1,14 @@
+.page { max-width: 960px; margin-inline: auto; padding: 24px 20px; }
+.header { margin-bottom: 24px; }
+.header h1 { margin: 0 0 8px; font-size: 24px; font-weight: 700; line-height: 1.4; color: var(--color-text-primary); }
+.header p { margin: 0; color: var(--color-text-secondary); font-size: 14px; line-height: 1.7; }
+.group { margin-bottom: 28px; }
+.group h2 { color: var(--color-text-secondary); font-size: 13px; font-weight: 600; }
+.entry { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 76px; padding: 16px 4px; border: 0; border-bottom: 1px solid var(--color-border-divider); background: transparent; color: var(--color-text-primary); text-align: left; text-decoration: none; font: inherit; cursor: pointer; transition: background-color 160ms ease; }
+.entry:hover { background: var(--color-bg-hover); }
+.entry:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: 2px; border-radius: 8px; }
+.icon { flex: 0 0 24px; color: var(--color-brand-primary); }
+.copy { display: grid; flex: 1; min-width: 0; gap: 5px; }
+.copy strong { font-size: 15px; font-weight: 650; line-height: 1.4; }
+.copy > span { color: var(--color-text-secondary); font-size: 13px; line-height: 1.6; word-break: keep-all; }
+@media (prefers-reduced-motion: reduce) { .entry { transition: none; } }

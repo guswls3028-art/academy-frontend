@@ -95,6 +95,34 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
   });
 }
 
+async function expectAssessmentHeaderActionLayout(page: Page) {
+  const buttons = page.locator(".assessment-detail-header__actions")
+    .locator(":scope > button, :scope > div > button");
+  await expect(buttons).toHaveCount(3);
+  await expect.poll(() => buttons.evaluateAll((elements) => {
+    const metrics = elements.map((button) => {
+      const box = button.getBoundingClientRect();
+      const group = button.closest(".assessment-detail-header__actions")!.getBoundingClientRect();
+      const style = getComputedStyle(button);
+      const label = button.querySelector(".ds-button__label")!;
+      const icon = button.querySelector("svg")!;
+      return {
+        size: [Math.round(box.height), style.paddingLeft, style.paddingRight, style.fontSize,
+          Math.round(icon.getBoundingClientRect().width)],
+        touchTarget: box.height >= 44 && box.width >= 44,
+        contained: box.left >= group.left - 1 && box.right <= group.right + 1,
+        labelFits: label.scrollWidth <= label.clientWidth + 1 && getComputedStyle(label).whiteSpace === "nowrap",
+      };
+    });
+    return {
+      sameSize: metrics.every(({ size }) => JSON.stringify(size) === JSON.stringify(metrics[0].size)),
+      touchTargets: metrics.every(({ touchTarget }) => touchTarget),
+      contained: metrics.every(({ contained }) => contained),
+      labelsFit: metrics.every(({ labelFits }) => labelFits),
+    };
+  })).toEqual({ sameSize: true, touchTargets: true, contained: true, labelsFit: true });
+}
+
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   return `${encode({ alg: "none" })}.${encode({
@@ -660,11 +688,13 @@ test("출석 관리는 정규 차시만 기본 표시하고 보강·전체 범�
   await expect(page.getByText("김민준", { exact: true }).locator("xpath=ancestor::tr[1]")).toContainText("현");
 });
 
-test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보강 이름을 수정·재조회한다", async ({ page }) => {
+for (const width of [1366, 390]) {
+test(`기존 전체 보기를 기본으로 유지하고 분리 보기에서 보강 이름을 수정·재조회한다 ${width}px`, async ({ page }) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉 (10:00~12:00)",
     patchTitles: [],
   };
+  await page.setViewportSize({ width, height: 844 });
   await openLecture(page, state);
 
   const allView = page.getByRole("button", { name: "전체 보기", exact: true });
@@ -692,6 +722,7 @@ test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
   await supplementCard.click();
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SUPPLEMENT_SESSION_ID}/attendance`));
   await expect(page.getByRole("tab", { name: "공지·게시판", exact: true })).toBeVisible();
+  if (width === 390) await page.getByRole("button", { name: "차시 선택", exact: true }).click();
   await page.getByRole("button", { name: "보강 설정" }).click();
   await page.getByRole("button", { name: "수정", exact: true }).click();
   await page.getByLabel("보강 이름").fill("일요일 취약 단원 클리닉");
@@ -710,6 +741,7 @@ test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
   await page.getByRole("tab", { name: /정규 수업/ }).click();
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/attendance`));
 
+  if (width === 390) await page.getByRole("button", { name: "차시 선택", exact: true }).click();
   await page.getByRole("button", { name: "전체 보기", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/attendance`));
   await expect(page.getByRole("button", { name: /일요일 취약 단원 클리닉/ })).toBeVisible();
@@ -721,6 +753,8 @@ test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
     ),
   );
 });
+}
+
 
 test("영상 추가 정책은 자유 이동의 정확한 상태를 표시하고 라벨 전체 클릭으로 전환된다", async ({ page }, testInfo) => {
   const state: MockState = {
@@ -968,6 +1002,11 @@ test("정규 차시 이름 수정은 실패 후 입력을 보존하고 재시도
     await page.getByRole("button", { name: /직보/ }).click();
     await expect(page).toHaveURL(new RegExp(`/sessions/${REGULAR_SESSION_ID}/attendance`));
     await expect(page.locator("main").getByText(customTitle, { exact: false }).first()).toBeVisible();
+    if (width === 390) {
+      await page.getByRole("button", { name: "차시 선택", exact: true }).click();
+      await expect(page).toHaveURL(/view=sessions/);
+      await expect(page.getByRole("heading", { name: "차시 선택", exact: true })).toBeInViewport({ ratio: 1 });
+    }
     await page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true }).click();
     await expect(page.getByRole("tab", { name: /정규 수업/ })).toHaveAttribute("aria-selected", "true");
     await page.getByRole("button", { name: "차시 설정", exact: true }).click();
@@ -1639,7 +1678,10 @@ test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에�
   const primaryAction = page.getByTestId("assessment-primary-action");
   await expect(page.getByRole("navigation", { name: "과제 업무 흐름" })).toBeVisible();
   await expect(primaryAction).toHaveText("제출 현황 보기");
-  await page.setViewportSize({ width: 390, height: 844 });
+  for (const width of [1366, 1100, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expectAssessmentHeaderActionLayout(page);
+  }
   const homeworkPicker = assessmentNavigation.getByRole("combobox", { name: "과제 선택", exact: true });
   await expect(homeworkPicker).toHaveValue("9961");
   await homeworkPicker.selectOption({ label: "심화 서술형" });
