@@ -30,6 +30,7 @@ test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off
 
 let family: QaFamily | null = null;
 let adminAccess = "";
+let blockedUserId: number | null = null;
 const postIds: number[] = [];
 const runStamp = Date.now();
 const qnaTitle = `QA 학부모 질문 ${runStamp}`;
@@ -40,6 +41,10 @@ const answerContent = "QA 관리자 화면에서 저장한 학습 답변입니�
 async function cleanup(request: Parameters<typeof api>[0]): Promise<void> {
   if (!adminAccess) return;
   const failures: string[] = [];
+  if (blockedUserId !== null) {
+    const removed = await api(request, "DELETE", `/community/admin/user-blocks/${blockedUserId}/`, adminAccess);
+    if (removed.status !== 200) failures.push(`DELETE owned community block -> ${removed.status}`);
+  }
   for (const id of postIds) {
     const removed = await api(request, "DELETE", `/community/posts/${id}/`, adminAccess);
     if (![200, 204, 404].includes(removed.status)) failures.push(`DELETE community post ${id} -> ${removed.status}`);
@@ -70,6 +75,10 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     const admin = await loginAdmin(request);
     adminAccess = admin.access;
     family = await createQaFamily(request, admin.access, "community", 2);
+    const parentTokens = await loginApi(request, family.parentPhone, family.parentPassword);
+    const parentIdentity = await api<{ id: number }>(request, "GET", "/core/me/", parentTokens.access);
+    expect(parentIdentity.status).toBe(200);
+    expect(Number.isSafeInteger(parentIdentity.body.id) && parentIdentity.body.id > 0).toBe(true);
     const primary = family.students[0];
     const sibling = family.students[1];
 
@@ -120,6 +129,36 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     await page.getByRole("button", { name: "질문하기", exact: true }).click();
     await expect(page.getByPlaceholder("질문 제목")).toHaveValue(qnaTitle);
     await expect(page.getByRole("button", { name: "첨부 다시 시도", exact: true })).toBeDisabled();
+    // Exercise the real tenant moderation boundary after the post has already
+    // been saved. A blocked upload must not create metadata or discard input.
+    blockedUserId = parentIdentity.body.id;
+    const blocked = await api(request, "POST", "/community/admin/user-blocks/", adminAccess, {
+      user_id: blockedUserId, reason: "QA community attachment recovery",
+    });
+    expect(blocked.status).toBe(201);
+    await page.locator(".community-file-picker__input").setInputFiles([attachment, documentAttachment]);
+    const blockedUploadPromise = page.waitForResponse((response) => response.request().method() === "POST"
+      && new URL(response.url()).pathname.endsWith(`/api/v1/community/posts/${qna.id}/attachments/`));
+    await page.getByRole("button", { name: "첨부 다시 시도", exact: true }).click();
+    const blockedUpload = await blockedUploadPromise;
+    expect(blockedUpload.status()).toBe(403);
+    expect(await blockedUpload.json()).toMatchObject({ code: "user_blocked" });
+    await expect(page.getByRole("alert")).toContainText("커뮤니티 활동이 제한되었습니다");
+    await expect(page.getByPlaceholder("질문 제목")).toHaveValue(qnaTitle);
+    const whileBlocked = await api<{ attachments: unknown[] }>(request, "GET", `/community/posts/${qna.id}/`, adminAccess);
+    expect(whileBlocked.status).toBe(200);
+    expect(whileBlocked.body.attachments).toHaveLength(0);
+    await assertNoHorizontalOverflow(page);
+    await page.screenshot({ path: testInfo.outputPath("community-blocked-upload-development-390.png") });
+    await reloadStudentApp(page);
+    await openCommunityTab(page, "QnA");
+    await page.getByRole("button", { name: "질문하기", exact: true }).click();
+    await expect(page.getByPlaceholder("질문 제목")).toHaveValue(qnaTitle);
+    await expect(page.getByRole("button", { name: "첨부 다시 시도", exact: true })).toBeDisabled();
+    const unblocked = await api<{ deleted: number }>(request, "DELETE", `/community/admin/user-blocks/${blockedUserId}/`, adminAccess);
+    expect(unblocked.status).toBe(200);
+    expect(unblocked.body.deleted).toBe(1);
+    blockedUserId = null;
     await page.locator(".community-file-picker__input").setInputFiles([attachment, documentAttachment]);
     const uploadResponsePromise = page.waitForResponse((response) => response.request().method() === "POST"
       && new URL(response.url()).pathname.endsWith(`/api/v1/community/posts/${qna.id}/attachments/`));
