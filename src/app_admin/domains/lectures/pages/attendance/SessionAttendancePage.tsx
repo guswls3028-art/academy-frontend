@@ -7,10 +7,11 @@
 // line-level disable 다수 추가도 line shift loop. file-level disable로 임시 회피
 // (백로그: unused-vars/prefer-const 정리 후 file-level 제거. [[feedback_lint_baseline_line_shift]]).
 /* eslint-disable prefer-const, no-restricted-syntax, react-hooks/exhaustive-deps */
-import { useState, useMemo, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router";
 import { RotateCcw, ShieldCheck, X } from "lucide-react";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -59,6 +60,8 @@ import { DEFAULT_ATTENDANCE_SORT, getStoredAttendanceSort, type AttendanceSort, 
 import "./attendance-ui.css";
 import AttendanceToolsPage from "./AttendanceToolsPage";
 
+import AttendanceSessionPage from "./AttendanceSessionPage";
+
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
 const PAGE_SIZE = 50;
 type SessionAttendancePageProps = {
@@ -66,6 +69,7 @@ type SessionAttendancePageProps = {
   lectureId?: number;
   sessionType?: string | null;
   sessionDate?: string | null;
+  sessionSelector: ReactNode;
   onOpenEnrollModal?: () => void;
 };
 
@@ -79,17 +83,22 @@ export default function SessionAttendancePage({
   lectureId,
   sessionType,
   sessionDate,
+  sessionSelector,
   onOpenEnrollModal,
 }: SessionAttendancePageProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const toolsView = new URLSearchParams(location.search).get("view") === "tools";
+  const isMobile = useIsMobile();
+  const requestedView = new URLSearchParams(location.search).get("view");
+  const attendanceView = requestedView === "tools" ? "tools"
+    : requestedView === "sessions" && lectureId != null ? "sessions" : "list";
   const listParams = new URLSearchParams(location.search);
   listParams.delete("view");
   const listPath = `${location.pathname}${listParams.size ? `?${listParams}` : ""}`;
   const toolsPath = `${listPath}${listParams.size ? "&" : "?"}view=tools`;
   const contentRef = useRef<HTMLDivElement>(null);
-  const previousToolsView = useRef(toolsView);
+  const previousView = useRef(attendanceView);
+  const sessionsPath = `${listPath}${listParams.size ? "&" : "?"}view=sessions`;
   const qc = useQueryClient();
   const confirm = useConfirm();
   const { confirmSecession, secessionDialog } = useSecessionConfirm();
@@ -165,11 +174,11 @@ export default function SessionAttendancePage({
   });
 
   useLayoutEffect(() => {
-    if (toolsView || previousToolsView.current !== toolsView) {
+    if (attendanceView !== "list" || previousView.current !== attendanceView) {
       contentRef.current?.closest("main")?.scrollTo({ top: 0, left: 0, behavior: "instant" });
     }
-    previousToolsView.current = toolsView;
-  }, [toolsView, isLoading]);
+    previousView.current = attendanceView;
+  }, [attendanceView, isLoading]);
 
   const pageData = attendanceResult?.data ?? [];
   const totalCount = attendanceResult?.count ?? 0;
@@ -575,6 +584,7 @@ export default function SessionAttendancePage({
 
   const primaryAction = (
     <div className="flex flex-wrap items-center gap-2">
+      {isMobile && lectureId != null && <Button type="button" intent="secondary" size="lg" onClick={() => navigate(sessionsPath)}>차시 선택</Button>}
       <Button type="button" intent="secondary" size="lg" onClick={() => navigate(toolsPath)}>출결 도구</Button>
       {onOpenEnrollModal && <Button type="button" intent="primary" size="lg" onClick={onOpenEnrollModal}>수강생 등록</Button>}
     </div>
@@ -715,7 +725,9 @@ export default function SessionAttendancePage({
           pending={pendingStatusIds.has(activeStatusRow.id)} triggerRef={statusRowTriggerRef}
           onChange={code => void handleStatusChange(activeStatusRow, code)} onClose={closeStatusPicker} />
       )}
-      {toolsView ? (
+      {attendanceView === "sessions" && lectureId != null ? (
+        <AttendanceSessionPage listPath={listPath} notice={safetyRecord}>{sessionSelector}</AttendanceSessionPage>
+      ) : attendanceView === "tools" ? (
         <AttendanceToolsPage listPath={listPath} lectureId={lectureId} selectedCount={selectedIds.length}
           selectionActions={selectionBar} notice={safetyRecord} busy={bulkPresentBusy}
           onNotify={type => setNotifModal({ type, open: true })}

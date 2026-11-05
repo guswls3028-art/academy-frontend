@@ -640,6 +640,17 @@ test("출결은 현재 상태를 먼저 보이고 선택·키보드 복귀·새�
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(trigger).toHaveText("지각");
+    const firstRow = page.locator("tbody tr").first();
+    const firstName = firstRow.getByRole("link", { name: /학생 상세 열기$/ });
+    const firstStatus = firstRow.getByRole("button", { name: /출결 상태 변경$/ });
+    const bounds = (await firstRow.boundingBox())!;
+    const header = (await page.locator('[data-app="admin"] > div > header').boundingBox())!;
+    const bottomMenu = width === 390 ? await page.getByRole("navigation", { name: "하단 메뉴", exact: true }).boundingBox() : null;
+    await testInfo.attach(`attendance-geometry-${width}`, { contentType: "application/json", body: JSON.stringify({
+      viewport: page.viewportSize(), row: bounds, name: await firstName.boundingBox(), status: await firstStatus.boundingBox(),
+      header, bottomMenu, scrollTop: await page.locator('[data-app="admin"] main').evaluate(node => node.scrollTop),
+    }) });
+    await testInfo.attach(`attendance-initial-${width}`, { contentType: "image/png", body: await page.screenshot() });
     await expect(trigger).toBeInViewport();
     expect((await trigger.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
@@ -649,14 +660,10 @@ test("출결은 현재 상태를 먼저 보이고 선택·키보드 복귀·새�
       await expect(row.locator("td").last()).toBeInViewport({ ratio: 1 });
     }
     if (width === 390) {
-      const firstRow = page.locator("tbody tr").first();
-      await expect(firstRow.getByRole("link", { name: /학생 상세 열기$/ })).toBeInViewport({ ratio: 1 });
-      await expect(firstRow.getByRole("button", { name: /출결 상태 변경$/ })).toBeInViewport({ ratio: 1 });
-      const bounds = (await firstRow.boundingBox())!;
-      const header = (await page.locator('[data-app="admin"] > div > header').boundingBox())!;
-      const bottomMenu = (await page.getByRole("navigation", { name: "하단 메뉴", exact: true }).boundingBox())!;
+      await expect(firstName).toBeInViewport({ ratio: 1 });
+      await expect(firstStatus).toBeInViewport({ ratio: 1 });
       expect(bounds.y).toBeGreaterThanOrEqual(header.y + header.height);
-      expect(bounds.y + bounds.height).toBeLessThanOrEqual(bottomMenu.y);
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(Math.min(bottomMenu!.y, page.viewportSize()!.height - 64));
     }
     await page.screenshot({ path: testInfo.outputPath(`attendance-current-status-${width}.png`), fullPage: true });
     await trigger.click();
@@ -1131,3 +1138,55 @@ for (const width of [1366, 390]) {
     expect(state.attendanceStatuses[501]).toBe("UNSET");
   });
 }
+
+
+test("모바일 차시 선택은 별도 화면에서 제공하고 왕복 문맥과 실제 차시 변경을 구분한다", async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = createState();
+  await openAttendance(page, state);
+  await expect(page.getByRole("group", { name: "수업 보기 방식" })).toHaveCount(0);
+  const entry = page.getByRole("button", { name: "차시 선택", exact: true });
+  await expect(entry).toBeInViewport({ ratio: 1 });
+  expect((await entry.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  const search = page.getByPlaceholder("이름 / 전화번호 검색", { exact: true });
+  await search.fill("학생");
+  const selection = page.getByRole("checkbox", { name: "미입력학생 선택", exact: true });
+  await selection.check();
+  await entry.click();
+  await expect(page).toHaveURL(/view=sessions/);
+  await expect(page.getByRole("heading", { name: "차시 선택", exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole("group", { name: "수업 보기 방식" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "전체 보기", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "차시 설정", exact: true })).toHaveCount(2);
+  await page.screenshot({ path: info.outputPath("attendance-session-chooser-390.png"), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 600 });
+  const main = page.locator('[data-app="admin"] main');
+  await main.hover();
+  await page.mouse.wheel(0, 800);
+  await expect.poll(() => main.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+  await page.goBack();
+  await expect(page).not.toHaveURL(/view=sessions/);
+  await expect.poll(() => main.evaluate(node => node.scrollTop)).toBe(0);
+  await expect(selection).toBeChecked();
+  await expect(search).toHaveValue("학생");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await entry.click();
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "차시 선택", exact: true })).toBeInViewport({ ratio: 1 });
+  await page.getByRole("link", { name: "← 출결 명단", exact: true }).click();
+  await expect(selection).not.toBeChecked();
+  await expect(search).toHaveValue("");
+  await selection.check();
+  await entry.click();
+  await page.route("**/api/v1/lectures/sessions/9900/", route => route.fulfill({ json: {
+    id: 9900, lecture: LECTURE_ID, title: "안전 검증 1차시", order: 1, regular_order: 1,
+    session_type: "REGULAR", date: "2026-07-24",
+  } }));
+  await page.getByRole("button", { name: /안전 검증 1차시/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/sessions/9900/attendance$`));
+  await expect(page.getByRole("heading", { name: "안전 검증 1차시", exact: true })).toBeVisible();
+  await expect(selection).not.toBeChecked();
+  await expect(search).toHaveValue("");
+  expect(state.bulkSetCalls).toBe(0);
+  expect(state.attendanceDeleteCalls).toEqual([]);
+});

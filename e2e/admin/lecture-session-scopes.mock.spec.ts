@@ -688,11 +688,13 @@ test("출석 관리는 정규 차시만 기본 표시하고 보강·전체 범�
   await expect(page.getByText("김민준", { exact: true }).locator("xpath=ancestor::tr[1]")).toContainText("현");
 });
 
-test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보강 이름을 수정·재조회한다", async ({ page }) => {
+for (const width of [1366, 390]) {
+test(`기존 전체 보기를 기본으로 유지하고 분리 보기에서 보강 이름을 수정·재조회한다 ${width}px`, async ({ page }) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉 (10:00~12:00)",
     patchTitles: [],
   };
+  await page.setViewportSize({ width, height: 844 });
   await openLecture(page, state);
 
   const allView = page.getByRole("button", { name: "전체 보기", exact: true });
@@ -720,6 +722,7 @@ test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
   await supplementCard.click();
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SUPPLEMENT_SESSION_ID}/attendance`));
   await expect(page.getByRole("tab", { name: "공지·게시판", exact: true })).toBeVisible();
+  if (width === 390) await page.getByRole("button", { name: "차시 선택", exact: true }).click();
   await page.getByRole("button", { name: "보강 설정" }).click();
   await page.getByRole("button", { name: "수정", exact: true }).click();
   await page.getByLabel("보강 이름").fill("일요일 취약 단원 클리닉");
@@ -738,6 +741,7 @@ test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
   await page.getByRole("tab", { name: /정규 수업/ }).click();
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/attendance`));
 
+  if (width === 390) await page.getByRole("button", { name: "차시 선택", exact: true }).click();
   await page.getByRole("button", { name: "전체 보기", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/attendance`));
   await expect(page.getByRole("button", { name: /일요일 취약 단원 클리닉/ })).toBeVisible();
@@ -749,6 +753,8 @@ test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
     ),
   );
 });
+}
+
 
 test("영상 추가 정책은 자유 이동의 정확한 상태를 표시하고 라벨 전체 클릭으로 전환된다", async ({ page }, testInfo) => {
   const state: MockState = {
