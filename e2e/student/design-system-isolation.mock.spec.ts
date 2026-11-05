@@ -25,7 +25,8 @@ for (const width of [390, 1366, 1920]) {
       await app.evaluate((element) => {
         const sample = document.createElement("section");
         sample.id = "student-control-contract";
-        sample.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;padding:16px";
+        // Measure each size independently; default flex stretch would expand 44px controls to the 48px sibling.
+        sample.style.cssText = "display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:16px";
         sample.innerHTML = `<button class="stu-btn stu-btn--secondary">선택한 과제 확인하기</button>
           <button class="stu-btn stu-btn--sm">확인</button><button class="stu-btn stu-btn--lg">다음</button>
           <button class="stu-icon-btn" aria-label="뒤로">←</button>
