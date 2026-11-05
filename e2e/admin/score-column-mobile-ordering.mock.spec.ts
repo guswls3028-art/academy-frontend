@@ -305,6 +305,11 @@ async function openScores(page: Page): Promise<OrderingHarness> {
   return harness;
 }
 
+async function reloadScores(page: Page) {
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator(".ds-scores-table")).toBeVisible({ timeout: 45_000 });
+}
+
 async function orderedIds(page: Page, type: "exam" | "homework") {
   return page.locator(`[data-testid^="score-column-order-${type}-"]`).evaluateAll((nodes) => (
     nodes.map((node) => Number(node.getAttribute("data-column-id")))
@@ -381,7 +386,7 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
           await dialog.getByRole('button', { name: '저장', exact: true }).click();
           await expect(dialog).not.toBeVisible();
           expect(harness.titlePatches.at(-1)).toEqual({ kind, payload: { max_score: 120, pass_score: 70, student_results_published: false } });
-          await page.reload({ waitUntil: "domcontentloaded" });
+          await reloadScores(page);
           await page.getByRole('button', { name: `${next} 작업 선택`, exact: true }).click();
           await page.getByRole('menuitem', { name: /^시험 설정/ }).click();
           await expect(dialog.getByRole('spinbutton', { name: '만점', exact: true })).toHaveValue('120');
@@ -396,7 +401,7 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
           await dialog.getByRole('button', { name: '저장', exact: true }).click();
           await expect(dialog).not.toBeVisible();
           expect(harness.titlePatches.at(-1)).toEqual({ kind, payload: { max_score: 120, meta: { due_date: '2026-12-01' } } });
-          await page.reload({ waitUntil: "domcontentloaded" });
+          await reloadScores(page);
           await page.getByRole('button', { name: `${next} 작업 선택`, exact: true }).click();
           await page.getByRole('menuitem', { name: /^과제 수정/ }).click();
           await expect(dialog.getByRole('spinbutton', { name: '만점', exact: true })).toHaveValue('120');
@@ -405,7 +410,7 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
           await expect(dialog).not.toBeVisible();
         }
       }
-      await page.reload({ waitUntil: "domcontentloaded" });
+      await reloadScores(page);
       await expect(page.getByRole('button', { name: '수정된 시험 제목 서술형 소수 배점 1793679432205 작업 선택', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: '수정된 과제 제목 수학 개념복습 1793679432205 작업 선택', exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: /제목 수정$/ })).toHaveCount(0);
@@ -461,7 +466,7 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
     await expect(title).toHaveValue("빠르게 닫은 시험 초안");
     await dialog.getByRole("button", { name: "저장", exact: true }).click();
     await expect(dialog).not.toBeVisible();
-    await page.reload({ waitUntil: "domcontentloaded" });
+    await reloadScores(page);
     await openEditor("빠르게 닫은 시험 초안");
     await expect(title).toHaveValue("빠르게 닫은 시험 초안");
     await expect(dialog.getByTestId("assessment-draft-recovery")).toHaveCount(0);
@@ -572,7 +577,7 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
     await expect(homeworkTrigger).toHaveCount(0);
 
     expect(deletedAssessments).toEqual(["exam:9101", "homework:9151"]);
-    await page.reload({ waitUntil: "domcontentloaded" });
+    await reloadScores(page);
     await expect(page.getByRole("button", { name: "첫 시험 작업 선택" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "첫 과제 작업 선택" })).toHaveCount(0);
     expect(unexpectedMutations).toEqual([]);
