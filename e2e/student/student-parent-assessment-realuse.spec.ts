@@ -372,10 +372,6 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     created.family = await createQaFamily(request, admin.access, "assessment", 2);
     const [primary, peer] = created.family.students;
     await seedAssessment(request, admin.access, created.family);
-    await verifyAssessmentTitle(page, request, admin, {
-      kind: "exam", id: created.examId!, title: examTitle,
-      lectureId: created.lectureId!, sessionId: created.sessionId!,
-    });
 
     await test.step("student submission and persisted result", () => submitFirstStudentThroughUi(page, primary, created.examId!));
     const primaryTokens = await loginApi(request, primary.ps_number, primary.password);
@@ -455,7 +451,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
       const staffBrowser = attachStrictBrowserGuards(staffPage);
       try {
         await seedBrowserAuth(staffPage, admin);
-        for (const [width, showRank, showCount] of [[1366, false, true], [390, true, false], [1366, true, true]] as const) {
+        for (const [width, showRank, showCount] of [[1366, false, false], [1366, false, true], [390, true, false], [1366, true, true]] as const) {
           await staffPage.setViewportSize({ width, height: 900 });
           await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`);
           await acknowledgeInitialAccountPromptsIfVisible(staffPage);
@@ -467,6 +463,18 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
             && new URL(response.url()).pathname === `/api/v1/exams/${created.examId}/`);
           await staffPage.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
           expect((await saved).status()).toBe(200);
+          if (!showRank && !showCount) {
+            // Establish real persisted false/false before either desktop or
+            // mobile title-only PATCH; the helper snapshots both policy fields.
+            expect(await expectApi(request, "GET", `/exams/${created.examId}/`, admin.access)).toMatchObject({
+              student_rank_published: false,
+              student_cohort_size_published: false,
+            });
+            await verifyAssessmentTitle(page, request, admin, {
+              kind: "exam", id: created.examId!, title: examTitle,
+              lectureId: created.lectureId!, sessionId: created.sessionId!,
+            });
+          }
           await staffPage.reload({ waitUntil: "domcontentloaded" });
           await expect(settings).toBeVisible();
           if (await settings.getAttribute("open") === null) await settings.locator("summary").click();
@@ -481,7 +489,24 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
             expect(studentResult.percentile).toBeNull();
             expect(parentResult.percentile).toBeNull();
           }
+          if (!showRank && !showCount) {
+            // Reuse the existing browser and real accounts for the student
+            // readback, then restore the selected parent child for later steps.
+            await logoutStudentApp(page);
+            await loginThroughUi(page, primary.ps_number, primary.password);
+            await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
+            await reloadStudentApp(page);
+            await expect(firstCard).toBeVisible();
+            await expect(firstCard.getByText("1등", { exact: true })).toHaveCount(0);
+            await expect(firstCard.getByText("2명 응시", { exact: true })).toHaveCount(0);
+            await assertNoHorizontalOverflow(page);
+            await logoutStudentApp(page);
+            await loginThroughUi(page, created.family!.parentPhone, created.family!.parentPassword);
+            await selectParentStudentThroughUi(page, primary);
+            await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
+          }
           await reloadStudentApp(page);
+          await expect(page.getByRole("tab", { name: primary.name })).toHaveAttribute("aria-selected", "true");
           await expect(firstCard).toBeVisible();
           await expect(firstCard.getByText("1등", { exact: true })).toHaveCount(showRank ? 1 : 0);
           await expect(firstCard.getByText("2명 응시", { exact: true })).toHaveCount(showCount ? 1 : 0);

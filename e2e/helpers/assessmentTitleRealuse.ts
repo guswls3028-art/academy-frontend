@@ -21,7 +21,7 @@ export async function verifyAssessmentTitle(
   const guards = attachStrictBrowserGuards(page);
   const endpoint = `/${target.kind === "exam" ? "exams" : "homeworks"}/${target.id}/`;
   const label = target.kind === "exam" ? "시험" : "과제";
-  const policyKeys = ["max_score", "pass_score", "grading_mode", "manual_grading_method", "cutline_mode", "cutline_value", "round_unit_percent", "meta", "template_exam_id", "template_homework_id"];
+  const policyKeys = ["max_score", "pass_score", "grading_mode", "manual_grading_method", "cutline_mode", "cutline_value", "round_unit_percent", "meta", "template_exam_id", "template_homework_id", "student_rank_published", "student_cohort_size_published"];
   await withOwnedScoreLeaseCleanup(context, request, { sessionId: target.sessionId, actorAccess: admin.access }, async () => {
     const original = await expectApi<Record<string, unknown>>(request, "GET", endpoint, admin.access);
     await seedBrowserAuth(page, admin);
