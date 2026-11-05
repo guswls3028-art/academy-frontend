@@ -7157,6 +7157,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media/videos/{video_id}/review-watch/report/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["media_videos_review_watch_report_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/videos/bulk-policy/": {
         parameters: {
             query?: never;
@@ -7283,8 +7299,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Video 관리 + 통계 + 학생 목록 */
-        get: operations["media_videos_student_retrieve"];
+        /** @description GET /student/video/sessions/{session_id}/videos/ */
+        get: operations["media_videos_student_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10394,6 +10410,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/student/video/videos/{video_id}/review-watch/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["student_video_videos_review_watch_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/students/": {
         parameters: {
             query?: never;
@@ -11712,6 +11744,198 @@ export interface paths {
          *       (default)        — same as 'all'
          */
         get: operations["submissions_submissions_pending_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surveys_list"];
+        put?: never;
+        post: operations["surveys_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/{survey_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surveys_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["surveys_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/surveys/{survey_id}/close/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["surveys_close_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/{survey_id}/export/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surveys_export_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/{survey_id}/publish/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["surveys_publish_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/{survey_id}/responses/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surveys_responses_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/{survey_id}/statistics/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surveys_statistics_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/student-choices/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surveys_student_choices_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/student/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["student_surveys_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/student/{survey_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surveys_student_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/student/{survey_id}/response/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["surveys_student_response_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/students/{student_id}/responses/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surveys_students_responses_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -14690,12 +14914,6 @@ export interface components {
          * @enum {string}
          */
         ItemTypeEnum: "exam" | "homework";
-        /**
-         * @description * `class` - 수업
-         *     * `clinic` - 클리닉
-         * @enum {string}
-         */
-        KindEnum: "class" | "clinic";
         Lecture: {
             readonly active_enrollment_count: number;
             /** @description 강의딱지 2글자 (미입력 시 제목 앞 2자 사용) */
@@ -14957,6 +15175,22 @@ export interface components {
             /** @default REGULAR */
             session_type: components["schemas"]["SessionTypeEnum"];
             title?: string;
+        };
+        LegacyStudentVideoListItem: {
+            allow_skip: boolean;
+            can_play: boolean;
+            duration: number | null;
+            hls_url: string | null;
+            id: number;
+            /** Format: double */
+            max_speed: number;
+            order: number;
+            reason: string | null;
+            session_id: number | null;
+            show_watermark: boolean;
+            status: string;
+            thumbnail_url: string | null;
+            title: string;
         };
         /**
          * @description * `COURSE` - 강의
@@ -16750,7 +16984,7 @@ export interface components {
         };
         PatchedQrPointRequest: {
             active?: boolean;
-            kind?: components["schemas"]["KindEnum"];
+            kind?: components["schemas"]["QrPointKindEnum"];
             label?: string;
             lecture_id?: number | null;
             location?: string;
@@ -16848,6 +17082,7 @@ export interface components {
             max_speed?: number;
             /** Format: int64 */
             order?: number;
+            review_watch_limit_enabled?: boolean;
             session?: number;
             show_watermark?: boolean;
             status?: components["schemas"]["SealedVideoStatusEnum"];
@@ -17087,6 +17322,23 @@ export interface components {
             target_id?: number;
             target_type?: components["schemas"]["TargetTypeEnum"];
             tenant?: number;
+        };
+        PatchedSurveyWriteRequest: {
+            allow_attachments?: boolean;
+            audience?: unknown;
+            /** Format: date-time */
+            closes_at?: string | null;
+            /** Format: uuid */
+            creation_key?: string | null;
+            description?: string;
+            expected_version?: number;
+            kind?: components["schemas"]["SurveyKind"];
+            /** Format: date-time */
+            opens_at?: string | null;
+            questions?: unknown;
+            response_limit?: number | null;
+            score_defaults?: unknown;
+            title?: string;
         };
         PatchedTeacherRequest: {
             email?: (string) | null;
@@ -17802,7 +18054,7 @@ export interface components {
         QrPoint: {
             active?: boolean;
             readonly id: number;
-            kind: components["schemas"]["KindEnum"];
+            kind: components["schemas"]["QrPointKindEnum"];
             label: string;
             lecture_id?: number | null;
             location?: string;
@@ -17813,9 +18065,15 @@ export interface components {
             kind: string;
             label: string;
         };
+        /**
+         * @description * `class` - 수업
+         *     * `clinic` - 클리닉
+         * @enum {string}
+         */
+        QrPointKindEnum: "class" | "clinic";
         QrPointRequest: {
             active?: boolean;
-            kind: components["schemas"]["KindEnum"];
+            kind: components["schemas"]["QrPointKindEnum"];
             label: string;
             lecture_id?: number | null;
             location?: string;
@@ -18158,6 +18416,45 @@ export interface components {
          * @enum {string}
          */
         ResultStatusEnum: "NOT_SUBMITTED" | "PROCESSING" | "PARTIAL" | "DONE" | "FAILED";
+        ReviewReport: {
+            duration: number | null;
+            enabled: boolean;
+            source_type: string;
+            students: components["schemas"]["ReviewStudent"][];
+            threshold_ms: number;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ReviewSignalRequest: {
+            enrollment?: number;
+            /** @default false */
+            playing: boolean;
+            /**
+             * Format: int64
+             * @default 0
+             */
+            position_ms: number;
+            /** @default false */
+            prepare: boolean;
+            /** Format: int64 */
+            sequence: number;
+            /** Format: uuid */
+            stream: string;
+        };
+        ReviewState: {
+            remaining_ms: number | null;
+            retry_after_ms?: number;
+            /** Format: uuid */
+            stream: string;
+            used_ms: number;
+        };
+        ReviewStudent: {
+            /** Format: date-time */
+            started_at: string;
+            student_id: number;
+            student_name: string;
+            used_ms: number;
+        };
         RiskLog: {
             /** Format: date-time */
             readonly created_at: string;
@@ -18252,6 +18549,7 @@ export interface components {
             max_speed?: number;
             /** Format: int64 */
             order?: number;
+            review_watch_limit_enabled?: boolean;
             readonly session_id: number;
             show_watermark?: boolean;
             /**
@@ -18438,6 +18736,7 @@ export interface components {
             max_speed?: number;
             /** Format: int64 */
             order?: number;
+            review_watch_limit_enabled?: boolean;
             session: number;
             show_watermark?: boolean;
             status?: components["schemas"]["SealedVideoStatusEnum"];
@@ -19733,6 +20032,10 @@ export interface components {
             id: number;
             name: string;
         };
+        StudentSurveyDetail: {
+            response: components["schemas"]["SurveyResponseRead"] | null;
+            survey: components["schemas"]["SurveyRead"];
+        };
         StudentTag: {
             color?: string;
             readonly id: number;
@@ -19897,12 +20200,17 @@ export interface components {
                 [key: string]: unknown;
             };
             policy_version: number;
+            review_watch?: {
+                [key: string]: unknown;
+            } | null;
             video: components["schemas"]["StudentVideoListItem"];
         };
         StudentVideoPlaybackOrAccessCheck: components["schemas"]["StudentVideoPlayback"] | components["schemas"]["StudentVideoAccessCheck"];
         StudentVideoPlaybackRequestRequest: {
             /** @default 1 */
             event_protocol_version: components["schemas"]["EventProtocolVersionEnum"];
+            /** @default false */
+            review_watch: boolean;
         };
         Submission: {
             /** Format: date-time */
@@ -19982,6 +20290,129 @@ export interface components {
          * @enum {string}
          */
         SupportKindEnum: "bug" | "feedback";
+        SurveyActionRequest: {
+            expected_version: number;
+        };
+        SurveyAttachment: {
+            content_type: string;
+            id: number;
+            name: string;
+            r2_key: string;
+            size_bytes: number;
+        };
+        SurveyHistoryPage: {
+            count: number;
+            results: components["schemas"]["SurveyResponseRead"][];
+        };
+        /**
+         * @description * `general` - 일반 설문
+         *     * `school_score` - 성적 취합
+         *     * `memo` - 학생 메모
+         * @enum {string}
+         */
+        SurveyKind: "general" | "school_score" | "memo";
+        SurveyPage: {
+            count: number;
+            results: components["schemas"]["SurveyRead"][];
+        };
+        SurveyRead: {
+            allow_attachments?: boolean;
+            answered: boolean;
+            audience?: unknown;
+            can_respond: boolean;
+            /** Format: date-time */
+            closes_at?: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            description?: string;
+            readonly id: number;
+            kind?: components["schemas"]["SurveyKind"];
+            /** Format: date-time */
+            opens_at?: string | null;
+            /** Format: date-time */
+            published_at?: string | null;
+            questions?: unknown;
+            response_count: number;
+            /** Format: int64 */
+            response_limit?: number | null;
+            response_unavailable_reason: string;
+            score_defaults?: unknown;
+            selected_students?: components["schemas"]["SurveySelectedStudent"][];
+            status?: components["schemas"]["SurveyStatus"];
+            target_count?: number;
+            title: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+            /** Format: int64 */
+            version?: number;
+        };
+        SurveyRecipientRead: {
+            answered: boolean;
+            response: components["schemas"]["SurveyResponseRead"] | null;
+            student_id: number;
+            student_name: string;
+        };
+        SurveyRecipientsPage: {
+            count: number;
+            results: components["schemas"]["SurveyRecipientRead"][];
+            survey: components["schemas"]["SurveyRead"];
+        };
+        SurveyResponseRead: {
+            answers: unknown;
+            attachments: components["schemas"]["SurveyAttachment"][];
+            /** Format: date-time */
+            created_at: string;
+            id: number;
+            kind: components["schemas"]["SurveyKind"];
+            questions: unknown;
+            score_submissions: {
+                [key: string]: unknown;
+            }[];
+            student_id: number;
+            student_name: string;
+            student_ps: string;
+            survey_id: number;
+            survey_title: string;
+            /** Format: date-time */
+            updated_at: string;
+            version: number;
+        };
+        SurveyResponseWriteRequest: {
+            answers?: {
+                [key: string]: unknown;
+            };
+            attachment_ids?: number[];
+            expected_version: number;
+            score_submission_ids?: number[];
+        };
+        SurveySelectedStudent: {
+            id: number;
+            name: string;
+        };
+        /**
+         * @description * `draft` - 작성 중
+         *     * `open` - 응답 받는 중
+         *     * `closed` - 마감
+         * @enum {string}
+         */
+        SurveyStatus: "draft" | "open" | "closed";
+        SurveyWriteRequest: {
+            allow_attachments?: boolean;
+            audience?: unknown;
+            /** Format: date-time */
+            closes_at?: string | null;
+            /** Format: uuid */
+            creation_key?: string | null;
+            description?: string;
+            expected_version?: number;
+            kind?: components["schemas"]["SurveyKind"];
+            /** Format: date-time */
+            opens_at?: string | null;
+            questions?: unknown;
+            response_limit?: number | null;
+            score_defaults?: unknown;
+            title: string;
+        };
         /**
          * @description * `student` - student
          *     * `parent` - parent
@@ -32074,6 +32505,27 @@ export interface operations {
             };
         };
     };
+    media_videos_review_watch_report_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                video_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewReport"];
+                };
+            };
+        };
+    };
     media_videos_bulk_policy_create: {
         parameters: {
             query?: never;
@@ -32281,9 +32733,11 @@ export interface operations {
             };
         };
     };
-    media_videos_student_retrieve: {
+    media_videos_student_list: {
         parameters: {
-            query?: never;
+            query: {
+                session: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -32295,7 +32749,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SealedVideo"];
+                    "application/json": components["schemas"]["LegacyStudentVideoListItem"][];
                 };
             };
         };
@@ -37026,6 +37480,33 @@ export interface operations {
             };
         };
     };
+    student_video_videos_review_watch_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                video_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewSignalRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ReviewSignalRequest"];
+                "multipart/form-data": components["schemas"]["ReviewSignalRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewState"];
+                };
+            };
+        };
+    };
     students_list: {
         parameters: {
             query?: {
@@ -39231,6 +39712,362 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    surveys_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                search?: string;
+                status?: "closed" | "draft" | "open";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyPage"];
+                };
+            };
+        };
+    };
+    surveys_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SurveyWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SurveyWriteRequest"];
+                "multipart/form-data": components["schemas"]["SurveyWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyRead"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyRead"];
+                };
+            };
+        };
+    };
+    surveys_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyRead"];
+                };
+            };
+        };
+    };
+    surveys_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedSurveyWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedSurveyWriteRequest"];
+                "multipart/form-data": components["schemas"]["PatchedSurveyWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyRead"];
+                };
+            };
+        };
+    };
+    surveys_close_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SurveyActionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SurveyActionRequest"];
+                "multipart/form-data": components["schemas"]["SurveyActionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyRead"];
+                };
+            };
+        };
+    };
+    surveys_export_retrieve: {
+        parameters: {
+            query?: {
+                response_status?: "all" | "answered" | "unanswered";
+                search?: string;
+            };
+            header?: never;
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+        };
+    };
+    surveys_publish_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SurveyActionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SurveyActionRequest"];
+                "multipart/form-data": components["schemas"]["SurveyActionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyRead"];
+                };
+            };
+        };
+    };
+    surveys_responses_retrieve: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                response_status?: "all" | "answered" | "unanswered";
+                search?: string;
+            };
+            header?: never;
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyRecipientsPage"];
+                };
+            };
+        };
+    };
+    surveys_statistics_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    surveys_student_choices_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    student_surveys_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                /** @description Required for a linked parent; identifies the selected child. */
+                "X-Student-Id"?: number;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyPage"];
+                };
+            };
+        };
+    };
+    surveys_student_retrieve: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Required for a linked parent; identifies the selected child. */
+                "X-Student-Id"?: number;
+            };
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentSurveyDetail"];
+                };
+            };
+        };
+    };
+    surveys_student_response_update: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Required for a linked parent; identifies the selected child. */
+                "X-Student-Id"?: number;
+            };
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SurveyResponseWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SurveyResponseWriteRequest"];
+                "multipart/form-data": components["schemas"]["SurveyResponseWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyResponseRead"];
+                };
+            };
+        };
+    };
+    surveys_students_responses_retrieve: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyHistoryPage"];
+                };
             };
         };
     };

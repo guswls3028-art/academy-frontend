@@ -70,6 +70,7 @@ docs/
 !docs/
 docs/*
 !docs/TEACHER-OPS-ASSISTANT.md
+!docs/SURVEYS.md
 !docs/README.md
 !docs/LECTURE-STUDENT-ENROLLMENT.md
 !docs/guide-media-provenance.json
