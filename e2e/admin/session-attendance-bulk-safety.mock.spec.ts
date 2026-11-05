@@ -8,6 +8,12 @@ const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const LECTURE_ID = 9901;
 const SESSION_ID = 9902;
 
+async function openAttendanceTools(page: Page) {
+  await page.getByRole("button", { name: "출결 도구", exact: true }).click();
+  await expect(page).toHaveURL(/view=tools/);
+  await expect(page.getByRole("heading", { name: "출결 도구", exact: true })).toBeInViewport();
+}
+
 async function chooseAttendanceStatus(page: Page, student: string, label: string) {
   const picker = page.getByRole("group", { name: `${student} 출결 상태 선택` });
   if (!(await picker.isVisible())) {
@@ -631,7 +637,7 @@ test("출결은 현재 상태를 먼저 보이고 선택·키보드 복귀·새�
   await expect(page.locator('[aria-label^="차시 출결 집계:"]')).toContainText("지각1");
 
   for (const width of [1366, 1100, 390]) {
-    await page.setViewportSize({ width, height: 900 });
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(trigger).toHaveText("지각");
     await expect(trigger).toBeInViewport();
@@ -641,6 +647,12 @@ test("출결은 현재 상태를 먼저 보이고 선택·키보드 복귀·새�
       const row = page.locator("tbody tr").filter({ has: page.getByRole("link", { name: "결석학생 학생 상세 열기" }) });
       await expect(row.getByRole("link", { name: "결석학생 학생 상세 열기" })).toBeInViewport({ ratio: 1 });
       await expect(row.locator("td").last()).toBeInViewport({ ratio: 1 });
+    }
+    if (width === 390) {
+      const firstRow = page.locator("tbody tr").first();
+      await expect(firstRow).toBeInViewport({ ratio: 1 });
+      const bounds = (await firstRow.boundingBox())!;
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(page.viewportSize()!.height - 64);
     }
     await page.screenshot({ path: testInfo.outputPath(`attendance-current-status-${width}.png`), fullPage: true });
     await trigger.click();
@@ -842,10 +854,41 @@ test("중간 출결 페이지가 비면 등록을 막고 다시 시도 후 정�
   await expect.poll(() => state.bulkCreatePayloads).toEqual([[2001]]);
 });
 
+for (const width of [1366, 390]) {
+  test(`출결 도구로 이동하고 선택 문맥을 보존하며 새로고침은 선택을 초기화한다 ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = createState();
+    await openAttendance(page, state);
+    for (const name of ["전체 현장 출석", "입실 알림 발송", "결석 알림 발송", "엑셀 다운로드", "삭제"]) {
+      await expect(page.getByRole("button", { name, exact: true })).toHaveCount(0);
+    }
+    await expect(page.getByText("0명 선택됨", { exact: true })).toHaveCount(0);
+    const checkbox = page.getByRole("checkbox", { name: "미입력학생 선택" });
+    await checkbox.check();
+    await page.getByRole("button", { name: "선택한 학생 작업", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "출결 도구", exact: true })).toBeInViewport();
+    await expect(page.getByRole("button", { name: "삭제", exact: true })).toBeEnabled();
+    await expect(page.getByText("1명 선택됨", { exact: true })).toBeVisible();
+    await page.screenshot({ path: info.outputPath(`attendance-tools-${width}.png`), fullPage: true });
+    await page.getByRole("link", { name: "← 출결 명단", exact: true }).click();
+    await expect(checkbox).toBeChecked();
+    await openAttendanceTools(page);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "출결 도구", exact: true })).toBeInViewport();
+    await expect(page.getByRole("button", { name: "삭제", exact: true })).toBeDisabled();
+    await page.getByRole("link", { name: "명단에서 학생 선택", exact: true }).click();
+    await expect(checkbox).not.toBeChecked();
+    expect(state.bulkSetCalls).toBe(0);
+    expect(state.attendanceDeleteCalls).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
+
 test("전체 현장 출석은 최근 작업 기록에서 서명 토큰으로 되돌린다", async ({ page }) => {
   const state = createState();
   await openAttendance(page, state);
 
+  await openAttendanceTools(page);
   await page.getByRole("button", { name: "전체 현장 출석" }).click();
   await expect(page.getByText("퇴원·비활성 학생은 변경하지 않습니다.")).toBeVisible();
   await page.getByRole("button", { name: "전체 현장 적용", exact: true }).click();
@@ -883,6 +926,7 @@ test(`일괄 삭제 일부 실패 뒤 재조회·재시도·새로고침을 유�
 
   await page.getByRole("checkbox", { name: "미입력학생 선택" }).check();
   await page.getByRole("checkbox", { name: "결석학생 선택" }).check();
+  await openAttendanceTools(page);
   await page.getByRole("button", { name: "삭제", exact: true }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "삭제", exact: true }).click();
 
@@ -895,6 +939,7 @@ test(`일괄 삭제 일부 실패 뒤 재조회·재시도·새로고침을 유�
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath(`attendance-partial-delete-${width}.png`) });
   options.failAttendanceDeleteId = undefined;
+  await openAttendanceTools(page);
   await page.getByRole("button", { name: "삭제", exact: true }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "삭제", exact: true }).click();
   await expect.poll(() => state.attendanceDeleteCalls).toEqual([501, 502, 502]);
@@ -909,6 +954,7 @@ test("일괄 출결 이후 충돌하면 기록을 유지하고 일부 복구처�
   const state = createState({ failUndo: true });
   await openAttendance(page, state);
 
+  await openAttendanceTools(page);
   await page.getByRole("button", { name: "전체 현장 출석" }).click();
   await page.getByRole("button", { name: "전체 현장 적용", exact: true }).click();
   const record = page.getByRole("region", { name: "최근 일괄 출결 작업" });

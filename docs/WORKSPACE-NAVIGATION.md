@@ -247,3 +247,5 @@ Chromium 1234로 검증했으며 지정 revision의 CI·동일 산출물 실사�
 역할 필터, `dynamic-workspace-parity.mock.spec.ts`의 현재 업무 전환,
 `staff-clock-in-choice.mock.spec.ts`의 근무 기록 진입,
 `product-update-guide.mock.spec.ts`의 알림과 가이드 경로를 함께 확인한다.
+
+새 관리 분류와 간편 업무 메뉴로 들어가거나 나올 때 내부 스크롤을 상단으로 되돌려 제목과 첫 업무부터 읽는다. 다른 기존 화면 사이의 스크롤 정책은 유지한다. 차시 출결의 `?view=tools` 진입은 [출결 명단 안전 계약](ATTENDANCE-ROSTER-SAFETY.md#첫-진입과-출결-도구)을 따른다.

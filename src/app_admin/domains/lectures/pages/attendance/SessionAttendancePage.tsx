@@ -7,7 +7,7 @@
 // line-level disable 다수 추가도 line shift loop. file-level disable로 임시 회피
 // (백로그: unused-vars/prefer-const 정리 후 file-level 제거. [[feedback_lint_baseline_line_shift]]).
 /* eslint-disable prefer-const, no-restricted-syntax, react-hooks/exhaustive-deps */
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useLayoutEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router";
 import { RotateCcw, ShieldCheck, X } from "lucide-react";
@@ -57,7 +57,7 @@ import { useBulkPresentUndo } from "./useBulkPresentUndo";
 import StudentLectureMemo from "@/shared/ui/enrollment/StudentLectureMemo";
 import { DEFAULT_ATTENDANCE_SORT, getStoredAttendanceSort, type AttendanceSort, type AttendanceSortColumn } from "./attendanceSort";
 import "./attendance-ui.css";
-import AttendanceQrManager from "@/shared/ui/attendance/AttendanceQrManager";
+import AttendanceToolsPage from "./AttendanceToolsPage";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
 const PAGE_SIZE = 50;
@@ -83,6 +83,13 @@ export default function SessionAttendancePage({
 }: SessionAttendancePageProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const toolsView = new URLSearchParams(location.search).get("view") === "tools";
+  const listParams = new URLSearchParams(location.search);
+  listParams.delete("view");
+  const listPath = `${location.pathname}${listParams.size ? `?${listParams}` : ""}`;
+  const toolsPath = `${listPath}${listParams.size ? "&" : "?"}view=tools`;
+  const contentRef = useRef<HTMLDivElement>(null);
+  const previousToolsView = useRef(toolsView);
   const qc = useQueryClient();
   const confirm = useConfirm();
   const { confirmSecession, secessionDialog } = useSecessionConfirm();
@@ -156,6 +163,13 @@ export default function SessionAttendancePage({
       }),
     enabled: Number.isFinite(sessionId),
   });
+
+  useLayoutEffect(() => {
+    if (toolsView || previousToolsView.current !== toolsView) {
+      contentRef.current?.closest("main")?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }
+    previousToolsView.current = toolsView;
+  }, [toolsView, isLoading]);
 
   const pageData = attendanceResult?.data ?? [];
   const totalCount = attendanceResult?.count ?? 0;
@@ -344,6 +358,7 @@ export default function SessionAttendancePage({
       }
     } finally {
       setDeleting(false);
+      navigate(listPath);
     }
   };
 
@@ -359,11 +374,11 @@ export default function SessionAttendancePage({
         {selectedIds.length}명 선택됨
       </span>
       <span className="text-[var(--color-border-divider)]">|</span>
-      <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
+      <Button intent="secondary" size="lg" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
         선택 해제
       </Button>
       <span className="text-[var(--color-border-divider)]">|</span>
-      <Button intent="secondary" size="sm" disabled={selectedIds.length === 0} onClick={async () => {
+      <Button intent="secondary" size="lg" disabled={selectedIds.length === 0} onClick={async () => {
         const selectedRows = sorted.filter((att) => selectedSet.has(att.id));
         const studentIds = selectedRows
           .map((att) => att.student_id)
@@ -445,18 +460,20 @@ export default function SessionAttendancePage({
       }}>
         수업결과 발송
       </Button>
-      <Button intent="secondary" size="sm" onClick={handleExcelDownload}>
-        엑셀 다운로드
-      </Button>
       <Button
         intent="danger"
-        size="sm"
+        size="lg"
         disabled={selectedIds.length === 0 || deleting}
         onClick={handleBulkDelete}
       >
         {deleting ? "삭제 중…" : "삭제"}
       </Button>
       </div>
+
+    </div>
+  );
+
+  const pagination = <>
       {totalPages > 1 && (
         <div className="flex flex-wrap items-center gap-1 pl-1">
           {(() => {
@@ -506,8 +523,7 @@ export default function SessionAttendancePage({
           })()}
         </div>
       )}
-    </div>
-  );
+  </>;
 
   const handleBulkSetPresent = async () => {
     const ok = await confirm({
@@ -532,6 +548,7 @@ export default function SessionAttendancePage({
         setBulkPresentUndo(undoRecord);
       }
       feedback.success(result.updated > 0 ? `${result.updated}명을 현장 출석으로 변경했습니다.` : "이미 전원 현장 출석입니다.");
+      navigate(listPath);
     } catch (error) {
       feedback.error(extractApiError(error, "일괄 출석 변경에 실패했습니다."));
     } finally {
@@ -558,33 +575,18 @@ export default function SessionAttendancePage({
 
   const primaryAction = (
     <div className="flex flex-wrap items-center gap-2">
-      {lectureId && <AttendanceQrManager kind="class" lectureId={lectureId} />}
-      <Button
-        type="button"
-        intent="ghost"
-        size="sm"
-        onClick={() => setNotifModal({ type: "check_in", open: true })}
-      >
-        입실 알림 발송
-      </Button>
-      <Button
-        type="button"
-        intent="ghost"
-        size="sm"
-        onClick={() => setNotifModal({ type: "absent", open: true })}
-      >
-        결석 알림 발송
-      </Button>
-      <Button type="button" intent="secondary" size="sm" onClick={handleBulkSetPresent} disabled={bulkPresentBusy}>
-        {bulkPresentBusy ? "처리 중…" : "전체 현장 출석"}
-      </Button>
-      {onOpenEnrollModal && (
-        <Button type="button" intent="primary" size="sm" onClick={onOpenEnrollModal}>
-          수강생 등록
-        </Button>
-      )}
+      <Button type="button" intent="secondary" size="lg" onClick={() => navigate(toolsPath)}>출결 도구</Button>
+      {onOpenEnrollModal && <Button type="button" intent="primary" size="lg" onClick={onOpenEnrollModal}>수강생 등록</Button>}
     </div>
   );
+
+  const selectionSummary = selectedIds.length > 0 ? (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-sm font-semibold">{selectedIds.length}명 선택됨</span>
+      <Button size="sm" intent="secondary" onClick={() => setSelectedIds([])}>선택 해제</Button>
+      <Button size="sm" intent="secondary" onClick={() => navigate(toolsPath)}>선택한 학생 작업</Button>
+    </div>
+  ) : null;
 
   const filterSlot = (
     <>
@@ -665,31 +667,7 @@ export default function SessionAttendancePage({
     changeSort(nextSort);
   }
 
-  return (
-    <div className="flex flex-col gap-4 relative">
-      {activeStatusRow && (
-        <AttendanceStatusPicker key={activeStatusRow.id}
-          studentName={activeStatusRow.name ?? "학생"}
-          value={toAttendanceStatus(activeStatusRow.status)}
-          pending={pendingStatusIds.has(activeStatusRow.id)} triggerRef={statusRowTriggerRef}
-          onChange={code => void handleStatusChange(activeStatusRow, code)} onClose={closeStatusPicker} />
-      )}
-      <DomainListToolbar
-        totalLabel={isLoading ? "…" : `총 ${totalCount}명`}
-        searchSlot={
-          <input
-            className="ds-input"
-            placeholder="이름 / 전화번호 검색"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            style={{ maxWidth: 280 }}
-          />
-        }
-        filterSlot={filterSlot}
-        primaryAction={primaryAction}
-        belowSlot={selectionBar}
-      />
-      {bulkPresentUndo && (
+  const safetyRecord = bulkPresentUndo && (
         <section className="attendance-safety-record" aria-live="polite" aria-label="최근 일괄 출결 작업">
           <div className="attendance-safety-record__icon" aria-hidden>
             <ShieldCheck size={18} />
@@ -726,7 +704,39 @@ export default function SessionAttendancePage({
             </Button>
           </div>
         </section>
+      );
+
+  return (
+    <div ref={contentRef} className="flex flex-col gap-4 relative">
+      {activeStatusRow && (
+        <AttendanceStatusPicker key={activeStatusRow.id}
+          studentName={activeStatusRow.name ?? "학생"}
+          value={toAttendanceStatus(activeStatusRow.status)}
+          pending={pendingStatusIds.has(activeStatusRow.id)} triggerRef={statusRowTriggerRef}
+          onChange={code => void handleStatusChange(activeStatusRow, code)} onClose={closeStatusPicker} />
       )}
+      {toolsView ? (
+        <AttendanceToolsPage listPath={listPath} lectureId={lectureId} selectedCount={selectedIds.length}
+          selectionActions={selectionBar} notice={safetyRecord} busy={bulkPresentBusy}
+          onNotify={type => setNotifModal({ type, open: true })}
+          onMarkAllPresent={() => void handleBulkSetPresent()} onDownload={handleExcelDownload} />
+      ) : <>
+      <DomainListToolbar
+        totalLabel={isLoading ? "…" : `총 ${totalCount}명`}
+        searchSlot={
+          <input
+            className="ds-input"
+            placeholder="이름 / 전화번호 검색"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            style={{ maxWidth: 280 }}
+          />
+        }
+        filterSlot={filterSlot}
+        primaryAction={primaryAction}
+        belowSlot={(selectedIds.length > 0 || totalPages > 1) ? <>{selectionSummary}{pagination}</> : undefined}
+      />
+      {safetyRecord}
       <div className="overflow-x-auto w-full attendance-memo-container">
         {sorted.length === 0 ? (
           <EmptyState
@@ -908,6 +918,7 @@ export default function SessionAttendancePage({
         )}
       </div>
 
+      </>}
       {/* 수동 알림 발송 모달 */}
       {secessionDialog}
       <NotificationPreviewModal
