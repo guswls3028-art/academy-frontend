@@ -132,10 +132,13 @@ export default function SessionScheduleManager({ open, onClose, sessionId, lectu
             <label>이름<input aria-label={`수업일 ${index + 1} 이름`} value={s.label} placeholder="예: 수요일반" onChange={e => change(s.key, { label: e.target.value })} /></label>
             <div><label htmlFor={`schedule-date-${s.key}`}>날짜</label><DatePicker id={`schedule-date-${s.key}`} value={s.date} onChange={date => change(s.key, { date })} disabled={busy} /></div>
           </div>
-          <div role="group" aria-label={`수업일 ${index + 1} 시간 (선택)`}>
+          <details className={styles.timeOptions}>
+            <summary>시간 설정 (선택){(s.start_time || s.end_time) && <span>{s.start_time || '시작 미설정'} ~ {s.end_time || '종료 미설정'}</span>}</summary>
+            <div role="group" aria-label={`수업일 ${index + 1} 시간 (선택)`}>
             <TimeRangeInput value={`${s.start_time ?? ''}~${s.end_time ?? ''}`} onChange={value => { const [start, end] = value.split('~'); change(s.key, { start_time: start || null, end_time: end || null }); }} disabled={busy} startLabel="시작" endLabel="종료" />
             {(s.start_time || s.end_time) && <Button intent="ghost" size="sm" onClick={() => change(s.key, { start_time: null, end_time: null })}>시간 지우기</Button>}
-          </div>
+            </div>
+          </details>
           <div className={styles.actions}><span className={styles.note}>{s.enrollment_ids.length}명 배정</span><Button size="sm" intent="ghost" onClick={() => { setDrafts(rows => rows.filter(r => r.key !== s.key)); setTarget(''); setDirty(true); }}>수업일 {index + 1} 삭제</Button></div>
         </section>)}
         <Button size="sm" intent="secondary" onClick={() => { const key = crypto.randomUUID(); setDrafts(rows => [...rows, { key, label: '', date: sessionDate || '', start_time: null, end_time: null, enrollment_ids: [] }]); setTarget(key); setDirty(true); }}>수업일 추가</Button>

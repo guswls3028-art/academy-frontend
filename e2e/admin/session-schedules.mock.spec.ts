@@ -109,6 +109,7 @@ for (const width of [390, 1366]) test(`수업일 작성·배정·저장·reload�
   await modal.getByLabel('학생 검색').fill('이');
   await modal.getByRole('button', { name: '검색 결과 전체 선택' }).click();
   await modal.getByRole('button', { name: '선택 학생 배정' }).click();
+  await modal.getByLabel('수업일 1 이름', { exact: true }).scrollIntoViewIfNeeded();
   await capture(page, `schedule-manager-${width}`);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await modal.getByRole('button', { name: '저장', exact: true }).click();
@@ -119,10 +120,17 @@ for (const width of [390, 1366]) test(`수업일 작성·배정·저장·reload�
   await expect(page).toHaveURL(/schedule=71/);
   await expect(page.getByRole('link', { name: '김수연 학생 상세 열기' })).toBeVisible();
   await expect(page.getByRole('link', { name: '이목현 학생 상세 열기' })).toHaveCount(0);
+  await expect(strip.getByRole('status')).toHaveCount(0);
+  await page.getByRole('link', { name: '김수연 학생 상세 열기' }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('link', { name: '김수연 학생 상세 열기' })).toBeInViewport();
   await capture(page, `schedule-attendance-${width}`);
   await page.getByRole('tab', { name: '성적', exact: true }).click();
   await expect(page).toHaveURL(/scores\?schedule=71/);
   await expect(page.getByRole('checkbox', { name: '김수연 선택', exact: true })).toBeVisible();
+  await expect(page.locator('.scores-entry-page').getByText('성적 불러오는 중…', { exact: true })).toBeHidden();
+  await expect(page.getByRole('group', { name: '성적 편집과 출력', exact: true }).getByRole('status')).toContainText('성적표 수정 잠김');
+  await page.getByRole('checkbox', { name: '김수연 선택', exact: true }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('checkbox', { name: '김수연 선택', exact: true })).toBeInViewport();
   await capture(page, `schedule-scores-${width}`);
   await page.getByRole('checkbox', { name: '김수연 선택', exact: true }).check();
   await strip.getByRole('button', { name: /^목요일반/ }).click();
@@ -144,6 +152,25 @@ for (const width of [390, 1366]) test(`저장 실패·닫기 후 입력 보존·
   await page.goto(`${BASE}${path}/attendance?schedule=71`);
   await page.getByRole('button', { name: '수업일 관리', exact: true }).click();
   const modal = page.getByRole('dialog', { name: '수업일 관리' });
+  const firstCard = modal.getByRole('region', { name: '수업일 1', exact: true });
+  const timeDetails = firstCard.locator('details');
+  const timeSummary = timeDetails.locator('summary').filter({ hasText: '시간 설정 (선택)' });
+  await expect(timeSummary).toContainText('16:00 ~ 18:00');
+  await expect(timeDetails).toHaveJSProperty('open', false);
+  await timeSummary.focus();
+  await expect(timeSummary).toBeFocused();
+  await timeSummary.press('Enter');
+  await expect(timeDetails).toHaveJSProperty('open', true);
+  await expect(firstCard.getByRole('group', { name: '수업일 1 시간 (선택)', exact: true })).toBeVisible();
+  for (const target of [modal, firstCard]) {
+    const size = await target.evaluate(element => ({ scroll: element.scrollWidth, client: element.clientWidth }));
+    expect(size.scroll).toBeLessThanOrEqual(size.client);
+  }
+  await modal.getByLabel('수업일 1 이름', { exact: true }).scrollIntoViewIfNeeded();
+  await capture(page, `schedule-time-expanded-${width}`);
+  await timeSummary.press('Space');
+  await expect(timeDetails).toHaveJSProperty('open', false);
+  await expect(timeSummary).toBeFocused();
   await modal.getByLabel('수업일 1 이름').fill('수요일 심화반');
   state.failSave = 400;
   await modal.getByRole('button', { name: '저장', exact: true }).click();
@@ -156,11 +183,13 @@ for (const width of [390, 1366]) test(`저장 실패·닫기 후 입력 보존·
   state.failSave = 409;
   await modal.getByRole('button', { name: '저장', exact: true }).click();
   await expect(modal.getByRole('alert')).toContainText('작성 내용은 보관 중');
+  await modal.getByLabel('수업일 1 이름', { exact: true }).scrollIntoViewIfNeeded();
   await capture(page, `schedule-conflict-${width}`);
   await expect(modal.getByLabel('수업일 1 이름')).toHaveValue('수요일 심화반');
   await modal.getByRole('button', { name: '최신 내용으로 다시 시작' }).click();
   await page.getByRole('button', { name: '최신 내용 불러오기', exact: true }).click();
   await expect(modal.getByLabel('수업일 1 이름')).toHaveValue('수요일반 최신');
+  await modal.getByLabel('수업일 1 이름', { exact: true }).scrollIntoViewIfNeeded();
   await capture(page, `schedule-recovered-${width}`);
   state.failSave = 0;
   await modal.getByLabel('수업일 1 이름').fill('수요일 심화반');
@@ -176,7 +205,7 @@ for (const width of [390, 1366]) test(`저장 실패·닫기 후 입력 보존·
   await page.getByRole('button', { name: '원래 날짜로 돌아가기', exact: true }).click();
   await expect(modal).toBeHidden();
   await expect(page).toHaveURL(/schedule=71/);
-  await expect(page.getByRole('alert')).toContainText('선택한 수업일을 찾을 수 없습니다');
+  await expect(page.getByRole('alert').filter({ hasText: '선택한 수업일을 찾을 수 없습니다' })).toBeVisible();
   await expect(page.getByRole('link', { name: '김수연 학생 상세 열기' })).toHaveCount(0);
   await page.getByRole('button', { name: '수업일 관리', exact: true }).click();
   await modal.getByRole('button', { name: '이전 차시에서 가져오기' }).click();
@@ -191,7 +220,7 @@ for (const width of [390, 1366]) test(`저장 실패·닫기 후 입력 보존·
 test('조회 실패와 잘못된 범위가 전체 명단으로 대체되지 않는다', async ({ page }) => {
   const state = fixture(true); state.failRead = true; await install(page, state);
   await page.goto(`${BASE}${path}/attendance?schedule=71`);
-  await expect(page.getByRole('alert')).toContainText('수업일 정보를 불러오지 못했습니다');
+  await expect(page.getByRole('alert').filter({ hasText: '수업일 정보를 불러오지 못했습니다' })).toBeVisible();
   await expect(page.getByRole('link', { name: '김수연 학생 상세 열기' })).toHaveCount(0);
   expect(state.reads.filter(r => r.kind === 'scores')).toHaveLength(0);
   state.failRead = false;
@@ -203,7 +232,7 @@ test('조회 실패와 잘못된 범위가 전체 명단으로 대체되지 않�
   await expect(page.getByRole('checkbox', { name: '이목현 선택' })).toHaveCount(0);
   expect(state.reads.filter(r => r.kind === 'scores').every(r => r.scope === '71')).toBe(true);
   await page.goto(`${BASE}${path}/attendance?schedule=999`);
-  await expect(page.getByRole('alert')).toContainText('선택한 수업일을 찾을 수 없습니다');
+  await expect(page.getByRole('alert').filter({ hasText: '선택한 수업일을 찾을 수 없습니다' })).toBeVisible();
   await expect(page.getByRole('link', { name: '김수연 학생 상세 열기' })).toHaveCount(0);
 });
 

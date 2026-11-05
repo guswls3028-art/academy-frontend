@@ -255,8 +255,10 @@ Today의 날짜별 조회는 서버 `schedule_dates` 중 오늘 항목의 이름
 
 기존 AdminModal의 포커스 가두기·Escape·포커스 복귀, 공용 DatePicker와
 TimeRangeInput, 디자인 토큰과 버튼을 사용한다. 수업일 칩은 `aria-pressed`,
-입력에는 이름, 피드백에는 status/alert를 둔다. 390px에서 필드와 칩을 줄바꿈하고
-명단은 창 내부에서 스크롤한다. 짧은 상태 전환은 reduced-motion을 따른다.
+입력에는 이름, 피드백에는 status/alert를 둔다. 390px에서 필드는 한 열로 배치하고
+수업일 칩은 가로로 넘기는 한 줄로 표시해 명단을 지나치게 아래로 밀지 않는다.
+관리 창의 선택 시간은 `시간 설정 (선택)`을 펼쳐 입력하며 저장된 시간은 접힌
+요약에도 표시한다. 명단은 창 내부에서 스크롤하고 짧은 상태 전환은 reduced-motion을 따른다.
 
 `e2e/admin/session-schedules.mock.spec.ts`: 390/1366 생성·배정·저장·reload,
 출결→성적 범위 유지, 선택 초기화, 미배정 일괄 출석, 입력 보존, 400/409 복구,

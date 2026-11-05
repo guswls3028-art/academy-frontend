@@ -64,6 +64,7 @@ export async function verifySessionSchedules(
       await page.getByRole('dialog', { name: '날짜 선택', exact: true }).getByRole('button', { name: String(day), exact: true }).click();
       await assign(modal, studentName);
     }
+    await modal.getByLabel('수업일 1 이름', { exact: true }).scrollIntoViewIfNeeded();
     await testInfo.attach('session-schedules-admin-populated-1366.png', {
       body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
     });
@@ -92,6 +93,9 @@ export async function verifySessionSchedules(
     await expect(page).toHaveURL(new RegExp(`scores\\?schedule=${thu.id}$`));
     await expect(page.getByRole('checkbox', { name: `${peer.name} 선택`, exact: true })).toBeVisible();
     await expect(page.getByRole('checkbox', { name: `${primary.name} 선택`, exact: true })).toHaveCount(0);
+    await expect(page.locator('.scores-entry-page').getByText('성적 불러오는 중…', { exact: true })).toBeHidden();
+    await page.getByRole('checkbox', { name: `${peer.name} 선택`, exact: true }).scrollIntoViewIfNeeded();
+    await expect(page.getByRole('checkbox', { name: `${peer.name} 선택`, exact: true })).toBeInViewport();
     await testInfo.attach('session-schedules-admin-scores-reloaded-1366.png', {
       body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
     });
@@ -119,6 +123,7 @@ export async function verifySessionSchedules(
     await expect(modal.getByRole('alert')).toContainText('작성 내용은 보관 중');
     await expect(modal.getByLabel('수업일 1 이름', { exact: true })).toHaveValue('수요일 작성 중');
     expect((await expectApi<SessionSchedules>(request, 'GET', endpoint, admin.access)).version).toBe(concurrent.version);
+    await modal.getByLabel('수업일 1 이름', { exact: true }).scrollIntoViewIfNeeded();
     await testInfo.attach('session-schedules-admin-conflict-409-1366.png', {
       body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
     });
@@ -134,7 +139,7 @@ export async function verifySessionSchedules(
     await removal.getByRole('button', { name: '원래 날짜로 돌아가기', exact: true }).click();
     await expect(modal).toBeHidden();
     await expect(page).toHaveURL(new RegExp(`schedule=${thu.id}$`));
-    await expect(page.getByRole('alert')).toContainText('선택한 수업일을 찾을 수 없습니다');
+    await expect(page.getByRole('alert').filter({ hasText: '선택한 수업일을 찾을 수 없습니다' })).toBeVisible();
     expect((await expectApi<SessionSchedules>(request, 'GET', endpoint, admin.access)).schedules).toEqual([]);
     const restoredStudent = await expectApi<{ date: string; schedule_configured: boolean }>(request, 'GET', `/student/sessions/${scope.sessionId}/`, student.access);
     expect(restoredStudent).toMatchObject({ date: base.date, schedule_configured: false });
