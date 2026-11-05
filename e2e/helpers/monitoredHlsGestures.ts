@@ -156,6 +156,7 @@ type FullscreenAuditWindow = Window & { __qaFullscreenInputs: Array<{
 
 export async function verifyFullscreenControls(scenario: GestureScenario) {
   const { page, info } = scenario;
+  await page.clock.install();
   await page.addInitScript(() => {
     const audit = window as FullscreenAuditWindow;
     audit.__qaFullscreenInputs = [];
@@ -236,9 +237,26 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
   };
   const chromium = page.context().browser()?.browserType().name() === "chromium";
   const cdp = chromium ? await page.context().newCDPSession(page) : null;
-  const selectors = scenario.viewport?.width === 1366 ? [".svpControls .svpFullscreenButton"]
-    : [".svpFullscreenTopButton", ".svpControls .svpFullscreenButton"];
-  if (scenario.viewport?.width === 1366) await expect(page.locator(".svpFullscreenTopButton")).toBeHidden();
+  const layout = await page.evaluate(() => ({
+    viewport: { width: innerWidth, height: innerHeight },
+    touchLayout: matchMedia("(max-width: 768px), (hover: none)").matches,
+    hoverNone: matchMedia("(hover: none)").matches,
+    topDisplay: getComputedStyle(document.querySelector(".svpFullscreenTopButton")!).display,
+  }));
+  const selectors = layout.touchLayout ? [".svpFullscreenTopButton", ".svpControls .svpFullscreenButton"]
+    : [".svpControls .svpFullscreenButton"];
+  if (layout.touchLayout) await expect(page.locator(".svpFullscreenTopButton")).toBeVisible();
+  else await expect(page.locator(".svpFullscreenTopButton")).toBeHidden();
+  const observations: unknown[] = [];
+  const observe = async (stage: string) => {
+    observations.push({ stage, state: { ...state, events: [...state.events] }, dom: await page.evaluate(() => {
+      const media = document.querySelector("video.svpVideo") as HTMLVideoElement;
+      return { at: performance.now(), wrapClass: document.querySelector(".svpPlayerWrap")?.className,
+        fullscreen: document.fullscreenElement?.className ?? null, currentTime: media.currentTime, paused: media.paused,
+        inputs: (window as FullscreenAuditWindow).__qaFullscreenInputs,
+        transitions: (window as FullscreenAuditWindow).__qaFullscreenTransitions };
+    }) });
+  };
   try {
     for (const selector of selectors) {
       const button = page.locator(selector);
@@ -249,6 +267,7 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
           const box = (await button.boundingBox())!;
           const point = { x: box.x + box.width / 2, y: box.y + box.height / 2, id: 1 };
           await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
+          await observe(`${selector}/${cancelledBy}/down`);
           // Activation must not begin at pointerdown, before cancellation or release.
           await expect(wrap).not.toHaveClass(/svpPlayerWrap--fullscreen/);
           if (cancelledBy === "cancel") {
@@ -257,6 +276,7 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
             await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...point, x: point.x - 90 }] });
             await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
           }
+          await observe(`${selector}/${cancelledBy}/released`);
           await expect(wrap).not.toHaveClass(/svpPlayerWrap--fullscreen/);
           await assertPlaying();
         }
@@ -271,12 +291,32 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
             await page.keyboard.press(input);
           }
         };
-        await activate();
-        await expect(wrap).toHaveClass(/svpPlayerWrap--fullscreen/);
-        await expect(button).toHaveAttribute("aria-label", "전체화면 종료");
-        await activate();
-        await expect(wrap).not.toHaveClass(/svpPlayerWrap--fullscreen/);
-        await expect(button).toHaveAttribute("aria-label", "전체화면");
+        // Freeze only JS timers: trusted touch and native fullscreen remain real.
+        // Exit before the old 350ms watchdog, then cross that boundary explicitly.
+        const rapidTouch = input === "touch";
+        if (rapidTouch) await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
+        try {
+          await activate();
+          await observe(`${selector}/${input}/enter`);
+          await expect(wrap).toHaveClass(/svpPlayerWrap--fullscreen/);
+          if (rapidTouch && chromium) {
+            await expect.poll(() => page.evaluate(() => document.fullscreenElement?.classList.contains("svpPlayerWrap") ?? false)).toBe(true);
+          }
+          await expect(button).toHaveAttribute("aria-label", "전체화면 종료");
+          await activate();
+          await observe(`${selector}/${input}/exit`);
+          await expect(wrap).not.toHaveClass(/svpPlayerWrap--fullscreen/);
+          await expect(button).toHaveAttribute("aria-label", "전체화면");
+          if (rapidTouch) {
+            const before = await page.evaluate(() => (window as FullscreenAuditWindow).__qaFullscreenTransitions);
+            await page.clock.runFor(351);
+            await expect(wrap).not.toHaveClass(/svpPlayerWrap--fullscreen/);
+            expect(await page.evaluate(() => (window as FullscreenAuditWindow).__qaFullscreenTransitions)).toEqual(before);
+            await observe(`${selector}/touch/past-350ms`);
+          }
+        } finally {
+          if (rapidTouch) await page.clock.resume();
+        }
         expectedPairs++;
         if (input !== "touch") await verifyFocusedShortcuts(button);
         await assertPlaying();
@@ -284,6 +324,8 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
       }
     }
   } finally {
+    await observe("fullscreen-loop-finally");
+    await info.attach("fullscreen-layout-input-observations", { contentType: "application/json", body: JSON.stringify({ layout, observations }) });
     await cdp?.detach();
   }
   const fullscreenEvents = () => state.events.filter(event => event.type.startsWith("FULLSCREEN_"));

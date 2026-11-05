@@ -1,6 +1,7 @@
 // PATH: src/app_student/domains/video/playback/player/StudentVideoPlayer.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReviewWatch } from "./useReviewWatch";
+import { usePlayerFullscreen } from "./usePlayerFullscreen";
 
 import "./player.css";
 
@@ -9,8 +10,6 @@ import {
   formatClock,
   formatDateTimeKorean,
   getOrCreateDeviceId,
-  getActiveFullscreenElement,
-  isIOSWebKitRuntime,
   safeParseFloat,
 } from "./design/utils";
 import {
@@ -94,7 +93,7 @@ export default function StudentVideoPlayer({
   const [ctrlState, setCtrlState] = useState<ControllerState>(initialControllerState);
   const [theater, setTheater] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const { isFullscreen, requestFullscreen } = usePlayerFullscreen(wrapElRef, videoElRef, controllerRef, setShowControls);
   const policySkipBudget = useMemo<ForwardSkipBudgetState>(() => ({
     enabled: policy.seek?.enabled === true,
     step_seconds: Math.max(1, Number(policy.seek?.step_seconds || 10)),
@@ -113,7 +112,6 @@ export default function StudentVideoPlayer({
   const [skipBudget, setSkipBudget] = useState<ForwardSkipBudgetState>(policySkipBudget);
   const [skipPending, setSkipPending] = useState(false);
   const skipPendingRef = useRef(false);
-  const fullscreenFallbackRef = useRef(false);
 
   const gestureLayerRef = useRef<HTMLDivElement | null>(null);
   const hideControlsTimerRef = useRef<number | null>(null);
@@ -248,79 +246,6 @@ export default function StudentVideoPlayer({
       ctrl.setSource(bootstrap.play_url || video.hls_url || "");
     }
   }, [bootstrap.play_url, bootstrap.policy, bootstrap.token, bootstrap.expires_at, video.hls_url, speedLocked]);
-
-  useEffect(() => {
-    const wrap = wrapElRef.current;
-    if (!wrap) return;
-
-    const onFullscreenChange = () => {
-      const el = getActiveFullscreenElement();
-      const active = el === wrap || (el && wrap.contains(el));
-      if (!active) fullscreenFallbackRef.current = false;
-      setIsFullscreen(!!active);
-      if (active) {
-        document.body.style.overflow = "hidden";
-        document.body.style.touchAction = "none";
-        setShowControls(true);
-      } else {
-        document.body.style.overflow = "";
-        document.body.style.touchAction = "";
-      }
-    };
-
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    document.addEventListener("webkitfullscreenchange", onFullscreenChange);
-    document.addEventListener("mozfullscreenchange", onFullscreenChange);
-    return () => {
-      document.removeEventListener("fullscreenchange", onFullscreenChange);
-      document.removeEventListener("webkitfullscreenchange", onFullscreenChange);
-      document.removeEventListener("mozfullscreenchange", onFullscreenChange);
-      document.body.style.overflow = "";
-      document.body.style.touchAction = "";
-    };
-  }, []);
-
-  // iOS 등: video 요소 네이티브 전체화면(webkitEnterFullscreen) 종료 시 상태 복구 — 플레이어 끄면 UI 꼬임 방지
-  useEffect(() => {
-    const vid = videoElRef.current;
-    if (!vid) return;
-    const lockPageForFullscreen = () => {
-      document.body.style.overflow = "hidden";
-      document.body.style.touchAction = "none";
-    };
-    const unlockPageFromFullscreen = () => {
-      document.body.style.overflow = "";
-      document.body.style.touchAction = "";
-    };
-    const onNativeVideoFullscreenBegin = () => {
-      fullscreenFallbackRef.current = false;
-      setIsFullscreen(true);
-      setShowControls(true);
-      lockPageForFullscreen();
-      controllerRef.current?.queueFullscreenEvent(true);
-    };
-    const onNativeVideoFullscreenEnd = () => {
-      fullscreenFallbackRef.current = false;
-      setIsFullscreen(false);
-      unlockPageFromFullscreen();
-      controllerRef.current?.queueFullscreenEvent(false);
-    };
-    vid.addEventListener("webkitbeginfullscreen", onNativeVideoFullscreenBegin);
-    vid.addEventListener("webkitendfullscreen", onNativeVideoFullscreenEnd);
-    return () => {
-      vid.removeEventListener("webkitbeginfullscreen", onNativeVideoFullscreenBegin);
-      vid.removeEventListener("webkitendfullscreen", onNativeVideoFullscreenEnd);
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (fullscreenFallbackRef.current) {
-        document.body.style.overflow = "";
-        document.body.style.touchAction = "";
-      }
-    };
-  }, []);
 
   useEffect(() => {
     if (hideControlsTimerRef.current) {
@@ -462,113 +387,6 @@ export default function StudentVideoPlayer({
     shouldIgnorePointer,
     getIsDrag: () => swipeHandledRef.current,
   });
-  const requestFullscreen = useCallback(() => {
-    const wrap = wrapElRef.current;
-    const vid = videoElRef.current;
-    const ctrl = controllerRef.current;
-
-    const isFs = getActiveFullscreenElement();
-    const inFallback = fullscreenFallbackRef.current;
-
-    const enterFallback = () => {
-      if (getActiveFullscreenElement()) return;
-      fullscreenFallbackRef.current = true;
-      setIsFullscreen(true);
-      document.body.style.overflow = "hidden";
-      document.body.style.touchAction = "none";
-      setShowControls(true);
-      ctrl?.queueFullscreenEvent(true);
-    };
-
-    const exitFallback = () => {
-      fullscreenFallbackRef.current = false;
-      setIsFullscreen(false);
-      document.body.style.overflow = "";
-      document.body.style.touchAction = "";
-      ctrl?.queueFullscreenEvent(false);
-    };
-
-    try {
-      if (isFs || isFullscreen) {
-        ctrl?.queueFullscreenEvent(false);
-        if (inFallback) {
-          exitFallback();
-          return;
-        }
-        if (isFs) {
-          if (document.exitFullscreen) document.exitFullscreen();
-          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-          else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
-          return;
-        }
-        if (vid?.webkitExitFullscreen) {
-          vid.webkitExitFullscreen();
-          return;
-        }
-        exitFallback();
-        return;
-      }
-
-      ctrl?.queueFullscreenEvent(true);
-
-      const enterNativeVideoFullscreen = () => {
-        if (!vid?.webkitEnterFullscreen) return false;
-        try {
-          vid.webkitEnterFullscreen();
-          fullscreenFallbackRef.current = false;
-          setIsFullscreen(true);
-          setShowControls(true);
-          document.body.style.overflow = "hidden";
-          document.body.style.touchAction = "none";
-          return true;
-        } catch {
-          return false;
-        }
-      };
-
-      const tryNative = () => {
-        // iOS WebKit(Safari/Chrome/앱 내 브라우저): video 네이티브 전체화면이 가장 안정적이다.
-        if (isIOSWebKitRuntime() && enterNativeVideoFullscreen()) {
-          return true;
-        }
-        // Android 및 데스크톱: 래퍼 전체화면 (Fullscreen API)
-        if (wrap?.requestFullscreen) {
-          wrap.requestFullscreen({ navigationUI: "hide" }).catch(() => setTimeout(enterFallback, 100));
-          return true;
-        }
-        if (wrap?.webkitRequestFullscreen) {
-          wrap.webkitRequestFullscreen();
-          return true;
-        }
-        // 래퍼 전체화면 불가 시 video 요소 직접 시도
-        if (vid?.requestFullscreen) {
-          vid.requestFullscreen().catch(() => setTimeout(enterFallback, 100));
-          return true;
-        }
-        if (vid?.webkitRequestFullscreen) {
-          vid.webkitRequestFullscreen();
-          return true;
-        }
-        if (enterNativeVideoFullscreen()) {
-          return true;
-        }
-        return false;
-      };
-
-      if (!tryNative()) {
-        enterFallback();
-        return;
-      }
-
-      setTimeout(() => {
-        const nowFs = getActiveFullscreenElement();
-        if (!nowFs && !isIOSWebKitRuntime()) enterFallback();
-      }, 350);
-    } catch {
-      enterFallback();
-    }
-  }, [isFullscreen]);
-
   const onStageTouchEndLongPress = useCallback(() => {
     finishLongPressRateGesture(longPressTimerRef, savedRateRef, (savedRate) => {
       controllerRef.current?.setRate(speedLocked ? 1 : clamp(savedRate, 0.25, maxRate));
