@@ -1,0 +1,74 @@
+.watch-logs { max-width: 1120px; margin: 0 auto; padding: 24px; color: var(--color-text-primary); }
+.watch-logs h1 { font-size: 24px; font-weight: 700; margin: 4px 0 8px; outline-offset: 5px; }
+.watch-logs h2 { font-size: 16px; font-weight: 650; }
+.watch-logs p { margin: 6px 0; line-height: 1.6; }
+.watch-logs a { color: inherit; text-decoration: none; }
+.watch-logs__trail { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 22px; font-size: 13px; }
+.watch-logs__trail a, .watch-logs__back { color: var(--color-primary); text-decoration: underline !important; text-underline-offset: 4px; }
+.watch-logs__trail a { padding: 8px 0; }
+.watch-logs__header, .watch-logs__event-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 22px; }
+.watch-logs__header > div, .watch-logs__event-header > div { min-width: 0; }
+.watch-logs__header p, .watch-logs__event-header p, .watch-logs__muted { color: var(--color-text-secondary); font-size: 13px; }
+.watch-logs__video { overflow-wrap: anywhere; }
+.watch-logs__toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 24px; padding: 18px 0; }
+.watch-logs__search { display: grid; gap: 6px; font-size: 13px; flex: 1 1 220px; max-width: 360px; }
+.watch-logs__search input { width: 100%; min-height: 42px; border: 1px solid var(--color-border-divider); border-radius: 6px; padding: 8px 12px; color: var(--color-text-primary); background: var(--color-bg-surface); }
+.watch-logs__check { display: flex; gap: 8px; align-items: center; min-height: 44px; font-size: 13px; }
+.watch-logs__check input { width: 18px; height: 18px; }
+.watch-logs__list-caption { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--color-text-secondary); margin: 0 0 10px; }
+.watch-logs__list, .watch-logs__summary { border: 1px solid var(--color-border-divider); border-radius: 10px; background: var(--color-bg-surface); overflow: hidden; }
+.watch-logs__columns, .watch-logs__student { display: grid; grid-template-columns: minmax(120px, 1.4fr) minmax(150px, 1.2fr) minmax(130px, 1fr) 90px; gap: 16px; align-items: center; padding: 16px 20px; }
+.watch-logs__columns { font-size: 12px; color: var(--color-text-secondary); background: var(--color-bg-surface-hover); }
+.watch-logs__student { font-size: 14px; min-height: 72px; border-top: 1px solid var(--color-border-divider); }
+.watch-logs__student > * { min-width: 0; overflow-wrap: anywhere; }
+.watch-logs__student > span:nth-child(3) { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.watch-logs__student:hover, .watch-logs__student:focus-visible { background: var(--color-bg-surface-hover); }
+.watch-logs__student small { display: none; }
+.watch-logs__detail-label { font-size: 12px; color: var(--color-text-secondary); }
+.watch-logs__state { padding: 28px 16px; text-align: center; }
+.watch-logs__state p { font-size: 13px; color: var(--color-text-secondary); margin-bottom: 12px; }
+.watch-logs__pagination { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; padding: 14px 0; }
+.watch-logs__back { display: inline-block; padding: 10px 0; margin-bottom: 10px; }
+.watch-logs__summary { padding: 22px; margin-bottom: 28px; }
+.watch-logs__summary dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin: 0 0 20px; }
+.watch-logs__summary dt { color: var(--color-text-secondary); font-size: 12px; margin-bottom: 7px; }
+.watch-logs__summary dd { font-size: 18px; font-weight: 650; margin: 0; overflow-wrap: anywhere; }
+.watch-logs__notice { padding: 12px; background: var(--color-bg-surface-hover); border-inline-start: 3px solid var(--color-border-divider); font-size: 13px; }
+.watch-logs__activity { margin-top: 26px; border-top: 1px solid var(--color-border-divider); }
+.watch-logs summary { cursor: pointer; }
+.watch-logs__activity > summary { padding: 18px 0; font-size: 14px; font-weight: 600; }
+.watch-logs__range { display: flex; gap: 8px; margin-bottom: 14px; }
+.watch-logs__events { min-width: 0; }
+.watch-logs__event { border-bottom: 1px solid var(--color-border-divider); }
+.watch-logs__event > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; min-height: 68px; padding: 12px 4px; list-style: none; }
+.watch-logs__event > summary::-webkit-details-marker { display: none; }
+.watch-logs__event-chevron { display: inline-block; font-size: 18px; margin-left: 4px; }
+.watch-logs__event[open] > summary .watch-logs__event-chevron { transform: rotate(90deg); }
+.watch-logs__event > summary > span:first-child { flex: 1 1 220px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.watch-logs__event time, .watch-logs__event-body { font-size: 12px; color: var(--color-text-secondary); }
+.watch-logs__event-body { padding: 8px 14px 18px; background: var(--color-bg-surface-hover); }
+.watch-logs__event-body summary { padding: 12px 0; }
+.watch-logs__event-body pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 320px; overflow: auto; }
+@media (max-width: 640px) {
+  .watch-logs { padding: 16px 12px; }
+  .watch-logs h1 { font-size: 21px; }
+  .watch-logs__header, .watch-logs__event-header { flex-wrap: wrap; gap: 8px; }
+  .watch-logs__columns { display: none; }
+  .watch-logs__student { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 16px; }
+  .watch-logs__student > strong { grid-column: 1 / -1; }
+  .watch-logs__student > span:nth-child(2) { grid-column: 1 / -1; }
+  .watch-logs__student small { display: inline; color: var(--color-text-secondary); margin-right: 8px; }
+  .watch-logs__student > span:last-child { text-align: right; }
+  .watch-logs__summary { padding: 16px; }
+  .watch-logs__summary dl { grid-template-columns: 1fr; gap: 18px; }
+  .watch-logs__search { max-width: none; }
+  .watch-logs__event > summary > span:first-child { flex-basis: 100%; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .watch-logs__student { transition: background-color .15s; }
+  .watch-logs__event-chevron { transition: transform .15s; }
+  .watch-logs details[open] > .watch-logs__event-body, .watch-logs__summary { animation: watch-log-reveal .15s ease-out; }
+  @keyframes watch-log-reveal { from { opacity: .35; transform: translateY(3px); } }
+}
+
+.watch-logs--teacher { --color-text-primary: var(--tc-text); --color-text-secondary: var(--tc-text-muted); --color-border-divider: var(--tc-border); --color-bg-surface: var(--tc-surface); }
