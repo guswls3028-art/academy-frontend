@@ -57,7 +57,6 @@ export default function TeacherVideoPreview({ video }: Props) {
     } else if (Hls.isSupported()) {
       hls = new Hls({
         startLevel: -1,
-        abrEwmaDefaultEstimate: 20_000_000,
       });
       hls.on(Hls.Events.MANIFEST_PARSED, markReady);
       hls.on(Hls.Events.ERROR, (_event, data) => {

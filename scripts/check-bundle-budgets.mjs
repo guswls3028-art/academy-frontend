@@ -52,6 +52,36 @@ if (eagerPdfJs) {
   throw new Error(`PDF.js must stay out of the initial HTML preload list: ${eagerPdfJs.href}`);
 }
 
+const initialJsScripts = [...entryHtml.matchAll(/<script\b[^>]*>/g)]
+  .map(([tag]) => tag.match(/\bsrc="([^"]+\.js(?:[?#][^"]*)?)"/i)?.[1])
+  .filter((href) => href !== undefined)
+  .map((href) => {
+    const url = new URL(href, "https://academy.invalid");
+    if (url.origin !== "https://academy.invalid") return null;
+    const relativePath = url.pathname.replace(/^\/+/, "");
+    return { href, filePath: path.resolve("dist", relativePath) };
+  })
+  .filter((entry) => entry !== null);
+const initialJsAssetPaths = new Map(
+  [...initialJsPreloads, ...initialJsScripts].map(({ href, filePath }) => [filePath, href]),
+);
+const staticallyImportsPdfJs = (source) => (
+  /(?:from|import)\s*["'][^"']*vendor-pdfjs-/.test(source)
+  || /System\.register\(\s*\[[^\]]*vendor-pdfjs-/s.test(source)
+);
+for (const [filePath, href] of initialJsAssetPaths) {
+  const source = await readFile(filePath, "utf8");
+  if (staticallyImportsPdfJs(source)) {
+    throw new Error(`An initial JavaScript asset statically imports PDF.js: ${href}`);
+  }
+}
+for (const name of files.filter((asset) => asset.startsWith("vendor-query"))) {
+  const source = await readFile(path.join(ASSETS_DIR, name), "utf8");
+  if (staticallyImportsPdfJs(source)) {
+    throw new Error(`A shared React Query chunk statically imports PDF.js: ${name}`);
+  }
+}
+
 const initialPreloadBuffers = await Promise.all(
   initialJsPreloads.map(({ filePath }) => readFile(filePath)),
 );

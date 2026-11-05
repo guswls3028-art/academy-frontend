@@ -103,6 +103,7 @@ export default defineConfig(({ mode }) => {
     },
     rolldownOptions: {
       output: {
+        strictExecutionOrder: true,
         codeSplitting: {
           groups: [
             {
@@ -118,6 +119,19 @@ export default defineConfig(({ mode }) => {
                 );
               },
               priority: 50,
+            },
+            {
+              // Prevent shared query chunks from recursively absorbing lazy feature dependencies.
+              name: "vendor-query",
+              test: (id) => {
+                const normalized = id.replace(/\\/g, "/");
+                return (
+                  normalized.includes("/node_modules/@tanstack/react-query/") ||
+                  normalized.includes("/node_modules/@tanstack/query-core/")
+                );
+              },
+              includeDependenciesRecursively: false,
+              priority: 30,
             },
             {
               name: "vendor-icons",
@@ -151,7 +165,6 @@ export default defineConfig(({ mode }) => {
                 const normalized = id.replace(/\\/g, "/");
                 if (normalized.endsWith(".css")) return null;
                 if (normalized.includes("node_modules")) {
-                  if (normalized.includes("@tanstack/react-query")) return "vendor-query";
                   if (normalized.includes("recharts") || normalized.includes("/d3-")) return "vendor-charts";
                   if (normalized.includes("pdfjs-dist")) return "vendor-pdfjs";
                   if (normalized.includes("pdf-lib")) return "vendor-pdf-lib";

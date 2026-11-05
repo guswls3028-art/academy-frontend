@@ -41,10 +41,12 @@ window use the shared bounded `waitForRenderSettled` helper before asserting the
 first screen state; retries remain a recovery path, not the expected cold-start
 path.
 
-The initial HTML JavaScript preload budget is 220 KiB gzip. PDF.js stays out of
-that entry preload and is fetched with its lazy document or PPT route. The bundle
-budget check enforces both limits so unrelated first-screen loads do not pay for
-PDF rendering code.
+The initial HTML JavaScript preload budget is 220 KiB gzip. Initial scripts and
+preloaded chunks must not statically import PDF.js; it loads with its lazy document
+or PPT route. The React Query vendor group does not recursively capture unrelated
+dependencies. The bundle budget check enforces the preload cap
+and the PDF.js boundary so unrelated first-screen loads do not pay for PDF rendering
+code.
 
 Verification:
 
