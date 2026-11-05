@@ -115,8 +115,9 @@ test.describe("선생님 업데이트 안내의 도움말 이동", () => {
     await page.getByRole("button", { name: "메뉴", exact: true }).click();
     const drawer = page.getByRole("navigation", { name: "선생님 메뉴" });
     await drawer.getByRole("button", { name: /지원/ }).click();
-    await expect(drawer.getByText("사용 가이드", { exact: true })).toBeVisible();
-    await expect(drawer.getByText("업데이트 소식", { exact: true })).toHaveCount(0);
+    await expect(page).toHaveURL(/\/workspace\/mobile\/menu\?group=help$/);
+    await expect(page.getByRole("region", { name: "지원", exact: true }).getByText("사용 가이드", { exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "지원", exact: true }).getByText("업데이트 소식", { exact: true })).toHaveCount(0);
     expect(mutations).toEqual([]);
   });
 

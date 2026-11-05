@@ -9,6 +9,7 @@ import StudentLayout from "@student/layout/StudentLayout";
 import styles from "./StudentRouter.module.css";
 
 const DashboardPage = lazy(() => import("@student/domains/dashboard/pages/DashboardPage"));
+const StudentMenuPage = lazy(() => import("@student/layout/StudentMenuPage"));
 const VideoHomePage = lazy(() => import("@student/domains/video/pages/VideoHomePage"));
 const CourseDetailPage = lazy(() => import("@student/domains/video/pages/CourseDetailPage"));
 const VideoSessionDetailPage = lazy(() => import("@student/domains/video/pages/SessionDetailPage"));
@@ -78,6 +79,7 @@ export default function StudentRouter() {
         <Route index element={<Navigate to="/student/dashboard" replace />} />
 
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="menu" element={<StudentMenuPage />} />
         <Route path="video" element={<VideoHomePage />} />
         <Route path="video/courses/public" element={<CourseDetailPage />} />
         <Route path="video/courses/:lectureId" element={<CourseDetailPage />} />

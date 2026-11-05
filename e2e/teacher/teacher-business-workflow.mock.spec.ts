@@ -295,8 +295,9 @@ test("학원장은 결제 메뉴를 사용하고 카드 실패를 빈 목록과 
 
   const sidebar = page.getByRole("navigation", { name: "선생님 메뉴" });
   const adminGroup = sidebar.getByRole("button", { name: /관리자 전용/ });
-  if (await adminGroup.getAttribute("aria-expanded") !== "true") await adminGroup.click();
-  await expect(sidebar.getByText("결제 / 구독", { exact: true })).toBeVisible();
+  await adminGroup.click();
+  await expect(page).toHaveURL(/\/workspace\/mobile\/menu\?group=account$/);
+  await expect(page.getByRole("region", { name: "관리자 전용" }).getByText("결제 / 구독", { exact: true })).toBeVisible();
 });
 
 test("홈 수업 카드와 같은 제목의 강의를 목록에서 열고 차시로 이동한다", async ({ page }) => {

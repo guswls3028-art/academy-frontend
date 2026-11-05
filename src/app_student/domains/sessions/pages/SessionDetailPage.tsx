@@ -29,7 +29,7 @@ export default function SessionDetailPage() {
 
   if (!Number.isFinite(safeId)) {
     return (
-      <StudentPageShell title="차시" description="잘못된 접근입니다.">
+      <StudentPageShell breadcrumbs={[{ label: "수업 목록", to: "/student/sessions" }]} title="차시" description="잘못된 접근입니다.">
         <EmptyState title="잘못된 주소입니다." />
       </StudentPageShell>
     );
@@ -37,7 +37,7 @@ export default function SessionDetailPage() {
 
   if (isLoading) {
     return (
-      <StudentPageShell title="차시">
+      <StudentPageShell breadcrumbs={[{ label: "수업 목록", to: "/student/sessions" }]} title="차시">
         <div className={styles.loadingStack}>
           <div className={`stu-skel ${styles.skelCard}`} />
           <div className={`stu-skel ${styles.skelCard}`} />
@@ -49,14 +49,14 @@ export default function SessionDetailPage() {
 
   if (isError || !data) {
     return (
-      <StudentPageShell title="차시">
+      <StudentPageShell breadcrumbs={[{ label: "수업 목록", to: "/student/sessions" }]} title="차시">
         <EmptyState title="수업 정보를 불러오지 못했어요." description="잠시 후 다시 시도해 주세요." onRetry={() => refetch()} />
       </StudentPageShell>
     );
   }
 
   return (
-    <StudentPageShell title={data.title} description={`날짜: ${formatYmd(data.date ?? null)}`}>
+    <StudentPageShell breadcrumbs={[{ label: "수업 목록", to: "/student/sessions" }]} title={data.title} description={`날짜: ${formatYmd(data.date ?? null)}`}>
       <div className={styles.stack}>
         {/* ===== Primary: 영상 (가장 중요) ===== */}
         <ActionCard title="영상 보기" desc="이 수업의 영상을 볼 수 있어요." primary>

@@ -959,7 +959,7 @@ export default function SessionAttendancePage({
                         {studentName}
                       </div>
                       {att.enrollment_id != null ? (
-                        <StudentLectureMemo enrollmentId={att.enrollment_id}
+                        <StudentLectureMemo compact={isCompactAttendance} enrollmentId={att.enrollment_id}
                           studentName={studentName}
                           lectureTitle={att.lecture_title} lectureMemo={att.lecture_memo}
                           studentMemo={att.student_memo} />

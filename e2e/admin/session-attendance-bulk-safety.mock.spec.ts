@@ -385,11 +385,15 @@ function createState(overrides: Partial<MockState> = {}): MockState {
 }
 
 test("차시 헤더 집계는 탭 이동에도 남고 공지는 커뮤니티로 튕기지 않는다", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
   const state = createState();
   await openAttendance(page, state);
 
   const headerSummary = page.locator('[aria-label^="차시 출결 집계:"]');
   await expect(headerSummary).toContainText("총2");
+  await expect(page.locator(".domain-layout__title")).toHaveCount(1);
+  await expect(page.getByRole("navigation", { name: "상위 경로" }).getByRole("link").first()).toHaveAttribute("href", "/workspace/lectures");
+  await page.screenshot({ path: testInfo.outputPath("session-attendance-1366.png"), fullPage: true });
 
   await page.getByRole("tab", { name: "공지·게시판" }).click();
   await expect(page).toHaveURL(new RegExp(
@@ -397,6 +401,7 @@ test("차시 헤더 집계는 탭 이동에도 남고 공지는 커뮤니티로 
   ));
   await expect(page).not.toHaveURL(/\/workspace\/community\/notice/);
   await expect(page.locator(".notice-tree--embedded")).toBeVisible();
+  await expect(page.getByRole("tab", { name: "공지·게시판" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator(".notice-tree__nav")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "공지사항" })).toBeVisible();
   await expect(headerSummary).toContainText("미입력1");
@@ -404,13 +409,21 @@ test("차시 헤더 집계는 탭 이동에도 남고 공지는 커뮤니티로 
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("tab", { name: "공지·게시판" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator('[aria-label^="차시 출결 집계:"]')).toBeVisible();
   await expect(page.locator(".notice-tree--embedded > .qna-inbox__list")).toBeVisible();
   await expect(page.locator(".notice-tree--embedded > .qna-inbox__thread")).toBeHidden();
   await expect.poll(() => page.evaluate(
     () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
   )).toBe(true);
+  const tabs = await page.getByRole("tab").evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top));
+  expect(Math.max(...tabs) - Math.min(...tabs)).toBeLessThanOrEqual(1);
   await page.screenshot({ path: testInfo.outputPath("session-notice-summary-390.png"), fullPage: true });
+  await page.getByRole("tab", { name: "출결", exact: true }).click();
+  const firstRow = page.locator("tbody tr").first();
+  await expect(firstRow).toBeVisible();
+  expect((await firstRow.boundingBox())!.height).toBeLessThanOrEqual(96);
+  await page.screenshot({ path: testInfo.outputPath("attendance-density-390.png"), fullPage: true });
 });
 
 test("출석 명단은 이름 가나다순이 기본이고 계정별 정렬 선택을 새로고침 후에도 유지한다", async ({ page }) => {

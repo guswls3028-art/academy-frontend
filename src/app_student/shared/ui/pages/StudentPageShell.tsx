@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { IconChevronRight } from "../icons/Icons";
 import { InlineHelp } from "@/shared/ui/guide";
+import PageTrail, { type PageCrumb } from "@/shared/ui/navigation/PageTrail";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 export default function StudentPageShell({
@@ -15,6 +16,7 @@ export default function StudentPageShell({
   actions,
   children,
   onBack,
+  breadcrumbs,
   /** 영상 강의/차시 상세처럼 배경을 검정으로 채울 때 사용. .stu-section 외곽 박스/패딩 제거 */
   noSectionFrame,
 }: {
@@ -26,6 +28,7 @@ export default function StudentPageShell({
   actions?: ReactNode;
   children: ReactNode;
   onBack?: () => void;
+  breadcrumbs?: PageCrumb[];
   noSectionFrame?: boolean;
 }) {
   const navigate = useNavigate();
@@ -33,7 +36,7 @@ export default function StudentPageShell({
   const displayDescription = richHtmlToPlainText(description);
   const helpContent = help ?? (descriptionMode === "help" ? displayDescription : null);
   const showVisibleDescription = Boolean(displayDescription && descriptionMode === "visible");
-  const hasHeader = Boolean(title || description || help || actions || onBack);
+  const hasHeader = Boolean(title || description || help || actions || onBack || breadcrumbs?.length);
 
   const handleBack = () => {
     if (onBack) {
@@ -48,6 +51,7 @@ export default function StudentPageShell({
       {hasHeader && (
         <header className="student-page-shell__header">
           <div className="student-page-shell__copy">
+            <PageTrail items={breadcrumbs ?? []} tone="student" />
             {onBack && (
               <button
                 type="button"

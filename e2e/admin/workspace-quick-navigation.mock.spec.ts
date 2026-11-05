@@ -105,6 +105,43 @@ test.describe("업무 화면 기능 검색", () => {
     await installLocalAuthApiStubs(page);
   });
 
+  for (const width of [1366, 390]) {
+    test(`주요 메뉴에서 업무 분류로 이동하고 상세에서 돌아온다 ${width}px`, async ({ page }, info) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`${BASE}/workspace/guide`, { waitUntil: "domcontentloaded" });
+      if (width === 390) await page.getByRole("button", { name: "메뉴", exact: true }).click();
+      const menu = page.getByRole("navigation", { name: "주요 메뉴" }).filter({ visible: true });
+      await expect(menu.getByRole("link")).toHaveCount(7);
+      await expect(menu.getByRole("button")).toHaveCount(0);
+      await expect(menu.getByRole("link", { name: "시험", exact: true })).toHaveCount(0);
+      await menu.getByRole("link", { name: "학습·운영", exact: true }).focus();
+      await page.keyboard.press("Enter");
+      await expect(page).toHaveURL(/\/workspace\/learning$/);
+      await expect(page.getByRole("heading", { name: "학습·운영", exact: true })).toBeVisible();
+      const tasks = page.locator('[aria-label="학습·운영 업무"]');
+      await expect(tasks.getByRole("link")).toHaveCount(5);
+      const exam = tasks.getByRole("link", { name: /^시험/ });
+      const box = await exam.boundingBox();
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+      await page.screenshot({ path: info.outputPath(`learning-section-${width}.png`), fullPage: true });
+      await exam.click();
+      await expect(page).toHaveURL(/\/workspace\/exams$/);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("navigation", { name: "상위 경로" }).getByRole("link", { name: "학습·운영", exact: true }).click();
+      await expect(page).toHaveURL(/\/workspace\/learning$/);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    });
+  }
+
+  test("관리 분류는 현재 권한으로 허용한 업무만 제공한다", async ({ page }) => {
+    await installApi(page, "staff", false);
+    await page.goto(`${BASE}/workspace/management`, { waitUntil: "domcontentloaded" });
+    const tasks = page.locator('[aria-label="관리 업무"]');
+    await expect(tasks.getByRole("link", { name: /^커뮤니티/ })).toBeVisible();
+    await expect(tasks.getByRole("link", { name: /^수납/ })).toHaveCount(0);
+    await expect(tasks.getByRole("link", { name: /^직원 관리/ })).toHaveCount(0);
+  });
+
   test("데스크톱에서 검색·키보드 이동·최근 사용을 복원한다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });
     await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
@@ -257,6 +294,8 @@ test.describe("업무 화면 기능 검색", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${BASE}/workspace/mobile/guide`, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "메뉴", exact: true }).click();
+    await page.getByRole("navigation", { name: "선생님 메뉴" }).getByRole("button", { name: /^지원/ }).click();
+    await expect(page).toHaveURL(/\/workspace\/mobile\/menu\?group=help$/);
     await page.getByRole("button", { name: "기능 찾기", exact: true }).click();
     await expect(page).toHaveURL(/\/workspace\/mobile\/desktop-only$/);
     await expect(page.getByRole("heading", { name: "기능 찾기", exact: true })).toBeVisible();

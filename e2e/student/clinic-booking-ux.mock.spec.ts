@@ -606,12 +606,19 @@ test.describe("학생 클리닉 예약 UX", () => {
     await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
 
     const appArea = page.locator("[data-guide='dash-apps']");
-    const passcardLink = appArea.getByRole("link", { name: "클리닉 패스카드", exact: true });
+    await appArea.getByRole("link", { name: /^전체 메뉴/ }).click();
+    await expect(page).toHaveURL(/\/student\/menu$/);
+    await expect(page.getByRole("heading", { name: "전체 메뉴", exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "학습", exact: true }).getByRole("link", { name: /^시험/ })).toHaveAttribute("href", "/student/exams");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "전체 메뉴", exact: true })).toBeVisible();
+    await page.getByRole("navigation", { name: "상위 경로" }).getByRole("link", { name: "홈", exact: true }).click();
+    const passcardLink = appArea.getByRole("link", { name: /^클리닉 패스카드/ });
     const shortcuts = appArea.getByRole("link");
-    await expect(shortcuts).toHaveCount(8);
+    await expect(shortcuts).toHaveCount(2);
     await expect(passcardLink).toHaveAttribute("href", "/student/idcard");
     await expect(appArea.getByRole("link", { name: "내 정보", exact: true })).toHaveCount(0);
-    for (let index = 0; index < 8; index += 1) {
+    for (let index = 0; index < 2; index += 1) {
       const box = await shortcuts.nth(index).boundingBox();
       expect(box, `shortcut ${index + 1} should have a measurable touch target`).not.toBeNull();
       expect(box!.width).toBeGreaterThanOrEqual(44);
@@ -1671,7 +1678,7 @@ test.describe("학생 클리닉 예약 UX", () => {
     await installApi(page, state, "SUCCESS", undefined, programOptions);
     await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
     const appArea = page.locator("[data-guide='dash-apps']");
-    const statusCardLink = appArea.getByRole("link", { name: "오답 상태 카드", exact: true });
+    const statusCardLink = appArea.getByRole("link", { name: /^오답 상태 카드/ });
     await expect(statusCardLink).toHaveAttribute("href", "/student/idcard");
     await expect(appArea).not.toContainText("패스카드");
     await statusCardLink.click();

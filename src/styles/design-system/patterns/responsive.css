@@ -193,7 +193,9 @@
    6) 버튼 — 모바일 터치 타겟 보장
    ======================================== */
 @media (max-width: 1023px) {
-  [data-app="admin"] .ds-button {
+  /* Keep lg/xl dimensions owned by button.css; mobile density must not shrink them.
+     :where preserves the specificity used by existing compact touch-target rules. */
+  [data-app="admin"] .ds-button:where(:not([data-size="lg"]):not([data-size="xl"])) {
     min-height: 40px !important;
   }
 

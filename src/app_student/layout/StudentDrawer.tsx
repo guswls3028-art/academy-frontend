@@ -2,29 +2,15 @@
  * 좌측 사이드 드로어 - 더보기 메뉴 (모바일 슬라이드)
  */
 import { useEffect, useRef } from "react";
-import type { ComponentType, SVGProps } from "react";
 import { Link } from "react-router";
 
 import { logout } from "@/auth/api/auth.api";
 import { cx } from "@/shared/utils/cx";
 import { useConfirm } from "@/shared/ui/confirm";
 import { useDialogSurface } from "@/shared/ui/overlays/useDialogSurface";
-import {
-  IconBell,
-  IconBoard,
-  IconCalendar,
-  IconClinic,
-  IconClipboard,
-  IconExam,
-  IconFileText,
-  IconFolder,
-  IconGrade,
-  IconLogout,
-  IconNotice,
-  IconPlay,
-  IconSettings,
-  IconUser,
-} from "@student/shared/ui/icons/Icons";
+import { IconLogout } from "@student/shared/ui/icons/Icons";
+import { STUDENT_NAV_GROUPS } from "./studentNavigation";
+import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 
 import styles from "./StudentDrawer.module.css";
 
@@ -33,60 +19,10 @@ type DrawerProps = {
   onClose: () => void;
 };
 
-type DrawerIcon = ComponentType<SVGProps<SVGSVGElement>>;
-
-type NavGroup = {
-  category: string;
-  items: Array<{
-    label: string;
-    to: string;
-    Icon: DrawerIcon;
-  }>;
-};
-
-const NAV: NavGroup[] = [
-  {
-    category: "학습",
-    items: [
-      { label: "영상", to: "/student/video", Icon: IconPlay },
-      { label: "성적", to: "/student/grades", Icon: IconGrade },
-      { label: "시험", to: "/student/exams", Icon: IconExam },
-      { label: "과제", to: "/student/submit/assignment", Icon: IconClipboard },
-    ],
-  },
-  {
-    category: "클리닉",
-    items: [
-      { label: "클리닉", to: "/student/clinic", Icon: IconClinic },
-      { label: "클리닉 패스카드", to: "/student/idcard", Icon: IconClinic },
-    ],
-  },
-  {
-    category: "학원",
-    items: [
-      { label: "일정", to: "/student/sessions", Icon: IconCalendar },
-      { label: "공지사항", to: "/student/notices", Icon: IconNotice },
-      { label: "커뮤니티", to: "/student/community", Icon: IconBoard },
-      { label: "게시판", to: "/student/community?tab=board", Icon: IconBoard },
-      { label: "자료실", to: "/student/community?tab=materials", Icon: IconFolder },
-      { label: "출결 현황", to: "/student/attendance", Icon: IconClipboard },
-    ],
-  },
-  {
-    category: "나",
-    items: [
-      { label: "제출", to: "/student/submit", Icon: IconClipboard },
-      { label: "내 인벤토리", to: "/student/inventory", Icon: IconFolder },
-      { label: "알림", to: "/student/notifications", Icon: IconBell },
-      { label: "프로필", to: "/student/profile", Icon: IconUser },
-      { label: "설정", to: "/student/settings", Icon: IconSettings },
-      { label: "사용 가이드", to: "/student/guide", Icon: IconFileText },
-    ],
-  },
-];
 
 export default function StudentDrawer({ open, onClose }: DrawerProps) {
   const confirm = useConfirm();
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -157,13 +93,13 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
           aria-label="학생 메뉴"
           data-analytics-placement="student.drawer"
         >
-          {NAV.map((group) => (
+          {STUDENT_NAV_GROUPS.map((group) => (
             <section key={group.category} className={styles.group}>
               <div className={styles.groupLabel}>{group.category}</div>
               {group.items.map(({ label, to, Icon }) => (
                 <Link key={to} to={to} className={styles.navLink} onClick={onClose}>
                   <Icon className={styles.navIcon} aria-hidden="true" />
-                  <span>{label}</span>
+                  <span>{to === "/student/idcard" && wrongCompletionOnly ? "오답 상태 카드" : label}</span>
                 </Link>
               ))}
             </section>

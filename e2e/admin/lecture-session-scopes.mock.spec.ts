@@ -95,6 +95,34 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
   });
 }
 
+async function expectAssessmentHeaderActionLayout(page: Page) {
+  const buttons = page.locator(".assessment-detail-header__actions")
+    .locator(":scope > button, :scope > div > button");
+  await expect(buttons).toHaveCount(3);
+  await expect.poll(() => buttons.evaluateAll((elements) => {
+    const metrics = elements.map((button) => {
+      const box = button.getBoundingClientRect();
+      const group = button.closest(".assessment-detail-header__actions")!.getBoundingClientRect();
+      const style = getComputedStyle(button);
+      const label = button.querySelector(".ds-button__label")!;
+      const icon = button.querySelector("svg")!;
+      return {
+        size: [Math.round(box.height), style.paddingLeft, style.paddingRight, style.fontSize,
+          Math.round(icon.getBoundingClientRect().width)],
+        touchTarget: box.height >= 44 && box.width >= 44,
+        contained: box.left >= group.left - 1 && box.right <= group.right + 1,
+        labelFits: label.scrollWidth <= label.clientWidth + 1 && getComputedStyle(label).whiteSpace === "nowrap",
+      };
+    });
+    return {
+      sameSize: metrics.every(({ size }) => JSON.stringify(size) === JSON.stringify(metrics[0].size)),
+      touchTargets: metrics.every(({ touchTarget }) => touchTarget),
+      contained: metrics.every(({ contained }) => contained),
+      labelsFit: metrics.every(({ labelFits }) => labelFits),
+    };
+  })).toEqual({ sameSize: true, touchTargets: true, contained: true, labelsFit: true });
+}
+
 function localJwt(): string {
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   return `${encode({ alg: "none" })}.${encode({
@@ -1639,7 +1667,10 @@ test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에�
   const primaryAction = page.getByTestId("assessment-primary-action");
   await expect(page.getByRole("navigation", { name: "과제 업무 흐름" })).toBeVisible();
   await expect(primaryAction).toHaveText("제출 현황 보기");
-  await page.setViewportSize({ width: 390, height: 844 });
+  for (const width of [1366, 1100, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expectAssessmentHeaderActionLayout(page);
+  }
   const homeworkPicker = assessmentNavigation.getByRole("combobox", { name: "과제 선택", exact: true });
   await expect(homeworkPicker).toHaveValue("9961");
   await homeworkPicker.selectOption({ label: "심화 서술형" });
