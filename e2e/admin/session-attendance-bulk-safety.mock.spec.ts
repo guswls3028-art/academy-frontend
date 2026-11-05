@@ -1187,6 +1187,17 @@ test("모바일 차시 선택은 별도 화면에서 제공하고 왕복 문맥�
   await expect(page.getByRole("heading", { name: "안전 검증 1차시", exact: true })).toBeVisible();
   await expect(selection).not.toBeChecked();
   await expect(search).toHaveValue("");
+  state.failAttendanceRead = true;
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByText("출결 데이터를 불러올 수 없습니다.", { exact: true })).toBeVisible();
+  await expect(entry).toBeInViewport({ ratio: 1 });
+  await entry.click();
+  await expect(page.getByRole("heading", { name: "차시 선택", exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole("group", { name: "수업 보기 방식" })).toBeVisible();
+  await page.getByRole("link", { name: "← 출결 명단", exact: true }).click();
+  state.failAttendanceRead = false;
+  await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(page.getByRole("button", { name: "결석학생 출결 상태 변경" })).toBeVisible();
   expect(state.bulkSetCalls).toBe(0);
   expect(state.attendanceDeleteCalls).toEqual([]);
 });

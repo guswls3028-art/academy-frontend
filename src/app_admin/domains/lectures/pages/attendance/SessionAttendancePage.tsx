@@ -283,8 +283,15 @@ export default function SessionAttendancePage({
   );
   const tableWidth = fixedColsWidth;
 
-  if (isLoading) return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
-  if (isError || attendanceResult == null) return (
+  const chooseSessionAction = isMobile && lectureId != null ? (
+    <Button type="button" intent="secondary" size="lg" onClick={() => navigate(sessionsPath)}>차시 선택</Button>
+  ) : null;
+
+  if (isLoading && attendanceView !== "sessions") return (
+    <div className="flex flex-col gap-3">{chooseSessionAction}<EmptyState scope="panel" tone="loading" title="불러오는 중…" /></div>
+  );
+  if ((isError || attendanceResult == null) && attendanceView !== "sessions") return (
+    <div className="flex flex-col gap-3">{chooseSessionAction}
     <EmptyState
       scope="panel"
       tone="error"
@@ -296,6 +303,7 @@ export default function SessionAttendancePage({
         </Button>
       }
     />
+    </div>
   );
 
   const allIds = sorted.map((att) => att.id);
@@ -584,7 +592,7 @@ export default function SessionAttendancePage({
 
   const primaryAction = (
     <div className="flex flex-wrap items-center gap-2">
-      {isMobile && lectureId != null && <Button type="button" intent="secondary" size="lg" onClick={() => navigate(sessionsPath)}>차시 선택</Button>}
+      {chooseSessionAction}
       <Button type="button" intent="secondary" size="lg" onClick={() => navigate(toolsPath)}>출결 도구</Button>
       {onOpenEnrollModal && <Button type="button" intent="primary" size="lg" onClick={onOpenEnrollModal}>수강생 등록</Button>}
     </div>
