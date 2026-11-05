@@ -925,11 +925,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
 
   const examOptions = useMemo(
     () => (viewFilter === "homework" ? [] : [...(meta?.exams ?? [])]),
-    [viewFilter, meta?.exams, meta?.total_config],
+    [viewFilter, meta?.exams],
   );
   const homeworkOptions = useMemo(
     () => (viewFilter === "exam" ? [] : [...(meta?.homeworks ?? [])]),
-    [viewFilter, meta?.homeworks, meta?.total_config],
+    [viewFilter, meta?.homeworks],
   );
   const includedExamIds = useMemo(() => examOptions.filter((item) => meta?.total_config?.exam_ids.includes(item.exam_id) ?? true).map((item) => item.exam_id), [examOptions, meta?.total_config]);
   const includedHomeworkCount = homeworkOptions.filter((item) => item.grading_mode !== "COMPLETION" && (meta?.total_config?.homework_ids.includes(item.homework_id) ?? true)).length;
