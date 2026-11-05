@@ -63,7 +63,7 @@ export default function SessionCard({ session, date, onRefresh }: Props) {
     current?.start_time && current.end_time
       ? `${current.start_time.slice(0, 5)} – ${current.end_time.slice(0, 5)}`
       : null;
-  const subtitle = [configured ? matching.map(s => s.label).join(' · ') || '수업일 확인 필요' : null, timeStr, session.location, session.section_label]
+  const subtitle = [configured ? selected?.label ?? (matching.map(s => s.label).join(' · ') || '수업일 확인 필요') : null, timeStr, session.location, session.section_label]
     .filter(Boolean)
     .join(" · ");
 

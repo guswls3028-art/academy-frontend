@@ -23,6 +23,22 @@ export interface TodaySession {
   attendance_total?: number | null;
 }
 
+/** Resolve each actual class date before choosing a Today shortcut. */
+export function todaySessionEntries(sessions: TodaySession[], date: string) {
+  return sessions.flatMap(session => {
+    const route = `/workspace/mobile/classes/${session.lecture}/sessions/${session.id}`;
+    const title = session.lecture_title || session.title;
+    if (!session.schedule_dates?.length) {
+      return [{ startTime: session.start_time ?? null, label: title, route }];
+    }
+    return session.schedule_dates.filter(schedule => schedule.date === date).map(schedule => ({
+      startTime: schedule.start_time ?? null,
+      label: `${title} · ${schedule.label}`,
+      route: `${route}?schedule=${schedule.id}`,
+    }));
+  });
+}
+
 /**
  * 오늘 세션 목록 — GET /api/v1/lectures/sessions/?date=YYYY-MM-DD&include_progress=1
  *

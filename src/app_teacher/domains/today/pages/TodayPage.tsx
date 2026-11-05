@@ -12,7 +12,7 @@ import { Badge } from "@teacher/shared/ui/Badge";
 import { AlertCircle, BookOpen, CheckCircle, ChevronRight, Clock, MessageSquare, Send, Sparkles } from "@teacher/shared/ui/Icons";
 import { TEACHER_PENDING_ROUTES } from "@teacher/domains/notifications/routes";
 import { todayLocalISO as todayISO } from "@/shared/utils/localDate";
-import { fetchTodaySessions } from "../api";
+import { fetchTodaySessions, todaySessionEntries } from "../api";
 import { teacherTodayQueryKeys } from "../queryKeys";
 import SessionCard from "../components/SessionCard";
 import styles from "./TodayPage.module.css";
@@ -70,12 +70,12 @@ export default function TodayPage() {
 
   const attendanceGap = Math.max(attendanceProgress.total - attendanceProgress.filled, 0);
   const nextSession = useMemo(() => {
-    if (!sessions || sessions.length === 0) return null;
-    return [...sessions].sort((a, b) => (a.start_time ?? "99:99").localeCompare(b.start_time ?? "99:99"))[0];
-  }, [sessions]);
+    return todaySessionEntries(sessions ?? [], today)
+      .sort((a, b) => (a.startTime ?? "99:99").localeCompare(b.startTime ?? "99:99"))[0] ?? null;
+  }, [sessions, today]);
 
-  const nextSessionLabel = nextSession?.start_time
-    ? `${nextSession.start_time.slice(0, 5)} 시작`
+  const nextSessionLabel = nextSession?.startTime
+    ? `${nextSession.startTime.slice(0, 5)} 시작`
     : nextSession
       ? "시간 미정"
       : "수업 없음";
@@ -164,10 +164,10 @@ export default function TodayPage() {
       return {
         icon: <BookOpen size={ICON.md} />,
         eyebrow: "다음 수업",
-        title: nextSession.lecture_title || nextSession.title,
+        title: nextSession.label,
         description: nextSessionLabel,
         action: "수업 열기",
-        route: `/workspace/mobile/classes/${nextSession.lecture}/sessions/${nextSession.id}`,
+        route: nextSession.route,
         tone: "primary" as const,
       };
     }
@@ -257,9 +257,9 @@ export default function TodayPage() {
         <KpiCard
           label="다음 수업"
           value={nextSession ? nextSessionLabel : "—"}
-          sub={nextSession?.lecture_title || nextSession?.title || "일정 없음"}
+          sub={nextSession?.label || "일정 없음"}
           color={nextSession ? "var(--tc-primary)" : "var(--tc-text-muted)"}
-          onClick={() => navigate(nextSession ? `/workspace/mobile/classes/${nextSession.lecture}/sessions/${nextSession.id}` : "/workspace/mobile/classes")}
+          onClick={() => navigate(nextSession?.route ?? "/workspace/mobile/classes")}
         />
       </div>
 

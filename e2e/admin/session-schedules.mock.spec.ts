@@ -25,7 +25,7 @@ function fixture(configured = false) {
     copies: [] as { version: string; source_session: number }[],
     bulk: [] as { session: number; schedule?: string }[],
     reads: [] as { kind: string; scope: string | null }[],
-    failSave: 0, failRead: false, failScores: false, failAttendance: false,
+    failSave: 0, failRead: false, failScores: false, failAttendance: false, attendanceFilled: 0,
   };
   return state;
 }
@@ -42,8 +42,10 @@ async function install(page: Page, state: ReturnType<typeof fixture>) {
     if (method === 'OPTIONS') return route.fulfill({ status: 204 });
     if (endpoint === '/core/program/') return json({ tenantCode: 'hakwonplus', isPlatformAdmin: true, display_name: '학원플러스', feature_flags: {}, is_active: true });
     if (endpoint === '/core/me/') return json({ id: 12, username: 'admin', name: '관리자', is_staff: true, is_superuser: true, tenantRole: 'admin', must_change_password: false });
+    if (endpoint === '/results/admin/teacher-dashboard-counts/') return json({ qna_pending: 0, counsel_pending: 0, submission_pending: 0, video_failed: 0 });
+    if (endpoint === '/lectures/attendance/arrival-overview/') return json({ generated_at: '2026-11-05T00:00:00Z', today: '2026-11-05', tomorrow: '2026-11-06', range_end: '2026-11-11', range_days: 7, soon_window_minutes: 60, summary: { soon: 0, today: 0, tomorrow: 0, upcoming: 0, time_unset: 0, overdue: 0 }, items: [] });
     if (endpoint === '/lectures/lectures/9901/') return json({ id: 9901, title: '요일별 수업', color: '#2563eb', chip_label: '수업' });
-    const current = { id: 9902, lecture: 9901, lecture_title: '요일별 수업', title: '2차시', order: 2, regular_order: 2, session_type: 'REGULAR', date: '2026-11-04', schedule_dates: state.config.schedules, attendance_filled: 0, attendance_total: 1 };
+    const current = { id: 9902, lecture: 9901, lecture_title: '요일별 수업', title: '2차시', order: 2, regular_order: 2, session_type: 'REGULAR', date: '2026-11-04', schedule_dates: state.config.schedules, attendance_filled: state.attendanceFilled, attendance_total: 1 };
     if (endpoint === '/lectures/sessions/9902/') return json(current);
     if (endpoint === '/lectures/sessions/') return json({ count: url.searchParams.has('date') ? 1 : 2, results: url.searchParams.has('date') ? [current] : [{ ...current, id: 9900, title: '1차시', order: 1, date: '2026-10-28' }, current] });
     if (endpoint === '/enrollments/session-enrollments/') return json({ count: 3, results: roster.map(s => ({ id: s.enrollment_id + 300, session: 9902, enrollment: s.enrollment_id, student_id: s.enrollment_id + 200, student_name: s.student_name, enrollment_status: 'ACTIVE' })) });
@@ -266,11 +268,25 @@ test('닫힌 초안도 SPA 이탈을 확인하고 취소하면 보존한다', as
 test('교사 목요일 Today → 실제 날짜와 수업일 출석·성적', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.clock.setFixedTime(new Date('2026-11-05T09:00:00+09:00'));
-  const state = fixture(true); await install(page, state);
+  const state = fixture(true);
+  state.config.schedules[1] = { ...state.config.schedules[1], start_time: '16:30', end_time: '18:10' };
+  state.attendanceFilled = 1;
+  await install(page, state);
+  await page.goto(`${BASE}/workspace/mobile`);
+  const nextClass = page.getByRole('button', { name: /16:30 시작.*요일별 수업 · 목요일반.*다음 수업/ });
+  await expect(nextClass).toBeVisible();
+  await nextClass.scrollIntoViewIfNeeded();
+  await capture(page, 'teacher-thursday-summary-390');
+  await nextClass.press('Enter');
+  await expect(page).toHaveURL(/classes\/9901\/sessions\/9902\?schedule=72/);
+  await expect(page.getByText('2026-11-05 · 목요일반', { exact: true })).toBeVisible();
+  await page.goto(`${BASE}/workspace/mobile`);
+  await page.getByRole('button', { name: /수업 열기/ }).click();
+  await expect(page).toHaveURL(/classes\/9901\/sessions\/9902\?schedule=72/);
   await page.goto(`${BASE}/workspace/mobile`);
   const attendance = page.getByRole('button', { name: '요일별 수업 출석 입력', exact: true });
   await expect(attendance).toBeVisible();
-  await expect(page.getByText('목요일반', { exact: true })).toBeVisible();
+  await expect(page.getByText('목요일반 · 16:30 – 18:10', { exact: true })).toBeVisible();
   await expect(page.getByText('수요일반', { exact: true })).toHaveCount(0);
   await attendance.click();
   await expect(page).toHaveURL(/attendance\/9902\?schedule=72/);
@@ -296,9 +312,15 @@ test('교사 같은 날짜의 오전·오후는 반 선택 후 진입하고 stal
   state.config.schedules[1] = { ...state.config.schedules[1], label: '오후반', start_time: '16:00', end_time: '18:00' };
   await install(page, state);
   await page.goto(`${BASE}/workspace/mobile`);
+  await page.getByRole('button', { name: /09:00 시작.*요일별 수업 · 오전반.*다음 수업/ }).click();
+  await expect(page).toHaveURL(/classes\/9901\/sessions\/9902\?schedule=71/);
+  await expect(page.getByText('2026-11-05 · 오전반', { exact: true })).toBeVisible();
+  await page.goto(`${BASE}/workspace/mobile`);
   const score = page.getByRole('button', { name: '요일별 수업 성적 입력', exact: true });
   await expect(score).toBeDisabled();
   await page.getByRole('group', { name: '오늘 수업일 선택' }).getByRole('button', { name: '오후반 · 16:00', exact: true }).click();
+  await expect(page.getByText('오후반 · 16:00 – 18:00', { exact: true })).toBeVisible();
+  await expect(page.getByText('오전반 · 오후반 · 16:00 – 18:00', { exact: true })).toHaveCount(0);
   await expect(score).toBeEnabled();
   await capture(page, 'teacher-same-day-choice-390');
   await score.click();
@@ -309,6 +331,7 @@ test('교사 같은 날짜의 오전·오후는 반 선택 후 진입하고 stal
   state.config.schedules = state.config.schedules.map(s => ({ ...s, date: '2026-11-04' }));
   await page.goto(`${BASE}/workspace/mobile`);
   await expect(page.getByText('오늘 수업일을 확인하지 못했습니다.', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /시작.*다음 수업/ })).toHaveCount(0);
   await expect(page.getByRole('button', { name: '요일별 수업 출석 입력', exact: true })).toBeDisabled();
   await expect(score).toBeDisabled();
   state.config.schedules[1].date = '2026-11-05';
