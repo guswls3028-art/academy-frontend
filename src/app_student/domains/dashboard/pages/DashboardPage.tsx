@@ -139,6 +139,7 @@ const CountdownCard = memo(function CountdownCard({
           <div className={styles.countdownTitle}>{session.title}</div>
           <div className={styles.countdownTimeText}>
             {formatYmd(session.date ?? null)}
+            {session.schedule_label && ` · ${session.schedule_label}`}
             {session.start_time && ` ${session.start_time.slice(0, 5)}`}
           </div>
         </div>
@@ -252,6 +253,8 @@ export default function DashboardPage() {
         id: s.id,
         title: s.title,
         date: s.date,
+        schedule_label: s.schedule_label,
+        schedule_configured: s.schedule_configured,
         status: s.status,
         type: s.type ?? "session",
         start_time: s.start_time ?? null,
@@ -635,7 +638,7 @@ export default function DashboardPage() {
                       {s.title}
                       {s.start_time && <span className={styles.sessionTime}>{s.start_time.slice(0, 5)}</span>}
                     </div>
-                    <div className="stu-muted">오늘 수업</div>
+                    <div className="stu-muted">{s.schedule_configured && !s.date ? '수업일 미배정' : s.schedule_label ? `오늘 수업 · ${s.schedule_label}` : '오늘 수업'}</div>
                   </div>
                 </Link>
               );

@@ -2,6 +2,9 @@
 // PATH: src/app_teacher/domains/lectures/pages/SessionDetailPage.tsx
 // 차시 상세 — 탭 구조: 학생 + 출석 + 성적 + 시험 + 과제 + 영상 (+ 클리닉 if section_mode)
 import { type ReactNode } from "react";
+import { sessionScheduleDateLabel } from '@/shared/product/sessions/sessionScheduleDisplay';
+import { useSessionScheduleRoster } from '@/shared/hooks/useSessionScheduleRoster';
+import { useSessionScheduleScope } from '@/shared/hooks/useSessionScheduleScope';
 import { useParams, useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
@@ -47,6 +50,9 @@ export default function SessionDetailPage() {
   const validSessionId = Number.isInteger(sid) && sid > 0;
   const { sectionMode } = useSectionMode();
   const [searchParams, setSearchParams] = useSearchParams();
+  const schedule = searchParams.get('schedule') ?? undefined;
+  const scopedRoster = useSessionScheduleRoster(sid, schedule);
+  const scheduleSuffix = schedule === undefined ? '' : `?schedule=${encodeURIComponent(schedule)}`;
   const requestedTab = searchParams.get("tab");
   const tab: Tab = ["students", "attendance", "scores", "exams", "homeworks", "videos", ...(sectionMode ? ["clinic"] : [])].includes(requestedTab ?? "")
     ? requestedTab as Tab : "students";
@@ -64,8 +70,8 @@ export default function SessionDetailPage() {
   const session = sessionQ.data;
 
   const attendanceQ = useQuery({
-    queryKey: teacherLectureQueryKeys.sessionAttendance(sid),
-    queryFn: () => fetchSessionAttendance(sid),
+    queryKey: [...teacherLectureQueryKeys.sessionAttendance(sid), schedule ?? 'all'],
+    queryFn: () => fetchSessionAttendance(sid, schedule),
     enabled: validSessionId,
   });
 
@@ -83,8 +89,8 @@ export default function SessionDetailPage() {
   });
 
   const scoresQ = useQuery({
-    queryKey: scoresQueryKeys.sessionScores(sid),
-    queryFn: () => fetchSessionScores(sid),
+    queryKey: scoresQueryKeys.sessionScoresScope(sid, schedule),
+    queryFn: () => fetchSessionScores(sid, schedule),
     enabled: validSessionId && tab === "scores",
   });
   const scoreExams = scoresQ.data?.meta.exams.map((exam) => ({ ...exam, id: exam.exam_id })) ?? [];
@@ -131,6 +137,9 @@ export default function SessionDetailPage() {
   }
 
   const title = session ? formatSessionLabel(session) : "";
+  if (schedule !== undefined && scopedRoster.isPending) return <EmptyState scope="panel" tone="loading" title="수업일 명단 확인 중…" />;
+  if (schedule !== undefined && scopedRoster.isError) return <QueryFailure title="선택한 수업일을 확인하지 못했습니다" onRetry={() => void scopedRoster.refetch()} />;
+  const enrollments = schedule === undefined ? enrollmentsQ.data : enrollmentsQ.data?.filter(e => scopedRoster.data?.ids.includes(e.enrollment));
   const sessionLectureInfo: LectureInfo | undefined = session
     ? {
         lectureName: session.lecture_title,
@@ -139,10 +148,10 @@ export default function SessionDetailPage() {
       }
     : undefined;
   const enrollmentPath = session?.lecture
-    ? `/workspace/lectures/${session.lecture}/sessions/${sid}/attendance`
+    ? `/workspace/lectures/${session.lecture}/sessions/${sid}/attendance${scheduleSuffix}`
     : "/workspace/lectures";
   const assessmentCreationPath = session?.lecture
-    ? `/workspace/lectures/${session.lecture}/sessions/${sid}/scores`
+    ? `/workspace/lectures/${session.lecture}/sessions/${sid}/scores${scheduleSuffix}`
     : "/workspace/lectures";
 
   return (
@@ -174,7 +183,7 @@ export default function SessionDetailPage() {
               {session.lecture_title}
             </div>
             <div className="text-[12px]" style={{ color: "var(--tc-text-muted)" }}>
-              {session.date || "날짜 미정"}
+              {sessionScheduleDateLabel(session, schedule, searchParams.get('date'))}
               {session.section_label ? ` · ${session.section_label}` : ""}
             </div>
           </div>
@@ -182,16 +191,17 @@ export default function SessionDetailPage() {
       )}
 
       {/* Quick actions */}
+      {session.schedule_dates?.length > 0 && <p className="text-xs">학생·출결·성적은 선택한 수업일 기준이며, 시험·과제·영상은 모든 수업일이 함께 사용합니다.</p>}
       <div className="grid grid-cols-2 gap-2">
         <ActionBtn
           label="출석 체크"
           color="var(--tc-success)"
-          onClick={() => navigate(`/workspace/mobile/attendance/${sessionId}`)}
+          onClick={() => navigate(`/workspace/mobile/attendance/${sessionId}${scheduleSuffix}`)}
         />
         <ActionBtn
           label="성적 입력"
           color="var(--tc-primary)"
-          onClick={() => navigate(`/workspace/mobile/scores/${sessionId}${tab === "scores" && selectedExam != null ? `?exam=${selectedExam}` : ""}`)}
+          onClick={() => { const params = new URLSearchParams(schedule === undefined ? {} : { schedule }); if (tab === 'scores' && selectedExam != null) params.set('exam', String(selectedExam)); navigate(`/workspace/mobile/scores/${sessionId}${params.size ? `?${params}` : ''}`); }}
         />
       </div>
 
@@ -202,7 +212,7 @@ export default function SessionDetailPage() {
       >
         {([
           // 학생 카운트는 SessionEnrollment(차시 수강생 전체) 기준. attendance는 출석 상태가 매겨진 row만이라 학생 수와 다름.
-          { key: "students" as Tab, label: `학생${enrollmentsQ.data?.length != null ? ` ${enrollmentsQ.data.length}` : ""}` },
+          { key: "students" as Tab, label: `학생${enrollments?.length != null ? ` ${enrollments.length}` : ""}` },
           { key: "attendance" as Tab, label: "출석" },
           { key: "scores" as Tab, label: "성적" },
           { key: "exams" as Tab, label: "시험" },
@@ -239,7 +249,7 @@ export default function SessionDetailPage() {
           onRetry={() => { void enrollmentsQ.refetch(); void attendanceQ.refetch(); }}
         >
           <StudentsTab
-            enrollments={enrollmentsQ.data ?? []}
+            enrollments={enrollments ?? []}
             attendances={attendanceQ.data ?? []}
             lectureInfo={sessionLectureInfo}
             navigate={navigate}
@@ -247,7 +257,7 @@ export default function SessionDetailPage() {
           />
         </QueryBoundary>
       )}
-      {tab === "attendance" && <QueryBoundary loading={attendanceQ.isLoading || enrollmentsQ.isLoading} failed={attendanceQ.isError || enrollmentsQ.isError} onRetry={() => { void attendanceQ.refetch(); void enrollmentsQ.refetch(); }}><AttendanceTab attendances={attendanceQ.data ?? []} hasEnrollments={Boolean(enrollmentsQ.data?.length)} lectureInfo={sessionLectureInfo} navigate={navigate} sessionId={sid} enrollmentPath={enrollmentPath} /></QueryBoundary>}
+      {tab === "attendance" && <QueryBoundary loading={attendanceQ.isLoading || enrollmentsQ.isLoading} failed={attendanceQ.isError || enrollmentsQ.isError} onRetry={() => { void attendanceQ.refetch(); void enrollmentsQ.refetch(); }}><AttendanceTab attendances={attendanceQ.data ?? []} hasEnrollments={Boolean(enrollments?.length)} lectureInfo={sessionLectureInfo} navigate={navigate} sessionId={sid} enrollmentPath={enrollmentPath} /></QueryBoundary>}
       {tab === "scores" && (
         <QueryBoundary loading={scoresQ.isLoading} failed={scoresQ.isError} onRetry={() => void scoresQ.refetch()}>
           <div className={assessmentStyles.workspace}>
@@ -256,7 +266,7 @@ export default function SessionDetailPage() {
               <button type="button" aria-pressed={examView} onClick={() => setScoreSelection("exams")}>시험별 조회</button>
             </div>
             {examView ? (
-              <ScoresTab exams={scoreExams} sessionId={sid} selectedExam={selectedExam} onSelectExam={(exam) => setScoreSelection("exams", exam)} lectureInfo={sessionLectureInfo} navigate={navigate} creationPath={assessmentCreationPath} />
+              <ScoresTab exams={scoreExams} sessionId={sid} selectedExam={selectedExam} onSelectExam={(exam) => setScoreSelection("exams", exam)} lectureInfo={sessionLectureInfo} navigate={navigate} creationPath={assessmentCreationPath} allowedIds={scopedRoster.data?.ids} schedule={schedule} />
             ) : scoresQ.data ? <SessionAssessmentOverview scores={scoresQ.data} creationPath={assessmentCreationPath} /> : null}
           </div>
         </QueryBoundary>
@@ -618,6 +628,7 @@ function StudentsTab({
 
 /* === Attendance tab === */
 function AttendanceTab({ attendances, hasEnrollments, lectureInfo, navigate, sessionId, enrollmentPath }: { attendances: any[]; hasEnrollments: boolean; lectureInfo?: LectureInfo; navigate: any; sessionId: number; enrollmentPath: string }) {
+  const schedule = useSessionScheduleScope();
   if (!attendances.length) {
     return (
       <EmptyState
@@ -628,7 +639,7 @@ function AttendanceTab({ attendances, hasEnrollments, lectureInfo, navigate, ses
         actions={
           <EmptyActionButton onClick={() => {
             if (!hasEnrollments) setPreferFullWorkspace(true);
-            navigate(hasEnrollments ? `/workspace/mobile/attendance/${sessionId}` : enrollmentPath);
+            navigate(hasEnrollments ? `/workspace/mobile/attendance/${sessionId}${schedule === undefined ? '' : `?schedule=${encodeURIComponent(schedule)}`}` : enrollmentPath);
           }}>
             {hasEnrollments ? "출석 체크" : "차시 수강생 등록"}
           </EmptyActionButton>
@@ -699,14 +710,16 @@ function ScoresTab({
   creationPath,
   selectedExam,
   onSelectExam,
-}: { exams: any[]; sessionId: number; lectureInfo?: LectureInfo; navigate: any; creationPath: string; selectedExam: number | null; onSelectExam: (exam: number) => void }) {
+  allowedIds,
+  schedule,
+}: { exams: any[]; sessionId: number; lectureInfo?: LectureInfo; navigate: any; creationPath: string; selectedExam: number | null; onSelectExam: (exam: number) => void; allowedIds?: number[]; schedule?: string }) {
 
   const resultsQ = useQuery({
     queryKey: teacherLectureQueryKeys.examResultsSession(selectedExam),
     queryFn: () => fetchExamResults(selectedExam!),
     enabled: selectedExam != null,
   });
-  const results = resultsQ.data;
+  const results = schedule === undefined ? resultsQ.data : resultsQ.data?.filter(r => allowedIds?.includes(Number(r.enrollment_id ?? r.enrollment)));
 
   if (!exams.length) {
     return (
@@ -800,7 +813,7 @@ function ScoresTab({
               })}
             </div>
             <button
-              onClick={() => navigate(`/workspace/mobile/scores/${sessionId}?exam=${selectedExam}`)}
+              onClick={() => navigate(`/workspace/mobile/scores/${sessionId}?exam=${selectedExam}${schedule === undefined ? "" : `&schedule=${encodeURIComponent(schedule)}`}`)}
               className="text-[13px] font-semibold py-2.5 rounded-xl cursor-pointer"
               style={{
                 background: "var(--tc-primary)",
@@ -818,7 +831,7 @@ function ScoresTab({
             title="결과가 없습니다"
             description="아직 입력된 점수가 없습니다. 점수 입력 화면에서 학생별 점수를 저장하세요."
             actions={
-              <EmptyActionButton onClick={() => navigate(`/workspace/mobile/scores/${sessionId}?exam=${selectedExam}`)}>
+              <EmptyActionButton onClick={() => navigate(`/workspace/mobile/scores/${sessionId}?exam=${selectedExam}${schedule === undefined ? "" : `&schedule=${encodeURIComponent(schedule)}`}`)}>
                 점수 입력
               </EmptyActionButton>
             }

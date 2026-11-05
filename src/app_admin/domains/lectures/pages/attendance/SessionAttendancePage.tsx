@@ -59,6 +59,7 @@ import StudentLectureMemo from "@/shared/ui/enrollment/StudentLectureMemo";
 import { DEFAULT_ATTENDANCE_SORT, getStoredAttendanceSort, type AttendanceSort, type AttendanceSortColumn } from "./attendanceSort";
 import "./attendance-ui.css";
 import AttendanceQrManager from "@/shared/ui/attendance/AttendanceQrManager";
+import { useSessionScheduleScope } from "@/shared/hooks/useSessionScheduleScope";
 
 const STATUS_LIST = ORDERED_ATTENDANCE_STATUS;
 const PAGE_SIZE = 50;
@@ -83,6 +84,7 @@ export default function SessionAttendancePage({
   onOpenEnrollModal,
 }: SessionAttendancePageProps) {
   const location = useLocation();
+  const schedule = useSessionScheduleScope();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -141,6 +143,12 @@ export default function SessionAttendancePage({
   }, [search, statusFilter]);
 
   useEffect(() => {
+    setSelectedIds([]);
+    setPage(1);
+    setOpenStatusRowAttId(null);
+  }, [sessionId, schedule]);
+
+  useEffect(() => {
     setPage(1);
     setSort(getStoredAttendanceSort(sortStorageKey, previousSortStorageKey));
   }, [previousSortStorageKey, sortStorageKey]);
@@ -170,7 +178,7 @@ export default function SessionAttendancePage({
   }, [openStatusRowAttId]);
 
   const { data: attendanceResult, isLoading, isError, isFetching, refetch } = useQuery({
-    queryKey: adminLectureQueryKeys.attendance(sessionId, page, search, statusFilter, sort),
+    queryKey: adminLectureQueryKeys.attendance(sessionId, page, search, statusFilter, sort, schedule),
     queryFn: () =>
       fetchAttendance(sessionId, {
         page,
@@ -178,6 +186,7 @@ export default function SessionAttendancePage({
         search: search.trim() || undefined,
         status: statusFilter || undefined,
         ordering: sort,
+        schedule,
       }),
     enabled: Number.isFinite(sessionId),
   });
@@ -202,6 +211,7 @@ export default function SessionAttendancePage({
     }) =>
       updateAttendance(id, { status, confirm_secession, secession_scope }),
     onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['session-schedules', sessionId] });
       qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
       if (Number.isFinite(lectureId)) {
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
@@ -354,6 +364,7 @@ export default function SessionAttendancePage({
       await Promise.all([
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) }),
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId) }),
+        qc.invalidateQueries({ queryKey: ['session-schedules', sessionId] }),
         qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) }),
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForPdf(sessionId) }),
       ]);
@@ -405,7 +416,7 @@ export default function SessionAttendancePage({
         try {
           const [templates, scoresData] = await Promise.all([
             fetchMessageTemplates("grades"),
-            fetchSessionScores(sessionId),
+            fetchSessionScores(sessionId, schedule),
           ]);
           // backend SSOT meta 1순위 → qc cache → ""
           const lecture = qc.getQueryData<{ title?: string; name?: string }>(
@@ -533,7 +544,7 @@ export default function SessionAttendancePage({
 
   const handleBulkSetPresent = async () => {
     const ok = await confirm({
-      title: "전체 현장 출석으로 바꿀까요?",
+      title: schedule === undefined ? "전체 현장 출석으로 바꿀까요?" : "선택한 수업일을 현장 출석으로 바꿀까요?",
       message: "미입력·결석·지각 등 현재 상태가 있는 학생을 '현장'으로 바꿉니다.\n\n• 이미 현장인 학생은 그대로 유지됩니다.\n• 퇴원·비활성 학생은 변경하지 않습니다.\n• 변경 직후 10분 동안 이전 상태로 되돌릴 수 있습니다.",
       danger: false,
       confirmText: "전체 현장 적용",
@@ -541,7 +552,7 @@ export default function SessionAttendancePage({
     if (!ok) return;
     setBulkPresentBusy(true);
     try {
-      const result = await bulkSetPresent(sessionId);
+      const result = await bulkSetPresent(sessionId, schedule);
       qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
       qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
@@ -598,7 +609,7 @@ export default function SessionAttendancePage({
         결석 알림 발송
       </Button>
       <Button type="button" intent="secondary" size="sm" onClick={handleBulkSetPresent} disabled={bulkPresentBusy}>
-        {bulkPresentBusy ? "처리 중…" : "전체 현장 출석"}
+        {bulkPresentBusy ? "처리 중…" : schedule === undefined ? "전체 현장 출석" : "수업일 현장 출석"}
       </Button>
       {onOpenEnrollModal && (
         <Button type="button" intent="primary" size="sm" onClick={onOpenEnrollModal}>

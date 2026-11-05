@@ -71,9 +71,10 @@ export type AttendanceListItem = Record<string, unknown> & AttendanceMemoFields 
 
 export async function fetchAttendance(
   sessionId: number,
-  options?: { page?: number; page_size?: number; search?: string; status?: string; ordering?: string }
+  options?: { page?: number; page_size?: number; search?: string; status?: string; ordering?: string; schedule?: string | number }
 ): Promise<AttendanceListResponse> {
   const params: Record<string, string | number> = { session: sessionId };
+  if (options?.schedule !== undefined) params.schedule = options.schedule;
   if (options?.page != null) params.page = options.page;
   if (options?.page_size != null) params.page_size = options.page_size;
   if (options?.search?.trim()) params.search = options.search.trim();
@@ -102,7 +103,7 @@ export async function fetchAttendance(
 }
 
 /** Complete, name-ordered roster for the teacher's swipe attendance screen. */
-export async function fetchAttendanceRoster(sessionId: number): Promise<AttendanceListItem[]> {
+export async function fetchAttendanceRoster(sessionId: number, schedule?: string): Promise<AttendanceListItem[]> {
   const session = readAuthTokenEnvelopeSafely();
   const tenant = getTenantCodeForApiRequest();
   if (!session || !tenant) throw new Error("로그인과 학원 정보를 확인한 뒤 다시 조회해 주세요.");
@@ -116,7 +117,7 @@ export async function fetchAttendanceRoster(sessionId: number): Promise<Attendan
       results: AttendanceListItem[]; count: number; next?: string | null;
     }>("/lectures/attendance/", {
       ...config,
-      params: { session: sessionId, page, page_size: 500, ordering: "name" },
+      params: { session: sessionId, page, page_size: 500, ordering: "name", ...(schedule !== undefined ? { schedule } : {}) },
     });
     const items = Array.isArray(data) ? data : data?.results;
     const count = Array.isArray(data) ? items.length : data?.count;
@@ -256,9 +257,10 @@ export async function deleteAttendance(id: number) {
  * 2-2 전체 현장 출석 (세션 내 모든 출결 → PRESENT)
  * POST /api/v1/lectures/attendance/bulk_set_present/
  * ======================================================= */
-export async function bulkSetPresent(sessionId: number) {
+export async function bulkSetPresent(sessionId: number, schedule?: string | number) {
   const res = await api.post("/lectures/attendance/bulk_set_present/", {
     session: sessionId,
+    ...(schedule !== undefined ? { schedule } : {}),
   });
   return res.data as {
     updated: number;

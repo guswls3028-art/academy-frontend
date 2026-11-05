@@ -411,7 +411,7 @@ export default function TodayPage() {
           ) : sessions && sessions.length > 0 ? (
             <div className={styles.sessionList}>
               {sessions.map((s) => (
-                <SessionCard key={s.id} session={s} />
+                <SessionCard key={s.id} session={s} date={today} onRefresh={() => void sessionsQ.refetch()} />
               ))}
             </div>
           ) : (

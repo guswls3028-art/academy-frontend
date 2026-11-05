@@ -510,6 +510,7 @@ export default function SessionEnrollModal({
       const { created, payload } = result;
       const { studentIds, statusByStudentId } = payload;
       await Promise.all([
+        qc.invalidateQueries({ queryKey: ['session-schedules', sessionId] }),
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId) }),
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) }),
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceEnrolledIds(sessionId) }),

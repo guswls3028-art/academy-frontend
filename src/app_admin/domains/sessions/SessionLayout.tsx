@@ -11,6 +11,7 @@ import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { adminSessionQueryKeys } from "./queryKeys";
 import SessionAttendanceSummary from "./components/SessionAttendanceSummary";
 import summaryStyles from "./components/SessionAttendanceSummary.module.css";
+import SessionScheduleStrip from "./components/SessionScheduleStrip";
 
 export default function SessionLayout() {
   const { lectureId, sessionId } = useLectureSessionParams();
@@ -57,8 +58,14 @@ export default function SessionLayout() {
     if (sectionMode && session?.section_type !== "CLINIC") {
       items.push({ key: "clinic", label: "정규 클리닉", path: `${base}/clinic` });
     }
-    return items;
-  }, [base, lectureId, sectionMode, session?.section_type, sessionId]);
+    const schedule = new URLSearchParams(location.search).get("schedule");
+    return items.map(item => {
+      const [path, search] = item.path.split("?");
+      const params = new URLSearchParams(search);
+      if (schedule !== null) params.set("schedule", schedule);
+      return { ...item, path: `${path}${params.size ? `?${params}` : ""}`, activePaths: [path] };
+    });
+  }, [base, lectureId, sectionMode, session?.section_type, sessionId, location.search]);
 
   if (!lectureId || !sessionId) {
     return (
@@ -105,7 +112,9 @@ export default function SessionLayout() {
       headerActions={<SessionAttendanceSummary sessionId={sessionId} />}
       className={summaryStyles.sessionDomainLayout}
     >
-      <Outlet />
+      <SessionScheduleStrip key={sessionId} sessionId={sessionId} lectureId={lectureId} sessionDate={session.date ?? ""} sessionOrder={session.order} shared={!isScoresRoute && !location.pathname.endsWith("/attendance")}>
+        <Outlet />
+      </SessionScheduleStrip>
     </DomainLayout>
   );
 }

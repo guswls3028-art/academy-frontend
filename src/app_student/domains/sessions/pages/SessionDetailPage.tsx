@@ -56,8 +56,9 @@ export default function SessionDetailPage() {
   }
 
   return (
-    <StudentPageShell title={data.title} description={`날짜: ${formatYmd(data.date ?? null)}`}>
+    <StudentPageShell title={data.title} description={data.schedule_configured ? !data.date ? '수업일 미배정' : [data.schedule_label, `날짜: ${formatYmd(data.date)}`, [data.start_time?.slice(0, 5), data.end_time?.slice(0, 5)].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · ') : `날짜: ${formatYmd(data.date ?? null)}`}>
       <div className={styles.stack}>
+        {data.schedule_configured && <p className="stu-muted">{!data.date ? '아직 배정된 수업일이 없어요. 배정되면 내 일정에 표시됩니다. ' : ''}영상·시험·과제는 이 차시의 모든 수업일이 함께 사용해요.</p>}
         {/* ===== Primary: 영상 (가장 중요) ===== */}
         <ActionCard title="영상 보기" desc="이 수업의 영상을 볼 수 있어요." primary>
           <Link

@@ -41,6 +41,7 @@ import { putHomeworkAssignments } from "@admin/domains/homework/api/homeworkAssi
 import { adminLectureQueryKeys } from "../../queryKeys";
 import api from "@/shared/api/axios";
 import { fetchAttendance } from "@/shared/api/contracts/attendance";
+import { useBeforeScheduleChange, useSessionScheduleScope } from "@/shared/hooks/useSessionScheduleScope";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useProgram } from "@/shared/program";
@@ -127,6 +128,7 @@ export default function SessionScoresEntryPage({
 }: SessionScoresEntryPageProps = {}) {
   const { sessionId: sessionIdParam, lectureId: lectureIdParam } = useParams<{ lectureId: string; sessionId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
+  const schedule = useSessionScheduleScope();
   const numericSessionId = Number(sessionIdParam);
   const numericLectureId = Number(lectureIdParam);
   const qc = useQueryClient();
@@ -140,6 +142,7 @@ export default function SessionScoresEntryPage({
     program?.feature_flags?.score_summary_column_default === "exam_wrong" ? "exam_wrong" : "verdict";
   const [searchInput, setSearchInput] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
+  useEffect(() => { setSelectedEnrollmentIds([]); }, [numericSessionId, schedule]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   /** 편집 시 어떤 셀을 쓰기 모드로 할지 */
@@ -248,8 +251,8 @@ export default function SessionScoresEntryPage({
     isError: attendanceForPdfError,
     refetch: refetchAttendanceForPdf,
   } = useQuery({
-    queryKey: adminLectureQueryKeys.attendanceForPdf(numericSessionId),
-    queryFn: () => fetchAttendance(numericSessionId, { page_size: 500 }),
+    queryKey: [...adminLectureQueryKeys.attendanceForPdf(numericSessionId), schedule ?? 'all'],
+    queryFn: () => fetchAttendance(numericSessionId, { page_size: 500, schedule }),
     enabled: shouldLoadPrintData && Number.isFinite(numericSessionId),
   });
 
@@ -525,8 +528,8 @@ export default function SessionScoresEntryPage({
   }, [isEditMode]);
 
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: scoresQueryKeys.sessionScores(numericSessionId),
-    queryFn: () => fetchSessionScores(numericSessionId),
+    queryKey: scoresQueryKeys.sessionScoresScope(numericSessionId, schedule),
+    queryFn: () => fetchSessionScores(numericSessionId, schedule),
     enabled: Number.isFinite(numericSessionId) && numericSessionId > 0,
   });
   const isBlankScoreSheet = useMemo(() => isCompletelyBlankScoreSheet(data), [data]);
@@ -682,6 +685,19 @@ export default function SessionScoresEntryPage({
     draft.recoveryCheckFailed ||
     draft.editLockConflict ||
     draft.hasDraftToRestore;
+  useBeforeScheduleChange(async () => {
+    if (isSaving || draft.isStartingEdit || recoveryBlocked) {
+      feedback.info("진행 중인 저장이나 복구를 마친 뒤 다시 시도해 주세요.");
+      return false;
+    }
+    if (isEditMode) {
+      if (!await saveScoresNow() || !await draft.releaseEditLease()) return false;
+      setIsEditMode(false);
+    }
+    setShowBulkScoreModal(false);
+    setShowStudentReport(false);
+    return true;
+  });
   const selectedHasSubjectivePending = (data?.rows ?? []).some((row) => (
     selectedEnrollmentIds.includes(row.enrollment_id)
     && row.exams.some((exam) => exam.block.grading_status === "subjective_pending")
@@ -1046,7 +1062,7 @@ export default function SessionScoresEntryPage({
                 if (!await saveScoresNow()) return;
                 let freshData;
                 try {
-                  freshData = await fetchSessionScores(numericSessionId);
+                  freshData = await fetchSessionScores(numericSessionId, schedule);
                 } catch {
                   feedback.error("최신 성적을 불러오지 못했습니다. 다시 다운로드해 주세요.");
                   return;
@@ -1733,6 +1749,7 @@ export default function SessionScoresEntryPage({
           sessionId={numericSessionId}
           lectureId={numericLectureId}
           search={searchInput}
+          schedule={schedule}
           isEditMode={isEditMode}
           onRequestAnswerEdit={async () => {
             if (isSaving || draft.isStartingEdit || draft.isRecoveryCheckPending || draft.recoveryCheckFailed || draft.hasDraftToRestore) {

@@ -1,6 +1,7 @@
 // PATH: src/app_teacher/domains/today/api.ts
 // 오늘 수업 데이터 — 기존 sessions/attendance API 래핑
 import api from "@/shared/api/axios";
+import type { SessionScheduleDate } from '@/shared/product/sessions/sessionScheduleDisplay';
 
 export interface TodaySession {
   id: number;
@@ -10,6 +11,7 @@ export interface TodaySession {
   order: number;
   title: string;
   date: string | null;
+  schedule_dates?: SessionScheduleDate[];
   lecture_title?: string;
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
