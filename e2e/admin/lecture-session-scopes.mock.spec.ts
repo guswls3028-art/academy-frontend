@@ -1040,6 +1040,65 @@ test("한 회차에서 만드는 여러 과제는 커트라인을 행마다 따�
   ]);
 });
 
+for (const width of [1366, 390]) {
+  for (const kind of ["시험", "과제"] as const) {
+    test(`@assessment-ime ${width}px ${kind} 연속 입력은 조합 키와 점수 오류를 보존한다`, async ({ page }, testInfo) => {
+      const state: MockState = { supplementTitle: "입력 검증", patchTitles: [], createdExamPayloads: [], createdHomeworkPayloads: [] };
+      await page.setViewportSize({ width, height: 900 });
+      await page.addInitScript((platform) => Object.defineProperty(navigator, "platform", { get: () => platform }), width === 1366 ? "Win32" : "iPhone");
+      await openLecture(page, state);
+      await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/${kind === "시험" ? "exams" : "assignments"}`);
+      await page.getByRole("button", { name: `${kind} 추가`, exact: true }).first().click();
+      await page.getByText(kind === "시험" ? "빠르게 여러 개 만들기" : "처음부터 만들기", { exact: true }).click();
+      if (kind === "과제") await page.getByRole("button", { name: "점 (점수)", exact: true }).click();
+      const title = page.getByLabel(`${kind} 1 제목`);
+      const maximum = page.getByLabel(`${kind} 1 만점`);
+      const cutline = page.getByLabel(`${kind} 1 커트라인`);
+      const submit = page.getByRole("button", { name: `1개 ${kind} 만들기`, exact: true });
+      const payloads = () => kind === "시험" ? state.createdExamPayloads! : state.createdHomeworkPayloads!;
+      await title.fill("한글 단원평가");
+      await expect(maximum).toHaveAttribute("type", "text");
+      await expect(maximum).toHaveAttribute("inputmode", width === 1366 ? "text" : "decimal");
+      await maximum.fill("0x10");
+      await submit.click();
+      await expect(page.getByText(/만점은/)).toBeVisible();
+      expect(payloads()).toHaveLength(0);
+      await maximum.fill("50.5");
+      await cutline.fill("");
+      await submit.click();
+      await expect(page.getByText(/커트라인은/)).toBeVisible();
+      expect(payloads()).toHaveLength(0);
+      await cutline.fill("25");
+      const dialog = page.getByRole("dialog").filter({ has: title });
+      await dialog.getByRole("button", { name: "+ 추가", exact: true }).click();
+      const next = page.getByLabel(`${kind} 2 제목`);
+      await expect(next).toBeFocused();
+      await expect(title).toHaveValue("한글 단원평가");
+      await expect(maximum).toHaveValue("50.5");
+      await next.fill("다음 평가");
+      await next.dispatchEvent("compositionstart");
+      await next.dispatchEvent("keydown", { key: "Enter", isComposing: true, bubbles: true });
+      await next.dispatchEvent("compositionend", { data: "가" });
+      await next.dispatchEvent("keydown", { key: "Enter", keyCode: 229, bubbles: true });
+      await next.dispatchEvent("keydown", { key: "Escape", keyCode: 229, bubbles: true });
+      expect(payloads()).toHaveLength(0);
+      await expect(next).toHaveValue("다음 평가");
+      await expect(dialog).toBeVisible();
+      await expect(dialog).toHaveJSProperty("scrollWidth", await dialog.evaluate((el) => el.clientWidth));
+      await page.screenshot({ path: testInfo.outputPath(`assessment-ime-${width}-${kind}.png`) });
+      await next.press("Enter");
+      await expect.poll(() => payloads().length).toBe(2);
+      expect(payloads()[0]).toMatchObject({ title: "한글 단원평가", max_score: 50.5, ...(kind === "시험" ? { pass_score: 25 } : { cutline_value: 25 }) });
+      expect(payloads()[1]).toMatchObject({ title: "다음 평가" });
+      await expect(dialog).toHaveCount(0);
+      if (kind === "과제") {
+        await page.reload();
+        await expect(page.getByRole("heading", { name: "다음 평가", exact: true })).toBeVisible();
+      }
+    });
+  }
+}
+
 test("시험 빠른 생성은 잘못된 점수를 기본값으로 바꾸지 않고 처리 중 이탈을 잠근다", async ({ page }) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉",

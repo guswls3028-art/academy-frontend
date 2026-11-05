@@ -59,7 +59,8 @@ function autoClickPrimary(root: HTMLElement | null): boolean {
 
 function globalKeyHandler(e: KeyboardEvent) {
   if (stack.length === 0) return;
-  if (e.isComposing || e.defaultPrevented) return;
+  // Some IMEs report the confirmation key as 229 after isComposing clears.
+  if (e.isComposing || e.keyCode === 229 || e.defaultPrevented) return;
 
   // ConfirmDialog가 열려 있으면 ConfirmDialog 자체 핸들러에 위임
   if (document.querySelector("[data-confirm-dialog], [data-dialog-popover]")) return;
