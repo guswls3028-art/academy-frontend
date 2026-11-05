@@ -10,6 +10,8 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import api from "@/shared/api/axios";
+import { AssessmentNumberInput } from "@/shared/ui/assessment/AssessmentNumberInput";
+import { parseAssessmentNumber } from "@/shared/ui/assessment/parseAssessmentNumber";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Badge, Button } from "@/shared/ui/ds";
 import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
@@ -145,7 +147,12 @@ export default function CreateRegularExamModal({
   }, [sessionId]);
 
   // ── Bulk row helpers ──
-  const addRow = () => setRows((prev) => [...prev, makeRow()]);
+  const [newRowFocusId, setNewRowFocusId] = useState<number | null>(null);
+  const addRow = () => {
+    const row = makeRow();
+    setNewRowFocusId(row.id);
+    setRows((prev) => [...prev, row]);
+  };
 
   const removeRow = (rowId: number) =>
     setRows((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.id !== rowId)));
@@ -171,9 +178,9 @@ export default function CreateRegularExamModal({
       return;
     }
     const title = guidedTitle.trim();
-    const maxScore = Number(guidedMaxScore);
-    const passScore = Number(guidedPassScore);
-    const mixedChoiceCount = Number(choiceQuestionCount);
+    const maxScore = parseAssessmentNumber(guidedMaxScore);
+    const passScore = parseAssessmentNumber(guidedPassScore);
+    const mixedChoiceCount = parseAssessmentNumber(choiceQuestionCount);
     if (!title) {
       setError("시험명을 입력하세요.");
       return;
@@ -296,8 +303,8 @@ export default function CreateRegularExamModal({
       return;
     }
     const invalidScoreRow = validRows.find((row) => {
-      const ms = Number(row.maxScore);
-      const ps = Number(row.passScore);
+      const ms = parseAssessmentNumber(row.maxScore);
+      const ps = parseAssessmentNumber(row.passScore);
       return (
         !Number.isFinite(ms)
         || ms <= 0
@@ -307,8 +314,8 @@ export default function CreateRegularExamModal({
       );
     });
     if (invalidScoreRow) {
-      const ms = Number(invalidScoreRow.maxScore);
-      const ps = Number(invalidScoreRow.passScore);
+      const ms = parseAssessmentNumber(invalidScoreRow.maxScore);
+      const ps = parseAssessmentNumber(invalidScoreRow.passScore);
       if (!Number.isFinite(ms) || ms <= 0) {
         setError(`'${invalidScoreRow.title.trim()}'의 만점은 0보다 큰 숫자로 입력하세요.`);
       } else if (!Number.isFinite(ps) || ps < 0) {
@@ -329,8 +336,8 @@ export default function CreateRegularExamModal({
 
     for (const row of validRows) {
       try {
-        const ms = Number(row.maxScore);
-        const ps = Number(row.passScore);
+        const ms = parseAssessmentNumber(row.maxScore);
+        const ps = parseAssessmentNumber(row.passScore);
         const res = await api.post("/exams/", {
           title: row.title.trim(),
           description: "",
@@ -704,9 +711,7 @@ export default function CreateRegularExamModal({
               <div className="grid grid-cols-2 gap-3">
                 <label className="grid gap-1.5 text-sm font-semibold">
                   만점
-                  <input
-                    type="number"
-                    min={1}
+                  <AssessmentNumberInput
                     className="ds-input"
                     value={guidedMaxScore}
                     onChange={(event) => setGuidedMaxScore(event.target.value)}
@@ -714,9 +719,7 @@ export default function CreateRegularExamModal({
                 </label>
                 <label className="grid gap-1.5 text-sm font-semibold">
                   커트라인
-                  <input
-                    type="number"
-                    min={0}
+                  <AssessmentNumberInput
                     className="ds-input"
                     value={guidedPassScore}
                     onChange={(event) => setGuidedPassScore(event.target.value)}
@@ -789,9 +792,7 @@ export default function CreateRegularExamModal({
               {gradingMode === "mixed" && (
                 <label className="grid gap-1.5 text-sm font-semibold">
                   OMR로 채점할 앞쪽 문항 수
-                  <input
-                    type="number"
-                    min={1}
+                  <AssessmentNumberInput
                     className="ds-input"
                     value={choiceQuestionCount}
                     onChange={(event) => setChoiceQuestionCount(event.target.value)}
@@ -881,15 +882,13 @@ export default function CreateRegularExamModal({
                           value={row.title}
                           onChange={(e) => updateRow(row.id, "title", e.target.value)}
                           placeholder={`시험 ${idx + 1}`}
-                          autoFocus={idx === 0}
+                          autoFocus={idx === 0 || row.id === newRowFocusId}
                           aria-label={`시험 ${idx + 1} 제목`}
                         />
                       </label>
                       <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                         만점
-                        <input
-                          type="number"
-                          min={1}
+                        <AssessmentNumberInput
                           className="ds-input w-full"
                           value={row.maxScore}
                           onChange={(e) => updateRow(row.id, "maxScore", e.target.value)}
@@ -899,9 +898,7 @@ export default function CreateRegularExamModal({
                       </label>
                       <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                         커트라인
-                        <input
-                          type="number"
-                          min={0}
+                        <AssessmentNumberInput
                           className="ds-input w-full"
                           value={row.passScore}
                           onChange={(e) => updateRow(row.id, "passScore", e.target.value)}
