@@ -29,6 +29,7 @@ import {
 import { StudentYoutubeController } from "./headless/StudentYoutubeController";
 import { useDoubleTapSeek } from "./gesture/useDoubleTapSeek";
 import SeekOverlay from "./gesture/SeekOverlay";
+import { finishLongPressRateGesture } from "./gesture/finishLongPressRateGesture";
 import {
   ForwardSkipBudgetStatus,
   PlaybackPolicyHints,
@@ -227,9 +228,7 @@ export default function StudentVideoPlayer({
     const unsub = ctrl.subscribe(setCtrlState);
 
     return () => {
-      if (longPressTimerRef.current !== null) clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-      savedRateRef.current = null;
+      finishLongPressRateGesture(longPressTimerRef, savedRateRef);
       unsub();
       ctrl.dispose();
       controllerRef.current = null;
@@ -240,12 +239,8 @@ export default function StudentVideoPlayer({
     const ctrl = controllerRef.current;
     if (!ctrl) return;
     if (speedLocked) {
-      if (longPressTimerRef.current !== null) clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-      const savedRate = savedRateRef.current;
-      savedRateRef.current = null;
       // End an active boost under the previous, unlocked policy before locking.
-      if (savedRate !== null) ctrl.setRate(1);
+      finishLongPressRateGesture(longPressTimerRef, savedRateRef, () => ctrl.setRate(1));
     }
     ctrl.setPolicy(bootstrap.policy);
     ctrl.setToken(bootstrap.token, bootstrap.expires_at);
@@ -575,15 +570,9 @@ export default function StudentVideoPlayer({
   }, [isFullscreen]);
 
   const onStageTouchEndLongPress = useCallback(() => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    const savedRate = savedRateRef.current;
-    savedRateRef.current = null;
-    if (savedRate !== null) {
+    finishLongPressRateGesture(longPressTimerRef, savedRateRef, (savedRate) => {
       controllerRef.current?.setRate(speedLocked ? 1 : clamp(savedRate, 0.25, maxRate));
-    }
+    });
   }, [maxRate, speedLocked]);
 
   const onStagePointerDown = useCallback(
