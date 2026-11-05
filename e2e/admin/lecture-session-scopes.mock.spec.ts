@@ -1002,6 +1002,11 @@ test("정규 차시 이름 수정은 실패 후 입력을 보존하고 재시도
     await page.getByRole("button", { name: /직보/ }).click();
     await expect(page).toHaveURL(new RegExp(`/sessions/${REGULAR_SESSION_ID}/attendance`));
     await expect(page.locator("main").getByText(customTitle, { exact: false }).first()).toBeVisible();
+    if (width === 390) {
+      await page.getByRole("button", { name: "차시 선택", exact: true }).click();
+      await expect(page).toHaveURL(/view=sessions/);
+      await expect(page.getByRole("heading", { name: "차시 선택", exact: true })).toBeInViewport({ ratio: 1 });
+    }
     await page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true }).click();
     await expect(page.getByRole("tab", { name: /정규 수업/ })).toHaveAttribute("aria-selected", "true");
     await page.getByRole("button", { name: "차시 설정", exact: true }).click();

@@ -4029,12 +4029,26 @@ test.describe("문항별 직접 채점", () => {
       return {
         backgroundImage: style.backgroundImage,
         borderRadius: style.borderRadius,
+        borderBottomColor: style.borderBottomColor,
         fontWeight: Number(style.fontWeight),
+        height: tab.getBoundingClientRect().height,
       };
     });
-    expect(activeTabVisual.backgroundImage).not.toBe("none");
-    expect(activeTabVisual.borderRadius).not.toBe("0px");
+    expect(activeTabVisual.backgroundImage).toBe("none");
+    expect(activeTabVisual.borderRadius).toBe("0px");
     expect(activeTabVisual.fontWeight).toBeGreaterThanOrEqual(700);
+    expect(activeTabVisual.height).toBeGreaterThanOrEqual(44);
+    await expect(scoreTab).toHaveCSS("border-bottom-style", "solid");
+    await expect(scoreTab).toHaveCSS("border-bottom-width", "2px");
+    expect(activeTabVisual.borderBottomColor).not.toBe("rgba(0, 0, 0, 0)");
+    expect(activeTabVisual.borderBottomColor).not.toBe("transparent");
+    expect(activeTabVisual.borderBottomColor).not.toBe(await attendanceTab.evaluate(tab => getComputedStyle(tab).borderBottomColor));
+    await attendanceTab.focus();
+    await page.keyboard.press("Tab");
+    await expect(scoreTab).toBeFocused();
+    await expect(scoreTab).toBeInViewport({ ratio: 1 });
+    await expect(scoreTab).toHaveCSS("outline-style", "solid");
+    expect(await scoreTab.evaluate(tab => Number.parseFloat(getComputedStyle(tab).outlineWidth))).toBeGreaterThanOrEqual(2);
 
     await attendanceTab.hover();
     const inactiveHoverVisual = await attendanceTab.evaluate((tab) => {

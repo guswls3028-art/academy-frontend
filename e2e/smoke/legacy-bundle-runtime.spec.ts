@@ -208,7 +208,15 @@ for (const profile of profiles) {
     expect(api.loginBodies).toEqual([{ username: "student.legacy", password: "Case-Sensitive-Pw", tenant_code: "godmin" }]);
     await expectNoOverflow(page);
 
-    await page.getByRole("link", { name: "공지", exact: true }).click();
+    const fullMenu = page.getByRole("link", { name: /전체 메뉴/ });
+    await expect(fullMenu).toHaveAttribute("href", "/student/menu");
+    await fullMenu.click();
+    await expect(page).toHaveURL(/\/student\/menu$/);
+    await expect(page.getByRole("heading", { name: "전체 메뉴", exact: true })).toBeInViewport({ ratio: 1 });
+    const noticeMenu = page.getByRole("link", { name: /^공지사항/ });
+    await expect(noticeMenu).toHaveCount(1);
+    await expect(noticeMenu).toHaveAttribute("href", "/student/notices");
+    await noticeMenu.click();
     await expect(page).toHaveURL(/\/student\/notices$/);
     await expect(page.getByRole("heading", { name: "공지사항", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: new RegExp(NOTICE_TITLE) })).toBeVisible();
