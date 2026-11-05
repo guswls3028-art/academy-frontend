@@ -37,6 +37,9 @@ for (const role of ['student', 'parent']) for (const width of [390, 1366]) {
     await expect(page.locator('a[href="/student/sessions/203"]')).toContainText('일반 수업');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await page.screenshot({ path: test.info().outputPath(`schedule-calendar-${role}-${width}.png`), fullPage: true });
+    await page.locator('a[href="/student/sessions/202"]').scrollIntoViewIfNeeded();
+    await expect(page.locator('a[href="/student/sessions/202"]')).toBeInViewport();
+    await page.screenshot({ path: test.info().outputPath(`schedule-assigned-${role}-${width}.png`), fullPage: true });
     await unassigned.locator('a').click();
     await expect(page.getByText('수업일 미배정', { exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: '영상으로 이동', exact: true })).toHaveAttribute('href', '/student/video/sessions/201');
@@ -44,6 +47,7 @@ for (const role of ['student', 'parent']) for (const width of [390, 1366]) {
     await expect(page.getByText('수업일 미배정', { exact: true })).toBeVisible();
     await page.goto(`${BASE}/student/sessions/202`);
     await expect(page.getByText(/목요일반 · 날짜:/)).toContainText('16:00 ~ 18:00');
+    await page.screenshot({ path: test.info().outputPath(`schedule-detail-${role}-${width}.png`), fullPage: true });
     await page.goto(`${BASE}/student/sessions/203`);
     await expect(page.getByText('수업일 미배정', { exact: true })).toHaveCount(0);
     await expect(page.getByText(/^날짜:/)).toBeVisible();

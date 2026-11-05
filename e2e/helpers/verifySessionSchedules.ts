@@ -80,6 +80,7 @@ export async function verifySessionSchedules(
     await page.reload({ waitUntil: 'domcontentloaded' });
     const strip = page.getByRole('region', { name: '수업일 선택' });
     await strip.getByRole('button', { name: /^수요일반/ }).click();
+    await expect(page.getByText(`${wedDate} · 수요일반`, { exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: `${primary.name} 학생 상세 열기`, exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: `${peer.name} 학생 상세 열기`, exact: true })).toHaveCount(0);
     await page.getByRole('tab', { name: '성적', exact: true }).click();
@@ -91,6 +92,7 @@ export async function verifySessionSchedules(
     await expect(page.getByRole('checkbox', { name: `${primary.name} 선택`, exact: true })).toHaveCount(0);
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(new RegExp(`scores\\?schedule=${thu.id}$`));
+    await expect(page.getByText(`${thuDate} · 목요일반`, { exact: true })).toBeVisible();
     await expect(page.getByRole('checkbox', { name: `${peer.name} 선택`, exact: true })).toBeVisible();
     await expect(page.getByRole('checkbox', { name: `${primary.name} 선택`, exact: true })).toHaveCount(0);
     await expect(page.locator('.scores-entry-page').getByText('성적 불러오는 중…', { exact: true })).toBeHidden();

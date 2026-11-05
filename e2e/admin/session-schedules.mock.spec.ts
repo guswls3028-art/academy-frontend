@@ -116,8 +116,10 @@ for (const width of [390, 1366]) test(`수업일 작성·배정·저장·reload�
   await expect(modal).toBeHidden();
   expect(state.puts[0].schedules.map(s => [s.label, s.date, s.enrollment_ids])).toEqual([['수요일반', '2026-11-04', [31]], ['목요일반', '2026-11-05', [32]]]);
   await page.reload();
+  await expect(page.getByText('기본 수업일: 2026-11-04', { exact: true })).toBeVisible();
   await strip.getByRole('button', { name: /^수요일반/ }).click();
   await expect(page).toHaveURL(/schedule=71/);
+  await expect(page.getByText('2026-11-04 · 수요일반', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: '김수연 학생 상세 열기' })).toBeVisible();
   await expect(page.getByRole('link', { name: '이목현 학생 상세 열기' })).toHaveCount(0);
   await expect(strip.getByRole('status')).toHaveCount(0);
@@ -134,9 +136,14 @@ for (const width of [390, 1366]) test(`수업일 작성·배정·저장·reload�
   await capture(page, `schedule-scores-${width}`);
   await page.getByRole('checkbox', { name: '김수연 선택', exact: true }).check();
   await strip.getByRole('button', { name: /^목요일반/ }).click();
+  const thursdayHeading = page.getByText('2026-11-05 · 목요일반', { exact: true });
+  await expect(thursdayHeading).toBeVisible();
+  await thursdayHeading.scrollIntoViewIfNeeded();
+  await capture(page, `schedule-thursday-header-${width}`);
   await expect(page.getByRole('checkbox', { name: '이목현 선택', exact: true })).not.toBeChecked();
   await expect(page.getByRole('checkbox', { name: '김수연 선택', exact: true })).toHaveCount(0);
   await strip.getByRole('button', { name: /^미배정/ }).click();
+  await expect(page.getByText('수업일 미배정', { exact: true })).toBeVisible();
   await expect(page.getByRole('checkbox', { name: '박새봄 선택', exact: true })).toBeVisible();
   await page.getByRole('tab', { name: '출결', exact: true }).click();
   await expect(page).toHaveURL(/attendance\?schedule=0/);

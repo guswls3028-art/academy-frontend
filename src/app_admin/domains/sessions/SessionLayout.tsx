@@ -9,6 +9,7 @@ import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { adminSessionQueryKeys } from "./queryKeys";
+import { fetchSessionSchedules, sessionSchedulesKey } from "@/shared/api/contracts/sessionSchedules";
 import SessionAttendanceSummary from "./components/SessionAttendanceSummary";
 import summaryStyles from "./components/SessionAttendanceSummary.module.css";
 import SessionScheduleStrip from "./components/SessionScheduleStrip";
@@ -17,6 +18,13 @@ export default function SessionLayout() {
   const { lectureId, sessionId } = useLectureSessionParams();
   const { sectionMode } = useSectionMode();
   const location = useLocation();
+  const scheduleScope = new URLSearchParams(location.search).get("schedule");
+  const scheduleQuery = useQuery({
+    queryKey: sessionSchedulesKey(sessionId ?? 0),
+    queryFn: () => fetchSessionSchedules(sessionId!),
+    enabled: !!lectureId && !!sessionId,
+    retry: false,
+  });
 
   const { data: session, isLoading, isError } = useQuery({
     queryKey: adminSessionQueryKeys.sessionDetail(sessionId),
@@ -96,6 +104,13 @@ export default function SessionLayout() {
     ? ` (${sectionType ? sectionType + " " : ""}${sectionLabel})`
     : "";
   const sessionHeading = formatSessionBlockLabel(session) + sectionSuffix;
+  const selectedSchedule = scheduleQuery.data?.schedules.find(schedule => String(schedule.id) === scheduleScope);
+  const scheduleDescription = scheduleScope === null
+    ? scheduleQuery.data?.schedules.length ? `기본 수업일: ${session.date}` : session.date
+    : scheduleScope === "0" ? "수업일 미배정"
+    : scheduleQuery.isPending ? "수업일 확인 중…"
+    : scheduleQuery.isError || !selectedSchedule ? "수업일 확인 필요"
+    : `${selectedSchedule.date} · ${selectedSchedule.label}`;
   const breadcrumbs = [
     { label: "강의", to: "/workspace/lectures" },
     { label: lectureTitle, to: `/workspace/lectures/${lectureId}` },
@@ -105,14 +120,14 @@ export default function SessionLayout() {
   return (
     <DomainLayout
       title={sessionHeading}
-      description={[session.date, sectionLabel].filter(Boolean).join(" · ") || undefined}
+      description={[scheduleDescription, sectionLabel].filter(Boolean).join(" · ") || undefined}
       breadcrumbs={breadcrumbs}
       tabs={tabs}
       density={isScoresRoute ? "compact" : "default"}
       headerActions={<SessionAttendanceSummary sessionId={sessionId} />}
       className={summaryStyles.sessionDomainLayout}
     >
-      <SessionScheduleStrip key={sessionId} sessionId={sessionId} lectureId={lectureId} sessionDate={session.date ?? ""} sessionOrder={session.order} shared={!isScoresRoute && !location.pathname.endsWith("/attendance")}>
+      <SessionScheduleStrip key={sessionId} sessionId={sessionId} lectureId={lectureId} sessionDate={session.date ?? ""} sessionOrder={session.order} query={scheduleQuery} shared={!isScoresRoute && !location.pathname.endsWith("/attendance")}>
         <Outlet />
       </SessionScheduleStrip>
     </DomainLayout>

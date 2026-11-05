@@ -1,22 +1,21 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
 import { Button } from '@/shared/ui/ds';
-import { fetchSessionSchedules, sessionSchedulesKey, type SessionSchedules } from '@/shared/api/contracts/sessionSchedules';
+import { sessionSchedulesKey, type SessionSchedules } from '@/shared/api/contracts/sessionSchedules';
 import { feedback } from '@/shared/ui/feedback/feedback';
 import { SessionScheduleNavigationContext } from '@/shared/hooks/useSessionScheduleScope';
 import SessionScheduleManager from './SessionScheduleManager';
 import styles from './SessionScheduleStrip.module.css';
 
-type Props = { sessionId: number; lectureId: number; sessionDate: string; sessionOrder: number; shared: boolean; children: ReactNode };
-export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate, sessionOrder, shared, children }: Props) {
+type Props = { sessionId: number; lectureId: number; sessionDate: string; sessionOrder: number; shared: boolean; children: ReactNode; query: UseQueryResult<SessionSchedules, Error> };
+export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate, sessionOrder, shared, children, query }: Props) {
   const [params, setParams] = useSearchParams();
   const scope = params.get('schedule');
   const [open, setOpen] = useState(false);
   const beforeChange = useRef<(() => Promise<boolean>) | undefined>(undefined);
   const navigating = useRef(false);
   const qc = useQueryClient();
-  const query = useQuery({ queryKey: sessionSchedulesKey(sessionId), queryFn: () => fetchSessionSchedules(sessionId), retry: false });
   const data = query.data;
   const setScope = (value: string | null) => setParams(previous => {
     const next = new URLSearchParams(previous);

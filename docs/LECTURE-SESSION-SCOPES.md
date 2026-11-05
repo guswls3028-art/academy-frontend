@@ -226,6 +226,10 @@ pnpm build
 `{session,schedule}` 본문을 보낸다. 전체에서는 `schedule`을 생략하고 `0`은 보존한다.
 서버 정책 정본은 [backend 강의 도메인](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/lecture-sessions.md)에서 관리한다.
 
+관리자 차시 상단은 선택한 수업일의 실제 날짜와 반 이름을 표시한다. 전체에서는
+차시의 원래 날짜를 `기본 수업일`로 구분하고, 미배정에서는 날짜 대신 `수업일 미배정`을
+표시한다. 상단과 선택 버튼은 같은 조회 결과를 사용하므로 저장·복구 후에도 함께 갱신된다.
+
 ### 학생·학부모 소비 화면
 
 학생 세션 목록/상세와 Today 응답의 `date`는 본인 배정 실제 날짜 또는 null이다.
