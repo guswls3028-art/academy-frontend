@@ -218,7 +218,7 @@ Enter 자동 실행은 해당 모달 footer의 명시적 primary 버튼만 대�
 맞춘다. 목록·표의 작은 동작은 기존 `sm`을 유지한다. 관리자 모바일 밀도 규칙은
 `lg`/`xl`을 40px로 축소하지 않으며 화면별 높이 재정의 대신 DS size를 소비한다.
 
-출결의 모바일 메모 열은 `StudentLectureMemo compact`로 강의·학생 공통 메모를
+출결의 메모 열은 `StudentLectureMemo compact`로 강의·학생 공통 메모를
 가로 배치하고 한 줄 미리보기를 제공한다. 가로 화면 밖의 메모 때문에 모든 행이
 늘어나지 않는다. 전체 내용·편집·미저장 복원·동시 수정 충돌은 기존 메모 창이
 유지하며 데이터나 접근 권한을 바꾸지 않는다.
@@ -227,3 +227,5 @@ Enter 자동 실행은 해당 모달 footer의 명시적 primary 버튼만 대�
 `student-lecture-memo.mock.spec.ts`(저장·reload·강의 분리·충돌),
 `assessment-operations-workspace.mock.spec.ts`, `lecture-session-scopes.mock.spec.ts`
 (1366/1100/390px 버튼 실측·기존 저장/복구). 캡처만으로 저장 성공을 판정하지 않는다.
+
+출결표는 모든 폭에서 현재 상태를 먼저 표시하고 선택할 때만 11개 상태를 연다. 이름·메모 공간과 저장/실패 복구 계약은 [출결 명단 안전](ATTENDANCE-ROSTER-SAFETY.md#ui와-접근성)을 따른다.

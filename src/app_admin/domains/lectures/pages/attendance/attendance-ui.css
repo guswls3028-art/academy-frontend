@@ -31,26 +31,6 @@
   .attendance-popover { animation: none; }
 }
 
-/* 데스크톱 대량 입력: 한 학생의 모든 상태를 한 줄에 펼쳐 팝오버 왕복을 없앤다. */
-.attendance-status-inline {
-  display: grid;
-  grid-template-columns: repeat(11, minmax(42px, 1fr));
-  align-items: center;
-  gap: 2px;
-  width: 100%;
-  min-height: 40px;
-  padding: 4px;
-  border: 1px solid var(--color-border-divider);
-  border-radius: 10px;
-  background: var(--color-bg-surface-soft);
-}
-
-/* Layout only: shape, states, typography and focus belong to SelectionButton. */
-.attendance-status-inline .attendance-status-inline__option {
-  width: 100%;
-  padding-inline: 2px;
-}
-
 /* 최근 일괄 출결 작업 — 사용자가 변경 범위와 복구 가능 상태를 즉시 확인한다. */
 .attendance-safety-record {
   display: flex;
