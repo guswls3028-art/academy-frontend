@@ -494,6 +494,9 @@
 .send-modal__missing-results p { margin: 0; }
 
 /* Help copy wraps by Korean word; authored message content keeps its own layout. */
+.send-message-modal .modal-header__description,
+.send-message-modal .grades-block-panel__group-label,
+.send-message-modal .grades-block-panel__hint,
 .send-modal__preview-help,
 .send-modal__editor-hint,
 .send-modal__editor-label-hint,

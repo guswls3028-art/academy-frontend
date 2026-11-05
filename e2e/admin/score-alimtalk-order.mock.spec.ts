@@ -96,10 +96,15 @@ for (const width of [1366, 390]) {
     await expect(editor.locator('[data-message-variable="시험2결과"]')).toHaveCount(1);
     await expect(missing).toHaveCount(0);
     await expect.poll(() => modal.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+    await expect(modal.getByRole("button", { name: "보낼 내용 확인", exact: true })).toBeInViewport();
     await page.screenshot({ path: testInfo.outputPath(`alimtalk-order-${width}.png`), animations: "disabled" });
+    await editor.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`alimtalk-order-${width}-editor.png`), animations: "disabled" });
     if (width === 1366) {
       await page.setViewportSize({ width: 1100, height: 900 });
       await expect.poll(() => modal.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+      await expect(modal.getByRole("button", { name: "보낼 내용 확인", exact: true })).toBeInViewport();
+      await editor.scrollIntoViewIfNeeded();
       await page.screenshot({ path: testInfo.outputPath("alimtalk-order-1100.png"), animations: "disabled" });
       await page.setViewportSize({ width, height: 900 });
     }
