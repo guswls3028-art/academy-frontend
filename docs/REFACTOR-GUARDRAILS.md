@@ -41,6 +41,11 @@ window use the shared bounded `waitForRenderSettled` helper before asserting the
 first screen state; retries remain a recovery path, not the expected cold-start
 path.
 
+The initial HTML JavaScript preload budget is 220 KiB gzip. PDF.js stays out of
+that entry preload and is fetched with its lazy document or PPT route. The bundle
+budget check enforces both limits so unrelated first-screen loads do not pay for
+PDF rendering code.
+
 Verification:
 
 ```powershell
