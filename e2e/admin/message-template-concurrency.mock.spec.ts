@@ -317,6 +317,7 @@ for (const width of [1366, 390]) {
     await picker.getByRole("button", { name: "닫기", exact: true }).last().click();
     await expect(editor).toContainText("작성 중인 안내문 초안입니다.");
     await modal.getByRole("button", { name: "변경 내용 저장", exact: true }).click();
+    await expect(modal.getByRole("button", { name: "변경 내용 저장", exact: true })).toBeHidden();
     expect(writes[1].expected_updated_at).toBe("2026-10-21T00:00:02Z");
     await modal.getByRole("button", { name: "취소", exact: true }).click();
     await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
