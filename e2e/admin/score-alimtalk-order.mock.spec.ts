@@ -2,7 +2,7 @@ import { expect, test, type Page } from "../fixtures/strictTest";
 import { openCompositionScores } from "../helpers/assessmentCompositionMock";
 import type { SessionScoreMeta, SessionScoreRow } from "../../src/shared/api/contracts/sessionScores";
 
-async function setup(page: Page, automatic = false) {
+async function setup(page: Page, automatic = false, failFirstSave = !automatic) {
   const response = page.waitForResponse(r => r.url().includes("/sessions/9002/scores/") && r.status() === 200);
   await openCompositionScores(page);
   const scores = await (await response).json() as { meta: SessionScoreMeta; rows: SessionScoreRow[] };
@@ -24,7 +24,7 @@ async function setup(page: Page, automatic = false) {
     body: automatic ? "직접 쓴 공지\n#{시험목록}\n#{과제목록}" : "직접 쓴 공지\n#{시험1명}: #{시험1}/#{시험1만점}\n총점 #{시험총점}/#{시험총만점}\n#{과제목록}",
     is_system: false, is_user_default: true, solapi_status: "", solapi_template_id: "", updated_at: "2026-11-05T10:00:00Z" };
   const saves: Record<string, unknown>[] = [], sends: Record<string, unknown>[] = [];
-  let failSave = !automatic;
+  let failSave = failFirstSave;
   await page.route("**/api/v1/messaging/**", async route => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith("/templates/991/") && route.request().method() === "PATCH") {
@@ -102,14 +102,17 @@ for (const width of [1366, 390]) {
 }
 
 test("@alimtalk-order 자동 결과 목록 저장 후 새 시험 포함·순서 이동은 합산을 보존한다", async ({ page }) => {
-  const harness = await setup(page, true);
+  const harness = await setup(page, false, false);
   await page.getByRole("button", { name: "둘째 시험 이전 순서로 이동", exact: true }).click();
   await expect.poll(() => harness.orderWrites.length).toBe(1);
   expect(harness.orderWrites[0]).toMatchObject({ exam_ids: [9101], exam_order: [9102, 9101] });
   await page.reload();
   const modal = await harness.open();
   const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
-  await editor.click(); await editor.press("Control+End"); await page.keyboard.insertText("\n추가 공지");
+  await editor.fill("직접 쓴 공지\n");
+  await editor.click(); await editor.press("Control+End");
+  await modal.getByRole("button", { name: "시험 목록", exact: true }).click();
+  await editor.press("Control+End"); await page.keyboard.insertText("\n추가 공지");
   await modal.getByRole("button", { name: "변경 내용 저장", exact: true }).click();
   await expect.poll(() => harness.saves.length).toBe(1);
   expect(harness.saved().body).toContain("#{시험목록}");
