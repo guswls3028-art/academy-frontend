@@ -773,16 +773,15 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
       await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
       await verify(original.exam_order, original.exam_ids);
       await verifyParentTotal(60, 100, 1);
-      // Start with the second exam excluded: this move must cross the rendered
-      // total boundary and change both the saved order and included assessment set.
+      // Moving the excluded exam changes presentation only, including after reload.
       if (width === 1366) {
         await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }));
       } else await page.getByRole("button", { name: `${manualExamTitle} 이전 순서로 이동`, exact: true }).click();
       const reversed = [created.manualExamId!, created.examId!];
-      await verify(reversed, reversed);
+      await verify(reversed, original.exam_ids);
       await page.reload();
-      await verify(reversed, reversed);
-      await verifyParentTotal(143.33, 200, 2);
+      await verify(reversed, original.exam_ids);
+      await verifyParentTotal(60, 100, 1);
       const rosterWarning = page.getByRole("region", { name: "응시·제출 대상 미배정 안내", exact: true });
       const assignAll = rosterWarning.getByRole("button", { name: "누락 전부 배정", exact: true });
       await expect(assignAll).toBeVisible();
@@ -798,24 +797,23 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
       if (width === 1366) {
         await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }));
       } else await page.getByRole("button", { name: `${examTitle} 이전 순서로 이동`, exact: true }).click();
-      await verify(original.exam_order, original.exam_order);
+      await verify(original.exam_order, original.exam_ids);
       const restore = await openTotals();
       await restore.getByRole("checkbox", { name: `${manualExamTitle} 합산에 포함`, exact: true }).uncheck();
       await save(restore);
       await verify(original.exam_order, original.exam_ids);
-      // Moving the included exam past an excluded one crosses the boundary in
-      // the other direction; neither score may remain in the displayed total.
+      // Moving the included exam past an excluded one also preserves the sum.
       if (width === 1366) {
         await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }));
       } else await page.getByRole("button", { name: `${examTitle} 다음 순서로 이동`, exact: true }).click();
-      await verify(reversed, []);
+      await verify(reversed, original.exam_ids);
       await page.reload();
-      await verify(reversed, []);
-      await verifyParentTotal(null, 0, 0);
+      await verify(reversed, original.exam_ids);
+      await verifyParentTotal(60, 100, 1);
       if (width === 1366) {
         await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }));
       } else await page.getByRole("button", { name: `${manualExamTitle} 다음 순서로 이동`, exact: true }).click();
-      await verify(original.exam_order, []);
+      await verify(original.exam_order, original.exam_ids);
       const finalRestore = await openTotals();
       await finalRestore.getByRole("checkbox", { name: `${examTitle} 합산에 포함`, exact: true }).check();
       await save(finalRestore);

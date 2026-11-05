@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { lintAlimtalkTemplateQuality } from "../../src/app_admin/domains/messages/utils/templateQuality.ts";
-import { expandScoreMessageBlocks, scoreMessageItems } from "../../src/shared/messaging/scoreMessageEditor.ts";
+import { expandScoreMessageBlocks, scoreMessageItems, missingScoreMessageItems, preserveScoreMessageBlocks } from "../../src/shared/messaging/scoreMessageEditor.ts";
 
 test("empty/deleted content never creates a message, even when scores are available", () => {
   const values = { 시험1명: "단원평가", 과제1명: "오답노트" };
@@ -36,4 +36,24 @@ test("actual class and homework totals blocks are supported without hardcoded va
 test("invalid future offsets remain unsupported", () => {
   const issues = lintAlimtalkTemplateQuality({ body: "#{0차시후명} #{100차시후날짜}", blockCategory: "grades" });
   assert.equal(issues.some(issue => issue.id === "unknown-vars"), true);
+});
+
+test("fixed saved rows expose omitted results independently of totals", () => {
+  const values = { 시험1명: "어휘", 시험2명: "하프모의", 과제1명: "완료 과제" };
+  assert.deepEqual(missingScoreMessageItems("#{시험1명}: #{시험1}/#{시험1만점}\n총점 #{시험총점}", values).map(item => item.name), ["하프모의", "완료 과제"]);
+  assert.deepEqual(missingScoreMessageItems("#{시험목록}\n#{과제1결과}", values), []);
+  assert.deepEqual(missingScoreMessageItems("#{시험성적}", values), []);
+  assert.equal(missingScoreMessageItems("#{시험1명} #{시험10}", values).length, 3);
+});
+
+test("saving untouched automatic lists preserves future assessments without restoring deleted rows", () => {
+  const values = { 시험1명: "어휘", 시험2명: "본문" };
+  const source = "직접 쓴 안내\n#{시험목록}\n끝 문장";
+  const expanded = expandScoreMessageBlocks(source, values);
+  const saved = preserveScoreMessageBlocks(expanded.replace("직접 쓴 안내", "변경한 안내"), source, values);
+  assert.equal(saved, source.replace("직접 쓴 안내", "변경한 안내"));
+  assert.match(expandScoreMessageBlocks(saved, { ...values, 시험3명: "하프모의" }), /#\{시험3결과\}/);
+  const deleted = expanded.replace("\n#{시험2명}: #{시험2결과}", "");
+  assert.equal(preserveScoreMessageBlocks(deleted, source, values), deleted);
+  assert.equal(preserveScoreMessageBlocks("", source, values), "");
 });

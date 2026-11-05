@@ -683,20 +683,19 @@ for (const width of [1366, 390]) {
     await page.reload();
     await expect(row.locator(".assessment-total-value").first()).toHaveText("0 / 100");
     await expect(row.locator(".assessment-total-value").last()).toHaveText("25 / 100");
-    // Moving an excluded column before an included column crosses the total boundary.
+    // Reordering an excluded column does not change the explicitly selected total.
     if (width === 1366) {
       await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "둘째 시험 작업 선택", exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "첫 시험 작업 선택", exact: true }) }));
     } else {
       await page.getByRole("button", { name: "둘째 시험 이전 순서로 이동", exact: true }).click();
     }
     await expect.poll(() => harness.writes.length).toBe(3);
-    expect(harness.writes[2]).toMatchObject({ exam_ids: [9102, 9101], exam_order: [9102, 9101], homework_ids: [9151] });
+    expect(harness.writes[2]).toMatchObject({ exam_ids: [9101], exam_order: [9102, 9101], homework_ids: [9151] });
     await page.reload();
-    await expect(row.locator(".assessment-total-value").first()).toContainText("0 / 200");
-    await expect(row.locator(".assessment-total-value").first()).toContainText("집계 중 · 1/2");
+    await expect(row.locator(".assessment-total-value").first()).toHaveText("0 / 100");
     await row.locator('[data-col-type="exam-summary"]').scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`assessment-main-column-inclusion-${width}.png`), animations: "disabled" });
-    // Completion-only items can reorder within excluded columns but cannot enter the sum.
+    // Completion-only items can move anywhere without entering the sum.
     if (width === 1366) {
       await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "준비물 통과형 작업 선택", exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "첫 과제 작업 선택", exact: true }) }));
     } else {
@@ -706,19 +705,19 @@ for (const width of [1366, 390]) {
       await page.getByRole("button", { name: "준비물 통과형 이전 순서로 이동", exact: true }).click();
     }
     await expect.poll(() => harness.writes.length).toBe(width === 1366 ? 4 : 5);
-    expect(harness.writes.at(-1)).toMatchObject({ homework_ids: [9151], homework_order: [9151, 9153, 9152] });
+    expect(harness.writes.at(-1)).toMatchObject({ homework_ids: [9151], homework_order: [9153, 9151, 9152] });
     await page.reload();
     await expect(row.locator(".assessment-total-value").last()).toHaveText("25 / 100");
 
-    // Saving the total settings must retain completion items among excluded columns.
+    // Saving total membership must preserve all column positions.
     const writesBeforeReopen = harness.writes.length;
     await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
     await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
     await expect(modal).toBeHidden();
     expect(harness.writes).toHaveLength(writesBeforeReopen + 1);
-    expect(harness.writes.at(-1)).toMatchObject({ homework_ids: [9151], homework_order: [9151, 9153, 9152] });
+    expect(harness.writes.at(-1)).toMatchObject({ homework_ids: [9151], homework_order: [9153, 9151, 9152] });
     await page.reload();
-    await expect.poll(() => page.locator('[data-testid^="score-column-order-homework-"]').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-column-id"))))).toEqual([9151, 9153, 9152]);
+    await expect.poll(() => page.locator('[data-testid^="score-column-order-homework-"]').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-column-id"))))).toEqual([9153, 9151, 9152]);
 
     await row.locator('[data-col-type="exam-summary"]').scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`assessment-totals-${width}.png`), animations: "disabled" });

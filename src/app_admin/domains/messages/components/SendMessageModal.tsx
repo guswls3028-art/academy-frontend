@@ -62,7 +62,7 @@ import {
   type ProvidedTemplatePreset,
 } from "../constants/templatePresets";
 import GradesBlockPanel from "./GradesBlockPanel";
-import { expandScoreMessageBlocks } from "@/shared/messaging/scoreMessageEditor";
+import { expandScoreMessageBlocks, missingScoreMessageItems, preserveScoreMessageBlocks } from "@/shared/messaging/scoreMessageEditor";
 import TemplatePickerModal from "./TemplatePickerModal";
 import MessageBodyEditor, { type MessageBodyEditorHandle } from "./MessageBodyEditor";
 import { useMessageAcademyName } from "../hooks/useMessageAcademyName";
@@ -383,6 +383,11 @@ export default function SendMessageModal({
     && body !== (selectedTemplateConflict ? prepareEditorBody(selectedTemplateConflict.body) : templateBodySnapshot);
   const presetBodyModified = selectedPreset != null && templateBodySnapshot != null && body !== templateBodySnapshot;
   const hasSelectedBodySource = !!selectedTemplate || !!selectedPreset || alimtalkFreeForm;
+  const missingScoreItems = effectiveBlockCategory === "grades" && body.trim()
+    ? missingScoreMessageItems(body, alimtalkExtraVars) : [];
+  const persistedBody = effectiveBlockCategory === "grades"
+    ? preserveScoreMessageBlocks(body, selectedTemplate?.body ?? initialBody ?? "", alimtalkExtraVars)
+    : body;
 
   // Validate the draft actually sent. Registered student/score variables remain
   // automatic; the server preflight checks their recipient-specific values.
@@ -834,7 +839,7 @@ export default function SendMessageModal({
     const attempt = templateCreateAttempt ?? {
       payload: {
         category: toPersistedTemplateCategory(effectiveBlockCategory),
-        name: saveTemplateName.trim(), subject: subject || "", body,
+        name: saveTemplateName.trim(), subject: subject || "", body: persistedBody,
         client_request_id: createRandomUuid(),
       },
       makeDefault: effectiveBlockCategory === "grades" && saveAsDefault,
@@ -906,7 +911,7 @@ export default function SendMessageModal({
       confirmText: "이 초안 저장", cancelText: "계속 편집",
     })) return null;
     const updated = await updateMessageTemplate(selectedTemplate.id, {
-      body, expected_updated_at: selectedTemplateConflict?.updated_at ?? templateVersion,
+      body: persistedBody, expected_updated_at: selectedTemplateConflict?.updated_at ?? templateVersion,
     });
     setTemplates(previous => previous.map(template => template.id === updated.id ? updated : template));
     setTemplateBodySnapshot(prepareEditorBody(updated.body));
@@ -1592,6 +1597,20 @@ export default function SendMessageModal({
                 </span>
               )}
             </div>
+
+            {missingScoreItems.length > 0 && <div className="send-modal__hint" role="region" aria-label="본문에 없는 수업 결과">
+              <strong>본문에 없는 결과 {missingScoreItems.length}개</strong>
+              <p>{missingScoreItems.map(item => item.name).join(" · ")}</p>
+              <p>총점 합산 여부와 관계없이 넣을 수 있습니다. 일부 결과만 안내하려면 현재 본문을 유지하세요.</p>
+              <Button size="sm" intent="secondary" disabled={sending || templateEditingLocked}
+                onClick={() => {
+                  setBody(current => {
+                    const missing = missingScoreMessageItems(current, alimtalkExtraVars);
+                    return missing.length ? `${current}${current.endsWith("\n") ? "" : "\n"}${missing.map(item => item.text).join("\n")}` : current;
+                  });
+                  setAlimtalkFreeForm(true);
+                }}>빠진 결과를 본문 끝에 넣기</Button>
+            </div>}
 
             {/* ── 본문 + 변수 팔레트 ── */}
             <div className="send-modal__editor">

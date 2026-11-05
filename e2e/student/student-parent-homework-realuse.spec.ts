@@ -152,8 +152,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       const originalOrder = [created.homeworkId!, completion.id];
       const scoresPath = `/results/admin/sessions/${created.sessionId}/scores/`;
       const verifyMixed = async (order: number[], selected: number[], completionScore: number) => {
-        const included = new Set(selected);
-        const rendered = [...order.filter(id => included.has(id)), ...order.filter(id => !included.has(id))];
+        const rendered = order;
         await expect.poll(() => staffPage.locator('[data-testid^="score-column-order-homework-"]').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-column-id"))))).toEqual(rendered);
         const config = await expectApi<{ homework_ids: number[]; homework_order: number[] }>(request, "GET", configPath, admin.access);
         expect(config.homework_ids).toEqual(selected);

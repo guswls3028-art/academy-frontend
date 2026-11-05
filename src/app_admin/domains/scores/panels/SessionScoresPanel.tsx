@@ -180,26 +180,16 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
       homework_ids: meta.homeworks.filter(h => h.grading_mode !== "COMPLETION").map(h => h.homework_id),
     };
     const ids = type === "exam" ? meta.exams.map(e => e.exam_id) : meta.homeworks.map(h => h.homework_id);
-    const completionIds = new Set(meta.homeworks.filter(h => h.grading_mode === "COMPLETION").map(h => h.homework_id));
-    const selected = new Set(type === "exam" ? config.exam_ids : config.homework_ids.filter(id => !completionIds.has(id)));
-    // Match the rendered columns, including the total boundary between groups.
-    const displayed = [...ids.filter(id => selected.has(id)), 0, ...ids.filter(id => !selected.has(id))];
-    const fromIdx = displayed.indexOf(fromId);
-    const toIdx = displayed.indexOf(toId);
+    const fromIdx = ids.indexOf(fromId);
+    const toIdx = ids.indexOf(toId);
     if (fromIdx < 0 || toIdx < 0) return;
-    const movedOrder = [...displayed];
-    const [moved] = movedOrder.splice(fromIdx, 1);
-    movedOrder.splice(toIdx, 0, moved);
-    const included = movedOrder.slice(0, movedOrder.indexOf(0))
-      .filter(id => type === "exam" || !completionIds.has(id));
-    const includedSet = new Set(included);
-    // Completion-only homework always remains behind the total, even when dragged across it.
-    const order = [...included, ...movedOrder.filter(id => id !== 0 && !includedSet.has(id))];
+    const order = [...ids];
+    const [moved] = order.splice(fromIdx, 1);
+    order.splice(toIdx, 0, moved);
+    // Reordering is presentation only. Only the totals editor changes membership.
     try {
       await saveScoreTotalConfig(sessionId, {
         ...config,
-        exam_ids: type === "exam" ? included : config.exam_ids,
-        homework_ids: type === "homework" ? included : config.homework_ids,
         exam_order: type === "exam" ? order : meta.exams.map(e => e.exam_id),
         homework_order: type === "homework" ? order : meta.homeworks.map(h => h.homework_id),
       });
