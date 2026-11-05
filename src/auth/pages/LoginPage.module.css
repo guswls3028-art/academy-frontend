@@ -260,6 +260,10 @@
 }
 
 .link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-sm);
   font-size: 0.875rem;
   font-weight: 600;
   letter-spacing: 0;
@@ -357,8 +361,8 @@
   position: absolute;
   top: 14px;
   right: 14px;
-  width: 32px;
-  height: 32px;
+  width: var(--control-md);
+  height: var(--control-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -402,7 +406,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-right: 34px;
+  padding-right: calc(var(--control-md) + var(--space-2));
   margin: 0 0 6px;
 }
 
@@ -411,9 +415,9 @@
 }
 
 .signupHelpButton {
-  width: 24px;
-  height: 24px;
-  flex: 0 0 24px;
+  width: var(--control-sm);
+  height: var(--control-sm);
+  flex: 0 0 var(--control-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -658,7 +662,7 @@
 }
 .signupSegmentBtn {
   flex: 1;
-  height: 36px;
+  min-height: var(--control-lg);
   font-size: 0.875rem;
   font-weight: 600;
   letter-spacing: 0;

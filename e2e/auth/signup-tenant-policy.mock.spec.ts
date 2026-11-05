@@ -22,6 +22,18 @@ for (const width of [390, 1366]) {
     await trigger.click();
     const dialog = page.getByRole("dialog", { name: "학생 회원가입" });
     await expect(dialog.locator("#signup-name")).toBeFocused();
+    const close = dialog.getByRole("button", { name: "닫기", exact: true });
+    const help = dialog.getByRole("button", { name: "회원가입 안내 보기", exact: true });
+    await expect(close).toHaveCSS("height", width === 390 ? "44px" : "40px");
+    await expect(help).toHaveCSS("height", width === 390 ? "44px" : "32px");
+    await expect(dialog.getByRole("button", { name: "남", exact: true })).toHaveCSS("height", "44px");
+    await expect(dialog.locator("#signup-name")).toHaveCSS("height", "44px");
+    await expect(dialog.getByLabel("휴대전화 앞 4자리")).toHaveCSS("height", "44px");
+    if (width === 390) await expect(trigger).toHaveCSS("min-height", "44px");
+    await help.click();
+    await expect(dialog.locator("#signup-guide-panel")).toBeVisible();
+    await help.click();
+    await expect(dialog.locator("#signup-guide-panel")).toHaveCount(0);
     await dialog.locator("#signup-name").fill("입력 보존 학생");
     await dialog.locator("#signup-username").fill("old-id");
     const oldRequest = page.waitForRequest((request) => request.url().includes("check_duplicate") && request.postDataJSON()?.username === "old-id");
