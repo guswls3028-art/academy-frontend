@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Popover } from "antd";
-import { ChevronDown, ClipboardCheck } from "lucide-react";
+import { ChevronDown, ClipboardCheck, Settings2 } from "lucide-react";
 
 import { ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -13,7 +13,6 @@ import { deleteHomework, HomeworkPolicyPanel } from "@admin/domains/homework/pub
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/public/assessmentQueries";
 import { scoresQueryKeys } from "../api/queryKeys";
 import MenuAction from "./AssessmentHeaderMenuAction";
-import { AssessmentTitleEditButton } from "@admin/domains/sessions/public/titleEditing";
 import styles from "./ExamHeaderActionMenu.module.css";
 
 const ParentAssessmentCommentsPanel = lazy(() => import("./ParentAssessmentCommentsPanel"));
@@ -72,18 +71,23 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
     }
   };
 
-  const handleSaved = useCallback(() => { setEditOpen(false); setDirty(false); }, []);
+  const handleSaved = useCallback(() => { setEditOpen(false); setDirty(false); setSaving(false); }, []);
 
   const menu = (
     <div className={styles.menu} role="menu" aria-label={`${homeworkTitle} 작업 선택`} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
       <div className={styles.menuHeader}>
         <span>과제 작업</span>
         <div className={styles.menuHeaderActions}>
-          <button type="button" role="menuitem" className={styles.headerAction} onClick={() => { setMenuOpen(false); setEditOpen(true); }}>수정</button>
           <button type="button" role="menuitem" className={`${styles.headerAction} ${styles.headerActionDanger}`} disabled={deleting || deleteLocked} title={deleteLocked ? "진행 중인 점수 입력을 저장한 뒤 삭제할 수 있습니다." : undefined} onClick={() => { void handleDelete(); }}>{deleting ? "삭제 중…" : "삭제"}</button>
         </div>
       </div>
       <p className={styles.menuDescription}>과제명과 운영 기준을 수정하거나 이 차시에서 삭제합니다.</p>
+      <MenuAction
+        title="과제 수정"
+        description="과제명, 제출기한, 채점 방식과 합격 기준을 함께 수정"
+        icon={<Settings2 size={ICON_FOR_BUTTON.md} />}
+        onClick={() => { setMenuOpen(false); setEditOpen(true); }}
+      />
       <MenuAction
         title="학부모 코멘트"
         description="학생별 과제 전달사항 작성 · 학부모에게만 공개"
@@ -100,15 +104,12 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
           <ParentAssessmentCommentsPanel sessionId={sessionId} assessmentKind="homework" assessmentId={homeworkId} title={homeworkTitle} onClose={() => setCommentsOpen(false)} />
         </Suspense>
       )}
-      <span className="inline-flex min-w-0 max-w-full flex-col items-center gap-1">
       <Popover content={menu} trigger="click" placement="bottom" open={menuOpen} onOpenChange={setMenuOpen} arrow={false} overlayClassName={styles.popover} motion={{ motionName: "academy-exam-menu-fade" }}>
         <button type="button" className="scores-table-exam-link" draggable={false} aria-haspopup="menu" aria-expanded={menuOpen} aria-label={`${homeworkTitle} 작업 선택`} title={`${homeworkTitle} — 작업 선택`} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} onDragStart={(event) => { event.preventDefault(); event.stopPropagation(); }}>
           <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{homeworkTitle}</span>
           <ChevronDown className="scores-table-exam-link__icon" size={ICON_FOR_BUTTON.sm} aria-hidden />
         </button>
       </Popover>
-      <AssessmentTitleEditButton key={homeworkId} kind="homework" id={homeworkId} title={homeworkTitle} compact />
-      </span>
       <AdminModal open={editOpen} onClose={() => { void closeEdit(); }} closeDisabled={saving} type="action" width={MODAL_WIDTH.wide}>
         <ModalHeader type="action" title="과제 수정" subtitle={homeworkTitle} />
         <ModalBody>

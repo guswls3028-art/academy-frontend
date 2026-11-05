@@ -25,6 +25,7 @@ import type {
 import AnswerKeyRegisterModal from "../../components/AnswerKeyRegisterModal";
 
 type ExamPolicyForm = {
+  title: string;
   maxScore: string;
   passScore: string;
   gradingMode: ExamGradingMode;
@@ -84,6 +85,7 @@ function toIsoDateTime(value: string): string | null {
 
 function formFromExam(exam: Exam): ExamPolicyForm {
   return {
+    title: exam.title,
     maxScore: String(exam.max_score),
     passScore: String(exam.pass_score),
     gradingMode: exam.grading_mode,
@@ -145,11 +147,23 @@ export default function ExamPolicyPanel({
   lectureId = 0,
   sessionId = 0,
   answerKeyMissing = false,
+  editing = false,
+  onDirtyChange,
+  onSavingChange,
+  onSaved,
+  formId,
+  onSaveAllowedChange,
 }: {
   examId: number;
   lectureId?: number;
   sessionId?: number;
   answerKeyMissing?: boolean;
+  editing?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
+  onSavingChange?: (saving: boolean) => void;
+  onSaved?: () => void;
+  formId?: string;
+  onSaveAllowedChange?: (allowed: boolean) => void;
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -213,7 +227,7 @@ export default function ExamPolicyPanel({
     if (!form || !baseFormRef.current) return false;
     return JSON.stringify(form) !== JSON.stringify(baseFormRef.current);
   }, [form]);
-  const validationError = form ? formError(form) : null;
+  const validationError = form ? !form.title?.trim() ? "시험명을 입력해 주세요." : formError(form) : null;
   const remoteChanged = Boolean(
     exam?.updated_at &&
     baseUpdatedAtRef.current &&
@@ -229,31 +243,43 @@ export default function ExamPolicyPanel({
     baseUpdatedAt: baseUpdatedAtRef.current,
     form,
     dirty,
-    onRestore: setForm,
+    onRestore: (draft) => setForm((current) => current ? { ...current, ...draft } : draft),
   });
 
   const patchMutation = useMutation({
     mutationFn: async (nextForm: ExamPolicyForm) => {
-      return updateAdminExam(examId, {
-        max_score: Number(nextForm.maxScore),
-        pass_score: Number(nextForm.passScore),
-        grading_mode: nextForm.gradingMode,
-        manual_grading_method: nextForm.manualGradingMethod,
-        choice_question_count: Number(nextForm.choiceQuestionCount || 0),
-        essay_numbering: nextForm.essayNumbering,
-        allow_retake: nextForm.allowRetake,
-        max_attempts: nextForm.allowRetake ? Number(nextForm.maxAttempts) : 1,
-        open_at: toIsoDateTime(nextForm.openAt),
-        close_at: toIsoDateTime(nextForm.closeAt),
-        answer_visibility: nextForm.answerVisibility,
-        student_results_published: nextForm.studentResultsPublished,
-      }, baseUpdatedAtRef.current);
+      const toPayload = (value: ExamPolicyForm) => ({
+        title: value.title?.trim(),
+        max_score: Number(value.maxScore),
+        pass_score: Number(value.passScore),
+        grading_mode: value.gradingMode,
+        manual_grading_method: value.manualGradingMethod,
+        choice_question_count: Number(value.choiceQuestionCount || 0),
+        essay_numbering: value.essayNumbering,
+        allow_retake: value.allowRetake,
+        max_attempts: value.allowRetake ? Number(value.maxAttempts) : 1,
+        open_at: toIsoDateTime(value.openAt),
+        close_at: toIsoDateTime(value.closeAt),
+        answer_visibility: value.answerVisibility,
+        student_results_published: value.studentResultsPublished,
+      });
+      if (!baseFormRef.current || !baseUpdatedAtRef.current) throw new Error("최신 시험 설정을 확인해 주세요.");
+      const next = toPayload(nextForm);
+      const base = toPayload(baseFormRef.current);
+      const payload = editing
+        ? Object.fromEntries(Object.entries(next).filter(([key, value]) => value !== base[key as keyof typeof base]))
+        : { ...next, title: next.title !== base.title ? next.title : undefined };
+      return updateAdminExam(examId, payload, baseUpdatedAtRef.current);
     },
-    onSuccess: (updated) => {
+    onSuccess: async (updated) => {
       clearDraft();
       qc.setQueryData(adminExamsQueryKeys.adminExam(examId), updated);
       syncFromExam(updated);
-      feedback.success("시험 운영 설정을 저장했습니다.");
+      await qc.invalidateQueries({ predicate: (query) => ["session-scores", "admin-session-exams", "session-exams-summary", "admin-exam-results", "admin-exams", "exam-detail", "templates-with-usage"].includes(String(query.queryKey[0])) });
+      const reviewCount = updated.regrade?.needs_review?.length ?? 0;
+      if (reviewCount) feedback.warning(`설정을 저장했습니다. 수기 보정 ${reviewCount}건은 재채점에서 제외되어 확인이 필요합니다.`);
+      else feedback.success("시험 운영 설정을 저장했습니다.");
+      onSaved?.();
     },
     onError: async (error: unknown) => {
       if (isStaleResourceConflict(error)) {
@@ -265,6 +291,11 @@ export default function ExamPolicyPanel({
       feedback.error(getApiErrorMessage(error, "시험 운영 설정을 저장하지 못했습니다."));
     },
   });
+
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => { onSavingChange?.(patchMutation.isPending); }, [patchMutation.isPending, onSavingChange]);
+  const saveAllowed = Boolean(form && baseUpdatedAtRef.current && !isError && !loadingLatest && dirty && !validationError && !conflictDetected && !remoteChanged && !patchMutation.isPending);
+  useEffect(() => { onSaveAllowedChange?.(saveAllowed); }, [saveAllowed, onSaveAllowedChange]);
 
   const questionChoiceCount = questions.filter(
     (question) => question.question_kind === "choice",
@@ -375,12 +406,14 @@ export default function ExamPolicyPanel({
           <div>
             <h2 className={formStyles.title}>시험 운영 설정</h2>
             <p className={formStyles.description}>
-              현재 설정을 확인하고, 바꿀 때만 펼쳐서 저장하세요.
+              {editing ? "시험명과 채점·공개 설정을 함께 수정합니다." : "현재 설정을 확인하고, 바꿀 때만 펼쳐서 저장하세요."}
             </p>
           </div>
         </div>
 
-        <details className={formStyles.policyDisclosure}>
+        <form id={formId} onSubmit={(event) => { event.preventDefault(); if (saveAllowed) patchMutation.mutate(form); }}>
+        {isError && <div role="alert" className={formStyles.inlineStatus}>최신 설정을 확인하지 못했습니다. 입력을 유지했습니다.<Button type="button" intent="secondary" size="sm" onClick={() => void refetch()}>다시 시도</Button></div>}
+        <details className={formStyles.policyDisclosure} open={editing || undefined}>
           <summary>
             <span className={formStyles.policySnapshot}>
               <strong>{GRADING_OPTIONS.find((option) => option.value === currentChoice)?.title}</strong>
@@ -414,6 +447,10 @@ export default function ExamPolicyPanel({
               </div>
             </div>
           )}
+          <label className={formStyles.field}>
+            <span className={formStyles.label}>시험명</span>
+            <input className={formStyles.input} value={form.title ?? ""} maxLength={255} onChange={(event) => setForm({ ...form, title: event.target.value })} />
+          </label>
           <div className={formStyles.group}>
             <h3 className={formStyles.groupTitle}>채점 방식</h3>
             <p className={formStyles.groupDescription}>실제 채점 작업에 맞는 흐름을 선택하세요.</p>
@@ -646,9 +683,10 @@ export default function ExamPolicyPanel({
           )}
           {validationError && <p className={formStyles.error} role="alert">{validationError}</p>}
           {latestError && <p className={formStyles.error} role="alert">{latestError}</p>}
+          {patchMutation.isError && !conflictDetected && <p className={formStyles.error} role="alert">{getApiErrorMessage(patchMutation.error, "시험 운영 설정을 저장하지 못했습니다. 입력을 유지했으니 다시 시도해 주세요.")}</p>}
         </div>
 
-        <div className={formStyles.footer}>
+        {!editing && <div className={formStyles.footer}>
           <span className={formStyles.footerCopy}>
             채점 방식 변경은 기존 문항·답안·성적을 삭제하지 않습니다.
           </span>
@@ -662,12 +700,13 @@ export default function ExamPolicyPanel({
           >
             {patchMutation.isPending ? "저장 중…" : "운영 설정 저장"}
           </Button>
-        </div>
+        </div>}
         </fieldset>
         </details>
+        </form>
       </section>
 
-      <section id="assessment-answer-key" tabIndex={-1} className={formStyles.section}>
+      {!editing && <section id="assessment-answer-key" tabIndex={-1} className={formStyles.section}>
         <div className={formStyles.header}>
           <div>
             <h2 className={formStyles.title}>문항·답안 준비</h2>
@@ -709,7 +748,7 @@ export default function ExamPolicyPanel({
             )}
           </div>
         </div>
-      </section>
+      </section>}
 
       <AnswerKeyRegisterModal
         open={answerModalOpen}

@@ -3446,13 +3446,13 @@ test.describe("문항별 직접 채점", () => {
     await expect(settingsDialog).toBeVisible();
     await expect(settingsDialog.getByRole("textbox", { name: "시험명" })).toHaveValue("7월 진단평가");
     await expect(settingsDialog.getByRole("spinbutton", { name: /^만점/ })).toHaveValue("100");
-    await expect(settingsDialog.getByRole("spinbutton", { name: /^커트라인/ })).toHaveValue("60");
+    await expect(settingsDialog.getByRole("spinbutton", { name: /^합격 기준/ })).toHaveValue("60");
     await expect(
-      settingsDialog.getByRole("radio", {
-        name: /정오표 직접입력 \(O\/X\/오답노트\)/,
+      settingsDialog.getByRole("button", {
+        name: /직접 정오 입력/,
       }),
-    ).toBeChecked();
-    await settingsDialog.getByRole("button", { name: "취소", exact: true }).click();
+    ).toHaveAttribute("aria-pressed", "true");
+    await settingsDialog.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(settingsDialog).toHaveCount(0);
   });
 
@@ -3482,12 +3482,9 @@ test.describe("문항별 직접 채점", () => {
     const settingsDialog = page.getByRole("dialog").filter({
       hasText: "시험 설정",
     });
-    await settingsDialog.getByRole("radio", {
-      name: /정오표 직접입력 \(O\/X\/오답노트\)/,
-    }).check();
-    await expect(settingsDialog.getByRole("status")).toContainText(
-      "기존 문항과 입력된 성적은 삭제되지 않습니다.",
-    );
+    await settingsDialog.getByRole("button", {
+      name: /직접 정오 입력/,
+    }).click();
     await settingsDialog.getByRole("button", {
       name: "저장",
       exact: true,
@@ -3707,17 +3704,17 @@ test.describe("문항별 직접 채점", () => {
       hasText: "시험 설정",
     });
     const modalBodyScroller = settingsDialog.locator(
-      ".modal-body > .overflow-y-auto",
+      ".modal-body",
     );
     await expect(modalBodyScroller).toHaveCSS("overflow-y", "auto");
     await expect(
-      settingsDialog.getByRole("radio", {
-        name: /문항별 점수 직접입력/,
+      settingsDialog.getByRole("button", {
+        name: /직접 점수 입력/,
       }),
     ).toBeVisible();
 
     const publishButton = settingsDialog.getByRole("button", {
-      name: /학원 홈페이지에 성적 통계 게시/,
+      name: /성적 통계 게시/,
     });
     await publishButton.scrollIntoViewIfNeeded();
     await expect(publishButton).toBeVisible();

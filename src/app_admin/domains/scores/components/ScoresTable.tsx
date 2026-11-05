@@ -1356,8 +1356,6 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           ? "correctness"
                           : "score"
                       }
-                      initialMaxScore={ex.max_score}
-                      initialPassScore={ex.pass_score}
                       sessionId={sessionId}
                       deleteLocked={deleteAssessmentLocked}
                       onSelect={(action) => {

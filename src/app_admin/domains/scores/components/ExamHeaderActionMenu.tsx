@@ -15,7 +15,6 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { deleteSessionExam } from "@admin/domains/exams/public/sessionExamActions";
 import { invalidateSessionExamQueries } from "@admin/domains/sessions/public/assessmentQueries";
 import ExamHeaderQuickEdit from "./ExamHeaderQuickEdit";
-import { AssessmentTitleEditButton } from "@admin/domains/sessions/public/titleEditing";
 import MenuAction from "./AssessmentHeaderMenuAction";
 import styles from "./ExamHeaderActionMenu.module.css";
 
@@ -28,8 +27,6 @@ type Props = {
   examTitle: string;
   gradingMode: "choice" | "written" | "mixed";
   manualGradingMethod: "correctness" | "score";
-  initialMaxScore: number | null;
-  initialPassScore: number | null;
   sessionId: number;
   onSelect: (action: ExamHeaderAction) => void;
   deleteLocked?: boolean;
@@ -46,8 +43,6 @@ export default function ExamHeaderActionMenu({
   examTitle,
   gradingMode,
   manualGradingMethod,
-  initialMaxScore,
-  initialPassScore,
   sessionId,
   onSelect,
   deleteLocked = false,
@@ -103,7 +98,6 @@ export default function ExamHeaderActionMenu({
       <div className={styles.menuHeader}>
         <span>시험 작업</span>
         <div className={styles.menuHeaderActions}>
-          <button type="button" role="menuitem" className={styles.headerAction} onClick={() => { setMenuOpen(false); setSettingsOpen(true); }}>수정</button>
           <button type="button" role="menuitem" className={`${styles.headerAction} ${styles.headerActionDanger}`} disabled={deleting || deleteLocked} title={deleteLocked ? "진행 중인 점수 입력을 저장한 뒤 삭제할 수 있습니다." : undefined} onClick={() => { void handleDelete(); }}>{deleting ? "삭제 중…" : "삭제"}</button>
         </div>
       </div>
@@ -137,7 +131,7 @@ export default function ExamHeaderActionMenu({
       <MenuAction title="학부모 코멘트" description="학생별 시험 전달사항 작성 · 학부모에게만 공개" icon={<ClipboardCheck size={ICON_FOR_BUTTON.md} />} onClick={() => { setMenuOpen(false); setCommentsOpen(true); }} />
       <MenuAction
         title="시험 설정"
-        description="채점 방식 · 시험명 · 만점 · 커트라인 관리"
+        description="시험명·채점·점수·공개·응시 설정 수정"
         icon={<Settings2 size={ICON_FOR_BUTTON.md} />}
         onClick={() => {
           setMenuOpen(false);
@@ -154,7 +148,6 @@ export default function ExamHeaderActionMenu({
           <ParentAssessmentCommentsPanel sessionId={sessionId} assessmentKind="exam" assessmentId={examId} title={examTitle} onClose={() => setCommentsOpen(false)} />
         </Suspense>
       )}
-      <span className="inline-flex min-w-0 max-w-full flex-col items-center gap-1">
       <Popover
         content={menu}
         trigger="click"
@@ -190,19 +183,12 @@ export default function ExamHeaderActionMenu({
           />
         </button>
       </Popover>
-      <AssessmentTitleEditButton key={examId} kind="exam" id={examId} title={examTitle} compact />
-      </span>
 
       <ExamHeaderQuickEdit
         examId={examId}
         examTitle={examTitle}
-        initialGradingMode={gradingMode}
-        initialManualGradingMethod={manualGradingMethod}
-        initialMaxScore={initialMaxScore}
-        initialPassScore={initialPassScore}
         sessionId={sessionId}
         open={settingsOpen}
-        hideTrigger
         onOpenChange={setSettingsOpen}
       />
     </>

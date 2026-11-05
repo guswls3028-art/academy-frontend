@@ -33,21 +33,26 @@ export async function verifyAssessmentTitle(
       await page.setViewportSize({ width, height: 900 });
       await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${target.lectureId}/sessions/${target.sessionId}/${tab}?assessment=${target.kind}%3A${target.id}`);
       if (width === 1366) await acknowledgeInitialAccountPromptsIfVisible(page);
-      await page.getByRole("button", { name: `${previous} 제목 수정`, exact: true }).click();
-      const dialog = page.getByRole("dialog", { name: `${label} 제목 수정`, exact: true });
-      const input = dialog.getByRole("textbox", { name: `${label} 제목`, exact: true });
+      if (tab === "scores") {
+        await page.getByRole("button", { name: `${previous} 작업 선택`, exact: true }).click();
+        await page.getByRole("menu", { name: `${previous} 작업 선택`, exact: true }).getByRole("menuitem", { name: target.kind === "exam" ? /^시험 설정/ : /^과제 수정/ }).click();
+      } else {
+        await page.getByRole("button", { name: `${previous} 제목 수정`, exact: true }).click();
+      }
+      const dialog = page.getByRole("dialog", { name: tab === "scores" ? target.kind === "exam" ? "시험 설정" : "과제 수정" : `${label} 제목 수정`, exact: true });
+      const input = dialog.getByRole("textbox", { name: tab === "scores" ? `${label}명` : `${label} 제목`, exact: true });
       await expect(input).toBeEnabled();
       await input.fill(next);
       const saved = page.waitForResponse(response => response.request().method() === "PATCH"
         && new URL(response.url()).pathname === `/api/v1${endpoint}`);
-      await dialog.getByRole("button", { name: "저장", exact: true }).click();
+      await dialog.getByRole("button", { name: tab === "scores" && target.kind === "homework" ? "운영 설정 저장" : "저장", exact: true }).click();
       const response = await saved;
       expect(response.status()).toBe(200);
       expect(response.request().postDataJSON()).toEqual({ title: next });
       expect(response.request().headers()["x-expected-updated-at"]).toBeTruthy();
       await expect(dialog).not.toBeVisible();
       await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(page.getByRole("button", { name: `${next} 제목 수정`, exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: `${next} ${tab === "scores" ? "작업 선택" : "제목 수정"}`, exact: true })).toBeVisible();
       const persisted = await expectApi<Record<string, unknown>>(request, "GET", endpoint, admin.access);
       expect(persisted.title).toBe(next);
       for (const key of policyKeys) expect(persisted[key], `title edit preserves ${key}`).toEqual(original[key]);
