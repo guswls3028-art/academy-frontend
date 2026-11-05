@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { getBaseUrl } from "../helpers/auth";
+import { installWorkspaceReadApiStubs } from "../helpers/workspaceReadApiStubs";
 import {
   installLocalAuthApiStubs,
   installTenantOneInitScript,
@@ -280,6 +281,7 @@ async function openScores(page: Page): Promise<OrderingHarness> {
     "성적 컬럼 모바일 순서 route-mock은 로컬 dev 서버 전용",
   );
   await installLocalAuthApiStubs(page);
+  await installWorkspaceReadApiStubs(page);
   await installTenantOneInitScript(page);
   await page.addInitScript((token) => {
     localStorage.setItem("access", token);
@@ -293,6 +295,7 @@ async function openScores(page: Page): Promise<OrderingHarness> {
   await expect(page).toHaveURL(
     new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`),
   );
+  await expect(page.getByRole("button", { name: "첫 시험 작업 선택", exact: true })).toBeVisible({ timeout: 45_000 });
   return harness;
 }
 
