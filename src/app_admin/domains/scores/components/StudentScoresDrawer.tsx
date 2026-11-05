@@ -610,35 +610,39 @@ function ExamResultCard({
             </span>
           </div>
         </div>
-        <div className="student-scores-drawer__exam-quick-actions">
-          <CorrectionStatusControl
-            block={exam.block}
-            enrollmentId={enrollmentId}
-            sourceType="exam"
-            sourceId={exam.exam_id}
-            sessionId={sessionId}
-            disabled={hasPendingScoreChanges}
-            compact
-          />
-          {canStartRetake && (
-            <button
-              type="button"
-              className="student-scores-drawer__quick-retake"
-              aria-disabled={hasUnsavedChanges}
-              title={hasUnsavedChanges ? "점수 초안을 먼저 저장한 뒤 재시험을 추가해 주세요." : "같은 원시험에 다음 재시험 점수를 기록합니다."}
-              onClick={() => {
-                if (hasUnsavedChanges) {
-                  feedback.info("점수 초안을 먼저 저장한 뒤 재시험을 추가해 주세요.");
-                  return;
-                }
-                setRetakeRequested(true);
-                if (!expanded) onToggle();
-              }}
-            >
-              재시험 기록 추가
-            </button>
-          )}
-        </div>
+        {(!expanded || canStartRetake) && (
+          <div className="student-scores-drawer__exam-quick-actions">
+            {!expanded && (
+              <CorrectionStatusControl
+                block={exam.block}
+                enrollmentId={enrollmentId}
+                sourceType="exam"
+                sourceId={exam.exam_id}
+                sessionId={sessionId}
+                disabled={hasPendingScoreChanges}
+                compact
+              />
+            )}
+            {canStartRetake && (
+              <button
+                type="button"
+                className="student-scores-drawer__quick-retake"
+                aria-disabled={hasUnsavedChanges}
+                title={hasUnsavedChanges ? "점수 초안을 먼저 저장한 뒤 재시험을 추가해 주세요." : "같은 원시험에 다음 재시험 점수를 기록합니다."}
+                onClick={() => {
+                  if (hasUnsavedChanges) {
+                    feedback.info("점수 초안을 먼저 저장한 뒤 재시험을 추가해 주세요.");
+                    return;
+                  }
+                  setRetakeRequested(true);
+                  if (!expanded) onToggle();
+                }}
+              >
+                재시험 기록 추가
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {expanded && (
@@ -1684,7 +1688,7 @@ function CorrectionStatusControl({
             ? completed ? "오답 완료" : "오답 확인 필요"
             : isHomework
               ? completed ? "과제 완료" : "미완료"
-              : completed ? "교사 통과" : "통과 처리"}
+            : completed ? "교사 통과" : "통과로 처리"}
       </button>
     );
   }
