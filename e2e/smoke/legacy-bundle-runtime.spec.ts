@@ -205,6 +205,7 @@ for (const profile of profiles) {
     const { scriptRequests: scripts, stylesheetResponses } = await installLegacyRuntime(page, profile);
     const api = await installStudentApi(page);
     await login(page);
+    expect(scripts.filter((url) => /vendor-pdfjs|pdf\.worker/.test(url))).toEqual([]);
     expect(api.loginBodies).toEqual([{ username: "student.legacy", password: "Case-Sensitive-Pw", tenant_code: "godmin" }]);
     await expectNoOverflow(page);
 
