@@ -44,6 +44,7 @@ const SessionLayout = lazy(() => import("@admin/domains/sessions/SessionLayout")
 const SessionDetailPage = lazy(() => import("@admin/domains/sessions/pages/SessionDetailPage"));
 
 /* ================= Lazy: Video ================= */
+const VideoWatchLogsPage = lazy(() => import("@/shared/media/video/VideoWatchLogsPage"));
 const VideoDetailPage = lazy(() => import("@admin/domains/videos/pages/VideoDetailPage"));
 
 /* ================= Lazy: Community ================= */
@@ -253,6 +254,7 @@ export default function AdminRouter() {
           <Route index element={renderLazyRoute(VideoExplorerPage)} />
           <Route path="tree" element={renderLazyRoute(VideoTreePage)} />
         </Route>
+        <Route path="videos/:videoId/logs/:studentId?" element={renderLazyRoute(VideoWatchLogsPage)} />
         <Route path="videos/:videoId" element={renderLazyRoute(VideoIdToSessionRedirect)} />
 
         <Route path="counsel" element={renderLazyRoute(CounselPage)} />

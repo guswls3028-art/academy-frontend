@@ -45,6 +45,7 @@ const ExamBundlesPage = lazy(() => import("@teacher/domains/exams/pages/ExamBund
 const OmrPage = lazy(() => import("@teacher/domains/exams/pages/OmrPage"));
 const HomeworkDetailPage = lazy(() => import("@teacher/domains/exams/pages/HomeworkDetailPage"));
 const VideoListPage = lazy(() => import("@teacher/domains/videos/pages/VideoListPage"));
+const VideoWatchLogsPage = lazy(() => import("@/shared/media/video/VideoWatchLogsPage"));
 const VideoDetailPage = lazy(() => import("@teacher/domains/videos/pages/VideoDetailPage"));
 const ClinicPage = lazy(() => import("@teacher/domains/clinic/pages/ClinicPage"));
 const ClinicReportsPage = lazy(() => import("@teacher/domains/clinic/pages/ClinicReportsPage"));
@@ -140,6 +141,7 @@ export default function TeacherRouter() {
           {/* 영상 (Phase 3) */}
           <Route path="videos" element={<VideoListPage />} />
           <Route path="videos/:videoId" element={<VideoDetailPage />} />
+          <Route path="videos/:videoId/logs/:studentId?" element={<VideoWatchLogsPage />} />
 
           {/* 클리닉 (Phase 3, section_mode) */}
           <Route path="clinic" element={<ClinicPage />} />

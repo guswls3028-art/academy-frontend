@@ -2,7 +2,8 @@
 // PATH: src/app_teacher/domains/videos/pages/VideoDetailPage.tsx
 // 영상 상세 — 선생님 미리보기 + 시청 통계 + 댓글
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router";
+import { watchLogsPath } from "@/shared/media/video/watchLogs";
+import { useParams, useNavigate, Link } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { Send, MoreVertical, Pencil, Trash2, Save, X } from "@teacher/shared/ui/Icons";
@@ -135,6 +136,8 @@ export default function VideoDetailPage() {
           <span style={{ color: "var(--tc-text)" }}>{video.created_at ? new Date(video.created_at).toLocaleDateString("ko-KR") : "-"}</span>
         </div>
       </Card>
+
+      <Link to={watchLogsPath(vid, `/workspace/mobile/videos/${vid}`, "/workspace/mobile/videos")} className="flex items-center justify-between rounded-lg px-4 py-3 text-sm font-semibold" style={{ color: "var(--tc-text)", background: "var(--tc-surface)", border: "1px solid var(--tc-border)", minHeight: 44 }}>시청 로그 <span aria-hidden="true">→</span></Link>
 
       {/* KPI */}
       <div className="grid grid-cols-3 gap-2">
