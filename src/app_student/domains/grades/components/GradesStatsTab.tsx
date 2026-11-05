@@ -54,7 +54,7 @@ export default function GradesStatsTab({
   const hasScoredHomework = homeworks.some((homework) => homework.grading_mode !== "COMPLETION");
 
   const rankInsight = useMemo(() => {
-    const ranked = exams.filter((e) => e.rank != null && e.meta_status !== "NOT_SUBMITTED");
+    const ranked = exams.filter((e) => e.rank != null && e.percentile != null && e.meta_status !== "NOT_SUBMITTED");
     if (ranked.length === 0) return null;
     const topQuartile = ranked.filter((e) => e.percentile != null && e.percentile <= 25).length;
     const midRange = ranked.filter((e) => e.percentile != null && e.percentile > 25 && e.percentile <= 75).length;

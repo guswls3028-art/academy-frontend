@@ -741,7 +741,7 @@ test.describe("시험·과제 수동 검사 상태", () => {
     await expect(examCard.getByRole("dialog")).toContainText("시험 점수는 바뀌지 않으며");
     const triggerBox = await help.boundingBox();
     expect(triggerBox).not.toBeNull();
-    await page.mouse.move(triggerBox!.x + triggerBox!.width / 2, triggerBox!.y + triggerBox!.height + 4);
+    await page.mouse.move(triggerBox!.x + triggerBox!.width / 2, triggerBox!.y - 4);
     await expect(examCard.getByRole("dialog")).toBeVisible();
     await examCard.getByRole("dialog").hover();
     await expect(examCard.getByRole("dialog")).toBeVisible();

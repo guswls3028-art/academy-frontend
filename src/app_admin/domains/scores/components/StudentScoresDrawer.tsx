@@ -1702,7 +1702,9 @@ function CorrectionStatusControl({
             <InlineHelp
               title={helpTitle}
               tone="admin"
-              align="right"
+              align="left"
+              placement="top"
+              className="ssd-correction-control__help"
               openOnHover
               ariaLabel={`${helpTitle} 설명`}
               iconSize={14}

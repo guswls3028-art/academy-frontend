@@ -90,6 +90,16 @@
   left: 0;
 }
 
+.inline-help[data-placement="top"] .inline-help__popup {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+.inline-help[data-placement="top"] .inline-help__hover-bridge {
+  top: auto;
+  bottom: 100%;
+}
+
 .inline-help[data-align="right"] .inline-help__popup {
   right: 0;
 }
@@ -204,6 +214,11 @@
     width: auto;
     max-height: calc(100vh - 74px);
     overflow-y: auto;
+  }
+
+  .inline-help[data-placement="top"] .inline-help__popup {
+    top: 58px;
+    bottom: auto;
   }
 
   .inline-help[data-align="left"] .inline-help__popup,

@@ -740,10 +740,26 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await expect(chart.getByRole("button", { name: "등수", exact: true })).toBeDisabled();
     await expect(chart.getByRole("button", { name: "상위 %", exact: true })).toBeDisabled();
     await expect(chart.getByRole("button", { name: "득점률", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await expect(chart).toContainText("같은 시험에 2명 이상 응시하면 등수와 상위 %를 확인할 수 있습니다.");
+    await expect(chart).toContainText("등수와 상위 %는 학원에서 공개한 항목만 표시합니다.");
     await expect(chart).toContainText("최근90%");
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     await page.screenshot({ path: "test-results/student-score-trend/student-score-only-390.png", fullPage: true });
+  });
+
+  test("응시 인원을 숨겨도 등수 추이를 유지하고 비공개 비율을 하위권으로 계산하지 않는다", async ({ page }) => {
+    await installApi(page, "student", {
+      studentPoints: trendA.map((point) => ({ ...point, percentile: null, cohort_size: null })),
+      lectureOptions: [{ id: 501, title: "고1 Hyper 정규반", color: "#2563eb", chip_label: "Y" }],
+    });
+    await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
+    const chart = page.getByTestId("student-score-trend");
+    await expect(chart.getByRole("button", { name: "등수", exact: true })).toBeEnabled();
+    await expect(chart.getByRole("button", { name: "상위 %", exact: true })).toBeDisabled();
+    await chart.getByRole("button", { name: "등수", exact: true }).click();
+    await expect(chart).toContainText("최근2등");
+    await expect(chart).not.toContainText("/ 10명");
+    await expect(page.getByRole("region", { name: "내 위치 분석", exact: true })).toHaveCount(0);
+    await expect(page.getByText("평균 등수", { exact: true }).first()).toBeVisible();
   });
 
   test("시험 카드에서 교사가 확인한 오답 완료와 미완료 상태를 바로 확인한다", async ({ page }) => {

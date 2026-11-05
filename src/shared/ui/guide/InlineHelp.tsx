@@ -8,6 +8,7 @@ type InlineHelpProps = {
   children: ReactNode;
   tone?: GuideBookScope;
   align?: "left" | "right";
+  placement?: "top" | "bottom";
   ariaLabel?: string;
   className?: string;
   triggerClassName?: string;
@@ -21,6 +22,7 @@ export function InlineHelp({
   children,
   tone = "admin",
   align = "left",
+  placement = "bottom",
   ariaLabel = "도움말",
   className = "",
   triggerClassName = "",
@@ -61,6 +63,7 @@ export function InlineHelp({
       className={`inline-help ${className}`.trim()}
       data-tone={tone}
       data-align={align}
+      data-placement={placement}
       style={style}
       onPointerEnter={(event) => {
         if (openOnHover && event.pointerType === "mouse") setOpen(true);

@@ -593,6 +593,13 @@ a.student-scores-drawer__student-link:focus-visible {
   height: 28px;
 }
 
+@media (min-width: 561px) {
+  .ssd-correction-control__help .inline-help__popup,
+  .ssd-correction-control__help .inline-help__hover-bridge {
+    width: 280px;
+  }
+}
+
 .ssd-correction-control__copy > span {
   color: var(--color-text-secondary);
   font-size: 11px;
