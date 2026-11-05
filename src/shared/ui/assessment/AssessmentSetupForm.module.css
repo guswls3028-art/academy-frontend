@@ -11,6 +11,24 @@
   outline: none;
 }
 
+.section.modalSection {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.modalSection .policyDisclosure > summary {
+  display: none;
+}
+
+.modalSection .body {
+  padding: 0;
+}
+
+.modalSection .advancedBody {
+  padding-inline: 0;
+}
+
 .header {
   display: flex;
   align-items: flex-start;

@@ -364,7 +364,7 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
         await page.screenshot({ path: testInfo.outputPath(`assessment-edit-modal-${width}-${kind}.png`), animations: 'disabled' });
 
         await input.fill(next);
-        await dialog.getByRole('button', { name: kind === 'exam' ? '저장' : '운영 설정 저장', exact: true }).click();
+        await dialog.getByRole('button', { name: '저장', exact: true }).click();
         await expect(dialog).not.toBeVisible();
         expect(harness.titlePatches.at(-1)).toEqual({ kind, payload: { title: next } });
         await expect(page.getByRole('button', { name: `${next} 작업 선택`, exact: true })).toBeVisible();
@@ -392,7 +392,7 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
           await page.getByRole('menuitem', { name: /^과제 수정/ }).click();
           await dialog.getByRole('spinbutton', { name: '만점', exact: true }).fill('120');
           await dialog.locator('input[type="date"]').fill('2026-12-01');
-          await dialog.getByRole('button', { name: '운영 설정 저장', exact: true }).click();
+          await dialog.getByRole('button', { name: '저장', exact: true }).click();
           await expect(dialog).not.toBeVisible();
           expect(harness.titlePatches.at(-1)).toEqual({ kind, payload: { max_score: 120, meta: { due_date: '2026-12-01' } } });
           await page.reload();

@@ -3,11 +3,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Popover } from "antd";
 import { ChevronDown, ClipboardCheck, Settings2 } from "lucide-react";
 
-import { ICON_FOR_BUTTON } from "@/shared/ui/ds";
+import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
-import { AdminModal, ModalBody, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { AssessmentEditGuardProvider } from "@/shared/ui/assessment/AssessmentEditGuard";
 import { deleteHomework, HomeworkPolicyPanel } from "@admin/domains/homework/public/scoreHeaderActions";
 import { sessionAssessmentQueryKeys } from "@admin/domains/sessions/public/assessmentQueries";
@@ -32,6 +32,8 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
   const [editOpen, setEditOpen] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveAllowed, setSaveAllowed] = useState(false);
+  const formId = `homework-policy-editor-${homeworkId}`;
   const [deleting, setDeleting] = useState(false);
 
   const closeEdit = async () => {
@@ -44,6 +46,7 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
     })) return;
     setEditOpen(false);
     setDirty(false);
+    setSaveAllowed(false);
   };
 
   const handleDelete = async () => {
@@ -71,7 +74,7 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
     }
   };
 
-  const handleSaved = useCallback(() => { setEditOpen(false); setDirty(false); setSaving(false); }, []);
+  const handleSaved = useCallback(() => { setEditOpen(false); setDirty(false); setSaving(false); setSaveAllowed(false); }, []);
 
   const menu = (
     <div className={styles.menu} role="menu" aria-label={`${homeworkTitle} 작업 선택`} onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
@@ -111,16 +114,15 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
         </button>
       </Popover>
       <AdminModal open={editOpen} onClose={() => { void closeEdit(); }} closeDisabled={saving} type="action" width={MODAL_WIDTH.wide}>
-        <ModalHeader type="action" title="과제 수정" subtitle={homeworkTitle} />
+        <ModalHeader type="action" title="과제 수정" subtitle={homeworkTitle} noIcon />
         <ModalBody>
-          <div className="max-h-[min(70vh,680px)] overflow-y-auto pr-1">
             {editOpen && (
               <AssessmentEditGuardProvider>
-                <HomeworkPolicyPanel homeworkId={homeworkId} onDirtyChange={setDirty} onSavingChange={setSaving} onSaved={handleSaved} />
+                <HomeworkPolicyPanel homeworkId={homeworkId} editing formId={formId} onSaveAllowedChange={setSaveAllowed} onDirtyChange={setDirty} onSavingChange={setSaving} onSaved={handleSaved} />
               </AssessmentEditGuardProvider>
             )}
-          </div>
         </ModalBody>
+        <ModalFooter right={<><Button intent="secondary" onClick={() => { void closeEdit(); }} disabled={saving}>닫기</Button><Button intent="primary" type="submit" form={formId} disabled={!saveAllowed || saving} loading={saving}>저장</Button></>} />
       </AdminModal>
     </>
   );

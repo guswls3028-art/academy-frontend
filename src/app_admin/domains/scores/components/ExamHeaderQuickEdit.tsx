@@ -45,7 +45,7 @@ export default function ExamHeaderQuickEdit({ examId, examTitle, sessionId, open
 
   return <>
     <AdminModal open={open} onClose={() => { void close(); }} closeDisabled={saving} type="action" width={MODAL_WIDTH.wide}>
-      <ModalHeader type="action" title="시험 설정" subtitle={examTitle} />
+      <ModalHeader type="action" title="시험 설정" subtitle={examTitle} noIcon />
       <ModalBody>
         {open && <Suspense fallback={<p role="status">시험 설정을 불러오는 중…</p>}><AssessmentEditGuardProvider>
           <ExamPolicyPanel examId={examId} sessionId={sessionId} editing formId={formId} onSaveAllowedChange={setSaveAllowed} onDirtyChange={setDirty} onSavingChange={setSaving} onSaved={handleSaved} />

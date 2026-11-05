@@ -45,7 +45,7 @@ export async function verifyAssessmentTitle(
       await input.fill(next);
       const saved = page.waitForResponse(response => response.request().method() === "PATCH"
         && new URL(response.url()).pathname === `/api/v1${endpoint}`);
-      await dialog.getByRole("button", { name: tab === "scores" && target.kind === "homework" ? "운영 설정 저장" : "저장", exact: true }).click();
+      await dialog.getByRole("button", { name: "저장", exact: true }).click();
       const response = await saved;
       expect(response.status()).toBe(200);
       expect(response.request().postDataJSON()).toEqual({ title: next });
@@ -75,7 +75,7 @@ export async function verifyAssessmentTitle(
       await field.fill(value);
       const saved = page.waitForResponse(response => response.request().method() === "PATCH"
         && new URL(response.url()).pathname === `/api/v1${endpoint}`);
-      await dialog.getByRole("button", { name: target.kind === "exam" ? "저장" : "운영 설정 저장", exact: true }).click();
+      await dialog.getByRole("button", { name: "저장", exact: true }).click();
       const response = await saved;
       expect(response.status()).toBe(200);
       expect(response.request().headers()["x-expected-updated-at"]).toBeTruthy();

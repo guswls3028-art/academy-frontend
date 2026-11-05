@@ -401,15 +401,15 @@ export default function ExamPolicyPanel({
 
   return (
     <>
-      <section id="assessment-policy" tabIndex={-1} className={formStyles.section}>
-        <div className={formStyles.header}>
+      <section id="assessment-policy" tabIndex={-1} className={`${formStyles.section} ${editing ? formStyles.modalSection : ""}`}>
+        {!editing && <div className={formStyles.header}>
           <div>
             <h2 className={formStyles.title}>시험 운영 설정</h2>
             <p className={formStyles.description}>
-              {editing ? "시험명과 채점·공개 설정을 함께 수정합니다." : "현재 설정을 확인하고, 바꿀 때만 펼쳐서 저장하세요."}
+              현재 설정을 확인하고, 바꿀 때만 펼쳐서 저장하세요.
             </p>
           </div>
-        </div>
+        </div>}
 
         <form id={formId} onSubmit={(event) => { event.preventDefault(); if (saveAllowed) patchMutation.mutate(form); }}>
         {isError && <div role="alert" className={formStyles.inlineStatus}>최신 설정을 확인하지 못했습니다. 입력을 유지했습니다.<Button type="button" intent="secondary" size="sm" onClick={() => void refetch()}>다시 시도</Button></div>}
