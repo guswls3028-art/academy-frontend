@@ -466,7 +466,11 @@ function RankComparisonCard({
       {/* Rank badge */}
       <div className={styles.rankRow}>
         {rank != null && <span className={styles.rankValue}>{rank}등</span>}
-        {cohortSize != null && <span className={`stu-muted ${styles.rankTotal}`}>{cohortSize}명 응시</span>}
+        {cohortSize != null && (
+          <span className={`stu-muted ${styles.rankTotal}`}>
+            {rank != null ? `${cohortSize}명 응시` : `${cohortSize}명`}
+          </span>
+        )}
         {topPct != null && topPct > 0 && (
           <span
             className={styles.rankBadge}
