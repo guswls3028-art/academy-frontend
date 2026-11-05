@@ -288,10 +288,10 @@ export default function SessionAttendancePage({
   ) : null;
 
   if (isLoading && attendanceView !== "sessions") return (
-    <div className="flex flex-col gap-3">{chooseSessionAction}<EmptyState scope="panel" tone="loading" title="불러오는 중…" /></div>
+    <div ref={contentRef} className="flex flex-col gap-3">{chooseSessionAction}<EmptyState scope="panel" tone="loading" title="불러오는 중…" /></div>
   );
   if ((isError || attendanceResult == null) && attendanceView !== "sessions") return (
-    <div className="flex flex-col gap-3">{chooseSessionAction}
+    <div ref={contentRef} className="flex flex-col gap-3">{chooseSessionAction}
     <EmptyState
       scope="panel"
       tone="error"

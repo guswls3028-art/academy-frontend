@@ -1194,9 +1194,35 @@ test("모바일 차시 선택은 별도 화면에서 제공하고 왕복 문맥�
   await entry.click();
   await expect(page.getByRole("heading", { name: "차시 선택", exact: true })).toBeInViewport({ ratio: 1 });
   await expect(page.getByRole("group", { name: "수업 보기 방식" })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 600 });
+  await main.hover();
+  await page.mouse.wheel(0, 800);
+  await expect.poll(() => main.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+  await page.goBack();
+  const readError = page.getByText("출결 데이터를 불러올 수 없습니다.", { exact: true });
+  const retry = page.getByRole("button", { name: "다시 시도", exact: true });
+  await expect(readError).toBeVisible();
+  await info.attach("attendance-error-return-geometry", { contentType: "application/json", body: JSON.stringify({
+    scrollTop: await main.evaluate(node => node.scrollTop), error: await readError.boundingBox(),
+    retry: await retry.boundingBox(), header: await page.getByRole("banner").boundingBox(),
+    bottomMenu: await page.getByRole("navigation", { name: "하단 메뉴", exact: true }).boundingBox(),
+  }) });
+  await info.attach("attendance-error-return", { contentType: "image/png", body: await page.screenshot() });
+  await expect.poll(() => main.evaluate(node => node.scrollTop)).toBe(0);
+  await expect(readError).toBeInViewport({ ratio: 1 });
+  await expect(retry).toBeInViewport({ ratio: 1 });
+  await entry.click();
+  await expect(page.getByRole("heading", { name: "차시 선택", exact: true })).toBeVisible();
+  await main.hover();
+  await page.mouse.wheel(0, 800);
+  await expect.poll(() => main.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
   await page.getByRole("link", { name: "← 출결 명단", exact: true }).click();
+  await expect.poll(() => main.evaluate(node => node.scrollTop)).toBe(0);
+  await expect(readError).toBeInViewport({ ratio: 1 });
   state.failAttendanceRead = false;
   await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(page.getByRole("button", { name: "결석학생 출결 상태 변경" })).toBeVisible();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByRole("button", { name: "결석학생 출결 상태 변경" })).toBeVisible();
   expect(state.bulkSetCalls).toBe(0);
   expect(state.attendanceDeleteCalls).toEqual([]);
