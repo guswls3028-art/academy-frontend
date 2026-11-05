@@ -117,7 +117,7 @@ export default function StudentVideoPlayer({
   const gestureLayerRef = useRef<HTMLDivElement | null>(null);
   const hideControlsTimerRef = useRef<number | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const savedRateRef = useRef(1);
+  const savedRateRef = useRef<number | null>(null);
   const swipeHandledRef = useRef(false);
   const touchStartRef = useRef<{ y: number; volume: number; rightHalf: boolean } | null>(null);
   const currentRef = useRef(0);
@@ -227,6 +227,9 @@ export default function StudentVideoPlayer({
     const unsub = ctrl.subscribe(setCtrlState);
 
     return () => {
+      if (longPressTimerRef.current !== null) clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+      savedRateRef.current = null;
       unsub();
       ctrl.dispose();
       controllerRef.current = null;
@@ -236,12 +239,20 @@ export default function StudentVideoPlayer({
   useEffect(() => {
     const ctrl = controllerRef.current;
     if (!ctrl) return;
+    if (speedLocked) {
+      if (longPressTimerRef.current !== null) clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+      const savedRate = savedRateRef.current;
+      savedRateRef.current = null;
+      // End an active boost under the previous, unlocked policy before locking.
+      if (savedRate !== null) ctrl.setRate(1);
+    }
     ctrl.setPolicy(bootstrap.policy);
     ctrl.setToken(bootstrap.token, bootstrap.expires_at);
     if (ctrl instanceof StudentHlsController) {
       ctrl.setSource(bootstrap.play_url || video.hls_url || "");
     }
-  }, [bootstrap.play_url, bootstrap.policy, bootstrap.token, bootstrap.expires_at, video.hls_url]);
+  }, [bootstrap.play_url, bootstrap.policy, bootstrap.token, bootstrap.expires_at, video.hls_url, speedLocked]);
 
   useEffect(() => {
     const wrap = wrapElRef.current;
@@ -568,10 +579,12 @@ export default function StudentVideoPlayer({
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
-    if (savedRateRef.current !== undefined) {
-      controllerRef.current?.setRate(savedRateRef.current);
+    const savedRate = savedRateRef.current;
+    savedRateRef.current = null;
+    if (savedRate !== null) {
+      controllerRef.current?.setRate(speedLocked ? 1 : clamp(savedRate, 0.25, maxRate));
     }
-  }, []);
+  }, [maxRate, speedLocked]);
 
   const onStagePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -585,17 +598,20 @@ export default function StudentVideoPlayer({
         };
       }
       if (rect && !speedLocked && e.clientX > rect.left + rect.width / 2) {
-        savedRateRef.current = rate;
         if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
         longPressTimerRef.current = setTimeout(() => {
           longPressTimerRef.current = null;
-          setPlaybackRate(2);
-          controllerRef.current?.showToast("2배속", "info");
+          const ctrl = controllerRef.current;
+          const boostedRate = Math.min(2, maxRate);
+          if (!ctrl || rate === boostedRate || savedRateRef.current !== null) return;
+          savedRateRef.current = rate;
+          setPlaybackRate(boostedRate);
+          ctrl.showToast(`${boostedRate}배속`, "info");
         }, 500);
       }
       gesturePointerDown(e);
     },
-    [volume, rate, speedLocked, setPlaybackRate, gesturePointerDown]
+    [volume, rate, speedLocked, maxRate, setPlaybackRate, gesturePointerDown]
   );
 
   const onStagePointerMove = useCallback(
