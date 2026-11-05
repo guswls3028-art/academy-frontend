@@ -74,8 +74,8 @@ for (const width of [1366, 390]) {
     await expect(missing).toHaveCount(0);
     await expect(editor).toContainText("직접 쓴 공지");
     await expect(editor.locator('[data-message-variable="시험2결과"]')).toHaveCount(1);
-    await expect(modal.locator(".template-preview-kakao__body")).toContainText("둘째 시험: 80/100");
-    await expect(modal.locator(".template-preview-kakao__body")).toContainText("총점 80/100");
+    await expect(modal.getByLabel("현재 학생의 실제 발송 문구", { exact: true })).toContainText("둘째 시험: 80/100");
+    await expect(modal.getByLabel("현재 학생의 실제 발송 문구", { exact: true })).toContainText("총점 80/100");
     await modal.getByRole("button", { name: "변경 내용 저장", exact: true }).click();
     await expect(page.getByText("문구 저장 일시 실패", { exact: true })).toBeVisible();
     await expect(editor.locator('[data-message-variable="시험2결과"]')).toHaveCount(1);
@@ -102,6 +102,7 @@ for (const width of [1366, 390]) {
 }
 
 test("@alimtalk-order 자동 결과 목록 저장 후 새 시험 포함·순서 이동은 합산을 보존한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
   const harness = await setup(page, false, false);
   await page.getByRole("button", { name: "둘째 시험 이전 순서로 이동", exact: true }).click();
   await expect.poll(() => harness.orderWrites.length).toBe(1);
@@ -123,7 +124,7 @@ test("@alimtalk-order 자동 결과 목록 저장 후 새 시험 포함·순서 
   harness.scores.rows[0].exams.push({ ...harness.scores.rows[0].exams[0], exam_id: 9103, title: exam.title });
   await page.reload(); await harness.open();
   await expect(editor.locator('[data-message-variable="시험3결과"]')).toHaveCount(1);
-  await expect(modal.locator(".template-preview-kakao__body")).toContainText("새 하프모의: 80/100");
+  await expect(modal.getByLabel("현재 학생의 실제 발송 문구", { exact: true })).toContainText("새 하프모의: 80/100");
   expect(harness.scores.meta.total_config!.exam_ids).toEqual([9101]);
   expect(harness.sends).toEqual([]);
 });
