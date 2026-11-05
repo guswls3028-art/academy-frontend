@@ -368,6 +368,7 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
         await expect(dialog).not.toBeVisible();
         expect(harness.titlePatches.at(-1)).toEqual({ kind, payload: { title: next } });
         await expect(page.getByRole('button', { name: `${next} 작업 선택`, exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: `${next} 작업 선택`, exact: true })).toBeFocused();
         if (kind === 'exam') {
           await page.getByRole('button', { name: `${next} 작업 선택`, exact: true }).press('Enter');
           await page.getByRole('menuitem', { name: /^시험 설정/ }).click();

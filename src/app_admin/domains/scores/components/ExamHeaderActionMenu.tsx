@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Popover } from "antd";
 import {
@@ -53,6 +53,7 @@ export default function ExamHeaderActionMenu({
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const canOpenManualGrading = gradingMode !== "choice";
   const canOpenOmr = gradingMode !== "written";
   const manualActionTitle =
@@ -134,6 +135,7 @@ export default function ExamHeaderActionMenu({
         description="시험명·채점·점수·공개·응시 설정 수정"
         icon={<Settings2 size={ICON_FOR_BUTTON.md} />}
         onClick={() => {
+          triggerRef.current?.focus({ preventScroll: true });
           setMenuOpen(false);
           setSettingsOpen(true);
         }}
@@ -159,6 +161,7 @@ export default function ExamHeaderActionMenu({
         motion={{ motionName: "academy-exam-menu-fade" }}
       >
         <button
+          ref={triggerRef}
           type="button"
           className="scores-table-exam-link"
           draggable={false}

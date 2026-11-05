@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useState } from "react";
+import { lazy, Suspense, useCallback, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Popover } from "antd";
 import { ChevronDown, ClipboardCheck, Settings2 } from "lucide-react";
@@ -35,6 +35,7 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
   const [saveAllowed, setSaveAllowed] = useState(false);
   const formId = `homework-policy-editor-${homeworkId}`;
   const [deleting, setDeleting] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const closeEdit = async () => {
     if (saving) return;
@@ -89,7 +90,7 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
         title="과제 수정"
         description="과제명, 제출기한, 채점 방식과 합격 기준을 함께 수정"
         icon={<Settings2 size={ICON_FOR_BUTTON.md} />}
-        onClick={() => { setMenuOpen(false); setEditOpen(true); }}
+        onClick={() => { triggerRef.current?.focus({ preventScroll: true }); setMenuOpen(false); setEditOpen(true); }}
       />
       <MenuAction
         title="학부모 코멘트"
@@ -108,7 +109,7 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
         </Suspense>
       )}
       <Popover content={menu} trigger="click" placement="bottom" open={menuOpen} onOpenChange={setMenuOpen} arrow={false} overlayClassName={styles.popover} motion={{ motionName: "academy-exam-menu-fade" }}>
-        <button type="button" className="scores-table-exam-link" draggable={false} aria-haspopup="menu" aria-expanded={menuOpen} aria-label={`${homeworkTitle} 작업 선택`} title={`${homeworkTitle} — 작업 선택`} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} onDragStart={(event) => { event.preventDefault(); event.stopPropagation(); }}>
+        <button ref={triggerRef} type="button" className="scores-table-exam-link" draggable={false} aria-haspopup="menu" aria-expanded={menuOpen} aria-label={`${homeworkTitle} 작업 선택`} title={`${homeworkTitle} — 작업 선택`} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} onDragStart={(event) => { event.preventDefault(); event.stopPropagation(); }}>
           <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{homeworkTitle}</span>
           <ChevronDown className="scores-table-exam-link__icon" size={ICON_FOR_BUTTON.sm} aria-hidden />
         </button>
