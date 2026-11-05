@@ -32,7 +32,7 @@ for (const role of ['student', 'parent']) for (const width of [390, 1366]) {
     await page.goto(`${BASE}/student/sessions`);
     const unassigned = page.getByRole('region', { name: '수업일 미배정', exact: true });
     await expect(unassigned.locator('a[href="/student/sessions/201"]')).toContainText('수업일 미배정');
-    await page.getByRole('button', { name: '5', exact: true }).click();
+    await page.getByRole('button', { name: '5', exact: true, disabled: false }).click();
     await expect(page.locator('a[href="/student/sessions/202"]')).toContainText('목요일반');
     await expect(page.locator('a[href="/student/sessions/203"]')).toContainText('일반 수업');
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
