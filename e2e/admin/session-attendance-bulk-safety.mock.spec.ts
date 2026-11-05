@@ -650,9 +650,13 @@ test("출결은 현재 상태를 먼저 보이고 선택·키보드 복귀·새�
     }
     if (width === 390) {
       const firstRow = page.locator("tbody tr").first();
-      await expect(firstRow).toBeInViewport({ ratio: 1 });
+      await expect(firstRow.getByRole("link", { name: /학생 상세 열기$/ })).toBeInViewport({ ratio: 1 });
+      await expect(firstRow.getByRole("button", { name: /출결 상태 변경$/ })).toBeInViewport({ ratio: 1 });
       const bounds = (await firstRow.boundingBox())!;
-      expect(bounds.y + bounds.height).toBeLessThanOrEqual(page.viewportSize()!.height - 64);
+      const header = (await page.locator('[data-app="admin"] > div > header').boundingBox())!;
+      const bottomMenu = (await page.getByRole("navigation", { name: "하단 메뉴", exact: true }).boundingBox())!;
+      expect(bounds.y).toBeGreaterThanOrEqual(header.y + header.height);
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(bottomMenu.y);
     }
     await page.screenshot({ path: testInfo.outputPath(`attendance-current-status-${width}.png`), fullPage: true });
     await trigger.click();
