@@ -19,18 +19,18 @@ export default function SessionLayout() {
   const { sectionMode } = useSectionMode();
   const location = useLocation();
   const scheduleScope = new URLSearchParams(location.search).get("schedule");
-  const scheduleQuery = useQuery({
-    queryKey: sessionSchedulesKey(sessionId ?? 0),
-    queryFn: () => fetchSessionSchedules(sessionId!),
-    enabled: !!lectureId && !!sessionId,
-    retry: false,
-  });
-
   const { data: session, isLoading, isError } = useQuery({
     queryKey: adminSessionQueryKeys.sessionDetail(sessionId),
     queryFn: async () =>
       (await api.get(`/lectures/sessions/${sessionId}/`)).data,
     enabled: !!lectureId && !!sessionId,
+  });
+
+  const scheduleQuery = useQuery({
+    queryKey: sessionSchedulesKey(sessionId ?? 0),
+    queryFn: () => fetchSessionSchedules(sessionId!),
+    enabled: !!lectureId && !!sessionId && !!session && !isError,
+    retry: false,
   });
 
   const { data: lecture } = useQuery({
