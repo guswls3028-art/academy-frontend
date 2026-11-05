@@ -282,14 +282,28 @@ test('닫힌 초안도 SPA 이탈을 확인하고 취소하면 보존한다', as
   await modal.getByRole('button', { name: '수업일 추가' }).click();
   await modal.getByLabel('수업일 1 이름').fill('보존할 수요일반');
   await modal.getByRole('button', { name: '닫기', exact: true }).click();
-  page.once('dialog', async dialog => { expect(dialog.message()).toContain('작성 내용을 버리고'); await dialog.dismiss(); });
-  await page.getByRole('button', { name: '요일별 수업', exact: true }).click();
+  const lectureLink = page.getByRole('navigation', { name: '상위 경로', exact: true }).getByRole('link', { name: '요일별 수업', exact: true });
+  await expect(lectureLink).toHaveAttribute('href', '/workspace/lectures/9901');
+  await Promise.all([
+    page.waitForEvent('dialog').then(async dialog => {
+      expect(dialog.type()).toBe('confirm');
+      expect(dialog.message()).toContain('작성 내용을 버리고');
+      await dialog.dismiss();
+    }),
+    lectureLink.click(),
+  ]);
   await expect(page).toHaveURL(new RegExp(`${path}/attendance$`));
   await page.getByRole('button', { name: '수업일 관리', exact: true }).click();
   await expect(modal.getByLabel('수업일 1 이름')).toHaveValue('보존할 수요일반');
   await modal.getByRole('button', { name: '닫기', exact: true }).click();
-  page.once('dialog', dialog => dialog.accept());
-  await page.getByRole('button', { name: '요일별 수업', exact: true }).click();
+  await Promise.all([
+    page.waitForEvent('dialog').then(async dialog => {
+      expect(dialog.type()).toBe('confirm');
+      expect(dialog.message()).toContain('작성 내용을 버리고');
+      await dialog.accept();
+    }),
+    lectureLink.click(),
+  ]);
   await expect(page).toHaveURL(/\/workspace\/lectures\/9901$/);
   expect(state.puts).toHaveLength(0);
 });
