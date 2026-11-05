@@ -668,8 +668,8 @@ export default function StudentVideoPlayer({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      const tag = target?.tagName?.toLowerCase?.();
-      if (tag === "input" || tag === "textarea" || target?.isContentEditable) return;
+      const nativeControl = target?.closest?.("input, textarea, .svpFullscreenTopButton, .svpFullscreenButton");
+      if (nativeControl || target?.isContentEditable) return;
       if (e.code === "Space") {
         e.preventDefault();
         togglePlay();
@@ -758,7 +758,7 @@ export default function StudentVideoPlayer({
                   className="svpFullscreenTopButton"
                   icon={isFullscreen ? "shrink" : "fullscreen"}
                   label={isFullscreen ? "전체화면 종료" : "전체화면"}
-                  onPointerDown={() => requestFullscreen()}
+                  onClick={requestFullscreen}
                 />
                 <KebabMenu
                   align="right"
@@ -910,7 +910,7 @@ export default function StudentVideoPlayer({
                         className="svpFullscreenButton"
                         icon={isFullscreen ? "shrink" : "fullscreen"}
                         label={isFullscreen ? "전체화면 종료" : "전체화면"}
-                        onPointerDown={() => requestFullscreen()}
+                        onClick={requestFullscreen}
                       />
                     </div>
                   </div>

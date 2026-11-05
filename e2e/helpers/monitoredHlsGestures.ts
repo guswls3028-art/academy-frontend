@@ -9,13 +9,13 @@ type GestureScenario = {
   info: TestInfo;
   speedLocked: boolean;
   base: string;
+  viewport?: { width: number; height: number };
   installScenario: (page: Page) => Promise<{ videos: Array<Record<string, unknown>> }>;
   openPlayer: (page: Page) => Promise<void>;
 };
 
-export async function verifyMonitoredHlsGestures({ page, info, speedLocked, base, installScenario, openPlayer }: GestureScenario) {
-  await page.clock.install();
-  await page.setViewportSize({ width: 390, height: 844 });
+async function openMonitoredHlsPlayer({ page, speedLocked, base, viewport, installScenario, openPlayer }: Omit<GestureScenario, "info">) {
+  await page.setViewportSize(viewport ?? { width: 390, height: 844 });
   const { videos } = await installScenario(page);
   // Observe native rate writes without replacing playback or controller methods.
   await page.addInitScript(() => {
@@ -78,12 +78,19 @@ export async function verifyMonitoredHlsGestures({ page, info, speedLocked, base
   await page.locator("button.svpBigPlay").click();
   const video = page.locator("video.svpVideo");
   await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(0);
+  const writes = () => page.evaluate(() => (window as GestureRateAuditWindow).__qaGestureRateWrites);
+  const clearWrites = () => page.evaluate(() => { (window as GestureRateAuditWindow).__qaGestureRateWrites = []; });
+  return { video, state, writes, clearWrites };
+}
+
+export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {
+  const { page, info, speedLocked } = scenario;
+  await page.clock.install();
+  const { video, state, writes, clearWrites } = await openMonitoredHlsPlayer(scenario);
   const layer = page.locator(".svpGestureLayer");
   const box = (await layer.boundingBox())!;
   const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   const right = { x: box.x + box.width * 0.75, y: center.y };
-  const writes = () => page.evaluate(() => (window as GestureRateAuditWindow).__qaGestureRateWrites);
-  const clearWrites = () => page.evaluate(() => { (window as GestureRateAuditWindow).__qaGestureRateWrites = []; });
   const cancel = () => layer.dispatchEvent("pointercancel", { pointerId: 1, pointerType: "mouse", clientX: right.x, clientY: right.y });
   await clearWrites();
   if (speedLocked) {
@@ -140,4 +147,127 @@ export async function verifyMonitoredHlsGestures({ page, info, speedLocked, base
   await expect(page.getByText("재생 세션이 종료되었습니다.", { exact: true })).toHaveCount(0);
   const current = await video.evaluate((el: HTMLVideoElement) => el.currentTime);
   await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(current);
+}
+
+
+type FullscreenAuditWindow = Window & { __qaFullscreenInputs: Array<{
+  type: string; trusted: boolean; pointerType: string; label: string;
+}>; __qaFullscreenTransitions: boolean[] };
+
+export async function verifyFullscreenControls(scenario: GestureScenario) {
+  const { page, info } = scenario;
+  await page.addInitScript(() => {
+    const audit = window as FullscreenAuditWindow;
+    audit.__qaFullscreenInputs = [];
+    audit.__qaFullscreenTransitions = [];
+    let previousFullscreen = false;
+    new MutationObserver(() => {
+      const active = !!document.querySelector(".svpPlayerWrap--fullscreen");
+      if (active !== previousFullscreen) {
+        previousFullscreen = active;
+        audit.__qaFullscreenTransitions.push(active);
+      }
+    }).observe(document, { subtree: true, attributes: true, attributeFilter: ["class"] });
+    for (const type of ["pointerdown", "pointerup", "pointercancel", "click"]) {
+      document.addEventListener(type, event => {
+        const target = event.target instanceof Element ? event.target.closest("button") : null;
+        audit.__qaFullscreenInputs.push({ type, trusted: event.isTrusted,
+          pointerType: event instanceof PointerEvent ? event.pointerType : "",
+          label: target?.getAttribute("aria-label") ?? "" });
+      }, true);
+    }
+  });
+  const { video, state, writes, clearWrites } = await openMonitoredHlsPlayer(scenario);
+  await clearWrites();
+  const wrap = page.locator(".svpPlayerWrap");
+  const guide = page.getByRole("dialog", { name: "학생·학부모 가이드북", exact: true });
+  const audit = () => page.evaluate(() => (window as FullscreenAuditWindow).__qaFullscreenInputs);
+  const revealControls = async () => {
+    if (await wrap.evaluate(node => node.classList.contains("svpPlayerWrap--controlsHidden"))) {
+      const box = (await page.locator(".svpGestureLayer").boundingBox())!;
+      await page.touchscreen.tap(box.x + box.width * 0.15, box.y + box.height / 2);
+      await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
+    }
+  };
+  const assertPlaying = async () => {
+    const current = await video.evaluate((el: HTMLVideoElement) => el.currentTime);
+    await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(current);
+    await expect(guide).toHaveCount(0);
+  };
+  let expectedPairs = 0;
+  const chromium = page.context().browser()?.browserType().name() === "chromium";
+  const cdp = chromium ? await page.context().newCDPSession(page) : null;
+  const selectors = scenario.viewport?.width === 1366 ? [".svpControls .svpFullscreenButton"]
+    : [".svpFullscreenTopButton", ".svpControls .svpFullscreenButton"];
+  if (scenario.viewport?.width === 1366) await expect(page.locator(".svpFullscreenTopButton")).toBeHidden();
+  try {
+    for (const selector of selectors) {
+      const button = page.locator(selector);
+      await revealControls();
+      // CDP provides trusted touchCancel/move; ordinary taps below also run in other engines.
+      if (cdp) {
+        for (const cancelledBy of ["cancel", "drag"]) {
+          const box = (await button.boundingBox())!;
+          const point = { x: box.x + box.width / 2, y: box.y + box.height / 2, id: 1 };
+          await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [point] });
+          // Activation must not begin at pointerdown, before cancellation or release.
+          await expect(wrap).not.toHaveClass(/svpPlayerWrap--fullscreen/);
+          if (cancelledBy === "cancel") {
+            await cdp.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
+          } else {
+            await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ ...point, x: point.x - 90 }] });
+            await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+          }
+          await expect(wrap).not.toHaveClass(/svpPlayerWrap--fullscreen/);
+          await assertPlaying();
+        }
+      }
+      for (const input of ["touch", "mouse", "Enter", "Space"] as const) {
+        const activate = async () => {
+          await revealControls();
+          if (input === "touch") await button.tap();
+          else if (input === "mouse") await button.click();
+          else {
+            await button.focus();
+            await page.keyboard.press(input);
+          }
+        };
+        await activate();
+        await expect(wrap).toHaveClass(/svpPlayerWrap--fullscreen/);
+        await expect(button).toHaveAttribute("aria-label", "전체화면 종료");
+        await activate();
+        await expect(wrap).not.toHaveClass(/svpPlayerWrap--fullscreen/);
+        await expect(button).toHaveAttribute("aria-label", "전체화면");
+        expectedPairs++;
+        await assertPlaying();
+        expect((await audit()).filter(event => event.type === "click" && event.label === "가이드북")).toEqual([]);
+      }
+    }
+  } finally {
+    await cdp?.detach();
+  }
+  const fullscreenEvents = () => state.events.filter(event => event.type.startsWith("FULLSCREEN_"));
+  await expect.poll(() => fullscreenEvents().filter(event => event.type === "FULLSCREEN_ENTER").length).toBeGreaterThanOrEqual(expectedPairs);
+  await expect.poll(() => fullscreenEvents().filter(event => event.type === "FULLSCREEN_EXIT").length).toBeGreaterThanOrEqual(expectedPairs);
+  const transitions = await page.evaluate(() => (window as FullscreenAuditWindow).__qaFullscreenTransitions);
+  expect(transitions).toEqual(Array.from({ length: expectedPairs }, () => [true, false]).flat());
+  expect(state.events.filter(event => /ATTEMPT|PLAYER_ERROR/.test(event.type))).toEqual([]);
+  expect(state.active).toBe(true);
+  expect(state.grants).toBe(1);
+  expect(state.receipts).toBeGreaterThan(0);
+  expect(await writes()).toEqual([]);
+  const inputs = await audit();
+  expect(inputs.filter(event => event.type === "pointerdown" && event.pointerType === "touch").length).toBeGreaterThanOrEqual(selectors.length * 2);
+  expect(inputs.every(event => event.trusted)).toBe(true);
+  if (chromium) expect(inputs.filter(event => event.type === "pointercancel").length).toBeGreaterThanOrEqual(selectors.length);
+  // A deliberate guide tap must still open the real popup after fullscreen exit.
+  await page.getByRole("button", { name: "가이드북", exact: true }).tap();
+  await expect(guide).toBeVisible();
+  await info.attach("fullscreen-intentional-guide", { contentType: "image/png", body: await page.screenshot() });
+  await guide.getByRole("button", { name: "가이드북 닫기", exact: true }).tap();
+  await assertPlaying();
+  await info.attach("fullscreen-pointer-monitoring", { contentType: "application/json", body: JSON.stringify({
+    ...state, expectedPairs, transitions, trustedCancelEngine: chromium ? "chromium" : null, inputs: await audit(), rateWrites: await writes(),
+  }) });
+  await info.attach("fullscreen-pointer-return", { contentType: "image/png", body: await page.screenshot() });
 }
