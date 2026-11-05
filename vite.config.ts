@@ -96,9 +96,6 @@ export default defineConfig(({ mode }) => {
       output: {
         strictExecutionOrder: true,
         codeSplitting: {
-          // Keep shared transform helpers out of lazy feature vendors such as
-          // PDF.js, otherwise common code (including Query) eagerly loads them.
-          includeDependenciesRecursively: false,
           groups: [
             {
               name: "vendor-core",
@@ -109,7 +106,10 @@ export default defineConfig(({ mode }) => {
                   normalized.includes("/node_modules/react-dom/") ||
                   normalized.includes("/node_modules/react-router/") ||
                   normalized.includes("/node_modules/scheduler/") ||
-                  normalized.includes("react/jsx")
+                  normalized.includes("react/jsx") ||
+                  // Rolldown injects these virtual shared helpers into both
+                  // Query and PDF.js. Keep them in the eager core chunk.
+                  normalized.startsWith("\0@oxc-project+runtime@")
                 );
               },
               priority: 50,
@@ -123,6 +123,7 @@ export default defineConfig(({ mode }) => {
                   normalized.includes("/node_modules/@tanstack/query-core/")
                 );
               },
+              includeDependenciesRecursively: false,
               priority: 30,
             },
             {

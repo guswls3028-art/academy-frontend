@@ -634,14 +634,15 @@ export class StudentHlsController {
       const Hls = mod.default;
 
       if (Hls && Hls.isSupported()) {
-        // Let hls.js measure a fragment before choosing the 12 Mbps high tier.
         const hls = new Hls({
           lowLatencyMode: false,
           autoStartLoad: !this.opts.reviewStream,
           backBufferLength: 30,
-          maxBufferLength: 30,
+          maxBufferLength: 60,
           maxMaxBufferLength: 120,
           startLevel: -1,
+          abrEwmaDefaultEstimate: 20_000_000,
+          abrEwmaDefaultEstimateMax: 50_000_000,
         });
         this.hls = hls;
 

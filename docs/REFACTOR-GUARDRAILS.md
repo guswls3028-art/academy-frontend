@@ -43,8 +43,8 @@ path.
 
 The initial HTML JavaScript preload budget is 220 KiB gzip. Initial scripts and
 preloaded chunks must not statically import PDF.js; it loads with its lazy document
-or PPT route. Vendor groups contain matching modules without recursively capturing
-shared transform helpers; otherwise a common query can pull in an entire lazy vendor.
+or PPT route. Rolldown's virtual Oxc transform helpers belong to the shared core
+group; otherwise a common query can pull in an entire lazy vendor containing a helper.
 The bundle budget check enforces the preload cap
 and the PDF.js boundary so unrelated first-screen loads do not pay for PDF rendering
 code.
