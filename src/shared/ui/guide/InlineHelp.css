@@ -73,6 +73,33 @@
   animation: inline-help-pop 140ms ease;
 }
 
+/* Keep the pointer inside the help while crossing the visual gap. */
+.inline-help__hover-bridge {
+  position: absolute;
+  top: 100%;
+  width: min(320px, calc(100vw - 24px));
+  height: 8px;
+  z-index: 1300;
+}
+
+.inline-help[data-align="right"] .inline-help__hover-bridge {
+  right: 0;
+}
+
+.inline-help[data-align="left"] .inline-help__hover-bridge {
+  left: 0;
+}
+
+.inline-help[data-placement="top"] .inline-help__popup {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
+.inline-help[data-placement="top"] .inline-help__hover-bridge {
+  top: auto;
+  bottom: 100%;
+}
+
 .inline-help[data-align="right"] .inline-help__popup {
   right: 0;
 }
@@ -175,6 +202,10 @@
 }
 
 @media (max-width: 560px) {
+  .inline-help__hover-bridge {
+    display: none;
+  }
+
   .inline-help__popup {
     position: fixed;
     top: 58px;
@@ -185,9 +216,24 @@
     overflow-y: auto;
   }
 
+  .inline-help[data-placement="top"] .inline-help__popup {
+    top: 58px;
+    bottom: auto;
+  }
+
   .inline-help[data-align="left"] .inline-help__popup,
   .inline-help[data-align="right"] .inline-help__popup {
     right: 12px;
     left: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inline-help__trigger {
+    transition: none;
+  }
+
+  .inline-help__popup {
+    animation: none;
   }
 }

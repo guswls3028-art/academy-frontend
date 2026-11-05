@@ -2114,7 +2114,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(drawer).not.toContainText(/PASS|보강\s?합격/);
 
     const correctionToggle = drawer.getByRole("button", {
-      name: "오답 미완료; 눌러서 오답 완료로 변경",
+      name: "오답 확인 필요; 눌러서 오답 확인 완료로 변경",
     });
     await correctionToggle.click();
     await expect.poll(() => correctionPatches.length).toBe(1);
@@ -2208,7 +2208,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       await firstNameCell.getByText("자동저장학생1", { exact: true }).click();
       const drawer = page.getByRole("complementary", { name: "자동저장학생1 학생 상세" });
       await drawer.getByRole("button", {
-        name: "오답 미완료; 눌러서 오답 완료로 변경",
+        name: "오답 확인 필요; 눌러서 오답 확인 완료로 변경",
       }).click();
       await expect.poll(() => correctionPatches.length).toBe(1);
       expect(correctionPatches[0]).toEqual({
@@ -2237,7 +2237,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       await expect(drawer.locator(".student-scores-drawer__verdict-value")).toHaveText("오답 완료");
       await expect(drawer.locator(".student-scores-drawer__header-info").getByText("오답 미완료", { exact: true })).toHaveCount(0);
       await expect(drawer.getByRole("button", {
-        name: "오답 완료; 눌러서 오답 미완료로 변경",
+        name: "오답 확인 완료; 눌러서 오답 확인 필요로 변경",
       })).toHaveAttribute("aria-pressed", "true");
       expect(correctionPatches).toHaveLength(1);
       await page.screenshot({ path: testInfo.outputPath(`followup-completed-reload-${viewport.width}.png`) });

@@ -16,7 +16,7 @@ export function calculateExamStats(exams: MyExamGradeSummary[], wrongCompletionO
   const judgedCount = judgments.filter((status) => status != null).length;
   const passCount = judgments.filter((status) => status === true).length;
   const passRate = judgedCount > 0 ? Math.round((passCount / judgedCount) * 100) : null;
-  const rankedExams = exams.filter((exam) => exam.rank != null && exam.cohort_size != null && exam.cohort_size > 1 && exam.meta_status !== "NOT_SUBMITTED");
+  const rankedExams = exams.filter((exam) => exam.rank != null && exam.meta_status !== "NOT_SUBMITTED");
   const avgRank = rankedExams.length > 0
     ? Math.round((rankedExams.reduce((sum, exam) => sum + exam.rank!, 0) / rankedExams.length) * 10) / 10
     : null;

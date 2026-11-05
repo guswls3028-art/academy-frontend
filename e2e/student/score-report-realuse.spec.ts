@@ -427,7 +427,7 @@ test.describe.serial("[E2E] 학생 성적 리포트 실사용 검증", () => {
     await expect(page.getByText("정답 내용은 비공개입니다. 틀린 번호와 내 답만 확인할 수 있습니다.")).toBeVisible();
     await expect(page.getByText("내 등수")).toBeVisible();
     await expect(page.getByText("1등")).toBeVisible();
-    await expect(page.getByText("/ 2명")).toBeVisible();
+    await expect(page.getByText("2명 응시")).toBeVisible();
 
     await page.screenshot({ path: `e2e/screenshots/score-report-realuse-result-${TS}.png`, fullPage: true });
 
@@ -435,7 +435,8 @@ test.describe.serial("[E2E] 학생 성적 리포트 실사용 검증", () => {
     await expect(page.getByText(EXAM_TITLE)).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId("grade-wrong-summary")).toContainText("오답 2문항");
     await expect(page.getByTestId("grade-wrong-summary")).toContainText("2, 5번");
-    await expect(page.getByText("1/2등")).toBeVisible();
+    await expect(page.getByText("1등", { exact: true })).toBeVisible();
+    await expect(page.getByText("2명 응시", { exact: true })).toBeVisible();
     await page.screenshot({ path: `e2e/screenshots/score-report-realuse-grades-${TS}.png`, fullPage: true });
   });
 });

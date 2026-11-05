@@ -98,6 +98,8 @@ export function normalizeExam(raw: unknown): Exam {
 
     answer_visibility: normalizeAnswerVisibility(data.answer_visibility),
     student_results_published: data.student_results_published !== false,
+    student_rank_published: data.student_rank_published !== false,
+    student_cohort_size_published: data.student_cohort_size_published !== false,
 
     created_at: text(data.created_at),
     updated_at: text(data.updated_at),

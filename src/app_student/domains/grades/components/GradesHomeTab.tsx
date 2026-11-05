@@ -113,7 +113,7 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
   const [examSort, setExamSort] = useState<SortMode>("lecture");
   const [examReview, setExamReview] = useState<ExamReviewFilter>("all");
   const [homeworkSort, setHomeworkSort] = useState<HomeworkSortMode>("session_desc");
-  const [homeworkStatus, setHomeworkStatus] = useState<HomeworkStatusFilter>("all");
+  const [homeworkStatus, setHomeworkStatus] = useState<HomeworkStatusFilter>("todo");
   const [homeworkSessionScope, setHomeworkSessionScope] = useState<HomeworkSessionScope>("all");
 
   const examReviewCounts = useMemo(() => ({
@@ -170,6 +170,16 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
   const currentHwGroups = useMemo(() => groupHomeworks(currentHomeworks), [currentHomeworks]);
   const endedHwGroups = useMemo(() => groupHomeworks(endedHomeworks), [endedHomeworks]);
   const homeworkDoneCount = useMemo(() => homeworks.filter(isHomeworkDone).length, [homeworks]);
+  const scopedHomeworks = useMemo(
+    () => homeworks.filter((homework) => (
+      homeworkSessionScope === "all" || homework.session_type === homeworkSessionScope
+    )),
+    [homeworkSessionScope, homeworks],
+  );
+  const scopedHomeworkDoneCount = useMemo(
+    () => scopedHomeworks.filter(isHomeworkDone).length,
+    [scopedHomeworks],
+  );
 
   return (
     <div className={styles.stack}>
@@ -278,7 +288,16 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
                 </div>
               </section>
               {visibleHomeworks.length === 0 ? (
-                <EmptyState title="조건에 맞는 과제가 없습니다." description="상태나 수업 필터를 바꿔 다시 확인해 보세요." />
+                homeworkStatus === "todo"
+                  && scopedHomeworks.length > 0
+                  && scopedHomeworkDoneCount === scopedHomeworks.length ? (
+                  <EmptyState
+                    title="확인할 과제가 없습니다."
+                    description="모든 과제를 완료했습니다. 완료 내역은 위의 ‘완료’ 또는 ‘전체’에서 다시 볼 수 있습니다."
+                  />
+                ) : (
+                  <EmptyState title="조건에 맞는 과제가 없습니다." description="상태나 수업 필터를 바꿔 다시 확인해 보세요." />
+                )
               ) : (
                 <>
                 {currentHomeworks.length > 0 && <div className={styles.gradeList}>

@@ -54,7 +54,7 @@ export default function GradesStatsTab({
   const hasScoredHomework = homeworks.some((homework) => homework.grading_mode !== "COMPLETION");
 
   const rankInsight = useMemo(() => {
-    const ranked = exams.filter((e) => e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED");
+    const ranked = exams.filter((e) => e.rank != null && e.percentile != null && e.meta_status !== "NOT_SUBMITTED");
     if (ranked.length === 0) return null;
     const topQuartile = ranked.filter((e) => e.percentile != null && e.percentile <= 25).length;
     const midRange = ranked.filter((e) => e.percentile != null && e.percentile > 25 && e.percentile <= 75).length;
@@ -151,13 +151,15 @@ export default function GradesStatsTab({
           {rankInsight.bestExam && (
             <div>
               <span className={styles.bestLabel}>최고 성적</span>{" "}
-              {rankInsight.bestExam.title} — {rankInsight.bestExam.rank}등/{rankInsight.bestExam.cohort_size}명
+              {rankInsight.bestExam.title} — {rankInsight.bestExam.rank}등
+              {rankInsight.bestExam.cohort_size != null ? ` · ${rankInsight.bestExam.cohort_size}명 응시` : ""}
             </div>
           )}
           {rankInsight.worstExam && rankInsight.worstExam.exam_id !== rankInsight.bestExam?.exam_id && (
             <div>
               <span className={styles.worstLabel}>보완 필요</span>{" "}
-              {rankInsight.worstExam.title} — {rankInsight.worstExam.rank}등/{rankInsight.worstExam.cohort_size}명
+              {rankInsight.worstExam.title} — {rankInsight.worstExam.rank}등
+              {rankInsight.worstExam.cohort_size != null ? ` · ${rankInsight.worstExam.cohort_size}명 응시` : ""}
             </div>
           )}
         </div>

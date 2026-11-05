@@ -375,6 +375,9 @@ test.describe("안내문 변수 편집", () => {
       await modal.getByRole("button", { name: "다시 실행", exact: true }).click();
       await expect(editor.locator('[data-message-variable="시험총점"]')).toHaveCount(2);
       const individual = modal.getByRole("button", { name: "시험·과제별 정보 더 보기", exact: true });
+      await expect(individual).toHaveAttribute("aria-expanded", "false");
+      await expect(modal.getByRole("button", { name: "시험 1 이름", exact: true })).toBeHidden();
+      await individual.click();
       await expect(individual).toHaveAttribute("aria-expanded", "true");
       await expect(modal.getByRole("button", { name: "시험 1 이름", exact: true })).toBeVisible();
       await individual.focus();
@@ -405,6 +408,36 @@ test.describe("안내문 변수 편집", () => {
       await expect(editor.locator('[data-message-variable="시험총점"]')).toHaveCount(2);
     });
   }
+
+  test("과제별 결과와 다음 수업을 넣고 공지·총점 순서를 보존해 저장한다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const original = "공지: 워크북을 가져오세요.\n총점 #{시험총점}\n#{시험목록}\n";
+    const writes = await openTemplateEditor(page, true, original);
+    const modal = page.getByRole("dialog", { name: "문구 수정", exact: true });
+    const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
+    await expect(modal.getByText(/‘과제별 결과’는 과제를 한 줄씩/)).toBeVisible();
+    await editor.click();
+    await editor.press("Control+End");
+    await modal.getByRole("button", { name: "과제별 결과", exact: true }).click();
+    await editor.press("End");
+    await editor.press("Enter");
+    await modal.getByRole("button", { name: "다음 수업 이름", exact: true }).click();
+    await expect(editor.locator('[data-message-variable="과제목록"]')).toHaveCount(1);
+    await expect(editor.locator('[data-message-variable="다음차시명"]')).toHaveCount(1);
+    await modal.getByRole("button", { name: "수정", exact: true }).click();
+    await expect(modal).toBeHidden();
+    expect(writes).toHaveLength(1);
+    const body = String(writes[0].body);
+    expect(body).toContain("공지: 워크북을 가져오세요.");
+    expect(body.indexOf("#{시험총점}")).toBeLessThan(body.indexOf("#{시험목록}"));
+    expect(body).toContain("#{과제목록}");
+    expect(body).toContain("#{다음차시명}");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "수정", exact: true }).click();
+    await expect(editor).toContainText("공지: 워크북을 가져오세요.");
+    await expect(editor.locator('[data-message-variable="과제목록"]')).toHaveCount(1);
+    await expect(editor.locator('[data-message-variable="다음차시명"]')).toHaveCount(1);
+  });
 
   test("변수를 포함한 본문을 복사·붙여넣기하고 선택 교체를 되돌린다", async ({ page, context }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);

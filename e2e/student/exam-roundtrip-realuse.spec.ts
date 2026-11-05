@@ -329,7 +329,8 @@ test.describe.serial("[real-use] 학생 온라인 시험 roundtrip", () => {
     const gradeCard = page.getByRole("link").filter({ hasText: EXAM_TITLE }).first();
     await expect(gradeCard).toBeVisible();
     await expect(gradeCard.getByTestId("grade-wrong-summary")).toContainText("오답 2문항");
-    await expect(gradeCard.getByText("1/2등")).toBeVisible();
+    await expect(gradeCard.getByText("1등", { exact: true })).toBeVisible();
+    await expect(gradeCard.getByText("2명 응시", { exact: true })).toBeVisible();
     await page.reload({ waitUntil: "domcontentloaded" });
     await waitForRenderSettled(page, { timeout: 20_000 });
     await expect(gradeCard).toBeVisible();
