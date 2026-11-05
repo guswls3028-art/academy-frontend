@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { getBaseUrl } from "../helpers/auth";
+import { installWorkspaceReadApiStubs } from "./workspaceReadApiStubs";
 import {
   installLocalAuthApiStubs,
   installTenantOneInitScript,
@@ -257,6 +258,16 @@ export async function openCompositionScores(page: Page): Promise<OrderingHarness
     "성적 컬럼 모바일 순서 route-mock은 로컬 dev 서버 전용",
   );
   await installLocalAuthApiStubs(page);
+  await installWorkspaceReadApiStubs(page);
+  // Context fallback keeps scenario-specific page routes authoritative.
+  await page.context().route(/\/api\/v1\/lectures\/sessions\/(?:\?.*)?$/, async route => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (request.method() !== "GET" || url.searchParams.get("lecture") !== String(LECTURE_ID)) return route.fallback();
+    await route.fulfill({ json: { count: 1, next: null, previous: null, results: [
+      { id: SESSION_ID, lecture: LECTURE_ID, order: 1, title: "모바일 순서 검증 차시", date: "2026-08-25" },
+    ] } });
+  });
   await installTenantOneInitScript(page);
   await page.addInitScript((token) => {
     localStorage.setItem("access", token);
