@@ -23,6 +23,20 @@
 확인한다. 정상적인 권한·tenant·데이터·발송 경계는 유지한다. 세부 감사와 구조
 정비 기준은 [backend 변경 위험 계약](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/change-risk-and-release-bundle.md)이 소유한다.
 
+### 단순한 기본 화면과 단계적 상세 제공
+
+첫 화면은 현재 할 일, 핵심 상태와 주 행동을 중심으로 구성한다. 고급 설정·드문
+세부 기능은 명확한 이름의 버튼, 상세 화면 또는 펼치기로 사용자가 선택해 연다.
+옵션을 처음부터 나열해 시선을 분산하지 않는다. 오류, 필수 조건, 데이터 영향과
+복구 동선은 숨기지 않고 필요한 시점에 보여 준다. 초심자의 첫 작업과 숙련자의
+상세 기능 발견·복귀를 desktop/390px에서 함께 확인한다.
+
+문의 메일 추가, 지원팀 이관, 플랫폼 승인 요청으로 막힌 정상 여정을 대신하지
+않는다. 기존 권한으로 가능한 지원 경로에서 완료하게 하고, 필수 권한·업무 승인
+경계는 유지한다. 불가능한 상태는 원인과 안전한 복구/이탈을 명시하며 성공으로
+표현하지 않는다. 반복 요청, 불필요한 대기와 입력 지연도 사용성 결함으로 다루고
+관련 경로를 측정해 판단한다.
+
 ### 개선 작업을 시작할 때
 
 디자인·편의성·동선 변경 요청은 제안된 해법부터 구현하지 않는다. 영향을 받는
@@ -54,6 +68,53 @@
 | 도메인 SSOT | 학생 생성/생명주기: `backend/docs/domain/student-creation.md`, `backend/docs/domain/student-lifecycle.md`; OMR: `backend/docs/domain/omr.md`; 메시징: `backend/docs/domain/messaging.md` |
 
 ## 3. 점검 환경
+
+### 사용자에게 환경 준비를 전가하지 않는 검수 작업대
+
+화면 점검을 맡은 작업자는 저장소 라우트, 현재 runtime/version, 기존 담당자의
+정확한 후보와 격리 QA 진입점을 먼저 확인한다. URL·계정·테넌트 준비를 사용자에게
+반복 요청하지 않는다. 설정된 인증은 승인 범위 안에서 재사용하며 실제 고객의
+학생·성적·연락처·비밀값을 복제하지 않는다. 구조와 긴 이름/빈값/많은 행 등의
+조건은 합성 fixture로 재현한다. 필수 권한 거절이나 도구 차단은 우회하지 않는다.
+
+현재 운영 화면의 시각 근거는 별도 로그인 없이 다음 명령으로 준비한다.
+
+```sh
+pnpm qa:visual
+# 정확한 과거 성공 run 또는 이미 내려받은 합성 evidence를 검토할 때:
+pnpm qa:visual --run 41574720365 --prepare-only
+pnpm qa:visual --evidence /absolute/path/development-release-evidence --output /absolute/new/review
+# 이 실행환경의 loopback을 브라우저가 지원할 때만 검색용 viewer도 실행:
+pnpm qa:visual --serve
+```
+
+`scripts/visual-review-workbench.mjs`는 공개 `version.json`의 exact SHA와 일치하는
+성공 main run을 찾고, 같은 artifact의 development QA 성공·합성 tenant·cleanup zero를
+확인한 뒤 캡처 작업대를 만든다. 기존 GitHub 인증을 사용한다. 기본 실행은 로컬
+파일만 준비하며 로컬 이미지 열람 도구로 바로 검수한다. 선택적 `--serve`는
+127.0.0.1의 빈 포트를 자동 선택해 주소를 출력하므로 사용자 브라우저의 현재 URL을
+알아야 할 필요가 없다.
+원본 evidence와 별도 output에는 PNG, SHA/실행 정보, 검색 가능한 HTML만 둔다.
+원본 보고서·토큰·계정은 HTTP로 제공하지 않고 서버는 API 요청·쓰기·외부 연결을
+허용하지 않는다. `--prepare-only`는 서버 없이 같은 산출물을 남긴다. 작업 종료 시
+소유 서버를 Ctrl+C로 종료하며 원본과 검수 근거는 작업 artifact 위치에 보존한다.
+도구의 브라우저가 이 컴퓨터의 loopback에 닿지 못하면 `manifest.json`의 이미지
+목록과 로컬 이미지 열람 도구로 원본 PNG를 직접 본다. 이것도 실제 렌더에 대한
+시각 검수이며, 사용자에게 URL을 다시 요청하거나 브라우저 보안 차단을 우회하는
+이유가 되지 않는다. 작업대 HTML의 브라우저 검증 여부는 별도로 기록한다.
+
+작업대는 **이미 캡처한 화면을 사람이 검수하는 도구**다. 현재 후보의 클릭·저장·
+새로고침·상대 역할 반영을 대신하지 않는다. 과거 run/local evidence는 운영 일치로
+표시하지 않는다. artifact 만료·운영 SHA 불일치·failed QA·잔여·누락 캡처는 자동
+통과하지 않는다. 기존 release 담당의 정확한 artifact나 해당 후보의 route-mock
+렌더/격리 실사용 절차로 이어가고 미검증 범위를 명시한다.
+
+직접 조작이 필요한 검수는 아래의 exact checkout + SSM loopback + disposable QA
+절차를 사용한다. 공유 개발 서버/Codespace가 사용 중이면 기존 결과 책임자와
+슬롯·candidate·후속 실행을 조정하고, 그동안 캡처 검수와 정적 준비를 진행한다.
+새 공개 endpoint, production tenant 복제 또는 중복 release executor를 만들지 않는다.
+1366/390px의 같은 흐름을 실제로 보고 발견한 문제에 화면/상태/폭/근거/개선 기준을
+붙여 기존 담당에게 전달한다. 전달 완료와 담당 인수, 구현·재검증 완료를 구분한다.
 
 생성·수정과 인증 시각 QA의 기본은 상시 격리 development API와 일회용 `qa-*`
 tenant/account다. 운영 테넌트를 테스트 데이터 생성용 기본값으로 삼지 않는다.
@@ -123,6 +184,15 @@ GitHub E2E 성공만으로 운영 정리를 완료했다고 판정하지 않는�
 쓰기 시나리오는 통제 옵션에서만 실행한다.
 
 ## 5. 공통 합격 기준
+
+기능의 완성 판정은 영향받는 실사용 시나리오, 시각/사용성 리뷰와 필요한 테스트가
+모두 통과했을 때만 한다. 정상 실행, 저장/reload/소비 역할, 실패·복구와 관련
+desktop/390px 결과를 해당 revision/environment에 연결한다. 미실행·미관찰은
+미검증이며 완료로 포장하지 않는다. 변경과 무관한 전 메뉴 재검수는 요구하지 않는다.
+
+공개하는 미완성 기능에는 진입 전에 Beta 표시와 지원 범위·제한·안전한 복구를
+제공한다. Beta 제거도 위 완료 증거가 필요하다. Beta는 권한·격리·데이터 보호의
+예외가 아니며, 기존 정식 기능의 회귀를 Beta로 바꾸어 정당화하지 않는다.
 
 아래 중 하나라도 실패하면 "실사용 검수 통과"라고 보지 않는다.
 

@@ -2,6 +2,26 @@
 
 Self-contained instructions for the frontend Git root.
 
+## Working and product priorities
+
+- Optimize reliable completion, work efficiency and runtime performance first;
+  reduce token waste within that goal. Spend necessary analysis, tool and test
+  cost; avoid duplicate work and do not trade verification for fewer tokens.
+- Prioritize hidden defects, data/reliability risks and observed latency over
+  feature breadth. A confirmed production incident takes precedence: restore
+  service with a scoped hotfix or verified rollback, retain release/data gates,
+  then verify recovery and prevent recurrence. Suspected risks need evidence.
+- Keep the default journey simple: show the primary task and essential status;
+  reveal advanced options on deliberate user action. Keep errors, prerequisites,
+  safety information and recovery discoverable.
+- Incomplete features exposed to users carry Beta before entry, with supported
+  scope, limitations and recovery. Beta does not waive safety or excuse a
+  regression. Completion requires the affected real-use scenarios, review and
+  tests to pass, including persistence, downstream roles and failure recovery.
+- Do not substitute inquiry emails, support handoffs or requests for platform
+  approval for a working flow. Use supported, already-authorized alternatives;
+  preserve mandatory platform controls and report a genuine blocker honestly.
+
 ## Sources and context
 
 - Entry: `docs/README.md`; backend policy: `../backend/docs/`.
@@ -31,8 +51,10 @@ local-only/no-deploy/draft/PR-only, the assignment includes scoped publication,
 merge, deployment, verification and owned cleanup. `모든권한` and equivalents
 persist until narrowed/revoked; finish the earliest assignment without repeated
 permission. Same-user Academy tasks/owned subagents may exchange non-sensitive
-scope, paths, SHAs and CI/verification evidence. External recipients, authentication,
-secret transfers and ambiguous destructive targets need exact authorization.
+scope, paths, SHAs and CI/verification evidence. Standing authorization includes
+in-scope authentication and use of configured credentials/secret keys without
+repeat confirmation; never print, expose or transfer secrets. External messages,
+secret transfers and unresolved destructive targets still need exact scope.
 Preserve tenant/user data, current HOLDs, release gates, managed permissions and
 higher-priority action-time approvals. Give formal review the exact target,
 impact and user instruction; never work around a denial.
@@ -40,8 +62,8 @@ impact and user instruction; never work around a denial.
 Explicit deployment/release/production/rollout continuation also authorizes that
 exact run's GitHub `production` approval via the official authenticated API.
 Require platform readback before mutation; no protection bypass or unrelated-run
-approval. Rejection/ineligibility is a technical blocker, not a reconfirmation
-request. Owner: `../backend/docs/operations/github-governance.md`.
+approval. Do not request manual/platform approval as a routine fallback.
+Rejection/ineligibility is a technical blocker, not a reconfirmation request. Owner: `../backend/docs/operations/github-governance.md`.
 
 Docs/instruction/local-settings changes require applicable syntax/path/contract/
 diff checks and required CI; no separate product build, deployment or mutating
@@ -71,6 +93,16 @@ responsive edge cases. Compare proportionate options, then verify the chosen
 journey and recovery. If the UI cannot be observed, use code/current evidence
 and disclose the gap. The focused method is in
 `docs/REAL-USE-REVIEW-MANUAL.md`.
+
+Prepare UI review autonomously from repository routes, runtime/version readback,
+configured authentication and existing isolated QA evidence. Start with
+`pnpm qa:visual` when the user's browser cannot be inspected; it discovers the
+live revision and prepares its synthetic QA captures without customer credentials.
+Inspect the local PNGs directly; its optional loopback viewer is not a prerequisite.
+Captures do not prove current-candidate interactions. Use the owning isolated
+development procedure for those, coordinate shared slots, and retain cleanup zero.
+Do not ask the user to supply a URL/account or prepare a tenant before exhausting
+these supported paths. Never copy production personal data or bypass a tool denial.
 
 - Preserve tenant/auth/role boundaries in every route/API and user-authored data;
   do not reconstruct backend-owned business decisions.
