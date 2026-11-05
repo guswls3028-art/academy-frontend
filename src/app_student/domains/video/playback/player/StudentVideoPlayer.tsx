@@ -668,8 +668,8 @@ export default function StudentVideoPlayer({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      const nativeControl = target?.closest?.("input, textarea, .svpFullscreenTopButton, .svpFullscreenButton");
-      if (nativeControl || target?.isContentEditable) return;
+      const nativeSpace = e.code === "Space" && target?.closest?.(".svpFullscreenTopButton, .svpFullscreenButton");
+      if (target?.matches?.("input, textarea") || target?.isContentEditable || nativeSpace) return;
       if (e.code === "Space") {
         e.preventDefault();
         togglePlay();

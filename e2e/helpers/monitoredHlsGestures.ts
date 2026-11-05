@@ -1,4 +1,4 @@
-import type { Page, TestInfo } from "@playwright/test";
+import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
 import { syntheticLongVideoAsset } from "../../scripts/run-development-release-canary.mjs";
 
@@ -195,6 +195,45 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
     await expect(guide).toHaveCount(0);
   };
   let expectedPairs = 0;
+  const verifyFocusedShortcuts = async (button: Locator) => {
+    // Retain the fullscreen button focus that follows click/Enter/Space activation.
+    await button.focus();
+    await expect(button).toBeFocused();
+    await page.keyboard.press("k");
+    await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.paused)).toBe(true);
+    const muted = await video.evaluate((el: HTMLVideoElement) => el.muted);
+    await page.keyboard.press("m");
+    await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.muted)).toBe(!muted);
+    await page.keyboard.press("m");
+    await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.muted)).toBe(muted);
+    const playerRoot = page.locator(".svpRoot");
+    await page.keyboard.press("t");
+    await expect(playerRoot).toHaveClass(/svpTheater/);
+    await page.keyboard.press("t");
+    await expect(playerRoot).not.toHaveClass(/svpTheater/);
+    await page.keyboard.press("f");
+    await expect(wrap).toHaveClass(/svpPlayerWrap--fullscreen/);
+    await button.focus();
+    await page.keyboard.press("f");
+    await expect(wrap).not.toHaveClass(/svpPlayerWrap--fullscreen/);
+    expectedPairs++;
+    // This fixture already allows free seek. Use the production shortcuts only;
+    // never write currentTime directly or unlock a blocked policy for the test.
+    const progress = page.getByRole("slider", { name: "진행 바", exact: true });
+    for (const [key, delta] of [["l", 10], ["j", -10], ["ArrowRight", 5], ["ArrowLeft", -5]] as const) {
+      await button.focus();
+      await expect(button).toBeFocused();
+      const before = await video.evaluate((el: HTMLVideoElement) => el.currentTime);
+      await page.keyboard.press(key);
+      const expected = Math.max(0, before + delta);
+      await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeCloseTo(expected, 0);
+      await expect.poll(async () => Number(await progress.inputValue())).toBeCloseTo(expected, 0);
+    }
+    await button.focus();
+    await page.keyboard.press("k");
+    await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.paused)).toBe(false);
+    await assertPlaying();
+  };
   const chromium = page.context().browser()?.browserType().name() === "chromium";
   const cdp = chromium ? await page.context().newCDPSession(page) : null;
   const selectors = scenario.viewport?.width === 1366 ? [".svpControls .svpFullscreenButton"]
@@ -239,6 +278,7 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
         await expect(wrap).not.toHaveClass(/svpPlayerWrap--fullscreen/);
         await expect(button).toHaveAttribute("aria-label", "전체화면");
         expectedPairs++;
+        if (input !== "touch") await verifyFocusedShortcuts(button);
         await assertPlaying();
         expect((await audit()).filter(event => event.type === "click" && event.label === "가이드북")).toEqual([]);
       }
