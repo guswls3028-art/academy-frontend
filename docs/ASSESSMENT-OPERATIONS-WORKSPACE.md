@@ -527,6 +527,8 @@ CTA와 탭은 같은 탭 전환 함수를 사용하므로 미저장 운영 설�
 - 미저장 초안: `src/shared/ui/assessment/useAssessmentPolicyDraft.ts`
 - 공용 대상자 편집기: `src/shared/ui/enrollment/EnrollmentManageModal.tsx`
 - 집중 회귀: `e2e/admin/assessment-operations-workspace.mock.spec.ts`
+- 성적표 제목 메뉴·전체 수정·긴 제목·실패 복구: `e2e/admin/score-column-mobile-ordering.mock.spec.ts`
+- 격리 실사용: `e2e/helpers/assessmentTitleRealuse.ts` (제목과 별도 운영값 저장·재조회 후 기준 복원)
 - 기존 과제 회귀: `e2e/admin/lecture-session-scopes.mock.spec.ts`
 - 차시 클리닉 상태 회귀: `e2e/admin/session-clinic-pending.mock.spec.ts`
 

@@ -64,7 +64,7 @@ export async function verifyAssessmentTitle(
     const originalMeta = (original.meta ?? {}) as Record<string, unknown>;
     const originalValue = target.kind === "exam" ? String(original.pass_score) : String(originalMeta.due_date ?? "");
     const nextValue = target.kind === "exam"
-      ? String(Number(original.pass_score) > 0 ? Number(original.pass_score) - 1 : Math.min(1, Number(original.max_score)))
+      ? String(Number(original.pass_score) > 0 ? Math.max(0, Number(original.pass_score) - 1) : Math.min(1, Number(original.max_score)))
       : originalValue === "2030-01-01" ? "2030-01-02" : "2030-01-01";
     for (const value of [nextValue, originalValue]) {
       await page.getByRole("button", { name: `${target.title} 작업 선택`, exact: true }).click();
@@ -83,7 +83,7 @@ export async function verifyAssessmentTitle(
       await page.reload({ waitUntil: "domcontentloaded" });
       await expect(page.getByRole("button", { name: `${target.title} 작업 선택`, exact: true })).toBeVisible();
       const persisted = await expectApi<Record<string, unknown>>(request, "GET", endpoint, admin.access);
-      if (target.kind === "exam") expect(persisted.pass_score).toBe(Number(value));
+      if (target.kind === "exam") expect(Number(persisted.pass_score)).toBe(Number(value));
       else expect((persisted.meta as Record<string, unknown>)?.due_date ?? "").toBe(value);
       expect(persisted.title).toBe(target.title);
       for (const key of policyKeys.filter(key => key !== (target.kind === "exam" ? "pass_score" : "meta"))) {

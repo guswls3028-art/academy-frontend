@@ -968,4 +968,5 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .scores-selection-bar__row { animation: none; }
+  .scores-table-exam-link__icon { transition: none; }
 }
