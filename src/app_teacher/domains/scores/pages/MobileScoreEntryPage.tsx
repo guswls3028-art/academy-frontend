@@ -27,6 +27,8 @@ import {
   type SessionScoresResponse,
 } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
+import { useSessionScheduleScope } from '@/shared/hooks/useSessionScheduleScope';
+import { useSessionScheduleRoster } from '@/shared/hooks/useSessionScheduleRoster';
 import {
   getExamResultEnrollmentId,
   getExamResultMaxScore,
@@ -69,14 +71,16 @@ export default function MobileScoreEntryPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const sid = Number(sessionId);
+  const schedule = useSessionScheduleScope();
+  const scopeRoster = useSessionScheduleRoster(sid, schedule);
 
-  const { data: exams, isLoading: examsLoading } = useQuery({
+  const { data: exams, isLoading: examsLoading, isError: examsError, refetch: retryExams } = useQuery({
     queryKey: teacherScoresQueryKeys.sessionExams(sid),
     queryFn: () => fetchSessionExams(sid),
     enabled: Number.isFinite(sid),
   });
 
-  const { data: enrollments, isLoading: enrollmentsLoading } = useQuery({
+  const { data: enrollments, isLoading: enrollmentsLoading, isError: enrollmentsError, refetch: retryEnrollments } = useQuery({
     queryKey: teacherScoresQueryKeys.sessionEnrollments(sid),
     queryFn: () => fetchSessionEnrollments(sid),
     enabled: Number.isFinite(sid),
@@ -92,8 +96,12 @@ export default function MobileScoreEntryPage() {
   const activeExam = exams?.find((e) => e.id === activeExamId);
   const tenantCode = getTenantCodeForApiRequest();
   const draftScope = tenantCode && user?.id
-    ? `${tenantCode}:${user.id}`
+    ? `${tenantCode}:${user.id}${schedule === undefined ? '' : `:session:${sid}:schedule:${schedule}`}`
     : null;
+
+  if (schedule !== undefined && scopeRoster.isPending) return <EmptyState scope="panel" tone="loading" title="수업일 명단 확인 중…" />;
+  if (schedule !== undefined && scopeRoster.isError) return <EmptyState scope="panel" tone="error" title="선택한 수업일을 확인하지 못했습니다" actions={<EmptyActionButton onClick={() => void scopeRoster.refetch()}>다시 시도</EmptyActionButton>} />;
+  if (schedule !== undefined && (enrollmentsError || examsError)) return <EmptyState scope="panel" tone="error" title="수업일 성적 명단을 불러오지 못했습니다" actions={<EmptyActionButton onClick={() => { void retryExams(); void retryEnrollments(); }}>다시 시도</EmptyActionButton>} />;
 
   return (
     <div className="flex flex-col gap-3">
@@ -103,6 +111,7 @@ export default function MobileScoreEntryPage() {
           성적 입력
         </h1>
       </div>
+      {scopeRoster.data && <p className="text-sm">{scopeRoster.data.label} · 공통 시험의 배정 학생 성적</p>}
 
       {examsLoading ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
@@ -128,11 +137,12 @@ export default function MobileScoreEntryPage() {
           </div>
           {activeExamId && (
             <ScoreEntryList
+              key={`${sid}:${schedule ?? 'all'}`}
               sessionId={sid}
               examId={activeExamId}
               examMaxScore={activeExam?.max_score ?? 100}
               examPassScore={activeExam?.pass_score ?? null}
-              enrollments={enrollments ?? []}
+              enrollments={schedule === undefined ? enrollments ?? [] : (enrollments ?? []).filter(e => scopeRoster.data?.ids.includes(e.enrollment))}
               rosterLoading={enrollmentsLoading}
               draftScope={draftScope}
             />
@@ -201,6 +211,7 @@ function ScoreEntryList({
   draftScope: string | null;
 }) {
   const qc = useQueryClient();
+  const schedule = useSessionScheduleScope();
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const {
     data: rawResults,
@@ -218,8 +229,8 @@ function ScoreEntryList({
     isError: scoreSheetError,
     refetch: refetchScoreSheet,
   } = useQuery({
-    queryKey: scoresQueryKeys.sessionScores(sessionId),
-    queryFn: () => fetchSessionScores(sessionId),
+    queryKey: scoresQueryKeys.sessionScoresScope(sessionId, schedule),
+    queryFn: () => fetchSessionScores(sessionId, schedule),
     enabled: Number.isFinite(sessionId),
   });
 
@@ -231,7 +242,7 @@ function ScoreEntryList({
       if (enrollmentId != null) byEnrollment.set(enrollmentId, r);
     }
     const active = (enrollments ?? []).filter((e) => Number.isFinite(e.enrollment) && e.enrollment > 0);
-    if (active.length === 0) return rawResults ?? [];
+    if (active.length === 0) return schedule === undefined ? rawResults ?? [] : [];
     return active.map((e): TeacherExamResultRow => {
       const fromResult = byEnrollment.get(e.enrollment);
       if (fromResult) return fromResult;
@@ -248,20 +259,20 @@ function ScoreEntryList({
         achievement: null,
       };
     });
-  }, [rawResults, enrollments, examMaxScore]);
+  }, [rawResults, enrollments, examMaxScore, schedule]);
   const allowedEnrollmentIds = useMemo(() => {
     const ids = new Set<number>();
     for (const e of enrollments ?? []) {
       if (Number.isFinite(e.enrollment) && e.enrollment > 0) ids.add(e.enrollment);
     }
-    if (ids.size === 0) {
+    if (ids.size === 0 && schedule === undefined) {
       for (const r of rawResults ?? []) {
         const enrollmentId = getExamResultEnrollmentId(r);
         if (enrollmentId != null) ids.add(enrollmentId);
       }
     }
     return ids;
-  }, [enrollments, rawResults]);
+  }, [enrollments, rawResults, schedule]);
   const correctionByEnrollment = useMemo(() => {
     const map = new Map<number, ScoreBlock>();
     for (const row of scoreSheet?.rows ?? []) {
@@ -392,7 +403,7 @@ function ScoreEntryList({
     patch: Pick<ScoreBlock, "correction_status" | "correction_completed_at" | "correction_note" | "correction_updated_at" | "teacher_resolved">,
   ) => {
     qc.setQueryData<SessionScoresResponse>(
-      scoresQueryKeys.sessionScores(sessionId),
+      scoresQueryKeys.sessionScoresScope(sessionId, schedule),
       (previous) => previous ? {
         ...previous,
         rows: previous.rows.map((row) => row.enrollment_id !== enrollmentId ? row : {
@@ -404,7 +415,7 @@ function ScoreEntryList({
         }),
       } : previous,
     );
-  }, [examId, qc, sessionId]);
+  }, [examId, qc, sessionId, schedule]);
 
   const reviewMut = useMutation({
     mutationFn: ({ enrollmentId, completed }: { enrollmentId: number; completed: boolean }) => (
@@ -418,7 +429,7 @@ function ScoreEntryList({
       })
     ),
     onMutate: async ({ enrollmentId, completed }) => {
-      const queryKey = scoresQueryKeys.sessionScores(sessionId);
+      const queryKey = scoresQueryKeys.sessionScoresScope(sessionId, schedule);
       await qc.cancelQueries({ queryKey });
       const previous = qc.getQueryData<SessionScoresResponse>(queryKey);
       setCachedCorrection(enrollmentId, {
@@ -438,7 +449,7 @@ function ScoreEntryList({
         : variables.completed ? "원점수 유지·교사 통과" : "보완 필요"}로 저장했습니다.`);
     },
     onError: (error, _variables, context?: { previous?: SessionScoresResponse }) => {
-      qc.setQueryData(scoresQueryKeys.sessionScores(sessionId), context?.previous);
+      qc.setQueryData(scoresQueryKeys.sessionScoresScope(sessionId, schedule), context?.previous);
       feedback.error(extractApiError(error, "오답 상태를 저장하지 못했습니다."));
     },
     onSettled: () => {

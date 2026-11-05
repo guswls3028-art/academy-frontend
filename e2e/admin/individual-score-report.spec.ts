@@ -1078,7 +1078,7 @@ test.describe("교사용 전체 성적표", () => {
         await expect(examTotal).toContainText("82.25 / 200.25");
         await expect(examTotal).toContainText("집계 중 · 1/2");
         expect(await row.locator("td").evaluateAll(cells => cells.flatMap(cell => cell.hasAttribute("data-exam-id")
-          ? [`exam:${cell.getAttribute("data-exam-id")}`] : cell.getAttribute("data-total-kind") === "exam" ? ["total:exam"] : []))).toEqual(["exam:3101", "exam:3102", "total:exam", "exam:3103"]);
+          ? [`exam:${cell.getAttribute("data-exam-id")}`] : cell.getAttribute("data-total-kind") === "exam" ? ["total:exam"] : []))).toEqual(["exam:3103", "exam:3101", "exam:3102", "total:exam"]);
       } else {
         await expect(examTotal).toContainText("- / 100");
         await expect(examTotal).toContainText("집계 중 · 0/1");

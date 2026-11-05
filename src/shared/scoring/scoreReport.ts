@@ -560,11 +560,25 @@ export function buildScoreVars(
 
   // 시험 변수 (번호 기반, 실제 데이터로 덮어쓰기)
   const exams = row.exams ?? [];
-  for (let i = 0; i < exams.length; i++) {
-    const exam = exams[i];
-    const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
-    const max = exam.block.max_score ?? metaExam?.max_score ?? 0;
+  // A numbered slot identifies the same assessment for every recipient, including
+  // students without an assignment. Per-student arrays may have different gaps/order.
+  const examSlots = [
+    ...(meta?.exams ?? []),
+    ...exams.filter(exam => !meta?.exams?.some(item => item.exam_id === exam.exam_id)),
+  ];
+  for (let i = 0; i < examSlots.length; i++) {
+    const slot = examSlots[i];
+    const exam = exams.find(item => item.exam_id === slot.exam_id);
+    const metaExam = meta?.exams?.find(item => item.exam_id === slot.exam_id);
     const n = i + 1;
+    if (!exam) {
+      vars[`시험${n}명`] = slot.title;
+      vars[`시험${n}`] = "미배정";
+      vars[`시험${n}만점`] = String(metaExam?.max_score ?? "-");
+      vars[`시험${n}결과`] = "미배정";
+      continue;
+    }
+    const max = exam.block.max_score ?? metaExam?.max_score ?? 0;
     const subjectivePending = isSubjectivePendingScoreBlock(exam.block);
     vars[`시험${n}`] = subjectivePending
       ? "서술형 입력 필요"
@@ -592,11 +606,23 @@ export function buildScoreVars(
   const completedHomeworks = homeworks.filter(({ block }) => (
     block.correction_status === "COMPLETED" || block.correction_status === "NOT_REQUIRED"
   )).length;
-  for (let i = 0; i < homeworks.length; i++) {
-    const hw = homeworks[i];
-    const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
-    const max = hw.block.max_score ?? metaHw?.max_score ?? 0;
+  const homeworkSlots = [
+    ...(meta?.homeworks ?? []),
+    ...homeworks.filter(hw => !meta?.homeworks?.some(item => item.homework_id === hw.homework_id)),
+  ];
+  for (let i = 0; i < homeworkSlots.length; i++) {
+    const slot = homeworkSlots[i];
+    const hw = homeworks.find(item => item.homework_id === slot.homework_id);
+    const metaHw = meta?.homeworks?.find(item => item.homework_id === slot.homework_id);
     const n = i + 1;
+    if (!hw) {
+      vars[`과제${n}명`] = slot.title;
+      vars[`과제${n}`] = "미배정";
+      vars[`과제${n}만점`] = metaHw?.grading_mode === "COMPLETION" ? "" : String(metaHw?.max_score ?? "-");
+      vars[`과제${n}결과`] = "미배정";
+      continue;
+    }
+    const max = hw.block.max_score ?? metaHw?.max_score ?? 0;
     vars[`과제${n}`] = hw.block.score != null
       ? metaHw?.grading_mode === "COMPLETION" ? (hw.block.score >= 1 ? "통과" : "미통과") : String(hw.block.score)
       : missingScoreLabel("homework", hw.block.meta?.status);

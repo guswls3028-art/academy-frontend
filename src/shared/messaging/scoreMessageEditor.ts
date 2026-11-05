@@ -24,3 +24,25 @@ export function expandScoreMessageBlocks(body: string, values: Record<string, st
   };
   return body.replace(/#\{(시험성적|시험목록|시험이력|과제목록)\}/g, (_, name: string) => replacements[name]);
 }
+
+/** A title or total alone does not include the individual result. */
+export function missingScoreMessageItems(body: string, values: Record<string, string> = {}) {
+  const tokens = new Set(Array.from(body.matchAll(/#\{([^}]+)\}/g), match => match[1]));
+  return scoreMessageItems(values).filter(item => {
+    if (tokens.has("시험성적")) return false;
+    if (item.kind === "시험" && (tokens.has("시험목록") || tokens.has("시험이력"))) return false;
+    if (item.kind === "과제" && tokens.has("과제목록")) return false;
+    const name = `${item.kind}${item.number}`;
+    return !tokens.has(name) && !tokens.has(`${name}결과`);
+  });
+}
+
+/** Preserve automatic lists on save only when the teacher left their rows intact. */
+export function preserveScoreMessageBlocks(body: string, source: string, values: Record<string, string> = {}): string {
+  for (const match of source.matchAll(/#\{(?:시험성적|시험목록|시험이력|과제목록)\}/g)) {
+    const token = match[0];
+    const expanded = expandScoreMessageBlocks(token, values);
+    if (expanded && expanded !== token) body = body.replace(expanded, token);
+  }
+  return body;
+}

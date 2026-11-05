@@ -106,16 +106,12 @@ function ScopedTotalsModal({ sessionId, meta: serverMeta, onClose, draftScope }:
     setSaving(true);
     setError("");
     try {
-      const scoredHomeworkOrder = order.homework_ids.filter(Boolean);
-      let scoredHomeworkIndex = 0;
       await saveScoreTotalConfig(sessionId, {
         version,
         exam_ids: order.exam_ids.slice(0, order.exam_ids.indexOf(0)),
         homework_ids: order.homework_ids.slice(0, order.homework_ids.indexOf(0)),
-        exam_order: order.exam_ids.filter(Boolean),
-        // Completion items are edited in the table, so retain their positions here.
-        homework_order: meta.homeworks.map((item) => item.grading_mode === "COMPLETION"
-          ? item.homework_id : scoredHomeworkOrder[scoredHomeworkIndex++]),
+        exam_order: meta.exams.map(item => item.exam_id),
+        homework_order: meta.homeworks.map(item => item.homework_id),
       });
       if (!sameAuth()) return;
       clearDraft(submitted);
@@ -179,7 +175,7 @@ function ScopedTotalsModal({ sessionId, meta: serverMeta, onClose, draftScope }:
           </> : <p className="assessment-totals-empty">합산할 점수형 항목이 없습니다.</p>}
         </fieldset>;
       })}</div>
-      <p className="assessment-totals-help">표에는 선택한 항목 → 총점 → 제외한 항목 순서로 표시됩니다. 항목 순서는 성적표에서 조절할 수 있습니다.</p>
+      <p className="assessment-totals-help">합산 선택과 표시 순서는 별개입니다. 항목을 이동해도 합산 여부는 바뀌지 않으며, 제외한 항목도 성적표와 알림톡 결과에서 사용할 수 있습니다.</p>
       <p className="assessment-totals-help">통과형 과제는 점수 합계에 포함하지 않습니다. 미입력·미채점 점수는 ‘집계 중’으로 표시합니다.</p>
       {error && <p role="alert" className="assessment-totals-error">{error}</p>}
       {conflict && <Button disabled={saving} onClick={() => void reload()}>최신 설정으로 다시 시작</Button>}

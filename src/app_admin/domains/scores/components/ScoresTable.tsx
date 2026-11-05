@@ -924,12 +924,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   }, [applyChangeToDom, beginCellEdit, onPendingChange]);
 
   const examOptions = useMemo(
-    () => (viewFilter === "homework" ? [] : [...(meta?.exams ?? [])].sort((a, b) => Number(meta?.total_config?.exam_ids.includes(b.exam_id) ?? true) - Number(meta?.total_config?.exam_ids.includes(a.exam_id) ?? true))),
-    [viewFilter, meta?.exams, meta?.total_config],
+    () => (viewFilter === "homework" ? [] : [...(meta?.exams ?? [])]),
+    [viewFilter, meta?.exams],
   );
   const homeworkOptions = useMemo(
-    () => (viewFilter === "exam" ? [] : [...(meta?.homeworks ?? [])].sort((a, b) => Number(b.grading_mode !== "COMPLETION" && (meta?.total_config?.homework_ids.includes(b.homework_id) ?? true)) - Number(a.grading_mode !== "COMPLETION" && (meta?.total_config?.homework_ids.includes(a.homework_id) ?? true)))),
-    [viewFilter, meta?.homeworks, meta?.total_config],
+    () => (viewFilter === "exam" ? [] : [...(meta?.homeworks ?? [])]),
+    [viewFilter, meta?.homeworks],
   );
   const includedExamIds = useMemo(() => examOptions.filter((item) => meta?.total_config?.exam_ids.includes(item.exam_id) ?? true).map((item) => item.exam_id), [examOptions, meta?.total_config]);
   const includedHomeworkCount = homeworkOptions.filter((item) => item.grading_mode !== "COMPLETION" && (meta?.total_config?.homework_ids.includes(item.homework_id) ?? true)).length;
@@ -1356,8 +1356,6 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           ? "correctness"
                           : "score"
                       }
-                      initialMaxScore={ex.max_score}
-                      initialPassScore={ex.pass_score}
                       sessionId={sessionId}
                       deleteLocked={deleteAssessmentLocked}
                       onSelect={(action) => {
@@ -1420,7 +1418,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 {headerInner}
               </th>
             );
-          }), includedExamIds.length, examOptions.length ? totalHeader("exam", includedExamIds.length) : null)}
+          }), examOptions.length, examOptions.length ? totalHeader("exam", includedExamIds.length) : null)}
           {insertTotal(homeworkOptions.map((hw, idx) => (
             <ResizableTh
               key={`head-hw-${hw.homework_id}`}
@@ -1487,7 +1485,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 />
               </span>
             </ResizableTh>
-          )), includedHomeworkCount, homeworkOptions.some((item) => item.grading_mode !== "COMPLETION") ? totalHeader("homework", includedHomeworkCount) : null)}
+          )), homeworkOptions.length, homeworkOptions.some((item) => item.grading_mode !== "COMPLETION") ? totalHeader("homework", includedHomeworkCount) : null)}
           {/* 사용자 표시 옵션에 따라 종합 판정 또는 테스트 오답 확인 현황을 같은 마지막 열에 표시한다. */}
           <ResizableTh
             columnKey="clinic_target"
@@ -2243,7 +2241,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       })}
                     </Fragment>
                   );
-                }), includedExamIds.length, examOptions.length ? totalCell("exam", row) : null)}
+                }), examOptions.length, examOptions.length ? totalCell("exam", row) : null)}
 
                 {/* 과제: 점수(점수만) | 합불 — canEditScore이면 block 없어도 입력 셀 표시 */}
                 {insertTotal(homeworkOptions.map((hw, hwBodyIdx) => {
@@ -2708,7 +2706,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       )}
                     </Fragment>
                   );
-                }), includedHomeworkCount, homeworkOptions.some((item) => item.grading_mode !== "COMPLETION") ? totalCell("homework", row) : null)}
+                }), homeworkOptions.length, homeworkOptions.some((item) => item.grading_mode !== "COMPLETION") ? totalCell("homework", row) : null)}
 
                 {/* 마지막 열은 표시 옵션에 따라 종합 판정과 시험 오답 확인 요약을 교체한다. */}
                 <td

@@ -137,8 +137,10 @@
   gap: 8px;
   white-space: nowrap;
 
-  min-height: 44px; /* touch target */
-  padding: 10px 14px;
+  min-height: var(--stu-control);
+  padding: 0 var(--ds-space-4);
+  font-size: var(--ds-text-md);
+  line-height: 1.2;
   border-radius: var(--stu-radius-md);
   font-weight: 600; /* Premium SaaS: 더 부드러운 느낌 */
   letter-spacing: 0;
@@ -263,15 +265,15 @@
 }
 
 .stu-btn--sm {
-  min-height: 38px;
-  padding: 8px 10px;
+  min-height: max(var(--ds-control-sm), var(--stu-touch));
+  padding: 0 var(--ds-space-3);
   border-radius: var(--stu-radius-sm);
   font-size: var(--stu-font-size-13);
 }
 
 .stu-btn--lg {
-  min-height: 48px;
-  padding: 12px 16px;
+  min-height: var(--stu-control-lg);
+  padding: 0 var(--ds-space-5);
   border-radius: var(--stu-radius-lg);
   font-size: var(--stu-font-size-15);
 }
@@ -280,9 +282,11 @@
    4) Inputs
    ========================= */
 .stu-input {
+  box-sizing: border-box;
   width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
+  height: var(--stu-control);
+  min-height: var(--stu-control);
+  padding: 0 var(--ds-space-3);
   border-radius: var(--stu-radius-md);
   border: 1px solid var(--stu-border-normal);
   background: var(--stu-surface-1);
@@ -548,4 +552,11 @@
     padding: var(--stu-space-8);
     border-radius: var(--stu-radius-md);
   }
+}
+
+textarea.stu-input {
+  height: auto;
+  min-height: calc(var(--stu-control) * 2);
+  padding: var(--ds-space-3);
+  line-height: 1.5;
 }

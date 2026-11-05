@@ -2,6 +2,7 @@
 import { Modal, type ModalProps } from "antd";
 import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { ControlSizeContext } from "@/shared/ui/ds/ControlSizeContext";
 
 import { MODAL_DEFAULT_WIDTH } from "./constants";
 import { useModalKeyboard } from "./useModalKeyboard";
@@ -182,7 +183,7 @@ export default function AdminModal({
   };
 
   return (
-    <>
+    <ControlSizeContext.Provider value={null}>
       <Modal
         open={actuallyOpen}
         onCancel={requestClose}
@@ -282,6 +283,6 @@ export default function AdminModal({
           />,
           document.body,
         )}
-    </>
+    </ControlSizeContext.Provider>
   );
 }

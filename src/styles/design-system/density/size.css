@@ -2,10 +2,11 @@
 /* Height / Size Tokens */
 
 :root {
-  /* controls — 나이든 사용자 가시성 보강: 기본보다 +2~4px 키움 (2026-05-12) */
-  --control-sm: 32px;
-  --control-md: 36px;
-  --control-lg: 44px;
+  /* Compatibility aliases: physical values belong to foundation.css. */
+  --control-sm: var(--ds-control-sm);
+  --control-md: var(--ds-control-md);
+  --control-lg: var(--ds-control-lg);
+  --control-xl: var(--ds-control-xl);
 
   /* sidebar — 학원장 가시성 보강: 172→184 (2026-05-12 icon 22px 키운 후 정합) */
   --sidebar-width: var(--sidebar-width-expanded);
@@ -66,10 +67,10 @@
    *   --text-hint (11px / 400) : 힌트/placeholder/약관 미주.
    *                              부속 정보, 색은 더 muted.
    * ============================================================ */
-  --text-name: 15px;
-  --text-body: 14px;
-  --text-meta: 12px;
-  --text-hint: 11px;
+  --text-name: var(--ds-text-name);
+  --text-body: var(--ds-text-md);
+  --text-meta: var(--ds-text-xs);
+  --text-hint: var(--ds-text-xs);
 
   --font-name: 600;
   --font-body: 400;

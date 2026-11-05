@@ -106,14 +106,14 @@ const CATEGORY_BLOCKS: Record<string, TemplateBlock[]> = {
     // ── 목록형 변수 (시험/과제 개수에 맞게 자동 렌더링 — 간단 양식에 추천) ──
     { id: "exam_list",    label: "시험 목록",  insertText: "#{시험목록}",  previewValue: "- 단원평가: 92/100 (92%) 합격\n- 쪽지시험: 45/50 (90%) 합격", description: "모든 시험 점수 자동 나열 (추천)" },
     { id: "exam_history", label: "시험 이력",  insertText: "#{시험이력}",  previewValue: "- 단원평가 1차시험 결과: 50/100 커트라인 70 불합격\n- 단원평가 2차시험 결과: 70/100 커트라인 60 합격", description: "1차·재시험 결과와 커트라인 자동 나열" },
-    { id: "hw_list",      label: "과제 목록",  insertText: "#{과제목록}",  previewValue: "- 복습과제: 90/100 (90%)", description: "모든 과제 점수 자동 나열 (추천)" },
+    { id: "hw_list",      label: "과제별 결과",  insertText: "#{과제목록}",  previewValue: "- 복습과제: 90/100 (90%)\n- 워크북: 18/20 (90%)", description: "각 과제의 이름과 점수를 한 줄씩 표시합니다. 과제가 추가되어도 자동으로 포함합니다." },
     { id: "full_summary", label: "전체 요약",  insertText: "#{전체요약}",  previewValue: "시험: 학생별 결과\n과제: 학생별 완료 현황\n최종: 학생별 판정", description: "합격률·완성도·최종판정 요약" },
     // ── 요약 수치 ──
     { id: "exam_total",     label: "시험 총점",     insertText: "#{시험총점}",   previewValue: "285",       description: "시험 점수 합계" },
     { id: "exam_total_max", label: "시험 총만점",   insertText: "#{시험총만점}", previewValue: "350",       description: "시험 만점 합계" },
     { id: "hw_total", label: "과제 총점", insertText: "#{과제총점}", previewValue: "180", description: "선택한 과제 점수 합계" },
     { id: "hw_total_max", label: "과제 총만점", insertText: "#{과제총만점}", previewValue: "200", description: "선택한 과제 만점 합계" },
-    { id: "hw_completion",  label: "숙제 완성도",   insertText: "#{숙제완성도}", previewValue: "학생별 완료 수/전체 과제 수",  description: "교사 확인 또는 자동 완료된 과제 수 / 전체. 점수 입력만으로 완료되지 않습니다." },
+    { id: "hw_completion",  label: "과제 완료 요약",   insertText: "#{숙제완성도}", previewValue: "1/2 완료",  description: "완료한 과제 수를 요약합니다. 과제별 점수가 필요하면 ‘과제별 결과’를 넣으세요. 점수 입력만으로 완료되지 않습니다." },
     // ── 시험 개별 (번호별: 이름·점수·만점) ──
     // 시험 개수는 차시마다 다름. 양식에 필요한 만큼 삽입. 미사용 번호는 발송 시 자동 제거.
     ...[1,2,3,4,5].flatMap((n) => [

@@ -11,6 +11,24 @@
   outline: none;
 }
 
+.section.modalSection {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.modalSection .policyDisclosure > summary {
+  display: none;
+}
+
+.modalSection .body {
+  padding: 0;
+}
+
+.modalSection .advancedBody {
+  padding-inline: 0;
+}
+
 .header {
   display: flex;
   align-items: flex-start;
@@ -243,6 +261,18 @@
   color: var(--color-error);
   font-size: 12px;
   font-weight: 650;
+}
+
+.modalSaveError {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 10px 16px;
+  border-top: 1px solid color-mix(in srgb, var(--color-error) 30%, var(--color-border-divider));
+  background: color-mix(in srgb, var(--color-error) 6%, var(--color-bg-surface));
+  color: var(--color-error);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .footer {

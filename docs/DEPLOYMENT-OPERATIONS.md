@@ -49,7 +49,7 @@ release guard의 `Request` 원본 body 캡처는 앱 origin에만 적용한다. 
 해당 진단 모듈의 메모리에서 바꾼다. evidence는 source/술어/경계 hash, 단계, 제한된 재생
 상태와 controller/cleanup 결과만 담고 원문 header·cookie·오류·응답 본문은 남기지 않는다.
 결과는 항상 `diagnosticOnly:true`, `promotable:false`이며 원인 구분을 위한 보충 증거다.
-정상 재생이 관측돼도 아래 동일 산출물 41건 전체 성공과 cleanup0, production 승인 및
+정상 재생이 관측돼도 아래 동일 산출물 42건 전체 성공과 cleanup0, production 승인 및
 운영 확인을 대신하지 않는다. 실패 결과를 성공으로 바꾸거나 bot challenge를 자동 해제하지 않는다.
 
 필수 WebKit 게이트에는 `pr-modal-webkit`의 `@dialog-journey` 20건도 포함한다.
@@ -81,15 +81,15 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
    파일별 필수 개수는 같은 파일의 `developmentRealUseCases`가 소유하며,
    Playwright 대상·실행 결과 검증·진행 기록 allowlist가 이를 함께 사용한다.
-   현재 22개 파일·41건이며 앱 업무 흐름, 재시도 금지와 수업 영상 재생 시간은 유지한다.
+   현재 23개 파일·42건이며 앱 업무 흐름, 재시도 금지와 수업 영상 재생 시간은 유지한다.
    공개 YouTube의 정확한 봇 확인 응답은 아래 `publicVideoAvailability` 계약에 따라
    외부 가용성 결과로 따로 기록한다. 해당 관측만으로 다른 기능의 배포를 막지 않는다.
    기본 실행은 첫 실패 후 `maxFailures=1`로 나머지 시나리오를 중단하고 exact cleanup을 수행한다.
-   이때 건너뛴 테스트도 성공 증거로 인정하지 않으며, 운영 승격에는 여전히 41건 모두의
+   이때 건너뛴 테스트도 성공 증거로 인정하지 않으며, 운영 승격에는 여전히 42건 모두의
    통과와 cleanup0이 필요하다. 이미 실패한 실행이 장시간 영상 검증까지 계속되는 비용을 줄인다.
    남은 흐름의 증거 수집이 별도로 승인된 경우에만 `workflow_dispatch`의
    `diagnostic_full_suite` 입력(기본값 false)을 true로 지정할 수 있다. 이때만
-   `ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE=1`과 `maxFailures=0`으로 41건을 계속 수집한다.
+   `ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE=1`과 `maxFailures=0`으로 42건을 계속 수집한다.
    잘못된 플래그나 수동 dispatch 외의 opt-in은 최초 null-safe evidence를 남긴 뒤
    AWS/QA 전에 `preflight_failed`로 종료한다. 진단 실행은 `diagnosticOnly:true`를 기록하고,
    실제 통과·실패·미실행 수와 cleanup 결과를 보존하되 모두 통과해도 최종 `passed:false`,
@@ -97,13 +97,13 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
    재시도 0·strict 경계·85분 suite/100분 job·cleanup 기준은 바뀌지 않는다. 이전 실행의
    cleanup 완료를 확인한 뒤 단일 QA 소유자가 직렬 실행하며, 수집 결과는 보충 증거로만 쓴다.
    YouTube bot challenge를 우회하거나 해소하는 모드가 아니며, 운영 승격에는 정상 모드의
-   동일 산출물 41건 통과와 cleanup0이 계속 필요하다.
-   수동 진단의 `diagnostic_scope` 기본값은 `full-suite`이며 기존 41건을 실행한다.
+   동일 산출물 42건 통과와 cleanup0이 계속 필요하다.
+   수동 진단의 `diagnostic_scope` 기본값은 `full-suite`이며 기존 42건을 실행한다.
    `excel-learning-homework`는 진단 플래그를 켠 수동 실행에서만 허용하며,
    기존 평가·과제·학습 실사용 spec 3개만 실행한다. 선택 범위와 고정 spec 목록은
    최초 evidence부터 기록하고, 알 수 없거나 빈 범위 및 진단 플래그 없는 선택은
    AWS/QA 전에 거부한다. 세 건이 모두 성공해도 진단은 실패 종료하며 운영 승격의
-   41건 조건을 대신하지 않는다. workflow도 수동 범위가 `full-suite`가 아니면
+   42건 조건을 대신하지 않는다. workflow도 수동 범위가 `full-suite`가 아니면
    진단 플래그 값이나 QA 결과와 무관하게 production을 차단한다.
    학습의 교사/출결 단계와 과제의 피드백/기준/최종 미리보기 단계는 실패 시
    정해진 단계·화면 폭·오류 분류만 남긴다. 과제 기준은 테스트의 95/90 값만 허용하며,
@@ -133,7 +133,7 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
    사전 API 로그인과 UI 로그인이 공유하는 계정별 5분 10회 제한에서 실제 429와
    유효한 `Retry-After`(1–300초)를 받은 경우에만 전체 대기시간 후 UI 제출을 한 번
    재시도한다. 그 외 오류, 누락·잘못된 대기시간, 두 번째 429는 상태 코드만 기록하고
-   실패한다. 보안 제한·업무 쓰기 재시도 금지·41건 전체 통과 조건은 유지한다.
+   실패한다. 보안 제한·업무 쓰기 재시도 금지·42건 전체 통과 조건은 유지한다.
    가입 실사용 검사는 유효한 입력 후 `가입 신청 최종 확인`에서 학부모 초기
    비밀번호 방식을 명시적으로 선택하고 최종 신청을 누른 뒤 정확한 응답을 기다린다.
    첫 신청 버튼이 최종 POST를 보낸다고 가정하지 않으며 수동·자동 승인과 이후
@@ -825,7 +825,7 @@ process/listener 정리 0은 확인됐지만 운영 승격은 차단됐다. 이�
 기존 36건에 47.79분이 걸려 60분 한도로 마지막 영상을 완료하지 못했다. 마지막 영상의
 17분과 추가 사진 흐름 2건의 각 7분 한도를 더한 78.79분에 여유를 둬 전체 85분으로
 맞춘다. 같은 산출물의 새 전체 실행으로 검증한다. OMR 각 10분,
-영상 test 17분, 단일 worker·재시도 0·필수 41건·690초 재생 및 cleanup0 요구는 유지한다.
+영상 test 17분, 단일 worker·재시도 0·필수 42건·690초 재생 및 cleanup0 요구는 유지한다.
 `development-release-progress.json`은 테스트 시작/종료마다 허용 spec 파일명·행·상태·
 소요 시간만 저장해 child timeout 시 마지막 진행 지점을 보존한다. 제목·오류 원문·
 API 데이터·인증정보는 기록하지 않는다. 이 진단 파일이나 일부 통과 결과로 전체 JSON
@@ -874,7 +874,7 @@ import/database 등의 고정 코드로 구분한다. 목록 밖의 이름은 �
 [backend의 이력 보존 정책](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/student-core.md)에 따라
 일반 DELETE로 지우지 않는다. 시나리오 종료 시 가입 설정을 복원하고 브라우저를
 닫으며, 합성 가입 이력은 실행 전체의 exact disposable-tenant Cleanup에서 제거한다.
-양쪽 QA tenant/user·R2·프로세스 잔여 0 확인과 41건 전체 통과 조건은 유지한다.
+양쪽 QA tenant/user·R2·프로세스 잔여 0 확인과 42건 전체 통과 조건은 유지한다.
 `release-context-observation/v1`은 worker 내부의 고유 `observationOrdinal`, 선택적인
 browser `contextOrdinal`, 증가하는 `snapshotSequence`로 한 관측의 교체 snapshot을
 식별한다. assertion 전 snapshot은 실패해도 먼저 남기고, native context 종료나
@@ -999,7 +999,7 @@ context crash와 그 밖의 예외는 전파한다. 관측된 identityMatches=fa
 검사한다. iframe 제거·교체·숨김이나 잘못된 영상/params는 외부 가용성으로 통과하지 않는다. 외부 요청·redirect·
 인증·tenant·strict browser 결함은 기존대로 실패한다. 전체 test의 catch로 앱 오류를
 삼키지 않는다. parser는 원 spec의 닫힌 schema/enum/수치만 보존하며 추가 키·중복 폭·
-누락·다른 spec·잘못된 관측을 거부한다. 정상 승격은 두 폭의 유효한 관측, 앱 41건 통과,
+누락·다른 spec·잘못된 관측을 거부한다. 정상 승격은 두 폭의 유효한 관측, 앱 42건 통과,
 exact artifact identity와 cleanup0을 요구한다. `public-video-1366.png`,
 `public-video-390.png`와 실제 관측을 보존한다. 공개 영상 240초 제한과 retries 0은 유지한다.
 
@@ -1077,7 +1077,9 @@ test child를 기다리는 동안 runner는 60초마다 내용 없는 진행 신
 stop reason, 경과 시간만 보존한다. 미종료 상태는 null이며 raw 출력·세션 식별자는
 포함하지 않는다. 최종 cleanup 뒤 기존 evidence 쓰기에서 함께 저장하며, 관측 callback은
 성공 여부나 gate 조건을 변경하지 않는다.
-job timeout은 100분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다.
+job timeout은 100분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다. 한국어 글꼴 준비 단계는 5분으로 제한한다.
+미러 다운로드가 지연되면 QA 데이터 생성 전에 실패하여 실사용 검사와 cleanup 시간을
+잠식하지 않게 한다. 글꼴 존재 확인과 전체 실사용·cleanup0 승격 조건은 그대로 유지한다.
 
 GitHub 강제 취소의 짧은 grace, SIGKILL, runner/host 소실, IAM·네트워크 상실에서는
 finally 실행·evidence 업로드·tenant cleanup을 보장할 수 없다. 미완료 파일이 있으면
@@ -1227,7 +1229,7 @@ frontend 운영 `version.json`을 함께 검증한다. 검증 결과를 별도 m
 고유 작업 ID를 확인하고 실제 Tools/R2 XLSX의 학생명 `=1+1`, `#N/A`,
 차시명 `=1+1`, 전화번호 앞자리 0, 출결 상태가 수식/오류가 아닌 문자열로
 보존되는지 읽는다. 임시 이름은 finally에서 복원하고 API로 재조회한 후
-기존 학생·부모 화면 검증을 계속한다. 기존 41건 및 최종 cleanup 0을 유지한다.
+기존 학생·부모 화면 검증을 계속한다. 기존 42건 및 최종 cleanup 0을 유지한다.
 합성 데이터만 담은 attendance-export-1366/390.png와 attendance-1366/390.xlsx는
 development-release-evidence에 명시적으로 업로드해 화면과 실제 파일을 재검토한다.
 

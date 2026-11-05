@@ -1,0 +1,11 @@
+.page { display: grid; gap: 20px; min-width: 0; }
+.header { display: grid; gap: 8px; }
+.header a, .selectLink { display: inline-flex; width: fit-content; min-height: 44px; align-items: center; color: var(--color-brand-primary); font-weight: 600; text-decoration: none; }
+.header a:hover, .selectLink:hover { text-decoration: underline; }
+.header a:focus-visible, .selectLink:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 3px; }
+.header h2 { margin: 0; font-size: 20px; line-height: 1.4; color: var(--color-text-primary); }
+.header p, .group p { margin: 0; color: var(--color-text-secondary); font-size: 14px; line-height: 1.65; word-break: keep-all; overflow-wrap: anywhere; }
+.group { display: grid; gap: 12px; padding: 20px; border: 1px solid var(--color-border-divider); border-radius: var(--radius-md); background: var(--bg-surface); }
+.group h3 { margin: 0; font-size: 16px; color: var(--color-text-primary); }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+@media (max-width: 640px) { .group { padding: 16px; } }

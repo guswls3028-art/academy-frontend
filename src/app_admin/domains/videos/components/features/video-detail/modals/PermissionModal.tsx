@@ -1,3 +1,5 @@
+import { Link, useLocation, useNavigate } from "react-router";
+import { watchLogsPath } from "@/shared/media/video/watchLogs";
 // PATH: src/app_admin/domains/videos/components/features/video-detail/modals/PermissionModal.tsx
 
 import { useMemo, useState, useEffect } from "react";
@@ -12,7 +14,6 @@ import PermissionSidePanel from "../../video-permission/components/PermissionSid
 import DirectVideoAccessTab from "../../video-permission/DirectVideoAccessTab";
 
 import VideoAchievementTab from "../../video-analytics/VideoAchievementTab";
-import VideoLogTab from "../../video-analytics/VideoLogTab";
 
 import type { AccessMode } from "@admin/domains/videos/types/access-mode";
 import type { PermissionModalProps, PermissionStudent, TabKey } from "../../video-permission/permission.types";
@@ -41,6 +42,9 @@ export default function PermissionModal({
   initialTab = "permission",
 }: PermissionModalProps) {
   const qc = useQueryClient();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const logPath = watchLogsPath(videoId, location.pathname + location.search);
 
   const [tab, setTab] = useState<TabKey>(initialTab);
   const [search, setSearch] = useState("");
@@ -60,6 +64,7 @@ export default function PermissionModal({
   };
 
   const switchTab = (next: TabKey) => {
+    if (next === "log") { onClose(); navigate(logPath); return; }
     setTab(next);
     if (next !== "permission") {
       setSelected([]);
@@ -177,9 +182,9 @@ export default function PermissionModal({
           <div className="permission-modal-surface">
             {tab === "direct" ? (
               <DirectVideoAccessTab videoId={videoId} />
-            ) : isLoading ? (
+            ) : tab === "permission" && isLoading ? (
               <EmptyState scope="modal" tone="loading" title="권한 정보를 불러오는 중…" />
-            ) : isError ? (
+            ) : tab === "permission" && isError ? (
               <EmptyState
                 scope="modal"
                 tone="error"
@@ -230,7 +235,7 @@ export default function PermissionModal({
             ) : tab === "achievement" ? (
               <VideoAchievementTab videoId={videoId} onSelectStudent={(id) => setFocusBoth(id)} />
             ) : (
-              <VideoLogTab videoId={videoId} onClickRiskStudent={(id) => setFocusBoth(id)} />
+              <Link to={logPath} onClick={onClose}>시청 로그에서 학생별 누적 시간과 활동 확인 →</Link>
             )}
           </div>
         </div>

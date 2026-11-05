@@ -29,7 +29,7 @@ export default function SessionDetailPage() {
 
   if (!Number.isFinite(safeId)) {
     return (
-      <StudentPageShell title="차시" description="잘못된 접근입니다.">
+      <StudentPageShell breadcrumbs={[{ label: "수업 목록", to: "/student/sessions" }]} title="차시" description="잘못된 접근입니다.">
         <EmptyState title="잘못된 주소입니다." />
       </StudentPageShell>
     );
@@ -37,7 +37,7 @@ export default function SessionDetailPage() {
 
   if (isLoading) {
     return (
-      <StudentPageShell title="차시">
+      <StudentPageShell breadcrumbs={[{ label: "수업 목록", to: "/student/sessions" }]} title="차시">
         <div className={styles.loadingStack}>
           <div className={`stu-skel ${styles.skelCard}`} />
           <div className={`stu-skel ${styles.skelCard}`} />
@@ -49,15 +49,16 @@ export default function SessionDetailPage() {
 
   if (isError || !data) {
     return (
-      <StudentPageShell title="차시">
+      <StudentPageShell breadcrumbs={[{ label: "수업 목록", to: "/student/sessions" }]} title="차시">
         <EmptyState title="수업 정보를 불러오지 못했어요." description="잠시 후 다시 시도해 주세요." onRetry={() => refetch()} />
       </StudentPageShell>
     );
   }
 
   return (
-    <StudentPageShell title={data.title} description={`날짜: ${formatYmd(data.date ?? null)}`}>
+    <StudentPageShell breadcrumbs={[{ label: "수업 목록", to: "/student/sessions" }]} title={data.title} description={data.schedule_configured ? !data.date ? '수업일 미배정' : [data.schedule_label, `날짜: ${formatYmd(data.date)}`, [data.start_time?.slice(0, 5), data.end_time?.slice(0, 5)].filter(Boolean).join(' ~ ')].filter(Boolean).join(' · ') : `날짜: ${formatYmd(data.date ?? null)}`}>
       <div className={styles.stack}>
+        {data.schedule_configured && <p className="stu-muted">{!data.date ? '아직 배정된 수업일이 없어요. 배정되면 내 일정에 표시됩니다. ' : ''}영상·시험·과제는 이 차시의 모든 수업일이 함께 사용해요.</p>}
         {/* ===== Primary: 영상 (가장 중요) ===== */}
         <ActionCard title="영상 보기" desc="이 수업의 영상을 볼 수 있어요." primary>
           <Link

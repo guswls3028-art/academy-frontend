@@ -99,14 +99,14 @@
   --tc-shadow-lg: var(--elevation-3);
 
   /* ===== Touch ===== */
-  --tc-touch-min: 44px;
+  --tc-touch-min: var(--ds-touch-target);
 }
 
 @media (min-width: 1024px) {
   :root {
     --tc-header-h: 60px;
     --tc-tabbar-h: 0px;
-    --tc-page-max-w: 1320px;
-    --tc-touch-min: 40px;
+    --tc-page-max-w: var(--ds-content-work);
+    --tc-touch-min: var(--ds-control-md);
   }
 }

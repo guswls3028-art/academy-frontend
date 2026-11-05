@@ -98,6 +98,10 @@ async function openScores(
   await expect(page.locator(".scores-entry-page")).toBeVisible({ timeout: navigationTimeoutMs });
 }
 
+function scoreDraftStatus(page: Page) {
+  return page.getByRole("group", { name: "성적 편집과 출력", exact: true }).getByRole("status");
+}
+
 async function ensureScoreEditing(page: Page, loadingTimeoutMs = 30_000): Promise<void> {
   const cells = page.locator(".ds-scores-cell-editable");
   const saveAndLockButton = page.getByRole("button", { name: "점수 입력 마침", exact: true });
@@ -648,6 +652,20 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
       await route.fulfill({
         json: { id: 9001, title: "자동 저장 검증반", color: "#2563eb", chip_label: "자" },
       });
+      return;
+    }
+
+    if (path === "/api/v1/lectures/sessions/9002/schedules/" && method === "GET") {
+      const roster = currentScores.map((_, index) => ({
+        enrollment_id: 9201 + index,
+        student_name: options.studentNames?.[index] ?? `자동저장학생${index + 1}`,
+      }));
+      await route.fulfill({ json: {
+        version: "score-autosave-session-9002-unconfigured",
+        schedules: [],
+        roster,
+        unassigned_enrollment_ids: roster.map(student => student.enrollment_id),
+      } });
       return;
     }
 
@@ -1671,7 +1689,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       await cell.press(key);
       // 다른 셀 클릭이나 테스트의 blur 없이 이동 키가 실제 저장을 완료해야 한다.
       await expect.poll(() => currentScores[rowCount - 1], { timeout: 10_000 }).toBe(65);
-      await expect(page.getByRole("status")).toContainText("저장됨");
+      await expect(scoreDraftStatus(page)).toContainText("저장됨");
       expect(scorePatches).toHaveLength(1);
       await page.screenshot({ path: testInfo.outputPath(`boundary-saved-${key}-${rowCount}-${width}.png`), fullPage: true });
 
@@ -1683,11 +1701,11 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       await cell.fill("74");
       await cell.press(key);
       await expect.poll(() => currentScores[rowCount - 1], { timeout: 10_000 }).toBe(74);
-      await expect(page.getByRole("status")).toContainText("저장됨");
+      await expect(scoreDraftStatus(page)).toContainText("저장됨");
       await page.keyboard.press("Control+z");
       await expect.poll(() => currentScores[rowCount - 1], { timeout: 10_000 }).toBe(65);
       expect(scorePatches.map((patch) => patch.score)).toEqual([65, 74, 65]);
-      await expect(page.getByRole("status")).toContainText("저장됨");
+      await expect(scoreDraftStatus(page)).toContainText("저장됨");
       await page.reload({ waitUntil: "domcontentloaded" });
       await ensureScoreEditing(page);
       await expect(cell).toHaveText("65");
@@ -1699,14 +1717,14 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
 
     const saveAndLockButton = page.getByRole("button", { name: "점수 입력 마침", exact: true });
     await expect(saveAndLockButton).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("status")).toContainText("수정 중 · 자동 저장 준비");
+    await expect(scoreDraftStatus(page)).toContainText("수정 중 · 자동 저장 준비");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(2);
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeEnabled();
     await page.screenshot({ path: testInfo.outputPath("score-entry-empty-auto-edit-1366.png"), fullPage: true });
 
     await saveAndLockButton.click();
     await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
-    await expect(page.getByRole("status")).toContainText("성적표 수정 잠김");
+    await expect(scoreDraftStatus(page)).toContainText("성적표 수정 잠김");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
   });
 
@@ -1748,7 +1766,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await openScores(page, { initialScores: [0, null] });
 
     await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("status")).toContainText("성적표 수정 잠김");
+    await expect(scoreDraftStatus(page)).toContainText("성적표 수정 잠김");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
   });
 
@@ -2114,7 +2132,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(drawer).not.toContainText(/PASS|보강\s?합격/);
 
     const correctionToggle = drawer.getByRole("button", {
-      name: "오답 미완료; 눌러서 오답 완료로 변경",
+      name: "오답 확인 필요; 눌러서 오답 확인 완료로 변경",
     });
     await correctionToggle.click();
     await expect.poll(() => correctionPatches.length).toBe(1);
@@ -2208,7 +2226,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       await firstNameCell.getByText("자동저장학생1", { exact: true }).click();
       const drawer = page.getByRole("complementary", { name: "자동저장학생1 학생 상세" });
       await drawer.getByRole("button", {
-        name: "오답 미완료; 눌러서 오답 완료로 변경",
+        name: "오답 확인 필요; 눌러서 오답 확인 완료로 변경",
       }).click();
       await expect.poll(() => correctionPatches.length).toBe(1);
       expect(correctionPatches[0]).toEqual({
@@ -2237,7 +2255,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       await expect(drawer.locator(".student-scores-drawer__verdict-value")).toHaveText("오답 완료");
       await expect(drawer.locator(".student-scores-drawer__header-info").getByText("오답 미완료", { exact: true })).toHaveCount(0);
       await expect(drawer.getByRole("button", {
-        name: "오답 완료; 눌러서 오답 미완료로 변경",
+        name: "오답 확인 완료; 눌러서 오답 확인 필요로 변경",
       })).toHaveAttribute("aria-pressed", "true");
       expect(correctionPatches).toHaveLength(1);
       await page.screenshot({ path: testInfo.outputPath(`followup-completed-reload-${viewport.width}.png`) });
@@ -2324,7 +2342,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       await page.keyboard.press("Control+s");
       await expect.poll(() => scorePatches.length, { timeout: 10_000 }).toBe(1);
       expect(scorePatches[0]).toMatchObject({ score: 81, max_score: 100 });
-      await expect(page.getByRole("status")).toContainText("저장됨");
+      await expect(scoreDraftStatus(page)).toContainText("저장됨");
       await page.reload({ waitUntil: "domcontentloaded" });
       await expect(page.getByRole("cell", { name: "81/100", exact: true })).toBeVisible();
       await expect(page.getByRole("cell", { name: "70/100", exact: true })).toBeVisible();
@@ -2587,7 +2605,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
 
     const editButton = page.getByRole("button", { name: "수정", exact: true });
     await expect(editButton).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole("status")).toContainText("성적표 수정 잠김");
+    await expect(scoreDraftStatus(page)).toContainText("성적표 수정 잠김");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath("score-entry-locked-1366.png"), fullPage: true });
     await page.setViewportSize({ width: 1100, height: 900 });
@@ -2634,12 +2652,12 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await cells.nth(0).press("Enter");
     await expect.poll(() => scorePatches.length, { timeout: 10_000 }).toBe(1);
     expect(scorePatches[0]).toMatchObject({ score: 74, max_score: 100 });
-    await expect(page.getByRole("status")).toContainText("자동 저장 실패");
+    await expect(scoreDraftStatus(page)).toContainText("자동 저장 실패");
     await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     await expect(editButton).toBeVisible();
     expect(scorePatches).toHaveLength(1);
     await editButton.click();
-    await expect(page.getByRole("status")).toContainText("저장됨");
+    await expect(scoreDraftStatus(page)).toContainText("저장됨");
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole("button", { name: "성적 변경 실행 취소", exact: true }).click();
@@ -2678,7 +2696,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
 
     await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
     await expect(editButton).toBeVisible();
-    await expect(page.getByRole("status")).toContainText("성적표 수정 잠김");
+    await expect(scoreDraftStatus(page)).toContainText("성적표 수정 잠김");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
     await expect(page.getByRole("cell", { name: /77\/100/ }).first()).toBeVisible();
 
@@ -2694,7 +2712,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     delayNextScorePatchMs = 1_500;
     await cells.nth(0).fill("79");
     await cells.nth(0).press("Enter");
-    await expect(page.getByRole("status")).toContainText("자동 저장 중");
+    await expect(scoreDraftStatus(page)).toContainText("자동 저장 중");
     await cells.nth(1).fill("81");
     await page.getByRole("tab", { name: "출결", exact: true }).first().click();
     await expect(page).toHaveURL(/\/attendance/);
@@ -2758,7 +2776,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.locator(".ds-scores-cell-editable").first()).toBeVisible();
     await page.getByRole("button", { name: "입력 종료 다시 시도", exact: true }).click();
     await expect(editButton).toBeVisible();
-    await expect(page.getByRole("status")).toContainText("성적표 수정 잠김");
+    await expect(scoreDraftStatus(page)).toContainText("성적표 수정 잠김");
 
     expect(scorePatchHeaders.length).toBeGreaterThan(0);
     for (const headers of scorePatchHeaders) {

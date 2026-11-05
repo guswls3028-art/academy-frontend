@@ -53,6 +53,7 @@ import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { scoresQueryKeys } from "../api/queryKeys";
 import CloseButton from "@/shared/ui/ds/CloseButton";
 import { Badge, Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
+import { InlineHelp } from "@/shared/ui/guide";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
@@ -609,35 +610,39 @@ function ExamResultCard({
             </span>
           </div>
         </div>
-        <div className="student-scores-drawer__exam-quick-actions">
-          <CorrectionStatusControl
-            block={exam.block}
-            enrollmentId={enrollmentId}
-            sourceType="exam"
-            sourceId={exam.exam_id}
-            sessionId={sessionId}
-            disabled={hasPendingScoreChanges}
-            compact
-          />
-          {canStartRetake && (
-            <button
-              type="button"
-              className="student-scores-drawer__quick-retake"
-              aria-disabled={hasUnsavedChanges}
-              title={hasUnsavedChanges ? "점수 초안을 먼저 저장한 뒤 재시험을 추가해 주세요." : "같은 원시험에 다음 재시험 점수를 기록합니다."}
-              onClick={() => {
-                if (hasUnsavedChanges) {
-                  feedback.info("점수 초안을 먼저 저장한 뒤 재시험을 추가해 주세요.");
-                  return;
-                }
-                setRetakeRequested(true);
-                if (!expanded) onToggle();
-              }}
-            >
-              재시험 기록 추가
-            </button>
-          )}
-        </div>
+        {(!expanded || canStartRetake) && (
+          <div className="student-scores-drawer__exam-quick-actions">
+            {!expanded && (
+              <CorrectionStatusControl
+                block={exam.block}
+                enrollmentId={enrollmentId}
+                sourceType="exam"
+                sourceId={exam.exam_id}
+                sessionId={sessionId}
+                disabled={hasPendingScoreChanges}
+                compact
+              />
+            )}
+            {canStartRetake && (
+              <button
+                type="button"
+                className="student-scores-drawer__quick-retake"
+                aria-disabled={hasUnsavedChanges}
+                title={hasUnsavedChanges ? "점수 초안을 먼저 저장한 뒤 재시험을 추가해 주세요." : "같은 원시험에 다음 재시험 점수를 기록합니다."}
+                onClick={() => {
+                  if (hasUnsavedChanges) {
+                    feedback.info("점수 초안을 먼저 저장한 뒤 재시험을 추가해 주세요.");
+                    return;
+                  }
+                  setRetakeRequested(true);
+                  if (!expanded) onToggle();
+                }}
+              >
+                재시험 기록 추가
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {expanded && (
@@ -1506,7 +1511,13 @@ function CorrectionStatusControl({
   const persistedNote = block.correction_note ?? "";
   const status = block.correction_status ?? null;
   const isHomework = sourceType === "homework";
-  const title = isHomework ? "교사 완료 판정" : wrongExamCompletionOnly ? "테스트 오답 확인" : "교사 최종 판정";
+  const title = isHomework ? "과제 완료 상태" : wrongExamCompletionOnly ? "시험 오답 확인" : "시험 통과 판정";
+  const helpTitle = isHomework ? "과제 완료 상태 기록" : wrongExamCompletionOnly ? "오답 확인 상태 기록" : "시험 통과 판정";
+  const helpDescription = isHomework
+    ? "완료 여부만 기록합니다. 완료 처리하면 학생의 확인 필요 목록에서 빠집니다. 과제 점수와 제출 기록은 바뀌지 않으며, 완료로 표시할 때는 2자 이상의 사유를 남겨 주세요."
+    : wrongExamCompletionOnly
+      ? "오답 확인 여부만 기록합니다. 시험 점수는 바뀌지 않습니다. 완료 처리 전에 확인 근거를 2자 이상 남겨 주세요."
+      : "현장에서 보완을 확인한 뒤 통과로 기록합니다. 시험 점수는 바뀌지 않으며, 처리 전에 판정 사유를 2자 이상 남겨 주세요.";
   const noteId = `assessment-note-${sourceType}-${sourceId}`;
   const noteHintId = `${noteId}-hint`;
 
@@ -1576,11 +1587,15 @@ function CorrectionStatusControl({
         ? "비고를 저장했습니다."
         : wrongExamCompletionOnly
           ? variables.completed
-            ? "오답 완료로 저장했습니다. 원점수는 그대로 유지됩니다."
-            : "오답 미완료로 저장했습니다."
-        : variables.completed
-          ? `${title}을 확정했습니다. 원점수는 그대로 유지됩니다.`
-          : `${title}을 해제해 Clinic 대상을 다시 계산합니다.`);
+            ? "오답 확인 완료로 저장했습니다. 시험 점수는 그대로입니다."
+            : "오답 확인 필요로 변경했습니다."
+          : isHomework
+            ? variables.completed
+              ? "과제를 완료로 표시했습니다. 점수와 제출 기록은 그대로입니다."
+              : "과제를 미완료로 표시했습니다."
+            : variables.completed
+              ? "교사 통과로 기록했습니다. 시험 점수는 그대로입니다."
+              : "보완 대상으로 되돌렸습니다. 재시험·보완 대상 여부를 다시 확인합니다.");
     },
     onError: (error) => {
       feedback.error(getApiErrorMessage(
@@ -1612,16 +1627,16 @@ function CorrectionStatusControl({
         : "점수를 입력하면 실제 오답 확인 상태를 기록할 수 있습니다."
     : isHomework
     ? status === "COMPLETED"
-      ? "교사가 협의 후 완료로 확정했습니다. 원점수와 제출 기록은 그대로 유지됩니다."
+        ? "교사가 협의 후 완료로 표시했습니다. 원점수와 제출 기록은 그대로 유지됩니다."
       : status === "PENDING"
         ? "남은 범위를 비고에 적어 두면 다음 검사 때 바로 이어볼 수 있습니다."
         : status === "NOT_REQUIRED"
           ? "점수상 완료된 과제도 교사 판정과 사유를 별도로 남길 수 있습니다."
-          : "사이트 제출 여부와 무관하게 교사 완료 판정을 기록할 수 있습니다."
+          : "학생의 제출 여부와 관계없이 교사가 완료 여부를 기록합니다."
     : status === "COMPLETED"
       ? "현장에서 오답 해결을 확인해 원점수 변경 없이 최종 통과 처리했습니다."
       : status === "PENDING"
-        ? "통과 전까지 재시험·Clinic 보완 대상으로 유지됩니다."
+        ? "통과로 기록하기 전까지 재시험·보완 대상으로 남습니다."
         : status === "NOT_REQUIRED"
           ? "만점이라 확인할 오답이 없습니다."
           : "점수를 입력한 뒤 사유와 함께 교사 통과 여부를 기록할 수 있습니다.";
@@ -1638,19 +1653,19 @@ function CorrectionStatusControl({
         data-status={completed ? "completed" : "pending"}
         aria-pressed={completed}
         aria-label={wrongExamCompletionOnly
-          ? `${completed ? "오답 완료" : "오답 미완료"}; 눌러서 ${completed ? "오답 미완료" : "오답 완료"}로 변경`
+          ? `${completed ? "오답 확인 완료" : "오답 확인 필요"}; 눌러서 ${completed ? "오답 확인 필요" : "오답 확인 완료"}로 변경`
           : completed
-            ? "교사 PASS에서 보완 필요로 변경"
-            : "보완 필요에서 교사 PASS로 변경"}
+            ? "교사 통과 상태에서 보완 필요로 변경"
+            : "보완 필요에서 교사 통과로 변경"}
         title={disabled
           ? "점수 초안을 먼저 저장한 뒤 판정을 변경해 주세요."
           : wrongExamCompletionOnly
             ? completed
-              ? "원점수는 유지하고 오답 미완료로 변경합니다."
-              : "원점수는 유지하고 오답 완료로 변경합니다."
+              ? "시험 점수는 그대로 두고 오답 확인 필요로 변경합니다."
+              : "시험 점수는 그대로 두고 오답 확인 완료로 변경합니다."
           : completed
             ? "원점수는 유지하고 다시 보완 대상으로 전환합니다."
-            : "원점수는 유지하고 교사 PASS로 확정합니다."}
+            : "시험 점수는 그대로 두고 교사 통과로 기록합니다."}
         onClick={(event) => {
           event.stopPropagation();
           mutation.mutate({
@@ -1670,8 +1685,10 @@ function CorrectionStatusControl({
         {mutation.isPending
           ? "저장 중…"
           : wrongExamCompletionOnly
-            ? completed ? "오답 완료" : "오답 미완료"
-            : completed ? "PASS ✓" : "보완 필요 → PASS"}
+            ? completed ? "오답 완료" : "오답 확인 필요"
+            : isHomework
+              ? completed ? "과제 완료" : "미완료"
+            : completed ? "교사 통과" : "통과로 처리"}
       </button>
     );
   }
@@ -1684,7 +1701,22 @@ function CorrectionStatusControl({
     >
       <div className="ssd-correction-control__copy">
         <div className="ssd-correction-control__title-row">
-          <strong>{title}</strong>
+          <div className="ssd-correction-control__title-help">
+            <strong>{title}</strong>
+            <InlineHelp
+              title={helpTitle}
+              tone="admin"
+              align="left"
+              placement="top"
+              className="ssd-correction-control__help"
+              openOnHover
+              ariaLabel={`${helpTitle} 설명`}
+              iconSize={14}
+              triggerClassName="ssd-correction-control__help-trigger"
+            >
+              <p>{helpDescription}</p>
+            </InlineHelp>
+          </div>
           <CorrectionStatusBadge block={block} sourceType={sourceType} />
         </div>
         <span>{description}</span>
@@ -1694,7 +1726,7 @@ function CorrectionStatusControl({
       <div
         className="ssd-correction-control__actions"
         role="group"
-        aria-label={`${title} 상태`}
+        aria-label={`${title} 변경`}
         title={disabledReason}
       >
         <Button
@@ -1714,7 +1746,7 @@ function CorrectionStatusControl({
             && mutation.variables.completed === false
           }
         >
-          {isHomework ? "미완료" : wrongExamCompletionOnly ? "오답 미완료" : "보완 필요"}
+          {isHomework ? "미완료로 표시" : wrongExamCompletionOnly ? "오답 확인 필요" : "보완 필요로 표시"}
         </Button>
         <Button
           size="sm"
@@ -1743,7 +1775,7 @@ function CorrectionStatusControl({
             && mutation.variables.completed === true
           }
         >
-          {isHomework ? "완료 확정" : wrongExamCompletionOnly ? "오답 완료" : "통과 확정"}
+          {isHomework ? "완료로 표시" : wrongExamCompletionOnly ? "오답 확인 완료" : "통과로 처리"}
         </Button>
       </div>
       <div className="ssd-correction-control__note">
@@ -1756,13 +1788,13 @@ function CorrectionStatusControl({
             className="ssd-correction-control__note-hint"
             role="alert"
           >
-            {isHomework ? "완료 확정" : wrongExamCompletionOnly ? "오답 완료" : "통과 확정"} 사유를 2자 이상 입력해 주세요.
+            {isHomework ? "과제 완료" : wrongExamCompletionOnly ? "오답 확인 완료" : "통과 처리"} 사유를 2자 이상 입력해 주세요.
           </span>
         )}
         <textarea
           ref={noteRef}
           id={noteId}
-          aria-label={`${title} 비고`}
+          aria-label={`${title} 사유`}
           aria-describedby={!completionReasonReady ? noteHintId : undefined}
           aria-invalid={completionReasonRequested && !completionReasonReady}
           value={note}
@@ -1807,7 +1839,7 @@ function CorrectionStatusControl({
         )}
         {!completionReasonRequested && !completionReasonReady && (
           <span id={noteHintId} className="ssd-correction-control__note-hint" role="status">
-            {wrongExamCompletionOnly ? "오답 완료 전 확인 근거" : "통과 또는 완료 확정 전 판정 사유"}를 2자 이상 입력해 주세요.
+            {wrongExamCompletionOnly ? "오답 확인 완료 전 근거" : "통과 또는 과제 완료 처리 전 사유"}를 2자 이상 입력해 주세요.
           </span>
         )}
       </div>

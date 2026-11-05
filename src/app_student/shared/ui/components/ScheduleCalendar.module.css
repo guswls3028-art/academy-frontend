@@ -4,6 +4,11 @@
   border-radius: var(--stu-radius-md);
 }
 
+@media (min-width: 768px) {
+  .calendar { width: 100%; max-width: 760px; margin-inline: auto; }
+  .calendar .dayButton { aspect-ratio: auto; height: 48px; }
+}
+
 .header {
   display: flex;
   align-items: center;

@@ -5,15 +5,16 @@ import { fetchAdminExam, updateAdminExam } from "@admin/domains/exams/public/ses
 import { fetchAdminHomework, updateAdminHomework } from "@admin/domains/homework/public/scoreHeaderActions";
 import { isStaleResourceConflict } from "@/shared/api/optimisticConcurrency";
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
+import type { ButtonSize } from "@/shared/ui/ds/Button";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import styles from "./AssessmentTitleEditButton.module.css";
 
-type Props = { kind: "exam" | "homework"; id: number; title: string; disabled?: boolean; compact?: boolean };
+type Props = { kind: "exam" | "homework"; id: number; title: string; disabled?: boolean; compact?: boolean; size?: ButtonSize };
 
 /** A title-only edit must never submit grading defaults or regrade existing work. */
-export default function AssessmentTitleEditButton({ kind, id, title, disabled, compact }: Props) {
+export default function AssessmentTitleEditButton({ kind, id, title, disabled, compact, size = "sm" }: Props) {
   const qc = useQueryClient();
   const label = kind === "exam" ? "시험" : "과제";
   const [open, setOpen] = useState(false);
@@ -87,9 +88,9 @@ export default function AssessmentTitleEditButton({ kind, id, title, disabled, c
   }
 
   return <>
-    <Button type="button" intent="secondary" size="sm" className={`${styles.trigger} ${compact ? styles.compact : ""}`}
+    <Button type="button" intent="secondary" size={size} className={`${styles.trigger} ${compact ? styles.compact : ""}`}
       disabled={disabled} aria-label={`${title} 제목 수정`}
-      leftIcon={compact ? undefined : <Pencil size={ICON_FOR_BUTTON.sm} aria-hidden />}
+      leftIcon={compact ? undefined : <Pencil size={ICON_FOR_BUTTON[size]} aria-hidden />}
       onMouseDown={(event) => event.stopPropagation()}
       draggable={false}
       onDragStart={(event) => { event.preventDefault(); event.stopPropagation(); }}

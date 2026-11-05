@@ -9,6 +9,7 @@ import StudentLayout from "@student/layout/StudentLayout";
 import styles from "./StudentRouter.module.css";
 
 const DashboardPage = lazy(() => import("@student/domains/dashboard/pages/DashboardPage"));
+const StudentMenuPage = lazy(() => import("@student/layout/StudentMenuPage"));
 const VideoHomePage = lazy(() => import("@student/domains/video/pages/VideoHomePage"));
 const CourseDetailPage = lazy(() => import("@student/domains/video/pages/CourseDetailPage"));
 const VideoSessionDetailPage = lazy(() => import("@student/domains/video/pages/SessionDetailPage"));
@@ -24,6 +25,8 @@ const ExamDetailPage = lazy(() => import("@student/domains/exams/pages/ExamDetai
 const ExamSubmitPage = lazy(() => import("@student/domains/exams/pages/ExamSubmitPage"));
 const ExamResultPage = lazy(() => import("@student/domains/exams/pages/ExamResultPage"));
 const SubmitHubPage = lazy(() => import("@student/domains/submit/pages/SubmitHubPage"));
+const StudentSurveysPage = lazy(() => import("@student/domains/surveys/StudentSurveysPage"));
+const StudentSurveyDetailPage = lazy(() => import("@student/domains/surveys/StudentSurveysPage").then((module) => ({ default: module.StudentSurveyDetailPage })));
 const SubmitScorePage = lazy(() => import("@student/domains/submit/pages/SubmitScorePage"));
 const SubmitAssignmentPage = lazy(() => import("@student/domains/submit/pages/SubmitAssignmentPage"));
 const MyInventoryPage = lazy(() => import("@student/domains/inventory/pages/MyInventoryPage"));
@@ -78,6 +81,7 @@ export default function StudentRouter() {
         <Route index element={<Navigate to="/student/dashboard" replace />} />
 
         <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="menu" element={<StudentMenuPage />} />
         <Route path="video" element={<VideoHomePage />} />
         <Route path="video/courses/public" element={<CourseDetailPage />} />
         <Route path="video/courses/:lectureId" element={<CourseDetailPage />} />
@@ -88,6 +92,8 @@ export default function StudentRouter() {
         <Route path="sessions/:sessionId" element={<SessionDetailPage />} />
 
         <Route path="submit" element={<SubmitHubPage />} />
+        <Route path="surveys" element={<StudentSurveysPage />} />
+        <Route path="surveys/:surveyId" element={<StudentSurveyDetailPage />} />
         <Route path="submit/score" element={<SubmitScorePage />} />
         <Route path="submit/assignment" element={<SubmitAssignmentPage />} />
         <Route path="inventory" element={<MyInventoryPage />} />

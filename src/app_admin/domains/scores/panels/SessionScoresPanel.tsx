@@ -39,6 +39,7 @@ type Props = {
   lectureId?: number;
   search?: string;
   isEditMode?: boolean;
+  schedule?: string;
   onRequestAnswerEdit?: () => Promise<boolean>;
   /** 수정 중 알림톡 등 저장된 점수 소비 액션을 잠시 막는 상태 */
   hasUnsavedChanges?: boolean;
@@ -108,6 +109,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   lectureId,
   search = "",
   isEditMode = false,
+  schedule,
   onRequestAnswerEdit,
   hasUnsavedChanges = false,
   hasPendingScoreChanges = hasUnsavedChanges,
@@ -147,8 +149,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   /** 답안 상세 드로어 (StudentScoresDrawer → 답안 상세 보기) */
   const [answerDetail, setAnswerDetail] = useState<{ examId: number; enrollmentId: number; examTitle: string } | null>(null);
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: scoresQueryKeys.sessionScores(sessionId),
-    queryFn: () => fetchSessionScores(sessionId),
+    queryKey: scoresQueryKeys.sessionScoresScope(sessionId, schedule),
+    queryFn: () => fetchSessionScores(sessionId, schedule),
     enabled: Number.isFinite(sessionId) && sessionId > 0,
     refetchInterval: isEditMode ? 1_500 : false,
     refetchIntervalInBackground: false,
@@ -163,10 +165,10 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const openTotals = () => { if (meta) setTotalsEditor({ sessionId, meta }); };
   const attendancePageSize = allRows.length > 50 ? Math.min(allRows.length, 500) : undefined;
   const { data: attendanceList } = useQuery({
-    queryKey: [...scoresQueryKeys.attendance(sessionId), attendancePageSize ?? "default"] as const,
+    queryKey: scoresQueryKeys.attendanceScope(sessionId, attendancePageSize, schedule),
     queryFn: () => fetchAttendance(
       sessionId,
-      attendancePageSize ? { page_size: attendancePageSize } : undefined,
+      { page_size: attendancePageSize, schedule },
     ),
     enabled: Number.isFinite(sessionId) && sessionId > 0 && allRows.length > 0,
   });
@@ -180,26 +182,16 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
       homework_ids: meta.homeworks.filter(h => h.grading_mode !== "COMPLETION").map(h => h.homework_id),
     };
     const ids = type === "exam" ? meta.exams.map(e => e.exam_id) : meta.homeworks.map(h => h.homework_id);
-    const completionIds = new Set(meta.homeworks.filter(h => h.grading_mode === "COMPLETION").map(h => h.homework_id));
-    const selected = new Set(type === "exam" ? config.exam_ids : config.homework_ids.filter(id => !completionIds.has(id)));
-    // Match the rendered columns, including the total boundary between groups.
-    const displayed = [...ids.filter(id => selected.has(id)), 0, ...ids.filter(id => !selected.has(id))];
-    const fromIdx = displayed.indexOf(fromId);
-    const toIdx = displayed.indexOf(toId);
+    const fromIdx = ids.indexOf(fromId);
+    const toIdx = ids.indexOf(toId);
     if (fromIdx < 0 || toIdx < 0) return;
-    const movedOrder = [...displayed];
-    const [moved] = movedOrder.splice(fromIdx, 1);
-    movedOrder.splice(toIdx, 0, moved);
-    const included = movedOrder.slice(0, movedOrder.indexOf(0))
-      .filter(id => type === "exam" || !completionIds.has(id));
-    const includedSet = new Set(included);
-    // Completion-only homework always remains behind the total, even when dragged across it.
-    const order = [...included, ...movedOrder.filter(id => id !== 0 && !includedSet.has(id))];
+    const order = [...ids];
+    const [moved] = order.splice(fromIdx, 1);
+    order.splice(toIdx, 0, moved);
+    // Reordering is presentation only. Only the totals editor changes membership.
     try {
       await saveScoreTotalConfig(sessionId, {
         ...config,
-        exam_ids: type === "exam" ? included : config.exam_ids,
-        homework_ids: type === "homework" ? included : config.homework_ids,
         exam_order: type === "exam" ? order : meta.exams.map(e => e.exam_id),
         homework_order: type === "homework" ? order : meta.homeworks.map(h => h.homework_id),
       });

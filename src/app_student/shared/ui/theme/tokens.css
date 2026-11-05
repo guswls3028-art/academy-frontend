@@ -49,7 +49,7 @@ html[data-student-app="true"],
   --stu-glass-border: var(--stu-border);
   --stu-header-h: 52px;
   --stu-tabbar-h: 60px;
-  --stu-page-max-w: 100%;
+  --stu-page-max-w: var(--ds-content-reading);
   /* Compatibility: student spacing historically used 2px steps. */
   --stu-space-1: calc(var(--ds-space-1) / 2);
   --stu-space-2: var(--ds-space-1);
@@ -72,7 +72,9 @@ html[data-student-app="true"],
   --stu-z-toast: 650;
   --stu-safe-bottom: env(safe-area-inset-bottom, 0px);
   --stu-safe-top: env(safe-area-inset-top, 0px);
-  --stu-touch: 44px;
+  --stu-touch: var(--ds-touch-target);
+  --stu-control: var(--ds-control-lg);
+  --stu-control-lg: var(--ds-control-xl);
   --stu-motion-fast: var(--ds-motion-fast);
   --stu-motion-base: var(--ds-motion-base);
   --stu-motion-slow: var(--ds-motion-slow);

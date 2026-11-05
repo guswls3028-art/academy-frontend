@@ -170,8 +170,6 @@ async function installWorkspaceMocks(page: Page, options: MockOptions = {}) {
 
 async function openContextualPcVersion(page: Page) {
   await page.getByRole("button", { name: "메뉴", exact: true }).click();
-  const support = page.getByRole("button", { name: /지원/ });
-  if (await support.isVisible()) await support.click();
   await page.getByRole("button", { name: "전체 업무", exact: true }).last().click();
 }
 
@@ -194,6 +192,11 @@ test("동적 모바일 경로는 현재 executable canonical route만 가리킨�
   const adminRouter = fs.readFileSync("src/app_admin/app/AdminRouter.tsx", "utf8");
   const teacherRouter = fs.readFileSync("src/app_teacher/app/TeacherRouter.tsx", "utf8");
   const mappings: Array<[string, string]> = [
+    ["/workspace/mobile/menu", "/workspace/dashboard"],
+    ["/workspace/mobile/menu?group=classes", "/workspace/learning"],
+    ["/workspace/mobile/menu?group=resources", "/workspace/learning"],
+    ["/workspace/mobile/menu?group=account", "/workspace/management"],
+    ["/workspace/mobile/menu?group=help", "/workspace/dashboard"],
     ["/workspace/mobile/students/41", "/workspace/students/41"],
     ...["enrollments", "exams", "homework", "clinic", "questions", "activity", "info"].map((tab): [string, string] =>
       [`/workspace/mobile/students/41?tab=${tab}`, "/workspace/students/41"]),
@@ -215,6 +218,9 @@ test("동적 모바일 경로는 현재 executable canonical route만 가리킨�
     ["/workspace/mobile/my-records", "/workspace/profile/attendance"],
   ];
   const rejected = [
+    "/workspace/mobile/menu?group=unknown",
+    "/workspace/mobile/menu?group=classes&group=help",
+    "/workspace/mobile/menu?group=classes&next=/workspace/students",
     "https://evil.example/workspace/mobile/profile",
     "//evil.example/workspace/mobile/profile",
     "/workspace/mobile/students/0",

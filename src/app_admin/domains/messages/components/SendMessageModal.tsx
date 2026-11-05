@@ -62,7 +62,7 @@ import {
   type ProvidedTemplatePreset,
 } from "../constants/templatePresets";
 import GradesBlockPanel from "./GradesBlockPanel";
-import { expandScoreMessageBlocks } from "@/shared/messaging/scoreMessageEditor";
+import { expandScoreMessageBlocks, missingScoreMessageItems, preserveScoreMessageBlocks } from "@/shared/messaging/scoreMessageEditor";
 import TemplatePickerModal from "./TemplatePickerModal";
 import MessageBodyEditor, { type MessageBodyEditorHandle } from "./MessageBodyEditor";
 import { useMessageAcademyName } from "../hooks/useMessageAcademyName";
@@ -324,6 +324,7 @@ export default function SendMessageModal({
   const [alimtalkFreeForm, setAlimtalkFreeForm] = useState(false);
   const [manualEnvelopeCategory, setManualEnvelopeCategory] = useState<TemplateCategory>("attendance");
   const [templateBodySnapshot, setTemplateBodySnapshot] = useState<string | null>(null);
+  const [scoreBlockSource, setScoreBlockSource] = useState("");
   const [subjectSnapshot, setSubjectSnapshot] = useState("");
   const [templateVersion, setTemplateVersion] = useState<string>();
   const [templateConflict, setTemplateConflict] = useState<MessageTemplateItem | null>(null);
@@ -383,6 +384,11 @@ export default function SendMessageModal({
     && body !== (selectedTemplateConflict ? prepareEditorBody(selectedTemplateConflict.body) : templateBodySnapshot);
   const presetBodyModified = selectedPreset != null && templateBodySnapshot != null && body !== templateBodySnapshot;
   const hasSelectedBodySource = !!selectedTemplate || !!selectedPreset || alimtalkFreeForm;
+  const missingScoreItems = effectiveBlockCategory === "grades" && body.trim()
+    ? missingScoreMessageItems(body, alimtalkExtraVars) : [];
+  const persistedBody = effectiveBlockCategory === "grades"
+    ? preserveScoreMessageBlocks(body, scoreBlockSource, alimtalkExtraVars)
+    : body;
 
   // Validate the draft actually sent. Registered student/score variables remain
   // automatic; the server preflight checks their recipient-specific values.
@@ -655,6 +661,7 @@ export default function SendMessageModal({
     prevOpenRef.current = open;
     if (!justOpened) return;
     const initialDisplayBody = prepareEditorBody(initialBody ?? "");
+    setScoreBlockSource(initialBody ?? "");
     currentDraftRef.current = {
       body: initialDisplayBody,
       selectedTemplateId: initialTemplateId ?? null,
@@ -714,6 +721,7 @@ export default function SendMessageModal({
         const match = list.find(t => !isSystemTpl(t) && t.is_user_default && t.category === toPersistedTemplateCategory(effectiveBlockCategory));
         if (match) {
           const nextBody = prepareEditorBody(match.body);
+          setScoreBlockSource(match.body);
           setSelectedTemplateId(match.id);
           setBody(nextBody);
           setTemplateBodySnapshot(nextBody);
@@ -770,6 +778,7 @@ export default function SendMessageModal({
     setSavingTemplate(false);
   };
   const insertBlock = useCallback((insertText: string) => {
+    setScoreBlockSource(source => `${source}\n${insertText}`);
     setAlimtalkFreeForm(true);
     bodyEditorRef.current?.insert(prepareEditorBody(insertText));
   }, [prepareEditorBody]);
@@ -777,6 +786,7 @@ export default function SendMessageModal({
   const selectTemplate = useCallback(async (t: MessageTemplateItem) => {
     if (!await confirmDiscardDraft(true)) return;
     const nextBody = prepareEditorBody(t.body ?? "");
+    setScoreBlockSource(t.body ?? "");
     setSelectedTemplateId(t.id);
     setSelectedPresetId(null);
     setSubject(t.subject ?? "");
@@ -798,6 +808,7 @@ export default function SendMessageModal({
     setSubject("");
     setSubjectSnapshot("");
     setBody(preset.body);
+    setScoreBlockSource(preset.body);
     setTemplateBodySnapshot(preset.body);
     setAlimtalkFreeForm(false);
   }, [confirmDiscardDraft]);
@@ -812,6 +823,7 @@ export default function SendMessageModal({
     setSubject("");
     setSubjectSnapshot("");
     setTemplateBodySnapshot(null);
+    setScoreBlockSource("");
     setAlimtalkFreeForm(true);
   }, [confirmDiscardDraft]);
 
@@ -826,6 +838,7 @@ export default function SendMessageModal({
     setSelectedPresetId(null);
     setBody("");
     setTemplateBodySnapshot(null);
+    setScoreBlockSource("");
     setAlimtalkFreeForm(true);
   }, [confirmDiscardDraft]);
 
@@ -834,7 +847,7 @@ export default function SendMessageModal({
     const attempt = templateCreateAttempt ?? {
       payload: {
         category: toPersistedTemplateCategory(effectiveBlockCategory),
-        name: saveTemplateName.trim(), subject: subject || "", body,
+        name: saveTemplateName.trim(), subject: subject || "", body: persistedBody,
         client_request_id: createRandomUuid(),
       },
       makeDefault: effectiveBlockCategory === "grades" && saveAsDefault,
@@ -864,6 +877,7 @@ export default function SendMessageModal({
       setSelectedTemplateId(saved.id);
       setSelectedPresetId(null);
       setTemplateBodySnapshot(prepareEditorBody(saved.body));
+      setScoreBlockSource(saved.body);
       if (!changedSinceCreate) setBody(prepareEditorBody(saved.body));
       setTemplateVersion(saved.updated_at);
       setTemplateConflict(changedSinceCreate ? saved : null);
@@ -906,10 +920,11 @@ export default function SendMessageModal({
       confirmText: "이 초안 저장", cancelText: "계속 편집",
     })) return null;
     const updated = await updateMessageTemplate(selectedTemplate.id, {
-      body, expected_updated_at: selectedTemplateConflict?.updated_at ?? templateVersion,
+      body: persistedBody, expected_updated_at: selectedTemplateConflict?.updated_at ?? templateVersion,
     });
     setTemplates(previous => previous.map(template => template.id === updated.id ? updated : template));
     setTemplateBodySnapshot(prepareEditorBody(updated.body));
+    setScoreBlockSource(updated.body);
     setSubject(updated.subject ?? "");
     setSubjectSnapshot(updated.subject ?? "");
     setTemplateVersion(updated.updated_at);
@@ -968,6 +983,36 @@ export default function SendMessageModal({
     }
   };
 
+  const handleRenameTemplate = async (id: number, name: string) => {
+    const target = templates.find(template => template.id === id);
+    if (!target || isSystemTpl(target) || target.category !== "grades") throw new Error("이 성적 안내문의 이름을 변경할 수 없습니다.");
+    if (!beginTemplateMutation()) throw new Error("저장 중입니다. 잠시 후 다시 시도해 주세요.");
+    try {
+      const updated = await updateMessageTemplate(id, { name, expected_updated_at: target.updated_at });
+      setTemplates(previous => previous.map(template => template.id === id ? updated : template));
+      // A name-only edit must never acknowledge an unseen body revision.
+      if (selectedTemplateId === id && updated.body === target.body && updated.subject === target.subject) {
+        if (templateVersion === target.updated_at) setTemplateVersion(updated.updated_at);
+        setTemplateConflict(previous => previous?.id === id && previous.updated_at === target.updated_at ? updated : previous);
+      }
+      void queryClient.invalidateQueries({ queryKey: messageQueryKeys.templates });
+      void queryClient.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
+      feedback.success(`"${updated.name}" 이름으로 변경했습니다.`);
+    } catch (error) {
+      const data = isAxiosError(error) && error.response?.status === 409 ? error.response.data : null;
+      if (data?.code === "template_conflict" && data.current_template?.id === id
+        && typeof data.current_template.body === "string" && typeof data.current_template.updated_at === "string") {
+        const current = data.current_template as MessageTemplateItem;
+        setTemplates(previous => previous.map(template => template.id === id ? current : template));
+        if (selectedTemplateId === id) setTemplateConflict(current);
+        throw new Error(`다른 직원이 문구를 변경했습니다. 현재 이름은 "${current.name}"입니다. 입력한 이름으로 바꾸려면 다시 저장해 주세요.`);
+      }
+      throw new Error(extractApiError(error, "이름 변경을 확인하지 못했습니다. 입력한 이름을 유지했으니 다시 저장해 주세요."));
+    } finally {
+      finishTemplateMutation();
+    }
+  };
+
   const handleDuplicate = async (id: number) => {
     if (!beginTemplateMutation()) return;
     try {
@@ -1007,6 +1052,7 @@ export default function SendMessageModal({
         setSubject("");
         setSubjectSnapshot("");
         setTemplateBodySnapshot(null);
+        setScoreBlockSource("");
         setTemplateVersion(undefined);
         setTemplateConflict(null);
         setAlimtalkFreeForm(true);
@@ -1593,6 +1639,20 @@ export default function SendMessageModal({
               )}
             </div>
 
+            {missingScoreItems.length > 0 && <div className="send-modal__missing-results" role="region" aria-label="본문에 없는 수업 결과">
+              <strong>본문에 없는 결과 {missingScoreItems.length}개</strong>
+              <p>{missingScoreItems.map(item => item.name).join(" · ")}</p>
+              <p>총점 합산 여부와 관계없이 넣을 수 있습니다. 일부 결과만 안내하려면 현재 본문을 유지하세요.</p>
+              <Button size="sm" intent="secondary" disabled={sending || templateEditingLocked}
+                onClick={() => {
+                  setBody(current => {
+                    const missing = missingScoreMessageItems(current, alimtalkExtraVars);
+                    return missing.length ? `${current}${current.endsWith("\n") ? "" : "\n"}${missing.map(item => item.text).join("\n")}` : current;
+                  });
+                  setAlimtalkFreeForm(true);
+                }}>빠진 결과를 본문 끝에 넣기</Button>
+            </div>}
+
             {/* ── 본문 + 변수 팔레트 ── */}
             <div className="send-modal__editor">
               <div className="send-modal__editor-body">
@@ -1882,6 +1942,7 @@ export default function SendMessageModal({
       onPickPreset={selectPreset}
       onPickFreeForm={selectFreeForm}
       onSetDefault={handleSetDefault}
+      onRename={handleRenameTemplate}
       onDuplicate={handleDuplicate}
       onDelete={handleDeleteTemplate}
     />

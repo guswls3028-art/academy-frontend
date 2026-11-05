@@ -2,6 +2,7 @@
 // Design SSOT — 리스트 페이지 툴바 (총계 | 검색 | 필터 | 추가)
 
 import { ReactNode } from "react";
+import { ControlSizeContext } from "@/shared/ui/ds/ControlSizeContext";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import styles from "./DomainListToolbar.module.css";
 
@@ -29,7 +30,8 @@ export default function DomainListToolbar({
 
   if (isMobile) {
     return (
-      <div className="domain-list-toolbar flex flex-col gap-2">
+      <ControlSizeContext.Provider value="lg">
+      <div className="domain-list-toolbar flex flex-col gap-2" data-control-size="lg">
         <div className="flex flex-col gap-2">
           <span className={styles.totalMobile}>
             {totalLabel}
@@ -53,11 +55,13 @@ export default function DomainListToolbar({
           </div>
         )}
       </div>
+      </ControlSizeContext.Provider>
     );
   }
 
   return (
-    <div className="domain-list-toolbar flex flex-col gap-3">
+    <ControlSizeContext.Provider value="lg">
+    <div className="domain-list-toolbar flex flex-col gap-3" data-control-size="lg">
       <div className={styles.desktopMainRow}>
         <span className={styles.totalDesktop}>
           {totalLabel}
@@ -68,5 +72,6 @@ export default function DomainListToolbar({
       {filterSlot && <div className={styles.desktopFilters}>{filterSlot}</div>}
       {belowSlot && <div className={styles.desktopBelow}>{belowSlot}</div>}
     </div>
+    </ControlSizeContext.Provider>
   );
 }
