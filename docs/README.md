@@ -73,6 +73,7 @@
 | [TEACHER-SESSION-ASSESSMENTS.md](TEACHER-SESSION-ASSESSMENTS.md) | 차시 시험·과제 종합 조회, 반응형 비교표, 시험 선택 복원과 입력 연결 계약 |
 | [TEACHER-OPS-ASSISTANT.md](TEACHER-OPS-ASSISTANT.md) | 사진 기반 학생 식별·수강·ONLINE 영상 권한·초기 알림톡 검토/확정 계약 |
 | [MESSAGING-OPERATIONS.md](MESSAGING-OPERATIONS.md) | 알림톡 문구·블록 편집·학생별 미리보기·과제 완료 판정, 발송 기록과 390px UX 계약 |
+| [SURVEYS.md](SURVEYS.md) | 설문·성적 취합·학생별 응답, 첨부 ZIP·CSV와 복구·390px 계약 |
 
 ## 관련 위치
 

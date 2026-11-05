@@ -8,6 +8,7 @@ export const productionReadOnlySpecs = [
 export const routeMockSpecs = [
   "e2e/admin/session-schedules.mock.spec.ts",
   "e2e/student/session-schedules.mock.spec.ts",
+  "e2e/flows/survey-collection.mock.spec.ts",
   "e2e/student/attendance-qr.mock.spec.ts",
   "e2e/student/design-system-isolation.mock.spec.ts",
   "e2e/student/video-event-receipts.mock.spec.ts",
@@ -184,6 +185,7 @@ export const e2eGateSpecs = [
 ];
 
 export const controlledWriteSpecs = [
+  "e2e/flows/survey-collection.realuse.spec.ts",
   "e2e/teacher/teacher-score-parent-realuse.spec.ts",
   "e2e/admin/public-video-realuse.spec.ts",
   "e2e/admin/public-resource-realuse.spec.ts",
@@ -211,6 +213,7 @@ export const controlledWriteSpecs = [
 // Relative to the development config's e2e testDir. This is the shared
 // inventory for collection, executed-result acceptance and safe progress.
 export const developmentRealUseCases = Object.freeze({
+  "flows/survey-collection.realuse.spec.ts": 1,
   "teacher/teacher-score-parent-realuse.spec.ts": 1,
   "admin/problem-conversion-realuse.spec.ts": 1,
   "admin/public-video-realuse.spec.ts": 1,

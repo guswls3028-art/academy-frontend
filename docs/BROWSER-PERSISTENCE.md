@@ -39,6 +39,9 @@ version이 없는 raw 초안 값이다. 새 사례를 만나면 이 목록에 �
 tenant, 로그인 사용자, 선택 enrollment 범위를 함께 넣는다.
 
 긴 글 초안의 공통 수명주기는 `src/shared/hooks/useDurableDraft.ts`가 소유한다.
+설문 응답도 이 훅을 사용하되 학원·로그인 사용자·학생·설문별 키와 24시간
+수명을 적용한다. 이어쓰기/버리기와 다른 탭 충돌을 명시적으로 선택하며, 자녀
+전환 중 늦은 응답도 진입 당시의 키만 정리한다. 화면 소유자는 [SURVEYS.md](SURVEYS.md)다.
 Q&A·상담·랜딩 커뮤니티 글은 tenant+user+작성 종류가 모두 들어간 키를 사용하고,
 입력 변경 800ms 뒤 저장하되 연속 입력 중에도 5초 안에는 한 번 저장한다. `pagehide`,
 숨김 전환, SPA unmount에서는 대기 중 입력을 즉시 flush한다. 저장값은 schema

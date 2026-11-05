@@ -24,6 +24,9 @@ const DashboardPage = lazy(() => import("@admin/domains/dashboard/pages/Dashboar
 
 /* ================= Lazy: Students ================= */
 const StudentsLayout = lazy(() => import("@admin/domains/students/StudentsLayout"));
+const SurveysPage = lazy(() => import("@admin/domains/surveys/SurveysPage"));
+const SurveyEditorPage = lazy(() => import("@admin/domains/surveys/SurveysPage").then((module) => ({ default: module.SurveyEditorPage })));
+const SurveyDetailPage = lazy(() => import("@admin/domains/surveys/SurveysPage").then((module) => ({ default: module.SurveyDetailPage })));
 const StudentsHomePage = lazy(() => import("@admin/domains/students/pages/StudentsHomePage"));
 // StudentsRequestsPage: 동적 import 시 청크 fetch 실패(404) 방지를 위해 정적 import (#310 동일 대응)
 import StudentsRequestsPage from "@admin/domains/students/pages/StudentsRequestsPage";
@@ -174,6 +177,10 @@ export default function AdminRouter() {
         <Route path="students" element={renderLazyRoute(StudentsLayout)}>
           <Route index element={<Navigate to="home" replace />} />
           <Route path="home" element={renderLazyRoute(StudentsHomePage)} />
+          <Route path="surveys" element={renderLazyRoute(SurveysPage)} />
+          <Route path="surveys/new" element={renderLazyRoute(SurveyEditorPage)} />
+          <Route path="surveys/:surveyId" element={renderLazyRoute(SurveyDetailPage)} />
+          <Route path="surveys/:surveyId/edit" element={renderLazyRoute(SurveyEditorPage)} />
           <Route path="requests" element={<Suspense fallback={<RouteFallback />}><StudentsRequestsPage /></Suspense>} />
           <Route path="deleted" element={renderLazyRoute(StudentsHomePage)} />
           <Route

@@ -28,7 +28,7 @@ const STUDENT_ROLES: Role[] = ["student", "parent"];
 const PASSWORD_RECOMMENDATION_ROLES: Role[] = ["owner", "student", "parent"];
 const SubscriptionNoticeGate = lazy(() => import("@/auth/components/SubscriptionNoticeGate"));
 
-function QrLoginRedirect() {
+function StudentLinkLoginRedirect() {
   const navigate = useNavigate();
   useEffect(() => {
     saveReturnPath();
@@ -98,8 +98,10 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
     return <AuthUnavailableState retry={refreshMe} />;
   }
 
-  const loginRedirect = location.pathname === "/student/attendance/scan"
-    ? <QrLoginRedirect /> : <Navigate to="/login" replace />;
+  const preserveStudentLink = location.pathname === "/student/attendance/scan"
+    || /^\/student\/surveys(?:\/[1-9]\d*)?\/?$/.test(location.pathname);
+  const loginRedirect = preserveStudentLink
+    ? <StudentLinkLoginRedirect /> : <Navigate to="/login" replace />;
 
   if (!user) {
     return loginRedirect;
