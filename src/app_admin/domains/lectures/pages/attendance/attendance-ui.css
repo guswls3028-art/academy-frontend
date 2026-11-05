@@ -112,3 +112,8 @@
 .attendance-memo-container [data-student-memos] {
   max-width: calc(100cqw - 24px);
 }
+
+.attendance-popover--status-picker {
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-divider);
+}

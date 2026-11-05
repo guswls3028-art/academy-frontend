@@ -51,6 +51,7 @@ import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPrev
 import { arrivalOverviewQueryKey } from "@/shared/api/contracts/arrivalOverview";
 import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import ArrivalPlanCell, { type ArrivalPlanPayload } from "./ArrivalPlanCell";
+import AttendanceStatusPicker from "./AttendanceStatusPicker";
 import AttendanceSortButtons from "./AttendanceSortButtons";
 import { useBulkPresentUndo } from "./useBulkPresentUndo";
 import StudentLectureMemo from "@/shared/ui/enrollment/StudentLectureMemo";
@@ -108,7 +109,6 @@ export default function SessionAttendancePage({
   /** 상태 뱃지 클릭 시 테이블 외부 가로 팝오버로 표시. null이면 닫힘 */
   const [notifModal, setNotifModal] = useState<{ type: "check_in" | "absent"; open: boolean }>({ type: "check_in", open: false });
   const [openStatusRowAttId, setOpenStatusRowAttId] = useState<number | null>(null);
-  const statusRowPopoverRef = useRef<HTMLDivElement>(null);
   const statusRowTriggerRef = useRef<HTMLElement | null>(null);
 
   // SSOT floating position — 상태필터 popover. RAF로 mount 후 실측치 사용
@@ -119,15 +119,6 @@ export default function SessionAttendancePage({
     estimateHeight: 90,
     estimateWidth: 420,
   });
-  // SSOT floating position — 행별 상태변경 popover. openStatusRowAttId 값 변경 자체가 재계산 트리거
-  const statusRowPopoverAnchor = useFloatingPosition(statusRowTriggerRef, statusRowPopoverRef, openStatusRowAttId, {
-    placement: "top",
-    gap: 4,
-    margin: 8,
-    estimateHeight: 90,
-    estimateWidth: 420,
-  });
-
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 250);
     return () => clearTimeout(t);
@@ -152,26 +143,6 @@ export default function SessionAttendancePage({
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [statusPopoverOpen]);
-
-  /** 출결 상태 행 팝오버: 바깥 클릭 시 닫기 */
-  useEffect(() => {
-    if (openStatusRowAttId == null) return;
-    const close = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (statusRowTriggerRef.current?.contains(target) || statusRowPopoverRef.current?.contains(target)) return;
-      setOpenStatusRowAttId(null);
-      statusRowTriggerRef.current = null;
-    };
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
-  }, [openStatusRowAttId]);
-
-  const statusRowPickerVisible = openStatusRowAttId != null && statusRowPopoverAnchor != null;
-  useEffect(() => {
-    if (statusRowPickerVisible) {
-      statusRowPopoverRef.current?.querySelector<HTMLButtonElement>('[data-active="true"]')?.focus();
-    }
-  }, [openStatusRowAttId, statusRowPickerVisible]);
 
   const { data: attendanceResult, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: adminLectureQueryKeys.attendance(sessionId, page, search, statusFilter, sort),
@@ -261,6 +232,7 @@ export default function SessionAttendancePage({
   // 강의 전체 차시 출결 매트릭스 — 차시 내부 출결탭에서는 불필요 (강의 수강생 페이지에서만 표시)
 
   const sorted = pageData;
+  const activeStatusRow = sorted.find(att => att.id === openStatusRowAttId);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
@@ -695,61 +667,13 @@ export default function SessionAttendancePage({
 
   return (
     <div className="flex flex-col gap-4 relative">
-      {/* 출결 상태 선택 팝오버: 테이블 외부, 가로 나열, 상태필터와 동일 스타일 */}
-      {openStatusRowAttId != null && statusRowPopoverAnchor != null && (() => {
-        const att = sorted.find((a) => a.id === openStatusRowAttId);
-        if (!att) return null;
-        return createPortal(
-          <div
-            ref={statusRowPopoverRef}
-            role="group"
-            aria-label={`${att.name ?? "학생"} 출결 상태 선택`}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.preventDefault();
-                event.stopPropagation();
-                closeStatusPicker(true);
-              }
-            }}
-            onBlur={(event) => {
-              if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)
-                && event.relatedTarget !== statusRowTriggerRef.current) closeStatusPicker();
-            }}
-            className="attendance-popover attendance-popover--status-picker fixed flex items-center gap-2 rounded-lg border p-2 shadow-lg z-[9999]"
-            style={{
-              left: statusRowPopoverAnchor.left,
-              top: statusRowPopoverAnchor.top,
-              background: "var(--color-bg-surface)",
-              borderColor: "var(--color-border-divider)",
-              maxWidth: "calc(100vw - 16px)",
-              overflowX: "auto",
-              flexWrap: "nowrap",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {STATUS_LIST.map((code) => {
-              const active = toAttendanceStatus(att.status) === code;
-              return (
-                <SelectionButton
-                  key={code}
-                  type="button"
-                  className="attendance-popover-item"
-                  label={ATTENDANCE_META[code].label}
-                  selected={active}
-                  tone={active || code === "INACTIVE" || code === "SECESSION" ? ATTENDANCE_META[code].tone : "neutral"}
-                  size="sm"
-                  data-active={active ? "true" : "false"}
-                  data-critical={code === "INACTIVE" || code === "SECESSION" ? "true" : undefined}
-                  data-status-code={code.toLowerCase()}
-                  disabled={pendingStatusIds.has(att.id)}
-                  onClick={() => void handleStatusChange(att, code)}
-                />
-              );
-            })}
-          </div>,
-          document.body
-        );
-      })()}
+      {activeStatusRow && (
+        <AttendanceStatusPicker key={activeStatusRow.id}
+          studentName={activeStatusRow.name ?? "학생"}
+          value={toAttendanceStatus(activeStatusRow.status)}
+          pending={pendingStatusIds.has(activeStatusRow.id)} triggerRef={statusRowTriggerRef}
+          onChange={code => void handleStatusChange(activeStatusRow, code)} onClose={closeStatusPicker} />
+      )}
       <DomainListToolbar
         totalLabel={isLoading ? "…" : `총 ${totalCount}명`}
         searchSlot={
