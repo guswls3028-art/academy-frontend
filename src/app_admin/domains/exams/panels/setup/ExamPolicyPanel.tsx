@@ -580,7 +580,7 @@ export default function ExamPolicyPanel({
                 <div className={formStyles.switchRow}>
                   <span className={formStyles.switchCopy}>
                     <strong>{form.studentCohortSizePublished ? "응시 인원을 표시합니다" : "응시 인원을 표시하지 않습니다"}</strong>
-                    <small>미응시 학생은 제외한 등수 산정 인원입니다. 강의 전체 수강생 수와 다를 수 있습니다.</small>
+                    <small>미응시 학생을 제외한 인원입니다. 숨기면 인원을 추정할 수 있는 상위 비율도 숨깁니다.</small>
                   </span>
                   <input
                     type="checkbox"

@@ -7157,6 +7157,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media/videos/{video_id}/review-watch/report/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["media_videos_review_watch_report_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/videos/bulk-policy/": {
         parameters: {
             query?: never;
@@ -7283,8 +7299,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Video 관리 + 통계 + 학생 목록 */
-        get: operations["media_videos_student_retrieve"];
+        /** @description GET /student/video/sessions/{session_id}/videos/ */
+        get: operations["media_videos_student_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -10388,6 +10404,22 @@ export interface paths {
          *     비디오 진행률 업데이트 (수강 완료, 다시보기 등)
          */
         post: operations["student_video_videos_progress_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/student/video/videos/{video_id}/review-watch/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["student_video_videos_review_watch_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -13769,6 +13801,10 @@ export interface components {
             session_ids?: number[];
             source_filename?: string;
             readonly structure_owner_id: number;
+            /** @description 등수 산정에 포함된 응시 인원을 학생·학부모 성적 화면에 표시한다. */
+            student_cohort_size_published?: boolean;
+            /** @description 학생·학부모 성적 화면에 등수를 표시한다. */
+            student_rank_published?: boolean;
             /** @description 학생·학부모 성적 공개 여부. 비공개여도 교직원 채점·통계 기록은 유지한다. */
             student_results_published?: boolean;
             readonly subject: string;
@@ -14031,6 +14067,10 @@ export interface components {
             open_at?: string | null;
             /** Format: double */
             pass_score?: number;
+            /** @description 등수 산정에 포함된 응시 인원을 학생·학부모 성적 화면에 표시한다. */
+            student_cohort_size_published?: boolean;
+            /** @description 학생·학부모 성적 화면에 등수를 표시한다. */
+            student_rank_published?: boolean;
             /** @description 학생·학부모 성적 공개 여부. 비공개여도 교직원 채점·통계 기록은 유지한다. */
             student_results_published?: boolean;
             subject?: string;
@@ -14102,6 +14142,10 @@ export interface components {
             open_at?: string | null;
             /** Format: double */
             pass_score?: number;
+            /** @description 등수 산정에 포함된 응시 인원을 학생·학부모 성적 화면에 표시한다. */
+            student_cohort_size_published?: boolean;
+            /** @description 학생·학부모 성적 화면에 등수를 표시한다. */
+            student_rank_published?: boolean;
             /** @description 학생·학부모 성적 공개 여부. 비공개여도 교직원 채점·통계 기록은 유지한다. */
             student_results_published?: boolean;
             subject?: string;
@@ -14957,6 +15001,22 @@ export interface components {
             /** @default REGULAR */
             session_type: components["schemas"]["SessionTypeEnum"];
             title?: string;
+        };
+        LegacyStudentVideoListItem: {
+            allow_skip: boolean;
+            can_play: boolean;
+            duration: number | null;
+            hls_url: string | null;
+            id: number;
+            /** Format: double */
+            max_speed: number;
+            order: number;
+            reason: string | null;
+            session_id: number | null;
+            show_watermark: boolean;
+            status: string;
+            thumbnail_url: string | null;
+            title: string;
         };
         /**
          * @description * `COURSE` - 강의
@@ -16462,6 +16522,10 @@ export interface components {
             open_at?: string | null;
             /** Format: double */
             pass_score?: number;
+            /** @description 등수 산정에 포함된 응시 인원을 학생·학부모 성적 화면에 표시한다. */
+            student_cohort_size_published?: boolean;
+            /** @description 학생·학부모 성적 화면에 등수를 표시한다. */
+            student_rank_published?: boolean;
             /** @description 학생·학부모 성적 공개 여부. 비공개여도 교직원 채점·통계 기록은 유지한다. */
             student_results_published?: boolean;
             subject?: string;
@@ -16848,6 +16912,7 @@ export interface components {
             max_speed?: number;
             /** Format: int64 */
             order?: number;
+            review_watch_limit_enabled?: boolean;
             session?: number;
             show_watermark?: boolean;
             status?: components["schemas"]["SealedVideoStatusEnum"];
@@ -18158,6 +18223,45 @@ export interface components {
          * @enum {string}
          */
         ResultStatusEnum: "NOT_SUBMITTED" | "PROCESSING" | "PARTIAL" | "DONE" | "FAILED";
+        ReviewReport: {
+            duration: number | null;
+            enabled: boolean;
+            source_type: string;
+            students: components["schemas"]["ReviewStudent"][];
+            threshold_ms: number;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ReviewSignalRequest: {
+            enrollment?: number;
+            /** @default false */
+            playing: boolean;
+            /**
+             * Format: int64
+             * @default 0
+             */
+            position_ms: number;
+            /** @default false */
+            prepare: boolean;
+            /** Format: int64 */
+            sequence: number;
+            /** Format: uuid */
+            stream: string;
+        };
+        ReviewState: {
+            remaining_ms: number | null;
+            retry_after_ms?: number;
+            /** Format: uuid */
+            stream: string;
+            used_ms: number;
+        };
+        ReviewStudent: {
+            /** Format: date-time */
+            started_at: string;
+            student_id: number;
+            student_name: string;
+            used_ms: number;
+        };
         RiskLog: {
             /** Format: date-time */
             readonly created_at: string;
@@ -18252,6 +18356,7 @@ export interface components {
             max_speed?: number;
             /** Format: int64 */
             order?: number;
+            review_watch_limit_enabled?: boolean;
             readonly session_id: number;
             show_watermark?: boolean;
             /**
@@ -18438,6 +18543,7 @@ export interface components {
             max_speed?: number;
             /** Format: int64 */
             order?: number;
+            review_watch_limit_enabled?: boolean;
             session: number;
             show_watermark?: boolean;
             status?: components["schemas"]["SealedVideoStatusEnum"];
@@ -19897,12 +20003,17 @@ export interface components {
                 [key: string]: unknown;
             };
             policy_version: number;
+            review_watch?: {
+                [key: string]: unknown;
+            } | null;
             video: components["schemas"]["StudentVideoListItem"];
         };
         StudentVideoPlaybackOrAccessCheck: components["schemas"]["StudentVideoPlayback"] | components["schemas"]["StudentVideoAccessCheck"];
         StudentVideoPlaybackRequestRequest: {
             /** @default 1 */
             event_protocol_version: components["schemas"]["EventProtocolVersionEnum"];
+            /** @default false */
+            review_watch: boolean;
         };
         Submission: {
             /** Format: date-time */
@@ -32074,6 +32185,27 @@ export interface operations {
             };
         };
     };
+    media_videos_review_watch_report_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                video_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewReport"];
+                };
+            };
+        };
+    };
     media_videos_bulk_policy_create: {
         parameters: {
             query?: never;
@@ -32281,9 +32413,11 @@ export interface operations {
             };
         };
     };
-    media_videos_student_retrieve: {
+    media_videos_student_list: {
         parameters: {
-            query?: never;
+            query: {
+                session: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -32295,7 +32429,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SealedVideo"];
+                    "application/json": components["schemas"]["LegacyStudentVideoListItem"][];
                 };
             };
         };
@@ -37023,6 +37157,33 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    student_video_videos_review_watch_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                video_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewSignalRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ReviewSignalRequest"];
+                "multipart/form-data": components["schemas"]["ReviewSignalRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewState"];
+                };
             };
         };
     };
