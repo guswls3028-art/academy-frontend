@@ -1,6 +1,7 @@
 import { gzipSync } from "node:zlib";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import { Linter } from "eslint";
 
 const ASSETS_DIR = path.resolve("dist", "assets");
 const ENTRY_HTML_PATH = path.resolve("dist", "index.html");
@@ -65,20 +66,51 @@ const initialJsScripts = [...entryHtml.matchAll(/<script\b[^>]*>/g)]
 const initialJsAssetPaths = new Map(
   [...initialJsPreloads, ...initialJsScripts].map(({ href, filePath }) => [filePath, href]),
 );
-const staticallyImportsPdfJs = (source) => (
-  /(?:from|import)\s*["'][^"']*vendor-pdfjs-/.test(source)
-  || /System\.register\(\s*\[[^\]]*vendor-pdfjs-/s.test(source)
-);
-for (const [filePath, href] of initialJsAssetPaths) {
-  const source = await readFile(filePath, "utf8");
-  if (staticallyImportsPdfJs(source)) {
-    throw new Error(`An initial JavaScript asset statically imports PDF.js: ${href}`);
-  }
-}
 for (const name of files.filter((asset) => asset.startsWith("vendor-query"))) {
-  const source = await readFile(path.join(ASSETS_DIR, name), "utf8");
-  if (staticallyImportsPdfJs(source)) {
-    throw new Error(`A shared React Query chunk statically imports PDF.js: ${name}`);
+  initialJsAssetPaths.set(path.join(ASSETS_DIR, name), `/assets/${name}`);
+}
+const linter = new Linter();
+const staticDependencies = (source, href) => {
+  const dependencies = [];
+  const declaration = (node) => {
+    if (typeof node.source?.value === "string") dependencies.push(node.source.value);
+  };
+  const errors = linter.verify(source, {
+    languageOptions: { ecmaVersion: "latest", sourceType: "module" },
+    plugins: { bundle: { rules: { dependencies: { create: () => ({
+      ImportDeclaration: declaration,
+      ExportNamedDeclaration: declaration,
+      ExportAllDeclaration: declaration,
+      CallExpression(node) {
+        if (node.callee.type !== "MemberExpression" || node.callee.computed
+          || node.callee.object.name !== "System" || node.callee.property.name !== "register") return;
+        const list = node.arguments[typeof node.arguments[0]?.value === "string" ? 1 : 0];
+        if (list?.type !== "ArrayExpression") return;
+        for (const item of list.elements) {
+          if (typeof item?.value === "string") dependencies.push(item.value);
+        }
+      },
+    }) } } } },
+    rules: { "bundle/dependencies": "error" },
+  }, { allowInlineConfig: false });
+  if (errors.length) throw new Error(`Cannot inspect static dependencies of ${href}: ${errors[0].message}`);
+  return dependencies;
+};
+const queue = [...initialJsAssetPaths].map(([filePath, href]) => ({ filePath, href, chain: [href] }));
+const visited = new Set();
+for (const { filePath, href, chain } of queue) {
+  if (visited.has(filePath)) continue;
+  visited.add(filePath);
+  if (path.basename(filePath).startsWith("vendor-pdfjs-")) {
+    throw new Error(`Initial/shared JavaScript must not depend on PDF.js: ${chain.join(" -> ")}`);
+  }
+  const source = await readFile(filePath, "utf8");
+  for (const dependency of staticDependencies(source, href)) {
+    if (!dependency.startsWith(".") && !dependency.startsWith("/")) continue;
+    const url = new URL(dependency, new URL(href, "https://academy.invalid"));
+    if (url.origin !== "https://academy.invalid" || !url.pathname.endsWith(".js")) continue;
+    queue.push({ filePath: path.resolve("dist", url.pathname.replace(/^\/+/, "")),
+      href: url.pathname, chain: [...chain, url.pathname] });
   }
 }
 
