@@ -292,6 +292,7 @@ for (const width of [1366, 390]) {
       ] },
     }));
     await page.route(`**/api/v1/media/videos/${video.id}/`, route => {
+      if (route.request().method() === "GET") return route.fulfill({ json: { ...video, duration: length, session_id: SESSION_ID } });
       if (route.request().method() !== "PATCH") return route.fallback();
       const body = route.request().postDataJSON();
       expect(route.request().headers()["x-expected-updated-at"]).toBe(updatedAt);
@@ -312,14 +313,17 @@ for (const width of [1366, 390]) {
     await page.reload();
     await settings.click();
     await expect(page.getByRole("button", { name: "시간 제한 켜짐" })).toBeVisible();
-    await page.getByText("학생별 누적 재생시간 · 기준 도달 1명").click();
-    await page.getByLabel("원본의 1.4배 이상만 보기").check();
+    await page.getByRole("link", { name: "학생별 누적 시간은 시청 로그에서 확인 →" }).click();
+    await expect(page.getByRole("heading", { name: "시청 로그", exact: true })).toBeVisible();
+    await page.getByLabel("원본의 1.4배 이상만").check();
     await expect(page.getByText("복습 기준 도달 학생", {exact: true})).toBeVisible();
     await expect(page.getByText("복습 진행 학생", {exact: true})).toHaveCount(0);
     await page.getByLabel("학생 이름 검색").fill("없는 이름");
-    await expect(page.getByText("조건에 맞는 학생이 없습니다.")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "조건에 맞는 학생이 없습니다" })).toBeVisible();
     await page.getByLabel("학생 이름 검색").fill("");
     await expect(page.getByText("복습 기준 도달 학생", {exact: true})).toBeVisible();
+    await page.getByRole("link", { name: "영상 상세", exact: true }).click();
+    await settings.click();
     await page.getByRole("button", {name: "YouTube 원본 길이 수정"}).click();
     await page.getByLabel("원본 길이 (분 또는 분:초)").fill("61");
     await expect(page.getByText(/변경 후 복습 기준 85분 24초/)).toBeVisible();
