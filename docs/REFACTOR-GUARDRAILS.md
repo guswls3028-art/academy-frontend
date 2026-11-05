@@ -43,8 +43,9 @@ path.
 
 The initial HTML JavaScript preload budget is 220 KiB gzip. Initial scripts and
 preloaded chunks must not statically import PDF.js; it loads with its lazy document
-or PPT route. The React Query vendor group does not recursively capture unrelated
-dependencies. The bundle budget check enforces the preload cap
+or PPT route. Vendor groups contain matching modules without recursively capturing
+shared transform helpers; otherwise a common query can pull in an entire lazy vendor.
+The bundle budget check enforces the preload cap
 and the PDF.js boundary so unrelated first-screen loads do not pay for PDF rendering
 code.
 
