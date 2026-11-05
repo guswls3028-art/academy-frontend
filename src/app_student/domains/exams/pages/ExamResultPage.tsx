@@ -182,10 +182,11 @@ export default function ExamResultPage() {
         )}
 
         {/* ── Rank & Comparison ── */}
-        {r.rank != null && r.cohort_size != null && r.cohort_size > 1 && r.meta_status !== "NOT_SUBMITTED" && (
+        {r.meta_status !== "NOT_SUBMITTED" && (r.rank != null || (r.cohort_size != null && r.cohort_size > 0)) && (
           <RankComparisonCard
-            rank={r.rank}
-            cohortSize={r.cohort_size}
+            rank={r.rank ?? null}
+            cohortSize={r.cohort_size ?? null}
+            percentile={r.percentile ?? null}
             cohortAvg={r.cohort_avg ?? null}
             myScore={r.total_score}
             maxScore={r.max_score}
@@ -437,20 +438,20 @@ function ScoreGauge({ pct, passed }: { pct: number; passed: boolean | null }) {
 function RankComparisonCard({
   rank,
   cohortSize,
+  percentile,
   cohortAvg,
   myScore,
   maxScore,
 }: {
-  rank: number;
-  cohortSize: number;
+  rank: number | null;
+  cohortSize: number | null;
+  percentile: number | null;
   cohortAvg: number | null;
   myScore: number;
   maxScore: number;
 }) {
-  const topPct = cohortSize > 1
-    ? Math.round(rank / cohortSize * 100)
-    : 100;
-  const diff = cohortAvg != null ? Math.round((myScore - cohortAvg) * 10) / 10 : null;
+  const topPct = percentile == null ? null : Math.round(percentile);
+  const diff = rank != null && cohortAvg != null ? Math.round((myScore - cohortAvg) * 10) / 10 : null;
   const avgBarPct = cohortAvg != null && maxScore > 0
     ? clampPercent(Math.round((cohortAvg / maxScore) * 100))
     : 0;
@@ -459,18 +460,14 @@ function RankComparisonCard({
   return (
     <div className={styles.cardPanel}>
       <div className={styles.sectionTitle}>
-        내 등수
+        {rank != null ? "내 등수" : "응시 인원"}
       </div>
 
       {/* Rank badge */}
       <div className={styles.rankRow}>
-        <span className={styles.rankValue}>
-          {rank}등
-        </span>
-        <span className={`stu-muted ${styles.rankTotal}`}>
-          / {cohortSize}명
-        </span>
-        {topPct > 0 && (
+        {rank != null && <span className={styles.rankValue}>{rank}등</span>}
+        {cohortSize != null && <span className={`stu-muted ${styles.rankTotal}`}>{cohortSize}명 응시</span>}
+        {topPct != null && topPct > 0 && (
           <span
             className={styles.rankBadge}
             data-elite={topPct <= 30}
@@ -481,7 +478,7 @@ function RankComparisonCard({
       </div>
 
       {/* Average comparison bar */}
-      {cohortAvg != null && (
+      {rank != null && cohortAvg != null && (
         <div>
           <div className={styles.comparisonHeader}>
             <span className="stu-muted">전체 평균 {cohortAvg}점</span>

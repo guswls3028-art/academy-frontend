@@ -12,6 +12,7 @@ type InlineHelpProps = {
   className?: string;
   triggerClassName?: string;
   iconSize?: number;
+  openOnHover?: boolean;
   style?: CSSProperties;
 };
 
@@ -24,6 +25,7 @@ export function InlineHelp({
   className = "",
   triggerClassName = "",
   iconSize = 16,
+  openOnHover = false,
   style,
 }: InlineHelpProps) {
   const [open, setOpen] = useState(false);
@@ -55,15 +57,33 @@ export function InlineHelp({
       data-tone={tone}
       data-align={align}
       style={style}
+      onPointerEnter={(event) => {
+        if (openOnHover && event.pointerType === "mouse") setOpen(true);
+      }}
+      onPointerLeave={(event) => {
+        if (
+          openOnHover
+          && event.pointerType === "mouse"
+          && !rootRef.current?.contains(document.activeElement)
+        ) setOpen(false);
+      }}
+      onFocusCapture={() => {
+        if (openOnHover) setOpen(true);
+      }}
+      onBlurCapture={(event) => {
+        if (openOnHover && !rootRef.current?.contains(event.relatedTarget as Node | null)) {
+          setOpen(false);
+        }
+      }}
     >
       <button
         type="button"
         className={`inline-help__trigger ${triggerClassName}`.trim()}
-        aria-label={open ? "도움말 닫기" : ariaLabel}
+        aria-label={ariaLabel}
         aria-expanded={open}
         aria-haspopup="dialog"
         title={ariaLabel}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => setOpen((value) => openOnHover || !value)}
       >
         <CircleHelp size={iconSize} strokeWidth={2.2} aria-hidden />
       </button>

@@ -37,6 +37,8 @@ type ExamPolicyForm = {
   closeAt: string;
   answerVisibility: AnswerVisibility;
   studentResultsPublished: boolean;
+  studentRankPublished: boolean;
+  studentCohortSizePublished: boolean;
 };
 
 type GradingChoice = "choice" | "written_correctness" | "written_score" | "mixed";
@@ -96,6 +98,8 @@ function formFromExam(exam: Exam): ExamPolicyForm {
     closeAt: toLocalDateTime(exam.close_at),
     answerVisibility: exam.answer_visibility,
     studentResultsPublished: exam.student_results_published,
+    studentRankPublished: exam.student_rank_published,
+    studentCohortSizePublished: exam.student_cohort_size_published,
   };
 }
 
@@ -247,6 +251,8 @@ export default function ExamPolicyPanel({
         close_at: toIsoDateTime(nextForm.closeAt),
         answer_visibility: nextForm.answerVisibility,
         student_results_published: nextForm.studentResultsPublished,
+        student_rank_published: nextForm.studentRankPublished,
+        student_cohort_size_published: nextForm.studentCohortSizePublished,
       }, baseUpdatedAtRef.current);
     },
     onSuccess: (updated) => {
@@ -387,6 +393,7 @@ export default function ExamPolicyPanel({
               <span>{form.maxScore}점 만점 · 합격 {form.passScore}점</span>
               <span>{form.essayNumbering === "separate" ? "서술형 별도 번호" : "문항 연속 번호"}</span>
               <span>{form.studentResultsPublished ? "학생 성적 공개" : "학생 성적 비공개"}</span>
+              <span>{form.studentRankPublished ? "등수 공개" : "등수 비공개"} · {form.studentCohortSizePublished ? "응시 인원 공개" : "응시 인원 비공개"}</span>
               {dirty && <em>저장되지 않은 변경</em>}
               {recoverableDraftSavedAt && <em>이어서 편집할 초안 있음</em>}
               {(conflictDetected || remoteChanged) && <em>최신 설정 확인 필요</em>}
@@ -550,6 +557,36 @@ export default function ExamPolicyPanel({
                       studentResultsPublished: event.target.checked,
                     })}
                     aria-label="학생 성적 공개"
+                  />
+                </div>
+              </div>
+              <div className={formStyles.field} data-testid="student-rank-visibility-control">
+                <span className={formStyles.label}>등수 공개</span>
+                <div className={formStyles.switchRow}>
+                  <span className={formStyles.switchCopy}>
+                    <strong>{form.studentRankPublished ? "등수를 표시합니다" : "등수를 표시하지 않습니다"}</strong>
+                    <small>끄면 등수와 상위 비율을 학생·학부모 화면과 통계에서 숨깁니다.</small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={form.studentRankPublished}
+                    onChange={(event) => setForm({ ...form, studentRankPublished: event.target.checked })}
+                    aria-label="학생 등수 공개"
+                  />
+                </div>
+              </div>
+              <div className={formStyles.field} data-testid="student-cohort-size-visibility-control">
+                <span className={formStyles.label}>응시 인원 공개</span>
+                <div className={formStyles.switchRow}>
+                  <span className={formStyles.switchCopy}>
+                    <strong>{form.studentCohortSizePublished ? "응시 인원을 표시합니다" : "응시 인원을 표시하지 않습니다"}</strong>
+                    <small>미응시 학생은 제외한 등수 산정 인원입니다. 강의 전체 수강생 수와 다를 수 있습니다.</small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={form.studentCohortSizePublished}
+                    onChange={(event) => setForm({ ...form, studentCohortSizePublished: event.target.checked })}
+                    aria-label="학생 응시 인원 공개"
                   />
                 </div>
               </div>

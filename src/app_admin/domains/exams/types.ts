@@ -55,6 +55,8 @@ export type Exam = {
 
   answer_visibility: AnswerVisibility;
   student_results_published: boolean;
+  student_rank_published: boolean;
+  student_cohort_size_published: boolean;
 
   created_at: string;
   updated_at: string;

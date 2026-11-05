@@ -279,6 +279,8 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
       can_edit_structure: true,
       answer_visibility: "hidden",
       student_results_published: true,
+      student_rank_published: true,
+      student_cohort_size_published: true,
       created_at: "2026-08-02T00:00:00Z",
       updated_at: "2026-08-02T00:00:00Z",
     },
@@ -304,6 +306,8 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await readiness.locator("summary").click();
   await expect(page.getByText("시험 운영 설정", { exact: true })).toBeVisible();
   await expect(page.getByLabel("학생 성적 공개")).toBeChecked();
+  await expect(page.getByLabel("학생 등수 공개")).toBeChecked();
+  await expect(page.getByLabel("학생 응시 인원 공개")).toBeChecked();
   await page.getByTestId("student-results-visibility-control").screenshot({
     path: testInfo.outputPath("student-results-visibility-1366.png"),
   });
@@ -352,6 +356,8 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await page.getByRole("textbox", { name: /^마감 비워/ }).fill("2026-08-03T22:00");
   await page.getByLabel("정답 공개").selectOption("after_closed");
   await page.getByLabel("학생 성적 공개").uncheck();
+  await page.getByLabel("학생 등수 공개").uncheck();
+  await expect(page.getByLabel("학생 응시 인원 공개")).toBeChecked();
   await page.getByLabel("재응시 허용").check();
   await page.getByLabel("최대 응시 횟수").fill("3");
   await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
@@ -364,6 +370,8 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
     max_attempts: 3,
     answer_visibility: "after_closed",
     student_results_published: false,
+    student_rank_published: false,
+    student_cohort_size_published: true,
   });
   expect(state.examPatchPayloads[0].open_at).toEqual(expect.any(String));
   expect(state.examPatchPayloads[0].close_at).toEqual(expect.any(String));
@@ -375,7 +383,21 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   ).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByLabel("재응시 허용")).toBeChecked();
   await expect(page.getByLabel("학생 성적 공개")).not.toBeChecked();
+  await expect(page.getByLabel("학생 등수 공개")).not.toBeChecked();
+  await expect(page.getByLabel("학생 응시 인원 공개")).toBeChecked();
   await expect(page.getByLabel("최대 응시 횟수")).toHaveValue("3");
+
+  await page.getByLabel("학생 응시 인원 공개").uncheck();
+  await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+  await expect.poll(() => state.examPatchPayloads.length).toBe(2);
+  expect(state.examPatchPayloads[1]).toMatchObject({
+    student_rank_published: false,
+    student_cohort_size_published: false,
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.locator("#assessment-policy > details > summary").click();
+  await expect(page.getByLabel("학생 등수 공개")).not.toBeChecked();
+  await expect(page.getByLabel("학생 응시 인원 공개")).not.toBeChecked();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByText("시험 운영 준비 완료", { exact: true })).toBeVisible();

@@ -312,6 +312,9 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
         await expect(total).toContainText("과제 총점");
         await expect(total).toContainText("92 / 100");
         const completionCard = parentPage.locator('.stu-panel[data-session-type]').filter({ has: parentPage.getByText(completionTitle, { exact: true }) });
+        const totalBounds = await total.boundingBox();
+        const completionBounds = await completionCard.boundingBox();
+        expect(totalBounds && completionBounds && totalBounds.y < completionBounds.y).toBe(true);
         await expect(completionCard).toContainText("통과형 과제");
         await expect(completionCard.locator("strong")).toHaveText(width === 1366 ? "통과" : "미통과");
         await expect(parentPage.getByText("2건 · 평균 득점률 92%", { exact: true })).toBeVisible();

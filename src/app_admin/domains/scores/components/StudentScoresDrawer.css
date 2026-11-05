@@ -575,10 +575,22 @@ a.student-scores-drawer__student-link:focus-visible {
   gap: 8px;
 }
 
-.ssd-correction-control__title-row strong {
+.ssd-correction-control__title-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.ssd-correction-control__title-help strong {
   color: var(--color-text-primary);
   font-size: 12px;
   font-weight: 800;
+}
+
+.ssd-correction-control__help-trigger {
+  width: 28px;
+  height: 28px;
 }
 
 .ssd-correction-control__copy > span {
