@@ -8,6 +8,28 @@ const original = {
 };
 
 async function openSharedTemplate(page: Page, loseFirstAcknowledgement = false, initiallyDefault = true, changeBeforeModalRead = false) {
+  // Lowest-priority route: the official bundle has an absolute API origin.
+  // Explicit shell reads stay synthetic; an unhandled API must never reach it.
+  await page.route("**/api/v1/**", async route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (request.method() === "GET") {
+      if (path.endsWith("/staffs/me/")) return route.fulfill({ json: {
+        is_authenticated: true, is_superuser: true, is_staff: true, is_payroll_manager: true,
+        is_owner: true, owner_display_name: "관리자", staff_id: 12,
+      } });
+      if (path.endsWith("/core/subscription/")) return route.fulfill({ json: { tenant_name: "테스트 학원", is_subscription_active: true } });
+      if (path.endsWith("/lectures/sessions/")) return route.fulfill({ json: [
+        { id: 9002, lecture: 9001, order: 1, title: "모바일 순서 검증 차시", date: "2026-08-25" },
+      ] });
+      if (path.endsWith("/lectures/attendance/arrival-overview/")) return route.fulfill({ json: {
+        generated_at: "2026-08-25T12:00:00+09:00", today: "2026-08-25", tomorrow: "2026-08-26", range_end: "2026-09-01",
+        range_days: 7, soon_window_minutes: 30,
+        summary: { soon: 0, today: 0, tomorrow: 0, upcoming: 0, time_unset: 0, overdue: 0 }, items: [],
+      } });
+    }
+    return route.fulfill({ status: 501, json: { detail: `Unmocked API: ${request.method()} ${path}` } });
+  });
   await openCompositionScores(page);
   let saved = { ...original, is_user_default: initiallyDefault };
   const writes: Record<string, unknown>[] = [];
