@@ -917,7 +917,23 @@ async function verifyScoreMessageTemplate(
     await send.getByRole("checkbox", { name: "학부모", exact: true }).check();
     await send.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
     const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
-    await picker.getByRole("button", { name: new RegExp(templateName) }).click();
+    const savedCard = picker.locator(".tpl-picker__card").filter({ has: page.getByRole("button", { name: new RegExp(templateName) }) });
+    await savedCard.getByRole("button", { name: "더보기", exact: true }).click();
+    await savedCard.getByRole("button", { name: "이름 변경", exact: true }).click();
+    const rename = savedCard.getByRole("form", { name: "안내문 이름 변경" });
+    const renamedTemplateName = `${templateName} 이름수정`;
+    await rename.getByRole("textbox", { name: "안내문 이름", exact: true }).fill(renamedTemplateName);
+    const renameResponse = page.waitForResponse(response => response.request().method() === "PATCH"
+      && new URL(response.url()).pathname.endsWith(`/messaging/templates/${saved.id}/`));
+    await rename.getByRole("button", { name: "이름 저장", exact: true }).click();
+    expect((await renameResponse).status()).toBe(200);
+    await expect(rename).toBeHidden();
+    const renamed = await expectApi<{ name: string; body: string }>(request, "GET", `/messaging/templates/${saved.id}/`, admin.access);
+    expect(renamed.name).toBe(renamedTemplateName);
+    expect(renamed.body).toBe(persisted.body);
+    await picker.getByRole("button", { name: "닫기", exact: true }).last().click();
+    await send.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
+    await picker.getByRole("button", { name: new RegExp(renamedTemplateName) }).click();
     await expect(picker.getByLabel("선택할 안내문 내용"))
       .toContainText("학생 #{학생이름3} 점수 #{시험총점} 확인 완료");
     await expect(picker.getByLabel("카카오톡 실제 발송 미리보기")).toHaveCount(0);

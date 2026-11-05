@@ -613,3 +613,22 @@ preflight/send의 session_id로 사용한다. 실제 문구는 서버가 같은 
 재시도·재열기·미리보기/발송 payload, `score-alimtalk-payload-vars.spec.ts`의
 학생별 배정/순서/0점, `message-session-blocks.test.mjs`의 자동 목록 보존을 확인한다.
 실제 외부 수신자 발송과 공급자 성공은 모의 검증에 포함하지 않는다.
+## 저장된 성적 안내문 이름 변경
+
+직원은 발송창의 안내문 보관함에서 저장한 성적 문구의 `⋯ → 이름 변경`을 열어
+이름을 바꾼다. 빈 이름은 저장하지 않으며 최대 120자다. 같은 tenant의 문구
+PATCH API에 이름과 확인한 `expected_updated_at`만 보낸다. 본문·기본 지정·
+자동발송 연결은 유지하고 보관함, 선택 이름, 관리 목록의 캐시를 갱신한다.
+성적 카테고리의 사용자 이름만 변경하며 승인된 공급자 템플릿·채널 식별자는
+보존한다. 다른 카테고리의 기존 이름 기반 봉투 분류는 이번 변경 범위 밖이다.
+시스템 문구는 기존과 같이 복제해서 사용한다. 저장 실패는 입력을 유지하며
+같은 이름으로 재시도할 수 있다. 동시 변경이면 현재 이름을 보여주고 명시적
+재저장을 요구한다. 작성 중인 본문 초안의 오래된 버전을 이름 변경으로 덮어
+승인하지 않는다. 이름 저장은 발송을 실행하지 않는다.
+
+1366px/390px에서 이름 입력·재시도·충돌·재열기는
+`message-template-concurrency.mock.spec.ts`로 검증한다.
+`student-parent-assessment-realuse.spec.ts`의 격리 개발 QA에서 실제 저장·재조회·다음
+진입·학생별 성적 미리보기까지 확인한다. tenant/역할 경계는 backend
+template concurrency 계약을 따른다. 승인 채널 정책은
+backend `docs/ssot/messaging-policy.md`가 소유한다.

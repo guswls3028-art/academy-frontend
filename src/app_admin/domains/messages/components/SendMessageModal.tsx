@@ -983,6 +983,36 @@ export default function SendMessageModal({
     }
   };
 
+  const handleRenameTemplate = async (id: number, name: string) => {
+    const target = templates.find(template => template.id === id);
+    if (!target || isSystemTpl(target) || target.category !== "grades") throw new Error("이 성적 안내문의 이름을 변경할 수 없습니다.");
+    if (!beginTemplateMutation()) throw new Error("저장 중입니다. 잠시 후 다시 시도해 주세요.");
+    try {
+      const updated = await updateMessageTemplate(id, { name, expected_updated_at: target.updated_at });
+      setTemplates(previous => previous.map(template => template.id === id ? updated : template));
+      // A name-only edit must never acknowledge an unseen body revision.
+      if (selectedTemplateId === id && updated.body === target.body && updated.subject === target.subject) {
+        if (templateVersion === target.updated_at) setTemplateVersion(updated.updated_at);
+        setTemplateConflict(previous => previous?.id === id && previous.updated_at === target.updated_at ? updated : previous);
+      }
+      void queryClient.invalidateQueries({ queryKey: messageQueryKeys.templates });
+      void queryClient.invalidateQueries({ queryKey: messageQueryKeys.autoSend });
+      feedback.success(`"${updated.name}" 이름으로 변경했습니다.`);
+    } catch (error) {
+      const data = isAxiosError(error) && error.response?.status === 409 ? error.response.data : null;
+      if (data?.code === "template_conflict" && data.current_template?.id === id
+        && typeof data.current_template.body === "string" && typeof data.current_template.updated_at === "string") {
+        const current = data.current_template as MessageTemplateItem;
+        setTemplates(previous => previous.map(template => template.id === id ? current : template));
+        if (selectedTemplateId === id) setTemplateConflict(current);
+        throw new Error(`다른 직원이 문구를 변경했습니다. 현재 이름은 "${current.name}"입니다. 입력한 이름으로 바꾸려면 다시 저장해 주세요.`);
+      }
+      throw new Error(extractApiError(error, "이름 변경을 확인하지 못했습니다. 입력한 이름을 유지했으니 다시 저장해 주세요."));
+    } finally {
+      finishTemplateMutation();
+    }
+  };
+
   const handleDuplicate = async (id: number) => {
     if (!beginTemplateMutation()) return;
     try {
@@ -1912,6 +1942,7 @@ export default function SendMessageModal({
       onPickPreset={selectPreset}
       onPickFreeForm={selectFreeForm}
       onSetDefault={handleSetDefault}
+      onRename={handleRenameTemplate}
       onDuplicate={handleDuplicate}
       onDelete={handleDeleteTemplate}
     />
