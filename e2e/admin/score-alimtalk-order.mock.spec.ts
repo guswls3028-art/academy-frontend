@@ -1,8 +1,14 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
+import { getBaseUrl } from "../helpers/auth";
+import { realMessagingSkipReason } from "../helpers/safety";
 import { openCompositionScores } from "../helpers/assessmentCompositionMock";
 import type { SessionScoreMeta, SessionScoreRow } from "../../src/shared/api/contracts/sessionScores";
 
 async function setup(page: Page, automatic = false, failFirstSave = !automatic) {
+  const baseUrl = getBaseUrl("admin");
+  const target = new URL(baseUrl);
+  test.skip(target.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(target.hostname),
+    realMessagingSkipReason(baseUrl, "", "0") ?? "알림톡 결과 복구 route-mock 검증은 로컬 서버 전용");
   const response = page.waitForResponse(r => r.url().includes("/sessions/9002/scores/") && r.status() === 200);
   await openCompositionScores(page);
   const scores = await (await response).json() as { meta: SessionScoreMeta; rows: SessionScoreRow[] };
