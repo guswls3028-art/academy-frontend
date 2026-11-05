@@ -24,6 +24,7 @@ function fixture(configured = false) {
     puts: [] as { version: string; schedules: SessionScheduleDraft[] }[],
     copies: [] as { version: string; source_session: number }[],
     bulk: [] as { session: number; schedule?: string }[],
+    presentEnrollmentIds: new Set<number>(),
     reads: [] as { kind: string; scope: string | null }[],
     failSave: 0, failRead: false, failScores: false, failAttendance: false, attendanceFilled: 0,
   };
@@ -76,10 +77,15 @@ async function install(page: Page, state: ReturnType<typeof fixture>) {
     if (endpoint === '/lectures/attendance/' && method === 'GET') {
       state.reads.push({ kind: 'attendance', scope });
       if (state.failAttendance && scope !== null) return json({ detail: '출결 조회 실패' }, 400);
-      return json({ count: students.length, page_size: 50, next: null, results: students.map(s => ({ id: s.enrollment_id + 100, enrollment_id: s.enrollment_id, student_id: s.enrollment_id + 200, name: s.student_name, student_name: s.student_name, status: 'UNSET' })) });
+      return json({ count: students.length, page_size: 50, next: null, results: students.map(s => ({ id: s.enrollment_id + 100, enrollment_id: s.enrollment_id, student_id: s.enrollment_id + 200, name: s.student_name, student_name: s.student_name, status: state.presentEnrollmentIds.has(s.enrollment_id) ? 'PRESENT' : 'UNSET' })) });
     }
     if (endpoint === '/lectures/attendance/bulk_set_present/') {
-      state.bulk.push(request.postDataJSON()); return json({ updated: 1, session: 9902, undo_token: null, undo_expires_in: null });
+      const body = request.postDataJSON() as { session: number; schedule?: string };
+      state.bulk.push(body);
+      const targets = body.schedule === undefined ? roster.map(s => s.enrollment_id) : body.schedule === '0' ? state.config.unassigned_enrollment_ids : state.config.schedules.find(s => String(s.id) === body.schedule)?.enrollment_ids ?? [];
+      const updated = targets.filter(id => !state.presentEnrollmentIds.has(id)).length;
+      targets.forEach(id => state.presentEnrollmentIds.add(id));
+      return json({ updated, session: 9902, undo_token: null, undo_expires_in: null });
     }
     if (endpoint === '/results/admin/sessions/9902/scores/') {
       state.reads.push({ kind: 'scores', scope });
@@ -149,9 +155,32 @@ for (const width of [390, 1366]) test(`수업일 작성·배정·저장·reload�
   await expect(page.getByRole('checkbox', { name: '박새봄 선택', exact: true })).toBeVisible();
   await page.getByRole('tab', { name: '출결', exact: true }).click();
   await expect(page).toHaveURL(/attendance\?schedule=0/);
-  await page.getByRole('button', { name: '수업일 현장 출석', exact: true }).click();
+  await expect(page.getByRole('button', { name: '박새봄 출결 상태 변경', exact: true })).toHaveText('미입력');
+  await page.getByRole('button', { name: '출결 도구', exact: true }).click();
+  await expect(page).toHaveURL(/attendance\?schedule=0&view=tools$/);
+  const tools = page.getByRole('region', { name: '출결 도구', exact: true });
+  await expect(tools.getByRole('heading', { name: '출결 도구', exact: true })).toBeVisible();
+  const scopedTools = tools.getByRole('region', { name: '수업일 명단 도구', exact: true });
+  await expect(scopedTools.getByText('선택한 수업일의 출결을 일괄 변경합니다. 엑셀은 강의 전체의 출결 기록입니다.', { exact: true })).toBeVisible();
+  const readsBeforeSave = state.reads.filter(r => r.kind === 'attendance' && r.scope === '0').length;
+  await scopedTools.getByRole('button', { name: '수업일 현장 출석', exact: true }).click();
+  await expect(page.getByText('선택한 수업일을 현장 출석으로 바꿀까요?', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '전체 현장 적용', exact: true }).click();
   await expect.poll(() => state.bulk).toEqual([{ session: 9902, schedule: '0' }]);
+  await expect(page).toHaveURL(/attendance\?schedule=0$/);
+  await expect.poll(() => state.reads.filter(r => r.kind === 'attendance' && r.scope === '0').length).toBeGreaterThan(readsBeforeSave);
+  await expect(page.getByRole('button', { name: '박새봄 출결 상태 변경', exact: true })).toHaveText('현장');
+  await expect(page.getByRole('link', { name: '김수연 학생 상세 열기', exact: true })).toHaveCount(0);
+  await page.reload();
+  await expect(page).toHaveURL(/attendance\?schedule=0$/);
+  await expect(page.getByRole('button', { name: '박새봄 출결 상태 변경', exact: true })).toHaveText('현장');
+  await page.getByRole('button', { name: '출결 도구', exact: true }).click();
+  await page.getByRole('link', { name: '← 출결 명단', exact: true }).click();
+  await expect(page).toHaveURL(/attendance\?schedule=0$/);
+  await strip.getByRole('button', { name: /^수요일반/ }).click();
+  await expect(page).toHaveURL(/attendance\?schedule=71$/);
+  await expect(page.getByRole('button', { name: '김수연 출결 상태 변경', exact: true })).toHaveText('미입력');
+  await expect(page.getByRole('link', { name: '박새봄 학생 상세 열기', exact: true })).toHaveCount(0);
   await expect.poll(() => state.reads.some(r => r.kind === 'scores' && r.scope === '0')).toBe(true);
 });
 

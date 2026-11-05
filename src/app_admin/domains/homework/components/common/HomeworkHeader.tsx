@@ -73,16 +73,16 @@ export default function HomeworkHeader({ homework, primaryAction, readError = fa
         </div>
 
         <div className="assessment-detail-header__actions">
-          <AssessmentTitleEditButton key={homework.id} kind="homework" id={homework.id} title={homework.title} disabled={readError || readPending} />
+          <AssessmentTitleEditButton size="lg" key={homework.id} kind="homework" id={homework.id} title={homework.title} disabled={readError || readPending} />
           {canSaveAsTemplate && (
             <Button
               type="button"
               intent="secondary"
-              size="sm"
+              size="lg"
               onClick={() => setTemplateModalOpen(true)}
               disabled={readError || readPending || saveAsTemplateMut.isPending}
               className="assessment-template-button"
-              leftIcon={<FiSave size={ICON_FOR_BUTTON.sm} />}
+              leftIcon={<FiSave size={ICON_FOR_BUTTON.lg} />}
             >
               템플릿으로 저장
             </Button>
@@ -92,7 +92,7 @@ export default function HomeworkHeader({ homework, primaryAction, readError = fa
               <Button
                 type="button"
                 intent="secondary"
-                size="sm"
+                size="lg"
                 onClick={() => setTemplateDropdownOpen((v) => !v)}
                 className="assessment-template-button"
                 aria-expanded={templateDropdownOpen}
@@ -125,11 +125,11 @@ export default function HomeworkHeader({ homework, primaryAction, readError = fa
             <Button
               type="button"
               intent="primary"
-              size="md"
+              size="lg"
               onClick={primaryAction.onClick}
               className="assessment-primary-action"
               data-testid="assessment-primary-action"
-              rightIcon={<FiArrowRight size={ICON_FOR_BUTTON.sm} />}
+              rightIcon={<FiArrowRight size={ICON_FOR_BUTTON.lg} />}
             >
               {primaryAction.label}
             </Button>
@@ -147,7 +147,7 @@ export default function HomeworkHeader({ homework, primaryAction, readError = fa
         <ModalBody>
           {readError && <div role="alert" className="mb-4 text-sm">
             현재 설정을 확인하지 못했습니다. 입력은 유지됩니다. 다시 확인한 뒤 저장해 주세요.
-            <Button intent="secondary" size="lg" className="h-11" disabled={readPending} onClick={onRetryRead}>다시 시도</Button>
+            <Button intent="secondary" size="lg" disabled={readPending} onClick={onRetryRead}>다시 시도</Button>
           </div>}
           <p className="text-sm text-[var(--color-text-muted)] leading-relaxed">
             템플릿으로 저장하면 다른 강의·차시에서도 동일한 과제를 불러와 사용할 수 있습니다.

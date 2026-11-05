@@ -8,7 +8,7 @@
  *   3) 오늘 수업
  *   4) 학습 현황 (집계 범위·조회 상태와 상세 진입)
  *   5) 공지 (긴급 1건+ 또는 신규 있을 때만 강조, 비어 있으면 1행 라인 링크)
- *   6) 앱 아이콘 (탭바 중복 제거 + 퇴실용 패스카드, 8개)
+ *   6) 전체 메뉴로 이동 + 퇴실용 상태 카드
  *   7) 학원문의 (1행 압축, 분점 다수일 때만 펼침)
  *
  * 부분 실패: 한쪽 쿼리만 실패해도 가능한 섹션 노출.
@@ -35,7 +35,6 @@ import {
 import { formatYmd } from "@student/shared/utils/date";
 import { useNotificationCounts } from "@student/domains/notifications/hooks/useNotificationCounts";
 import type { NotificationCounts } from "@student/domains/notifications/api/notifications.api";
-import NotificationBadge from "@student/shared/ui/components/NotificationBadge";
 import type { StudentSession } from "@student/domains/sessions/api/sessions.api";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 import { learningDate, useLearningClock } from "@student/shared/hooks/useLearningClock";
@@ -154,20 +153,6 @@ const CountdownCard = memo(function CountdownCard({
 /* ============================================================================
  * 앱 아이콘
  * ========================================================================== */
-
-function AppIcon({
-  to, icon, label, badge,
-}: { to: string; icon: ReactNode; label: string; badge?: number; }) {
-  return (
-    <Link to={to} className={styles.shortcut}>
-      <div className={styles.shortcutIcon}>
-        {icon}
-        {badge != null && badge > 0 && <NotificationBadge count={badge} />}
-      </div>
-      <span className={styles.shortcutLabel}>{label}</span>
-    </Link>
-  );
-}
 
 function QuickAction({
   to, state, icon, label, detail, badge, primary = false,
@@ -562,6 +547,37 @@ export default function DashboardPage() {
         ) : null}
       </section>
 
+      {todaySessions.length > 0 && (
+        <section className={styles.section}>
+          <SectionLabel>오늘 수업</SectionLabel>
+          <div className={styles.sessionList}>
+            {todaySessions.slice(0, 3).map((s) => {
+              const isClinic = s.type === "clinic";
+              return (
+                <Link
+                  key={s.id}
+                  to={isClinic ? "/student/clinic" : `/student/sessions/${s.id}`}
+                  className={`stu-panel stu-panel--pressable ${styles.sessionCard} ${isClinic ? "stu-panel--nav" : "stu-panel--action"}`}
+                >
+                  <div className={`${styles.sessionIcon} ${isClinic ? styles.sessionIconClinic : ""}`}>
+                    {isClinic
+                      ? <IconClinic />
+                      : <IconCalendar />}
+                  </div>
+                  <div className={styles.sessionBody}>
+                    <div className={styles.sessionTitle}>
+                      {s.title}
+                      {s.start_time && <span className={styles.sessionTime}>{s.start_time.slice(0, 5)}</span>}
+                    </div>
+                    <div className="stu-muted">{s.schedule_configured && !s.date ? "수업일 미배정" : s.schedule_label ? `오늘 수업 · ${s.schedule_label}` : "오늘 수업"}</div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       <section className={`${styles.quickSection} ${styles.contentShortcuts}`} aria-label="게시판과 자료실">
         <div className={styles.sectionLabel}>학원 소식·자료</div>
         <div className={styles.quickGrid}>
@@ -616,37 +632,6 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {todaySessions.length > 0 && (
-        <section className={styles.section}>
-          <SectionLabel>오늘 수업</SectionLabel>
-          <div className={styles.sessionList}>
-            {todaySessions.slice(0, 3).map((s) => {
-              const isClinic = s.type === "clinic";
-              return (
-                <Link
-                  key={s.id}
-                  to={isClinic ? "/student/clinic" : `/student/sessions/${s.id}`}
-                  className={`stu-panel stu-panel--pressable ${styles.sessionCard} ${isClinic ? "stu-panel--nav" : "stu-panel--action"}`}
-                >
-                  <div className={`${styles.sessionIcon} ${isClinic ? styles.sessionIconClinic : ""}`}>
-                    {isClinic
-                      ? <IconClinic />
-                      : <IconCalendar />}
-                  </div>
-                  <div className={styles.sessionBody}>
-                    <div className={styles.sessionTitle}>
-                      {s.title}
-                      {s.start_time && <span className={styles.sessionTime}>{s.start_time.slice(0, 5)}</span>}
-                    </div>
-                    <div className="stu-muted">{s.schedule_configured && !s.date ? '수업일 미배정' : s.schedule_label ? `오늘 수업 · ${s.schedule_label}` : '오늘 수업'}</div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
       <div data-guide="dash-stats">
         {learningStatus}
       </div>
@@ -655,26 +640,11 @@ export default function DashboardPage() {
         <NoticeStrip notices={dashboard?.notices ?? []} hasNotices={hasNotices} />
       )}
 
-      <section className={styles.shortcutSection} data-guide="dash-apps">
-        <div className={styles.shortcutGrid}>
-          <AppIcon to="/student/grades" label="성적"
-            icon={<IconGrade />}
-            badge={!countsLoading && !countsError ? notificationCounts?.grade : undefined} />
-          <AppIcon to="/student/exams" label="시험"
-            icon={<IconExam />} />
-          <AppIcon to="/student/submit/assignment" label="과제"
-            icon={<IconClipboard />} />
-          <AppIcon to="/student/clinic" label="클리닉"
-            icon={<IconClinic />}
-            badge={!countsLoading && !countsError ? notificationCounts?.clinic : undefined} />
-          <AppIcon to="/student/attendance" label="출결"
-            icon={<IconCheck />} />
-          <AppIcon to="/student/notices" label="공지"
-            icon={<IconNotice />} />
-          <AppIcon to="/student/inventory" label="보관함"
-            icon={<IconFolder />} />
-          <AppIcon to="/student/idcard" label={wrongCompletionOnly ? "오답 상태 카드" : "클리닉 패스카드"}
-            icon={<IconClinic />} />
+      <section className={styles.quickSection} data-guide="dash-apps" aria-label="전체 메뉴와 상태 카드">
+        <div className={styles.quickGrid}>
+          <QuickAction to="/student/menu" icon={<IconFolder />} label="전체 메뉴" detail="학습·학원 소식·내 계정" />
+          <QuickAction to="/student/idcard" icon={<IconClinic />}
+            label={wrongCompletionOnly ? "오답 상태 카드" : "클리닉 패스카드"} detail="선생님께 상태 보여 드리기" />
         </div>
       </section>
 

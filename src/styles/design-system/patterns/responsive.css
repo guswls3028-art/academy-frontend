@@ -192,17 +192,8 @@
 /* ========================================
    6) 버튼 — 모바일 터치 타겟 보장
    ======================================== */
-@media (max-width: 1023px) {
-  [data-app="admin"] .ds-button {
-    min-height: 40px !important;
-  }
-
-  [data-app="admin"] .ds-button[data-size="sm"] {
-    min-height: 36px !important;
-    font-size: 12px !important;
-    padding: 0 var(--space-3) !important;
-  }
-}
+/* Responsive control dimensions are defined once in foundation.css.
+   Preserve lg/xl and context-owned sizes instead of overriding each button. */
 
 /* ========================================
    7) 모달 — 모바일 풀스크린화

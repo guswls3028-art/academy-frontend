@@ -18,6 +18,7 @@ import styles from "./TeacherRouter.module.css";
 const TodayPage = lazy(() => import("@teacher/domains/today/pages/TodayPage"));
 const OpsAssistantPage = lazy(() => import("@teacher/domains/assistant/pages/OpsAssistantPage"));
 const TeacherGuidePage = lazy(() => import("@teacher/domains/guide/pages/TeacherGuidePage"));
+const TeacherMenuPage = lazy(() => import("@teacher/layout/TeacherMenuPage"));
 const LectureListPage = lazy(() => import("@teacher/domains/lectures/pages/LectureListPage"));
 const LectureDetailPage = lazy(() => import("@teacher/domains/lectures/pages/LectureDetailPage"));
 const SessionDetailPage = lazy(() => import("@teacher/domains/lectures/pages/SessionDetailPage"));
@@ -106,6 +107,7 @@ export default function TeacherRouter() {
           <Route index element={<TodayPage />} />
           <Route path="assistant" element={<OpsAssistantPage />} />
           <Route path="guide" element={<TeacherGuidePage />} />
+          <Route path="menu" element={<TeacherMenuPage />} />
 
           {/* 수업 */}
           <Route path="classes" element={<LectureListPage />} />

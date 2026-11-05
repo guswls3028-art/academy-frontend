@@ -17,6 +17,7 @@ import { useLocation, useSearchParams, Navigate, useNavigate } from "react-route
 import { BarChart3, ClipboardList, FileText, Plus } from "lucide-react";
 
 import api from "@/shared/api/axios";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useLectureParams } from "@admin/domains/lectures/hooks/useLectureParams";
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import RouteFallback from "@/core/router/RouteFallback";
@@ -64,6 +65,7 @@ async function fetchSession(id: number) {
 export default function SessionDetailPage() {
   const { lectureId, sessionId } = useLectureParams();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const qc = useQueryClient();
@@ -140,7 +142,7 @@ export default function SessionDetailPage() {
 
   const assessmentRemoteKind = SESSION_ASSESSMENT_REMOTE_KIND_BY_TAB[activeTab];
   const showSessionStrip =
-    activeTab === "attendance" ||
+    (activeTab === "attendance" && !isMobile && searchParams.get("view") !== "sessions") ||
     activeTab === "scores" ||
     activeTab === "exams" ||
     activeTab === "assignments";
@@ -177,6 +179,7 @@ export default function SessionDetailPage() {
               lectureId={lecId}
               sessionType={session.session_type}
               sessionDate={session.date}
+              sessionSelector={<SessionBlock lectureId={lecId} currentSessionId={sId} />}
               onOpenEnrollModal={() => setShowEnrollModal(true)}
             />
           )}

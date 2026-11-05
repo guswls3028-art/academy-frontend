@@ -180,9 +180,13 @@ test.describe("teacher session video thumbnails", () => {
 
     await page.screenshot({ path: testInfo.outputPath("desktop-session.png"), fullPage: true });
 
-    const videoMenu = page
-      .getByRole("navigation", { name: "선생님 메뉴" })
-      .getByRole("button", { name: "영상", exact: true });
+    const classMenu = page.getByRole("navigation", { name: "선생님 메뉴" })
+      .getByRole("button", { name: /^수업 운영/ });
+    await expect(classMenu).toHaveCount(1);
+    await classMenu.click();
+    await expect(page).toHaveURL(/\/workspace\/mobile\/menu\?group=classes$/);
+    await expect(page.getByRole("heading", { name: "수업 운영", exact: true })).toBeInViewport({ ratio: 1 });
+    const videoMenu = page.locator("main").getByRole("button", { name: "영상", exact: true });
     await expect(videoMenu).toHaveCount(1);
     await videoMenu.click();
     await expect(page.getByRole("heading", { name: "영상", exact: true })).toBeVisible();

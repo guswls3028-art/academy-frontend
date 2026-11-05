@@ -1077,7 +1077,9 @@ test child를 기다리는 동안 runner는 60초마다 내용 없는 진행 신
 stop reason, 경과 시간만 보존한다. 미종료 상태는 null이며 raw 출력·세션 식별자는
 포함하지 않는다. 최종 cleanup 뒤 기존 evidence 쓰기에서 함께 저장하며, 관측 callback은
 성공 여부나 gate 조건을 변경하지 않는다.
-job timeout은 100분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다.
+job timeout은 100분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다. 한국어 글꼴 준비 단계는 5분으로 제한한다.
+미러 다운로드가 지연되면 QA 데이터 생성 전에 실패하여 실사용 검사와 cleanup 시간을
+잠식하지 않게 한다. 글꼴 존재 확인과 전체 실사용·cleanup0 승격 조건은 그대로 유지한다.
 
 GitHub 강제 취소의 짧은 grace, SIGKILL, runner/host 소실, IAM·네트워크 상실에서는
 finally 실행·evidence 업로드·tenant cleanup을 보장할 수 없다. 미완료 파일이 있으면

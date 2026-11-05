@@ -21,6 +21,7 @@ import { PUBLIC_UPDATES_URL } from "@/shared/constants/origins";
 
 /* ================= Lazy: Dashboard ================= */
 const DashboardPage = lazy(() => import("@admin/domains/dashboard/pages/DashboardPage"));
+const WorkspaceSectionPage = lazy(() => import("@admin/layout/WorkspaceSectionPage"));
 
 /* ================= Lazy: Students ================= */
 const StudentsLayout = lazy(() => import("@admin/domains/students/StudentsLayout"));
@@ -172,6 +173,8 @@ export default function AdminRouter() {
       <Route element={<AppLayout overlay={studentDetailOverlay ?? staffDetailOverlay} />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={renderLazyRoute(DashboardPage)} />
+        <Route path="learning" element={renderLazyRoute(WorkspaceSectionPage)} />
+        <Route path="management" element={renderLazyRoute(WorkspaceSectionPage)} />
 
         {/* ================= Students (SSOT) ================= */}
         <Route path="students" element={renderLazyRoute(StudentsLayout)}>

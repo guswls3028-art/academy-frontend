@@ -271,6 +271,7 @@ export async function verifyHomeworkCriteria(
       await parentPage.setViewportSize({ width, height: 900 });
       await reloadStudentApp(parentPage);
       await parentPage.getByRole("button", { name: "과제 현황" }).click();
+      await parentPage.getByRole("group", { name: "과제 상태 필터" }).getByRole("button", { name: /^전체 / }).click();
       const card = parentPage.locator('.stu-panel[data-session-type]')
         .filter({ has: parentPage.getByText(homeworkTitle, { exact: true }) });
       await expect(card.locator('strong[class*="homeworkScore"]')).toHaveText("92/100");

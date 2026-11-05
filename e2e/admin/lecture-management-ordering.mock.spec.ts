@@ -289,6 +289,11 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     expect(metrics.width).toBeGreaterThanOrEqual(680);
     expect(metrics.height).toBeLessThanOrEqual(720);
     expect(metrics.formScrollHeight).toBeLessThanOrEqual(metrics.formClientHeight + 1);
+    await expect(modal.locator(".modal-footer")).toBeInViewport({ ratio: 1 });
+    expect(await modal.locator(".modal-footer__actions .ds-button").evaluateAll((buttons) =>
+      buttons.map((button) => button.getBoundingClientRect().height),
+    )).toEqual([44, 44]);
+    await page.screenshot({ path: test.info().outputPath("lecture-modal-1100.png") });
 
     await page.getByRole("button", { name: "시작 시간 선택", exact: true }).click();
     const popover = page.getByRole("dialog", { name: "시간 선택" });
@@ -312,6 +317,11 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     const modal = page.getByRole("dialog", { name: "강의 추가" });
     await expect(modal).toBeVisible();
     await expect.poll(() => modal.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThanOrEqual(360);
+    await expect(modal.locator(".modal-footer")).toBeInViewport({ ratio: 1 });
+    expect(await modal.locator(".modal-footer__actions .ds-button").evaluateAll((buttons) =>
+      buttons.map((button) => button.getBoundingClientRect().height),
+    )).toEqual([44, 44]);
+    await page.screenshot({ path: test.info().outputPath("lecture-modal-390.png") });
     await page.getByRole("button", { name: "시작 시간 선택", exact: true }).click();
     const popover = page.getByRole("dialog", { name: "시간 선택" });
     const bounds = await popover.evaluate((element) => {

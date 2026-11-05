@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Outlet, useLocation } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import { Button, EmptyState } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/layout";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
@@ -19,7 +20,7 @@ export default function SessionLayout() {
   const { sectionMode } = useSectionMode();
   const location = useLocation();
   const scheduleScope = new URLSearchParams(location.search).get("schedule");
-  const { data: session, isLoading, isError } = useQuery({
+  const { data: session, isLoading, isError, refetch } = useQuery({
     queryKey: adminSessionQueryKeys.sessionDetail(sessionId),
     queryFn: async () =>
       (await api.get(`/lectures/sessions/${sessionId}/`)).data,
@@ -75,23 +76,23 @@ export default function SessionLayout() {
     });
   }, [base, lectureId, sectionMode, session?.section_type, sessionId, location.search]);
 
-  if (!lectureId || !sessionId) {
+  const parentCrumbs = [
+    { label: "강의 목록", to: "/workspace/lectures" },
+    ...(lectureId ? [{ label: lecture?.title ?? lecture?.name ?? "강의 상세", to: `/workspace/lectures/${lectureId}` }] : []),
+  ];
+  if (!lectureId || !sessionId || isError || isLoading || !session) {
+    const invalid = !lectureId || !sessionId;
+    const failed = invalid || isError || (!isLoading && !session);
     return (
-      <div className="p-6 text-sm text-[var(--color-error)]">
-        잘못된 세션 접근입니다.
-      </div>
+      <DomainLayout title="차시" breadcrumbs={parentCrumbs}>
+        <EmptyState scope="panel" tone={failed ? "error" : "loading"}
+          title={invalid ? "차시 주소를 확인해 주세요" : failed ? "차시를 불러오지 못했습니다" : "차시를 불러오는 중입니다"}
+          description={failed ? "상위 강의에서 차시를 다시 선택할 수 있습니다." : undefined}
+          actions={!invalid && failed ? <Button intent="secondary" onClick={() => void refetch()}>다시 시도</Button> : undefined}
+        />
+      </DomainLayout>
     );
   }
-
-  if (isError) {
-    return (
-      <div className="p-6 text-sm text-[var(--color-error)]">
-        세션 정보를 불러올 수 없습니다. 존재하지 않는 세션이거나 접근 권한이 없습니다.
-      </div>
-    );
-  }
-
-  if (isLoading || !session) return null;
 
   const lectureTitle = lecture?.title ?? lecture?.name ?? "강의";
   const sectionLabel = sectionMode && session.section_label

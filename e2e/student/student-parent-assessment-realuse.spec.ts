@@ -71,8 +71,9 @@ type CreatedState = {
 
 type ResultBody = {
   total_score: number;
-  rank: number;
-  cohort_size: number;
+  rank: number | null;
+  percentile: number | null;
+  cohort_size: number | null;
   analysis: {
     wrong_count: number;
     wrong_question_numbers: number[];
@@ -439,12 +440,58 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     const firstCard = page.getByRole("link").filter({ hasText: examTitle }).first();
     await expect(firstCard).toBeVisible();
     await expect(firstCard.getByTestId("grade-wrong-summary")).toContainText("오답 2문항");
-    await expect(firstCard.getByText("1/2등")).toBeVisible();
+    await expect(firstCard.getByText("1등", { exact: true })).toBeVisible();
+    await expect(firstCard.getByText("2명 응시", { exact: true })).toBeVisible();
     expect(await waitForResult(request, parentTokens.access, created.examId!, primary.id)).toMatchObject({
       total_score: 60,
       rank: 1,
       cohort_size: 2,
       analysis: { wrong_question_numbers: [2, 5] },
+    });
+    await test.step("teacher visibility saves and reaches student and selected parent child", async () => {
+      const context = await page.context().browser()!.newContext({ serviceWorkers: "block" });
+      const staffPage = await context.newPage();
+      const staffBoundary = await installQaStudentParentBoundary(staffPage, request);
+      const staffBrowser = attachStrictBrowserGuards(staffPage);
+      try {
+        await seedBrowserAuth(staffPage, admin);
+        for (const [width, showRank, showCount] of [[1366, false, true], [390, true, false], [1366, true, true]] as const) {
+          await staffPage.setViewportSize({ width, height: 900 });
+          await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`);
+          await acknowledgeInitialAccountPromptsIfVisible(staffPage);
+          const settings = staffPage.locator("#assessment-policy > details");
+          if (await settings.getAttribute("open") === null) await settings.locator("summary").click();
+          await staffPage.getByLabel("학생 등수 공개", { exact: true }).setChecked(showRank);
+          await staffPage.getByLabel("학생 응시 인원 공개", { exact: true }).setChecked(showCount);
+          const saved = staffPage.waitForResponse(response => response.request().method() === "PATCH"
+            && new URL(response.url()).pathname === `/api/v1/exams/${created.examId}/`);
+          await staffPage.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+          expect((await saved).status()).toBe(200);
+          await staffPage.reload({ waitUntil: "domcontentloaded" });
+          await expect(settings).toBeVisible();
+          if (await settings.getAttribute("open") === null) await settings.locator("summary").click();
+          await expect(staffPage.getByLabel("학생 등수 공개", { exact: true })).toBeChecked({ checked: showRank });
+          await expect(staffPage.getByLabel("학생 응시 인원 공개", { exact: true })).toBeChecked({ checked: showCount });
+          const expected = { total_score: 60, rank: showRank ? 1 : null, cohort_size: showCount ? 2 : null };
+          const studentResult = await waitForResult(request, primaryTokens.access, created.examId!);
+          const parentResult = await waitForResult(request, parentTokens.access, created.examId!, primary.id);
+          expect(studentResult).toMatchObject(expected);
+          expect(parentResult).toMatchObject(expected);
+          if (!showRank || !showCount) {
+            expect(studentResult.percentile).toBeNull();
+            expect(parentResult.percentile).toBeNull();
+          }
+          await reloadStudentApp(page);
+          await expect(firstCard).toBeVisible();
+          await expect(firstCard.getByText("1등", { exact: true })).toHaveCount(showRank ? 1 : 0);
+          await expect(firstCard.getByText("2명 응시", { exact: true })).toHaveCount(showCount ? 1 : 0);
+          await assertNoHorizontalOverflow(staffPage);
+        }
+        staffBoundary.assertClean();
+        staffBrowser.assertZeroDefects();
+      } finally {
+        await context.close();
+      }
     });
     await gotoAndSettle(page, `${QA_BASE}/student/notifications`, { timeout: 30_000 });
     await expect(page.getByRole("heading", { name: "새 성적" })).toBeVisible();

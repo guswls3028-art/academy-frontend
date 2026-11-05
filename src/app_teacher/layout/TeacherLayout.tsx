@@ -2,7 +2,7 @@
  * PATH: src/app_teacher/layout/TeacherLayout.tsx
  * 선생님 전용 레이아웃 — 모바일 탭바, 데스크탑 고정 사이드바
  */
-import { useState, useCallback, useMemo, Suspense } from "react";
+import { useState, useCallback, useMemo, useLayoutEffect, useRef, Suspense } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import { App as AntdApp } from "antd";
@@ -36,6 +36,14 @@ function TeacherRouteFallback() {
 
 export default function TeacherLayout() {
   const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+  const previousPath = useRef(location.pathname);
+  useLayoutEffect(() => {
+    if (location.pathname === "/workspace/mobile/menu" || previousPath.current === "/workspace/mobile/menu") {
+      mainRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }
+    previousPath.current = location.pathname;
+  }, [location.pathname, location.search]);
   const navigate = useNavigate();
   const tenantCode = getTenantCodeForApiRequest();
   const isMobile = useIsMobile();
@@ -96,7 +104,7 @@ export default function TeacherLayout() {
       </header>
 
       {/* Main content */}
-      <main className={styles.main}>
+      <main ref={mainRef} className={styles.main}>
         <div className={styles.content}>
           <Suspense fallback={<TeacherRouteFallback />}>
             <Outlet />

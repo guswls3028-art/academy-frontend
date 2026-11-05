@@ -4,3 +4,11 @@
 .ant-select-selector {
   border-radius: var(--radius-md);
 }
+
+.ant-select-single {
+  height: var(--control-group-height, var(--field-height, var(--control-md)));
+  font-size: var(--ds-field-font);
+}
+.ant-select-single.ant-select-sm { height: var(--control-group-height, var(--control-sm)); }
+.ant-select-single.ant-select-lg { height: var(--control-group-height, var(--control-lg)); }
+.ant-select-single .ant-select-selector { height: 100%; }

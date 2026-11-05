@@ -1,6 +1,8 @@
 /**
  * Keep the route tree mounted while only navigation and CSS respond to viewport changes.
  */
+import { useLayoutEffect, useRef } from "react";
+import { WORKSPACE_SECTIONS } from "@/core/navigation/workspaceSections";
 import { Outlet, useLocation } from "react-router";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
@@ -12,6 +14,15 @@ import styles from "./ResponsiveAdminLayout.module.css";
 
 export default function ResponsiveAdminLayout({ onOpenQuickNavigation }: { onOpenQuickNavigation: () => void }) {
   const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+  const previousPath = useRef(location.pathname);
+  useLayoutEffect(() => {
+    if (WORKSPACE_SECTIONS.some(section => section.to === location.pathname.replace(/\/$/, "")
+      || section.to === previousPath.current.replace(/\/$/, ""))) {
+      mainRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }
+    previousPath.current = location.pathname;
+  }, [location.pathname]);
   const isMobile = useIsMobile();
   return (
     <div data-app="admin" className={styles.root}>
@@ -22,7 +33,7 @@ export default function ResponsiveAdminLayout({ onOpenQuickNavigation }: { onOpe
         <aside className={`sidebar ${styles.sidebar}`}>
           {!isMobile && <Sidebar />}
         </aside>
-        <main className={styles.main}>
+        <main ref={mainRef} className={styles.main}>
           <div className={styles.content}>
             <Outlet key={location.pathname} />
           </div>
