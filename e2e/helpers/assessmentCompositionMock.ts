@@ -210,6 +210,15 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
       });
       return;
     }
+    if (path.endsWith(`/lectures/sessions/${SESSION_ID}/schedules/`) && method === "GET") {
+      await route.fulfill({ json: {
+        version: "composition-unconfigured",
+        schedules: [],
+        roster: [{ enrollment_id: 9201, student_name: "모바일순서학생" }],
+        unassigned_enrollment_ids: [9201],
+      } });
+      return;
+    }
     if (path.endsWith("/enrollments/session-enrollments/") && method === "GET") {
       await route.fulfill({
         json: {
