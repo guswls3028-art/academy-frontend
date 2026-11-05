@@ -165,7 +165,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const openTotals = () => { if (meta) setTotalsEditor({ sessionId, meta }); };
   const attendancePageSize = allRows.length > 50 ? Math.min(allRows.length, 500) : undefined;
   const { data: attendanceList } = useQuery({
-    queryKey: [...scoresQueryKeys.attendance(sessionId), attendancePageSize ?? "default", 'schedule', schedule ?? 'all'] as const,
+    queryKey: scoresQueryKeys.attendanceScope(sessionId, attendancePageSize, schedule),
     queryFn: () => fetchAttendance(
       sessionId,
       { page_size: attendancePageSize, schedule },

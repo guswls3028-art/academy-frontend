@@ -46,7 +46,7 @@ export default function SwipeAttendancePage() {
   const { confirmSecession, secessionDialog } = useSecessionConfirm();
 
   const { data: result, isLoading, isFetching, isError, error, refetch } = useQuery({
-    queryKey: [...teacherAttendanceQueryKeys.completeAttendance(sid), schedule ?? 'all'],
+    queryKey: teacherAttendanceQueryKeys.completeAttendanceScope(sid, schedule),
     queryFn: () => fetchAttendanceRoster(sid, schedule),
     enabled: validSession,
   });

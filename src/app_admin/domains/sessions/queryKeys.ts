@@ -7,6 +7,7 @@ export const adminSessionQueryKeys = {
   adminExam: (examId: number) => ["admin-exam", examId] as const,
 
   lectureSessions: (lectureId: number | null | undefined) => ["lecture-sessions", lectureId] as const,
+  scheduleCopySessions: (lectureId: number) => ['schedule-copy-sessions', lectureId] as const,
   lectureSections: (lectureId: number | null | undefined) => ["lecture-sections", lectureId] as const,
   sectionAssignments: (lectureId: number | null | undefined) => ["section-assignments", lectureId] as const,
   sessionEnrollments: (sessionId: number | null | undefined) => ["session-enrollments", sessionId] as const,

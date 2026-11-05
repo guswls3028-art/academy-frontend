@@ -251,7 +251,7 @@ export default function SessionScoresEntryPage({
     isError: attendanceForPdfError,
     refetch: refetchAttendanceForPdf,
   } = useQuery({
-    queryKey: [...adminLectureQueryKeys.attendanceForPdf(numericSessionId), schedule ?? 'all'],
+    queryKey: adminLectureQueryKeys.attendanceForPdfScope(numericSessionId, schedule),
     queryFn: () => fetchAttendance(numericSessionId, { page_size: 500, schedule }),
     enabled: shouldLoadPrintData && Number.isFinite(numericSessionId),
   });

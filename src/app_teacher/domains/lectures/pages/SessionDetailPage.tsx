@@ -70,7 +70,7 @@ export default function SessionDetailPage() {
   const session = sessionQ.data;
 
   const attendanceQ = useQuery({
-    queryKey: [...teacherLectureQueryKeys.sessionAttendance(sid), schedule ?? 'all'],
+    queryKey: teacherLectureQueryKeys.sessionAttendanceScope(sid, schedule),
     queryFn: () => fetchSessionAttendance(sid, schedule),
     enabled: validSessionId,
   });

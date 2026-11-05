@@ -11,7 +11,7 @@ export type SessionScheduleDraft = Omit<components['schemas']['ScheduleInputRequ
 export type SessionSchedules = Omit<ScheduleStateTransport, 'schedules'> & {
   schedules: SessionSchedule[];
 };
-export const sessionSchedulesKey = (sessionId: number) => ['session-schedules', sessionId] as const;
+export { sessionSchedulesKey } from '@/shared/api/queryKeys/sessionSchedules';
 
 function normalizeState(data: ScheduleStateTransport): SessionSchedules {
   // A failed/malformed contract must never become an empty, successful configuration.

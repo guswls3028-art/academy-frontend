@@ -6,7 +6,8 @@ import { DatePicker } from '@/shared/ui/date';
 import { TimeRangeInput } from '@/shared/ui/time';
 import { useConfirm } from '@/shared/ui/confirm';
 import { extractApiError } from '@/shared/utils/extractApiError';
-import { fetchSessions } from '@admin/domains/lectures/api/sessions';
+import { fetchSessions } from '@/shared/api/contracts/sessions';
+import { adminSessionQueryKeys } from '../queryKeys';
 import { copySessionSchedules, fetchSessionSchedules, saveSessionSchedules, type SessionScheduleDraft, type SessionSchedules } from '@/shared/api/contracts/sessionSchedules';
 import styles from './SessionScheduleStrip.module.css';
 import { useScheduleLeaveGuard } from './useScheduleLeaveGuard';
@@ -38,7 +39,7 @@ export default function SessionScheduleManager({ open, onClose, sessionId, lectu
   const [source, setSource] = useState('');
   useScheduleLeaveGuard(lectureId, sessionId, dirty, busy);
   const sessions = useQuery({
-    queryKey: ['schedule-copy-sessions', lectureId],
+    queryKey: adminSessionQueryKeys.scheduleCopySessions(lectureId),
     queryFn: () => fetchSessions(lectureId), enabled: open,
   });
   const previous = (sessions.data ?? []).filter(s => s.id !== sessionId && s.order < sessionOrder).sort((a, b) => b.order - a.order);

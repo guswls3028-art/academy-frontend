@@ -15,6 +15,8 @@ export const adminLectureQueryKeys = {
     ["attendance", sessionId, page, search, status, ordering, schedule ?? 'all'] as const,
   attendanceForSession: (sessionId: number | null | undefined) => ["attendance", sessionId] as const,
   attendanceForPdf: (sessionId: number | null | undefined) => ["attendance-for-pdf", sessionId] as const,
+  attendanceForPdfScope: (sessionId: number, schedule: string | undefined) =>
+    ["attendance-for-pdf", sessionId, schedule ?? 'all'] as const,
   attendanceMatrix: (lectureId: number | null | undefined) => ["attendance-matrix", lectureId] as const,
   attendanceEnrolledIds: attendanceQueryKeys.enrolledIds,
 

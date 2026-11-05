@@ -35,6 +35,7 @@ import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { isSupplementSession, sortSessionsByDisplayOrder } from "@/shared/product/sessions/sessionOrdering";
 import { adminLectureQueryKeys } from "../queryKeys";
+import { sessionScheduleQueryKeys } from "@/shared/api/queryKeys/sessionSchedules";
 import "./session-enroll-modal.css";
 
 const PAGE_SIZE = 100;
@@ -510,7 +511,7 @@ export default function SessionEnrollModal({
       const { created, payload } = result;
       const { studentIds, statusByStudentId } = payload;
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ['session-schedules', sessionId] }),
+        qc.invalidateQueries({ queryKey: sessionScheduleQueryKeys.session(sessionId) }),
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId) }),
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) }),
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceEnrolledIds(sessionId) }),

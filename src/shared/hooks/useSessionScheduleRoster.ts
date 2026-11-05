@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchSessionSchedules, sessionSchedulesKey } from '@/shared/api/contracts/sessionSchedules';
+import { fetchSessionSchedules } from '@/shared/api/contracts/sessionSchedules';
+import { sessionScheduleQueryKeys } from '@/shared/api/queryKeys/sessionSchedules';
 
 /** Explicit mobile scope. A missing/stale scope is an error, never an unfiltered roster. */
 export function useSessionScheduleRoster(sessionId: number, schedule: string | undefined) {
   return useQuery({
-    queryKey: [...sessionSchedulesKey(sessionId), 'roster', schedule],
+    queryKey: sessionScheduleQueryKeys.roster(sessionId, schedule),
     enabled: Number.isSafeInteger(sessionId) && sessionId > 0 && schedule !== undefined,
     retry: false,
     queryFn: async () => {
