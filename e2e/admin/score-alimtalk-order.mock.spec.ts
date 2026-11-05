@@ -77,7 +77,8 @@ for (const width of [1366, 390]) {
     await expect(modal.getByLabel("현재 학생의 실제 발송 문구", { exact: true })).toContainText("둘째 시험: 80/100");
     await expect(modal.getByLabel("현재 학생의 실제 발송 문구", { exact: true })).toContainText("총점 80/100");
     await modal.getByRole("button", { name: "변경 내용 저장", exact: true }).click();
-    await expect(page.getByText("문구 저장 일시 실패", { exact: true })).toBeVisible();
+    await expect(page.getByText("문구 업데이트에 실패했습니다.", { exact: true })).toBeVisible();
+    expect(harness.saves).toHaveLength(1);
     await expect(editor.locator('[data-message-variable="시험2결과"]')).toHaveCount(1);
     await modal.getByRole("button", { name: "변경 내용 저장", exact: true }).click();
     await expect.poll(() => harness.saves.length).toBe(2);
