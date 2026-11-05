@@ -283,6 +283,13 @@ test('교사 목요일 Today → 실제 날짜와 수업일 출석·성적', asy
   await page.goto(`${BASE}/workspace/mobile`);
   await page.getByRole('button', { name: /수업 열기/ }).click();
   await expect(page).toHaveURL(/classes\/9901\/sessions\/9902\?schedule=72/);
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.goto(`${BASE}/workspace/mobile`);
+  await expect(nextClass).toBeVisible();
+  await capture(page, 'teacher-thursday-summary-1366');
+  await nextClass.press('Space');
+  await expect(page).toHaveURL(/classes\/9901\/sessions\/9902\?schedule=72/);
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${BASE}/workspace/mobile`);
   const attendance = page.getByRole('button', { name: '요일별 수업 출석 입력', exact: true });
   await expect(attendance).toBeVisible();
