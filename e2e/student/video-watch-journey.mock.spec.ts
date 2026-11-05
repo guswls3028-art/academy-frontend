@@ -165,8 +165,10 @@ for (const exhausted of [true, false]) {
     });
     // Some engines load the manifest on attach, while native playback can wait for a gesture.
     const denied = page.waitForResponse(response => response.url().includes("/review-media/") && response.status() === 403);
-    await openWatch(page);
+    // Native engines can reach the expected denial before the normal player title renders.
+    await page.goto(`${BASE}/student/video/play?video=562&enrollment=1304&session=394`);
     await Promise.race([denied, page.locator("button.svpBigPlay").click()]);
+    await denied;
     if (exhausted) {
       await expect(page.getByText("이 영상의 복습 시청시간을 모두 사용했습니다.")).toBeVisible();
       await expect(page.getByRole("button", { name: "다시 시도", exact: true })).toHaveCount(0);
