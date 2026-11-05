@@ -69,11 +69,19 @@ export default function HomeworkPolicyPanel({
   onDirtyChange,
   onSavingChange,
   onSaved,
+  editing = false,
+  formId,
+  onSaveAllowedChange,
+  onSaveErrorChange,
 }: {
   homeworkId: number;
   onDirtyChange?: (dirty: boolean) => void;
   onSavingChange?: (saving: boolean) => void;
   onSaved?: () => void;
+  editing?: boolean;
+  formId?: string;
+  onSaveAllowedChange?: (allowed: boolean) => void;
+  onSaveErrorChange?: (error: string) => void;
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -195,7 +203,7 @@ export default function HomeworkPolicyPanel({
         feedback.warning("다른 사용자의 변경을 확인했습니다. 최신 설정을 불러온 뒤 다시 저장해 주세요.");
         return;
       }
-      feedback.error(extractApiError(error, "과제 운영 설정을 저장하지 못했습니다."));
+      // The form or modal footer keeps the mutation error visible for retry.
     },
   });
 
@@ -211,6 +219,12 @@ export default function HomeworkPolicyPanel({
 
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
   useEffect(() => { onSavingChange?.(updateMutation.isPending || loadingLatest); }, [updateMutation.isPending, loadingLatest, onSavingChange]);
+  const saveAllowed = Boolean(form && baseUpdatedAtRef.current && !isError && !loadingLatest && dirty && !validationError && !conflictDetected && !remoteChanged && !updateMutation.isPending);
+  useEffect(() => { onSaveAllowedChange?.(saveAllowed); }, [saveAllowed, onSaveAllowedChange]);
+  const saveError = updateMutation.isError && !isStaleResourceConflict(updateMutation.error)
+    ? extractApiError(updateMutation.error, "과제 운영 설정을 저장하지 못했습니다. 입력을 유지했으니 다시 시도해 주세요.")
+    : "";
+  useEffect(() => { onSaveErrorChange?.(saveError); }, [saveError, onSaveErrorChange]);
 
   if (isError && (!homework || !form)) {
     return <EmptyState mode="embedded" scope="panel" tone="error" title="과제 설정을 불러오지 못했습니다." actions={<Button onClick={() => void refetch()}>다시 시도</Button>} />;
@@ -256,16 +270,17 @@ export default function HomeworkPolicyPanel({
   };
 
   return (
-    <section id="assessment-policy" tabIndex={-1} className={formStyles.section}>
-      <div className={formStyles.header}>
+    <section id="assessment-policy" tabIndex={-1} className={`${formStyles.section} ${editing ? formStyles.modalSection : ""}`}>
+      {!editing && <div className={formStyles.header}>
         <div>
           <h2 className={formStyles.title}>과제 운영 설정</h2>
           <p className={formStyles.description}>
             과제명, 제출기한, 만점과 합격 기준을 한 번에 관리합니다.
           </p>
         </div>
-      </div>
+      </div>}
 
+      <form id={formId} onSubmit={(event) => { event.preventDefault(); if (saveAllowed) updateMutation.mutate(form); }}>
       <fieldset disabled={loadingLatest || updateMutation.isPending} className="m-0 min-w-0 border-0 p-0">
       {loadingLatest && <p role="status" className={formStyles.description}>최신 설정을 확인하고 있습니다. 확인이 끝나면 편집할 수 있습니다.</p>}
       <div className={formStyles.body}>
@@ -464,9 +479,10 @@ export default function HomeworkPolicyPanel({
         )}
         {validationError && <p className={formStyles.error} role="alert">{validationError}</p>}
         {latestError && <p className={formStyles.error} role="alert">{latestError}</p>}
+        {!editing && saveError && <p className={formStyles.error} role="alert">{saveError}</p>}
       </div>
 
-      <div className={formStyles.footer}>
+      {!editing && <div className={formStyles.footer}>
         <span className={formStyles.footerCopy}>
           저장 후 성적표와 학생 상세에 같은 채점 방식이 적용됩니다.
         </span>
@@ -480,8 +496,9 @@ export default function HomeworkPolicyPanel({
         >
           {updateMutation.isPending ? "저장 중…" : "운영 설정 저장"}
         </Button>
-      </div>
+      </div>}
       </fieldset>
+      </form>
     </section>
   );
 }

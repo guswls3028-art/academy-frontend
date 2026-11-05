@@ -33,9 +33,14 @@ export async function verifyAssessmentTitle(
       await page.setViewportSize({ width, height: 900 });
       await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${target.lectureId}/sessions/${target.sessionId}/${tab}?assessment=${target.kind}%3A${target.id}`);
       if (width === 1366) await acknowledgeInitialAccountPromptsIfVisible(page);
-      await page.getByRole("button", { name: `${previous} 제목 수정`, exact: true }).click();
-      const dialog = page.getByRole("dialog", { name: `${label} 제목 수정`, exact: true });
-      const input = dialog.getByRole("textbox", { name: `${label} 제목`, exact: true });
+      if (tab === "scores") {
+        await page.getByRole("button", { name: `${previous} 작업 선택`, exact: true }).click();
+        await page.getByRole("menu", { name: `${previous} 작업 선택`, exact: true }).getByRole("menuitem", { name: target.kind === "exam" ? /^시험 설정/ : /^과제 수정/ }).click();
+      } else {
+        await page.getByRole("button", { name: `${previous} 제목 수정`, exact: true }).click();
+      }
+      const dialog = page.getByRole("dialog", { name: tab === "scores" ? target.kind === "exam" ? "시험 설정" : "과제 수정" : `${label} 제목 수정`, exact: true });
+      const input = dialog.getByRole("textbox", { name: tab === "scores" ? `${label}명` : `${label} 제목`, exact: true });
       await expect(input).toBeEnabled();
       await input.fill(next);
       const saved = page.waitForResponse(response => response.request().method() === "PATCH"
@@ -47,12 +52,44 @@ export async function verifyAssessmentTitle(
       expect(response.request().headers()["x-expected-updated-at"]).toBeTruthy();
       await expect(dialog).not.toBeVisible();
       await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(page.getByRole("button", { name: `${next} 제목 수정`, exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: `${next} ${tab === "scores" ? "작업 선택" : "제목 수정"}`, exact: true })).toBeVisible();
       const persisted = await expectApi<Record<string, unknown>>(request, "GET", endpoint, admin.access);
       expect(persisted.title).toBe(next);
       for (const key of policyKeys) expect(persisted[key], `title edit preserves ${key}`).toEqual(original[key]);
       await assertNoHorizontalOverflow(page);
       previous = next;
+    }
+    // Exercise a non-title setting through the same modal, then restore the
+    // disposable scenario's policy before its student/parent readback continues.
+    const originalMeta = (original.meta ?? {}) as Record<string, unknown>;
+    const originalValue = target.kind === "exam" ? String(original.pass_score) : String(originalMeta.due_date ?? "");
+    const nextValue = target.kind === "exam"
+      ? String(Number(original.pass_score) > 0 ? Math.max(0, Number(original.pass_score) - 1) : Math.min(1, Number(original.max_score)))
+      : originalValue === "2030-01-01" ? "2030-01-02" : "2030-01-01";
+    for (const value of [nextValue, originalValue]) {
+      await page.getByRole("button", { name: `${target.title} 작업 선택`, exact: true }).click();
+      await page.getByRole("menu", { name: `${target.title} 작업 선택`, exact: true }).getByRole("menuitem", { name: target.kind === "exam" ? /^시험 설정/ : /^과제 수정/ }).click();
+      const dialog = page.getByRole("dialog", { name: target.kind === "exam" ? "시험 설정" : "과제 수정", exact: true });
+      const field = target.kind === "exam" ? dialog.getByRole("spinbutton", { name: /^합격 기준/ }) : dialog.locator('input[type="date"]');
+      await expect(field).toBeEnabled();
+      await field.fill(value);
+      const saved = page.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === `/api/v1${endpoint}`);
+      await dialog.getByRole("button", { name: "저장", exact: true }).click();
+      const response = await saved;
+      expect(response.status()).toBe(200);
+      expect(response.request().headers()["x-expected-updated-at"]).toBeTruthy();
+      await expect(dialog).not.toBeVisible();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("button", { name: `${target.title} 작업 선택`, exact: true })).toBeVisible();
+      const persisted = await expectApi<Record<string, unknown>>(request, "GET", endpoint, admin.access);
+      if (target.kind === "exam") expect(Number(persisted.pass_score)).toBe(Number(value));
+      else expect((persisted.meta as Record<string, unknown>)?.due_date ?? "").toBe(value);
+      expect(persisted.title).toBe(target.title);
+      for (const key of policyKeys.filter(key => key !== (target.kind === "exam" ? "pass_score" : "meta"))) {
+        expect(persisted[key], `policy edit preserves ${key}`).toEqual(original[key]);
+      }
+      await assertNoHorizontalOverflow(page);
     }
     boundary.assertClean();
     guards.assertZeroDefects();

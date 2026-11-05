@@ -135,7 +135,7 @@ for (const width of [1920, 1366, 1100, 390]) {
       await expect(table.locator('tbody td[data-col-type="name"]')).toBeInViewport();
     }
     await page.getByRole("button", { name: "어휘 작업 선택", exact: true }).click();
-    await expect(page.getByRole("menuitem", { name: "수정", exact: true })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: /^시험 설정/ })).toBeVisible();
     await page.keyboard.press("Escape");
     if (width === 390) {
       const controls = page.getByTestId("score-column-order-exam-9101");
