@@ -334,6 +334,8 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
 
   for (const width of [1366, 1100, 390]) {
     test(`@assessment-edit ${width}px 성적표는 제목 메뉴에서 시험·과제 전체 수정 모달을 연다`, async ({ page }, testInfo) => {
+      // Both editors perform four saves and three independent reloads.
+      test.setTimeout(180_000);
       await page.setViewportSize({ width, height: 844 });
       const harness = await openScores(page);
       for (const [kind, previous, next, actionName, dialogName] of [
