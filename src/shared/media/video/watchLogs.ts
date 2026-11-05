@@ -17,6 +17,13 @@ export interface WatchReport {
 }
 
 export const watchReportKey = (videoId: number) => ["video-review-watch", videoId] as const;
+const activityScope = (videoId: number) => ["video", videoId, "watch-activity"] as const;
+export const watchLogQueryKeys = {
+  title: (videoId: number) => ["video-watch-log-title", videoId] as const,
+  activityScope,
+  activity: (videoId: number, studentId: number | undefined, range: string, page: number) =>
+    [...activityScope(videoId), studentId ?? "all", range, page] as const,
+};
 export const fetchWatchReport = async (videoId: number, signal?: AbortSignal) =>
   (await api.get<WatchReport>(`/media/videos/${videoId}/review-watch/report/`, { signal })).data;
 

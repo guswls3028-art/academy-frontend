@@ -7,7 +7,8 @@ const DETAIL = "/workspace/videos/tree?videoId=901&lectureId=701&sessionId=801";
 const title = "중간고사 수학 복습 · 긴 영상 제목의 줄바꿈 확인";
 const studentName = "누적시간확인학생긴이름";
 
-async function install(page: Page, state = { reportFailure: false, activityFailure: false }) {
+type MockState = { reportFailure: boolean; activityFailure: boolean; durationMissing?: boolean };
+async function install(page: Page, state: MockState = { reportFailure: false, activityFailure: false }) {
   await installTenantOneInitScript(page);
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   const token = `${encode({ alg: "none" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "hakwonplus", user_id: 12 })}.sig`;
@@ -24,7 +25,7 @@ async function install(page: Page, state = { reportFailure: false, activityFailu
     if (path === "/media/videos/901/") return json(video);
     if (path === "/media/videos/901/stats/") return json({ video, students: [{ enrollment: 7001, student_id: 501, student_name: studentName, progress: 0.5, completed: false, access_mode: "FREE_REVIEW", effective_rule: "free" }] });
     if (state.reportFailure && path === "/media/videos/901/review-watch/report/") return route.fulfill({ status: 503, contentType: "application/json", body: '{"detail":"temporary failure"}' });
-    if (path === "/media/videos/901/review-watch/report/") return json({ enabled: false, duration: 3600, threshold_ms: 5040000, students: [
+    if (path === "/media/videos/901/review-watch/report/") return json({ enabled: false, duration: state.durationMissing ? null : 3600, threshold_ms: state.durationMissing ? 0 : 5040000, students: [
       { student_id: 501, student_name: studentName, used_ms: 6300000, started_at: "2026-11-01T00:00:00Z" },
       { student_id: 502, student_name: "두번째학생", used_ms: 60000, started_at: "2026-11-02T00:00:00Z" },
     ] });
@@ -110,4 +111,14 @@ test("조회 실패는 빈 기록과 구분하고 필터를 보존해 복구한�
   await expect(page.getByRole("heading", { name: "조건에 맞는 학생이 없습니다" })).toBeVisible();
   await page.getByRole("button", { name: "필터 초기화" }).click();
   await expect(page.getByRole("link").filter({ hasText: "두번째학생" })).toBeVisible();
+});
+
+test("원본 길이 미확인 영상도 누적 시간을 확인할 수 있다", async ({ page }) => {
+  await install(page, { reportFailure: false, activityFailure: false, durationMissing: true });
+  await page.goto(`${BASE}/workspace/videos/901/logs?reached=1`);
+  await expect(page.getByLabel("원본의 1.4배 이상만")).toBeDisabled();
+  await expect(page.getByText("원본 길이를 확인하면 배율로 비교할 수 있습니다.")).toBeVisible();
+  await expect(page.getByRole("link").filter({ hasText: studentName })).toContainText("1시간 45분 0초");
+  await page.getByRole("link").filter({ hasText: studentName }).click();
+  await expect(page.getByRole("region", { name: "학생 누적 재생 요약" })).toContainText("원본 길이 미확인");
 });

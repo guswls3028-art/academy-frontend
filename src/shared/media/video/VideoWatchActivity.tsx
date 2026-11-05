@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { Badge, Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import { watchLogQueryKeys } from "./watchLogs";
 
 type Range = "24h" | "7d" | "all";
 type PlaybackEvent = {
@@ -24,7 +25,7 @@ export default function VideoLogTab({ videoId, studentId }: { videoId: number; s
   const pageSize = 25;
   const params = { video: videoId, ...(studentId ? { student: studentId } : {}), range };
   const query = useQuery({
-    queryKey: ["video", videoId, "watch-activity", studentId ?? "all", range, page],
+    queryKey: watchLogQueryKeys.activity(videoId, studentId, range, page),
     queryFn: async ({ signal }) => (await api.get<{ results: PlaybackEvent[]; count: number }>("/media/video-playback-events/", {
       params: { ...params, page, page_size: pageSize }, signal,
     })).data,

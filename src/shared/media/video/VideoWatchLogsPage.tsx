@@ -3,7 +3,7 @@ import { Link, useLocation, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge, Button } from "@/shared/ui/ds";
 import { fetchVideoDetail } from "@/shared/api/contracts/videos";
-import { fetchWatchReport, watchDuration, watchLogsReturnPath, watchReportKey } from "./watchLogs";
+import { fetchWatchReport, watchDuration, watchLogsReturnPath, watchReportKey, watchLogQueryKeys } from "./watchLogs";
 import VideoLogTab from "./VideoWatchActivity";
 import "./VideoWatchLogsPage.css";
 
@@ -25,7 +25,7 @@ export default function VideoWatchLogsPage() {
     enabled: validVideo, refetchInterval: 30_000, retry: 1,
   });
   const video = useQuery({
-    queryKey: ["video-watch-log-title", videoId],
+    queryKey: watchLogQueryKeys.title(videoId),
     queryFn: ({ signal }) => fetchVideoDetail(videoId, signal),
     enabled: validVideo, staleTime: 60_000, retry: 1,
   });
@@ -33,8 +33,8 @@ export default function VideoWatchLogsPage() {
   const base = `${teacher ? "/workspace/mobile" : "/workspace"}/videos/${videoId}/logs`;
   const back = watchLogsReturnPath(searchParams.get("returnTo"), videoId, teacher);
   const term = searchParams.get("q") ?? "";
-  const reachedOnly = searchParams.get("reached") === "1";
   const data = query.data;
+  const reachedOnly = searchParams.get("reached") === "1" && (data?.threshold_ms ?? 0) > 0;
   const selected = data?.students.find(row => row.student_id === studentId);
   const rows = data?.students.filter(row =>
     row.student_name.toLocaleLowerCase().includes(term.trim().toLocaleLowerCase()) &&
@@ -50,7 +50,7 @@ export default function VideoWatchLogsPage() {
       return next;
     }, { replace: true });
   };
-  const retry = () => { void query.refetch(); void video.refetch(); void client.invalidateQueries({ queryKey: ["video", videoId, "watch-activity"] }); };
+  const retry = () => { void query.refetch(); void video.refetch(); void client.invalidateQueries({ queryKey: watchLogQueryKeys.activityScope(videoId) }); };
 
   return <main className={`watch-logs${teacher ? " watch-logs--teacher" : ""}`} aria-labelledby="watch-logs-heading">
     <nav className="watch-logs__trail" aria-label="시청 기록 경로">
@@ -83,7 +83,8 @@ export default function VideoWatchLogsPage() {
     </> : <>
       <div className="watch-logs__toolbar">
         <label className="watch-logs__search">학생 이름 검색<input type="search" value={term} onChange={e => setFilter("q", e.target.value)} placeholder="이름으로 찾기" /></label>
-        <label className="watch-logs__check"><input type="checkbox" checked={reachedOnly} onChange={e => setFilter("reached", e.target.checked ? "1" : "")} />원본의 1.4배 이상만</label>
+        <label className="watch-logs__check"><input type="checkbox" disabled={data.threshold_ms <= 0} checked={reachedOnly} onChange={e => setFilter("reached", e.target.checked ? "1" : "")} />원본의 1.4배 이상만</label>
+        {data.threshold_ms <= 0 && <p className="watch-logs__muted">원본 길이를 확인하면 배율로 비교할 수 있습니다.</p>}
       </div>
       <div className="watch-logs__list-caption"><span>학생 {rows.length.toLocaleString()}명 · 누적시간 많은 순</span><span>30초마다 갱신 · 시간 제한 {data.enabled ? "켜짐" : "꺼짐"}</span></div>
       <section className="watch-logs__list" aria-label="학생별 누적 재생시간">
