@@ -1510,7 +1510,7 @@ function CorrectionStatusControl({
   const title = isHomework ? "과제 완료 상태" : wrongExamCompletionOnly ? "시험 오답 확인" : "시험 통과 판정";
   const helpTitle = isHomework ? "과제 완료 상태 기록" : wrongExamCompletionOnly ? "오답 확인 상태 기록" : "시험 통과 판정";
   const helpDescription = isHomework
-    ? "완료 여부만 기록합니다. 완료 처리하면 학생의 확인 필요 목록에서 빠집니다. 과제 점수와 제출 기록은 바뀌지 않으며, 상태를 바꿀 때는 2자 이상의 사유를 남겨 주세요."
+    ? "완료 여부만 기록합니다. 완료 처리하면 학생의 확인 필요 목록에서 빠집니다. 과제 점수와 제출 기록은 바뀌지 않으며, 완료로 표시할 때는 2자 이상의 사유를 남겨 주세요."
     : wrongExamCompletionOnly
       ? "오답 확인 여부만 기록합니다. 시험 점수는 바뀌지 않습니다. 완료 처리 전에 확인 근거를 2자 이상 남겨 주세요."
       : "현장에서 보완을 확인한 뒤 통과로 기록합니다. 시험 점수는 바뀌지 않으며, 처리 전에 판정 사유를 2자 이상 남겨 주세요.";

@@ -654,7 +654,7 @@ test.describe("시험·과제 수동 검사 상태", () => {
     const drawer = page.locator(".student-scores-drawer");
     const examCard = drawer.locator(".student-scores-drawer__exam-card")
       .filter({ hasText: "방정식 단원평가" });
-    await expect(examCard.getByRole("group", { name: "교사 최종 판정 상태" })).toHaveCount(0);
+    await expect(examCard.getByRole("group", { name: "시험 통과 판정 상태" })).toHaveCount(0);
     const quickPass = examCard.getByRole("button", { name: "보완 필요에서 교사 통과로 변경" });
     const rawScore = examCard.locator(".student-scores-drawer__exam-score");
     await expect(rawScore).toContainText("66 / 100");
