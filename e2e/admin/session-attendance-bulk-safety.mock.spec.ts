@@ -121,6 +121,9 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
         must_change_password: false,
       });
     }
+    if (/^\/lectures\/sessions\/\d+\/schedules\/$/.test(path)) {
+      return json({ version: "qa-v1", schedules: [], roster: [], unassigned_enrollment_ids: [] });
+    }
     if (path === `/lectures/sessions/${SESSION_ID}/`) {
       return json({
         id: SESSION_ID,
@@ -1213,7 +1216,12 @@ test("모바일 차시 선택은 별도 화면에서 제공하고 왕복 문맥�
   await expect(retry).toBeInViewport({ ratio: 1 });
   const retryBounds = (await retry.boundingBox())!;
   const recoveryNav = (await page.getByRole("navigation", { name: "하단 메뉴", exact: true }).boundingBox())!;
+  expect(retryBounds.height).toBeGreaterThanOrEqual(44);
   expect(retryBounds.y + retryBounds.height).toBeLessThanOrEqual(recoveryNav.y);
+  const recoveryEntryBounds = (await entry.boundingBox())!;
+  expect(recoveryEntryBounds.height).toBeGreaterThanOrEqual(44);
+  expect(recoveryEntryBounds.y + recoveryEntryBounds.height).toBeLessThanOrEqual(recoveryNav.y);
+  await expect(page.getByText("저장된 출결은 유지됩니다. 같은 검색·필터·정렬로 다시 불러와 주세요.", { exact: true })).toBeVisible();
   await entry.click();
   await expect(page.getByRole("heading", { name: "차시 선택", exact: true })).toBeVisible();
   await main.hover();
@@ -1222,6 +1230,11 @@ test("모바일 차시 선택은 별도 화면에서 제공하고 왕복 문맥�
   await page.getByRole("link", { name: "← 출결 명단", exact: true }).click();
   await expect.poll(() => main.evaluate(node => node.scrollTop)).toBe(0);
   await expect(readError).toBeInViewport({ ratio: 1 });
+  await expect(retry).toBeInViewport({ ratio: 1 });
+  const linkReturnRetry = (await retry.boundingBox())!;
+  const linkReturnNav = (await page.getByRole("navigation", { name: "하단 메뉴", exact: true }).boundingBox())!;
+  expect(linkReturnRetry.height).toBeGreaterThanOrEqual(44);
+  expect(linkReturnRetry.y + linkReturnRetry.height).toBeLessThanOrEqual(linkReturnNav.y);
   state.failAttendanceRead = false;
   await page.getByRole("button", { name: "다시 시도", exact: true }).click();
   await expect(page.getByRole("button", { name: "결석학생 출결 상태 변경" })).toBeVisible();

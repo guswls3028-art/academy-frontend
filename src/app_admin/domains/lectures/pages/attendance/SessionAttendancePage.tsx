@@ -278,20 +278,27 @@ export default function SessionAttendancePage({
   if (isLoading && attendanceView !== "sessions") return (
     <div ref={contentRef} className="flex flex-col gap-3">{chooseSessionAction}<EmptyState scope="panel" tone="loading" title="불러오는 중…" /></div>
   );
+  const readErrorDescription = "저장된 출결은 유지됩니다. 같은 검색·필터·정렬로 다시 불러와 주세요.";
   if ((isError || attendanceResult == null) && attendanceView !== "sessions") return (
-    <div ref={contentRef} className="flex flex-col gap-3">{chooseSessionAction}
-    <EmptyState
-      scope="panel"
-      tone="error"
-      showIcon={!isMobile}
-      title="출결 데이터를 불러올 수 없습니다."
-      description="저장된 출결은 유지됩니다. 같은 검색·필터·정렬로 다시 불러와 주세요."
-      actions={
-        <Button type="button" intent="secondary" onClick={() => void refetch()} disabled={isFetching}>
-          {isFetching ? "다시 불러오는 중…" : "다시 시도"}
-        </Button>
-      }
-    />
+    <div ref={contentRef} className="flex flex-col gap-3">
+      <EmptyState
+        scope="panel"
+        tone="error"
+        showIcon={!isMobile}
+        title="출결 데이터를 불러올 수 없습니다."
+        description={isMobile ? undefined : readErrorDescription}
+        actions={
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button type="button" intent="secondary" onClick={() => void refetch()} disabled={isFetching}>
+              {isFetching ? "다시 불러오는 중…" : "다시 시도"}
+            </Button>
+            {chooseSessionAction}
+          </div>
+        }
+        extra={isMobile ? (
+          <p className="text-xs leading-relaxed text-[var(--color-text-secondary)]">{readErrorDescription}</p>
+        ) : undefined}
+      />
     </div>
   );
 
