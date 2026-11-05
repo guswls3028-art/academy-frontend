@@ -437,3 +437,27 @@ test("@assessment-feedback 소수 만점 합계의 부동소수 오차로 익명
   expect(pdf.totalMaxScore).toBeCloseTo(3.3, 12);
   expect(pdf.averageScore).toBeCloseTo(1.55, 12);
 });
+
+test("@alimtalk-order 번호형 결과는 순서 변경·학생별 미배정에도 같은 평가를 유지한다", () => {
+  const meta: SessionScoreMeta = { ...scoreMeta,
+    total_config: { version: 2, exam_ids: [11], homework_ids: [21], exam_order: [12, 11] },
+    exams: [{ ...scoreMeta.exams[0], exam_id: 12, title: "합산 제외 시험", display_order: 0 }, scoreMeta.exams[0]],
+    homeworks: [{ ...scoreMeta.homeworks[0], homework_id: 22, title: "추가 과제", display_order: 0 }, scoreMeta.homeworks[0]],
+  };
+  const first = scoreRow(null);
+  first.exams[0].block.score = 80;
+  first.exams.push({ ...first.exams[0], exam_id: 12, title: "합산 제외 시험", block: { ...first.exams[0].block, score: 25 } });
+  first.homeworks[0].block.score = 7;
+  first.exam_total = { score: 80, max_score: 100, selected_count: 1, scored_count: 1, complete: true };
+  const vars = buildScoreVars(first, meta);
+  expect(vars).toMatchObject({ 시험1명: "합산 제외 시험", 시험1: "25", 시험2명: "단원평가", 시험2: "80", 시험총점: "80", 과제1명: "추가 과제", 과제1결과: "미배정", 과제2: "7" });
+  const body = "#{시험1명}: #{시험1결과}\n#{시험2명}: #{시험2결과}\n총점 #{시험총점}/#{시험총만점}";
+  const second = scoreRow(null);
+  second.exams[0].block.score = 0;
+  second.exam_total = { score: 0, max_score: 100, selected_count: 1, scored_count: 1, complete: true };
+  const rendered = substituteScoreVars(body, second, meta);
+  expect(rendered).toContain("합산 제외 시험: 미배정");
+  expect(rendered).toContain("단원평가: 0/100");
+  expect(rendered).toContain("총점 0/100");
+  expect(compactGradesPerStudentPayloadVars(body, { 101: { _body_subst: rendered } })?.[101]).toEqual({ _body_subst: rendered });
+});

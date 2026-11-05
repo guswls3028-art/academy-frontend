@@ -473,3 +473,34 @@
   color: var(--color-text-primary);
   font-weight: 700;
 }
+
+
+.send-modal__missing-results {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.send-modal__missing-results strong { color: var(--color-text-primary); }
+.send-modal__missing-results p { margin: 0; }
+
+/* Help copy wraps by Korean word; authored message content keeps its own layout. */
+.send-message-modal .modal-header__description,
+.send-message-modal .grades-block-panel__group-label,
+.send-message-modal .grades-block-panel__hint,
+.send-modal__preview-help,
+.send-modal__editor-hint,
+.send-modal__editor-label-hint,
+.send-modal__missing-results {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
