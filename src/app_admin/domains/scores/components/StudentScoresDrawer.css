@@ -292,6 +292,11 @@ a.student-scores-drawer__student-link:focus-visible {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
+.student-scores-drawer__exam-card:has(.inline-help__popup),
+.student-scores-drawer__hw-card:has(.inline-help__popup) {
+  overflow: visible;
+}
+
 /* ── OMR scan preview inside expanded exam card ── */
 .ssd-scan-preview {
   display: grid;
