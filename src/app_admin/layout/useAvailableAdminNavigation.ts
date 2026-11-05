@@ -6,15 +6,16 @@ import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 import { ADMIN_NAV_GROUPS } from "./adminNavConfig";
 
-export function useAvailableAdminNavigation() {
-  const { data: staffMe } = useQuery({
+export function useAdminNavigationState() {
+  const staffQuery = useQuery({
     queryKey: staffQueryKeys.me,
     queryFn: fetchStaffMe,
   });
+  const staffMe = staffQuery.data;
   const { program } = useProgram();
   const { user } = useAuth();
 
-  return useMemo(() => {
+  const groups = useMemo(() => {
     const isStaffAdmin = Boolean(staffMe?.is_payroll_manager);
     const isTenantAdmin = user?.tenantRole === "owner"
       || user?.tenantRole === "admin"
@@ -30,4 +31,15 @@ export function useAvailableAdminNavigation() {
       )),
     })).filter((group) => group.items.length > 0);
   }, [program?.feature_flags, staffMe?.is_payroll_manager, user?.is_superuser, user?.tenantRole]);
+  return {
+    groups,
+    permissionsPending: staffQuery.isPending,
+    permissionsError: staffQuery.isError,
+    retryPermissions: staffQuery.refetch,
+  };
+}
+
+
+export function useAvailableAdminNavigation() {
+  return useAdminNavigationState().groups;
 }

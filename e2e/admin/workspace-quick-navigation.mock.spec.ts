@@ -133,6 +133,19 @@ test.describe("업무 화면 기능 검색", () => {
     });
   }
 
+  test("관리 분류 권한 조회 실패는 안내와 재시도로 복구한다", async ({ page }) => {
+    const state = await installApi(page);
+    state.failPermissions = true;
+    await page.goto(`${BASE}/workspace/management`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("alert")).toContainText("직원 관리 권한을 확인하지 못해");
+    const tasks = page.locator('[aria-label="관리 업무"]');
+    await expect(tasks.getByRole("link", { name: /^직원 관리/ })).toHaveCount(0);
+    state.failPermissions = false;
+    await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await expect(tasks.getByRole("link", { name: /^직원 관리/ })).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+  });
+
   test("관리 분류는 현재 권한으로 허용한 업무만 제공한다", async ({ page }) => {
     await installApi(page, "staff", false);
     await page.goto(`${BASE}/workspace/management`, { waitUntil: "domcontentloaded" });
@@ -296,6 +309,7 @@ test.describe("업무 화면 기능 검색", () => {
     await page.getByRole("button", { name: "메뉴", exact: true }).click();
     await page.getByRole("navigation", { name: "선생님 메뉴" }).getByRole("button", { name: /^지원/ }).click();
     await expect(page).toHaveURL(/\/workspace\/mobile\/menu\?group=help$/);
+    await page.screenshot({ path: test.info().outputPath("teacher-menu-390.png"), fullPage: true });
     await page.getByRole("button", { name: "기능 찾기", exact: true }).click();
     await expect(page).toHaveURL(/\/workspace\/mobile\/desktop-only$/);
     await expect(page.getByRole("heading", { name: "기능 찾기", exact: true })).toBeVisible();
