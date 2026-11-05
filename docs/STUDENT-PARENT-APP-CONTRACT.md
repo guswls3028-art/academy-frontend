@@ -722,3 +722,5 @@ pnpm exec playwright test e2e/visual/design-system-route-audit.spec.ts --grep "s
 `clinic-booking-ux.mock.spec.ts`에서 전체 메뉴→reload→홈→상태 카드와 원래
 클리닉 저장/복구를 확인하고, 상세의 조회·권한·오류 동작은 기존 영향 도메인
 회귀와 격리 실사용 검증에서 함께 확인한다.
+
+전체 메뉴로 들어가거나 메뉴에서 다른 화면으로 이동하면 학생 앱의 내부 스크롤을 상단으로 되돌린다. 홈 하단 진입 뒤에도 새 화면 제목부터 읽을 수 있으며, 다른 화면 사이의 기존 스크롤 동작은 변경하지 않는다. 메뉴 회귀 검사는 제목의 실제 viewport 노출까지 확인한다.

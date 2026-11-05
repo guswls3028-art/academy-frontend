@@ -606,15 +606,17 @@ test.describe("학생 클리닉 예약 UX", () => {
     await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
 
     const appArea = page.locator("[data-guide='dash-apps']");
+    await expect(appArea.getByRole("link")).toHaveCount(2);
     await page.screenshot({ path: test.info().outputPath("student-home-390.png"), fullPage: true });
     await appArea.getByRole("link", { name: /^전체 메뉴/ }).click();
     await expect(page).toHaveURL(/\/student\/menu$/);
-    await expect(page.getByRole("heading", { name: "전체 메뉴", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "전체 메뉴", exact: true })).toBeInViewport();
     await expect(page.getByRole("region", { name: "학습", exact: true }).getByRole("link", { name: /^시험/ })).toHaveAttribute("href", "/student/exams");
     await page.screenshot({ path: test.info().outputPath("student-menu-390.png"), fullPage: true });
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "전체 메뉴", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "전체 메뉴", exact: true })).toBeInViewport();
     await page.getByRole("navigation", { name: "상위 경로" }).getByRole("link", { name: "홈", exact: true }).click();
+    await expect.poll(() => page.locator(".student-layout__main").evaluate(main => main.scrollTop)).toBe(0);
     const passcardLink = appArea.getByRole("link", { name: /^클리닉 패스카드/ });
     const shortcuts = appArea.getByRole("link");
     await expect(shortcuts).toHaveCount(2);

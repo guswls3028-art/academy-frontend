@@ -309,6 +309,7 @@ test.describe("업무 화면 기능 검색", () => {
     await page.getByRole("button", { name: "메뉴", exact: true }).click();
     await page.getByRole("navigation", { name: "선생님 메뉴" }).getByRole("button", { name: /^지원/ }).click();
     await expect(page).toHaveURL(/\/workspace\/mobile\/menu\?group=help$/);
+    await expect(page.getByRole("heading", { name: "지원", exact: true })).toBeInViewport();
     await page.screenshot({ path: test.info().outputPath("teacher-menu-390.png"), fullPage: true });
     await page.getByRole("button", { name: "기능 찾기", exact: true }).click();
     await expect(page).toHaveURL(/\/workspace\/mobile\/desktop-only$/);
