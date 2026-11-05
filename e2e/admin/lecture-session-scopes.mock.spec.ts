@@ -261,6 +261,19 @@ async function installApi(page: Page, state: MockState) {
         lecture_time: "토 14:00~16:00",
       });
     }
+    const schedulePath = path.match(/^\/lectures\/sessions\/(\d+)\/schedules\/$/);
+    if (schedulePath && method === "GET") {
+      const sessionId = Number(schedulePath[1]);
+      const sessions = [...sessionRows(state), ...sessionRows(state, SECOND_LECTURE_ID)];
+      if (!sessions.some(session => session.id === sessionId)) return json({ detail: "차시를 찾을 수 없습니다." }, 404);
+      const roster = (state.examSessionEnrollmentRows ?? [])
+        .filter(row => row.session === sessionId)
+        .map(row => ({ enrollment_id: row.enrollment, student_name: row.student_name }));
+      return json({
+        version: `lecture-session-${sessionId}-unconfigured`,
+        schedules: [], roster, unassigned_enrollment_ids: roster.map(student => student.enrollment_id),
+      });
+    }
     if (path === "/lectures/sessions/" && method === "GET") {
       state.sessionListRequests = (state.sessionListRequests ?? 0) + 1;
       if ((state.sessionListFailures ?? 0) > 0) {
@@ -1718,7 +1731,7 @@ test("차시 기본 기준 과제는 제목만 저장해도 상속을 유지하�
   await expect(noDeadlineItem.locator("..")).toHaveAttribute("data-state", "ready");
 
   await page.getByLabel("합격 기준 (%)").fill("");
-  await expect(page.getByRole("alert")).toContainText("합격 기준을 입력해 주세요.");
+  await expect(page.getByRole("alert").filter({ hasText: "합격 기준을 입력해 주세요." })).toBeVisible();
   await expect(page.getByRole("button", { name: "운영 설정 저장", exact: true })).toBeDisabled();
   await page.getByLabel("합격 기준 (%)").fill("80");
 
