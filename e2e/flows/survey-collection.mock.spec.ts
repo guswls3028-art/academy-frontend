@@ -10,23 +10,28 @@ const evidence = Buffer.from("%PDF-1.4\nsurvey evidence\n%%EOF");
 const now = "2026-11-05T10:00:00Z";
 const reportedScore = { id: 701, student_id: 11, source: "school_exam", academic_year: 2026, semester: 2, exam_round: "second", subject: "수학", score: 93, max_score: 100, status: "pending", label: "2026년 2학기 기말", review_note: "", evidence_file_id: 801 } as StudentReportedScoreSubmission;
 
-async function installApi(page: Page) {
+async function installApi(page: Page, authenticated = true) {
   const token = `e30.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "hakwonplus", user_id: 12 })).toString("base64url")}.sig`;
   await page.addInitScript((access) => {
-    localStorage.setItem("access", access); localStorage.setItem("refresh", `${access}-refresh`);
+    if (access) { localStorage.setItem("access", access); localStorage.setItem("refresh", `${access}-refresh`); }
     localStorage.setItem("tenant_code", "hakwonplus"); sessionStorage.setItem("tenantCode", "hakwonplus");
-  }, token);
+  }, authenticated ? token : "");
   const state = {
     role: "admin" as "admin" | "student" | "parent", failNextSave: false, studentHeaders: [] as string[], createdKeys: [] as string[],
-    response: null as SurveyResponse | null, scoreUploaded: false, uploads: [] as string[],
+    response: null as SurveyResponse | null, scoreUploaded: false, uploads: [] as string[], failDownloadOnce: true,
     survey: { id: 91, title: "보강 시간 조사", description: "가능한 시간을 선택하고 시험 범위를 첨부해 주세요.", kind: "general", status: "draft", questions: [], audience: { mode: "all", student_ids: [] }, score_defaults: {}, allow_attachments: true, opens_at: null, closes_at: null, response_limit: null, version: 1, published_at: null, created_at: now, updated_at: now, target_count: 2, response_count: 0, can_respond: true, answered: false, response_unavailable_reason: "" } as Survey,
   };
   const file = { id: "801", displayName: "시험범위.pdf", name: "시험범위.pdf", r2Key: "tenants/1/student/S0011/801.pdf", sizeBytes: evidence.length, contentType: "application/pdf", description: "설문 첨부", folderId: null, createdAt: now };
-  await page.route(`${BASE}/qa-survey-evidence.pdf`, (route) => route.fulfill({ body: evidence, contentType: "application/pdf" }));
+  await page.route(`${BASE}/qa-survey-evidence.pdf`, (route) => {
+    if (state.failDownloadOnce) { state.failDownloadOnce = false; return route.fulfill({ status: 503 }); }
+    return route.fulfill({ body: evidence, contentType: "application/pdf" });
+  });
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request(); const url = new URL(request.url()); const path = url.pathname.replace(/^\/api\/v1/, "");
     const json = (data: unknown, status = 200) => route.fulfill({ json: data, status });
     if (request.method() === "OPTIONS") return route.fulfill({ status: 204 });
+    if (path === "/token/") return json({ access: token, refresh: `${token}-refresh` });
+    if (path === "/core/me/" && !request.headers().authorization) return json({ detail: "로그인이 필요합니다." }, 401);
     if (path === "/core/program/") return json({ tenantCode: "hakwonplus", display_name: "학원플러스", isPlatformAdmin: true, is_active: true, feature_flags: {}, ui_config: {} });
     if (path === "/core/me/") return json({ id: state.role === "admin" ? 12 : 11, username: state.role, name: "설문 검증", is_staff: state.role === "admin", is_superuser: state.role === "admin", tenantRole: state.role, must_change_password: false, linkedStudents: state.role === "parent" ? [{ id: 11, name: "김학생" }] : [] });
     if (path === "/student/me/") return json({ id: 11, name: "김학생", ps_number: "S0011", grade: 2, school_type: "HIGH", high_school: "검증고", isParentReadOnly: state.role === "parent" });
@@ -69,6 +74,18 @@ async function installApi(page: Page) {
 test.describe("설문 작성·응답·취합", () => {
   test.skip(!/^http:\/\/(localhost|127\.0\.0\.1)(:|\/)/.test(BASE), "Local route-mock contract only");
   test.use({ serviceWorkers: "block" });
+  test("공유 설문 링크는 로그인 후 같은 설문으로 돌아온다", async ({ page }) => {
+    const state = await installApi(page, false);
+    state.role = "student";
+    Object.assign(state.survey, { status: "open", published_at: now });
+    await gotoAndSettle(page, `${BASE}/student/surveys/91`);
+    await expect(page.getByTestId("login-username")).toBeVisible({ timeout: 45_000 });
+    await page.getByTestId("login-username").fill("student");
+    await page.getByTestId("login-password").fill("synthetic-password");
+    await page.getByTestId("login-submit").click();
+    await expect(page).toHaveURL(`${BASE}/student/surveys/91`);
+    await expect(page.getByRole("heading", { name: "보강 시간 조사", exact: true })).toBeVisible();
+  });
   test("성적 취합에서 요청한 시험·과목으로 원본을 등록하고 최종 응답을 저장한다", async ({ page }) => {
     const state = await installApi(page);
     state.role = "parent";
@@ -141,6 +158,11 @@ test.describe("설문 작성·응답·취합", () => {
     await expect(page.getByText("김학생", { exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "전체", exact: true }).click();
     await page.getByText("현재 목록의 첨부 묶음 받기", { exact: true }).click();
+    let downloadCount = 0;
+    page.on("download", () => { downloadCount += 1; });
+    await page.getByRole("button", { name: "묶음 1 · 1개", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("내려받지 못했습니다");
+    expect(downloadCount).toBe(0);
     const zipDownload = page.waitForEvent("download");
     await page.getByRole("button", { name: "묶음 1 · 1개", exact: true }).click();
     const zipPath = await (await zipDownload).path();

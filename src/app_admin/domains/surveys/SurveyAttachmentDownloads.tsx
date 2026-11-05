@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getPresignedUrl } from "@/shared/api/contracts/storage";
+import { fetchPresignedMediaBlob } from "@/shared/api/axios";
 import { surveyError, type SurveyAttachment, type SurveyRecipientRow } from "@/shared/api/surveys";
 import styles from "@/shared/ui/surveys/Surveys.module.css";
 
@@ -35,9 +36,12 @@ export default function SurveyAttachmentDownloads({ surveyId, rows }: { surveyId
         if (abort.signal.aborted) throw new Error("내려받기를 중단했습니다. 같은 묶음을 다시 시도할 수 있습니다.");
         setProgress(`${position + 1} / ${batch.length}개 · ${file.studentName} ${file.name}`);
         const { url } = await getPresignedUrl(file.r2_key, 300, undefined, true);
-        const result = await fetch(url, { signal: abort.signal, credentials: "omit" });
-        if (!result.ok) throw new Error(`${file.name}을 내려받지 못했습니다. 원본 내려받기를 확인한 뒤 다시 시도해 주세요.`);
-        const blob = await result.blob();
+        let blob: Blob;
+        try { blob = await fetchPresignedMediaBlob(url, abort.signal); }
+        catch (value) {
+          if (abort.signal.aborted) throw value;
+          throw new Error(`${file.name}: 내려받지 못했습니다. 원본 내려받기를 확인한 뒤 다시 시도해 주세요.`);
+        }
         if (blob.size !== file.size_bytes) throw new Error(`${file.name}의 원본 크기가 변경되었습니다. 목록을 새로고침한 뒤 다시 시도해 주세요.`);
         zip.file(`${safeName(file.studentName)}-${file.studentId}/${file.id}-${safeName(file.name)}`, blob);
       }

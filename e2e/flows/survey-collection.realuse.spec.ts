@@ -115,7 +115,13 @@ test.describe.serial("[real-use] 설문·성적 취합과 자녀별 응답", () 
       const parentPage = await parentContext.newPage();
       const parentBoundary = await installQaStudentParentBoundary(parentPage, request);
       const guards = attachStrictBrowserGuards(parentPage);
+      await parentPage.addInitScript((code) => {
+        localStorage.setItem("tenant_code", code); sessionStorage.setItem("tenantCode", code);
+      }, QA_TENANT);
+      await gotoAndSettle(parentPage, `${QA_BASE}/student/surveys/${memo.id}`);
+      await expect(parentPage.getByTestId("login-username")).toBeVisible({ timeout: 45_000 });
       await loginThroughUi(parentPage, owned.family.parentPhone, owned.family.parentPassword);
+      await expect(parentPage).toHaveURL(`${QA_BASE}/student/surveys/${memo.id}`);
       await selectParentStudentThroughUi(parentPage, primary);
       await gotoAndSettle(parentPage, `${QA_BASE}/student/surveys/${memo.id}`);
       await parentPage.getByLabel("토요일", { exact: true }).check();

@@ -1,3 +1,4 @@
+import { surveyQueryKeys } from "@/shared/api/surveyQueryKeys";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -26,7 +27,7 @@ function useSearch(value: string) { const [search, setSearch] = useState(value);
 export default function SurveysPage() {
   const [status, setStatus] = useState(""); const [offset, setOffset] = useState(0); const [text, setText] = useState("");
   const search = useSearch(text);
-  const query = useQuery({ queryKey: ["surveys", "list", status, search, offset], queryFn: () => surveysApi.list({ status, search, offset }) });
+  const query = useQuery({ queryKey: surveyQueryKeys.list(status, search, offset), queryFn: () => surveysApi.list({ status, search, offset }) });
   return <main className={styles.page}>
     <header className={styles.header}><div><h1>설문과 성적 취합</h1><p className={styles.muted}>학생에게 묻고, 받은 답을 학생 기록과 함께 확인하세요.</p></div><Link className={`${styles.linkButton} ${styles.primary}`} to={`${ROOT}/new`}>설문 만들기</Link></header>
     <div className={styles.toolbar}><div className={styles.tabs} aria-label="설문 상태">{[["", "전체"], ["open", "응답 중"], ["draft", "작성 중"], ["closed", "마감"]].map(([value, label]) => <button type="button" key={value} aria-pressed={status === value} onClick={() => { setStatus(value); setOffset(0); }}>{label}</button>)}</div><input className={styles.search} aria-label="설문 제목 검색" placeholder="설문 제목 검색" value={text} onChange={(event) => { setText(event.target.value); setOffset(0); }} /></div>
@@ -37,7 +38,7 @@ export default function SurveysPage() {
 
 export function SurveyEditorPage() {
   const { surveyId } = useParams(); const id = Number(surveyId);
-  const query = useQuery({ queryKey: ["surveys", "detail", id], queryFn: () => surveysApi.get(id), enabled: id > 0, refetchOnWindowFocus: false });
+  const query = useQuery({ queryKey: surveyQueryKeys.detail(id), queryFn: () => surveysApi.get(id), enabled: id > 0, refetchOnWindowFocus: false });
   if (!surveyId) return <SurveyEditor />;
   if (query.isPending) return <main className={styles.page} role="status">설문을 불러오는 중…</main>;
   if (query.isError) return <main className={styles.page}><ErrorBox error={query.error} retry={() => { void query.refetch(); }} /></main>;
@@ -51,11 +52,11 @@ function SurveyEditor({ initial }: { initial?: Survey }) {
   const [dirty, setDirty] = useState(false); const [selection, setSelection] = useState<Record<number, string>>(() => Object.fromEntries((initial?.selected_students ?? []).map((student) => [student.id, student.name]))); const [studentText, setStudentText] = useState("");
   const search = useSearch(studentText); const [localError, setLocalError] = useState("");
   const frozen = Boolean(initial?.published_at); const formRef = useRef<HTMLFormElement>(null);
-  const studentQuery = useQuery({ queryKey: ["surveys", "student-choices", search], queryFn: () => surveysApi.students(search), enabled: draft.audience.mode === "selected" && !frozen });
+  const studentQuery = useQuery({ queryKey: surveyQueryKeys.students(search), queryFn: () => surveysApi.students(search), enabled: draft.audience.mode === "selected" && !frozen });
   useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ""; } }; window.addEventListener("beforeunload", warn); return () => window.removeEventListener("beforeunload", warn); }, [dirty]);
   const change = <K extends keyof SurveyDraft>(key: K, value: SurveyDraft[K]) => { setDraft((current) => ({ ...current, [key]: value })); setDirty(true); };
   const editQuestion = (id: string, updates: Partial<SurveyQuestion>) => change("questions", draft.questions.map((question) => question.id === id ? { ...question, ...updates } : question));
-  const save = useMutation({ mutationFn: () => initial ? surveysApi.update(initial.id, draft, version) : surveysApi.create(draft, creationKey.current), onSuccess: (survey) => { setDirty(false); void qc.invalidateQueries({ queryKey: ["surveys"] }); navigate(`${ROOT}/${survey.id}`, { replace: true }); } });
+  const save = useMutation({ mutationFn: () => initial ? surveysApi.update(initial.id, draft, version) : surveysApi.create(draft, creationKey.current), onSuccess: (survey) => { setDirty(false); void qc.invalidateQueries({ queryKey: surveyQueryKeys.root }); navigate(`${ROOT}/${survey.id}`, { replace: true }); } });
   const submit = (event: FormEvent) => { event.preventDefault(); setLocalError(""); if (!draft.questions.length && draft.kind !== "school_score") { setLocalError("질문을 한 개 이상 추가해 주세요."); return; } save.mutate(); };
   const restore = async () => { if (!initial || !window.confirm("입력 중인 변경을 버리고 저장된 최신 설문을 불러올까요?")) return; try { const latest = await surveysApi.get(initial.id); setDraft(latest); setVersion(latest.version); setSelection(Object.fromEntries((latest.selected_students ?? []).map((student) => [student.id, student.name]))); setDirty(false); save.reset(); } catch (error) { setLocalError(surveyError(error)); } };
   const setDefault = <K extends keyof SurveyScoreDefaults>(key: K, value: SurveyScoreDefaults[K]) => {
@@ -98,11 +99,11 @@ function SurveyEditor({ initial }: { initial?: Survey }) {
 export function SurveyDetailPage() {
   const { surveyId } = useParams(); const id = Number(surveyId); const qc = useQueryClient();
   const [status, setStatus] = useState("all"); const [offset, setOffset] = useState(0); const [error, setError] = useState(""); const [notice, setNotice] = useState(""); const [exporting, setExporting] = useState(false); const [showStats, setShowStats] = useState(false);
-  const query = useQuery({ queryKey: ["surveys", "detail", id], queryFn: () => surveysApi.get(id) });
+  const query = useQuery({ queryKey: surveyQueryKeys.detail(id), queryFn: () => surveysApi.get(id) });
   const survey = query.data;
-  const responses = useQuery({ queryKey: ["surveys", "responses", id, status, offset], queryFn: () => surveysApi.responses(id, { response_status: status, offset }), enabled: Boolean(survey?.published_at) });
-  const statistics = useQuery({ queryKey: ["surveys", "stats", id], queryFn: () => surveysApi.statistics(id), enabled: showStats });
-  const action = useMutation({ mutationFn: (kind: "publish" | "close") => { if (!survey) throw new Error("설문을 먼저 불러와 주세요."); return kind === "publish" ? surveysApi.publish(id, survey.version) : surveysApi.close(id, survey.version); }, onSuccess: (saved) => { qc.setQueryData(["surveys", "detail", id], saved); void qc.invalidateQueries({ queryKey: ["surveys"] }); setNotice(saved.status === "open" ? "대상 학생의 설문 목록에 표시됩니다. 학생 또는 연결된 학부모가 응답할 수 있습니다." : "응답을 마감했습니다. 제출한 기록은 그대로 보관됩니다."); } });
+  const responses = useQuery({ queryKey: surveyQueryKeys.responses(id, status, offset), queryFn: () => surveysApi.responses(id, { response_status: status, offset }), enabled: Boolean(survey?.published_at) });
+  const statistics = useQuery({ queryKey: surveyQueryKeys.statistics(id), queryFn: () => surveysApi.statistics(id), enabled: showStats });
+  const action = useMutation({ mutationFn: (kind: "publish" | "close") => { if (!survey) throw new Error("설문을 먼저 불러와 주세요."); return kind === "publish" ? surveysApi.publish(id, survey.version) : surveysApi.close(id, survey.version); }, onSuccess: (saved) => { qc.setQueryData(surveyQueryKeys.detail(id), saved); void qc.invalidateQueries({ queryKey: surveyQueryKeys.root }); setNotice(saved.status === "open" ? "대상 학생의 설문 목록에 표시됩니다. 학생 또는 연결된 학부모가 응답할 수 있습니다." : "응답을 마감했습니다. 제출한 기록은 그대로 보관됩니다."); } });
   const copyLink = async () => { try { await navigator.clipboard.writeText(`${window.location.origin}/student/surveys/${id}`); setNotice("학생용 링크를 복사했습니다. 대상 학생 또는 연결된 학부모가 로그인하여 응답할 수 있습니다."); } catch { setError("링크를 복사하지 못했습니다. 아래 학생용 링크를 길게 누르거나 선택해 복사해 주세요."); } };
   const download = async () => { setExporting(true); setError(""); try { await downloadSurveyCsv(id, status); } catch (e) { setError(surveyError(e)); } finally { setExporting(false); } };
   if (query.isPending) return <main className={styles.page} role="status">설문을 불러오는 중…</main>;
@@ -123,6 +124,6 @@ export function SurveyDetailPage() {
 
 export function StudentSurveyHistory({ studentId }: { studentId: number }) {
   const [open, setOpen] = useState(false); const [offset, setOffset] = useState(0);
-  const query = useQuery({ queryKey: ["surveys", "student-history", studentId, offset], queryFn: () => surveysApi.studentHistory(studentId, offset), enabled: open });
+  const query = useQuery({ queryKey: surveyQueryKeys.history(studentId, offset), queryFn: () => surveysApi.studentHistory(studentId, offset), enabled: open });
   return <details className={styles.history} onToggle={(event) => setOpen(event.currentTarget.open)}><summary>설문으로 받은 정보</summary>{open && (query.isPending ? <p role="status">응답을 불러오는 중…</p> : query.isError ? <ErrorBox error={query.error} retry={() => { void query.refetch(); }} /> : <>{!query.data.results.length && <p className={styles.muted}>아직 받은 응답이 없습니다.</p>}{query.data.results.map((response) => <details className={styles.answer} key={response.id}><summary>{response.survey_title}</summary><SurveyResponseContent response={response} /></details>)}<Pager offset={offset} count={query.data.count} change={setOffset} size={10} /></>)}</details>;
 }

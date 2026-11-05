@@ -1,11 +1,12 @@
+import { surveyQueryKeys } from "@/shared/api/surveyQueryKeys";
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
-import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
+import { fetchMyProfile } from "@student/domains/profile/public/profile.api";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
-import { fetchMyInventory, uploadMyFile, type InventoryFile } from "@student/domains/inventory/api/inventory.api";
-import SubmitScorePage from "@student/domains/submit/pages/SubmitScorePage";
+import { fetchMyInventory, uploadMyFile, type InventoryFile } from "@student/domains/inventory/public/inventory.api";
+import SubmitScorePage from "@student/domains/submit/public/SubmitScorePage";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { surveyError, surveysApi, SURVEY_KIND_LABEL, type Survey, type SurveyAnswers, type SurveyAttachment, type SurveyResponse, type SurveyResponseInput } from "@/shared/api/surveys";
 import SurveyResponseContent from "@/shared/ui/surveys/SurveyResponseContent";
@@ -21,7 +22,7 @@ function attachment(file: InventoryFile): SurveyAttachment { return { id: Number
 export default function StudentSurveysPage() {
   const profile = useQuery({ queryKey: studentQueryKeys.me, queryFn: fetchMyProfile });
   const [offset, setOffset] = useState(0); const studentId = profile.data?.id;
-  const query = useQuery({ queryKey: ["student-surveys", studentId, offset], queryFn: () => surveysApi.myList(studentId!, offset), enabled: Boolean(studentId) });
+  const query = useQuery({ queryKey: surveyQueryKeys.studentList(studentId, offset), queryFn: () => surveysApi.myList(studentId!, offset), enabled: Boolean(studentId) });
   return <StudentPageShell title="설문과 성적 취합" description="선생님이 요청한 내용을 확인하고 답해주세요." descriptionMode="help" onBack={() => window.history.back()}><main className={`${styles.page} ${styles.student}`}>
     {profile.isError ? <Failure error={profile.error} retry={() => { void profile.refetch(); }} /> : query.isPending ? <p role="status">설문을 불러오는 중…</p> : query.isError ? <Failure error={query.error} retry={() => { void query.refetch(); }} /> : !query.data.results.length ? <div className={styles.empty}><h2>아직 도착한 설문이 없습니다</h2><p className={styles.muted}>새 설문이 배포되면 이곳에서 확인할 수 있어요.</p><Link to="/student/submit" className={styles.linkButton}>제출 화면으로</Link></div> : <div className={styles.list}>{query.data.results.map((survey) => <Link className={styles.row} to={`/student/surveys/${survey.id}`} key={survey.id}><div><strong className={styles.rowTitle}>{survey.title}</strong><div className={styles.rowMeta}><span>{SURVEY_KIND_LABEL[survey.kind]}</span><span>{surveyDate(survey.closes_at)}</span></div></div><span>{survey.answered ? "응답 확인" : survey.can_respond ? "답하기" : survey.status === "closed" ? "마감" : "확인"}</span></Link>)}</div>}
     {query.data && query.data.count > 30 && <div className={styles.pagination}><button type="button" className={styles.button} disabled={!offset} onClick={() => setOffset(Math.max(0, offset - 30))}>이전</button><span>{offset + 1}–{Math.min(offset + 30, query.data.count)}</span><button type="button" className={styles.button} disabled={offset + 30 >= query.data.count} onClick={() => setOffset(offset + 30)}>다음</button></div>}
@@ -33,7 +34,7 @@ export function StudentSurveyDetailPage() {
   const { user } = useAuth();
   const profile = useQuery({ queryKey: studentQueryKeys.me, queryFn: fetchMyProfile });
   const studentId = profile.data?.id;
-  const query = useQuery({ queryKey: ["student-survey", studentId, id], queryFn: () => surveysApi.myDetail(id, studentId!), enabled: Boolean(studentId && id > 0), refetchOnWindowFocus: false });
+  const query = useQuery({ queryKey: surveyQueryKeys.studentDetail(studentId, id), queryFn: () => surveysApi.myDetail(id, studentId!), enabled: Boolean(studentId && id > 0), refetchOnWindowFocus: false });
   const data = query.data;
   return <StudentPageShell title={data?.survey.title || "설문"} description={data?.survey.description || "선생님이 요청한 내용에 답해주세요."} onBack={() => window.history.back()}><main className={`${styles.page} ${styles.student}`}>
     <Link className={styles.muted} to="/student/surveys">설문 목록</Link>
@@ -75,7 +76,7 @@ function ResponseForm({ actorId, survey, existing, studentId, studentPs, student
   useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (dirty || uploading) { event.preventDefault(); event.returnValue = ""; } }; window.addEventListener("beforeunload", warn); return () => window.removeEventListener("beforeunload", warn); }, [dirty, uploading]);
   const save = useMutation({
     mutationFn: () => surveysApi.respond(survey.id, studentId, { answers, attachment_ids: files.map((file) => file.id), score_submission_ids: scoreIds, expected_version: version }),
-    onSuccess: (value) => { draft.markSubmitted(); setResponse(value); setVersion(value.version); setAnswers(value.answers); setFiles(value.attachments); setScoreIds(value.score_submissions.map((score) => score.id)); setDirty(false); setEditing(false); setError(""); void qc.invalidateQueries({ queryKey: ["student-surveys", studentId] }); void qc.invalidateQueries({ queryKey: ["student-survey", studentId, survey.id] }); },
+    onSuccess: (value) => { draft.markSubmitted(); setResponse(value); setVersion(value.version); setAnswers(value.answers); setFiles(value.attachments); setScoreIds(value.score_submissions.map((score) => score.id)); setDirty(false); setEditing(false); setError(""); void qc.invalidateQueries({ queryKey: surveyQueryKeys.studentRoot(studentId) }); void qc.invalidateQueries({ queryKey: surveyQueryKeys.studentDetail(studentId, survey.id) }); },
     onError: (value) => setError(surveyError(value)),
   });
   const chooseScore = (file: InventoryFile) => { const scores = (file.scoreSubmissions?.length ? file.scoreSubmissions : file.scoreSubmission ? [file.scoreSubmission] : []).filter((score) => ["pending", "verified"].includes(score.status) && Object.entries(survey.score_defaults).every(([key, value]) => score[key as keyof typeof score] === value)); setFiles([attachment(file)]); setScoreIds(scores.map((score) => score.id)); setDirty(true); setShowScoreForm(false); };

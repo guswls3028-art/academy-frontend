@@ -1,5 +1,4 @@
-import axios from "axios";
-import api from "@/shared/api/axios";
+import api, { isApiError } from "@/shared/api/axios";
 import { createRandomUuid } from "@/shared/utils/randomUuid";
 import type { StudentReportedScoreSubmission, StudentSchoolExamRound, StudentScoreSource } from "@/shared/api/contracts/storage";
 
@@ -58,7 +57,7 @@ export const surveysApi = {
 };
 
 export function surveyError(error: unknown): string {
-  const data: unknown = axios.isAxiosError(error) ? error.response?.data : null;
+  const data: unknown = isApiError(error) ? error.response?.data : null;
   const textValues = (value: unknown): string[] => {
     if (typeof value === "string") return [value];
     if (Array.isArray(value)) return value.flatMap(textValues);
@@ -67,7 +66,7 @@ export function surveyError(error: unknown): string {
   };
   const messages = textValues(data);
   if (messages.length) return messages.slice(0, 4).join(" ");
-  if (error instanceof Error && !axios.isAxiosError(error)) return error.message;
+  if (error instanceof Error && !isApiError(error)) return error.message;
   return "연결을 확인하고 다시 시도해 주세요. 입력한 내용은 그대로 유지됩니다.";
 }
 

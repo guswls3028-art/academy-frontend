@@ -57,7 +57,7 @@ import { openStudentSupportPreview } from "@/shared/studentSupport/studentSuppor
 import StudentExamCorrectionCard from "./StudentExamCorrectionCard";
 
 const StudentFormModal = lazy(() => import("../components/EditStudentModal"));
-const StudentSurveyHistory = lazy(() => import("@admin/domains/surveys/SurveysPage").then((module) => ({ default: module.StudentSurveyHistory })));
+const StudentSurveyHistory = lazy(() => import("@admin/domains/surveys/public/StudentSurveyHistory"));
 const TagCreateModal = lazy(() => import("../components/TagCreateModal"));
 const DeleteConfirmModal = lazy(() => import("../components/DeleteConfirmModal"));
 const StudentEnrollmentMatrixDrawer = lazy(() => import("../components/StudentEnrollmentMatrixDrawer"));
