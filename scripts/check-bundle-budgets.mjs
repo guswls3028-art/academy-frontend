@@ -90,6 +90,12 @@ const initialPreloadGzip = initialPreloadBuffers.reduce(
   0,
 );
 if (initialPreloadGzip > INITIAL_PRELOAD_GZIP_LIMIT) {
+  const largest = initialJsPreloads.map(({ href }, index) => ({
+    href, gzip: gzipSync(initialPreloadBuffers[index]).length,
+  })).sort((a, b) => b.gzip - a.gzip).slice(0, 12);
+  for (const asset of largest) {
+    console.error(`[bundle-budget] initial ${asset.href}: ${(asset.gzip / KIB).toFixed(1)} KiB gzip`);
+  }
   throw new Error(
     `Initial JavaScript preload budget exceeded: ${(initialPreloadGzip / KIB).toFixed(1)} KiB gzip / ` +
     `${(INITIAL_PRELOAD_GZIP_LIMIT / KIB).toFixed(0)} KiB across ${initialJsPreloads.length} chunks.`,

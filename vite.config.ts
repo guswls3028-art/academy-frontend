@@ -94,7 +94,6 @@ export default defineConfig(({ mode }) => {
     // the SystemJS bundle on older Safari, Chrome and Samsung Internet.
     rolldownOptions: {
       output: {
-        strictExecutionOrder: true,
         codeSplitting: {
           groups: [
             {
@@ -107,24 +106,11 @@ export default defineConfig(({ mode }) => {
                   normalized.includes("/node_modules/react-router/") ||
                   normalized.includes("/node_modules/scheduler/") ||
                   normalized.includes("react/jsx") ||
-                  // Rolldown injects these virtual shared helpers into both
-                  // Query and PDF.js. Keep them in the eager core chunk.
+                  // Shared transform helpers must not make Query load PDF.js.
                   normalized.startsWith("\0@oxc-project+runtime@")
                 );
               },
               priority: 50,
-            },
-            {
-              name: "vendor-query",
-              test: (id) => {
-                const normalized = id.replace(/\\/g, "/");
-                return (
-                  normalized.includes("/node_modules/@tanstack/react-query/") ||
-                  normalized.includes("/node_modules/@tanstack/query-core/")
-                );
-              },
-              includeDependenciesRecursively: false,
-              priority: 30,
             },
             {
               name: "vendor-icons",
@@ -158,6 +144,7 @@ export default defineConfig(({ mode }) => {
                 const normalized = id.replace(/\\/g, "/");
                 if (normalized.endsWith(".css")) return null;
                 if (normalized.includes("node_modules")) {
+                  if (normalized.includes("@tanstack/react-query")) return "vendor-query";
                   if (normalized.includes("recharts") || normalized.includes("/d3-")) return "vendor-charts";
                   if (normalized.includes("pdfjs-dist")) return "vendor-pdfjs";
                   if (normalized.includes("pdf-lib")) return "vendor-pdf-lib";
