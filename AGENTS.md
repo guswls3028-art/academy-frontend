@@ -94,6 +94,16 @@ journey and recovery. If the UI cannot be observed, use code/current evidence
 and disclose the gap. The focused method is in
 `docs/REAL-USE-REVIEW-MANUAL.md`.
 
+Prepare UI review autonomously from repository routes, runtime/version readback,
+configured authentication and existing isolated QA evidence. Start with
+`pnpm qa:visual` when the user's browser cannot be inspected; it discovers the
+live revision and prepares its synthetic QA captures without customer credentials.
+Inspect the local PNGs directly; its optional loopback viewer is not a prerequisite.
+Captures do not prove current-candidate interactions. Use the owning isolated
+development procedure for those, coordinate shared slots, and retain cleanup zero.
+Do not ask the user to supply a URL/account or prepare a tenant before exhausting
+these supported paths. Never copy production personal data or bypass a tool denial.
+
 - Preserve tenant/auth/role boundaries in every route/API and user-authored data;
   do not reconstruct backend-owned business decisions.
 - Reuse design-system/role-app patterns: `Badge` from `@/shared/ui/ds` (no raw

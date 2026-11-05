@@ -69,6 +69,53 @@
 
 ## 3. 점검 환경
 
+### 사용자에게 환경 준비를 전가하지 않는 검수 작업대
+
+화면 점검을 맡은 작업자는 저장소 라우트, 현재 runtime/version, 기존 담당자의
+정확한 후보와 격리 QA 진입점을 먼저 확인한다. URL·계정·테넌트 준비를 사용자에게
+반복 요청하지 않는다. 설정된 인증은 승인 범위 안에서 재사용하며 실제 고객의
+학생·성적·연락처·비밀값을 복제하지 않는다. 구조와 긴 이름/빈값/많은 행 등의
+조건은 합성 fixture로 재현한다. 필수 권한 거절이나 도구 차단은 우회하지 않는다.
+
+현재 운영 화면의 시각 근거는 별도 로그인 없이 다음 명령으로 준비한다.
+
+```sh
+pnpm qa:visual
+# 정확한 과거 성공 run 또는 이미 내려받은 합성 evidence를 검토할 때:
+pnpm qa:visual --run 41574720365 --prepare-only
+pnpm qa:visual --evidence /absolute/path/development-release-evidence --output /absolute/new/review
+# 이 실행환경의 loopback을 브라우저가 지원할 때만 검색용 viewer도 실행:
+pnpm qa:visual --serve
+```
+
+`scripts/visual-review-workbench.mjs`는 공개 `version.json`의 exact SHA와 일치하는
+성공 main run을 찾고, 같은 artifact의 development QA 성공·합성 tenant·cleanup zero를
+확인한 뒤 캡처 작업대를 만든다. 기존 GitHub 인증을 사용한다. 기본 실행은 로컬
+파일만 준비하며 로컬 이미지 열람 도구로 바로 검수한다. 선택적 `--serve`는
+127.0.0.1의 빈 포트를 자동 선택해 주소를 출력하므로 사용자 브라우저의 현재 URL을
+알아야 할 필요가 없다.
+원본 evidence와 별도 output에는 PNG, SHA/실행 정보, 검색 가능한 HTML만 둔다.
+원본 보고서·토큰·계정은 HTTP로 제공하지 않고 서버는 API 요청·쓰기·외부 연결을
+허용하지 않는다. `--prepare-only`는 서버 없이 같은 산출물을 남긴다. 작업 종료 시
+소유 서버를 Ctrl+C로 종료하며 원본과 검수 근거는 작업 artifact 위치에 보존한다.
+도구의 브라우저가 이 컴퓨터의 loopback에 닿지 못하면 `manifest.json`의 이미지
+목록과 로컬 이미지 열람 도구로 원본 PNG를 직접 본다. 이것도 실제 렌더에 대한
+시각 검수이며, 사용자에게 URL을 다시 요청하거나 브라우저 보안 차단을 우회하는
+이유가 되지 않는다. 작업대 HTML의 브라우저 검증 여부는 별도로 기록한다.
+
+작업대는 **이미 캡처한 화면을 사람이 검수하는 도구**다. 현재 후보의 클릭·저장·
+새로고침·상대 역할 반영을 대신하지 않는다. 과거 run/local evidence는 운영 일치로
+표시하지 않는다. artifact 만료·운영 SHA 불일치·failed QA·잔여·누락 캡처는 자동
+통과하지 않는다. 기존 release 담당의 정확한 artifact나 해당 후보의 route-mock
+렌더/격리 실사용 절차로 이어가고 미검증 범위를 명시한다.
+
+직접 조작이 필요한 검수는 아래의 exact checkout + SSM loopback + disposable QA
+절차를 사용한다. 공유 개발 서버/Codespace가 사용 중이면 기존 결과 책임자와
+슬롯·candidate·후속 실행을 조정하고, 그동안 캡처 검수와 정적 준비를 진행한다.
+새 공개 endpoint, production tenant 복제 또는 중복 release executor를 만들지 않는다.
+1366/390px의 같은 흐름을 실제로 보고 발견한 문제에 화면/상태/폭/근거/개선 기준을
+붙여 기존 담당에게 전달한다. 전달 완료와 담당 인수, 구현·재검증 완료를 구분한다.
+
 생성·수정과 인증 시각 QA의 기본은 상시 격리 development API와 일회용 `qa-*`
 tenant/account다. 운영 테넌트를 테스트 데이터 생성용 기본값으로 삼지 않는다.
 정확한 checkout과 SSM loopback 연결, 자원 격리·외부 메시지 0·삭제 readback은
