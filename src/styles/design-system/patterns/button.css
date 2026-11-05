@@ -10,6 +10,7 @@
  * ====================================================== */
 
 .ds-button {
+  --button-icon-size: var(--ds-control-icon-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -19,7 +20,7 @@
   min-height: var(--control-md);
   padding: 0 var(--space-4);
 
-  font-size: 13px;
+  font-size: var(--ds-text-md);
   font-weight: 600;
   line-height: 1;
   color: var(--color-text-primary);
@@ -53,25 +54,29 @@
  * ====================================================== */
 
 .ds-button[data-size="sm"] {
+  --button-icon-size: var(--ds-control-icon-sm);
   min-height: var(--control-sm);
   padding: 0 var(--space-3);
-  font-size: 12px;
+  font-size: var(--ds-text-xs);
 }
 
 .ds-button[data-size="md"] {
+  --button-icon-size: var(--ds-control-icon-md);
   min-height: var(--control-md);
 }
 
 .ds-button[data-size="lg"] {
+  --button-icon-size: var(--ds-control-icon-lg);
   min-height: var(--control-lg);
   padding: 0 var(--space-5);
-  font-size: 14px;
+  font-size: var(--ds-text-md);
 }
 
 .ds-button[data-size="xl"] {
-  min-height: 48px;
+  --button-icon-size: var(--ds-control-icon-xl);
+  min-height: var(--control-xl);
   padding: 0 var(--space-6);
-  font-size: 16px;
+  font-size: var(--ds-text-lg);
   font-weight: 700;
 }
 
@@ -198,7 +203,7 @@
 }
 
 .ds-button[data-icon-only="true"][data-size="xl"] {
-  width: 48px;
+  width: var(--control-xl);
 }
 
 .ds-button[data-icon-only="true"][data-size="sm"] {
@@ -309,4 +314,15 @@
 @media (prefers-reduced-motion: reduce) {
   .ds-button { transition: none; }
   .ds-button:hover:not(:disabled):not([data-disabled="true"]) { transform: none; }
+}
+
+/* Standard icon slots follow the resolved group size, not a caller's stale SVG size. */
+.ds-button__left > svg,
+.ds-button__right > svg {
+  width: var(--button-icon-size);
+  height: var(--button-icon-size);
+}
+
+[data-control-size] .ds-button {
+  flex-shrink: 0;
 }

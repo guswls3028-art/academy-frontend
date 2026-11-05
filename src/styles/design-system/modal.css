@@ -41,8 +41,8 @@
 .admin-modal .ant-modal-close {
   inset-inline-end: var(--space-4);
   top: var(--space-4);
-  width: 36px;
-  height: 36px;
+  width: var(--control-md);
+  height: var(--control-md);
   padding: 0;
   border: 1px solid var(--color-border-divider);
   border-radius: var(--radius-md);
@@ -340,7 +340,9 @@
 
 .modal-footer__actions {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--space-2);
   flex-shrink: 0;
 }
 
@@ -363,15 +365,19 @@
 
   .modal-footer__actions > * {
     min-width: 0;
-    flex: 1 1 0;
+    flex: 1 1 auto;
   }
 
-  .modal-footer__actions:has(> :nth-child(2):last-child) > :first-child {
-    flex: 0 1 34%;
+  .modal-footer__actions > .ds-button {
+    flex-basis: max-content;
   }
 
-  .modal-footer__actions:has(> :nth-child(2):last-child) > :last-child {
-    flex: 1 1 66%;
+  /* Wrap the action group first. A single unusually long label remains readable. */
+  .modal-footer__actions .ds-button__label {
+    white-space: normal;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
   }
 }
 
@@ -731,10 +737,10 @@
 
 /* ========== 단일 선택 버튼 (고등/중등/학년) — 차시 블록 색상 재활용, 인풋 높이 맞춤 ========== */
 .ds-choice-btn {
-  height: 36px;
+  height: var(--control-md);
   min-width: 0;
   padding: 0 var(--space-3);
-  font-size: 13px;
+  font-size: var(--ds-text-md);
   font-weight: 600;
   border: none;
   border-radius: var(--radius-md);
@@ -835,10 +841,10 @@
 
 /* ========== 성별 버튼 — 테마 토큰 기반 (남 primary / 여 complement 또는 핑크) ========== */
 .student-gender-btn {
-  height: 36px;
+  height: var(--control-md);
   min-width: 0;
   padding: 0 var(--space-3);
-  font-size: 13px;
+  font-size: var(--ds-text-md);
   font-weight: 600;
   border: none;
   border-radius: var(--radius-md);
@@ -941,22 +947,22 @@
   line-height: 1.4;
 }
 .modal-phone-block {
-  height: 40px;
-  min-height: 40px;
+  height: var(--control-md);
+  min-height: var(--control-md);
   border-radius: 8px;
   background: var(--color-bg-surface-soft, #FAFBFC);
   border: 1px solid var(--color-border-divider);
-  font-size: 0.9375rem;
+  font-size: var(--ds-field-font);
   padding: 0 12px;
   color: var(--color-text-primary);
 }
 .modal-phone-block-input {
-  height: 40px !important;
-  min-height: 40px !important;
+  height: var(--control-md) !important;
+  min-height: var(--control-md) !important;
   border-radius: 8px !important;
   background: var(--color-bg-surface-soft, #FAFBFC) !important;
   border: 1px solid var(--color-border-divider) !important;
-  font-size: 0.9375rem !important;
+  font-size: var(--ds-field-font) !important;
   padding: 0 12px !important;
 }
 .modal-phone-block-input:focus {

@@ -267,11 +267,15 @@
    Touch Target Enforcement (44px)
    ========================= */
 [data-app="student"] .stu-btn {
-  min-height: 44px;
+  min-height: var(--stu-control);
 }
 
 [data-app="student"] .stu-btn--sm {
-  min-height: 44px;
+  min-height: max(var(--ds-control-sm), var(--stu-touch));
+}
+
+[data-app="student"] .stu-btn--lg {
+  min-height: var(--stu-control-lg);
 }
 
 /* =========================
@@ -296,9 +300,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
+  width: var(--stu-touch);
+  height: var(--stu-touch);
+  min-width: var(--stu-touch);
   border-radius: 50%;
   border: 1px solid transparent;
   background: transparent;
@@ -415,7 +419,7 @@
 [data-app="student"] .stu-input {
   border: 1.5px solid color-mix(in srgb, var(--stu-primary) 10%, var(--stu-border));
   box-shadow: none;
-  font-size: 15px;
+  font-size: var(--ds-field-font);
   font-weight: 500;
 }
 [data-app="student"] .stu-input:hover:not(:focus) {
@@ -433,14 +437,15 @@
   appearance: none;
   -webkit-appearance: none;
   width: 100%;
-  min-height: 44px;
-  padding: 10px 36px 10px 14px;
+  height: var(--stu-control);
+  min-height: var(--stu-control);
+  padding: 0 var(--ds-space-10) 0 var(--ds-space-3);
   border-radius: var(--stu-radius-md);
   border: 1.5px solid color-mix(in srgb, var(--stu-primary) 10%, var(--stu-border));
   background: var(--stu-surface-1) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") no-repeat right 12px center;
   background-size: 16px 16px;
   color: var(--stu-text);
-  font-size: 15px;
+  font-size: var(--ds-field-font);
   font-weight: 500;
   cursor: pointer;
   transition: border-color var(--stu-motion-fast), box-shadow var(--stu-motion-fast);

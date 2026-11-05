@@ -16,11 +16,11 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  min-height: var(--control-sm, 32px);
+  min-height: var(--control-md);
   padding: 0 var(--space-4);
   min-width: 80px;
 
-  font-size: 13px;
+  font-size: var(--ds-text-md);
   font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
@@ -41,9 +41,10 @@
 }
 
 .ds-segment__btn[data-size="sm"] {
+  min-height: var(--control-sm);
   min-width: 40px;
   padding-inline: var(--space-2);
-  font-size: 12px;
+  font-size: var(--ds-text-xs);
 }
 
 .ds-segment__btn[data-tone="success"] { --selection-accent: var(--color-success); }
@@ -83,10 +84,6 @@
 .ds-segment__btn:disabled {
   opacity: 0.65;
   cursor: not-allowed;
-}
-
-@media (max-width: 1023px) {
-  .ds-segment__btn { min-height: 40px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
