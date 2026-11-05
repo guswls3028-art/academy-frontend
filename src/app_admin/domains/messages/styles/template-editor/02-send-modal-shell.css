@@ -492,3 +492,12 @@
 
 .send-modal__missing-results strong { color: var(--color-text-primary); }
 .send-modal__missing-results p { margin: 0; }
+
+/* Help copy wraps by Korean word; authored message content keeps its own layout. */
+.send-modal__preview-help,
+.send-modal__editor-hint,
+.send-modal__editor-label-hint,
+.send-modal__missing-results {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}

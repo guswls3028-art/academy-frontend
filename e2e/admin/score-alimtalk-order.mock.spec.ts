@@ -90,6 +90,12 @@ for (const width of [1366, 390]) {
     await expect(missing).toHaveCount(0);
     await expect.poll(() => modal.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
     await page.screenshot({ path: testInfo.outputPath(`alimtalk-order-${width}.png`), animations: "disabled" });
+    if (width === 1366) {
+      await page.setViewportSize({ width: 1100, height: 900 });
+      await expect.poll(() => modal.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+      await page.screenshot({ path: testInfo.outputPath("alimtalk-order-1100.png"), animations: "disabled" });
+      await page.setViewportSize({ width, height: 900 });
+    }
     await modal.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
     await page.getByRole("dialog", { name: "보내기 전 마지막 확인" }).getByRole("button", { name: "발송하기", exact: true }).click();
     await expect.poll(() => harness.sends.length).toBe(2);
