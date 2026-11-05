@@ -190,6 +190,43 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
       await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
     }
   };
+  // Check normal controls at three widths without repeating fullscreen journeys.
+  const controls = page.locator(".svpControls");
+  for (const width of scenario.viewport?.width === 1366 ? [1100, 1366] : [390]) {
+    const height = scenario.viewport?.height ?? 844;
+    await page.setViewportSize({ width, height });
+    await revealControls();
+    await expect(controls).toHaveCSS("opacity", "1");
+    await expect(controls.locator(".svpVolume button")).toBeVisible();
+    await expect(controls.locator(".svpQualityBtn")).toBeVisible();
+    await expect(controls.locator(".svpQualityBtn")).toBeDisabled();
+    const targets = await controls.evaluate(root => Array.from(root.querySelectorAll<HTMLButtonElement | HTMLInputElement>("button, input[type='range']"))
+      .filter(node => node.getClientRects().length > 0 && getComputedStyle(node).visibility !== "hidden")
+      .map(node => {
+        const { left, top, right, bottom, width, height } = node.getBoundingClientRect();
+        const hit = document.elementFromPoint(left + width / 2, top + height / 2);
+        return { label: node.getAttribute("aria-label") ?? node.textContent?.trim(), disabled: node.disabled,
+          rect: { left, top, right, bottom, width, height }, display: getComputedStyle(node).display,
+          pointerEvents: getComputedStyle(node).pointerEvents, ownsCenter: !!hit && node.contains(hit),
+          hitLabel: hit?.closest("button, input")?.getAttribute("aria-label") ?? hit?.tagName };
+      }));
+    await info.attach(`player-control-geometry-${width}`, { contentType: "application/json", body: JSON.stringify({ width, height, targets }) });
+    await info.attach(`player-controls-${width}`, { contentType: "image/png", body: await page.screenshot() });
+    expect(targets.length).toBeGreaterThan(0);
+    for (const [index, target] of targets.entries()) {
+      const label = `${width}px ${target.label}`;
+      expect(target.rect.left, label).toBeGreaterThanOrEqual(-0.5);
+      expect(target.rect.top, label).toBeGreaterThanOrEqual(-0.5);
+      expect(target.rect.right, label).toBeLessThanOrEqual(width + 0.5);
+      expect(target.rect.bottom, label).toBeLessThanOrEqual(height + 0.5);
+      expect(target.ownsCenter, `${label}: center belongs to target`).toBe(true);
+      for (const other of targets.slice(index + 1)) {
+        const overlapX = Math.min(target.rect.right, other.rect.right) - Math.max(target.rect.left, other.rect.left);
+        const overlapY = Math.min(target.rect.bottom, other.rect.bottom) - Math.max(target.rect.top, other.rect.top);
+        expect(overlapX > 0.5 && overlapY > 0.5, `${label} overlaps ${other.label}`).toBe(false);
+      }
+    }
+  }
   const assertPlaying = async () => {
     const current = await video.evaluate((el: HTMLVideoElement) => el.currentTime);
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(current);
