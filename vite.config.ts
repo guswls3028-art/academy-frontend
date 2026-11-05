@@ -92,19 +92,13 @@ export default defineConfig(({ mode }) => {
   build: {
     // plugin-legacy owns modern/legacy syntax targets and conditionally loads
     // the SystemJS bundle on older Safari, Chrome and Samsung Internet.
-    // PDF.js belongs to lazy document/PPT flows; do not fetch it in every app
-    // entry document. Keep its preload in the route module that actually uses it.
-    modulePreload: {
-      resolveDependencies: (_filename, dependencies, { hostType }) => (
-        hostType === "html"
-          ? dependencies.filter((dependency) => !dependency.includes("vendor-pdfjs-"))
-          : dependencies
-      ),
-    },
     rolldownOptions: {
       output: {
         strictExecutionOrder: true,
         codeSplitting: {
+          // Keep shared transform helpers out of lazy feature vendors such as
+          // PDF.js, otherwise common code (including Query) eagerly loads them.
+          includeDependenciesRecursively: false,
           groups: [
             {
               name: "vendor-core",
@@ -121,7 +115,6 @@ export default defineConfig(({ mode }) => {
               priority: 50,
             },
             {
-              // Prevent shared query chunks from recursively absorbing lazy feature dependencies.
               name: "vendor-query",
               test: (id) => {
                 const normalized = id.replace(/\\/g, "/");
@@ -130,7 +123,6 @@ export default defineConfig(({ mode }) => {
                   normalized.includes("/node_modules/@tanstack/query-core/")
                 );
               },
-              includeDependenciesRecursively: false,
               priority: 30,
             },
             {
