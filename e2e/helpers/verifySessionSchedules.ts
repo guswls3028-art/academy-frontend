@@ -64,6 +64,9 @@ export async function verifySessionSchedules(
       await page.getByRole('dialog', { name: '날짜 선택', exact: true }).getByRole('button', { name: String(day), exact: true }).click();
       await assign(modal, studentName);
     }
+    await testInfo.attach('session-schedules-admin-populated-1366.png', {
+      body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
+    });
     const saveResponse = page.waitForResponse(r => r.request().method() === 'PUT' && new URL(r.url()).pathname === `/api/v1${endpoint}`);
     await modal.getByRole('button', { name: '저장', exact: true }).click();
     expect((await saveResponse).status()).toBe(200);
@@ -85,6 +88,13 @@ export async function verifySessionSchedules(
     await strip.getByRole('button', { name: /^목요일반/ }).click();
     await expect(page.getByRole('checkbox', { name: `${peer.name} 선택`, exact: true })).toBeVisible();
     await expect(page.getByRole('checkbox', { name: `${primary.name} 선택`, exact: true })).toHaveCount(0);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(new RegExp(`scores\\?schedule=${thu.id}$`));
+    await expect(page.getByRole('checkbox', { name: `${peer.name} 선택`, exact: true })).toBeVisible();
+    await expect(page.getByRole('checkbox', { name: `${primary.name} 선택`, exact: true })).toHaveCount(0);
+    await testInfo.attach('session-schedules-admin-scores-reloaded-1366.png', {
+      body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
+    });
     await gotoAndSettle(studentPage, `${QA_BASE}/student/sessions/${scope.sessionId}`);
     await acknowledgeInitialAccountPromptsIfVisible(studentPage);
     await expect(studentPage.getByText(/수요일반 · 날짜:/)).toBeVisible();
@@ -93,6 +103,9 @@ export async function verifySessionSchedules(
     await studentPage.reload({ waitUntil: 'domcontentloaded' });
     await expect(studentPage.getByText(/수요일반 · 날짜:/)).toBeVisible();
     await assertNoHorizontalOverflow(studentPage);
+    await testInfo.attach('session-schedules-student-assigned-reloaded-390.png', {
+      body: await studentPage.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
+    });
 
     // Another authorized editor mutates this same synthetic configuration; the UI must retain its draft on 409.
     await page.getByRole('button', { name: '수업일 관리', exact: true }).click();
@@ -106,6 +119,9 @@ export async function verifySessionSchedules(
     await expect(modal.getByRole('alert')).toContainText('작성 내용은 보관 중');
     await expect(modal.getByLabel('수업일 1 이름', { exact: true })).toHaveValue('수요일 작성 중');
     expect((await expectApi<SessionSchedules>(request, 'GET', endpoint, admin.access)).version).toBe(concurrent.version);
+    await testInfo.attach('session-schedules-admin-conflict-409-1366.png', {
+      body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
+    });
     await modal.getByRole('button', { name: '최신 내용으로 다시 시작', exact: true }).click();
     await page.getByRole('button', { name: '최신 내용 불러오기', exact: true }).click();
     await expect(modal.getByLabel('수업일 1 이름', { exact: true })).toHaveValue('수요일반 최신');
