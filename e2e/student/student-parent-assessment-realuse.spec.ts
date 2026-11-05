@@ -919,7 +919,7 @@ async function verifyScoreMessageTemplate(
     await send.getByRole("checkbox", { name: "학부모", exact: true }).check();
     await send.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
     const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
-    const savedCard = picker.locator(".tpl-picker__card").filter({ has: picker.getByRole("button", { name: new RegExp(templateName) }) });
+    const savedCard = picker.locator(".tpl-picker__card").filter({ has: page.getByRole("button", { name: new RegExp(templateName) }) });
     await savedCard.getByRole("button", { name: "더보기", exact: true }).click();
     await savedCard.getByRole("button", { name: "이름 변경", exact: true }).click();
     const rename = savedCard.getByRole("form", { name: "안내문 이름 변경" });
