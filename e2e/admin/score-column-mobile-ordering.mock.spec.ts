@@ -237,6 +237,12 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
       });
       return;
     }
+    if (path.endsWith("/lectures/sessions/") && method === "GET") {
+      await route.fulfill({ json: { count: 1, results: [
+        { id: SESSION_ID, lecture: LECTURE_ID, order: 1, title: "모바일 순서 검증 차시", date: "2026-08-25" },
+      ] } });
+      return;
+    }
     if (path.endsWith(`/lectures/sessions/${SESSION_ID}/`) && method === "GET") {
       await route.fulfill({
         json: { id: SESSION_ID, lecture: LECTURE_ID, order: 1, title: "모바일 순서 검증 차시", date: "2026-08-25" },
@@ -369,7 +375,7 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
           await dialog.getByRole('spinbutton', { name: /^합격 기준/ }).fill('70');
           await dialog.getByRole('checkbox', { name: '학생 성적 공개', exact: true }).uncheck();
           await dialog.locator('summary').filter({ hasText: '응시 기간·정답 공개·재응시' }).click();
-          await expect(dialog.getByLabel('응시 시작', { exact: true })).toBeVisible();
+          await expect(dialog.getByLabel(/^응시 시작/)).toBeVisible();
           await expect(dialog.getByLabel('정답 공개', { exact: true })).toBeVisible();
           await dialog.getByRole('button', { name: '저장', exact: true }).click();
           await expect(dialog).not.toBeVisible();
