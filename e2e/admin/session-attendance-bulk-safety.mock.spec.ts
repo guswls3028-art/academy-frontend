@@ -1211,6 +1211,9 @@ test("모바일 차시 선택은 별도 화면에서 제공하고 왕복 문맥�
   await expect.poll(() => main.evaluate(node => node.scrollTop)).toBe(0);
   await expect(readError).toBeInViewport({ ratio: 1 });
   await expect(retry).toBeInViewport({ ratio: 1 });
+  const retryBounds = (await retry.boundingBox())!;
+  const recoveryNav = (await page.getByRole("navigation", { name: "하단 메뉴", exact: true }).boundingBox())!;
+  expect(retryBounds.y + retryBounds.height).toBeLessThanOrEqual(recoveryNav.y);
   await entry.click();
   await expect(page.getByRole("heading", { name: "차시 선택", exact: true })).toBeVisible();
   await main.hover();

@@ -295,6 +295,7 @@ export default function SessionAttendancePage({
     <EmptyState
       scope="panel"
       tone="error"
+      showIcon={!isMobile}
       title="출결 데이터를 불러올 수 없습니다."
       description="저장된 출결은 유지됩니다. 같은 검색·필터·정렬로 다시 불러와 주세요."
       actions={
