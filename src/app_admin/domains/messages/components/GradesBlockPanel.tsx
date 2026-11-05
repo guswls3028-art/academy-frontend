@@ -58,6 +58,7 @@ export default function GradesBlockPanel({
   // 블록 분류
   const commonBlocks = blocks.filter((b) =>
     !b.id.startsWith("exam_") && !b.id.startsWith("hw_") && b.id !== "full_summary" &&
+    !/^class_[2-9]_/.test(b.id) &&
     !["exam_score", "assignment_score", "clinic_result", "exam_total", "exam_total_max", "hw_completion"].includes(b.id)
   );
   const listBlocks = blocks.filter((b) => ["exam_list", "exam_history", "hw_list", "full_summary"].includes(b.id));
@@ -114,7 +115,9 @@ export default function GradesBlockPanel({
       {/* 공통 */}
       <div className="grades-block-panel__tag-row">{commonBlocks.map(renderTag)}</div>
 
-      <div className="grades-block-panel__group-label">지정 차시 뒤 수업 · 같은 강의·반의 실제 수업 순서</div>
+      <div className="grades-block-panel__hint">‘다음 수업’은 발송할 차시를 기준으로 자동으로 바뀝니다. 직접 입력한 공지와 수업 이름은 그대로 유지됩니다.</div>
+      <details>
+      <summary className="grades-block-panel__toggle">두 차시 이상 뒤의 수업 안내</summary>
       <div className="grades-block-panel__add-row">
         <label>몇 차시 뒤 <input aria-label="몇 차시 뒤" type="number" min={1} max={99} value={futureOffset} disabled={disabled}
           onChange={e => setFutureOffset(Math.max(1, Math.min(99, Number(e.target.value) || 1)))} className="w-16 border rounded p-1" /></label>
@@ -122,9 +125,11 @@ export default function GradesBlockPanel({
         <button type="button" disabled={disabled} className="grades-block-panel__add-btn" onClick={() => onInsert(`#{${futureOffset}차시후날짜}`)}>수업 날짜 넣기</button>
       </div>
       <div className="grades-block-panel__hint">수업 날짜는 차시에 등록된 날짜입니다. 발송 날짜와 다르며, 비어 있으면 발송 전에 안내합니다.</div>
+      </details>
       {/* 목록형 (추천) */}
       <div className="grades-block-panel__group-label">자동 목록 — 시험/과제 개수에 맞게 자동 생성됩니다</div>
       <div className="grades-block-panel__tag-row">{listBlocks.map(renderTag)}</div>
+      <div className="grades-block-panel__hint">‘과제별 결과’는 과제를 한 줄씩, ‘과제 완료 요약’은 완료한 개수만 표시합니다. 본문의 줄을 옮겨 총점과 개별 결과의 순서를 정할 수 있습니다.</div>
 
       {!values && <>
       {/* 시험/과제 동적 추가 */}

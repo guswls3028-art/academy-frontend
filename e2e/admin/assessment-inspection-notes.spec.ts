@@ -736,12 +736,24 @@ test.describe("시험·과제 수동 검사 상태", () => {
     await examCard.getByText("방정식 단원평가", { exact: true }).click();
 
     const help = examCard.getByRole("button", { name: "시험 통과 판정 설명" });
+    await page.setViewportSize({ width: 1366, height: 900 });
     await help.hover();
     await expect(examCard.getByRole("dialog")).toContainText("시험 점수는 바뀌지 않으며");
+    const triggerBox = await help.boundingBox();
+    expect(triggerBox).not.toBeNull();
+    await page.mouse.move(triggerBox!.x + triggerBox!.width / 2, triggerBox!.y + triggerBox!.height + 4);
+    await expect(examCard.getByRole("dialog")).toBeVisible();
+    await examCard.getByRole("dialog").hover();
+    await expect(examCard.getByRole("dialog")).toBeVisible();
     await page.mouse.move(0, 0);
     await expect(examCard.getByRole("dialog")).toHaveCount(0);
+    await page.setViewportSize({ width: 390, height: 844 });
     await help.click();
     const helpDialog = examCard.getByRole("dialog");
+    await expect(helpDialog).toBeVisible();
+    await help.click();
+    await expect(helpDialog).toHaveCount(0);
+    await help.click();
     await expect(helpDialog).toBeVisible();
     await helpDialog.getByRole("button", { name: "도움말 닫기" }).click();
     await expect(helpDialog).toHaveCount(0);

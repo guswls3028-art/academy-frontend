@@ -63,7 +63,7 @@ test.describe("메시징 미완 항목 완전 검증", () => {
       expect(body, "수업결과 발송 모달 본문에 미치환 변수(#{...}) 가 남으면 안 됨").not.toContain("#{");
 
       // 성적 변수 블록 — 1개 이상 노출.
-      const blocks = page.locator("button").filter({ hasText: /시험 목록|과제 목록|전체 요약/ });
+      const blocks = page.locator("button").filter({ hasText: /시험 목록|과제별 결과|전체 요약/ });
       expect(
         await blocks.count(),
         "수업결과 발송 모달은 성적 변수 블록(시험/과제/요약) 1개 이상 노출해야 함",

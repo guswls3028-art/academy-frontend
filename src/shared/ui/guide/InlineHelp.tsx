@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { CircleHelp, X } from "lucide-react";
 import type { GuideBookScope } from "./GuideBookPresets";
 import "./InlineHelp.css";
@@ -29,16 +29,21 @@ export function InlineHelp({
   style,
 }: InlineHelpProps) {
   const [open, setOpen] = useState(false);
+  const pinnedRef = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  const closeHelp = useCallback(() => {
+    pinnedRef.current = false;
+    setOpen(false);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
     const closeOnOutside = (event: MouseEvent | TouchEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      if (!rootRef.current?.contains(event.target as Node)) closeHelp();
     };
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") closeHelp();
     };
     document.addEventListener("mousedown", closeOnOutside);
     document.addEventListener("touchstart", closeOnOutside);
@@ -48,7 +53,7 @@ export function InlineHelp({
       document.removeEventListener("touchstart", closeOnOutside);
       document.removeEventListener("keydown", closeOnEscape);
     };
-  }, [open]);
+  }, [open, closeHelp]);
 
   return (
     <div
@@ -64,15 +69,16 @@ export function InlineHelp({
         if (
           openOnHover
           && event.pointerType === "mouse"
+          && !pinnedRef.current
           && !rootRef.current?.contains(document.activeElement)
-        ) setOpen(false);
+        ) closeHelp();
       }}
-      onFocusCapture={() => {
-        if (openOnHover) setOpen(true);
+      onFocusCapture={(event) => {
+        if (openOnHover && event.target.matches(":focus-visible")) setOpen(true);
       }}
       onBlurCapture={(event) => {
         if (openOnHover && !rootRef.current?.contains(event.relatedTarget as Node | null)) {
-          setOpen(false);
+          closeHelp();
         }
       }}
     >
@@ -83,11 +89,18 @@ export function InlineHelp({
         aria-expanded={open}
         aria-haspopup="dialog"
         title={ariaLabel}
-        onClick={() => setOpen((value) => openOnHover || !value)}
+        onClick={() => {
+          if (openOnHover ? pinnedRef.current : open) closeHelp();
+          else {
+            pinnedRef.current = true;
+            setOpen(true);
+          }
+        }}
       >
         <CircleHelp size={iconSize} strokeWidth={2.2} aria-hidden />
       </button>
 
+      {open && <span className="inline-help__hover-bridge" aria-hidden />}
       {open && (
         <div
           className="inline-help__popup"
@@ -101,7 +114,7 @@ export function InlineHelp({
               type="button"
               className="inline-help__close"
               aria-label="도움말 닫기"
-              onClick={() => setOpen(false)}
+              onClick={closeHelp}
             >
               <X size={14} aria-hidden />
             </button>
