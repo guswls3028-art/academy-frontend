@@ -54,6 +54,28 @@ for (const width of [390, 1366, 1920]) {
       expect(channels).toHaveLength(3);
       expect(channels[0]).toBeGreaterThanOrEqual(dark ? 0 : 230);
       expect(channels[0]).toBeLessThanOrEqual(dark ? 40 : 255);
+      const qr = page.getByRole("link", { name: /QR 출석/ });
+      await expect(qr).toBeVisible();
+      const qrContrast = await qr.evaluate((element) => {
+        const parse = (color: string) => color.match(/[\d.]+/g)!.map(Number);
+        const background = parse(getComputedStyle(element).backgroundColor);
+        const luminance = (channels: number[]) => channels.slice(0, 3).reduce((sum, channel, index) => {
+          const value = channel / 255;
+          const linear = value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+          return sum + linear * [0.2126, 0.7152, 0.0722][index];
+        }, 0);
+        const ratio = (target: Element) => {
+          const foreground = parse(getComputedStyle(target).color);
+          const alpha = foreground[3] ?? 1;
+          const blended = foreground.slice(0, 3).map((channel, index) => channel * alpha + background[index] * (1 - alpha));
+          const values = [luminance(blended), luminance(background)];
+          return (Math.max(...values) + 0.05) / (Math.min(...values) + 0.05);
+        };
+        return { title: ratio(element.querySelector("strong")!), detail: ratio(element.querySelector("small")!), opaque: (background[3] ?? 1) === 1 };
+      });
+      expect(qrContrast.opaque).toBe(true);
+      expect(qrContrast.title).toBeGreaterThanOrEqual(4.5);
+      expect(qrContrast.detail).toBeGreaterThanOrEqual(4.5);
       await expect(page.locator(".stu-tabbar a")).toHaveCount(5);
       const names = await page.locator(".stu-tabbar a").allTextContents();
       expect(names.map((name) => name.trim())).toEqual(["홈", "영상", "일정", "알림", "커뮤니티"]);
