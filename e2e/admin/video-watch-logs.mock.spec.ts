@@ -50,7 +50,9 @@ for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: 900 });
     const requests = await install(page);
     await page.goto(`${BASE}${DETAIL}`);
-    await page.getByRole("region", { name: "학생 시청 현황" }).getByRole("button", { name: "시청 로그", exact: true }).click();
+    const logsEntry = page.getByRole("region", { name: "학생 시청 현황" }).getByRole("button", { name: "시청 로그", exact: true });
+    await expect(logsEntry).toBeVisible({ timeout: 60_000 });
+    await logsEntry.click();
     await expect(page.getByRole("heading", { name: "시청 로그", exact: true })).toBeVisible();
     expect(requests).toHaveLength(0);
     await page.getByLabel("원본의 1.4배 이상만").check();
@@ -83,6 +85,7 @@ test("간편 업무 로그에서 학생 상세와 영상으로 돌아가기", as
   await page.setViewportSize({ width: 390, height: 844 });
   await install(page);
   await page.goto(`${BASE}/workspace/mobile/videos/901`);
+  await expect(page.getByRole("link", { name: "시청 로그" })).toBeVisible({ timeout: 60_000 });
   await page.getByRole("link", { name: "시청 로그" }).click();
   await expect(page).toHaveURL(/\/workspace\/mobile\/videos\/901\/logs/);
   await page.getByRole("link").filter({ hasText: studentName }).click();
@@ -96,6 +99,7 @@ test("조회 실패는 빈 기록과 구분하고 필터를 보존해 복구한�
   const state = { reportFailure: true, activityFailure: true };
   await install(page, state);
   await page.goto(`${BASE}/workspace/videos/901/logs?q=${encodeURIComponent("누적시간")}&reached=1`);
+  await expect(page.getByRole("heading", { name: "시청 로그", exact: true })).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole("alert")).toContainText("시청 기록을 불러오지 못했습니다");
   await expect(page.getByText("아직 누적 재생 기록이 없습니다")).toHaveCount(0);
   state.reportFailure = false;
@@ -116,6 +120,7 @@ test("조회 실패는 빈 기록과 구분하고 필터를 보존해 복구한�
 test("원본 길이 미확인 영상도 누적 시간을 확인할 수 있다", async ({ page }) => {
   await install(page, { reportFailure: false, activityFailure: false, durationMissing: true });
   await page.goto(`${BASE}/workspace/videos/901/logs?reached=1`);
+  await expect(page.getByRole("heading", { name: "시청 로그", exact: true })).toBeVisible({ timeout: 60_000 });
   await expect(page.getByLabel("원본의 1.4배 이상만")).toBeDisabled();
   await expect(page.getByText("원본 길이를 확인하면 배율로 비교할 수 있습니다.")).toBeVisible();
   await expect(page.getByRole("link").filter({ hasText: studentName })).toContainText("1시간 45분 0초");

@@ -302,6 +302,7 @@ for (const width of [1366, 390]) {
     });
     await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/videos/${video.id}`);
     const settings = page.getByRole("button", { name: /시청 정책 · 관리자 메모/ });
+    await expect(settings).toBeVisible({ timeout: 60_000 });
     await settings.click();
     await page.getByRole("button", { name: "시간 제한 꺼짐" }).click();
     await expect(page.getByText(/학생당 84분 0초.*기준에 도달한 학생 1명/)).toBeVisible();
@@ -311,6 +312,7 @@ for (const width of [1366, 390]) {
     await page.getByRole("button", { name: "제한 켜기", exact: true }).click();
     await expect(page.getByRole("button", { name: "시간 제한 켜짐" })).toBeVisible();
     await page.reload();
+    await expect(settings).toBeVisible({ timeout: 60_000 });
     await settings.click();
     await expect(page.getByRole("button", { name: "시간 제한 켜짐" })).toBeVisible();
     await page.getByRole("link", { name: "학생별 누적 시간은 시청 로그에서 확인 →" }).click();
