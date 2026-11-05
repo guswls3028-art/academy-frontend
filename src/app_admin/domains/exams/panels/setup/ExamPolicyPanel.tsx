@@ -292,7 +292,7 @@ export default function ExamPolicyPanel({
         feedback.warning("다른 사용자의 변경을 확인했습니다. 최신 설정을 불러온 뒤 다시 저장해 주세요.");
         return;
       }
-      feedback.error(getApiErrorMessage(error, "시험 운영 설정을 저장하지 못했습니다."));
+      // The form or modal footer keeps the mutation error visible for retry.
     },
   });
 
@@ -300,7 +300,7 @@ export default function ExamPolicyPanel({
   useEffect(() => { onSavingChange?.(patchMutation.isPending); }, [patchMutation.isPending, onSavingChange]);
   const saveAllowed = Boolean(form && baseUpdatedAtRef.current && !isError && !loadingLatest && dirty && !validationError && !conflictDetected && !remoteChanged && !patchMutation.isPending);
   useEffect(() => { onSaveAllowedChange?.(saveAllowed); }, [saveAllowed, onSaveAllowedChange]);
-  const saveError = patchMutation.isError && !conflictDetected
+  const saveError = patchMutation.isError && !isStaleResourceConflict(patchMutation.error)
     ? getApiErrorMessage(patchMutation.error, "시험 운영 설정을 저장하지 못했습니다. 입력을 유지했으니 다시 시도해 주세요.")
     : "";
   useEffect(() => { onSaveErrorChange?.(saveError); }, [saveError, onSaveErrorChange]);
@@ -419,7 +419,7 @@ export default function ExamPolicyPanel({
           </div>
         </div>}
 
-        {isError && <div role="alert" className={formStyles.inlineStatus}>최신 설정을 확인하지 못했습니다. 입력을 유지했습니다.<Button type="button" intent="secondary" size="sm" onClick={() => void refetch()}>다시 시도</Button></div>}
+        {editing && isError && <div role="alert" className={formStyles.inlineStatus}>최신 설정을 확인하지 못했습니다. 입력을 유지했습니다.<Button type="button" intent="secondary" size="sm" onClick={() => void refetch()}>다시 시도</Button></div>}
         <details className={formStyles.policyDisclosure} open={editing || undefined}>
           <summary>
             <span className={formStyles.policySnapshot}>

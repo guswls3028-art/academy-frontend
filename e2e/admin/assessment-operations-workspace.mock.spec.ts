@@ -464,7 +464,9 @@ test("0점 합격 기준을 저장하고 서버 필드 오류를 입력값과 �
   await page.getByLabel("만점").fill("17");
   await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
 
-  await expect(page.getByText("문항 배점 합계와 만점이 일치하지 않습니다.", { exact: true })).toBeVisible();
+  const fieldError = page.locator("#assessment-policy").getByRole("alert");
+  await expect(fieldError).toHaveText("문항 배점 합계와 만점이 일치하지 않습니다.");
+  await expect(fieldError).toBeInViewport({ ratio: 1 });
   await expect(page.getByLabel("만점")).toHaveValue("17");
   expect(state.exam.max_score).toBe(16);
 });
@@ -715,6 +717,7 @@ test(`@policy-recovery ${width}px 최신 시험 설정 조회 실패는 작성 �
   await page.getByRole("alertdialog").getByRole("button", { name: "최신 설정 불러오기", exact: true }).click();
   await expect(input).toHaveValue("79");
   await expect(page.getByRole("button", { name: "운영 설정 저장", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "다시 시도", exact: true })).toHaveCount(1);
   await expect(page.getByRole("button", { name: "다시 시도", exact: true })).toBeVisible();
   await expect(input).toHaveValue("79");
   await expect.poll(async () => {
@@ -737,6 +740,7 @@ test(`@policy-recovery ${width}px 최신 시험 설정 조회 실패는 작성 �
     await expect(input).toHaveValue("79");
   } finally { state.examReadGate = undefined; releaseRead(); }
   await expect(input).toHaveValue("75");
+  await expect(page.locator("#assessment-policy").getByRole("alert")).toHaveCount(0);
   await input.fill("76");
   await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
   await expect.poll(() => state.exam.pass_score).toBe(76);

@@ -203,7 +203,7 @@ export default function HomeworkPolicyPanel({
         feedback.warning("다른 사용자의 변경을 확인했습니다. 최신 설정을 불러온 뒤 다시 저장해 주세요.");
         return;
       }
-      feedback.error(extractApiError(error, "과제 운영 설정을 저장하지 못했습니다."));
+      // The form or modal footer keeps the mutation error visible for retry.
     },
   });
 
@@ -221,7 +221,7 @@ export default function HomeworkPolicyPanel({
   useEffect(() => { onSavingChange?.(updateMutation.isPending || loadingLatest); }, [updateMutation.isPending, loadingLatest, onSavingChange]);
   const saveAllowed = Boolean(form && baseUpdatedAtRef.current && !isError && !loadingLatest && dirty && !validationError && !conflictDetected && !remoteChanged && !updateMutation.isPending);
   useEffect(() => { onSaveAllowedChange?.(saveAllowed); }, [saveAllowed, onSaveAllowedChange]);
-  const saveError = updateMutation.isError && !conflictDetected
+  const saveError = updateMutation.isError && !isStaleResourceConflict(updateMutation.error)
     ? extractApiError(updateMutation.error, "과제 운영 설정을 저장하지 못했습니다. 입력을 유지했으니 다시 시도해 주세요.")
     : "";
   useEffect(() => { onSaveErrorChange?.(saveError); }, [saveError, onSaveErrorChange]);
