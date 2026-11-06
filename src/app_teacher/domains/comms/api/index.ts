@@ -41,6 +41,7 @@ export interface PostAttachment {
   original_name: string;
   size_bytes: number;
   content_type?: string | null;
+  download_url?: string | null;
   created_at: string;
 }
 

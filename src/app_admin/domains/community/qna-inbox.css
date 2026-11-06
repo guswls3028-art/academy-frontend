@@ -403,6 +403,14 @@
   border-color: var(--color-primary);
 }
 
+.qna-inbox__heic-thumb {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
 .qna-inbox__image-strip img {
   width: 100%;
   height: 100%;

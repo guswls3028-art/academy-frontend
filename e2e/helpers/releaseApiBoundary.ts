@@ -252,20 +252,23 @@ function isExactDevelopmentHomeworkVideo(boundary: ReleaseBoundary, rawUrl: stri
   return Boolean(path && Number.isSafeInteger(Number(path[1])) && hasExactHostSignature(target, 600));
 }
 
+type CommunityImageType = "image/png" | "image/jpeg" | "image/webp" | "image/heic";
+
 function isExactDevelopmentCommunityAttachment(
   boundary: ReleaseBoundary, rawUrl: string, postId: number, contentType: string, downloadName?: string,
 ): boolean {
   if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId)
     || Number(boundary.omrR2TenantId) < 1 || !Number.isSafeInteger(postId) || postId < 1
-    || !["image/png", "image/jpeg", "image/webp", "application/pdf", "text/plain"].includes(contentType)
+    || !["image/png", "image/jpeg", "image/webp", "image/heic", "application/pdf", "text/plain"].includes(contentType)
     || (!contentType.startsWith("image/") && downloadName === undefined)) return false;
   const target = new URL(rawUrl);
   if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
     || rawUrl !== `${target.origin}${target.pathname}${target.search}`) return false;
-  const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/community/posts/${postId}/uploads/[A-Za-z0-9_-]{16,80}/[0-9]_[0-9a-f]{16}_[0-9a-f]{8}_[^/]+\\.(png|jpg|jpeg|webp|pdf|txt)$`, "i").exec(target.pathname);
+  const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/community/posts/${postId}/uploads/[A-Za-z0-9_-]{16,80}/[0-9]_[0-9a-f]{16}_[0-9a-f]{8}_[^/]+\\.(png|jpg|jpeg|webp|heic|pdf|txt)$`, "i").exec(target.pathname);
   if (!path) return false;
   const extensionType = path[1].toLowerCase() === "png" ? "image/png"
     : path[1].toLowerCase() === "webp" ? "image/webp"
+    : path[1].toLowerCase() === "heic" ? "image/heic"
     : path[1].toLowerCase() === "pdf" ? "application/pdf"
     : path[1].toLowerCase() === "txt" ? "text/plain" : "image/jpeg";
   if (extensionType !== contentType || target.searchParams.getAll("response-content-type").length !== 1
@@ -1132,7 +1135,7 @@ export async function installReleaseContextGuard(
   };
   const defects: string[] = [];
   const homeworkPreviewUrls = new Map<string, string>();
-  const communityImageUrls = new Map<string, "image/png" | "image/jpeg" | "image/webp">();
+  const communityImageUrls = new Map<string, { contentType: CommunityImageType; sizeBytes?: number }>();
   const communityFileUrls = new Map<string, { contentType: string; sizeBytes: number; disposition: string }>();
   const resourceDownloadUrls = new Set<string>();
   const omrPreviewPdfs = new Map<string, { url: string; reads: Array<{ sizeBytes: number; sha256: string }> }>();
@@ -1154,14 +1157,15 @@ export async function installReleaseContextGuard(
       if (!isRecord(attachment) || typeof attachment.id !== "number" || !Number.isSafeInteger(attachment.id) || Number(attachment.id) < 1
         || typeof attachment.content_type !== "string" || typeof attachment.original_name !== "string") continue;
       const contentType = attachment.content_type;
-      if (!["image/png", "image/jpeg", "image/webp", "application/pdf", "text/plain"].includes(contentType)) continue;
+      if (!["image/png", "image/jpeg", "image/webp", "image/heic", "application/pdf", "text/plain"].includes(contentType)) continue;
       const sizeBytes = typeof attachment.size_bytes === "number" && Number.isSafeInteger(attachment.size_bytes)
         && attachment.size_bytes > 0 && attachment.size_bytes <= 50 * 1024 * 1024 ? attachment.size_bytes : undefined;
       if (!contentType.startsWith("image/") && sizeBytes === undefined) continue;
+      if (contentType === "image/heic" && (sizeBytes === undefined || sizeBytes > 5 * 1024 * 1024)) continue;
       communityAttachments.set(`${postId}:${attachment.id}`, { contentType, originalName: attachment.original_name, sizeBytes });
       const url = attachment.download_url;
       if (typeof url === "string" && isExactDevelopmentCommunityAttachment(boundary, url, postId, contentType)) {
-        communityImageUrls.set(url, contentType as "image/png" | "image/jpeg" | "image/webp");
+        communityImageUrls.set(url, { contentType: contentType as CommunityImageType, sizeBytes });
       }
     }
   };
@@ -1487,11 +1491,12 @@ export async function installReleaseContextGuard(
         await route.fulfill({ status: 200, headers: { "content-type": "video/mp4", "content-length": String(body.length) }, body });
         return;
       }
-      const homeworkHeic = homeworkImageType === "image/heic" || homeworkImageType === "image/heif";
-      const communityImageType = request.method() === "GET" ? communityImageUrls.get(upstream) : undefined;
+      const communityImage = request.method() === "GET" ? communityImageUrls.get(upstream) : undefined;
+      const communityImageType = communityImage?.contentType;
+      const heic = homeworkImageType === "image/heic" || homeworkImageType === "image/heif" || communityImageType === "image/heic";
       const matchupImageType = isExactDevelopmentMatchupImage(boundary, upstream, request.method()) ? "image/png" : undefined;
       if (((homeworkImageType && homeworkImageType !== "video/mp4") || communityImageType || matchupImageType || isExactDevelopmentOmrImage(boundary, upstream, request.method()))
-        && (request.resourceType() === "image" || (homeworkHeic && request.resourceType() === "xhr"))) {
+        && (request.resourceType() === "image" || (heic && request.resourceType() === "xhr"))) {
         const headers = await request.allHeaders();
         if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
           .some((key) => headers[key])) {
@@ -1502,21 +1507,22 @@ export async function installReleaseContextGuard(
         // credentials/referrer or follow redirects; never report the signed URL.
         const contentType = communityImageType || homeworkImageType || matchupImageType || "image/jpeg";
         const response = await route.fetch({ url: upstream, method: "GET", headers: { accept: contentType,
-          ...(homeworkHeic ? { origin: boundary.webOrigin } : {}) }, maxRedirects: 0 });
+          ...(heic ? { origin: boundary.webOrigin } : {}) }, maxRedirects: 0 });
         if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
         const body = await response.body();
-        const signature = homeworkHeic ? [] : contentType === "image/png" ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+        const signature = heic ? [] : contentType === "image/png" ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
           : contentType === "image/webp" ? [0x52, 0x49, 0x46, 0x46] : [0xff, 0xd8, 0xff];
         if (response.status() !== 200 || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== contentType
           || signature.some((byte, index) => body[index] !== byte)
-          || (homeworkHeic && (body.subarray(4, 8).toString("ascii") !== "ftyp"
+          || (heic && (body.subarray(4, 8).toString("ascii") !== "ftyp"
             || !["*", boundary.webOrigin].includes(response.headers()["access-control-allow-origin"] ?? "")))
+          || (communityImageType === "image/heic" && body.length !== communityImage?.sizeBytes)
           || (contentType === "image/webp" && body.subarray(8, 12).toString("ascii") !== "WEBP")) {
           await reject("transport");
           return;
         }
         await route.fulfill({ status: 200, headers: { "content-type": contentType,
-          ...(homeworkHeic ? { "access-control-allow-origin": response.headers()["access-control-allow-origin"] } : {}) }, body });
+          ...(heic ? { "access-control-allow-origin": response.headers()["access-control-allow-origin"] } : {}) }, body });
         return;
       }
       const kind = assertReleaseRequestSafe(boundary, upstream, request.method(), tenantCode, data);
@@ -1774,7 +1780,7 @@ export async function installReleaseContextGuard(
             for (const photo of photos) {
               if (typeof photo !== "string") continue;
               const contentType = developmentPublicPhotoType(boundary, photo);
-              if (contentType) communityImageUrls.set(photo, contentType);
+              if (contentType) communityImageUrls.set(photo, { contentType });
             }
           }
         }
@@ -1805,8 +1811,8 @@ export async function installReleaseContextGuard(
               && isExactDevelopmentCommunityAttachment(boundary, payload.url, postId,
                 attachment.contentType, attachment.originalName)) {
               if (attachment.contentType.startsWith("image/")) {
-                communityImageUrls.set(payload.url,
-                  attachment.contentType as "image/png" | "image/jpeg" | "image/webp");
+                communityImageUrls.set(payload.url, { contentType: attachment.contentType as CommunityImageType,
+                  sizeBytes: attachment.sizeBytes });
               } else if (attachment.sizeBytes !== undefined) {
                 communityFileUrls.set(payload.url, { contentType: attachment.contentType, sizeBytes: attachment.sizeBytes,
                   disposition: new URL(payload.url).searchParams.get("response-content-disposition")! });

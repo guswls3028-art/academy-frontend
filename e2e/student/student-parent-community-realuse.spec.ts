@@ -23,6 +23,7 @@ import {
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
+import { homeworkHeic } from "../helpers/homeworkHeicFixture";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle } from "../helpers/wait";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
@@ -195,8 +196,7 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     await page.getByPlaceholder("질문 제목").fill(qnaTitle);
     await page.locator(".ProseMirror").fill("선택한 자녀의 학습 질문입니다.");
     const attachment = {
-      name: "qa-community-recovery.png", mimeType: "image/png",
-      buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
+      name: "qa-community-recovery.heic", mimeType: "image/heic", buffer: homeworkHeic,
     };
     const documentAttachment = {
       name: "qa-질문-추가-학습자료.txt", mimeType: "text/plain",
@@ -362,7 +362,9 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
         await gotoAndSettle(adminPage, `${QA_BASE}/workspace/community/qna?id=${qna.id}`);
         const files = adminPage.getByRole("region", { name: "첨부파일", exact: true });
         await expect(files).toContainText(documentAttachment.name);
-        await expect(adminPage.getByRole("img", { name: attachment.name, exact: true })).toBeVisible();
+        const photo = adminPage.getByRole("img", { name: attachment.name, exact: true });
+        await expect(photo).toBeVisible();
+        await expect(photo).toHaveJSProperty("naturalWidth", 640);
         const downloadPromise = adminPage.waitForEvent("download");
         await files.getByRole("button", { name: "다운로드", exact: true }).click();
         const download = await downloadPromise;
@@ -370,6 +372,7 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
         expect(await readFile((await download.path())!)).toEqual(documentAttachment.buffer);
         await adminPage.reload({ waitUntil: "domcontentloaded" });
         await expect(files).toContainText(documentAttachment.name);
+        await expect(photo).toHaveJSProperty("naturalWidth", 640);
         await assertNoHorizontalOverflow(adminPage);
         await adminPage.screenshot({ path: testInfo.outputPath(`qna-attachment-development-${width}.png`) });
       }

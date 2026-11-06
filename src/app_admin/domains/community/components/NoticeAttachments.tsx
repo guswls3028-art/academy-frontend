@@ -6,16 +6,30 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 import { deletePostAttachment, getAttachmentDownloadUrl, type PostAttachment } from "../api/community.api";
 import { adminCommunityQueryKeys } from "../queryKeys";
+import PhotoPreview from "@/shared/ui/media/PhotoPreview";
+import { isPhotoFile } from "@/shared/ui/media/photoType";
 import { formatFileSize } from "../utils/communityHelpers";
 
 function DraftImage({ file }: { file: File }) {
   const [url, setUrl] = useState<string>();
+  const [failed, setFailed] = useState(false);
   useEffect(() => {
     const preview = URL.createObjectURL(file);
     setUrl(preview);
     return () => URL.revokeObjectURL(preview);
   }, [file]);
-  return url ? <img className="notice-attach__draft-image" src={url} alt={`${file.name} 미리보기`} /> : null;
+  if (failed) return <p role="status" className="cms-attach__hint">사진을 미리 볼 수 없습니다. 파일을 제거하고 다시 선택할 수 있습니다.</p>;
+  return url ? (
+    <PhotoPreview
+      className="notice-attach__image notice-attach__draft-image"
+      src={url}
+      blob={file}
+      filename={file.name}
+      mimeType={file.type}
+      alt={`${file.name} 미리보기`}
+      onError={() => setFailed(true)}
+    />
+  ) : null;
 }
 
 export function NoticeDraftFiles({ files, disabled, onRemove }: {
@@ -26,13 +40,15 @@ export function NoticeDraftFiles({ files, disabled, onRemove }: {
   if (!files.length) return null;
   return (
     <div className="cms-attach__list notice-attach__draft" aria-label="저장할 첨부파일">
-      <p className="cms-attach__hint">저장하면 본문 아래에 첨부됩니다. 이미지 5MB · 파일 50MB · 최대 10개</p>
+      <p className="cms-attach__hint">사진은 저장 후에도 본문 아래에 표시됩니다. 이미지 5MB · 파일 50MB · 최대 10개</p>
       {files.map((file, index) => (
-        <div className="cms-attach__item" key={`${file.name}-${file.size}-${file.lastModified}`}>
-          {file.type.startsWith("image/") && <DraftImage file={file} />}
-          <span className="cms-attach__item-name" title={file.name}>{file.name}</span>
-          <span className="cms-attach__item-size">{formatFileSize(file.size)}</span>
-          <button className="cms-attach__item-remove" type="button" aria-label={`${file.name} 제거`} disabled={disabled} onClick={() => onRemove(index)}>&times;</button>
+        <div className="notice-attach__saved" key={`${file.name}-${file.size}-${file.lastModified}`}>
+          {isPhotoFile(file.name, file.type) && <DraftImage file={file} />}
+          <div className="cms-attach__item">
+            <span className="cms-attach__item-name" title={file.name}>{file.name}</span>
+            <span className="cms-attach__item-size">{formatFileSize(file.size)}</span>
+            <button className="cms-attach__item-remove" type="button" aria-label={`${file.name} 제거`} disabled={disabled} onClick={() => onRemove(index)}>&times;</button>
+          </div>
         </div>
       ))}
     </div>
@@ -72,7 +88,7 @@ function Attachment({ postId, attachment, disabled }: {
     active.current = true;
     return () => { active.current = false; };
   }, []);
-  const isImage = attachment.content_type.startsWith("image/");
+  const isImage = isPhotoFile(attachment.original_name, attachment.content_type);
 
   const perform = async (action: "preview" | "download" | "delete") => {
     if (inFlight.current) return;
@@ -107,7 +123,10 @@ function Attachment({ postId, attachment, disabled }: {
 
   return (
     <div className="notice-attach__saved">
-      {isImage && preview && !failed && <img className="notice-attach__image" src={preview} alt={attachment.original_name} onError={() => setFailed(true)} />}
+      {isImage && preview && !failed && (
+        <PhotoPreview className="notice-attach__image" src={preview} filename={attachment.original_name} mimeType={attachment.content_type} alt={attachment.original_name} onError={() => setFailed(true)} />
+      )}
+      {isImage && (failed || !preview) && <p role="status" className="cms-attach__hint">사진 미리보기를 불러오지 못했습니다.</p>}
       <div className="cms-attach__file-card">
         <div className="cms-attach__file-info">
           <span className="cms-attach__file-name" title={attachment.original_name}>{attachment.original_name}</span>
