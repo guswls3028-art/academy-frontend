@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentPropsWithoutRef } from "react";
 import { prepareHomeworkHeicPreview } from "./homeworkHeicPreview";
-import styles from "./HomeworkMediaImage.module.css";
+import { isHeicPhoto } from "./photoType";
+import styles from "./MediaPreview.module.css";
 
-type Props = {
+type Props = Pick<ComponentPropsWithoutRef<"img">, "style" | "onClick" | "loading"> & {
   src: string;
   filename: string;
-  mimeType?: string;
+  mimeType?: string | null;
   blob?: Blob;
   alt: string;
   className?: string;
@@ -14,7 +15,7 @@ type Props = {
   onError: () => void;
 };
 
-function HeicPreview({ src, blob, alt, className, thumbnail, onLoad, onError }: Props) {
+function HeicPreview({ src, blob, className, thumbnail, onError, ...imageProps }: Omit<Props, "filename" | "mimeType">) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const errorHandler = useRef(onError);
   useEffect(() => { errorHandler.current = onError; }, [onError]);
@@ -36,14 +37,12 @@ function HeicPreview({ src, blob, alt, className, thumbnail, onLoad, onError }: 
   }, [src, blob, thumbnail]);
 
   if (!previewUrl) return <span className={styles.loading} role="status">사진 미리보기를 준비하는 중…</span>;
-  return <img src={previewUrl} alt={alt} decoding="async" className={`${styles.image} ${className ?? ""}`} onLoad={onLoad} onError={onError} />;
+  return <img {...imageProps} src={previewUrl} decoding="async" className={`${styles.image} ${className ?? ""}`} onError={onError} />;
 }
 
-/** Display the original authorized file without replacing the stored submission. */
-export default function HomeworkMediaImage(props: Props) {
-  const { src, filename, mimeType, alt, className, onLoad, onError } = props;
-  const isHeic = /^image\/hei[cf](?:-sequence)?(?:;|$)/i.test(mimeType ?? "") || /\.hei[cf]$/i.test(filename);
-  return isHeic
-    ? <HeicPreview key={src} {...props} />
-    : <img src={src} alt={alt} decoding="async" className={className} onLoad={onLoad} onError={onError} />;
+/** Render the original image or a temporary browser-compatible HEIC preview. */
+export default function PhotoPreview({ src, filename, mimeType, blob, thumbnail, ...imageProps }: Props) {
+  return isHeicPhoto(filename, mimeType)
+    ? <HeicPreview key={src} src={src} blob={blob} thumbnail={thumbnail} {...imageProps} />
+    : <img {...imageProps} src={src} decoding="async" />;
 }

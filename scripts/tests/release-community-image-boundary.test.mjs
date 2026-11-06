@@ -67,7 +67,8 @@ async function exercise(options = {}) {
   fetch: async (settings) => { fetched.push(settings); if (options.fetchError) throw new Error("private signed URL");
     return { status: () => options.status ?? 200,
       headers: () => ({ "content-type": options.contentType ?? "image/png", "set-cookie": "private",
-        ...(options.disposition ? { "content-disposition": options.disposition } : {}) }),
+        ...(options.disposition ? { "content-disposition": options.disposition } : {}),
+        ...(options.storageCors ? { "access-control-allow-origin": options.storageCors } : {}) }),
       body: async () => options.body ?? png }; }, fulfill: async (response) => fulfilled.push(response) });
   return { guard, fetched, fulfilled, aborted };
 }
@@ -117,6 +118,31 @@ test("QnA image requires exact authenticated post response and preserves R2 PNG 
   rejected(await exercise({ register: false }));
   rejected(await exercise({ url: url.replace("a".repeat(64), "d".repeat(64)) }));
   assert.throws(() => assertReleaseRequestSafe(boundary, url, "GET"), /escaped/);
+});
+
+test("QnA HEIC decoding reads exact scoped bytes with real storage CORS and no app credentials", async () => {
+  const body = readFileSync(new URL("../../e2e/fixtures/files/homework.heic", import.meta.url));
+  const heicUrl = new URL(url.replace("qa-problem.png?", "qa-problem.heic?"));
+  heicUrl.searchParams.set("response-content-type", "image/heic");
+  const attachment = { id: 456, original_name: "qa-problem.heic", content_type: "image/heic",
+    size_bytes: body.length, download_url: heicUrl.href };
+  const options = { resourceType: "xhr", registerUrl: heicUrl.href, contentType: "image/heic",
+    attachments: [attachment], body, storageCors: boundary.webOrigin };
+  const result = await exercise(options);
+  result.guard.assertClean();
+  assert.deepEqual(result.fetched, [{ url: heicUrl.href, method: "GET",
+    headers: { accept: "image/heic", origin: boundary.webOrigin }, maxRedirects: 0 }]);
+  assert.deepEqual(result.fulfilled, [{ status: 200, headers: { "content-type": "image/heic",
+    "access-control-allow-origin": boundary.webOrigin }, body }]);
+  for (const invalid of [
+    { register: false }, { resourceType: "fetch" }, { method: "POST" }, { headers: { authorization: "Bearer qa-token" } },
+    { attachments: [{ ...attachment, size_bytes: 5 * 1024 * 1024 + 1 }] },
+    { url: heicUrl.href.replace("/tenants/352/", "/tenants/353/") },
+  ]) rejected(await exercise({ ...options, ...invalid }));
+  for (const invalid of [
+    { body: Buffer.alloc(body.length) }, { body: body.subarray(0, body.length - 1) },
+    { storageCors: undefined }, { storageCors: "https://foreign.invalid" }, { status: 302 },
+  ]) rejected(await exercise({ ...options, ...invalid }), 1);
 });
 
 test("student QnA list binds attachment ID to an exact authorized download URL", async () => {

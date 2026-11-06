@@ -19,13 +19,15 @@ import {
   type PostAttachment,
   type Question,
 } from "../api/community.api";
-import { ExternalLink, Maximize2, Minimize2, RotateCcw, RotateCw, ZoomIn, ZoomOut } from "lucide-react";
+import { ExternalLink, Image as ImageIcon, Maximize2, Minimize2, RotateCcw, RotateCw, ZoomIn, ZoomOut } from "lucide-react";
 import { Button, EmptyState, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useOperationalNotificationCounts } from "@/shared/hooks/useOperationalNotificationCounts";
 import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import type { OperationalNotificationCountsResult } from "@/shared/api/contracts/notifications";
+import PhotoPreview from "@/shared/ui/media/PhotoPreview";
+import { isHeicPhoto, isPhotoFile } from "@/shared/ui/media/photoType";
 import PostReadView from "../components/PostReadView";
 import PostThreadView from "../components/PostThreadView";
 import PostHistoryTimeline from "../components/PostHistoryTimeline";
@@ -448,12 +450,8 @@ function ThreadView({
   const mappedLectureLabel = post.mappings?.[0]?.node_detail?.lecture_title ?? "";
   const contextLectures = toLectureChips(studentDetail?.enrollments);
   const studentLectures = contextLectures?.length ? contextLectures : lectureInfosFromTitle(mappedLectureLabel);
-  const imageAttachments = (post.attachments ?? []).filter(
-    (attachment) => (attachment.content_type || "").startsWith("image/"),
-  );
-  const fileAttachments = (post.attachments ?? []).filter(
-    (attachment) => !(attachment.content_type || "").startsWith("image/"),
-  );
+  const imageAttachments = (post.attachments ?? []).filter((file) => isPhotoFile(file.original_name, file.content_type));
+  const fileAttachments = (post.attachments ?? []).filter((file) => !isPhotoFile(file.original_name, file.content_type));
   const attachmentCount = imageAttachments.length + fileAttachments.length;
   const matchupResults = Array.isArray(post.meta?.matchup_results)
     ? post.meta.matchup_results as MatchupResultItem[]
@@ -829,7 +827,10 @@ function QnaAttachmentViewer({
         </div>
       </div>
       <div className="qna-inbox__image-stage">
-        <img
+        <PhotoPreview
+          key={active.id}
+          filename={active.original_name}
+          mimeType={active.content_type}
           src={refreshedUrls[active.id] || active.download_url || ""}
           alt={active.original_name}
           onError={() => markFailed(active.id)}
@@ -846,10 +847,15 @@ function QnaAttachmentViewer({
               type="button"
               className={index === resolvedIndex ? "is-active" : ""}
               onClick={() => selectAttachment(attachment.id)}
+              title={attachment.original_name}
               aria-label={`${index + 1}번째 이미지 ${attachment.original_name}`}
               aria-pressed={index === resolvedIndex}
             >
-              <img src={refreshedUrls[attachment.id] || attachment.download_url || ""} alt="" onError={() => markFailed(attachment.id)} />
+              {isHeicPhoto(attachment.original_name, attachment.content_type) ? (
+                <span className="qna-inbox__heic-thumb" aria-hidden="true"><ImageIcon size={ICON_FOR_BUTTON.sm} />{index + 1}</span>
+              ) : (
+                <img src={refreshedUrls[attachment.id] || attachment.download_url || ""} alt="" onError={() => markFailed(attachment.id)} />
+              )}
             </button>
           ))}
         </div>

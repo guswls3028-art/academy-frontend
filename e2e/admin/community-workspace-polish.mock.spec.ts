@@ -1,5 +1,6 @@
 import { devices, type Page, type Route } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
+import { homeworkHeic, installHomeworkHeicPreview } from "../helpers/homeworkHeicFixture";
 import { installLocalAuthApiStubs } from "../helpers/localAuthApiStubs";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
 import {
@@ -537,6 +538,40 @@ test.describe("커뮤니티 QnA 작업대", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   });
 
+  test("기존 HEIC 질문은 바로 열리고 손상된 미리보기는 다시 보기로 복구한다", async ({ page }) => {
+    const preview = await installHomeworkHeicPreview(page);
+    const filename = "질문-기존사진.heic";
+    qnaAttachmentsByPage.set(page, [
+      { id: 80, original_name: filename, size_bytes: homeworkHeic.length, content_type: "application/octet-stream", created_at: "2026-08-23T01:21:00Z", download_url: preview.url },
+      { id: 81, original_name: "보충자료.jpg", size_bytes: 1000, content_type: "image/jpeg", created_at: "2026-08-23T01:21:00Z", download_url: IMAGE_DATA_URL },
+    ]);
+    await page.route(`**/api/v1/community/posts/${QUESTION_ID}/attachments/80/download/`, (route) =>
+      route.fulfill({ status: 200, headers: CORS_HEADERS, contentType: "application/json", json: { url: preview.url, original_name: filename } }));
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await gotoAndSettle(page, `${BASE}/workspace/community/qna?id=${QUESTION_ID}`);
+    const image = page.getByRole("img", { name: filename, exact: true });
+    await expect(image).toHaveJSProperty("naturalWidth", 640);
+    await expect(image).toBeInViewport({ ratio: 0.75 });
+    await page.getByRole("button", { name: "이미지 확대", exact: true }).click();
+    await expect(image).toHaveCSS("transform", "matrix(1.25, 0, 0, 1.25, 0, 0)");
+    await page.screenshot({ path: test.info().outputPath("qna-heic-desktop.png") });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    preview.setBroken(true);
+    await page.reload();
+    const recovery = page.getByRole("region", { name: "미리보기 복구" });
+    await expect(recovery).toContainText(filename);
+    await expect(page.getByRole("img", { name: "보충자료.jpg" })).toBeVisible();
+    preview.setBroken(false);
+    await recovery.getByRole("button", { name: "다시 보기" }).click();
+    await expect(image).toHaveJSProperty("naturalWidth", 640);
+    await expect(recovery).toHaveCount(0);
+    expect(preview.headers.every((headers) => !headers.authorization && !headers["x-tenant-code"])).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+    await image.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: test.info().outputPath("qna-heic-mobile.png") });
+  });
+
   test("여러 이미지의 동시 미리보기 복구는 응답 파일을 정확히 선택한다 @qna-preview-recovery", async ({ page }) => {
     qnaAttachmentsByPage.set(page, [80, 82].map((id) => ({
       id, original_name: `문제-${id}.jpg`, size_bytes: 81200, content_type: "image/jpeg", created_at: "2026-08-23T01:21:00Z",
@@ -619,7 +654,7 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await page.route("**/api/v1/community/posts/991/attachments/", async (route) => {
       uploadRequests += 1;
       uploadContentType = route.request().headers()["content-type"] || "";
-      multipartFilenameCount = (route.request().postDataBuffer()?.toString("utf8").match(/filename="29번-정답-정오\.svg"/g) || []).length;
+      multipartFilenameCount = (route.request().postDataBuffer()?.toString("utf8").match(/filename="29번-정답-정오\.heic"/g) || []).length;
       await route.fulfill({ status: 201, headers: CORS_HEADERS, contentType: "application/json", body: "[]" });
     });
     await page.route("**/api/v1/community/posts/", async (route) => {
@@ -639,16 +674,17 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await page.getByRole("button", { name: "+ 추가" }).click();
     await page.getByPlaceholder("공지 제목을 입력하세요").fill("29번 정답 정오");
     await page.locator('.cms-form__body input[type="file"][accept="image/*"]').setInputFiles({
-      name: "29번-정답-정오.svg",
-      mimeType: "image/svg+xml",
-      buffer: Buffer.from(
-        '<svg xmlns="http://www.w3.org/2000/svg" width="720" height="1600"><rect width="720" height="1600" fill="#fff"/><text x="40" y="100" font-size="48">29번 정답 정오</text></svg>',
-      ),
+      name: "29번-정답-정오.heic",
+      mimeType: "image/heic",
+      buffer: homeworkHeic,
     });
 
     const formBody = page.locator(".qna-inbox__thread > .cms-form__body");
     const submit = page.getByRole("button", { name: "등록", exact: true });
-    await expect(formBody.getByText("29번-정답-정오.svg", { exact: true })).toBeVisible();
+    await expect(formBody.getByText("29번-정답-정오.heic", { exact: true })).toBeVisible();
+    const draftPhoto = formBody.getByRole("img", { name: "29번-정답-정오.heic 미리보기" });
+    await expect(draftPhoto).toHaveJSProperty("naturalWidth", 640);
+    expect((await draftPhoto.boundingBox())?.width).toBeGreaterThan(100);
     await expect(formBody.locator(".ProseMirror img")).toHaveCount(0);
     await submit.click();
 
@@ -721,6 +757,11 @@ test.describe("커뮤니티 QnA 작업대", () => {
 
     const formBody = page.locator(".qna-inbox__thread > .cms-form__body");
     const submit = page.getByRole("button", { name: "등록", exact: true });
+    const draftPhoto = formBody.getByRole("img", { name: "29번-정답-정오.svg 미리보기" });
+    await expect(draftPhoto).toHaveJSProperty("naturalWidth", 720);
+    expect((await draftPhoto.boundingBox())?.width).toBeGreaterThan(100);
+    await draftPhoto.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: test.info().outputPath("notice-photo-draft-mobile.png") });
     await expect(formBody.getByText("29번-정답-정오.svg", { exact: true })).toBeVisible();
     await expect(formBody.locator(".ProseMirror img")).toHaveCount(0);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -729,7 +770,8 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await submit.click();
     const pendingSubmit = page.getByRole("button", { name: "등록 중…" });
     await expect(pendingSubmit).toBeDisabled();
-    await pendingSubmit.click({ force: true });
+    // Exercise duplicate activation without force-clicking through the disabled button.
+    await pendingSubmit.dispatchEvent("click");
     await expect.poll(() => createBodies).toHaveLength(1);
     expect(createBodies[0]).toEqual({
       post_type: "notice",
@@ -825,7 +867,7 @@ test.describe("커뮤니티 QnA 작업대", () => {
       });
 
       await expect(page.getByText("암기TEST.pdf", { exact: true })).toBeVisible();
-      await expect(page.getByText("저장하면 본문 아래에 첨부됩니다.", { exact: false })).toBeVisible();
+      await expect(page.getByText("사진은 저장 후에도 본문 아래에 표시됩니다. 이미지 5MB · 파일 50MB · 최대 10개", { exact: true })).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expect(overflow).toBeLessThanOrEqual(1);
       await page.getByRole("button", { name: "등록", exact: true }).click();

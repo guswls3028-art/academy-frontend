@@ -1,4 +1,5 @@
 import { test, expect } from "../fixtures/strictTest";
+import { homeworkHeic, installHomeworkHeicPreview } from "../helpers/homeworkHeicFixture";
 import type { Page, Route } from "@playwright/test";
 
 const BASE =
@@ -163,8 +164,10 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
       "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
   });
 
-  test("Q&A 답변 등록 버튼이 하단 탭바에 가려지지 않고 답변을 등록한다", async ({ page }) => {
+  test("Q&A 사진을 본 뒤 답변 등록 버튼이 하단 탭바에 가려지지 않고 답변을 등록한다", async ({ page }) => {
+    const { url } = await installHomeworkHeicPreview(page);
     const post = {
+      attachments: [{ id: 991, original_name: "질문사진.heic", size_bytes: homeworkHeic.length, content_type: "image/heic", download_url: url }],
       id: POST_ID,
       post_type: "qna",
       title: "[E2E] 모바일 답변 버튼 회귀",
@@ -269,6 +272,7 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
     await page.getByText(post.title).click();
     await expect(page.getByText("감수 1분열 중기는 다양성과 상관이 있는데")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("왜 감수 2분열 중기는 다양성과 상관이 없나요")).toBeVisible();
+    await expect(page.getByRole("img", { name: "질문사진.heic", exact: true })).toHaveJSProperty("naturalWidth", 640);
     await expect.poll(async () => page.locator("body").innerText()).not.toContain("<p>");
     await expect(page.getByText("아직 답변이 없습니다")).toBeVisible({ timeout: 10_000 });
 

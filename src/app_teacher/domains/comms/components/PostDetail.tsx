@@ -9,6 +9,8 @@ import type { Post, Reply, PostAttachment } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import MobileRichEditor from "@teacher/shared/ui/MobileRichEditor";
 import { usePostAttachmentBatch } from "@/shared/hooks/usePostAttachmentBatch";
+import PhotoPreview from "@/shared/ui/media/PhotoPreview";
+import { isPhotoFile } from "@/shared/ui/media/photoType";
 import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
 import { ChevronLeft, Pencil, Trash2, MoreVertical, X, Save, Star, AlertCircle, Paperclip, Download } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
@@ -16,6 +18,48 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { teacherCommsQueryKeys } from "../queryKeys";
 import { getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
+
+function AttachmentPhoto({ postId, attachment }: { postId: number; attachment: PostAttachment }) {
+  const [retryUrl, setRetryUrl] = useState<string>();
+  const [failed, setFailed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const src = retryUrl ?? attachment.download_url;
+
+  async function retry() {
+    setLoading(true);
+    try {
+      const { url } = await fetchPostAttachmentDownload(postId, attachment.id);
+      if (!url) throw new Error("Missing attachment URL");
+      setRetryUrl(url);
+      setFailed(false);
+    } catch {
+      setFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loading) return <p role="status" className="text-xs">사진을 불러오는 중…</p>;
+  if (failed || !src) return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <span role="status">사진 미리보기를 불러오지 못했습니다.</span>
+      <button type="button" className="underline" aria-label={`${attachment.original_name} 다시 보기`} onClick={() => void retry()}>
+        다시 보기
+      </button>
+    </div>
+  );
+  return (
+    <PhotoPreview
+      src={src}
+      filename={attachment.original_name}
+      mimeType={attachment.content_type}
+      alt={attachment.original_name}
+      className="mx-auto max-h-96 max-w-full rounded-lg object-contain"
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 interface Props {
   post: Post;
@@ -287,32 +331,34 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
           </div>
           <div className="flex flex-col gap-1.5">
             {post.attachments.map((attachment) => (
-              <button
-                key={attachment.id}
-                type="button"
-                onClick={() => void handleDownloadAttachment(attachment)}
-                disabled={downloadingAttachmentId === attachment.id}
-                aria-label={`${attachment.original_name} 다운로드`}
-                title={`${attachment.original_name} 다운로드`}
-                className="flex items-center gap-2 text-left cursor-pointer"
-                style={{
-                  width: "100%",
-                  minHeight: 40,
-                  padding: "8px 10px",
-                  borderRadius: "var(--tc-radius-sm)",
-                  border: "1px solid var(--tc-border)",
-                  background: "var(--tc-surface-soft)",
-                  color: "var(--tc-text)",
-                }}
-              >
-                <Download size={ICON.sm} style={{ color: "var(--tc-primary)", flex: "0 0 auto" }} />
-                <span className="flex-1 min-w-0">
-                  <span className="block text-[12px] font-semibold truncate">{attachment.original_name}</span>
-                  <span className="block text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
-                    {formatBytes(attachment.size_bytes)}
+              <div key={`${post.id}:${attachment.id}`} className="flex min-w-0 flex-col gap-1.5">
+                {isPhotoFile(attachment.original_name, attachment.content_type) && <AttachmentPhoto postId={post.id} attachment={attachment} />}
+                <button
+                  type="button"
+                  onClick={() => void handleDownloadAttachment(attachment)}
+                  disabled={downloadingAttachmentId === attachment.id}
+                  aria-label={`${attachment.original_name} 다운로드`}
+                  title={`${attachment.original_name} 다운로드`}
+                  className="flex items-center gap-2 text-left cursor-pointer"
+                  style={{
+                    width: "100%",
+                    minHeight: 40,
+                    padding: "8px 10px",
+                    borderRadius: "var(--tc-radius-sm)",
+                    border: "1px solid var(--tc-border)",
+                    background: "var(--tc-surface-soft)",
+                    color: "var(--tc-text)",
+                  }}
+                >
+                  <Download size={ICON.sm} style={{ color: "var(--tc-primary)", flex: "0 0 auto" }} />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-[12px] font-semibold truncate">{attachment.original_name}</span>
+                    <span className="block text-[11px]" style={{ color: "var(--tc-text-muted)" }}>
+                      {formatBytes(attachment.size_bytes)}
+                    </span>
                   </span>
-                </span>
-              </button>
+                </button>
+              </div>
             ))}
           </div>
         </div>

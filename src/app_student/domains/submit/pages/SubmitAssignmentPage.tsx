@@ -17,7 +17,7 @@ import { useTrackedTask } from "@/shared/productAnalytics";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import { formatCompactFileSize } from "@/shared/utils/fileSize";
 import { createRandomUuid as uuid } from "@/shared/utils/randomUuid";
-import HomeworkMediaImage from "@/shared/ui/media/HomeworkMediaImage";
+import PhotoPreview from "@/shared/ui/media/PhotoPreview";
 import styles from "./SubmitAssignmentPage.module.css";
 import SavedHomeworkMediaPreview from "./SavedHomeworkMediaPreview";
 import { useHomeworkDraft, type PendingMedia } from "../hooks/useHomeworkDraft";
@@ -91,7 +91,7 @@ function LocalMediaPreview({ file }: { file: File }) {
     return <span className={styles.previewPlaceholder} aria-hidden="true">{isVideo ? <IconVideo /> : <IconImage />}</span>;
   }
   if (isVideo) return <video key={attempt} className={styles.localPreview} src={previewUrl} muted playsInline preload="metadata" onError={() => setPreviewFailed(true)} />;
-  return <HomeworkMediaImage key={attempt} thumbnail className={styles.localPreview} src={previewUrl} blob={file} filename={file.name} mimeType={file.type} alt="선택한 과제 사진 미리보기" onError={() => setPreviewFailed(true)} />;
+  return <PhotoPreview key={attempt} thumbnail className={styles.localPreview} src={previewUrl} blob={file} filename={file.name} mimeType={file.type} alt="선택한 과제 사진 미리보기" onError={() => setPreviewFailed(true)} />;
 }
 
 export default function SubmitAssignmentPage() {
