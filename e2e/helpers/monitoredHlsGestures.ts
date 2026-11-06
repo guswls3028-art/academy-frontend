@@ -277,14 +277,31 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
     }
   };
   const assertPaused = (paused: boolean) => expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.paused)).toBe(paused);
-  const clickProgress = async (fraction: number) => {
-    const slider = controls.getByRole("slider", { name: "진행 바", exact: true });
-    const point = await slider.evaluate((node, fraction) => {
+  const progressSlider = controls.getByRole("slider", { name: "진행 바", exact: true });
+  const controlPoint = async (target: Locator, fraction = 0.5) => {
+    const read = () => target.evaluate((node, fraction) => {
       const rect = node.getBoundingClientRect();
       const x = rect.left + Math.max(1, rect.width * fraction), y = rect.top + rect.height / 2;
-      return { x, y, ownsTarget: node.contains(document.elementFromPoint(x, y)) };
+      return { x, y, ownsTarget: node.contains(document.elementFromPoint(x, y)),
+        controlsHidden: node.closest(".svpPlayerWrap")!.classList.contains("svpPlayerWrap--controlsHidden") };
     }, fraction);
-    expect(point.ownsTarget, "normal progress input owns its position").toBe(true);
+    const before = await read();
+    let point = before;
+    // Auto-hide can occur after the earlier visibility check. Reveal by real input only.
+    if (!point.ownsTarget && point.controlsHidden) {
+      await revealControls();
+      await expect(controls).toHaveCSS("opacity", "1");
+      point = await read();
+    }
+    await info.attach("control-input-readiness", { contentType: "application/json", body: JSON.stringify({ fraction, before, point }) });
+    expect(point.ownsTarget, "normal control input owns its position").toBe(true);
+    return point;
+  };
+  const clickControl = async (target: Locator, fraction = 0.5) => {
+    await revealControls();
+    await expect(controls).toHaveCSS("opacity", "1");
+    await expect(target).toBeEnabled();
+    const point = await controlPoint(target, fraction);
     await page.mouse.click(point.x, point.y);
   };
   for (const width of scenario.viewport?.width === 1366 ? [1100, 1366] : [390]) {
@@ -292,29 +309,34 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
     await page.setViewportSize({ width, height });
     const playPause = controls.locator(".svpLeftControls button").first();
     for (const phase of ["playing", "paused"] as const) {
-      if (phase === "paused") await playPause.click();
+      if (phase === "paused") await clickControl(playPause);
       await assertPaused(phase === "paused");
       await verifyGeometry(width, height, phase);
       const muted = await video.evaluate((node: HTMLVideoElement) => node.muted);
       for (const expected of [!muted, muted]) {
-        await controls.locator(".svpVolume button").click();
+        await clickControl(controls.locator(".svpVolume button"));
         await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.muted)).toBe(expected);
         await assertPaused(phase === "paused");
       }
       // The fixture permits free seek. Use real range input, then restore near start.
       const duration = await video.evaluate((node: HTMLVideoElement) => node.duration);
-      await clickProgress(0.75);
+      await clickControl(progressSlider, 0.75);
       await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeGreaterThan(duration * 0.6);
+      // currentTime changes before seek completion and the controlled thumb renders.
+      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.seeking)).toBe(false);
+      await expect.poll(async () => Number(await progressSlider.inputValue())).toBeGreaterThan(duration * 0.6);
       await assertPaused(phase === "paused");
-      await clickProgress(0);
+      await clickControl(progressSlider, 0);
       await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeLessThan(duration * 0.05);
+      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.seeking)).toBe(false);
+      await expect.poll(async () => Number(await progressSlider.inputValue())).toBeLessThan(duration * 0.05);
       await assertPaused(phase === "paused");
     }
     await page.locator(".svpBigPlay").click();
     await assertPaused(false);
-    await playPause.click();
+    await clickControl(playPause);
     await assertPaused(true);
-    await playPause.click();
+    await clickControl(playPause);
     await assertPaused(false);
     const current = await video.evaluate((node: HTMLVideoElement) => node.currentTime);
     await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeGreaterThan(current);
@@ -415,7 +437,7 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
         const activate = async () => {
           await revealControls();
           if (input === "touch") await button.tap();
-          else if (input === "mouse") await button.click();
+          else if (input === "mouse") await clickControl(button);
           else {
             await button.focus();
             await page.keyboard.press(input);
