@@ -9,7 +9,7 @@ import {
   createQaFamily, expectApi, installQaStudentParentBoundary, loginAdmin,
   loginThroughUi, QA_ADMIN_PASSWORD, QA_ADMIN_USER, QA_BASE, QA_TENANT,
   reloadStudentApp, selectParentStudentThroughUi, STUDENT_PARENT_REALUSE_ENABLED,
-  type QaFamily,
+  type QaFamily, type QaStudent,
 } from "../helpers/qaStudentParentScenario";
 import { gotoAndSettle } from "../helpers/wait";
 import type { Survey, SurveyResponse } from "../../src/shared/api/surveys";
@@ -24,6 +24,39 @@ const owned = { family: null as QaFamily | null, adminAccess: "", surveyIds: [] 
 async function capture(page: Page, testInfo: TestInfo, name: string) {
   await assertNoHorizontalOverflow(page);
   await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true });
+}
+
+async function openParentSurveyThroughUi(page: Page, survey: Survey, student: QaStudent) {
+  await expect(page).toHaveURL(`${QA_BASE}/student/dashboard`);
+  await expect(page.getByRole("tablist", { name: "자녀 선택" })
+    .getByRole("tab", { name: student.name, exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("region", { name: "전체 메뉴와 상태 카드" })
+    .getByRole("link", { name: /전체 메뉴/ }).click();
+  await expect(page).toHaveURL(`${QA_BASE}/student/menu`);
+  await page.getByRole("region", { name: "나", exact: true })
+    .getByRole("link", { name: /^제출 / }).click();
+  await expect(page).toHaveURL(`${QA_BASE}/student/submit`);
+  await page.getByRole("link", { name: /^설문과 성적 취합/ }).click();
+  await expect(page).toHaveURL(`${QA_BASE}/student/surveys`);
+  await page.getByRole("link").filter({ has: page.getByText(survey.title, { exact: true }) }).click();
+  await expect(page).toHaveURL(`${QA_BASE}/student/surveys/${survey.id}`);
+}
+
+async function observeSurveyRead(
+  page: Page, survey: Survey, student: QaStudent, action: () => Promise<void>,
+): Promise<SurveyResponse | null> {
+  const [result] = await Promise.all([
+    page.waitForResponse((r) => r.request().method() === "GET"
+      && new URL(r.url()).pathname === `/api/v1/surveys/student/${survey.id}/`),
+    action(),
+  ]);
+  expect(result.status()).toBe(200);
+  expect(await result.request().headerValue("x-student-id") === String(student.id)).toBe(true);
+  expect(await result.request().headerValue("x-tenant-code") === QA_TENANT).toBe(true);
+  const data = await result.json() as { survey: Survey; response: SurveyResponse | null };
+  expect(data.survey.id === survey.id).toBe(true);
+  expect(data.response === null || data.response.student_id === student.id).toBe(true);
+  return data.response;
 }
 
 async function createThroughUi(page: Page, kind: "memo" | "school_score"): Promise<Survey> {
@@ -131,9 +164,35 @@ test.describe.serial("[real-use] 설문·성적 취합과 자녀별 응답", () 
       expect(memoResponse.attachments).toHaveLength(1);
       await capture(parentPage, testInfo, "survey-parent-saved-390");
       await selectParentStudentThroughUi(parentPage, peer);
+      // Changing children returns to the dashboard. Re-enter via the normal menu.
+      const peerResponse = await observeSurveyRead(parentPage, memo, peer,
+        () => openParentSurveyThroughUi(parentPage, memo, peer));
+      expect(peerResponse === null).toBe(true);
       await expect(parentPage.getByRole("button", { name: "응답 제출", exact: true })).toBeVisible();
       await expect(parentPage.getByLabel("토요일", { exact: true })).not.toBeChecked();
       await expect(parentPage.getByText("시험범위.png", { exact: true })).toHaveCount(0);
+
+      const reloadedPeerResponse = await observeSurveyRead(parentPage, memo, peer,
+        () => reloadStudentApp(parentPage));
+      expect(reloadedPeerResponse === null).toBe(true);
+      await expect(parentPage.getByRole("tablist", { name: "자녀 선택" })
+        .getByRole("tab", { name: peer.name, exact: true })).toHaveAttribute("aria-selected", "true");
+      await expect(parentPage.getByRole("button", { name: "응답 제출", exact: true })).toBeVisible();
+      await expect(parentPage.getByLabel("토요일", { exact: true })).not.toBeChecked();
+      await expect(parentPage.getByText("시험범위.png", { exact: true })).toHaveCount(0);
+
+      await selectParentStudentThroughUi(parentPage, primary);
+      const restoredPrimaryResponse = await observeSurveyRead(parentPage, memo, primary,
+        () => openParentSurveyThroughUi(parentPage, memo, primary));
+      expect(restoredPrimaryResponse?.id === memoResponse.id).toBe(true);
+      expect(restoredPrimaryResponse?.version === memoResponse.version).toBe(true);
+      expect(JSON.stringify(restoredPrimaryResponse?.answers) === JSON.stringify(memoResponse.answers)).toBe(true);
+      expect(restoredPrimaryResponse?.attachments.length === memoResponse.attachments.length).toBe(true);
+      expect(restoredPrimaryResponse?.attachments.every((file) =>
+        memoResponse.attachments.some((saved) => saved.id === file.id))).toBe(true);
+      await expect(parentPage.getByText("응답을 제출했습니다.", { exact: true })).toBeVisible();
+      await expect(parentPage.getByText("토요일", { exact: true })).toBeVisible();
+      await expect(parentPage.getByText("시험범위.png", { exact: true })).toBeVisible();
       parentBoundary.assertClean(); guards.assertZeroDefects();
     } finally { await parentContext.close(); }
 
