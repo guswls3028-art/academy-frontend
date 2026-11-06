@@ -411,6 +411,8 @@ for (const width of [1366, 390]) {
 
 for (const speedLocked of [true, false]) {
   test(`monitored HLS gestures ${speedLocked ? "locked taps never attempt speed changes" : "restore only an active long press once"}`, async ({ page }, info) => {
+    if (!speedLocked) info.annotations.push({ type: "coverage", description:
+      "Chromium also checks active speed menus in native wrapper fullscreen at 390/1366px; iOS WebKit retains native-video coverage. Active quality selection is not verified by this fixture." });
     await verifyMonitoredHlsGestures({ page, info, speedLocked, base: BASE, installScenario: installWatchScenario, openPlayer: openWatch });
   });
 }

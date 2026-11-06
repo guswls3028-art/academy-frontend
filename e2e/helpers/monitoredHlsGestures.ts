@@ -173,6 +173,145 @@ export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {
   await expect(page.getByText("재생 세션이 종료되었습니다.", { exact: true })).toHaveCount(0);
   const current = await video.evaluate((el: HTMLVideoElement) => el.currentTime);
   await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(current);
+  // iOS WebKit uses native video fullscreen; this regression requires Chromium's native wrapper.
+  if (!speedLocked && page.context().browser()?.browserType().name() === "chromium") {
+    const receiptsBefore = state.receipts, eventsBefore = state.events.length;
+    try {
+      await verifyActiveSpeedFullscreenMenus(page, info, video);
+      await expect.poll(() => state.receipts).toBeGreaterThan(receiptsBefore);
+      for (const type of ["FULLSCREEN_ENTER", "FULLSCREEN_EXIT"]) {
+        await expect.poll(() => state.events.slice(eventsBefore).filter(event => event.type === type).length).toBeGreaterThanOrEqual(2);
+      }
+      expect(state.events.filter(event => /ATTEMPT|PLAYER_ERROR/.test(event.type))).toEqual([]);
+      expect(state.active).toBe(true);
+      expect(state.grants).toBe(1);
+      expect(await writes()).toEqual([2, 1.5, 2, 1.5, 1, 2, 1.5, 1, 2, 1.5]);
+    } finally {
+      await info.attach("active-speed-menu-monitoring", { contentType: "application/json", body: JSON.stringify({ ...state, rateWrites: await writes() }) });
+    }
+  }
+}
+
+
+async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, video: Locator) {
+  const wrap = page.locator(".svpPlayerWrap");
+  const controls = page.locator(".svpControls");
+  const speed = controls.locator(".svpPlaybackRateBtn");
+  const menu = page.locator(".svpSpeedMenu");
+  const originalMedia = await video.elementHandle();
+  const observations: unknown[] = [];
+  const revealControls = async () => {
+    if (await wrap.evaluate(node => node.classList.contains("svpPlayerWrap--controlsHidden"))) {
+      const layer = page.locator(".svpGestureLayer");
+      const point = await layer.evaluate(node => {
+        const r = node.getBoundingClientRect(), x = r.left + r.width * 0.15, y = r.top + r.height / 2;
+        const hit = document.elementFromPoint(x, y);
+        return { x, y, owned: !!hit && node.contains(hit) };
+      });
+      expect(point.owned).toBe(true);
+      await page.mouse.click(point.x, point.y);
+      await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
+    }
+    await expect(controls).toHaveCSS("opacity", "1");
+  };
+  const clickOwned = async (target: Locator) => {
+    const point = await target.evaluate(node => {
+      const r = node.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+      const hit = document.elementFromPoint(x, y);
+      return { x, y, owned: !!hit && node.contains(hit) };
+    });
+    expect(point.owned, "menu input belongs to its visible target").toBe(true);
+    await page.mouse.click(point.x, point.y);
+  };
+  const assertRate = async (rate: number) => {
+    await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.playbackRate)).toBe(rate);
+    await expect(speed).toHaveText(rate % 1 === 0 ? `${rate}x` : `${rate.toFixed(2)}x`);
+  };
+  const openMenu = async (width: number, phase: string, native: boolean) => {
+    await revealControls();
+    await expect(speed).toBeEnabled();
+    await clickOwned(speed);
+    await expect(menu).toBeVisible();
+    const geometry = await menu.evaluate(node => {
+      const fullscreen = document.fullscreenElement;
+      return { parent: node.parentElement?.tagName, insideFullscreen: !!fullscreen && fullscreen.contains(node),
+        fullscreenClass: fullscreen?.className ?? null,
+        items: Array.from(node.querySelectorAll("button")).map(button => {
+          const { left, top, width, height } = button.getBoundingClientRect();
+          return { label: button.textContent?.trim(), rect: { left, top, width, height },
+            hits: [0.25, 0.5, 0.75].map(fraction => {
+              const x = left + width * fraction, y = top + height / 2, hit = document.elementFromPoint(x, y);
+              return { x, y, owned: !!hit && button.contains(hit), hitClass: hit?.getAttribute("class") };
+            }) };
+        }) };
+    });
+    observations.push({ width, phase, ...geometry });
+    if (phase === "native-selection") {
+      await info.attach(`active-speed-menu-native-${width}`, { contentType: "image/png", body: await page.screenshot() });
+    }
+    expect(geometry.insideFullscreen).toBe(native);
+    if (!native) expect(geometry.parent).toBe("BODY");
+    expect(geometry.items.length).toBeGreaterThan(1);
+    for (const item of geometry.items) {
+      expect(item.hits.every(hit => hit.owned), `${phase}/${item.label}: 25/50/75% menu hits`).toBe(true);
+    }
+  };
+  const selectRate = async (rate: number) => {
+    await clickOwned(menu.locator(".svpSpeedMenuItem").filter({ has: page.getByText(`${rate}x`, { exact: true }) }));
+    await expect(menu).toHaveCount(0);
+    await assertRate(rate);
+  };
+  const closeOutside = async () => {
+    const rate = await video.evaluate((node: HTMLVideoElement) => node.playbackRate);
+    const point = await wrap.evaluate(node => {
+      const r = node.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + 2;
+      const hit = document.elementFromPoint(x, y);
+      return { x, y, safe: !!hit && node.contains(hit) && !hit.closest("button, input, a, .svpSpeedMenu, .svpGestureLayer") };
+    });
+    expect(point.safe, "outside click uses the player header without activating another control").toBe(true);
+    await expect(menu).toHaveCount(1);
+    await page.mouse.click(point.x, point.y);
+    await expect(menu).toHaveCount(0);
+    await assertRate(rate);
+  };
+  const toggleWhileOpen = async (native: boolean) => {
+    await expect(menu).toHaveCount(1);
+    await expect(speed).toBeFocused();
+    // The keyboard shortcut changes actual fullscreen without an outside pointer closing the menu first.
+    await page.keyboard.press("f");
+    await expect.poll(() => wrap.evaluate((node, active) => active
+      ? document.fullscreenElement === node : document.fullscreenElement === null, native)).toBe(true);
+    if (native) await expect(wrap).toHaveClass(/svpPlayerWrap--fullscreen/);
+    else await expect(wrap).not.toHaveClass(/svpPlayerWrap--fullscreen/);
+    await expect(menu).toHaveCount(0);
+  };
+  try {
+    for (const width of [390, 1366]) {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+      await openMenu(width, "normal-selection", false);
+      await selectRate(1);
+      await openMenu(width, "normal-outside-close", false);
+      await closeOutside();
+      await openMenu(width, "before-native-enter", false);
+      await toggleWhileOpen(true);
+      await openMenu(width, "native-selection", true);
+      await selectRate(2);
+      await openMenu(width, "native-outside-close", true);
+      await closeOutside();
+      await openMenu(width, "before-native-exit", true);
+      await toggleWhileOpen(false);
+      await openMenu(width, "normal-return-selection", false);
+      await selectRate(1.5);
+      expect(await video.evaluate((node, original) => node === original, originalMedia)).toBe(true);
+      const current = await video.evaluate((node: HTMLVideoElement) => node.currentTime);
+      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeGreaterThan(current);
+      observations.push({ width, phase: "normal-return-playing", rate: await video.evaluate((node: HTMLVideoElement) => node.playbackRate) });
+      await info.attach(`active-speed-menu-return-${width}`, { contentType: "image/png", body: await page.screenshot() });
+    }
+  } finally {
+    await info.attach("active-speed-menu-observations", { contentType: "application/json", body: JSON.stringify(observations) });
+    await originalMedia?.dispose();
+  }
 }
 
 

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
+import type { components } from "../../src/shared/api/generated/schema";
 import { getBaseUrl } from "../helpers/auth";
 import { installWorkspaceReadApiStubs } from "../helpers/workspaceReadApiStubs";
 import {
@@ -241,6 +242,16 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
       await route.fulfill({ json: { count: 1, results: [
         { id: SESSION_ID, lecture: LECTURE_ID, order: 1, title: "모바일 순서 검증 차시", date: "2026-08-25" },
       ] } });
+      return;
+    }
+    if (path.endsWith(`/lectures/sessions/${SESSION_ID}/schedules/`) && method === "GET") {
+      const scheduleState: components["schemas"]["SessionScheduleState"] = {
+        version: "score-column-schedule-v1",
+        schedules: [],
+        roster: [{ enrollment_id: 9201, student_name: "모바일순서학생" }],
+        unassigned_enrollment_ids: [9201],
+      };
+      await route.fulfill({ json: scheduleState });
       return;
     }
     if (path.endsWith(`/lectures/sessions/${SESSION_ID}/`) && method === "GET") {
