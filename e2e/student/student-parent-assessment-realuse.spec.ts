@@ -40,6 +40,7 @@ import { verifySubmissionInbox } from "../helpers/verifySubmissionInbox";
 import { verifyOnlineWrittenSubmission } from "../helpers/verifyOnlineWrittenSubmission";
 import { verifyExcelAssessment } from "./excelAssessmentRealuse";
 import { withOwnedScoreLeaseCleanup } from "../helpers/scoreLeaseCleanup";
+import { verifySessionSchedules } from '../helpers/verifySessionSchedules';
 
 // This scenario now spans submission, feedback, templates, grading, copy and
 // attendance and online written-answer journeys. Budget the combined flow without relaxing any individual
@@ -70,8 +71,9 @@ type CreatedState = {
 
 type ResultBody = {
   total_score: number;
-  rank: number;
-  cohort_size: number;
+  rank: number | null;
+  percentile: number | null;
+  cohort_size: number | null;
   analysis: {
     wrong_count: number;
     wrong_question_numbers: number[];
@@ -370,10 +372,6 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     created.family = await createQaFamily(request, admin.access, "assessment", 2);
     const [primary, peer] = created.family.students;
     await seedAssessment(request, admin.access, created.family);
-    await verifyAssessmentTitle(page, request, admin, {
-      kind: "exam", id: created.examId!, title: examTitle,
-      lectureId: created.lectureId!, sessionId: created.sessionId!,
-    });
 
     await test.step("student submission and persisted result", () => submitFirstStudentThroughUi(page, primary, created.examId!));
     const primaryTokens = await loginApi(request, primary.ps_number, primary.password);
@@ -438,12 +436,87 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     const firstCard = page.getByRole("link").filter({ hasText: examTitle }).first();
     await expect(firstCard).toBeVisible();
     await expect(firstCard.getByTestId("grade-wrong-summary")).toContainText("오답 2문항");
-    await expect(firstCard.getByText("1/2등")).toBeVisible();
+    await expect(firstCard.getByText("1등", { exact: true })).toBeVisible();
+    await expect(firstCard.getByText("2명 응시", { exact: true })).toBeVisible();
     expect(await waitForResult(request, parentTokens.access, created.examId!, primary.id)).toMatchObject({
       total_score: 60,
       rank: 1,
       cohort_size: 2,
       analysis: { wrong_question_numbers: [2, 5] },
+    });
+    await test.step("teacher visibility saves and reaches student and selected parent child", async () => {
+      const context = await page.context().browser()!.newContext({ serviceWorkers: "block" });
+      const staffPage = await context.newPage();
+      const staffBoundary = await installQaStudentParentBoundary(staffPage, request);
+      const staffBrowser = attachStrictBrowserGuards(staffPage);
+      try {
+        await seedBrowserAuth(staffPage, admin);
+        for (const [width, showRank, showCount] of [[1366, false, false], [1366, false, true], [390, true, false], [1366, true, true]] as const) {
+          await staffPage.setViewportSize({ width, height: 900 });
+          await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`);
+          await acknowledgeInitialAccountPromptsIfVisible(staffPage);
+          const settings = staffPage.locator("#assessment-policy > details");
+          if (await settings.getAttribute("open") === null) await settings.locator("summary").click();
+          await staffPage.getByLabel("학생 등수 공개", { exact: true }).setChecked(showRank);
+          await staffPage.getByLabel("학생 응시 인원 공개", { exact: true }).setChecked(showCount);
+          const saved = staffPage.waitForResponse(response => response.request().method() === "PATCH"
+            && new URL(response.url()).pathname === `/api/v1/exams/${created.examId}/`);
+          await staffPage.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+          expect((await saved).status()).toBe(200);
+          if (!showRank && !showCount) {
+            // Establish real persisted false/false before either desktop or
+            // mobile title-only PATCH; the helper snapshots both policy fields.
+            expect(await expectApi(request, "GET", `/exams/${created.examId}/`, admin.access)).toMatchObject({
+              student_rank_published: false,
+              student_cohort_size_published: false,
+            });
+            await verifyAssessmentTitle(page, request, admin, {
+              kind: "exam", id: created.examId!, title: examTitle,
+              lectureId: created.lectureId!, sessionId: created.sessionId!,
+            });
+          }
+          await staffPage.reload({ waitUntil: "domcontentloaded" });
+          await expect(settings).toBeVisible();
+          if (await settings.getAttribute("open") === null) await settings.locator("summary").click();
+          await expect(staffPage.getByLabel("학생 등수 공개", { exact: true })).toBeChecked({ checked: showRank });
+          await expect(staffPage.getByLabel("학생 응시 인원 공개", { exact: true })).toBeChecked({ checked: showCount });
+          const expected = { total_score: 60, rank: showRank ? 1 : null, cohort_size: showCount ? 2 : null };
+          const studentResult = await waitForResult(request, primaryTokens.access, created.examId!);
+          const parentResult = await waitForResult(request, parentTokens.access, created.examId!, primary.id);
+          expect(studentResult).toMatchObject(expected);
+          expect(parentResult).toMatchObject(expected);
+          if (!showRank || !showCount) {
+            expect(studentResult.percentile).toBeNull();
+            expect(parentResult.percentile).toBeNull();
+          }
+          if (!showRank && !showCount) {
+            // Reuse the existing browser and real accounts for the student
+            // readback, then restore the selected parent child for later steps.
+            await logoutStudentApp(page);
+            await loginThroughUi(page, primary.ps_number, primary.password);
+            await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
+            await reloadStudentApp(page);
+            await expect(firstCard).toBeVisible();
+            await expect(firstCard.getByText("1등", { exact: true })).toHaveCount(0);
+            await expect(firstCard.getByText("2명 응시", { exact: true })).toHaveCount(0);
+            await assertNoHorizontalOverflow(page);
+            await logoutStudentApp(page);
+            await loginThroughUi(page, created.family!.parentPhone, created.family!.parentPassword);
+            await selectParentStudentThroughUi(page, primary);
+            await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
+          }
+          await reloadStudentApp(page);
+          await expect(page.getByRole("tab", { name: primary.name })).toHaveAttribute("aria-selected", "true");
+          await expect(firstCard).toBeVisible();
+          await expect(firstCard.getByText("1등", { exact: true })).toHaveCount(showRank ? 1 : 0);
+          await expect(firstCard.getByText("2명 응시", { exact: true })).toHaveCount(showCount ? 1 : 0);
+          await assertNoHorizontalOverflow(staffPage);
+        }
+        staffBoundary.assertClean();
+        staffBrowser.assertZeroDefects();
+      } finally {
+        await context.close();
+      }
     });
     await gotoAndSettle(page, `${QA_BASE}/student/notifications`, { timeout: 30_000 });
     await expect(page.getByRole("heading", { name: "새 성적" })).toBeVisible();
@@ -469,6 +542,9 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     }, (sessionId) => { created.copySessionIds.push(sessionId); }));
     await test.step("attendance priority and absent scores", () => verifyAttendancePriorityAndAbsentScores(page, request, admin, created.family!, testInfo));
     await test.step("ended-course todos and restored eligibility", () => verifyEndedCourseTodos(page, request, admin, primary, primaryTokens));
+    await test.step('weekday schedules, scoped rosters, student dates and preserved records', () => verifySessionSchedules(page, request, admin, primaryTokens, created.family!, {
+      lectureId: created.lectureId!, sessionId: created.sessionId!, enrollmentIds: created.enrollmentIds,
+    }, testInfo));
     await test.step("online written submission and teacher grading", () => verifyOnlineWrittenSubmission(page, request, admin, primaryTokens, {
       lectureId: created.lectureId!, sessionId: created.sessionId!,
       enrollmentId: created.primaryEnrollmentId!, studentName: primary.name,
@@ -773,16 +849,15 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
       await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
       await verify(original.exam_order, original.exam_ids);
       await verifyParentTotal(60, 100, 1);
-      // Start with the second exam excluded: this move must cross the rendered
-      // total boundary and change both the saved order and included assessment set.
+      // Moving the excluded exam changes presentation only, including after reload.
       if (width === 1366) {
         await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }));
       } else await page.getByRole("button", { name: `${manualExamTitle} 이전 순서로 이동`, exact: true }).click();
       const reversed = [created.manualExamId!, created.examId!];
-      await verify(reversed, reversed);
+      await verify(reversed, original.exam_ids);
       await page.reload();
-      await verify(reversed, reversed);
-      await verifyParentTotal(143.33, 200, 2);
+      await verify(reversed, original.exam_ids);
+      await verifyParentTotal(60, 100, 1);
       const rosterWarning = page.getByRole("region", { name: "응시·제출 대상 미배정 안내", exact: true });
       const assignAll = rosterWarning.getByRole("button", { name: "누락 전부 배정", exact: true });
       await expect(assignAll).toBeVisible();
@@ -798,24 +873,23 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
       if (width === 1366) {
         await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }));
       } else await page.getByRole("button", { name: `${examTitle} 이전 순서로 이동`, exact: true }).click();
-      await verify(original.exam_order, original.exam_order);
+      await verify(original.exam_order, original.exam_ids);
       const restore = await openTotals();
       await restore.getByRole("checkbox", { name: `${manualExamTitle} 합산에 포함`, exact: true }).uncheck();
       await save(restore);
       await verify(original.exam_order, original.exam_ids);
-      // Moving the included exam past an excluded one crosses the boundary in
-      // the other direction; neither score may remain in the displayed total.
+      // Moving the included exam past an excluded one also preserves the sum.
       if (width === 1366) {
         await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }));
       } else await page.getByRole("button", { name: `${examTitle} 다음 순서로 이동`, exact: true }).click();
-      await verify(reversed, []);
+      await verify(reversed, original.exam_ids);
       await page.reload();
-      await verify(reversed, []);
-      await verifyParentTotal(null, 0, 0);
+      await verify(reversed, original.exam_ids);
+      await verifyParentTotal(60, 100, 1);
       if (width === 1366) {
         await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }));
       } else await page.getByRole("button", { name: `${manualExamTitle} 다음 순서로 이동`, exact: true }).click();
-      await verify(original.exam_order, []);
+      await verify(original.exam_order, original.exam_ids);
       const finalRestore = await openTotals();
       await finalRestore.getByRole("checkbox", { name: `${examTitle} 합산에 포함`, exact: true }).check();
       await save(finalRestore);
@@ -919,7 +993,23 @@ async function verifyScoreMessageTemplate(
     await send.getByRole("checkbox", { name: "학부모", exact: true }).check();
     await send.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
     const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
-    await picker.getByRole("button", { name: new RegExp(templateName) }).click();
+    const savedCard = picker.locator(".tpl-picker__card").filter({ has: page.getByRole("button", { name: new RegExp(templateName) }) });
+    await savedCard.getByRole("button", { name: "더보기", exact: true }).click();
+    await savedCard.getByRole("button", { name: "이름 변경", exact: true }).click();
+    const rename = savedCard.getByRole("form", { name: "안내문 이름 변경" });
+    const renamedTemplateName = `${templateName} 이름수정`;
+    await rename.getByRole("textbox", { name: "안내문 이름", exact: true }).fill(renamedTemplateName);
+    const renameResponse = page.waitForResponse(response => response.request().method() === "PATCH"
+      && new URL(response.url()).pathname.endsWith(`/messaging/templates/${saved.id}/`));
+    await rename.getByRole("button", { name: "이름 저장", exact: true }).click();
+    expect((await renameResponse).status()).toBe(200);
+    await expect(rename).toBeHidden();
+    const renamed = await expectApi<{ name: string; body: string }>(request, "GET", `/messaging/templates/${saved.id}/`, admin.access);
+    expect(renamed.name).toBe(renamedTemplateName);
+    expect(renamed.body).toBe(persisted.body);
+    await picker.getByRole("button", { name: "닫기", exact: true }).last().click();
+    await send.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
+    await picker.getByRole("button", { name: new RegExp(renamedTemplateName) }).click();
     await expect(picker.getByLabel("선택할 안내문 내용"))
       .toContainText("학생 #{학생이름3} 점수 #{시험총점} 확인 완료");
     await expect(picker.getByLabel("카카오톡 실제 발송 미리보기")).toHaveCount(0);

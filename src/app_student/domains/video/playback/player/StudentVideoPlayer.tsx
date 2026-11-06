@@ -1,6 +1,7 @@
 // PATH: src/app_student/domains/video/playback/player/StudentVideoPlayer.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReviewWatch } from "./useReviewWatch";
+import { usePlayerFullscreen } from "./usePlayerFullscreen";
 
 import "./player.css";
 
@@ -9,8 +10,6 @@ import {
   formatClock,
   formatDateTimeKorean,
   getOrCreateDeviceId,
-  getActiveFullscreenElement,
-  isIOSWebKitRuntime,
   safeParseFloat,
 } from "./design/utils";
 import {
@@ -29,6 +28,7 @@ import {
 import { StudentYoutubeController } from "./headless/StudentYoutubeController";
 import { useDoubleTapSeek } from "./gesture/useDoubleTapSeek";
 import SeekOverlay from "./gesture/SeekOverlay";
+import { finishLongPressRateGesture } from "./gesture/finishLongPressRateGesture";
 import {
   ForwardSkipBudgetStatus,
   PlaybackPolicyHints,
@@ -93,7 +93,7 @@ export default function StudentVideoPlayer({
   const [ctrlState, setCtrlState] = useState<ControllerState>(initialControllerState);
   const [theater, setTheater] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const { isFullscreen, requestFullscreen } = usePlayerFullscreen(wrapElRef, videoElRef, controllerRef, setShowControls);
   const policySkipBudget = useMemo<ForwardSkipBudgetState>(() => ({
     enabled: policy.seek?.enabled === true,
     step_seconds: Math.max(1, Number(policy.seek?.step_seconds || 10)),
@@ -112,12 +112,11 @@ export default function StudentVideoPlayer({
   const [skipBudget, setSkipBudget] = useState<ForwardSkipBudgetState>(policySkipBudget);
   const [skipPending, setSkipPending] = useState(false);
   const skipPendingRef = useRef(false);
-  const fullscreenFallbackRef = useRef(false);
 
   const gestureLayerRef = useRef<HTMLDivElement | null>(null);
   const hideControlsTimerRef = useRef<number | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const savedRateRef = useRef(1);
+  const savedRateRef = useRef<number | null>(null);
   const swipeHandledRef = useRef(false);
   const touchStartRef = useRef<{ y: number; volume: number; rightHalf: boolean } | null>(null);
   const currentRef = useRef(0);
@@ -227,6 +226,7 @@ export default function StudentVideoPlayer({
     const unsub = ctrl.subscribe(setCtrlState);
 
     return () => {
+      finishLongPressRateGesture(longPressTimerRef, savedRateRef);
       unsub();
       ctrl.dispose();
       controllerRef.current = null;
@@ -236,85 +236,16 @@ export default function StudentVideoPlayer({
   useEffect(() => {
     const ctrl = controllerRef.current;
     if (!ctrl) return;
+    if (speedLocked) {
+      // End an active boost under the previous, unlocked policy before locking.
+      finishLongPressRateGesture(longPressTimerRef, savedRateRef, () => ctrl.setRate(1));
+    }
     ctrl.setPolicy(bootstrap.policy);
     ctrl.setToken(bootstrap.token, bootstrap.expires_at);
     if (ctrl instanceof StudentHlsController) {
       ctrl.setSource(bootstrap.play_url || video.hls_url || "");
     }
-  }, [bootstrap.play_url, bootstrap.policy, bootstrap.token, bootstrap.expires_at, video.hls_url]);
-
-  useEffect(() => {
-    const wrap = wrapElRef.current;
-    if (!wrap) return;
-
-    const onFullscreenChange = () => {
-      const el = getActiveFullscreenElement();
-      const active = el === wrap || (el && wrap.contains(el));
-      if (!active) fullscreenFallbackRef.current = false;
-      setIsFullscreen(!!active);
-      if (active) {
-        document.body.style.overflow = "hidden";
-        document.body.style.touchAction = "none";
-        setShowControls(true);
-      } else {
-        document.body.style.overflow = "";
-        document.body.style.touchAction = "";
-      }
-    };
-
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    document.addEventListener("webkitfullscreenchange", onFullscreenChange);
-    document.addEventListener("mozfullscreenchange", onFullscreenChange);
-    return () => {
-      document.removeEventListener("fullscreenchange", onFullscreenChange);
-      document.removeEventListener("webkitfullscreenchange", onFullscreenChange);
-      document.removeEventListener("mozfullscreenchange", onFullscreenChange);
-      document.body.style.overflow = "";
-      document.body.style.touchAction = "";
-    };
-  }, []);
-
-  // iOS 등: video 요소 네이티브 전체화면(webkitEnterFullscreen) 종료 시 상태 복구 — 플레이어 끄면 UI 꼬임 방지
-  useEffect(() => {
-    const vid = videoElRef.current;
-    if (!vid) return;
-    const lockPageForFullscreen = () => {
-      document.body.style.overflow = "hidden";
-      document.body.style.touchAction = "none";
-    };
-    const unlockPageFromFullscreen = () => {
-      document.body.style.overflow = "";
-      document.body.style.touchAction = "";
-    };
-    const onNativeVideoFullscreenBegin = () => {
-      fullscreenFallbackRef.current = false;
-      setIsFullscreen(true);
-      setShowControls(true);
-      lockPageForFullscreen();
-      controllerRef.current?.queueFullscreenEvent(true);
-    };
-    const onNativeVideoFullscreenEnd = () => {
-      fullscreenFallbackRef.current = false;
-      setIsFullscreen(false);
-      unlockPageFromFullscreen();
-      controllerRef.current?.queueFullscreenEvent(false);
-    };
-    vid.addEventListener("webkitbeginfullscreen", onNativeVideoFullscreenBegin);
-    vid.addEventListener("webkitendfullscreen", onNativeVideoFullscreenEnd);
-    return () => {
-      vid.removeEventListener("webkitbeginfullscreen", onNativeVideoFullscreenBegin);
-      vid.removeEventListener("webkitendfullscreen", onNativeVideoFullscreenEnd);
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (fullscreenFallbackRef.current) {
-        document.body.style.overflow = "";
-        document.body.style.touchAction = "";
-      }
-    };
-  }, []);
+  }, [bootstrap.play_url, bootstrap.policy, bootstrap.token, bootstrap.expires_at, video.hls_url, speedLocked]);
 
   useEffect(() => {
     if (hideControlsTimerRef.current) {
@@ -330,7 +261,7 @@ export default function StudentVideoPlayer({
     return () => {
       if (hideControlsTimerRef.current) clearTimeout(hideControlsTimerRef.current);
     };
-  }, [playing, buffering, showControls]);
+  }, [playing, buffering, showControls, isFullscreen]);
 
   const togglePlay = useCallback(() => {
     const ctrl = controllerRef.current;
@@ -456,122 +387,11 @@ export default function StudentVideoPlayer({
     shouldIgnorePointer,
     getIsDrag: () => swipeHandledRef.current,
   });
-  const requestFullscreen = useCallback(() => {
-    const wrap = wrapElRef.current;
-    const vid = videoElRef.current;
-    const ctrl = controllerRef.current;
-
-    const isFs = getActiveFullscreenElement();
-    const inFallback = fullscreenFallbackRef.current;
-
-    const enterFallback = () => {
-      if (getActiveFullscreenElement()) return;
-      fullscreenFallbackRef.current = true;
-      setIsFullscreen(true);
-      document.body.style.overflow = "hidden";
-      document.body.style.touchAction = "none";
-      setShowControls(true);
-      ctrl?.queueFullscreenEvent(true);
-    };
-
-    const exitFallback = () => {
-      fullscreenFallbackRef.current = false;
-      setIsFullscreen(false);
-      document.body.style.overflow = "";
-      document.body.style.touchAction = "";
-      ctrl?.queueFullscreenEvent(false);
-    };
-
-    try {
-      if (isFs || isFullscreen) {
-        ctrl?.queueFullscreenEvent(false);
-        if (inFallback) {
-          exitFallback();
-          return;
-        }
-        if (isFs) {
-          if (document.exitFullscreen) document.exitFullscreen();
-          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-          else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
-          return;
-        }
-        if (vid?.webkitExitFullscreen) {
-          vid.webkitExitFullscreen();
-          return;
-        }
-        exitFallback();
-        return;
-      }
-
-      ctrl?.queueFullscreenEvent(true);
-
-      const enterNativeVideoFullscreen = () => {
-        if (!vid?.webkitEnterFullscreen) return false;
-        try {
-          vid.webkitEnterFullscreen();
-          fullscreenFallbackRef.current = false;
-          setIsFullscreen(true);
-          setShowControls(true);
-          document.body.style.overflow = "hidden";
-          document.body.style.touchAction = "none";
-          return true;
-        } catch {
-          return false;
-        }
-      };
-
-      const tryNative = () => {
-        // iOS WebKit(Safari/Chrome/앱 내 브라우저): video 네이티브 전체화면이 가장 안정적이다.
-        if (isIOSWebKitRuntime() && enterNativeVideoFullscreen()) {
-          return true;
-        }
-        // Android 및 데스크톱: 래퍼 전체화면 (Fullscreen API)
-        if (wrap?.requestFullscreen) {
-          wrap.requestFullscreen({ navigationUI: "hide" }).catch(() => setTimeout(enterFallback, 100));
-          return true;
-        }
-        if (wrap?.webkitRequestFullscreen) {
-          wrap.webkitRequestFullscreen();
-          return true;
-        }
-        // 래퍼 전체화면 불가 시 video 요소 직접 시도
-        if (vid?.requestFullscreen) {
-          vid.requestFullscreen().catch(() => setTimeout(enterFallback, 100));
-          return true;
-        }
-        if (vid?.webkitRequestFullscreen) {
-          vid.webkitRequestFullscreen();
-          return true;
-        }
-        if (enterNativeVideoFullscreen()) {
-          return true;
-        }
-        return false;
-      };
-
-      if (!tryNative()) {
-        enterFallback();
-        return;
-      }
-
-      setTimeout(() => {
-        const nowFs = getActiveFullscreenElement();
-        if (!nowFs && !isIOSWebKitRuntime()) enterFallback();
-      }, 350);
-    } catch {
-      enterFallback();
-    }
-  }, [isFullscreen]);
-
   const onStageTouchEndLongPress = useCallback(() => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    if (savedRateRef.current !== undefined) {
-      controllerRef.current?.setRate(savedRateRef.current);
-    }
-  }, []);
+    finishLongPressRateGesture(longPressTimerRef, savedRateRef, (savedRate) => {
+      controllerRef.current?.setRate(speedLocked ? 1 : clamp(savedRate, 0.25, maxRate));
+    });
+  }, [maxRate, speedLocked]);
 
   const onStagePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -585,17 +405,20 @@ export default function StudentVideoPlayer({
         };
       }
       if (rect && !speedLocked && e.clientX > rect.left + rect.width / 2) {
-        savedRateRef.current = rate;
         if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
         longPressTimerRef.current = setTimeout(() => {
           longPressTimerRef.current = null;
-          setPlaybackRate(2);
-          controllerRef.current?.showToast("2배속", "info");
+          const ctrl = controllerRef.current;
+          const boostedRate = Math.min(2, maxRate);
+          if (!ctrl || rate === boostedRate || savedRateRef.current !== null) return;
+          savedRateRef.current = rate;
+          setPlaybackRate(boostedRate);
+          ctrl.showToast(`${boostedRate}배속`, "info");
         }, 500);
       }
       gesturePointerDown(e);
     },
-    [volume, rate, speedLocked, setPlaybackRate, gesturePointerDown]
+    [volume, rate, speedLocked, maxRate, setPlaybackRate, gesturePointerDown]
   );
 
   const onStagePointerMove = useCallback(
@@ -663,8 +486,8 @@ export default function StudentVideoPlayer({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      const tag = target?.tagName?.toLowerCase?.();
-      if (tag === "input" || tag === "textarea" || target?.isContentEditable) return;
+      const nativeSpace = e.code === "Space" && target?.closest?.(".svpFullscreenTopButton, .svpFullscreenButton");
+      if (target?.matches?.("input, textarea") || target?.isContentEditable || nativeSpace) return;
       if (e.code === "Space") {
         e.preventDefault();
         togglePlay();
@@ -753,7 +576,7 @@ export default function StudentVideoPlayer({
                   className="svpFullscreenTopButton"
                   icon={isFullscreen ? "shrink" : "fullscreen"}
                   label={isFullscreen ? "전체화면 종료" : "전체화면"}
-                  onPointerDown={() => requestFullscreen()}
+                  onClick={requestFullscreen}
                 />
                 <KebabMenu
                   align="right"
@@ -845,81 +668,82 @@ export default function StudentVideoPlayer({
                 </div>
               )}
 
-              {usesCustomControls && (
-                <div className="svpControls">
-                  <div className="svpProgressRow">
-                    <RangeSlider
-                      value={current}
-                      min={0}
-                      max={Math.max(0.1, duration || 0)}
-                      step={0.1}
-                      onChange={(v) => onScrub(v)}
-                      ariaLabel="진행 바"
-                      disabled={budgetedForward}
-                    />
-                    <div className="svpTime">
-                      <span className="svpTimeCur">{formatClock(current)}</span>
-                      <span className="svpTimeSep">/</span>
-                      <span className="svpTimeDur">{formatClock(duration)}</span>
-                    </div>
+            </div>
+
+            {usesCustomControls && (
+              <div className="svpControls">
+                <div className="svpProgressRow">
+                  <RangeSlider
+                    value={current}
+                    min={0}
+                    max={Math.max(0.1, duration || 0)}
+                    step={0.1}
+                    onChange={(v) => onScrub(v)}
+                    ariaLabel="진행 바"
+                    disabled={budgetedForward}
+                  />
+                  <div className="svpTime">
+                    <span className="svpTimeCur">{formatClock(current)}</span>
+                    <span className="svpTimeSep">/</span>
+                    <span className="svpTimeDur">{formatClock(duration)}</span>
                   </div>
+                </div>
 
-                  {budgetedForward && (
-                    <ForwardSkipBudgetStatus pending={skipPending} budget={skipBudget} />
-                  )}
+                {budgetedForward && (
+                  <ForwardSkipBudgetStatus pending={skipPending} budget={skipBudget} />
+                )}
 
-                  <div className="svpControlRow">
-                    <div className="svpLeftControls">
-                      <IconButton icon={playing ? "pause" : "play"} label={playing ? "일시정지" : "재생"} onClick={togglePlay} />
-                      <IconButton icon="replay10" label="-10초" onClick={() => skip(-10)} />
-                      <IconButton
-                        icon="forward10"
-                        label={budgetedForward
-                          ? `10초 앞으로 건너뛰기 (${formatClock(skipBudget.remaining_seconds)} 남음)`
-                          : "+10초"}
-                        onClick={() => skip(10)}
-                        disabled={budgetedForward && (skipPending || skipBudget.remaining_seconds <= 0)}
-                      />
-                      <div className="svpVolume">
-                        <IconButton icon={muted || volume <= 0.0001 ? "mute" : "volume"} label="음소거" onClick={toggleMute} />
-                        <div className="svpVolumeSlider">
-                          <RangeSlider value={muted ? 0 : volume} min={0} max={1} step={0.01} onChange={(v) => onVolume(v)} ariaLabel="볼륨" />
-                        </div>
+                <div className="svpControlRow">
+                  <div className="svpLeftControls">
+                    <IconButton icon={playing ? "pause" : "play"} label={playing ? "일시정지" : "재생"} onClick={togglePlay} />
+                    <IconButton icon="replay10" label="-10초" onClick={() => skip(-10)} />
+                    <IconButton
+                      icon="forward10"
+                      label={budgetedForward
+                        ? `10초 앞으로 건너뛰기 (${formatClock(skipBudget.remaining_seconds)} 남음)`
+                        : "+10초"}
+                      onClick={() => skip(10)}
+                      disabled={budgetedForward && (skipPending || skipBudget.remaining_seconds <= 0)}
+                    />
+                    <div className="svpVolume">
+                      <IconButton icon={muted || volume <= 0.0001 ? "mute" : "volume"} label="음소거" onClick={toggleMute} />
+                      <div className="svpVolumeSlider">
+                        <RangeSlider value={muted ? 0 : volume} min={0} max={1} step={0.01} onChange={(v) => onVolume(v)} ariaLabel="볼륨" />
                       </div>
                     </div>
-                    <div className="svpRightControls">
-                      {!isYoutube && (
-                        <QualityButton
-                          current={currentQuality}
-                          qualities={qualities}
-                          onSelect={(idx) => controllerRef.current?.setQuality(idx)}
-                        />
-                      )}
-                      <SpeedButton
-                        rate={rate}
-                        speeds={rateMenu}
-                        disabled={speedLocked}
-                        onSelect={setPlaybackRate}
-                      />
-                      <IconButton
-                        className="svpFullscreenButton"
-                        icon={isFullscreen ? "shrink" : "fullscreen"}
-                        label={isFullscreen ? "전체화면 종료" : "전체화면"}
-                        onPointerDown={() => requestFullscreen()}
-                      />
-                    </div>
                   </div>
-
-                  <PlaybackPolicyHints
-                    allowSeek={allowSeek}
-                    seekMode={seekMode}
-                    boundedForward={boundedForward}
-                    budgetedForward={budgetedForward}
-                    speedLocked={speedLocked}
-                  />
+                  <div className="svpRightControls">
+                    {!isYoutube && (
+                      <QualityButton
+                        current={currentQuality}
+                        qualities={qualities}
+                        onSelect={(idx) => controllerRef.current?.setQuality(idx)}
+                      />
+                    )}
+                    <SpeedButton
+                      rate={rate}
+                      speeds={rateMenu}
+                      disabled={speedLocked}
+                      onSelect={setPlaybackRate}
+                    />
+                    <IconButton
+                      className="svpFullscreenButton"
+                      icon={isFullscreen ? "shrink" : "fullscreen"}
+                      label={isFullscreen ? "전체화면 종료" : "전체화면"}
+                      onClick={requestFullscreen}
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
+
+                <PlaybackPolicyHints
+                  allowSeek={allowSeek}
+                  seekMode={seekMode}
+                  boundedForward={boundedForward}
+                  budgetedForward={budgetedForward}
+                  speedLocked={speedLocked}
+                />
+              </div>
+            )}
           </div>
 
           <PlayerToast toast={toast} onClose={() => controllerRef.current?.clearToast()} />

@@ -536,9 +536,10 @@
   display: inline-flex;
   min-width: 0;
   max-width: 100%;
+  min-height: 44px;
   align-items: center;
   gap: 4px;
-  padding: 2px 3px;
+  padding: 6px 8px;
   border: 0;
   border-radius: 5px;
   background: transparent;
@@ -552,6 +553,15 @@
 .scores-table-exam-link:focus-visible {
   background: color-mix(in srgb, var(--color-brand-primary) 8%, transparent);
   color: var(--color-brand-primary);
+}
+
+.scores-table-exam-link .scores-table-head-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .scores-table-exam-link:focus-visible {
@@ -958,4 +968,5 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .scores-selection-bar__row { animation: none; }
+  .scores-table-exam-link__icon { transition: none; }
 }

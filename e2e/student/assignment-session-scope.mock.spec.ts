@@ -323,6 +323,8 @@ test("교사 완료 과제는 원점수 없이도 완료로 표시되고 재제�
   const card = page.locator('[class*="homeworkCard"]').filter({
     hasText: "수업 중 교사 확인 과제",
   });
+  await expect(card).toHaveCount(0);
+  await page.getByRole("group", { name: "과제 상태 필터" }).getByRole("button", { name: "완료 1", exact: true }).click();
   await expect(card).toBeVisible();
   await expect(card).toContainText("–/100");
   await expect(card).toContainText("교사 확인 완료");

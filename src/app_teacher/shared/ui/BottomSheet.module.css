@@ -57,8 +57,8 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: var(--ds-touch-target);
+  height: var(--ds-touch-target);
   border: 1px solid var(--tc-border);
   border-radius: var(--tc-radius-full);
   color: var(--tc-text-secondary);
@@ -145,4 +145,21 @@
   .closeButton:active {
     transform: none;
   }
+}
+
+/* Portals are outside TeacherLayout, so their controls consume the same scale here. */
+.content :global(button),
+.footer :global(button) {
+  min-block-size: var(--ds-control-lg);
+  touch-action: manipulation;
+}
+
+.content :global(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="color"])),
+.content :global(select) {
+  min-block-size: var(--ds-control-lg);
+  font-size: var(--ds-field-font);
+}
+
+.footer > * {
+  gap: var(--ds-space-2);
 }

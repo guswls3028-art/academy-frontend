@@ -2,6 +2,7 @@
 // PATH: src/app_teacher/domains/lectures/pages/LectureDetailPage.tsx
 // 강의 상세 — 탭 구조: 차시 목록 + 수강생 목록 + CRUD
 import { useState } from "react";
+import { sessionScheduleDateLabel } from '@/shared/product/sessions/sessionScheduleDisplay';
 import { useParams, useNavigate, useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
@@ -254,7 +255,7 @@ export default function LectureDetailPage() {
                         {formatSessionLabel(s)}
                       </div>
                       <div className="text-[12px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
-                        {s.date || "날짜 미정"}
+                        {sessionScheduleDateLabel(s)}
                         {s.section_label ? ` · ${s.section_label}` : ""}
                       </div>
                     </div>

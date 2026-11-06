@@ -110,6 +110,12 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
     if (path === "/lectures/lectures/") return json([{ id: LECTURE_ID, title: "고1 수학", is_active: true }]);
     if (path === "/lectures/sessions/") return json([session]);
     if (path === `/lectures/sessions/${SESSION_ID}/`) return json(session);
+    if (path === `/lectures/sessions/${SESSION_ID}/schedules/` && request.method() === "GET") {
+      return json({
+        version: `homework-review-session-${SESSION_ID}-unconfigured`,
+        schedules: [], roster: [], unassigned_enrollment_ids: [],
+      });
+    }
     if (path === "/lectures/sections/") return json([]);
     if (path === "/homeworks/") return json({ count: 1, results: [homework] });
     if (path === `/homeworks/${HOMEWORK_ID}/`) return json(homework);
@@ -503,7 +509,7 @@ test("관리자 PC 검수의 동시 수정 충돌을 표시하고 최신 상태�
   }
   await page.getByRole("button", { name: "직접 확인 완료" }).click();
   await page.getByRole("button", { name: "확인 완료", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("다른 화면에서 판정이 변경되었습니다.");
+  await expect(page.getByRole("alert").filter({ hasText: "다른 화면에서 판정이 변경되었습니다." })).toBeVisible();
   expect(api.reviewPosts()).toBe(1);
   await page.getByRole("button", { name: "최신 상태 확인" }).click();
   await page.getByRole("button", { name: "직접 확인 완료" }).click();

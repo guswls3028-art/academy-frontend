@@ -6,6 +6,7 @@
 
 import { useEffect, useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useLocation, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { deleteVideo, getRetryErrorMessage } from "../api/videos.api";
@@ -24,6 +25,7 @@ import {
 } from "@/shared/api/contracts/videos";
 
 import { styles } from "./VideoDetail.styles";
+import { watchLogsPath } from "@/shared/media/video/watchLogs";
 
 import PermissionModal from "@admin/domains/videos/components/features/video-detail/modals/PermissionModal";
 import VideoPreviewSection from "@admin/domains/videos/components/features/video-detail/components/VideoPreviewSection";
@@ -72,6 +74,8 @@ export default function VideoDetailOverlay({
   onClose,
 }: VideoDetailOverlayProps) {
   const qc = useQueryClient();
+  const location = useLocation();
+  const navigate = useNavigate();
   const confirm = useConfirm();
   const panelRef = useRef<HTMLDivElement>(null);
   const [permissionOpen, setPermissionOpen] = useState(false);
@@ -361,7 +365,7 @@ export default function VideoDetailOverlay({
                           students={students}
                           onOpenPermission={() => openModal("permission")}
                           onOpenAchievement={() => openModal("achievement")}
-                          onOpenLog={() => openModal("log")}
+                          onOpenLog={() => navigate(watchLogsPath(videoId, location.pathname + location.search))}
                           openingStudentId={supportOpeningStudentId}
                           onOpenStudentView={(studentId) => void openStudentView(studentId)}
                         />

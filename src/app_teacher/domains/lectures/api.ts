@@ -1,6 +1,7 @@
 // PATH: src/app_teacher/domains/lectures/api.ts
 // 강의/세션 API — 기존 lectures API 래핑
 import api from "@/shared/api/axios";
+import type { SessionScheduleDate } from '@/shared/product/sessions/sessionScheduleDisplay';
 import { fetchLectureEnrollmentPages } from "@/shared/api/contracts/enrollments";
 import { sortSessionsByDisplayOrder, type SessionType } from "@/shared/product/sessions/sessionOrdering";
 
@@ -59,6 +60,7 @@ export type TeacherSession = {
   display_label?: string | null;
   title?: string | null;
   date?: string | null;
+  schedule_dates?: SessionScheduleDate[];
   section?: number | null;
   section_label?: string | null;
 };

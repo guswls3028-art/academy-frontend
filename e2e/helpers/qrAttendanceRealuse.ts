@@ -26,6 +26,10 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
   const errors: unknown[] = [];
   const createSign = async (route: string, kind: "class" | "clinic") => {
     await gotoAndSettle(teacherPage, `${QA_BASE}${route}`);
+    if (kind === "class") {
+      await teacherPage.getByRole("button", { name: "출결 도구", exact: true }).click();
+      await expect(teacherPage.getByRole("heading", { name: "출결 도구", exact: true })).toBeInViewport();
+    }
     await teacherPage.getByRole("button", { name: "출결 QR 출력", exact: true }).click();
     const dialog = teacherPage.getByRole("dialog", { name: "출결 QR 출력", exact: true });
     const details = dialog.locator("details");
@@ -45,6 +49,7 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
     await assertNoHorizontalOverflow(teacherPage);
     await testInfo.attach(`qr-${kind}-poster`, { body: await dialog.screenshot(), contentType: "image/png" });
     await dialog.getByRole("button", { name: "닫기", exact: true }).last().click();
+    if (kind === "class") await teacherPage.getByRole("link", { name: "← 출결 명단", exact: true }).click();
     return { point, photo };
   };
   const scanPhoto = async (photo: Buffer) => {

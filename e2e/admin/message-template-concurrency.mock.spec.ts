@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { openCompositionScores } from "../helpers/assessmentCompositionMock";
+import { installWorkspaceReadApiStubs } from "../helpers/workspaceReadApiStubs";
 
 const original = {
   id: 991, name: "공유 성적 안내", category: "grades", subject: "학부모 수업 안내",
@@ -8,6 +9,20 @@ const original = {
 };
 
 async function openSharedTemplate(page: Page, loseFirstAcknowledgement = false, initiallyDefault = true, changeBeforeModalRead = false) {
+  // Lowest-priority route: the official bundle has an absolute API origin.
+  // Explicit shell reads stay synthetic; an unhandled API must never reach it.
+  await page.route("**/api/v1/**", async route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (request.method() === "GET") {
+      if (path.endsWith("/core/subscription/")) return route.fulfill({ json: { tenant_name: "테스트 학원", is_subscription_active: true } });
+      if (path.endsWith("/lectures/sessions/")) return route.fulfill({ json: [
+        { id: 9002, lecture: 9001, order: 1, title: "모바일 순서 검증 차시", date: "2026-08-25" },
+      ] });
+    }
+    return route.fulfill({ status: 501, json: { detail: `Unmocked API: ${request.method()} ${path}` } });
+  });
+  await installWorkspaceReadApiStubs(page);
   await openCompositionScores(page);
   let saved = { ...original, is_user_default: initiallyDefault };
   const writes: Record<string, unknown>[] = [];
@@ -38,13 +53,14 @@ async function openSharedTemplate(page: Page, loseFirstAcknowledgement = false, 
     if (path.endsWith("/templates/991/") && request.method() === "PATCH") {
       const payload = request.postDataJSON();
       writes.push(payload);
-      const unchanged = payload.body === saved.body && (payload.subject === undefined || payload.subject === saved.subject);
+      const unchanged = ["name", "body", "subject"].every(key => payload[key] === undefined || payload[key] === saved[key as keyof typeof saved]);
+      if (payload.expected_updated_at && unchanged) return route.fulfill({ json: saved });
       if (payload.expected_updated_at && payload.expected_updated_at !== saved.updated_at && !unchanged) {
         return route.fulfill({ status: 409, json: {
           code: "template_conflict", detail: "다른 직원이 이 문구를 수정했습니다.", current_template: saved,
         } });
       }
-      saved = { ...saved, body: payload.body, subject: payload.subject ?? saved.subject,
+      saved = { ...saved, name: payload.name ?? saved.name, body: payload.body ?? saved.body, subject: payload.subject ?? saved.subject,
         updated_at: `2026-10-21T00:00:0${writes.length + 1}Z` };
       if (loseFirstAcknowledgement && writes.length === 1) return route.abort("aborted");
       return route.fulfill({ json: saved });
@@ -287,3 +303,82 @@ test("생성 재시도 전에 다른 직원이 수정한 문구는 보존하고 
   expect(defaults).toBe(1);
   expect(saved.body).toBe("다른 직원이 보완한 안내문");
 });
+
+for (const width of [1366, 390]) {
+  test(`보관함 이름 변경은 본문 초안과 기본 지정을 유지하고 재열기에 반영된다 ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { modal, editor, writes, read, sends } = await openSharedTemplate(page);
+    await editor.fill("작성 중인 안내문 초안입니다.");
+    await modal.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
+    const picker = page.getByRole("dialog").filter({ has: page.getByRole("button", { name: "이 안내문 적용", exact: true }) });
+    await picker.getByRole("button", { name: "더보기", exact: true }).click();
+    await picker.getByRole("button", { name: "이름 변경", exact: true }).click();
+    const form = picker.getByRole("form", { name: "안내문 이름 변경" });
+    const input = form.getByRole("textbox", { name: "안내문 이름", exact: true });
+    await input.fill("   ");
+    await expect(form.getByRole("button", { name: "이름 저장" })).toBeDisabled();
+    await input.fill("  고1 하프 모의고사 성적 안내  ");
+    const formBounds = await form.boundingBox();
+    expect(formBounds).not.toBeNull();
+    expect(formBounds!.x).toBeGreaterThanOrEqual(0);
+    expect(formBounds!.x + formBounds!.width).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: testInfo.outputPath(`notice-rename-form-${width}.png`) });
+    await form.getByRole("button", { name: "이름 저장" }).click();
+    await expect(form).toBeHidden();
+    expect(writes[0]).toEqual({ name: "고1 하프 모의고사 성적 안내", expected_updated_at: original.updated_at });
+    expect(read()).toMatchObject({ name: "고1 하프 모의고사 성적 안내", body: original.body, is_user_default: true });
+    await expect(picker.getByRole("button", { name: /^고1 하프 모의고사 성적 안내/ })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`notice-rename-${width}.png`) });
+    await picker.getByRole("button", { name: "닫기", exact: true }).last().click();
+    await expect(editor).toContainText("작성 중인 안내문 초안입니다.");
+    await modal.getByRole("button", { name: "변경 내용 저장", exact: true }).click();
+    await expect(modal.getByRole("button", { name: "변경 내용 저장", exact: true })).toBeHidden();
+    expect(writes[1].expected_updated_at).toBe("2026-10-21T00:00:02Z");
+    await modal.getByRole("button", { name: "취소", exact: true }).click();
+    await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+    await expect(modal).toContainText("고1 하프 모의고사 성적 안내");
+    await expect(editor).toContainText("작성 중인 안내문 초안입니다.");
+    expect(sends).toEqual([]);
+  });
+
+  test(`이름 저장 응답 유실은 입력을 보존하고 같은 이름으로 재시도한다 ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { modal, writes, read } = await openSharedTemplate(page, true);
+    await modal.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
+    await page.getByRole("button", { name: "더보기", exact: true }).filter({ visible: true }).click();
+    await page.getByRole("button", { name: "이름 변경", exact: true }).click();
+    const form = page.getByRole("form", { name: "안내문 이름 변경" });
+    await form.getByRole("textbox", { name: "안내문 이름" }).fill("다시 확인할 이름");
+    await form.getByRole("button", { name: "이름 저장" }).click();
+    await expect(form.getByRole("alert")).toBeVisible();
+    await expect(form.getByRole("textbox")).toHaveValue("다시 확인할 이름");
+    await form.getByRole("button", { name: "이름 저장" }).click();
+    await expect(form).toBeHidden();
+    expect(writes).toHaveLength(2);
+    expect(writes[1]).toEqual(writes[0]);
+    expect(read().body).toBe(original.body);
+  });
+
+  test(`이름 변경 충돌을 재시도해도 다른 직원의 본문과 내 초안은 보존한다 ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { modal, editor, otherEdit, read, writes } = await openSharedTemplate(page);
+    await editor.fill("내가 작성 중인 본문");
+    await modal.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
+    await page.getByRole("button", { name: "더보기", exact: true }).filter({ visible: true }).click();
+    await page.getByRole("button", { name: "이름 변경", exact: true }).click();
+    const form = page.getByRole("form", { name: "안내문 이름 변경" });
+    await form.getByRole("textbox").fill("변경한 제목");
+    otherEdit("다른 직원이 저장한 본문");
+    await form.getByRole("button", { name: "이름 저장" }).click();
+    await expect(form.getByRole("alert")).toContainText("다른 직원");
+    await expect(form.getByRole("textbox")).toHaveValue("변경한 제목");
+    await form.getByRole("button", { name: "이름 저장" }).click();
+    await expect(form).toBeHidden();
+    expect(writes[1].expected_updated_at).toBe("2026-10-21T00:00:01Z");
+    expect(read().body).toBe("다른 직원이 저장한 본문");
+    const picker = page.getByRole("dialog").filter({ has: page.getByRole("button", { name: "이 안내문 적용", exact: true }) });
+    await picker.getByRole("button", { name: "닫기", exact: true }).last().click();
+    await expect(editor).toContainText("내가 작성 중인 본문");
+    await expect(modal.getByRole("region", { name: "문구 수정 충돌" })).toContainText("다른 직원이 저장한 본문");
+  });
+}

@@ -135,7 +135,7 @@ export async function runHomeworkCorrectionFixture(page: Page, browser: Browser,
     await page.reload(); await expect.poll(rendered).toEqual(order);
     expect(config.homework_order).toEqual(order); expect(config.homework_ids).toEqual([]);
     await toggleTotal(true);
-    await page.reload(); await expect.poll(rendered).toEqual([homeworkId, completionId]);
+    await page.reload(); await expect.poll(rendered).toEqual(order);
     const saved = await readScores();
     expect(saved.meta.total_config).toMatchObject({ homework_order: order, homework_ids: [homeworkId] });
     expect(saved.rows[0].homework_total).toMatchObject({ score: 92, max_score: 100 });

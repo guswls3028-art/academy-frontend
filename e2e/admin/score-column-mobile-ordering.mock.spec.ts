@@ -1,5 +1,7 @@
-import { expect, test, type Page } from "../fixtures/strictTest";
+import { expect, test, type Locator, type Page } from "../fixtures/strictTest";
+import type { components } from "../../src/shared/api/generated/schema";
 import { getBaseUrl } from "../helpers/auth";
+import { installWorkspaceReadApiStubs } from "../helpers/workspaceReadApiStubs";
 import {
   installLocalAuthApiStubs,
   installTenantOneInitScript,
@@ -41,6 +43,17 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
   const examTitles = { ...initialExamTitles };
   const homeworkTitles = { ...initialHomeworkTitles };
   const titlePatches: OrderingHarness["titlePatches"] = [];
+  const examSettings = {
+    id: EXAM_IDS[0], exam_type: "regular", grading_mode: "written", manual_grading_method: "score",
+    max_score: 100, pass_score: 60, student_results_published: true, allow_retake: false,
+    max_attempts: 1, open_at: null, close_at: null, answer_visibility: "hidden", essay_numbering: "continuous",
+    updated_at: "2026-08-25T12:00:00+09:00",
+  };
+  const homeworkSettings = {
+    id: HOMEWORK_IDS[0], session_id: SESSION_ID, grading_mode: "SCORE", max_score: 100,
+    effective_cutline_mode: "PERCENT", effective_cutline_value: 80, effective_round_unit_percent: 5,
+    meta: {}, updated_at: "2026-08-25T12:00:00+09:00",
+  };
   let examOrder: number[] = [...EXAM_IDS];
   let homeworkOrder: number[] = [...HOMEWORK_IDS];
   let failNextReorder = true;
@@ -60,8 +73,9 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
         expect(request.headers()["x-expected-updated-at"]).toBe("2026-08-25T12:00:00+09:00");
         const payload = request.postDataJSON();
         titlePatches.push({ kind: "exam", payload });
-        examTitles[EXAM_IDS[0]] = payload.title;
-        await route.fulfill({ json: { id: EXAM_IDS[0], title: payload.title, exam_type: "regular", updated_at: "2026-08-25T12:00:00+09:00" } });
+        if (payload.title) examTitles[EXAM_IDS[0]] = payload.title;
+        Object.assign(examSettings, payload);
+        await route.fulfill({ json: { ...examSettings, title: examTitles[EXAM_IDS[0]] } });
         return;
       }
       if (method === "DELETE") {
@@ -76,12 +90,15 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
       }
       if (method === "GET") {
         await route.fulfill({ json: {
-          id: EXAM_IDS[0], title: examTitles[EXAM_IDS[0]], exam_type: "regular",
-          grading_mode: "written", manual_grading_method: "score", max_score: 100,
-          pass_score: 60, updated_at: "2026-08-25T12:00:00+09:00",
+          ...examSettings, title: examTitles[EXAM_IDS[0]],
         } });
         return;
       }
+    }
+
+    if (path.endsWith(`/exams/${EXAM_IDS[0]}/questions/`) && method === "GET") {
+      await route.fulfill({ json: [] });
+      return;
     }
 
     if (path.endsWith(`/homeworks/${HOMEWORK_IDS[0]}/`)) {
@@ -89,8 +106,9 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
         expect(request.headers()["x-expected-updated-at"]).toBe("2026-08-25T12:00:00+09:00");
         const payload = request.postDataJSON();
         titlePatches.push({ kind: "homework", payload });
-        homeworkTitles[HOMEWORK_IDS[0]] = payload.title;
-        await route.fulfill({ json: { id: HOMEWORK_IDS[0], title: payload.title, updated_at: "2026-08-25T12:00:00+09:00" } });
+        if (payload.title) homeworkTitles[HOMEWORK_IDS[0]] = payload.title;
+        Object.assign(homeworkSettings, payload);
+        await route.fulfill({ json: { ...homeworkSettings, title: homeworkTitles[HOMEWORK_IDS[0]] } });
         return;
       }
       if (method === "DELETE") {
@@ -101,11 +119,7 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
       }
       if (method === "GET") {
         await route.fulfill({ json: {
-          id: HOMEWORK_IDS[0], session_id: SESSION_ID,
-          title: homeworkTitles[HOMEWORK_IDS[0]], grading_mode: "SCORE",
-          max_score: 100, effective_cutline_mode: "PERCENT",
-          effective_cutline_value: 80, effective_round_unit_percent: 5,
-          updated_at: "2026-08-25T12:00:00+09:00",
+          ...homeworkSettings, title: homeworkTitles[HOMEWORK_IDS[0]],
         } });
         return;
       }
@@ -224,6 +238,22 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
       });
       return;
     }
+    if (path.endsWith("/lectures/sessions/") && method === "GET") {
+      await route.fulfill({ json: { count: 1, results: [
+        { id: SESSION_ID, lecture: LECTURE_ID, order: 1, title: "모바일 순서 검증 차시", date: "2026-08-25" },
+      ] } });
+      return;
+    }
+    if (path.endsWith(`/lectures/sessions/${SESSION_ID}/schedules/`) && method === "GET") {
+      const scheduleState: components["schemas"]["SessionScheduleState"] = {
+        version: "score-column-schedule-v1",
+        schedules: [],
+        roster: [{ enrollment_id: 9201, student_name: "모바일순서학생" }],
+        unassigned_enrollment_ids: [9201],
+      };
+      await route.fulfill({ json: scheduleState });
+      return;
+    }
     if (path.endsWith(`/lectures/sessions/${SESSION_ID}/`) && method === "GET") {
       await route.fulfill({
         json: { id: SESSION_ID, lecture: LECTURE_ID, order: 1, title: "모바일 순서 검증 차시", date: "2026-08-25" },
@@ -268,6 +298,7 @@ async function openScores(page: Page): Promise<OrderingHarness> {
     "성적 컬럼 모바일 순서 route-mock은 로컬 dev 서버 전용",
   );
   await installLocalAuthApiStubs(page);
+  await installWorkspaceReadApiStubs(page);
   await installTenantOneInitScript(page);
   await page.addInitScript((token) => {
     localStorage.setItem("access", token);
@@ -281,7 +312,13 @@ async function openScores(page: Page): Promise<OrderingHarness> {
   await expect(page).toHaveURL(
     new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`),
   );
+  await expect(page.getByRole("button", { name: "첫 시험 작업 선택", exact: true })).toBeVisible({ timeout: 45_000 });
   return harness;
+}
+
+async function reloadScores(page: Page) {
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator(".ds-scores-table")).toBeVisible({ timeout: 45_000 });
 }
 
 async function orderedIds(page: Page, type: "exam" | "homework") {
@@ -297,6 +334,36 @@ async function expectDocumentOverflowZero(page: Page) {
   }))).toEqual({ body: 0, document: 0 });
 }
 
+async function expectAssessmentFieldLayout(fields: Locator[], width: number) {
+  // Read without scrolling: even fields below the modal fold share one coordinate space.
+  const boxes = await Promise.all(fields.map(async (field) => {
+    const box = await field.boundingBox();
+    if (!box) throw new Error("평가 입력칸의 배치 영역을 확인할 수 없습니다.");
+    return box;
+  }));
+  const first = boxes[0];
+  expect(first.height).toBeGreaterThanOrEqual(40);
+  for (const [index, box] of boxes.entries()) {
+    expect(Math.abs(box.height - first.height), "같은 규격의 입력 높이").toBeLessThanOrEqual(1);
+    expect(Math.abs(box.width - first.width), "같은 규격의 입력 너비").toBeLessThanOrEqual(1);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(width + 1);
+    if (width > 560) {
+      expect(Math.abs(box.y - first.y), "같은 행 입력칸의 위쪽 정렬").toBeLessThanOrEqual(1);
+      if (index > 0) {
+        const previous = boxes[index - 1];
+        expect(box.x).toBeGreaterThanOrEqual(previous.x + previous.width);
+      }
+    } else {
+      expect(Math.abs(box.x - first.x), "세로로 쌓인 입력칸의 왼쪽 정렬").toBeLessThanOrEqual(1);
+      if (index > 0) {
+        const previous = boxes[index - 1];
+        expect(box.y).toBeGreaterThanOrEqual(previous.y + previous.height);
+      }
+    }
+  }
+}
+
 test.describe("성적 컬럼 모바일 순서 제어", () => {
   test.setTimeout(90_000);
   test.use({
@@ -306,36 +373,177 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
     serviceWorkers: "block",
   });
 
-  for (const width of [1366, 390]) {
-    test(`@title-edit ${width}px 성적표에서 시험·과제 제목을 바로 수정하고 재조회한다`, async ({ page }, testInfo) => {
+  for (const width of [1366, 1100, 390]) {
+    test(`@assessment-edit ${width}px 성적표는 제목 메뉴에서 시험·과제 전체 수정 모달을 연다`, async ({ page }, testInfo) => {
+      // Both editors perform four saves and three independent reloads.
+      test.setTimeout(180_000);
       await page.setViewportSize({ width, height: 844 });
       const harness = await openScores(page);
-      for (const [kind, label, previous, next] of [
-        ['exam', '시험', '첫 시험', '수정된 시험 제목'],
-        ['homework', '과제', '첫 과제', '수정된 과제 제목'],
-      ]) {
-        await page.getByRole('button', { name: `${previous} 제목 수정`, exact: true }).click();
-        const dialog = page.getByRole('dialog', { name: `${label} 제목 수정`, exact: true });
-        const input = dialog.getByRole('textbox', { name: `${label} 제목`, exact: true });
+      for (const [kind, previous, next, actionName, dialogName] of [
+        ['exam', '첫 시험', '수정된 시험 제목 서술형 소수 배점 1793679432205', '시험 설정', '시험 설정'],
+        ['homework', '첫 과제', '수정된 과제 제목 수학 개념복습 1793679432205', '과제 수정', '과제 수정'],
+      ] as const) {
+        await expect(page.getByRole('button', { name: `${previous} 제목 수정`, exact: true })).toHaveCount(0);
+        const trigger = page.getByRole('button', { name: `${previous} 작업 선택`, exact: true });
+        await trigger.scrollIntoViewIfNeeded();
+        await expect(trigger).toBeInViewport();
+        await trigger.click();
+        const menu = page.getByRole('menu', { name: `${previous} 작업 선택`, exact: true });
+        const editAction = menu.getByRole('menuitem', { name: new RegExp(`^${actionName}`) });
+        await expect(editAction).toBeVisible();
+        await page.screenshot({ path: testInfo.outputPath(`assessment-edit-menu-${width}-${kind}.png`), animations: 'disabled' });
+        await editAction.click();
+
+        const dialog = page.getByRole('dialog').filter({ hasText: dialogName });
+        const input = dialog.getByRole('textbox', { name: kind === 'exam' ? '시험명' : '과제명', exact: true });
         await expect(input).toBeEnabled();
+        if (kind === 'exam') {
+          await expect(dialog.getByRole('spinbutton', { name: '만점', exact: true })).toBeVisible();
+          await expect(dialog.getByRole('spinbutton', { name: /^합격 기준/ })).toBeVisible();
+          await expect(dialog.getByRole('group', { name: '시험 채점 방식', exact: true })).toBeVisible();
+        } else {
+          await expect(dialog.locator('input[type="date"]')).toBeVisible();
+          await expect(dialog.getByRole('spinbutton', { name: '만점', exact: true })).toBeVisible();
+          await expect(dialog.getByRole('group', { name: '과제 채점 방식', exact: true })).toBeVisible();
+        }
+        const dialogBox = await dialog.boundingBox();
+        expect(dialogBox?.x).toBeGreaterThanOrEqual(0);
+        expect((dialogBox?.x ?? 0) + (dialogBox?.width ?? width + 1)).toBeLessThanOrEqual(width + 1);
+        await page.screenshot({ path: testInfo.outputPath(`assessment-edit-modal-${width}-${kind}.png`), animations: 'disabled' });
+
+        const maximum = dialog.getByRole('spinbutton', { name: '만점', exact: true });
+        const passScore = dialog.getByRole('spinbutton', { name: /^합격 기준/ });
+        if (kind === 'exam') {
+          await expectAssessmentFieldLayout([maximum, passScore], width);
+        } else {
+          await expectAssessmentFieldLayout([input, dialog.locator('input[type="date"]')], width);
+          await expectAssessmentFieldLayout([
+            maximum,
+            passScore,
+            dialog.getByRole('spinbutton', { name: /^퍼센트 반올림 단위/ }),
+          ], width);
+        }
+        await expectDocumentOverflowZero(page);
+
         await input.fill(next);
         await dialog.getByRole('button', { name: '저장', exact: true }).click();
         await expect(dialog).not.toBeVisible();
         expect(harness.titlePatches.at(-1)).toEqual({ kind, payload: { title: next } });
         await expect(page.getByRole('button', { name: `${next} 작업 선택`, exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: `${next} 작업 선택`, exact: true })).toBeFocused();
+        if (kind === 'exam') {
+          await page.getByRole('button', { name: `${next} 작업 선택`, exact: true }).press('Enter');
+          await page.getByRole('menuitem', { name: /^시험 설정/ }).click();
+          await dialog.getByRole('spinbutton', { name: '만점', exact: true }).fill('120');
+          await dialog.getByRole('spinbutton', { name: /^합격 기준/ }).fill('70');
+          await dialog.getByRole('checkbox', { name: '학생 성적 공개', exact: true }).uncheck();
+          await dialog.locator('summary').filter({ hasText: '응시 기간·정답 공개·재응시' }).click();
+          await expect(dialog.getByLabel(/^응시 시작/)).toBeVisible();
+          await expect(dialog.getByRole('combobox', { name: /^정답 공개/ })).toBeVisible();
+          await dialog.getByRole('button', { name: '저장', exact: true }).click();
+          await expect(dialog).not.toBeVisible();
+          expect(harness.titlePatches.at(-1)).toEqual({ kind, payload: { max_score: 120, pass_score: 70, student_results_published: false } });
+          await reloadScores(page);
+          await page.getByRole('button', { name: `${next} 작업 선택`, exact: true }).click();
+          await page.getByRole('menuitem', { name: /^시험 설정/ }).click();
+          await expect(dialog.getByRole('spinbutton', { name: '만점', exact: true })).toHaveValue('120');
+          await expect(dialog.getByRole('checkbox', { name: '학생 성적 공개', exact: true })).not.toBeChecked();
+          await dialog.getByRole('button', { name: '닫기', exact: true }).click();
+          await expect(dialog).not.toBeVisible();
+        } else {
+          await page.getByRole('button', { name: `${next} 작업 선택`, exact: true }).click();
+          await page.getByRole('menuitem', { name: /^과제 수정/ }).click();
+          await dialog.getByRole('spinbutton', { name: '만점', exact: true }).fill('120');
+          await dialog.locator('input[type="date"]').fill('2026-12-01');
+          await dialog.getByRole('button', { name: '저장', exact: true }).click();
+          await expect(dialog).not.toBeVisible();
+          expect(harness.titlePatches.at(-1)).toEqual({ kind, payload: { max_score: 120, meta: { due_date: '2026-12-01' } } });
+          await reloadScores(page);
+          await page.getByRole('button', { name: `${next} 작업 선택`, exact: true }).click();
+          await page.getByRole('menuitem', { name: /^과제 수정/ }).click();
+          await expect(dialog.getByRole('spinbutton', { name: '만점', exact: true })).toHaveValue('120');
+          await expect(dialog.locator('input[type="date"]')).toHaveValue('2026-12-01');
+          await page.keyboard.press('Escape');
+          await expect(dialog).not.toBeVisible();
+        }
       }
-      await page.reload();
-      await expect(page.getByRole('button', { name: '수정된 시험 제목 제목 수정', exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: '수정된 과제 제목 제목 수정', exact: true })).toBeVisible();
+      await reloadScores(page);
+      await expect(page.getByRole('button', { name: '수정된 시험 제목 서술형 소수 배점 1793679432205 작업 선택', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: '수정된 과제 제목 수학 개념복습 1793679432205 작업 선택', exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: /제목 수정$/ })).toHaveCount(0);
       await expectDocumentOverflowZero(page);
       expect(harness.unexpectedMutations).toEqual([]);
-      for (const [kind, label] of [["exam", "시험"], ["homework", "과제"]]) {
-        const target = page.getByRole("button", { name: `수정된 ${label} 제목 제목 수정`, exact: true });
+      for (const [kind, title] of [["exam", "수정된 시험 제목 서술형 소수 배점 1793679432205"], ["homework", "수정된 과제 제목 수학 개념복습 1793679432205"]]) {
+        const target = page.getByRole("button", { name: `${title} 작업 선택`, exact: true });
         await target.scrollIntoViewIfNeeded();
         await expect(target).toBeInViewport();
         expect((await target.boundingBox())?.height).toBeGreaterThanOrEqual(44);
-        await page.screenshot({ path: testInfo.outputPath(`title-edit-scores-${width}-${kind}.png`), animations: "disabled" });
+        const titleBox = await target.locator('.scores-table-head-title').boundingBox();
+        expect(titleBox?.height).toBeLessThanOrEqual(40);
+        expect((await target.locator('xpath=ancestor::th').boundingBox())?.height).toBeLessThan(180);
+        await page.screenshot({ path: testInfo.outputPath(`assessment-header-${width}-${kind}.png`), animations: "disabled" });
+        await target.click();
+        const menu = page.getByRole('menu', { name: `${title} 작업 선택`, exact: true });
+        await expect(menu.getByText(title, { exact: true })).toBeVisible();
+        await page.screenshot({ path: testInfo.outputPath(`assessment-long-title-menu-${width}-${kind}.png`), animations: "disabled" });
+        await target.click();
       }
+    });
+  }
+
+  for (const kind of ["exam", "homework"] as const) {
+    test(`@assessment-edit ${kind} 실패한 저장 오류가 화면에 보이고 빠른 닫기 뒤 복구한다`, async ({ page }, testInfo) => {
+      test.setTimeout(180_000);
+      await page.setViewportSize({ width: 390, height: 844 });
+      const harness = await openScores(page);
+      const label = kind === "exam" ? "시험" : "과제";
+      const modalName = kind === "exam" ? "시험 설정" : "과제 수정";
+      const id = kind === "exam" ? EXAM_IDS[0] : HOMEWORK_IDS[0];
+      let failNextSave = true;
+      await page.route(`**/api/v1/${kind === "exam" ? "exams" : "homeworks"}/${id}/`, async (route) => {
+        if (route.request().method() === "PATCH" && failNextSave) {
+          failNextSave = false;
+          await route.fulfill({ status: 503, json: { detail: "일시적인 저장 오류입니다. 다시 시도해 주세요." } });
+          return;
+        }
+        await route.fallback();
+      });
+      const openEditor = async (title: string) => {
+        await page.getByRole("button", { name: `${title} 작업 선택`, exact: true }).click();
+        await page.getByRole("menuitem", { name: kind === "exam" ? /^시험 설정/ : /^과제 수정/ }).click();
+      };
+      await openEditor(`첫 ${label}`);
+      const dialog = page.getByRole("dialog", { name: modalName, exact: true });
+      const title = dialog.getByRole("textbox", { name: `${label}명`, exact: true });
+      await title.fill(`저장 실패 후 복구된 ${label}`);
+      await dialog.getByRole("spinbutton", { name: /^만점/ }).fill("125");
+      await dialog.getByRole("button", { name: "저장", exact: true }).click();
+      await expect(dialog.getByRole("alert")).toContainText("일시적인 저장 오류");
+      for (const height of [844, 600]) {
+        await page.setViewportSize({ width: 390, height });
+        await expect(dialog.getByRole("alert")).toBeInViewport({ ratio: 1 });
+        await expect(dialog.getByRole("button", { name: "저장", exact: true })).toBeInViewport({ ratio: 1 });
+        await page.screenshot({ path: testInfo.outputPath(`assessment-save-error-${kind}-390x${height}.png`), animations: "disabled" });
+      }
+      await expect(title).toHaveValue(`저장 실패 후 복구된 ${label}`);
+      await title.fill(`빠르게 닫은 ${label} 초안`);
+      await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+      await page.getByRole("alertdialog", { name: `${label} 수정 닫기` }).getByRole("button", { name: "닫기", exact: true }).click();
+      await expect(dialog).not.toBeVisible();
+      expect(harness.titlePatches).toEqual([]);
+      await openEditor(`첫 ${label}`);
+      await dialog.getByRole("button", { name: "이어서 편집", exact: true }).click();
+      await expect(title).toHaveValue(`빠르게 닫은 ${label} 초안`);
+      await expect(dialog.getByRole("alert")).toHaveCount(0);
+      await dialog.getByRole("button", { name: "저장", exact: true }).click();
+      await expect(dialog).not.toBeVisible();
+      await reloadScores(page);
+      await openEditor(`빠르게 닫은 ${label} 초안`);
+      await expect(title).toHaveValue(`빠르게 닫은 ${label} 초안`);
+      await expect(dialog.getByRole("spinbutton", { name: /^만점/ })).toHaveValue("125");
+      await expect(dialog.getByTestId("assessment-draft-recovery")).toHaveCount(0);
+      expect(harness.titlePatches).toEqual([{ kind, payload: { title: `빠르게 닫은 ${label} 초안`, max_score: 125 } }]);
+      expect(harness.unexpectedMutations).toEqual([]);
     });
   }
 
@@ -408,8 +616,8 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
     const examTrigger = page.getByRole("button", { name: "첫 시험 작업 선택" });
     await examTrigger.click();
     const examMenu = page.getByRole("menu", { name: "첫 시험 작업 선택" });
-    await expect(examMenu.getByRole("menuitem", { name: "수정" })).toBeVisible();
-    await examMenu.getByRole("menuitem", { name: "수정" }).click();
+    await expect(examMenu.getByRole("menuitem", { name: "시험 설정" })).toBeVisible();
+    await examMenu.getByRole("menuitem", { name: "시험 설정" }).click();
     await expect(page.getByRole("dialog").filter({ hasText: "시험 설정" }).getByRole("textbox", { name: "시험명" })).toHaveValue("첫 시험");
     await page.keyboard.press("Escape");
 
@@ -426,8 +634,8 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
     const homeworkTrigger = page.getByRole("button", { name: "첫 과제 작업 선택" });
     await homeworkTrigger.click();
     const homeworkMenu = page.getByRole("menu", { name: "첫 과제 작업 선택" });
-    await expect(homeworkMenu.getByRole("menuitem", { name: "수정" })).toBeVisible();
-    await homeworkMenu.getByRole("menuitem", { name: "수정" }).click();
+    await expect(homeworkMenu.getByRole("menuitem", { name: "과제 수정" })).toBeVisible();
+    await homeworkMenu.getByRole("menuitem", { name: "과제 수정" }).click();
     await expect(page.getByRole("dialog").filter({ hasText: "과제 수정" }).getByRole("textbox", { name: "과제명" })).toHaveValue("첫 과제");
     await page.keyboard.press("Escape");
 
@@ -442,7 +650,7 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
     await expect(homeworkTrigger).toHaveCount(0);
 
     expect(deletedAssessments).toEqual(["exam:9101", "homework:9151"]);
-    await page.reload({ waitUntil: "domcontentloaded" });
+    await reloadScores(page);
     await expect(page.getByRole("button", { name: "첫 시험 작업 선택" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "첫 과제 작업 선택" })).toHaveCount(0);
     expect(unexpectedMutations).toEqual([]);

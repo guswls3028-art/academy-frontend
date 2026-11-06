@@ -123,8 +123,8 @@ function SessionGearMenu({
       feedback.success(supplement ? "보강이 삭제되었습니다." : "차시가 삭제되었습니다.");
       setOpen(false);
       onDone("deleted");
-    } catch {
-      feedback.error("차시 삭제에 실패했습니다.");
+    } catch (error) {
+      feedback.error(extractApiError(error, "차시 삭제에 실패했습니다."));
     } finally {
       setBusy(false);
     }

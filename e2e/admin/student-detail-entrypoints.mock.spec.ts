@@ -324,12 +324,9 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
   });
   await expect(studentLink).toBeVisible();
 
-  const attendanceStatus = page.getByRole("group", {
-    name: "테스트학생 출결 빠른 선택",
-  });
-  await attendanceStatus.getByRole("button", {
-    name: "테스트학생 결석 상태로 변경",
-  }).click();
+  await page.getByRole("button", { name: "테스트학생 출결 상태 변경" }).click();
+  await page.getByRole("group", { name: "테스트학생 출결 상태 선택" })
+    .getByRole("button", { name: "결석", exact: true }).click();
   await expect(page).toHaveURL(/\/workspace\/lectures\/441\/sessions\/428\/attendance$/);
   await expect(page.getByTestId("student-detail-overlay")).toHaveCount(0);
 

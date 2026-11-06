@@ -85,8 +85,9 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
               await page.getByRole("button", { name: "메뉴", exact: true }).click();
               const navigation = page.getByRole("navigation", { name: "선생님 메뉴" });
               const support = navigation.getByRole("button", { name: /^지원/ });
-              if (await support.getAttribute("aria-expanded") !== "true") await support.click();
-              await navigation.getByRole("button", { name: "사용 가이드", exact: true }).click();
+              await support.click();
+              await expect(page).toHaveURL(`${QA_BASE}/workspace/mobile/menu?group=help`);
+              await page.getByRole("region", { name: "지원", exact: true }).getByRole("button", { name: "사용 가이드", exact: true }).click();
               await expect(page).toHaveURL(`${QA_BASE}/workspace/mobile/guide`);
             }
             const guideUrl = `${QA_BASE}${guide.path}?topic=attendance`;

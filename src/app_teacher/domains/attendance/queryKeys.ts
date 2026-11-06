@@ -7,5 +7,7 @@ export const teacherAttendanceQueryKeys = {
   enrolledIds: ["attendance-enrolled-ids"] as const,
   attendance: (sessionId: number) => ["attendance", sessionId] as const,
   completeAttendance: (sessionId: number) => ["attendance", sessionId, "complete"] as const,
+  completeAttendanceScope: (sessionId: number, schedule: string | undefined) =>
+    ["attendance", sessionId, "complete", schedule ?? 'all'] as const,
   sessionAttendance: (sessionId: number) => ["session-attendance", sessionId] as const,
 };

@@ -8,22 +8,37 @@ const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const LECTURE_ID = 9901;
 const SESSION_ID = 9902;
 
+async function openAttendanceTools(page: Page) {
+  await page.getByRole("button", { name: "출결 도구", exact: true }).click();
+  await expect(page).toHaveURL(/view=tools/);
+  await expect(page.getByRole("heading", { name: "출결 도구", exact: true })).toBeInViewport();
+}
+
+async function chooseAttendanceStatus(page: Page, student: string, label: string) {
+  const picker = page.getByRole("group", { name: `${student} 출결 상태 선택` });
+  if (!(await picker.isVisible())) {
+    await page.getByRole("button", { name: `${student} 출결 상태 변경`, exact: true }).click();
+  }
+  await picker.getByRole("button", { name: label, exact: true }).click();
+}
+
 if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
   test("@guide-recording 차시 출결 입력과 저장 확인", async ({ page }, info) => {
     const recording = await guideRecording(page, info, { id: "admin-attendance", title: "차시 출결 입력과 저장 확인", topics: ["admin/attendance"] });
     const state = createState();
     await openAttendance(page, state);
-    const rail = page.getByRole("group", { name: "결석학생 출결 빠른 선택" });
+    const trigger = page.getByRole("button", { name: "결석학생 출결 상태 변경" });
     await recording.screen("수업과 학생 명단 확인", "해당 강의·차시의 출결을 열고 학생 명단과 수업 날짜를 확인합니다.", page.locator('[aria-label^="차시 출결 집계:"]'));
-    const late = rail.getByRole("button", { name: "결석학생 지각 상태로 변경" });
+    await trigger.click();
+    const late = page.getByRole("group", { name: "결석학생 출결 상태 선택" }).getByRole("button", { name: "지각", exact: true });
     await recording.screen("학생의 실제 출결 선택", "학생 행에서 현장·지각·결석 등 실제 상태를 누릅니다. 전체출석은 예외 학생을 먼저 확인합니다.", late);
     await late.click();
     await expect.poll(() => state.attendanceStatuses[502]).toBe("LATE");
-    await expect(late).toHaveAttribute("aria-pressed", "true");
+    await expect(trigger).toHaveText("지각");
     await recording.screen("저장된 상태와 집계 확인", "선택한 상태와 상단 집계가 바뀌었는지 확인합니다.", page.locator('[aria-label^="차시 출결 집계:"]'));
     await page.reload();
-    await expect(late).toHaveAttribute("aria-pressed", "true");
-    await recording.screen("다시 열어 출결 확인", "새로고침 후에도 같은 상태인지 확인합니다. 잘못 입력했다면 현재 상태를 확인하고 정정합니다.", rail);
+    await expect(trigger).toHaveText("지각");
+    await recording.screen("다시 열어 출결 확인", "새로고침 후에도 같은 상태인지 확인합니다. 잘못 입력했다면 현재 상태를 확인하고 정정합니다.", trigger);
     await recording.finish();
   });
 }
@@ -105,6 +120,9 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
         tenantRole: "admin",
         must_change_password: false,
       });
+    }
+    if (/^\/lectures\/sessions\/\d+\/schedules\/$/.test(path)) {
+      return json({ version: "qa-v1", schedules: [], roster: [], unassigned_enrollment_ids: [] });
     }
     if (path === `/lectures/sessions/${SESSION_ID}/`) {
       return json({
@@ -385,11 +403,15 @@ function createState(overrides: Partial<MockState> = {}): MockState {
 }
 
 test("차시 헤더 집계는 탭 이동에도 남고 공지는 커뮤니티로 튕기지 않는다", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
   const state = createState();
   await openAttendance(page, state);
 
   const headerSummary = page.locator('[aria-label^="차시 출결 집계:"]');
   await expect(headerSummary).toContainText("총2");
+  await expect(page.locator(".domain-layout__title")).toHaveCount(1);
+  await expect(page.getByRole("navigation", { name: "상위 경로" }).getByRole("link").first()).toHaveAttribute("href", "/workspace/lectures");
+  await page.screenshot({ path: testInfo.outputPath("session-attendance-1366.png"), fullPage: true });
 
   await page.getByRole("tab", { name: "공지·게시판" }).click();
   await expect(page).toHaveURL(new RegExp(
@@ -397,6 +419,7 @@ test("차시 헤더 집계는 탭 이동에도 남고 공지는 커뮤니티로 
   ));
   await expect(page).not.toHaveURL(/\/workspace\/community\/notice/);
   await expect(page.locator(".notice-tree--embedded")).toBeVisible();
+  await expect(page.getByRole("tab", { name: "공지·게시판" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator(".notice-tree__nav")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "공지사항" })).toBeVisible();
   await expect(headerSummary).toContainText("미입력1");
@@ -404,13 +427,21 @@ test("차시 헤더 집계는 탭 이동에도 남고 공지는 커뮤니티로 
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("tab", { name: "공지·게시판" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator('[aria-label^="차시 출결 집계:"]')).toBeVisible();
   await expect(page.locator(".notice-tree--embedded > .qna-inbox__list")).toBeVisible();
   await expect(page.locator(".notice-tree--embedded > .qna-inbox__thread")).toBeHidden();
   await expect.poll(() => page.evaluate(
     () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
   )).toBe(true);
+  const tabs = await page.getByRole("tab").evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top));
+  expect(Math.max(...tabs) - Math.min(...tabs)).toBeLessThanOrEqual(1);
   await page.screenshot({ path: testInfo.outputPath("session-notice-summary-390.png"), fullPage: true });
+  await page.getByRole("tab", { name: "출결", exact: true }).click();
+  const firstRow = page.locator("tbody tr").first();
+  await expect(firstRow).toBeVisible();
+  expect((await firstRow.boundingBox())!.height).toBeLessThanOrEqual(96);
+  await page.screenshot({ path: testInfo.outputPath("attendance-density-390.png"), fullPage: true });
 });
 
 test("출석 명단은 이름 가나다순이 기본이고 계정별 정렬 선택을 새로고침 후에도 유지한다", async ({ page }) => {
@@ -451,8 +482,7 @@ test("이전 상태순 설정은 이름순으로 복구하고 출결 저장 뒤�
   await expect.poll(() => page.evaluate(() => localStorage.getItem("attendance:sort:hakwonplus:user:12"))).toBe("name");
   await expect(page.getByRole("columnheader", { name: /출결 상태/ })).not.toHaveAttribute("aria-sort");
 
-  const quickRail = page.getByRole("group", { name: "결석학생 출결 빠른 선택" });
-  await quickRail.getByRole("button", { name: "결석학생 지각 상태로 변경" }).click();
+  await chooseAttendanceStatus(page, "결석학생", "지각");
   await expect.poll(() => state.attendanceStatusUpdates).toEqual([{ id: 502, status: "LATE" }]);
   await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
   await expect.poll(() => state.attendanceOrderings.at(-1)).toBe("name");
@@ -505,12 +535,8 @@ for (const width of [1366, 390]) {
     await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
 
     state.failAttendanceRead = true;
-    if (width === 390) {
-      await page.getByRole("button", { name: "결석학생 출결 상태 변경" }).click();
-      await page.locator(".attendance-popover").getByRole("button", { name: "현장", exact: true }).click();
-    } else {
-      await page.getByRole("button", { name: "결석학생 현장 상태로 변경" }).click();
-    }
+    await page.getByRole("button", { name: "결석학생 출결 상태 변경" }).click();
+    await page.locator(".attendance-popover").getByRole("button", { name: "현장", exact: true }).click();
     await expect.poll(() => state.attendanceStatusUpdates).toEqual([{ id: 502, status: "PRESENT" }]);
     await expect(error).toBeVisible();
     await expect(studentLinks).toHaveCount(0);
@@ -557,14 +583,10 @@ for (const width of [1366, 390]) {
     await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
 
     const markPresent = async () => {
-      if (width === 390) {
-        if (!(await page.locator(".attendance-popover").isVisible())) {
-          await page.getByRole("button", { name: "결석학생 출결 상태 변경" }).click();
-        }
-        await page.locator(".attendance-popover").getByRole("button", { name: "현장", exact: true }).click();
-      } else {
-        await page.getByRole("button", { name: "결석학생 현장 상태로 변경" }).click();
+      if (!(await page.locator(".attendance-popover").isVisible())) {
+        await page.getByRole("button", { name: "결석학생 출결 상태 변경" }).click();
       }
+      await page.locator(".attendance-popover").getByRole("button", { name: "현장", exact: true }).click();
     };
     state.failStatusUpdate = true;
     await markPresent();
@@ -587,89 +609,77 @@ for (const width of [1366, 390]) {
   });
 }
 
-test("데스크톱은 모든 출결 상태를 한 줄에서 저장하고 모바일은 압축 선택기를 유지한다", async ({ page }, testInfo) => {
+test("출결은 현재 상태를 먼저 보이고 선택·키보드 복귀·새로고침을 모든 폭에서 유지한다", async ({ page }, testInfo) => {
   const state = createState();
   await page.setViewportSize({ width: 1366, height: 850 });
   await openAttendance(page, state);
-
-  const quickRail = page.getByRole("group", { name: "결석학생 출결 빠른 선택" });
-  await expect(quickRail).toBeVisible();
-  await expect(quickRail.getByRole("button")).toHaveCount(11);
-  await expect(quickRail.getByRole("button", { name: "결석학생 결석 상태로 변경" })).toHaveAttribute("aria-pressed", "true");
-  const inactivePresent = quickRail.getByRole("button", { name: "결석학생 현장 상태로 변경" });
-  const inactiveOnline = quickRail.getByRole("button", { name: "결석학생 영상 상태로 변경" });
-  const inactiveBackgrounds = await Promise.all([inactivePresent, inactiveOnline].map((button) => (
-    button.evaluate((node) => getComputedStyle(node).backgroundColor)
-  )));
-  expect(inactiveBackgrounds[0]).toBe(inactiveBackgrounds[1]);
-  await expect(quickRail.getByRole("button", { name: "결석학생 부재 상태로 변경" })).toHaveAttribute("data-critical", "true");
-  await expect(quickRail.getByRole("button", { name: "결석학생 퇴원 상태로 변경" })).toHaveAttribute("data-critical", "true");
-  await expect.poll(async () => (await quickRail.boundingBox())?.width ?? 0).toBeGreaterThan(500);
-  const optionWidths = await quickRail.getByRole("button").evaluateAll((buttons) =>
-    buttons.map((button) => button.getBoundingClientRect().width),
-  );
-  expect(Math.max(...optionWidths) - Math.min(...optionWidths)).toBeLessThanOrEqual(1);
-  const surfaces = await quickRail.getByRole("button").evaluateAll((buttons) => buttons.map((button) => {
-    const style = getComputedStyle(button);
-    const label = document.createRange();
-    label.selectNodeContents(button);
-    return {
-      children: button.childElementCount,
-      opacity: style.opacity,
-      shadow: style.boxShadow,
-      border: parseFloat(style.borderTopWidth),
-      nowrap: style.whiteSpace,
-      fits: label.getBoundingClientRect().width <= button.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) + 0.5,
-    };
-  }));
-  for (const surface of surfaces) {
-    expect(surface).toEqual({ children: 0, opacity: "1", shadow: "none", border: 1, nowrap: "nowrap", fits: true });
+  const trigger = page.getByRole("button", { name: "결석학생 출결 상태 변경" });
+  const picker = page.getByRole("group", { name: "결석학생 출결 상태 선택" });
+  await expect(trigger).toHaveText("결석");
+  await expect(picker).toHaveCount(0);
+  await expect(page.getByRole("group", { name: /출결 빠른 선택/ })).toHaveCount(0);
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  await expect(picker.getByRole("button")).toHaveCount(11);
+  await expect(picker.getByRole("button", { name: "결석", exact: true })).toBeFocused();
+  await expect(picker.locator('[aria-pressed="true"]')).toHaveCount(1);
+  const backgrounds = await Promise.all(["현장", "영상"].map(label =>
+    picker.getByRole("button", { name: label, exact: true }).evaluate(node => getComputedStyle(node).backgroundColor),
+  ));
+  expect(backgrounds[0]).toBe(backgrounds[1]);
+  for (const label of ["부재", "퇴원"]) {
+    await expect(picker.getByRole("button", { name: label, exact: true })).toHaveAttribute("data-critical", "true");
   }
-
-  await quickRail.getByRole("button", { name: "결석학생 지각 상태로 변경" }).click();
+  await page.keyboard.press("Escape");
+  await expect(picker).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  expect(state.attendanceStatusUpdates).toEqual([]);
+  await chooseAttendanceStatus(page, "결석학생", "지각");
   await expect.poll(() => state.attendanceStatusUpdates).toEqual([{ id: 502, status: "LATE" }]);
-  await expect(quickRail.getByRole("button", { name: "결석학생 지각 상태로 변경" })).toHaveAttribute("aria-pressed", "true");
+  await expect(trigger).toHaveText("지각");
   await expect(page.locator('[aria-label^="차시 출결 집계:"]')).toContainText("지각1");
-  await page.screenshot({ path: testInfo.outputPath("attendance-inline-status-1366.png"), fullPage: true });
 
-  await page.setViewportSize({ width: 1100, height: 760 });
+  for (const width of [1366, 1100, 390]) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(trigger).toHaveText("지각");
+    const firstRow = page.locator("tbody tr").first();
+    const firstName = firstRow.getByRole("link", { name: /학생 상세 열기$/ });
+    const firstStatus = firstRow.getByRole("button", { name: /출결 상태 변경$/ });
+    const bounds = (await firstRow.boundingBox())!;
+    const header = (await page.locator('[data-app="admin"] > div > header').boundingBox())!;
+    const bottomMenu = width === 390 ? await page.getByRole("navigation", { name: "하단 메뉴", exact: true }).boundingBox() : null;
+    await testInfo.attach(`attendance-geometry-${width}`, { contentType: "application/json", body: JSON.stringify({
+      viewport: page.viewportSize(), row: bounds, name: await firstName.boundingBox(), status: await firstStatus.boundingBox(),
+      header, bottomMenu, scrollTop: await page.locator('[data-app="admin"] main').evaluate(node => node.scrollTop),
+    }) });
+    await testInfo.attach(`attendance-initial-${width}`, { contentType: "image/png", body: await page.screenshot() });
+    await expect(trigger).toBeInViewport();
+    expect((await trigger.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    if (width === 1366) {
+      const row = page.locator("tbody tr").filter({ has: page.getByRole("link", { name: "결석학생 학생 상세 열기" }) });
+      await expect(row.getByRole("link", { name: "결석학생 학생 상세 열기" })).toBeInViewport({ ratio: 1 });
+      await expect(row.locator("td").last()).toBeInViewport({ ratio: 1 });
+    }
+    if (width === 390) {
+      await expect(firstName).toBeInViewport({ ratio: 1 });
+      await expect(firstStatus).toBeInViewport({ ratio: 1 });
+      expect(bounds.y).toBeGreaterThanOrEqual(header.y + header.height);
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(Math.min(bottomMenu!.y, page.viewportSize()!.height - 64));
+    }
+    await page.screenshot({ path: testInfo.outputPath(`attendance-current-status-${width}.png`), fullPage: true });
+    await trigger.click();
+    await expect(picker.getByRole("button", { name: "지각", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(picker.getByRole("button")).toHaveCount(11);
+    await page.screenshot({ path: testInfo.outputPath(`attendance-status-choices-${width}.png`), fullPage: true });
+    await page.keyboard.press("Escape");
+  }
+  await chooseAttendanceStatus(page, "결석학생", "현장");
+  await expect(trigger).toHaveText("현장");
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(quickRail.getByRole("button", { name: "결석학생 지각 상태로 변경" })).toHaveAttribute("aria-pressed", "true");
-  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-  await page.screenshot({ path: testInfo.outputPath("attendance-inline-status-1100.png"), fullPage: true });
-
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("group", { name: "결석학생 출결 빠른 선택" })).toHaveCount(0);
-  const compactTrigger = page.getByRole("button", { name: "결석학생 출결 상태 변경" });
-  await expect(compactTrigger).toBeVisible();
-  await expect(compactTrigger).toHaveText("지각");
-  await expect(compactTrigger.locator(".ds-status-badge")).toHaveCount(0);
-  const toolbarLabels = await page.locator(".domain-list-toolbar .ds-button__label").evaluateAll((labels) =>
-    labels.map((label) => ({ text: label.textContent, fits: label.scrollWidth <= label.clientWidth })),
-  );
-  expect(toolbarLabels.length).toBeGreaterThan(5);
-  for (const label of toolbarLabels) expect(label.fits, `${label.text} remains readable`).toBe(true);
-  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-  await compactTrigger.click();
-  await expect(page.locator(".attendance-popover").getByRole("button")).toHaveCount(11);
-  await expect(page.locator(".attendance-popover .ds-status-badge")).toHaveCount(0);
-  await page.screenshot({ path: testInfo.outputPath("attendance-compact-status-390.png"), fullPage: true });
-  await page.locator(".attendance-popover").getByRole("button", { name: "현장", exact: true }).click();
-  await expect(compactTrigger).toHaveText("현장");
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(compactTrigger).toHaveText("현장");
+  await expect(trigger).toHaveText("현장");
   expect(state.attendanceStatusUpdates).toEqual([{ id: 502, status: "LATE" }, { id: 502, status: "PRESENT" }]);
-
-  await page.getByRole("button", { name: "출결 상태 필터" }).click();
-  const filterMenu = page.locator(".attendance-popover");
-  await expect(filterMenu.locator(".ds-status-badge")).toHaveCount(0);
-  await filterMenu.getByRole("button", { name: "현장", exact: true }).click();
-  await expect(page.getByRole("button", { name: "출결 상태 필터" })).toHaveText("현장");
-  await page.getByRole("button", { name: "출결 상태 필터" }).click();
-  await expect(filterMenu.getByRole("button", { name: "현장", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await filterMenu.getByRole("button", { name: "전체", exact: true }).click();
-  await expect(page.getByRole("button", { name: "출결 상태 필터" })).toHaveText("상태필터");
 });
 
 test("출결 선택 저장 실패는 기존 선택을 보존하고 같은 버튼으로 재시도한다", async ({ page }) => {
@@ -858,10 +868,41 @@ test("중간 출결 페이지가 비면 등록을 막고 다시 시도 후 정�
   await expect.poll(() => state.bulkCreatePayloads).toEqual([[2001]]);
 });
 
+for (const width of [1366, 390]) {
+  test(`출결 도구로 이동하고 선택 문맥을 보존하며 새로고침은 선택을 초기화한다 ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = createState();
+    await openAttendance(page, state);
+    for (const name of ["전체 현장 출석", "입실 알림 발송", "결석 알림 발송", "엑셀 다운로드", "삭제"]) {
+      await expect(page.getByRole("button", { name, exact: true })).toHaveCount(0);
+    }
+    await expect(page.getByText("0명 선택됨", { exact: true })).toHaveCount(0);
+    const checkbox = page.getByRole("checkbox", { name: "미입력학생 선택" });
+    await checkbox.check();
+    await page.getByRole("button", { name: "선택한 학생 작업", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "출결 도구", exact: true })).toBeInViewport();
+    await expect(page.getByRole("button", { name: "삭제", exact: true })).toBeEnabled();
+    await expect(page.getByText("1명 선택됨", { exact: true })).toBeVisible();
+    await page.screenshot({ path: info.outputPath(`attendance-tools-${width}.png`), fullPage: true });
+    await page.getByRole("link", { name: "← 출결 명단", exact: true }).click();
+    await expect(checkbox).toBeChecked();
+    await openAttendanceTools(page);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "출결 도구", exact: true })).toBeInViewport();
+    await expect(page.getByRole("button", { name: "삭제", exact: true })).toBeDisabled();
+    await page.getByRole("link", { name: "명단에서 학생 선택", exact: true }).click();
+    await expect(checkbox).not.toBeChecked();
+    expect(state.bulkSetCalls).toBe(0);
+    expect(state.attendanceDeleteCalls).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
+
 test("전체 현장 출석은 최근 작업 기록에서 서명 토큰으로 되돌린다", async ({ page }) => {
   const state = createState();
   await openAttendance(page, state);
 
+  await openAttendanceTools(page);
   await page.getByRole("button", { name: "전체 현장 출석" }).click();
   await expect(page.getByText("퇴원·비활성 학생은 변경하지 않습니다.")).toBeVisible();
   await page.getByRole("button", { name: "전체 현장 적용", exact: true }).click();
@@ -899,6 +940,7 @@ test(`일괄 삭제 일부 실패 뒤 재조회·재시도·새로고침을 유�
 
   await page.getByRole("checkbox", { name: "미입력학생 선택" }).check();
   await page.getByRole("checkbox", { name: "결석학생 선택" }).check();
+  await openAttendanceTools(page);
   await page.getByRole("button", { name: "삭제", exact: true }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "삭제", exact: true }).click();
 
@@ -911,6 +953,7 @@ test(`일괄 삭제 일부 실패 뒤 재조회·재시도·새로고침을 유�
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath(`attendance-partial-delete-${width}.png`) });
   options.failAttendanceDeleteId = undefined;
+  await openAttendanceTools(page);
   await page.getByRole("button", { name: "삭제", exact: true }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "삭제", exact: true }).click();
   await expect.poll(() => state.attendanceDeleteCalls).toEqual([501, 502, 502]);
@@ -925,6 +968,7 @@ test("일괄 출결 이후 충돌하면 기록을 유지하고 일부 복구처�
   const state = createState({ failUndo: true });
   await openAttendance(page, state);
 
+  await openAttendanceTools(page);
   await page.getByRole("button", { name: "전체 현장 출석" }).click();
   await page.getByRole("button", { name: "전체 현장 적용", exact: true }).click();
   const record = page.getByRole("region", { name: "최근 일괄 출결 작업" });
@@ -1012,12 +1056,8 @@ for (const width of [1366, 390]) {
       await expect(attendanceCell.getByText("영상 기록 없음", { exact: true })).toBeVisible();
       await page.getByRole("tab", { name: "출결", exact: true }).click();
     }
-    if (width === 390) {
-      await page.getByRole("button", { name: "김가람 출결 상태 변경" }).click();
-      await page.locator(".attendance-popover").getByRole("button", { name: "퇴원", exact: true }).click();
-    } else {
-      await page.getByRole("button", { name: "김가람 퇴원 상태로 변경" }).click();
-    }
+    await page.getByRole("button", { name: "김가람 출결 상태 변경" }).click();
+    await page.locator(".attendance-popover").getByRole("button", { name: "퇴원", exact: true }).click();
     await page.getByRole("dialog", { name: "퇴원 범위 선택" })
       .getByRole("button", { name: "이 차시만 퇴원", exact: true }).click();
     await expect.poll(() => state.secessionPayloads).toEqual([
@@ -1040,14 +1080,9 @@ for (const width of [1366, 390]) {
     await expect.poll(() => state.bulkCreatePayloads).toEqual([[2001]]);
     await expect(enrollmentDialog).toHaveCount(0);
     expect(state.attendanceStatusUpdates).toEqual([{ id: 502, status: "SECESSION" }]);
-    if (width === 390) {
-      await expect(page.getByRole("button", { name: "김가람 출결 상태 변경" })).toContainText("미입력");
-      await page.getByRole("button", { name: "김가람 출결 상태 변경" }).click();
-      await page.locator(".attendance-popover").getByRole("button", { name: "현장", exact: true }).click();
-    } else {
-      await expect(page.getByRole("button", { name: "김가람 미입력 상태로 변경" })).toHaveAttribute("aria-pressed", "true");
-      await page.getByRole("button", { name: "김가람 현장 상태로 변경" }).click();
-    }
+    await expect(page.getByRole("button", { name: "김가람 출결 상태 변경" })).toContainText("미입력");
+    await page.getByRole("button", { name: "김가람 출결 상태 변경" }).click();
+    await page.locator(".attendance-popover").getByRole("button", { name: "현장", exact: true }).click();
     await expect.poll(() => state.attendanceStatuses[502]).toBe("PRESENT");
     expect(state.attendanceStatusUpdates).toEqual([
       { id: 502, status: "SECESSION" },
@@ -1055,11 +1090,7 @@ for (const width of [1366, 390]) {
     ]);
     expect(state.attendanceStatuses[501]).toBe("UNSET");
     await page.reload({ waitUntil: "domcontentloaded" });
-    if (width === 390) {
-      await expect(page.getByRole("button", { name: "김가람 출결 상태 변경" })).toContainText("현장");
-    } else {
-      await expect(page.getByRole("button", { name: "김가람 현장 상태로 변경" })).toHaveAttribute("aria-pressed", "true");
-    }
+    await expect(page.getByRole("button", { name: "김가람 출결 상태 변경" })).toContainText("현장");
     await page.screenshot({ path: testInfo.outputPath(`reregister-${width}.png`), fullPage: true, animations: "disabled" });
     if (startFromScores) {
       await page.getByRole("tab", { name: "성적", exact: true }).click();
@@ -1080,12 +1111,8 @@ for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await openAttendance(page, state);
     const openSecession = async () => {
-      if (width === 390) {
-        await page.getByRole("button", { name: "결석학생 출결 상태 변경" }).click();
-        await page.locator(".attendance-popover").getByRole("button", { name: "퇴원", exact: true }).click();
-      } else {
-        await page.getByRole("button", { name: "결석학생 퇴원 상태로 변경" }).click();
-      }
+      await page.getByRole("button", { name: "결석학생 출결 상태 변경" }).click();
+      await page.locator(".attendance-popover").getByRole("button", { name: "퇴원", exact: true }).click();
       await expect(page.getByRole("dialog", { name: "퇴원 범위 선택" })).toBeVisible();
     };
     await openSecession();
@@ -1114,3 +1141,105 @@ for (const width of [1366, 390]) {
     expect(state.attendanceStatuses[501]).toBe("UNSET");
   });
 }
+
+
+test("모바일 차시 선택은 별도 화면에서 제공하고 왕복 문맥과 실제 차시 변경을 구분한다", async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state = createState();
+  await openAttendance(page, state);
+  await expect(page.getByRole("group", { name: "수업 보기 방식" })).toHaveCount(0);
+  const entry = page.getByRole("button", { name: "차시 선택", exact: true });
+  await expect(entry).toBeInViewport({ ratio: 1 });
+  expect((await entry.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  const search = page.getByPlaceholder("이름 / 전화번호 검색", { exact: true });
+  await search.fill("학생");
+  const selection = page.getByRole("checkbox", { name: "미입력학생 선택", exact: true });
+  await selection.check();
+  await entry.click();
+  await expect(page).toHaveURL(/view=sessions/);
+  await expect(page.getByRole("heading", { name: "차시 선택", exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole("group", { name: "수업 보기 방식" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "전체 보기", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "차시 설정", exact: true })).toHaveCount(2);
+  await page.screenshot({ path: info.outputPath("attendance-session-chooser-390.png"), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 600 });
+  const main = page.locator('[data-app="admin"] main');
+  await main.hover();
+  await page.mouse.wheel(0, 800);
+  await expect.poll(() => main.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+  await page.goBack();
+  await expect(page).not.toHaveURL(/view=sessions/);
+  await expect.poll(() => main.evaluate(node => node.scrollTop)).toBe(0);
+  await expect(selection).toBeChecked();
+  await expect(search).toHaveValue("학생");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await entry.click();
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "차시 선택", exact: true })).toBeInViewport({ ratio: 1 });
+  await page.getByRole("link", { name: "← 출결 명단", exact: true }).click();
+  await expect(selection).not.toBeChecked();
+  await expect(search).toHaveValue("");
+  await selection.check();
+  await entry.click();
+  await page.route("**/api/v1/lectures/sessions/9900/", route => route.fulfill({ json: {
+    id: 9900, lecture: LECTURE_ID, title: "안전 검증 1차시", order: 1, regular_order: 1,
+    session_type: "REGULAR", date: "2026-07-24",
+  } }));
+  await page.getByRole("button", { name: /안전 검증 1차시/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/sessions/9900/attendance$`));
+  await expect(page.getByRole("heading", { name: "안전 검증 1차시", exact: true })).toBeVisible();
+  await expect(selection).not.toBeChecked();
+  await expect(search).toHaveValue("");
+  state.failAttendanceRead = true;
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByText("출결 데이터를 불러올 수 없습니다.", { exact: true })).toBeVisible();
+  await expect(entry).toBeInViewport({ ratio: 1 });
+  await entry.click();
+  await expect(page.getByRole("heading", { name: "차시 선택", exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(page.getByRole("group", { name: "수업 보기 방식" })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 600 });
+  await main.hover();
+  await page.mouse.wheel(0, 800);
+  await expect.poll(() => main.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+  await page.goBack();
+  const readError = page.getByText("출결 데이터를 불러올 수 없습니다.", { exact: true });
+  const retry = page.getByRole("button", { name: "다시 시도", exact: true });
+  await expect(readError).toBeVisible();
+  await info.attach("attendance-error-return-geometry", { contentType: "application/json", body: JSON.stringify({
+    scrollTop: await main.evaluate(node => node.scrollTop), error: await readError.boundingBox(),
+    retry: await retry.boundingBox(), header: await page.getByRole("banner").boundingBox(),
+    bottomMenu: await page.getByRole("navigation", { name: "하단 메뉴", exact: true }).boundingBox(),
+  }) });
+  await info.attach("attendance-error-return", { contentType: "image/png", body: await page.screenshot() });
+  await expect.poll(() => main.evaluate(node => node.scrollTop)).toBe(0);
+  await expect(readError).toBeInViewport({ ratio: 1 });
+  await expect(retry).toBeInViewport({ ratio: 1 });
+  const retryBounds = (await retry.boundingBox())!;
+  const recoveryNav = (await page.getByRole("navigation", { name: "하단 메뉴", exact: true }).boundingBox())!;
+  expect(retryBounds.height).toBeGreaterThanOrEqual(44);
+  expect(retryBounds.y + retryBounds.height).toBeLessThanOrEqual(recoveryNav.y);
+  const recoveryEntryBounds = (await entry.boundingBox())!;
+  expect(recoveryEntryBounds.height).toBeGreaterThanOrEqual(44);
+  expect(recoveryEntryBounds.y + recoveryEntryBounds.height).toBeLessThanOrEqual(recoveryNav.y);
+  await expect(page.getByText("저장된 출결은 유지됩니다. 같은 검색·필터·정렬로 다시 불러와 주세요.", { exact: true })).toBeVisible();
+  await entry.click();
+  await expect(page.getByRole("heading", { name: "차시 선택", exact: true })).toBeVisible();
+  await main.hover();
+  await page.mouse.wheel(0, 800);
+  await expect.poll(() => main.evaluate(node => node.scrollTop)).toBeGreaterThan(0);
+  await page.getByRole("link", { name: "← 출결 명단", exact: true }).click();
+  await expect.poll(() => main.evaluate(node => node.scrollTop)).toBe(0);
+  await expect(readError).toBeInViewport({ ratio: 1 });
+  await expect(retry).toBeInViewport({ ratio: 1 });
+  const linkReturnRetry = (await retry.boundingBox())!;
+  const linkReturnNav = (await page.getByRole("navigation", { name: "하단 메뉴", exact: true }).boundingBox())!;
+  expect(linkReturnRetry.height).toBeGreaterThanOrEqual(44);
+  expect(linkReturnRetry.y + linkReturnRetry.height).toBeLessThanOrEqual(linkReturnNav.y);
+  state.failAttendanceRead = false;
+  await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(page.getByRole("button", { name: "결석학생 출결 상태 변경" })).toBeVisible();
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("button", { name: "결석학생 출결 상태 변경" })).toBeVisible();
+  expect(state.bulkSetCalls).toBe(0);
+  expect(state.attendanceDeleteCalls).toEqual([]);
+});

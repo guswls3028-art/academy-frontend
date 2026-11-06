@@ -121,10 +121,11 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
                     <GradeBadge passed={e.is_pass} achievement={e.achievement} label={labels} />
                   )}
                   <div className={styles.statusMeta}>
-                    {!provisional && e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED" && (
-                      <span className={styles.rankBadge}>
-                        {e.rank}/{e.cohort_size}등
-                      </span>
+                    {!provisional && e.rank != null && e.meta_status !== "NOT_SUBMITTED" && (
+                      <span className={styles.rankBadge}>{e.rank}등</span>
+                    )}
+                    {!provisional && e.cohort_size != null && e.cohort_size > 0 && e.meta_status !== "NOT_SUBMITTED" && (
+                      <span className={styles.cohortBadge}>{e.cohort_size}명 응시</span>
                     )}
                     {!provisional && e.total_score != null && e.max_score > 0 && (
                       <span className={styles.scorePercent}>

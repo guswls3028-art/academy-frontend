@@ -152,8 +152,8 @@ export async function saveScoreTotalConfig(sessionId: number, config: ScoreTotal
   return res.data;
 }
 
-export async function fetchSessionScores(sessionId: number) {
-  const res = await api.get(`/results/admin/sessions/${sessionId}/scores/`);
+export async function fetchSessionScores(sessionId: number, schedule?: string | number) {
+  const res = await api.get(`/results/admin/sessions/${sessionId}/scores/`, { params: schedule === undefined ? undefined : { schedule } });
   return res.data as SessionScoresResponse;
 }
 

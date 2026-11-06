@@ -38,6 +38,19 @@ export default function VideoStudentsSection({
 
   return (
     <div className="space-y-5">
+      <div className="flex justify-end">
+        {typeof onOpenLog === "function" && (
+          <Button
+            type="button"
+            intent="secondary"
+            size="sm"
+            onClick={onOpenLog}
+            leftIcon={<FiClock size={14} />}
+          >
+            시청 로그
+          </Button>
+        )}
+      </div>
       <div className="video-watch-kpis grid grid-cols-3 gap-2 sm:gap-3" aria-label="영상 시청 요약">
         <KPI label="총 학생" value={total > 0 ? `${total}명` : "—"} />
         <KPI label="평균 진도율" value={percent(avgProgress)} />
@@ -63,17 +76,7 @@ export default function VideoStudentsSection({
             학습 성적표
           </Button>
         )}
-        {typeof onOpenLog === "function" && (
-          <Button
-            type="button"
-            intent="ghost"
-            size="sm"
-            onClick={onOpenLog}
-            leftIcon={<FiClock size={14} />}
-          >
-            시청 로그
-          </Button>
-        )}
+
       </div>
     </div>
   );

@@ -90,6 +90,31 @@ function visualSignature(state: ControlState): string {
   ].join("|");
 }
 
+async function assertControlDimensions(page: Page, width: number) {
+  await page.setViewportSize({ width, height: 900 });
+  const row = page.getByTestId("control-row");
+  await expect.poll(() => row.locator("input, select, button").evaluateAll((controls) =>
+    controls.map((control) => Math.round(control.getBoundingClientRect().height)),
+  )).toEqual([44, 44, 44]);
+  await expect.poll(() => page.getByTestId("size-scale").locator("button").evaluateAll((buttons) =>
+    buttons.map((button) => Math.round(button.getBoundingClientRect().height)),
+  )).toEqual(width < 1024 ? [44, 44, 44, 48] : [32, 40, 44, 48]);
+  const input = row.getByRole("textbox");
+  await input.fill("긴 한글 이름과 숫자 12345");
+  await expect(input).toHaveValue("긴 한글 이름과 숫자 12345");
+  await row.getByRole("combobox").selectOption({ label: "선택 완료" });
+  await expect(row.getByRole("combobox")).toHaveValue("선택 완료");
+  const fits = await row.evaluate((element) => {
+    const group = element.getBoundingClientRect();
+    return Array.from(element.querySelectorAll("input, select, button")).every((control) => {
+      const box = control.getBoundingClientRect();
+      return box.left >= group.left - 1 && box.right <= group.right + 1;
+    });
+  });
+  expect(fits).toBe(true);
+  if (width < 1024) await expect(input).toHaveCSS("font-size", "16px");
+}
+
 async function mountAuditSurface(page: Page) {
   await page.evaluate(() => {
     document.querySelector("#theme-control-audit")?.remove();
@@ -142,6 +167,14 @@ async function mountAuditSurface(page: Page) {
           <span data-testid="solid-${tone}" style="padding: 8px; background: var(--color-${tone}-solid); color: var(--color-semantic-contrast)">${tone}</span>
         `).join("")}
         <button class="ds-button" data-size="md" data-intent="secondary" data-testid="disabled" disabled>사용 불가</button>
+        <div class="ds-action-bar" data-control-size="lg" data-testid="control-row" style="width:100%">
+          <input class="ds-input" aria-label="규격 확인 이름" placeholder="이름 입력" style="flex:1 1 160px;width:auto;min-width:0" />
+          <select class="ds-select" aria-label="규격 확인 상태"><option>전체 상태</option><option>선택 완료</option></select>
+          <button class="ds-button" data-size="lg" data-intent="primary"><span class="ds-button__label">선택한 항목 저장하기</span></button>
+        </div>
+        <div class="ds-action-bar" data-testid="size-scale" style="width:100%">
+          ${["sm", "md", "lg", "xl"].map((size) => `<button class="ds-button" data-size="${size}" data-intent="secondary">${size} 확인</button>`).join("")}
+        </div>
         <div class="ds-segment selection-group" role="group" aria-label="출결 선택 상태" data-testid="selection-group">
           ${["primary", "success", "warning", "danger", "complement", "teal", "neutral"].map((tone) => `
             <button class="ds-segment__btn" data-size="sm" data-tone="${tone}" aria-pressed="false" data-testid="selection-${tone}">현장 출석</button>
@@ -209,6 +242,8 @@ test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구
       for (const [key, value] of Object.entries(variables)) document.documentElement.style.setProperty(key, value);
     }, { themeKey: theme.key, variables: accentVariables(theme.key, DEFAULT_ACCENT) });
 
+    for (const width of [1366, 1100, 390]) await assertControlDimensions(page, width);
+    await page.setViewportSize({ width: 1366, height: 900 });
     const primary = page.getByTestId("primary");
     const secondary = page.getByTestId("secondary");
     const danger = page.getByTestId("danger");

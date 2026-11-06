@@ -1,3 +1,4 @@
+import { verifyFullscreenControls, verifyMonitoredHlsGestures } from "../helpers/monitoredHlsGestures";
 import type { VideoCommentItem } from "../../src/app_student/domains/video/api/video.api";
 import type { Page } from "@playwright/test";
 import { syntheticLongVideoAsset } from "../../scripts/run-development-release-canary.mjs";
@@ -407,3 +408,22 @@ for (const width of [1366, 390]) {
     })).toBe(true);
   });
 }
+
+for (const speedLocked of [true, false]) {
+  test(`monitored HLS gestures ${speedLocked ? "locked taps never attempt speed changes" : "restore only an active long press once"}`, async ({ page }, info) => {
+    if (!speedLocked) info.annotations.push({ type: "coverage", description:
+      "Chromium also checks active speed menus in native wrapper fullscreen at 390/1366px; iOS WebKit retains native-video coverage. Active quality selection is not verified by this fixture." });
+    await verifyMonitoredHlsGestures({ page, info, speedLocked, base: BASE, installScenario: installWatchScenario, openPlayer: openWatch });
+  });
+}
+
+
+test.describe("student fullscreen activation", () => {
+  test.use({ hasTouch: true });
+  for (const width of [390, 1366]) {
+    test(`fullscreen controls complete trusted touch once and preserve cancel, guide and keyboard journeys at ${width}px`, async ({ page }, info) => {
+      await verifyFullscreenControls({ page, info, speedLocked: true, base: BASE,
+        viewport: { width, height: width === 390 ? 844 : 900 }, installScenario: installWatchScenario, openPlayer: openWatch });
+    });
+  }
+});

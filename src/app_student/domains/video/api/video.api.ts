@@ -10,6 +10,8 @@ export type StudentVideoMeSession = SessionOrderLike & {
   title: string;
   order: number;
   date: string | null;
+  schedule_configured?: boolean;
+  schedule_label?: string | null;
 };
 
 export type StudentVideoMeLecture = {

@@ -2,7 +2,7 @@
 // YouTube-style layout: Player → Title + Engagement → Comments → Settings
 
 import { useState } from "react";
-import { useParams, Link, useNavigate } from "react-router";
+import { useParams, Link, useNavigate, useLocation } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { deleteVideo, renameVideo, getRetryErrorMessage } from "../api/videos.api";
@@ -21,6 +21,7 @@ import {
 } from "@/shared/api/contracts/videos";
 
 import { styles } from "./VideoDetail.styles";
+import { watchLogsPath } from "@/shared/media/video/watchLogs";
 
 import PermissionModal from "@admin/domains/videos/components/features/video-detail/modals/PermissionModal";
 import VideoPreviewSection from "@admin/domains/videos/components/features/video-detail/components/VideoPreviewSection";
@@ -71,6 +72,7 @@ export default function VideoDetailPage() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
   const confirm = useConfirm();
 
   const deleteMutation = useMutation({
@@ -389,7 +391,7 @@ export default function VideoDetailPage() {
                   students={students}
                   onOpenPermission={() => openModal("permission")}
                   onOpenAchievement={() => openModal("achievement")}
-                  onOpenLog={() => openModal("log")}
+                  onOpenLog={() => navigate(watchLogsPath(videoId, location.pathname + location.search))}
                   openingStudentId={supportOpeningStudentId}
                   onOpenStudentView={(studentId) => void openStudentView(studentId)}
                 />

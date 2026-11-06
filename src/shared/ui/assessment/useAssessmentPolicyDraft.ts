@@ -84,6 +84,7 @@ export function useAssessmentPolicyDraft<TForm extends Record<string, unknown>>(
   onRestore: (form: TForm) => void;
 }) {
   const { user } = useAuth();
+  const pendingSaveRef = useRef<(() => void) | null>(null);
   const tenantCode = getTenantCodeForApiRequest();
   const storageKey = useMemo(() => {
     if (!tenantCode) return null;
@@ -133,6 +134,7 @@ export function useAssessmentPolicyDraft<TForm extends Record<string, unknown>>(
   }, [baseUpdatedAt, form, previousStorageKey, resourceId, resourceKind, storageKey]);
 
   useEffect(() => {
+    pendingSaveRef.current = null;
     if (!storageKey || !baseUpdatedAt || !form) return;
     if (checkedVersionRef.current !== `${storageKey}:${baseUpdatedAt}`) return;
     if (!dirty) {
@@ -149,7 +151,7 @@ export function useAssessmentPolicyDraft<TForm extends Record<string, unknown>>(
       return;
     }
 
-    const timer = window.setTimeout(() => {
+    const persist = () => {
       const stored: StoredAssessmentDraft<TForm> = {
         schemaVersion: DRAFT_SCHEMA_VERSION,
         resourceKind,
@@ -159,9 +161,21 @@ export function useAssessmentPolicyDraft<TForm extends Record<string, unknown>>(
         form,
       };
       setLocalItem(storageKey, JSON.stringify(stored));
-    }, SAVE_DELAY_MS);
+      pendingSaveRef.current = null;
+    };
+    pendingSaveRef.current = persist;
+    const timer = window.setTimeout(persist, SAVE_DELAY_MS);
     return () => window.clearTimeout(timer);
   }, [baseUpdatedAt, dirty, form, previousStorageKey, recoverable, resourceId, resourceKind, storageKey]);
+
+  useEffect(() => {
+    const flush = () => pendingSaveRef.current?.();
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, []);
 
   const restoreDraft = useCallback(() => {
     if (!recoverable) return;
@@ -171,6 +185,7 @@ export function useAssessmentPolicyDraft<TForm extends Record<string, unknown>>(
   }, [onRestore, recoverable]);
 
   const clearDraft = useCallback(() => {
+    pendingSaveRef.current = null;
     removeDraft(storageKey);
     removeDraft(previousStorageKey);
     hasStoredDraftRef.current = false;

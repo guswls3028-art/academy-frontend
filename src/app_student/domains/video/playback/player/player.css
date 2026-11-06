@@ -169,6 +169,7 @@
   flex: 1 !important;
   width: 100% !important;
   height: 100% !important;
+  min-height: 0 !important;
   object-fit: contain !important;
   aspect-ratio: unset !important;
 }
@@ -345,11 +346,9 @@
   display: none;
 }
 
+/* Keep controls in their own flow row, outside the media/central-play stage. */
 .svpControls {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
   padding: 10px 12px 12px 12px;
   background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 30%, rgba(0,0,0,0.92) 100%);
   z-index: 20;
@@ -434,7 +433,7 @@
   opacity: 0.62;
 }
 
-/* 모바일: 컨트롤 영역 축소, 선택 옵션 일부 숨김, 줄바꿈 방지 */
+/* 모바일·터치: 공간이 부족하면 컨트롤 그룹을 다음 줄에 배치 */
 @media (max-width: 768px), (hover: none) {
   .svpControls {
     padding: 6px 8px 8px 8px;
@@ -456,7 +455,7 @@
   }
   .svpControlRow {
     gap: 6px;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     overflow: visible;
   }
   .svpLeftControls {

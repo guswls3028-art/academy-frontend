@@ -25,7 +25,7 @@ export default function ExamDetailPage() {
 
   if (!Number.isFinite(safeId)) {
     return (
-      <StudentPageShell title="시험" description="잘못된 접근입니다.">
+      <StudentPageShell breadcrumbs={[{ label: "시험 목록", to: "/student/exams" }]} title="시험" description="잘못된 접근입니다.">
         <EmptyState title="잘못된 주소입니다." />
       </StudentPageShell>
     );
@@ -33,7 +33,7 @@ export default function ExamDetailPage() {
 
   if (examQ.isLoading) {
     return (
-      <StudentPageShell title="시험">
+      <StudentPageShell breadcrumbs={[{ label: "시험 목록", to: "/student/exams" }]} title="시험">
         <div className={styles.loadingStack}>
           <div className={`stu-skel ${styles.loadingMain}`} />
           <div className={`stu-skel ${styles.loadingSub}`} />
@@ -44,7 +44,7 @@ export default function ExamDetailPage() {
 
   if (examQ.isError || !examQ.data) {
     return (
-      <StudentPageShell title="시험">
+      <StudentPageShell breadcrumbs={[{ label: "시험 목록", to: "/student/exams" }]} title="시험">
         <EmptyState title="시험 정보를 불러오지 못했어요." description="잠시 후 다시 시도해 주세요." onRetry={() => examQ.refetch()} />
       </StudentPageShell>
     );
@@ -68,7 +68,7 @@ export default function ExamDetailPage() {
       : (typeof resultQ.data?.can_retake === "boolean" ? resultQ.data.can_retake : true);
 
   return (
-    <StudentPageShell
+    <StudentPageShell breadcrumbs={[{ label: "시험 목록", to: "/student/exams" }]}
       title={exam.title}
       description="제출 / 결과 조회"
       descriptionMode="help"
