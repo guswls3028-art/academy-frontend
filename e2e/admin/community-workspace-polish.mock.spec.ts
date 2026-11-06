@@ -769,7 +769,8 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await submit.click();
     const pendingSubmit = page.getByRole("button", { name: "등록 중…" });
     await expect(pendingSubmit).toBeDisabled();
-    await pendingSubmit.click({ force: true });
+    // Exercise duplicate activation without force-clicking through the disabled button.
+    await pendingSubmit.dispatchEvent("click");
     await expect.poll(() => createBodies).toHaveLength(1);
     expect(createBodies[0]).toEqual({
       post_type: "notice",
