@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "../fixtures/strictTest";
+import { expect, test, type Locator, type Page } from "../fixtures/strictTest";
 import type { components } from "../../src/shared/api/generated/schema";
 import { getBaseUrl } from "../helpers/auth";
 import { installWorkspaceReadApiStubs } from "../helpers/workspaceReadApiStubs";
@@ -334,6 +334,36 @@ async function expectDocumentOverflowZero(page: Page) {
   }))).toEqual({ body: 0, document: 0 });
 }
 
+async function expectAssessmentFieldLayout(fields: Locator[], width: number) {
+  // Read without scrolling: even fields below the modal fold share one coordinate space.
+  const boxes = await Promise.all(fields.map(async (field) => {
+    const box = await field.boundingBox();
+    if (!box) throw new Error("평가 입력칸의 배치 영역을 확인할 수 없습니다.");
+    return box;
+  }));
+  const first = boxes[0];
+  expect(first.height).toBeGreaterThanOrEqual(40);
+  for (const [index, box] of boxes.entries()) {
+    expect(Math.abs(box.height - first.height), "같은 규격의 입력 높이").toBeLessThanOrEqual(1);
+    expect(Math.abs(box.width - first.width), "같은 규격의 입력 너비").toBeLessThanOrEqual(1);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(width + 1);
+    if (width > 560) {
+      expect(Math.abs(box.y - first.y), "같은 행 입력칸의 위쪽 정렬").toBeLessThanOrEqual(1);
+      if (index > 0) {
+        const previous = boxes[index - 1];
+        expect(box.x).toBeGreaterThanOrEqual(previous.x + previous.width);
+      }
+    } else {
+      expect(Math.abs(box.x - first.x), "세로로 쌓인 입력칸의 왼쪽 정렬").toBeLessThanOrEqual(1);
+      if (index > 0) {
+        const previous = boxes[index - 1];
+        expect(box.y).toBeGreaterThanOrEqual(previous.y + previous.height);
+      }
+    }
+  }
+}
+
 test.describe("성적 컬럼 모바일 순서 제어", () => {
   test.setTimeout(90_000);
   test.use({
@@ -380,6 +410,20 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
         expect(dialogBox?.x).toBeGreaterThanOrEqual(0);
         expect((dialogBox?.x ?? 0) + (dialogBox?.width ?? width + 1)).toBeLessThanOrEqual(width + 1);
         await page.screenshot({ path: testInfo.outputPath(`assessment-edit-modal-${width}-${kind}.png`), animations: 'disabled' });
+
+        const maximum = dialog.getByRole('spinbutton', { name: '만점', exact: true });
+        const passScore = dialog.getByRole('spinbutton', { name: /^합격 기준/ });
+        if (kind === 'exam') {
+          await expectAssessmentFieldLayout([maximum, passScore], width);
+        } else {
+          await expectAssessmentFieldLayout([input, dialog.locator('input[type="date"]')], width);
+          await expectAssessmentFieldLayout([
+            maximum,
+            passScore,
+            dialog.getByRole('spinbutton', { name: /^퍼센트 반올림 단위/ }),
+          ], width);
+        }
+        await expectDocumentOverflowZero(page);
 
         await input.fill(next);
         await dialog.getByRole('button', { name: '저장', exact: true }).click();

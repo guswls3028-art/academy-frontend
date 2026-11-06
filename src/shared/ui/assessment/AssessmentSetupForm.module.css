@@ -97,6 +97,7 @@
 
 .field {
   display: grid;
+  align-content: start;
   min-width: 0;
   gap: 6px;
 }

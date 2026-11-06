@@ -261,7 +261,7 @@ export default function StudentVideoPlayer({
     return () => {
       if (hideControlsTimerRef.current) clearTimeout(hideControlsTimerRef.current);
     };
-  }, [playing, buffering, showControls]);
+  }, [playing, buffering, showControls, isFullscreen]);
 
   const togglePlay = useCallback(() => {
     const ctrl = controllerRef.current;
