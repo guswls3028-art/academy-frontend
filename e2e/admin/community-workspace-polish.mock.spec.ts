@@ -551,6 +551,7 @@ test.describe("커뮤니티 QnA 작업대", () => {
     await gotoAndSettle(page, `${BASE}/workspace/community/qna?id=${QUESTION_ID}`);
     const image = page.getByRole("img", { name: filename, exact: true });
     await expect(image).toHaveJSProperty("naturalWidth", 640);
+    await expect(image).toBeInViewport({ ratio: 0.75 });
     await page.getByRole("button", { name: "이미지 확대", exact: true }).click();
     await expect(image).toHaveCSS("transform", "matrix(1.25, 0, 0, 1.25, 0, 0)");
     await page.screenshot({ path: test.info().outputPath("qna-heic-desktop.png") });

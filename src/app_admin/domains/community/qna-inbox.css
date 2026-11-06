@@ -354,7 +354,7 @@
 
 .qna-inbox__image-stage {
   display: grid;
-  min-height: clamp(360px, 46vh, 620px);
+  min-height: 180px;
   max-height: 68vh;
   overflow: auto;
   place-items: center;
@@ -1875,7 +1875,6 @@
   }
 
   .qna-inbox__image-stage {
-    min-height: 360px;
     max-height: none;
     padding: 18px;
   }
