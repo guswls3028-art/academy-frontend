@@ -867,7 +867,7 @@ test.describe("커뮤니티 QnA 작업대", () => {
       });
 
       await expect(page.getByText("암기TEST.pdf", { exact: true })).toBeVisible();
-      await expect(page.getByText("저장하면 본문 아래에 첨부됩니다.", { exact: false })).toBeVisible();
+      await expect(page.getByText("사진은 저장 후에도 본문 아래에 표시됩니다. 이미지 5MB · 파일 50MB · 최대 10개", { exact: true })).toBeVisible();
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expect(overflow).toBeLessThanOrEqual(1);
       await page.getByRole("button", { name: "등록", exact: true }).click();
