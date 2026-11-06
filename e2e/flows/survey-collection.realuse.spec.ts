@@ -26,7 +26,9 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
   await page.screenshot({ path: testInfo.outputPath(`${name}.png`), fullPage: true });
 }
 
-async function openParentSurveyThroughUi(page: Page, survey: Survey, student: QaStudent) {
+async function openParentSurveyThroughUi(
+  page: Page, survey: Survey, student: QaStudent,
+): Promise<SurveyResponse | null> {
   await expect(page).toHaveURL(`${QA_BASE}/student/dashboard`);
   await expect(page.getByRole("tablist", { name: "자녀 선택" })
     .getByRole("tab", { name: student.name, exact: true })).toHaveAttribute("aria-selected", "true");
@@ -38,8 +40,12 @@ async function openParentSurveyThroughUi(page: Page, survey: Survey, student: Qa
   await expect(page).toHaveURL(`${QA_BASE}/student/submit`);
   await page.getByRole("link", { name: /^설문과 성적 취합/ }).click();
   await expect(page).toHaveURL(`${QA_BASE}/student/surveys`);
-  await page.getByRole("link").filter({ has: page.getByText(survey.title, { exact: true }) }).click();
+  const surveyLink = page.getByRole("link").filter({ has: page.getByText(survey.title, { exact: true }) });
+  await expect(surveyLink).toBeVisible();
+  // Observe only the action that requests this survey, after menu navigation.
+  const response = await observeSurveyRead(page, survey, student, () => surveyLink.click());
   await expect(page).toHaveURL(`${QA_BASE}/student/surveys/${survey.id}`);
+  return response;
 }
 
 async function observeSurveyRead(
@@ -165,15 +171,15 @@ test.describe.serial("[real-use] 설문·성적 취합과 자녀별 응답", () 
       await capture(parentPage, testInfo, "survey-parent-saved-390");
       await selectParentStudentThroughUi(parentPage, peer);
       // Changing children returns to the dashboard. Re-enter via the normal menu.
-      const peerResponse = await observeSurveyRead(parentPage, memo, peer,
-        () => openParentSurveyThroughUi(parentPage, memo, peer));
+      const peerResponse = await test.step("Open peer survey through the parent menu",
+        () => openParentSurveyThroughUi(parentPage, memo, peer), { box: true });
       expect(peerResponse === null).toBe(true);
       await expect(parentPage.getByRole("button", { name: "응답 제출", exact: true })).toBeVisible();
       await expect(parentPage.getByLabel("토요일", { exact: true })).not.toBeChecked();
       await expect(parentPage.getByText("시험범위.png", { exact: true })).toHaveCount(0);
 
-      const reloadedPeerResponse = await observeSurveyRead(parentPage, memo, peer,
-        () => reloadStudentApp(parentPage));
+      const reloadedPeerResponse = await test.step("Reload peer survey",
+        () => observeSurveyRead(parentPage, memo, peer, () => reloadStudentApp(parentPage)), { box: true });
       expect(reloadedPeerResponse === null).toBe(true);
       await expect(parentPage.getByRole("tablist", { name: "자녀 선택" })
         .getByRole("tab", { name: peer.name, exact: true })).toHaveAttribute("aria-selected", "true");
@@ -182,8 +188,8 @@ test.describe.serial("[real-use] 설문·성적 취합과 자녀별 응답", () 
       await expect(parentPage.getByText("시험범위.png", { exact: true })).toHaveCount(0);
 
       await selectParentStudentThroughUi(parentPage, primary);
-      const restoredPrimaryResponse = await observeSurveyRead(parentPage, memo, primary,
-        () => openParentSurveyThroughUi(parentPage, memo, primary));
+      const restoredPrimaryResponse = await test.step("Restore primary survey through the parent menu",
+        () => openParentSurveyThroughUi(parentPage, memo, primary), { box: true });
       expect(restoredPrimaryResponse?.id === memoResponse.id).toBe(true);
       expect(restoredPrimaryResponse?.version === memoResponse.version).toBe(true);
       expect(JSON.stringify(restoredPrimaryResponse?.answers) === JSON.stringify(memoResponse.answers)).toBe(true);
