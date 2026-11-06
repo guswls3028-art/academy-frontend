@@ -668,81 +668,82 @@ export default function StudentVideoPlayer({
                 </div>
               )}
 
-              {usesCustomControls && (
-                <div className="svpControls">
-                  <div className="svpProgressRow">
-                    <RangeSlider
-                      value={current}
-                      min={0}
-                      max={Math.max(0.1, duration || 0)}
-                      step={0.1}
-                      onChange={(v) => onScrub(v)}
-                      ariaLabel="진행 바"
-                      disabled={budgetedForward}
-                    />
-                    <div className="svpTime">
-                      <span className="svpTimeCur">{formatClock(current)}</span>
-                      <span className="svpTimeSep">/</span>
-                      <span className="svpTimeDur">{formatClock(duration)}</span>
-                    </div>
+            </div>
+
+            {usesCustomControls && (
+              <div className="svpControls">
+                <div className="svpProgressRow">
+                  <RangeSlider
+                    value={current}
+                    min={0}
+                    max={Math.max(0.1, duration || 0)}
+                    step={0.1}
+                    onChange={(v) => onScrub(v)}
+                    ariaLabel="진행 바"
+                    disabled={budgetedForward}
+                  />
+                  <div className="svpTime">
+                    <span className="svpTimeCur">{formatClock(current)}</span>
+                    <span className="svpTimeSep">/</span>
+                    <span className="svpTimeDur">{formatClock(duration)}</span>
                   </div>
+                </div>
 
-                  {budgetedForward && (
-                    <ForwardSkipBudgetStatus pending={skipPending} budget={skipBudget} />
-                  )}
+                {budgetedForward && (
+                  <ForwardSkipBudgetStatus pending={skipPending} budget={skipBudget} />
+                )}
 
-                  <div className="svpControlRow">
-                    <div className="svpLeftControls">
-                      <IconButton icon={playing ? "pause" : "play"} label={playing ? "일시정지" : "재생"} onClick={togglePlay} />
-                      <IconButton icon="replay10" label="-10초" onClick={() => skip(-10)} />
-                      <IconButton
-                        icon="forward10"
-                        label={budgetedForward
-                          ? `10초 앞으로 건너뛰기 (${formatClock(skipBudget.remaining_seconds)} 남음)`
-                          : "+10초"}
-                        onClick={() => skip(10)}
-                        disabled={budgetedForward && (skipPending || skipBudget.remaining_seconds <= 0)}
-                      />
-                      <div className="svpVolume">
-                        <IconButton icon={muted || volume <= 0.0001 ? "mute" : "volume"} label="음소거" onClick={toggleMute} />
-                        <div className="svpVolumeSlider">
-                          <RangeSlider value={muted ? 0 : volume} min={0} max={1} step={0.01} onChange={(v) => onVolume(v)} ariaLabel="볼륨" />
-                        </div>
+                <div className="svpControlRow">
+                  <div className="svpLeftControls">
+                    <IconButton icon={playing ? "pause" : "play"} label={playing ? "일시정지" : "재생"} onClick={togglePlay} />
+                    <IconButton icon="replay10" label="-10초" onClick={() => skip(-10)} />
+                    <IconButton
+                      icon="forward10"
+                      label={budgetedForward
+                        ? `10초 앞으로 건너뛰기 (${formatClock(skipBudget.remaining_seconds)} 남음)`
+                        : "+10초"}
+                      onClick={() => skip(10)}
+                      disabled={budgetedForward && (skipPending || skipBudget.remaining_seconds <= 0)}
+                    />
+                    <div className="svpVolume">
+                      <IconButton icon={muted || volume <= 0.0001 ? "mute" : "volume"} label="음소거" onClick={toggleMute} />
+                      <div className="svpVolumeSlider">
+                        <RangeSlider value={muted ? 0 : volume} min={0} max={1} step={0.01} onChange={(v) => onVolume(v)} ariaLabel="볼륨" />
                       </div>
                     </div>
-                    <div className="svpRightControls">
-                      {!isYoutube && (
-                        <QualityButton
-                          current={currentQuality}
-                          qualities={qualities}
-                          onSelect={(idx) => controllerRef.current?.setQuality(idx)}
-                        />
-                      )}
-                      <SpeedButton
-                        rate={rate}
-                        speeds={rateMenu}
-                        disabled={speedLocked}
-                        onSelect={setPlaybackRate}
-                      />
-                      <IconButton
-                        className="svpFullscreenButton"
-                        icon={isFullscreen ? "shrink" : "fullscreen"}
-                        label={isFullscreen ? "전체화면 종료" : "전체화면"}
-                        onClick={requestFullscreen}
-                      />
-                    </div>
                   </div>
-
-                  <PlaybackPolicyHints
-                    allowSeek={allowSeek}
-                    seekMode={seekMode}
-                    boundedForward={boundedForward}
-                    budgetedForward={budgetedForward}
-                    speedLocked={speedLocked}
-                  />
+                  <div className="svpRightControls">
+                    {!isYoutube && (
+                      <QualityButton
+                        current={currentQuality}
+                        qualities={qualities}
+                        onSelect={(idx) => controllerRef.current?.setQuality(idx)}
+                      />
+                    )}
+                    <SpeedButton
+                      rate={rate}
+                      speeds={rateMenu}
+                      disabled={speedLocked}
+                      onSelect={setPlaybackRate}
+                    />
+                    <IconButton
+                      className="svpFullscreenButton"
+                      icon={isFullscreen ? "shrink" : "fullscreen"}
+                      label={isFullscreen ? "전체화면 종료" : "전체화면"}
+                      onClick={requestFullscreen}
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
+
+                <PlaybackPolicyHints
+                  allowSeek={allowSeek}
+                  seekMode={seekMode}
+                  boundedForward={boundedForward}
+                  budgetedForward={budgetedForward}
+                  speedLocked={speedLocked}
+                />
+              </div>
+            )}
           </div>
 
           <PlayerToast toast={toast} onClose={() => controllerRef.current?.clearToast()} />

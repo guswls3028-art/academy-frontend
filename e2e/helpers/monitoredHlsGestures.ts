@@ -88,41 +88,40 @@ export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {
   await page.clock.install();
   const { video, state, writes, clearWrites } = await openMonitoredHlsPlayer(scenario);
   const layer = page.locator(".svpGestureLayer");
-  const targets = await layer.evaluate(node => {
-    const box = node.getBoundingClientRect();
-    const pick = (fraction: number) => {
+  const inputTargets: unknown[] = [];
+  const chooseGesturePoint = async (fraction: number) => {
+    const target = await layer.evaluate((node, fraction) => {
+      const box = node.getBoundingClientRect();
       const read = (y: number) => {
         const x = box.x + box.width * fraction;
         const hit = document.elementFromPoint(x, y);
         return { x, y, ownsLayer: !!hit && node.contains(hit), hitClass: hit?.getAttribute("class"),
           hitLabel: hit?.closest("button, input")?.getAttribute("aria-label") };
       };
-      // Keep the same horizontal gesture zone; choose a genuinely exposed point.
-      return { legacy: read(box.y + box.height / 2), exposed: [0.5, 0.2, 0.8, 0.1, 0.9]
+      return { fraction, legacy: read(box.y + box.height / 2), exposed: [0.5, 0.2, 0.8, 0.1, 0.9]
         .map(ratio => read(box.y + box.height * ratio)).find(point => point.ownsLayer) };
-    };
-    return { center: pick(0.5), right: pick(0.75) };
-  });
-  await info.attach("gesture-input-targets", { contentType: "application/json", body: JSON.stringify(targets) });
-  expect(targets.center.exposed, "center zone has an exposed gesture target").toBeDefined();
-  expect(targets.right.exposed, "right zone has an exposed gesture target").toBeDefined();
-  const center = targets.center.exposed!;
-  const right = targets.right.exposed!;
-  const assertGestureTarget = async (point: { x: number; y: number }) => {
-    expect(await layer.evaluate((node, point) => {
-      const hit = document.elementFromPoint(point.x, point.y);
-      return !!hit && node.contains(hit);
-    }, point), "pointer starts on the real exposed gesture layer").toBe(true);
+    }, fraction);
+    inputTargets.push(target);
+    await info.attach("gesture-input-targets", { contentType: "application/json", body: JSON.stringify(inputTargets) });
+    expect(target.exposed, `${fraction} zone has an exposed gesture target`).toBeDefined();
+    return target.exposed!;
+  };
+  let right = await chooseGesturePoint(0.75);
+  const clickCenter = async () => {
+    const center = await chooseGesturePoint(0.5);
+    await page.mouse.click(center.x, center.y);
+  };
+  const moveToRight = async () => {
+    right = await chooseGesturePoint(0.75);
+    await page.mouse.move(right.x, right.y);
   };
   const cancel = () => layer.dispatchEvent("pointercancel", { pointerId: 1, pointerType: "mouse", clientX: right.x, clientY: right.y });
   await clearWrites();
   if (speedLocked) {
-    await assertGestureTarget(center);
-    await page.mouse.click(center.x, center.y);
+    await clickCenter();
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.paused)).toBe(true);
     const pausedAt = await video.evaluate((el: HTMLVideoElement) => el.currentTime);
-    await assertGestureTarget(center);
-    await page.mouse.click(center.x, center.y);
+    await clickCenter();
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(pausedAt);
   } else {
     await page.locator(".svpPlaybackRateBtn").click();
@@ -133,8 +132,7 @@ export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {
   // Pause before pointer down, then run every callback past the cancelled 500ms deadline.
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
   try {
-    await page.mouse.move(right.x, right.y);
-    await assertGestureTarget(right);
+    await moveToRight();
     await page.mouse.down();
     await cancel();
     await page.mouse.up();
@@ -145,7 +143,7 @@ export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {
   }
   if (!speedLocked) {
     expect(await writes()).toEqual([]);
-    await assertGestureTarget(right);
+    await moveToRight();
     await page.mouse.down();
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.playbackRate)).toBe(2);
     await page.mouse.up();
@@ -153,7 +151,7 @@ export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {
     await cancel();
     await layer.dispatchEvent("pointerup", { pointerId: 1, pointerType: "mouse", clientX: right.x, clientY: right.y });
     expect(await writes()).toEqual([2, 1.5]);
-    await assertGestureTarget(right);
+    await moveToRight();
     await page.mouse.down();
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.playbackRate)).toBe(2);
     await cancel();
@@ -218,42 +216,109 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
       await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
     }
   };
-  // Check normal controls at three widths without repeating fullscreen journeys.
+  // Check playing and paused controls without repeating fullscreen journeys.
   const controls = page.locator(".svpControls");
-  for (const width of scenario.viewport?.width === 1366 ? [1100, 1366] : [390]) {
-    const height = scenario.viewport?.height ?? 844;
-    await page.setViewportSize({ width, height });
+  const originalMedia = await video.elementHandle();
+  const readRegions = () => wrap.evaluate(root => {
+    const rect = (selector: string) => {
+      const { left, top, right, bottom, width, height } = root.querySelector(selector)!.getBoundingClientRect();
+      return { left, top, right, bottom, width, height };
+    };
+    return { stage: rect(".svpVideoStage"), media: rect(".svpVideo"), controls: rect(".svpControls"),
+      viewport: { width: innerWidth, height: innerHeight }, scrollWidth: document.documentElement.scrollWidth };
+  });
+  const assertSeparatedRegions = async () => {
+    const regions = await readRegions();
+    expect(regions.stage.bottom).toBeLessThanOrEqual(regions.controls.top + 0.5);
+    expect(regions.media.bottom).toBeLessThanOrEqual(regions.stage.bottom + 0.5);
+    expect(regions.media.right).toBeLessThanOrEqual(regions.viewport.width + 0.5);
+    expect(regions.controls.bottom).toBeLessThanOrEqual(regions.viewport.height + 0.5);
+    expect(regions.scrollWidth).toBeLessThanOrEqual(regions.viewport.width + 0.5);
+    expect(await video.evaluate((node, original) => node === original, originalMedia)).toBe(true);
+    return regions;
+  };
+  const verifyGeometry = async (width: number, height: number, phase: "playing" | "paused") => {
     await revealControls();
     await expect(controls).toHaveCSS("opacity", "1");
     await expect(controls.locator(".svpVolume button")).toBeVisible();
     await expect(controls.locator(".svpQualityBtn")).toBeVisible();
     await expect(controls.locator(".svpQualityBtn")).toBeDisabled();
-    const targets = await controls.evaluate(root => Array.from(root.querySelectorAll<HTMLButtonElement | HTMLInputElement>("button, input[type='range']"))
+    const regions = await assertSeparatedRegions();
+    expect(regions.media.width / regions.media.height).toBeCloseTo(16 / 9, 2);
+    const targets = await wrap.evaluate(root => Array.from(root.querySelectorAll<HTMLButtonElement | HTMLInputElement>(".svpControls button, .svpControls input[type='range'], .svpBigPlay"))
       .filter(node => node.getClientRects().length > 0 && getComputedStyle(node).visibility !== "hidden")
       .map(node => {
         const { left, top, right, bottom, width, height } = node.getBoundingClientRect();
-        const hit = document.elementFromPoint(left + width / 2, top + height / 2);
+        const hits = [0.25, 0.5, 0.75].map(fraction => {
+          const x = left + width * fraction, y = top + height / 2;
+          const hit = document.elementFromPoint(x, y);
+          return { x, y, ownsTarget: !!hit && node.contains(hit),
+            hitLabel: hit?.closest("button, input")?.getAttribute("aria-label") ?? hit?.tagName };
+        });
         return { label: node.getAttribute("aria-label") ?? node.textContent?.trim(), disabled: node.disabled,
           rect: { left, top, right, bottom, width, height }, display: getComputedStyle(node).display,
-          pointerEvents: getComputedStyle(node).pointerEvents, ownsCenter: !!hit && node.contains(hit),
-          hitLabel: hit?.closest("button, input")?.getAttribute("aria-label") ?? hit?.tagName };
+          pointerEvents: getComputedStyle(node).pointerEvents, ownsCenter: hits[1].ownsTarget, hits };
       }));
-    await info.attach(`player-control-geometry-${width}`, { contentType: "application/json", body: JSON.stringify({ width, height, targets }) });
-    await info.attach(`player-controls-${width}`, { contentType: "image/png", body: await page.screenshot() });
+    await info.attach(`player-control-geometry-${width}-${phase}`, { contentType: "application/json", body: JSON.stringify({ width, height, phase, regions, targets }) });
+    await info.attach(`player-controls-${width}-${phase}`, { contentType: "image/png", body: await page.screenshot() });
     expect(targets.length).toBeGreaterThan(0);
     for (const [index, target] of targets.entries()) {
-      const label = `${width}px ${target.label}`;
+      const label = `${width}px ${phase} ${target.label}`;
       expect(target.rect.left, label).toBeGreaterThanOrEqual(-0.5);
       expect(target.rect.top, label).toBeGreaterThanOrEqual(-0.5);
       expect(target.rect.right, label).toBeLessThanOrEqual(width + 0.5);
       expect(target.rect.bottom, label).toBeLessThanOrEqual(height + 0.5);
-      expect(target.ownsCenter, `${label}: center belongs to target`).toBe(true);
+      expect(target.hits.every(hit => hit.ownsTarget), `${label}: all sampled points belong to target`).toBe(true);
       for (const other of targets.slice(index + 1)) {
         const overlapX = Math.min(target.rect.right, other.rect.right) - Math.max(target.rect.left, other.rect.left);
         const overlapY = Math.min(target.rect.bottom, other.rect.bottom) - Math.max(target.rect.top, other.rect.top);
         expect(overlapX > 0.5 && overlapY > 0.5, `${label} overlaps ${other.label}`).toBe(false);
       }
     }
+  };
+  const assertPaused = (paused: boolean) => expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.paused)).toBe(paused);
+  const clickProgress = async (fraction: number) => {
+    const slider = controls.getByRole("slider", { name: "진행 바", exact: true });
+    const point = await slider.evaluate((node, fraction) => {
+      const rect = node.getBoundingClientRect();
+      const x = rect.left + Math.max(1, rect.width * fraction), y = rect.top + rect.height / 2;
+      return { x, y, ownsTarget: node.contains(document.elementFromPoint(x, y)) };
+    }, fraction);
+    expect(point.ownsTarget, "normal progress input owns its position").toBe(true);
+    await page.mouse.click(point.x, point.y);
+  };
+  for (const width of scenario.viewport?.width === 1366 ? [1100, 1366] : [390]) {
+    const height = scenario.viewport?.height ?? 844;
+    await page.setViewportSize({ width, height });
+    const playPause = controls.locator(".svpLeftControls button").first();
+    for (const phase of ["playing", "paused"] as const) {
+      if (phase === "paused") await playPause.click();
+      await assertPaused(phase === "paused");
+      await verifyGeometry(width, height, phase);
+      const muted = await video.evaluate((node: HTMLVideoElement) => node.muted);
+      for (const expected of [!muted, muted]) {
+        await controls.locator(".svpVolume button").click();
+        await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.muted)).toBe(expected);
+        await assertPaused(phase === "paused");
+      }
+      // The fixture permits free seek. Use real range input, then restore near start.
+      const duration = await video.evaluate((node: HTMLVideoElement) => node.duration);
+      await clickProgress(0.75);
+      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeGreaterThan(duration * 0.6);
+      await assertPaused(phase === "paused");
+      await clickProgress(0);
+      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeLessThan(duration * 0.05);
+      await assertPaused(phase === "paused");
+    }
+    await page.locator(".svpBigPlay").click();
+    await assertPaused(false);
+    await playPause.click();
+    await assertPaused(true);
+    await playPause.click();
+    await assertPaused(false);
+    const current = await video.evaluate((node: HTMLVideoElement) => node.currentTime);
+    await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeGreaterThan(current);
+    await assertSeparatedRegions();
   }
   const assertPlaying = async () => {
     const current = await video.evaluate((el: HTMLVideoElement) => el.currentTime);
@@ -368,6 +433,7 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
             await expect.poll(() => page.evaluate(() => document.fullscreenElement?.classList.contains("svpPlayerWrap") ?? false)).toBe(true);
           }
           await expect(button).toHaveAttribute("aria-label", "전체화면 종료");
+          await assertSeparatedRegions();
           await activate();
           await observe(`${selector}/${input}/exit`);
           await expect(wrap).not.toHaveClass(/svpPlayerWrap--fullscreen/);
