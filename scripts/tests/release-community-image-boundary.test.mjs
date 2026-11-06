@@ -171,6 +171,39 @@ test("notice detail binds saved photos and refreshed student download URLs", asy
   }
 });
 
+test("teacher notice list binds each preview to exact authenticated metadata and object bytes", async () => {
+  const apiPath = "/api/v1/community/posts/?post_type=notice&page_size=50&ordering=-created_at";
+  const attachment = { id: 456, original_name: "qa-problem.png", content_type: "image/png",
+    size_bytes: png.length, download_url: url };
+  const options = { apiPath, list: true, postType: "notice", attachments: [attachment] };
+  const result = await exercise({ ...options, payload: { results: [{ id: 123, post_type: "notice", attachments: [attachment] }] } });
+  result.guard.assertClean();
+  assert.deepEqual(result.fetched, [{ url, method: "GET", headers: { accept: "image/png" }, maxRedirects: 0 }]);
+  assert.deepEqual(result.fulfilled, [{ status: 200, headers: { "content-type": "image/png" }, body: png }]);
+
+  for (const invalid of [
+    { apiPath: apiPath.replace("&ordering=-created_at", "") }, { apiPath: apiPath.replace("=-created_at", "=created_at") },
+    { apiPath: apiPath.replace("page_size=50", "page_size=51") }, { apiPath: apiPath.replace("post_type=notice", "post_type=board") },
+    { apiPath: apiPath + "&post_type=notice" }, { apiPath: apiPath + "&q=photo" },
+    { register: false }, { apiStatus: 403 }, { apiHeaders: { authorization: "" } },
+    { apiHeaders: { "x-tenant-code": "qa-ymath-realuse-other" } },
+    { postType: "qna" }, { postId: 124 }, { attachments: [{ ...attachment, id: 0 }] },
+    { payload: { results: Array.from({ length: 51 }, () => ({ id: 123, post_type: "notice", attachments: [attachment] })) } },
+    ...[undefined, 0, -1, 1.5, 5 * 1024 * 1024 + 1].map((size_bytes) => ({ attachments: [{ ...attachment, size_bytes }] })),
+    ...[
+      url.replace("tenants/352/", "tenants/353/"), url.replace("posts/123/", "posts/124/"),
+      url.replace("academy-development-artifacts", "academy-production-artifacts"),
+      url.replace("Expires=3600", "Expires=3601"), url + "&extra=1",
+    ].map((download_url) => ({ attachments: [{ ...attachment, download_url }], url: download_url })),
+    { headers: { authorization: "Bearer qa-token" } }, { headers: { cookie: "private" } },
+    { url: url.replace("a".repeat(64), "d".repeat(64)) }, { method: "HEAD" }, { resourceType: "fetch" },
+  ]) rejected(await exercise({ ...options, ...invalid }));
+  for (const invalid of [{ status: 302 }, { status: 403 }, { contentType: "image/jpeg" },
+    { body: Buffer.alloc(png.length) }, { body: Buffer.concat([png, Buffer.from([0])]) }]) {
+    rejected(await exercise({ ...options, ...invalid }), 1);
+  }
+});
+
 for (const postType of ["qna", "notice", "board", "materials", "counsel"]) test(`${postType} registration rejects foreign API responses and loose R2 URL scopes`, async () => {
   const accepted = await exercise({ postType });
   accepted.guard.assertClean();

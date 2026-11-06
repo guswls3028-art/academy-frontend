@@ -1160,8 +1160,9 @@ export async function installReleaseContextGuard(
       if (!["image/png", "image/jpeg", "image/webp", "image/heic", "application/pdf", "text/plain"].includes(contentType)) continue;
       const sizeBytes = typeof attachment.size_bytes === "number" && Number.isSafeInteger(attachment.size_bytes)
         && attachment.size_bytes > 0 && attachment.size_bytes <= 50 * 1024 * 1024 ? attachment.size_bytes : undefined;
-      if (!contentType.startsWith("image/") && sizeBytes === undefined) continue;
-      if (contentType === "image/heic" && (sizeBytes === undefined || sizeBytes > 5 * 1024 * 1024)) continue;
+      if (!contentType.startsWith("image/") && (expectedType === "notice" || sizeBytes === undefined)) continue;
+      if ((expectedType === "notice" || contentType === "image/heic")
+        && (sizeBytes === undefined || sizeBytes > 5 * 1024 * 1024)) continue;
       communityAttachments.set(`${postId}:${attachment.id}`, { contentType, originalName: attachment.original_name, sizeBytes });
       const url = attachment.download_url;
       if (typeof url === "string" && isExactDevelopmentCommunityAttachment(boundary, url, postId, contentType)) {
@@ -1516,7 +1517,7 @@ export async function installReleaseContextGuard(
           || signature.some((byte, index) => body[index] !== byte)
           || (heic && (body.subarray(4, 8).toString("ascii") !== "ftyp"
             || !["*", boundary.webOrigin].includes(response.headers()["access-control-allow-origin"] ?? "")))
-          || (communityImageType === "image/heic" && body.length !== communityImage?.sizeBytes)
+          || (communityImage?.sizeBytes !== undefined && body.length !== communityImage.sizeBytes)
           || (contentType === "image/webp" && body.subarray(8, 12).toString("ascii") !== "WEBP")) {
           await reject("transport");
           return;
@@ -1785,7 +1786,8 @@ export async function installReleaseContextGuard(
           }
         }
         const communityPost = /^\/api\/v1\/community\/posts\/([1-9][0-9]*)\/$/.exec(communityTarget.pathname);
-        const communityList = communityTarget.pathname === "/api/v1/community/posts/"
+        const communityListPath = communityTarget.pathname === "/api/v1/community/posts/";
+        const qnaList = communityListPath
           && communityTarget.searchParams.getAll("post_type").length === 1
           && communityTarget.searchParams.get("post_type") === "qna"
           && [...communityTarget.searchParams.keys()].every((key) => ["post_type", "page_size"].includes(key))
@@ -1793,16 +1795,24 @@ export async function installReleaseContextGuard(
             || (communityTarget.searchParams.getAll("page_size").length === 1
               && /^[1-9][0-9]*$/.test(communityTarget.searchParams.get("page_size") ?? "")
               && Number(communityTarget.searchParams.get("page_size")) <= 200));
+        const teacherNoticeList = communityListPath
+          && communityTarget.searchParams.size === 3
+          && communityTarget.searchParams.get("post_type") === "notice"
+          && communityTarget.searchParams.get("page_size") === "50"
+          && communityTarget.searchParams.get("ordering") === "-created_at";
+        const communityListType = teacherNoticeList ? "notice" : qnaList ? "qna" : undefined;
         const communityDownload = /^\/api\/v1\/community\/posts\/([1-9][0-9]*)\/attachments\/([1-9][0-9]*)\/download\/$/.exec(communityTarget.pathname);
         if (boundary.mode === "development" && request.method() === "GET"
-          && ((communityPost && !communityTarget.search) || communityList || (communityDownload && !communityTarget.search))
+          && ((communityPost && !communityTarget.search) || communityListType || (communityDownload && !communityTarget.search))
           && response.status() === 200 && /^Bearer \S+$/.test(headers.authorization ?? "")
           && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json") {
           const payload = await response.json();
           if (communityPost && payload?.id === Number(communityPost[1])) registerCommunityPost(payload);
-          if (communityList) {
+          if (communityListType) {
             const posts = Array.isArray(payload) ? payload : payload?.results;
-            if (Array.isArray(posts) && posts.length <= 200) posts.forEach((post) => registerCommunityPost(post, "qna"));
+            if (Array.isArray(posts) && posts.length <= (teacherNoticeList ? 50 : 200)) {
+              posts.forEach((post) => registerCommunityPost(post, communityListType));
+            }
           }
           if (communityDownload) {
             const postId = Number(communityDownload[1]);
