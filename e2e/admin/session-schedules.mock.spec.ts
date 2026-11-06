@@ -179,9 +179,78 @@ for (const width of [390, 1366]) test(`수업일 작성·배정·저장·reload�
   await expect(page).toHaveURL(/attendance\?schedule=0$/);
   await strip.getByRole('button', { name: /^수요일반/ }).click();
   await expect(page).toHaveURL(/attendance\?schedule=71$/);
+  await expect(tools).toBeHidden();
   await expect(page.getByRole('button', { name: '김수연 출결 상태 변경', exact: true })).toHaveText('미입력');
   await expect(page.getByRole('link', { name: '박새봄 학생 상세 열기', exact: true })).toHaveCount(0);
   await expect.poll(() => state.reads.some(r => r.kind === 'scores' && r.scope === '0')).toBe(true);
+
+  // This same-turn handler boundary check is NOT trusted pointer evidence.
+  // Keep the ordinary pointer sequence above and async navigation below.
+  // The visible controls call their real handlers without DOM/URL injection.
+  await page.getByRole('button', { name: '출결 도구', exact: true }).click();
+  const backToList = page.getByRole('link', { name: '← 출결 명단', exact: true });
+  const thursday = strip.getByRole('button', { name: /^목요일반/ });
+  await expect(backToList).toBeVisible();
+  await thursday.scrollIntoViewIfNeeded();
+  await expect(thursday).toBeInViewport();
+  await expect(backToList).toBeInViewport();
+  await expect(thursday).toBeEnabled();
+  const thursdayHandle = await thursday.elementHandle();
+  await backToList.evaluate((link, button) => {
+    if (!(link instanceof HTMLAnchorElement) || !(button instanceof HTMLButtonElement)) throw new Error('Missing navigation controls');
+    link.click();
+    button.click();
+  }, thursdayHandle);
+  await thursdayHandle?.dispose();
+  await expect(page).toHaveURL(/attendance\?schedule=72$/);
+  await expect(tools).toBeHidden();
+  await expect(page.getByRole('link', { name: '이목현 학생 상세 열기', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: '김수연 학생 상세 열기', exact: true })).toHaveCount(0);
+  await page.reload();
+  await expect(page).toHaveURL(/attendance\?schedule=72$/);
+  await expect(page.getByRole('link', { name: '이목현 학생 상세 열기', exact: true })).toBeVisible();
+  await capture(page, `schedule-rapid-list-navigation-${width}`);
+});
+
+for (const width of [390, 1366]) test(`수업일 전환 저장 대기 중 다른 탭으로 이동하면 되돌아가지 않는다 ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
+  const state = fixture(true); await install(page, state);
+  let releaseSave!: () => void;
+  const saveGate = new Promise<void>(resolve => { releaseSave = resolve; });
+  let releases = 0;
+  let completed = 0;
+  await page.route('**/api/v1/results/admin/sessions/9902/score-draft/commit/', async route => {
+    expect(route.request().method()).toBe('POST');
+    expect(route.request().postDataJSON().release_lease).toBe(true);
+    releases += 1;
+    await saveGate;
+    await route.fulfill({ status: 204, body: '' });
+    completed += 1;
+  });
+  try {
+    await page.goto(`${BASE}${path}/scores?schedule=71`);
+    await page.getByRole('button', { name: '수정', exact: true }).click();
+    await expect(page.getByRole('button', { name: '점수 입력 마침', exact: true })).toBeVisible();
+    await page.getByRole('region', { name: '수업일 선택' }).getByRole('button', { name: /^목요일반/ }).click();
+    await expect.poll(() => releases).toBe(1);
+    await expect(page.getByRole('region', { name: '수업일 선택' })).toHaveAttribute('aria-busy', 'true');
+    await expect(page).toHaveURL(/scores\?schedule=71$/);
+    await page.getByRole('tab', { name: '출결', exact: true }).click();
+    await expect(page).toHaveURL(/attendance\?schedule=71$/);
+    await expect(page.getByRole('link', { name: '김수연 학생 상세 열기', exact: true })).toBeVisible();
+    releaseSave();
+    await expect.poll(() => completed).toBeGreaterThanOrEqual(1);
+    await expect(page.getByRole('region', { name: '수업일 선택' })).toHaveAttribute('aria-busy', 'false');
+    await expect(page.getByRole('button', { name: '김수연 출결 상태 변경', exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/attendance\?schedule=71$/);
+    await page.reload();
+    await expect(page).toHaveURL(/attendance\?schedule=71$/);
+    await expect(page.getByRole('link', { name: '김수연 학생 상세 열기', exact: true })).toBeVisible();
+    expect(state.reads.some(r => r.kind === 'scores' && r.scope === '72')).toBe(false);
+    await capture(page, `schedule-pending-save-navigation-${width}`);
+  } finally {
+    releaseSave();
+  }
 });
 
 for (const width of [390, 1366]) test(`저장 실패·닫기 후 입력 보존·409 최신 내용 확인·복사 ${width}px`, async ({ page }) => {
