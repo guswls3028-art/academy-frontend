@@ -88,15 +88,40 @@ export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {
   await page.clock.install();
   const { video, state, writes, clearWrites } = await openMonitoredHlsPlayer(scenario);
   const layer = page.locator(".svpGestureLayer");
-  const box = (await layer.boundingBox())!;
-  const center = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-  const right = { x: box.x + box.width * 0.75, y: center.y };
+  const targets = await layer.evaluate(node => {
+    const box = node.getBoundingClientRect();
+    const pick = (fraction: number) => {
+      const read = (y: number) => {
+        const x = box.x + box.width * fraction;
+        const hit = document.elementFromPoint(x, y);
+        return { x, y, ownsLayer: !!hit && node.contains(hit), hitClass: hit?.getAttribute("class"),
+          hitLabel: hit?.closest("button, input")?.getAttribute("aria-label") };
+      };
+      // Keep the same horizontal gesture zone; choose a genuinely exposed point.
+      return { legacy: read(box.y + box.height / 2), exposed: [0.5, 0.2, 0.8, 0.1, 0.9]
+        .map(ratio => read(box.y + box.height * ratio)).find(point => point.ownsLayer) };
+    };
+    return { center: pick(0.5), right: pick(0.75) };
+  });
+  await info.attach("gesture-input-targets", { contentType: "application/json", body: JSON.stringify(targets) });
+  expect(targets.center.exposed, "center zone has an exposed gesture target").toBeDefined();
+  expect(targets.right.exposed, "right zone has an exposed gesture target").toBeDefined();
+  const center = targets.center.exposed!;
+  const right = targets.right.exposed!;
+  const assertGestureTarget = async (point: { x: number; y: number }) => {
+    expect(await layer.evaluate((node, point) => {
+      const hit = document.elementFromPoint(point.x, point.y);
+      return !!hit && node.contains(hit);
+    }, point), "pointer starts on the real exposed gesture layer").toBe(true);
+  };
   const cancel = () => layer.dispatchEvent("pointercancel", { pointerId: 1, pointerType: "mouse", clientX: right.x, clientY: right.y });
   await clearWrites();
   if (speedLocked) {
+    await assertGestureTarget(center);
     await page.mouse.click(center.x, center.y);
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.paused)).toBe(true);
     const pausedAt = await video.evaluate((el: HTMLVideoElement) => el.currentTime);
+    await assertGestureTarget(center);
     await page.mouse.click(center.x, center.y);
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(pausedAt);
   } else {
@@ -109,6 +134,7 @@ export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {
   await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
   try {
     await page.mouse.move(right.x, right.y);
+    await assertGestureTarget(right);
     await page.mouse.down();
     await cancel();
     await page.mouse.up();
@@ -119,6 +145,7 @@ export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {
   }
   if (!speedLocked) {
     expect(await writes()).toEqual([]);
+    await assertGestureTarget(right);
     await page.mouse.down();
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.playbackRate)).toBe(2);
     await page.mouse.up();
@@ -126,6 +153,7 @@ export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {
     await cancel();
     await layer.dispatchEvent("pointerup", { pointerId: 1, pointerType: "mouse", clientX: right.x, clientY: right.y });
     expect(await writes()).toEqual([2, 1.5]);
+    await assertGestureTarget(right);
     await page.mouse.down();
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.playbackRate)).toBe(2);
     await cancel();
