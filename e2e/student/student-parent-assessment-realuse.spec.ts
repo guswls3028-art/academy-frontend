@@ -451,10 +451,15 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
       const staffBrowser = attachStrictBrowserGuards(staffPage);
       try {
         await seedBrowserAuth(staffPage, admin);
-        for (const [width, showRank, showCount] of [[1366, false, false], [1366, false, true], [390, true, false], [1366, true, true]] as const) {
+        const combinations = [[1366, false, false], [1366, false, true], [390, true, false], [1366, true, true]] as const;
+        for (const [index, [width, showRank, showCount]] of combinations.entries()) {
           await staffPage.setViewportSize({ width, height: 900 });
-          await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`);
-          await acknowledgeInitialAccountPromptsIfVisible(staffPage);
+          if (index === 0) {
+            await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`);
+            await acknowledgeInitialAccountPromptsIfVisible(staffPage);
+          }
+          // Each save already reloads and verifies this policy page. Start the
+          // next edit there, with the viewport for that combination.
           const settings = staffPage.locator("#assessment-policy > details");
           const settingsSummary = staffPage.locator("#assessment-policy > details > summary");
           if (await settings.getAttribute("open") === null) await settingsSummary.click();
@@ -495,8 +500,9 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
             // readback, then restore the selected parent child for later steps.
             await logoutStudentApp(page);
             await loginThroughUi(page, primary.ps_number, primary.password);
-            await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
-            await reloadStudentApp(page);
+            await page.goto(`${QA_BASE}/student/grades`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+            await expect(firstCard).toBeVisible();
+            await page.reload({ waitUntil: "domcontentloaded" });
             await expect(firstCard).toBeVisible();
             await expect(firstCard.getByText("1등", { exact: true })).toHaveCount(0);
             await expect(firstCard.getByText("2명 응시", { exact: true })).toHaveCount(0);
@@ -504,9 +510,12 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
             await logoutStudentApp(page);
             await loginThroughUi(page, created.family!.parentPhone, created.family!.parentPassword);
             await selectParentStudentThroughUi(page, primary);
-            await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
+            await page.goto(`${QA_BASE}/student/grades`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+            await expect(firstCard).toBeVisible();
           }
-          await reloadStudentApp(page);
+          // Login prompts were handled at login. The selected child and the
+          // persisted card below tell us when this authenticated reload is ready.
+          await page.reload({ waitUntil: "domcontentloaded" });
           await expect(page.getByRole("tab", { name: primary.name })).toHaveAttribute("aria-selected", "true");
           await expect(firstCard).toBeVisible();
           await expect(firstCard.getByText("1등", { exact: true })).toHaveCount(showRank ? 1 : 0);
