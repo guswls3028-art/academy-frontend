@@ -488,6 +488,11 @@ QnA 실사용은 사진 decode, 확대·회전·답변, 학생 화면 반영을 
 후기 승인 전후 공개 범위를 실제 API/R2로 확인한다. QA 홈페이지 설정·글·사진은
 해당 disposable tenant에만 생성하며 기존 전체 tenant/user/R2 cleanup0 계약에 포함된다.
 
+설문 실사용의 교사 첨부 묶음은 인증된 응답 목록과 인벤토리 서명 응답이 같은
+개발 tenant·학생의 합성 PNG를 가리킬 때만 읽는다. 정확한 300초 서명 URL에 대한
+브라우저 GET만 허용하며, 인증 헤더 전달과 리다이렉트는 차단한다. 원본 CORS·타입·파일명과
+합성 바이트 해시를 확인한 뒤 실제 파일을 돌려준다. 브라우저의 ZIP 생성·다운로드와
+학생 폴더·바이트 검사는 그대로 유지한다.
 개발 transport는 artifact가 가리키는 정확한 `https://api.hakwonplus.com/api/`만
 SSM의 `http://127.0.0.1:<port>/api/`로 전달한다. 웹 origin은 개발 settings가 실제로
 허용하는 `http://localhost:4173`이다. real upstream status/body/header를 전달하고
