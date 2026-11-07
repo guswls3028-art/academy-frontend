@@ -49,7 +49,8 @@ async function exercise(options = {}) {
     "x-tenant-code": boundary.tenantCode, ...options.apiHeaders };
   const api = async (path, data, payload, status = 200, method = "POST") => handler({
     request: () => ({ url: () => boundary.apiOrigin + "/api/v1/" + path,
-      method: () => method, resourceType: () => "fetch", allHeaders: async () => apiHeaders,
+      method: () => method, ...(options.omitApiResourceType ? {} : { resourceType: () => "fetch" }),
+      allHeaders: async () => apiHeaders,
       headerValue: async (key) => apiHeaders[key] ?? null, postDataJSON: () => data, postDataBuffer: () => null }),
     abort: async () => {}, continue: async () => assert.fail("unguarded API"),
     fetch: async () => ({ status: () => status, headers: () => ({ "content-type": "application/json",
@@ -150,7 +151,7 @@ test("download rejects changed URL, credentials, mutation, wrong MIME/name/conta
 
 
 test("staff survey download reads only the isolated, presigned synthetic attachment", async () => {
-  const result = await exercise({ survey: true });
+  const result = await exercise({ survey: true, omitApiResourceType: true });
   result.guard.assertClean();
   assert.equal(result.aborted, 0);
   assert.deepEqual(result.fetched, [{ url: result.file.url, method: "GET",

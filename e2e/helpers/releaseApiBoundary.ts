@@ -1452,8 +1452,8 @@ export async function installReleaseContextGuard(
         if (issuedPdf.reads.length < 3) issuedPdf.reads.push({ sizeBytes: body.length, sha256: createHash("sha256").update(body).digest("hex") });
         return;
       }
-      const surveyDownload = request.method() === "GET" && request.resourceType() === "xhr"
-        && [...surveyDownloadUrls.values()].includes(upstream);
+      const surveyDownload = request.method() === "GET" && [...surveyDownloadUrls.values()].includes(upstream)
+        && request.resourceType() === "xhr";
       if (surveyDownload) {
         const headers = await request.allHeaders();
         if (bodyBytes > 0 || headers.origin !== boundary.webOrigin
