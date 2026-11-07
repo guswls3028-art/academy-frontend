@@ -126,3 +126,8 @@ e2e/
   workspace `_artifacts/`에 저장하고 커밋하지 않음
 
 - [PARENT-ASSESSMENT-COMMENTS.md](PARENT-ASSESSMENT-COMMENTS.md) — 학부모 전용 평가 코멘트와 수정/조회 흐름
+
+매치업 정밀분석은 OpenAI를 사용하며 분석 중 기존 결과를 유지한다. 실패 시 오류를
+표시하고 같은 페이지에서 재시도할 수 있다. API 대기시간은 서버의 제한된 재시도
+예산을 포함한다. 공급자·모델·데이터 경계는
+[백엔드 OpenAI 운영 계약](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/openai-provider.md)을 따른다.

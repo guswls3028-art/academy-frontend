@@ -396,7 +396,7 @@ export async function includeMatchupPage(
   return data;
 }
 
-// Phase 5-deep VLM — 검수 UI에서 "VLM 정밀 분석" CTA. ondemand Gemini vision 호출.
+// Phase 5-deep VLM — 검수 UI에서 "VLM 정밀 분석" CTA. ondemand OpenAI vision 호출.
 // 응답 page_role과 problems[bbox]는 화면에 미리보기로 노출 (현재 자동 분리 결과와 비교).
 // 호출 한도 초과 시 429.
 export type VlmClassifyResult = {
@@ -417,7 +417,7 @@ export async function vlmClassifyMatchupPage(
   const { data } = await api.post<VlmClassifyResult>(
     `/matchup/documents/${docId}/pages/${pageIndex}/vlm-classify/`,
     {},
-    { timeout: 60_000 },  // Gemini vision은 30s 내외, 여유 60s
+    { timeout: 210_000 },  // 서버의 90초 호출·단발 재시도와 이미지 준비 시간을 포함
   );
   return data;
 }

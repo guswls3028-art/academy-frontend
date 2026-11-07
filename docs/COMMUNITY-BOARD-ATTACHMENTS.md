@@ -203,7 +203,7 @@ PATCH를 반복하지 않는다. 제목이나 첨부 목록 재조회가 수정 
 
 동일 산출물 개발 실사용은 `e2e/flows/notice-roundtrip.spec.ts`에서 관리자 작성→기존
 공지에 사진만 추가→저장·reload→학생 이미지 로딩·reload와 정확한 생성 글 정리를 검증한다.
-인증된 공지 상세 응답에 묶인 QA 첨부만 읽는 검증 환경의 경계는
+인증된 공지 상세와 교사용 공지 목록 응답에 묶인 QA 사진의 읽기 경계는
 [배포·E2E 운영 계약](DEPLOYMENT-OPERATIONS.md)이 소유한다.
 
 `e2e/admin/community-workspace-polish.mock.spec.ts`와
