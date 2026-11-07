@@ -78,16 +78,22 @@ PC의 두 열 폭과 모바일 Safari 글꼴 폭에 맞춰 메인 제목 크기�
 
 ## 검색·공유 메타데이터
 
-초기 HTML, Cloudflare Functions 호스트 메타, 테넌트 레지스트리와 SPA
-페이지 메타는 아래 값을 같은 의미로 유지한다.
+공개 사이트의 검색·공유용 이름은 `신민 과학 연구소`이고 학습 플랫폼의
+로그인·설치 앱 브랜드는 `신과함께`다. Cloudflare Pages Function은
+`godmin.kr`과 `www.godmin.kr`의 `/`와 `/landing` 초기 HTML에
+`신민 과학 연구소 | 신민T 통합과학` 제목, 같은 Open Graph 사이트명,
+`https://godmin.kr/`을 가리키는 단일 `WebSite` JSON-LD를 제공한다.
+정규 URL과 `og:url`은 apex의 해당 경로로 통일하며 사이트맵의 대표 항목은
+`https://godmin.kr/landing`이다. 공개 자료·영상 상세 공유에는 콘텐츠 제목과
+공개 사이트명을 함께 사용한다.
 
-- 제목: `신민T 통합과학 | 신과함께`
-- 설명: 대치동 통합과학 강사 신민T의 수업 철학, 학습 관리와 수강생·학부모
-  전용 플랫폼
-- 대표 이미지: `/tenants/godmin/og-image.png`
+대표 이미지 폴백은 `/tenants/godmin/og-image.png`다. 공개 사이트의 이름과
+홈페이지 제목·설명은 테넌트 메타 API가 실패해도 제공된다. 초기 브라우저
+스크립트는 Function이 제공한 공개 메타데이터를 보존하고, SPA 홈페이지도 같은
+이름과 제목을 사용한다. 검색 결과의 실제 표기는 검색엔진이 재수집 후 결정한다.
 
-SPA 진입 전에도 호스트별 제목·설명·파비콘·OG 값이 노출되고, 페이지가
-마운트되면 현재 URL을 `og:url`로 반영한다.
+`pwa-branding-contract.spec.ts`는 두 호스트의 초기 HTML과 브라우저 메타,
+테넌트 메타 API 장애, 사이트맵, 로그인·설치 앱의 브랜드 경계를 검사한다.
 
 ## 실패 안전과 검증
 
