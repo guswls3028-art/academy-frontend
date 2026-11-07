@@ -650,6 +650,7 @@ export function observeReleaseTestResult(stdout) {
               const kind = statuses.length === 1 ? "http-status"
                 : /Release API boundary failed:|Release request rejected/.test(firstLine) ? "boundary"
                 : /expect\(|Expected values|AssertionError/.test(firstLine) ? "assertion"
+                : /^(?:Test timeout of \d+ms exceeded\.|".+" hook timeout of \d+ms exceeded\.|Tearing down ".+" exceeded the test timeout of \d+ms\.)$/.test(firstLine) ? "test-timeout"
                 : /locator\.[a-z]+:.*(?:Timeout|timeout)/.test(firstLine) ? "locator-timeout" : "other";
               const source = path.basename(String(error?.location?.file || ""));
               addFailureObservation("reportedTestErrors", { specFile: file, resultOrdinal, errorOrdinal: index + 1,
