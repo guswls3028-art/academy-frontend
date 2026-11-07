@@ -34,6 +34,7 @@ import { createRandomUuid } from "@/shared/utils/randomUuid";
 import { adminResultsQueryKeys } from "../../queryKeys";
 import {
   acceptFromDuplicatesApi,
+  confirmOmrAnswerReviewApi,
   fetchOmrReviewDetail,
   listOmrReviewIssuesPage,
   listOmrReviewRows,
@@ -129,16 +130,6 @@ function formatTime(iso: string | null | undefined): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-function shallowEqualAnswers(a: Record<number, string>, b: Record<number, string>): boolean {
-  const ak = Object.keys(a);
-  const bk = Object.keys(b);
-  if (ak.length !== bk.length) return false;
-  for (const k of ak) {
-    if (a[Number(k)] !== b[Number(k)]) return false;
-  }
-  return true;
 }
 
 type Props = {
@@ -585,14 +576,16 @@ export default function OmrReviewWorkspace({
               }
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewList(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewIssues(examId) });
-              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewDetail(selectedId) });
+              const detailRefetch = qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewDetail(selectedId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamResultsRoot(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamDetail(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.adminExamSummary(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.examQuestionStats(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.sessionScores });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.clinicTargets });
-              if (result?.projection_ready === false) {
+              if (result?.code === "OMR_GRADING_CONFIGURATION_REQUIRED") {
+                feedback.warning(result.detail ?? "답안은 저장했습니다. 시험의 문항과 정답을 설정해 주세요.");
+              } else if (result?.projection_ready === false) {
                 feedback.warning(
                   savedScore != null
                     ? `객관식 답안 저장 완료: ${savedScore}점 · 서술형 채점 대기`
@@ -606,7 +599,10 @@ export default function OmrReviewWorkspace({
                 );
               }
               // 자동 다음 학생 이동 (운영자 가속)
-              if (!exactInitialSelection) window.setTimeout(() => navigate(1), 250);
+              if (!exactInitialSelection && result?.code !== "OMR_GRADING_CONFIGURATION_REQUIRED") {
+                window.setTimeout(() => navigate(1), 250);
+              }
+              return detailRefetch;
             }}
             onNavigate={navigate}
           />
@@ -967,7 +963,7 @@ function EditPane({
   studentName: string | null;
   focusedQid: number | null;
   onFocusedQidChange: (qid: number | null) => void;
-  onSaved: (result?: SubmissionManualEditResult) => void;
+  onSaved: (result?: SubmissionManualEditResult) => void | Promise<void>;
   onNavigate: (dir: 1 | -1) => void;
   onDirtyChange?: (dirty: boolean) => void;
   onSelectSubmission?: (submissionId: number) => void;
@@ -981,7 +977,9 @@ function EditPane({
   }, [detail?.submission_id, detail?.answers]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const confirm = useConfirm();
-  const [answers, setAnswers] = useState<Record<number, string>>(initialAnswers);
+  const qc = useQueryClient();
+  const [answerEdits, setAnswerEdits] = useState<Record<number, string>>({});
+  const answers = useMemo(() => ({ ...initialAnswers, ...answerEdits }), [initialAnswers, answerEdits]);
   const [pickedStudent, setPickedStudent] = useState<CandidateRow | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -989,7 +987,7 @@ function EditPane({
 
   // detail 바뀔 때 폼 리셋. dep을 submission_id (primitive)만으로 → 매 렌더 트리거 제거.
   useEffect(() => {
-    setAnswers(initialAnswers);
+    setAnswerEdits({});
     setPickedStudent(null);
     setPickerOpen(false);
   }, [detail?.submission_id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1041,11 +1039,20 @@ function EditPane({
     detail?.enrollment_id != null,
   );
 
-  const dirty = useMemo(() => {
-    if (!detail) return false;
-    if (identifierNeeded && pickedStudent) return true;
-    return !shallowEqualAnswers(answers, initialAnswers);
-  }, [detail, answers, initialAnswers, pickedStudent, identifierNeeded]);
+  const changedAnswers = Object.entries(answerEdits)
+    .filter(([qid, answer]) => answer !== initialAnswers[Number(qid)]);
+  const dirty = Boolean(detail && (changedAnswers.length > 0 || (identifierNeeded && pickedStudent)));
+  const answerReviewVersion = !dirty && !identifierNeeded ? detail?.answer_review_version : null;
+  const needsMarkReview = detail?.meta?.manual_review?.required === true;
+
+  const changeAnswer = (qid: number, answer: string) => {
+    setAnswerEdits((prev) => {
+      const next = { ...prev };
+      if (answer === initialAnswers[qid]) delete next[qid];
+      else next[qid] = answer;
+      return next;
+    });
+  };
 
   // 상위 워크스페이스에 dirty 상태 전파 (백드롭·ESC·X 버튼 close 가드에 사용)
   useEffect(() => {
@@ -1055,9 +1062,10 @@ function EditPane({
   const mut = useMutation({
     mutationFn: async (opts: { allowDuplicate?: boolean } = {}) => {
       if (!detail) throw new Error("no detail");
-      const payloadAnswers = Object.entries(answers).map(([qid, ans]) => ({
+      if (answerReviewVersion) return confirmOmrAnswerReviewApi(detail.submission_id, answerReviewVersion);
+      const payloadAnswers = changedAnswers.map(([qid, answer]) => ({
         exam_question_id: Number(qid),
-        answer: String(ans ?? ""),
+        answer,
       }));
       const idPayload =
         identifierNeeded && pickedStudent
@@ -1075,14 +1083,26 @@ function EditPane({
         allowDuplicate: opts.allowDuplicate,
       });
     },
-    onSuccess: (data) => onSaved(data),
-    onError: (e: unknown) => {
+    onSuccess: async (data) => {
+      await onSaved(data);
+      setAnswerEdits({});
+    },
+    onError: async (e: unknown) => {
       const err = e as {
         response?: { status?: number; data?: { detail?: string; code?: string; conflict_submission_id?: number } };
         message?: string;
       };
       const status = err?.response?.status;
       const code = err?.response?.data?.code;
+      if (code === "OMR_ANSWER_REVIEW_CHANGED" && detail) {
+        feedback.error(err.response?.data?.detail ?? "최신 답안지를 다시 확인해 주세요.");
+        await Promise.all([
+          qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewDetail(detail.submission_id) }),
+          qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewList(examId) }),
+          qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewIssues(examId) }),
+        ]);
+        return;
+      }
       // 409 DUPLICATE_ENROLLMENT — 운영자에게 덮어쓰기 확인 후 재시도
       if (status === 409 && code === "DUPLICATE_ENROLLMENT") {
         const conflictId = err?.response?.data?.conflict_submission_id;
@@ -1141,9 +1161,11 @@ function EditPane({
   });
 
   // mutate / navigate를 ref로 안정화 → 키보드 effect dep 최소화
+  const canSave = Boolean(dirty || canConfirmCurrentStudent || answerReviewVersion) &&
+    !mut.isPending && !discardMut.isPending && !acceptMut.isPending;
   const submitRef = useRef<() => void>(() => {});
   submitRef.current = () => {
-    if (!mut.isPending && (dirty || canConfirmCurrentStudent)) mut.mutate({});
+    if (canSave) mut.mutate({});
   };
   const navigateRef = useRef<(d: 1 | -1) => void>(() => {});
   navigateRef.current = (d) => onNavigate(d);
@@ -1151,7 +1173,7 @@ function EditPane({
   // 첫 flagged 문항 focus (마운트 1회)
   useEffect(() => {
     if (!detail) return;
-    const firstFlagged = detail.answers.find(isFlagged);
+    const firstFlagged = needsMarkReview ? detail.answers.find(isFlagged) : undefined;
     if (firstFlagged) setFocusedQid(firstFlagged.question_id);
   }, [detail?.submission_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1160,7 +1182,7 @@ function EditPane({
     if (!detail) return;
     const rows = detail.answers;
     if (rows.length === 0) return;
-    const pool = flaggedOnly ? rows.filter(isFlagged) : rows;
+    const pool = flaggedOnly ? (needsMarkReview ? rows.filter(isFlagged) : []) : rows;
     if (pool.length === 0) return;
     const curIdx = pool.findIndex((a) => a.question_id === focusedQid);
     const nextIdx =
@@ -1194,6 +1216,7 @@ function EditPane({
         return;
       }
       if (isEditable) return;
+      if (e.key === "Enter" && target?.closest("button, a[href]")) return;
 
       if (e.key === "j" || e.key === "J") {
         e.preventDefault();
@@ -1210,14 +1233,14 @@ function EditPane({
       } else if (e.key === "Enter") {
         e.preventDefault();
         focusRelative(1, false);
-      } else if (focusedQid != null && /^[1-5]$/.test(e.key)) {
+      } else if (!mut.isPending && focusedQid != null && /^[1-5]$/.test(e.key)) {
         // 1~5 빠른 답안: 현재 포커스된 선택형 문항에 즉시 입력 + 다음 flagged 자동 이동
         const q = detail?.answers.find((a) => a.question_id === focusedQid);
         if (!q) return;
         const isChoice = isChoiceAnswer(q, answers[focusedQid]);
         if (!isChoice) return;
         e.preventDefault();
-        setAnswers((prev) => ({ ...prev, [focusedQid]: e.key }));
+        changeAnswer(focusedQid, e.key);
         // 바로 다음 flagged 문항 — 없으면 다음 문항
         window.setTimeout(() => focusRelative(1, true), 0);
       }
@@ -1225,7 +1248,7 @@ function EditPane({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // detail/focusedQid는 ref 없이 closure에서 사용 — 변경 시 리바인딩
-  }, [detail, answers, focusedQid]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [detail, answers, focusedQid, mut.isPending]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (detailLoading) {
     return (
@@ -1242,7 +1265,7 @@ function EditPane({
     );
   }
 
-  const reviewRequired = detail.meta?.manual_review?.required === true || canConfirmCurrentStudent;
+  const reviewRequired = needsMarkReview || canConfirmCurrentStudent;
   const reasons = actionableReviewReasons(reviewRequired, reviewReasons);
   const firstReviewAnswer = detail.answers.find(isFlagged) ?? detail.answers[0];
   const headerName = studentName || (identifierNeeded ? "미식별 학생" : "학생");
@@ -1260,6 +1283,9 @@ function EditPane({
 
       <div className="orw-edit-pane__body">
         {reviewRequired && <OmrReviewReasons reasons={reasons}
+          hint={answerReviewVersion
+            ? "빈칸과 복수 선택이 원본과 같으면 ‘이상 없음’으로 확정하세요. 점수는 시험의 정답표에 따라 계산됩니다."
+            : undefined}
           onIdentify={identifierNeeded ? () => setPickerOpen(true) : undefined}
           onEdit={firstReviewAnswer ? () => setFocusedQid(firstReviewAnswer.question_id) : undefined} />}
         {canConfirmCurrentStudent && (
@@ -1386,9 +1412,11 @@ function EditPane({
                 answer={a}
                 label={questionLabel(a.question_no)}
                 current={answers[a.question_id] ?? ""}
+                flagged={needsMarkReview && isFlagged(a)}
                 focused={focusedQid === a.question_id}
+                disabled={mut.isPending}
                 onFocusRow={() => setFocusedQid(a.question_id)}
-                onChange={(v) => setAnswers((prev) => ({ ...prev, [a.question_id]: v }))}
+                onChange={(v) => changeAnswer(a.question_id, v)}
               />
             ))
           )}
@@ -1421,22 +1449,19 @@ function EditPane({
           className="orw-save-btn"
           type="button"
           onClick={() => mut.mutate({})}
-          disabled={
-            mut.isPending ||
-            (!dirty && !canConfirmCurrentStudent) ||
-            discardMut.isPending ||
-            acceptMut.isPending
-          }
+          disabled={!canSave}
         >
           {mut.isPending
-            ? canConfirmCurrentStudent
+            ? canConfirmCurrentStudent || answerReviewVersion
               ? "확정 중…"
               : "저장 중…"
             : canConfirmCurrentStudent && !dirty
               ? `${headerName}으로 확정하고 점수 표시`
-            : dirty
-              ? "저장 + 재채점"
-              : "변경 사항 없음"}
+              : answerReviewVersion
+                ? "이상 없음"
+                : dirty
+                  ? "저장 + 재채점"
+                  : "변경 사항 없음"}
         </button>
         <button
           className="orw-discard-btn"
@@ -1488,11 +1513,13 @@ function isChoiceAnswer(a: OmrReviewDetailAnswer, current: string): boolean {
 }
 
 function isFlagged(a: OmrReviewDetailAnswer): boolean {
+  const st = String(a.omr?.status || "").toLowerCase();
   const marking = String(a.omr?.marking || "").toLowerCase();
-  if (marking === "blank" || marking === "multi") return true;
+  if (st === "error") return true;
+  if (st === "blank" || (marking === "blank" && (!st || st === "ok")) || a.omr?.expected_multi_answer) return false;
+  if (marking === "multi") return true;
   const conf = a.omr?.confidence;
   if (typeof conf === "number" && conf < 0.5) return true;
-  const st = String(a.omr?.status || "").toLowerCase();
   if (st && st !== "ok") return true;
   return false;
 }
@@ -1501,19 +1528,22 @@ function AnswerRow({
   answer,
   label,
   current,
+  flagged,
   focused,
+  disabled,
   onChange,
   onFocusRow,
 }: {
   answer: OmrReviewDetailAnswer;
   label: string;
   current: string;
+  flagged: boolean;
   focused: boolean;
+  disabled: boolean;
   onChange: (v: string) => void;
   onFocusRow: () => void;
 }) {
   const isChoice = isChoiceAnswer(answer, current);
-  const flagged = isFlagged(answer);
   const marking = String(answer.omr?.marking || "").toLowerCase();
   const conf = answer.omr?.confidence;
   const rowRef = useRef<HTMLDivElement | null>(null);
@@ -1534,10 +1564,12 @@ function AnswerRow({
       <div className="orw-q-row__head">
         <span className="orw-q-row__num">{label}</span>
         <div className="orw-q-row__chips">
-          {marking === "blank" && <span className="orw-chip orw-chip--blank">빈칸</span>}
-          {marking === "multi" && <span className="orw-chip orw-chip--multi">중복마킹</span>}
-          {typeof conf === "number" && conf < 0.5 && (
-            <span className="orw-chip orw-chip--low">신뢰도 {Math.round(conf * 100)}%</span>
+          {isChoice && selectedChoices.length === 0 && <span className="orw-chip orw-chip--ok">미응답</span>}
+          {selectedChoices.length > 1 && <span className="orw-chip orw-chip--ok">복수 선택</span>}
+          {flagged && (
+            <span className="orw-chip orw-chip--low">
+              {typeof conf === "number" && conf < 0.5 ? `신뢰도 ${Math.round(conf * 100)}%` : "확인 필요"}
+            </span>
           )}
           {typeof conf === "number" && conf >= 0.5 && marking !== "blank" && marking !== "multi" && (
             <span className="orw-chip orw-chip--ok">{Math.round(conf * 100)}%</span>
@@ -1553,6 +1585,8 @@ function AnswerRow({
               <button
                 key={c}
                 type="button"
+                aria-pressed={selected}
+                disabled={disabled}
                 className={`orw-bubble ${selected ? "orw-bubble--selected" : ""}`}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1567,15 +1601,13 @@ function AnswerRow({
               </button>
             );
           })}
-          {selectedChoices.length === 0 && (
-            <span className="orw-bubble-empty-hint">미선택</span>
-          )}
         </div>
       ) : (
         <input
           className="orw-essay-input"
           type="text"
           value={current}
+          disabled={disabled}
           onFocus={onFocusRow}
           onChange={(e) => onChange(e.target.value)}
           placeholder="답안 입력"

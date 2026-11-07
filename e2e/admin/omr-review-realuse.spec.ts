@@ -35,7 +35,7 @@ const EXAM_TITLE = `OMR 혼합형 실사용 검증 ${TS}`;
 const STUDENT_NAME = `[E2E-${TS}] OMR학생`;
 const STUDENT_USER = `e2eomr${String(TS).slice(-8)}`;
 const CONTROLLED_PHONE = `010${String(TS).slice(-8)}`;
-const EXPECTED_ANSWERS = Array.from({ length: 30 }, (_, index) => String((index % 5) + 1));
+const EXPECTED_ANSWERS = Array.from({ length: 30 }, (_, index) => index === 8 ? "3,5" : String((index % 5) + 1));
 const EXPECTED_OBJECTIVE_SCORE = 30;
 const EXPECTED_WRITTEN_SCORES = [8, 9] as const;
 const EXPECTED_SCORE = EXPECTED_OBJECTIVE_SCORE
@@ -407,7 +407,9 @@ async function markThirtyQuestionOmrPdf(
   answers.forEach((answer, index) => {
     const column = Math.floor(index / 15);
     const row = index % 15;
-    fillBubble(choiceXs[column][Number(answer) - 1], 20.75 + row * 12.5);
+    for (const choice of answer.split(",")) {
+      fillBubble(choiceXs[column][Number(choice) - 1], 20.75 + row * 12.5);
+    }
   });
   [...(identifier ?? "")].forEach((digit, index) => {
     fillBubble(identifierXs[index], 109.6 + Number(digit) * 6.4);
@@ -548,10 +550,12 @@ async function recoverMissingOmrConfiguration(
   const choiceRows = answerDialog.locator(".answer-key-row--choice");
   await expect(choiceRows).toHaveCount(EXPECTED_ANSWERS.length);
   for (const [index, answer] of EXPECTED_ANSWERS.entries()) {
-    const choice = choiceRows.nth(index).getByRole("checkbox", { name: `${index + 1}번 ${answer}번 선택지`, exact: true });
-    await expect(choice).not.toBeChecked();
-    await choiceRows.nth(index).locator(".answer-key-omr-label").nth(Number(answer) - 1).click();
-    await expect(choice).toBeChecked();
+    for (const label of answer.split(",")) {
+      const choice = choiceRows.nth(index).getByRole("checkbox", { name: `${index + 1}번 ${label}번 선택지`, exact: true });
+      await expect(choice).not.toBeChecked();
+      await choiceRows.nth(index).locator(".answer-key-omr-label").nth(Number(label) - 1).click();
+      await expect(choice).toBeChecked();
+    }
   }
   const writtenRows = answerDialog.locator(".answer-key-row--essay");
   await expect(writtenRows).toHaveCount(writtenQuestionIds.length);
@@ -1385,30 +1389,36 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
 
     const firstAnswerRow = page.locator(".orw-q-row").first();
     await expect(firstAnswerRow.locator(".orw-q-row__num")).toHaveText("1번");
-    const correctedAnswer = firstAnswerRow.getByRole("button", { name: "2", exact: true });
-    await expect(correctedAnswer).toBeVisible({ timeout: 30_000 });
-    await correctedAnswer.click();
+    const originalChoice = firstAnswerRow.getByRole("button", { name: "1", exact: true });
+    await expect(originalChoice).toHaveAttribute("aria-pressed", "true", { timeout: 30_000 });
+    await originalChoice.click();
+    await expect(firstAnswerRow).toContainText("미응답");
     await expect(page.getByRole("button", { name: "저장 + 재채점" })).toBeEnabled();
 
-    const wrongSaveResponsePromise = page.waitForResponse(
+    const blankSaveResponsePromise = page.waitForResponse(
       (resp) =>
         resp.request().method() === "POST" &&
         resp.url().includes(`/submissions/submissions/${submissionId}/manual-edit/`),
       { timeout: 90_000 },
     );
     await page.getByRole("button", { name: "저장 + 재채점" }).click();
-    const wrongSaveResponse = await wrongSaveResponsePromise;
-    expect(wrongSaveResponse.status()).toBe(200);
-    const wrongSaveBody = await wrongSaveResponse.json() as { score?: number; total_score?: number };
-    expect(wrongSaveBody.score ?? wrongSaveBody.total_score).toBe(EXPECTED_OBJECTIVE_SCORE - 1);
+    const blankSaveResponse = await blankSaveResponsePromise;
+    expect(blankSaveResponse.status()).toBe(200);
+    const blankSaveBody = await blankSaveResponse.json() as { score?: number; total_score?: number };
+    expect(blankSaveBody.score ?? blankSaveBody.total_score).toBe(EXPECTED_OBJECTIVE_SCORE - 1);
     await expect(page.getByText(
       `객관식 답안 저장 완료: ${EXPECTED_OBJECTIVE_SCORE - 1}점 · 서술형 채점 대기`,
     ))
       .toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("button", { name: "변경 사항 없음" }))
       .toBeDisabled({ timeout: 20_000 });
+    await expect(firstAnswerRow).toContainText("미응답");
+    const blankDetail = await expectApi<{ answers: Array<{ question_id: number; answer: string }> }>(
+      request, "GET", `/submissions/submissions/${submissionId}/manual-edit/`, adminTokens.access,
+    );
+    expect(blankDetail.answers.find((answer) => answer.question_id === objectiveQuestionIds[0])?.answer).toBe("");
 
-    await firstAnswerRow.getByRole("button", { name: "2", exact: true }).click();
+    await originalChoice.click();
     await expect(page.getByRole("button", { name: "저장 + 재채점" })).toBeEnabled();
     const saveResponsePromise = page.waitForResponse(
       (resp) =>
