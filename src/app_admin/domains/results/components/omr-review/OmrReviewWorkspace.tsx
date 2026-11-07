@@ -990,7 +990,7 @@ function EditPane({
     setAnswerEdits({});
     setPickedStudent(null);
     setPickerOpen(false);
-  }, [detail?.submission_id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [detail?.submission_id]);
 
   const identifierNeeded = useMemo(() => {
     if (!detail) return false;
