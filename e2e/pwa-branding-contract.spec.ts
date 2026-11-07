@@ -55,6 +55,66 @@ test("tenant metadata preserves special characters as text without injecting tag
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test("godmin public search metadata survives API failure and browser boot", async ({ page }) => {
+  const originalFetch = globalThis.fetch;
+  const siteName = "신민 과학 연구소";
+  const title = "신민 과학 연구소 | 신민T 통합과학";
+  globalThis.fetch = async (input) => {
+    const host = new URL(String(input)).searchParams.get("hostname");
+    return host === "godmin.kr"
+      ? Response.json({ title: "신과함께", tenant_code: "godmin", description: "신과함께 학습 플랫폼" })
+      : new Response(null, { status: 503 });
+  };
+  try {
+    for (const host of ["godmin.kr", "www.godmin.kr"]) {
+      for (const path of ["/", "/landing"]) {
+        const response = await documentRequest(host, path);
+        const html = await response.text();
+        const canonical = `https://godmin.kr${path}`;
+        expect(response.status).toBe(200);
+        expect(response.headers.has("X-Robots-Tag")).toBe(false);
+        expect(html).toContain(`<title>${title}</title>`);
+        expect(html).toContain(`property="og:site_name" content="${siteName}"`);
+        expect(html).toContain(`rel="canonical" href="${canonical}"`);
+        expect(html).toContain(`property="og:url" content="${canonical}"`);
+        const schemas = [...html.matchAll(/<script[^>]+type="application\/ld\+json">([^<]+)<\/script>/g)];
+        expect(schemas).toHaveLength(1);
+        expect(JSON.parse(schemas[0][1])).toEqual({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: siteName,
+          url: "https://godmin.kr/",
+        });
+      }
+      const sitemap = await manifestRequest(host, "/sitemap.xml");
+      const xml = await sitemap.text();
+      expect(xml).toContain("<loc>https://godmin.kr/landing</loc>");
+      expect(xml).not.toContain("/login/godmin");
+    }
+    const otherTenant = await documentRequest("tchul.com", "/landing");
+    const otherHtml = await otherTenant.text();
+    expect(otherHtml).toContain('property="og:site_name" content="박철 과학"');
+    expect(otherHtml).not.toContain(siteName);
+
+    const wwwLanding = await documentRequest("www.godmin.kr", "/landing/?source=search");
+    const html = await wwwLanding.text();
+    await page.route("https://www.godmin.kr/**", async (route) => {
+      if (route.request().resourceType() === "document") {
+        await route.fulfill({ body: html, headers: Object.fromEntries(wwwLanding.headers) });
+      } else {
+        await route.fulfill({ body: "", contentType: "application/javascript" });
+      }
+    });
+    await page.goto("https://www.godmin.kr/landing/?source=search");
+    await expect(page).toHaveTitle(title);
+    await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", siteName);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://godmin.kr/landing");
+    await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("public article SEO uses the host-resolved tenant and removes deleted article metadata", async () => {
   const originalFetch = globalThis.fetch;
   let status = 200;

@@ -86,7 +86,9 @@ test.describe("godmin public landing", () => {
     await page.goto(`${BASE}/landing`, { waitUntil: "commit", timeout: 45_000 });
 
     await expect(page.getByRole("heading", { name: "복잡한 과학을, 이해되는 구조로." })).toBeVisible({ timeout: 90_000 });
-    await expect(page).toHaveTitle("신민T 통합과학 | 신과함께");
+    await expect(page).toHaveTitle("신민 과학 연구소 | 신민T 통합과학");
+    await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", "신민 과학 연구소");
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://godmin.kr/landing");
     await expect(page.getByAltText("통합과학 강사 신민 선생님")).toBeVisible();
     const login = page.getByRole("link", { name: "수강생·학부모 로그인" });
     await expect(login).toHaveAttribute("href", "/login/godmin");
@@ -114,6 +116,7 @@ test.describe("godmin public landing", () => {
     await page.goto(`${BASE}/landing`, { waitUntil: "commit", timeout: 45_000 });
 
     await expect(page.getByRole("heading", { name: "복잡한 과학을, 이해되는 구조로." })).toBeVisible({ timeout: 90_000 });
+    await expect(page.getByText("신민 과학 연구소 · 대치동 통합과학", { exact: true })).toBeVisible();
     const nav = page.getByRole("navigation", { name: "홈페이지 주요 메뉴" });
     await expect(nav).toBeVisible();
     for (const label of ["수업 철학", "학습 관리", "신민T", "자료게시판", "영상"]) {

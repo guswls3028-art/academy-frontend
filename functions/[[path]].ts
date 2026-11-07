@@ -6,6 +6,7 @@
 // 청크 해시가 바뀌면 이전 빌드의 index.html이 이전 청크를 요청해 404 → HTML 반환 시 MIME 오류 발생.
 
 import { WORKSPACE_PATHS } from "../src/core/router/workspaceRoutes";
+import { GODMIN_PUBLIC_SITE } from "../src/shared/tenant/tenants/godmin";
 
 interface Env {
   ASSETS: Fetcher;
@@ -223,30 +224,30 @@ function normalizeImagePath(image: string): string {
   return image.startsWith("/") ? image : "/" + image;
 }
 
-/** 테넌트별 사이트맵/SEO 설정. loginPath: 메인 로그인 경로, naver: 네이버 Search Advisor 인증 코드 */
+/** 테넌트별 사이트맵/SEO 설정. entryPath: 검색용 대표 경로, naver: 네이버 Search Advisor 인증 코드 */
 interface TenantSeo {
   domain: string;
-  loginPath: string;
+  entryPath: string;
   naver?: string; // naver-site-verification meta content
 }
 
 const TENANT_SEO: Record<string, TenantSeo> = {
-  "hakwonplus.com":     { domain: "hakwonplus.com",     loginPath: "/promo",          naver: "d2824e05fff2abca6dcc15a69de142bf3c1064bb" },
-  "www.hakwonplus.com": { domain: "hakwonplus.com",     loginPath: "/promo",          naver: "d2824e05fff2abca6dcc15a69de142bf3c1064bb" },
-  "tchul.com":          { domain: "tchul.com",          loginPath: "/login/tchul",    naver: "c7939870eaa36955e7516638b8ac8677da75e30d" },
-  "www.tchul.com":      { domain: "tchul.com",          loginPath: "/login/tchul",    naver: "c7939870eaa36955e7516638b8ac8677da75e30d" },
-  "limglish.kr":        { domain: "limglish.kr",        loginPath: "/login/limglish", naver: "5d45bf4681371272637101e231d53c5e94fbe62e" },
-  "www.limglish.kr":    { domain: "limglish.kr",        loginPath: "/login/limglish", naver: "5d45bf4681371272637101e231d53c5e94fbe62e" },
-  "ymath.co.kr":        { domain: "ymath.co.kr",        loginPath: "/login/ymath",    naver: "e03517c8855c685ee7859cd49de1886f61807f81" },
-  "www.ymath.co.kr":    { domain: "ymath.co.kr",        loginPath: "/login/ymath",    naver: "e03517c8855c685ee7859cd49de1886f61807f81" },
-  "sswe.co.kr":         { domain: "sswe.co.kr",         loginPath: "/login/sswe",     naver: "a529d17f8008421019d65e13be1efda83f84b65c" },
-  "www.sswe.co.kr":     { domain: "sswe.co.kr",         loginPath: "/login/sswe",     naver: "a529d17f8008421019d65e13be1efda83f84b65c" },
-  "dnbacademy.co.kr":   { domain: "dnbacademy.co.kr",   loginPath: "/login/dnb",      naver: "63724ceef8ef97b665e728a3f1e601788af8e2d3" },
-  "www.dnbacademy.co.kr": { domain: "dnbacademy.co.kr", loginPath: "/login/dnb",      naver: "63724ceef8ef97b665e728a3f1e601788af8e2d3" },
-  "movementhui.com":    { domain: "movementhui.com",    loginPath: "/login/movementhui" },
-  "www.movementhui.com": { domain: "movementhui.com",   loginPath: "/login/movementhui" },
-  "godmin.kr":          { domain: "godmin.kr",          loginPath: "/login/godmin" },
-  "www.godmin.kr":      { domain: "godmin.kr",          loginPath: "/login/godmin" },
+  "hakwonplus.com":     { domain: "hakwonplus.com",     entryPath: "/promo",          naver: "d2824e05fff2abca6dcc15a69de142bf3c1064bb" },
+  "www.hakwonplus.com": { domain: "hakwonplus.com",     entryPath: "/promo",          naver: "d2824e05fff2abca6dcc15a69de142bf3c1064bb" },
+  "tchul.com":          { domain: "tchul.com",          entryPath: "/login/tchul",    naver: "c7939870eaa36955e7516638b8ac8677da75e30d" },
+  "www.tchul.com":      { domain: "tchul.com",          entryPath: "/login/tchul",    naver: "c7939870eaa36955e7516638b8ac8677da75e30d" },
+  "limglish.kr":        { domain: "limglish.kr",        entryPath: "/login/limglish", naver: "5d45bf4681371272637101e231d53c5e94fbe62e" },
+  "www.limglish.kr":    { domain: "limglish.kr",        entryPath: "/login/limglish", naver: "5d45bf4681371272637101e231d53c5e94fbe62e" },
+  "ymath.co.kr":        { domain: "ymath.co.kr",        entryPath: "/login/ymath",    naver: "e03517c8855c685ee7859cd49de1886f61807f81" },
+  "www.ymath.co.kr":    { domain: "ymath.co.kr",        entryPath: "/login/ymath",    naver: "e03517c8855c685ee7859cd49de1886f61807f81" },
+  "sswe.co.kr":         { domain: "sswe.co.kr",         entryPath: "/login/sswe",     naver: "a529d17f8008421019d65e13be1efda83f84b65c" },
+  "www.sswe.co.kr":     { domain: "sswe.co.kr",         entryPath: "/login/sswe",     naver: "a529d17f8008421019d65e13be1efda83f84b65c" },
+  "dnbacademy.co.kr":   { domain: "dnbacademy.co.kr",   entryPath: "/login/dnb",      naver: "63724ceef8ef97b665e728a3f1e601788af8e2d3" },
+  "www.dnbacademy.co.kr": { domain: "dnbacademy.co.kr", entryPath: "/login/dnb",      naver: "63724ceef8ef97b665e728a3f1e601788af8e2d3" },
+  "movementhui.com":    { domain: "movementhui.com",    entryPath: "/login/movementhui" },
+  "www.movementhui.com": { domain: "movementhui.com",   entryPath: "/login/movementhui" },
+  "godmin.kr":          { domain: "godmin.kr",          entryPath: "/landing" },
+  "www.godmin.kr":      { domain: "godmin.kr",          entryPath: "/landing" },
 };
 
 /** 네이버 Search Advisor HTML 파일 인증용 매핑 (도메인 → 인증 파일명) */
@@ -273,7 +274,7 @@ function generateSitemap(host: string): string | null {
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
   const primaryRoutes = HAKWONPLUS_HOSTS.has(host)
     ? HAKWONPLUS_INDEXABLE_PROMO_ROUTES
-    : [seo.loginPath];
+    : [seo.entryPath];
   const primaryEntries = primaryRoutes.map((pathname, index) => `  <url>
     <loc>${base}${pathname}</loc>
     <lastmod>${today}</lastmod>
@@ -823,6 +824,16 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
         ...promoMeta,
       }
     : tenantMeta;
+  const godminHost = TENANT_SEO[host]?.domain === GODMIN_PUBLIC_SITE.domain;
+  const godminHome = godminHost && (pathname === "/" || pathname === "/landing" || pathname === "/landing/");
+  if (godminHost && meta && (godminHome || pathname.startsWith("/landing/"))) {
+    meta = {
+      ...meta,
+      siteName: GODMIN_PUBLIC_SITE.name,
+      title: godminHome ? GODMIN_PUBLIC_SITE.title : GODMIN_PUBLIC_SITE.name,
+      description: GODMIN_PUBLIC_SITE.description,
+    };
+  }
   const resourceId = /^\/landing\/resources\/([1-9][0-9]{0,18})\/?$/.exec(pathname)?.[1];
   const videoId = /^\/landing\/videos\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i.exec(pathname)?.[1];
   let resourceStatus: number | undefined;
@@ -832,7 +843,7 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
       : { status: 503 };
     resourceStatus = resource.status;
     if (resource.title && meta) {
-      meta = { ...meta, siteName: meta.title, title: `${resource.title} | ${meta.title}`,
+      meta = { ...meta, siteName: meta.siteName ?? meta.title, title: `${resource.title} | ${meta.title}`,
         description: resource.description || `${meta.title} 공개 학습자료` };
     }
   }
@@ -842,15 +853,30 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
       ? await fetchPublicVideoMeta(apiMeta.tenantCode, videoId) : { status: 503 };
     videoStatus = video.status;
     if (video.title && meta) {
-      meta = { ...meta, siteName: meta.title, title: `${video.title} | ${meta.title}`,
+      meta = { ...meta, siteName: meta.siteName ?? meta.title, title: `${video.title} | ${meta.title}`,
         description: video.description || `${meta.title} 영상`, image: video.image,
         imageWidth: 480, imageHeight: 360 };
     }
   }
   if (meta) {
     const origin = url.origin;
-    const pageUrl = `${origin}${pathname}`;
+    const pageUrl = godminHome
+      ? `${GODMIN_PUBLIC_SITE.origin}${pathname === "/" ? "/" : "/landing"}`
+      : `${origin}${pathname}`;
     html = injectMeta(html, meta, origin, pageUrl, host, pathname);
+
+    if (godminHome) {
+      const website = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: GODMIN_PUBLIC_SITE.name,
+        url: `${GODMIN_PUBLIC_SITE.origin}/`,
+      }).replace(/</g, "\\u003c");
+      html = html.replace(
+        "</head>",
+        () => `    <script type="application/ld+json">${website}</script>\n  </head>`,
+      );
+    }
   }
 
   const headers = new Headers({

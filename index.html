@@ -52,18 +52,25 @@
         };
         var fallbackName = (host.split(".")[0] || "학원").replace(/[-_]+/g, " ");
         var cfg = tenants[host] || { t: fallbackName, d: fallbackName + " 학습 플랫폼", k: "학원,학습플랫폼" };
-        document.title = cfg.t;
+        var pathname = location.pathname;
+        // Godmin public routes receive page-specific metadata from the Pages Function.
+        var godminPublic = (host === "godmin.kr" || host === "www.godmin.kr")
+          && (pathname === "/" || pathname === "/landing" || pathname.indexOf("/landing/") === 0);
         function setMeta(sel, val) { var el = document.querySelector(sel); if (el) el.setAttribute("content", val); }
         function setAttr(sel, attr, val) { var el = document.querySelector(sel); if (el) el.setAttribute(attr, val); }
-        /* 기본 메타 태그 */
-        setMeta('meta[name="description"]', cfg.d);
-        if (cfg.k) setMeta('meta[name="keywords"]', cfg.k);
-        /* OG/Twitter */
-        setMeta('meta[property="og:site_name"]', cfg.s ? cfg.s.name : cfg.t);
-        setMeta('meta[property="og:title"]', cfg.t);
-        setMeta('meta[property="og:description"]', cfg.d);
-        setMeta('meta[name="twitter:title"]', cfg.t);
-        setMeta('meta[name="twitter:description"]', cfg.d);
+        if (!godminPublic) {
+          document.title = cfg.t;
+          setMeta('meta[name="description"]', cfg.d);
+          if (cfg.k) setMeta('meta[name="keywords"]', cfg.k);
+          setMeta('meta[property="og:site_name"]', cfg.s ? cfg.s.name : cfg.t);
+          setMeta('meta[property="og:title"]', cfg.t);
+          setMeta('meta[property="og:description"]', cfg.d);
+          setMeta('meta[name="twitter:title"]', cfg.t);
+          setMeta('meta[name="twitter:description"]', cfg.d);
+          var pageUrl = origin + pathname;
+          setAttr('link[rel="canonical"]', "href", pageUrl);
+          setMeta('meta[property="og:url"]', pageUrl);
+        }
         if (cfg.tc) setMeta('meta[name="theme-color"]', cfg.tc);
         var manifest = document.querySelector('link[rel="manifest"]');
         if (manifest) {
@@ -82,10 +89,6 @@
           }
           robots.setAttribute("content", "noindex, nofollow, noarchive");
         }
-        /* canonical + og:url */
-        var pageUrl = typeof location !== "undefined" ? (location.origin + location.pathname) : "";
-        setAttr('link[rel="canonical"]', "href", pageUrl);
-        setMeta('meta[property="og:url"]', pageUrl);
         /* favicon */
         if (cfg.f) {
           var link = document.querySelector('link[rel="icon"]');
@@ -102,7 +105,7 @@
           apple.setAttribute("href", cfg.a);
         }
         /* OG image */
-        if (cfg.i) {
+        if (cfg.i && !godminPublic) {
           var imgUrl = origin + cfg.i;
           setMeta('meta[property="og:image"]', imgUrl);
           setMeta('meta[name="twitter:image"]', imgUrl);
@@ -110,7 +113,7 @@
           if (cfg.h) setMeta('meta[property="og:image:height"]', String(cfg.h));
         }
         /* Schema.org JSON-LD 구조화 데이터 — 검색엔진 리치 스니펫용 */
-        if (cfg.s) {
+        if (cfg.s && !godminPublic) {
           var schema = {
             "@context": "https://schema.org",
             "@type": cfg.s.type || "EducationalOrganization",
