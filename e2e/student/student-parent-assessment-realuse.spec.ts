@@ -3,7 +3,7 @@
  * Runs only in the disposable production-shaped development tenant.
  */
 import { expect, test } from "../fixtures/strictTest";
-import type { APIRequestContext, Page, Route, TestInfo } from "@playwright/test";
+import type { APIRequestContext, Locator, Page, Route, TestInfo } from "@playwright/test";
 import type { SendPreflightResponse } from "../../src/app_admin/domains/messages/api/messages.api";
 import type { ManualGradeSheet } from "../../src/app_admin/domains/results/api/manualExamGrading";
 import type { ExamsListResponse } from "../../src/app_student/domains/exams/api/exams.api";
@@ -696,8 +696,10 @@ async function verifyManualScorePrecision(
   );
   expect(questions).toHaveLength(6);
   for (const question of questions) expect(question.score).toBe(100 / 6);
+  const unenteredEnrollmentId = created.enrollmentIds.find((id) => id !== created.primaryEnrollmentId);
+  expect(unenteredEnrollmentId).toBeDefined();
   await expectApi(request, "PUT", `/exams/${exam.id}/enrollments/?session_id=${created.sessionId}`, admin.access,
-    { enrollment_ids: [created.primaryEnrollmentId] }, [200]);
+    { enrollment_ids: [created.primaryEnrollmentId, unenteredEnrollmentId] }, [200]);
 
   const username = `qa-score-assistant-${runStamp}`;
   const staff = await expectApi<{ id: number }>(request, "POST", "/staffs/", admin.access, {
@@ -727,10 +729,12 @@ async function verifyManualScorePrecision(
     await page.getByRole("menu", { name: `${manualExamTitle} 작업 선택`, exact: true })
       .getByRole("menuitem", { name: /^문항별 점수 입력/ }).click();
     const dialog = page.getByRole("dialog").filter({ hasText: `${manualExamTitle} 문항별 점수 입력` });
-    await expect(dialog.locator("input[data-manual-grade-cell]")).toHaveCount(6);
+    await expect(dialog.locator("input[data-manual-grade-cell]")).toHaveCount(12);
     await dialog.getByRole("combobox", { name: "채점표 배율 선택" }).selectOption(width === 390 ? "50" : "100");
     return dialog;
   };
+  const primaryCells = (dialog: Locator) => dialog.getByRole("row")
+    .filter({ hasText: student.name }).locator("input[data-manual-grade-cell]");
   await withOwnedScoreLeaseCleanup(context, request, { sessionId: created.sessionId!, actorAccess: staffTokens.access }, async () => {
     await gotoAndSettle(page, `${QA_BASE}/login/${QA_TENANT}`, { timeout: 45_000 });
     await page.getByTestId("login-username").fill(username);
@@ -746,7 +750,8 @@ async function verifyManualScorePrecision(
       let dialog = await openSheet(width);
       const expectedMaximum = width === 390 ? 16.6667 : 100 / 6;
       const weights = dialog.getByRole("spinbutton", { name: /^\d+번 배점$/ });
-      const cells = dialog.locator("input[data-manual-grade-cell]");
+      const cells = primaryCells(dialog);
+      await expect(cells).toHaveCount(6);
       for (let index = 0; index < 6; index += 1) {
         const maximum = await weights.nth(index).inputValue();
         expect(Number(maximum)).toBe(100 / 6);
@@ -755,6 +760,7 @@ async function verifyManualScorePrecision(
       }
       await dialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
       await expect(dialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
+      await expect(dialog.getByText("확인 대상 1명 · 나머지 1명 유지", { exact: true })).toBeVisible();
       const saved = page.waitForResponse((response) => response.request().method() === "POST"
         && new URL(response.url()).pathname === `/api/v1${manualPath}`
         && response.request().postDataJSON()?.apply === true).then(async (response) => {
@@ -785,12 +791,14 @@ async function verifyManualScorePrecision(
       await dialog.getByRole("button", { name: "닫기", exact: true }).click();
       dialog = await openSheet(width);
       for (let index = 0; index < 6; index += 1) {
-        await expect(dialog.locator("input[data-manual-grade-cell]").nth(index))
+        await expect(primaryCells(dialog).nth(index))
           .toHaveValue(width === 390 && index === 0 ? "0" : String(expectedMaximum));
         await expect(dialog.getByRole("spinbutton", { name: /^\d+번 배점$/ }).nth(index)).toHaveValue(String(expectedMaximum));
       }
       const persisted = await expectApi<ManualGradeSheet>(request, "GET", manualPath, staffTokens.access);
       expect(persisted.questions.map((question) => question.max_score)).toEqual(Array(6).fill(expectedMaximum));
+      expect(persisted.rows.find((row) => row.enrollment_id === unenteredEnrollmentId))
+        .toMatchObject({ expected_version: null, is_not_submitted: false });
       expect((await waitForResult(request, studentTokens.access, exam.id)).total_score).toBe(expectedTotal);
       expect((await waitForResult(request, parentTokens.access, exam.id, student.id)).total_score).toBe(expectedTotal);
       await assertNoHorizontalOverflow(page);
