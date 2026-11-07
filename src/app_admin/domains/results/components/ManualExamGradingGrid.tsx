@@ -1120,6 +1120,14 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       return;
     }
     const frame = window.requestAnimationFrame(() => {
+      const workspace = workspaceRef.current;
+      const active = workspace?.ownerDocument.activeElement;
+      if (workspace && active && active !== workspace && workspace.contains(active)) {
+        // A teacher may have entered a control while the table was opening.
+        // Do not send the next keystroke to a different student's score cell.
+        autoFocusedExamRef.current = examId;
+        return;
+      }
       const focusRowIndex = draftRows.findIndex((row) => row.enrollment_id === focusEnrollmentId);
       const firstCell = (focusRowIndex >= 0
         ? tableWrapRef.current?.querySelector<HTMLElement>(

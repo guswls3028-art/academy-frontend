@@ -42,9 +42,6 @@ import { verifyExcelAssessment } from "./excelAssessmentRealuse";
 import { withOwnedScoreLeaseCleanup } from "../helpers/scoreLeaseCleanup";
 import { verifySessionSchedules } from '../helpers/verifySessionSchedules';
 
-// This scenario now spans submission, feedback, templates, grading, copy and
-// attendance and online written-answer journeys. Budget the combined flow without relaxing any individual
-// action, navigation, API or assertion deadline.
 test.setTimeout(660_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 
@@ -365,6 +362,10 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
   });
 
   test("390px 학생·학부모 자녀별 제출·결과·reload/relogin·desktop을 완료한다", async ({ page, request }, testInfo) => {
+    // The combined assessment journey includes weekday schedules, written
+    // answers and Excel. The release canary reached Excel but hit 660s before
+    // student readback. Give this case margin; keep action and hook limits.
+    test.setTimeout(840_000);
     const boundary = await installQaStudentParentBoundary(page, request);
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
