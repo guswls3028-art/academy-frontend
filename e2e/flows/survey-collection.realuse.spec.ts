@@ -224,9 +224,17 @@ test.describe.serial("[real-use] 설문·성적 취합과 자녀별 응답", () 
     }
     await page.locator("summary").filter({ hasText: primary.name }).click();
     await page.getByRole("link", { name: "학생 기록 보기", exact: true }).click();
-    await page.getByText("설문으로 받은 정보", { exact: true }).click();
-    await page.locator("summary").filter({ hasText: memo.title }).click();
-    await expect(page.getByText("토요일", { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(`${QA_BASE}/workspace/students/${primary.id}`);
+    const record = page.getByRole("dialog", { name: "학생 상세", exact: true });
+    // The last capture leaves the page at 390px, where contact and notes start closed.
+    const showNotes = record.getByRole("button", { name: "연락처·메모 보기", exact: true });
+    await expect(showNotes).toHaveAttribute("aria-expanded", "false");
+    await showNotes.click();
+    await expect(record.getByRole("button", { name: "연락처·메모 접기", exact: true }))
+      .toHaveAttribute("aria-expanded", "true");
+    await record.getByText("설문으로 받은 정보", { exact: true }).click();
+    await record.locator("summary").filter({ hasText: memo.title }).click();
+    await expect(record.getByText("토요일", { exact: true })).toBeVisible();
 
     const studentContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
     try {
