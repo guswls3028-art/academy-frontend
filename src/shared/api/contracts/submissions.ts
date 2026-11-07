@@ -341,12 +341,11 @@ export async function manualEditSubmissionApi(
   }
 
   const answers = (input.answers ?? [])
-    .filter((a) => a && Number.isFinite(Number(a.exam_question_id)))
+    .filter((a) => a && a.answer != null && Number.isFinite(Number(a.exam_question_id)))
     .map((a) => ({
       exam_question_id: Number(a.exam_question_id),
-      answer: String(a.answer ?? ""),
-    }))
-    .filter((a) => a.answer.trim().length > 0);
+      answer: String(a.answer),
+    }));
 
   const payload = {
     identifier: input.identifier ?? null,

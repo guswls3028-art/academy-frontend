@@ -766,19 +766,11 @@
   border-color: var(--color-brand-primary, #6366f1);
   color: var(--color-brand-primary-contrast);
 }
-.orw-bubble-empty-hint {
-  font-size: 11px;
-  color: var(--color-text-muted, #9ca3af);
-  margin-left: 6px;
-  font-style: italic;
-}
 .orw-chip {
   padding: 2px 7px; border-radius: 999px;
   font-size: 10px; font-weight: 600;
   white-space: nowrap;
 }
-.orw-chip--blank { background: #fef3c7; color: #92400e; }
-.orw-chip--multi { background: #fed7aa; color: #9a3412; }
 .orw-chip--low { background: #e0e7ff; color: #4338ca; }
 .orw-chip--ok { background: #f3f4f6; color: #6b7280; font-weight: 500; }
 

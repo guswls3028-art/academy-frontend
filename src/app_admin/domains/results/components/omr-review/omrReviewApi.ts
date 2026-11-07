@@ -8,6 +8,7 @@
  */
 
 import api from "@/shared/api/axios";
+import type { SubmissionManualEditResult } from "@/shared/api/contracts/submissions";
 
 export type OmrAnswerStats = {
   total: number;
@@ -53,6 +54,7 @@ export type OmrAnswerMeta = {
   version?: string;
   detected?: (string | number)[];
   marking?: "single" | "blank" | "multi" | string;
+  expected_multi_answer?: boolean;
   confidence?: number;
   status?: "ok" | string;
   /** 문항 전체 영역 bbox (모든 버블의 bounding box) */
@@ -91,6 +93,7 @@ export type OmrReviewDetail = {
   target_id: number;
   identifier: unknown;
   answers: OmrReviewDetailAnswer[];
+  answer_review_version?: string | null;
   scan_image_url: string;
   original_scan_image_url?: string;
   scan_image_is_aligned?: boolean;
@@ -205,6 +208,17 @@ export async function listOmrReviewIssuesPage(
 export async function fetchOmrReviewDetail(submissionId: number): Promise<OmrReviewDetail> {
   const res = await api.get(`/submissions/submissions/${submissionId}/manual-edit/`);
   return res.data as OmrReviewDetail;
+}
+
+export async function confirmOmrAnswerReviewApi(
+  submissionId: number,
+  version: string,
+): Promise<SubmissionManualEditResult> {
+  const res = await api.post(`/submissions/submissions/${submissionId}/manual-edit/`, {
+    answer_review_version: version,
+    note: "omr_review_ui_confirm_answers",
+  });
+  return res.data;
 }
 
 /* 학생 picker — OMR 검토용 응시 대상 후보 */

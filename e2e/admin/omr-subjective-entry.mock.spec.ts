@@ -481,44 +481,72 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     await expect(page).not.toHaveURL(/gradingExamId=/);
   });
 
-  test("30문항 스캔을 열고 첫 객관식 답안을 수정·저장·원복한다", async ({ page }) => {
+  test("OMR 복수 선택과 빈칸을 확인하고 오래된 검수 상태에서 복구한다", async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
     const unexpectedMutations = await openScores(page);
     const submissionId = 10021;
     const savedAnswers: string[] = [];
+    const confirmedVersions: string[] = [];
     let firstAnswer = "1";
+    let reviewVersion: string | null = "review-1";
     const scan = "data:image/svg+xml," + encodeURIComponent(
       '<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200"><rect width="900" height="1200" fill="white"/></svg>',
     );
     await page.route("**/api/v1/submissions/submissions/**", async (route) => {
-      const path = new URL(route.request().url()).pathname;
-      if (path.endsWith(`/exams/${MIXED_EXAM_ID}/`)) {
-        if (new URL(route.request().url()).searchParams.get("review_issues") === "1") {
-          return route.fulfill({ json: { items: [], total: 0, next_cursor: null } });
-        }
-        return route.fulfill({ json: [{
+      const url = new URL(route.request().url());
+      const review = { required: reviewVersion != null, reasons: reviewVersion ? ["ANSWER_SCORE_AMBIGUOUS"] : [] };
+      const status = review.required ? "answers_ready" : "done";
+      if (url.pathname.endsWith(`/exams/${MIXED_EXAM_ID}/`)) {
+        const row = {
           id: submissionId, enrollment_id: 9911, student_name: "테스트 학생",
-          status: "done", source: "omr", score: 30, created_at: "2026-09-01T12:00:00+09:00",
-          has_file: true, manual_review_required: false, manual_review_reasons: [],
+          status, source: "omr_scan", score: review.required ? null : 27, created_at: "2026-09-01T12:00:00+09:00",
+          has_file: true, manual_review_required: review.required, manual_review_reasons: review.reasons,
           identifier_status: "matched",
-        }] });
+        };
+        if (url.searchParams.get("review_issues") === "1") {
+          return route.fulfill({ json: {
+            items: review.required ? [row] : [], total: Number(review.required), next_cursor: null,
+          } });
+        }
+        return route.fulfill({ json: [row] });
       }
-      if (path.endsWith(`/${submissionId}/manual-edit/`)) {
+      if (url.pathname.endsWith(`/${submissionId}/manual-edit/`)) {
         if (route.request().method() === "POST") {
-          const body = route.request().postDataJSON() as { answers: Array<{ exam_question_id: number; answer: string }> };
-          expect(body.answers).toHaveLength(30);
-          firstAnswer = body.answers.find((answer) => answer.exam_question_id === 10001)!.answer;
+          const body = route.request().postDataJSON() as {
+            answer_review_version?: string;
+            answers?: Array<{ exam_question_id: number; answer: string }>;
+          };
+          if (body.answer_review_version) {
+            expect(body.answers).toBeUndefined();
+            confirmedVersions.push(body.answer_review_version);
+            if (reviewVersion === "review-1") {
+              reviewVersion = "review-2";
+              return route.fulfill({ status: 409, json: {
+                code: "OMR_ANSWER_REVIEW_CHANGED", detail: "답안지 검수 상태가 바뀌었습니다. 최신 답안지를 확인해 주세요.",
+              } });
+            }
+            expect(body.answer_review_version).toBe("review-2");
+            reviewVersion = null;
+            return route.fulfill({ json: { status: "done", graded: true, score: 27 } });
+          }
+          expect(body.answers).toEqual([{ exam_question_id: 10001, answer: expect.any(String) }]);
+          firstAnswer = body.answers![0].answer;
           savedAnswers.push(firstAnswer);
-          return route.fulfill({ json: { graded: true, score: firstAnswer === "1" ? 30 : 29 } });
+          return route.fulfill({ json: { graded: true, score: firstAnswer === "1" ? 27 : 26 } });
         }
         return route.fulfill({ json: {
-          submission_id: submissionId, submission_status: "done", enrollment_id: 9911,
+          submission_id: submissionId, submission_status: status, enrollment_id: 9911,
           target_type: "exam", target_id: MIXED_EXAM_ID, identifier: {},
           scan_image_url: scan, scan_image_size: { width: 900, height: 1200 },
-          scan_image_is_aligned: true, meta: {}, duplicate_siblings: [],
+          scan_image_is_aligned: true, meta: { manual_review: review }, duplicate_siblings: [],
+          answer_review_version: reviewVersion,
           answers: Array.from({ length: 30 }, (_, index) => ({
             question_id: 10001 + index, question_no: index + 1,
-            answer: index === 0 ? firstAnswer : "1",
-            omr: { marking: "single", confidence: 1, status: "ok" },
+            answer: [firstAnswer, "", "3,5", "3,5"][index] ?? "1",
+            omr: index === 1 ? { marking: "blank", confidence: 0, status: "blank" }
+              : index === 2 || index === 3
+                ? { marking: "multi", confidence: 0.9, status: "ambiguous", expected_multi_answer: index === 3 }
+                : { marking: "single", confidence: 1, status: "ok" },
           })),
         } });
       }
@@ -529,21 +557,47 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       .getByRole("button", { name: "중대부고 2회차 혼합형 문항별 점수 입력" }).click();
     await expect(page.getByRole("region", { name: "혼합 채점 워크스페이스" })).toBeVisible();
     await page.getByRole("button", { name: "OMR 결과 보정", exact: true }).click();
-    await expect(page.getByRole("dialog", { name: "OMR 검토", exact: true })).toBeVisible();
-    await expect(page.locator(".orw-q-row")).toHaveCount(30);
+    const dialog = page.getByRole("dialog", { name: "OMR 검토", exact: true });
+    await expect(dialog).toBeVisible();
+    const answerRows = dialog.locator(".orw-q-row");
+    await expect(answerRows).toHaveCount(30);
     const scanImage = page.getByRole("img", { name: "OMR 스캔 원본", exact: true });
     await expect(scanImage).toBeVisible();
     await expect.poll(() => scanImage.evaluate((element: HTMLImageElement) => (
       element.complete && element.naturalWidth > 0 && element.naturalHeight > 0
     ))).toBe(true);
-    const firstAnswerRow = page.locator(".orw-q-row").first();
-    for (const expected of ["1,2", "1"]) {
-      await firstAnswerRow.getByRole("button", { name: "2", exact: true }).click();
+    await expect(answerRows.nth(1)).toContainText("미응답");
+    await expect(answerRows.nth(1)).not.toHaveClass(/orw-q-row--flag/);
+    await expect(answerRows.nth(2)).toContainText("복수 선택");
+    await expect(answerRows.nth(2)).toHaveClass(/orw-q-row--flag/);
+    await expect(answerRows.nth(3)).not.toHaveClass(/orw-q-row--flag/);
+    const confirmReview = dialog.getByRole("button", { name: "이상 없음", exact: true });
+    await expect(confirmReview).toBeEnabled();
+    await dialog.screenshot({ path: testInfo.outputPath("omr-confirm-desktop.png") });
+    await confirmReview.press("Enter");
+    await expect(page.getByText("답안지 검수 상태가 바뀌었습니다. 최신 답안지를 확인해 주세요.")).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await dialog.getByRole("tab", { name: "확인", exact: true }).click();
+    await expect(confirmReview).toBeEnabled();
+    await expect.poll(() => dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await dialog.screenshot({ path: testInfo.outputPath("omr-confirm-mobile.png") });
+    await confirmReview.click();
+    await expect(dialog.getByRole("button", { name: "변경 사항 없음", exact: true })).toBeDisabled();
+    expect(confirmedVersions).toEqual(["review-1", "review-2"]);
+    await expect(dialog.locator(".orw-q-row--flag")).toHaveCount(0);
+    await expect(answerRows.nth(2).getByRole("button", { name: "3", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(answerRows.nth(2).getByRole("button", { name: "5", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(answerRows.nth(1)).toContainText("미응답");
+
+    const firstAnswerRow = answerRows.first();
+    for (const [choice, expected] of [["2", "1,2"], ["2", "1"], ["1", ""], ["1", "1"]]) {
+      await firstAnswerRow.getByRole("button", { name: choice, exact: true }).click();
       await page.getByRole("button", { name: "저장 + 재채점", exact: true }).click();
       await expect(page.getByRole("button", { name: "변경 사항 없음", exact: true })).toBeDisabled();
       expect(savedAnswers.at(-1)).toBe(expected);
     }
-    expect(savedAnswers).toEqual(["1,2", "1"]);
+    expect(savedAnswers).toEqual(["1,2", "1", "", "1"]);
     expect(unexpectedMutations).toEqual([]);
   });
 
