@@ -501,11 +501,14 @@ test("transport truth preserves ordered reported errors but never interprets arb
     { message: "expect(received).toBe(expected)\nExpected: 403\nReceived: 401\nsecret-token", location: { file: "C:/private/video-playback-renewal.realuse.spec.ts", line: 750, column: 5 } },
     { message: "Release API boundary failed: secret-token", location: { file: "C:/private/releaseApiBoundary.ts", line: 647, column: 33 } },
     { message: "GET /api/v1/clinic/sessions/ returned 502: private-user", location: { file: "C:/private/strictTest.ts", line: 1, column: 1 } },
+    { message: "Test timeout of 660000ms exceeded.\nprivate-user" },
+    { message: 'Tearing down "private-fixture" exceeded the test timeout of 660000ms.' },
   ];
   const observed = observeReleaseTestResult(JSON.stringify(report));
   assert.deepEqual(observed.reportedTestErrors.map((item) => [item.errorOrdinal, item.kind, item.expectedStatus, item.receivedStatus]),
-    [[1, "assertion", null, null], [2, "boundary", null, null], [3, "http-status", null, 502]]);
-  assert.doesNotMatch(JSON.stringify(observed), /secret-token|private-user|C:\/private|403|401/);
+    [[1, "assertion", null, null], [2, "boundary", null, null], [3, "http-status", null, 502],
+      [4, "test-timeout", null, null], [5, "test-timeout", null, null]]);
+  assert.doesNotMatch(JSON.stringify(observed), /secret-token|private-user|private-fixture|C:\/private|403|401/);
   assert.throws(() => assertReleaseSummary(report), /./);
 });
 
