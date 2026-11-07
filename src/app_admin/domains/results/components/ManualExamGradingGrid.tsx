@@ -2335,7 +2335,7 @@ function ManualGradingIssues({
     <>
       <ul>{items.slice(0, visibleCount)}</ul>
       {items.length > visibleCount && (
-        <details className={styles.moreIssues}>
+        <details>
           <summary>오류 {items.length - visibleCount}건 더 보기</summary>
           <ul>{items.slice(visibleCount)}</ul>
         </details>

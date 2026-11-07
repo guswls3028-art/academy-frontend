@@ -886,20 +886,13 @@
   overflow-wrap: anywhere;
 }
 
-.moreIssues summary {
-  width: fit-content;
-  margin-top: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 700;
-}
-
 .preview strong {
   font-size: 13px;
 }
 
 .preview span,
-.preview li {
+.preview li,
+.preview summary {
   font-size: 12px;
 }
 
