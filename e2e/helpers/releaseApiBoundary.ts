@@ -70,11 +70,12 @@ function inventoryDisposition(name: string): string {
     + (ascii ? "" : "; filename*=UTF-8''" + encodeRfc3986(safeName));
 }
 
-function isExactInventoryOriginalDownload(boundary: ReleaseBoundary, rawUrl: string, file: InventoryOriginal): boolean {
-  if (boundary.mode !== "development") return false;
+function isExactInventoryOriginalDownload(boundary: ReleaseBoundary, rawUrl: string, file: InventoryOriginal, exactExpiry?: number): boolean {
+  if (boundary.mode !== "development" || !URL.canParse(rawUrl)) return false;
   const target = new URL(rawUrl);
   if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
     || rawUrl !== target.origin + target.pathname + target.search
+    || (exactExpiry !== undefined && target.searchParams.get("X-Amz-Expires") !== String(exactExpiry))
     || target.pathname !== "/academy-development-artifacts/" + file.r2Key.split("/").map(encodeRfc3986).join("/")
     || target.searchParams.getAll("response-content-type").length !== 1
     || target.searchParams.get("response-content-type") !== file.contentType
@@ -82,7 +83,31 @@ function isExactInventoryOriginalDownload(boundary: ReleaseBoundary, rawUrl: str
     || target.searchParams.get("response-content-disposition") !== inventoryDisposition(file.name)) return false;
   target.searchParams.delete("response-content-type");
   target.searchParams.delete("response-content-disposition");
-  return hasExactHostSignature(target, 3600);
+  return hasExactHostSignature(target, exactExpiry ?? 3600);
+}
+
+// Only the synthetic survey PNG from the staff response list can be read here.
+const SURVEY_QA_ATTACHMENT = {
+  name: "시험범위.png", contentType: "image/png", sizeBytes: 68,
+  sha256: "5e3d382db4dd83d59aa5742793ad6b7903409e865c83bcbc54835049f043bc15",
+} as const;
+
+function surveyQaOriginals(boundary: ReleaseBoundary, surveyId: number, payload: unknown): string[] {
+  if (!Number.isSafeInteger(boundary.omrR2TenantId) || Number(boundary.omrR2TenantId) < 1
+    || !Number.isSafeInteger(surveyId) || surveyId < 1 || !isRecord(payload) || !isRecord(payload.survey)
+    || payload.survey.id !== surveyId || !Array.isArray(payload.results) || payload.results.length > 100) return [];
+  return payload.results.flatMap((row) => {
+    if (!isRecord(row) || row.answered !== true || !Number.isSafeInteger(row.student_id) || Number(row.student_id) < 1
+      || !isRecord(row.response) || row.response.survey_id !== surveyId || row.response.student_id !== row.student_id
+      || typeof row.response.student_ps !== "string" || !/^[A-Za-z0-9_-]+$/.test(row.response.student_ps)
+      || !Array.isArray(row.response.attachments) || row.response.attachments.length > 10) return [];
+    const prefix = `tenants/${boundary.omrR2TenantId}/students/${row.response.student_ps}/inventory/`;
+    return row.response.attachments.flatMap((file) => isRecord(file)
+      && file.name === SURVEY_QA_ATTACHMENT.name && file.content_type === SURVEY_QA_ATTACHMENT.contentType
+      && file.size_bytes === SURVEY_QA_ATTACHMENT.sizeBytes && typeof file.r2_key === "string"
+      && file.r2_key.startsWith(prefix) && /^시험범위_[0-9]{6}_[a-f0-9]{32}\.png$/.test(file.r2_key.slice(prefix.length))
+      ? [file.r2_key] : []);
+  });
 }
 
 export function isExactDevelopmentConversionAsset(boundary: ReleaseBoundary, rawUrl: string, conversionId: string,
@@ -1146,6 +1171,8 @@ export async function installReleaseContextGuard(
   const documentDownloadUrls = new Map<string, { url: string; filename: string; contentType: string; contentDisposition: string;
     inventoryOriginal?: InventoryOriginal }>();
   const inventoryOriginals = new Map<string, InventoryOriginal>();
+  const surveyOriginalKeys = new Set<string>();
+  const surveyDownloadUrls = new Map<string, string>();
   const communityAttachments = new Map<string, { contentType: string; originalName: string; sizeBytes?: number }>();
   const registerCommunityPost = (post: unknown, expectedType?: "qna" | "notice") => {
     if (!isRecord(post) || !["qna", "notice", "board", "materials", "counsel"].includes(String(post.post_type)) || typeof post.post_type !== "string"
@@ -1425,6 +1452,36 @@ export async function installReleaseContextGuard(
         if (issuedPdf.reads.length < 3) issuedPdf.reads.push({ sizeBytes: body.length, sha256: createHash("sha256").update(body).digest("hex") });
         return;
       }
+      const surveyDownload = request.method() === "GET" && [...surveyDownloadUrls.values()].includes(upstream)
+        && request.resourceType() === "xhr";
+      if (surveyDownload) {
+        const headers = await request.allHeaders();
+        if (bodyBytes > 0 || headers.origin !== boundary.webOrigin
+          || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key", "range"]
+            .some((key) => headers[key])) {
+          await reject("credentials");
+          return;
+        }
+        const { contentType, sizeBytes, name, sha256 } = SURVEY_QA_ATTACHMENT;
+        const response = await route.fetch({ url: upstream, method: "GET",
+          headers: { accept: contentType, origin: boundary.webOrigin }, maxRedirects: 0 });
+        const responseHeaders = response.headers();
+        const allowOrigin = responseHeaders["access-control-allow-origin"];
+        if (response.status() !== 200 || responseHeaders["content-type"]?.split(";")[0].trim().toLowerCase() !== contentType
+          || responseHeaders["content-disposition"] !== inventoryDisposition(name)
+          || !allowOrigin || !["*", boundary.webOrigin].includes(allowOrigin)) {
+          await reject("transport");
+          return;
+        }
+        const body = await response.body();
+        if (body.length !== sizeBytes || createHash("sha256").update(body).digest("hex") !== sha256) {
+          await reject("transport");
+          return;
+        }
+        await route.fulfill({ status: 200, headers: { "content-type": contentType,
+          "access-control-allow-origin": allowOrigin, "cache-control": "no-store" }, body });
+        return;
+      }
       const documentDownload = request.method() === "GET"
         ? [...documentDownloadUrls.values()].find((item) => item.url === upstream) : undefined;
       if (documentDownload && ["document", "other"].includes(request.resourceType())) {
@@ -1590,6 +1647,15 @@ export async function installReleaseContextGuard(
           throw new Error("Real API CORS boundary mismatch");
         }
         const pptTarget = new URL(upstream);
+        const surveyResponses = /^\/api\/v1\/surveys\/([1-9][0-9]*)\/responses\/$/.exec(pptTarget.pathname);
+        if (boundary.mode === "development" && surveyResponses && request.method() === "GET"
+          && response.status() === 200 && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json"
+          && /^Bearer \S+$/.test(headers.authorization ?? "") && headers["x-tenant-code"] === boundary.tenantCode
+          && !headers["x-student-id"]) {
+          for (const key of surveyQaOriginals(boundary, Number(surveyResponses[1]), await response.json())) {
+            if (surveyOriginalKeys.size < 4) surveyOriginalKeys.add(key);
+          }
+        }
         const omrPreview = /^\/api\/v1\/submissions\/submissions\/([1-9][0-9]*)\/preview\/$/.exec(pptTarget.pathname);
         if (boundary.mode === "development" && omrPreview && !pptTarget.search && request.method() === "GET") {
           const submissionId = omrPreview[1];
@@ -1623,6 +1689,12 @@ export async function installReleaseContextGuard(
           }
           if (pptTarget.pathname.endsWith("/presign/") && isRecord(data) && data.download === true
             && typeof data.r2_key === "string" && isRecord(payload) && typeof payload.url === "string") {
+            if (response.status() === 200 && !headers["x-student-id"] && data.expires_in === 300
+              && Object.keys(data).length === 3 && Object.keys(payload).length === 1 && surveyOriginalKeys.has(data.r2_key)) {
+              surveyDownloadUrls.delete(data.r2_key);
+              if (isExactInventoryOriginalDownload(boundary, payload.url,
+                { ...SURVEY_QA_ATTACHMENT, r2Key: data.r2_key }, 300)) surveyDownloadUrls.set(data.r2_key, payload.url);
+            }
             const original = inventoryOriginals.get(data.r2_key);
             if (original && isExactInventoryOriginalDownload(boundary, payload.url, original)) {
               documentDownloadUrls.set("inventory:" + original.r2Key, { url: payload.url, filename: original.name,
