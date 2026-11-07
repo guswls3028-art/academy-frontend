@@ -3156,6 +3156,88 @@ test(`@score-input-cancel 이전 과제 저장 응답이 ${responseTiming} 도�
 });
 }
 
+for (const width of [1366, 390]) {
+  test(`주관식 저장 중 서버 점수가 갱신되면 확인 후 초안을 복원한다 (${width}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openScores(page, { initialScores: [65, 70], initialSubjectiveScores: [5, 6] });
+    await ensureScoreEditing(page);
+    await page.getByRole("group", { name: "시험 점수 입력 방식" })
+      .getByRole("button", { name: "주관식", exact: true }).click();
+    await page.getByRole("button", { name: "주관식 입력", exact: true }).click();
+
+    const cell = page.locator('[data-score-cell="exam:9201:9101:subjective:"]');
+    const input = cell.getByRole("textbox");
+    let requiresReview = true;
+    let conflictCount = 0;
+    const conflict = {
+      status: 409,
+      json: { code: "SCORE_EDIT_STALE" },
+    };
+    await page.route("**/api/v1/results/admin/sessions/9002/score-draft/", async (route) => {
+      if (route.request().method() !== "PUT") return route.fallback();
+      const body = route.request().postDataJSON();
+      if (body.acknowledge_stale) {
+        expect(body.changes).toEqual([{ type: "examSubjective", examId: 9101, enrollmentId: 9201, score: 12 }]);
+        requiresReview = false;
+      } else if (width === 1366 && requiresReview && body.changes.length > 0) {
+        conflictCount += 1;
+        currentSubjectiveScores[0] = 9;
+        return route.fulfill(conflict);
+      }
+      return route.fallback();
+    });
+    await page.route("**/api/v1/results/admin/exams/9101/enrollments/9201/subjective/", async (route) => {
+      if (width === 390 && requiresReview && route.request().method() === "PATCH") {
+        conflictCount += 1;
+        currentSubjectiveScores[0] = 9;
+        return route.fulfill(conflict);
+      }
+      return route.fallback();
+    });
+
+    await input.fill("12");
+    await page.keyboard.press("Control+s");
+    const review = scoreDraftStatus(page).getByRole("button", { name: "최신 성적 확인" });
+    await expect(review).toBeVisible();
+    await expect(scoreDraftStatus(page)).toContainText("입력값은 보존했습니다");
+    await expect(input).toHaveText("12");
+    await expect(page.getByText("Request failed with status code 409", { exact: true })).toHaveCount(0);
+    await review.scrollIntoViewIfNeeded();
+    const reviewBounds = await review.boundingBox();
+    expect(reviewBounds).not.toBeNull();
+    expect(reviewBounds!.x).toBeGreaterThanOrEqual(0);
+    expect(reviewBounds!.x + reviewBounds!.width).toBeLessThanOrEqual(width);
+
+    // eslint-disable-next-line no-restricted-syntax -- observe one full automatic retry window.
+    await page.waitForTimeout(5_250);
+    expect(conflictCount).toBe(1);
+    expect(currentSubjectiveScores).toEqual([9, 6]);
+    await page.screenshot({ path: testInfo.outputPath(`stale-subjective-${width}.png`) });
+
+    await review.click();
+    const dialog = page.getByRole("dialog", { name: /임시저장된 변경 1건/ });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText("서버 성적이 변경되었습니다");
+    await expect(cell).toContainText("9");
+    expect(currentSubjectiveScores).toEqual([9, 6]);
+    const restore = dialog.getByRole("button", { name: "복원 후 수정" });
+    await expect(restore).toBeFocused();
+    await page.screenshot({ path: testInfo.outputPath(`stale-subjective-review-${width}.png`) });
+    await restore.click();
+    await expect.poll(() => currentSubjectiveScores).toEqual([12, 6]);
+    await expect(scoreDraftStatus(page)).toContainText("저장됨");
+    await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
+    await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const viewOptions = page.getByRole("button", { name: /표시 옵션/ });
+    await expect(viewOptions).toBeVisible({ timeout: 45_000 });
+    await viewOptions.click();
+    await page.getByRole("button", { name: "객관식 + 주관식", exact: true }).click();
+    await expect(cell).toContainText("12");
+  });
+}
+
 for (const saveMode of ["자동 저장", "점수 입력 마침"] as const) {
 test(`@score-input-cancel ${saveMode} 대기 중 새 입력은 PATCH·반복 요청·조기 잠금 없이 취소 후 정상 저장한다`, async ({ page }) => {
   await openScores(page, {

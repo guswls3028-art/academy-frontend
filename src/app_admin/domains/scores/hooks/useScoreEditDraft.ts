@@ -37,11 +37,7 @@ import {
 const AUTOSAVE_IDLE_MS = 900;
 const AUTOSAVE_POLL_MS = 250;
 const AUTOSAVE_RETRY_MS = 5_000;
-/**
- * P0-3 (2026-05-13): 1시간 넘게 방치된 draft 는 자동 폐기.
- * 학원장이 "복원할까요?" 모달을 매 진입마다 보지 않게 하기 위함.
- * timestamp 는 localStorage 에 client-local 로 추적 (backend 에 시각 컬럼 없음).
- */
+// Keep failed local input and server drafts that need review regardless of age.
 const DRAFT_STALE_MS = 60 * 60 * 1000;
 function readLocalDraft(storageKey: string | null): PendingChange[] {
   if (!storageKey) return [];
@@ -133,7 +129,7 @@ export function useScoreEditDraft({
     panelRef,
     savePromiseRef,
     presencePausedRef,
-    isActive,
+    isActive: isActive && !editStaleConflict && !hasDraftToRestore,
     activeCell,
     onPresenceError,
     onPresenceSuccess,
@@ -146,6 +142,17 @@ export function useScoreEditDraft({
       if (presencePromiseRef.current === tail) presencePromiseRef.current = null;
     }
   }, [presencePromiseRef]);
+
+  const reportSaveFailure = useCallback((error: unknown, fallback: string) => {
+    setHasPendingChanges(true);
+    setDraftStatus("error");
+    if (isScoreEditStaleError(error)) {
+      setEditStaleConflict(true);
+      setDraftError("서버 성적이 변경되었습니다. 입력값은 보존했습니다.");
+    } else {
+      setDraftError(error instanceof Error ? error.message : fallback);
+    }
+  }, []);
 
   const saveNow = useCallback(async function savePendingScores(
     preservedPanel?: SessionScoresPanelHandle | null,
@@ -195,9 +202,7 @@ export function useScoreEditDraft({
           setHasPendingChanges(false);
           setDraftStatus("saved");
         } catch (e) {
-          setHasPendingChanges(true);
-          setDraftStatus("error");
-          setDraftError(e instanceof Error ? e.message : "성적 저장 마무리 실패");
+          reportSaveFailure(e, "성적 저장 마무리 실패");
           throw e;
         }
       }
@@ -241,16 +246,7 @@ export function useScoreEditDraft({
         return savedCount;
       } catch (e) {
         writeLocalDraft(localDraftKey, panel?.getPendingSnapshot?.() ?? snapshot);
-        setHasPendingChanges(true);
-        setDraftStatus("error");
-        if (isScoreEditStaleError(e)) {
-          setEditStaleConflict(true);
-          setDraftError(
-            "시험 제출 또는 다른 안전한 작업으로 서버 점수가 바뀌었습니다. 입력값은 보존했습니다. 새로고침 후 복원 여부를 확인해 주세요.",
-          );
-        } else {
-          setDraftError(e instanceof Error ? e.message : "성적 저장 실패");
-        }
+        reportSaveFailure(e, "성적 저장 실패");
         throw e;
       }
     })();
@@ -278,7 +274,7 @@ export function useScoreEditDraft({
       };
     }
     return savedCount;
-  }, [activeCellRef, draftTimestampKey, drainPresenceQueue, invalidatePresenceReads, localDraftKey, panelRef, sessionId, setActiveEditors]);
+  }, [activeCellRef, draftTimestampKey, drainPresenceQueue, invalidatePresenceReads, localDraftKey, panelRef, reportSaveFailure, sessionId, setActiveEditors]);
 
   const requestAutosave = useCallback(() => {
     if (!isActive) return;
@@ -288,8 +284,6 @@ export function useScoreEditDraft({
   }, [isActive, localDraftKey, panelRef]);
 
   // On score page enter: check for an existing recovery draft once.
-  // P0-3 (2026-05-13): 1시간 넘게 방치된 draft 는 자동 commit(폐기)해서
-  // 매 진입마다 "복원할까요?" 모달 노출되는 패턴 차단.
   useEffect(() => {
     if (!checkForRecovery || !Number.isFinite(sessionId)) {
       setIsRecoveryCheckPending(false);
@@ -322,15 +316,9 @@ export function useScoreEditDraft({
           if (!cancelled) setHasDraftToRestore(false);
           return;
         }
-        // stale 검사: localStorage 의 마지막 putScoreDraft timestamp 가 1시간 이전이면 자동 폐기.
-        let lastTs = 0;
-        try {
-          const raw = draftTimestampKey ? getLocalItem(draftTimestampKey) : null;
-          lastTs = raw ? Number(raw) : 0;
-        } catch { /* ignore */ }
-        const isStale = lastTs > 0 && Date.now() - lastTs > DRAFT_STALE_MS;
-        const tsUnknown = lastTs === 0; // 다른 브라우저에서 저장된 케이스 — 모달은 띄우되 stale 처리는 X
-        if (isStale) {
+        const lastTs = Number(draftTimestampKey ? getLocalItem(draftTimestampKey) : null);
+        const expired = lastTs > 0 && Date.now() - lastTs > DRAFT_STALE_MS;
+        if (expired && !data.stale && localChanges.length === 0) {
           try {
             await postScoreDraftCommit(sessionId, true);
             if (draftTimestampKey) removeLocalItem(draftTimestampKey);
@@ -356,8 +344,7 @@ export function useScoreEditDraft({
             "임시저장 뒤 서버 점수가 변경되었습니다. 최신 성적표 위에 복원할 내용을 확인해 주세요.",
           );
         }
-        // tsUnknown 인 경우는 timestamp 누락 — 다음 폐기/commit 사이클까지는 모달 노출.
-        void tsUnknown;
+
       })
       .catch((error) => {
         if (!cancelled) {
@@ -393,7 +380,7 @@ export function useScoreEditDraft({
 
   // Live autosave after the pending snapshot stays unchanged for a short idle window.
   useEffect(() => {
-    if (!isActive) return;
+    if (!isActive || editStaleConflict || hasDraftToRestore) return;
     let lastSignature = "";
     let changedAt = 0;
     const interval = setInterval(() => {
@@ -431,7 +418,7 @@ export function useScoreEditDraft({
       }
     }, AUTOSAVE_POLL_MS);
     return () => clearInterval(interval);
-  }, [isActive, panelRef, saveNow]);
+  }, [editStaleConflict, hasDraftToRestore, isActive, panelRef, saveNow]);
 
   const beginEditing = useCallback(async (): Promise<boolean> => {
     presencePausedRef.current = false;
@@ -459,6 +446,20 @@ export function useScoreEditDraft({
       setIsStartingEdit(false);
     }
   }, [activeCellRef, invalidatePresenceReads, sessionId, setActiveEditors]);
+
+  const stageStaleRecovery = useCallback((): boolean => {
+    const panel = panelRef.current;
+    const changes = panel?.getPendingSnapshot?.() ?? [];
+    if (changes.length === 0) return false;
+    writeLocalDraft(localDraftKey, changes);
+    setRestoreChanges(changes);
+    setRestoreChangeCount(changes.length);
+    setDraftError(null);
+    // Show the freshly read server grid while keeping the user's draft for review.
+    panel?.applyDraftPatch?.([]);
+    setHasDraftToRestore(true);
+    return true;
+  }, [localDraftKey, panelRef]);
 
   const restoreDraft = useCallback(async (): Promise<boolean> => {
     presencePausedRef.current = false;
@@ -508,6 +509,8 @@ export function useScoreEditDraft({
       needsDraftCommitRef.current = false;
       if (draftTimestampKey) removeLocalItem(draftTimestampKey);
       writeLocalDraft(localDraftKey, []);
+      setHasPendingChanges(false);
+      setDraftStatus("idle");
       setHasDraftToRestore(false);
       setEditStaleConflict(false);
       setLeaseReleaseFailed(false);
@@ -596,11 +599,8 @@ export function useScoreEditDraft({
       writeLocalDraft(localDraftKey, snapshot);
       // 미저장 데이터가 있으면 항상 경고 (셀 수/경과 시간 무관)
       e.preventDefault();
-      // 긴급 저장 시도 (브라우저가 허용하는 범위 내에서)
-      try {
-        void putScoreDraft(sessionId, snapshot, { activeCell: activeCellRef.current });
-      } catch {
-        // 저장 실패해도 경고는 이미 표시됨
+      if (!editStaleConflict) {
+        void putScoreDraft(sessionId, snapshot, { activeCell: activeCellRef.current }).catch(() => undefined);
       }
     };
     window.addEventListener("beforeunload", handler);
@@ -627,7 +627,7 @@ export function useScoreEditDraft({
       window.removeEventListener("beforeunload", handler);
       window.removeEventListener("pagehide", releaseEmptyPresence);
     };
-  }, [activeCellRef, isActive, localDraftKey, panelRef, presencePromiseRef, sessionId]);
+  }, [activeCellRef, editStaleConflict, isActive, localDraftKey, panelRef, presencePromiseRef, sessionId]);
 
   return {
     draftStatus,
@@ -643,6 +643,7 @@ export function useScoreEditDraft({
     leaseReleaseFailed,
     isStartingEdit,
     retryRecoveryCheck,
+    stageStaleRecovery,
     restoreChangeCount,
     isDiscardingDraft,
     restoreDraft,

@@ -18,7 +18,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/public/SessionScoresPanel";
 import { buildScoreCsv } from "@admin/domains/scores/public/scoreCsvGenerator";
 import { useScoreEditDraft } from "@admin/domains/scores/public/useScoreEditDraft";
-import type { ScoreActiveCell } from "@admin/domains/scores/public/scoreDraft";
+import { isScoreEditStaleError, type ScoreActiveCell } from "@admin/domains/scores/public/scoreDraft";
 import {
   fetchSessionScores,
   type SessionScoreMeta,
@@ -402,6 +402,10 @@ export default function SessionScoresEntryPage({
   }, [draft.draftStatus]);
 
   const saveScoresNow = useCallback(async (announce = false): Promise<boolean> => {
+    if (draft.editStaleConflict) {
+      feedback.info("최신 성적을 확인한 뒤 저장해 주세요.");
+      return false;
+    }
     if (panelRef.current?.commitActiveCell?.() === false) return false;
     await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
     setIsSaving(true);
@@ -425,12 +429,14 @@ export default function SessionScoresEntryPage({
       }
       return true;
     } catch (err) {
-      feedback.error((err as Error).message || "저장에 실패했습니다. 입력값은 유지됩니다.");
+      if (!isScoreEditStaleError(err)) {
+        feedback.error((err as Error).message || "저장에 실패했습니다. 입력값은 유지됩니다.");
+      }
       return false;
     } finally {
       setIsSaving(false);
     }
-  }, [runTrackedTask, saveScoreDraftNow]);
+  }, [draft.editStaleConflict, runTrackedTask, saveScoreDraftNow]);
 
   useEffect(() => {
     if (!draft.hasDraftToRestore) return;
@@ -532,6 +538,26 @@ export default function SessionScoresEntryPage({
     queryFn: () => fetchSessionScores(numericSessionId, schedule),
     enabled: Number.isFinite(numericSessionId) && numericSessionId > 0,
   });
+  const reviewLatestScores = async () => {
+    setIsSaving(true);
+    try {
+      await refetch({ throwOnError: true });
+      const panel = panelRef.current;
+      if (!panel || panel.commitActiveCell?.() === false) return;
+      const hasDraft = draft.stageStaleRecovery();
+      setActiveScoreCell(null);
+      setIsEditMode(false);
+      if (!hasDraft && !await draft.discardDraft()) {
+        setIsEditMode(true);
+        feedback.error("이전 저장 상태를 정리하지 못했습니다. 다시 확인해 주세요.");
+      }
+    } catch {
+      feedback.error("최신 성적을 불러오지 못했습니다. 입력값은 유지됩니다. 다시 시도해 주세요.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const isBlankScoreSheet = useMemo(() => isCompletelyBlankScoreSheet(data), [data]);
 
   const examReviewOverview = useMemo(() => {
@@ -1533,6 +1559,19 @@ export default function SessionScoresEntryPage({
                     성적표 수정 잠김
                   </span>
                 )
+              ) : draft.editStaleConflict ? (
+                <>
+                  <span className="text-[var(--color-error)]">서버 성적이 변경되었습니다. 입력값은 보존했습니다.</span>
+                  {" "}
+                  <button
+                    type="button"
+                    className="underline text-[var(--color-brand-primary)]"
+                    disabled={isSaving}
+                    onClick={() => void reviewLatestScores()}
+                  >
+                    {isSaving ? "성적 불러오는 중…" : "최신 성적 확인"}
+                  </button>
+                </>
               ) : (
                 <>
                   {draft.draftStatus === "dirty" && "저장 대기 중…"}
@@ -1598,9 +1637,9 @@ export default function SessionScoresEntryPage({
                 : "이전에 임시저장된 편집 내용이 있습니다. 복원할까요?"}
             </h2>
             <p id="draft-restore-description-entry" className="text-sm text-[var(--color-text-muted)] mb-4">
-              복원하면 이전 편집 내용이 테이블에 다시 적용됩니다. 버리면 현재 서버 데이터만 표시됩니다.
-              <br />
-              <span className="text-[11px]">※ 1시간 이상 방치된 임시저장은 다음 진입 시 자동으로 폐기됩니다.</span>
+              {draft.editStaleConflict
+                ? "서버 성적이 변경되었습니다. 복원하면 보존된 입력을 최신 성적표에 다시 적용해 저장합니다. 버리면 최신 성적을 유지합니다."
+                : "복원하면 이전 편집 내용이 테이블에 다시 적용됩니다. 버리면 현재 서버 데이터만 표시됩니다."}
             </p>
             {draft.draftError && (
               <p className="text-sm text-[var(--color-error)] mb-3" role="alert">
