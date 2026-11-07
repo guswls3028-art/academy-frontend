@@ -3158,6 +3158,7 @@ test(`@score-input-cancel 이전 과제 저장 응답이 ${responseTiming} 도�
 
 for (const width of [1366, 390]) {
   test(`주관식 저장 중 서버 점수가 갱신되면 확인 후 초안을 복원한다 (${width}px)`, async ({ page }, testInfo) => {
+    await page.clock.install();
     await page.setViewportSize({ width, height: 900 });
     await openScores(page, { initialScores: [65, 70], initialSubjectiveScores: [5, 6] });
     await ensureScoreEditing(page);
@@ -3208,8 +3209,7 @@ for (const width of [1366, 390]) {
     expect(reviewBounds!.x).toBeGreaterThanOrEqual(0);
     expect(reviewBounds!.x + reviewBounds!.width).toBeLessThanOrEqual(width);
 
-    // eslint-disable-next-line no-restricted-syntax -- observe one full automatic retry window.
-    await page.waitForTimeout(5_250);
+    await page.clock.runFor(5_250);
     expect(conflictCount).toBe(1);
     expect(currentSubjectiveScores).toEqual([9, 6]);
     await page.screenshot({ path: testInfo.outputPath(`stale-subjective-${width}.png`) });
