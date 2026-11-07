@@ -367,7 +367,8 @@ OMR 검토 워크스페이스도 객관식 답안 재채점과 전체 시험 채
 `manual-exam-grading.mock.spec.ts`, 혼합형의 미입력·서술형 대기 보존과
 결시 확정은 `omr-subjective-entry.mock.spec.ts`가 검증한다.
 격리 실사용의 `student-parent-assessment-realuse.spec.ts`는 입력한 학생만
-확정한 뒤 미입력 행이 그대로인지와 학생·학부모의 결과 반영을 검증한다.
+확정한 뒤 미입력 행이 그대로인지, 이후 직접 선택한 결시가 점수 없이 재조회되는지,
+학생·학부모에게 확정 점수가 반영되는지 검증한다.
 조교 권한의 API 확정·정밀도·기존 점수 보존은 백엔드
 `test_manual_exam_grading.py`가 검증한다.
 긴 소수 배점 입력은 값 길이에 맞춰 넓혀 100%·50% 배율에서도 인접 열과 겹치지
