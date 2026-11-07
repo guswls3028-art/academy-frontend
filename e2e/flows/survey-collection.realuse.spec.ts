@@ -32,11 +32,10 @@ async function openParentSurveyThroughUi(
   await expect(page).toHaveURL(`${QA_BASE}/student/dashboard`);
   await expect(page.getByRole("tablist", { name: "자녀 선택" })
     .getByRole("tab", { name: student.name, exact: true })).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("region", { name: "전체 메뉴와 상태 카드" })
-    .getByRole("link", { name: /전체 메뉴/ }).click();
-  await expect(page).toHaveURL(`${QA_BASE}/student/menu`);
-  await page.getByRole("region", { name: "나", exact: true })
-    .getByRole("link", { name: /^제출 / }).click();
+  await page.getByRole("button", { name: "메뉴 열기", exact: true }).click();
+  const menu = page.getByRole("dialog", { name: "메뉴", exact: true });
+  await expect(menu).toBeVisible();
+  await menu.getByRole("link", { name: "제출", exact: true }).click();
   await expect(page).toHaveURL(`${QA_BASE}/student/submit`);
   await page.getByRole("link", { name: /^설문과 성적 취합/ }).click();
   await expect(page).toHaveURL(`${QA_BASE}/student/surveys`);
