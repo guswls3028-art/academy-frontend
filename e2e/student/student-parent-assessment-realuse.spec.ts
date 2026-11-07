@@ -456,7 +456,8 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
           await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`);
           await acknowledgeInitialAccountPromptsIfVisible(staffPage);
           const settings = staffPage.locator("#assessment-policy > details");
-          if (await settings.getAttribute("open") === null) await settings.locator("summary").click();
+          const settingsSummary = staffPage.locator("#assessment-policy > details > summary");
+          if (await settings.getAttribute("open") === null) await settingsSummary.click();
           await staffPage.getByLabel("학생 등수 공개", { exact: true }).setChecked(showRank);
           await staffPage.getByLabel("학생 응시 인원 공개", { exact: true }).setChecked(showCount);
           const saved = staffPage.waitForResponse(response => response.request().method() === "PATCH"
@@ -477,7 +478,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
           }
           await staffPage.reload({ waitUntil: "domcontentloaded" });
           await expect(settings).toBeVisible();
-          if (await settings.getAttribute("open") === null) await settings.locator("summary").click();
+          if (await settings.getAttribute("open") === null) await settingsSummary.click();
           await expect(staffPage.getByLabel("학생 등수 공개", { exact: true })).toBeChecked({ checked: showRank });
           await expect(staffPage.getByLabel("학생 응시 인원 공개", { exact: true })).toBeChecked({ checked: showCount });
           const expected = { total_score: 60, rank: showRank ? 1 : null, cohort_size: showCount ? 2 : null };
