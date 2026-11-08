@@ -41,7 +41,7 @@ import { useSecessionConfirm } from "@/shared/ui/attendance/useSecessionConfirm"
 import type { SecessionScope } from "@/shared/api/contracts/attendance";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
-import { substituteScoreVars, buildScoreVars, buildScoreDetail } from "@/shared/scoring/scoreReport";
+import { substituteScoreVars, buildScoreVars, buildScoreDetail, collectHighestScores } from "@/shared/scoring/scoreReport";
 import { fetchSessionScores } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { sessionScheduleQueryKeys } from "@/shared/api/queryKeys/sessionSchedules";
@@ -426,10 +426,15 @@ export default function SessionAttendancePage({
 
           const chosenTpl = templates.find((t) => t.is_user_default && !t.is_system);
 
+          const cohortData = schedule == null ? scoresData : await fetchSessionScores(sessionId).catch(() => {
+            feedback.warning("차시 전체 최고점을 불러오지 못했습니다. 다시 열어 확인해 주세요.");
+            return null;
+          });
+          const reportOptions = { lectureName, sessionTitle, highestScores: collectHighestScores(cohortData) };
           const firstRow = scoresData.rows.find((r) => r.student_id === studentIds[0]);
           if (firstRow) {
             scoreDetail = buildScoreDetail(firstRow, scoresData.meta);
-            firstScoreVars = buildScoreVars(firstRow, scoresData.meta, { lectureName, sessionTitle });
+            firstScoreVars = buildScoreVars(firstRow, scoresData.meta, reportOptions);
           }
 
           initialBody = chosenTpl?.body ?? "";
@@ -442,10 +447,10 @@ export default function SessionAttendancePage({
             for (const sid of studentIds) {
               const sRow = scoresData.rows.find((r) => r.student_id === sid);
               if (!sRow || sRow.student_id == null) continue;
-              const scoreVars = buildScoreVars(sRow, scoresData.meta, { lectureName, sessionTitle });
+              const scoreVars = buildScoreVars(sRow, scoresData.meta, reportOptions);
               result[sRow.student_id] = {
                 ...scoreVars,
-                _body_subst: substituteScoreVars(currentBody, sRow, scoresData.meta, { lectureName, sessionTitle }),
+                _body_subst: substituteScoreVars(currentBody, sRow, scoresData.meta, reportOptions),
               };
             }
             return result;
