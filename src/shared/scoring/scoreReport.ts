@@ -10,6 +10,8 @@ import type {
   SessionScoreExamEntry,
   SessionScoreRow,
   SessionScoreMeta,
+  SessionScoresResponse,
+  ScoreBlock,
 } from "@/shared/api/contracts/sessionScores";
 import { isSubjectivePendingScoreBlock } from "@/shared/scoring/subjectivePending";
 import { SCORE_TEMPLATE_SLOT_LIMIT } from "@/shared/scoring/scoreTemplateSlots";
@@ -22,7 +24,28 @@ export type ScoreReportOptions = {
   /** Phase #5 (2026-05-12): 학원장 커스텀 합/불 라벨. 미지정 시 "합격"/"불합격" 기본. */
   passLabel?: string;
   failLabel?: string;
+  highestScores?: ReturnType<typeof collectHighestScores>;
 };
+
+/** Uses the server's first-attempt projections from the entire session roster. */
+export function collectHighestScores(snapshot: SessionScoresResponse | null | undefined) {
+  const examScores = new Map<number, number>();
+  const homeworkScores = new Map<number, number>();
+  const record = (scores: Map<number, number>, id: number, block: ScoreBlock) => {
+    const score = block.score;
+    if (score == null || !Number.isFinite(score) || score < 0
+      || block.is_provisional || isSubjectivePendingScoreBlock(block) || block.lock_reason === "GRADING"
+      || block.meta?.manual_review_required || block.meta?.status === "NOT_SUBMITTED") return;
+    scores.set(id, Math.max(scores.get(id) ?? score, score));
+  };
+
+  for (const row of snapshot?.rows ?? []) {
+    for (const exam of row.exams ?? []) record(examScores, exam.exam_id, exam.block);
+    for (const homework of row.homeworks ?? []) record(homeworkScores, homework.homework_id, homework.block);
+  }
+
+  return { examScores, homeworkScores };
+}
 
 // ── helpers ──
 
@@ -571,6 +594,10 @@ export function buildScoreVars(
     const exam = exams.find(item => item.exam_id === slot.exam_id);
     const metaExam = meta?.exams?.find(item => item.exam_id === slot.exam_id);
     const n = i + 1;
+    const highestScore = options.highestScores?.examScores.get(slot.exam_id);
+    if (n <= SCORE_TEMPLATE_SLOT_LIMIT && highestScore !== undefined) {
+      vars["시험" + n + "최고점"] = slot.title + " 최고점 " + highestScore + "점";
+    }
     if (!exam) {
       vars[`시험${n}명`] = slot.title;
       vars[`시험${n}`] = "미배정";
@@ -615,6 +642,10 @@ export function buildScoreVars(
     const hw = homeworks.find(item => item.homework_id === slot.homework_id);
     const metaHw = meta?.homeworks?.find(item => item.homework_id === slot.homework_id);
     const n = i + 1;
+    const highestScore = options.highestScores?.homeworkScores.get(slot.homework_id);
+    if (n <= SCORE_TEMPLATE_SLOT_LIMIT && metaHw?.grading_mode === "SCORE" && highestScore !== undefined) {
+      vars["과제" + n + "최고점"] = slot.title + " 최고점 " + highestScore + "점";
+    }
     if (!hw) {
       vars[`과제${n}명`] = slot.title;
       vars[`과제${n}`] = "미배정";
@@ -730,7 +761,7 @@ export function substituteScoreVars(
   // 미사용 시험/과제 행 제거 — 치환 후 빈 슬롯("- : -/-", ": -/-", ": /") 줄 정리.
   // 과거 양식에 지원 범위를 넘는 시험/과제 번호 변수가 남아도 알림톡 편지지에 그대로 노출되지 않게 제거한다.
   result = result
-    .replace(/#\{(?:시험|과제)\d+(?:명|만점|결과)?\}/g, "")
+    .replace(/#\{(?:시험|과제)\d+(?:명|만점|결과|최고점)?\}/g, "")
     .replace(/^[ \t]*:[ \t]*$/gm, "")
     .replace(/^[^\n]*:\s*-?\s*\/\s*-?\s*$/gm, "")  // "시험명: -/-", "시험명: /" 패턴 줄 삭제
     .replace(/^- *: *-\s*$/gm, "")         // "- : -" 패턴 줄 삭제
