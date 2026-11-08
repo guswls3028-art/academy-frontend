@@ -64,6 +64,14 @@ const PROFILE_LINKS = [
 
 const INSTAGRAM_URL = "https://www.instagram.com/godmin7/";
 
+const ENROLLMENT_LINKS = [
+  {
+    academy: "두각학원",
+    description: "고1 학교별 내신반 · 강좌 선택 후 신청",
+    url: "https://www.dugak.net/time/?tid=43&mid=427",
+  },
+];
+
 export default function GodminLandingPage() {
   const { hash, key } = useLocation();
   const [heroReady, setHeroReady] = useState(false);
@@ -119,6 +127,24 @@ export default function GodminLandingPage() {
                 수강생·학부모 로그인
                 <ArrowIcon />
               </Link>
+              {ENROLLMENT_LINKS.length > 0 && (
+                <details className={styles.enrollment}>
+                  <summary className={styles.secondaryAction}>수강신청 바로가기</summary>
+                  <div className={styles.enrollmentPanel}>
+                    <p>학원을 선택하면 신청 페이지가 새 탭에서 열립니다.</p>
+                    <ul>
+                      {ENROLLMENT_LINKS.map(({ academy, description, url }) => (
+                        <li key={url}>
+                          <a href={url} target="_blank" rel="noopener noreferrer">
+                            <span><strong>{academy}</strong><small>{description}</small></span>
+                            <span aria-hidden="true">↗</span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </details>
+              )}
               <a className={styles.secondaryAction} href="#philosophy">수업 방식 보기</a>
               <Link className={styles.secondaryAction} to="/landing/resources">매치업 · 분석자료</Link>
             </div>
