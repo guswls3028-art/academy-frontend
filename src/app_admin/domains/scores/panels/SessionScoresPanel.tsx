@@ -61,7 +61,7 @@ type Props = {
   /** 테스트 오답 확인 모드의 학생 행 필터 */
   examReviewFilter?: SessionScoresExamReviewFilter;
   selectedEnrollmentIds?: number[];
-  onSelectionChange?: (enrollmentIds: number[]) => void;
+  onSelectionChange?: (enrollmentIds: number[], reason?: "roster") => void;
   onPendingChange?: () => void;
   activeEditors?: ScoreActiveEditor[];
   onClaimOwnCell?: (cell: ScoreActiveCell) => Promise<boolean>;
@@ -235,7 +235,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     if (!onSelectionChange || selectedEnrollmentIds.length === 0) return;
     const eligibleIds = new Set(allRows.filter((row) => row.assessment_todo_eligible !== false).map((row) => row.enrollment_id));
     const next = selectedEnrollmentIds.filter((id) => eligibleIds.has(id));
-    if (next.length !== selectedEnrollmentIds.length) onSelectionChange(next);
+    if (next.length !== selectedEnrollmentIds.length) onSelectionChange(next, "roster");
   }, [allRows, onSelectionChange, selectedEnrollmentIds]);
 
   /** enrollment_id → attendance record id (for PATCH API) */

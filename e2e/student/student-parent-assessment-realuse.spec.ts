@@ -544,14 +544,17 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await expect(page.getByRole("link").filter({ hasText: examTitle }).first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
     await test.step("parent-only assessment feedback", () => verifyAssessmentFeedback(page, request, admin, primary, peer, primaryTokens, parentTokens, testInfo));
-    await test.step("score message template and defaults", () => verifyScoreMessageTemplate(page, request, admin, primary, testInfo));
+    const peerAttendanceId = await recordScoreMessageAttendance(request, admin, primary, peer);
+    await test.step("score message attendance recipients, template and defaults", () => verifyScoreMessageTemplate(page, request, admin, primary, testInfo));
     await test.step("manual score precision and retake totals", () => verifyManualScorePrecision(page, request, admin, primary, primaryTokens, parentTokens));
     await test.step("exam order and total-boundary persistence", () => verifyExamOrderPersistence(page, request, admin, parentTokens, testInfo));
     await test.step("assessment copy", () => verifyAssessmentCopy(page, request, admin, primaryTokens, {
       lectureId: created.lectureId!, sessionId: created.sessionId!, examId: created.examId!,
       examTitle, enrollmentIds: created.enrollmentIds, date: todayKst,
     }, (sessionId) => { created.copySessionIds.push(sessionId); }));
-    await test.step("attendance priority and absent scores", () => verifyAttendancePriorityAndAbsentScores(page, request, admin, created.family!, testInfo));
+    await test.step("attendance priority and absent scores", () => verifyAttendancePriorityAndAbsentScores(
+      page, request, admin, created.family!, peerAttendanceId, testInfo,
+    ));
     await test.step("ended-course todos and restored eligibility", () => verifyEndedCourseTodos(page, request, admin, primary, primaryTokens));
     await test.step('weekday schedules, scoped rosters, student dates and preserved records', () => verifySessionSchedules(page, request, admin, primaryTokens, created.family!, {
       lectureId: created.lectureId!, sessionId: created.sessionId!, enrollmentIds: created.enrollmentIds,
@@ -569,19 +572,28 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
   });
 });
 
-async function verifyAttendancePriorityAndAbsentScores(
-  parentPage: Page, request: APIRequestContext, admin: QaTokens, family: QaFamily, testInfo: TestInfo,
-): Promise<void> {
-  const [present, absent] = family.students;
-  for (const [student, status] of [[present, "PRESENT"], [absent, "ABSENT"]] as const) {
+async function recordScoreMessageAttendance(
+  request: APIRequestContext, admin: QaTokens, present: QaStudent, online: QaStudent,
+): Promise<number> {
+  const attendanceIds: number[] = [];
+  for (const [student, status] of [[present, "PRESENT"], [online, "ONLINE"]] as const) {
     const rows = await expectApi<Array<{ id: number }>>(
       request, "POST", "/lectures/attendance/bulk_create/", admin.access,
       { session: created.sessionId, students: [student.id] }, [201],
     );
     expect(rows).toHaveLength(1);
     created.attendanceIds.push(rows[0].id);
+    attendanceIds.push(rows[0].id);
     await expectApi(request, "PATCH", `/lectures/attendance/${rows[0].id}/`, admin.access, { status });
   }
+  return attendanceIds[1];
+}
+
+async function verifyAttendancePriorityAndAbsentScores(
+  parentPage: Page, request: APIRequestContext, admin: QaTokens, family: QaFamily, peerAttendanceId: number, testInfo: TestInfo,
+): Promise<void> {
+  const [present, absent] = family.students;
+  await expectApi(request, "PATCH", `/lectures/attendance/${peerAttendanceId}/`, admin.access, { status: "ABSENT" });
   const context = await parentPage.context().browser()!.newContext({ serviceWorkers: "block" });
   await withOwnedScoreLeaseCleanup(context, request, { sessionId: created.sessionId!, actorAccess: admin.access }, async () => {
     const page = await context.newPage();
@@ -1025,9 +1037,10 @@ async function verifyScoreMessageTemplate(
 
     await page.setViewportSize({ width: 1366, height: 900 });
     await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`, { timeout: 30_000 });
-    await page.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();
+    await page.getByRole("checkbox", { name: "전체 선택", exact: true }).check();
     await page.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
     const send = page.getByRole("dialog", { name: "알림톡 발송" });
+    await expect(send.getByText("출석·지각 1명 · 1명 제외", { exact: true })).toBeVisible();
     // This family fixture has parent phones only. Verify the normal authorized recipient journey.
     await send.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
     await send.getByRole("checkbox", { name: "학부모", exact: true }).check();
@@ -1064,8 +1077,11 @@ async function verifyScoreMessageTemplate(
       }).then(response => {
         const payload = response.request().postDataJSON() as {
           raw_body?: string;
+          student_ids?: number[];
           alimtalk_extra_vars_per_student?: Record<string, { _body_subst?: string }>;
         };
+        expect(payload.student_ids).toEqual([student.id]);
+        expect(Object.keys(payload.alimtalk_extra_vars_per_student ?? {})).toEqual([String(student.id)]);
         expect(payload.raw_body).toBe("학생 #{학생이름3} 점수 #{시험총점} 확인 완료");
         expect(payload.alimtalk_extra_vars_per_student?.[String(student.id)]?._body_subst)
           .toBe(`학생 ${student.name} 점수 60 확인 완료`);

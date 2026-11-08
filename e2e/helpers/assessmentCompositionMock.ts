@@ -145,6 +145,7 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
           rows: [{
             enrollment_id: 9201,
             student_id: 9301,
+            attendance_status: "PRESENT",
             student_name: "모바일순서학생",
             lecture_title: "모바일 순서 검증반",
             lecture_color: "#2563eb",
