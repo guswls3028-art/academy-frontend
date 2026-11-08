@@ -46,10 +46,13 @@ function AssessmentResult({ block, assessment, labels, wrongCompletion }: {
   const status = block?.meta?.status;
   const maxScore = assessment.maxScore ?? block?.max_score;
   const notSubmitted = status === "NOT_SUBMITTED";
+  const videoMakeup = status === "VIDEO_MAKEUP" && score == null;
   const needsReview = status === "OMR_REVIEW_REQUIRED" || block?.meta?.manual_review_required === true;
   let scoreText: string;
   if (assessment.kind === "exam") {
     scoreText = notSubmitted ? "미응시" : score == null ? "미채점" : `${score}${maxScore != null ? `/${maxScore}` : "점"}`;
+  } else if (videoMakeup) {
+    scoreText = "영상 보강";
   } else if (assessment.completion) {
     scoreText = score == null ? "미입력" : score >= 1 ? "완료" : "미완료";
   } else {
@@ -58,7 +61,7 @@ function AssessmentResult({ block, assessment, labels, wrongCompletion }: {
   }
   // Only project server fields. The threshold is context, never a new pass/clinic decision.
   const finalPass = block ? deriveFinalPass({ ...block, meta_status: status }) : null;
-  const showFinalPass = !(wrongCompletion && assessment.kind === "exam") && finalPass != null;
+  const showFinalPass = !videoMakeup && !(wrongCompletion && assessment.kind === "exam") && finalPass != null;
   return (
     <div className={styles.result}>
       <strong className={styles.score}>{scoreText}{block?.is_provisional && score != null ? " (임시)" : ""}</strong>

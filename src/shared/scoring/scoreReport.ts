@@ -48,6 +48,7 @@ function missingScoreLabel(
   kind: "exam" | "homework",
   status: string | null | undefined,
 ): string {
+  if (kind === "homework" && status === "VIDEO_MAKEUP") return "검사 대기";
   if (!isExplicitNotSubmitted(status)) return "점수 미입력";
   return kind === "exam" ? "미응시" : "미제출";
 }
@@ -62,7 +63,9 @@ export function collectUnenteredScoreItems(row: SessionScoreRow): string[] {
       ))
       .map((exam) => `시험: ${exam.title}`),
     ...(row.homeworks ?? [])
-      .filter((homework) => homework.block.score == null && !isExplicitNotSubmitted(homework.block.meta?.status))
+      .filter((homework) => homework.block.score == null
+        && homework.block.meta?.status !== "VIDEO_MAKEUP"
+        && !isExplicitNotSubmitted(homework.block.meta?.status))
       .map((homework) => `과제: ${homework.title}`),
   ];
 }
@@ -229,6 +232,7 @@ function collectStats(row: SessionScoreRow, meta: SessionScoreMeta | null): Summ
       }
       if (hw.block.passed === true) s.hwPassed++;
     }
+    if (hw.block.score == null && hw.block.meta?.status === "VIDEO_MAKEUP") continue;
     if (hw.block.score == null && !isExplicitNotSubmitted(hw.block.meta?.status)) {
       s.pendingItems.push(hw.title);
     } else if (isExplicitNotSubmitted(hw.block.meta?.status) || hw.block.passed === false) {
