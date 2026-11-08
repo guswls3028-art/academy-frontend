@@ -43,6 +43,7 @@ import {
   fetchManualGradeSheet,
   previewManualGrades,
   type ManualGradeCell,
+  type ManualGradePreview,
   type ManualGradeSheet,
   type ManualGradeRequestRow,
   type ManualGradeRow,
@@ -329,14 +330,23 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     markExplicitDirty(false);
   }, [acceptedSheet, clearHistory, examId, markExplicitDirty, sheetQuery.data, sheetReadbackGeneration]);
 
-  const requestRows = useMemo(
-    () => buildRequestRows(draftRows),
-    [draftRows],
-  );
   const questionScoreState = useMemo(
     () => buildQuestionScoreState(data, questionScoreDraft),
     [data, questionScoreDraft],
   );
+  const reviewingWeights = Boolean(questionScoreState.changes);
+  const rowsForReview = useMemo(() => {
+    if (!explicitDirty) return [];
+    const baselineByEnrollment = new Map(
+      serverRowsRef.current.map((row) => [row.enrollment_id, row]),
+    );
+    return draftRows.filter((row) => {
+      // Changing weights can affect previously saved rows across the exam.
+      if (reviewingWeights && hasGradingData(row)) return true;
+      const baseline = baselineByEnrollment.get(row.enrollment_id);
+      return baseline != null && hasRowChanges(row, baseline);
+    });
+  }, [draftRows, explicitDirty, reviewingWeights]);
   const autosaveSummary = useMemo(() => {
     const rows = Object.values(autosaveRows);
     return {
@@ -385,23 +395,24 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
   }, []);
 
   const previewMutation = useMutation({
-    mutationFn: () =>
-      previewManualGrades(
-        examId,
-        requestRows,
-        questionScoreState.changes,
-      ),
+    mutationFn: async () => {
+      const rows = buildRequestRows(rowsForReview);
+      const questionScores = questionScoreState.changes;
+      const result = await previewManualGrades(examId, rows, questionScores);
+      return {
+        result,
+        rows,
+        questionScores,
+        studentNames: rowsForReview.map((row) => row.student_name),
+      };
+    },
     onError: (error) =>
       feedback.error(extractApiError(error, "입력한 채점 결과를 확인하지 못했습니다.")),
   });
 
   const applyMutation = useMutation({
-    mutationFn: () =>
-      applyManualGrades(
-        examId,
-        requestRows,
-        questionScoreState.changes,
-      ),
+    mutationFn: (confirmed: NonNullable<typeof previewMutation.data>) =>
+      applyManualGrades(examId, confirmed.rows, confirmed.questionScores),
     onSuccess: async (result) => {
       feedback.success(`${result.matched_count}명의 성적을 확정했습니다.`);
       previewMutation.reset();
@@ -770,7 +781,8 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     quickStartCount !== "" && Number(quickStartCount) > 0
       ? quickStartMaxScore / Number(quickStartCount)
       : null;
-  const preview = previewMutation.data;
+  const confirmation = previewMutation.data;
+  const preview = confirmation?.result;
   const hasErrors = Boolean(preview?.errors.length);
   const manualWriteBusy =
     previewMutation.isPending ||
@@ -778,6 +790,8 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     quickStartMutation.isPending;
   const awaitingDiscardedSheet = sheetQuery.fetchStatus !== "idle" && !dirty && sheetQuery.data !== data;
   const busy = manualWriteBusy || excelApplying || awaitingDiscardedSheet;
+  const canReview = hasEditableQuestions && rowsForReview.length > 0 &&
+    !busy && !hasAutosavePending && !questionScoreState.error;
   useImperativeHandle(forwardedRef, () => ({
     flushPending,
     // The caller holds the editing region inert until the external write and
@@ -1656,7 +1670,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     const key = event.key.toLowerCase();
     if (commandKey && !event.altKey && (key === "z" || key === "y")) {
       event.preventDefault();
-      if (awaitingDiscardedSheet) return;
+      if (busy) return;
       const redo = key === "y" || (key === "z" && event.shiftKey);
       if (redo) redoLastChange();
       else undoLastChange();
@@ -1676,8 +1690,9 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
         });
         return;
       }
-      if (!preview || hasErrors) previewMutation.mutate();
-      else applyMutation.mutate();
+      if (!canReview) return;
+      if (!confirmation || hasErrors) previewMutation.mutate();
+      else applyMutation.mutate(confirmation);
       return;
     }
     if (
@@ -2211,7 +2226,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
         </table>
       </div>
 
-      {preview && (
+      {confirmation && preview && (
         <div
           className={`${styles.preview} ${hasErrors ? styles.previewError : ""}`}
           role={hasErrors ? "alert" : "status"}
@@ -2228,14 +2243,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
                 : `${preview.matched_count}명 · 결시 ${preview.not_submitted_count}명 · 성적 계산 완료`}
             </strong>
             {hasErrors ? (
-              <ul>
-                {preview.errors.slice(0, 6).map((issue, index) => (
-                  <li key={`${issue.row ?? "all"}-${issue.field}-${index}`}>
-                    {issue.row ? `${issue.row}행 · ` : ""}
-                    {issue.message}
-                  </li>
-                ))}
-              </ul>
+              <ManualGradingIssues errors={preview.errors} studentNames={confirmation.studentNames} />
             ) : (
               <span>
                 기존 성적 {preview.overwrite_count}명은 이 표의 값으로 갱신됩니다.
@@ -2250,7 +2258,9 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
           <span>
             {data.manual_grading_method === "correctness" && !explicitDirty
               ? "정오를 모두 입력한 학생부터 점수·상태와 함께 자동 저장됩니다."
-              : "확인 단계에서는 통계가 바뀌지 않습니다. 성적 확정 시에만 한 번에 반영됩니다."}
+              : rowsForReview.length > 0
+                ? `확인 대상 ${rowsForReview.length}명 · 나머지 ${draftRows.length - rowsForReview.length}명 유지`
+                : "점수를 입력하거나 응시 상태를 바꾸면 확인할 수 있습니다."}
           </span>
           {data.manual_grading_method === "correctness" && !explicitDirty ? (
             autosaveSummary.failed > 0 ? (
@@ -2276,13 +2286,13 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
             ) : (
               <span className={styles.autosaveFooterSaved}>{autosaveStatusText}</span>
             )
-          ) : !preview || hasErrors ? (
+          ) : !confirmation || hasErrors ? (
             <Button
               type="button"
               intent="primary"
               onClick={() => previewMutation.mutate()}
               loading={previewMutation.isPending}
-              disabled={!explicitDirty || busy || hasAutosavePending || Boolean(questionScoreState.error)}
+              disabled={!canReview}
             >
               입력 내용 확인
             </Button>
@@ -2290,11 +2300,11 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
             <Button
               type="button"
               intent="primary"
-              onClick={() => applyMutation.mutate()}
+              onClick={() => applyMutation.mutate(confirmation)}
               loading={applyMutation.isPending}
-              disabled={busy}
+              disabled={!canReview}
             >
-              {preview.matched_count}명 성적 확정
+              {confirmation.result.matched_count}명 성적 확정
             </Button>
           )}
         </footer>
@@ -2311,6 +2321,36 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
 });
 
 export default ManualExamGradingGrid;
+
+function ManualGradingIssues({
+  errors,
+  studentNames,
+}: {
+  errors: ManualGradePreview["errors"];
+  studentNames: string[];
+}) {
+  const items = errors.map((issue, index) => {
+    const student = issue.row == null ? null : studentNames[issue.row - 1];
+    return (
+      <li key={`${issue.row ?? "all"}-${issue.field}-${index}`}>
+        {student && <b>{student} · </b>}
+        {issue.message}
+      </li>
+    );
+  });
+  const visibleCount = 6;
+  return (
+    <>
+      <ul>{items.slice(0, visibleCount)}</ul>
+      {items.length > visibleCount && (
+        <details>
+          <summary>오류 {items.length - visibleCount}건 더 보기</summary>
+          <ul>{items.slice(visibleCount)}</ul>
+        </details>
+      )}
+    </>
+  );
+}
 
 type ManualGradingTableRowProps = {
   row: ManualGradeRow;
@@ -2360,6 +2400,8 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
   onPasteCorrectnessMatrix,
   onRetryAutosave,
 }: ManualGradingTableRowProps) {
+  const isUnentered = manualGradingMethod === "score" && !hasGradingData(row);
+  const attendanceLabel = row.is_not_submitted ? "결시" : isUnentered ? "미입력" : "응시";
   return (
     <tr>
       <td className={fixedColumnStyles.studentColumn}>
@@ -2405,20 +2447,21 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
         <button
           type="button"
           className={`${styles.attendanceButton} ${overviewStyles.attendanceButton} ${
-            row.is_not_submitted ? styles.absent : ""
+            row.is_not_submitted ? styles.absent : isUnentered ? styles.unentered : ""
           }`}
           aria-pressed={row.is_not_submitted}
-          aria-label={row.is_not_submitted ? "결시" : "응시"}
+          aria-label={attendanceLabel}
+          title={row.is_not_submitted ? "눌러서 결시 해제" : "눌러서 결시로 변경"}
           disabled={!hasEditableQuestions || busy}
           onClick={() =>
             onSetAttendance(row.enrollment_id, !row.is_not_submitted)
           }
         >
           <span className={overviewStyles.attendanceFullLabel}>
-            {row.is_not_submitted ? "결시" : "응시"}
+            {attendanceLabel}
           </span>
           <span className={overviewStyles.attendanceOverviewLabel} aria-hidden>
-            {row.is_not_submitted ? "결" : "응"}
+            {attendanceLabel[0]}
           </span>
         </button>
       </td>
@@ -2760,6 +2803,22 @@ function isCorrectnessRowComplete(row: ManualGradeRow): boolean {
     !cell.editable || cell.entry_method !== "correctness" ||
     cell.state === "correct" || cell.state === "incorrect" || cell.state === "review"
   );
+}
+
+function hasGradingData(row: ManualGradeRow): boolean {
+  return row.is_not_submitted || row.expected_version != null ||
+    Object.values(row.cells).some((cell) =>
+      cell.state != null || cell.score != null || cell.grading_status != null ||
+      Boolean(cell.answer) || cell.include_in_wrong_note
+    );
+}
+
+function hasRowChanges(row: ManualGradeRow, baseline: ManualGradeRow): boolean {
+  return row.is_not_submitted !== baseline.is_not_submitted ||
+    Object.entries(row.cells).some(([questionId, cell]) => {
+      const original = baseline.cells[questionId];
+      return cell.editable && (!original || !sameManualGradeCell(cell, original));
+    });
 }
 
 function buildRequestRows(rows: ManualGradeRow[]): ManualGradeRequestRow[] {
