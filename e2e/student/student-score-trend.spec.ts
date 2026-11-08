@@ -195,6 +195,7 @@ function gradesFor(points: TrendPoint[]) {
         homework_id: 703,
         enrollment_id: points[0]?.enrollment_id ?? 201,
         title: "최근 차시 완료 과제",
+        teacher_resolved: true,
         score: 45,
         max_score: 45,
         passed: true,
@@ -818,6 +819,7 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await expect.poll(() => cards.evaluateAll((items) => items.map((item) => item.getAttribute("data-session-order"))))
       .toEqual(["10", "8", "1"]);
     await expect(cards.nth(0)).toContainText("45/45");
+    await expect(cards.nth(0)).toContainText("교사 확인 완료");
     await expect(cards.nth(1)).toContainText("검사 전");
     await expect(cards.nth(2)).toContainText("미제출");
     await expect(page.getByText(/null\//)).toHaveCount(0);
