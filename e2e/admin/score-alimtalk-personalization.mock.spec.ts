@@ -42,6 +42,10 @@ async function installScoreAlimtalkRoutes(
     const request = route.request();
     const path = new URL(request.url()).pathname;
     const method = request.method();
+    if (path.endsWith("/api/v1/lectures/sessions/9002/schedules/") && method === "GET") {
+      await route.fulfill({ json: [] });
+      return;
+    }
 
     if (path === "/api/v1/core/subscription/") {
       await route.fulfill({ json: { tenant_name: tenantName, is_subscription_active: true } });
@@ -253,6 +257,7 @@ async function installScoreAlimtalkRoutes(
         return;
       }
       const perStudent = payload.alimtalk_extra_vars_per_student ?? {};
+      const studentIds = [9301, 9302].filter(id => payload.student_ids?.includes(id) ?? true);
       await route.fulfill({
         json: {
           ok: true,
@@ -260,12 +265,12 @@ async function installScoreAlimtalkRoutes(
           mode: "now",
           send_to: payload.send_to ?? "parent",
           recipient: {
-            selected: 2,
-            resolved: 2,
-            valid_phone: 2,
+            selected: studentIds.length,
+            resolved: studentIds.length,
+            valid_phone: studentIds.length,
             skipped_no_phone: 0,
             duplicate_phone: 0,
-            unique_phone: 2,
+            unique_phone: studentIds.length,
             invalid_or_deleted: 0,
             limit: 500,
           },
@@ -280,10 +285,10 @@ async function installScoreAlimtalkRoutes(
             template_type: "grades",
           },
           // Preflight resolves Tenant.name inside each grade body before returning its preview.
-          preview_recipients: [9301, 9302].map((studentId, index) => ({
+          preview_recipients: studentIds.map(studentId => ({
             student_id: studentId,
-            student_name: `개인화학생${index + 1}`,
-            phone: `010****00${index + 1}`,
+            student_name: "개인화학생" + (studentId - 9300),
+            phone: "010****00" + (studentId - 9300),
             excluded: false,
             exclude_reason: "",
             full_message_body: (perStudent[String(studentId)]?._body_subst ?? "")
@@ -481,6 +486,38 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     await expect(actual).toContainText("개인화 검증반");
     await expect(actual).toContainText("점수 70");
   });
+
+  for (const width of [1366, 390]) {
+    test("선택한 시험의 차시 최고점만 본문과 학생별 검사에 넣는다 " + width, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const preflights: SendPayload[] = [];
+      const sends: SendPayload[] = [];
+      await openPersonalizedScores(page, "success", preflights, sends, [], undefined, true);
+      const student = page.getByRole("checkbox", { name: "개인화학생1 선택" });
+      await expect(student).toBeVisible({ timeout: 45_000 });
+      await student.check();
+      await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+      const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+      const editor = modal.getByRole("textbox", { name: "안내문" });
+      await modal.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
+      await editor.fill("점수 #{시험1}\n");
+      const highest = modal.getByRole("button", { name: "주간 확인 최고점 넣기", exact: true });
+      await expect(highest).toBeHidden();
+      await expect(editor).not.toContainText("최고점");
+      await modal.locator("summary").getByText("최고점", { exact: true }).click();
+      await expect(highest).toBeVisible();
+      await expect(modal.getByRole("button", { name: "단원 복습 최고점 넣기", exact: true })).toHaveCount(0);
+      await highest.click();
+      await expect(editor).toContainText("주간 확인 최고점 80점");
+      await expect.poll(() => preflights.at(-1)?.alimtalk_extra_vars_per_student?.["9301"]?._body_subst)
+        .toContain("주간 확인 최고점 80점");
+      expect(preflights.at(-1)?.alimtalk_extra_vars_per_student?.["9301"]?._body_subst).toContain("점수 70");
+      expect(preflights.at(-1)?.alimtalk_extra_vars_per_student?.["9302"]).toBeUndefined();
+      await expect(modal.getByLabel("현재 학생의 실제 발송 문구")).toContainText("주간 확인 최고점 80점");
+      expect(sends).toHaveLength(0);
+      await page.screenshot({ path: testInfo.outputPath("score-highest-" + width + ".png") });
+    });
+  }
 
   test("비기본 성적 문구를 선택하면 학생별 본문으로 보호자 발송 전 검사를 요청한다", async ({ page }) => {
     const preflightPayloads: SendPayload[] = [];

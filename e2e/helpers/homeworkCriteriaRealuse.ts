@@ -92,11 +92,14 @@ async function verifyFinalHomeworkPreview(
     await expect(numericResult).toBeVisible();
     await editor.fill(`${marker}\n#{학생이름}\n`);
     await numericResult.click();
+    await modal.locator("summary").getByText("최고점", { exact: true }).click();
+    await modal.getByRole("button", { name: homeworkTitle + " 최고점 넣기", exact: true }).click();
     const checked = page.waitForResponse(response => {
       if (response.request().method() !== "POST"
         || new URL(response.url()).pathname !== "/api/v1/messaging/send/preflight/") return false;
       const payload = response.request().postDataJSON();
       return payload.send_to === "parent" && payload.raw_body?.includes(marker)
+        && /#\{과제\d+최고점\}/.test(payload.raw_body)
         && (payload.raw_body.match(/#\{과제\d+결과\}/g) ?? []).length === 2;
     });
     checkpoint.phase = "preview-preflight";
@@ -120,6 +123,9 @@ async function verifyFinalHomeworkPreview(
       const recipient = preflight.preview_recipients.find(item => item.student_id === student.id)!;
       expect(recipient).toMatchObject({ student_name: student.name, excluded: false });
       expect(recipient.full_message_body).toContain(student.name);
+      expect(recipient.full_message_body).toContain(
+        homeworkTitle + " 최고점 " + Math.max(92, comparisonStudent.score) + "점",
+      );
       expect(recipient.full_message_body).toContain(`${homeworkTitle}: ${student.score}/100 (${student.score}%) · ${student.passed ? passLabel : failLabel}`);
       expect(recipient.full_message_body).toContain(`${completionTitle}: ${student.completionScore ? "통과" : "미통과"}`);
       for (const other of expectedStudents.filter(item => item.id !== student.id)) {
