@@ -482,6 +482,34 @@ test.describe("성적 알림톡 학생별 개인화", () => {
     await expect(actual).toContainText("점수 70");
   });
 
+  for (const width of [1366, 390]) {
+    test("선택한 시험의 차시 최고점만 본문과 학생별 검사에 넣는다 " + width, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const preflights: SendPayload[] = [];
+      const sends: SendPayload[] = [];
+      await openPersonalizedScores(page, "success", preflights, sends, [], undefined, true);
+      await page.getByRole("checkbox", { name: "개인화학생1 선택" }).check();
+      await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+      const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+      const editor = modal.getByRole("textbox", { name: "안내문" });
+      await editor.fill("점수 #{시험1}\n");
+      const highest = modal.getByRole("button", { name: "주간 확인 최고점 넣기", exact: true });
+      await expect(highest).toBeHidden();
+      await expect(editor).not.toContainText("최고점");
+      await modal.locator("summary").getByText("최고점", { exact: true }).click();
+      await expect(highest).toBeVisible();
+      await expect(modal.getByRole("button", { name: "단원 복습 최고점 넣기", exact: true })).toHaveCount(0);
+      await highest.click();
+      await expect(editor).toContainText("주간 확인 최고점 80점");
+      await expect.poll(() => preflights.at(-1)?.alimtalk_extra_vars_per_student?.["9301"]?._body_subst)
+        .toContain("주간 확인 최고점 80점");
+      expect(preflights.at(-1)?.alimtalk_extra_vars_per_student?.["9301"]?._body_subst).toContain("점수 70");
+      expect(preflights.at(-1)?.alimtalk_extra_vars_per_student?.["9302"]).toBeUndefined();
+      expect(sends).toHaveLength(0);
+      await page.screenshot({ path: testInfo.outputPath("score-highest-" + width + ".png") });
+    });
+  }
+
   test("비기본 성적 문구를 선택하면 학생별 본문으로 보호자 발송 전 검사를 요청한다", async ({ page }) => {
     const preflightPayloads: SendPayload[] = [];
     await openPersonalizedScores(page, "success", preflightPayloads, [], [{

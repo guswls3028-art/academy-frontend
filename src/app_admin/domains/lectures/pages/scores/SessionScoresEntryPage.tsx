@@ -33,7 +33,7 @@ import { DomainListToolbar, getStoredTableOption, setStoredTableOption } from "@
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
-import { substituteScoreVars, buildScoreVars, buildScoreDetail, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
+import { substituteScoreVars, buildScoreVars, buildScoreDetail, collectHighestScores, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
@@ -1003,7 +1003,11 @@ export default function SessionScoresEntryPage({
               );
               const lectureName = meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
               const sessionTitle = meta?.session_title ?? session?.title ?? "";
-              const reportOptions = { lectureName, sessionTitle };
+              const cohortData = schedule == null ? freshData : await fetchSessionScores(numericSessionId).catch(() => {
+                feedback.warning("차시 전체 최고점을 불러오지 못했습니다. 다시 열어 확인해 주세요.");
+                return null;
+              });
+              const reportOptions = { lectureName, sessionTitle, highestScores: collectHighestScores(cohortData) };
 
               let initialBody: string | undefined;
               let initialTemplateId: number | null = null;
