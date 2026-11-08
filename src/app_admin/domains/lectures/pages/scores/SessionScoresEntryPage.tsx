@@ -68,6 +68,30 @@ type SessionScoresEntryPageProps = {
   onOpenCreateHomework?: () => void;
 };
 
+function isScoreAlimtalkAttendance(row: SessionScoreRow): boolean {
+  return row.attendance_status === "PRESENT" || row.attendance_status === "LATE";
+}
+
+function getScoreAlimtalkBlockReason(rows: SessionScoreRow[], afterSave: boolean): string | null {
+  if (rows.length === 0) {
+    return "선택한 학생 중 출석·지각으로 기록된 학생이 없습니다. 출결을 확인해 주세요.";
+  }
+  if (rows.some((row) => row.exams.some((exam) => exam.block.grading_status === "subjective_pending"))) {
+    return "최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.";
+  }
+  const provisionalCount = rows.reduce(
+    (count, row) => count + row.exams.filter((exam) => exam.block.is_provisional).length, 0,
+  );
+  if (provisionalCount > 0) {
+    return `채점을 확인 중인 시험이 ${provisionalCount}건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.`;
+  }
+  const unenteredCount = rows.reduce((count, row) => count + collectUnenteredScoreItems(row).length, 0);
+  if (unenteredCount === 0) return null;
+  return afterSave
+    ? `최신 성적에 입력되지 않은 시험·과제가 ${unenteredCount}건 있습니다. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 다시 시도해 주세요.`
+    : `점수가 입력되지 않은 시험·과제가 ${unenteredCount}건 있습니다. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 발송해 주세요.`;
+}
+
 function getStoredSummaryColumnMode(
   storageKey: string | null,
   legacyStorageKey: string | null,
@@ -142,7 +166,13 @@ export default function SessionScoresEntryPage({
     program?.feature_flags?.score_summary_column_default === "exam_wrong" ? "exam_wrong" : "verdict";
   const [searchInput, setSearchInput] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
-  useEffect(() => { setSelectedEnrollmentIds([]); }, [numericSessionId, schedule]);
+  const [isPreparingScoreAlimtalk, setIsPreparingScoreAlimtalk] = useState(false);
+  const scoreAlimtalkRequestRef = useRef<symbol | null>(null);
+  useEffect(() => {
+    setSelectedEnrollmentIds([]);
+    setIsPreparingScoreAlimtalk(false);
+    return () => { scoreAlimtalkRequestRef.current = null; };
+  }, [numericSessionId, schedule]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   /** 편집 시 어떤 셀을 쓰기 모드로 할지 */
@@ -726,6 +756,7 @@ export default function SessionScoresEntryPage({
   });
   const selectedHasSubjectivePending = (data?.rows ?? []).some((row) => (
     selectedEnrollmentIds.includes(row.enrollment_id)
+    && isScoreAlimtalkAttendance(row)
     && row.exams.some((exam) => exam.block.grading_status === "subjective_pending")
   ));
   const scoreAlimtalkDisabled = selectedEnrollmentIds.length === 0
@@ -741,7 +772,127 @@ export default function SessionScoresEntryPage({
       ? "이전 입력 복구 여부를 먼저 확인해 주세요."
     : isEditMode
       ? "점수 입력을 마친 뒤 알림톡을 발송할 수 있습니다."
-      : "선택한 학생에게 저장된 성적 기준으로 알림톡을 발송합니다.";
+      : "선택한 학생 중 출석·지각으로 기록된 학생의 성적을 확인합니다.";
+  const handleOpenScoreAlimtalk = async () => {
+    if (scoreAlimtalkDisabled || scoreAlimtalkRequestRef.current !== null) return;
+    const request = Symbol();
+    scoreAlimtalkRequestRef.current = request;
+    setIsPreparingScoreAlimtalk(true);
+    const isCurrentRequest = () => scoreAlimtalkRequestRef.current === request;
+    const selectedIds = new Set(selectedEnrollmentIds);
+    const selectAttendees = (snapshot: SessionScoresResponse) => snapshot.rows.filter(
+      (row) => selectedIds.has(row.enrollment_id) && isScoreAlimtalkAttendance(row),
+    );
+    const refreshError = "최신 출결과 성적을 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.";
+
+    try {
+      const initial = await refetch();
+      if (!isCurrentRequest()) return;
+      if (initial.isError || !initial.data) {
+        feedback.error(refreshError);
+        return;
+      }
+      const initialIssue = getScoreAlimtalkBlockReason(selectAttendees(initial.data), false);
+      if (initialIssue) {
+        feedback.error(initialIssue);
+        return;
+      }
+      if (!await saveScoresNow() || !isCurrentRequest()) return;
+
+      const latest = await refetch();
+      if (!isCurrentRequest()) return;
+      if (latest.isError || !latest.data) {
+        feedback.error(refreshError);
+        return;
+      }
+      const selectedRows = selectAttendees(latest.data);
+      const issue = getScoreAlimtalkBlockReason(selectedRows, true);
+      if (issue) {
+        feedback.error(issue);
+        return;
+      }
+      const ids = selectedRows.map((row) => row.student_id);
+      const activeStudentIds = [...new Set(ids.filter((id): id is number => id != null && Number.isFinite(id)))];
+      if (ids.some((id) => id == null || !Number.isFinite(id))) {
+        feedback.error("발송 대상 학생 정보를 확인하지 못했습니다. 성적표를 다시 불러와 주세요.");
+        return;
+      }
+      const excludedCount = selectedIds.size - selectedRows.length;
+      const meta = latest.data.meta ?? null;
+      // SSOT (2026-05-13): backend 응답 meta가 진짜 진리. 캐시 fallback은 호환.
+      const lecture = qc.getQueryData<{ title?: string; name?: string }>(
+        adminLectureQueryKeys.lecture(numericLectureId),
+      );
+      const session = qc.getQueryData<{ title?: string }>(
+        adminLectureQueryKeys.sessionDetail(numericSessionId),
+      );
+      const lectureName = meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
+      const sessionTitle = meta?.session_title ?? session?.title ?? "";
+      const reportOptions = { lectureName, sessionTitle };
+
+      let initialBody: string | undefined;
+      let initialTemplateId: number | null = null;
+      let initialTemplateUpdatedAt: string | undefined;
+      let scoreDetail = "";
+
+      try {
+        const templates = await fetchMessageTemplates("grades");
+        if (!isCurrentRequest()) return;
+        const chosenTpl = templates.find((t) => t.is_user_default && !t.is_system);
+
+        // 학원장 임근혁 보고(2026-05-12 23:50):
+        // 일괄 발송 양식이 첫 학생으로 치환되어 나와 "특정 대상 한 명으로 하드코딩됐다"는 오해.
+        // → 양식 본문은 변수 그대로 (#{학생이름}/#{시험1명}/...) 노출.
+        initialBody = chosenTpl
+          ? chosenTpl.body
+          : "";
+        initialTemplateId = chosenTpl?.id ?? null;
+        initialTemplateUpdatedAt = chosenTpl?.updated_at;
+        scoreDetail = buildScoreDetail(selectedRows[0], meta);
+      } catch {
+        if (isCurrentRequest()) feedback.error("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
+        return;
+      }
+
+      // SSOT (2026-05-14): 학생별 변수 재계산 callback.
+      // 학원장이 modal textarea에서 본문 수정 시 modal이 currentBody 기반으로 이 callback 호출 →
+      // 각 학생별 substituteScoreVars 결과 (_body_subst) 가 학원장 수정본 반영.
+      // 직전 결함: 모달 열기 전 사전 계산된 _body_subst 만 보내면 학원장 수정이 silently discard.
+      const recomputePerStudentVars = (currentBody: string): Record<number, Record<string, string>> => {
+        const result: Record<number, Record<string, string>> = {};
+        for (const sRow of selectedRows) {
+          if (sRow.student_id == null) continue;
+          const scoreVars = buildScoreVars(sRow, meta, reportOptions);
+          result[sRow.student_id] = {
+            ...scoreVars,
+            _body_subst: substituteScoreVars(currentBody, sRow, meta, reportOptions),
+          };
+        }
+        return result;
+      };
+      const firstScoreVars = selectedRows[0]
+        ? buildScoreVars(selectedRows[0], meta, reportOptions)
+        : {};
+
+      openSendMessageModal({
+        sessionId: numericSessionId,
+        studentIds: activeStudentIds,
+        recipientLabel: `수업결과 발송 — 출석·지각 ${activeStudentIds.length}명${excludedCount ? ` · ${excludedCount}명 제외` : ""}`,
+        blockCategory: "grades",
+        initialBody,
+        initialTemplateId,
+        initialTemplateUpdatedAt,
+        alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail, ...firstScoreVars },
+        recomputePerStudentVars,
+      });
+    } finally {
+      if (isCurrentRequest()) {
+        scoreAlimtalkRequestRef.current = null;
+        setIsPreparingScoreAlimtalk(false);
+      }
+    }
+  };
+
   /* 2026-05-13 회귀 fix: hasExamsOrHomeworks 가 selectionBar 안에서 참조되는데
      이전엔 line 581 (selectionBar 아래) 에서 선언 → TDZ ReferenceError 발생, 페이지 crash.
      selectionBar 보다 위로 이동. */
@@ -910,156 +1061,9 @@ export default function SessionScoresEntryPage({
             intent="primary"
             size="sm"
             title={scoreAlimtalkTitle}
-            onClick={async () => {
-              if (recoveryBlocked) {
-                feedback.info("이전 입력 복구 여부를 먼저 확인해 주세요.");
-                return;
-              }
-              if (isEditMode) {
-                feedback.info("점수 입력을 마친 뒤 알림톡을 발송해 주세요.");
-                return;
-              }
-              const initialRefresh = await refetch();
-              if (initialRefresh.isError || !initialRefresh.data) {
-                feedback.error("최신 성적을 다시 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.");
-                return;
-              }
-              let freshData = initialRefresh.data;
-              let rows = freshData?.rows ?? [];
-              let selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
-              const pendingSubjectiveCount = selectedRows.reduce(
-                (count, row) => count + row.exams.filter(
-                  (exam) => exam.block.grading_status === "subjective_pending",
-                ).length,
-                0,
-              );
-              if (pendingSubjectiveCount > 0) {
-                feedback.error("최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.");
-                return;
-              }
-              const provisionalCount = selectedRows.reduce(
-                (count, row) => count + row.exams.filter(exam => exam.block.is_provisional).length, 0,
-              );
-              if (provisionalCount > 0) {
-                feedback.error(`채점을 확인 중인 시험이 ${provisionalCount}건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.`);
-                return;
-              }
-              const unenteredItemCount = selectedRows.reduce(
-                (count, row) => count + collectUnenteredScoreItems(row).length,
-                0,
-              );
-              if (unenteredItemCount > 0) {
-                feedback.error(
-                  `점수가 입력되지 않은 시험·과제가 ${unenteredItemCount}건 있습니다. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 발송해 주세요.`,
-                );
-                return;
-              }
-              if (!await saveScoresNow()) return;
-              const finalRefresh = await refetch();
-              if (finalRefresh.isError || !finalRefresh.data) {
-                feedback.error("최신 성적을 다시 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.");
-                return;
-              }
-              freshData = finalRefresh.data;
-              rows = freshData?.rows ?? [];
-              selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
-              const finalPendingSubjectiveCount = selectedRows.reduce(
-                (count, row) => count + row.exams.filter(
-                  (exam) => exam.block.grading_status === "subjective_pending",
-                ).length,
-                0,
-              );
-              if (finalPendingSubjectiveCount > 0) {
-                feedback.error("최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.");
-                return;
-              }
-              const finalProvisionalCount = selectedRows.reduce(
-                (count, row) => count + row.exams.filter(exam => exam.block.is_provisional).length, 0,
-              );
-              if (finalProvisionalCount > 0) {
-                feedback.error(`채점을 확인 중인 시험이 ${finalProvisionalCount}건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.`);
-                return;
-              }
-              const finalUnenteredItemCount = selectedRows.reduce(
-                (count, row) => count + collectUnenteredScoreItems(row).length,
-                0,
-              );
-              if (finalUnenteredItemCount > 0) {
-                feedback.error(
-                  `최신 성적에 입력되지 않은 시험·과제가 ${finalUnenteredItemCount}건 있습니다. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 다시 시도해 주세요.`,
-                );
-                return;
-              }
-              const meta = freshData?.meta ?? null;
-              const activeStudentIds = selectedRows
-                .map((row) => row.student_id)
-                .filter((id): id is number => id != null && Number.isFinite(id));
-              // SSOT (2026-05-13): backend 응답 meta가 진짜 진리. 캐시 fallback은 호환.
-              const lecture = qc.getQueryData<{ title?: string; name?: string }>(
-                adminLectureQueryKeys.lecture(numericLectureId),
-              );
-              const session = qc.getQueryData<{ title?: string }>(
-                adminLectureQueryKeys.sessionDetail(numericSessionId),
-              );
-              const lectureName = meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
-              const sessionTitle = meta?.session_title ?? session?.title ?? "";
-              const reportOptions = { lectureName, sessionTitle };
-
-              let initialBody: string | undefined;
-              let initialTemplateId: number | null = null;
-              let initialTemplateUpdatedAt: string | undefined;
-              let scoreDetail = "";
-
-              try {
-                const templates = await fetchMessageTemplates("grades");
-                const chosenTpl = templates.find((t) => t.is_user_default && !t.is_system);
-
-                // 학원장 임근혁 보고(2026-05-12 23:50):
-                // 일괄 발송 양식이 첫 학생으로 치환되어 나와 "특정 대상 한 명으로 하드코딩됐다"는 오해.
-                // → 양식 본문은 변수 그대로 (#{학생이름}/#{시험1명}/...) 노출.
-                initialBody = chosenTpl
-                  ? chosenTpl.body
-                  : "";
-                initialTemplateId = chosenTpl?.id ?? null;
-                initialTemplateUpdatedAt = chosenTpl?.updated_at;
-                scoreDetail = buildScoreDetail(selectedRows[0], meta);
-              } catch {
-                feedback.error("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
-                return;
-              }
-
-              // SSOT (2026-05-14): 학생별 변수 재계산 callback.
-              // 학원장이 modal textarea에서 본문 수정 시 modal이 currentBody 기반으로 이 callback 호출 →
-              // 각 학생별 substituteScoreVars 결과 (_body_subst) 가 학원장 수정본 반영.
-              // 직전 결함: 모달 열기 전 사전 계산된 _body_subst 만 보내면 학원장 수정이 silently discard.
-              const recomputePerStudentVars = (currentBody: string): Record<number, Record<string, string>> => {
-                const result: Record<number, Record<string, string>> = {};
-                for (const sRow of selectedRows) {
-                  if (sRow.student_id == null) continue;
-                  const scoreVars = buildScoreVars(sRow, meta, reportOptions);
-                  result[sRow.student_id] = {
-                    ...scoreVars,
-                    _body_subst: substituteScoreVars(currentBody, sRow, meta, reportOptions),
-                  };
-                }
-                return result;
-              };
-              const firstScoreVars = selectedRows[0]
-                ? buildScoreVars(selectedRows[0], meta, reportOptions)
-                : {};
-
-              openSendMessageModal({
-                sessionId: numericSessionId,
-                studentIds: activeStudentIds,
-                recipientLabel: `수업결과 발송 — 선택한 수강생 ${selectedEnrollmentIds.length}명`,
-                blockCategory: "grades",
-                initialBody,
-                initialTemplateId,
-                initialTemplateUpdatedAt,
-                alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail, ...firstScoreVars },
-                recomputePerStudentVars,
-              });
-            }}
+            onClick={handleOpenScoreAlimtalk}
+            loading={isPreparingScoreAlimtalk}
+            aria-busy={isPreparingScoreAlimtalk}
             disabled={scoreAlimtalkDisabled}
           >
             수업결과 알림톡 발송

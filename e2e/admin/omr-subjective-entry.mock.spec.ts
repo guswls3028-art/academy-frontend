@@ -97,6 +97,7 @@ async function installRoutes(page: Page, options: ScoreRouteOptions = {}) {
         rows: [{
           enrollment_id: 9911,
           student_id: 9912,
+          attendance_status: "PRESENT",
           student_name: "테스트 학생",
           lecture_title: "중대부고 통합과학",
           lecture_color: "#2563eb",
