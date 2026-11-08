@@ -169,9 +169,11 @@ export default function SessionScoresEntryPage({
   const [isPreparingScoreAlimtalk, setIsPreparingScoreAlimtalk] = useState(false);
   const [scoreAlimtalkError, setScoreAlimtalkError] = useState<string | null>(null);
   const scoreAlimtalkRequestRef = useRef<symbol | null>(null);
-  const changeScoreSelection = useCallback((ids: number[]) => {
-    scoreAlimtalkRequestRef.current = null;
+  const changeScoreSelection = useCallback((ids: number[], reason?: "roster") => {
     setSelectedEnrollmentIds(ids);
+    // A fresh roster can prune ineligible rows during preparation. Keep checking the clicked selection.
+    if (reason === "roster") return;
+    scoreAlimtalkRequestRef.current = null;
     setIsPreparingScoreAlimtalk(false);
     setScoreAlimtalkError(null);
   }, []);
