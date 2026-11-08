@@ -139,6 +139,24 @@ export async function expectApi<T = unknown>(
   return result.body;
 }
 
+export async function recordQaAttendance(
+  request: APIRequestContext,
+  access: string,
+  { sessionId, studentId, status }: { sessionId: number; studentId: number; status: "PRESENT" | "LATE" | "ONLINE" },
+  attendanceIds: number[],
+): Promise<number> {
+  const rows = await expectApi<Array<{ id: number }>>(
+    request, "POST", "/lectures/attendance/bulk_create/", access,
+    { session: sessionId, students: [studentId] }, [201],
+  );
+  expect(rows).toHaveLength(1);
+  const { id } = rows[0];
+  attendanceIds.push(id);
+  const updated = await expectApi<{ status: string }>(request, "PATCH", `/lectures/attendance/${id}/`, access, { status });
+  expect(updated.status).toBe(status);
+  return id;
+}
+
 export async function loginApi(
   request: APIRequestContext,
   username: string,

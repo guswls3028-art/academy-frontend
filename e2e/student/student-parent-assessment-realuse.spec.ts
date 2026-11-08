@@ -24,6 +24,7 @@ import {
   QA_API,
   QA_BASE,
   QA_TENANT,
+  recordQaAttendance,
   reloadStudentApp,
   selectParentStudentThroughUi,
   seedBrowserAuth,
@@ -544,7 +545,12 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await expect(page.getByRole("link").filter({ hasText: examTitle }).first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
     await test.step("parent-only assessment feedback", () => verifyAssessmentFeedback(page, request, admin, primary, peer, primaryTokens, parentTokens, testInfo));
-    const peerAttendanceId = await recordScoreMessageAttendance(request, admin, primary, peer);
+    await recordQaAttendance(request, admin.access, {
+      sessionId: created.sessionId!, studentId: primary.id, status: "PRESENT",
+    }, created.attendanceIds);
+    const peerAttendanceId = await recordQaAttendance(request, admin.access, {
+      sessionId: created.sessionId!, studentId: peer.id, status: "ONLINE",
+    }, created.attendanceIds);
     await test.step("score message attendance recipients, template and defaults", () => verifyScoreMessageTemplate(page, request, admin, primary, testInfo));
     await test.step("manual score precision and retake totals", () => verifyManualScorePrecision(page, request, admin, primary, primaryTokens, parentTokens));
     await test.step("exam order and total-boundary persistence", () => verifyExamOrderPersistence(page, request, admin, parentTokens, testInfo));
@@ -571,23 +577,6 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     browser.assertZeroDefects();
   });
 });
-
-async function recordScoreMessageAttendance(
-  request: APIRequestContext, admin: QaTokens, present: QaStudent, online: QaStudent,
-): Promise<number> {
-  const attendanceIds: number[] = [];
-  for (const [student, status] of [[present, "PRESENT"], [online, "ONLINE"]] as const) {
-    const rows = await expectApi<Array<{ id: number }>>(
-      request, "POST", "/lectures/attendance/bulk_create/", admin.access,
-      { session: created.sessionId, students: [student.id] }, [201],
-    );
-    expect(rows).toHaveLength(1);
-    created.attendanceIds.push(rows[0].id);
-    attendanceIds.push(rows[0].id);
-    await expectApi(request, "PATCH", `/lectures/attendance/${rows[0].id}/`, admin.access, { status });
-  }
-  return attendanceIds[1];
-}
 
 async function verifyAttendancePriorityAndAbsentScores(
   parentPage: Page, request: APIRequestContext, admin: QaTokens, family: QaFamily, peerAttendanceId: number, testInfo: TestInfo,

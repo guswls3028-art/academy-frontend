@@ -23,6 +23,7 @@ import {
   QA_API,
   QA_BASE,
   QA_TENANT,
+  recordQaAttendance,
   reloadStudentApp,
   seedBrowserAuth,
   STUDENT_PARENT_REALUSE_ENABLED,
@@ -68,12 +69,14 @@ type CreatedState = {
   duplicateEnrollmentId?: number;
   duplicateHomeworkId?: number;
   sessionEnrollmentIds: number[];
+  attendanceIds: number[];
 };
 
 const created: CreatedState = {
   family: null,
   adminAccess: "",
   sessionEnrollmentIds: [],
+  attendanceIds: [],
 };
 const runStamp = Date.now();
 const todayKst = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
@@ -145,6 +148,13 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
         session: created.sessionId, enrollments: [created.previewEnrollmentId],
       });
       created.sessionEnrollmentIds.push(...previewSessionEnrollments.map(row => row.id));
+      // Both preview recipients must have attended this disposable session.
+      await recordQaAttendance(request, admin.access, {
+        sessionId: created.sessionId!, studentId: created.family!.students[0].id, status: "PRESENT",
+      }, created.attendanceIds);
+      await recordQaAttendance(request, admin.access, {
+        sessionId: created.sessionId!, studentId: previewStudent.id, status: "LATE",
+      }, created.attendanceIds);
       for (const homeworkId of [created.homeworkId, completion.id]) {
         await expectApi(request, "PUT", `/homework/assignments/?homework_id=${homeworkId}`, admin.access,
           { enrollment_ids: [created.enrollmentId, created.previewEnrollmentId] }, [200]);
@@ -381,6 +391,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (created.completionHomeworkId) await remove("DELETE", `/homeworks/${created.completionHomeworkId}/`);
   if (created.homeworkId) await remove("DELETE", `/homeworks/${created.homeworkId}/`);
   if (created.duplicateHomeworkId) await remove("DELETE", `/homeworks/${created.duplicateHomeworkId}/`);
+  for (const id of created.attendanceIds) await remove("DELETE", `/lectures/attendance/${id}/`);
   for (const id of created.sessionEnrollmentIds) {
     await remove("DELETE", `/enrollments/session-enrollments/${id}/`);
   }
@@ -399,6 +410,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     catch (error) { failures.push(`family cleanup: ${String(error)}`); }
   }
   for (const [label, path] of [
+    ...created.attendanceIds.map(id => [`attendance ${id}`, `/lectures/attendance/${id}/`] as const),
     ...(created.completionHomeworkId ? [["completion homework", `/homeworks/${created.completionHomeworkId}/`] as const] : []),
     ...(created.homeworkId ? [[`homework ${created.homeworkId}`, `/homeworks/${created.homeworkId}/`] as const] : []),
     ...(created.sessionId ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const] : []),
