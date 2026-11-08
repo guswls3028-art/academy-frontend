@@ -36,8 +36,13 @@ async function installScoreAlimtalkRoutes(
   sendPayloads: SendPayload[],
   templates: Record<string, unknown>[] = [],
   completionHomework = false,
+  attendanceStatuses: (string | null)[] = ["PRESENT", "LATE"],
 ) {
   const tenantName = "실제 발송학원";
+  const scoreRoster = attendanceStatuses.map((_, index) => ({
+    examScore: [70, 80][index] ?? null,
+    homeworkScore: (completionHomework ? [1, 0] : [100, 20])[index] ?? null,
+  }));
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -78,10 +83,9 @@ async function installScoreAlimtalkRoutes(
               display_order: 2,
             }],
           },
-          rows: [
-            { examScore: 70, homeworkScore: completionHomework ? 1 : 100 },
-            { examScore: 80, homeworkScore: completionHomework ? 0 : 20 },
-          ].map(({ examScore, homeworkScore }, index) => ({
+          rows: scoreRoster.map(({ examScore, homeworkScore }, index) => ({
+            attendance_status: attendanceStatuses[index],
+            assessment_todo_eligible: attendanceStatuses[index] !== "ABSENT",
             enrollment_id: 9201 + index,
             student_id: 9301 + index,
             student_name: `개인화학생${index + 1}`,
@@ -97,13 +101,14 @@ async function installScoreAlimtalkRoutes(
               block: {
                 score: examScore,
                 max_score: 100,
-                passed: examScore >= 60,
-                achievement: examScore >= 60 ? "PASS" : "FAIL",
-                clinic_required: examScore < 60,
+                passed: examScore == null ? null : examScore >= 60,
+                achievement: examScore == null ? null : examScore >= 60 ? "PASS" : "FAIL",
+                clinic_required: examScore != null && examScore < 60,
+                grading_status: attendanceStatuses[index] === "ONLINE" ? "subjective_pending" : undefined,
                 is_locked: false,
                 objective_score: examScore,
                 subjective_score: 0,
-                correction_status: examScore >= 100 ? "NOT_REQUIRED" : "PENDING",
+                correction_status: examScore != null && examScore >= 100 ? "NOT_REQUIRED" : "PENDING",
                 meta: {},
               },
             }],
@@ -113,15 +118,15 @@ async function installScoreAlimtalkRoutes(
               block: {
                 score: homeworkScore,
                 max_score: completionHomework ? 1 : 100,
-                passed: homeworkScore >= (completionHomework ? 1 : 60),
-                clinic_required: homeworkScore < (completionHomework ? 1 : 60),
+                passed: homeworkScore == null ? null : homeworkScore >= (completionHomework ? 1 : 60),
+                clinic_required: homeworkScore != null && homeworkScore < (completionHomework ? 1 : 60),
                 is_locked: false,
                 meta: {},
               },
             }],
-            exam_total: { score: examScore, max_score: 100, selected_count: 1, scored_count: 1, complete: true },
-            homework_total: { score: homeworkScore, max_score: 100, selected_count: 1, scored_count: 1, complete: true },
-            clinic_required: examScore < 60 || homeworkScore < 60,
+            exam_total: { score: examScore, max_score: 100, selected_count: 1, scored_count: Number(examScore != null), complete: examScore != null },
+            homework_total: { score: homeworkScore, max_score: 100, selected_count: 1, scored_count: Number(homeworkScore != null), complete: homeworkScore != null },
+            clinic_required: (examScore != null && examScore < 60) || (homeworkScore != null && homeworkScore < 60),
             progress_completed: false,
             updated_at: "2026-08-31T22:00:00+09:00",
           })),
@@ -138,8 +143,8 @@ async function installScoreAlimtalkRoutes(
     if (path.endsWith("/api/v1/enrollments/session-enrollments/") && method === "GET") {
       await route.fulfill({
         json: {
-          count: 2,
-          results: [0, 1].map((index) => ({
+          count: attendanceStatuses.length,
+          results: attendanceStatuses.map((status, index) => ({
             id: 9501 + index,
             session: 9002,
             enrollment: 9201 + index,
@@ -154,11 +159,11 @@ async function installScoreAlimtalkRoutes(
     if (path.endsWith("/api/v1/lectures/attendance/") && method === "GET") {
       await route.fulfill({
         json: {
-          count: 2,
-          results: [0, 1].map((index) => ({
+          count: attendanceStatuses.length,
+          results: attendanceStatuses.map((status, index) => ({
             id: 9401 + index,
             enrollment_id: 9201 + index,
-            status: "PRESENT",
+            status: status ?? "UNSET",
           })),
         },
       });
@@ -257,7 +262,7 @@ async function installScoreAlimtalkRoutes(
         return;
       }
       const perStudent = payload.alimtalk_extra_vars_per_student ?? {};
-      const studentIds = [9301, 9302].filter(id => payload.student_ids?.includes(id) ?? true);
+      const recipients = payload.student_ids ?? [];
       await route.fulfill({
         json: {
           ok: true,
@@ -265,12 +270,12 @@ async function installScoreAlimtalkRoutes(
           mode: "now",
           send_to: payload.send_to ?? "parent",
           recipient: {
-            selected: studentIds.length,
-            resolved: studentIds.length,
-            valid_phone: studentIds.length,
+            selected: recipients.length,
+            resolved: recipients.length,
+            valid_phone: recipients.length,
             skipped_no_phone: 0,
             duplicate_phone: 0,
-            unique_phone: studentIds.length,
+            unique_phone: recipients.length,
             invalid_or_deleted: 0,
             limit: 500,
           },
@@ -285,7 +290,7 @@ async function installScoreAlimtalkRoutes(
             template_type: "grades",
           },
           // Preflight resolves Tenant.name inside each grade body before returning its preview.
-          preview_recipients: studentIds.map(studentId => ({
+          preview_recipients: recipients.map(studentId => ({
             student_id: studentId,
             student_name: "개인화학생" + (studentId - 9300),
             phone: "010****00" + (studentId - 9300),
@@ -323,6 +328,7 @@ async function openPersonalizedScores(
   templates: Record<string, unknown>[] = [],
   academyName?: string,
   completionHomework = false,
+  attendanceStatuses: (string | null)[] = ["PRESENT", "LATE"],
 ) {
   const baseUrl = getBaseUrl("admin");
   const mockOnlyReason = realMessagingSkipReason(baseUrl, "", "0");
@@ -336,7 +342,7 @@ async function openPersonalizedScores(
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", `${token}-refresh`);
   }, createLocalJwt());
-  await installScoreAlimtalkRoutes(page, mode, preflightPayloads, sendPayloads, templates, completionHomework);
+  await installScoreAlimtalkRoutes(page, mode, preflightPayloads, sendPayloads, templates, completionHomework, attendanceStatuses);
   if (academyName) {
     await page.route("**/api/v1/core/program/", (route) => route.fulfill({ json: {
       tenantCode: "hakwonplus",
@@ -371,6 +377,50 @@ test.describe("성적 알림톡 학생별 개인화", () => {
   test.use({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
 
   for (const width of [1366, 390]) {
+    test(`${width}px 전체 선택은 출석·지각만 미리보고 같은 학생으로 발송을 접수한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const preflights: SendPayload[] = [];
+      const sends: SendPayload[] = [];
+      const attendanceStatuses = ["PRESENT", "LATE", "UNSET", "ONLINE", null];
+      await openPersonalizedScores(page, "success", preflights, sends, [{
+        id: 991, name: "수업 결과", category: "grades", body: "#{학생이름} #{시험총점}",
+        is_system: false, is_user_default: true,
+      }], undefined, false, attendanceStatuses);
+      const open = page.getByRole("button", { name: "수업결과 알림톡 발송" });
+      const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+      const online = page.getByRole("checkbox", { name: "개인화학생4 선택" });
+      await expect(online).toBeVisible({ timeout: 45_000 });
+      await online.check();
+      await open.dblclick();
+      const eligibilityError = page.getByRole("alert").filter({ hasText: "선택한 학생 중 출석·지각으로 기록된 학생이 없습니다. 출결을 확인해 주세요." });
+      await expect(eligibilityError).toBeVisible();
+      await expect(open).toBeEnabled();
+      await expect(modal).toBeHidden();
+      expect(preflights).toHaveLength(0);
+
+      await page.getByRole("checkbox", { name: "전체 선택", exact: true }).check();
+      // Another staff member records the absence after this selection.
+      attendanceStatuses[2] = "ABSENT";
+      await open.click();
+      await expect(modal.getByText("출석·지각 2명 · 3명 제외", { exact: true })).toBeVisible();
+      await expect(eligibilityError).toBeHidden();
+      await expect.poll(() => modal.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`score-attendance-recipients-${width}.png`) });
+      await modal.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
+      await modal.getByRole("checkbox", { name: "학부모", exact: true }).check();
+      await modal.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
+      const confirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
+      await expect(confirm.getByLabel("카카오톡 실제 발송 미리보기")).toContainText("개인화학생1");
+      expect(sends).toHaveLength(0);
+      await confirm.getByRole("button", { name: "발송하기", exact: true }).click();
+      await expect.poll(() => sends.length).toBe(1);
+      expect(preflights.length).toBeGreaterThan(0);
+      for (const payload of [...preflights, ...sends]) {
+        expect(payload.student_ids).toEqual([9301, 9302]);
+        expect(Object.keys(payload.alimtalk_extra_vars_per_student ?? {})).toEqual(["9301", "9302"]);
+      }
+    });
+
     test(`${width}px 삭제한 기본 문구는 재진입·새로고침에도 돌아오지 않고 과제별 편집을 발송까지 반영한다`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 900 });
       const templates: Record<string, unknown>[] = [
