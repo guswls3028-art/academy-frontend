@@ -145,6 +145,14 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
         session: created.sessionId, enrollments: [created.previewEnrollmentId],
       });
       created.sessionEnrollmentIds.push(...previewSessionEnrollments.map(row => row.id));
+      // The preview must use two eligible parents; an unmarked student is
+      // deliberately excluded by the class score message attendance rule.
+      for (const [studentId, status] of [[created.family!.students[0].id, "PRESENT"], [previewStudent.id, "LATE"]] as const) {
+        const attendance = await expectApi<Array<{ id: number }>>(request, "POST", "/lectures/attendance/bulk_create/",
+          admin.access, { session: created.sessionId, students: [studentId] }, [201]);
+        expect(attendance).toHaveLength(1);
+        await expectApi(request, "PATCH", `/lectures/attendance/${attendance[0].id}/`, admin.access, { status });
+      }
       for (const homeworkId of [created.homeworkId, completion.id]) {
         await expectApi(request, "PUT", `/homework/assignments/?homework_id=${homeworkId}`, admin.access,
           { enrollment_ids: [created.enrollmentId, created.previewEnrollmentId] }, [200]);
