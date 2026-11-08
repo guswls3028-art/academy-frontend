@@ -15,7 +15,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import type { SessionScoreRow, SessionScoreMeta, SessionScoresSummaryColumnMode } from "../api/sessionScores";
-import type { PendingChange, ScoreActiveCell, ScoreActiveEditor } from "../api/scoreDraft";
+import { isScoreEditStaleError, type PendingChange, type ScoreActiveCell, type ScoreActiveEditor } from "../api/scoreDraft";
 import { scoresQueryKeys } from "../api/queryKeys";
 import {
   getHomeworkScoreCellConflict,
@@ -738,6 +738,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     ));
     if (list.length === 0) return { savedCount: 0, projectionPendingCount: 0 };
     const failed: PendingChange[] = [];
+    let staleError: unknown;
     const succeeded: Array<{
       change: PendingChange;
       updatedAt?: string | null;
@@ -775,6 +776,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         }
         succeeded.push({ change: p, updatedAt, saved, projectionReady });
       } catch (error) {
+        if (isScoreEditStaleError(error)) {
+          staleError = error;
+          break;
+        }
         if (p.type === "homework") {
           const conflict = getHomeworkScoreCellConflict(error);
           if (conflict) {
@@ -849,6 +854,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     const projectionPendingCount = succeeded.filter(
       ({ saved, projectionReady }) => saved === true && projectionReady === false,
     ).length;
+    if (staleError != null) throw staleError;
     if (failed.length > 0) {
       throw new Error(`${failed.length}건의 점수를 저장하지 못했습니다. 입력값은 유지됩니다. 다시 저장해 주세요.`);
     }
