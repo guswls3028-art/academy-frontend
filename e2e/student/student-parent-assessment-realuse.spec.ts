@@ -3,9 +3,9 @@
  * Runs only in the disposable production-shaped development tenant.
  */
 import { expect, test } from "../fixtures/strictTest";
-import type { APIRequestContext, Page, Route, TestInfo } from "@playwright/test";
+import type { APIRequestContext, Locator, Page, Route, TestInfo } from "@playwright/test";
 import type { SendPreflightResponse } from "../../src/app_admin/domains/messages/api/messages.api";
-import type { ManualGradeSheet } from "../../src/app_admin/domains/results/api/manualExamGrading";
+import type { ManualGradePreview, ManualGradeRequestRow, ManualGradeSheet } from "../../src/app_admin/domains/results/api/manualExamGrading";
 import type { ExamsListResponse } from "../../src/app_student/domains/exams/api/exams.api";
 import type { MyGradesSummary } from "../../src/app_student/domains/grades/api/grades.api";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
@@ -42,9 +42,6 @@ import { verifyExcelAssessment } from "./excelAssessmentRealuse";
 import { withOwnedScoreLeaseCleanup } from "../helpers/scoreLeaseCleanup";
 import { verifySessionSchedules } from '../helpers/verifySessionSchedules';
 
-// This scenario now spans submission, feedback, templates, grading, copy and
-// attendance and online written-answer journeys. Budget the combined flow without relaxing any individual
-// action, navigation, API or assertion deadline.
 test.setTimeout(660_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 
@@ -365,6 +362,10 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
   });
 
   test("390px 학생·학부모 자녀별 제출·결과·reload/relogin·desktop을 완료한다", async ({ page, request }, testInfo) => {
+    // The combined assessment journey includes weekday schedules, written
+    // answers and Excel. The release canary reached Excel but hit 660s before
+    // student readback. Give this case margin; keep action and hook limits.
+    test.setTimeout(840_000);
     const boundary = await installQaStudentParentBoundary(page, request);
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
@@ -696,8 +697,11 @@ async function verifyManualScorePrecision(
   );
   expect(questions).toHaveLength(6);
   for (const question of questions) expect(question.score).toBe(100 / 6);
-  await expectApi(request, "PUT", `/exams/${exam.id}/enrollments/?session_id=${created.sessionId}`, admin.access,
-    { enrollment_ids: [created.primaryEnrollmentId] }, [200]);
+  const unenteredEnrollmentId = created.enrollmentIds.find((id) => id !== created.primaryEnrollmentId);
+  expect(unenteredEnrollmentId).toBeDefined();
+  const rosterPath = `/exams/${exam.id}/enrollments/?session_id=${created.sessionId}`;
+  await expectApi(request, "PUT", rosterPath, admin.access,
+    { enrollment_ids: [created.primaryEnrollmentId, unenteredEnrollmentId] }, [200]);
 
   const username = `qa-score-assistant-${runStamp}`;
   const staff = await expectApi<{ id: number }>(request, "POST", "/staffs/", admin.access, {
@@ -727,10 +731,12 @@ async function verifyManualScorePrecision(
     await page.getByRole("menu", { name: `${manualExamTitle} 작업 선택`, exact: true })
       .getByRole("menuitem", { name: /^문항별 점수 입력/ }).click();
     const dialog = page.getByRole("dialog").filter({ hasText: `${manualExamTitle} 문항별 점수 입력` });
-    await expect(dialog.locator("input[data-manual-grade-cell]")).toHaveCount(6);
+    await expect(dialog.locator("input[data-manual-grade-cell]")).toHaveCount(12);
     await dialog.getByRole("combobox", { name: "채점표 배율 선택" }).selectOption(width === 390 ? "50" : "100");
     return dialog;
   };
+  const primaryCells = (dialog: Locator) => dialog.getByRole("row")
+    .filter({ hasText: student.name }).locator("input[data-manual-grade-cell]");
   await withOwnedScoreLeaseCleanup(context, request, { sessionId: created.sessionId!, actorAccess: staffTokens.access }, async () => {
     await gotoAndSettle(page, `${QA_BASE}/login/${QA_TENANT}`, { timeout: 45_000 });
     await page.getByTestId("login-username").fill(username);
@@ -744,17 +750,24 @@ async function verifyManualScorePrecision(
     await expect(clockIn).toBeHidden();
     for (const width of [1366, 390]) {
       let dialog = await openSheet(width);
+      const markAbsence = width === 390;
+      const expectedRows = markAbsence ? 2 : 1;
       const expectedMaximum = width === 390 ? 16.6667 : 100 / 6;
       const weights = dialog.getByRole("spinbutton", { name: /^\d+번 배점$/ });
-      const cells = dialog.locator("input[data-manual-grade-cell]");
+      const cells = primaryCells(dialog);
+      await expect(cells).toHaveCount(6);
       for (let index = 0; index < 6; index += 1) {
         const maximum = await weights.nth(index).inputValue();
         expect(Number(maximum)).toBe(100 / 6);
         if (width === 390) await weights.nth(index).fill(String(expectedMaximum));
         await cells.nth(index).fill(width === 390 && index === 0 ? "0" : String(expectedMaximum));
       }
+      if (markAbsence) {
+        await dialog.getByRole("button", { name: "미입력", exact: true }).click();
+      }
       await dialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
-      await expect(dialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
+      await expect(dialog.getByText(`${expectedRows}명 · 결시 ${markAbsence ? 1 : 0}명 · 성적 계산 완료`, { exact: true })).toBeVisible();
+      await expect(dialog.getByText(`확인 대상 ${expectedRows}명 · 나머지 ${2 - expectedRows}명 유지`, { exact: true })).toBeVisible();
       const saved = page.waitForResponse((response) => response.request().method() === "POST"
         && new URL(response.url()).pathname === `/api/v1${manualPath}`
         && response.request().postDataJSON()?.apply === true).then(async (response) => {
@@ -762,35 +775,48 @@ async function verifyManualScorePrecision(
         const payload = response.request().postDataJSON() as {
           question_scores?: Record<string, number>;
           expected_question_scores?: Record<string, number>;
-          rows: Array<{ enrollment_id: number; cells: Record<string, { score: number }> }>;
+          rows: ManualGradeRequestRow[];
         };
-        expect(payload.rows).toHaveLength(1);
-        expect(payload.rows[0].enrollment_id).toBe(created.primaryEnrollmentId);
+        expect(payload.rows).toHaveLength(expectedRows);
+        const graded = payload.rows.find((row) => row.enrollment_id === created.primaryEnrollmentId);
+        expect(graded?.attendance).toBe("present");
         for (const question of questions) {
-          expect(payload.rows[0].cells[String(question.id)].score).toBe(width === 390 && question.number === 1 ? 0 : expectedMaximum);
+          expect(graded?.cells[String(question.id)]?.score).toBe(width === 390 && question.number === 1 ? 0 : expectedMaximum);
+        }
+        if (markAbsence) {
+          expect(payload.rows.find((row) => row.enrollment_id === unenteredEnrollmentId))
+            .toMatchObject({ attendance: "absent", expected_version: null });
         }
         if (width === 390) {
           expect(payload.question_scores).toEqual(Object.fromEntries(questions.map((question) => [String(question.id), 16.6667])));
           expect(payload.expected_question_scores).toEqual(Object.fromEntries(questions.map((question) => [String(question.id), 100 / 6])));
         } else expect(payload).not.toHaveProperty("question_scores");
-        return await response.json() as { applied: boolean; rows: Array<{ total_score: number }> };
+        return await response.json() as ManualGradePreview;
       });
-      await dialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+      await dialog.getByRole("button", { name: `${expectedRows}명 성적 확정`, exact: true }).click();
       const result = await saved;
       // The manual-grading service rounds the sum to two decimal places.
       const expectedTotal = width === 390 ? 83.33 : 100;
       expect(result.applied).toBe(true);
-      expect(result.rows[0].total_score).toBe(expectedTotal);
+      expect(result.rows.find((row) => row.enrollment_id === created.primaryEnrollmentId))
+        .toMatchObject({ total_score: expectedTotal, is_not_submitted: false });
       await expect(dialog.getByText("현재 저장된 성적 기준", { exact: true })).toBeVisible();
       await dialog.getByRole("button", { name: "닫기", exact: true }).click();
       dialog = await openSheet(width);
       for (let index = 0; index < 6; index += 1) {
-        await expect(dialog.locator("input[data-manual-grade-cell]").nth(index))
+        await expect(primaryCells(dialog).nth(index))
           .toHaveValue(width === 390 && index === 0 ? "0" : String(expectedMaximum));
         await expect(dialog.getByRole("spinbutton", { name: /^\d+번 배점$/ }).nth(index)).toHaveValue(String(expectedMaximum));
       }
       const persisted = await expectApi<ManualGradeSheet>(request, "GET", manualPath, staffTokens.access);
       expect(persisted.questions.map((question) => question.max_score)).toEqual(Array(6).fill(expectedMaximum));
+      const secondRow = persisted.rows.find((row) => row.enrollment_id === unenteredEnrollmentId);
+      expect(secondRow).toMatchObject({
+        expected_version: markAbsence ? expect.any(String) : null,
+        is_not_submitted: markAbsence,
+      });
+      expect(Object.values(secondRow?.cells ?? {}).map((cell) => cell.score)).toEqual(Array(6).fill(null));
+      await expect(dialog.getByRole("button", { name: markAbsence ? "결시" : "미입력", exact: true })).toBeVisible();
       expect((await waitForResult(request, studentTokens.access, exam.id)).total_score).toBe(expectedTotal);
       expect((await waitForResult(request, parentTokens.access, exam.id, student.id)).total_score).toBe(expectedTotal);
       await assertNoHorizontalOverflow(page);
@@ -803,6 +829,10 @@ async function verifyManualScorePrecision(
     boundary.assertClean();
     guards.assertZeroDefects();
   });
+  // The following exam-order check opens the missing-assignment notice.
+  const restoredRoster = await expectApi<{ selected_count: number }>(request, "PUT", rosterPath, admin.access,
+    { enrollment_ids: [created.primaryEnrollmentId] }, [200]);
+  expect(restoredRoster.selected_count).toBe(1);
 }
 
 /** Real server order persistence; restore the existing selection before later copy/attendance checks. */

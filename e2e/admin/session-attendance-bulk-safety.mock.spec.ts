@@ -612,10 +612,12 @@ for (const width of [1366, 390]) {
 test("출결은 현재 상태를 먼저 보이고 선택·키보드 복귀·새로고침을 모든 폭에서 유지한다", async ({ page }, testInfo) => {
   const state = createState();
   await page.setViewportSize({ width: 1366, height: 850 });
-  await openAttendance(page, state);
+  await openAttendance(page, state, { includePresentStudent: true });
   const trigger = page.getByRole("button", { name: "결석학생 출결 상태 변경" });
   const picker = page.getByRole("group", { name: "결석학생 출결 상태 선택" });
   await expect(trigger).toHaveText("결석");
+  const statusBadge = trigger.locator("[data-tone]");
+  await expect(statusBadge).toHaveAttribute("data-tone", "danger");
   await expect(picker).toHaveCount(0);
   await expect(page.getByRole("group", { name: /출결 빠른 선택/ })).toHaveCount(0);
   await trigger.focus();
@@ -643,6 +645,11 @@ test("출결은 현재 상태를 먼저 보이고 선택·키보드 복귀·새�
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(trigger).toHaveText("지각");
+    await expect(statusBadge).toHaveAttribute("data-tone", "warning");
+    const lateColor = await statusBadge.evaluate(node => getComputedStyle(node).backgroundColor);
+    const presentColor = await page.getByRole("button", { name: /출결 상태 변경$/ })
+      .locator('[data-tone="success"]').first().evaluate(node => getComputedStyle(node).backgroundColor);
+    expect(lateColor).not.toBe(presentColor);
     const firstRow = page.locator("tbody tr").first();
     const firstName = firstRow.getByRole("link", { name: /학생 상세 열기$/ });
     const firstStatus = firstRow.getByRole("button", { name: /출결 상태 변경$/ });

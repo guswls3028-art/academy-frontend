@@ -200,7 +200,7 @@ async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, vide
   const menu = page.locator(".svpSpeedMenu");
   const originalMedia = await video.elementHandle();
   const observations: unknown[] = [];
-  const revealControls = async (advanceGestureClock = false) => {
+  const revealControls = async () => {
     if (await wrap.evaluate(node => node.classList.contains("svpPlayerWrap--controlsHidden"))) {
       const layer = page.locator(".svpGestureLayer");
       const point = await layer.evaluate(node => {
@@ -210,7 +210,7 @@ async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, vide
       });
       expect(point.owned).toBe(true);
       await page.mouse.click(point.x, point.y);
-      if (advanceGestureClock) await page.clock.runFor(351);
+      await page.clock.runFor(351);
       await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
     }
     await expect(controls).toHaveCSS("opacity", "1");
@@ -219,9 +219,13 @@ async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, vide
     const point = await target.evaluate(node => {
       const r = node.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
       const hit = document.elementFromPoint(x, y);
-      return { x, y, owned: !!hit && node.contains(hit) };
+      return {
+        owned: !!hit && node.contains(hit),
+        hitTag: hit?.tagName,
+        hitClass: hit?.getAttribute("class"),
+      };
     });
-    expect(point.owned, "menu input belongs to its visible target").toBe(true);
+    expect(point.owned, `menu input belongs to its visible target (hit: ${point.hitTag ?? "none"} ${point.hitClass ?? ""})`).toBe(true);
     await target.click();
   };
   const assertRate = async (rate: number) => {
@@ -286,6 +290,8 @@ async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, vide
     else await expect(wrap).not.toHaveClass(/svpPlayerWrap--fullscreen/);
     await expect(menu).toHaveCount(0);
   };
+  // Control the auto-hide deadline while sampling and clicking menu controls.
+  await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
   try {
     for (const width of [390, 1366]) {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
@@ -295,25 +301,20 @@ async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, vide
       await closeOutside();
       if (width === 390) {
         // Enter near the old 3s deadline; check visibility before a later click can recover it.
-        await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
-        try {
-          await page.clock.runFor(3_001);
-          await expect(wrap).toHaveClass(/svpPlayerWrap--controlsHidden/);
-          await revealControls(true);
-          await page.clock.runFor(2_600);
-          await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
-          await openMenu(width, "before-native-enter", false);
-          await toggleWhileOpen(true);
-          await page.clock.runFor(500);
-          await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
-          await expect(controls).toHaveCSS("opacity", "1");
-          observations.push({ width, phase: "native-past-previous-controls-deadline",
-            gestureClockMs: 351, beforeEnterClockMs: 2_600, afterEnterClockMs: 500,
-            fullscreen: await wrap.evaluate(node => document.fullscreenElement === node),
-            controlsVisible: await controls.evaluate(node => getComputedStyle(node).opacity === "1") });
-        } finally {
-          await page.clock.resume();
-        }
+        await page.clock.runFor(3_001);
+        await expect(wrap).toHaveClass(/svpPlayerWrap--controlsHidden/);
+        await revealControls();
+        await page.clock.runFor(2_600);
+        await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
+        await openMenu(width, "before-native-enter", false);
+        await toggleWhileOpen(true);
+        await page.clock.runFor(500);
+        await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
+        await expect(controls).toHaveCSS("opacity", "1");
+        observations.push({ width, phase: "native-past-previous-controls-deadline",
+          gestureClockMs: 351, beforeEnterClockMs: 2_600, afterEnterClockMs: 500,
+          fullscreen: await wrap.evaluate(node => document.fullscreenElement === node),
+          controlsVisible: await controls.evaluate(node => getComputedStyle(node).opacity === "1") });
       } else {
         await openMenu(width, "before-native-enter", false);
         await toggleWhileOpen(true);
@@ -333,6 +334,7 @@ async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, vide
       await info.attach(`active-speed-menu-return-${width}`, { contentType: "image/png", body: await page.screenshot() });
     }
   } finally {
+    await page.clock.resume();
     await info.attach("active-speed-menu-observations", { contentType: "application/json", body: JSON.stringify(observations) });
     await originalMedia?.dispose();
   }

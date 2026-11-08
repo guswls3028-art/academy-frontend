@@ -103,10 +103,11 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
     element.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
   };
   const { data: exam } = useAdminExam(examId);
+  const usesSeparateEssayNumbering = exam?.essay_numbering === "separate";
   const questionKindsQ = useQuery({
     queryKey: adminExamsQueryKeys.examQuestions(examId),
     queryFn: () => fetchQuestionsByExam(examId).then((response) => response.data),
-    enabled: exam?.essay_numbering === "separate",
+    enabled: usesSeparateEssayNumbering,
   });
   const essayIndexes = useMemo(() => {
     const indexes = new Map<number, number>();
@@ -183,8 +184,10 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
     ),
   });
 
-  const isLoading = resultsQ.isLoading || statsQ.isLoading || questionKindsQ.isLoading;
-  const isError = resultsQ.isError || questionKindsQ.isError;
+  // Separate numbering needs the shared question query before rendering results.
+  const isLoading = resultsQ.isLoading || statsQ.isLoading
+    || (usesSeparateEssayNumbering && questionKindsQ.isLoading);
+  const isError = resultsQ.isError || (usesSeparateEssayNumbering && questionKindsQ.isError);
   if (isLoading) {
     return (
       <section className={styles.statePanel}>
@@ -204,7 +207,10 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
               type="button"
               intent="secondary"
               size="sm"
-              onClick={() => { void resultsQ.refetch(); if (exam?.essay_numbering === "separate") void questionKindsQ.refetch(); }}
+              onClick={() => {
+                void resultsQ.refetch();
+                if (usesSeparateEssayNumbering) void questionKindsQ.refetch();
+              }}
             >
               다시 시도
             </Button>

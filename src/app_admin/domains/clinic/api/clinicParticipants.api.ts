@@ -41,6 +41,7 @@ export type ClinicParticipant = {
   session_location: string;
 
   status: ClinicParticipantStatus;
+  created_at?: string;
   preferred_start_time?: string | null;
   preferred_end_time?: string | null;
   booking_start_time?: string | null;
@@ -82,6 +83,7 @@ export type ClinicParticipantListParams = {
   session_date_from?: string;
   session_date_to?: string;
   onsite_date?: string;
+  search?: string;
   status?: ClinicParticipantStatus;
 };
 

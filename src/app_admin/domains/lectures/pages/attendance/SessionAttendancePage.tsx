@@ -22,7 +22,7 @@ import {
   type AttendanceListItem,
 } from "@admin/domains/lectures/api/attendance";
 import api from "@/shared/api/axios";
-import { EmptyState, Button } from "@/shared/ui/ds";
+import { Badge, EmptyState, Button } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL, useTableColumnPrefs, ResizableTh } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
@@ -770,6 +770,7 @@ export default function SessionAttendancePage({
                 {sorted.map((att) => {
                   const studentId = att.student_id ?? att.enrollment?.student_id;
                   const studentName = att.name ?? att.student_name ?? "학생";
+                  const status = ATTENDANCE_META[toAttendanceStatus(att.status)];
                   const canOpenStudent = Number.isInteger(studentId) && Number(studentId) > 0;
                   return (
                   <tr
@@ -828,14 +829,14 @@ export default function SessionAttendancePage({
                           statusRowTriggerRef.current = e.currentTarget as HTMLElement;
                           setOpenStatusRowAttId(att.id);
                         }}
-                        intent="secondary"
+                        intent="ghost"
                         size="lg"
-                        className="attendance-status-compact-trigger"
                         aria-busy={pendingStatusIds.has(att.id)}
+                        aria-description={`현재 ${status.label}`}
                         aria-label={`${att.name ?? ""} 출결 상태 변경`}
                         aria-expanded={openStatusRowAttId === att.id}
                       >
-                        {ATTENDANCE_META[toAttendanceStatus(att.status)].label}
+                        <Badge variant="solid" size="sm" tone={status.tone}>{status.label}</Badge>
                       </Button>
                     </td>
                     {isSupplementSession && (
