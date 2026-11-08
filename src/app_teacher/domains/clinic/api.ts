@@ -117,6 +117,7 @@ export async function patchParticipantStatus(
     status: TeacherClinicParticipantStatus;
     memo?: string;
     is_late?: boolean;
+    expected_checked_in_at?: string;
     send_to?: TeacherClinicRecipient;
   },
 ): Promise<Partial<TeacherClinicParticipant>> {
