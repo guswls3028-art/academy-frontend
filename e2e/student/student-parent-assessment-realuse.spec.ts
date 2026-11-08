@@ -699,7 +699,8 @@ async function verifyManualScorePrecision(
   for (const question of questions) expect(question.score).toBe(100 / 6);
   const unenteredEnrollmentId = created.enrollmentIds.find((id) => id !== created.primaryEnrollmentId);
   expect(unenteredEnrollmentId).toBeDefined();
-  await expectApi(request, "PUT", `/exams/${exam.id}/enrollments/?session_id=${created.sessionId}`, admin.access,
+  const rosterPath = `/exams/${exam.id}/enrollments/?session_id=${created.sessionId}`;
+  await expectApi(request, "PUT", rosterPath, admin.access,
     { enrollment_ids: [created.primaryEnrollmentId, unenteredEnrollmentId] }, [200]);
 
   const username = `qa-score-assistant-${runStamp}`;
@@ -828,6 +829,10 @@ async function verifyManualScorePrecision(
     boundary.assertClean();
     guards.assertZeroDefects();
   });
+  // The following exam-order check opens the missing-assignment notice.
+  const restoredRoster = await expectApi<{ selected_count: number }>(request, "PUT", rosterPath, admin.access,
+    { enrollment_ids: [created.primaryEnrollmentId] }, [200]);
+  expect(restoredRoster.selected_count).toBe(1);
 }
 
 /** Real server order persistence; restore the existing selection before later copy/attendance checks. */
