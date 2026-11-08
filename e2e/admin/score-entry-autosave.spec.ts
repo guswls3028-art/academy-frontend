@@ -1892,17 +1892,22 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     });
   }
 
-  test("발송 직전 두 번째 조회가 실패하면 이전 성적으로 모달을 열지 않는다", async ({ page }) => {
-    await openScores(page, {
-      initialScores: [65, 52],
-      scoreSheetReadSequence: ["ready", "ready", "error"],
-    });
+  test("발송 직전 두 번째 조회가 실패하면 발송창을 막고 다시 조회할 수 있다", async ({ page }) => {
+    const readStates: NonNullable<ScoreRouteOptions["scoreSheetReadSequence"]> = ["ready", "ready", "error"];
+    await openScores(page, { initialScores: [65, 52], scoreSheetReadSequence: readStates });
 
+    const send = page.getByRole("button", { name: "수업결과 알림톡 발송" });
+    const dialog = page.getByRole("dialog", { name: "알림톡 발송" });
+    const refreshError = page.getByRole("alert").filter({ hasText: "최신 출결과 성적을 확인하지 못했습니다." });
     await page.getByRole("checkbox", { name: "자동저장학생1 선택" }).check();
-    await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+    await send.click();
 
-    await expect(page.getByText(/최신 성적을 다시 확인하지 못했습니다/)).toBeVisible();
-    await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toHaveCount(0);
+    await expect(refreshError).toBeVisible();
+    await expect(dialog).toHaveCount(0);
+    readStates.push("ready");
+    await send.click();
+    await expect(dialog).toBeVisible();
+    await expect(refreshError).toHaveCount(0);
   });
 
   test("성적표 문구 조회 실패는 오래된 문구를 열지 않고 다시 시도를 안내한다", async ({ page }) => {
