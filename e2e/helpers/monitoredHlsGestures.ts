@@ -215,13 +215,24 @@ async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, vide
     }
     await expect(controls).toHaveCSS("opacity", "1");
   };
-  const clickOwned = async (target: Locator) => {
-    const point = await target.evaluate(node => {
+  const clickOwned = async (target: Locator, revealAfterHide?: () => Promise<void>) => {
+    const sample = () => target.evaluate(node => {
       const r = node.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
       const hit = document.elementFromPoint(x, y);
-      return { x, y, owned: !!hit && node.contains(hit) };
+      return {
+        owned: !!hit && node.contains(hit),
+        controlsHidden: !!node.closest(".svpPlayerWrap--controlsHidden"),
+        hitTag: hit?.tagName,
+        hitClass: hit?.getAttribute("class"),
+      };
     });
-    expect(point.owned, "menu input belongs to its visible target").toBe(true);
+    let point = await sample();
+    // The existing hide deadline can fire between revealing the controls and sampling the button.
+    if (!point.owned && point.controlsHidden && revealAfterHide) {
+      await revealAfterHide();
+      point = await sample();
+    }
+    expect(point.owned, `menu input belongs to its visible target (hit: ${point.hitTag ?? "none"} ${point.hitClass ?? ""})`).toBe(true);
     await target.click();
   };
   const assertRate = async (rate: number) => {
@@ -231,7 +242,7 @@ async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, vide
   const openMenu = async (width: number, phase: string, native: boolean) => {
     await revealControls();
     await expect(speed).toBeEnabled();
-    await clickOwned(speed);
+    await clickOwned(speed, revealControls);
     await expect(menu).toBeVisible();
     const geometry = await menu.evaluate(node => {
       const fullscreen = document.fullscreenElement;
