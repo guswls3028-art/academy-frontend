@@ -43,8 +43,9 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
               : maxScore == null
                 ? HOMEWORK_SCORE_NUMBER.format(score)
                 : `${HOMEWORK_SCORE_NUMBER.format(score)}/${HOMEWORK_SCORE_NUMBER.format(maxScore)}`;
-          const badgePassed = h.achievement == null && score == null ? null : h.passed;
-          const achievement = h.teacher_resolved ? "REMEDIATED" : h.achievement;
+          const badgePassed = h.teacher_resolved
+            ? true
+            : h.achievement == null && score == null ? null : h.passed;
           return (
             <div
               key={`${h.homework_id}-${h.lecture_title ?? ""}-${idx}`}
@@ -68,7 +69,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                   <strong className={styles.homeworkScore}>{scoreText}</strong>
                   <GradeBadge
                     passed={badgePassed}
-                    achievement={achievement}
+                    achievement={h.achievement}
                     label={gradingMode === "COMPLETION" ? { pass: "통과", fail: "미통과" } : { pass: "완료", fail: "미완료" }}
                     showNotSubmitted
                     notSubmittedLabel="미제출"
