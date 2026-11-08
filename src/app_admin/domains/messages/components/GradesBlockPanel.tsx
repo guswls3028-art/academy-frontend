@@ -52,6 +52,10 @@ export default function GradesBlockPanel({
   values?: Record<string, string>;
 }) {
   const items = scoreMessageItems(values);
+  const highestItems = items.flatMap(item => {
+    const key = item.kind + item.number + "최고점";
+    return values?.[key] ? [{ key, name: item.name }] : [];
+  });
   const [showIndividual, setShowIndividual] = useState(false);
   const [futureOffset, setFutureOffset] = useState(2);
 
@@ -112,6 +116,21 @@ export default function GradesBlockPanel({
             onClick={() => onInsert(item.text)}>{item.name} 넣기</button>
         ))}</div>
       </>}
+      {values && (
+        <details>
+          <summary className="grades-block-panel__toggle">최고점</summary>
+          <div className="grades-block-panel__tag-row">
+            {highestItems.map(item => (
+              <button type="button" key={item.key} disabled={disabled}
+                className="grades-block-panel__add-btn" onMouseDown={event => event.preventDefault()}
+                onClick={() => onInsert("#{" + item.key + "}")}>{item.name} 최고점 넣기</button>
+            ))}
+          </div>
+          {highestItems.length === 0 && (
+            <div className="grades-block-panel__hint">확정 점수가 있는 항목이 없습니다.</div>
+          )}
+        </details>
+      )}
       {/* 공통 */}
       <div className="grades-block-panel__tag-row">{commonBlocks.map(renderTag)}</div>
 
