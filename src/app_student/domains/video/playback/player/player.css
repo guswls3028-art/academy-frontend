@@ -244,6 +244,7 @@
   z-index: 18;
   display: grid;
   place-items: center;
+  align-content: center;
   pointer-events: none;
   gap: 8px;
 }

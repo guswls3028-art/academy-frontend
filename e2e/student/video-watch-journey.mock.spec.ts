@@ -427,3 +427,121 @@ test.describe("student fullscreen activation", () => {
     });
   }
 });
+
+async function installStalledHls(page: Page) {
+  const { state, videos } = await installWatchScenario(page);
+  const video = { ...videos[0], source_type: "s3", youtube_video_id: null, last_position: 42 };
+  Object.assign(videos[0], video);
+  let manifests = 0;
+  let grants = 0;
+  let releaseReload: () => void = () => {};
+  const reloadAllowed = new Promise<void>((resolve) => { releaseReload = resolve; });
+  await page.route("**/__qa__/video-long/**", async (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    if (pathname.endsWith("/master.m3u8") && ++manifests === 2) await reloadAllowed;
+    const asset = syntheticLongVideoAsset(pathname);
+    await route.fulfill({ body: asset.body, contentType: asset.contentType });
+  });
+  await page.route("**/api/v1/student/video/videos/562/playback/**", (route) => {
+    if (route.request().method() === "GET") return route.fulfill({ json: {
+      ok: true, access_mode: "FREE_REVIEW", monitoring_enabled: false, policy_version: 1,
+    } });
+    grants++;
+    return route.fulfill({ json: {
+      video,
+      play_url: BASE + "/__qa__/video-long/master.m3u8",
+      playback_token: "synthetic-stall-token",
+      playback_session_id: null,
+      playback_expires_at: Math.floor(Date.now() / 1000) + 900,
+      policy_version: 1,
+      policy: { access_mode: "FREE_REVIEW", monitoring_enabled: false, allow_seek: true,
+        playback_rate: { max: 2, ui_control: true }, source: { type: "s3", provider: "uploaded" } },
+    } });
+  });
+  return { state, manifests: () => manifests, grants: () => grants, releaseReload };
+}
+
+// Freeze the playhead seen by the app without dispatching an error or replacing
+// the media element. Reload, seek, buffering, and resumed playback use real HLS.
+async function freezePlayhead(page: Page) {
+  return page.locator("video.svpVideo").evaluate((el: HTMLVideoElement) => {
+    const position = el.currentTime;
+    const time = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "currentTime")!;
+    Object.defineProperty(el, "currentTime", { configurable: true, get: () => position, set: time.set });
+    return position;
+  });
+}
+
+for (const width of [1366, 390]) {
+  test(`silent HLS stall reconnects at the same position at ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 840 });
+    await page.clock.install();
+    const hls = await installStalledHls(page);
+    const video = page.locator("video.svpVideo");
+    const reconnecting = page.getByRole("status").filter({ hasText: "연결을 다시 시도하고 있어요" });
+    try {
+      await openWatch(page);
+      const play = page.locator("button.svpBigPlay");
+      await play.press("Enter");
+      await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(42);
+      await video.evaluate((el: HTMLVideoElement) => el.pause());
+      await expect(play).toBeVisible();
+      await page.clock.fastForward(20_000);
+      expect(hls.manifests()).toBe(1);
+      await play.press("Enter");
+      await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.paused)).toBe(false);
+      await video.evaluate((el: HTMLVideoElement) => { el.playbackRate = 1.5; el.muted = true; });
+      const stalledAt = await freezePlayhead(page);
+      await page.clock.fastForward(3_000);
+      await expect(reconnecting).toHaveCount(0);
+      await page.clock.fastForward(10_500);
+      await expect(reconnecting).toBeVisible();
+      await expect.poll(hls.manifests).toBe(2);
+      expect(hls.grants()).toBe(1);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: info.outputPath(`hls-reconnecting-${width}.png`) });
+      await video.evaluate((el) => { Reflect.deleteProperty(el, "currentTime"); });
+      hls.releaseReload();
+      await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(stalledAt + 0.2);
+      await expect(reconnecting).toHaveCount(0);
+      expect(await video.evaluate((el: HTMLVideoElement) => ({ rate: el.playbackRate, muted: el.muted })))
+        .toEqual({ rate: 1.5, muted: true });
+      expect(hls.grants()).toBe(1);
+    } finally {
+      hls.releaseReload();
+    }
+  });
+}
+
+test("silent HLS stall offers a position-preserving retry if reconnect does not advance", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 840 });
+  await page.clock.install();
+  const hls = await installStalledHls(page);
+  const video = page.locator("video.svpVideo");
+  try {
+    await openWatch(page);
+    await page.locator("button.svpBigPlay").press("Enter");
+    await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(42);
+    await video.evaluate((el: HTMLVideoElement) => { el.currentTime = 83; });
+    await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(83);
+    const stalledAt = await freezePlayhead(page);
+    await page.clock.fastForward(2_000);
+    await page.clock.fastForward(10_500);
+    await expect.poll(hls.manifests).toBe(2);
+    await page.clock.fastForward(10_500);
+    const retry = page.getByRole("button", { name: "다시 시도", exact: true });
+    await expect(retry).toBeVisible();
+    await expect.poll(() => hls.state.progress.some(({ body }) =>
+      body.last_position === Math.round(stalledAt) && body.completed === false)).toBe(true);
+    expect(hls.grants()).toBe(1);
+    hls.releaseReload();
+    await retry.press("Enter");
+    await expect.poll(hls.grants).toBe(2);
+    await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime))
+      .toBeGreaterThanOrEqual(Math.round(stalledAt));
+    await page.locator("button.svpBigPlay").press("Enter");
+    await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(stalledAt);
+  } finally {
+    hls.releaseReload();
+  }
+});
