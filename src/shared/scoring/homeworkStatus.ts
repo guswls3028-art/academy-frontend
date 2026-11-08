@@ -8,11 +8,16 @@
  * - score > 0 -> 정상 점수
  */
 
-export type HomeworkMetaStatus = "NOT_SUBMITTED" | null | undefined;
+export type HomeworkMetaStatus = "NOT_SUBMITTED" | "VIDEO_MAKEUP" | null | undefined;
+
+export function parseHomeworkMetaStatus(value: unknown): NonNullable<HomeworkMetaStatus> | null {
+  return value === "NOT_SUBMITTED" || value === "VIDEO_MAKEUP" ? value : null;
+}
 
 export type HomeworkStatus =
   | "UNSET"
   | "NOT_SUBMITTED"
+  | "VIDEO_MAKEUP"
   | "ZERO"
   | "SCORED";
 
@@ -25,6 +30,7 @@ export function getHomeworkStatus(params: {
 
   if (score === null && metaStatus == null) return "UNSET";
   if (metaStatus === "NOT_SUBMITTED") return "NOT_SUBMITTED";
+  if (metaStatus === "VIDEO_MAKEUP" && score === null) return "VIDEO_MAKEUP";
   if (score === 0) return "ZERO";
   if (typeof score === "number" && Number.isFinite(score) && score > 0) return "SCORED";
 
@@ -37,6 +43,8 @@ export function homeworkStatusLabel(status: HomeworkStatus): string {
       return "미입력";
     case "NOT_SUBMITTED":
       return "미제출";
+    case "VIDEO_MAKEUP":
+      return "영상 보강";
     case "ZERO":
       return "0점";
     case "SCORED":

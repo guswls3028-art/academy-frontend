@@ -146,6 +146,7 @@ let homeworkMaxScore = 100;
 let homeworkGradingMode: "SCORE" | "COMPLETION" = "SCORE";
 let homeworkAssignedRows = [false, true];
 let currentHomeworkScores: Array<number | null> = [null, 45];
+let currentHomeworkMetaStatuses: Array<string | null> = [null, null];
 let currentHomeworkVersions: Array<string | null> = [null, "2026-08-30T09:00:02+09:00"];
 let homeworkVersionCounter = 2;
 let activeEditors: NonNullable<ScoreRouteOptions["activeEditors"]> = [];
@@ -193,6 +194,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
   homeworkGradingMode = options.homeworkGradingMode ?? "SCORE";
   homeworkAssignedRows = [...(options.homeworkAssignedRows ?? [false, true])];
   currentHomeworkScores = [...(options.initialHomeworkScores ?? [null, 45])];
+  currentHomeworkMetaStatuses = currentHomeworkScores.map((_, index) => options.homeworkMetaStatuses?.[index] ?? null);
   currentHomeworkVersions = currentHomeworkScores.map((score, index) => (
     score == null ? null : `2026-08-30T09:00:${String(index + 1).padStart(2, "0")}+09:00`
   ));
@@ -324,7 +326,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
                     ? currentHomeworkScores[index]! < 1
                     : currentHomeworkScores[index]! < 60,
                 is_locked: false,
-                meta: { status: options.homeworkMetaStatuses?.[index] ?? null },
+                meta: { status: currentHomeworkMetaStatuses[index] ?? null },
                 updated_at: currentHomeworkVersions[index],
               },
             }] : [],
@@ -531,6 +533,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
       }
       if (rowIndex >= 0 && rowIndex < currentHomeworkScores.length) {
         currentHomeworkScores[rowIndex] = typeof body.score === "number" ? body.score : null;
+        currentHomeworkMetaStatuses[rowIndex] = typeof body.meta_status === "string" ? body.meta_status : null;
         homeworkVersionCounter += 1;
         currentHomeworkVersions[rowIndex] = `2026-08-30T09:01:${String(homeworkVersionCounter).padStart(2, "0")}+09:00`;
       }
@@ -538,7 +541,7 @@ async function installScoreRoutes(page: Page, options: ScoreRouteOptions = {}): 
         json: {
           score: currentHomeworkScores[rowIndex] ?? null,
           max_score: homeworkMaxScore,
-          meta: null,
+          meta: { status: currentHomeworkMetaStatuses[rowIndex] ?? null },
           updated_at: currentHomeworkVersions[rowIndex] ?? null,
         },
       });
@@ -2584,6 +2587,46 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-score-cell="homework:9202:9151"]')).toContainText("미입력");
   });
+
+  for (const width of [1366, 390]) {
+    test("@score-controls 영상 보강을 보류로 저장하고 검사 결과로 바꾼다 " + width, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await openScores(page, {
+        includeHomework: true, homeworkMaxScore: 1, homeworkGradingMode: "COMPLETION",
+        homeworkAssignedRows: [true, true], initialHomeworkScores: [null, 0],
+      });
+      await ensureScoreEditing(page);
+      const cell = page.locator('[data-score-cell="homework:9201:9151"]');
+      const more = cell.getByRole("button", { name: "과제 판정 더보기", exact: true });
+      await expect(more).toBeHidden();
+      await cell.click({ position: { x: 4, y: 4 } });
+      await expect(more).toBeVisible();
+      if (width === 1366) {
+        await cell.getByRole("button", { name: "미입력으로 초기화", exact: true }).press("ArrowRight");
+        await expect(more).toBeFocused();
+        await more.press("Space");
+      } else {
+        expect((await more.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        await more.click();
+      }
+      await page.getByRole("menuitem", { name: "영상 보강", exact: true }).click();
+      await expect.poll(() => currentHomeworkMetaStatuses[0]).toBe("VIDEO_MAKEUP");
+      expect(homeworkPatches.at(-1)).toMatchObject({ score: null, meta_status: "VIDEO_MAKEUP" });
+      await expect(cell.getByRole("button", { name: "영상 보강 해제", exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(cell).toContainText("영상 보강");
+      await page.screenshot({ path: testInfo.outputPath("homework-video-makeup-" + width + ".png") });
+
+      await ensureScoreEditing(page);
+      await cell.getByRole("button", { name: "통과", exact: true }).click();
+      await expect.poll(() => currentHomeworkScores[0]).toBe(1);
+      expect(currentHomeworkMetaStatuses[0]).toBeNull();
+      await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(cell).toHaveText("통과");
+    });
+  }
 
   test("점수 저장 성공과 남은 서술형 최종 반영을 구분하고 reload에도 값을 유지한다", async ({ page }) => {
     await openScores(page, { scorePatchProjectionReady: false });

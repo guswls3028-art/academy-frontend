@@ -15,6 +15,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import type { SessionScoreRow, SessionScoreMeta, SessionScoresSummaryColumnMode } from "../api/sessionScores";
+import { Dropdown } from "antd";
+import { parseHomeworkMetaStatus, type HomeworkMetaStatus } from "@/shared/scoring/homeworkStatus";
 import { isScoreEditStaleError, type PendingChange, type ScoreActiveCell, type ScoreActiveEditor } from "../api/scoreDraft";
 import { scoresQueryKeys } from "../api/queryKeys";
 import {
@@ -309,8 +311,9 @@ type HomeworkCellConflict = {
 
 function homeworkCellValueLabel(value: {
   score: number | null;
-  metaStatus?: "NOT_SUBMITTED" | null;
+  metaStatus?: HomeworkMetaStatus;
 }): string {
+  if (value.metaStatus === "VIDEO_MAKEUP") return "영상 보강";
   if (value.metaStatus === "NOT_SUBMITTED") return "미제출";
   return value.score == null ? "미입력" : formatScoreNumber(value.score);
 }
@@ -331,7 +334,7 @@ function getClinicReason(row: SessionScoreRow): { target: boolean; reason: strin
         score: h.block.score,
         metaStatus: (h.block.meta?.status ?? null) as import("../utils/homeworkStatus").HomeworkMetaStatus,
       });
-      return st === "NOT_SUBMITTED" || h.block.passed === false;
+      return st !== "VIDEO_MAKEUP" && (st === "NOT_SUBMITTED" || h.block.passed === false);
     }) ?? false;
   if (examFail && hwFail) return { target: true, reason: "시험+과제" };
   if (examFail) return { target: true, reason: "시험" };
@@ -644,7 +647,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     }
     const el = homeworkInputRefs.current[`${change.enrollmentId}-${change.homeworkId}`];
     if (homeworkGradingModeById.get(change.homeworkId) === "COMPLETION") {
-      syncCompletionControl(el, change.score);
+      syncCompletionControl(el, change.score, change.metaStatus);
       return;
     }
     setCellText(el, change.metaStatus === "NOT_SUBMITTED" ? "미제출" : (change.score != null ? String(change.score) : ""));
@@ -971,7 +974,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         const metaStatus = block?.meta?.status;
         const score = block?.score;
         if (hw.grading_mode === "COMPLETION") {
-          syncCompletionControl(el, score);
+          syncCompletionControl(el, score, metaStatus);
           return;
         }
         if (metaStatus === "NOT_SUBMITTED") {
@@ -2273,23 +2276,30 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                   const progressStyle = canEditScore || hw.grading_mode === "COMPLETION"
                     ? undefined
                     : scoreProgressStyle(block?.score, hw.max_score);
-                  const setCompletionScore = (score: number | null) => {
+                  const isVideoMakeup = block?.score == null && block?.meta?.status === "VIDEO_MAKEUP";
+                  const setCompletionScore = (
+                    score: number | null, metaStatus?: "VIDEO_MAKEUP",
+                  ) => {
                     if (!canEditScore || block?.is_locked) return;
                     freezeObservedHomeworkVersion(scoreCellKey);
                     if (!isSelected) onSelectCell(row, "homework", hw.homework_id);
-                    // The accepted save can precede the refreshed React row. Compare
-                    // against the visible value so a rapid reversal is never dropped.
-                    const visibleState = homeworkInputRefs.current[`${row.enrollment_id}-${hw.homework_id}`]?.dataset.completionState;
+                    // A saved response can precede React's refreshed row.
+                    const input = homeworkInputRefs.current[`${row.enrollment_id}-${hw.homework_id}`];
+                    const visibleState = input?.dataset.completionState;
                     const previousScore = visibleState === "complete" ? 1
                       : visibleState === "incomplete" ? 0
-                      : visibleState === "empty" ? null : block?.score ?? null;
+                      : visibleState ? null : block?.score ?? null;
+                    const previousMetaStatus = parseHomeworkMetaStatus(
+                      input?.dataset.homeworkMetaStatus ?? block?.meta?.status,
+                    ) ?? undefined;
+                    if (metaStatus && (previousScore != null || previousMetaStatus || teacherAccepted)) return;
                     const next: PendingChange = {
                       type: "homework", enrollmentId: row.enrollment_id,
-                      homeworkId: hw.homework_id, score,
+                      homeworkId: hw.homework_id, score, metaStatus,
                     };
                     stagePendingChange(scoreCellKey, next, {
                       type: "homework", enrollmentId: row.enrollment_id,
-                      homeworkId: hw.homework_id, score: previousScore,
+                      homeworkId: hw.homework_id, score: previousScore, metaStatus: previousMetaStatus,
                     });
                     applyChangeToDom(next);
                   };
@@ -2346,7 +2356,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 ref={(el) => {
                                   homeworkInputRefs.current[`${row.enrollment_id}-${hw.homework_id}`] = el;
                                   if (el && !applyPendingChangeToMountedCell(scoreCellKey) && (!isSelected || !el.dataset.completionState)) {
-                                    syncCompletionControl(el, block?.score);
+                                    syncCompletionControl(el, block?.score, block?.meta?.status);
                                   }
                                 }}
                                 className="ds-scores-completion-control"
@@ -2398,20 +2408,34 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     disabled={Boolean(block?.is_locked)}
                                     aria-label={option.score == null ? "미입력으로 초기화" : option.label}
                                     title={option.score == null ? "미입력으로 되돌리기" : option.label}
-                                    onKeyDown={(event) => {
-                                      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-                                      event.preventDefault();
-                                      event.stopPropagation();
-                                      const buttons = Array.from(event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>("button"));
-                                      const index = buttons.indexOf(event.currentTarget);
-                                      const next = buttons[(index + (event.key === "ArrowRight" ? 1 : buttons.length - 1)) % buttons.length];
-                                      buttons.forEach(button => { button.tabIndex = button === next ? 0 : -1; });
-                                      next.focus();
-                                    }}
+                                    onKeyDown={moveCompletionControlFocus}
                                     onClick={() => setCompletionScore(option.score)}
-                                  >{option.score == null ? <><span className="completion-reset-label">초기화</span><span className="completion-empty-label">미입력</span></> : option.label}</button>
+                                  >{option.score == null ? <><span className="completion-reset-label">초기화</span><span className="completion-empty-label">미입력</span><span className="completion-video-label">영상 보강</span></> : option.label}</button>
                                 ))}
+                                {isSelected && block?.score == null && !isNotSubmitted && !teacherAccepted && !block?.is_locked && (
+                                  <Dropdown trigger={["click"]} menu={{
+                                    items: [{ key: "video-makeup", label: "영상 보강" }],
+                                    onClick: ({ domEvent }) => {
+                                      domEvent.stopPropagation();
+                                      setCompletionScore(null, "VIDEO_MAKEUP");
+                                      homeworkInputRefs.current[row.enrollment_id + "-" + hw.homework_id]
+                                        ?.querySelector<HTMLButtonElement>('[data-completion-value="empty"]')?.focus();
+                                    },
+                                  }}>
+                                    <button type="button" tabIndex={-1} data-completion-more=""
+                                      aria-label="과제 판정 더보기" aria-haspopup="menu"
+                                      onKeyDown={event => {
+                                        moveCompletionControlFocus(event);
+                                        if (event.key === "Enter" || event.key === " ") event.stopPropagation();
+                                      }}
+                                      onClick={event => event.stopPropagation()}>
+                                      더보기
+                                    </button>
+                                  </Dropdown>
+                                )}
                               </div>
+                            ) : isVideoMakeup ? (
+                              <Badge variant="soft" tone="neutral" size="xs">영상 보강</Badge>
                             ) : block?.score != null ? (
                               <Badge
                                 variant="soft"
@@ -2808,13 +2832,35 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
 });
 
 // Keep optimistic values, history and server refreshes on the same control.
-function syncCompletionControl(el: HTMLElement | null | undefined, score: number | null | undefined) {
+function moveCompletionControlFocus(event: React.KeyboardEvent<HTMLButtonElement>) {
+  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+  event.preventDefault();
+  event.stopPropagation();
+  const buttons = Array.from(event.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>("button"))
+    .filter(button => !button.disabled && button.getClientRects().length > 0);
+  const index = buttons.indexOf(event.currentTarget);
+  if (index < 0) return;
+  const next = buttons[(index + (event.key === "ArrowRight" ? 1 : buttons.length - 1)) % buttons.length];
+  buttons.forEach(button => { button.tabIndex = button === next ? 0 : -1; });
+  next.focus();
+}
+
+function syncCompletionControl(
+  el: HTMLElement | null | undefined, score: number | null | undefined, metaStatus?: string | null,
+) {
   if (!el) return;
   const state = score == null ? "empty" : score >= 1 ? "complete" : "incomplete";
+  const isVideoMakeup = score == null && metaStatus === "VIDEO_MAKEUP";
   el.dataset.completionState = state;
+  el.dataset.homeworkMetaStatus = isVideoMakeup ? "VIDEO_MAKEUP" : metaStatus === "NOT_SUBMITTED" ? "NOT_SUBMITTED" : "";
   el.querySelectorAll<HTMLButtonElement>("button[data-completion-value]").forEach((button) => {
-    button.setAttribute("aria-pressed", String(button.dataset.completionValue === state));
-    button.tabIndex = button.dataset.completionValue === state ? 0 : -1;
+    const active = button.dataset.completionValue === state;
+    button.setAttribute("aria-pressed", String(active));
+    if (button.dataset.completionValue === "empty") {
+      button.setAttribute("aria-label", isVideoMakeup ? "영상 보강 해제" : "미입력으로 초기화");
+      button.title = isVideoMakeup ? "영상 보강 해제" : "미입력으로 되돌리기";
+    }
+    button.tabIndex = active ? 0 : -1;
   });
 }
 
