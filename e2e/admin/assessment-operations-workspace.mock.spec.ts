@@ -1,5 +1,6 @@
 import type { Locator, Page, Route } from "@playwright/test";
 import type { ManualGradeSheet } from "../../src/app_admin/domains/results/api/manualExamGrading";
+import type { AdminExamResultRow } from "../../src/app_admin/domains/results/types/results.types";
 
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
@@ -62,6 +63,9 @@ type MockState = {
   failExamRead?: boolean;
   examReadGate?: Promise<void>;
   examReadCount?: number;
+  examResult?: AdminExamResultRow;
+  questionReadGate?: Promise<void>;
+  failQuestionRead?: boolean;
   secondExam?: Record<string, unknown>;
   templateSaves?: Array<Record<string, unknown>>;
   pdfUploads?: number;
@@ -201,8 +205,25 @@ async function installApi(page: Page, state: MockState) {
       if (state.examReadGate) await state.examReadGate;
       return state.failExamRead ? json({ detail: "시험 설정 조회 실패" }, 503) : json(state.exam);
     }
-    if (path === `/exams/${EXAM_ID}/questions/` || (state.secondExam && path === `/exams/${EXAM_ID + 1}/questions/`)) {
+    if (path === `/exams/${EXAM_ID}/questions/`) {
+      if (state.questionReadGate) await state.questionReadGate;
+      return state.failQuestionRead ? json({ detail: "문항 조회 실패" }, 503) : json(examQuestions);
+    }
+    if (state.secondExam && path === `/exams/${EXAM_ID + 1}/questions/`) {
       return json(examQuestions);
+    }
+    if (state.examResult && path === `/results/admin/exams/${EXAM_ID}/results/`) {
+      return json([state.examResult]);
+    }
+    if (state.examResult && path === `/results/admin/exams/${EXAM_ID}/enrollments/${state.examResult.enrollment_id}/`) {
+      return json({
+        ...state.examResult, total_score: state.examResult.exam_score, max_score: 100, attempt_id: 1,
+        edit_state: { can_edit: false },
+        items: [
+          { question_id: 1, question_number: 1, answer: "1", score: 50, max_score: 50, is_correct: true },
+          { question_id: 2, question_number: 2, answer: "풀이", score: 35, max_score: 50, is_correct: false },
+        ],
+      });
     }
     const manualExam = path === `/results/admin/exams/${EXAM_ID}/manual-grading/`
       ? state.exam
@@ -266,7 +287,7 @@ async function installApi(page: Page, state: MockState) {
   });
 }
 
-async function openExam(page: Page, state: MockState, initialFailure = false) {
+async function openExamRoute(page: Page, state: MockState, search: string) {
   test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "평가 운영 워크스페이스 route-mock 검증은 로컬 dev 서버 전용");
   await installTenantOneInitScript(page);
   await page.addInitScript((jwt) => {
@@ -275,9 +296,13 @@ async function openExam(page: Page, state: MockState, initialFailure = false) {
   }, localJwt());
   await installApi(page, state);
   await page.goto(
-    `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?assessment=exam%3A${EXAM_ID}`,
+    `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams${search}`,
     { waitUntil: "domcontentloaded", timeout: 45_000 },
   );
+}
+
+async function openExam(page: Page, state: MockState, initialFailure = false) {
+  await openExamRoute(page, state, `?assessment=exam%3A${EXAM_ID}`);
   await waitForRenderSettled(page, { timeout: 30_000 });
   if (initialFailure) return;
   await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible({ timeout: 30_000 });
@@ -286,6 +311,76 @@ async function openExam(page: Page, state: MockState, initialFailure = false) {
   await expect(settings.locator(":scope > summary")).toContainText("설정 변경");
   await settings.locator(":scope > summary").click();
 }
+
+function examResultState(essayNumbering: "continuous" | "separate"): MockState {
+  return {
+    exam: {
+      id: EXAM_ID, title: "중간 점검", exam_type: "regular", is_active: true,
+      grading_mode: "mixed", manual_grading_method: "score",
+      choice_question_count: 1, essay_numbering: essayNumbering, pass_score: 85, max_score: 100,
+    },
+    examPatchPayloads: [], selectedEnrollmentIds: [601],
+    examResult: {
+      enrollment_id: 601, student_name: "김민준", exam_score: 85, final_score: 85,
+      ranking_score: 85, exam_max_score: 100, rank: 1, cohort_size: 1,
+      result_status: "DONE", submission_status: "DONE", passed: true, achievement: "PASS",
+    },
+    failQuestionRead: true,
+  };
+}
+
+const resultSearch = `?examId=${EXAM_ID}&examTab=results`;
+
+function waitForExamQuestionRead(page: Page) {
+  return page.waitForRequest((request) => request.method() === "GET"
+    && new URL(request.url()).pathname === `/api/v1/exams/${EXAM_ID}/questions/`);
+}
+
+for (const width of [1366, 390]) {
+  test(`${width}px 연속 번호의 첫 답안 상세는 문항 조회 지연과 실패 뒤에도 유지된다`, async ({ page }) => {
+    const state = examResultState("continuous");
+    let releaseQuestionRead!: () => void;
+    state.questionReadGate = new Promise<void>((resolve) => { releaseQuestionRead = resolve; });
+    await page.setViewportSize({ width, height: 900 });
+    const results = page.getByRole("region", { name: "시험 학생별 결과" });
+    const detail = page.getByRole("dialog").filter({ hasText: "중간 점검 답안 상세" });
+    try {
+      await openExamRoute(page, state, resultSearch);
+      await Promise.all([
+        waitForExamQuestionRead(page),
+        results.getByText("김민준", { exact: true }).filter({ visible: true }).click(),
+      ]);
+      await expect(detail.getByText("불러오는 중…", { exact: true })).toBeVisible();
+      await expect(results).toBeVisible();
+    } finally {
+      releaseQuestionRead();
+    }
+    await expect(detail.getByText("답안과 문항 정보를 불러오지 못했습니다.")).toBeVisible();
+    await expect(results).toBeVisible();
+    state.failQuestionRead = false;
+    await detail.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await expect(detail.getByText("김민준", { exact: true })).toBeVisible();
+    await expect(detail.getByText("합격", { exact: true })).toBeVisible();
+    await expect(detail.locator(".srd-read__score-val")).toHaveText("85");
+  });
+}
+
+test("서술형 별도 번호 결과는 문항 조회를 기다리고 실패 시 다시 조회할 수 있다", async ({ page }) => {
+  const state = examResultState("separate");
+  let releaseQuestionRead!: () => void;
+  state.questionReadGate = new Promise<void>((resolve) => { releaseQuestionRead = resolve; });
+  try {
+    await Promise.all([waitForExamQuestionRead(page), openExamRoute(page, state, resultSearch)]);
+    await expect(page.getByText("채점 결과를 불러오는 중…", { exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "시험 학생별 결과" })).toHaveCount(0);
+  } finally {
+    releaseQuestionRead();
+  }
+  await expect(page.getByText("채점 결과를 불러오지 못했습니다.", { exact: true })).toBeVisible();
+  state.failQuestionRead = false;
+  await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(page.getByRole("region", { name: "시험 학생별 결과" })).toBeVisible();
+});
 
 test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 모바일에서도 정돈된 순서를 유지한다", async ({ page }, testInfo) => {
   const state: MockState = {
