@@ -42,6 +42,10 @@ async function installScoreAlimtalkRoutes(
     const request = route.request();
     const path = new URL(request.url()).pathname;
     const method = request.method();
+    if (path.endsWith("/api/v1/lectures/sessions/9002/schedules/") && method === "GET") {
+      await route.fulfill({ json: [] });
+      return;
+    }
 
     if (path === "/api/v1/core/subscription/") {
       await route.fulfill({ json: { tenant_name: tenantName, is_subscription_active: true } });
