@@ -18,7 +18,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/public/SessionScoresPanel";
 import { buildScoreCsv } from "@admin/domains/scores/public/scoreCsvGenerator";
 import { useScoreEditDraft } from "@admin/domains/scores/public/useScoreEditDraft";
-import type { ScoreActiveCell } from "@admin/domains/scores/public/scoreDraft";
+import { isScoreEditStaleError, type ScoreActiveCell } from "@admin/domains/scores/public/scoreDraft";
 import {
   fetchSessionScores,
   type SessionScoreMeta,
@@ -33,7 +33,7 @@ import { DomainListToolbar, getStoredTableOption, setStoredTableOption } from "@
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
-import { substituteScoreVars, buildScoreVars, buildScoreDetail, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
+import { substituteScoreVars, buildScoreVars, buildScoreDetail, collectHighestScores, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
@@ -67,6 +67,30 @@ type SessionScoresEntryPageProps = {
   onOpenCreateExam?: () => void;
   onOpenCreateHomework?: () => void;
 };
+
+function isScoreAlimtalkAttendance(row: SessionScoreRow): boolean {
+  return row.attendance_status === "PRESENT" || row.attendance_status === "LATE";
+}
+
+function getScoreAlimtalkBlockReason(rows: SessionScoreRow[], afterSave: boolean): string | null {
+  if (rows.length === 0) {
+    return "선택한 학생 중 출석·지각으로 기록된 학생이 없습니다. 출결을 확인해 주세요.";
+  }
+  if (rows.some((row) => row.exams.some((exam) => exam.block.grading_status === "subjective_pending"))) {
+    return "최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.";
+  }
+  const provisionalCount = rows.reduce(
+    (count, row) => count + row.exams.filter((exam) => exam.block.is_provisional).length, 0,
+  );
+  if (provisionalCount > 0) {
+    return `채점을 확인 중인 시험이 ${provisionalCount}건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.`;
+  }
+  const unenteredCount = rows.reduce((count, row) => count + collectUnenteredScoreItems(row).length, 0);
+  if (unenteredCount === 0) return null;
+  return afterSave
+    ? `최신 성적에 입력되지 않은 시험·과제가 ${unenteredCount}건 있습니다. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 다시 시도해 주세요.`
+    : `점수가 입력되지 않은 시험·과제가 ${unenteredCount}건 있습니다. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 발송해 주세요.`;
+}
 
 function getStoredSummaryColumnMode(
   storageKey: string | null,
@@ -142,7 +166,21 @@ export default function SessionScoresEntryPage({
     program?.feature_flags?.score_summary_column_default === "exam_wrong" ? "exam_wrong" : "verdict";
   const [searchInput, setSearchInput] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
-  useEffect(() => { setSelectedEnrollmentIds([]); }, [numericSessionId, schedule]);
+  const [isPreparingScoreAlimtalk, setIsPreparingScoreAlimtalk] = useState(false);
+  const [scoreAlimtalkError, setScoreAlimtalkError] = useState<string | null>(null);
+  const scoreAlimtalkRequestRef = useRef<symbol | null>(null);
+  const changeScoreSelection = useCallback((ids: number[], reason?: "roster") => {
+    setSelectedEnrollmentIds(ids);
+    // A fresh roster can prune ineligible rows during preparation. Keep checking the clicked selection.
+    if (reason === "roster") return;
+    scoreAlimtalkRequestRef.current = null;
+    setIsPreparingScoreAlimtalk(false);
+    setScoreAlimtalkError(null);
+  }, []);
+  useEffect(() => {
+    changeScoreSelection([]);
+    return () => { scoreAlimtalkRequestRef.current = null; };
+  }, [changeScoreSelection, numericSessionId, schedule]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   /** 편집 시 어떤 셀을 쓰기 모드로 할지 */
@@ -402,6 +440,10 @@ export default function SessionScoresEntryPage({
   }, [draft.draftStatus]);
 
   const saveScoresNow = useCallback(async (announce = false): Promise<boolean> => {
+    if (draft.editStaleConflict) {
+      feedback.info("최신 성적을 확인한 뒤 저장해 주세요.");
+      return false;
+    }
     if (panelRef.current?.commitActiveCell?.() === false) return false;
     await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
     setIsSaving(true);
@@ -425,12 +467,14 @@ export default function SessionScoresEntryPage({
       }
       return true;
     } catch (err) {
-      feedback.error((err as Error).message || "저장에 실패했습니다. 입력값은 유지됩니다.");
+      if (!isScoreEditStaleError(err)) {
+        feedback.error((err as Error).message || "저장에 실패했습니다. 입력값은 유지됩니다.");
+      }
       return false;
     } finally {
       setIsSaving(false);
     }
-  }, [runTrackedTask, saveScoreDraftNow]);
+  }, [draft.editStaleConflict, runTrackedTask, saveScoreDraftNow]);
 
   useEffect(() => {
     if (!draft.hasDraftToRestore) return;
@@ -532,6 +576,26 @@ export default function SessionScoresEntryPage({
     queryFn: () => fetchSessionScores(numericSessionId, schedule),
     enabled: Number.isFinite(numericSessionId) && numericSessionId > 0,
   });
+  const reviewLatestScores = async () => {
+    setIsSaving(true);
+    try {
+      await refetch({ throwOnError: true });
+      const panel = panelRef.current;
+      if (!panel || panel.commitActiveCell?.() === false) return;
+      const hasDraft = draft.stageStaleRecovery();
+      setActiveScoreCell(null);
+      setIsEditMode(false);
+      if (!hasDraft && !await draft.discardDraft()) {
+        setIsEditMode(true);
+        feedback.error("이전 저장 상태를 정리하지 못했습니다. 다시 확인해 주세요.");
+      }
+    } catch {
+      feedback.error("최신 성적을 불러오지 못했습니다. 입력값은 유지됩니다. 다시 시도해 주세요.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const isBlankScoreSheet = useMemo(() => isCompletelyBlankScoreSheet(data), [data]);
 
   const examReviewOverview = useMemo(() => {
@@ -700,6 +764,7 @@ export default function SessionScoresEntryPage({
   });
   const selectedHasSubjectivePending = (data?.rows ?? []).some((row) => (
     selectedEnrollmentIds.includes(row.enrollment_id)
+    && isScoreAlimtalkAttendance(row)
     && row.exams.some((exam) => exam.block.grading_status === "subjective_pending")
   ));
   const scoreAlimtalkDisabled = selectedEnrollmentIds.length === 0
@@ -715,7 +780,133 @@ export default function SessionScoresEntryPage({
       ? "이전 입력 복구 여부를 먼저 확인해 주세요."
     : isEditMode
       ? "점수 입력을 마친 뒤 알림톡을 발송할 수 있습니다."
-      : "선택한 학생에게 저장된 성적 기준으로 알림톡을 발송합니다.";
+      : "선택한 학생 중 출석·지각으로 기록된 학생의 성적을 확인합니다.";
+  const handleOpenScoreAlimtalk = async () => {
+    if (scoreAlimtalkDisabled || scoreAlimtalkRequestRef.current !== null) return;
+    const request = Symbol();
+    scoreAlimtalkRequestRef.current = request;
+    setIsPreparingScoreAlimtalk(true);
+    setScoreAlimtalkError(null);
+    const isCurrentRequest = () => scoreAlimtalkRequestRef.current === request;
+    const selectedIds = new Set(selectedEnrollmentIds);
+    const selectAttendees = (snapshot: SessionScoresResponse) => snapshot.rows.filter(
+      (row) => selectedIds.has(row.enrollment_id) && isScoreAlimtalkAttendance(row),
+    );
+    const refreshError = "최신 출결과 성적을 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.";
+
+    try {
+      const initial = await refetch();
+      if (!isCurrentRequest()) return;
+      if (initial.isError || !initial.data) {
+        setScoreAlimtalkError(refreshError);
+        return;
+      }
+      const initialIssue = getScoreAlimtalkBlockReason(selectAttendees(initial.data), false);
+      if (initialIssue) {
+        setScoreAlimtalkError(initialIssue);
+        return;
+      }
+      if (!await saveScoresNow() || !isCurrentRequest()) return;
+
+      const latest = await refetch();
+      if (!isCurrentRequest()) return;
+      if (latest.isError || !latest.data) {
+        setScoreAlimtalkError(refreshError);
+        return;
+      }
+      const selectedRows = selectAttendees(latest.data);
+      const issue = getScoreAlimtalkBlockReason(selectedRows, true);
+      if (issue) {
+        setScoreAlimtalkError(issue);
+        return;
+      }
+      const ids = selectedRows.map((row) => row.student_id);
+      const activeStudentIds = [...new Set(ids.filter((id): id is number => id != null && Number.isFinite(id)))];
+      if (ids.some((id) => id == null || !Number.isFinite(id))) {
+        setScoreAlimtalkError("발송 대상 학생 정보를 확인하지 못했습니다. 성적표를 다시 불러와 주세요.");
+        return;
+      }
+      const excludedCount = selectedIds.size - selectedRows.length;
+      const meta = latest.data.meta ?? null;
+      // SSOT (2026-05-13): backend 응답 meta가 진짜 진리. 캐시 fallback은 호환.
+      const lecture = qc.getQueryData<{ title?: string; name?: string }>(
+        adminLectureQueryKeys.lecture(numericLectureId),
+      );
+      const session = qc.getQueryData<{ title?: string }>(
+        adminLectureQueryKeys.sessionDetail(numericSessionId),
+      );
+      const lectureName = meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
+      const sessionTitle = meta?.session_title ?? session?.title ?? "";
+      const cohortData = schedule == null ? latest.data : await fetchSessionScores(numericSessionId).catch(() => {
+        if (isCurrentRequest()) feedback.warning("차시 전체 최고점을 불러오지 못했습니다. 다시 열어 확인해 주세요.");
+        return null;
+      });
+      if (!isCurrentRequest()) return;
+      const reportOptions = { lectureName, sessionTitle, highestScores: collectHighestScores(cohortData) };
+
+      let initialBody: string | undefined;
+      let initialTemplateId: number | null = null;
+      let initialTemplateUpdatedAt: string | undefined;
+      let scoreDetail = "";
+
+      try {
+        const templates = await fetchMessageTemplates("grades");
+        if (!isCurrentRequest()) return;
+        const chosenTpl = templates.find((t) => t.is_user_default && !t.is_system);
+
+        // 학원장 임근혁 보고(2026-05-12 23:50):
+        // 일괄 발송 양식이 첫 학생으로 치환되어 나와 "특정 대상 한 명으로 하드코딩됐다"는 오해.
+        // → 양식 본문은 변수 그대로 (#{학생이름}/#{시험1명}/...) 노출.
+        initialBody = chosenTpl
+          ? chosenTpl.body
+          : "";
+        initialTemplateId = chosenTpl?.id ?? null;
+        initialTemplateUpdatedAt = chosenTpl?.updated_at;
+        scoreDetail = buildScoreDetail(selectedRows[0], meta);
+      } catch {
+        if (isCurrentRequest()) setScoreAlimtalkError("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
+        return;
+      }
+
+      // SSOT (2026-05-14): 학생별 변수 재계산 callback.
+      // 학원장이 modal textarea에서 본문 수정 시 modal이 currentBody 기반으로 이 callback 호출 →
+      // 각 학생별 substituteScoreVars 결과 (_body_subst) 가 학원장 수정본 반영.
+      // 직전 결함: 모달 열기 전 사전 계산된 _body_subst 만 보내면 학원장 수정이 silently discard.
+      const recomputePerStudentVars = (currentBody: string): Record<number, Record<string, string>> => {
+        const result: Record<number, Record<string, string>> = {};
+        for (const sRow of selectedRows) {
+          if (sRow.student_id == null) continue;
+          const scoreVars = buildScoreVars(sRow, meta, reportOptions);
+          result[sRow.student_id] = {
+            ...scoreVars,
+            _body_subst: substituteScoreVars(currentBody, sRow, meta, reportOptions),
+          };
+        }
+        return result;
+      };
+      const firstScoreVars = selectedRows[0]
+        ? buildScoreVars(selectedRows[0], meta, reportOptions)
+        : {};
+
+      openSendMessageModal({
+        sessionId: numericSessionId,
+        studentIds: activeStudentIds,
+        recipientLabel: `수업결과 발송 — 출석·지각 ${activeStudentIds.length}명${excludedCount ? ` · ${excludedCount}명 제외` : ""}`,
+        blockCategory: "grades",
+        initialBody,
+        initialTemplateId,
+        initialTemplateUpdatedAt,
+        alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail, ...firstScoreVars },
+        recomputePerStudentVars,
+      });
+    } finally {
+      if (isCurrentRequest()) {
+        scoreAlimtalkRequestRef.current = null;
+        setIsPreparingScoreAlimtalk(false);
+      }
+    }
+  };
+
   /* 2026-05-13 회귀 fix: hasExamsOrHomeworks 가 selectionBar 안에서 참조되는데
      이전엔 line 581 (selectionBar 아래) 에서 선언 → TDZ ReferenceError 발생, 페이지 crash.
      selectionBar 보다 위로 이동. */
@@ -884,156 +1075,9 @@ export default function SessionScoresEntryPage({
             intent="primary"
             size="sm"
             title={scoreAlimtalkTitle}
-            onClick={async () => {
-              if (recoveryBlocked) {
-                feedback.info("이전 입력 복구 여부를 먼저 확인해 주세요.");
-                return;
-              }
-              if (isEditMode) {
-                feedback.info("점수 입력을 마친 뒤 알림톡을 발송해 주세요.");
-                return;
-              }
-              const initialRefresh = await refetch();
-              if (initialRefresh.isError || !initialRefresh.data) {
-                feedback.error("최신 성적을 다시 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.");
-                return;
-              }
-              let freshData = initialRefresh.data;
-              let rows = freshData?.rows ?? [];
-              let selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
-              const pendingSubjectiveCount = selectedRows.reduce(
-                (count, row) => count + row.exams.filter(
-                  (exam) => exam.block.grading_status === "subjective_pending",
-                ).length,
-                0,
-              );
-              if (pendingSubjectiveCount > 0) {
-                feedback.error("최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.");
-                return;
-              }
-              const provisionalCount = selectedRows.reduce(
-                (count, row) => count + row.exams.filter(exam => exam.block.is_provisional).length, 0,
-              );
-              if (provisionalCount > 0) {
-                feedback.error(`채점을 확인 중인 시험이 ${provisionalCount}건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.`);
-                return;
-              }
-              const unenteredItemCount = selectedRows.reduce(
-                (count, row) => count + collectUnenteredScoreItems(row).length,
-                0,
-              );
-              if (unenteredItemCount > 0) {
-                feedback.error(
-                  `점수가 입력되지 않은 시험·과제가 ${unenteredItemCount}건 있습니다. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 발송해 주세요.`,
-                );
-                return;
-              }
-              if (!await saveScoresNow()) return;
-              const finalRefresh = await refetch();
-              if (finalRefresh.isError || !finalRefresh.data) {
-                feedback.error("최신 성적을 다시 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.");
-                return;
-              }
-              freshData = finalRefresh.data;
-              rows = freshData?.rows ?? [];
-              selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
-              const finalPendingSubjectiveCount = selectedRows.reduce(
-                (count, row) => count + row.exams.filter(
-                  (exam) => exam.block.grading_status === "subjective_pending",
-                ).length,
-                0,
-              );
-              if (finalPendingSubjectiveCount > 0) {
-                feedback.error("최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.");
-                return;
-              }
-              const finalProvisionalCount = selectedRows.reduce(
-                (count, row) => count + row.exams.filter(exam => exam.block.is_provisional).length, 0,
-              );
-              if (finalProvisionalCount > 0) {
-                feedback.error(`채점을 확인 중인 시험이 ${finalProvisionalCount}건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.`);
-                return;
-              }
-              const finalUnenteredItemCount = selectedRows.reduce(
-                (count, row) => count + collectUnenteredScoreItems(row).length,
-                0,
-              );
-              if (finalUnenteredItemCount > 0) {
-                feedback.error(
-                  `최신 성적에 입력되지 않은 시험·과제가 ${finalUnenteredItemCount}건 있습니다. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 다시 시도해 주세요.`,
-                );
-                return;
-              }
-              const meta = freshData?.meta ?? null;
-              const activeStudentIds = selectedRows
-                .map((row) => row.student_id)
-                .filter((id): id is number => id != null && Number.isFinite(id));
-              // SSOT (2026-05-13): backend 응답 meta가 진짜 진리. 캐시 fallback은 호환.
-              const lecture = qc.getQueryData<{ title?: string; name?: string }>(
-                adminLectureQueryKeys.lecture(numericLectureId),
-              );
-              const session = qc.getQueryData<{ title?: string }>(
-                adminLectureQueryKeys.sessionDetail(numericSessionId),
-              );
-              const lectureName = meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
-              const sessionTitle = meta?.session_title ?? session?.title ?? "";
-              const reportOptions = { lectureName, sessionTitle };
-
-              let initialBody: string | undefined;
-              let initialTemplateId: number | null = null;
-              let initialTemplateUpdatedAt: string | undefined;
-              let scoreDetail = "";
-
-              try {
-                const templates = await fetchMessageTemplates("grades");
-                const chosenTpl = templates.find((t) => t.is_user_default && !t.is_system);
-
-                // 학원장 임근혁 보고(2026-05-12 23:50):
-                // 일괄 발송 양식이 첫 학생으로 치환되어 나와 "특정 대상 한 명으로 하드코딩됐다"는 오해.
-                // → 양식 본문은 변수 그대로 (#{학생이름}/#{시험1명}/...) 노출.
-                initialBody = chosenTpl
-                  ? chosenTpl.body
-                  : "";
-                initialTemplateId = chosenTpl?.id ?? null;
-                initialTemplateUpdatedAt = chosenTpl?.updated_at;
-                scoreDetail = buildScoreDetail(selectedRows[0], meta);
-              } catch {
-                feedback.error("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
-                return;
-              }
-
-              // SSOT (2026-05-14): 학생별 변수 재계산 callback.
-              // 학원장이 modal textarea에서 본문 수정 시 modal이 currentBody 기반으로 이 callback 호출 →
-              // 각 학생별 substituteScoreVars 결과 (_body_subst) 가 학원장 수정본 반영.
-              // 직전 결함: 모달 열기 전 사전 계산된 _body_subst 만 보내면 학원장 수정이 silently discard.
-              const recomputePerStudentVars = (currentBody: string): Record<number, Record<string, string>> => {
-                const result: Record<number, Record<string, string>> = {};
-                for (const sRow of selectedRows) {
-                  if (sRow.student_id == null) continue;
-                  const scoreVars = buildScoreVars(sRow, meta, reportOptions);
-                  result[sRow.student_id] = {
-                    ...scoreVars,
-                    _body_subst: substituteScoreVars(currentBody, sRow, meta, reportOptions),
-                  };
-                }
-                return result;
-              };
-              const firstScoreVars = selectedRows[0]
-                ? buildScoreVars(selectedRows[0], meta, reportOptions)
-                : {};
-
-              openSendMessageModal({
-                sessionId: numericSessionId,
-                studentIds: activeStudentIds,
-                recipientLabel: `수업결과 발송 — 선택한 수강생 ${selectedEnrollmentIds.length}명`,
-                blockCategory: "grades",
-                initialBody,
-                initialTemplateId,
-                initialTemplateUpdatedAt,
-                alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail, ...firstScoreVars },
-                recomputePerStudentVars,
-              });
-            }}
+            onClick={handleOpenScoreAlimtalk}
+            loading={isPreparingScoreAlimtalk}
+            aria-busy={isPreparingScoreAlimtalk}
             disabled={scoreAlimtalkDisabled}
           >
             수업결과 알림톡 발송
@@ -1091,7 +1135,7 @@ export default function SessionScoresEntryPage({
           <Button
             intent="ghost"
             size="sm"
-            onClick={() => setSelectedEnrollmentIds([])}
+            onClick={() => changeScoreSelection([])}
             disabled={!hasSelection}
           >
             선택 해제
@@ -1179,6 +1223,12 @@ export default function SessionScoresEntryPage({
         </div>
       </div>
 
+      {scoreAlimtalkError && (
+        <p className="m-0 px-1 text-sm text-[var(--color-error)]" role="alert">
+          {scoreAlimtalkError}
+        </p>
+      )}
+
       {/* 표시 옵션 펼침 — selectionBar 다음 줄로 inline expand. */}
       {hasExamsOrHomeworks && viewOptionsExpanded && (
         <div id="scores-view-options" className="scores-selection-bar__options">
@@ -1246,7 +1296,7 @@ export default function SessionScoresEntryPage({
                 size="sm"
                 leftIcon={<Users size={ICON_FOR_BUTTON.sm} />}
                 onClick={() => {
-                  setSelectedEnrollmentIds(examReviewOverview.selectableEnrollmentIds);
+                  changeScoreSelection(examReviewOverview.selectableEnrollmentIds);
                   feedback.success(`현재 결과의 평가 대상 ${examReviewOverview.selectableEnrollmentIds.length}명을 선택했습니다.`);
                 }}
                 disabled={isEditMode || examReviewOverview.selectableEnrollmentIds.length === 0}
@@ -1533,6 +1583,19 @@ export default function SessionScoresEntryPage({
                     성적표 수정 잠김
                   </span>
                 )
+              ) : draft.editStaleConflict ? (
+                <>
+                  <span className="text-[var(--color-error)]">서버 성적이 변경되었습니다. 입력값은 보존했습니다.</span>
+                  {" "}
+                  <button
+                    type="button"
+                    className="underline text-[var(--color-brand-primary)]"
+                    disabled={isSaving}
+                    onClick={() => void reviewLatestScores()}
+                  >
+                    {isSaving ? "성적 불러오는 중…" : "최신 성적 확인"}
+                  </button>
+                </>
               ) : (
                 <>
                   {draft.draftStatus === "dirty" && "저장 대기 중…"}
@@ -1598,9 +1661,9 @@ export default function SessionScoresEntryPage({
                 : "이전에 임시저장된 편집 내용이 있습니다. 복원할까요?"}
             </h2>
             <p id="draft-restore-description-entry" className="text-sm text-[var(--color-text-muted)] mb-4">
-              복원하면 이전 편집 내용이 테이블에 다시 적용됩니다. 버리면 현재 서버 데이터만 표시됩니다.
-              <br />
-              <span className="text-[11px]">※ 1시간 이상 방치된 임시저장은 다음 진입 시 자동으로 폐기됩니다.</span>
+              {draft.editStaleConflict
+                ? "서버 성적이 변경되었습니다. 복원하면 보존된 입력을 최신 성적표에 다시 적용해 저장합니다. 버리면 최신 성적을 유지합니다."
+                : "복원하면 이전 편집 내용이 테이블에 다시 적용됩니다. 버리면 현재 서버 데이터만 표시됩니다."}
             </p>
             {draft.draftError && (
               <p className="text-sm text-[var(--color-error)] mb-3" role="alert">
@@ -1781,7 +1844,7 @@ export default function SessionScoresEntryPage({
           summaryColumnMode={summaryColumnMode}
           examReviewFilter={examReviewFilter}
           selectedEnrollmentIds={selectedEnrollmentIds}
-          onSelectionChange={setSelectedEnrollmentIds}
+          onSelectionChange={changeScoreSelection}
           onOpenExamGrading={(examId, title, gradingMode, manualGradingMethod, action) => {
             void openExamGrading(examId, title, gradingMode, manualGradingMethod, action);
           }}

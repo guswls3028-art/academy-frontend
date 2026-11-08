@@ -322,12 +322,11 @@ export default function VideoPlayerPage() {
   }, [effectiveEnrollmentId, enrollmentId, queryClient, queryScope, sessionId, videoId]);
 
   /* ─── 이어보기 위치 계산 ─── */
-  const initialPosition = useMemo(() => {
-    if (!videoId) return 0;
-    const apiPos = video?.last_position ?? 0;
-    const localPos = getStoredVideoPosition(videoId, playbackStorageScope);
-    return Math.max(apiPos, localPos);
-  }, [playbackStorageScope, videoId, video?.last_position]);
+  // Player teardown stores the latest position before a retry, even if the
+  // replacement grant still contains the earlier server checkpoint.
+  const initialPosition = videoId
+    ? Math.max(video?.last_position ?? 0, getStoredVideoPosition(videoId, playbackStorageScope))
+    : 0;
 
   const progressMutation = useMutation({
     mutationFn: (data: { progress?: number; completed?: boolean; last_position?: number }) => {

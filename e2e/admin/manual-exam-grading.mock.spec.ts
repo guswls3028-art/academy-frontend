@@ -3942,15 +3942,19 @@ test.describe("문항별 직접 채점", () => {
       let dialog = await openSheet();
       const firstQuestionMax = dialog.getByRole("spinbutton", { name: "1번 배점", exact: true });
       await expect(firstQuestionMax).toBeVisible({ timeout: 30_000 });
-      await firstQuestionMax.fill("16.6667");
       const cells = dialog.locator("input[data-manual-grade-cell]");
+      const previousScore = await cells.first().inputValue();
+      await firstQuestionMax.fill("16.6667");
+      await expect(firstQuestionMax).toBeFocused();
+      await expect(firstQuestionMax).toHaveValue("16.6667");
+      await expect(cells.first()).toHaveValue(previousScore);
       for (let index = 0; index < 6; index += 1) await cells.nth(index).fill(index === 0 ? "16.6667" : String(100 / 6));
       await dialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+      await expect(dialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
       expect(apiState.postedRows.at(-1)).toMatchObject({
         question_scores: { [QUESTION_IDS[0]]: 16.6667 },
         expected_question_scores: { [QUESTION_IDS[0]]: 100 / 6 },
       });
-      await expect(dialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
       await dialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
       await expect(dialog.getByText("현재 저장된 성적 기준", { exact: true })).toBeVisible();
       expect(apiState.postedRows.at(-1)).toMatchObject({
@@ -3965,8 +3969,8 @@ test.describe("문항별 직접 채점", () => {
       await dialog.getByRole("spinbutton", { name: "1번 배점", exact: true }).fill("16.666700");
       await dialog.locator("input[data-manual-grade-cell]").first().fill("0");
       await dialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
-      expect(apiState.postedRows.at(-1)).not.toHaveProperty("question_scores");
       await expect(dialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
+      expect(apiState.postedRows.at(-1)).not.toHaveProperty("question_scores");
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     });
   }

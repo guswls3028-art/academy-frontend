@@ -110,7 +110,7 @@ async function verifyScopeDeletionRecovery(
     const nodeId = matches[0].id;
     const content = "삭제 거부 뒤에도 보존할 검증용 글입니다.";
     const post = await expectApi<{ id: number }>(request, "POST", "/community/posts/", adminAccess, {
-      post_type: kind === "lecture" ? "notice" : "material", status: "published",
+      post_type: kind === "lecture" ? "notice" : "materials", status: "published",
       title, content, node_ids: [nodeId],
     }, [201]);
     expect(Number.isSafeInteger(post.id) && post.id > 0).toBe(true);

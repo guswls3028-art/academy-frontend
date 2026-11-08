@@ -17,6 +17,7 @@ function jwt(): string {
 type Evidence = {
   playbackRequests: number;
   renewalRequests: number;
+  manifestRequests: number;
   accessChecks: number;
   requestedPaths: string[];
   mutationPaths: string[];
@@ -33,6 +34,7 @@ async function installApp(
   const evidence: Evidence = {
     playbackRequests: 0,
     renewalRequests: 0,
+    manifestRequests: 0,
     accessChecks: 0,
     requestedPaths: [],
     mutationPaths: [],
@@ -50,6 +52,7 @@ async function installApp(
   }, { token: jwt(), parent: viewer === "parent" });
 
   await page.route("https://cdn.example.test/direct/**", async (route) => {
+    if (new URL(route.request().url()).pathname === "/direct/master.m3u8") evidence.manifestRequests += 1;
     // Keep media loading pending so this contract exercises direct access and
     // token refresh without coupling it to a browser codec or HLS transmuxer.
     await new Promise<void>((resolveClose) => page.once("close", resolveClose));
@@ -205,6 +208,14 @@ test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 r
 
 test("개별 영상 학생 재생은 canonical bootstrap·exact-only·로컬 이어보기·짧은 갱신 경계를 지킨다", async ({ page }) => {
   const { evidence, revoke } = await installApp(page);
+  // The initial grant is already in the renewal window. Hold its replacement
+  // until the test has observed a checkpoint on the initial source.
+  const checkpointSaved = Promise.withResolvers<void>();
+  page.once("close", () => checkpointSaved.resolve());
+  await page.route("**/api/v1/media/playback/renew/", async (route) => {
+    await checkpointSaved.promise;
+    if (!page.isClosed()) await route.fallback();
+  });
   await page.goto(`${BASE}/student/video/play?video=902&session=802`, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
@@ -218,23 +229,34 @@ test("개별 영상 학생 재생은 canonical bootstrap·exact-only·로컬 이
 
   const video = page.locator("video");
   await expect(video).toHaveCount(1);
+  // The video node can mount before the HLS controller attaches its listeners.
+  await expect.poll(() => evidence.manifestRequests, { timeout: 30_000 }).toBe(1);
+  expect(evidence.renewalRequests).toBe(0);
   await video.evaluate((element) => {
     Object.defineProperty(element, "currentTime", { configurable: true, get: () => 125 });
     Object.defineProperty(element, "duration", { configurable: true, get: () => 600 });
     const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
+    const visibility = Object.getOwnPropertyDescriptor(document, "visibilityState");
     Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
     document.dispatchEvent(new Event("visibilitychange"));
     if (hidden) Object.defineProperty(document, "hidden", hidden);
     else Reflect.deleteProperty(document, "hidden");
+    if (visibility) Object.defineProperty(document, "visibilityState", visibility);
+    else Reflect.deleteProperty(document, "visibilityState");
   });
-  await expect.poll(() => page.evaluate(() => {
+  const storedPosition = () => page.evaluate(() => {
     const key = Object.keys(localStorage).find((item) => item.includes("student-video-position:902:enrollment:self"));
     if (!key) return null;
     return JSON.parse(localStorage.getItem(key) || "null")?.pos ?? null;
-  })).toBe(125);
+  });
+  await expect.poll(storedPosition).toBe(125);
 
+  checkpointSaved.resolve();
   await page.clock.runFor(26_000);
   await expect.poll(() => evidence.renewalRequests).toBe(1);
+  await expect.poll(() => evidence.manifestRequests).toBe(2);
+  await expect.poll(storedPosition).toBe(125);
   expect(evidence.mutationPaths.filter(
     (path) => path === "/student/video/videos/902/playback/",
   )).toHaveLength(1);

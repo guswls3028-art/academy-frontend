@@ -37,7 +37,7 @@ import {
   patchHomeworkQuick,
   type HomeworkScoreCellValue,
 } from "../api/patchHomeworkQuick";
-import { buildScoreVars, buildScoreDetail, substituteScoreVars, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
+import { buildScoreVars, buildScoreDetail, collectHighestScores, substituteScoreVars, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
 import {
   getSessionRowAttentionCountLabel,
   getSessionRowAttentionSummary,
@@ -215,6 +215,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     }
     let currentRow = row;
     let currentMeta = meta;
+    let highestScores: ReturnType<typeof collectHighestScores> | undefined;
     if (sessionId != null && Number.isFinite(sessionId)) {
       try {
         const freshScores = await qc.fetchQuery({
@@ -230,6 +231,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
         }
         currentRow = refreshedRow;
         currentMeta = freshScores.meta ?? meta;
+        highestScores = collectHighestScores(freshScores);
       } catch {
         feedback.error("최신 성적을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
         return;
@@ -258,7 +260,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     const lectureName = currentMeta?.lecture_title ?? lecture?.title ?? lecture?.name ?? (currentRow as any).lecture_title ?? "";
     const sessionTitle = currentMeta?.session_title ?? session?.title ?? (currentRow as any).session_title ?? "";
     // Phase #5 (2026-05-12) — 학원장 커스텀 합/불 라벨 메시지 본문에 반영.
-    const reportOptions = { lectureName, sessionTitle, passLabel: labels.pass, failLabel: labels.fail };
+    const reportOptions = { lectureName, sessionTitle, passLabel: labels.pass, failLabel: labels.fail, highestScores };
 
     // 명시적으로 기본 지정한 사용자 문구가 없으면 빈 본문에서 작성한다.
     let body: string;
@@ -1629,7 +1631,7 @@ function CorrectionStatusControl({
     ? status === "COMPLETED"
         ? "교사가 협의 후 완료로 표시했습니다. 원점수와 제출 기록은 그대로 유지됩니다."
       : status === "PENDING"
-        ? "남은 범위를 비고에 적어 두면 다음 검사 때 바로 이어볼 수 있습니다."
+        ? "사유를 적고 ‘완료로 표시’를 누르면 사유와 완료 상태가 함께 저장됩니다."
         : status === "NOT_REQUIRED"
           ? "점수상 완료된 과제도 교사 판정과 사유를 별도로 남길 수 있습니다."
           : "학생의 제출 여부와 관계없이 교사가 완료 여부를 기록합니다."

@@ -6,20 +6,18 @@
 import { postEvents, postHeartbeat, postRefresh } from "./playbackTransport";
 import { prepareReviewPlayback, REVIEW_EXHAUSTED } from "../../../api/reviewWatch.api";
 import type Hls from "hls.js";
-import type { ErrorData, LevelSwitchedData, Level } from "hls.js";
+import type { ErrorData, LevelSwitchedData } from "hls.js";
 import { clamp, getEpochSec } from "../design/utils";
 import { resolveStudentVideoPlayUrl } from "../playbackUrl";
 import { PlaybackSessionEnd } from "./playbackSessionEnd";
+import { PlaybackStallWatch } from "./playbackStallWatch";
+import { capturePlaybackSource, describeQualityLevels, restorePlaybackSource, type PlaybackSourceSnapshot } from "./playbackMediaSettings";
 import { normalizeControllerPolicy as normalizePolicy } from "./controllerTypes";
-import type { ControllerOptions, ControllerState, EventType, Policy, QualityLevel } from "./controllerTypes";
+import type { ControllerOptions, ControllerState, EventType, Policy } from "./controllerTypes";
 export type { ControllerOptions, ControllerState, EventType, Policy, QualityLevel } from "./controllerTypes";
 import { acquirePlaybackEventBatches, type PlaybackEventBatches } from "./playbackEventBatches";
 
 const ignoreBestEffortError = () => undefined;
-
-
-
-
 
 type Listener = (state: ControllerState) => void;
 
@@ -51,6 +49,7 @@ export class StudentHlsController {
 
   // HLS fatal 자동 재시도 — exponential backoff
   private reconnectAttempts = 0;
+  private stallWatch: PlaybackStallWatch | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly MAX_RECONNECT_ATTEMPTS = 4;
 
@@ -66,14 +65,7 @@ export class StudentHlsController {
   private playbackEnd: PlaybackSessionEnd;
   private readonly eventBatches?: PlaybackEventBatches;
   private initialPositionApplied = false;
-  private pendingSourceResume: {
-    position: number;
-    wasPlaying: boolean;
-    rate: number;
-    volume: number;
-    muted: boolean;
-    quality: number;
-  } | null = null;
+  private pendingSourceResume: PlaybackSourceSnapshot | null = null;
 
   constructor(opts: ControllerOptions) {
     this.opts = opts;
@@ -195,6 +187,11 @@ export class StudentHlsController {
     if (this.disposed || !this.el) return;
     this.playGeneration++;
     this.nativeGestureUntil = 0;
+    if (this.pendingSourceResume) this.pendingSourceResume.wasPlaying = false;
+    if (this.stallWatch?.retrying || this.pendingSourceResume) {
+      this.setState({ playing: false, buffering: false, reconnecting: false });
+    }
+    this.stallWatch?.stop();
     if (this.opts.reviewStream) this.hls?.stopLoad();
     try {
       this.el.pause();
@@ -326,6 +323,10 @@ export class StudentHlsController {
   }
   setSource(playUrl: string) {
     if (this.disposed || !playUrl || playUrl === this.opts.playUrl) return;
+    this.reloadSource(playUrl);
+  }
+
+  private reloadSource(playUrl: string) {
     const url = resolveStudentVideoPlayUrl(playUrl);
     if (!url) {
       this.opts.onFatal?.("잘못된 재생 URL 형식입니다.");
@@ -335,14 +336,7 @@ export class StudentHlsController {
     const el = this.el;
     if (!el) return;
 
-    this.pendingSourceResume = {
-      position: Number(el.currentTime || this.state.current || 0),
-      wasPlaying: !el.paused,
-      rate: Number(el.playbackRate || this.state.rate || 1),
-      volume: Number(el.volume ?? this.state.volume),
-      muted: Boolean(el.muted),
-      quality: this.state.currentQuality,
-    };
+    this.pendingSourceResume ??= capturePlaybackSource(el, this.state);
     this.setState({ buffering: true });
     try {
       if (this.hls) {
@@ -369,12 +363,15 @@ export class StudentHlsController {
     this.maxWatchedRef = Math.max(this.maxWatchedRef, pending.position);
     this.lastTimeRef = pending.position;
     try {
-      el.currentTime = pending.position;
-      el.playbackRate = pending.rate;
-      el.volume = pending.volume;
-      el.muted = pending.muted;
-      if (pending.quality >= 0 && this.hls) this.hls.currentLevel = pending.quality;
-      if (pending.wasPlaying) el.play()?.catch(ignoreBestEffortError);
+      restorePlaybackSource(el, pending, this.hls);
+      if (pending.wasPlaying) {
+        el.play()?.catch(() => {
+          if (this.disposed || this.pendingSourceResume || !this.stallWatch?.retrying || !el.paused) return;
+          this.stallWatch.stop();
+          this.setState({ playing: false, buffering: false, reconnecting: false });
+          this.showToast("재생을 눌러 보던 위치부터 이어보세요.", "info");
+        });
+      }
     } catch {
       ignoreBestEffortError();
     }
@@ -385,6 +382,7 @@ export class StudentHlsController {
       muted: pending.muted,
       buffering: false,
     });
+    this.stallWatch?.resetSample();
     const releaseGuard = setTimeout(() => {
       this.seekGuardRef.initialSeekActive = false;
     }, 200);
@@ -407,23 +405,22 @@ export class StudentHlsController {
 
   private publishQualities() {
     if (this.disposed || !this.hls) return;
-    const levels: Level[] = Array.isArray(this.hls.levels) ? this.hls.levels : [];
-    // 단일 해상도(level 1개 이하) 영상은 화질 선택이 의미 없음 → 빈 배열로 두어 UI 비활성화.
-    if (levels.length < 2) {
-      this.setState({ qualities: [] });
+    this.setState({ qualities: describeQualityLevels(this.hls.levels) });
+  }
+
+  private recoverStall(exhausted: boolean) {
+    const terminal = exhausted || Boolean(this.opts.reviewStream);
+    this.queueEvent("PLAYER_ERROR", { details: "playhead_stall", fatal: terminal });
+    if (terminal) {
+      this.pause();
+      this.opts.onFatal?.("영상 재생이 멈췄어요. 다시 시도해 보던 위치에서 이어보세요.");
       return;
     }
-    const qs: QualityLevel[] = [{ index: -1, label: "Auto", height: 0, bitrate: 0 }];
-    levels.forEach((lv, i) => {
-      const h = Number(lv?.height || 0);
-      const br = Number(lv?.bitrate || 0);
-      const label = h > 0 ? `${h}p` : br > 0 ? `${Math.round(br / 1000)}k` : `Level ${i + 1}`;
-      qs.push({ index: i, label, height: h, bitrate: br });
-    });
-    // 화질 내림차순 (Auto는 맨 위 유지)
-    const auto = qs[0];
-    const rest = qs.slice(1).sort((a, b) => b.height - a.height || b.bitrate - a.bitrate);
-    this.setState({ qualities: [auto, ...rest] });
+    // Do not compete with an already scheduled Hls.js fatal retry.
+    if (this.reconnectTimer !== null) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+    this.setState({ buffering: true, reconnecting: true, toast: null });
+    this.reloadSource(this.opts.playUrl);
   }
 
   private scheduleReconnect(kind: "network" | "media") {
@@ -536,6 +533,7 @@ export class StudentHlsController {
     this.playbackEnd.listen();
     const onVis = () => {
       if (this.disposed) return;
+      this.stallWatch?.resetSample();
       if (document.hidden) {
         this.flushProgress();
         this.queueEvent("VISIBILITY_HIDDEN", { hidden: true });
@@ -575,9 +573,10 @@ export class StudentHlsController {
    */
   private flushProgress(force = false) {
     if ((!force && this.disposed) || !this.el || !this.opts.onLeaveProgress) return;
-    const currentTime = Number(this.el.currentTime || 0);
+    const pending = this.pendingSourceResume;
+    const currentTime = pending?.position ?? Number(this.el.currentTime || 0);
     const maxWatched = Math.max(0, this.maxWatchedRef);
-    const dur = Number(this.el.duration);
+    const dur = pending ? this.state.duration : Number(this.el.duration);
     // Do not overwrite server progress with a synthetic 0% before metadata is ready.
     if (!(dur > 0 && Number.isFinite(dur))) return;
     const baselineProgress = Math.min(100, Math.max(0, Number(this.opts.initialProgress) || 0));
@@ -589,7 +588,7 @@ export class StudentHlsController {
   private lastSavedPosition = -1;
   private flushProgressIfChanged() {
     if (this.disposed || !this.el) return;
-    const cur = Math.round(Number(this.el.currentTime || 0));
+    const cur = Math.round(this.pendingSourceResume?.position ?? Number(this.el.currentTime || 0));
     if (Math.abs(cur - this.lastSavedPosition) < 5) return; // 5초 미만 변화 무시
     this.lastSavedPosition = cur;
     this.flushProgress();
@@ -722,7 +721,7 @@ export class StudentHlsController {
           }
 
           // 네트워크/미디어 오류 — 자동 재시도(exponential backoff)
-          if ((isNetworkError || isMediaError) && this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
+          if (!this.stallWatch?.retrying && (isNetworkError || isMediaError) && this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
             this.scheduleReconnect(isMediaError ? "media" : "network");
             return;
           }
@@ -761,6 +760,15 @@ export class StudentHlsController {
     const maxRate = Math.max(1, Number(this.policy.playback_rate?.max) || 1);
     const speedLocked = this.policy.playback_rate?.ui_control === false || maxRate <= 1.0001;
 
+    this.stallWatch = new PlaybackStallWatch(() => {
+      if (this.disposed || document.hidden || this.playbackEnd.started || el.ended || el.error) return null;
+      if (this.pendingSourceResume?.wasPlaying) return this.pendingSourceResume.position;
+      return el.paused || el.playbackRate <= 0 ? null : el.currentTime;
+    }, (exhausted) => this.recoverStall(exhausted), () => {
+      this.reconnectAttempts = 0;
+      this.setState({ buffering: false, reconnecting: false });
+    });
+
     const onLoadedMeta = () => {
       if (this.disposed) return;
       const d = Number(el.duration || 0);
@@ -789,19 +797,28 @@ export class StudentHlsController {
     };
 
     const onTime = () => {
-      if (this.disposed) return;
+      if (this.disposed || this.pendingSourceResume) return;
       const t = Number(el.currentTime || 0);
       this.setState({ current: t });
       this.lastTimeRef = t;
       if (t > this.maxWatchedRef) this.maxWatchedRef = t;
     };
 
-    const onPlay = () => this.guard(() => this.setState({ playing: true, buffering: el.readyState < el.HAVE_FUTURE_DATA }));
-    const onPause = () => this.guard(() => this.setState({ playing: false }));
+    const onPlay = () => this.guard(() => {
+      this.stallWatch?.start();
+      this.setState({ playing: true, buffering: el.readyState < el.HAVE_FUTURE_DATA });
+    });
+    const onPause = () => this.guard(() => {
+      if (this.pendingSourceResume?.wasPlaying) return;
+      const retrying = this.stallWatch?.retrying;
+      this.stallWatch?.stop();
+      this.setState({ playing: false, buffering: false, ...(retrying ? { reconnecting: false } : {}) });
+    });
     const onWaiting = () => this.guard(() => this.setState({ buffering: true }));
     const onPlaying = () => this.guard(() => this.setState({ buffering: false }));
     const onEnded = () => {
       if (this.disposed) return;
+      this.stallWatch?.stop();
       const duration = Number(el.duration);
       if (duration > 0 && Number.isFinite(duration)) {
         this.maxWatchedRef = Math.max(this.maxWatchedRef, duration);
@@ -842,6 +859,7 @@ export class StudentHlsController {
 
     const onSeeking = () => {
       if (this.disposed) return;
+      this.stallWatch?.resetSample();
       if (this.seekGuardRef.initialSeekActive) return; // 이어보기 초기 seek 시 가드 우회
       const allowSeek = !!this.policy.allow_seek && this.policy.seek?.mode !== "blocked";
       const seekMode = this.policy.seek?.mode || "free";
@@ -911,7 +929,7 @@ export class StudentHlsController {
         message = "영상 서비스에서 재생 파일을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
       } else if (errorCode === 2) message = "영상 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.";
       else if (errorCode === 3) message = "비디오 디코딩 오류가 발생했습니다.";
-      if (this.opts.reviewStream || sourceFailed) this.opts.onFatal?.(message);
+      if (this.opts.reviewStream || sourceFailed || this.stallWatch?.retrying) this.opts.onFatal?.(message);
       this.setState({ toast: { text: message, kind: "danger" } });
     };
 
@@ -943,6 +961,7 @@ export class StudentHlsController {
     this.disposed = true;
 
     this.listeners.clear();
+    this.stallWatch?.stop();
 
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);

@@ -40,6 +40,7 @@ const owned = {
   exams: [] as Exam[],
   enrollments: [] as Enrollment[],
   sessionEnrollmentIds: [] as number[],
+  attendanceIds: [] as number[],
   messageTemplateIds: [] as number[],
   scheduledMessageIds: [] as number[],
   previousGradeDefaultId: null as number | null,
@@ -153,6 +154,7 @@ async function cleanupFixture(request: APIRequestContext, testInfo: TestInfo): P
     } catch { failures.push(`exam ${exam.id}: cleanup/readback transport failed`); }
   }
   const paths = [
+    ...owned.attendanceIds.map((id) => `/lectures/attendance/${id}/`),
     ...owned.sessionEnrollmentIds.map((id) => `/enrollments/session-enrollments/${id}/`),
     ...owned.enrollments.map((row) => `/enrollments/${row.id}/`),
     ...(owned.sessionId ? [`/lectures/sessions/${owned.sessionId}/`] : []),
@@ -336,6 +338,14 @@ async function verifyConsumer(page: Page, testInfo: TestInfo, student: QaStudent
 }
 
 async function verifyEditableScoreMessage(page: Page, request: APIRequestContext, testInfo: TestInfo, student: QaStudent, exam: Exam) {
+  // The score composer requires recorded attendance for the selected recipient.
+  const attendance = await expectApi<Array<{ id: number }>>(request, "POST", "/lectures/attendance/bulk_create/",
+    owned.adminAccess, { session: owned.sessionId, students: [student.id] }, [201]);
+  expect(attendance).toHaveLength(1);
+  const attendanceId = attendance[0].id;
+  owned.attendanceIds.push(attendanceId);
+  await expectApi(request, "PATCH", `/lectures/attendance/${attendanceId}/`, owned.adminAccess, { status: "PRESENT" });
+
   const templates = await expectApi<Array<{ id: number; is_user_default: boolean }>>(
     request, "GET", "/messaging/templates/?category=grades", owned.adminAccess);
   owned.previousGradeDefaultId = templates.find(template => template.is_user_default)?.id ?? null;

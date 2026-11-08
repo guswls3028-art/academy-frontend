@@ -3817,3 +3817,81 @@ for (const width of [1366, 390]) {
     await page.screenshot({ path: testInfo.outputPath(`overnight-manual-booked-${width}.png`), fullPage: true });
   });
 }
+
+for (const width of [1366, 390]) {
+  test(`클리닉 예약 검색은 날짜를 몰라도 지난 예약을 찾고 재시도할 수 있다 (${width}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 844 });
+    await seed(page);
+    const pastDate = dateInMonth(-1, 4);
+    const pastSession = { ...sessions[0], id: 704, title: "지난달 보강", date: pastDate };
+    await installApi(page, undefined, undefined, {
+      createPayloads: [],
+      updatePayloads: [],
+      sessions: [...sessions, pastSession],
+      filterSessionRowsByQuery: true,
+    });
+
+    const requests: URL[] = [];
+    let failSearch = true;
+    const registeredAt = pastDate + "T03:00:00Z";
+    await page.route(
+      (url) => url.pathname.endsWith("/clinic/participants/") && url.searchParams.has("search"),
+      async (route) => {
+        const url = new URL(route.request().url());
+        requests.push(url);
+        if (failSearch) {
+          await route.fulfill({ status: 503, json: { detail: "일시 오류" } });
+          return;
+        }
+        const pageTwo = url.searchParams.get("page") === "2";
+        const next = new URL(url);
+        next.searchParams.set("page", "2");
+        await route.fulfill({
+          json: {
+            count: 2,
+            next: pageTwo ? null : next.href,
+            results: [{
+              id: pageTwo ? 3402 : 3401,
+              session: pageTwo ? pastSession.id : sessions[0].id,
+              student: 403,
+              student_name: "테스트학생",
+              session_title: pageTwo ? pastSession.title : sessions[0].title,
+              session_date: pageTwo ? pastDate : saturday,
+              session_start_time: "19:00:00",
+              session_location: "보강실",
+              status: pageTwo ? "attended" : "booked",
+              created_at: registeredAt,
+            }],
+          },
+        });
+      },
+    );
+    await page.goto(`${BASE}/workspace/clinic/operations`, { waitUntil: "domcontentloaded" });
+    const nav = page.getByRole("navigation", { name: "클리닉 운영 화면" });
+    await nav.getByRole("button", { name: "예약 검색" }).click();
+    await expect(page).toHaveURL(/panel=reservations/);
+    expect(requests).toHaveLength(0);
+    const search = page.getByRole("searchbox", { name: "학생 이름 또는 장소" });
+    await search.fill("테스트학생");
+    await search.press("Enter");
+    await expect(page.getByText("예약을 불러오지 못했습니다.")).toBeVisible();
+    await expect(search).toHaveValue("테스트학생");
+    const requestsBeforeRetry = requests.length;
+    failSearch = false;
+    await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+    const results = page.getByRole("list", { name: "예약 검색 결과" });
+    await expect(results.getByRole("listitem")).toHaveCount(2);
+    const past = results.getByRole("listitem").filter({ hasText: "지난달 보강" });
+    await expect(past).toContainText(pastDate + " 19:00");
+    await expect(past).toContainText("출석");
+    await expect(past.locator("time")).toHaveAttribute("datetime", registeredAt);
+    expect(requests.slice(requestsBeforeRetry).map((url) => url.searchParams.get("search")))
+      .toEqual(["테스트학생", "테스트학생"]);
+    expect(requests.every((url) => !url.searchParams.has("session_date_from"))).toBe(true);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await testInfo.attach(`clinic-reservation-search-${width}`, { contentType: "image/png", body: await page.screenshot() });
+    await past.getByRole("link", { name: "해당 일정 열기" }).click();
+    await expect(page).toHaveURL(`${BASE}/workspace/clinic/operations?scope=day&date=${pastDate}&session=${pastSession.id}`);
+    await expect(nav.getByRole("button", { name: "예약·출석" })).toHaveAttribute("aria-current", "page");
+  });
+}

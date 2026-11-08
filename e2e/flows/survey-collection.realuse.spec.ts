@@ -32,11 +32,10 @@ async function openParentSurveyThroughUi(
   await expect(page).toHaveURL(`${QA_BASE}/student/dashboard`);
   await expect(page.getByRole("tablist", { name: "자녀 선택" })
     .getByRole("tab", { name: student.name, exact: true })).toHaveAttribute("aria-selected", "true");
-  await page.getByRole("region", { name: "전체 메뉴와 상태 카드" })
-    .getByRole("link", { name: /전체 메뉴/ }).click();
-  await expect(page).toHaveURL(`${QA_BASE}/student/menu`);
-  await page.getByRole("region", { name: "나", exact: true })
-    .getByRole("link", { name: /^제출 / }).click();
+  await page.getByRole("button", { name: "메뉴 열기", exact: true }).click();
+  const menu = page.getByRole("dialog", { name: "메뉴", exact: true });
+  await expect(menu).toBeVisible();
+  await menu.getByRole("link", { name: "제출", exact: true }).click();
   await expect(page).toHaveURL(`${QA_BASE}/student/submit`);
   await page.getByRole("link", { name: /^설문과 성적 취합/ }).click();
   await expect(page).toHaveURL(`${QA_BASE}/student/surveys`);
@@ -225,9 +224,17 @@ test.describe.serial("[real-use] 설문·성적 취합과 자녀별 응답", () 
     }
     await page.locator("summary").filter({ hasText: primary.name }).click();
     await page.getByRole("link", { name: "학생 기록 보기", exact: true }).click();
-    await page.getByText("설문으로 받은 정보", { exact: true }).click();
-    await page.locator("summary").filter({ hasText: memo.title }).click();
-    await expect(page.getByText("토요일", { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(`${QA_BASE}/workspace/students/${primary.id}`);
+    const record = page.getByRole("dialog", { name: "학생 상세", exact: true });
+    // The last capture leaves the page at 390px, where contact and notes start closed.
+    const showNotes = record.getByRole("button", { name: "연락처·메모 보기", exact: true });
+    await expect(showNotes).toHaveAttribute("aria-expanded", "false");
+    await showNotes.click();
+    await expect(record.getByRole("button", { name: "연락처·메모 접기", exact: true }))
+      .toHaveAttribute("aria-expanded", "true");
+    await record.getByText("설문으로 받은 정보", { exact: true }).click();
+    await record.locator("summary").filter({ hasText: memo.title }).click();
+    await expect(record.getByText("토요일", { exact: true })).toBeVisible();
 
     const studentContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
     try {

@@ -10,6 +10,19 @@ const SESSION_ID = 9812;
 const CHOICE_EXAM_ID = 9813;
 const WRITTEN_EXAM_ID = 9814;
 const MIXED_EXAM_ID = 9815;
+const UNENTERED_ENROLLMENT_ID = 9910;
+const PENDING_ENROLLMENT_ID = 9912;
+
+type ScoreRouteOptions = { choicePending?: boolean; extraManualRows?: boolean };
+type ManualScoreRequest = {
+  apply: boolean;
+  rows: Array<{
+    enrollment_id: number;
+    expected_version: string | null;
+    attendance: "present" | "absent";
+    cells: Record<string, { score?: number }>;
+  }>;
+};
 
 function createLocalJwt() {
   const encode = (payload: unknown) => Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -54,9 +67,10 @@ const exams = [
   },
 ] as const;
 
-async function installRoutes(page: Page, options: { choicePending?: boolean } = {}) {
+async function installRoutes(page: Page, options: ScoreRouteOptions = {}) {
   const unexpectedMutations: string[] = [];
   let savedSubjectiveScore: number | null = null;
+  let savedAbsence = false;
 
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
@@ -83,6 +97,7 @@ async function installRoutes(page: Page, options: { choicePending?: boolean } = 
         rows: [{
           enrollment_id: 9911,
           student_id: 9912,
+          attendance_status: "PRESENT",
           student_name: "테스트 학생",
           lecture_title: "중대부고 통합과학",
           lecture_color: "#2563eb",
@@ -119,6 +134,31 @@ async function installRoutes(page: Page, options: { choicePending?: boolean } = 
       return fulfill({ changes: [], stale: false, active_editors: [] });
     }
     if (path.endsWith(`/results/admin/exams/${MIXED_EXAM_ID}/manual-grading/`) && method === "GET") {
+      const unenteredRow = {
+        enrollment_id: UNENTERED_ENROLLMENT_ID,
+        student_name: "미입력 학생",
+        school: "",
+        lectures: [],
+        expected_version: savedAbsence ? "absent-1" : null,
+        is_not_submitted: savedAbsence,
+        exam_not_submitted_count: 2,
+        cells: {
+          "10001": { editable: false, entry_method: "omr", state: null, score: null, include_in_wrong_note: false },
+          "10002": { editable: true, entry_method: "score", state: null, score: null, include_in_wrong_note: false },
+        },
+      };
+      const pendingRow = {
+        ...unenteredRow,
+        enrollment_id: PENDING_ENROLLMENT_ID,
+        student_name: "서술형 대기 학생",
+        expected_version: "omr-pending",
+        is_not_submitted: false,
+        exam_not_submitted_count: 0,
+        cells: {
+          ...unenteredRow.cells,
+          "10001": { ...unenteredRow.cells["10001"], state: "correct", score: 80 },
+        },
+      };
       return fulfill({
         exam_id: MIXED_EXAM_ID,
         exam_title: "중대부고 2회차 혼합형",
@@ -148,54 +188,75 @@ async function installRoutes(page: Page, options: { choicePending?: boolean } = 
             entry_method: "score",
           },
         ],
-        rows: [{
-          enrollment_id: 9911,
-          student_name: "테스트 학생",
-          school: "중대부고",
-          lectures: [{
-            id: LECTURE_ID,
-            lecture_name: "중대부고 통합과학",
-            color: "#2563eb",
-            chip_label: "중",
-          }],
-          expected_version: savedSubjectiveScore == null ? null : "saved-1",
-          is_not_submitted: false,
-          exam_not_submitted_count: 0,
-          cells: {
-            "10001": {
-              editable: false,
-              entry_method: "omr",
-              state: "correct",
-              score: 80,
-              include_in_wrong_note: false,
-            },
-            "10002": {
-              editable: true,
-              entry_method: "score",
-              state: savedSubjectiveScore == null ? null : "incorrect",
-              score: savedSubjectiveScore,
-              include_in_wrong_note: false,
+        rows: [
+          ...(options.extraManualRows ? [unenteredRow] : []),
+          {
+            enrollment_id: 9911,
+            student_name: "테스트 학생",
+            school: "중대부고",
+            lectures: [{
+              id: LECTURE_ID,
+              lecture_name: "중대부고 통합과학",
+              color: "#2563eb",
+              chip_label: "중",
+            }],
+            expected_version: savedSubjectiveScore == null ? "omr-1" : "saved-1",
+            is_not_submitted: false,
+            exam_not_submitted_count: 0,
+            cells: {
+              "10001": {
+                editable: false,
+                entry_method: "omr",
+                state: "correct",
+                score: 80,
+                include_in_wrong_note: false,
+              },
+              "10002": {
+                editable: true,
+                entry_method: "score",
+                state: savedSubjectiveScore == null ? null : "incorrect",
+                score: savedSubjectiveScore,
+                include_in_wrong_note: false,
+              },
             },
           },
-        }],
+          ...(options.extraManualRows ? [pendingRow] : []),
+        ],
       });
     }
     if (path.endsWith(`/results/admin/exams/${MIXED_EXAM_ID}/manual-grading/`) && method === "POST") {
-      const body = request.postDataJSON() as { apply: boolean; rows: Array<{ cells: Record<string, { score?: number }> }> };
-      const subjectiveScore = body.rows[0]?.cells["10002"]?.score;
-      if (typeof subjectiveScore !== "number") return fulfill({ detail: "서술형 점수가 필요합니다" }, 400);
-      if (body.apply) savedSubjectiveScore = subjectiveScore;
-      return fulfill({
-        ok: true, applied: body.apply, exam_id: MIXED_EXAM_ID,
-        exam_title: "중대부고 2회차 혼합형", grading_mode: "mixed", manual_grading_method: "score",
-        matched_count: 1, question_count: 2, overwrite_count: 0, not_submitted_count: 0, errors: [],
-        rows: [{
-          enrollment_id: 9911, student_name: "테스트 학생", correct_count: 1,
-          wrong_count: 1, wrong_questions: [2], review_count: 0, review_questions: [],
-          total_score: 80 + subjectiveScore, max_score: 100, will_overwrite: false,
-          is_not_submitted: false,
-        }],
+      const body = request.postDataJSON() as ManualScoreRequest;
+      const errors = body.rows.flatMap((row, index) => {
+        if (row.attendance === "absent") return [];
+        const score = row.cells["10002"]?.score;
+        if (row.enrollment_id === UNENTERED_ENROLLMENT_ID) {
+          return [{ row: index + 1, field: "omr", message: "선택형 OMR 채점을 먼저 완료해 주세요: 1번" }];
+        }
+        if (typeof score !== "number" || score < 0 || score > 20) {
+          return [{ row: index + 1, field: "question_2", message: "2번: 0점 이상 20점 이하의 점수를 입력해 주세요." }];
+        }
+        return [];
       });
+      const rows = errors.length ? [] : body.rows.map((row) => {
+        const absent = row.attendance === "absent";
+        const score = row.cells["10002"]?.score ?? 0;
+        if (body.apply && absent && row.enrollment_id === UNENTERED_ENROLLMENT_ID) savedAbsence = true;
+        if (body.apply && !absent && row.enrollment_id === 9911) savedSubjectiveScore = score;
+        return {
+          enrollment_id: row.enrollment_id,
+          student_name: absent ? "미입력 학생" : "테스트 학생",
+          correct_count: absent ? 0 : 1,
+          wrong_count: 0, wrong_questions: [], review_count: 0, review_questions: [],
+          total_score: absent ? 0 : 80 + score, max_score: 100, will_overwrite: false,
+          is_not_submitted: absent,
+        };
+      });
+      return fulfill({
+        ok: errors.length === 0, applied: body.apply && errors.length === 0, exam_id: MIXED_EXAM_ID,
+        exam_title: "중대부고 2회차 혼합형", grading_mode: "mixed", manual_grading_method: "score",
+        matched_count: rows.length, question_count: 2, overwrite_count: 0,
+        not_submitted_count: rows.filter((row) => row.is_not_submitted).length, errors, rows,
+      }, body.apply && errors.length ? 400 : 200);
     }
     if (
       path.endsWith(`/results/admin/exams/${MIXED_EXAM_ID}/enrollments/9911/`)
@@ -323,7 +384,7 @@ async function installRoutes(page: Page, options: { choicePending?: boolean } = 
   return unexpectedMutations;
 }
 
-async function openScores(page: Page, options: { choicePending?: boolean; gradingExamId?: number } = {}) {
+async function openScores(page: Page, options: ScoreRouteOptions & { gradingExamId?: number } = {}) {
   const baseUrl = getBaseUrl("admin");
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl),
@@ -814,26 +875,71 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     expect(unexpectedMutations).toEqual([]);
   });
 
-  test("시험별 채점에서 서술형 점수를 확정하면 대기가 사라지고 새로고침 후 최종 점수가 남는다", async ({ page }) => {
-    const unexpectedMutations = await openScores(page);
-    await page.getByTestId("subjective-pending-banner")
-      .getByRole("button", { name: "중대부고 2회차 혼합형 문항별 점수 입력" }).click();
+  for (const width of [1366, 390]) {
+    test(`${width}px 혼합 채점에서 빈 행은 유지하고 수정한 점수와 결시를 확정한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const unexpectedMutations = await openScores(page, { extraManualRows: true });
+      await page.getByTestId("subjective-pending-banner")
+        .getByRole("button", { name: "중대부고 2회차 혼합형 문항별 점수 입력" }).click();
 
-    const gradingDialog = page.getByRole("dialog").filter({ hasText: "중대부고 2회차 혼합형 혼합 채점" });
-    const scoreInput = gradingDialog.locator("input[data-manual-grade-cell]");
-    await expect(scoreInput).toHaveCount(1);
-    await scoreInput.fill("14");
-    await gradingDialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
-    await expect(gradingDialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
-    await gradingDialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
-    await expect(page.getByTestId("subjective-pending-banner")).toHaveCount(0);
-    await gradingDialog.getByRole("button", { name: "닫기", exact: true }).click();
+      const dialog = page.getByRole("dialog").filter({ hasText: "중대부고 2회차 혼합형 혼합 채점" });
+      await dialog.getByRole("combobox", { name: "채점표 배율 선택" }).selectOption(width === 390 ? "80" : "100");
+      const unenteredRow = dialog.getByRole("row").filter({ hasText: "미입력 학생" });
+      const scoreInput = dialog.getByRole("row").filter({ hasText: "테스트 학생" })
+        .locator("input[data-manual-grade-cell]");
+      const pendingRow = dialog.getByRole("row").filter({ hasText: "서술형 대기 학생" });
+      const review = dialog.getByRole("button", { name: "입력 내용 확인", exact: true });
+      const captureRequest = (apply: boolean) => page.waitForRequest((request) =>
+        request.method() === "POST" && new URL(request.url()).pathname.endsWith(`/${MIXED_EXAM_ID}/manual-grading/`)
+        && request.postDataJSON().apply === apply,
+      ).then((request) => request.postDataJSON() as ManualScoreRequest);
 
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByTestId("subjective-pending-banner")).toHaveCount(0);
-    await expect(page.locator(`[data-score-cell="exam:9911:${MIXED_EXAM_ID}:total:"]`)).toContainText("94");
-    expect(unexpectedMutations).toEqual([]);
-  });
+      await expect(unenteredRow.getByRole("button", { name: "미입력", exact: true })).toBeVisible();
+      await expect(pendingRow.getByRole("button", { name: "응시", exact: true })).toBeVisible();
+      await expect(review).toBeDisabled();
+      await scoreInput.fill("21");
+      await review.click();
+      await expect(dialog.getByRole("alert").filter({ hasText: "확정 전에 수정할 항목이 있습니다." }))
+        .toContainText("테스트 학생 · 2번: 0점 이상 20점 이하의 점수를 입력해 주세요.");
+      await expect(scoreInput).toHaveValue("21");
+
+      const score = width === 390 ? 0 : 14;
+      await scoreInput.fill(String(score));
+      await expect(dialog.getByText("확인 대상 1명 · 나머지 2명 유지", { exact: true })).toBeVisible();
+      const preview = captureRequest(false);
+      await review.click();
+      await expect(dialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
+      const reviewed = await preview;
+      expect(reviewed.rows).toEqual([expect.objectContaining({
+        enrollment_id: 9911, attendance: "present", cells: { "10002": { score, include_in_wrong_note: false } },
+      })]);
+      const apply = captureRequest(true);
+      await dialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+      expect(await apply).toEqual({ ...reviewed, apply: true });
+      await expect(page.getByTestId("subjective-pending-banner")).toHaveCount(0);
+      await expect(unenteredRow.getByRole("button", { name: "미입력", exact: true })).toBeEnabled();
+      await expect(pendingRow.locator("input[data-manual-grade-cell]")).toHaveValue("");
+      await testInfo.attach(`mixed-grading-${width}px`, { body: await dialog.screenshot(), contentType: "image/png" });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+      await unenteredRow.getByRole("button", { name: "미입력", exact: true }).click();
+      await expect(unenteredRow.locator("input[data-manual-grade-cell]")).toBeDisabled();
+      await review.click();
+      await expect(dialog.getByText("1명 · 결시 1명 · 성적 계산 완료", { exact: true })).toBeVisible();
+      const absence = captureRequest(true);
+      await dialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+      expect((await absence).rows).toEqual([expect.objectContaining({
+        enrollment_id: UNENTERED_ENROLLMENT_ID, attendance: "absent", expected_version: null,
+      })]);
+      await expect(unenteredRow.getByRole("button", { name: "결시", exact: true })).toBeEnabled();
+      await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId("subjective-pending-banner")).toHaveCount(0);
+      await expect(page.locator(`[data-score-cell="exam:9911:${MIXED_EXAM_ID}:total:"]`)).toContainText(String(80 + score));
+      expect(unexpectedMutations).toEqual([]);
+    });
+  }
 
   test("서술형 입력 셀은 채점창만 열고 학생 드로어까지 함께 열지 않는다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });
