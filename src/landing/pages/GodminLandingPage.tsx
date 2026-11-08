@@ -5,6 +5,7 @@ import { setLandingMeta } from "@/landing/utils/seoMeta";
 import { GodminHeroVideo, VideoHighlights } from "@/landing/components/VideoCards";
 
 import { GodminSiteHeader, GodminSiteFooter } from "../components/GodminSiteChrome";
+import { GODMIN_PUBLIC_SITE } from "@/shared/tenant/tenants/godmin";
 import styles from "./GodminLandingPage.module.css";
 
 const DISCIPLINES = [
@@ -73,8 +74,8 @@ export default function GodminLandingPage() {
     if (hash && heroReady && highlightsReady) document.getElementById(hash.slice(1))?.scrollIntoView({ block: "start", behavior: "instant" });
   }, [hash, key, heroReady, highlightsReady]);
   useEffect(() => {
-    const title = "신민T 통합과학 | 신과함께";
-    const description = "대치동 통합과학 강사 신민T의 수업 철학과 학습 관리, 수강생·학부모 전용 학습 플랫폼.";
+    const { title, description, name, origin } = GODMIN_PUBLIC_SITE;
+    const pageUrl = `${origin}/landing`;
     const ogImage = new URL("/tenants/godmin/og-image.png", window.location.origin).toString();
 
     document.title = title;
@@ -82,8 +83,9 @@ export default function GodminLandingPage() {
     setLandingMeta("og:title", title);
     setLandingMeta("og:description", description);
     setLandingMeta("og:type", "website");
-    setLandingMeta("og:url", window.location.href);
-    setLandingMeta("og:site_name", "신과함께");
+    document.querySelector('link[rel="canonical"]')?.setAttribute("href", pageUrl);
+    setLandingMeta("og:url", pageUrl);
+    setLandingMeta("og:site_name", name);
     setLandingMeta("og:image", ogImage);
     setLandingMeta("twitter:card", "summary_large_image");
     setLandingMeta("twitter:title", title);
@@ -102,7 +104,7 @@ export default function GodminLandingPage() {
           <div className={styles.heroCopy}>
             <div className={styles.eyebrow}>
               <span />
-              대치동 통합과학 · 신민T
+              {GODMIN_PUBLIC_SITE.name} · 대치동 통합과학
             </div>
             <h1 id="godmin-hero-title">
               복잡한 과학을,

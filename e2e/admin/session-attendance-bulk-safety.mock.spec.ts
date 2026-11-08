@@ -964,6 +964,7 @@ test(`일괄 삭제 일부 실패 뒤 재조회·재시도·새로고침을 유�
   await page.getByRole("button", { name: "삭제", exact: true }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "삭제", exact: true }).click();
   await expect.poll(() => state.attendanceDeleteCalls).toEqual([501, 502, 502]);
+  await expect(page).toHaveURL(/\/attendance$/);
   await expect(page.getByText("결석학생", { exact: true })).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole("button", { name: "수강생 등록" }).first()).toBeVisible();
