@@ -138,6 +138,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
   const verdict = getSessionScoresTableVerdict(row);
   const attentionCount = attentionSummary.missingTitles.length
     + attentionSummary.reviewTitles.length
+    + attentionSummary.inspectionTitles.length
     + attentionSummary.failedTitles.length;
   const scoreSendDisabled = hasUnsavedChanges || row.student_id == null;
   const scoreSendTitle = hasUnsavedChanges
@@ -437,6 +438,14 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
                     <span className="student-scores-drawer__summary-label">검수 대기</span>
                     <span className="student-scores-drawer__summary-value">
                       {attentionSummary.reviewTitles.join(", ")}
+                    </span>
+                  </div>
+                )}
+                {attentionSummary.inspectionTitles.length > 0 && (
+                  <div className="student-scores-drawer__summary-row">
+                    <span className="student-scores-drawer__summary-label">검사 대기</span>
+                    <span className="student-scores-drawer__summary-value">
+                      {attentionSummary.inspectionTitles.join(", ")}
                     </span>
                   </div>
                 )}
@@ -1910,7 +1919,9 @@ function VerdictBanner({
       : kind === "clinic_target" || kind === "review"
         ? "warning"
         : "muted";
-  const value = kind === "clinic_target"
+  const value = kind === "inspection_pending"
+    ? "검사 대기"
+    : kind === "clinic_target"
     ? "클리닉 대상"
     : kind === "review"
       ? "검수 대기"
