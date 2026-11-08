@@ -219,6 +219,7 @@ export async function patchClinicParticipantStatus(
     status: ClinicParticipantStatus;
     memo?: string;
     is_late?: boolean;
+    expected_checked_in_at?: string;
     send_to?: ClinicRecipient;
   }
 ) {
@@ -239,12 +240,14 @@ export type ClinicParticipantReminderResult = {
   sent: number;
   scheduled?: number;
   skipped: number;
+  retryable?: boolean;
 };
 
 export async function remindClinicParticipant(
   id: number,
   payload: {
     mode: "once" | "repeat";
+    request_id?: string;
     send_to: ClinicRecipient;
     interval_minutes?: number;
     repeat_until?: string;

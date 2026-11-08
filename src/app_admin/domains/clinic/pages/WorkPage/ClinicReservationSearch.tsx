@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { Badge, Button, EmptyState, type BadgeTone } from "@/shared/ui/ds";
 import { fetchClinicParticipants, type ClinicParticipantStatus } from "../../api/clinicParticipants.api";
 import { clinicQueryKeys } from "../../queryKeys";
@@ -21,8 +21,19 @@ const bookingTimestamp = new Intl.DateTimeFormat("ko-KR", {
 });
 
 export default function ClinicReservationSearch() {
-  const [input, setInput] = useState("");
-  const [search, setSearch] = useState("");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const state = location.state as { clinicReservationSearch?: string } | null;
+  const search = state?.clinicReservationSearch ?? "";
+  const [input, setInput] = useState(search);
+
+  function setSearch(value: string) {
+    navigate({ pathname: location.pathname, search: location.search }, {
+      replace: true,
+      state: { ...state, clinicReservationSearch: value },
+    });
+  }
+
   const params = { search };
   const reservations = useQuery({
     queryKey: clinicQueryKeys.participantsList(params),
@@ -57,7 +68,7 @@ export default function ClinicReservationSearch() {
             value={input}
             onChange={(event) => {
               setInput(event.target.value);
-              if (!event.target.value.trim()) setSearch("");
+              if (search && !event.target.value.trim()) setSearch("");
             }}
             maxLength={100}
             autoComplete="off"
@@ -77,7 +88,11 @@ export default function ClinicReservationSearch() {
           ) : reservations.data.length === 0 ? (
             <EmptyState scope="panel" tone="empty" title="검색 결과가 없습니다." description="학생 이름이나 장소를 확인하고 다시 검색해 주세요." />
           ) : (
-            <ul aria-label="예약 검색 결과" className="grid gap-2">
+            <>
+              <p role="status" className="text-sm text-[var(--color-text-secondary)]">
+                ‘{search}’ 예약 {reservations.data.length}건
+              </p>
+              <ul aria-label="예약 검색 결과" className="mt-2 grid gap-2">
               {reservations.data.map((row) => {
                 const status = STATUS[row.status] ?? { label: "상태 확인 필요", tone: "muted" };
                 const registered = row.created_at ? new Date(row.created_at) : null;
@@ -117,7 +132,8 @@ export default function ClinicReservationSearch() {
                   </li>
                 );
               })}
-            </ul>
+              </ul>
+            </>
           )}
         </div>
       )}

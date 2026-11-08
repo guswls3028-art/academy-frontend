@@ -37,6 +37,8 @@ type ClinicParticipant = {
   booking_end_date?: string;
   booking_start_time?: string;
   booking_end_time?: string;
+  checked_in_at?: string | null;
+  checked_out_at?: string | null;
 };
 
 let family: QaFamily | null = null;
@@ -246,6 +248,74 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
     await expect(page.locator("article").filter({ hasText: sessionTitle })).toContainText(`이용 ${bookingDate} 00:30–01:00`);
     await testInfo.attach("overnight-student-booked-390", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
     await assertNoHorizontalOverflow(page);
+
+    const staffContext = await page.context().browser()!.newContext({ serviceWorkers: "block" });
+    try {
+      const staffPage = await staffContext.newPage();
+      const staffBoundary = await installQaStudentParentBoundary(staffPage, request);
+      const staffBrowser = attachStrictBrowserGuards(staffPage);
+      await seedBrowserAuth(staffPage, admin);
+      await staffPage.setViewportSize({ width: 390, height: 844 });
+      await gotoAndSettle(staffPage, QA_BASE + "/workspace/clinic/operations?panel=reservations", { timeout: 30_000 });
+      const search = staffPage.getByRole("searchbox", { name: "학생 이름 또는 장소" });
+      await search.fill(student.name);
+      await search.press("Enter");
+      const reservation = staffPage.getByRole("list", { name: "예약 검색 결과" })
+        .getByRole("listitem").filter({ hasText: sessionTitle });
+      await expect(reservation).toContainText(bookingDate + " 00:30");
+      await expect(reservation).toContainText("등록 시각");
+      await reservation.getByRole("link", { name: "해당 일정 열기" }).click();
+      const rosterCard = staffPage.locator(".clinic-ops__card").filter({ hasText: student.name });
+      await rosterCard.getByRole("button", { name: /학생 작업대 열기/ }).click();
+      const staffWorkbench = staffPage.getByRole("dialog", { name: student.name + " 클리닉 워크벤치" });
+      if (participant.status === "pending") {
+        await staffWorkbench.getByRole("button", { name: "승인", exact: true }).click();
+      }
+      await staffWorkbench.getByRole("button", { name: "등원", exact: true }).click();
+      await staffPage.getByRole("dialog", { name: "등원 처리" })
+        .getByRole("button", { name: "등원 확정" }).click();
+      const undoButton = staffWorkbench.getByRole("button", { name: "등원 취소", exact: true });
+      await expect(undoButton).toBeVisible();
+      const participantPath = "/clinic/participants/" + participant.id + "/";
+      const arrived = await expectApi<ClinicParticipant>(request, "GET", participantPath, admin.access);
+      expect(arrived).toMatchObject({ status: "attended", checked_in_at: expect.any(String), checked_out_at: null });
+
+      const stale = await api(request, "PATCH", participantPath + "set_status/", admin.access, {
+        status: "booked",
+        expected_checked_in_at: "2020-01-01T00:00:00+09:00",
+      });
+      expect(stale.status).toBe(409);
+
+      await undoButton.click();
+      const undoResponse = staffPage.waitForResponse((response) => (
+        response.request().method() === "PATCH"
+        && new URL(response.url()).pathname.endsWith(participantPath + "set_status/")
+      ));
+      await staffPage.getByRole("dialog", { name: "등원 취소" })
+        .getByRole("button", { name: "미등원으로 되돌리기" }).click();
+      const undone = await undoResponse;
+      expect(undone.status()).toBe(200);
+      expect(undone.request().postDataJSON()).toEqual({
+        status: "booked",
+        expected_checked_in_at: arrived.checked_in_at,
+      });
+      expect(await undone.json()).toMatchObject({
+        id: participant.id,
+        status: "booked",
+        checked_in_at: null,
+        checked_out_at: null,
+        notification: null,
+        booking_start_date: bookingDate,
+        booking_start_time: participant.booking_start_time,
+      });
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(rosterCard.locator(".clinic-ops__status-badge")).toHaveText("미등원");
+      await assertNoHorizontalOverflow(staffPage);
+      staffBoundary.assertClean();
+      staffBrowser.assertZeroDefects();
+    } finally {
+      await staffContext.close();
+    }
 
     await logoutStudentApp(page);
     await loginThroughUi(page, family.parentPhone, family.parentPassword);
