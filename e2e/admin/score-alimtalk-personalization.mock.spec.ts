@@ -387,7 +387,8 @@ test.describe("성적 알림톡 학생별 개인화", () => {
       const online = page.getByRole("checkbox", { name: "개인화학생4 선택" });
       await online.check();
       await open.dblclick();
-      await expect(page.getByText("선택한 학생 중 출석·지각으로 기록된 학생이 없습니다. 출결을 확인해 주세요.")).toHaveCount(1);
+      const eligibilityError = page.getByRole("alert").filter({ hasText: "선택한 학생 중 출석·지각으로 기록된 학생이 없습니다. 출결을 확인해 주세요." });
+      await expect(eligibilityError).toBeVisible();
       await expect(open).toBeEnabled();
       await expect(modal).toBeHidden();
       expect(preflights).toHaveLength(0);
@@ -397,6 +398,7 @@ test.describe("성적 알림톡 학생별 개인화", () => {
       attendanceStatuses[2] = "ABSENT";
       await open.click();
       await expect(modal.getByText("출석·지각 2명 · 3명 제외", { exact: true })).toBeVisible();
+      await expect(eligibilityError).toBeHidden();
       await expect.poll(() => modal.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
       await page.screenshot({ path: testInfo.outputPath(`score-attendance-recipients-${width}.png`) });
       await modal.getByRole("checkbox", { name: "학생", exact: true }).uncheck();

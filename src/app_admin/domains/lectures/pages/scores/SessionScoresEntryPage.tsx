@@ -167,12 +167,18 @@ export default function SessionScoresEntryPage({
   const [searchInput, setSearchInput] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
   const [isPreparingScoreAlimtalk, setIsPreparingScoreAlimtalk] = useState(false);
+  const [scoreAlimtalkError, setScoreAlimtalkError] = useState<string | null>(null);
   const scoreAlimtalkRequestRef = useRef<symbol | null>(null);
-  useEffect(() => {
-    setSelectedEnrollmentIds([]);
+  const changeScoreSelection = useCallback((ids: number[]) => {
+    scoreAlimtalkRequestRef.current = null;
+    setSelectedEnrollmentIds(ids);
     setIsPreparingScoreAlimtalk(false);
+    setScoreAlimtalkError(null);
+  }, []);
+  useEffect(() => {
+    changeScoreSelection([]);
     return () => { scoreAlimtalkRequestRef.current = null; };
-  }, [numericSessionId, schedule]);
+  }, [changeScoreSelection, numericSessionId, schedule]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   /** 편집 시 어떤 셀을 쓰기 모드로 할지 */
@@ -778,6 +784,7 @@ export default function SessionScoresEntryPage({
     const request = Symbol();
     scoreAlimtalkRequestRef.current = request;
     setIsPreparingScoreAlimtalk(true);
+    setScoreAlimtalkError(null);
     const isCurrentRequest = () => scoreAlimtalkRequestRef.current === request;
     const selectedIds = new Set(selectedEnrollmentIds);
     const selectAttendees = (snapshot: SessionScoresResponse) => snapshot.rows.filter(
@@ -789,12 +796,12 @@ export default function SessionScoresEntryPage({
       const initial = await refetch();
       if (!isCurrentRequest()) return;
       if (initial.isError || !initial.data) {
-        feedback.error(refreshError);
+        setScoreAlimtalkError(refreshError);
         return;
       }
       const initialIssue = getScoreAlimtalkBlockReason(selectAttendees(initial.data), false);
       if (initialIssue) {
-        feedback.error(initialIssue);
+        setScoreAlimtalkError(initialIssue);
         return;
       }
       if (!await saveScoresNow() || !isCurrentRequest()) return;
@@ -802,19 +809,19 @@ export default function SessionScoresEntryPage({
       const latest = await refetch();
       if (!isCurrentRequest()) return;
       if (latest.isError || !latest.data) {
-        feedback.error(refreshError);
+        setScoreAlimtalkError(refreshError);
         return;
       }
       const selectedRows = selectAttendees(latest.data);
       const issue = getScoreAlimtalkBlockReason(selectedRows, true);
       if (issue) {
-        feedback.error(issue);
+        setScoreAlimtalkError(issue);
         return;
       }
       const ids = selectedRows.map((row) => row.student_id);
       const activeStudentIds = [...new Set(ids.filter((id): id is number => id != null && Number.isFinite(id)))];
       if (ids.some((id) => id == null || !Number.isFinite(id))) {
-        feedback.error("발송 대상 학생 정보를 확인하지 못했습니다. 성적표를 다시 불러와 주세요.");
+        setScoreAlimtalkError("발송 대상 학생 정보를 확인하지 못했습니다. 성적표를 다시 불러와 주세요.");
         return;
       }
       const excludedCount = selectedIds.size - selectedRows.length;
@@ -850,7 +857,7 @@ export default function SessionScoresEntryPage({
         initialTemplateUpdatedAt = chosenTpl?.updated_at;
         scoreDetail = buildScoreDetail(selectedRows[0], meta);
       } catch {
-        if (isCurrentRequest()) feedback.error("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
+        if (isCurrentRequest()) setScoreAlimtalkError("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
         return;
       }
 
@@ -1121,7 +1128,7 @@ export default function SessionScoresEntryPage({
           <Button
             intent="ghost"
             size="sm"
-            onClick={() => setSelectedEnrollmentIds([])}
+            onClick={() => changeScoreSelection([])}
             disabled={!hasSelection}
           >
             선택 해제
@@ -1209,6 +1216,12 @@ export default function SessionScoresEntryPage({
         </div>
       </div>
 
+      {scoreAlimtalkError && (
+        <p className="m-0 px-1 text-sm text-[var(--color-error)]" role="alert">
+          {scoreAlimtalkError}
+        </p>
+      )}
+
       {/* 표시 옵션 펼침 — selectionBar 다음 줄로 inline expand. */}
       {hasExamsOrHomeworks && viewOptionsExpanded && (
         <div id="scores-view-options" className="scores-selection-bar__options">
@@ -1276,7 +1289,7 @@ export default function SessionScoresEntryPage({
                 size="sm"
                 leftIcon={<Users size={ICON_FOR_BUTTON.sm} />}
                 onClick={() => {
-                  setSelectedEnrollmentIds(examReviewOverview.selectableEnrollmentIds);
+                  changeScoreSelection(examReviewOverview.selectableEnrollmentIds);
                   feedback.success(`현재 결과의 평가 대상 ${examReviewOverview.selectableEnrollmentIds.length}명을 선택했습니다.`);
                 }}
                 disabled={isEditMode || examReviewOverview.selectableEnrollmentIds.length === 0}
@@ -1824,7 +1837,7 @@ export default function SessionScoresEntryPage({
           summaryColumnMode={summaryColumnMode}
           examReviewFilter={examReviewFilter}
           selectedEnrollmentIds={selectedEnrollmentIds}
-          onSelectionChange={setSelectedEnrollmentIds}
+          onSelectionChange={changeScoreSelection}
           onOpenExamGrading={(examId, title, gradingMode, manualGradingMethod, action) => {
             void openExamGrading(examId, title, gradingMode, manualGradingMethod, action);
           }}
