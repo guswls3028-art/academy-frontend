@@ -6,13 +6,14 @@
 import { postEvents, postHeartbeat, postRefresh } from "./playbackTransport";
 import { prepareReviewPlayback, REVIEW_EXHAUSTED } from "../../../api/reviewWatch.api";
 import type Hls from "hls.js";
-import type { ErrorData, LevelSwitchedData, Level } from "hls.js";
+import type { ErrorData, LevelSwitchedData } from "hls.js";
 import { clamp, getEpochSec } from "../design/utils";
 import { resolveStudentVideoPlayUrl } from "../playbackUrl";
 import { PlaybackSessionEnd } from "./playbackSessionEnd";
 import { PlaybackStallWatch } from "./playbackStallWatch";
+import { capturePlaybackSource, describeQualityLevels, restorePlaybackSource, type PlaybackSourceSnapshot } from "./playbackMediaSettings";
 import { normalizeControllerPolicy as normalizePolicy } from "./controllerTypes";
-import type { ControllerOptions, ControllerState, EventType, Policy, QualityLevel } from "./controllerTypes";
+import type { ControllerOptions, ControllerState, EventType, Policy } from "./controllerTypes";
 export type { ControllerOptions, ControllerState, EventType, Policy, QualityLevel } from "./controllerTypes";
 import { acquirePlaybackEventBatches, type PlaybackEventBatches } from "./playbackEventBatches";
 
@@ -64,14 +65,7 @@ export class StudentHlsController {
   private playbackEnd: PlaybackSessionEnd;
   private readonly eventBatches?: PlaybackEventBatches;
   private initialPositionApplied = false;
-  private pendingSourceResume: {
-    position: number;
-    wasPlaying: boolean;
-    rate: number;
-    volume: number;
-    muted: boolean;
-    quality: number;
-  } | null = null;
+  private pendingSourceResume: PlaybackSourceSnapshot | null = null;
 
   constructor(opts: ControllerOptions) {
     this.opts = opts;
@@ -342,14 +336,7 @@ export class StudentHlsController {
     const el = this.el;
     if (!el) return;
 
-    this.pendingSourceResume ??= {
-      position: Number(el.currentTime || this.state.current || 0),
-      wasPlaying: !el.paused,
-      rate: Number(el.playbackRate || this.state.rate || 1),
-      volume: Number(el.volume ?? this.state.volume),
-      muted: Boolean(el.muted),
-      quality: this.state.currentQuality,
-    };
+    this.pendingSourceResume ??= capturePlaybackSource(el, this.state);
     this.setState({ buffering: true });
     try {
       if (this.hls) {
@@ -376,11 +363,7 @@ export class StudentHlsController {
     this.maxWatchedRef = Math.max(this.maxWatchedRef, pending.position);
     this.lastTimeRef = pending.position;
     try {
-      el.currentTime = pending.position;
-      el.playbackRate = pending.rate;
-      el.volume = pending.volume;
-      el.muted = pending.muted;
-      if (pending.quality >= 0 && this.hls) this.hls.currentLevel = pending.quality;
+      restorePlaybackSource(el, pending, this.hls);
       if (pending.wasPlaying) {
         el.play()?.catch(() => {
           if (this.disposed || this.pendingSourceResume || !this.stallWatch?.retrying || !el.paused) return;
@@ -422,23 +405,7 @@ export class StudentHlsController {
 
   private publishQualities() {
     if (this.disposed || !this.hls) return;
-    const levels: Level[] = Array.isArray(this.hls.levels) ? this.hls.levels : [];
-    // 단일 해상도(level 1개 이하) 영상은 화질 선택이 의미 없음 → 빈 배열로 두어 UI 비활성화.
-    if (levels.length < 2) {
-      this.setState({ qualities: [] });
-      return;
-    }
-    const qs: QualityLevel[] = [{ index: -1, label: "Auto", height: 0, bitrate: 0 }];
-    levels.forEach((lv, i) => {
-      const h = Number(lv?.height || 0);
-      const br = Number(lv?.bitrate || 0);
-      const label = h > 0 ? `${h}p` : br > 0 ? `${Math.round(br / 1000)}k` : `Level ${i + 1}`;
-      qs.push({ index: i, label, height: h, bitrate: br });
-    });
-    // 화질 내림차순 (Auto는 맨 위 유지)
-    const auto = qs[0];
-    const rest = qs.slice(1).sort((a, b) => b.height - a.height || b.bitrate - a.bitrate);
-    this.setState({ qualities: [auto, ...rest] });
+    this.setState({ qualities: describeQualityLevels(this.hls.levels) });
   }
 
   private recoverStall(exhausted: boolean) {

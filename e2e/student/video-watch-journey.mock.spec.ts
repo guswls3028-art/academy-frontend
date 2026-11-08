@@ -431,6 +431,7 @@ test.describe("student fullscreen activation", () => {
 async function installStalledHls(page: Page) {
   const { state, videos } = await installWatchScenario(page);
   const video = { ...videos[0], source_type: "s3", youtube_video_id: null, last_position: 42 };
+  Object.assign(videos[0], video);
   let manifests = 0;
   let grants = 0;
   let releaseReload: () => void = () => {};
