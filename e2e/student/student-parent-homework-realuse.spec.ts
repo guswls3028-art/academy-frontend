@@ -177,6 +177,8 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       }
       // The completion task is newly assigned and ungraded. Check the saved hold
       // across the staff table, parent grades and the real server message preview.
+      checkpoint.phase = "feedback-score-edit";
+      checkpoint.viewport = 1366;
       await staffPage.reload();
       const editScores = staffPage.getByRole("button", { name: "수정", exact: true });
       await editScores.click();

@@ -73,6 +73,7 @@ const CLINIC_VERDICT_BADGE_META: Record<
 > = {
   clinic_target: { label: "대상", tone: "warning", title: "클리닉 미해소 대상" },
   review: { label: "검수 대기", tone: "warning", title: "OMR 또는 교사 확인이 필요한 항목" },
+  inspection_pending: { label: "검사 대기", tone: "muted", title: "영상 보강으로 검사를 보류한 과제" },
   incomplete: { label: "미입력", tone: "muted", title: "아직 점수가 입력되지 않은 항목" },
   fail: { label: "미달", tone: "danger", title: "점수가 입력되었고 기준에 미달한 항목" },
   pass: { label: "통과", tone: "success", title: "현재 입력·검수가 모두 완료된 항목" },
@@ -2799,7 +2800,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       verdict !== "incomplete" && attentionSummary.missingTitles.length > 0
                         ? `미입력 ${attentionSummary.missingTitles.length}`
                         : "",
-                      verdict !== "fail" && attentionSummary.failedTitles.length > 0
+                      verdict !== "inspection_pending" && attentionSummary.inspectionTitles.length > 0
+                         ? "검사 대기 " + attentionSummary.inspectionTitles.length
+                         : "",
+                       verdict !== "fail" && attentionSummary.failedTitles.length > 0
                         ? `미달 ${attentionSummary.failedTitles.length}`
                         : "",
                     ].filter(Boolean).join(" · ");
