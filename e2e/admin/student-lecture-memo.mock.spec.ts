@@ -95,10 +95,13 @@ for (const width of [1366, 1100, 390]) {
     await expect(preview).toContainText(INITIAL);
     await expect(preview).toContainText(COMMON);
     const table = page.locator(".ds-table--attendance");
-    await expect(table.getByRole("columnheader", { name: "메모" })).toBeVisible();
-    await expect(table.locator("tbody tr")).toHaveCount(1);
-    await expect(table.locator("tbody tr td").last()).toContainText(INITIAL);
-    await expect(table.locator("tbody tr td").last()).toContainText(NAME);
+    const row = table.getByRole("row").filter({ has: preview });
+    await expect(row).toHaveCount(1);
+    await expect(row.getByRole("link", { name: NAME + " 학생 상세 열기" })).toBeVisible();
+    if (width !== 390) {
+      await expect(table.getByRole("columnheader", { name: "메모" })).toBeVisible();
+      await expect(row.getByRole("cell").last()).toContainText(NAME);
+    }
     const dialog = await openEditor(page);
     await expect(page.getByTestId("student-detail-overlay")).toHaveCount(0);
     await expect(dialog.getByRole("region", { name: "학생 공통 메모" })).toContainText(COMMON);
