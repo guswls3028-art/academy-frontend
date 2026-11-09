@@ -47,6 +47,7 @@ type HomeworkSummary = {
   score: number | null;
   passed: boolean;
   achievement: string;
+  inspection_status?: "VIDEO_MAKEUP" | null;
   submission_state?: "needs_submission" | "awaiting_review" | "reviewed";
   lecture_active?: boolean;
   submission_media_locked?: boolean;
@@ -101,7 +102,14 @@ async function expectRealHomeworkVideo(container: Locator): Promise<void> {
   await expect.poll(() => video.evaluate((element) => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(0.2);
 }
 
-async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestContext, admin: QaTokens, studentName: string): Promise<void> {
+async function verifyHomeworkFeedback(
+  parentPage: Page,
+  request: APIRequestContext,
+  admin: QaTokens,
+  studentName: string,
+  parentAccess: string,
+  selectedStudentId: number,
+): Promise<void> {
   const context = await parentPage.context().browser()!.newContext({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
   const layoutPath = "/core/student-grade-report-layout/";
   let reportLayoutToRestore: StudentGradeReportLayout | null = null;
@@ -210,7 +218,15 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       await staffPage.reload();
       await expect(completionCell).toContainText("영상 보강");
 
+      await waitForHomeworkSummary(
+        request,
+        parentAccess,
+        (row) => row.score === null && row.inspection_status === "VIDEO_MAKEUP",
+        selectedStudentId,
+        completion.id,
+      );
       await gotoAndSettle(parentPage, QA_BASE + "/student/grades");
+      await showAllHomeworkGrades(parentPage);
       const pendingCard = parentPage.locator(".stu-panel[data-session-type]")
         .filter({ has: parentPage.getByText(completionTitle, { exact: true }) });
       await expect(pendingCard.getByText("검사 대기", { exact: true })).toBeVisible();
@@ -400,6 +416,7 @@ async function waitForHomeworkSummary(
   token: string,
   predicate: (row: HomeworkSummary) => boolean,
   selectedStudentId?: number,
+  homeworkId = created.homeworkId,
 ): Promise<HomeworkSummary> {
   let latest: HomeworkSummary | undefined;
   await waitForCondition(async () => {
@@ -413,7 +430,7 @@ async function waitForHomeworkSummary(
     });
     if (response.status() !== 200) return false;
     const body = await response.json() as { homeworks?: HomeworkSummary[] };
-    latest = (body.homeworks ?? []).find((row) => row.homework_id === created.homeworkId);
+    latest = (body.homeworks ?? []).find((row) => row.homework_id === homeworkId);
     return Boolean(latest && predicate(latest));
   }, { timeoutMs: 45_000, intervalMs: 750, description: "student/parent homework summary" });
   if (!latest) throw new Error("homework projection never became authoritative");
@@ -1037,7 +1054,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await expect(scoredHomeworkCard.locator("strong")).toHaveText("92/100");
     await expect(scoredHomeworkCard.locator("strong")).toBeVisible();
     await assertSeparateHomeworkGroups(page);
-    await verifyHomeworkFeedback(page, request, admin, student.name);
+    await verifyHomeworkFeedback(page, request, admin, student.name, parentTokens.access, student.id);
 
     await reloadStudentApp(page);
     await showAllHomeworkGrades(page);
