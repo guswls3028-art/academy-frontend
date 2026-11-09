@@ -113,7 +113,130 @@
   max-width: calc(100cqw - 24px);
 }
 
-.attendance-popover--status-picker {
-  background: var(--color-bg-surface);
-  border-color: var(--color-border-divider);
+.attendance-roster {
+  width: fit-content;
+}
+
+.attendance-roster .ds-table--attendance {
+  width: var(--attendance-table-width);
+  min-width: var(--attendance-table-width);
+}
+
+.attendance-status-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 4px;
+}
+
+.attendance-status-options .attendance-status-option {
+  min-width: 0;
+  padding-inline: 3px;
+}
+
+.attendance-status-option[data-tone="success"] {
+  --attendance-accent: var(--color-success-solid);
+}
+
+.attendance-status-option[data-tone="danger"] {
+  --attendance-accent: var(--color-danger-solid);
+}
+
+.attendance-status-options .attendance-status-option:is([data-tone="success"], [data-tone="danger"]) {
+  border-color: color-mix(in srgb, var(--attendance-accent) 54%, var(--color-border-default));
+  background: color-mix(in srgb, var(--attendance-accent) 8%, var(--color-bg-surface));
+  color: color-mix(in srgb, var(--attendance-accent) 72%, var(--color-text-primary));
+}
+
+.attendance-status-options .attendance-status-option[aria-pressed="true"] {
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.attendance-status-options .attendance-status-option:is([data-tone="success"], [data-tone="danger"])[aria-pressed="true"] {
+  border-color: var(--attendance-accent);
+  background: var(--attendance-accent);
+  color: var(--color-semantic-contrast);
+  box-shadow: none;
+}
+
+.attendance-status-option[aria-disabled="true"] {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.attendance-status-saving {
+  align-self: center;
+  font-size: var(--ds-text-xs);
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+}
+
+.attendance-roster__phone-label {
+  display: none;
+}
+
+@container (max-width: 640px) {
+  .attendance-roster,
+  .attendance-roster .ds-table--attendance {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .attendance-roster .ds-table-wrap--domain-scroll {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+
+  .attendance-roster .ds-table--attendance,
+  .attendance-roster :is(thead, tbody) {
+    display: block;
+  }
+
+  .attendance-roster .ds-table--attendance colgroup,
+  .attendance-roster .attendance-roster__wide-header,
+  .attendance-roster .data-table-resize-handle,
+  .attendance-roster__memo-name {
+    display: none;
+  }
+
+  .attendance-roster tr {
+    display: grid;
+    grid-template-columns: 28px repeat(2, minmax(0, 1fr));
+    align-items: center;
+  }
+
+  .attendance-roster thead tr {
+    grid-template-columns: 28px repeat(3, minmax(0, 1fr));
+  }
+
+  .attendance-roster .ds-table--attendance thead th {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+  }
+
+  .attendance-roster .ds-table-wrap .ds-table.ds-table--attendance :is(thead th, tbody td) {
+    padding-inline: 8px;
+    min-width: 0;
+  }
+
+  .attendance-roster__name {
+    grid-column: 2 / -1;
+  }
+
+  .attendance-roster__full {
+    grid-column: 1 / -1;
+  }
+
+  .attendance-roster__parent {
+    grid-column: span 2;
+  }
+
+  .attendance-roster__phone-label {
+    display: inline;
+  }
+
+  .attendance-status-options .attendance-status-option {
+    min-height: 44px;
+  }
 }
