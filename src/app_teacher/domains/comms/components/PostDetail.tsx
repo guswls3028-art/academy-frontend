@@ -12,6 +12,8 @@ import { usePostAttachmentBatch } from "@/shared/hooks/usePostAttachmentBatch";
 import PhotoPreview from "@/shared/ui/media/PhotoPreview";
 import { isPhotoFile } from "@/shared/ui/media/photoType";
 import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
+import { ReplyPhotoDraft, ReplyPhotos } from "@/shared/ui/content/ReplyPhotos";
+import { useReplyPhotoDraft } from "@/shared/hooks/useReplyPhotoDraft";
 import { ChevronLeft, Pencil, Trash2, MoreVertical, X, Save, Star, AlertCircle, Paperclip, Download } from "@teacher/shared/ui/Icons";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -70,7 +72,8 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [post, setPost] = useState(initialPost);
-  const isAnswerPost = post.post_type === "qna" || post.post_type === "counsel";
+  const isQna = post.post_type === "qna";
+  const isAnswerPost = isQna || post.post_type === "counsel";
   const canReply = post.post_type !== "materials";
   const authorName = getAuthorName(post);
 
@@ -92,28 +95,34 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
   // Staff members can edit/delete posts created by staff
   const isStaffPost = post.author_role === "staff";
 
-  const { data: replies, isLoading } = useQuery({
+  const { data: replies, isLoading, refetch: refetchReplies } = useQuery({
     queryKey: teacherCommsQueryKeys.postReplies(post.id),
     queryFn: () => fetchPostReplies(post.id),
   });
 
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
+  const replyPhotos = useReplyPhotoDraft();
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
 
   const replyMutation = useMutation({
-    mutationFn: () => createReply(post.id, replyText),
+    mutationFn: () => createReply(post.id, replyText, replyPhotos.batch()),
     onSuccess: () => {
       setReplyText("");
+      replyPhotos.reset();
       setReplyOpen(false);
       qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.postReplies(post.id) });
       qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.posts });
       qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.notificationCounts });
       teacherToast.success(isAnswerPost ? "답변이 등록되었습니다." : "댓글이 등록되었습니다.");
     },
-    onError: (e) => teacherToast.error(extractApiError(e, isAnswerPost ? "답변을 등록하지 못했습니다." : "댓글을 등록하지 못했습니다.")),
+    onError: (error) => {
+      replyPhotos.handleError(error);
+      if (!isQna) teacherToast.error(extractApiError(error, isAnswerPost ? "답변을 등록하지 못했습니다." : "댓글을 등록하지 못했습니다."));
+    },
   });
-  const canSubmitReply = replyText.trim().length > 0 && !replyMutation.isPending;
+  const hasReplyText = Boolean(replyText.trim() && (!isQna || replyText !== "<p></p>"));
+  const canSubmitReply = (hasReplyText || replyPhotos.files.length > 0) && !replyMutation.isPending;
 
   const updateMutation = useMutation({
     mutationFn: async () => {
@@ -162,10 +171,10 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
 
   const deleteReplyMutation = useMutation({
     mutationFn: (replyId: number) => deleteReply(post.id, replyId),
-    onSuccess: () => {
+    onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.postReplies(post.id) });
       qc.invalidateQueries({ queryKey: teacherCommsQueryKeys.posts });
-      teacherToast.info("댓글이 삭제되었습니다.");
+      teacherToast.info(getCommunityStorageCleanupNotice(result) ?? (isAnswerPost ? "답변이 삭제되었습니다." : "댓글이 삭제되었습니다."));
     },
     onError: (e) => teacherToast.error(extractApiError(e, "댓글을 삭제하지 못했습니다.")),
   });
@@ -387,7 +396,7 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
           <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
         ) : replies && replies.length > 0 ? (
           replies.map((r) => (
-            <ReplyCard key={r.id} reply={r} onDelete={
+            <ReplyCard key={r.id} reply={r} onRetry={refetchReplies} onDelete={
               r.author_role === "staff" ? async () => {
                 const ok = await confirm({ title: "댓글 삭제", message: "이 댓글을 삭제하시겠습니까?", confirmText: "삭제", danger: true });
                 if (ok) deleteReplyMutation.mutate(r.id);
@@ -405,37 +414,56 @@ export default function PostDetail({ post: initialPost, onBack }: Props) {
       {/* Reply BottomSheet */}
       <BottomSheet
         open={canReply && replyOpen}
-        onClose={() => setReplyOpen(false)}
+        onClose={() => {
+          if (!replyMutation.isPending) setReplyOpen(false);
+        }}
         title={isAnswerPost ? "답변 작성" : "댓글 작성"}
         footer={(
           <div className="flex gap-2">
-            <button type="button" onClick={() => setReplyOpen(false)} className="flex-1 text-sm font-semibold cursor-pointer"
+            <button type="button" onClick={() => setReplyOpen(false)} disabled={replyMutation.isPending} className="flex-1 text-sm font-semibold cursor-pointer"
               style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border)", background: "var(--tc-surface)", color: "var(--tc-text-secondary)" }}>취소</button>
             <button type="button" onClick={() => replyMutation.mutate()} disabled={!canSubmitReply}
               className="flex-1 text-sm font-bold cursor-pointer"
               style={{ padding: "10px", borderRadius: "var(--tc-radius)", border: "none", background: canSubmitReply ? "var(--tc-primary)" : "var(--tc-border)", color: "var(--tc-primary-contrast)", opacity: replyMutation.isPending ? 0.6 : 1 }}>
-              {replyMutation.isPending ? "등록 중…" : "등록"}
+              {replyMutation.isPending ? "등록 중…" : replyPhotos.locked ? "다시 등록" : "등록"}
             </button>
           </div>
         )}
       >
         <div className="flex flex-col gap-3">
+          {isQna ? (
+            <>
+              <MobileRichEditor
+                value={replyText}
+                onChange={setReplyText}
+                placeholder="답변을 입력하세요…"
+                readOnly={replyMutation.isPending || replyPhotos.locked}
+                onImageAttach={replyPhotos.add}
+              />
+              <ReplyPhotoDraft files={replyPhotos.files} onRemove={replyPhotos.remove} disabled={replyMutation.isPending || replyPhotos.locked} />
+              {replyMutation.isError && (
+                <p role="alert">{extractApiError(replyMutation.error, "답변을 등록하지 못했습니다. 다시 시도해 주세요.")}</p>
+              )}
+            </>
+          ) : (
           <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} disabled={replyMutation.isPending}
             placeholder={isAnswerPost ? "답변을 입력하세요…" : "댓글을 입력하세요…"} rows={5}
             className="w-full text-sm"
             style={{ padding: "var(--tc-space-3)", borderRadius: "var(--tc-radius)", border: "1px solid var(--tc-border)", background: "var(--tc-surface-soft)", color: "var(--tc-text)", resize: "vertical", outline: "none" }} />
+          )}
         </div>
       </BottomSheet>
     </div>
   );
 }
 
-function ReplyCard({ reply, onDelete }: { reply: Reply; onDelete?: () => void }) {
+function ReplyCard({ reply, onDelete, onRetry }: { reply: Reply; onDelete?: () => void; onRetry: () => Promise<unknown> }) {
   const authorName = reply.author_display_name || reply.created_by_display || (reply.author_role === "staff" ? "선생님" : "학생");
 
   return (
     <div className="rounded-lg" style={{ padding: "var(--tc-space-3)", background: "var(--tc-surface)", border: "1px solid var(--tc-border-subtle)" }}>
       <RichHtmlContent html={reply.content} className="text-sm" style={{ color: "var(--tc-text)" }} />
+      <ReplyPhotos attachments={reply.attachments} onRetry={onRetry} />
       <div className="flex items-center justify-between mt-2">
         <span className="text-xs" style={{ color: "var(--tc-text-muted)" }}>
           {authorName} · {new Date(reply.created_at).toLocaleDateString("ko-KR")}
