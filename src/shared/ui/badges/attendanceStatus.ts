@@ -42,7 +42,7 @@ export const ATTENDANCE_META: Record<
   ABSENT: { label: "결석", short: "결", tone: "danger" },
   RUNAWAY: { label: "출튀", short: "출", tone: "danger" },
   MATERIAL: { label: "자료", short: "자", tone: "neutral" },
-  INACTIVE: { label: "부재", short: "부", tone: "complement" },
+  INACTIVE: { label: "부재", short: "부", tone: "danger" },
   SECESSION: { label: "퇴원", short: "퇴", tone: "danger" },
 };
 

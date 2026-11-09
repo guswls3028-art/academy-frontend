@@ -155,7 +155,7 @@ for (const width of [390, 1366]) test(`수업일 작성·배정·저장·reload�
   await expect(page.getByRole('checkbox', { name: '박새봄 선택', exact: true })).toBeVisible();
   await page.getByRole('tab', { name: '출결', exact: true }).click();
   await expect(page).toHaveURL(/attendance\?schedule=0/);
-  await expect(page.getByRole('button', { name: '박새봄 출결 상태 변경', exact: true })).toHaveText('미입력');
+  await expect(page.getByRole('group', { name: '박새봄 출결 상태 선택', exact: true }).getByRole('button', { pressed: true })).toHaveText('미입력');
   await page.getByRole('button', { name: '출결 도구', exact: true }).click();
   await expect(page).toHaveURL(/attendance\?schedule=0&view=tools$/);
   const tools = page.getByRole('region', { name: '출결 도구', exact: true });
@@ -169,18 +169,18 @@ for (const width of [390, 1366]) test(`수업일 작성·배정·저장·reload�
   await expect.poll(() => state.bulk).toEqual([{ session: 9902, schedule: '0' }]);
   await expect(page).toHaveURL(/attendance\?schedule=0$/);
   await expect.poll(() => state.reads.filter(r => r.kind === 'attendance' && r.scope === '0').length).toBeGreaterThan(readsBeforeSave);
-  await expect(page.getByRole('button', { name: '박새봄 출결 상태 변경', exact: true })).toHaveText('현장');
+  await expect(page.getByRole('group', { name: '박새봄 출결 상태 선택', exact: true }).getByRole('button', { pressed: true })).toHaveText('현장');
   await expect(page.getByRole('link', { name: '김수연 학생 상세 열기', exact: true })).toHaveCount(0);
   await page.reload();
   await expect(page).toHaveURL(/attendance\?schedule=0$/);
-  await expect(page.getByRole('button', { name: '박새봄 출결 상태 변경', exact: true })).toHaveText('현장');
+  await expect(page.getByRole('group', { name: '박새봄 출결 상태 선택', exact: true }).getByRole('button', { pressed: true })).toHaveText('현장');
   await page.getByRole('button', { name: '출결 도구', exact: true }).click();
   await page.getByRole('link', { name: '← 출결 명단', exact: true }).click();
   await expect(page).toHaveURL(/attendance\?schedule=0$/);
   await strip.getByRole('button', { name: /^수요일반/ }).click();
   await expect(page).toHaveURL(/attendance\?schedule=71$/);
   await expect(tools).toBeHidden();
-  await expect(page.getByRole('button', { name: '김수연 출결 상태 변경', exact: true })).toHaveText('미입력');
+  await expect(page.getByRole('group', { name: '김수연 출결 상태 선택', exact: true }).getByRole('button', { pressed: true })).toHaveText('미입력');
   await expect(page.getByRole('link', { name: '박새봄 학생 상세 열기', exact: true })).toHaveCount(0);
   await expect.poll(() => state.reads.some(r => r.kind === 'scores' && r.scope === '0')).toBe(true);
 
@@ -241,7 +241,7 @@ for (const width of [390, 1366]) test(`수업일 전환 저장 대기 중 다른
     releaseSave();
     await expect.poll(() => completed).toBeGreaterThanOrEqual(1);
     await expect(page.getByRole('region', { name: '수업일 선택' })).toHaveAttribute('aria-busy', 'false');
-    await expect(page.getByRole('button', { name: '김수연 출결 상태 변경', exact: true })).toBeVisible();
+    await expect(page.getByRole('group', { name: '김수연 출결 상태 선택', exact: true })).toBeVisible();
     await expect(page).toHaveURL(/attendance\?schedule=71$/);
     await page.reload();
     await expect(page).toHaveURL(/attendance\?schedule=71$/);

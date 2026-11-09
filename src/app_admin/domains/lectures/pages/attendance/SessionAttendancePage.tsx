@@ -22,12 +22,12 @@ import {
   type AttendanceListItem,
 } from "@admin/domains/lectures/api/attendance";
 import api from "@/shared/api/axios";
-import { Badge, EmptyState, Button } from "@/shared/ui/ds";
+import { EmptyState, Button } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL, useTableColumnPrefs, ResizableTh } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
-import { ATTENDANCE_META, ORDERED_ATTENDANCE_STATUS, type AttendanceStatus } from "@/shared/ui/badges/attendanceStatus";
+import { ORDERED_ATTENDANCE_STATUS, type AttendanceStatus } from "@/shared/ui/badges/attendanceStatus";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -51,7 +51,7 @@ import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPrev
 import { arrivalOverviewQueryKey } from "@/shared/api/contracts/arrivalOverview";
 import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import ArrivalPlanCell, { type ArrivalPlanPayload } from "./ArrivalPlanCell";
-import AttendanceStatusPicker from "./AttendanceStatusPicker";
+import AttendanceStatusOptions from "./AttendanceStatusOptions";
 import AttendanceSortButtons from "./AttendanceSortButtons";
 import AttendanceStatusFilter from "./AttendanceStatusFilter";
 import { useBulkPresentUndo } from "./useBulkPresentUndo";
@@ -64,6 +64,7 @@ import { useSessionScheduleScope } from "@/shared/hooks/useSessionScheduleScope"
 import AttendanceSessionPage from "./AttendanceSessionPage";
 
 const PAGE_SIZE = 50;
+const STATUS_COLUMN = { key: "status", label: "출결 상태", defaultWidth: 316, minWidth: 312, maxWidth: 420 } satisfies TableColumnDef;
 type SessionAttendancePageProps = {
   sessionId: number;
   lectureId?: number;
@@ -120,10 +121,7 @@ export default function SessionAttendancePage({
     getStoredAttendanceSort(sortStorageKey, previousSortStorageKey)
   ));
   const [page, setPage] = useState(1);
-  /** 상태 뱃지 클릭 시 테이블 외부 가로 팝오버로 표시. null이면 닫힘 */
   const [notifModal, setNotifModal] = useState<{ type: "check_in" | "absent"; open: boolean }>({ type: "check_in", open: false });
-  const [openStatusRowAttId, setOpenStatusRowAttId] = useState<number | null>(null);
-  const statusRowTriggerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setSearch(searchInput), 250);
@@ -137,7 +135,6 @@ export default function SessionAttendancePage({
   useEffect(() => {
     setSelectedIds([]);
     setPage(1);
-    setOpenStatusRowAttId(null);
   }, [sessionId, schedule]);
 
   useEffect(() => {
@@ -188,30 +185,18 @@ export default function SessionAttendancePage({
       updateAttendance(id, { status, confirm_secession, secession_scope }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: sessionScheduleQueryKeys.session(sessionId) });
-      qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
       if (Number.isFinite(lectureId)) {
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
       }
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
+      return qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
     },
     onError: () => { feedback.error("출석 상태 변경에 실패했습니다. 다시 시도해 주세요."); },
   });
 
-  function closeStatusPicker(restoreFocus = false) {
-    if (restoreFocus) statusRowTriggerRef.current?.focus();
-    setOpenStatusRowAttId(null);
-    statusRowTriggerRef.current = null;
-  }
-
   async function handleStatusChange(att: AttendanceListItem, code: AttendanceStatus) {
-    const active = toAttendanceStatus(att.status) === code;
-    if (active && code !== "SECESSION") {
-      closeStatusPicker(true);
-      return;
-    }
-    if (pendingStatusIds.has(att.id)) return;
-    if (code === "SECESSION") closeStatusPicker(true);
-    const secessionScope = code === "SECESSION" ? await confirmSecession(att.name ?? "학생") : null;
+    if (pendingStatusIds.has(att.id) || (toAttendanceStatus(att.status) === code && code !== "SECESSION")) return;
+    const secessionScope = code === "SECESSION" ? await confirmSecession(att.name ?? att.student_name ?? "학생") : null;
     if (code === "SECESSION" && !secessionScope) return;
 
     setPendingStatusIds((current) => new Set(current).add(att.id));
@@ -228,7 +213,6 @@ export default function SessionAttendancePage({
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceEnrolledIds(sessionId) });
         feedback.success(`${att.name ?? "학생"} 학생이 퇴원 처리되었습니다.`);
       }
-      closeStatusPicker(true);
     } catch {
       // useMutation onError owns the user-facing failure message.
     } finally {
@@ -243,7 +227,6 @@ export default function SessionAttendancePage({
   // 강의 전체 차시 출결 매트릭스 — 차시 내부 출결탭에서는 불필요 (강의 수강생 페이지에서만 표시)
 
   const sorted = pageData;
-  const activeStatusRow = sorted.find(att => att.id === openStatusRowAttId);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
@@ -254,7 +237,7 @@ export default function SessionAttendancePage({
     () => [
       { key: "checkbox", label: "선택", defaultWidth: col.checkbox, minWidth: 28, maxWidth: 28 },
       { key: "name", label: "이름", defaultWidth: 160, minWidth: 144, maxWidth: 400 },
-      { key: "status", label: "출결 상태", defaultWidth: 100, minWidth: 88, maxWidth: 140 },
+      STATUS_COLUMN,
       ...(isSupplementSession
         ? [{ key: "arrival_plan", label: "등원 예정", defaultWidth: 220, minWidth: 170, maxWidth: 360 }]
         : []),
@@ -673,13 +656,6 @@ export default function SessionAttendancePage({
 
   return (
     <div ref={contentRef} className="flex flex-col gap-4 relative">
-      {activeStatusRow && (
-        <AttendanceStatusPicker key={activeStatusRow.id}
-          studentName={activeStatusRow.name ?? "학생"}
-          value={toAttendanceStatus(activeStatusRow.status)}
-          pending={pendingStatusIds.has(activeStatusRow.id)} triggerRef={statusRowTriggerRef}
-          onChange={code => void handleStatusChange(activeStatusRow, code)} onClose={closeStatusPicker} />
-      )}
       {attendanceView === "sessions" && lectureId != null ? (
         <AttendanceSessionPage listPath={listPath} notice={safetyRecord}>{sessionSelector}</AttendanceSessionPage>
       ) : attendanceView === "tools" ? (
@@ -728,22 +704,26 @@ export default function SessionAttendancePage({
             }
           />
         ) : (
-          <div style={{ width: "fit-content" }}>
-            <DomainTable tableClassName="ds-table--flat ds-table--attendance" tableStyle={{ minWidth: tableWidth, width: tableWidth, tableLayout: "fixed" }}>
+          <div className="attendance-roster">
+            <DomainTable
+              tableClassName="ds-table--flat ds-table--attendance"
+              tableStyle={{ "--attendance-table-width": tableWidth + "px", tableLayout: "fixed" }}
+              dataAttributes={{ role: "table" }}
+            >
               <colgroup>
                 {attendanceColumnDefs.map((c) => (
                   <col key={c.key} style={{ width: c.key === "checkbox" ? col.checkbox : (columnWidths[c.key] ?? c.defaultWidth) }} />
                 ))}
               </colgroup>
-              <thead>
-                <tr>
-                  <th scope="col" className="ds-checkbox-cell" style={{ width: col.checkbox, minWidth: col.checkbox, maxWidth: col.checkbox }}>
+              <thead role="rowgroup">
+                <tr role="row">
+                  <th scope="col" role="columnheader" className="ds-checkbox-cell" style={{ width: col.checkbox, minWidth: col.checkbox, maxWidth: col.checkbox }}>
                     <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} aria-label="전체 선택" className="cursor-pointer" />
                   </th>
-                  <ResizableTh columnKey="name" width={columnWidths.name ?? 160} minWidth={144} maxWidth={400} onWidthChange={setColumnWidth} scope="col" onClick={() => toggleSort("name")} className="cursor-pointer select-none" aria-sort={sort === "name" ? "ascending" : sort === "-name" ? "descending" : "none"}>
+                  <ResizableTh columnKey="name" dataAttributes={{ role: "columnheader" }} width={columnWidths.name ?? 160} minWidth={144} maxWidth={400} onWidthChange={setColumnWidth} scope="col" onClick={() => toggleSort("name")} className="cursor-pointer select-none" aria-sort={sort === "name" ? "ascending" : sort === "-name" ? "descending" : "none"}>
                     <span className="inline-flex items-center gap-1">이름 <span aria-hidden style={{ fontSize: 10, opacity: sort === "name" || sort === "-name" ? 1 : 0.3, color: "var(--color-primary)" }}>{sort === "name" ? "▲" : sort === "-name" ? "▼" : "⇅"}</span></span>
                   </ResizableTh>
-                  <ResizableTh columnKey="status" width={columnWidths.status ?? 100} minWidth={88} maxWidth={140} onWidthChange={setColumnWidth} scope="col" className="text-center">
+                  <ResizableTh columnKey="status" dataAttributes={{ role: "columnheader" }} width={columnWidths.status ?? STATUS_COLUMN.defaultWidth} minWidth={STATUS_COLUMN.minWidth} maxWidth={STATUS_COLUMN.maxWidth} onWidthChange={setColumnWidth} scope="col" className="attendance-roster__wide-header text-center">
                     <span className="inline-flex items-center gap-1" title={sort === "not_arrived" ? "미입력·결석 학생을 먼저 표시하며 출결 저장 후 순서가 갱신됩니다." : "출결을 바꿔도 학생 명단 순서는 유지됩니다."}>
                       출결 상태
                     </span>
@@ -751,6 +731,8 @@ export default function SessionAttendancePage({
                   {isSupplementSession && (
                     <ResizableTh
                       columnKey="arrival_plan"
+                      dataAttributes={{ role: "columnheader" }}
+                      className="attendance-roster__wide-header"
                       width={columnWidths.arrival_plan ?? 220}
                       minWidth={170}
                       maxWidth={360}
@@ -760,26 +742,27 @@ export default function SessionAttendancePage({
                       등원 예정
                     </ResizableTh>
                   )}
-                  <ResizableTh columnKey="parent_phone" width={columnWidths.parent_phone ?? col.parentPhone} minWidth={90} maxWidth={200} onWidthChange={setColumnWidth} scope="col" onClick={() => toggleSort("parent_phone")} className="cursor-pointer select-none text-center" aria-sort={sort === "parent_phone" ? "ascending" : sort === "-parent_phone" ? "descending" : "none"}>
+                  <ResizableTh columnKey="parent_phone" dataAttributes={{ role: "columnheader" }} width={columnWidths.parent_phone ?? col.parentPhone} minWidth={90} maxWidth={200} onWidthChange={setColumnWidth} scope="col" onClick={() => toggleSort("parent_phone")} className="cursor-pointer select-none text-center" aria-sort={sort === "parent_phone" ? "ascending" : sort === "-parent_phone" ? "descending" : "none"}>
                     <span className="inline-flex items-center gap-1">학부모 <span aria-hidden style={{ fontSize: 10, opacity: sort === "parent_phone" || sort === "-parent_phone" ? 1 : 0.3, color: "var(--color-primary)" }}>{sort === "parent_phone" ? "▲" : sort === "-parent_phone" ? "▼" : "⇅"}</span></span>
                   </ResizableTh>
-                  <ResizableTh columnKey="phone" width={columnWidths.phone ?? col.studentPhone} minWidth={90} maxWidth={200} onWidthChange={setColumnWidth} scope="col" onClick={() => toggleSort("phone")} className="cursor-pointer select-none text-center" aria-sort={sort === "phone" ? "ascending" : sort === "-phone" ? "descending" : "none"}>
+                  <ResizableTh columnKey="phone" dataAttributes={{ role: "columnheader" }} width={columnWidths.phone ?? col.studentPhone} minWidth={90} maxWidth={200} onWidthChange={setColumnWidth} scope="col" onClick={() => toggleSort("phone")} className="cursor-pointer select-none text-center" aria-sort={sort === "phone" ? "ascending" : sort === "-phone" ? "descending" : "none"}>
                     <span className="inline-flex items-center gap-1">학생 <span aria-hidden style={{ fontSize: 10, opacity: sort === "phone" || sort === "-phone" ? 1 : 0.3, color: "var(--color-primary)" }}>{sort === "phone" ? "▲" : sort === "-phone" ? "▼" : "⇅"}</span></span>
                   </ResizableTh>
-                  <ResizableTh columnKey="memo" width={columnWidths.memo ?? 320} minWidth={220} maxWidth={500} onWidthChange={setColumnWidth} scope="col">
+                  <ResizableTh columnKey="memo" dataAttributes={{ role: "columnheader" }} width={columnWidths.memo ?? 320} minWidth={220} maxWidth={500} onWidthChange={setColumnWidth} scope="col" className="attendance-roster__wide-header">
                     메모
                   </ResizableTh>
                 </tr>
               </thead>
-              <tbody>
+              <tbody role="rowgroup">
                 {sorted.map((att) => {
                   const studentId = att.student_id ?? att.enrollment?.student_id;
                   const studentName = att.name ?? att.student_name ?? "학생";
-                  const status = ATTENDANCE_META[toAttendanceStatus(att.status)];
+                  const pending = pendingStatusIds.has(att.id);
                   const canOpenStudent = Number.isInteger(studentId) && Number(studentId) > 0;
                   return (
                   <tr
                     key={att.id}
+                    role="row"
                     className={[
                       selectedSet.has(att.id) ? "ds-row-selected" : "",
                       canOpenStudent ? "cursor-pointer" : "",
@@ -791,20 +774,20 @@ export default function SessionAttendancePage({
                       });
                     }}
                   >
-                    <td className="ds-checkbox-cell" style={{ width: col.checkbox }} onClick={(e) => e.stopPropagation()}>
+                    <td role="cell" className="ds-checkbox-cell" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={selectedSet.has(att.id)}
                         onChange={() => toggleSelect(att.id)}
                         onClick={(e) => e.stopPropagation()}
-                        aria-label={`${att.name} 선택`}
+                        aria-label={studentName + " 선택"}
                         className="cursor-pointer"
                       />
                     </td>
-                    <td className="text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle" style={{ width: columnWidths.name ?? 160 }}>
-                      <StudentDetailLink studentId={studentId} studentName={att.name ?? ""}>
+                    <td role="cell" className="attendance-roster__name text-[15px] font-bold leading-6 text-[var(--color-text-primary)] truncate align-middle">
+                      <StudentDetailLink studentId={studentId} studentName={studentName}>
                         <StudentNameWithLectureChip
-                          name={att.name ?? ""}
+                          name={studentName}
                           profilePhotoUrl={att.profile_photo_url ?? undefined}
                           avatarSize={24}
                           density="compact"
@@ -820,34 +803,18 @@ export default function SessionAttendancePage({
                         />
                       </StudentDetailLink>
                     </td>
-                    <td className="text-center align-middle" style={{ width: columnWidths.status ?? 100 }}>
-                      <Button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (openStatusRowAttId === att.id) {
-                            setOpenStatusRowAttId(null);
-                            statusRowTriggerRef.current = null;
-                            return;
-                          }
-                          // trigger ref를 먼저 세팅한 뒤 open → hook의 useLayoutEffect가 ref를 읽어 위치 계산
-                          statusRowTriggerRef.current = e.currentTarget as HTMLElement;
-                          setOpenStatusRowAttId(att.id);
-                        }}
-                        intent="ghost"
-                        size="lg"
-                        aria-busy={pendingStatusIds.has(att.id)}
-                        aria-description={`현재 ${status.label}`}
-                        aria-label={`${att.name ?? ""} 출결 상태 변경`}
-                        aria-expanded={openStatusRowAttId === att.id}
-                      >
-                        <Badge variant="solid" size="sm" tone={status.tone}>{status.label}</Badge>
-                      </Button>
+                    <td role="cell" className="attendance-roster__full align-middle">
+                      <AttendanceStatusOptions
+                        studentName={studentName}
+                        value={toAttendanceStatus(att.status)}
+                        pending={pending}
+                        onChange={(code) => void handleStatusChange(att, code)}
+                      />
                     </td>
                     {isSupplementSession && (
                       <td
-                        className="align-middle"
-                        style={{ width: columnWidths.arrival_plan ?? 220 }}
+                        role="cell"
+                        className="attendance-roster__full align-middle"
                         onClick={(event) => event.stopPropagation()}
                       >
                         <ArrivalPlanCell
@@ -860,14 +827,16 @@ export default function SessionAttendancePage({
                         />
                       </td>
                     )}
-                    <td className="text-[13px] leading-6 text-[var(--color-text-secondary)] truncate align-middle text-center" style={{ width: columnWidths.parent_phone ?? col.parentPhone }}>
+                    <td role="cell" className="attendance-roster__parent text-[13px] leading-6 text-[var(--color-text-secondary)] truncate align-middle text-center">
+                      <span className="attendance-roster__phone-label">학부모 </span>
                       {formatPhone(att.parent_phone)}
                     </td>
-                    <td className="text-[13px] leading-6 text-[var(--color-text-secondary)] truncate align-middle text-center" style={{ width: columnWidths.phone ?? col.studentPhone }}>
+                    <td role="cell" className="text-[13px] leading-6 text-[var(--color-text-secondary)] truncate align-middle text-center">
+                      <span className="attendance-roster__phone-label">학생 </span>
                       {formatPhone(att.phone ?? att.student_phone)}
                     </td>
-                    <td className="align-middle" style={{ width: columnWidths.memo ?? 320 }} onClick={(event) => event.stopPropagation()}>
-                      <div className="truncate px-2 pt-1 text-[12px] font-semibold text-[var(--color-text-secondary)]" title={studentName}>
+                    <td role="cell" className="attendance-roster__full align-middle" onClick={(event) => event.stopPropagation()}>
+                      <div className="attendance-roster__memo-name truncate px-2 pt-1 text-[12px] font-semibold text-[var(--color-text-secondary)]" title={studentName}>
                         {studentName}
                       </div>
                       {att.enrollment_id != null ? (
