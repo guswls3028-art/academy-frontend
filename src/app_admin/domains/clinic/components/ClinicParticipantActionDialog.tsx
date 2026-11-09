@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import dayjs from "dayjs";
-import { BellRing, Check, Clock3, LogIn, LogOut, X } from "lucide-react";
+import { BellRing, Check, Clock3, LogIn, LogOut, Undo2, X } from "lucide-react";
 
 import styles from "./ClinicParticipantActionDialog.module.css";
 
 export type ClinicRecipient = "student" | "parent" | "both";
-export type ClinicParticipantAction = "arrive" | "late" | "checkout" | "remind" | "absent";
+export type ClinicParticipantAction = "arrive" | "late" | "checkout" | "remind" | "absent" | "undo_arrival";
 
 export type ClinicParticipantActionPayload = {
   send_to: ClinicRecipient;
@@ -20,6 +20,7 @@ type Props = {
   participantName: string;
   selectedDate: string;
   withoutArrival?: boolean;
+  arrivalLabel?: string;
   busy?: boolean;
   onClose: () => void;
   onConfirm: (payload: ClinicParticipantActionPayload) => void;
@@ -40,6 +41,12 @@ const ACTION_COPY: Record<
     eyebrow: "상태 교정",
     description: "결석 처리 후 도착한 학생도 지각 등원으로 바로 복구할 수 있습니다.",
     confirm: "지각 등원 확정",
+  },
+  undo_arrival: {
+    title: "등원 취소",
+    eyebrow: "출결 정정",
+    description: "예약과 학습 기록을 유지하고 등원 상태만 미등원으로 되돌립니다. 이미 접수된 알림톡은 회수할 수 없습니다.",
+    confirm: "미등원으로 되돌리기",
   },
   checkout: {
     title: "하원 처리",
@@ -70,6 +77,7 @@ function defaultRecipient(action: ClinicParticipantAction): ClinicRecipient {
 function ActionIcon({ action }: { action: ClinicParticipantAction }) {
   if (action === "arrive" || action === "late") return <LogIn size={20} aria-hidden />;
   if (action === "checkout") return <LogOut size={20} aria-hidden />;
+  if (action === "undo_arrival") return <Undo2 size={20} aria-hidden />;
   if (action === "remind") return <BellRing size={20} aria-hidden />;
   return <X size={20} aria-hidden />;
 }
@@ -79,6 +87,7 @@ export default function ClinicParticipantActionDialog({
   participantName,
   selectedDate,
   withoutArrival = false,
+  arrivalLabel,
   busy = false,
   onClose,
   onConfirm,
@@ -95,6 +104,16 @@ export default function ClinicParticipantActionDialog({
   const [mode, setMode] = useState<"once" | "repeat">("once");
   const [intervalMinutes, setIntervalMinutes] = useState("60");
   const [repeatUntil, setRepeatUntil] = useState("22:00");
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (action !== "undo_arrival") return;
+    const trigger = document.activeElement;
+    cancelRef.current?.focus();
+    return () => {
+      if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus();
+    };
+  }, [action]);
 
   const validationMessage = useMemo(() => {
     if (action !== "remind" || mode !== "repeat") return "";
@@ -128,15 +147,15 @@ export default function ClinicParticipantActionDialog({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
-      } else if (event.key === "Enter") {
+        if (!busy) onClose();
+      } else if (event.key === "Enter" && action !== "undo_arrival") {
         event.preventDefault();
         submit();
       }
     };
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [onClose, submit]);
+  }, [action, busy, onClose, submit]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -144,7 +163,7 @@ export default function ClinicParticipantActionDialog({
   }
 
   return createPortal(
-    <div className={styles.backdrop} onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <div className={styles.backdrop} onMouseDown={(event) => event.target === event.currentTarget && !busy && onClose()}>
       <section
         className={`${styles.dialog} ${action === "absent" ? styles.danger : ""}`}
         role="dialog"
@@ -159,7 +178,7 @@ export default function ClinicParticipantActionDialog({
               <h2>{copy.title}</h2>
               <p><strong>{participantName}</strong> · {copy.description}</p>
             </div>
-            <button type="button" className={styles.close} onClick={onClose} aria-label="닫기">
+            <button type="button" className={styles.close} onClick={onClose} disabled={busy} aria-label="닫기">
               <X size={19} aria-hidden />
             </button>
           </header>
@@ -187,7 +206,8 @@ export default function ClinicParticipantActionDialog({
             </fieldset>
           )}
 
-          <fieldset className={styles.fieldset}>
+          {action === "undo_arrival" && arrivalLabel && <p className={styles.note}>정정할 등원 기록: {arrivalLabel}</p>}
+          {action !== "undo_arrival" && <fieldset className={styles.fieldset}>
             <legend>알림톡 수신자</legend>
             <div className={styles.recipientGrid}>
               {([
@@ -203,12 +223,12 @@ export default function ClinicParticipantActionDialog({
               ))}
             </div>
             <p className={styles.note}>승인된 공용 알림톡 양식이 없으면 발송하지 않습니다.</p>
-          </fieldset>
+          </fieldset>}
 
           <footer className={styles.footer}>
-            <span><kbd>Esc</kbd> 취소 · <kbd>Enter</kbd> 확정</span>
+            <span><kbd>Esc</kbd> 취소{action !== "undo_arrival" && <> · <kbd>Enter</kbd> 확정</>}</span>
             <div>
-              <button type="button" className={styles.cancel} onClick={onClose}>취소</button>
+              <button ref={cancelRef} type="button" className={styles.cancel} onClick={onClose} disabled={busy}>취소</button>
               <button type="submit" className={styles.confirm} disabled={busy || !!validationMessage}>
                 {busy ? "처리 중…" : copy.confirm}
               </button>

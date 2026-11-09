@@ -5,6 +5,7 @@
  */
 
 import api, { releaseEmptyScoreDraftOnPageExit } from "@/shared/api/axios";
+import type { HomeworkMetaStatus } from "@/shared/scoring/homeworkStatus";
 import {
   scoreEditorRequestHeaders,
   resolvedScoreEditorClientId,
@@ -27,7 +28,7 @@ export type PendingChange =
       enrollmentId: number;
       homeworkId: number;
       score: number | null;
-      metaStatus?: "NOT_SUBMITTED";
+      metaStatus?: NonNullable<HomeworkMetaStatus>;
       expectedUpdatedAt?: string | null;
     };
 

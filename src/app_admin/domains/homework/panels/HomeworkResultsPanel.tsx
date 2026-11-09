@@ -43,6 +43,7 @@ type HomeworkResultFilter = "all" | HomeworkStatus;
 
 const HOMEWORK_STATUS_ORDER: Record<HomeworkStatus, number> = {
   NOT_SUBMITTED: 0,
+  VIDEO_MAKEUP: 1,
   UNSET: 1,
   ZERO: 2,
   SCORED: 3,

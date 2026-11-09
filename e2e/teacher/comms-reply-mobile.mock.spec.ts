@@ -166,6 +166,16 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
 
   test("Q&A 사진을 본 뒤 답변 등록 버튼이 하단 탭바에 가려지지 않고 답변을 등록한다", async ({ page }) => {
     const { url } = await installHomeworkHeicPreview(page);
+    const answer = "감수 2분열이라서 그래요.";
+    const photoBytes = "iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAEElEQVR4nGM4aFYDRww4OQBWkBFlOSF6ngAAAABJRU5ErkJggg==";
+    const photo = {
+      id: 992,
+      original_name: "모바일 풀이.png",
+      content_type: "image/png",
+      size_bytes: Buffer.from(photoBytes, "base64").length,
+      created_at: "2026-06-03T08:50:00.000Z",
+      download_url: `data:image/png;base64,${photoBytes}`,
+    };
     const post = {
       attachments: [{ id: 991, original_name: "질문사진.heic", size_bytes: homeworkHeic.length, content_type: "image/heic", download_url: url }],
       id: POST_ID,
@@ -184,6 +194,7 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
       author_display_name: string;
       author_role: string;
       created_at: string;
+      attachments: Array<typeof photo>;
     }> = [];
 
     await page.route("**/api/v1/**", async (route) => {
@@ -233,23 +244,19 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
         return json({ results: replies, count: replies.length });
       }
 
-      if (path === `/community/posts/${POST_ID}/replies/` && request.method() === "POST") {
-        const raw = request.postData();
-        let payload: { content?: string } = {};
-        if (raw) {
-          try {
-            payload = JSON.parse(raw) as { content?: string };
-          } catch {
-            payload = Object.fromEntries(new URLSearchParams(raw)) as { content?: string };
-          }
-        }
+      if (path === `/community/posts/${POST_ID}/replies/with-images/` && request.method() === "POST") {
+        const body = request.postDataBuffer()?.toString("utf8");
+        expect(body).toContain(answer);
+        expect(body).toContain('name="files"');
+        expect(body).toContain('name="idempotency_key"');
         const reply = {
           id: 880001,
           post: POST_ID,
-          content: `<p>${String(payload.content ?? "")}</p>`,
+          content: answer,
           author_display_name: "선생님",
           author_role: "staff",
           created_at: new Date().toISOString(),
+          attachments: [photo],
         };
         replies.push(reply);
         post.replies_count = replies.length;
@@ -280,8 +287,11 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
     const sheet = page.getByRole("dialog", { name: "답변 작성" });
     await expect(sheet).toBeVisible({ timeout: 10_000 });
 
-    const answer = "감수 2분열이라서 그래요.";
-    await sheet.getByPlaceholder(/답변을 입력하세요/).fill(answer);
+    await sheet.locator(".ProseMirror").fill(answer);
+    const chooser = page.waitForEvent("filechooser");
+    await sheet.getByRole("button", { name: "이미지 삽입", exact: true }).click();
+    await (await chooser).setFiles({ name: photo.original_name, mimeType: photo.content_type, buffer: Buffer.from(photoBytes, "base64") });
+    await expect(sheet.getByRole("img", { name: photo.original_name, exact: true })).toBeVisible();
 
     const submit = sheet.getByRole("button", { name: "등록" });
     await expect(submit).toBeVisible();
@@ -303,6 +313,10 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
 
     await expect(sheet).not.toBeVisible({ timeout: 10_000 });
     await expect(page.getByText(answer)).toBeVisible({ timeout: 10_000 });
+    const savedPhoto = page.getByRole("img", { name: "답변 사진: 모바일 풀이.png" });
+    await expect(savedPhoto).toHaveJSProperty("naturalWidth", 4);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(savedPhoto).toHaveJSProperty("naturalWidth", 4);
     await expect.poll(async () => page.locator("body").innerText()).not.toContain("<p>");
   });
 

@@ -2734,7 +2734,7 @@ test("오늘 전체 복수 일정은 유일한 처리 대상을 노출하고 모
   const uniqueRow = page.locator(".clinic-ops__card").filter({ hasText: "유일 일정 학생" });
   await expect(uniqueRow).toBeVisible({ timeout: 45_000 });
   await expect(uniqueRow.getByRole("button", { name: "등원", exact: true })).toBeVisible();
-  await expect(uniqueRow.getByRole("button", { name: "재촉", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /미등원 재촉/ })).toBeVisible();
   await expect(uniqueRow).toContainText("20:00 · 2층");
 
   const cancelledRow = page.locator(".clinic-ops__card").filter({ hasText: "취소 일정 학생" });
@@ -3154,7 +3154,9 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
     id: 802, status: "attended", is_late: true,
   });
   const reminderCard = page.locator(".clinic-ops__card").filter({ hasText: "재촉 학생" });
-  await reminderCard.getByRole("button", { name: "재촉", exact: true }).click();
+  await reminderCard.press("Enter");
+  const reminderWorkbench = page.getByRole("dialog", { name: "재촉 학생 클리닉 워크벤치" });
+  await reminderWorkbench.getByRole("button", { name: "개별 재촉", exact: true }).click();
   const reminderDialog = page.getByRole("dialog", { name: "등원 재촉" });
   await expect(page.locator(".ant-message")).toHaveCSS("pointer-events", "none");
   await reminderDialog.getByLabel("반복 발송").check();
@@ -3164,6 +3166,7 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   await expect.poll(() => state.reminderPayloads?.[0]).toMatchObject({
     id: 803, mode: "repeat", interval_minutes: 60,
   });
+  await reminderWorkbench.getByRole("button", { name: "작업대 닫기" }).click();
 
   const absentCard = page.locator(".clinic-ops__card").filter({ hasText: "결석 학생" });
   await absentCard.getByRole("button", { name: "결석", exact: true }).click();
@@ -3458,7 +3461,9 @@ test("클리닉 상태 저장과 알림톡 요청의 부분 실패를 성공으�
   await expect(page.getByText(/하원 처리 완료 상태는 저장됐지만 알림톡 요청 0건 완료, 1건 실패/)).toBeVisible();
 
   const reminderCard = page.locator(".clinic-ops__card").filter({ hasText: "재촉 부분 성공" });
-  await reminderCard.getByRole("button", { name: "재촉", exact: true }).click();
+  await reminderCard.press("Enter");
+  const reminderWorkbench = page.getByRole("dialog", { name: "재촉 부분 성공 클리닉 워크벤치" });
+  await reminderWorkbench.getByRole("button", { name: "개별 재촉", exact: true }).click();
   const reminderDialog = page.getByRole("dialog", { name: "등원 재촉" });
   await reminderDialog.getByRole("button", { name: "재촉 발송" }).click();
   await expect(page.getByText("승인된 재촉 양식이 없습니다.", { exact: true })).toBeVisible();
@@ -3466,6 +3471,7 @@ test("클리닉 상태 저장과 알림톡 요청의 부분 실패를 성공으�
   await reminderDialog.getByRole("button", { name: "재촉 발송" }).click();
   await expect(reminderDialog).toHaveCount(0);
   await expect(page.getByText(/재촉 알림톡 요청 1건 완료, 1건 제외/)).toBeVisible();
+  await reminderWorkbench.getByRole("button", { name: "작업대 닫기" }).click();
 
   await page.getByRole("button", { name: "전체 출석 체크 (2명)", exact: true }).click();
   await page.getByRole("button", { name: "알림톡 요청 (2명)", exact: true }).click();
@@ -3893,5 +3899,91 @@ for (const width of [1366, 390]) {
     await past.getByRole("link", { name: "해당 일정 열기" }).click();
     await expect(page).toHaveURL(`${BASE}/workspace/clinic/operations?scope=day&date=${pastDate}&session=${pastSession.id}`);
     await expect(nav.getByRole("button", { name: "예약·출석" })).toHaveAttribute("aria-current", "page");
+    await page.goBack({ waitUntil: "domcontentloaded" });
+    await expect(search).toHaveValue("테스트학생", { timeout: 45_000 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(past).toContainText("지난달 보강", { timeout: 45_000 });
+    expect(new URL(page.url()).searchParams.has("search")).toBe(false);
+  });
+}
+
+for (const width of [1366, 390]) {
+  test("미등원 재촉 대상·부분 재시도·등원 취소 보존 " + width + "px", async ({ page }, testInfo) => {
+    const row = {
+      session: 701, status: "booked", session_date: today, session_start_time: "13:00:00",
+      session_location: "3층", session_title: "운영 테스트",
+    };
+    const state: OperationsState = {
+      participants: [
+        { ...row, id: 1701, student: 1701, student_name: "첫번째 학생" },
+        { ...row, id: 1702, student: 1702, student_name: "재시도 학생" },
+        { ...row, id: 1703, student: 1703, student_name: "이미 하원 학생", checked_out_at: today + "T14:00:00+09:00" },
+        { ...row, id: 1704, student: 1704, student_name: "여러 시간대 학생" },
+        { ...row, id: 1705, student: 1704, student_name: "여러 시간대 학생", session: 702, session_start_time: "17:00:00" },
+      ],
+      targets: [],
+      statusPayloads: [],
+      checkoutPayloads: [],
+    };
+    await seed(page);
+    await installApi(page, undefined, state);
+    const requests: { id: number; key: string; recipient: string }[] = [];
+    await page.route(/\/api\/v1\/clinic\/participants\/\d+\/remind\/$/, async (route) => {
+      const id = Number(new URL(route.request().url()).pathname.split("/").at(-3));
+      const payload = route.request().postDataJSON() as { request_id: string; send_to: string };
+      const repeated = requests.some((request) => request.id === id);
+      requests.push({ id, key: payload.request_id, recipient: payload.send_to });
+      if (id === 1702 && !repeated) {
+        return route.fulfill({ status: 503, json: { detail: "알림 설정을 확인해 주세요." } });
+      }
+      if (id === 1705) return route.fulfill({ status: 409, json: { detail: "이미 등원했습니다." } });
+      return route.fulfill({ json: { ok: true, status: "ok", sent: 1, skipped: 0 } });
+    });
+
+    await page.setViewportSize({ width, height: 850 });
+    await gotoAndSettle(page, BASE + "/workspace/clinic/operations?scope=day&date=" + today, { timeout: 45_000 });
+    const entry = page.getByRole("button", { name: "미등원 재촉 (3명)" });
+    await expect(entry).toBeVisible({ timeout: 45_000 });
+    await entry.click();
+    const dialog = page.getByRole("dialog", { name: "미등원 재촉" });
+    await expect(dialog.getByRole("button", { name: "2명에게 재촉 요청" })).toBeVisible();
+    await expect(dialog.getByText("이미 하원 학생")).toHaveCount(0);
+    expect(requests).toHaveLength(0);
+    const timeChoice = dialog.getByRole("checkbox", { name: /여러 시간대 학생.*17:00/ });
+    await timeChoice.check();
+    await expect(dialog.getByRole("button", { name: "3명에게 재촉 요청" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    const modalBox = await dialog.boundingBox();
+    expect(modalBox?.width).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: testInfo.outputPath("clinic-reminder-" + width + ".png") });
+    await dialog.getByRole("button", { name: "3명에게 재촉 요청" }).click();
+    await expect(dialog.getByRole("status")).toContainText("접수 1명 · 확인 필요 1명 · 제외 1명");
+    expect(requests.map((request) => request.id).sort()).toEqual([1701, 1702, 1705]);
+    expect(requests.every((request) => request.recipient === "student")).toBe(true);
+    await dialog.getByRole("button", { name: "미접수 대상 다시 시도" }).click();
+    await expect(dialog.getByRole("status")).toContainText("접수 2명 · 확인 필요 0명 · 제외 1명");
+    expect(requests[3]).toEqual(requests.find((request) => request.id === 1702));
+    expect(state.statusPayloads).toEqual([]);
+    await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+    const card = page.locator(".clinic-ops__card").filter({ hasText: "첫번째 학생" });
+    const workbench = page.getByRole("dialog", { name: "첫번째 학생 클리닉 워크벤치" });
+    const actions = width === 390 ? workbench : card;
+    if (width === 390) await card.getByRole("button", { name: /학생 작업대 열기/ }).click();
+    await actions.getByRole("button", { name: "등원", exact: true }).click();
+    await page.getByRole("dialog", { name: "등원 처리" }).getByRole("button", { name: "등원 확정" }).click();
+    await actions.getByRole("button", { name: "등원 취소" }).click();
+    const undo = page.getByRole("dialog", { name: "등원 취소" });
+    await expect(undo).toContainText("첫번째 학생");
+    await expect(undo.getByRole("button", { name: "취소", exact: true })).toBeFocused();
+    await expect(undo.getByText(/이미 접수된 알림톡은 회수할 수 없습니다/)).toBeVisible();
+    await undo.getByRole("button", { name: "미등원으로 되돌리기" }).click();
+    await expect(card.locator(".clinic-ops__status-badge")).toHaveText("미등원");
+    expect(state.statusPayloads?.[1]).toEqual({
+      id: 1701, status: "booked", expected_checked_in_at: saturday + "T13:30:00+09:00",
+    });
+    expect(state.checkoutPayloads).toEqual([]);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(entry).toBeVisible({ timeout: 45_000 });
+    await expect(card.locator(".clinic-ops__status-badge")).toHaveText("미등원");
   });
 }

@@ -277,22 +277,25 @@ function isExactDevelopmentHomeworkVideo(boundary: ReleaseBoundary, rawUrl: stri
   return Boolean(path && Number.isSafeInteger(Number(path[1])) && hasExactHostSignature(target, 600));
 }
 
-type CommunityImageType = "image/png" | "image/jpeg" | "image/webp" | "image/heic";
+type CommunityImageType = "image/png" | "image/jpeg" | "image/webp" | "image/heic" | "image/gif";
 
 function isExactDevelopmentCommunityAttachment(
-  boundary: ReleaseBoundary, rawUrl: string, postId: number, contentType: string, downloadName?: string,
+  boundary: ReleaseBoundary, rawUrl: string, postId: number, contentType: string, downloadName?: string, replyImage = false,
 ): boolean {
   if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId)
     || Number(boundary.omrR2TenantId) < 1 || !Number.isSafeInteger(postId) || postId < 1
-    || !["image/png", "image/jpeg", "image/webp", "image/heic", "application/pdf", "text/plain"].includes(contentType)
+    || !(replyImage ? ["image/png", "image/jpeg", "image/webp", "image/gif"]
+      : ["image/png", "image/jpeg", "image/webp", "image/heic", "application/pdf", "text/plain"]).includes(contentType)
     || (!contentType.startsWith("image/") && downloadName === undefined)) return false;
   const target = new URL(rawUrl);
   if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
     || rawUrl !== `${target.origin}${target.pathname}${target.search}`) return false;
-  const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/community/posts/${postId}/uploads/[A-Za-z0-9_-]{16,80}/[0-9]_[0-9a-f]{16}_[0-9a-f]{8}_[^/]+\\.(png|jpg|jpeg|webp|heic|pdf|txt)$`, "i").exec(target.pathname);
+  const objectPath = replyImage ? "reply-uploads/[0-9a-f]{32}/[0-9]_[0-9a-f]{16}_[0-9a-f]{8}_photo" : "uploads/[A-Za-z0-9_-]{16,80}/[0-9]_[0-9a-f]{16}_[0-9a-f]{8}_[^/]+";
+  const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/community/posts/${postId}/${objectPath}\\.(png|jpg|jpeg|webp|heic|gif|pdf|txt)$`, "i").exec(target.pathname);
   if (!path) return false;
   const extensionType = path[1].toLowerCase() === "png" ? "image/png"
     : path[1].toLowerCase() === "webp" ? "image/webp"
+    : path[1].toLowerCase() === "gif" ? "image/gif"
     : path[1].toLowerCase() === "heic" ? "image/heic"
     : path[1].toLowerCase() === "pdf" ? "application/pdf"
     : path[1].toLowerCase() === "txt" ? "text/plain" : "image/jpeg";
@@ -1197,6 +1200,23 @@ export async function installReleaseContextGuard(
       }
     }
   };
+  const registerReplyImages = (replies: unknown, postId: number) => {
+    if (!Array.isArray(replies) || replies.length > 200) return;
+    for (const reply of replies) {
+      if (!isRecord(reply) || reply.post !== postId || reply.question !== postId
+        || reply.author_role !== "staff" || !Number.isSafeInteger(reply.id) || Number(reply.id) < 1
+        || !Array.isArray(reply.attachments) || reply.attachments.length > 10) continue;
+      for (const photo of reply.attachments) {
+        if (!isRecord(photo) || !Number.isSafeInteger(photo.id) || Number(photo.id) < 1
+          || typeof photo.size_bytes !== "number" || !Number.isSafeInteger(photo.size_bytes)
+          || photo.size_bytes < 1 || photo.size_bytes > 5 * 1024 * 1024
+          || typeof photo.download_url !== "string" || typeof photo.content_type !== "string") continue;
+        if (isExactDevelopmentCommunityAttachment(boundary, photo.download_url, postId, photo.content_type, undefined, true)) {
+          communityImageUrls.set(photo.download_url, { contentType: photo.content_type as CommunityImageType, sizeBytes: photo.size_bytes });
+        }
+      }
+    }
+  };
   const requestTransportDiagnostics: RequestTransportDiagnostic[] = [];
   const activeRoutes = new Set<Promise<void>>();
   const publicVideoIds = new Set<string>();
@@ -1569,7 +1589,8 @@ export async function installReleaseContextGuard(
         if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
         const body = await response.body();
         const signature = heic ? [] : contentType === "image/png" ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
-          : contentType === "image/webp" ? [0x52, 0x49, 0x46, 0x46] : [0xff, 0xd8, 0xff];
+          : contentType === "image/webp" ? [0x52, 0x49, 0x46, 0x46]
+          : contentType === "image/gif" ? [0x47, 0x49, 0x46, 0x38] : [0xff, 0xd8, 0xff];
         if (response.status() !== 200 || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== contentType
           || signature.some((byte, index) => body[index] !== byte)
           || (heic && (body.subarray(4, 8).toString("ascii") !== "ftyp"
@@ -1873,13 +1894,15 @@ export async function installReleaseContextGuard(
           && communityTarget.searchParams.get("page_size") === "50"
           && communityTarget.searchParams.get("ordering") === "-created_at";
         const communityListType = teacherNoticeList ? "notice" : qnaList ? "qna" : undefined;
+        const communityReplies = /^\/api\/v1\/community\/posts\/([1-9][0-9]*)\/replies\/$/.exec(communityTarget.pathname);
         const communityDownload = /^\/api\/v1\/community\/posts\/([1-9][0-9]*)\/attachments\/([1-9][0-9]*)\/download\/$/.exec(communityTarget.pathname);
         if (boundary.mode === "development" && request.method() === "GET"
-          && ((communityPost && !communityTarget.search) || communityListType || (communityDownload && !communityTarget.search))
+          && (((communityPost || communityReplies || communityDownload) && !communityTarget.search) || communityListType)
           && response.status() === 200 && /^Bearer \S+$/.test(headers.authorization ?? "")
           && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json") {
           const payload = await response.json();
           if (communityPost && payload?.id === Number(communityPost[1])) registerCommunityPost(payload);
+          if (communityReplies) registerReplyImages(payload, Number(communityReplies[1]));
           if (communityListType) {
             const posts = Array.isArray(payload) ? payload : payload?.results;
             if (Array.isArray(posts) && posts.length <= (teacherNoticeList ? 50 : 200)) {
