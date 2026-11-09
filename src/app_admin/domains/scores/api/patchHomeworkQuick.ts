@@ -58,7 +58,7 @@ export async function patchHomeworkQuick(params: {
       enrollment_id: params.enrollmentId,
       homework_id: params.homeworkId,
       score: params.score,
-      max_score: params.maxScore ?? null,
+      max_score: params.metaStatus === "VIDEO_MAKEUP" ? null : params.maxScore ?? null,
       meta_status: params.metaStatus ?? null,
       expected_updated_at: params.expectedUpdatedAt,
     },

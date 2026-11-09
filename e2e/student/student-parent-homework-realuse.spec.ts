@@ -202,6 +202,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
         && response.request().postDataJSON()?.meta_status === "VIDEO_MAKEUP");
       await staffPage.getByRole("menuitem", { name: "영상 보강", exact: true }).click();
       const holdResponse = await savedHold;
+      expect(holdResponse.request().postDataJSON()).toMatchObject({ score: null, max_score: null });
       expect(holdResponse.status()).toBe(200);
       expect(await holdResponse.json()).toMatchObject({ score: null, meta: { status: "VIDEO_MAKEUP" } });
       await finishScoreEditing.click();
