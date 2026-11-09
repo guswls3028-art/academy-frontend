@@ -150,6 +150,7 @@ export default function CommunicationPage() {
   if (selectedPost) {
     return (
       <PostDetail
+        key={selectedPost.id}
         post={selectedPost}
         onBack={() => setSearchParams((previous) => {
           const next = new URLSearchParams(previous);

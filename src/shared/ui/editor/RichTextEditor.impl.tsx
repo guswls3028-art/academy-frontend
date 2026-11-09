@@ -30,6 +30,7 @@ export type RichTextEditorProps = {
   minHeight?: number;
   /** Called when user attaches files via the file button */
   onFileAttach?: (files: File[]) => void;
+  onImageAttach?: (files: File[]) => void;
   /** List of already attached files to display */
   attachedFiles?: { name: string; url?: string }[];
   readOnly?: boolean;
@@ -138,6 +139,7 @@ export default function RichTextEditor({
   placeholder = "내용을 입력하세요...",
   minHeight = 200,
   onFileAttach,
+  onImageAttach,
   attachedFiles,
   readOnly = false,
   compact = false,
@@ -148,6 +150,7 @@ export default function RichTextEditor({
     "--rich-editor-min-height": `${minHeight}px`,
   };
 
+  const onAttachImages = onImageAttach ?? onFileAttach;
   const attachImages = useCallback(
     (files: File[]) => {
       if (readOnly) return;
@@ -160,13 +163,13 @@ export default function RichTextEditor({
         return true;
       });
       if (accepted.length === 0) return;
-      if (!onFileAttach) {
+      if (!onAttachImages) {
         feedback.warning("이 작성 화면에서는 이미지를 첨부할 수 없습니다.");
         return;
       }
-      onFileAttach(accepted);
+      onAttachImages(accepted);
     },
-    [onFileAttach, readOnly],
+    [onAttachImages, readOnly],
   );
 
   const editor = useEditor({
@@ -201,10 +204,11 @@ export default function RichTextEditor({
       handleDOMEvents: { keydown: (view, event) => delegateEditorEscape(view.dom, event) },
       handlePaste: (_view, event) => {
         if (readOnly) return false;
-        const items = event.clipboardData?.items;
-        if (!items) return false;
-        const images = Array.from(items)
-          .filter((item) => item.type.startsWith("image/"))
+        const clipboard = event.clipboardData;
+        if (!clipboard) return false;
+        const imageFiles = Array.from(clipboard.files).filter((file) => file.type.startsWith("image/"));
+        const images = imageFiles.length ? imageFiles : Array.from(clipboard.items)
+          .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
           .map((item) => item.getAsFile())
           .filter((file): file is File => file != null);
         if (images.length === 0) return false;
@@ -241,10 +245,13 @@ export default function RichTextEditor({
   const handleImageUpload = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
-      if (files) attachImages(Array.from(files));
+      if (files?.length) {
+        attachImages(Array.from(files));
+        if (onImageAttach) editor?.commands.focus();
+      }
       e.target.value = "";
     },
-    [attachImages],
+    [attachImages, editor, onImageAttach],
   );
 
   // --- File attach ---
@@ -463,12 +470,14 @@ export default function RichTextEditor({
           </button>
 
           {/* --- Image upload --- */}
-          {onFileAttach && <>
+          {onAttachImages && <>
           <button
             type="button"
             className="rich-editor__toolbar-btn"
             onClick={() => imageInputRef.current?.click()}
             title="이미지 삽입"
+            aria-label="이미지 삽입"
+            disabled={readOnly}
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <rect x="1" y="2" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.2" />

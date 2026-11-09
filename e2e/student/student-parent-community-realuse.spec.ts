@@ -42,6 +42,16 @@ const qnaTitle = `QA 학부모 질문 ${runStamp}`;
 const counselTitle = `QA 학부모 상담 ${runStamp}`;
 const studentQuestionTitle = `QA 학생 답변 확인 ${runStamp}`;
 const answerContent = "QA 관리자 화면에서 저장한 학습 답변입니다.";
+const answerPng = "iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAEElEQVR4nGM4aFYDRww4OQBWkBFlOSF6ngAAAABJRU5ErkJggg==";
+
+async function expectAnswerPhotos(page: Parameters<typeof gotoAndSettle>[0]) {
+  const photos = page.getByRole("img", { name: /^답변 사진:/ });
+  await expect(photos).toHaveCount(2);
+  for (const photo of await photos.all()) {
+    await expect(photo).toBeVisible();
+    await expect(photo).toHaveJSProperty("naturalWidth", 4);
+  }
+}
 
 async function cleanup(request: Parameters<typeof api>[0]): Promise<void> {
   if (!adminAccess) return;
@@ -349,13 +359,26 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
       await gotoAndSettle(adminPage, `${QA_BASE}/workspace/community/qna?id=${studentQuestion.id}`);
       await expect(adminPage.locator(".qna-inbox__thread-title")).toHaveText(studentQuestionTitle);
       await adminPage.getByRole("button", { name: "답변하기", exact: true }).click();
-      await adminPage.locator(".qna-inbox__composer .ProseMirror").fill(answerContent);
+      const editor = adminPage.locator(".qna-inbox__composer .ProseMirror");
+      await editor.fill(answerContent);
+      await adminPage.locator('.qna-inbox__composer input[type="file"][accept="image/*"]').setInputFiles({
+        name: "qa-답변-선택.png", mimeType: "image/png", buffer: Buffer.from(answerPng, "base64"),
+      });
+      await adminContext.grantPermissions(["clipboard-read", "clipboard-write"]);
+      await editor.click();
+      await adminPage.evaluate(async (png) => {
+        const bytes = Uint8Array.from(atob(png), (character) => character.charCodeAt(0));
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": new Blob([bytes], { type: "image/png" }) })]);
+      }, answerPng);
+      await editor.press("Control+v");
+      await expect(adminPage.getByRole("list", { name: "첨부할 답변 사진" }).getByRole("img")).toHaveCount(2);
       const replied = adminPage.waitForResponse((response) => response.request().method() === "POST"
-        && new URL(response.url()).pathname === `/api/v1/community/posts/${studentQuestion.id}/replies/`);
+        && new URL(response.url()).pathname === `/api/v1/community/posts/${studentQuestion.id}/replies/with-images/`);
       await adminPage.getByRole("button", { name: "답변 등록", exact: true }).click();
       expect((await replied).status()).toBe(201);
       await adminPage.reload({ waitUntil: "domcontentloaded" });
       await expect(adminPage.getByText(answerContent, { exact: true })).toBeVisible();
+      await expectAnswerPhotos(adminPage);
       await expect(adminPage.locator(".qna-inbox__thread-header")).toContainText("답변 완료");
       for (const width of [1366, 390]) {
         await adminPage.setViewportSize({ width, height: 900 });
@@ -446,9 +469,11 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
       await expect(question.locator("xpath=ancestor::button[1]")).toContainText("답변 완료");
       await question.click();
       await expect(page.getByText(answerContent, { exact: true })).toBeVisible();
+      await expectAnswerPhotos(page);
       await reloadStudentApp(page);
       await page.getByText(studentQuestionTitle, { exact: true }).click();
       await expect(page.getByText(answerContent, { exact: true })).toBeVisible();
+      await expectAnswerPhotos(page);
       await assertNoHorizontalOverflow(page);
     }
     await selectParentStudentThroughUi(page, sibling);

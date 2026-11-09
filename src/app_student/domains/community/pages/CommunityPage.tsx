@@ -2,6 +2,7 @@
  * PATH: src/app_student/domains/community/pages/CommunityPage.tsx
  * 학생 커뮤니티 — QnA | 게시판 | 자료실
  */
+import { ReplyPhotos } from "@/shared/ui/content/ReplyPhotos";
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -669,6 +670,7 @@ function QnaDetailContent({ question, onBack }: { question: PostEntity; onBack: 
                       className="stu-panel community-answer-card"
                     >
                       <HtmlContent html={r.content} />
+                      <ReplyPhotos attachments={r.attachments} onRetry={refetch} />
                       <div className="stu-muted community-answer-date">{formatYmd(r.created_at)}</div>
                     </div>
                   ))}

@@ -3,10 +3,14 @@
 import api from "@/shared/api/axios";
 import { countFromApiResponse, listFromApiResponse } from "@/shared/api/response";
 import {
+  createCommunityPhotoReply,
   deleteCommunityPost,
   deleteCommunityPostAttachment,
+  deleteCommunityReply,
   uploadCommunityPostAttachments,
   type CommunityDeleteResult,
+  type PostAttachment as ReplyAttachment,
+  type ReplyPhotoBatch,
 } from "@/shared/api/contracts/community";
 
 /* ─── Types ─── */
@@ -28,10 +32,11 @@ export interface Post {
 
 export interface Reply {
   id: number;
+  attachments?: ReplyAttachment[];
   post: number;
   content: string;
   author_display_name?: string;
-  created_by_display?: string;
+  created_by_display?: string | null;
   author_role?: string;
   created_at: string;
 }
@@ -103,13 +108,14 @@ export async function fetchPostReplies(postId: number): Promise<Reply[]> {
   return listFromApiResponse<Reply>(res.data);
 }
 
-export async function createReply(postId: number, content: string): Promise<Reply> {
+export async function createReply(postId: number, content: string, photos?: ReplyPhotoBatch): Promise<Reply> {
+  if (photos) return createCommunityPhotoReply(api, postId, content, photos);
   const res = await api.post(`/community/posts/${postId}/replies/`, { content });
   return res.data;
 }
 
-export async function deleteReply(postId: number, replyId: number): Promise<void> {
-  await api.delete(`/community/posts/${postId}/replies/${replyId}/`);
+export function deleteReply(postId: number, replyId: number) {
+  return deleteCommunityReply(api, postId, replyId);
 }
 
 export async function createPost(data: {

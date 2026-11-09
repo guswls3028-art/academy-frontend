@@ -120,6 +120,25 @@ test("QnA image requires exact authenticated post response and preserves R2 PNG 
   assert.throws(() => assertReleaseRequestSafe(boundary, url, "GET"), /escaped/);
 });
 
+
+test("QnA reply photos require authenticated reply data and the exact scoped image", async () => {
+  const replyUrl = url.replace("/uploads/", "/reply-uploads/").replace("qa-problem.png?", "photo.png?");
+  const photo = { id: 22, size_bytes: png.length, content_type: "image/png", download_url: replyUrl };
+  const reply = { id: 21, post: 123, question: 123, author_role: "staff", attachments: [photo] };
+  const options = { registerUrl: replyUrl, apiPath: "/api/v1/community/posts/123/replies/", payload: [reply] };
+
+  const result = await exercise(options);
+  result.guard.assertClean();
+  assert.deepEqual(result.fulfilled, [{ status: 200, headers: { "content-type": "image/png" }, body: png }]);
+  rejected(await exercise({ ...options, apiPath: "/api/v1/community/posts/123/replies/?unexpected=1" }));
+  rejected(await exercise({ ...options, apiHeaders: { authorization: undefined } }));
+  rejected(await exercise({ ...options, payload: [{ ...reply, post: 124 }] }));
+  rejected(await exercise({ ...options, payload: [{ ...reply, author_role: "student" }] }));
+  rejected(await exercise({ ...options, payload: [{ ...reply, attachments: [{ ...photo, size_bytes: png.length + 1 }] }] }), 1);
+  rejected(await exercise({ ...options, apiPath: "/api/v1/community/posts/124/replies/" }));
+  rejected(await exercise({ ...options, apiPath: "/api/v1/community/posts/123/", payload: { id: 123, post_type: "qna", attachments: [photo] } }));
+});
+
 test("QnA HEIC decoding reads exact scoped bytes with real storage CORS and no app credentials", async () => {
   const body = readFileSync(new URL("../../e2e/fixtures/files/homework.heic", import.meta.url));
   const heicUrl = new URL(url.replace("qa-problem.png?", "qa-problem.heic?"));

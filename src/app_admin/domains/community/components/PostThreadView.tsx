@@ -12,6 +12,10 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
+import { ReplyPhotoDraft, ReplyPhotos } from "@/shared/ui/content/ReplyPhotos";
+import { useReplyPhotoDraft } from "@/shared/hooks/useReplyPhotoDraft";
+import { extractApiError } from "@/shared/utils/extractApiError";
+import { getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 import PostReadView from "./PostReadView";
 import CommunityAvatar from "./CommunityAvatar";
 import {
@@ -47,6 +51,7 @@ interface PostThreadViewProps {
   mode?: ThreadMode;
   /** 답변 등록 가능 여부 (예: 삭제된 학생 글) */
   allowReply?: boolean;
+  enableReplyPhotos?: boolean;
   /** 등록 후 추가 invalidation */
   invalidateKeys?: readonly (readonly unknown[])[];
   /** 답변 미존재 안내 (없으면 기본값) */
@@ -65,6 +70,7 @@ export default function PostThreadView({
   postId,
   mode = "comment",
   allowReply = true,
+  enableReplyPhotos = false,
   invalidateKeys = [],
   emptyText,
   placeholder,
@@ -72,7 +78,7 @@ export default function PostThreadView({
 }: PostThreadViewProps) {
   const repliesQ = useQuery<Answer[]>({
     queryKey: adminCommunityQueryKeys.postReplies(postId),
-    queryFn: () => fetchPostReplies(postId),
+    queryFn: () => fetchPostReplies(postId, enableReplyPhotos),
   });
   const hasNoReplies = !repliesQ.isLoading
     && !repliesQ.isError
@@ -90,11 +96,13 @@ export default function PostThreadView({
         emptyText={emptyText}
         invalidateKeys={invalidateKeys}
       />
-      {!repliesQ.isError && (
+      {(!repliesQ.isError || repliesQ.data !== undefined) && (
         <ThreadComposer
+          key={postId}
           postId={postId}
           mode={mode}
           allowReply={allowReply}
+          enableReplyPhotos={enableReplyPhotos}
           invalidateKeys={invalidateKeys}
           placeholder={placeholder}
           onReplyCreated={onReplyCreated}
@@ -159,7 +167,7 @@ function ThreadList({
   return (
     <div className="qna-inbox__reply-list">
       {replies.map((r) => (
-        <ReplyBlock key={r.id} postId={postId} reply={r} mode={mode} invalidateKeys={invalidateKeys} />
+        <ReplyBlock key={r.id} postId={postId} reply={r} mode={mode} invalidateKeys={invalidateKeys} refetch={refetch} />
       ))}
     </div>
   );
@@ -170,9 +178,11 @@ function ReplyBlock({
   reply,
   mode,
   invalidateKeys,
+  refetch,
 }: {
   postId: number;
   reply: Answer;
+  refetch: () => Promise<unknown>;
   mode: ThreadMode;
   invalidateKeys: readonly (readonly unknown[])[];
 }) {
@@ -210,9 +220,11 @@ function ReplyBlock({
 
   const deleteMut = useMutation({
     mutationFn: () => deleteReplyApi(postId, reply.id),
-    onSuccess: () => {
+    onSuccess: (result) => {
       invalidateAll();
-      feedback.success(mode === "answer" ? "답변이 삭제되었습니다." : "댓글이 삭제되었습니다.");
+      const cleanupNotice = getCommunityStorageCleanupNotice(result);
+      if (cleanupNotice) feedback.warning(cleanupNotice);
+      else feedback.success(mode === "answer" ? "답변이 삭제되었습니다." : "댓글이 삭제되었습니다.");
     },
     onError: (e: unknown) => feedback.error((e as Error)?.message ?? "삭제에 실패했습니다."),
   });
@@ -249,6 +261,7 @@ function ReplyBlock({
           <>
             <div className="qna-inbox__message-body">
               <PostReadView html={reply.content} />
+              <ReplyPhotos attachments={reply.attachments} onRetry={refetch} />
             </div>
             <div className="qna-inbox__message-actions">
               <Button size="sm" intent="ghost" onClick={() => setEditing(true)}>
@@ -284,6 +297,7 @@ function ThreadComposer({
   postId,
   mode,
   allowReply,
+  enableReplyPhotos,
   invalidateKeys,
   placeholder,
   onReplyCreated,
@@ -291,24 +305,30 @@ function ThreadComposer({
   postId: number;
   mode: ThreadMode;
   allowReply: boolean;
+  enableReplyPhotos: boolean;
   invalidateKeys: readonly (readonly unknown[])[];
   placeholder?: string;
   onReplyCreated?: () => void;
 }) {
   const [content, setContent] = useState("");
+  const photos = useReplyPhotoDraft();
   const qc = useQueryClient();
 
   const createMut = useMutation({
-    mutationFn: () => createAnswer(postId, content),
+    mutationFn: () => createAnswer(postId, content, photos.batch()),
     onSuccess: () => {
       onReplyCreated?.();
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.postReplies(postId) });
       qc.invalidateQueries({ queryKey: adminCommunityQueryKeys.post(postId) });
       for (const key of invalidateKeys) qc.invalidateQueries({ queryKey: key });
       setContent("");
+      photos.reset();
       feedback.success(mode === "answer" ? "답변이 등록되었습니다." : "댓글이 등록되었습니다.");
     },
-    onError: (e: unknown) => feedback.error((e as Error)?.message ?? "등록에 실패했습니다."),
+    onError: (error) => {
+      photos.handleError(error);
+      if (!enableReplyPhotos) feedback.error(extractApiError(error, "등록에 실패했습니다."));
+    },
   });
 
   if (!allowReply) {
@@ -335,7 +355,8 @@ function ThreadComposer({
               onChange={setContent}
               placeholder={placeholder ?? "답변을 작성하세요…"}
               minHeight={80}
-              readOnly={createMut.isPending}
+              readOnly={createMut.isPending || photos.locked}
+              onImageAttach={enableReplyPhotos ? photos.add : undefined}
             />
           </div>
         ) : (
@@ -358,9 +379,17 @@ function ThreadComposer({
             rows={3}
           />
         )}
+        <ReplyPhotoDraft files={photos.files} onRemove={photos.remove} disabled={createMut.isPending || photos.locked} />
+        {enableReplyPhotos && createMut.isError && (
+          <p className="qna-inbox__empty-desc" role="alert">
+            {extractApiError(createMut.error, "답변을 등록하지 못했습니다. 다시 시도해 주세요.")}
+          </p>
+        )}
         <div className="qna-inbox__composer-footer">
           {mode === "answer" ? (
-            <span className="qna-inbox__composer-hint">텍스트 · 링크 · 서식 지원</span>
+            <span className="qna-inbox__composer-hint">
+              {enableReplyPhotos ? "사진 선택 또는 Ctrl+V로 붙여넣기" : "텍스트 · 링크 · 서식 지원"}
+            </span>
           ) : (
             <span className="qna-inbox__composer-hint">
               <kbd>Ctrl</kbd>
@@ -371,9 +400,9 @@ function ThreadComposer({
             intent="primary"
             size="sm"
             onClick={() => createMut.mutate()}
-            disabled={isEmpty || createMut.isPending}
+            disabled={(isEmpty && photos.files.length === 0) || createMut.isPending}
           >
-            {createMut.isPending ? "등록 중…" : mode === "answer" ? "답변 등록" : "댓글 등록"}
+            {createMut.isPending ? "등록 중…" : photos.locked ? "다시 등록" : mode === "answer" ? "답변 등록" : "댓글 등록"}
           </Button>
         </div>
       </div>

@@ -373,13 +373,100 @@ test.describe("커뮤니티 QnA 작업대", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   });
 
+
+  test("390px에서 사진 선택·붙여넣기와 답변 등록 재시도", async ({ page, context, browserName }) => {
+    const png = "iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAEElEQVR4nGM4aFYDRww4OQBWkBFlOSF6ngAAAABJRU5ErkJggg==";
+    const endpoint = `**/api/v1/community/posts/${QUESTION_ID}/replies/with-images/`;
+    let saved = false;
+    let firstRequestKey: string | undefined;
+    const reply = {
+      id: 91,
+      question: QUESTION_ID,
+      content: "",
+      created_at: "2026-08-23T02:00:00Z",
+      author_role: "staff",
+      attachments: ["선택한 풀이.png", "붙여넣은 풀이.png"].map((name, index) => ({
+        id: index + 30, original_name: name, content_type: "image/png", size_bytes: Buffer.from(png, "base64").length,
+        download_url: `data:image/png;base64,${png}`,
+      })),
+    };
+    await page.route(endpoint, async (route) => {
+      const request = route.request();
+      if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers: CORS_HEADERS });
+      expect(request.method()).toBe("POST");
+      const body = request.postDataBuffer()!.toString("utf8");
+      const requestKey = /name="idempotency_key"\r\n\r\n([^\r\n]+)/.exec(body)?.[1];
+      expect(requestKey).toBeTruthy();
+      expect(body.match(/name="files"/g)).toHaveLength(2);
+      if (!firstRequestKey) {
+        firstRequestKey = requestKey;
+        return route.fulfill({ status: 503, headers: CORS_HEADERS, json: { detail: "답변 사진을 저장하지 못했습니다." } });
+      }
+      expect(requestKey).toBe(firstRequestKey);
+      saved = true;
+      return route.fulfill({ status: 201, headers: CORS_HEADERS, json: reply });
+    });
+    await page.route(endpoint.replace("with-images/", ""), async (route) => {
+      if (!saved || route.request().method() !== "GET") return route.fallback();
+      return route.fulfill({ status: 200, headers: CORS_HEADERS, json: [reply] });
+    });
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoAndSettle(page, `${BASE}/workspace/community/qna?id=${QUESTION_ID}`, { timeout: 60_000 });
+    await expect(page.getByRole("heading", { name: "프린트 진화와 자연선택 20번" })).toBeVisible({ timeout: 60_000 });
+    await page.getByRole("tab", { name: "답변 작성" }).click();
+    const composer = page.locator(".qna-inbox__composer");
+    const editor = composer.locator(".ProseMirror");
+    await expect(editor).toBeVisible();
+    const chooser = page.waitForEvent("filechooser");
+    await composer.getByRole("button", { name: "이미지 삽입", exact: true }).click();
+    await (await chooser).setFiles({ name: "선택한 풀이.png", mimeType: "image/png", buffer: Buffer.from(png, "base64") });
+    if (browserName === "chromium") {
+      await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+      await editor.click();
+      await page.evaluate(async (source) => {
+        const bytes = Uint8Array.from(atob(source), (character) => character.charCodeAt(0));
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": new Blob([bytes], { type: "image/png" }) })]);
+      }, png);
+      await editor.press("Control+v");
+    } else {
+      await editor.evaluate((element, source) => {
+        const bytes = Uint8Array.from(atob(source), (character) => character.charCodeAt(0));
+        const clipboard = new DataTransfer();
+        clipboard.items.add(new File([bytes], "붙여넣은 풀이.png", { type: "image/png" }));
+        element.dispatchEvent(new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: clipboard }));
+      }, png);
+    }
+    const draft = composer.getByRole("list", { name: "첨부할 답변 사진" });
+    await expect(draft.getByRole("img")).toHaveCount(2);
+    await expect(draft.getByRole("button", { name: "선택한 풀이.png 제거" })).toBeEnabled();
+    await composer.getByRole("button", { name: "답변 등록", exact: true }).click();
+    await expect(composer.getByRole("alert")).toContainText("답변 사진을 저장하지 못했습니다.");
+    await expect(draft.getByRole("img")).toHaveCount(2);
+    await composer.getByRole("button", { name: "다시 등록", exact: true }).click();
+    const photos = page.getByRole("img", { name: /^답변 사진:/ });
+    await expect(photos).toHaveCount(2);
+    await expect(photos.first()).toHaveJSProperty("naturalWidth", 4);
+    const arrivalOverview = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/api/v1/lectures/attendance/arrival-overview/"
+      && response.request().method() === "GET" && response.ok(),
+    );
+    await page.reload({ waitUntil: "load" });
+    await expect(page.getByRole("heading", { name: "프린트 진화와 자연선택 20번" })).toBeVisible({ timeout: 60_000 });
+    await page.getByRole("tab", { name: "답변 작성" }).click();
+    await expect(photos).toHaveCount(2);
+    await expect(photos.last()).toHaveJSProperty("naturalWidth", 4);
+    expect(await (await arrivalOverview).finished()).toBeNull();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  });
+
   test("데스크톱에서 문제 이미지와 답변기를 함께 보고 미답변 수를 즉시 줄인다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });
     await gotoAndSettle(page, `${BASE}/workspace/community/qna?id=${QUESTION_ID}`, { timeout: 60_000 });
 
     await expect(page.locator(".qna-inbox__reference-pane")).toBeVisible({ timeout: 60_000 });
     await expect(page.locator(".qna-inbox__answer-pane")).toBeVisible();
-    await expect(page.locator(".qna-inbox__answer-pane").getByTitle("이미지 삽입", { exact: true })).toHaveCount(0);
+    await expect(page.locator(".qna-inbox__answer-pane").getByRole("button", { name: "이미지 삽입", exact: true })).toBeVisible();
     await expect(page.getByTitle("답변 필요 질문 1건").first()).toBeVisible();
     await expect(page.getByRole("tab", { name: "QnA 1" })).toBeVisible();
     // WebKit needs the initial font/layout paint before geometry and pointer input.

@@ -25,6 +25,7 @@ import {
   updateCommunityReply,
   uploadCommunityPostAttachments,
   type BulkStatusValue,
+  type ReplyPhotoBatch,
   type CommunityPostCreatePayload,
   type CommunityScopeParams,
   type PostType,
@@ -119,8 +120,8 @@ export async function fetchCommunityQuestions(
   }));
 }
 
-export function fetchPostReplies(postId: number) {
-  return fetchCommunityPostReplies(api, postId, { fallbackToEmpty: true });
+export function fetchPostReplies(postId: number, strict = false) {
+  return fetchCommunityPostReplies(api, postId, { fallbackToEmpty: !strict });
 }
 
 export async function fetchQuestionAnswer(questionId: number) {
@@ -128,8 +129,8 @@ export async function fetchQuestionAnswer(questionId: number) {
   return replies.length > 0 ? replies[0] : null;
 }
 
-export function createAnswer(questionId: number, content: string) {
-  return createCommunityAnswer(api, questionId, content);
+export function createAnswer(questionId: number, content: string, photos?: ReplyPhotoBatch) {
+  return createCommunityAnswer(api, questionId, content, photos);
 }
 
 export function deletePost(postId: number) {

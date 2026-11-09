@@ -659,6 +659,7 @@ function ThreadView({
           <PostThreadView
             postId={postId}
             mode="answer"
+            enableReplyPhotos
             allowReply={!post.created_by_deleted}
             invalidateKeys={[adminCommunityQueryKeys.questions, notificationQueryKeys.operationalCounts]}
             placeholder="학생에게 답변을 작성하세요…"
