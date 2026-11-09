@@ -189,7 +189,9 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       checkpoint.viewport = 1366;
       await staffPage.reload();
       const editScores = staffPage.getByRole("button", { name: "수정", exact: true });
+      const finishScoreEditing = staffPage.getByRole("button", { name: "점수 입력 마침", exact: true });
       await editScores.click();
+      await expect(finishScoreEditing).toBeEnabled();
       const completionCell = staffPage.locator(
         '[data-score-cell="homework:' + created.enrollmentId + ':' + completion.id + '"]',
       );
@@ -202,7 +204,7 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
       const holdResponse = await savedHold;
       expect(holdResponse.status()).toBe(200);
       expect(await holdResponse.json()).toMatchObject({ score: null, meta: { status: "VIDEO_MAKEUP" } });
-      await staffPage.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
+      await finishScoreEditing.click();
       await expect(editScores).toBeVisible();
       await staffPage.reload();
       await expect(completionCell).toContainText("영상 보강");
