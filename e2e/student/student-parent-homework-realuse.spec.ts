@@ -233,15 +233,16 @@ async function verifyHomeworkFeedback(
 
       await staffPage.getByRole("checkbox", { name: studentName + " 선택", exact: true }).check();
       await staffPage.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
-      const holdMessage = staffPage.getByRole("dialog", { name: "알림톡 발송", exact: true });
+      const holdMessage = staffPage.getByRole("dialog", { name: "알림톡 발송" });
+      await expect(holdMessage).toBeVisible();
+      await holdMessage.getByRole("checkbox", { name: "학부모", exact: true }).check();
+      await holdMessage.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
       await holdMessage.getByRole("textbox", { name: "안내문", exact: true }).fill("과제 확인\n");
       await holdMessage.getByRole("button", { name: completionTitle + " 넣기", exact: true }).click();
       await expect(holdMessage.getByLabel("현재 학생의 실제 발송 문구")).toContainText(completionTitle + ": 검사 대기");
       await holdMessage.getByRole("button", { name: "취소", exact: true }).click();
-      const discardHoldMessage = staffPage.getByRole("alertdialog", { name: "작성한 문구를 닫을까요?", exact: true });
-      if (await discardHoldMessage.isVisible()) {
-        await discardHoldMessage.getByRole("button", { name: "수정 내용 버리고 닫기", exact: true }).click();
-      }
+      await staffPage.getByRole("alertdialog", { name: "작성한 문구를 닫을까요?", exact: true })
+        .getByRole("button", { name: "수정 내용 버리고 닫기", exact: true }).click();
       await expect(holdMessage).toBeHidden();
 
       for (const width of [1366, 390]) {
