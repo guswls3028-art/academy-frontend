@@ -14,12 +14,16 @@ async function openAttendanceTools(page: Page) {
   await expect(page.getByRole("heading", { name: "출결 도구", exact: true })).toBeInViewport();
 }
 
+function attendanceChoices(page: Page, student: string) {
+  return page.getByRole("group", { name: student + " 출결 상태 선택", exact: true });
+}
+
+function attendanceOption(page: Page, student: string, label: string) {
+  return attendanceChoices(page, student).getByRole("button", { name: label, exact: true });
+}
+
 async function chooseAttendanceStatus(page: Page, student: string, label: string) {
-  const picker = page.getByRole("group", { name: `${student} 출결 상태 선택` });
-  if (!(await picker.isVisible())) {
-    await page.getByRole("button", { name: `${student} 출결 상태 변경`, exact: true }).click();
-  }
-  await picker.getByRole("button", { name: label, exact: true }).click();
+  await attendanceOption(page, student, label).click();
 }
 
 if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
@@ -27,18 +31,16 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
     const recording = await guideRecording(page, info, { id: "admin-attendance", title: "차시 출결 입력과 저장 확인", topics: ["admin/attendance"] });
     const state = createState();
     await openAttendance(page, state);
-    const trigger = page.getByRole("button", { name: "결석학생 출결 상태 변경" });
+    const late = attendanceOption(page, "결석학생", "지각");
     await recording.screen("수업과 학생 명단 확인", "해당 강의·차시의 출결을 열고 학생 명단과 수업 날짜를 확인합니다.", page.locator('[aria-label^="차시 출결 집계:"]'));
-    await trigger.click();
-    const late = page.getByRole("group", { name: "결석학생 출결 상태 선택" }).getByRole("button", { name: "지각", exact: true });
     await recording.screen("학생의 실제 출결 선택", "학생 행에서 현장·지각·결석 등 실제 상태를 누릅니다. 전체출석은 예외 학생을 먼저 확인합니다.", late);
     await late.click();
     await expect.poll(() => state.attendanceStatuses[502]).toBe("LATE");
-    await expect(trigger).toHaveText("지각");
+    await expect(late).toHaveAttribute("aria-pressed", "true");
     await recording.screen("저장된 상태와 집계 확인", "선택한 상태와 상단 집계가 바뀌었는지 확인합니다.", page.locator('[aria-label^="차시 출결 집계:"]'));
     await page.reload();
-    await expect(trigger).toHaveText("지각");
-    await recording.screen("다시 열어 출결 확인", "새로고침 후에도 같은 상태인지 확인합니다. 잘못 입력했다면 현재 상태를 확인하고 정정합니다.", trigger);
+    await expect(late).toHaveAttribute("aria-pressed", "true");
+    await recording.screen("다시 열어 출결 확인", "새로고침 후에도 같은 상태인지 확인합니다. 잘못 입력했다면 현재 상태를 확인하고 정정합니다.", late);
     await recording.finish();
   });
 }
@@ -439,8 +441,7 @@ test("차시 헤더 집계는 탭 이동에도 남고 공지는 커뮤니티로 
   await page.screenshot({ path: testInfo.outputPath("session-notice-summary-390.png"), fullPage: true });
   await page.getByRole("tab", { name: "출결", exact: true }).click();
   const firstRow = page.locator("tbody tr").first();
-  await expect(firstRow).toBeVisible();
-  expect((await firstRow.boundingBox())!.height).toBeLessThanOrEqual(96);
+  await expect(firstRow.getByRole("group", { name: /출결 상태 선택$/ }).getByRole("button")).toHaveCount(11);
   await page.screenshot({ path: testInfo.outputPath("attendance-density-390.png"), fullPage: true });
 });
 
@@ -535,8 +536,7 @@ for (const width of [1366, 390]) {
     await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
 
     state.failAttendanceRead = true;
-    await page.getByRole("button", { name: "결석학생 출결 상태 변경" }).click();
-    await page.locator(".attendance-popover").getByRole("button", { name: "현장", exact: true }).click();
+    await chooseAttendanceStatus(page, "결석학생", "현장");
     await expect.poll(() => state.attendanceStatusUpdates).toEqual([{ id: 502, status: "PRESENT" }]);
     await expect(error).toBeVisible();
     await expect(studentLinks).toHaveCount(0);
@@ -582,12 +582,7 @@ for (const width of [1366, 390]) {
     await expect(toggle).toHaveAttribute("aria-pressed", "true");
     await expect(studentLinks.nth(0)).toHaveAttribute("aria-label", "결석학생 학생 상세 열기");
 
-    const markPresent = async () => {
-      if (!(await page.locator(".attendance-popover").isVisible())) {
-        await page.getByRole("button", { name: "결석학생 출결 상태 변경" }).click();
-      }
-      await page.locator(".attendance-popover").getByRole("button", { name: "현장", exact: true }).click();
-    };
+    const markPresent = () => chooseAttendanceStatus(page, "결석학생", "현장");
     state.failStatusUpdate = true;
     await markPresent();
     await expect(page.getByText("출석 상태 변경에 실패했습니다. 다시 시도해 주세요.", { exact: true })).toBeVisible();
@@ -609,83 +604,64 @@ for (const width of [1366, 390]) {
   });
 }
 
-test("출결은 현재 상태를 먼저 보이고 선택·키보드 복귀·새로고침을 모든 폭에서 유지한다", async ({ page }, testInfo) => {
+test("모든 출결 버튼이 명단에 노출되고 결석 계열과 현장을 구분한다", async ({ page }, testInfo) => {
   const state = createState();
-  await page.setViewportSize({ width: 1366, height: 850 });
+  await page.setViewportSize({ width: 1366, height: 900 });
   await openAttendance(page, state, { includePresentStudent: true });
-  const trigger = page.getByRole("button", { name: "결석학생 출결 상태 변경" });
-  const picker = page.getByRole("group", { name: "결석학생 출결 상태 선택" });
-  await expect(trigger).toHaveText("결석");
-  const statusBadge = trigger.locator("[data-tone]");
-  await expect(statusBadge).toHaveAttribute("data-tone", "danger");
-  await expect(picker).toHaveCount(0);
-  await expect(page.getByRole("group", { name: /출결 빠른 선택/ })).toHaveCount(0);
-  await trigger.focus();
-  await page.keyboard.press("Enter");
-  await expect(picker.getByRole("button")).toHaveCount(11);
-  await expect(picker.getByRole("button", { name: "결석", exact: true })).toBeFocused();
-  await expect(picker.locator('[aria-pressed="true"]')).toHaveCount(1);
-  const backgrounds = await Promise.all(["현장", "영상"].map(label =>
-    picker.getByRole("button", { name: label, exact: true }).evaluate(node => getComputedStyle(node).backgroundColor),
-  ));
-  expect(backgrounds[0]).toBe(backgrounds[1]);
-  for (const label of ["부재", "퇴원"]) {
-    await expect(picker.getByRole("button", { name: label, exact: true })).toHaveAttribute("data-critical", "true");
+  const choices = attendanceChoices(page, "결석학생");
+  const absent = attendanceOption(page, "결석학생", "결석");
+  const present = attendanceOption(page, "결석학생", "현장");
+  const late = attendanceOption(page, "결석학생", "지각");
+  const selectedPresent = page.locator(".attendance-status-options").getByRole("button", {
+    name: "현장", exact: true, pressed: true,
+  });
+  const labels = ["미입력", "현장", "영상", "보강", "지각", "조퇴", "결석", "출튀", "자료", "부재", "퇴원"];
+
+  await expect(absent).toHaveAttribute("aria-pressed", "true");
+  await expect(absent).toHaveCSS("background-color", "rgb(185, 28, 28)");
+  await expect(selectedPresent).toHaveCSS("background-color", "rgb(21, 128, 61)");
+  await expect(present).toHaveAttribute("data-tone", "success");
+  for (const label of ["결석", "출튀", "부재", "퇴원"]) {
+    await expect(attendanceOption(page, "결석학생", label)).toHaveAttribute("data-tone", "danger");
   }
-  await page.keyboard.press("Escape");
-  await expect(picker).toHaveCount(0);
-  await expect(trigger).toBeFocused();
+  await absent.click();
   expect(state.attendanceStatusUpdates).toEqual([]);
-  await chooseAttendanceStatus(page, "결석학생", "지각");
-  await expect.poll(() => state.attendanceStatusUpdates).toEqual([{ id: 502, status: "LATE" }]);
-  await expect(trigger).toHaveText("지각");
+  await late.focus();
+  await page.keyboard.press("Enter");
+  await expect(late).toHaveAttribute("aria-pressed", "true");
+  await expect(late).toBeFocused();
   await expect(page.locator('[aria-label^="차시 출결 집계:"]')).toContainText("지각1");
 
   for (const width of [1366, 1100, 390]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(trigger).toHaveText("지각");
-    await expect(statusBadge).toHaveAttribute("data-tone", "warning");
-    const lateColor = await statusBadge.evaluate(node => getComputedStyle(node).backgroundColor);
-    const presentColor = await page.getByRole("button", { name: /출결 상태 변경$/ })
-      .locator('[data-tone="success"]').first().evaluate(node => getComputedStyle(node).backgroundColor);
-    expect(lateColor).not.toBe(presentColor);
-    const firstRow = page.locator("tbody tr").first();
-    const firstName = firstRow.getByRole("link", { name: /학생 상세 열기$/ });
-    const firstStatus = firstRow.getByRole("button", { name: /출결 상태 변경$/ });
-    const bounds = (await firstRow.boundingBox())!;
-    const header = (await page.locator('[data-app="admin"] > div > header').boundingBox())!;
-    const bottomMenu = width === 390 ? await page.getByRole("navigation", { name: "하단 메뉴", exact: true }).boundingBox() : null;
-    await testInfo.attach(`attendance-geometry-${width}`, { contentType: "application/json", body: JSON.stringify({
-      viewport: page.viewportSize(), row: bounds, name: await firstName.boundingBox(), status: await firstStatus.boundingBox(),
-      header, bottomMenu, scrollTop: await page.locator('[data-app="admin"] main').evaluate(node => node.scrollTop),
-    }) });
-    await testInfo.attach(`attendance-initial-${width}`, { contentType: "image/png", body: await page.screenshot() });
-    await expect(trigger).toBeInViewport();
-    expect((await trigger.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-    if (width === 1366) {
-      const row = page.locator("tbody tr").filter({ has: page.getByRole("link", { name: "결석학생 학생 상세 열기" }) });
-      await expect(row.getByRole("link", { name: "결석학생 학생 상세 열기" })).toBeInViewport({ ratio: 1 });
-      await expect(row.locator("td").last()).toBeInViewport({ ratio: 1 });
+    await expect(choices.getByRole("button")).toHaveText(labels);
+    await expect(choices.getByRole("button", { pressed: true })).toHaveText("지각");
+    const row = page.getByRole("row").filter({ has: choices });
+    const first = page.locator("tbody tr").first();
+    await first.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath("attendance-direct-" + width + ".png") });
+    await choices.evaluate(element => element.scrollIntoView({ block: "center", inline: "nearest" }));
+    const name = row.getByRole("link", { name: "결석학생 학생 상세 열기" });
+    await expect(name).toBeInViewport({ ratio: 1 });
+    for (const label of labels) {
+      await expect(attendanceOption(page, "결석학생", label)).toBeInViewport({ ratio: 0.98 });
     }
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (width === 390) {
-      await expect(firstName).toBeInViewport({ ratio: 1 });
-      await expect(firstStatus).toBeInViewport({ ratio: 1 });
-      expect(bounds.y).toBeGreaterThanOrEqual(header.y + header.height);
-      expect(bounds.y + bounds.height).toBeLessThanOrEqual(Math.min(bottomMenu!.y, page.viewportSize()!.height - 64));
+      expect((await present.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      const buttonRows = await choices.getByRole("button").evaluateAll(buttons => (
+        new Set(buttons.map(button => button.getBoundingClientRect().top)).size
+      ));
+      expect(buttonRows).toBe(2);
+      await expect(row.getByRole("button", { name: "결석학생 강의 메모 추가" })).toBeVisible();
+      expect(await page.locator(".attendance-memo-container").evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
     }
-    await page.screenshot({ path: testInfo.outputPath(`attendance-current-status-${width}.png`), fullPage: true });
-    await trigger.click();
-    await expect(picker.getByRole("button", { name: "지각", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await expect(picker.getByRole("button")).toHaveCount(11);
-    await page.screenshot({ path: testInfo.outputPath(`attendance-status-choices-${width}.png`), fullPage: true });
-    await page.keyboard.press("Escape");
   }
-  await chooseAttendanceStatus(page, "결석학생", "현장");
-  await expect(trigger).toHaveText("현장");
+  await present.click();
+  await expect(present).toHaveAttribute("aria-pressed", "true");
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(trigger).toHaveText("현장");
+  await expect(present).toHaveAttribute("aria-pressed", "true");
   expect(state.attendanceStatusUpdates).toEqual([{ id: 502, status: "LATE" }, { id: 502, status: "PRESENT" }]);
 });
 
@@ -695,26 +671,27 @@ test("출결 선택 저장 실패는 기존 선택을 보존하고 같은 버튼
   const statusUpdateReady = new Promise<void>((resolve) => { releaseStatusUpdate = resolve; });
   await page.setViewportSize({ width: 390, height: 844 });
   await openAttendance(page, state, { statusUpdateReady });
-  const trigger = page.getByRole("button", { name: "결석학생 출결 상태 변경" });
-  await trigger.click();
-  const menu = page.locator(".attendance-popover");
-  const present = menu.getByRole("button", { name: "현장", exact: true });
-  await present.click();
+  const choices = attendanceChoices(page, "결석학생");
+  const present = attendanceOption(page, "결석학생", "현장");
+  await present.focus();
+  await page.keyboard.press("Enter");
   try {
-    await expect(menu.getByRole("button", { disabled: true })).toHaveCount(11);
-    await expect(present).toHaveCSS("opacity", "0.65");
+    await expect(choices.getByRole("button", { disabled: true })).toHaveCount(11);
+    await expect(page.getByText("저장 중", { exact: true })).toBeVisible();
+    await expect(present).toBeFocused();
+    await expect(attendanceOption(page, "미입력학생", "현장")).toBeEnabled();
   } finally {
     releaseStatusUpdate();
   }
   await expect(page.getByText("출석 상태 변경에 실패했습니다. 다시 시도해 주세요.")).toBeVisible();
-  await expect(menu.getByRole("button", { name: "결석", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(attendanceOption(page, "결석학생", "결석")).toHaveAttribute("aria-pressed", "true");
   await expect(present).toBeEnabled();
   expect(state.attendanceStatusUpdates).toEqual([]);
   state.failStatusUpdate = false;
-  await present.click();
-  await expect(trigger).toHaveText("현장");
+  await page.keyboard.press("Enter");
+  await expect(present).toHaveAttribute("aria-pressed", "true");
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(trigger).toHaveText("현장");
+  await expect(present).toHaveAttribute("aria-pressed", "true");
   expect(state.attendanceStatusUpdates).toEqual([{ id: 502, status: "PRESENT" }]);
 });
 
@@ -1064,8 +1041,7 @@ for (const width of [1366, 390]) {
       await expect(attendanceCell.getByText("영상 기록 없음", { exact: true })).toBeVisible();
       await page.getByRole("tab", { name: "출결", exact: true }).click();
     }
-    await page.getByRole("button", { name: "김가람 출결 상태 변경" }).click();
-    await page.locator(".attendance-popover").getByRole("button", { name: "퇴원", exact: true }).click();
+    await chooseAttendanceStatus(page, "김가람", "퇴원");
     await page.getByRole("dialog", { name: "퇴원 범위 선택" })
       .getByRole("button", { name: "이 차시만 퇴원", exact: true }).click();
     await expect.poll(() => state.secessionPayloads).toEqual([
@@ -1088,9 +1064,8 @@ for (const width of [1366, 390]) {
     await expect.poll(() => state.bulkCreatePayloads).toEqual([[2001]]);
     await expect(enrollmentDialog).toHaveCount(0);
     expect(state.attendanceStatusUpdates).toEqual([{ id: 502, status: "SECESSION" }]);
-    await expect(page.getByRole("button", { name: "김가람 출결 상태 변경" })).toContainText("미입력");
-    await page.getByRole("button", { name: "김가람 출결 상태 변경" }).click();
-    await page.locator(".attendance-popover").getByRole("button", { name: "현장", exact: true }).click();
+    await expect(attendanceOption(page, "김가람", "미입력")).toHaveAttribute("aria-pressed", "true");
+    await chooseAttendanceStatus(page, "김가람", "현장");
     await expect.poll(() => state.attendanceStatuses[502]).toBe("PRESENT");
     expect(state.attendanceStatusUpdates).toEqual([
       { id: 502, status: "SECESSION" },
@@ -1098,7 +1073,7 @@ for (const width of [1366, 390]) {
     ]);
     expect(state.attendanceStatuses[501]).toBe("UNSET");
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("button", { name: "김가람 출결 상태 변경" })).toContainText("현장");
+    await expect(attendanceOption(page, "김가람", "현장")).toHaveAttribute("aria-pressed", "true");
     await page.screenshot({ path: testInfo.outputPath(`reregister-${width}.png`), fullPage: true, animations: "disabled" });
     if (startFromScores) {
       await page.getByRole("tab", { name: "성적", exact: true }).click();
@@ -1119,8 +1094,7 @@ for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await openAttendance(page, state);
     const openSecession = async () => {
-      await page.getByRole("button", { name: "결석학생 출결 상태 변경" }).click();
-      await page.locator(".attendance-popover").getByRole("button", { name: "퇴원", exact: true }).click();
+      await chooseAttendanceStatus(page, "결석학생", "퇴원");
       await expect(page.getByRole("dialog", { name: "퇴원 범위 선택" })).toBeVisible();
     };
     await openSecession();
@@ -1245,9 +1219,9 @@ test("모바일 차시 선택은 별도 화면에서 제공하고 왕복 문맥�
   expect(linkReturnRetry.y + linkReturnRetry.height).toBeLessThanOrEqual(linkReturnNav.y);
   state.failAttendanceRead = false;
   await page.getByRole("button", { name: "다시 시도", exact: true }).click();
-  await expect(page.getByRole("button", { name: "결석학생 출결 상태 변경" })).toBeVisible();
+  await expect(attendanceChoices(page, "결석학생")).toBeVisible();
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("button", { name: "결석학생 출결 상태 변경" })).toBeVisible();
+  await expect(attendanceChoices(page, "결석학생")).toBeVisible();
   expect(state.bulkSetCalls).toBe(0);
   expect(state.attendanceDeleteCalls).toEqual([]);
 });

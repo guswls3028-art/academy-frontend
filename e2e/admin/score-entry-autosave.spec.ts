@@ -2611,7 +2611,9 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       }
       await page.getByRole("menuitem", { name: "영상 보강", exact: true }).click();
       await expect.poll(() => currentHomeworkMetaStatuses[0]).toBe("VIDEO_MAKEUP");
-      expect(homeworkPatches.at(-1)).toMatchObject({ score: null, meta_status: "VIDEO_MAKEUP" });
+      expect(homeworkPatches.at(-1)).toMatchObject({
+        score: null, max_score: null, meta_status: "VIDEO_MAKEUP",
+      });
       await expect(cell.getByRole("button", { name: "영상 보강 해제", exact: true })).toBeVisible();
       await page.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
       await page.reload({ waitUntil: "domcontentloaded" });
