@@ -441,8 +441,7 @@ test("차시 헤더 집계는 탭 이동에도 남고 공지는 커뮤니티로 
   await page.screenshot({ path: testInfo.outputPath("session-notice-summary-390.png"), fullPage: true });
   await page.getByRole("tab", { name: "출결", exact: true }).click();
   const firstRow = page.locator("tbody tr").first();
-  await expect(firstRow).toBeVisible();
-  expect((await firstRow.boundingBox())!.height).toBeLessThanOrEqual(96);
+  await expect(firstRow.getByRole("group", { name: /출결 상태 선택$/ }).getByRole("button")).toHaveCount(11);
   await page.screenshot({ path: testInfo.outputPath("attendance-density-390.png"), fullPage: true });
 });
 
@@ -651,6 +650,10 @@ test("모든 출결 버튼이 명단에 노출되고 결석 계열과 현장을 
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (width === 390) {
       expect((await present.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      const buttonRows = await choices.getByRole("button").evaluateAll(buttons => (
+        new Set(buttons.map(button => button.getBoundingClientRect().top)).size
+      ));
+      expect(buttonRows).toBe(2);
       await expect(row.getByRole("button", { name: "결석학생 강의 메모 추가" })).toBeVisible();
       expect(await page.locator(".attendance-memo-container").evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
     }
