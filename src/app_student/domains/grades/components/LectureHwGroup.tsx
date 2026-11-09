@@ -36,7 +36,8 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
           const maxScore = typeof h.max_score === "number" && Number.isFinite(h.max_score) && h.max_score > 0
             ? h.max_score
             : null;
-          const scoreText = gradingMode === "COMPLETION"
+          const inspectionPending = h.inspection_status === "VIDEO_MAKEUP";
+          const scoreText = inspectionPending ? "검사 대기" : gradingMode === "COMPLETION"
             ? score == null ? "검사 전" : score > 0 ? "통과" : "미통과"
             : score == null
               ? maxScore == null ? "검사 전" : `–/${HOMEWORK_SCORE_NUMBER.format(maxScore)}`
@@ -67,7 +68,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                 </div>
                 <div className={styles.homeworkStatus}>
                   <strong className={styles.homeworkScore}>{scoreText}</strong>
-                  <GradeBadge
+                  {!inspectionPending && <GradeBadge
                     passed={badgePassed}
                     achievement={h.achievement}
                     label={gradingMode === "COMPLETION" ? { pass: "통과", fail: "미통과" } : { pass: "완료", fail: "미완료" }}
@@ -76,7 +77,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                     emptyLabel="검사 전"
                     remediatedLabel={h.teacher_resolved || wrongCompletionOnly ? "교사 확인 완료" : "보강 완료"}
                     size="sm"
-                  />
+                  />}
                 </div>
               </div>
               <ParentAssessmentComment kind="homework" assessmentId={h.homework_id} sessionId={h.session_id} />

@@ -399,6 +399,7 @@ function totalText(total: AssessmentTotal | undefined): string {
 }
 
 function missingHomework(block: ScoreBlock | undefined): string {
+  if (block?.meta?.status === "VIDEO_MAKEUP") return "검사 대기";
   return !block ? "미배정" : block.meta?.status === "NOT_SUBMITTED" ? "미제출" : "미입력";
 }
 
@@ -446,6 +447,7 @@ function buildBodyRows(rows: SessionScoreRow[], params: ScorePdfParams, indexOff
     }
     const verdict = reportVerdict(row);
     const verdictMeta = verdict === "clinic_target" ? ["클리닉", "verdict-clinic"]
+      : verdict === "inspection_pending" ? ["검사 대기", "verdict-missing"]
       : verdict === "pending" ? ["채점 확인 중", "verdict-review"]
         : verdict === "review" ? ["검수 대기", "verdict-review"]
           : verdict === "incomplete" ? ["미입력", "verdict-missing"]

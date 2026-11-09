@@ -183,6 +183,48 @@ async function verifyHomeworkFeedback(parentPage: Page, request: APIRequestConte
         expect(await expectApi<StudentGradeReportLayout>(request, "PATCH", layoutPath, admin.access, visibleLayout)).toEqual(visibleLayout);
         expect(await expectApi<StudentGradeReportLayout>(request, "GET", layoutPath, admin.access)).toEqual(visibleLayout);
       }
+      // The completion task is newly assigned and ungraded. Check the saved hold
+      // across the staff table, parent grades and the real server message preview.
+      checkpoint.phase = "feedback-score-edit";
+      checkpoint.viewport = 1366;
+      await staffPage.reload();
+      const editScores = staffPage.getByRole("button", { name: "수정", exact: true });
+      await editScores.click();
+      const completionCell = staffPage.locator(
+        '[data-score-cell="homework:' + created.enrollmentId + ':' + completion.id + '"]',
+      );
+      await completionCell.click({ position: { x: 4, y: 4 } });
+      await completionCell.getByRole("button", { name: "과제 판정 더보기", exact: true }).click();
+      const savedHold = staffPage.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
+        && response.request().postDataJSON()?.meta_status === "VIDEO_MAKEUP");
+      await staffPage.getByRole("menuitem", { name: "영상 보강", exact: true }).click();
+      const holdResponse = await savedHold;
+      expect(holdResponse.status()).toBe(200);
+      expect(await holdResponse.json()).toMatchObject({ score: null, meta: { status: "VIDEO_MAKEUP" } });
+      await staffPage.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
+      await expect(editScores).toBeVisible();
+      await staffPage.reload();
+      await expect(completionCell).toContainText("영상 보강");
+
+      await gotoAndSettle(parentPage, QA_BASE + "/student/grades");
+      const pendingCard = parentPage.locator(".stu-panel[data-session-type]")
+        .filter({ has: parentPage.getByText(completionTitle, { exact: true }) });
+      await expect(pendingCard.getByText("검사 대기", { exact: true })).toBeVisible();
+
+      await staffPage.getByRole("checkbox", { name: studentName + " 선택", exact: true }).check();
+      await staffPage.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
+      const holdMessage = staffPage.getByRole("dialog", { name: "알림톡 발송", exact: true });
+      await holdMessage.getByRole("textbox", { name: "안내문", exact: true }).fill("과제 확인\n");
+      await holdMessage.getByRole("button", { name: completionTitle + " 넣기", exact: true }).click();
+      await expect(holdMessage.getByLabel("현재 학생의 실제 발송 문구")).toContainText(completionTitle + ": 검사 대기");
+      await holdMessage.getByRole("button", { name: "취소", exact: true }).click();
+      const discardHoldMessage = staffPage.getByRole("alertdialog", { name: "작성한 문구를 닫을까요?", exact: true });
+      if (await discardHoldMessage.isVisible()) {
+        await discardHoldMessage.getByRole("button", { name: "수정 내용 버리고 닫기", exact: true }).click();
+      }
+      await expect(holdMessage).toBeHidden();
+
       for (const width of [1366, 390]) {
         checkpoint.phase = "feedback-score-edit";
         checkpoint.viewport = width as 1366 | 390;
