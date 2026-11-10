@@ -25,16 +25,14 @@ function ProductPreview() {
           <PromoEvidenceImage src="/promo/admin-attendance-realuse-20260828.png"
             alt="여덟 명의 합성 학생 출결 상태를 확인하는 학원플러스 관리자 PC 화면"
             width={1440} height={900} loading="eager" />
-          <span>관리자 화면</span>
         </div>
         <div className={styles.mobileScreen}>
           <PromoEvidenceImage src="/promo/student-operations-realuse-20260828.png"
             alt="오늘 수업과 다음 일정을 확인하는 학원플러스 학생 모바일 화면"
             width={780} height={1688} loading="eager" />
-          <span>학생 앱</span>
         </div>
       </div>
-      <figcaption>실제 프로그램 화면 · 개인정보가 없는 예시 데이터</figcaption>
+      <figcaption>관리자 화면과 학생 앱 · 실제 프로그램, 개인정보가 없는 예시 데이터</figcaption>
     </figure>
   );
 }
@@ -44,8 +42,8 @@ export default function LandingPage() {
     <div className={styles.page}>
       <section className={styles.hero} aria-labelledby="promo-hero-title">
         <div className={styles.heroCopy}>
-          <h1 id="promo-hero-title">수업 관리부터<br />학생의 복습까지</h1>
-          <p>출결과 성적을 기록하고, 수업 영상을 공유하며,<br className={styles.desktopBreak} /> 학생과 학부모에게 필요한 안내를 보냅니다.</p>
+          <h1 id="promo-hero-title">학원의 모든 기록을,<br />하나로.</h1>
+          <p>출결과 성적, 수업 영상, 학부모 안내까지<br className={styles.desktopBreak} /> 하나의 흐름으로 관리합니다.</p>
           <div className={styles.actions}>
             <a href="#core-system" className={styles.primaryLink}>기능 살펴보기 <ArrowRight size={ICON.sm} aria-hidden="true" /></a>
             <Link to="/promo/features/tour" className={styles.secondaryLink}>기능 상세 가이드</Link>
@@ -74,23 +72,25 @@ export default function LandingPage() {
       <section className={styles.guide} aria-labelledby="feature-guide-title">
         <BookOpenCheck size={32} aria-hidden="true" />
         <div>
-          <h2 id="feature-guide-title">화면으로 보는 기능 상세 가이드</h2>
-          <p>알림톡, 수업 영상, 엑셀 업로드, 문항별 채점을<br className={styles.desktopBreak} /> 실제 화면과 사용 순서로 정리했습니다.</p>
+          <h2 id="feature-guide-title">기능 가이드</h2>
+          <p>주요 기능을 실제 화면과 사용 순서로 정리했습니다.</p>
           <div className={styles.guideLinks}>
-            <Link to="/promo/features/tour">5쪽 요약 보기 <ArrowRight size={ICON.sm} aria-hidden="true" /></Link>
-            <Link to="/promo/features/tour?guideBook=detail&guidePage=1">43쪽 상세 가이드 보기 <ArrowRight size={ICON.sm} aria-hidden="true" /></Link>
+            <Link to="/promo/features/tour">핵심 요약 <ArrowRight size={ICON.sm} aria-hidden="true" /></Link>
+            <Link to="/promo/features/tour?guideBook=detail&guidePage=1">전체 가이드 <ArrowRight size={ICON.sm} aria-hidden="true" /></Link>
           </div>
           <Link to="/promo/guide" className={styles.roleGuide}>전체 사용 가이드 보기</Link>
         </div>
       </section>
       <section className={styles.start} aria-labelledby="start-title">
-        <h2 id="start-title">이용 안내</h2>
+        <h2 id="start-title">요금</h2>
         <div>
-          <p className={styles.priceSummary}>월 {formatKoreanPrice(POST_AUGUST_MONTHLY_TOTAL_AMOUNT)} <span>부가세 포함 · 기본 저장공간 200GB</span></p>
-          <p>학생·계정 수에 따른 추가 요금은 없습니다. 알림톡 발송비, 추가 저장공간, 대량 자료 이전과 맞춤 개발은 별도 협의합니다.</p>
+          <p className={styles.priceSummary}>월 {formatKoreanPrice(POST_AUGUST_MONTHLY_TOTAL_AMOUNT)} <span>부가세 포함 · 학생·계정 수 제한 없음 · 기본 저장공간 200GB</span></p>
           <p>{START_GUIDANCE_NOTICE}</p>
-          <Link to="/promo/pricing">요금과 이용 조건 보기 <ArrowRight size={ICON.sm} aria-hidden="true" /></Link>
-          <p className={styles.plannedNote}>{PLANNED_PAYMENT_NOTICE}</p>
+          <Link to="/promo/pricing">요금 자세히 보기 <ArrowRight size={ICON.sm} aria-hidden="true" /></Link>
+          <ul className={styles.notes}>
+            <li>알림톡 발송비, 추가 저장공간, 대량 자료 이전과 맞춤 개발은 별도 협의합니다.</li>
+            <li>{PLANNED_PAYMENT_NOTICE}</li>
+          </ul>
         </div>
       </section>
       <section className={styles.questions} aria-labelledby="home-questions-title">

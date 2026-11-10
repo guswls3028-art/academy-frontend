@@ -8,10 +8,11 @@
   font-family: var(--app-font-sans, "Pretendard Variable", "Pretendard", "Noto Sans KR", sans-serif);
 }
 .hero, .features, .guide, .start, .questions { width: min(1160px, calc(100% - 64px)); margin: 0 auto; }
-.hero { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); align-items: center; gap: 56px; padding: 100px 0 88px; }
-.heroCopy h1 { margin: 0; font-size: clamp(36px, 3.6vw, 52px); font-weight: 700; line-height: 1.3; letter-spacing: -.045em; word-break: keep-all; }
-.heroCopy > p { margin: 25px 0 0; color: var(--muted); font-size: 17px; line-height: 1.9; word-break: keep-all; }
-.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+.hero { display: grid; gap: 64px; padding: 112px 0 96px; }
+.heroCopy { max-width: 720px; animation: promo-rise 520ms cubic-bezier(.2, .7, .2, 1) both; }
+.heroCopy h1 { margin: 0; font-size: clamp(40px, 4.6vw, 64px); font-weight: 700; line-height: 1.22; letter-spacing: -.05em; word-break: keep-all; }
+.heroCopy > p { margin: 28px 0 0; color: var(--muted); font-size: 18px; line-height: 1.85; word-break: keep-all; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 36px; }
 .primaryLink, .secondaryLink {
   display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 46px;
   padding: 11px 18px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink);
@@ -20,13 +21,15 @@
 .primaryLink { color: #fff; background: var(--accent); border-color: var(--accent); }
 .primaryLink:hover { background: #2b4b59; }
 .secondaryLink:hover { background: #f5f7f8; }
-.productPreview { min-width: 0; margin: 0; }
-.productScreens { display: flex; align-items: center; gap: 16px; padding: 28px 20px 18px; border-radius: 12px; background: #f3f5f6; }
-.desktopScreen { min-width: 0; flex: 1; }
-.mobileScreen { width: 23%; flex-shrink: 0; }
-.productScreens img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 5px; }
-.productScreens span { display: block; margin-top: 12px; color: var(--muted); font-size: 11px; text-align: center; }
-.productPreview figcaption { margin-top: 12px; color: var(--muted); font-size: 11px; line-height: 1.6; text-align: right; }
+/* 첫 화면: 관리자 화면을 실제 크기에 가깝게 보여 주고 학생 앱을 겹쳐 하나의 제품으로 읽히게 한다. */
+.productPreview { min-width: 0; margin: 0; animation: promo-rise 640ms 120ms cubic-bezier(.2, .7, .2, 1) both; }
+.productScreens { position: relative; padding-right: 9%; padding-bottom: 6%; }
+.desktopScreen { min-width: 0; }
+.mobileScreen { position: absolute; right: 0; bottom: 0; width: 19%; }
+.productScreens img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; box-shadow: 0 1px 2px rgb(20 33 41 / 6%), 0 24px 60px -24px rgb(20 33 41 / 28%); }
+.mobileScreen img { border-radius: 18px; border-color: #d3dade; box-shadow: 0 2px 4px rgb(20 33 41 / 8%), 0 28px 56px -18px rgb(20 33 41 / 38%); }
+.productPreview figcaption { margin-top: 18px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+@keyframes promo-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 .features { padding: 28px 0 70px; scroll-margin-top: 110px; }
 .sectionHeading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
 .page h2 { margin: 0; font-size: 27px; font-weight: 650; line-height: 1.45; letter-spacing: -.025em; word-break: keep-all; }
@@ -46,24 +49,28 @@
 .roleGuide { display: inline-flex; align-items: center; min-height: 44px; color: var(--muted); font-size: 13px; text-underline-offset: 4px; }
 .start { display: grid; grid-template-columns: 1fr 2fr; gap: 32px; padding: 68px 0; }
 .start p { max-width: 680px; margin: 0 0 10px; color: var(--muted); font-size: 15px; line-height: 1.9; word-break: keep-all; }
-.start .plannedNote { margin: 16px 0 0; font-size: 14px; }
-.start .priceSummary { color: var(--ink); font-size: 23px; font-weight: 650; }
-.priceSummary span { display: block; color: var(--muted); font-size: 14px; font-weight: 400; }
+.notes { max-width: 680px; margin: 22px 0 0; padding: 18px 0 0; border-top: 1px solid var(--line); list-style: none; }
+.notes li { color: var(--muted); font-size: 13px; line-height: 1.8; word-break: keep-all; }
+.start .priceSummary { margin-bottom: 16px; color: var(--ink); font-size: 28px; font-weight: 650; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.priceSummary span { display: block; margin-top: 4px; color: var(--muted); font-size: 14px; font-weight: 400; letter-spacing: 0; }
 .questions { padding-bottom: 56px; }
 .page a:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; border-radius: 4px; }
 @media (max-width: 1000px) {
-  .hero { gap: 32px; padding: 72px 0 56px; }
+  .hero { gap: 48px; padding: 80px 0 64px; }
   .desktopBreak { display: none; }
   .featureGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {
   .hero, .features, .guide, .start, .questions { width: calc(100% - 40px); }
-  .hero { grid-template-columns: 1fr; gap: 34px; padding: 48px 0 42px; }
+  .hero { gap: 36px; padding: 52px 0 44px; }
   .heroCopy h1 { font-size: 36px; }
-  .heroCopy > p { margin-top: 19px; font-size: 16px; }
+  .heroCopy > p { margin-top: 18px; font-size: 16px; }
+  .productScreens { padding-right: 14%; padding-bottom: 10%; }
+  .mobileScreen { width: 27%; }
+  .productScreens img { border-radius: 7px; }
+  .mobileScreen img { border-radius: 12px; }
   .actions { margin-top: 24px; gap: 8px; }
   .primaryLink, .secondaryLink { padding: 11px 14px; font-size: 13px; }
-  .productScreens { padding: 20px 14px 14px; gap: 12px; }
   .features { padding: 18px 0 40px; }
   .page h2 { font-size: 23px; }
   .sectionHeading > a { font-size: 12px; }
@@ -79,4 +86,7 @@
   .questions .sectionHeading { align-items: flex-start; flex-direction: column; gap: 0; }
   .questions { padding-bottom: 36px; }
 }
-@media (prefers-reduced-motion: reduce) { .page a, .feature .featureArrow { transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .page a, .feature .featureArrow { transition: none; }
+  .heroCopy, .productPreview { animation: none; }
+}

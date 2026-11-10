@@ -29,11 +29,11 @@ test("pricing shows the payable total and keeps existing fixed-tax contracts acc
   const plan = page.locator('article[data-plan="all"]');
   await expect(page.locator("article[data-plan]")).toHaveCount(1);
   await expect(plan.getByRole("heading", { name: "학원플러스 기본 요금" })).toBeVisible();
-  await expect(plan.getByText("월 19만 8천원", { exact: true })).toBeVisible();
+  await expect(plan.getByText("월 198,000원", { exact: true })).toBeVisible();
   await expect(plan.getByText("부가세 포함 결제금액", { exact: true })).toBeVisible();
-  await expect(plan.getByText("18만원", { exact: true })).toBeVisible();
+  await expect(plan.getByText("180,000원", { exact: true })).toBeVisible();
   await expect(plan.getByText("부가세 10%", { exact: true })).toBeVisible();
-  await expect(plan.getByText("1만 8천원", { exact: true })).toBeVisible();
+  await expect(plan.getByText("18,000원", { exact: true })).toBeVisible();
   await expect(plan).toContainText("인원에 따른 추가 요금 없음");
   await expect(plan).toContainText("200GB 포함");
   await expect(page.getByRole("heading", { name: "별도로 협의하는 항목" })).toBeVisible();
@@ -47,23 +47,23 @@ test("pricing shows the payable total and keeps existing fixed-tax contracts acc
   await expect(legacy).not.toHaveAttribute("open", "");
   await legacy.locator("summary").click();
   await expect(legacy.getByRole("heading", { name: "2026년 8월 가입 혜택 · 신규 적용 종료" })).toBeVisible();
-  await expect(legacy.getByText("14만 5천원", { exact: true })).toBeVisible();
+  await expect(legacy.getByText("145,000원", { exact: true })).toBeVisible();
   await expect(legacy.getByText("고정 부가세", { exact: true })).toBeVisible();
-  await expect(legacy.getByText("1만 4천원", { exact: true })).toBeVisible();
-  await expect(legacy.getByText("15만 9천원", { exact: true })).toBeVisible();
+  await expect(legacy.getByText("14,000원", { exact: true })).toBeVisible();
+  await expect(legacy.getByText("159,000원", { exact: true })).toBeVisible();
   await expect(legacy.getByText(/8월 가입 요금은 서비스를 이용하는 동안 계속 적용/)).toBeVisible();
   await expect(legacy).not.toContainText("10%");
   await expect(page.getByText(/선착순|마감 임박|지금 신청|159,500|159500|15만 9,500원|1만 4,500원/)).toHaveCount(0);
   await page.goto(`${BASE}/promo/pricing#existing-contract`);
   await expect(legacy).toHaveAttribute("open", "");
   await page.reload();
-  await expect(legacy.getByText("15만 9천원", { exact: true })).toBeVisible();
+  await expect(legacy.getByText("159,000원", { exact: true })).toBeVisible();
 });
 test("390px pricing keeps the current price and ended August terms readable", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await stubPromoBootstrap(page);
   await page.goto(`${BASE}/promo/pricing`, { waitUntil: "load" });
-  await expect(page.getByText("월 19만 8천원", { exact: true })).toBeVisible();
+  await expect(page.getByText("월 198,000원", { exact: true })).toBeVisible();
   await page.locator("#existing-contract > summary").click();
   await expect(page.getByText("2026년 8월 가입 혜택 · 신규 적용 종료", { exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -158,8 +158,8 @@ test("Cloudflare pricing metadata and promo offers publish current terms", async
       expect(application.offers.price).toBe("180000");
       expect(application.offers.priceCurrency).toBe("KRW");
       expect(application.offers).not.toHaveProperty("priceValidUntil");
-      expect(application.offers.description).toContain("월 18만원(부가세 10% 별도, 결제금액 19만 8천원)");
-      expect(application.offers.description).toContain("고정 부가세 1만 4천원, 결제금액 15만 9천원");
+      expect(application.offers.description).toContain("월 180,000원(부가세 10% 별도, 결제금액 198,000원)");
+      expect(application.offers.description).toContain("고정 부가세 14,000원, 결제금액 159,000원");
       expect(html).not.toMatch(/두 금액 모두 부가세 10%|159,500|159500|15만 9,500원|1만 4,500원/);
     }
   } finally {

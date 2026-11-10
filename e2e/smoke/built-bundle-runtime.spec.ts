@@ -54,7 +54,7 @@ test("production bundle boots the public promo route without runtime defects", a
 
   expect(response?.ok(), `Unexpected /promo status ${response?.status()}`).toBe(true);
   await expect(page.getByRole("heading", {
-    name: /수업 관리부터\s*학생의 복습까지/,
+    name: /학원의 모든 기록을,\s*하나로\./,
   })).toBeVisible();
   await expect(page.locator("#root")).not.toBeEmpty();
 });
