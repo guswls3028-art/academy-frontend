@@ -624,6 +624,12 @@ test("모든 출결 버튼이 명단에 노출되고 결석 계열과 현장을 
   for (const label of ["결석", "출튀", "부재", "퇴원"]) {
     await expect(attendanceOption(page, "결석학생", label)).toHaveAttribute("data-tone", "danger");
   }
+  // 미선택 버튼은 상태 색을 칠하지 않아 선택된 하나만 눈에 띈다.
+  for (const label of ["미입력", "현장", "출튀", "퇴원"]) {
+    await expect(attendanceOption(page, "결석학생", label)).toHaveAttribute("aria-pressed", "false");
+    await expect(attendanceOption(page, "결석학생", label)).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  }
+  await expect(absent).toHaveCSS("color", "rgb(255, 255, 255)");
   await absent.click();
   expect(state.attendanceStatusUpdates).toEqual([]);
   await late.focus();
