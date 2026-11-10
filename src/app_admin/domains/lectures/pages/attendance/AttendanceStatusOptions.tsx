@@ -29,7 +29,7 @@ export default function AttendanceStatusOptions({ studentName, value, pending, o
             className="attendance-status-option"
             label={label}
             selected={selected}
-            tone={selected || tone === "success" || tone === "danger" ? tone : "neutral"}
+            tone={tone}
             size="sm"
             aria-disabled={pending || undefined}
             onClick={() => { if (!pending) onChange(code); }}

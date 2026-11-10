@@ -128,35 +128,51 @@
   gap: 4px;
 }
 
-.attendance-status-options .attendance-status-option {
+.attendance-status-options .attendance-status-option.ds-segment__btn {
   min-width: 0;
   padding-inline: 3px;
 }
 
-.attendance-status-option[data-tone="success"] {
-  --attendance-accent: var(--color-success-solid);
+/* 미선택은 모두 흰 바탕·옅은 글자로 통일하고, 선택된 하나만 상태 색으로 채워 한눈에 구분한다. */
+.attendance-status-options .attendance-status-option.ds-segment__btn {
+  border-color: var(--color-border-divider);
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  font-weight: 500;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease, transform 140ms ease;
 }
 
-.attendance-status-option[data-tone="danger"] {
-  --attendance-accent: var(--color-danger-solid);
+.attendance-status-option { --attendance-accent: var(--color-text-secondary); }
+.attendance-status-option[data-tone="success"] { --attendance-accent: var(--color-success-solid); }
+.attendance-status-option[data-tone="primary"] { --attendance-accent: var(--color-brand-primary); }
+.attendance-status-option[data-tone="teal"] { --attendance-accent: color-mix(in srgb, var(--color-teal) 68%, #000); }
+.attendance-status-option[data-tone="warning"] { --attendance-accent: var(--color-warning-solid); }
+.attendance-status-option[data-tone="danger"] { --attendance-accent: var(--color-danger-solid); }
+
+.attendance-status-options .attendance-status-option.ds-segment__btn:hover:not([aria-pressed="true"], [aria-disabled="true"]) {
+  border-color: color-mix(in srgb, var(--attendance-accent) 55%, var(--color-border-default));
+  background: color-mix(in srgb, var(--attendance-accent) 6%, var(--color-bg-surface));
+  color: var(--color-text-primary);
 }
 
-.attendance-status-options .attendance-status-option:is([data-tone="success"], [data-tone="danger"]) {
-  border-color: color-mix(in srgb, var(--attendance-accent) 54%, var(--color-border-default));
-  background: color-mix(in srgb, var(--attendance-accent) 8%, var(--color-bg-surface));
-  color: color-mix(in srgb, var(--attendance-accent) 72%, var(--color-text-primary));
-}
-
-.attendance-status-options .attendance-status-option[aria-pressed="true"] {
-  font-weight: 800;
-  box-shadow: inset 0 0 0 1px currentColor;
-}
-
-.attendance-status-options .attendance-status-option:is([data-tone="success"], [data-tone="danger"])[aria-pressed="true"] {
+.attendance-status-options .attendance-status-option.ds-segment__btn[aria-pressed="true"],
+.attendance-status-options .attendance-status-option.ds-segment__btn[aria-pressed="true"]:hover {
   border-color: var(--attendance-accent);
   background: var(--attendance-accent);
   color: var(--color-semantic-contrast);
-  box-shadow: none;
+  font-weight: 800;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--attendance-accent) 45%, transparent);
+  animation: attendance-status-pick 160ms ease-out;
+}
+
+@keyframes attendance-status-pick {
+  from { transform: scale(0.94); }
+  to { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .attendance-status-options .attendance-status-option.ds-segment__btn { transition: none; }
+  .attendance-status-options .attendance-status-option.ds-segment__btn[aria-pressed="true"] { animation: none; }
 }
 
 .attendance-status-option[aria-disabled="true"] {
