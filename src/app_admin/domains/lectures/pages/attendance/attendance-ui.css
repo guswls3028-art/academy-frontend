@@ -135,7 +135,6 @@
 
 /* 미선택은 모두 흰 바탕·옅은 글자로 통일하고, 선택된 하나만 상태 색으로 채워 한눈에 구분한다. */
 .attendance-status-options .attendance-status-option.ds-segment__btn {
-  --attendance-accent: var(--color-text-secondary);
   border-color: var(--color-border-divider);
   background: var(--color-bg-surface);
   color: var(--color-text-muted);
@@ -143,6 +142,7 @@
   transition: background 140ms ease, color 140ms ease, border-color 140ms ease, transform 140ms ease;
 }
 
+.attendance-status-option { --attendance-accent: var(--color-text-secondary); }
 .attendance-status-option[data-tone="success"] { --attendance-accent: var(--color-success-solid); }
 .attendance-status-option[data-tone="primary"] { --attendance-accent: var(--color-brand-primary); }
 .attendance-status-option[data-tone="teal"] { --attendance-accent: color-mix(in srgb, var(--color-teal) 68%, #000); }
