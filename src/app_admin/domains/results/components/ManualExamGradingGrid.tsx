@@ -3047,7 +3047,7 @@ function getQuestionAnswerTypeLabel(
   return "서술형";
 }
 
-export function parseScoreClipboard(text: string): {
+function parseScoreClipboard(text: string): {
   matrix: Array<Array<number | undefined>>;
   error?: string;
 } {
