@@ -329,7 +329,7 @@ function Footer() {
               <small>학원 운영 플랫폼</small>
             </span>
           </Link>
-          <p>학생 관리, 수업 기록, 영상과 알림톡.</p>
+          <p>학원 운영을 위한 하나의 플랫폼.</p>
           <PhoneInquiryLink className={styles.footerPhone}>
             전화 상담 {CONSULT_PHONE_DISPLAY}
           </PhoneInquiryLink>

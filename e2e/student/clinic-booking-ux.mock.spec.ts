@@ -580,7 +580,7 @@ test.describe("학생 클리닉 예약 UX", () => {
       // The router updates the URL before its lazy public screen has loaded.
       // Wait for the actual logout destination before starting another document
       // navigation, which would otherwise abort its imports in WebKit.
-      await expect(page.getByRole("heading", { name: /수업 관리부터\s*학생의 복습까지/ })).toBeVisible();
+      await expect(page.getByRole("heading", { name: /학원의 모든 기록을,\s*하나로\./ })).toBeVisible();
       await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
       await expect(page).toHaveURL(/\/login(?:\?|$)/);
       await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible();

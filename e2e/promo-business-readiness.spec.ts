@@ -26,7 +26,7 @@ test.describe("promo business readiness", () => {
 
   test("shows concise features and links to their full explanations", async ({ page }) => {
     await page.goto(BASE + "/promo?utm_source=teacher-referral&utm_campaign=matchup-ppt", { waitUntil: "load" });
-    await expect(page.getByRole("heading", { name: /수업 관리부터\s*학생의 복습까지/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /학원의 모든 기록을,\s*하나로\./ })).toBeVisible();
     const showcase = page.getByTestId("promo-real-product-showcase");
     await expect(showcase).toContainText("개인정보가 없는 예시 데이터");
     await expect(showcase.getByRole("button", { name: /합성 학생 출결 상태/ })).toBeVisible();
@@ -189,15 +189,15 @@ test.describe("promo business readiness", () => {
 
     await page.goto(`${BASE}/promo/pricing`, { waitUntil: "load" });
     await expect(
-      page.getByText("월 19만 8천원", { exact: true }),
+      page.getByText("월 198,000원", { exact: true }),
     ).toBeVisible();
-    await expect(page.getByText("18만원", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("180,000원", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("부가세 10%", { exact: true })).toBeVisible();
-    await expect(page.getByText("1만 8천원", { exact: true })).toBeVisible();
+    await expect(page.getByText("18,000원", { exact: true })).toBeVisible();
     await page.locator("#existing-contract > summary").click();
     await expect(page.getByText(/8월 가입 요금은 서비스를 이용하는 동안 계속 적용/).first()).toBeVisible();
-    await expect(page.getByText("1만 4천원", { exact: true })).toBeVisible();
-    await expect(page.getByText("15만 9천원", { exact: true })).toBeVisible();
+    await expect(page.getByText("14,000원", { exact: true })).toBeVisible();
+    await expect(page.getByText("159,000원", { exact: true })).toBeVisible();
     await expect(page.getByText(/선착순|마감 임박|지금 신청/)).toHaveCount(0);
   });
 
