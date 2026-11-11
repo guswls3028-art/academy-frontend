@@ -333,7 +333,8 @@ export default function SubmissionsInboxPage() {
     },
     onSuccess: async (result, input) => {
       if (!input.resumeAbsence && result.can_resume_absence && await confirmAbsenceResume(confirm)) {
-        return identifyMut.mutate({ ...input, resumeAbsence: true });
+        identifyMut.mutate({ ...input, resumeAbsence: true });
+        return;
       }
       if (
         result.code === "OMR_GRADING_CONFIGURATION_REQUIRED"
@@ -398,7 +399,7 @@ export default function SubmissionsInboxPage() {
         return;
       }
       if (isResumableAbsenceConflict(e) && !input.resumeAbsence && recovery?.enrollment_id === input.enrollmentId) {
-        void confirmAbsenceResume(confirm).then((ok) => ok && identifyMut.mutate({ ...input, resumeAbsence: true }));
+        void confirmAbsenceResume(confirm).then((ok) => { if (ok) identifyMut.mutate({ ...input, resumeAbsence: true }); });
         return;
       }
       if (
