@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
+import { Badge, Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { useAssessmentDirtyRegistration } from "@/shared/ui/assessment/AssessmentEditGuard";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -2240,7 +2240,11 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
             <strong>
               {hasErrors
                 ? "확정 전에 수정할 항목이 있습니다."
-                : `${preview.matched_count}명 · 결시 ${preview.not_submitted_count}명 · 성적 계산 완료`}
+                : `${preview.matched_count}명 · 결시 ${preview.not_submitted_count}명${
+                    preview.objective_pending_count
+                      ? ` · OMR 대기 ${preview.objective_pending_count}명`
+                      : ""
+                  } · 성적 계산 완료`}
             </strong>
             {hasErrors ? (
               <ManualGradingIssues errors={preview.errors} studentNames={confirmation.studentNames} />
@@ -2382,6 +2386,48 @@ type ManualGradingTableRowProps = {
   onRetryAutosave: (enrollmentId?: number) => void;
 };
 
+const OBJECTIVE_STATUS_COPY: Record<
+  NonNullable<ManualGradeRow["objective_status"]>,
+  { label: string; title: string; tone: "info" | "warning" | "neutral" }
+> = {
+  omr_pending: {
+    label: "OMR 대기",
+    title: "객관식 답안지가 아직 연결되지 않았습니다. 서술형 점수는 저장되고, 답안지가 매칭되면 자동으로 합산됩니다. 그 전에는 학생·석차·클리닉에 반영되지 않습니다.",
+    tone: "info",
+  },
+  omr_restore: {
+    label: "OMR 복원",
+    title: "저장하면 연결된 OMR 답안지의 객관식 점수를 다시 반영합니다.",
+    tone: "info",
+  },
+  omr_review_required: {
+    label: "OMR 검토 필요",
+    title: "OMR 검토에서 이 학생의 답안지를 확인하면 객관식 점수가 서술형 점수와 합산됩니다.",
+    tone: "warning",
+  },
+  omr_processing: {
+    label: "OMR 처리 중",
+    title: "답안지 처리가 끝나면 저장할 수 있습니다.",
+    tone: "neutral",
+  },
+};
+
+function ObjectiveStatusBadge({
+  status,
+}: {
+  status: NonNullable<ManualGradeRow["objective_status"]>;
+}) {
+  const copy = OBJECTIVE_STATUS_COPY[status];
+  if (!copy) return null;
+  return (
+    <span title={copy.title}>
+      <Badge tone={copy.tone} size="xs" variant="soft">
+        {copy.label}
+      </Badge>
+    </span>
+  );
+}
+
 const ManualGradingTableRow = memo(function ManualGradingTableRow({
   row,
   rowIndex,
@@ -2418,6 +2464,9 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
             maxLectureChips={1}
             examNotSubmittedCount={row.exam_not_submitted_count}
           />
+          {!row.is_not_submitted && row.objective_status && (
+            <ObjectiveStatusBadge status={row.objective_status} />
+          )}
           {saveState && (
             <span
               className={`${styles.rowSaveState} ${

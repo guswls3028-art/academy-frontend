@@ -36,6 +36,7 @@
 | [HOMEWORK-SCORING.md](HOMEWORK-SCORING.md) | 과제별 만점·합격 기준, 성적표 분모·저장 계약 |
 | [강의 기존 학생 직접 등록](LECTURE-STUDENT-ENROLLMENT.md) | 차시 없이 기존 학생 검색·다중 선택·등록과 실패 복구 계약 |
 | [LECTURE-MANAGEMENT.md](LECTURE-MANAGEMENT.md) | 강의 설정 메뉴·수정값 보존·종료/복원·날짜 해제와 반응형 목록 계약 |
+| [LECTURE-RANKINGS.md](LECTURE-RANKINGS.md) | 여러 차시를 묶은 종합·시험·과제 순위, 공동 등수, 명예의 전당 A4 출력과 상태·390px 계약 |
 | [ATTENDANCE-ROSTER-SAFETY.md](ATTENDANCE-ROSTER-SAFETY.md) | 차시 수강생 일괄배정의 미입력 시작, 선택 검토·실행취소, 전체 현장 출석의 원자적 되돌리기 계약 |
 | [ATTENDANCE-QR.md](ATTENDANCE-QR.md) | 교실 QR 출력·학생 카메라 출석·클리닉 등원/하원·오류 복구 계약 |
 | [ARRIVAL-OPERATIONS.md](ARRIVAL-OPERATIONS.md) | 보강 예정 입력과 클리닉 예약을 합친 대시보드·우상단 알림 운영 계약 |

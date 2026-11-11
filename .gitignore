@@ -73,6 +73,7 @@ docs/*
 !docs/SURVEYS.md
 !docs/README.md
 !docs/LECTURE-STUDENT-ENROLLMENT.md
+!docs/LECTURE-RANKINGS.md
 !docs/guide-media-provenance.json
 !docs/ORGANIZATION-SETTINGS.md
 !docs/DESIGN-SYSTEM.md

@@ -2,7 +2,7 @@
 import { Outlet, useParams, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { Users } from "lucide-react";
+import { Trophy, Users } from "lucide-react";
 import api from "@/shared/api/axios";
 import { DomainLayout } from "@/shared/ui/layout";
 import { Button, EmptyState } from "@/shared/ui/ds";
@@ -50,16 +50,28 @@ export default function LectureLayout() {
     [title]
   );
 
-  const headerActions = sectionMode ? (
-    <Button
-      intent="secondary"
-      size="sm"
-      onClick={() => navigate(`/workspace/lectures/${lectureIdNum}/sections`)}
-      leftIcon={<Users size={14} />}
-    >
-      반 편성
-    </Button>
-  ) : undefined;
+  const headerActions = (
+    <>
+      <Button
+        intent="secondary"
+        size="sm"
+        onClick={() => navigate(`/workspace/lectures/${lectureIdNum}/rankings`)}
+        leftIcon={<Trophy size={14} />}
+      >
+        순위·명예의 전당
+      </Button>
+      {sectionMode && (
+        <Button
+          intent="secondary"
+          size="sm"
+          onClick={() => navigate(`/workspace/lectures/${lectureIdNum}/sections`)}
+          leftIcon={<Users size={14} />}
+        >
+          반 편성
+        </Button>
+      )}
+    </>
+  );
 
   if (!hasValidLectureId) {
     return (

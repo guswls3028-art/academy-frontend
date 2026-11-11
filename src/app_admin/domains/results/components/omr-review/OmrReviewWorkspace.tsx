@@ -81,6 +81,21 @@ function lecturesForCandidate(row: CandidateRow) {
     : [];
 }
 
+async function confirmAbsenceResume(
+  confirm: ReturnType<typeof useConfirm>,
+  studentName: string | null | undefined,
+): Promise<boolean> {
+  return confirm({
+    title: "결시로 저장된 학생입니다",
+    message:
+      `${studentName ? `${studentName} 학생은` : "이 학생은"} 이 시험에서 결시로 저장돼 있습니다. ` +
+      "답안지가 학생 본인 것이 맞으면 결시를 해제하고 객관식 점수를 반영합니다. " +
+      "서술형 점수는 채점표에서 이어서 입력할 수 있습니다.",
+    confirmText: "결시 해제 후 채점",
+    cancelText: "결시 유지",
+  });
+}
+
 function scoreFromManualEditResult(result: SubmissionManualEditResult | undefined): number | null {
   const value = result?.score ?? result?.total_score ?? null;
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -585,6 +600,14 @@ export default function OmrReviewWorkspace({
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.clinicTargets });
               if (result?.code === "OMR_GRADING_CONFIGURATION_REQUIRED") {
                 feedback.warning(result.detail ?? "답안은 저장했습니다. 시험의 문항과 정답을 설정해 주세요.");
+              } else if (result?.absence_preserved) {
+                feedback.warning("답안지는 저장했지만 이 학생은 결시 상태라 점수에 반영하지 않았습니다.");
+              } else if (result?.absence_resumed) {
+                feedback.success(
+                  result.projection_ready === false
+                    ? `결시를 해제했습니다. 객관식 ${savedScore ?? 0}점 저장 · 서술형 채점 대기`
+                    : `결시를 해제하고 채점했습니다: ${savedScore ?? 0}점`,
+                );
               } else if (result?.projection_ready === false) {
                 feedback.warning(
                   savedScore != null
@@ -1060,7 +1083,19 @@ function EditPane({
   }, [dirty, onDirtyChange]);
 
   const mut = useMutation({
-    mutationFn: async (opts: { allowDuplicate?: boolean } = {}) => {
+    mutationFn: async (
+      opts: { allowDuplicate?: boolean; resume?: { submissionId: number; enrollmentId: number } } = {},
+    ) => {
+      if (opts.resume) {
+        // 교사가 결시 해제를 확인한 경우에만 같은 답안지를 다시 저장한다.
+        return await manualEditSubmissionApi({
+          submissionId: opts.resume.submissionId,
+          identifier: { enrollment_id: opts.resume.enrollmentId },
+          note: "omr_review_ui_resume_absence",
+          answers: [],
+          resumeAbsence: true,
+        });
+      }
       if (!detail) throw new Error("no detail");
       if (answerReviewVersion) return confirmOmrAnswerReviewApi(detail.submission_id, answerReviewVersion);
       const payloadAnswers = changedAnswers.map(([qid, answer]) => ({
@@ -1083,17 +1118,52 @@ function EditPane({
         allowDuplicate: opts.allowDuplicate,
       });
     },
-    onSuccess: async (data) => {
+    onSuccess: async (data, opts) => {
+      const enrollmentId = data?.enrollment_id ?? data?.resolved_enrollment_id;
+      if (
+        !opts?.resume && data?.absence_preserved && data.can_resume_absence
+        && data.submission_id && enrollmentId
+      ) {
+        setAnswerEdits({});
+        const ok = await confirmAbsenceResume(confirm, pickedStudent?.student_name ?? studentName);
+        if (ok) {
+          mut.mutate({ resume: { submissionId: data.submission_id, enrollmentId } });
+          return;
+        }
+      }
       await onSaved(data);
       setAnswerEdits({});
     },
     onError: async (e: unknown) => {
       const err = e as {
-        response?: { status?: number; data?: { detail?: string; code?: string; conflict_submission_id?: number } };
+        response?: {
+          status?: number;
+          data?: {
+            detail?: string;
+            code?: string;
+            conflict_submission_id?: number;
+            submission_id?: number;
+            can_resume_absence?: boolean;
+            recovery?: { enrollment_id?: number };
+          };
+        };
         message?: string;
       };
       const status = err?.response?.status;
       const code = err?.response?.data?.code;
+      const conflict = err?.response?.data;
+      if (
+        status === 409 && code === "OMR_ATTEMPT_CONFLICT" && conflict?.can_resume_absence
+        && conflict.submission_id && conflict.recovery?.enrollment_id
+      ) {
+        const ok = await confirmAbsenceResume(confirm, pickedStudent?.student_name ?? studentName);
+        if (ok) {
+          mut.mutate({
+            resume: { submissionId: conflict.submission_id, enrollmentId: conflict.recovery.enrollment_id },
+          });
+        }
+        return;
+      }
       if (code === "OMR_ANSWER_REVIEW_CHANGED" && detail) {
         feedback.error(err.response?.data?.detail ?? "최신 답안지를 다시 확인해 주세요.");
         await Promise.all([
