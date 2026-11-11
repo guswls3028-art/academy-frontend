@@ -53,5 +53,7 @@ URL의 `from`·`to`·`scope`(`all`|`exam`|`homework`)는 새로고침·공유 �
 
 - 정적: `pnpm typecheck`, `pnpm lint`, `pnpm build`
 - 계산 규칙: `periodRanking.ts`의 공동 순위·미반영·범위 합산
+- 브라우저(route mock, PR 게이트): `e2e/admin/lecture-rankings.mock.spec.ts` — 두 차시 종합·시험
+  공동 등수, 결시 차시 미반영, URL 기준 복원, 1~3등 출력 미리보기·점수 숨김, Esc 닫기, 390px 가로 넘침 없음
 - 실사용: 격리 개발 환경에서 차시 2개 이상에 시험·과제 점수를 넣은 뒤 범위·기준 변경,
   새로고침 복원, 출력 미리보기, 데스크톱 1366/390px 표시를 확인한다.
