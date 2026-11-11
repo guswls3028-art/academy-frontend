@@ -56,23 +56,26 @@ export default function FeaturesPage() {
     <div className={styles.page}>
       <header className={styles.intro}>
         <h1>기능 소개</h1>
-        <p>학생 등록부터 수업, 복습과 학부모 안내까지.<br />필요한 업무를 고르면 기능과 사용 순서를 확인할 수 있습니다.</p>
+        <p>학생 관리부터 수업, 복습과 학부모 안내까지.<br />학원 운영에 필요한 기능을 업무별로 정리했습니다.</p>
         <div className={styles.introLinks}><Link to="/promo/features/tour">기능 상세 가이드</Link><Link to="/promo/pricing">요금과 포함 범위</Link></div>
       </header>
       <div className={styles.layout}>
         <nav className={styles.navigation} aria-label="기능 바로가기">
-          <span>어떤 업무가 궁금하신가요?</span>
+          <span>업무별 보기</span>
           {ORDERED_FEATURE_GROUPS.map(group => <a key={group.id} href={`#${group.id}`} aria-current={isCurrentFeature(group.id, hash) ? "location" : undefined}>{group.title}</a>)}
           <a href="#more-operations" aria-current={isCurrentFeature("more-operations", hash) ? "location" : undefined}>그 밖의 운영 기능</a>
         </nav>
         <div id="feature-catalog-title" className={styles.catalog}>
-          <h2 className={styles.catalogTitle}>전체 기능 목록</h2>
+          <h2 className={styles.catalogTitle}>업무별 기능</h2>
           {ORDERED_FEATURE_GROUPS.map(group => {
             const reference = REFERENCES[group.id];
             const proof = PROOF_CARDS.find(item => item.id === reference.proof);
             return <section key={group.id} id={group.id} className={styles.group} aria-labelledby={`${group.id}-title`}>
               {reference.alias && <span id={reference.alias} className={styles.anchor} />}
-              <h2 id={`${group.id}-title`}>{group.title}</h2>
+              <div className={styles.groupHead}>
+                <h2 id={`${group.id}-title`}>{group.title}</h2>
+                <Link className={styles.reference} to={reference.path ?? `/promo/features/tour?guideBook=detail&guidePage=${reference.page}`}>{reference.label}</Link>
+              </div>
               <p className={styles.description}>{group.body}</p>
               <dl className={styles.functions}>{group.items.map(item => <div key={item.title}><dt>{item.title}</dt><dd>{item.desc}</dd></div>)}</dl>
               {group.id === "exam-score" && <p className={styles.note}>자동채점은 객관식·OX형과 일부 수학 단답형(0~999 정수)을 지원합니다. 서술형은 선생님이 직접 채점합니다.</p>}
@@ -92,7 +95,6 @@ export default function FeaturesPage() {
                   <Link to={proof.ctaPath}>{proof.ctaLabel}</Link>
                 </div>
               </details>}
-              <Link className={styles.reference} to={reference.path ?? `/promo/features/tour?guideBook=detail&guidePage=${reference.page}`}>{reference.label}</Link>
             </section>;
           })}
           <section id="more-operations" className={styles.group} aria-labelledby="more-operations-title">
@@ -101,10 +103,10 @@ export default function FeaturesPage() {
             <div className={styles.moreLinks}><Link to="/promo/guide?role=admin&q=수납">수납 기록 관리</Link><Link to="/promo/guide?role=teacher">직원·강사 사용 방법</Link><Link to="/promo/features/tour?guideBook=detail&guidePage=39">질문·상담·자료 공유</Link></div>
             <p className={styles.note}>원비·교재비 온라인 결제는 현재 지원하지 않습니다. 수납 기록 관리와는 별도 기능입니다.</p>
           </section>
-          <div className={styles.next}><h2>다음으로 확인할 내용</h2><Link to="/promo/pricing">월 요금과 별도 비용</Link><Link to="/promo/faq">도입 전 자주 묻는 질문</Link><Link to="/promo/guide">전체 사용 방법과 문제 해결</Link></div>
+          <nav className={styles.next} aria-labelledby="features-next-title"><h2 id="features-next-title">더 알아보기</h2><Link to="/promo/pricing">요금과 별도 비용</Link><Link to="/promo/faq">도입 전 자주 묻는 질문</Link><Link to="/promo/guide">사용 가이드</Link></nav>
         </div>
       </div>
     </div>
-    <CtaSection title="궁금한 기능이 남아 있나요?" subtitle="확인하고 싶은 기능이나 현재 쓰는 관리 방식을 알려주세요." secondaryPath="/promo/contact" secondaryLabel="문의하기" />
+    <CtaSection subtitle="현재 운영 방식을 알려주시면 필요한 기능과 도입 절차를 안내해 드립니다." />
   </>;
 }
