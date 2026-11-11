@@ -587,7 +587,9 @@ ProductUsageEvent/DailyActor 변화 0임을 검사한다. 도메인 설명은 ba
 설치하여 한글 표시에 필요한 시스템 글꼴을 갖춘다. PNG의 한글이 네모로 표시되면
 기능 검증 성공과 구분하여 시각 검증 실패로 취급하고, 글꼴 설치 후 새 증거로 확인한다.
 개발 실사용 Linux runner는 `fonts-noto-cjk`를 명시적으로 설치하고 `fc-list :lang=ko`가
-비어 있으면 검사 시작 전에 실패한다. 제품 번들은 그대로 사용하며, 보존된 PC/390px PNG에서
+비어 있으면 검사 시작 전에 실패한다. 설치 전 PR E2E와 같은 공식 HTTPS 미러 우선순위
+(`archive.ubuntu.com` → `security.ubuntu.com` → Azure 미러)로 `/etc/apt/apt-mirrors.txt`를
+바꿔 Azure 미러 DNS 장애가 release QA를 막지 않게 한다. 패키지 출처·서명 검증은 그대로다. 제품 번들은 그대로 사용하며, 보존된 PC/390px PNG에서
 한글 가독성을 직접 확인해야 시각 증거가 유효하다.
 
 공식 main 배포는 먼저 `backend-readiness`에서 backend의 진행 중인 main release run과

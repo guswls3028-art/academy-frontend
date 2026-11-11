@@ -423,6 +423,13 @@ jobs:
       - name: Install Korean fonts for visual evidence
         timeout-minutes: 5
         run: |
+          # Same official HTTPS mirror priority as the PR E2E Playwright step:
+          # an Azure mirror DNS outage must not block release QA. Distribution
+          # sources and package signature checks remain unchanged.
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\nhttp://azure.archive.ubuntu.com/ubuntu/\tpriority:3\n' \
+              | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
+          fi
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends fonts-noto-cjk
           test -n "$(fc-list :lang=ko family)"
