@@ -1696,6 +1696,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                           const achLabel = achievementLabel(block);
                           const cellTitle = omrReviewStatus === "review"
                             ? `${ex.title} · OMR 검토 필요`
+                            : subjectivePending && block?.grading_pending_reason === "objective_pending"
+                              ? `${ex.title} · 서술형 저장 완료 · OMR 답안지 매칭 대기`
                             : subjectivePending
                               ? `${ex.title} · 객관식 저장 완료 · 서술형 점수 입력 필요`
                             : `${ex.title} · ${scoreText} · ${achLabel}`;

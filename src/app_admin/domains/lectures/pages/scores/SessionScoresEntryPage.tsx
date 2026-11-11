@@ -10,7 +10,7 @@
  */
 
 import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ChevronDown, ClipboardCheck, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -151,6 +151,7 @@ export default function SessionScoresEntryPage({
   onOpenCreateHomework,
 }: SessionScoresEntryPageProps = {}) {
   const { sessionId: sessionIdParam, lectureId: lectureIdParam } = useParams<{ lectureId: string; sessionId: string }>();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const schedule = useSessionScheduleScope();
   const numericSessionId = Number(sessionIdParam);
@@ -620,13 +621,18 @@ export default function SessionScoresEntryPage({
   );
   const pendingSubjectiveSummary = useMemo(() => {
     const enrollmentIds = new Set<number>();
+    const awaitingOmrIds = new Set<number>();
     for (const row of data?.rows ?? []) {
       for (const exam of row.exams ?? []) {
         if (exam.block.grading_status !== "subjective_pending") continue;
-        enrollmentIds.add(row.enrollment_id);
+        if (exam.block.grading_pending_reason === "objective_pending") {
+          awaitingOmrIds.add(row.enrollment_id);
+        } else {
+          enrollmentIds.add(row.enrollment_id);
+        }
       }
     }
-    return { studentCount: enrollmentIds.size };
+    return { studentCount: enrollmentIds.size, awaitingOmrCount: awaitingOmrIds.size };
   }, [data?.rows]);
 
   // P1-5: setPresetTotalHw / setPresetSubjectiveHw preset 함수 제거 — 5버튼 segment 단순화로 불필요.
@@ -921,13 +927,22 @@ export default function SessionScoresEntryPage({
       const entry = row.exams.find((item) => item.exam_id === exam.exam_id);
       return entry ? [entry] : [];
     });
-    const pendingCount = entries.filter((entry) => entry.block.grading_status === "subjective_pending").length;
+    const pendingCount = entries.filter((entry) =>
+      entry.block.grading_status === "subjective_pending"
+      && entry.block.grading_pending_reason !== "objective_pending",
+    ).length;
+    const awaitingOmrCount = entries.filter((entry) =>
+      entry.block.grading_pending_reason === "objective_pending",
+    ).length;
     const unfinishedCount = entries.filter((entry) =>
       entry.block.score == null && entry.block.meta?.status !== "NOT_SUBMITTED",
     ).length;
     const gradingMode = resolveExamGradingMode(exam);
-    if (pendingCount === 0 && (gradingMode !== "written" || unfinishedCount === 0)) return [];
-    return [{ exam, gradingMode, pendingCount, unfinishedCount }];
+    if (
+      pendingCount === 0 && awaitingOmrCount === 0
+      && (gradingMode !== "written" || unfinishedCount === 0)
+    ) return [];
+    return [{ exam, gradingMode, pendingCount, unfinishedCount, awaitingOmrCount }];
   }), [data?.rows, examOptions]);
 
   const openExamGrading = async (
@@ -1495,7 +1510,21 @@ export default function SessionScoresEntryPage({
                     <span className="scores-tool-card__icon" data-tone="clinic"><Trophy size={ICON_FOR_BUTTON.sm} /></span>
                     <span><strong>익명 순위표</strong><small>게시용 출력</small></span>
                   </button>
-                ) : (
+                ) : null}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="scores-tool-card"
+                  disabled={recoveryBlocked || !Number.isFinite(numericLectureId)}
+                  onClick={() => {
+                    setShowMoreMenu(false);
+                    navigate(`/workspace/lectures/${numericLectureId}/rankings?from=${numericSessionId}&to=${numericSessionId}&scope=exam`);
+                  }}
+                >
+                  <span className="scores-tool-card__icon" data-tone="clinic"><Trophy size={ICON_FOR_BUTTON.sm} /></span>
+                  <span><strong>명예의 전당</strong><small>주차별 순위 출력</small></span>
+                </button>
+                {isAnonymousBillboardMode ? null : (
                   <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked} onClick={async () => {
                     if (!await prepareScorePrint()) return;
                     setShowClinicPreview(true);
@@ -1771,10 +1800,13 @@ export default function SessionScoresEntryPage({
               {pendingSubjectiveSummary.studentCount > 0 && (
                 <p>{pendingSubjectiveSummary.studentCount}명의 서술형 점수 입력이 필요합니다. 완료 전에는 최종 점수·학생 공개·석차·클리닉 반영이 보류됩니다.</p>
               )}
+              {pendingSubjectiveSummary.awaitingOmrCount > 0 && (
+                <p>{pendingSubjectiveSummary.awaitingOmrCount}명은 서술형 점수가 저장됐고 OMR 답안지 매칭을 기다리고 있습니다. OMR 검토에서 학생을 확정하면 자동으로 합산됩니다.</p>
+              )}
             </div>
           </div>
           <div className="scores-grading-next__list">
-            {gradingAttentionExams.map(({ exam, gradingMode, pendingCount, unfinishedCount }) => (
+            {gradingAttentionExams.map(({ exam, gradingMode, pendingCount, unfinishedCount, awaitingOmrCount }) => (
               <div className="scores-grading-next__exam" key={exam.exam_id}>
                 <div className="scores-grading-next__exam-copy">
                   <strong>{exam.title}</strong>
@@ -1782,8 +1814,10 @@ export default function SessionScoresEntryPage({
                     {gradingMode === "choice"
                       ? "서술형 채점 대기 상태와 OMR 전용 설정이 맞지 않습니다. 시험명 → 시험 설정에서 문항 유형을 확인해 주세요."
                       : pendingCount > 0
-                        ? `객관식 저장 완료 · 서술형 ${pendingCount}명 남음`
-                        : `${unfinishedCount}명 채점 전`}
+                        ? `객관식 저장 완료 · 서술형 ${pendingCount}명 남음${awaitingOmrCount > 0 ? ` · OMR 대기 ${awaitingOmrCount}명` : ""}`
+                        : awaitingOmrCount > 0 && unfinishedCount === 0
+                          ? `서술형 저장 완료 · OMR 대기 ${awaitingOmrCount}명`
+                          : `${unfinishedCount}명 채점 전`}
                   </span>
                 </div>
                 {gradingMode !== "choice" && (

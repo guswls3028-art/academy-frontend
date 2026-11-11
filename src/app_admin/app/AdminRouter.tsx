@@ -41,6 +41,7 @@ const LecturesPage = lazy(() => import("@admin/domains/lectures/pages/lectures/L
 const LectureLayout = lazy(() => import("@admin/domains/lectures/LectureLayout"));
 const LectureStudentsPage = lazy(() => import("@admin/domains/lectures/pages/lectures/LectureStudentsPage"));
 const LectureSessionsPage = lazy(() => import("@admin/domains/lectures/pages/sessions/LectureSessionsPage"));
+const LectureRankingsPage = lazy(() => import("@admin/domains/lectures/pages/rankings/LectureRankingsPage"));
 const SectionManagementPage = lazy(() => import("@admin/domains/lectures/pages/sections/SectionManagementPage"));
 
 /* ================= Lazy: Sessions ================= */
@@ -207,6 +208,7 @@ export default function AdminRouter() {
         <Route path="lectures/:lectureId" element={renderLazyRoute(LectureLayout)}>
           <Route index element={renderLazyRoute(LectureStudentsPage)} />
           <Route path="sessions" element={renderLazyRoute(LectureSessionsPage)} />
+          <Route path="rankings" element={renderLazyRoute(LectureRankingsPage)} />
         </Route>
 
         {/* 반 편성 — 자체 헤더로 분리 (section_mode) */}

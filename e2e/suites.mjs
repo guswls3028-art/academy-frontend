@@ -61,6 +61,7 @@ export const routeMockSpecs = [
   "e2e/admin/video-bulk-policy.mock.spec.ts",
   "e2e/admin/lecture-create-responsive.mock.spec.ts",
   "e2e/admin/lecture-management-ordering.mock.spec.ts",
+  "e2e/admin/lecture-rankings.mock.spec.ts",
   "e2e/admin/session-delete-recovery.mock.spec.ts",
   "e2e/admin/enrollment-excel-existing-only.mock.spec.ts",
   "e2e/admin/excel-result-import-recovery.mock.spec.ts",

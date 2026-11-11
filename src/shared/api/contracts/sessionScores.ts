@@ -19,6 +19,8 @@ export type ScoreBlock = {
   achievement?: Achievement | null;
   is_provisional?: boolean;
   grading_status?: "subjective_pending" | null;
+  /** 관리자 표시용 보류 사유. objective_pending = 서술형 저장 완료 · OMR 답안지 매칭 대기 */
+  grading_pending_reason?: "subjective_pending" | "objective_pending" | "manual_review_required" | null;
   correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
   correction_completed_at?: string | null;
   correction_note?: string;

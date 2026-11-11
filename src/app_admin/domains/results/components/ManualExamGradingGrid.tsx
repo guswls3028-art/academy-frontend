@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
+import { Badge, Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { useAssessmentDirtyRegistration } from "@/shared/ui/assessment/AssessmentEditGuard";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -729,6 +729,14 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
   const visibleQuestions = useMemo(
     () => data?.questions ?? [],
     [data?.questions],
+  );
+  const pasteScoreMatrixRef = useRef<
+    ((text: string, rowIndex: number, columnIndex: number) => void) | null
+  >(null);
+  const stablePasteScoreMatrix = useCallback(
+    (text: string, rowIndex: number, columnIndex: number) =>
+      pasteScoreMatrixRef.current?.(text, rowIndex, columnIndex),
+    [],
   );
   const questionLabels = useMemo(() => {
     const labels = new Map<number, string>();
@@ -1591,7 +1599,69 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       feedback.error("붙여넣을 수 있는 정오 입력칸이 없습니다.");
       return;
     }
+    commitPastedChanges(changes);
+  };
 
+  // 엑셀·스프레드시트에서 복사한 점수 열/표를 현재 칸부터 한 번에 붙여넣는다.
+  const pasteScoreMatrix = (
+    text: string,
+    startRowIndex: number,
+    startColumnIndex: number,
+  ) => {
+    const parsed = parseScoreClipboard(text);
+    if (parsed.error) {
+      feedback.error(parsed.error);
+      return;
+    }
+    const changes: ManualGradeCellChange[] = [];
+    const outOfRange: string[] = [];
+    parsed.matrix.forEach((values, rowOffset) => {
+      const row = draftRowsRef.current[startRowIndex + rowOffset];
+      if (!row || row.is_not_submitted) return;
+      values.forEach((score, columnOffset) => {
+        if (score === undefined) return;
+        const question = visibleQuestions[startColumnIndex + columnOffset];
+        if (!question) return;
+        const key = String(question.question_id);
+        const cell = row.cells[key];
+        if (!cell?.editable || cell.entry_method !== "score") return;
+        const draftMax = Number(questionScoreDraft[key]);
+        const maxScore = questionScoreDraft[key] != null && questionScoreDraft[key] !== "" && Number.isFinite(draftMax)
+          ? draftMax
+          : question.max_score;
+        if (score < 0 || score > maxScore) {
+          outOfRange.push(`${row.student_name} ${questionLabels.get(question.question_id) ?? `${question.number}번`}`);
+          return;
+        }
+        const nextCell = { ...cell, score };
+        if (!sameManualGradeCell(cell, nextCell)) {
+          changes.push({
+            enrollmentId: row.enrollment_id,
+            questionId: question.question_id,
+            before: { ...cell },
+            after: nextCell,
+          });
+        }
+      });
+    });
+    if (outOfRange.length > 0) {
+      feedback.error(
+        `0점~만점 범위를 벗어난 값이 있어 붙여넣지 않았습니다: ${outOfRange.slice(0, 3).join(", ")}${
+          outOfRange.length > 3 ? ` 외 ${outOfRange.length - 3}칸` : ""
+        }`,
+      );
+      return;
+    }
+    if (changes.length === 0) {
+      feedback.error("붙여넣을 수 있는 점수 입력칸이 없습니다. 결시 학생과 OMR 문항은 건너뜁니다.");
+      return;
+    }
+    commitPastedChanges(changes);
+  };
+  // Rows are memoized; route paste through the latest render's handler.
+  pasteScoreMatrixRef.current = pasteScoreMatrix;
+
+  const commitPastedChanges = (changes: ManualGradeCellChange[]) => {
     pushHistory({ kind: "cells", changes });
     const changeMap = new Map(
       changes.map((change) => [
@@ -2219,6 +2289,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
                 onMoveFocus={focusCell}
                 onShowShortcuts={openShortcutSettings}
                 onPasteCorrectnessMatrix={pasteCorrectnessMatrix}
+                onPasteScoreMatrix={stablePasteScoreMatrix}
                 onRetryAutosave={retryAutosave}
               />
             ))}
@@ -2240,7 +2311,11 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
             <strong>
               {hasErrors
                 ? "확정 전에 수정할 항목이 있습니다."
-                : `${preview.matched_count}명 · 결시 ${preview.not_submitted_count}명 · 성적 계산 완료`}
+                : `${preview.matched_count}명 · 결시 ${preview.not_submitted_count}명${
+                    preview.objective_pending_count
+                      ? ` · OMR 대기 ${preview.objective_pending_count}명`
+                      : ""
+                  } · 성적 계산 완료`}
             </strong>
             {hasErrors ? (
               <ManualGradingIssues errors={preview.errors} studentNames={confirmation.studentNames} />
@@ -2374,6 +2449,11 @@ type ManualGradingTableRowProps = {
     direction: "next" | "previous" | "up" | "down",
   ) => void;
   onShowShortcuts: () => void;
+  onPasteScoreMatrix: (
+    text: string,
+    rowIndex: number,
+    columnIndex: number,
+  ) => void;
   onPasteCorrectnessMatrix: (
     text: string,
     rowIndex: number,
@@ -2381,6 +2461,48 @@ type ManualGradingTableRowProps = {
   ) => void;
   onRetryAutosave: (enrollmentId?: number) => void;
 };
+
+const OBJECTIVE_STATUS_COPY: Record<
+  NonNullable<ManualGradeRow["objective_status"]>,
+  { label: string; title: string; tone: "info" | "warning" | "neutral" }
+> = {
+  omr_pending: {
+    label: "OMR 대기",
+    title: "객관식 답안지가 아직 연결되지 않았습니다. 서술형 점수는 저장되고, 답안지가 매칭되면 자동으로 합산됩니다. 그 전에는 학생·석차·클리닉에 반영되지 않습니다.",
+    tone: "info",
+  },
+  omr_restore: {
+    label: "OMR 복원",
+    title: "저장하면 연결된 OMR 답안지의 객관식 점수를 다시 반영합니다.",
+    tone: "info",
+  },
+  omr_review_required: {
+    label: "OMR 검토 필요",
+    title: "OMR 검토에서 이 학생의 답안지를 확인하면 객관식 점수가 서술형 점수와 합산됩니다.",
+    tone: "warning",
+  },
+  omr_processing: {
+    label: "OMR 처리 중",
+    title: "답안지 처리가 끝나면 저장할 수 있습니다.",
+    tone: "neutral",
+  },
+};
+
+function ObjectiveStatusBadge({
+  status,
+}: {
+  status: NonNullable<ManualGradeRow["objective_status"]>;
+}) {
+  const copy = OBJECTIVE_STATUS_COPY[status];
+  if (!copy) return null;
+  return (
+    <span title={copy.title}>
+      <Badge tone={copy.tone} size="xs" variant="soft">
+        {copy.label}
+      </Badge>
+    </span>
+  );
+}
 
 const ManualGradingTableRow = memo(function ManualGradingTableRow({
   row,
@@ -2398,6 +2520,7 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
   onMoveFocus,
   onShowShortcuts,
   onPasteCorrectnessMatrix,
+  onPasteScoreMatrix,
   onRetryAutosave,
 }: ManualGradingTableRowProps) {
   const isUnentered = manualGradingMethod === "score" && !hasGradingData(row);
@@ -2418,6 +2541,9 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
             maxLectureChips={1}
             examNotSubmittedCount={row.exam_not_submitted_count}
           />
+          {!row.is_not_submitted && row.objective_status && (
+            <ObjectiveStatusBadge status={row.objective_status} />
+          )}
           {saveState && (
             <span
               className={`${styles.rowSaveState} ${
@@ -2513,6 +2639,7 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
                 rowIndex={rowIndex}
                 columnIndex={columnIndex}
                 onMoveFocus={onMoveFocus}
+                onPasteMatrix={(text) => onPasteScoreMatrix(text, rowIndex, columnIndex)}
                 onScoreChange={(score) =>
                   onUpdateCell(
                     row.enrollment_id,
@@ -2726,6 +2853,7 @@ function ScoreCell({
   rowIndex,
   columnIndex,
   onMoveFocus,
+  onPasteMatrix,
   onScoreChange,
   onReviewChange,
 }: {
@@ -2741,6 +2869,7 @@ function ScoreCell({
     element: HTMLElement,
     direction: "next" | "previous" | "up" | "down",
   ) => void;
+  onPasteMatrix: (text: string) => void;
   onScoreChange: (value: number | null) => void;
   onReviewChange: (value: boolean) => void;
 }) {
@@ -2758,6 +2887,13 @@ function ScoreCell({
         data-row-index={rowIndex}
         data-column-index={columnIndex}
         onFocus={(event) => event.currentTarget.select()}
+        onPaste={(event) => {
+          const text = event.clipboardData.getData("text");
+          // 한 칸 값은 기본 입력으로 두고, 여러 행·열일 때만 표 붙여넣기로 처리한다.
+          if (!/[\t\n]/.test(text.replace(/\r?\n$/, ""))) return;
+          event.preventDefault();
+          onPasteMatrix(text);
+        }}
         onChange={(event) => {
           const raw = event.target.value;
           onScoreChange(raw === "" ? null : Number(raw));
@@ -2909,6 +3045,34 @@ function getQuestionAnswerTypeLabel(
   if (answerType === "choice") return "객관식";
   if (answerType === "numeric_short_answer") return "단답형";
   return "서술형";
+}
+
+function parseScoreClipboard(text: string): {
+  matrix: Array<Array<number | undefined>>;
+  error?: string;
+} {
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  while (lines.length > 0 && lines[lines.length - 1].trim() === "") lines.pop();
+  if (lines.length === 0) return { matrix: [], error: "붙여넣을 점수가 없습니다." };
+  const matrix: Array<Array<number | undefined>> = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const cells = lines[index].split("\t");
+    const values: Array<number | undefined> = [];
+    for (const raw of cells) {
+      const value = raw.trim().replace(/점$/, "").trim();
+      if (value === "") {
+        values.push(undefined);
+        continue;
+      }
+      const score = Number(value);
+      if (!Number.isFinite(score)) {
+        return { matrix: [], error: `${index + 1}번째 줄의 "${raw.trim()}"은(는) 점수가 아닙니다.` };
+      }
+      values.push(score);
+    }
+    matrix.push(values);
+  }
+  return { matrix };
 }
 
 function parseCorrectnessClipboard(

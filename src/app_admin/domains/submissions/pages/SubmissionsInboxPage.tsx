@@ -31,6 +31,7 @@ import { submissionsQueryKeys } from "@/shared/api/queryKeys/submissions";
 import { invalidateSubmissionResultCaches } from "@admin/domains/results/public/omrReview";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentPickerModal from "@admin/domains/results/components/omr-review/StudentPickerModal";
+import { confirmAbsenceResume, isResumableAbsenceConflict } from "@admin/domains/results/components/omr-review/absenceResume";
 import {
   fetchExamCandidates,
   fetchHomeworkCandidates,
@@ -320,16 +321,21 @@ export default function SubmissionsInboxPage() {
   });
 
   const identifyMut = useMutation({
-    mutationFn: async (input: { row: PendingSubmissionRow; enrollmentId: number; allowDuplicate?: boolean }) => {
+    mutationFn: async (input: { row: PendingSubmissionRow; enrollmentId: number; allowDuplicate?: boolean; resumeAbsence?: boolean }) => {
       return manualEditSubmissionApi({
         submissionId: input.row.id,
         identifier: { enrollment_id: input.enrollmentId },
         answers: [],
-        note: "inbox_quick_identify",
+        note: input.resumeAbsence ? "inbox_resume_absence" : "inbox_quick_identify",
         allowDuplicate: input.allowDuplicate,
+        resumeAbsence: input.resumeAbsence,
       });
     },
-    onSuccess: (result, input) => {
+    onSuccess: async (result, input) => {
+      if (!input.resumeAbsence && result.can_resume_absence && await confirmAbsenceResume(confirm)) {
+        identifyMut.mutate({ ...input, resumeAbsence: true });
+        return;
+      }
       if (
         result.code === "OMR_GRADING_CONFIGURATION_REQUIRED"
         && result.recovery?.action === "configure_exam"
@@ -348,7 +354,11 @@ export default function SubmissionsInboxPage() {
         refreshAssignmentResults(input.row);
         return;
       }
-      const message = result.graded === true && result.projection_ready !== false
+      const message = result.absence_preserved
+        ? "학생 지정은 저장됐지만 이 학생은 결시 상태라 점수에 반영하지 않았습니다."
+        : result.absence_resumed && result.projection_ready === false
+          ? "결시를 해제하고 객관식을 채점했습니다. 서술형 점수는 채점표에서 입력해 주세요."
+        : result.graded === true && result.projection_ready !== false
         ? "학생 지정과 채점이 완료됐습니다. 결과를 확인해 주세요."
         : result.projection_ready === false
           ? "학생 지정은 저장됐습니다. 아직 성적 반영이 끝나지 않았습니다. 답안을 검토해 주세요."
@@ -386,6 +396,10 @@ export default function SubmissionsInboxPage() {
         });
         setPickerRow((current) => current?.id === input.row.id ? null : current);
         refreshAssignmentResults(input.row);
+        return;
+      }
+      if (isResumableAbsenceConflict(e) && !input.resumeAbsence && recovery?.enrollment_id === input.enrollmentId) {
+        void confirmAbsenceResume(confirm).then((ok) => { if (ok) identifyMut.mutate({ ...input, resumeAbsence: true }); });
         return;
       }
       if (

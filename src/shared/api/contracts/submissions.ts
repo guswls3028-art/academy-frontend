@@ -169,6 +169,8 @@ export type SubmissionManualEditInput = {
     exam_question_id: number;
     answer: string;
   }>;
+  /** 교사가 결시 해제를 명시적으로 확인한 경우에만 true */
+  resumeAbsence?: boolean;
 };
 
 export type SubmissionManualEditResult = {
@@ -188,6 +190,12 @@ export type SubmissionManualEditResult = {
   projection_ready?: boolean;
   grading_status?: "subjective_pending" | string | null;
   detail?: string;
+  /** 이 답안지 학생이 결시로 남아 있어 채점이 반영되지 않음 */
+  absence_preserved?: boolean;
+  /** 결시 해제 확인 후 다시 저장하면 채점할 수 있음 */
+  can_resume_absence?: boolean;
+  absence_resumed?: boolean;
+  reason?: string;
 };
 
 /** 폐기 사유 enum (backend submission_view._DISCARD_REASONS 와 동기) */
@@ -351,6 +359,7 @@ export async function manualEditSubmissionApi(
     identifier: input.identifier ?? null,
     answers,
     note: String(input.note || "manual_edit"),
+    ...(input.resumeAbsence === true ? { resume_absence: true } : {}),
   };
 
   const query = input.allowDuplicate ? "?allow_duplicate=1" : "";
