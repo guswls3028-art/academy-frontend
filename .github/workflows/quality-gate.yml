@@ -421,7 +421,7 @@ jobs:
       - name: Install locked test dependencies
         run: pnpm install --frozen-lockfile --shamefully-hoist
       - name: Install Korean fonts for visual evidence
-        timeout-minutes: 5
+        timeout-minutes: 10
         run: |
           # Same official HTTPS mirror priority as the PR E2E Playwright step:
           # an Azure mirror DNS outage must not block release QA. Distribution
@@ -430,8 +430,18 @@ jobs:
             printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\nhttp://azure.archive.ubuntu.com/ubuntu/\tpriority:3\n' \
               | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
           fi
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          apt_opts="-o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20"
+          if ! { sudo apt-get $apt_opts update && sudo apt-get $apt_opts install -y --no-install-recommends fonts-noto-cjk; }; then
+            # Ubuntu mirrors unreachable (runner DNS): use the official Noto
+            # release on GitHub, pinned to its SHA-256. Still fails closed below.
+            echo "::warning::Ubuntu mirrors unavailable; installing pinned Noto Sans KR release"
+            curl -fsSL --retry 3 -o /tmp/NotoSansKR.zip \
+              https://github.com/notofonts/noto-cjk/releases/download/Sans2.004/17_NotoSansKR.zip
+            echo "ac7eeb4e2b0d41de8ff31b2d6e1e2a41caf253fd5cefb380bfa1f40f1747b612  /tmp/NotoSansKR.zip" | sha256sum -c -
+            sudo mkdir -p /usr/local/share/fonts/noto-sans-kr
+            sudo unzip -oq /tmp/NotoSansKR.zip 'NotoSansKR-*.otf' -d /usr/local/share/fonts/noto-sans-kr
+            sudo fc-cache -f
+          fi
           test -n "$(fc-list :lang=ko family)"
       - name: Check bundled AWS tools and install Chromium
         run: |
