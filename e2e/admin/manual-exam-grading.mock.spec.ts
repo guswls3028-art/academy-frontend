@@ -845,6 +845,7 @@ type InstallApiOptions = {
   onlineWrittenAnswer?: string;
   studentName?: string;
   conflictOnGradingSetup?: boolean;
+  objectiveStatus?: "omr_pending" | "omr_restore" | "omr_review_required" | "omr_processing";
 };
 
 async function installApi(page: Page, options: InstallApiOptions = {}) {
@@ -1564,6 +1565,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
             expected_version: persisted.expectedVersion,
             is_not_submitted: persisted.isNotSubmitted,
             exam_not_submitted_count: 0,
+            objective_status: options.objectiveStatus ?? null,
             cells: persisted.cells,
           }];
             })(),
@@ -1672,10 +1674,12 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         question_count: 2,
         overwrite_count: 0,
         not_submitted_count: 0,
+        objective_pending_count: options.objectiveStatus === "omr_pending" ? 1 : 0,
         errors: [],
         rows: [{
           enrollment_id: ENROLLMENT_ID,
           student_name: "김학생",
+          objective_status: options.objectiveStatus ?? null,
           correct_count: 2,
           wrong_count: 0,
           wrong_questions: [],
@@ -4004,6 +4008,55 @@ test.describe("문항별 직접 채점", () => {
       expect.objectContaining({ apply: false }),
       expect.objectContaining({ apply: true }),
     ]);
+  });
+
+  test("혼합형 OMR 대기 학생도 서술형을 저장하고 엑셀 점수 열을 한 번에 붙여넣는다", async ({ page }) => {
+    const apiState = await installApi(page, {
+      gradingMode: "mixed",
+      manualGradingMethod: "score",
+      objectiveStatus: "omr_pending",
+    });
+
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await chooseExamHeaderAction(page, "문항별 점수 입력");
+    const dialog = page.getByRole("dialog").filter({ hasText: "7월 진단평가" });
+    const badge = dialog.getByText("OMR 대기", { exact: true });
+    await expect(badge).toBeVisible();
+    await expect(dialog.locator("[title*='답안지가 매칭되면 자동으로 합산']")).toHaveCount(1);
+
+    const essay = dialog.locator("input[data-manual-grade-cell]").first();
+    await expect(essay).toBeVisible();
+    await essay.focus();
+    // 범위를 벗어난 값이 섞이면 아무 칸도 바꾸지 않는다.
+    await essay.evaluate((input) => {
+      const data = new DataTransfer();
+      data.setData("text", "75\n10\n");
+      input.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+    });
+    await expect(page.getByText(/0점~만점 범위를 벗어난 값/)).toBeVisible();
+    await expect(essay).toHaveValue("");
+    await essay.evaluate((input) => {
+      const data = new DataTransfer();
+      data.setData("text", "45점\r\n50\r\n");
+      input.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+    });
+    await expect(essay).toHaveValue("45");
+    await expect(page.getByText("1칸을 붙여넣었습니다.")).toBeVisible();
+
+    await dialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+    await expect(dialog.getByText("1명 · 결시 0명 · OMR 대기 1명 · 성적 계산 완료", { exact: true })).toBeVisible();
+    await dialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+    await expect.poll(() => apiState.postedRows.length).toBe(2);
+    expect(apiState.postedRows[1]).toEqual(expect.objectContaining({
+      apply: true,
+      rows: [expect.objectContaining({
+        attendance: "present",
+        cells: expect.objectContaining({ [String(QUESTION_IDS[1])]: expect.objectContaining({ score: 45 }) }),
+      })],
+    }));
   });
 
   test("성적표 시험명에서 열고 단축키를 바꾸면 자동 이동과 함께 저장된다", async ({ page }, testInfo) => {
