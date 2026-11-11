@@ -30,6 +30,7 @@ import { RotateCcw, RotateCw, Upload } from "lucide-react";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { Badge, Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
+import { confirmAbsenceResume } from "./absenceResume";
 import { createRandomUuid } from "@/shared/utils/randomUuid";
 import { adminResultsQueryKeys } from "../../queryKeys";
 import {
@@ -79,21 +80,6 @@ function lecturesForCandidate(row: CandidateRow) {
         chipLabel: row.lecture_chip_label,
       }]
     : [];
-}
-
-async function confirmAbsenceResume(
-  confirm: ReturnType<typeof useConfirm>,
-  studentName: string | null | undefined,
-): Promise<boolean> {
-  return confirm({
-    title: "결시로 저장된 학생입니다",
-    message:
-      `${studentName ? `${studentName} 학생은` : "이 학생은"} 이 시험에서 결시로 저장돼 있습니다. ` +
-      "답안지가 학생 본인 것이 맞으면 결시를 해제하고 객관식 점수를 반영합니다. " +
-      "서술형 점수는 채점표에서 이어서 입력할 수 있습니다.",
-    confirmText: "결시 해제 후 채점",
-    cancelText: "결시 유지",
-  });
 }
 
 function scoreFromManualEditResult(result: SubmissionManualEditResult | undefined): number | null {
