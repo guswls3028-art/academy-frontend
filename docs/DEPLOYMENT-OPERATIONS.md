@@ -589,7 +589,12 @@ ProductUsageEvent/DailyActor 변화 0임을 검사한다. 도메인 설명은 ba
 개발 실사용 Linux runner는 `fonts-noto-cjk`를 명시적으로 설치하고 `fc-list :lang=ko`가
 비어 있으면 검사 시작 전에 실패한다. 설치 전 PR E2E와 같은 공식 HTTPS 미러 우선순위
 (`archive.ubuntu.com` → `security.ubuntu.com` → Azure 미러)로 `/etc/apt/apt-mirrors.txt`를
-바꿔 Azure 미러 DNS 장애가 release QA를 막지 않게 한다. 패키지 출처·서명 검증은 그대로다. 제품 번들은 그대로 사용하며, 보존된 PC/390px PNG에서
+바꿔 Azure 미러 DNS 장애가 release QA를 막지 않게 한다. 패키지 출처·서명 검증은 그대로다.
+Ubuntu 미러 전체가 runner에서 해석되지 않으면 apt 설치 실패에 한해 공식 Noto 저장소의
+`Sans2.004/17_NotoSansKR.zip`을 고정 SHA-256
+`ac7eeb4e2b0d41de8ff31b2d6e1e2a41caf253fd5cefb380bfa1f40f1747b612`로 검증한 뒤 OTF만 설치하고
+경고를 남긴다. 해시 불일치나 다운로드 실패는 그대로 실패하며 `fc-list :lang=ko` 확인도 유지한다.
+글꼴 버전을 바꿀 때는 공식 release 크기·해시를 다시 확인해 함께 갱신한다. 제품 번들은 그대로 사용하며, 보존된 PC/390px PNG에서
 한글 가독성을 직접 확인해야 시각 증거가 유효하다.
 
 공식 main 배포는 먼저 `backend-readiness`에서 backend의 진행 중인 main release run과
