@@ -4029,6 +4029,7 @@ test.describe("문항별 직접 채점", () => {
 
     const essay = dialog.locator("input[data-manual-grade-cell]").first();
     await expect(essay).toBeVisible();
+    const initialValue = await essay.inputValue();
     await essay.focus();
     // 범위를 벗어난 값이 섞이면 아무 칸도 바꾸지 않는다.
     await essay.evaluate((input) => {
@@ -4037,7 +4038,7 @@ test.describe("문항별 직접 채점", () => {
       input.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
     });
     await expect(page.getByText(/0점~만점 범위를 벗어난 값/)).toBeVisible();
-    await expect(essay).toHaveValue("");
+    await expect(essay).toHaveValue(initialValue);
     await essay.evaluate((input) => {
       const data = new DataTransfer();
       data.setData("text", "45점\r\n50\r\n");
