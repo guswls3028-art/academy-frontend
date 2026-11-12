@@ -84,15 +84,11 @@ export function omrProposalHint(
   if (fillable == null) {
     return proposal.status === "needs_check" || proposal.score == null
       ? { text: "OMR 확인", tone: "warning" }
-      : { text: `OMR ${formatOmrScore(proposal.score)} 배점 초과`, tone: "warning" };
+      : { text: `OMR ${Math.round(proposal.score * 10) / 10} 배점 초과`, tone: "warning" };
   }
   if (value != null && Math.abs(value - fillable) <= 1e-6) return null;
   return {
-    text: `OMR ${formatOmrScore(fillable)}`,
+    text: `OMR ${fillable}`,
     tone: value == null ? "info" : "warning",
   };
-}
-
-function formatOmrScore(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
