@@ -21,6 +21,15 @@ export {
 
 import type { AccessMode, VideoRule } from "../types/access-mode";
 
+export async function requestVideoSourceDownload(videoId: number, signal: AbortSignal) {
+  const { data } = await api.post<{ download_url: string; filename: string; expires_in: number }>(
+    `/media/videos/${videoId}/source-download/`,
+    undefined,
+    { signal },
+  );
+  return data;
+}
+
 export interface VideoStatsStudent {
   enrollment: number;
   student_id?: number;
