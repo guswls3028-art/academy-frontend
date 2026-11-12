@@ -340,7 +340,7 @@ export class StudentHlsController {
     if (!el) return;
 
     this.pendingSourceResume ??= capturePlaybackSource(el, this.state);
-    if (!this.state.ready) {
+    if (!this.state.ready && this.pendingSourceResume.position === 0) {
       this.pendingSourceResume.position = Number(this.opts.initialPosition || 0);
     }
     this.setState({ buffering: true });
