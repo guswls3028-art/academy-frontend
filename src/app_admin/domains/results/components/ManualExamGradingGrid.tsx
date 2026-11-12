@@ -72,6 +72,7 @@ import fixedColumnStyles from "./ManualExamGradingFixedColumns.module.css";
 import weightStyles from "./ManualExamGradingWeights.module.css";
 import overviewStyles from "./ManualExamGradingOverview.module.css";
 import writtenAnswerStyles from "./ManualExamGradingWrittenAnswer.module.css";
+import omrFillStyles from "./ManualExamGradingOmrFill.module.css";
 
 type Props = {
   examId: number;
@@ -2036,7 +2037,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
             </span>
           </div>
           {showOmrFill && omrFillPlan && (
-            <div className={styles.omrFill} role="group" aria-label="OMR 서술형 점수">
+            <div className={omrFillStyles.omrFill} role="group" aria-label="OMR 서술형 점수">
               <Button
                 type="button"
                 intent="secondary"
@@ -2050,7 +2051,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
               </Button>
               <Badge tone="info" size="xs" variant="soft">Beta</Badge>
               {omrFillPlan.needsCheck > 0 && (
-                <span className={styles.omrFillWarning}>확인 필요 {omrFillPlan.needsCheck}칸</span>
+                <span className={omrFillStyles.omrFillWarning}>확인 필요 {omrFillPlan.needsCheck}칸</span>
               )}
             </div>
           )}
@@ -2945,7 +2946,11 @@ function ScoreCell({
   onReviewChange: (value: boolean) => void;
 }) {
   return (
-    <div className={`${styles.scoreCell} ${omrHint?.tone === "warning" ? styles.omrWarn : ""}`}>
+    <div
+      className={`${styles.scoreCell} ${omrHint ? omrFillStyles.omrScoreCell : ""} ${
+        omrHint?.tone === "warning" ? omrFillStyles.omrWarn : ""
+      }`}
+    >
       <input
         type="number"
         min={0}
@@ -3009,7 +3014,7 @@ function ScoreCell({
       </button>
       {omrHint && value != null && (
         <span
-          className={styles.omrHintDot}
+          className={omrFillStyles.omrHintDot}
           role="img"
           aria-label={omrHint.text}
           title={`${omrHint.text} · OMR 교사 채점란에서 읽은 점수 (Beta)`}
