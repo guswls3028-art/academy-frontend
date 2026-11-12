@@ -52,7 +52,11 @@ function PlaybackExport({ videoId }: { videoId: number }) {
       return result.state;
     },
     onMutate: () => setError(""),
-    onSuccess: (state) => queryClient.setQueryData(queryKey, { state }),
+    onSuccess: async (state) => {
+      // A status request started before the POST can return an older export state.
+      await queryClient.cancelQueries({ queryKey, exact: true });
+      queryClient.setQueryData(queryKey, { state });
+    },
     onError: (cause) => {
       const detail = isAxiosError<{ detail?: string }>(cause) ? cause.response?.data?.detail : undefined;
       setError(typeof detail === "string" ? detail : "재생본을 준비하지 못했습니다. 다시 시도해 주세요.");
