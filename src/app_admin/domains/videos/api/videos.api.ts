@@ -47,6 +47,31 @@ export async function requestVideoPlaybackExport(videoId: number): Promise<Video
   return (await api.post<VideoPlaybackExportResult>(`/media/videos/${videoId}/playback-export/`)).data;
 }
 
+export interface VideoPlacement {
+  video_id: number;
+  lecture_id: number;
+  lecture_title: string;
+  session_id: number;
+  session_title: string;
+  is_original: boolean;
+}
+
+export interface VideoPlacements {
+  source_video_id: number;
+  can_attach: boolean;
+  placements: VideoPlacement[];
+}
+
+export type VideoPlacementChange = { add_session_ids: number[] } | { remove_video_ids: number[] };
+
+export async function fetchVideoPlacements(videoId: number, signal: AbortSignal): Promise<VideoPlacements> {
+  return (await api.get<VideoPlacements>(`/media/videos/${videoId}/placements/`, { signal })).data;
+}
+
+export async function changeVideoPlacements(videoId: number, change: VideoPlacementChange): Promise<VideoPlacements> {
+  return (await api.patch<VideoPlacements>(`/media/videos/${videoId}/placements/`, change)).data;
+}
+
 export interface VideoStatsStudent {
   enrollment: number;
   student_id?: number;
