@@ -1,4 +1,5 @@
 export const adminVideoQueryKeys = {
+  playbackExport: (videoId: number) => ["video-playback-export", videoId] as const,
   landingStats: ["admin-videos-landing-stats"] as const,
   lectures: ["admin-videos-lectures"] as const,
   lectureSessionsAll: ["lecture-sessions-all"] as const,

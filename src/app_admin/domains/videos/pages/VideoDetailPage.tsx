@@ -275,7 +275,7 @@ export default function VideoDetailPage() {
                   </>
                 )}
                 <span className="video-detail-meta-spacer" />
-                {video.source_type !== "youtube" && <VideoSourceDownload key={videoId} videoId={videoId} />}
+                {video.source_type !== "youtube" && <VideoSourceDownload key={videoId} videoId={videoId} canExport={video.status === "READY"} />}
                 <button
                   type="button"
                   onClick={() => setEditModalOpen(true)}

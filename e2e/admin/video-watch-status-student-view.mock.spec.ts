@@ -24,8 +24,9 @@ type Evidence = {
   sourceDownloads: string[];
 };
 
-async function installApp(page: Page): Promise<Evidence> {
+async function installApp(page: Page, archived = false): Promise<Evidence> {
   const evidence: Evidence = { supportStarts: [], sourceDownloads: [] };
+  let exportRequested = false;
   await installTenantOneInitScript(page);
   await page.addInitScript((access) => {
     localStorage.setItem("access", access);
@@ -143,6 +144,7 @@ async function installApp(page: Page): Promise<Evidence> {
     }
     if (path === "/media/videos/596/source-download/" && request.method() === "POST") {
       evidence.sourceDownloads.push(request.headers().authorization || "");
+      if (archived) return json({ code: "video_source_missing", detail: "보관된 원본 파일을 찾을 수 없습니다." }, 404);
       if (evidence.sourceDownloads.length === 1) {
         return json({ detail: "보관된 원본 파일을 찾을 수 없습니다." }, 404);
       }
@@ -150,6 +152,17 @@ async function installApp(page: Page): Promise<Evidence> {
         download_url: "https://video-download.test/source.mov",
         filename: "test-source.mov",
         expires_in: 300,
+      });
+    }
+    if (archived && path === "/media/videos/596/playback-export/") {
+      if (request.method() === "GET") return json({ state: exportRequested ? "ready" : "not_requested" });
+      if (!exportRequested) {
+        exportRequested = true;
+        return json({ state: "preparing" }, 202);
+      }
+      return json({
+        state: "ready", download_url: "https://video-download.test/archive.mp4",
+        filename: "archive.mp4", expires_in: 300,
       });
     }
     if (path === "/students/1001/support-session/" && request.method() === "POST") {
@@ -234,6 +247,21 @@ test("영상 상세에서 원본 누락 안내 후 첨부 파일을 다운로드
   }
   expect(evidence.sourceDownloads).toEqual([ADMIN_ACCESS, ADMIN_ACCESS].map((token) => `Bearer ${token}`));
   await expect(page.getByText("보관된 원본 파일을 찾을 수 없습니다.")).toHaveCount(0);
+});
+
+test("원본이 없는 영상은 재생본을 준비하고 준비가 끝나면 MP4를 받을 수 있다", async ({ page }) => {
+  await installApp(page, true);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(page, `${BASE}/workspace/videos/tree?videoId=596&lectureId=502&sessionId=542`, {
+    timeout: 45_000,
+  });
+  await page.getByRole("button", { name: "원본 다운로드", exact: true }).click();
+  await page.getByRole("button", { name: "재생본 MP4 준비" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "재생본을 준비하고 있습니다." })).toBeVisible();
+  await page.getByRole("button", { name: "재생본 받기" }).click({ timeout: 15_000 });
+  const link = page.getByRole("link", { name: "파일 저장" });
+  await expect(link).toHaveAttribute("download", "archive.mp4");
+  await expect(link).toHaveAttribute("href", "https://video-download.test/archive.mp4");
 });
 
 test("영상 시청 현황은 학생별 명시적 화면 보기와 반응형 운영 위계를 제공한다", async ({ page }) => {

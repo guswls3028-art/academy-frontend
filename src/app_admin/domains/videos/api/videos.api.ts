@@ -30,6 +30,23 @@ export async function requestVideoSourceDownload(videoId: number, signal: AbortS
   return data;
 }
 
+export type VideoPlaybackExportState = "not_requested" | "preparing" | "ready" | "failed";
+
+export interface VideoPlaybackExportResult {
+  state: VideoPlaybackExportState;
+  download_url?: string;
+  filename?: string;
+  expires_in?: number;
+}
+
+export async function fetchVideoPlaybackExport(videoId: number, signal: AbortSignal): Promise<VideoPlaybackExportResult> {
+  return (await api.get<VideoPlaybackExportResult>(`/media/videos/${videoId}/playback-export/`, { signal })).data;
+}
+
+export async function requestVideoPlaybackExport(videoId: number): Promise<VideoPlaybackExportResult> {
+  return (await api.post<VideoPlaybackExportResult>(`/media/videos/${videoId}/playback-export/`)).data;
+}
+
 export interface VideoStatsStudent {
   enrollment: number;
   student_id?: number;
