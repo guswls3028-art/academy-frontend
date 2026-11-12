@@ -921,8 +921,7 @@ export class StudentHlsController {
       const errorCode = elErr?.code || 0;
       const errorMessage = elErr?.message || "";
       this.queueEvent("PLAYER_ERROR", { code: errorCode, message: errorMessage });
-      // hls.js가 연결된 경우 HTTP 상태를 포함한 HLS 오류 이벤트가 더 정확하다.
-      // 브라우저의 일반 MediaError(code=4)로 먼저 오분류하지 않는다.
+      // Hls.js reports the HTTP status more reliably than a generic MediaError.
       if (this.hls) return;
       this.nativeRecovery.handleError(errorCode, errorMessage, !this.opts.reviewStream && !this.stallWatch?.retrying, () => {
         this.pendingSourceResume ??= {
