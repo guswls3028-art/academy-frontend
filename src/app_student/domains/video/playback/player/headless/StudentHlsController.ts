@@ -582,9 +582,9 @@ export class StudentHlsController {
   private flushProgress(force = false) {
     if ((!force && this.disposed) || !this.el || !this.opts.onLeaveProgress) return;
     const pending = this.pendingSourceResume;
-    const currentTime = pending?.position ?? Number(this.el.currentTime || 0);
+    const currentTime = pending?.position ?? (this.el.error ? this.lastTimeRef : Number(this.el.currentTime || 0));
     const maxWatched = Math.max(0, this.maxWatchedRef);
-    const dur = pending ? this.state.duration : Number(this.el.duration);
+    const dur = this.state.duration || Number(this.el.duration);
     // Do not overwrite server progress with a synthetic 0% before metadata is ready.
     if (!(dur > 0 && Number.isFinite(dur))) return;
     const baselineProgress = Math.min(100, Math.max(0, Number(this.opts.initialProgress) || 0));
@@ -796,7 +796,7 @@ export class StudentHlsController {
     };
 
     const onTime = () => {
-      if (this.disposed || this.pendingSourceResume) return;
+      if (this.disposed || this.pendingSourceResume || el.error) return;
       const t = Number(el.currentTime || 0);
       const resumed = this.nativeRecovery.active && !el.paused && !el.seeking && t > this.lastTimeRef;
       if (resumed) this.nativeRecovery.clear();

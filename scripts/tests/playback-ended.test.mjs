@@ -50,6 +50,30 @@ test('native HLS restores playback after a network error and saves the resumed p
   assert.equal(saved.at(-1)?.last_position, 124);
 });
 
+test('a native source error that clears media metadata does not erase the saved playhead', async () => {
+  const h = harness();
+  const saved = [];
+  const errors = [];
+  const controller = h.controller('hls', 'student-fixture', {
+    playUrl: 'https://unit.invalid/master.m3u8', policy: { monitoring_enabled: false },
+    onFatal: (error) => errors.push(error), onLeaveProgress: (progress) => saved.push(progress),
+  });
+  const el = Object.assign(new EventTarget(), {
+    currentTime: 0, duration: 600, paused: true, playbackRate: 1, error: null,
+    canPlayType: () => 'probably', pause() {}, removeAttribute() {}, load() {},
+  });
+  await controller.attach(el);
+  el.dispatchEvent(new Event('loadedmetadata'));
+  el.currentTime = 123;
+  el.dispatchEvent(new Event('timeupdate'));
+  Object.assign(el, { currentTime: 0, duration: NaN, error: { code: 4 } });
+  el.dispatchEvent(new Event('error'));
+  assert.equal(errors.length, 1);
+  controller.dispose();
+  assert.equal(saved.at(-1)?.last_position, 123);
+  assert.equal(saved.at(-1)?.completed, false);
+});
+
 for (const kind of ['hls', 'youtube']) {
   test(`${kind}: completed replay progress and disposal never announce a new playback end`, async () => {
     const h = harness();
