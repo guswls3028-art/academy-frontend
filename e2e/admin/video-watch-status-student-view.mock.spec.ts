@@ -27,7 +27,6 @@ type Evidence = {
 
 async function installApp(page: Page, archived = false): Promise<Evidence> {
   const evidence: Evidence = { supportStarts: [], sourceDownloads: [], placementChanges: [] };
-  let exportRequested = false;
   const originalPlacement = {
     video_id: 596, lecture_id: 502, lecture_title: "지난 강의", session_id: 542,
     session_title: "원본 차시", is_original: true,
@@ -181,17 +180,6 @@ async function installApp(page: Page, archived = false): Promise<Evidence> {
         expires_in: 300,
       });
     }
-    if (archived && path === "/media/videos/596/playback-export/") {
-      if (request.method() === "GET") return json({ state: exportRequested ? "ready" : "not_requested" });
-      if (!exportRequested) {
-        exportRequested = true;
-        return json({ state: "preparing" }, 202);
-      }
-      return json({
-        state: "ready", download_url: "https://video-download.test/archive.mp4",
-        filename: "archive.mp4", expires_in: 300,
-      });
-    }
     if (path === "/students/1001/support-session/" && request.method() === "POST") {
       evidence.supportStarts.push({
         path,
@@ -276,20 +264,79 @@ test("영상 상세에서 원본 누락 안내 후 첨부 파일을 다운로드
   await expect(page.getByText("보관된 원본 파일을 찾을 수 없습니다.")).toHaveCount(0);
 });
 
-test("원본이 없는 영상은 재생본을 준비하고 준비가 끝나면 MP4를 받을 수 있다", async ({ page }) => {
-  await installApp(page, true);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await gotoAndSettle(page, `${BASE}/workspace/videos/tree?videoId=596&lectureId=502&sessionId=542`, {
-    timeout: 45_000,
+for (const width of [390, 1366]) {
+  test(`늦은 상태 응답에도 재생본 준비를 추적하고 실패 후 다시 받을 수 있다 (${width}px)`, async ({ page }) => {
+    await installApp(page, true);
+    const initialStatusStarted = Promise.withResolvers<void>();
+    const releaseInitialStatus = Promise.withResolvers<void>();
+    const initialStatusSettled = Promise.withResolvers<void>();
+    let statusRequests = 0;
+    let prepareRequests = 0;
+    await page.route("**/api/v1/media/videos/596/playback-export/", async (route) => {
+      if (route.request().method() === "GET") {
+        if (++statusRequests === 1) {
+          initialStatusStarted.resolve();
+          await releaseInitialStatus.promise;
+          try {
+            await route.fulfill({ json: { state: "not_requested" } });
+          } finally {
+            initialStatusSettled.resolve();
+          }
+          return;
+        }
+        await route.fulfill({ json: { state: prepareRequests === 1 ? "failed" : "ready" } });
+        return;
+      }
+      if (++prepareRequests <= 2) {
+        await route.fulfill({ status: 202, json: { state: "preparing" } });
+        return;
+      }
+      await route.fulfill({
+        json: {
+          state: "ready", download_url: "https://video-download.test/archive.mp4",
+          filename: "archive.mp4", expires_in: 300,
+        },
+      });
+    });
+    await page.route("https://video-download.test/archive.mp4", (route) => route.fulfill({
+      headers: { "content-disposition": 'attachment; filename="archive.mp4"' },
+      contentType: "video/mp4",
+      body: "mock export",
+    }));
+
+    await page.setViewportSize({ width, height: 844 });
+    await gotoAndSettle(page, `${BASE}/workspace/videos/tree?videoId=596&lectureId=502&sessionId=542`, {
+      timeout: 45_000,
+    });
+    await page.getByRole("button", { name: "원본 다운로드", exact: true }).click();
+    const prepare = page.getByRole("button", { name: "재생본 MP4 준비" });
+    const preparing = page.getByRole("status").filter({ hasText: "재생본을 준비하고 있습니다." });
+    try {
+      await initialStatusStarted.promise;
+      await prepare.click();
+      await expect(preparing).toBeVisible();
+    } finally {
+      releaseInitialStatus.resolve();
+    }
+    await initialStatusSettled.promise;
+    await expect(page.getByText("재생본 준비가 완료되지 않았습니다. 잠시 후 다시 시도해 주세요.")).toBeVisible({ timeout: 15_000 });
+    expect(prepareRequests).toBe(1);
+    await prepare.click();
+    await expect(preparing).toBeVisible();
+    const ready = page.getByRole("button", { name: "재생본 받기" });
+    await expect(ready).toBeVisible({ timeout: 15_000 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "원본 다운로드", exact: true }).click();
+    await ready.click();
+    const link = page.getByRole("link", { name: "파일 저장" });
+    await expect(link).toHaveAttribute("download", "archive.mp4");
+    await expect(link).toHaveAttribute("href", "https://video-download.test/archive.mp4");
+    const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
+    expect(download.suggestedFilename()).toBe("archive.mp4");
+    expect(await download.failure()).toBeNull();
+    expect(prepareRequests).toBe(3);
   });
-  await page.getByRole("button", { name: "원본 다운로드", exact: true }).click();
-  await page.getByRole("button", { name: "재생본 MP4 준비" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "재생본을 준비하고 있습니다." })).toBeVisible();
-  await page.getByRole("button", { name: "재생본 받기" }).click({ timeout: 15_000 });
-  const link = page.getByRole("link", { name: "파일 저장" });
-  await expect(link).toHaveAttribute("download", "archive.mp4");
-  await expect(link).toHaveAttribute("href", "https://video-download.test/archive.mp4");
-});
+}
 
 test("한 영상을 여러 차시에 연결한 뒤 선택한 사용처만 해제할 수 있다", async ({ page }) => {
   const evidence = await installApp(page);
