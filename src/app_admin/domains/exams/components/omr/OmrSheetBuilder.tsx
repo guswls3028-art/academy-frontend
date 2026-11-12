@@ -10,6 +10,7 @@ import {
   type OMRTarget,
 } from "@admin/domains/exams/api/omr.api";
 
+import OmrEssayScoreMarksOption from "./OmrEssayScoreMarksOption";
 import styles from "./OmrSheetBuilder.module.css";
 
 const PREVIEW_ERROR_HTML = "<html><body><p>미리보기를 불러올 수 없습니다.</p></body></html>";
@@ -399,6 +400,12 @@ export default function OmrSheetBuilder({
               <span className={styles.areaStatus}>{essayCount > 0 ? "포함" : "없음"}</span>
             )}
           </div>
+          {targetType === "exam" && targetExamId && essayCount > 0 && (
+            <OmrEssayScoreMarksOption
+              examId={targetExamId}
+              onChanged={() => { void loadPreview(); }}
+            />
+          )}
         </div>
 
         <div className={styles.selectionSummary} aria-live="polite">
