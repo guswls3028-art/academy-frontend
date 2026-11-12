@@ -29,6 +29,7 @@ const METHODS: Array<{ value: AccountPasswordMode; label: string }> = [
 export default function RegistrationPasswordChoices({ choiceRef, ...options }: PasswordChoiceOptions & { choiceRef: Ref<ChoiceHandle> }) {
   const id = useId();
   const groups = useRef<Partial<Record<Role, HTMLFieldSetElement>>>({});
+  const editedRoles = useRef(new Set<Role>());
   const [modes, setModes] = useState<Record<Role, AccountPasswordMode | null>>({ student: null, parent: null });
   const [passwords, setPasswords] = useState({ student: options.studentPassword ?? "", parent: options.parentPassword ?? "" });
   const [errors, setErrors] = useState<Partial<Record<Role, string>>>({});
@@ -50,8 +51,8 @@ export default function RegistrationPasswordChoices({ choiceRef, ...options }: P
       if (!active) return;
       setDefaults(policy);
       setPasswords((current) => ({
-        student: current.student || policy.student_fixed_password || "",
-        parent: current.parent || policy.parent_fixed_password || "",
+        student: editedRoles.current.has("student") ? current.student : current.student || policy.student_fixed_password || "",
+        parent: editedRoles.current.has("parent") ? current.parent : current.parent || policy.parent_fixed_password || "",
       }));
     }).catch(() => { if (active) setDefaultError(true); });
     return () => { active = false; };
@@ -94,7 +95,11 @@ export default function RegistrationPasswordChoices({ choiceRef, ...options }: P
                 <label key={method.value} className="flex min-h-11 min-w-0 items-center gap-1 rounded-lg border border-[var(--color-border)] px-2 py-1 text-xs has-[:checked]:border-[var(--color-primary)] has-[:checked]:bg-[var(--color-primary-subtle)] has-[:disabled]:opacity-50">
                   <input type="radio" name={`${id}-${role}-method`} value={method.value} checked={modes[role] === method.value}
                     disabled={method.value === "phone_last4" && !available[role]}
-                    onChange={() => { setModes({ ...modes, [role]: method.value }); setErrors({ ...errors, [role]: "" }); }} />
+                    onChange={() => {
+                      editedRoles.current.add(role);
+                      setModes({ ...modes, [role]: method.value });
+                      setErrors({ ...errors, [role]: "" });
+                    }} />
                   <span>{method.label}</span>
                 </label>
               ))}
@@ -103,7 +108,10 @@ export default function RegistrationPasswordChoices({ choiceRef, ...options }: P
             {modes[role] === "fixed" && <div className="space-y-1">
               <label htmlFor={`${id}-${role}-password`} className="block text-sm">{label} 직접 입력 비밀번호</label>
               <input id={`${id}-${role}-password`} type={visible ? "text" : "password"} autoComplete="new-password" minLength={4}
-                className="ds-input w-full min-w-0" value={passwords[role]} onChange={(event) => setPasswords({ ...passwords, [role]: event.target.value })} />
+                className="ds-input w-full min-w-0" value={passwords[role]} onChange={(event) => {
+                  editedRoles.current.add(role);
+                  setPasswords({ ...passwords, [role]: event.target.value });
+                }} />
             </div>}
             {modes[role] === "random" && <p className="text-xs">등록할 때 서버에서 6자리 숫자를 생성합니다.</p>}
             {errors[role] && <p role="alert" className="text-sm text-[var(--color-danger)]">{errors[role]}</p>}

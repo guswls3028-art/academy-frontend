@@ -246,6 +246,7 @@ test("no phone: mandatory selection and short-input failures recover to a succes
   await expect(confirmation.getByText("학생 비밀번호 방식을 선택해 주세요.", { exact: true })).toBeVisible();
   expect(posts).toBe(0);
   await choose(confirmation, "학생", "fixed", "123"); await choose(confirmation, "학부모", "fixed");
+  await expect(confirmation.getByLabel("학생 직접 입력 비밀번호", { exact: true })).toHaveValue("123");
   await confirmation.getByRole("button", { name: "확인하고 등록", exact: true }).click();
   await expect(confirmation.getByText("학생 비밀번호를 4자 이상 입력해 주세요.", { exact: true })).toBeVisible();
   expect(posts).toBe(0);
