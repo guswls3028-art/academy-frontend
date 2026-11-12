@@ -16,6 +16,10 @@ export function isSessionRowProgressCompleted(row: SessionScoreRow): boolean {
   return row.progress_completed === true || row.progress_status === "completed";
 }
 
+function hasCompletedAssessmentProgress(row: SessionScoreRow): boolean {
+  return row.assessment_progress_completed ?? isSessionRowProgressCompleted(row);
+}
+
 export function getScoreBlockOmrReviewStatus(block: ScoreBlock | null | undefined): "review" | null {
   return block?.meta?.status === "OMR_REVIEW_REQUIRED" ? "review" : null;
 }
@@ -65,7 +69,7 @@ export function getSessionRowAttentionSummary(row: SessionScoreRow): SessionRowA
     inspectionTitles: [],
     failedTitles: [],
   };
-  if (isSessionRowProgressCompleted(row)) return summary;
+  if (hasCompletedAssessmentProgress(row)) return summary;
 
   const append = (kind: AttentionKind, title: string) => {
     if (kind === "missing") summary.missingTitles.push(title);
@@ -108,7 +112,7 @@ export type SessionScoresTableVerdictKind =
  * - 그 외는 검수 대기 → 미입력 → 실제 미달 순서로 다음 행동을 안내한다.
  */
 export function getSessionScoresTableVerdict(row: SessionScoreRow): SessionScoresTableVerdictKind {
-  if (isSessionRowProgressCompleted(row)) return "pass";
+  if (hasCompletedAssessmentProgress(row)) return "pass";
   if (row.clinic_required) return "clinic_target";
   const summary = getSessionRowAttentionSummary(row);
   if (summary.reviewTitles.length > 0) return "review";

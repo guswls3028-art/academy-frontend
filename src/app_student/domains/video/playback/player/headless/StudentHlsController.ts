@@ -337,6 +337,9 @@ export class StudentHlsController {
     if (!el) return;
 
     this.pendingSourceResume ??= capturePlaybackSource(el, this.state);
+    if (!this.state.ready) {
+      this.pendingSourceResume.position = Number(this.opts.initialPosition || 0);
+    }
     this.setState({ buffering: true });
     try {
       if (this.hls) {
@@ -366,8 +369,10 @@ export class StudentHlsController {
       restorePlaybackSource(el, pending, this.hls);
       if (pending.wasPlaying) {
         el.play()?.catch(() => {
-          if (this.disposed || this.pendingSourceResume || !this.stallWatch?.retrying || !el.paused) return;
-          this.stallWatch.stop();
+          if (this.disposed || this.pendingSourceResume || !el.paused
+            || (!this.stallWatch?.retrying && (this.hls || this.reconnectAttempts === 0))) return;
+          this.stallWatch?.stop();
+          if (!this.hls) this.finishNativeReconnect();
           this.setState({ playing: false, buffering: false, reconnecting: false });
           this.showToast("재생을 눌러 보던 위치부터 이어보세요.", "info");
         });
@@ -387,6 +392,13 @@ export class StudentHlsController {
       this.seekGuardRef.initialSeekActive = false;
     }, 200);
     this.timeouts.push(releaseGuard);
+  }
+
+  private finishNativeReconnect() {
+    if (this.reconnectTimer !== null) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+    this.reconnectAttempts = 0;
+    this.setState({ reconnecting: false });
   }
 
   /** 화질 선택. -1 = Auto(ABR). 다른 값은 hls.levels[index]. */
@@ -762,6 +774,7 @@ export class StudentHlsController {
 
     this.stallWatch = new PlaybackStallWatch(() => {
       if (this.disposed || document.hidden || this.playbackEnd.started || el.ended || el.error) return null;
+      if (!this.hls && this.reconnectTimer !== null) return null;
       if (this.pendingSourceResume?.wasPlaying) return this.pendingSourceResume.position;
       return el.paused || el.playbackRate <= 0 ? null : el.currentTime;
     }, (exhausted) => this.recoverStall(exhausted), () => {
@@ -773,6 +786,10 @@ export class StudentHlsController {
       if (this.disposed) return;
       const d = Number(el.duration || 0);
       if (d && Number.isFinite(d)) this.setState({ duration: d });
+      const pending = this.pendingSourceResume;
+      if (!this.state.ready && pending && d > 0 && Number.isFinite(d)) {
+        pending.position = Math.min(pending.position, Math.max(0, d - 1));
+      }
       this.setState({ ready: true, buffering: false });
 
       // 이어보기: initialPosition이 있으면 해당 위치로 이동 (seek 정책 가드 우회)
@@ -794,11 +811,15 @@ export class StudentHlsController {
         }
       }
       this.resumeAfterSourceRefresh();
+      if (!this.hls && this.reconnectTimer !== null && !pending?.wasPlaying) this.finishNativeReconnect();
     };
 
     const onTime = () => {
       if (this.disposed || this.pendingSourceResume) return;
       const t = Number(el.currentTime || 0);
+      if (!this.hls && this.reconnectTimer !== null && !el.paused && t > this.lastTimeRef + 0.05) {
+        this.finishNativeReconnect();
+      }
       this.setState({ current: t });
       this.lastTimeRef = t;
       if (t > this.maxWatchedRef) this.maxWatchedRef = t;
@@ -929,8 +950,27 @@ export class StudentHlsController {
         message = "영상 서비스에서 재생 파일을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
       } else if (errorCode === 2) message = "영상 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.";
       else if (errorCode === 3) message = "비디오 디코딩 오류가 발생했습니다.";
-      if (this.opts.reviewStream || sourceFailed || this.stallWatch?.retrying) this.opts.onFatal?.(message);
-      this.setState({ toast: { text: message, kind: "danger" } });
+      const fail = () => {
+        if (this.reconnectTimer !== null) clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+        this.stallWatch?.stop();
+        this.setState({ playing: false, buffering: false, reconnecting: false, toast: { text: message, kind: "danger" } });
+        this.opts.onFatal?.(message);
+      };
+      // Native HLS can stop the media element entirely on a network error,
+      // so a watchdog that samples a moving playhead cannot recover it.
+      if (errorCode === 2 && !this.opts.reviewStream && this.reconnectAttempts === 0 && !this.stallWatch?.retrying) {
+        this.reconnectAttempts = 1;
+        this.pendingSourceResume ??= {
+          ...capturePlaybackSource(el, this.state),
+          wasPlaying: this.state.playing || !el.paused,
+        };
+        this.setState({ buffering: true, reconnecting: true, toast: null });
+        this.reconnectTimer = setTimeout(() => this.guard(fail), 10_000);
+        this.reloadSource(this.opts.playUrl);
+        return;
+      }
+      fail();
     };
 
     this.addVideoListener("loadedmetadata", onLoadedMeta);
