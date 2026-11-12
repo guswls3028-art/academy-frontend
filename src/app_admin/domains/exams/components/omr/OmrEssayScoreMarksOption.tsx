@@ -19,7 +19,7 @@ type Props = {
 
 /**
  * Beta: 서술형 교사 채점란. 교사가 서술형 칸 아래 점수를 칠하면 스캔 후 채점표에
- * 점수가 미리 채워진다. 저장 전까지 성적에 반영되지 않는다.
+ * 점수가 제안된다. 교사가 채점표에서 확인하고 확정한다.
  * 계약: docs/GRADING-WRONG-NOTE-WORKFLOW.md "OMR 교사 채점란 (Beta)".
  */
 export default function OmrEssayScoreMarksOption({ examId, onChanged }: Props) {
@@ -36,7 +36,7 @@ export default function OmrEssayScoreMarksOption({ examId, onChanged }: Props) {
       feedback.success(
         state.enabled
           ? "서술형 교사 채점란을 켰습니다. 새로 인쇄한 답안지부터 적용됩니다."
-          : "서술형 교사 채점란을 껐습니다.",
+          : "새로 인쇄하는 답안지에서 교사 채점란을 뺐습니다.",
       );
       onChanged();
     },
@@ -60,7 +60,7 @@ export default function OmrEssayScoreMarksOption({ examId, onChanged }: Props) {
     help = state.reason;
   } else {
     help = enabled
-      ? "서술형 칸 아래 점수칸(십·일·소수 첫째 자리)에 선생님이 칠하면, 스캔 후 채점표에 점수가 미리 채워집니다. 확인 후 저장해야 반영됩니다."
+      ? "답안지에 점수를 칠하고 스캔한 뒤, 문항별 점수 입력에서 OMR 제안을 확인하고 확정하세요."
       : `선생님이 답안지에 서술형 점수를 칠해 스캔으로 입력합니다. 최대 ${state.max_score}점, 소수 첫째 자리까지.`;
   }
 

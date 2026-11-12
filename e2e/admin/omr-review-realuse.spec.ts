@@ -37,7 +37,7 @@ const STUDENT_USER = `e2eomr${String(TS).slice(-8)}`;
 const CONTROLLED_PHONE = `010${String(TS).slice(-8)}`;
 const EXPECTED_ANSWERS = Array.from({ length: 30 }, (_, index) => index === 8 ? "3,5" : String((index % 5) + 1));
 const EXPECTED_OBJECTIVE_SCORE = 30;
-const EXPECTED_WRITTEN_SCORES = [8, 9] as const;
+const EXPECTED_WRITTEN_SCORES = [8, 9.5] as const;
 const EXPECTED_SCORE = EXPECTED_OBJECTIVE_SCORE
   + EXPECTED_WRITTEN_SCORES.reduce((sum, score) => sum + score, 0);
 
@@ -354,18 +354,77 @@ async function chooseExamHeaderAction(
   await menu.getByRole("menuitem", { name: new RegExp(`^${action}`) }).click();
 }
 
+const omrPrintOptions = {
+  exam_title: EXAM_TITLE,
+  lecture_name: LECTURE_TITLE,
+  session_name: SESSION_TITLE,
+  include_optional_essay_area: false,
+};
+
+type PrintedEssayBubble = { x: number; y: number; radiusX: number; radiusY: number; label: string };
+
+async function essayBubblesFromPreview(
+  page: Page,
+  html: string,
+  selections: ReadonlyArray<{ ones: readonly number[]; tenths?: number }>,
+): Promise<PrintedEssayBubble[]> {
+  const strips = await page.evaluate((markup) => {
+    const parsed = new DOMParser().parseFromString(markup, "text/html");
+    const rows: PrintedEssayBubble[][] = [];
+    for (const element of Array.from(parsed.querySelectorAll<HTMLDivElement>(".es, .es-b"))) {
+      if (element.classList.contains("es")) {
+        rows.push([]);
+      } else {
+        const radiusX = parseFloat(element.style.width) / 2;
+        const radiusY = parseFloat(element.style.height) / 2;
+        rows.at(-1)?.push({
+          x: parseFloat(element.style.left) + radiusX,
+          y: parseFloat(element.style.top) + radiusY,
+          radiusX,
+          radiusY,
+          label: element.textContent?.trim() ?? "",
+        });
+      }
+    }
+    return rows;
+  }, html);
+  expect(strips).toHaveLength(selections.length);
+  return selections.flatMap(({ ones, tenths }, index) => {
+    const row = strips[index];
+    expect(row).toHaveLength(25);
+    const bubbles = ones.map((digit) => {
+      const bubble = row[5 + digit];
+      expect(bubble.label).toBe(String(digit));
+      return bubble;
+    });
+    if (tenths !== undefined) {
+      const bubble = row[15 + tenths];
+      expect(bubble.label).toBe(`.${tenths}`);
+      bubbles.push(bubble);
+    }
+    return bubbles;
+  });
+}
+
+async function setEssayScorePrinting(
+  request: APIRequestContext,
+  token: string,
+  examId: number,
+  enabled: boolean,
+): Promise<void> {
+  const setting = await expectApi<{ enabled: boolean; available: boolean; printed: boolean }>(
+    request, "PATCH", `/exams/${examId}/omr/essay-score-marks/`, token, { enabled },
+  );
+  expect(setting).toMatchObject({ enabled, available: true, printed: enabled });
+}
+
 async function downloadOmrPdf(
   request: APIRequestContext,
   token: string,
   examId: number,
 ): Promise<Buffer> {
   const resp = await request.post(`${API}/api/v1/exams/${examId}/omr/pdf/`, {
-    data: {
-      exam_title: EXAM_TITLE,
-      lecture_name: LECTURE_TITLE,
-      session_name: SESSION_TITLE,
-      include_written_score_bubbles: false,
-    },
+    data: omrPrintOptions,
     headers: headers(token),
     timeout: 180_000,
   });
@@ -377,6 +436,7 @@ async function markThirtyQuestionOmrPdf(
   pdfBuffer: Buffer,
   answers: string[],
   identifier: string | null,
+  essayBubbles: readonly PrintedEssayBubble[] = [],
 ): Promise<Buffer> {
   expect(answers).toHaveLength(30);
   if (identifier !== null) expect(identifier).toMatch(/^\d{8}$/);
@@ -414,6 +474,17 @@ async function markThirtyQuestionOmrPdf(
   [...(identifier ?? "")].forEach((digit, index) => {
     fillBubble(identifierXs[index], 109.6 + Number(digit) * 6.4);
   });
+
+  for (const bubble of essayBubbles) {
+    page.drawEllipse({
+      x: bubble.x * scaleX,
+      y: height - bubble.y * scaleY,
+      xScale: 0.85 * bubble.radiusX * scaleX,
+      yScale: 0.85 * bubble.radiusY * scaleY,
+      color: black,
+      borderColor: black,
+    });
+  }
 
   return Buffer.from(await pdf.save());
 }
@@ -1262,11 +1333,21 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       [200],
     );
 
+    await setEssayScorePrinting(request, adminTokens.access, created.examId, true);
+    const teacherPreview = await request.post(`${API}/api/v1/exams/${created.examId}/omr/preview/`, {
+      headers: { ...headers(adminTokens.access), Accept: "text/html" },
+      data: omrPrintOptions,
+      timeout: 90_000,
+    });
+    expect(teacherPreview.status()).toBe(200);
+    const teacherBubbles = await essayBubblesFromPreview(page, await teacherPreview.text(), [
+      { ones: [8] }, { ones: [9], tenths: 5 },
+    ]);
     const pdfBuffer = await downloadOmrPdf(request, adminTokens.access, created.examId);
+    // A sheet printed before the setting was turned off remains eligible for scanning.
+    await setEssayScorePrinting(request, adminTokens.access, created.examId, false);
     const markedPdfBuffer = await markThirtyQuestionOmrPdf(
-      pdfBuffer,
-      EXPECTED_ANSWERS,
-      null,
+      pdfBuffer, EXPECTED_ANSWERS, null, teacherBubbles,
     );
 
     await loginBrowserAsRealUser(
@@ -1365,8 +1446,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(reviewEntry.locator(".omr-entry__title")).toContainText("OMR 검토", { timeout: 30_000 });
     await reviewEntry.getByRole("button", { name: /처리하기|OMR 다시 보기/ }).click();
     await expect(page.getByRole("dialog", { name: "OMR 검토" })).toBeVisible({ timeout: 20_000 });
-    // OMR recognizes objective bubbles only; both written questions are graded
-    // separately below, with pending/final student and parent projections checked.
+    // Objective answers are reviewed here. Teacher score marks are reviewed in the grading grid.
     await expect(page.locator(".orw-q-row")).toHaveCount(objectiveQuestionIds.length, { timeout: 30_000 });
     const scanImage = page.getByRole("img", { name: "OMR 스캔 원본", exact: true });
     await expect(scanImage).toBeVisible();
@@ -1570,8 +1650,11 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     });
     await expect(firstWrittenCell).toHaveValue("", { timeout: 30_000 });
     await expect(secondWrittenCell).toHaveValue("");
-    await firstWrittenCell.fill(String(EXPECTED_WRITTEN_SCORES[0]));
-    await secondWrittenCell.fill(String(EXPECTED_WRITTEN_SCORES[1]));
+    await gradingDialog.getByRole("button", { name: "OMR 점수 2칸 채우기", exact: true }).click();
+    await expect(firstWrittenCell).toHaveValue(String(EXPECTED_WRITTEN_SCORES[0]));
+    await expect(secondWrittenCell).toHaveValue(String(EXPECTED_WRITTEN_SCORES[1]));
+    const beforeConfirm = await expectApi<{ exams?: any[] }>(request, "GET", "/student/grades/", studentTokens.access);
+    expect(beforeConfirm.exams?.find((row) => Number(row.exam_id) === created.examId)?.total_score).toBeNull();
     await gradingDialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
     await expect(gradingDialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true }))
       .toBeVisible({ timeout: 30_000 });
@@ -1770,6 +1853,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     );
     expect(defaults.essay_numbering).toBe("separate");
     expect(defaults.essay_question_numbers).toEqual([31, 32]);
+    await setEssayScorePrinting(request, adminAccess, created.examId!, true);
     const preview = await request.post(`${API}/api/v1/exams/${created.examId}/omr/preview/`, {
       headers: { ...headers(adminAccess), Accept: "text/html" },
       data: {
@@ -1805,8 +1889,11 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     // accepts it for the same sitting. Both scans remain tracked for cleanup.
     const answers = [...EXPECTED_ANSWERS];
     answers[0] = "2";
+    const replacementBubbles = await essayBubblesFromPreview(page, previewHtml, [
+      { ones: [0] }, { ones: [1, 2] },
+    ]);
     const markedPdf = await markThirtyQuestionOmrPdf(
-      await downloadOmrPdf(request, adminAccess, created.examId!), answers, CONTROLLED_PHONE.slice(-8),
+      await downloadOmrPdf(request, adminAccess, created.examId!), answers, CONTROLLED_PHONE.slice(-8), replacementBubbles,
     );
     await loginBrowserAsRealUser(page,
       `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
@@ -1915,6 +2002,9 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(gradingDialog.getByRole("spinbutton", {
       name: `${STUDENT_NAME} 서술형 2번 10점 만점 점수`,
     })).toHaveValue(String(EXPECTED_WRITTEN_SCORES[1]));
+    await expect(gradingDialog.getByRole("img", { name: "OMR 0", exact: true })).toBeVisible();
+    await expect(gradingDialog.getByRole("img", { name: "OMR 확인", exact: true })).toBeVisible();
+    await expect(gradingDialog.getByRole("button", { name: "OMR 점수 0칸 채우기", exact: true })).toBeDisabled();
     await loginBrowserAsRealUser(page, "/student/grades",
       { role: "student", username: STUDENT_USER, password: STUDENT_PASS });
     await expect(page.getByRole("link").filter({ hasText: EXAM_TITLE })).toContainText(`${EXPECTED_SCORE - 1}/50점`);

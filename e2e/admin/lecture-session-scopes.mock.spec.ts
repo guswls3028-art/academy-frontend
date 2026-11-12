@@ -1387,7 +1387,7 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
     await expect(option.getByRole("radio", { name: "사용", exact: true })).toHaveAttribute("aria-checked", "true");
     await expect(page.getByText(/서술형 교사 채점란을 켰습니다/)).toBeVisible();
     await expect.poll(() => state.omrPreviewPosts ?? 0).toBeGreaterThan(previewsBefore);
-    await expect(dialog.getByText(/스캔 후 채점표에 점수가 미리 채워집니다/)).toBeVisible();
+    await expect(dialog.getByText(/문항별 점수 입력에서 OMR 제안을 확인하고 확정하세요/)).toBeVisible();
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     await dialog.screenshot({ path: testInfo.outputPath(`omr-essay-strip-option-${viewport.width}.png`) });
 
