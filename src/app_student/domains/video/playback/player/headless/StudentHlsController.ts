@@ -584,7 +584,7 @@ export class StudentHlsController {
     const pending = this.pendingSourceResume;
     const currentTime = pending?.position ?? (this.el.error ? this.lastTimeRef : Number(this.el.currentTime || 0));
     const maxWatched = Math.max(0, this.maxWatchedRef);
-    const dur = this.state.duration || Number(this.el.duration);
+    const dur = pending || this.el.error ? this.state.duration : Number(this.el.duration);
     // Do not overwrite server progress with a synthetic 0% before metadata is ready.
     if (!(dur > 0 && Number.isFinite(dur))) return;
     const baselineProgress = Math.min(100, Math.max(0, Number(this.opts.initialProgress) || 0));
