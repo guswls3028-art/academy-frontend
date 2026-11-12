@@ -39,7 +39,7 @@ type OrderingHarness = {
   deletedAssessments: string[];
 };
 
-async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
+async function installOrderingRoutes(page: Page, supplement = false): Promise<OrderingHarness> {
   const examTitles = { ...initialExamTitles };
   const homeworkTitles = { ...initialHomeworkTitles };
   const titlePatches: OrderingHarness["titlePatches"] = [];
@@ -204,16 +204,17 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
               homework_id: homeworkId,
               title: homeworkTitles[homeworkId],
               block: {
-                score: 90,
+                score: supplement ? 50 : 90,
                 max_score: 100,
-                passed: true,
+                passed: !supplement,
                 clinic_required: false,
                 is_locked: false,
                 meta: {},
               },
             })),
             clinic_required: false,
-            progress_completed: false,
+            progress_completed: supplement,
+            assessment_progress_completed: false,
             updated_at: "2026-08-25T12:00:00+09:00",
           }],
         },
@@ -291,7 +292,7 @@ async function installOrderingRoutes(page: Page): Promise<OrderingHarness> {
   return { reorderPayloads, unexpectedMutations, deletedAssessments, titlePatches };
 }
 
-async function openScores(page: Page): Promise<OrderingHarness> {
+async function openScores(page: Page, supplement = false): Promise<OrderingHarness> {
   const baseUrl = getBaseUrl("admin");
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl),
@@ -304,7 +305,7 @@ async function openScores(page: Page): Promise<OrderingHarness> {
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", `${token}-refresh`);
   }, createLocalJwt());
-  const harness = await installOrderingRoutes(page);
+  const harness = await installOrderingRoutes(page, supplement);
   await page.goto(
     `${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
     { waitUntil: "domcontentloaded", timeout: 45_000 },
@@ -372,6 +373,20 @@ test.describe("성적 컬럼 모바일 순서 제어", () => {
     isMobile: true,
     serviceWorkers: "block",
   });
+
+  for (const width of [1366, 390]) {
+    test(`${width}px 보강 진도가 완료되어도 과제 미달 판정을 표시한다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await openScores(page, true);
+      const row = page.locator(".ds-scores-table tbody tr").filter({ hasText: "모바일순서학생" });
+      const verdict = row.getByText("미달", { exact: true });
+      await verdict.scrollIntoViewIfNeeded();
+      await expect(verdict).toBeInViewport();
+      await expectDocumentOverflowZero(page);
+      await reloadScores(page);
+      await expect(verdict).toBeVisible();
+    });
+  }
 
   for (const width of [1366, 1100, 390]) {
     test(`@assessment-edit ${width}px 성적표는 제목 메뉴에서 시험·과제 전체 수정 모달을 연다`, async ({ page }, testInfo) => {

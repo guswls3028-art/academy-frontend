@@ -87,6 +87,7 @@ export type SessionScoreRow = {
   updated_at: string;
   clinic_required?: boolean;
   progress_completed?: boolean;
+  assessment_progress_completed?: boolean;
   video_progress_rate?: number | null;
   video_completed?: boolean | null;
   progress_status?: "completed" | "in_progress";
