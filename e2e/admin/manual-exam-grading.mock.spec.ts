@@ -846,6 +846,8 @@ type InstallApiOptions = {
   studentName?: string;
   conflictOnGradingSetup?: boolean;
   objectiveStatus?: "omr_pending" | "omr_restore" | "omr_review_required" | "omr_processing";
+  /** Beta OMR 교사 채점란에서 읽은 서술형(QUESTION_IDS[1]) 점수 제안 */
+  omrEssayScore?: { status: "ok" | "out_of_range" | "needs_check"; score: number | null };
 };
 
 async function installApi(page: Page, options: InstallApiOptions = {}) {
@@ -924,7 +926,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
           entry_method: isEditable ? manualGradingMethod : "omr",
           state,
           score: manualGradingMethod === "score"
-            ? questionIndex === 0 ? 10 : 20
+            ? questionIndex === 0 ? 10 : options.omrEssayScore ? null : 20
             : state === "correct" ? maxScore : 0,
           include_in_wrong_note: state === "review",
         } satisfies PersistedCell];
@@ -1567,8 +1569,21 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
             exam_not_submitted_count: 0,
             objective_status: options.objectiveStatus ?? null,
             cells: persisted.cells,
+            ...(options.omrEssayScore
+              ? { omr_essay_scores: { [String(QUESTION_IDS[1])]: { ...options.omrEssayScore, submission_id: 9001 } } }
+              : {}),
           }];
             })(),
+          ...(options.omrEssayScore
+            ? {
+                omr_essay_score_marks: {
+                  enabled: true,
+                  beta: true,
+                  proposal_count: options.omrEssayScore.status === "ok" ? 1 : 0,
+                  needs_check_count: options.omrEssayScore.status === "ok" ? 0 : 1,
+                },
+              }
+            : {}),
         });
         return;
       }
@@ -4058,6 +4073,79 @@ test.describe("문항별 직접 채점", () => {
         cells: expect.objectContaining({ [String(QUESTION_IDS[1])]: expect.objectContaining({ score: 45 }) }),
       })],
     }));
+  });
+
+  for (const width of [1366, 390]) {
+    test(`${width}px OMR 교사 채점란 점수를 빈 서술형 칸에 채우고 확정한다 (Beta)`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const apiState = await installApi(page, {
+        gradingMode: "mixed",
+        manualGradingMethod: "score",
+        omrEssayScore: { status: "ok", score: 47.5 },
+      });
+      await page.goto(
+        `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+        { waitUntil: "domcontentloaded" },
+      );
+      await chooseExamHeaderAction(page, "문항별 점수 입력");
+      const dialog = page.getByRole("dialog").filter({ hasText: "7월 진단평가" });
+      const essay = dialog.getByRole("spinbutton", { name: /60점 만점 점수/ });
+      await expect(essay).toHaveValue("");
+      // 제안은 저장 전까지 값이 아니다: 빈 칸에 안내로만 보인다.
+      await expect(essay).toHaveAttribute("placeholder", "OMR 47.5");
+      const fill = dialog.getByRole("button", { name: "OMR 점수 1칸 채우기", exact: true });
+      await expect(fill).toBeVisible();
+      await expect(dialog.getByRole("group", { name: "OMR 서술형 점수" })).toContainText("Beta");
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await dialog.screenshot({ path: testInfo.outputPath(`omr-essay-fill-before-${width}.png`) });
+      expect(apiState.postedRows).toHaveLength(0);
+
+      await fill.click();
+      await expect(essay).toHaveValue("47.5");
+      await expect(page.getByText(/OMR 점수 1칸을 채웠습니다\. 확인 후 저장해야 반영됩니다\./)).toBeVisible();
+      await expect(dialog.getByRole("button", { name: "OMR 점수 0칸 채우기", exact: true })).toBeDisabled();
+      expect(apiState.postedRows).toHaveLength(0);
+
+      // 실행 취소로 채우기 전 상태로 돌아간다.
+      await dialog.getByRole("button", { name: /실행 취소/ }).first().click();
+      await expect(essay).toHaveValue("");
+      await dialog.getByRole("button", { name: "OMR 점수 1칸 채우기", exact: true }).click();
+      await expect(essay).toHaveValue("47.5");
+
+      await dialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
+      await dialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+      await expect.poll(() => apiState.postedRows.length).toBe(2);
+      expect(apiState.postedRows[1]).toEqual(expect.objectContaining({
+        apply: true,
+        rows: [expect.objectContaining({
+          cells: expect.objectContaining({ [String(QUESTION_IDS[1])]: expect.objectContaining({ score: 47.5 }) }),
+        })],
+      }));
+      await dialog.screenshot({ path: testInfo.outputPath(`omr-essay-fill-saved-${width}.png`) });
+    });
+  }
+
+  test("OMR 교사 채점란을 읽지 못한 칸은 채우지 않고 확인 필요로 표시한다 (Beta)", async ({ page }) => {
+    const apiState = await installApi(page, {
+      gradingMode: "mixed",
+      manualGradingMethod: "score",
+      omrEssayScore: { status: "needs_check", score: null },
+    });
+    await page.goto(
+      `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+      { waitUntil: "domcontentloaded" },
+    );
+    await chooseExamHeaderAction(page, "문항별 점수 입력");
+    const dialog = page.getByRole("dialog").filter({ hasText: "7월 진단평가" });
+    const essay = dialog.getByRole("spinbutton", { name: /60점 만점 점수/ });
+    await expect(essay).toHaveAttribute("placeholder", "OMR 확인");
+    await expect(dialog.getByRole("button", { name: "OMR 점수 0칸 채우기", exact: true })).toBeDisabled();
+    await expect(dialog.getByText("확인 필요 1칸", { exact: true })).toBeVisible();
+    await essay.fill("12.3");
+    await expect(essay).toHaveValue("12.3");
+    // 직접 입력한 값은 그대로 두고, 판독 결과는 모서리 표시로만 남긴다.
+    await expect(dialog.getByRole("img", { name: "OMR 확인" })).toBeVisible();
+    expect(apiState.postedRows).toHaveLength(0);
   });
 
   test("성적표 시험명에서 열고 단축키를 바꾸면 자동 이동과 함께 저장된다", async ({ page }, testInfo) => {

@@ -21,6 +21,7 @@ import {
   Redo2,
   RefreshCw,
   ScanLine,
+  ScanText,
   Settings2,
   TableProperties,
   Undo2,
@@ -62,11 +63,16 @@ import {
   validateManualGradingShortcuts,
   type ManualGradingShortcutSettings,
 } from "../utils/manualGradingShortcuts";
+import {
+  omrProposalHint,
+  planOmrEssayScoreFill,
+} from "../utils/omrEssayScoreProposals";
 import styles from "./ManualExamGradingGrid.module.css";
 import fixedColumnStyles from "./ManualExamGradingFixedColumns.module.css";
 import weightStyles from "./ManualExamGradingWeights.module.css";
 import overviewStyles from "./ManualExamGradingOverview.module.css";
 import writtenAnswerStyles from "./ManualExamGradingWrittenAnswer.module.css";
+import omrFillStyles from "./ManualExamGradingOmrFill.module.css";
 
 type Props = {
   examId: number;
@@ -784,6 +790,17 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       }, 0);
     }, 0);
   }, [data?.manual_grading_method, draftRows, visibleQuestions]);
+  const omrFillPlan = useMemo(() => {
+    if (data?.manual_grading_method !== "score" || !data.omr_essay_score_marks) return null;
+    return planOmrEssayScoreFill(draftRows, visibleQuestions, (question) => {
+      const draftMax = Number(questionScoreDraft[String(question.question_id)]);
+      return Number.isFinite(draftMax) ? draftMax : question.max_score;
+    });
+  }, [data?.manual_grading_method, data?.omr_essay_score_marks, draftRows, questionScoreDraft, visibleQuestions]);
+  const showOmrFill = Boolean(
+    data?.omr_essay_score_marks &&
+      (data.omr_essay_score_marks.proposal_count > 0 || data.omr_essay_score_marks.needs_check_count > 0),
+  );
   const quickStartMaxScore = Number(data?.exam_max_score ?? exam?.max_score ?? 100);
   const quickStartDefaultScore =
     quickStartCount !== "" && Number(quickStartCount) > 0
@@ -1561,6 +1578,39 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     }
   };
 
+  const fillOmrEssayScores = () => {
+    const plan = omrFillPlan;
+    if (!plan || plan.changes.length === 0) {
+      feedback.info("OMR 점수로 채울 빈 서술형 칸이 없습니다.");
+      return;
+    }
+    pushHistory({ kind: "cells", changes: plan.changes });
+    const afterByKey = new Map(
+      plan.changes.map((change) => [`${change.enrollmentId}:${change.questionId}`, change.after]),
+    );
+    const nextRows = draftRowsRef.current.map((row) => {
+      let nextCells = row.cells;
+      for (const key of Object.keys(row.cells)) {
+        const after = afterByKey.get(`${row.enrollment_id}:${key}`);
+        if (!after) continue;
+        if (nextCells === row.cells) nextCells = { ...row.cells };
+        nextCells[key] = { ...after };
+      }
+      return nextCells === row.cells ? row : { ...row, cells: nextCells };
+    });
+    draftRowsRef.current = nextRows;
+    setDraftRows(nextRows);
+    markRowsForSave(plan.changes.map((change) => change.enrollmentId));
+    previewMutation.reset();
+    const notes = [
+      plan.needsCheck > 0 ? `확인 필요 ${plan.needsCheck}칸` : null,
+      plan.keptDifferent > 0 ? `이미 입력된 다른 점수 ${plan.keptDifferent}칸 유지` : null,
+    ].filter(Boolean);
+    feedback.success(
+      `OMR 점수 ${plan.changes.length}칸을 채웠습니다. 확인 후 저장해야 반영됩니다.${notes.length ? ` (${notes.join(", ")})` : ""}`,
+    );
+  };
+
   const pasteCorrectnessMatrix = (
     text: string,
     startRowIndex: number,
@@ -1986,6 +2036,25 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
               <b>오답노트</b> 만점을 받아도 포함
             </span>
           </div>
+          {showOmrFill && omrFillPlan && (
+            <div className={omrFillStyles.omrFill} role="group" aria-label="OMR 서술형 점수">
+              <Button
+                type="button"
+                intent="secondary"
+                size="sm"
+                leftIcon={<ScanText size={ICON_FOR_BUTTON.sm} />}
+                disabled={omrFillPlan.changes.length === 0 || busy}
+                onClick={fillOmrEssayScores}
+                title="OMR 교사 채점란에서 읽은 점수로 비어 있는 서술형 칸만 채웁니다. 저장해야 반영됩니다."
+              >
+                OMR 점수 {omrFillPlan.changes.length}칸 채우기
+              </Button>
+              <Badge tone="info" size="xs" variant="soft">Beta</Badge>
+              {omrFillPlan.needsCheck > 0 && (
+                <span className={omrFillStyles.omrFillWarning}>확인 필요 {omrFillPlan.needsCheck}칸</span>
+              )}
+            </div>
+          )}
           <div className={styles.keyboardHints}>
             <span><kbd>Tab</kbd> 다음 칸</span>
             <span><kbd>Enter</kbd> 아래 칸</span>
@@ -2632,6 +2701,7 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
               <ScoreCell
                 value={cell.score}
                 maxScore={maxScore}
+                omrHint={omrProposalHint(row.omr_essay_scores?.[key], cell.score, maxScore)}
                 review={cell.include_in_wrong_note}
                 disabled={row.is_not_submitted || busy}
                 studentName={row.student_name}
@@ -2846,6 +2916,7 @@ function ShortcutKeyInput({
 function ScoreCell({
   value,
   maxScore,
+  omrHint,
   review,
   disabled,
   studentName,
@@ -2859,6 +2930,7 @@ function ScoreCell({
 }: {
   value: number | null;
   maxScore: number;
+  omrHint?: { text: string; tone: "info" | "warning" } | null;
   review: boolean;
   disabled: boolean;
   studentName: string;
@@ -2874,13 +2946,23 @@ function ScoreCell({
   onReviewChange: (value: boolean) => void;
 }) {
   return (
-    <div className={styles.scoreCell}>
+    <div
+      className={`${styles.scoreCell} ${omrHint ? omrFillStyles.omrScoreCell : ""} ${
+        omrHint?.tone === "warning" ? omrFillStyles.omrWarn : ""
+      }`}
+    >
       <input
         type="number"
         min={0}
         max={maxScore}
         step="any"
         value={value ?? ""}
+        placeholder={value == null && omrHint ? omrHint.text : undefined}
+        title={
+          value == null && omrHint
+            ? "OMR 교사 채점란에서 읽은 점수입니다 (Beta). 'OMR 점수 채우기' 후 저장해야 반영됩니다."
+            : undefined
+        }
         disabled={disabled}
         aria-label={`${studentName} ${questionLabel} ${formatScoreInput(maxScore)}점 만점 점수`}
         data-manual-grade-cell
@@ -2930,6 +3012,14 @@ function ScoreCell({
       >
         오답노트
       </button>
+      {omrHint && value != null && (
+        <span
+          className={omrFillStyles.omrHintDot}
+          role="img"
+          aria-label={omrHint.text}
+          title={`${omrHint.text} · OMR 교사 채점란에서 읽은 점수 (Beta)`}
+        />
+      )}
     </div>
   );
 }
