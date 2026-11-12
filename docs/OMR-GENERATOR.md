@@ -32,12 +32,27 @@ OMR 답안지를 만들 수 있다. 시험 답안 등록 화면도 같은
 문서로 대체하고 내부 오류나 서버 응답 본문을 노출하지 않는다. PDF 실패도
 일반 사용자 문구만 표시하며 입력값은 보존한다.
 
+### 서술형 교사 채점란 (Beta)
+
+시험에 연결된 생성기에서 서술형이 있으면 **답안 영역 → 서술형 교사 채점란 (Beta)**을
+켜고 끌 수 있다. 켜면 서술형 칸마다 십(0~4)·일(0~9)·소수 첫째 자리(.0~.9) 점수칸이
+인쇄되고, 선생님이 칠한 점수는 스캔 후 채점표에 **제안**으로 채워진다(최대 49.9점).
+설정은 `GET/PATCH /api/v1/exams/{examId}/omr/essay-score-marks/`가 소유하며 시험
+문항 구조와 같은 단위로 저장되므로 다음 인쇄물부터 적용된다. 성공하면 미리보기를 다시
+그린다. 배점 없음·49.9점 초과·서술형이 너무 많아 공간이 부족하면 서버가 준 이유를
+보여 주고 **사용**을 막는다. 켠 뒤 조건을 벗어나면 채점란 없이 인쇄된다는 안내를 보인다.
+조회 실패는 다시 열도록 안내하고 저장 실패는 오류 피드백 후 현재 값을 유지한다.
+독립 도구(`/workspace/tools/omr`)에는 이 옵션이 없다. 채점표 동작은
+[채점·오답노트 계약](GRADING-WRONG-NOTE-WORKFLOW.md#omr-교사-채점란-beta), 좌표·판독
+정책은 `backend/docs/domain/omr.md` "서술형 교사 채점란 (Beta)"가 소유한다.
+
 ## API·권한·보안 경계
 
 - 독립 도구: `POST /api/v1/tools/omr/preview/`,
   `POST /api/v1/tools/omr/pdf/`
 - 시험 연결 화면: `POST /api/v1/exams/{examId}/omr/preview/`,
-  `POST /api/v1/exams/{examId}/omr/pdf/`
+  `POST /api/v1/exams/{examId}/omr/pdf/`,
+  `GET/PATCH /api/v1/exams/{examId}/omr/essay-score-marks/` (Beta, 교사·관리자만 변경)
 - 테넌트·역할 권한과 시험 소유권은 백엔드가 최종 강제한다. 프론트엔드는
   기본 테넌트나 다른 시험으로 대체하지 않는다.
 - HTML 미리보기는 script, 중첩 iframe, object, embed와 이벤트·javascript
@@ -58,10 +73,13 @@ OMR 답안지를 만들 수 있다. 시험 답안 등록 화면도 같은
 
 ## 구현과 검증
 
-- 화면: `src/app_admin/domains/exams/components/omr/OmrSheetBuilder.tsx`
+- 화면: `src/app_admin/domains/exams/components/omr/OmrSheetBuilder.tsx`,
+  `OmrEssayScoreMarksOption.tsx`(Beta 채점란)
 - 레이아웃: `src/app_admin/domains/exams/components/omr/OmrSheetBuilder.module.css`
 - 집중 회귀:
-  `e2e/admin/omr-generator-responsive-preview.mock.spec.ts`
+  `e2e/admin/omr-generator-responsive-preview.mock.spec.ts`,
+  `e2e/admin/lecture-session-scopes.mock.spec.ts`의 "교사 채점란" 1366·390px 켜기/끄기·미리보기
+  재요청과 배치 불가 사유
 
 집중 회귀는 1100·1366·390px에서 A4 비율, iframe 안팎 overflow, 데스크톱과
 모바일 스크린샷을 확인한다. 변경 시 `pnpm typecheck`, 해당 파일 lint,

@@ -34,6 +34,18 @@ export type ManualGradeObjectiveStatus =
   | "omr_review_required"
   | "omr_processing";
 
+/**
+ * Beta: 교사가 OMR 채점란에 칠한 서술형 점수. 채점표 제안일 뿐이며 저장해야 반영된다.
+ * - ok: 배점 안의 점수
+ * - out_of_range: 읽은 점수가 현재 배점을 넘음
+ * - needs_check: 겹쳐 칠했거나 일의 자리가 없어 읽지 못함
+ */
+export type ManualGradeOmrEssayScore = {
+  status: "ok" | "out_of_range" | "needs_check";
+  score: number | null;
+  submission_id: number;
+};
+
 export type ManualGradeRow = {
   enrollment_id: number;
   student_name: string;
@@ -49,6 +61,7 @@ export type ManualGradeRow = {
   exam_not_submitted_count: number;
   objective_status?: ManualGradeObjectiveStatus | null;
   cells: Record<string, ManualGradeCell>;
+  omr_essay_scores?: Record<string, ManualGradeOmrEssayScore>;
 };
 
 export type ManualGradeSheet = {
@@ -62,6 +75,12 @@ export type ManualGradeSheet = {
   score_adjustment_total: number;
   questions: ManualGradeQuestion[];
   rows: ManualGradeRow[];
+  omr_essay_score_marks?: {
+    enabled: boolean;
+    beta: boolean;
+    proposal_count: number;
+    needs_check_count: number;
+  };
 };
 
 export type ManualGradeRequestRow = {
