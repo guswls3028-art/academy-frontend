@@ -21,10 +21,20 @@ const SUPPORT_ACCESS = jwt(99);
 
 type Evidence = {
   supportStarts: Array<{ path: string; authorization: string }>;
+  placementChanges: unknown[];
 };
 
 async function installApp(page: Page): Promise<Evidence> {
-  const evidence: Evidence = { supportStarts: [] };
+  const evidence: Evidence = { supportStarts: [], placementChanges: [] };
+  const originalPlacement = {
+    video_id: 596, lecture_id: 502, lecture_title: "지난 강의", session_id: 542,
+    session_title: "원본 차시", is_original: true,
+  };
+  const linked = [
+    { video_id: 597, lecture_id: 503, lecture_title: "새 강의", session_id: 543, session_title: "보강 1", is_original: false },
+    { video_id: 598, lecture_id: 503, lecture_title: "새 강의", session_id: 544, session_title: "보강 2", is_original: false },
+  ];
+  let placements = [originalPlacement];
   await installTenantOneInitScript(page);
   await page.addInitScript((access) => {
     localStorage.setItem("access", access);
@@ -137,6 +147,23 @@ async function installApp(page: Page): Promise<Evidence> {
     if (path === "/media/videos/596/engagement/") {
       return json({ view_count: 2, like_count: 0, comment_count: 0 });
     }
+    if (path === "/media/videos/596/placements/") {
+      if (request.method() === "PATCH") {
+        const change = request.postDataJSON();
+        evidence.placementChanges.push(change);
+        if (change.add_session_ids) placements = [originalPlacement, ...linked];
+        if (change.remove_video_ids) placements = placements.filter((item) => !change.remove_video_ids.includes(item.video_id));
+      }
+      return json({ source_video_id: 596, can_attach: true, placements });
+    }
+    if (path === "/lectures/lectures/") return json([
+      { id: 502, title: "지난 강의", is_active: true },
+      { id: 503, title: "새 강의", is_active: true },
+    ]);
+    if (path === "/lectures/sessions/" && url.searchParams.get("lecture") === "503") return json([
+      { id: 543, lecture: 503, title: "보강 1", display_label: "보강 1", order: 1 },
+      { id: 544, lecture: 503, title: "보강 2", display_label: "보강 2", order: 2 },
+    ]);
     if (path === "/media/videos/596/comments/") {
       return json({ comments: [], total: 0 });
     }
@@ -187,6 +214,33 @@ async function installApp(page: Page): Promise<Evidence> {
 
 test.use({ serviceWorkers: "block" });
 test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
+
+test("한 영상을 여러 차시에 연결한 뒤 선택한 사용처만 해제할 수 있다", async ({ page }) => {
+  const evidence = await installApp(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await gotoAndSettle(page, `${BASE}/workspace/videos/tree?videoId=596&lectureId=502&sessionId=542`, {
+    timeout: 45_000,
+  });
+  await page.getByRole("button", { name: "사용 차시 관리", exact: true }).click();
+  const modal = page.getByRole("dialog", { name: "영상 사용 차시 관리" });
+  const active = modal.getByRole("region", { name: "사용 중인 차시" });
+  await expect(active.getByRole("link", { name: "지난 강의 · 원본 차시" })).toBeVisible();
+  await modal.getByRole("combobox", { name: "강의", exact: true }).selectOption("503");
+  await modal.getByRole("checkbox", { name: "보강 1", exact: true }).check();
+  await modal.getByRole("checkbox", { name: "보강 2", exact: true }).check();
+  await modal.getByRole("button", { name: "선택한 2개 차시에 연결", exact: true }).click();
+  await expect(active.getByRole("link", { name: "새 강의 · 보강 1", exact: true })).toBeVisible();
+  await expect(active.getByRole("link", { name: "새 강의 · 보강 2", exact: true })).toBeVisible();
+  await active.getByRole("checkbox", { name: "새 강의 · 보강 1 연결 해제 선택" }).check();
+  await active.getByRole("button", { name: "선택한 1개 연결 해제", exact: true }).click();
+  await page.getByRole("button", { name: "연결 해제", exact: true }).click();
+  await expect(active.getByRole("link", { name: "새 강의 · 보강 1", exact: true })).toHaveCount(0);
+  await expect(active.getByRole("link", { name: "새 강의 · 보강 2", exact: true })).toBeVisible();
+  expect(evidence.placementChanges).toEqual([{ add_session_ids: [543, 544] }, { remove_video_ids: [597] }]);
+  await modal.getByRole("button", { name: "닫기", exact: true }).last().click();
+  await expect(modal).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "사용 차시 관리", exact: true })).toBeVisible();
+});
 
 test("영상 시청 현황은 학생별 명시적 화면 보기와 반응형 운영 위계를 제공한다", async ({ page }) => {
   const evidence = await installApp(page);

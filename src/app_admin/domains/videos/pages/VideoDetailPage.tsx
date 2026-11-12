@@ -31,6 +31,7 @@ import VideoEngagementBar from "@admin/domains/videos/components/features/video-
 import AdminCommentSection from "@admin/domains/videos/components/features/video-detail/components/AdminCommentSection";
 import type { TabKey } from "@admin/domains/videos/components/features/video-permission/permission.types";
 import VideoEditModal from "@admin/domains/videos/components/features/video-detail/modals/VideoEditModal";
+import VideoPlacementsModal from "@admin/domains/videos/components/features/video-detail/modals/VideoPlacementsModal";
 import { formatVideoBytes, formatVideoDuration } from "@/shared/media/video/videoFormat";
 import { adminVideoQueryKeys } from "../queryKeys";
 import "./VideoDetailPage.css";
@@ -70,6 +71,7 @@ export default function VideoDetailPage() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [placementsOpen, setPlacementsOpen] = useState(false);
   const qc = useQueryClient();
   const navigate = useNavigate();
   const location = useLocation();
@@ -274,6 +276,9 @@ export default function VideoDetailPage() {
                   </>
                 )}
                 <span className="video-detail-meta-spacer" />
+                {video.status === "READY" && video.source_type !== "youtube" && <button
+                  type="button" className="video-detail-action" onClick={() => setPlacementsOpen(true)}
+                >사용 차시 관리</button>}
                 <button
                   type="button"
                   onClick={() => setEditModalOpen(true)}
@@ -408,6 +413,10 @@ export default function VideoDetailPage() {
         initialTab={permissionTab}
       />
 
+      {video && placementsOpen && <VideoPlacementsModal
+          key={videoId} videoId={videoId} onClose={() => setPlacementsOpen(false)}
+          onCurrentDetached={() => navigate(`/workspace/lectures/${lectureId}/sessions/${sessionId}/videos`)}
+      />}
       {video && (
         <VideoEditModal
           open={editModalOpen}

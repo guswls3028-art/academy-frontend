@@ -1,0 +1,56 @@
+.body {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.body section {
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+.body h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.list {
+  padding: 0;
+  margin: var(--space-2) 0;
+  list-style: none;
+}
+
+.list li,
+.list label,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.list li {
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--color-border-divider);
+  overflow-wrap: anywhere;
+}
+
+.list small {
+  color: var(--color-text-secondary);
+}
+
+.picker {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.picker select {
+  width: 100%;
+  min-height: 2.5rem;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  padding-inline: var(--space-2);
+}

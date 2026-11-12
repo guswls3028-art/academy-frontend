@@ -35,6 +35,7 @@ import VideoEngagementBar from "@admin/domains/videos/components/features/video-
 import AdminCommentSection from "@admin/domains/videos/components/features/video-detail/components/AdminCommentSection";
 import type { TabKey } from "@admin/domains/videos/components/features/video-permission/permission.types";
 import VideoEditModal from "@admin/domains/videos/components/features/video-detail/modals/VideoEditModal";
+import VideoPlacementsModal from "@admin/domains/videos/components/features/video-detail/modals/VideoPlacementsModal";
 import { formatVideoBytes, formatVideoDuration } from "@/shared/media/video/videoFormat";
 import { adminVideoQueryKeys } from "../queryKeys";
 import "./VideoDetailPage.css";
@@ -83,15 +84,16 @@ export default function VideoDetailOverlay({
   const [supportOpeningStudentId, setSupportOpeningStudentId] = useState<number | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [placementsOpen, setPlacementsOpen] = useState(false);
 
   // Close on Escape
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !permissionOpen) {
+      if (e.key === "Escape" && !permissionOpen && !placementsOpen) {
         onClose();
       }
     },
-    [onClose, permissionOpen]
+    [onClose, permissionOpen, placementsOpen]
   );
 
   useEffect(() => {
@@ -256,6 +258,9 @@ export default function VideoDetailOverlay({
                           </>
                         )}
                         <span className="video-detail-meta-spacer" />
+                        {video.status === "READY" && video.source_type !== "youtube" && <button
+                          type="button" className="video-detail-action" onClick={() => setPlacementsOpen(true)}
+                        >사용 차시 관리</button>}
                         <button
                           type="button"
                           onClick={() => setEditOpen(true)}
@@ -374,6 +379,9 @@ export default function VideoDetailOverlay({
                   </div>
                 </div>
 
+                {video && placementsOpen && <VideoPlacementsModal
+                    key={videoId} videoId={videoId} onClose={() => setPlacementsOpen(false)} onCurrentDetached={onClose}
+                />}
                 {video && (
                   <VideoEditModal
                     open={editOpen}
