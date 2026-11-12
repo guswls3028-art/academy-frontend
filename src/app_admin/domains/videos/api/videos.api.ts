@@ -21,6 +21,15 @@ export {
 
 import type { AccessMode, VideoRule } from "../types/access-mode";
 
+export async function requestVideoSourceDownload(videoId: number, signal: AbortSignal) {
+  const { data } = await api.post<{ download_url: string; filename: string; expires_in: number }>(
+    `/media/videos/${videoId}/source-download/`,
+    undefined,
+    { signal },
+  );
+  return data;
+}
+
 export interface VideoPlacement {
   video_id: number;
   lecture_id: number;
@@ -45,7 +54,6 @@ export async function fetchVideoPlacements(videoId: number, signal: AbortSignal)
 export async function changeVideoPlacements(videoId: number, change: VideoPlacementChange): Promise<VideoPlacements> {
   return (await api.patch<VideoPlacements>(`/media/videos/${videoId}/placements/`, change)).data;
 }
-
 
 export interface VideoStatsStudent {
   enrollment: number;

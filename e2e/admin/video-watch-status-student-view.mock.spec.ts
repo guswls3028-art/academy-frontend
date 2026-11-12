@@ -21,11 +21,12 @@ const SUPPORT_ACCESS = jwt(99);
 
 type Evidence = {
   supportStarts: Array<{ path: string; authorization: string }>;
+  sourceDownloads: string[];
   placementChanges: unknown[];
 };
 
 async function installApp(page: Page): Promise<Evidence> {
-  const evidence: Evidence = { supportStarts: [], placementChanges: [] };
+  const evidence: Evidence = { supportStarts: [], sourceDownloads: [], placementChanges: [] };
   const originalPlacement = {
     video_id: 596, lecture_id: 502, lecture_title: "지난 강의", session_id: 542,
     session_title: "원본 차시", is_original: true,
@@ -167,6 +168,17 @@ async function installApp(page: Page): Promise<Evidence> {
     if (path === "/media/videos/596/comments/") {
       return json({ comments: [], total: 0 });
     }
+    if (path === "/media/videos/596/source-download/" && request.method() === "POST") {
+      evidence.sourceDownloads.push(request.headers().authorization || "");
+      if (evidence.sourceDownloads.length === 1) {
+        return json({ detail: "보관된 원본 파일을 찾을 수 없습니다." }, 404);
+      }
+      return json({
+        download_url: "https://video-download.test/source.mov",
+        filename: "test-source.mov",
+        expires_in: 300,
+      });
+    }
     if (path === "/students/1001/support-session/" && request.method() === "POST") {
       evidence.supportStarts.push({
         path,
@@ -214,6 +226,42 @@ async function installApp(page: Page): Promise<Evidence> {
 
 test.use({ serviceWorkers: "block" });
 test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
+
+test("영상 상세에서 원본 누락 안내 후 첨부 파일을 다운로드할 수 있다", async ({ page, browserName }) => {
+  const evidence = await installApp(page);
+  await page.route("https://video-download.test/source.mov", (route) => route.fulfill({
+    status: 200,
+    headers: {
+      "content-type": "video/quicktime",
+      "content-disposition": 'attachment; filename="test-source.mov"',
+    },
+    body: "synthetic video attachment",
+  }));
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await gotoAndSettle(page, `${BASE}/workspace/videos/tree?videoId=596&lectureId=502&sessionId=542`, {
+    timeout: 45_000,
+  });
+  const button = page.getByRole("button", { name: "원본 다운로드", exact: true });
+  await button.click();
+  await expect(page.getByRole("alert").filter({ hasText: "보관된 원본 파일을 찾을 수 없습니다." })).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await button.click();
+  const saveLink = page.getByRole("link", { name: "파일 저장", exact: true });
+  if (browserName === "webkit") {
+    // WebKit route.fulfill records the mocked attachment response without producing a native download event.
+    const [response] = await Promise.all([
+      page.waitForResponse("https://video-download.test/source.mov"),
+      saveLink.click(),
+    ]);
+    expect(response.headers()["content-disposition"]).toBe('attachment; filename="test-source.mov"');
+  } else {
+    const [download] = await Promise.all([page.waitForEvent("download"), saveLink.click()]);
+    expect(download.suggestedFilename()).toBe("test-source.mov");
+    expect(await download.failure()).toBeNull();
+  }
+  expect(evidence.sourceDownloads).toEqual([ADMIN_ACCESS, ADMIN_ACCESS].map((token) => `Bearer ${token}`));
+  await expect(page.getByText("보관된 원본 파일을 찾을 수 없습니다.")).toHaveCount(0);
+});
 
 test("한 영상을 여러 차시에 연결한 뒤 선택한 사용처만 해제할 수 있다", async ({ page }) => {
   const evidence = await installApp(page);
