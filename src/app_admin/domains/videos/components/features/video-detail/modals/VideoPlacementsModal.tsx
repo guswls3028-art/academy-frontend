@@ -15,7 +15,6 @@ import {
 import { adminVideoQueryKeys } from "../../../../queryKeys";
 import styles from "./VideoPlacementsModal.module.css";
 
-const placementsKey = (videoId: number) => ["video-placements", videoId] as const;
 const limit = 50;
 
 function toggle(set: number[], id: number, checked: boolean): number[] {
@@ -36,17 +35,17 @@ export default function VideoPlacementsModal({
   const [remove, setRemove] = useState<number[]>([]);
   const [notice, setNotice] = useState("");
   const placements = useQuery({
-    queryKey: placementsKey(videoId),
+    queryKey: adminVideoQueryKeys.placementsForVideo(videoId),
     queryFn: ({ signal }) => fetchVideoPlacements(videoId, signal),
   });
   const canAttach = placements.data?.can_attach === true;
   const lectures = useQuery({
-    queryKey: ["video-placement-active-lectures"],
+    queryKey: adminVideoQueryKeys.placementActiveLectures,
     queryFn: () => fetchLectures({ is_active: true }),
     enabled: canAttach,
   });
   const sessions = useQuery({
-    queryKey: ["video-placement-lecture-sessions", lectureId],
+    queryKey: adminVideoQueryKeys.placementLectureSessions(lectureId),
     queryFn: () => fetchSessions(lectureId),
     enabled: canAttach && lectureId > 0,
   });
@@ -54,8 +53,8 @@ export default function VideoPlacementsModal({
     mutationFn: (operation: VideoPlacementChange) => changeVideoPlacements(videoId, operation),
     onMutate: () => setNotice(""),
     onSuccess: (data, operation) => {
-      void queryClient.invalidateQueries({ queryKey: ["video-placements"] });
-      queryClient.setQueryData(placementsKey(videoId), data);
+      void queryClient.invalidateQueries({ queryKey: adminVideoQueryKeys.placements });
+      queryClient.setQueryData(adminVideoQueryKeys.placementsForVideo(videoId), data);
       void queryClient.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideos });
       void queryClient.invalidateQueries({ queryKey: adminVideoQueryKeys.landingStats });
       if ("add_session_ids" in operation) {

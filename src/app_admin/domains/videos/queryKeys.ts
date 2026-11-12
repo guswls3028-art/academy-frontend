@@ -1,4 +1,8 @@
 export const adminVideoQueryKeys = {
+  placements: ["video-placements"] as const,
+  placementsForVideo: (videoId: number) => ["video-placements", videoId] as const,
+  placementActiveLectures: ["video-placement-active-lectures"] as const,
+  placementLectureSessions: (lectureId: number) => ["video-placement-lecture-sessions", lectureId] as const,
   landingStats: ["admin-videos-landing-stats"] as const,
   lectures: ["admin-videos-lectures"] as const,
   lectureSessionsAll: ["lecture-sessions-all"] as const,
