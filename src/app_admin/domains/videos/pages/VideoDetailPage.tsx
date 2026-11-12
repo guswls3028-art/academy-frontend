@@ -25,6 +25,7 @@ import { watchLogsPath } from "@/shared/media/video/watchLogs";
 
 import PermissionModal from "@admin/domains/videos/components/features/video-detail/modals/PermissionModal";
 import VideoPreviewSection from "@admin/domains/videos/components/features/video-detail/components/VideoPreviewSection";
+import VideoSourceDownload from "@admin/domains/videos/components/features/video-detail/components/VideoSourceDownload";
 import VideoPolicySection from "@admin/domains/videos/components/features/video-detail/components/VideoPolicySection";
 import VideoStudentsSection from "@admin/domains/videos/components/features/video-detail/components/VideoStudentsSection";
 import VideoEngagementBar from "@admin/domains/videos/components/features/video-detail/components/VideoEngagementBar";
@@ -274,6 +275,7 @@ export default function VideoDetailPage() {
                   </>
                 )}
                 <span className="video-detail-meta-spacer" />
+                {video.source_type !== "youtube" && <VideoSourceDownload key={videoId} videoId={videoId} />}
                 <button
                   type="button"
                   onClick={() => setEditModalOpen(true)}
