@@ -1543,7 +1543,7 @@ function EditPane({
                   return;
                 }
                 const comparedAnswers = latest.answers
-                  .filter((answer) => Object.hasOwn(answerEdits, answer.question_id))
+                  .filter((answer) => answerEdits[answer.question_id] !== undefined)
                   .map((answer) => `${answer.question_no ?? "문항"}번: ${answer.answer || "빈 답안"} → ${answerEdits[answer.question_id] || "빈 답안"}`);
                 const approved = await confirm({
                   title: "최신 답안지와 내 수정 확인",
