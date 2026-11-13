@@ -1924,6 +1924,63 @@ test.describe("답안 초기 로드와 입력 보존", () => {
     });
   }
 
+  for (const width of [390, 1366]) {
+    test(`${width}px 정답표 수정·재채점 후 같은 강의의 문항 통계를 즉시 다시 읽는다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const answerKey = {
+        answers: { "1001": "3", "1002": "2" },
+        score: 1, reads: 0, writes: [] as Record<string, string>[],
+      };
+      await installApi(page, { gradingMode: "choice", answerKeyScenario: answerKey });
+      await page.route(`**/exams/${EXAM_ID}/lecture-assignments/`, (route) => route.fulfill({ json: {
+        exam_id: EXAM_ID, total_selected_count: 1, assignments: [{
+          lecture_id: LECTURE_ID, lecture_title: "공통수학2 정규반", pass_score: 60,
+          selected_count: 1, roster_count: 1, sessions: [],
+        }],
+      } }));
+      const lectureReads: boolean[] = [];
+      await page.route(`**/results/admin/exams/${EXAM_ID}/questions/**`, (route) => {
+        const isLecture = new URL(route.request().url()).searchParams.get("lecture_id") === String(LECTURE_ID);
+        const regraded = answerKey.writes.length === 1;
+        if (isLecture) lectureReads.push(regraded);
+        return route.fulfill({ json: [{
+          question_id: QUESTION_IDS[0], question_number: 1, attempts: 1,
+          correct: Number(regraded), accuracy: Number(regraded), avg_score: regraded ? 1 : 0, max_score: 1,
+        }] });
+      });
+      // Keep the primed cache fresh regardless of browser execution speed.
+      await page.clock.setFixedTime(new Date());
+      await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+      const resultsTab = page.getByRole("tab", { name: "채점·결과", exact: true });
+      const selectLecture = () => page.getByRole("group", { name: "성적 조회 강의 필터" })
+        .getByRole("button", { name: /공통수학2 정규반/ }).click();
+      const statistics = page.locator("details").filter({ has: page.locator("summary", { hasText: "전체 문항 통계 보기" }) });
+      await resultsTab.click();
+      await selectLecture();
+      await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
+      await expect(statistics).toContainText("0.0점");
+      expect(lectureReads).toEqual([false]);
+
+      await page.getByRole("tab", { name: "운영", exact: true }).click();
+      await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+      const dialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
+      const row = dialog.locator(".answer-key-row--choice").first();
+      await row.getByRole("checkbox", { name: "1번 3번 선택지" }).click();
+      await row.getByRole("checkbox", { name: "1번 4번 선택지" }).click();
+      await dialog.getByRole("button", { name: /^저장 \(총/ }).click();
+      await expect(page.getByText("저장·재채점되었습니다.", { exact: true })).toBeVisible();
+      expect(answerKey.writes).toEqual([{ "1001": "4", "1002": "2" }]);
+      await dialog.getByRole("button", { name: "취소", exact: true }).click();
+
+      await resultsTab.click();
+      await selectLecture();
+      await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
+      await expect(statistics).toContainText("1.0점");
+      await expect(statistics).toContainText("100%");
+      expect(lectureReads).toEqual([false, true]);
+    });
+  }
+
   test("정답 변경 뒤 확인 대상이 있으면 시험 결과로 이어진다", async ({ page }) => {
     await page.route("**/*", (route) => new URL(route.request().url()).origin === BASE ? route.continue() : route.abort());
     const state: NonNullable<InstallApiOptions["answerKeyScenario"]> = {
