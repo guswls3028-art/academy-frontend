@@ -36,6 +36,9 @@ export default function GradesPage() {
     data: analytics,
     isLoading: analyticsLoading,
     isError: analyticsError,
+    isFetching: analyticsFetching,
+    isFetched: analyticsFetched,
+    refetch: refetchAnalytics,
   } = useMyGradesAnalytics({
     enabled: tab === "stats" && !isLoading && !isError && hasVisibleAnalytics,
   });
@@ -86,8 +89,10 @@ export default function GradesPage() {
           examTrend={examTrend}
           lectureOptions={lectureOptions}
           analytics={analytics}
-          analyticsLoading={analyticsLoading}
-          analyticsError={analyticsError}
+          analyticsLoading={analyticsLoading && !analyticsFetched}
+          analyticsError={analyticsError || (analyticsLoading && analyticsFetched)}
+          analyticsFetching={analyticsFetching}
+          onRetryAnalytics={() => void refetchAnalytics()}
           reportLayout={reportLayout}
         />
       )}
