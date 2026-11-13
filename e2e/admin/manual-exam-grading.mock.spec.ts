@@ -1931,7 +1931,14 @@ test.describe("답안 초기 로드와 입력 보존", () => {
         answers: { "1001": "3", "1002": "2" },
         score: 1, reads: 0, writes: [] as Record<string, string>[],
       };
-      await installApi(page, { gradingMode: "choice", answerKeyScenario: answerKey });
+      await installApi(page, {
+        gradingMode: "choice", answerKeyScenario: answerKey,
+        resultRows: [{
+          enrollment_id: ENROLLMENT_ID, student_name: "김학생", result_status: "DONE",
+          rank: 1, ranking_score: 40, final_score: 40, cohort_size: 1,
+          lecture_title: "공통수학2 정규반", lecture_chip_label: "수2",
+        }],
+      });
       await page.route(`**/exams/${EXAM_ID}/lecture-assignments/`, (route) => route.fulfill({ json: {
         exam_id: EXAM_ID, total_selected_count: 1, assignments: [{
           lecture_id: LECTURE_ID, lecture_title: "공통수학2 정규반", pass_score: 60,
