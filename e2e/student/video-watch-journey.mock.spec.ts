@@ -248,7 +248,7 @@ test("replaying a completed lesson does not auto-advance on background progress 
   const { state, youtube } = await installWatchScenario(page, true);
   await openWatch(page);
   await expect.poll(async () => (await youtube.snapshot()).players.some((player) => player.ready)).toBe(true);
-  await page.getByRole("button", { name: "재생", exact: true }).click();
+  await youtube.play();
   await expect.poll(async () => (await youtube.snapshot()).players.at(-1)?.current ?? 0).toBeGreaterThan(30);
   await page.evaluate(() => {
     const previous = Object.getOwnPropertyDescriptor(document, "hidden");
