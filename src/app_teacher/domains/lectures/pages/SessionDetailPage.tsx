@@ -866,7 +866,7 @@ function VideosTab({ videos, navigate }: { videos: TeacherVideo[]; navigate: any
         return (
           <button
             key={v.id}
-            onClick={() => v.status === "READY" && navigate(`/workspace/mobile/videos/${v.id}`)}
+            onClick={() => navigate(`/workspace/mobile/videos/${v.id}`)}
             className="flex items-center gap-3 rounded-xl w-full text-left cursor-pointer"
             style={{
               padding: "var(--tc-space-3) var(--tc-space-4)",
