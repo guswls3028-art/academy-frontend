@@ -14,7 +14,7 @@ async function installApp(page: Page, role: "admin" | "teacher") {
     videoListFails: false, videoListReads: 0,
     videoListWait: null as Promise<void> | null,
     prepares: 0, uploads: 0, fileTransfers: 0, completes: 0, youtube: 0,
-    loseNextCompletionResponse: false,
+    failNextCompletionResponse: false,
     folders: [] as Array<{ id: number; name: string; session_id: number; parent_id: null; order: number }>,
     videos: [] as Array<Record<string, unknown>>,
     unexpected: [] as string[],
@@ -91,9 +91,9 @@ async function installApp(page: Page, role: "admin" | "teacher") {
       if (!state.videos.some((video) => video.id === 9202)) {
         state.videos.push({ id: 9202, session_id: SESSION.session_id, title: "first-video", source_type: "s3", status: "UPLOADED" });
       }
-      if (state.loseNextCompletionResponse) {
-        state.loseNextCompletionResponse = false;
-        return route.abort("connectionreset");
+      if (state.failNextCompletionResponse) {
+        state.failNextCompletionResponse = false;
+        return json({ detail: "The gateway lost the upstream response." }, 502);
       }
       return json({ id: 9202 });
     }
@@ -328,7 +328,7 @@ for (const width of [390, 1366]) {
     const state = await installApp(page, "teacher");
     state.prepared = true;
     state.failNextPrepare = false;
-    state.loseNextCompletionResponse = true;
+    state.failNextCompletionResponse = true;
     await page.setViewportSize({ width, height: 900 });
     await gotoAndSettle(page, `${BASE}/workspace/mobile/videos`, { timeout: 45_000 });
     await page.getByRole("button", { name: "영상 업로드", exact: true }).first().click();
