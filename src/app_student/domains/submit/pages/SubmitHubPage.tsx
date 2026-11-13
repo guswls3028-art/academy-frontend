@@ -20,7 +20,7 @@ const schoolReportLink = {
 const submitLinks = [
   {
     to: "/student/surveys",
-    title: "설문과 응답",
+    title: "설문과 성적 취합",
     description: "선생님이 요청한 성적·시험 범위·설문에 답합니다.",
     badge: "응답 확인",
     tone: "score",

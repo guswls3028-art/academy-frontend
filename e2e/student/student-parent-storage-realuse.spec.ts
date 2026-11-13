@@ -169,8 +169,8 @@ test.describe.serial("[real-use] 학생·학부모 선택 자녀 자료함·성�
     try {
       const release = releaseBoundaryFromEnv(process.env);
       if (!release || release.mode !== "development") throw new Error("School report requires the isolated development boundary.");
-      const teacherPage = await teacherContext.newPage();
       const teacherBoundary = await installReleaseContextGuard(teacherContext, release);
+      const teacherPage = await teacherContext.newPage();
       const teacherBrowser = attachStrictBrowserGuards(teacherPage);
       await seedBrowserAuth(teacherPage, admin);
       await verifySchoolReportFlow(page, teacherPage, primary);

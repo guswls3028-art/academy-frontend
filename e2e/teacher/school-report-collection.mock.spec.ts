@@ -125,6 +125,10 @@ test("승인된 채널의 알림톡은 선택·미리보기·최종 확인이 �
   await expect(dialog.getByText("알림톡 1건 접수", { exact: true })).toBeVisible();
   expect(state.alimtalkConfirms).toEqual([{ preview_token: "school-report-preview-token" }]);
   expect(state.reminders).toEqual([]);
+  await dialog.getByRole("button", { name: "닫기", exact: true }).last().click();
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await expect(preview).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1367);
 });
 
 test("학생이 파일 없이 0점과 소수점을 제출하며 시험 구분이 섞이지 않는다", async ({ page }) => {
@@ -151,4 +155,7 @@ test("학생이 파일 없이 0점과 소수점을 제출하며 시험 구분이
   await expect(page.getByText("92.5", { exact: true })).toBeVisible();
   expect(state.reminders).toEqual([]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(391);
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await expect(page.getByText("92.5", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1367);
 });
