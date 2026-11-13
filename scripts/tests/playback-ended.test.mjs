@@ -64,6 +64,7 @@ test('a native source error that clears media metadata does not erase the saved 
   });
   await controller.attach(el);
   el.dispatchEvent(new Event('loadedmetadata'));
+  el.paused = false;
   el.currentTime = 123;
   el.dispatchEvent(new Event('timeupdate'));
   Object.assign(el, { currentTime: 0, duration: NaN, error: { code: 4 } });
@@ -84,7 +85,9 @@ for (const kind of ['hls', 'youtube']) {
       onLeaveProgress: (value) => saved.push(value), onEnded: () => ended++ });
     if (kind === 'hls') {
       controller.el = Object.assign(new EventTarget(), { currentTime: 30, duration: 600, playbackRate: 1,
-        pause() {}, removeAttribute() {}, load() {} });
+        paused: false, pause() {}, removeAttribute() {}, load() {} });
+      controller.bindVideoEvents();
+      controller.el.dispatchEvent(new Event('timeupdate'));
     } else {
       controller.player = { getCurrentTime: () => 30, getDuration: () => 600, destroy() {} };
     }
