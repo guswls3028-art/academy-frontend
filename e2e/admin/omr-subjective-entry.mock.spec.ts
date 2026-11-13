@@ -669,8 +669,11 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     await expect(dialog.getByRole("alert").filter({ hasText: "입력한 답안은 유지됩니다." })).toBeVisible();
     await expect(saveEdit).toBeDisabled();
     await expect(firstAnswerRow.getByRole("button", { name: "2", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect.poll(() => dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
     await dialog.getByRole("button", { name: "최신 답안 확인" }).press("Enter");
     const compare = page.getByRole("dialog", { name: "최신 답안지와 내 수정 확인" });
+    await expect(compare).toContainText("1번: 3 → 1,2");
+    await page.setViewportSize({ width: 1366, height: 900 });
     await expect(compare).toContainText("1번: 3 → 1,2");
     await compare.getByRole("button", { name: "내 수정 유지" }).press("Enter");
     expect(savedAnswers).toEqual([]);

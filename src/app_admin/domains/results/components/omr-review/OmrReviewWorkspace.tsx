@@ -1531,8 +1531,10 @@ function EditPane({
               if (!detail) return;
               setReviewingLatest(true);
               try {
+                const queryKey = adminResultsQueryKeys.omrReviewDetail(detail.submission_id);
+                await qc.cancelQueries({ queryKey, exact: true });
                 const latest = await qc.fetchQuery({
-                  queryKey: adminResultsQueryKeys.omrReviewDetail(detail.submission_id),
+                  queryKey,
                   queryFn: () => fetchOmrReviewDetail(detail.submission_id),
                   staleTime: 0,
                 });
