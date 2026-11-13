@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
+import "./AnswerKeyScoreAllocationDialog.css";
 
 export type ScoreGroup = "objective" | "subjective";
 export type ScoreAllocationPlan =

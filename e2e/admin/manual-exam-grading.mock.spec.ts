@@ -2005,7 +2005,7 @@ test.describe("답안 초기 로드와 입력 보존", () => {
         await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
         return page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
       };
-      await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+      await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`, { waitUntil: "domcontentloaded" });
       const dialog = await openAnswers();
       const row = dialog.locator(".answer-key-row--choice").first();
       await expect(row).toBeVisible();
@@ -2039,7 +2039,8 @@ test.describe("답안 초기 로드와 입력 보존", () => {
       needsReview: [{ submission_id: 4101, detail: "manual_override" }],
     };
     await installApi(page, { gradingMode: "choice", answerKeyScenario: state });
-    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({ timeout: 30_000 });
     await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
     const dialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
     const row = dialog.locator(".answer-key-row--choice").first();
@@ -2059,7 +2060,8 @@ test.describe("답안 초기 로드와 입력 보존", () => {
       score: 1, reads: 0, writes: [], methods: [], scoresAtRegrade: [], recalculations: 0,
     };
     await installApi(page, { gradingMode: "choice", answerKeyScenario: state });
-    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({ timeout: 30_000 });
     await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
     const dialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
     const row = dialog.locator(".answer-key-row--choice").first();
@@ -2088,11 +2090,11 @@ test.describe("답안 초기 로드와 입력 보존", () => {
         };
         await installApi(page, { gradingMode: "choice", answerKeyScenario: state });
         const openAnswers = async () => {
-          await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
+          await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({ timeout: 30_000 });
           await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
           return page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
         };
-        await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+        await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`, { waitUntil: "domcontentloaded" });
         const dialog = await openAnswers();
         const row = dialog.locator(".answer-key-row--choice").first();
         const choice = (value: string) => row.getByRole("checkbox", { name: `1번 ${value}번 선택지`, exact: true });
