@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { isAxiosError } from "axios";
+import { isAxiosError, isCancel } from "axios";
 import {
   fetchVideoPlaybackExport,
   requestVideoPlaybackExport,
   requestVideoSourceDownload,
 } from "@/shared/api/contracts/videoDownloads";
 
-type SaveFile = { href: string; filename: string; lifetimeMs: number };
+type SaveFile = { href: string; filename: string; expiresAt: number };
 type DownloadStyles = { action: string; error: string };
 type DownloadProps = { videoId: number; styles: DownloadStyles };
 
@@ -19,17 +19,22 @@ function downloadFile(result: { download_url?: string; filename?: string; expire
   ) throw new Error("Invalid download response");
   const url = new URL(result.download_url);
   if (url.protocol !== "https:" || url.username || url.password) throw new Error("Invalid download URL");
-  return { href: url.href, filename: result.filename, lifetimeMs: (result.expires_in - 5) * 1000 };
+  return { href: url.href, filename: result.filename, expiresAt: Date.now() + (result.expires_in - 5) * 1000 };
 }
 
 function SaveVideoFile({ file, onExpiry, className }: { file: SaveFile; onExpiry: () => void; className: string }) {
   const saveRef = useRef<HTMLAnchorElement | null>(null);
   useEffect(() => {
     saveRef.current?.focus({ preventScroll: true });
-    const timeout = window.setTimeout(onExpiry, file.lifetimeMs);
+    const timeout = window.setTimeout(onExpiry, Math.max(0, file.expiresAt - Date.now()));
     return () => window.clearTimeout(timeout);
   }, [file, onExpiry]);
-  return <a ref={saveRef} className={className} href={file.href} download={file.filename} rel="noreferrer">
+  return <a ref={saveRef} className={className} href={file.href} download={file.filename} rel="noreferrer"
+    onClick={(event) => {
+      if (Date.now() < file.expiresAt) return;
+      event.preventDefault();
+      onExpiry();
+    }}>
     파일 저장
   </a>;
 }
@@ -39,7 +44,9 @@ function PlaybackExport({ videoId, styles }: DownloadProps) {
   const queryKey = ["video-playback-export", videoId] as const;
   const [file, setFile] = useState<SaveFile | null>(null);
   const [error, setError] = useState("");
+  const requestRef = useRef<AbortController | null>(null);
   const clearFile = useCallback(() => setFile(null), []);
+  useEffect(() => () => requestRef.current?.abort(), []);
   const progress = useQuery({
     queryKey,
     queryFn: ({ signal }) => fetchVideoPlaybackExport(videoId, signal),
@@ -47,22 +54,40 @@ function PlaybackExport({ videoId, styles }: DownloadProps) {
     retry: false,
   });
   const prepare = useMutation({
-    mutationFn: async () => {
-      const result = await requestVideoPlaybackExport(videoId);
+    mutationFn: async (signal: AbortSignal) => {
+      const result = await requestVideoPlaybackExport(videoId, signal);
+      if (signal.aborted) return result.state;
       if (result.download_url) setFile(downloadFile(result));
       return result.state;
     },
     onMutate: () => setError(""),
-    onSuccess: async (state) => {
+    onSuccess: async (state, signal) => {
+      if (signal.aborted) return;
       // A status request started before the POST can return an older export state.
       await queryClient.cancelQueries({ queryKey, exact: true });
-      queryClient.setQueryData(queryKey, { state });
+      if (!signal.aborted) queryClient.setQueryData(queryKey, { state });
     },
-    onError: (cause) => {
-      const detail = isAxiosError<{ detail?: string }>(cause) ? cause.response?.data?.detail : undefined;
+    onError: async (cause, signal) => {
+      if (signal.aborted || isCancel(cause)) return;
+      const response = isAxiosError<{ detail?: string }>(cause) ? cause.response : undefined;
+      if (progress.data?.state !== "ready" && isAxiosError(cause) && (!response || response.status >= 500)) {
+        // The worker may have accepted the POST before the response was lost.
+        await queryClient.cancelQueries({ queryKey, exact: true });
+        if (signal.aborted) return;
+        const latest = await progress.refetch({ cancelRefetch: false });
+        if (signal.aborted || latest.data?.state === "preparing" || latest.data?.state === "ready") return;
+      }
+      const detail = response?.data?.detail;
       setError(typeof detail === "string" ? detail : "재생본을 준비하지 못했습니다. 다시 시도해 주세요.");
     },
+    onSettled: () => { requestRef.current = null; },
   });
+  function requestExport() {
+    if (requestRef.current) return;
+    const request = new AbortController();
+    requestRef.current = request;
+    prepare.mutate(request.signal);
+  }
   const state = progress.data?.state;
   if (file) return <SaveVideoFile file={file} onExpiry={clearFile} className={styles.action} />;
   if (progress.isError && !prepare.isPending) {
@@ -80,7 +105,7 @@ function PlaybackExport({ videoId, styles }: DownloadProps) {
   }
   return <>
     {state === "preparing" ? <span role="status">재생본을 준비하고 있습니다. 나중에 다시 열어도 됩니다.</span>
-      : <button type="button" className={styles.action} onClick={() => prepare.mutate()}
+      : <button type="button" className={styles.action} onClick={requestExport}
         disabled={prepare.isPending} aria-busy={prepare.isPending}>
         {prepare.isPending ? "재생본 확인 중…" : state === "ready" ? "재생본 받기" : "재생본 MP4 준비"}
       </button>}

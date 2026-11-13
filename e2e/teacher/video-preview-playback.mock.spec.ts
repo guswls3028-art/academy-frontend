@@ -210,6 +210,7 @@ test("선생님은 영상 목록에서 처리 실패한 영상의 원본을 저�
   const mocks = await installTeacherVideoMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });
   let requests = 0;
+  let attachmentRequests = 0;
   await page.route("**/media/videos/450/source-download/", (route) => {
     expect(route.request().method()).toBe("POST");
     expect(route.request().headers().authorization).toMatch(/^Bearer /);
@@ -220,11 +221,14 @@ test("선생님은 영상 목록에서 처리 실패한 영상의 원본을 저�
       json: { download_url: "https://video-download.test/lesson.mov", filename: "lesson.mov", expires_in: 300 },
     });
   });
-  await page.route("https://video-download.test/lesson.mov", (route) => route.fulfill({
-    headers: { "content-disposition": 'attachment; filename="lesson.mov"' },
-    contentType: "application/octet-stream",
-    body: "synthetic original",
-  }));
+  await page.route("https://video-download.test/lesson.mov", (route) => {
+    attachmentRequests += 1;
+    return route.fulfill({
+      headers: { "content-disposition": 'attachment; filename="lesson.mov"' },
+      contentType: "application/octet-stream",
+      body: "synthetic original",
+    });
+  });
 
   await gotoAndSettle(page, `${BASE}/workspace/mobile/videos`);
   await page.getByRole("button", { name: "처리 실패한 업로드 영상", exact: true }).click();
@@ -243,23 +247,34 @@ test("선생님은 영상 목록에서 처리 실패한 영상의 원본을 저�
   await expect(save).toBeFocused();
   await expectVideoAttachment(page, save, "lesson.mov", browserName);
   expect(requests).toBe(2);
+  await page.clock.setFixedTime(new Date(Date.now() + 300_000));
+  await save.click();
+  await expect(original).toBeVisible();
+  expect(attachmentRequests).toBe(1);
+  await original.click();
+  await expectVideoAttachment(page, save, "lesson.mov", browserName);
+  expect(requests).toBe(3);
   expect(mocks.apiRequests.filter(({ path }) => /\/student\/video|\/playback\//.test(path))).toEqual([]);
 });
 
-test("선생님은 새로고침 뒤 MP4 준비 상태를 다시 확인하고 저장할 수 있다", async ({ page, browserName }, testInfo) => {
+test("선생님은 MP4 접수 응답이 끊겨도 상태를 복구하고 새로고침 뒤 저장할 수 있다", async ({ page, browserName }, testInfo) => {
   await installTeacherVideoMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });
   let prepareRequests = 0;
   let statusUnavailable = false;
+  let jobPreparing = false;
   await page.route("**/media/videos/448/source-download/", (route) => route.fulfill({
     status: 404, json: { code: "video_source_missing", detail: "보관된 원본 파일을 찾을 수 없습니다." },
   }));
   await page.route("**/media/videos/448/playback-export/", (route) => {
     if (route.request().method() === "GET") {
       if (statusUnavailable) return route.fulfill({ status: 503, json: {} });
-      return route.fulfill({ json: { state: prepareRequests ? "ready" : "not_requested" } });
+      return route.fulfill({ json: { state: jobPreparing ? "preparing" : prepareRequests ? "ready" : "not_requested" } });
     }
-    if (++prepareRequests === 1) return route.fulfill({ status: 202, json: { state: "preparing" } });
+    if (++prepareRequests === 1) {
+      jobPreparing = true;
+      return route.fulfill({ status: 502, json: {} });
+    }
     return route.fulfill({
       json: {
         state: "ready", download_url: "https://video-download.test/playback.mp4",
@@ -280,6 +295,7 @@ test("선생님은 새로고침 뒤 MP4 준비 상태를 다시 확인하고 저
   await page.getByRole("button", { name: "재생본 MP4 준비" }).click();
   await expect(page.getByText("재생본을 준비하고 있습니다.", { exact: false })).toBeVisible();
   statusUnavailable = true;
+  jobPreparing = false;
   await page.reload({ waitUntil: "domcontentloaded" });
   await original.click();
   const statusRetry = page.getByRole("button", { name: "준비 상태 다시 확인" });

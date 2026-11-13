@@ -26,7 +26,7 @@ export async function fetchVideoPlaybackExport(videoId: number, signal: AbortSig
   return data;
 }
 
-export async function requestVideoPlaybackExport(videoId: number) {
-  const { data } = await api.post<VideoPlaybackExportResult>(`/media/videos/${videoId}/playback-export/`);
+export async function requestVideoPlaybackExport(videoId: number, signal: AbortSignal) {
+  const { data } = await api.post<VideoPlaybackExportResult>(`/media/videos/${videoId}/playback-export/`, undefined, { signal });
   return data;
 }
