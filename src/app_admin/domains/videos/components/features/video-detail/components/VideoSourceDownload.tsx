@@ -65,7 +65,15 @@ function PlaybackExport({ videoId }: { videoId: number }) {
   const state = progress.data?.state;
   if (file) return <SaveVideoFile file={file} onExpiry={clearFile} />;
   return <>
-    {state === "preparing" ? <span role="status">재생본을 준비하고 있습니다. 나중에 다시 열어도 됩니다.</span>
+    {state === "preparing" ? (
+      progress.isError ? <>
+        <span role="alert" className="video-detail-download-error">재생본 준비 상태를 확인하지 못했습니다. 준비 요청은 접수되었습니다.</span>
+        <button type="button" className="video-detail-action" disabled={progress.isFetching}
+          onClick={() => void progress.refetch({ cancelRefetch: false })}>
+          {progress.isFetching ? "준비 상태 확인 중…" : "준비 상태 다시 확인"}
+        </button>
+      </> : <span role="status">재생본을 준비하고 있습니다. 나중에 다시 열어도 됩니다.</span>
+    )
       : <button type="button" className="video-detail-action" onClick={() => prepare.mutate()} disabled={prepare.isPending}>
         {prepare.isPending ? "재생본 확인 중…" : state === "ready" ? "재생본 받기" : "재생본 MP4 준비"}
       </button>}

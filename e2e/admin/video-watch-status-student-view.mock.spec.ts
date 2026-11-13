@@ -265,13 +265,14 @@ test("영상 상세에서 원본 누락 안내 후 첨부 파일을 다운로드
 });
 
 for (const width of [390, 1366]) {
-  test(`늦은 상태 응답에도 재생본 준비를 추적하고 실패 후 다시 받을 수 있다 (${width}px)`, async ({ page }) => {
+  test(`재생본 준비 실패와 상태 조회 오류를 복구하고 파일을 받을 수 있다 (${width}px)`, async ({ page }) => {
     await installApp(page, true);
     const initialStatusStarted = Promise.withResolvers<void>();
     const releaseInitialStatus = Promise.withResolvers<void>();
     const initialStatusSettled = Promise.withResolvers<void>();
     let statusRequests = 0;
     let prepareRequests = 0;
+    let rejectStatus = true;
     await page.route("**/api/v1/media/videos/596/playback-export/", async (route) => {
       if (route.request().method() === "GET") {
         if (++statusRequests === 1) {
@@ -282,6 +283,10 @@ for (const width of [390, 1366]) {
           } finally {
             initialStatusSettled.resolve();
           }
+          return;
+        }
+        if (prepareRequests === 2 && rejectStatus) {
+          await route.fulfill({ status: 503, json: { detail: "일시적인 연결 오류" } });
           return;
         }
         await route.fulfill({ json: { state: prepareRequests === 1 ? "failed" : "ready" } });
@@ -323,8 +328,14 @@ for (const width of [390, 1366]) {
     expect(prepareRequests).toBe(1);
     await prepare.click();
     await expect(preparing).toBeVisible();
+    await expect(page.getByRole("alert").filter({ hasText: "재생본 준비 상태를 확인하지 못했습니다." })).toBeVisible({ timeout: 15_000 });
+    await expect(prepare).toHaveCount(0);
+    expect(prepareRequests).toBe(2);
+    rejectStatus = false;
+    await page.getByRole("button", { name: "준비 상태 다시 확인", exact: true }).press("Enter");
     const ready = page.getByRole("button", { name: "재생본 받기" });
     await expect(ready).toBeVisible({ timeout: 15_000 });
+    expect(prepareRequests).toBe(2);
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "원본 다운로드", exact: true }).click();
     await ready.click();
