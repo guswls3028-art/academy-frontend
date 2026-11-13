@@ -1482,7 +1482,7 @@ overlay의 실제 날짜 선택부터 학생 추가, 새로고침, 명단 제거
 준비 상태를 불러오지 못하면 **준비 상태 다시 확인**으로 진행 중인 작업을 다시 조회할 수 있습니다.
 원본 저장 주소가 만료되면 **원본 다운로드**를, 재생본 저장 주소가 만료되면 **재생본 받기**를 다시 누르세요.
 권한과 파일 제공 조건은 [백엔드 영상 다운로드 계약](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/session-video-access.md#교직원-원본-다운로드)이 정합니다.
-브라우저 회귀 검증은 `e2e/teacher/video-preview-playback.mock.spec.ts`에서 원본 저장·실패 후 재시도·재생본 상태 조회 및 저장·390px/PC 표시를 확인합니다.
+Chromium과 WebKit 회귀 검증은 `e2e/teacher/video-preview-playback.mock.spec.ts`에서 원본 저장·실패 후 재시도·재생본 상태 조회 및 저장·390px/PC 표시를 확인합니다.
 
 재생 준비가 끝난 학원 영상은 **사용 차시 관리**에서 다른 강의에 연결할 수 있습니다.
 강의를 고른 뒤 차시를 여러 개 선택해 한 번에 연결하세요. 이미 사용 중인 차시를

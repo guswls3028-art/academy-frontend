@@ -205,7 +205,7 @@ test("선생님은 영상 목록에서 처리 실패한 영상의 원본을 저�
   });
   await page.route("https://video-download.test/lesson.mov", (route) => route.fulfill({
     headers: { "content-disposition": 'attachment; filename="lesson.mov"' },
-    contentType: "video/quicktime",
+    contentType: "application/octet-stream",
     body: "synthetic original",
   }));
 
@@ -254,7 +254,7 @@ test("선생님은 새로고침 뒤 MP4 준비 상태를 다시 확인하고 저
   });
   await page.route("https://video-download.test/playback.mp4", (route) => route.fulfill({
     headers: { "content-disposition": 'attachment; filename="playback.mp4"' },
-    contentType: "video/mp4",
+    contentType: "application/octet-stream",
     body: "synthetic playback export",
   }));
 
