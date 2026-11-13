@@ -82,7 +82,6 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
     await answers.getByRole("button", { name: "유형 저장" }).click();
     await expect.poll(() => state.guidedQuestionsInitialized).toBe(true);
     for (const row of await answers.locator(".answer-key-row--choice").all()) await row.locator(".answer-key-omr-label").nth(1).click();
-    await answers.locator(".answer-key-panel--choice").getByRole("textbox", { name: "목표 총점" }).fill("100");
     await answers.getByRole("button", { name: "만점에 맞게 균등 배점" }).click();
     await recording.screen("정답과 배점 확인", "문항별 정답을 선택하고 배점 합계가 목표 총점과 일치하는지 확인합니다.", answers);
     await answers.getByRole("button", { name: /답안 저장하고 다음/ }).click();
@@ -1311,7 +1310,11 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   for (const row of await answerDialog.locator(".answer-key-row--choice").all()) {
     await row.locator(".answer-key-omr-label").nth(1).click();
   }
-  await answerDialog.locator(".answer-key-panel--choice").getByRole("textbox", { name: "목표 총점" }).fill("100");
+  await answerDialog.getByRole("button", { name: "자동 배점 설정", exact: true }).click();
+  const allocation = page.getByRole("dialog", { name: "자동 배점 설정", exact: true });
+  await allocation.getByRole("combobox", { name: "선택형 배점 방식" }).selectOption("manual");
+  await allocation.getByRole("textbox", { name: "선택형 목표 총점" }).fill("100");
+  await allocation.getByRole("button", { name: "편집기에 적용", exact: true }).click();
   await expect(answerDialog.getByText(/현재 \d+점 \/ 목표 100점/)).toBeVisible();
   await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).toBeChecked();
   await answerDialog.getByRole("button", { name: "답안 저장하고 다음" }).click();
@@ -1328,7 +1331,7 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
 
   const printDialog = page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" });
   await expect(printDialog).toBeVisible();
-  await expect(page.getByText("수동 총점과 문항별 배점 합계를 맞춰 주세요.", { exact: false })).toHaveCount(0, { timeout: 500 });
+  await expect(page.getByText("문항별 배점을 목표 총점에 맞추거나 자동 배점 설정에서 목표를 조정해 주세요.", { exact: true })).toHaveCount(0, { timeout: 500 });
   await expect(printDialog.getByRole("button", { name: "OMR PDF 다운로드" })).toBeInViewport();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
@@ -1338,8 +1341,10 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   await expect(printDialog.getByText("답안지 다운로드 완료")).toBeVisible();
   await printDialog.getByRole("button", { name: "설정 화면으로" }).click();
   await expect(page).toHaveURL(/\/exams\?examId=9971/);
-  await page.reload();
-  await page.getByRole("button", { name: "문항·답안 확인" }).click();
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const reopenAnswers = page.getByRole("button", { name: "문항·답안 확인", exact: true });
+  await expect(reopenAnswers).toBeVisible({ timeout: 30_000 });
+  await reopenAnswers.click();
   await expect(page.getByRole("dialog").locator(".answer-key-row--choice .answer-key-row__score-val")).toHaveText(["33.4점", "33.3점", "33.3점"]);
   await page.getByRole("dialog").getByRole("button", { name: "취소" }).click();
   await page.setViewportSize({ width: 390, height: 844 });

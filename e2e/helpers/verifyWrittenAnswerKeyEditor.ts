@@ -8,6 +8,7 @@ import {
 import { gotoAndSettle } from "./wait";
 
 type SavedAnswerKey = { id: number; exam: number; answers: Record<string, string> };
+type ExamQuestion = { id: number; number: number; score: number; question_kind: "choice" | "essay" };
 
 async function expectAnswerFits(answer: Locator): Promise<void> {
   await expect.poll(() => answer.evaluate((element) => ({
@@ -29,22 +30,31 @@ export async function verifyWrittenAnswerKeyEditor(
     // without changing that lecture or the existing student's 85-point scenario.
     const template = await expectApi<{ id: number }>(request, "POST", "/exams/", admin.access, {
       title: `QA 서술형 정답 양식 ${Date.now()}`, exam_type: "template", subject: "국어",
-      max_score: 100, pass_score: 50, grading_mode: "mixed", choice_question_count: 1,
+      max_score: 100, pass_score: 50, grading_mode: "mixed", choice_question_count: 19,
     });
     cleanupPaths.push(`/exams/${template.id}/`);
     const exam = await expectApi<{ id: number }>(request, "POST", "/exams/", admin.access, {
       title: `QA 서술형 정답 편집 ${Date.now()}`, exam_type: "regular",
       session_id: scope.sessionId, template_exam_id: template.id,
-      max_score: 100, pass_score: 50, grading_mode: "mixed", choice_question_count: 1,
+      max_score: 100, pass_score: 50, grading_mode: "mixed", choice_question_count: 19,
       manual_grading_method: "score",
     });
     cleanupPaths.push(`/exams/${exam.id}/?session_id=${scope.sessionId}`);
-    const questions = await expectApi<Array<{ id: number; number: number }>>(
-      request, "POST", `/exams/${exam.id}/questions/init/`, admin.access,
-      { choice_count: 1, choice_score: 50, essay_count: 1, essay_score: 50 },
+    const questionsPath = `/exams/${exam.id}/questions/`;
+    const questions = await expectApi<ExamQuestion[]>(
+      request, "POST", `${questionsPath}init/`, admin.access,
+      { question_types: [...Array<string>(19).fill("choice"), "essay"], choice_score: 1, essay_score: 1 },
     );
     questions.sort((a, b) => a.number - b.number);
-    expect(questions.map(({ number }) => number)).toEqual([1, 2]);
+    expect(questions.map(({ number, score, question_kind }) => [number, score, question_kind])).toEqual(
+      Array.from({ length: 20 }, (_, index) => [index + 1, 1, index < 19 ? "choice" : "essay"]),
+    );
+    const expectSavedScores = async (score: number) => {
+      const persisted = await expectApi<ExamQuestion[]>(request, "GET", questionsPath, admin.access);
+      expect(persisted.sort((a, b) => a.number - b.number).map(({ id, score }) => [id, score])).toEqual(
+        questions.map(({ id }) => [id, score]),
+      );
+    };
     expect(await expectApi(request, "GET", `/exams/${exam.id}/`, admin.access)).toMatchObject({
       subject: "국어", structure_owner_id: exam.id, can_edit_structure: true,
     });
@@ -52,10 +62,12 @@ export async function verifyWrittenAnswerKeyEditor(
     const original = "낮은 곳은 D이다. 물은 높은 곳에서 낮은 곳으로 이동하므로 그림의 높이와 이동 방향을 함께 비교해야 한다. ".repeat(3).trim()
       + "\n그림에 표시된 근거를 문장으로 설명한다.";
     const url = `${QA_BASE}/workspace/lectures/${scope.lectureId}/sessions/${scope.sessionId}/exams?examId=${exam.id}`;
-    const modal = page.getByRole("dialog").filter({ has: page.getByRole("button", { name: "저장 (총 100점)", exact: true }) });
-    const answer = modal.getByRole("textbox", { name: "2번 정답", exact: true });
+    const modal = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
+    const answer = modal.getByRole("textbox", { name: "20번 정답", exact: true });
     const choice = modal.getByRole("checkbox", { name: "1번 2번 선택지", exact: true });
     const save = modal.getByRole("button", { name: "저장 (총 100점)", exact: true });
+    const scores = modal.locator(".answer-key-row__score-val");
+    const appliedScores = Array<string>(20).fill("5점");
     let keyId: number | undefined;
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 900 });
@@ -67,9 +79,21 @@ export async function verifyWrittenAnswerKeyEditor(
         await expect(choice).not.toBeChecked();
         await choice.click();
         await answer.fill(original);
+        await expect(scores).toHaveText(Array<string>(20).fill("1점"));
+        await modal.getByRole("button", { name: "자동 배점 설정", exact: true }).click();
+        const allocation = page.getByRole("dialog", { name: "자동 배점 설정", exact: true });
+        await allocation.getByRole("textbox", { name: "선택형 목표 총점", exact: true }).fill("95");
+        await allocation.getByRole("textbox", { name: "서술형 목표 총점", exact: true }).fill("5");
+        await expect(allocation.getByText("19문항 × 5점", { exact: true })).toBeVisible();
+        await expect(allocation.getByText("1문항 × 5점", { exact: true })).toBeVisible();
+        await allocation.getByRole("button", { name: "편집기에 적용", exact: true }).click();
+        await expect(allocation).toBeHidden();
+        await expect(scores).toHaveText(appliedScores);
+        await expectSavedScores(1);
       } else {
         await expect(choice).toBeChecked();
         await expect(answer).toHaveValue(original);
+        await expect(scores).toHaveText(appliedScores);
         await answer.press("ControlOrMeta+End");
         await answer.press("Enter");
         await answer.pressSequentially("추가 근거를 모바일에서 작성합니다.");
@@ -88,17 +112,19 @@ export async function verifyWrittenAnswerKeyEditor(
       if (keyId !== undefined) expect(saved.id).toBe(keyId);
       keyId = saved.id;
       expect(keyId).toBeGreaterThan(0);
-      const expectedKey = { id: keyId, exam: exam.id, answers: { [questions[0].id]: "2", [questions[1].id]: expected } };
+      const expectedKey = { id: keyId, exam: exam.id, answers: { [questions[0].id]: "2", [questions[19].id]: expected } };
       expect(saved).toMatchObject(expectedKey);
       await expect(page.getByText("저장·재채점되었습니다.", { exact: true })).toBeVisible();
       await expect(save).toBeEnabled();
       const persisted = await expectApi<SavedAnswerKey>(request, "GET", `/exams/answer-keys/${keyId}/`, admin.access);
       expect({ id: persisted.id, exam: persisted.exam, answers: persisted.answers }).toEqual(expectedKey);
+      await expectSavedScores(5);
 
       await page.reload({ waitUntil: "domcontentloaded" });
       await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
       await expect(answer).toHaveValue(expected);
       await expect(choice).toBeChecked();
+      await expect(scores).toHaveText(appliedScores);
       await expectAnswerFits(answer);
       await assertNoHorizontalOverflow(page);
       await answer.scrollIntoViewIfNeeded();
