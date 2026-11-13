@@ -76,7 +76,7 @@ export function useTeacherNavigation() {
           { label: "학생", path: "/workspace/mobile/students", icon: <Users size={ICON.md} />, keywords: ["원생", "학부모", "명단"] },
           { label: "강의", path: "/workspace/mobile/classes", icon: <BookOpen size={ICON.md} />, keywords: ["수업", "차시", "출결"] },
           { label: "시험", path: "/workspace/mobile/exams", icon: <ClipboardList size={ICON.md} />, keywords: ["시험지", "응시", "채점"] },
-          { label: "성적", path: "/workspace/mobile/results", icon: <Award size={ICON.md} />, keywords: ["점수", "성적표", "결과"] },
+          { label: "성적", path: "/workspace/mobile/results", icon: <Award size={ICON.md} />, keywords: ["점수", "성적표", "성적표 취합", "결과"] },
           { label: "영상", path: "/workspace/mobile/videos", icon: <Video size={ICON.md} />, keywords: ["동영상", "수업 영상"] },
           { label: "클리닉", path: "/workspace/mobile/clinic", icon: <Activity size={ICON.md} />, keywords: ["예약", "보충", "등원"] },
           { label: "패스카드 색상", path: "/workspace/mobile/clinic/remote", icon: <RefreshCw size={ICON.md} />, keywords: ["클리닉", "리모컨", "합격 색상"] },
