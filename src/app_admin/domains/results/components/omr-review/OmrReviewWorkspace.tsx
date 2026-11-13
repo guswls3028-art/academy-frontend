@@ -991,6 +991,12 @@ function EditPane({
   const answers = useMemo(() => ({ ...initialAnswers, ...answerEdits }), [initialAnswers, answerEdits]);
   const [pickedStudent, setPickedStudent] = useState<CandidateRow | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const draftRevision = useRef<string | null | undefined>(undefined);
+  const [editConflict, setEditConflict] = useState<"changed" | "retired" | null>(null);
+  const [reviewingLatest, setReviewingLatest] = useState(false);
+  const captureDraftRevision = () => {
+    draftRevision.current ??= detail?.edit_revision;
+  };
 
   const setFocusedQid = onFocusedQidChange;
 
@@ -999,6 +1005,9 @@ function EditPane({
     setAnswerEdits({});
     setPickedStudent(null);
     setPickerOpen(false);
+    draftRevision.current = undefined;
+    setEditConflict(null);
+    setReviewingLatest(false);
   }, [detail?.submission_id]);
 
   const identifierNeeded = useMemo(() => {
@@ -1050,11 +1059,12 @@ function EditPane({
 
   const changedAnswers = Object.entries(answerEdits)
     .filter(([qid, answer]) => answer !== initialAnswers[Number(qid)]);
-  const dirty = Boolean(detail && (changedAnswers.length > 0 || (identifierNeeded && pickedStudent)));
+  const dirty = Boolean(detail && (changedAnswers.length > 0 || pickedStudent));
   const answerReviewVersion = !dirty && !identifierNeeded ? detail?.answer_review_version : null;
   const needsMarkReview = detail?.meta?.manual_review?.required === true;
 
   const changeAnswer = (qid: number, answer: string) => {
+    captureDraftRevision();
     setAnswerEdits((prev) => {
       const next = { ...prev };
       if (answer === initialAnswers[qid]) delete next[qid];
@@ -1070,7 +1080,7 @@ function EditPane({
 
   const mut = useMutation({
     mutationFn: async (
-      opts: { allowDuplicate?: boolean; resume?: { submissionId: number; enrollmentId: number } } = {},
+      opts: { allowDuplicate?: boolean; resume?: { submissionId: number; enrollmentId: number; revision?: string } } = {},
     ) => {
       if (opts.resume) {
         // 교사가 결시 해제를 확인한 경우에만 같은 답안지를 다시 저장한다.
@@ -1080,6 +1090,7 @@ function EditPane({
           note: "omr_review_ui_resume_absence",
           answers: [],
           resumeAbsence: true,
+          expectedEditRevision: opts.resume.revision,
         });
       }
       if (!detail) throw new Error("no detail");
@@ -1089,7 +1100,7 @@ function EditPane({
         answer,
       }));
       const idPayload =
-        identifierNeeded && pickedStudent
+        pickedStudent
           ? { enrollment_id: pickedStudent.enrollment_id }
           : canConfirmCurrentStudent && detail.enrollment_id != null
             ? { enrollment_id: detail.enrollment_id }
@@ -1102,6 +1113,7 @@ function EditPane({
           : "omr_review_ui",
         answers: payloadAnswers,
         allowDuplicate: opts.allowDuplicate,
+        expectedEditRevision: draftRevision.current ?? detail.edit_revision ?? undefined,
       });
     },
     onSuccess: async (data, opts) => {
@@ -1113,12 +1125,14 @@ function EditPane({
         setAnswerEdits({});
         const ok = await confirmAbsenceResume(confirm, pickedStudent?.student_name ?? studentName);
         if (ok) {
-          mut.mutate({ resume: { submissionId: data.submission_id, enrollmentId } });
+          mut.mutate({ resume: { submissionId: data.submission_id, enrollmentId, revision: data.edit_revision } });
           return;
         }
       }
       await onSaved(data);
       setAnswerEdits({});
+      setPickedStudent(null);
+      draftRevision.current = undefined;
     },
     onError: async (e: unknown) => {
       const err = e as {
@@ -1138,6 +1152,10 @@ function EditPane({
       const status = err?.response?.status;
       const code = err?.response?.data?.code;
       const conflict = err?.response?.data;
+      if (status === 409 && (code === "OMR_EDIT_CHANGED" || code === "OMR_EDIT_RETIRED")) {
+        setEditConflict(code === "OMR_EDIT_CHANGED" ? "changed" : "retired");
+        return;
+      }
       if (
         status === 409 && code === "OMR_ATTEMPT_CONFLICT" && conflict?.can_resume_absence
         && conflict.submission_id && conflict.recovery?.enrollment_id
@@ -1145,7 +1163,8 @@ function EditPane({
         const ok = await confirmAbsenceResume(confirm, pickedStudent?.student_name ?? studentName);
         if (ok) {
           mut.mutate({
-            resume: { submissionId: conflict.submission_id, enrollmentId: conflict.recovery.enrollment_id },
+            resume: { submissionId: conflict.submission_id, enrollmentId: conflict.recovery.enrollment_id,
+              revision: draftRevision.current ?? detail?.edit_revision ?? undefined },
           });
         }
         return;
@@ -1217,7 +1236,7 @@ function EditPane({
   });
 
   // mutate / navigate를 ref로 안정화 → 키보드 effect dep 최소화
-  const canSave = Boolean(dirty || canConfirmCurrentStudent || answerReviewVersion) &&
+  const canSave = !editConflict && Boolean(dirty || canConfirmCurrentStudent || answerReviewVersion) &&
     !mut.isPending && !discardMut.isPending && !acceptMut.isPending;
   const submitRef = useRef<() => void>(() => {});
   submitRef.current = () => {
@@ -1452,6 +1471,7 @@ function EditPane({
             open={pickerOpen}
             onClose={() => setPickerOpen(false)}
             onPick={(c) => {
+              captureDraftRevision();
               setPickedStudent(c);
               setPickerOpen(false);
             }}
@@ -1501,6 +1521,53 @@ function EditPane({
             {acceptMut.isPending ? "처리 중…" : "이 답안 채택"}
           </button>
         )}
+        {editConflict && <div role="alert" className="orw-edit-conflict">
+          <p>{editConflict === "retired"
+            ? "이 답안지는 대체되었거나 폐기되었습니다. 답안지 목록에서 현재 답안지를 열어 주세요."
+            : "다른 변경 사항이 저장되었습니다. 입력한 답안은 유지됩니다."}</p>
+          {editConflict === "changed" && <button type="button" className="orw-accept-btn"
+            disabled={reviewingLatest}
+            onClick={async () => {
+              if (!detail) return;
+              setReviewingLatest(true);
+              try {
+                const queryKey = adminResultsQueryKeys.omrReviewDetail(detail.submission_id);
+                await qc.cancelQueries({ queryKey, exact: true });
+                const latest = await qc.fetchQuery({
+                  queryKey,
+                  queryFn: () => fetchOmrReviewDetail(detail.submission_id),
+                  staleTime: 0,
+                });
+                if (!latest.edit_revision || latest.submission_status === "superseded") {
+                  setEditConflict("retired");
+                  return;
+                }
+                const comparedAnswers = latest.answers
+                  .filter((answer) => answerEdits[answer.question_id] !== undefined)
+                  .map((answer) => `${answer.question_no ?? "문항"}번: ${answer.answer || "빈 답안"} → ${answerEdits[answer.question_id] || "빈 답안"}`);
+                const approved = await confirm({
+                  title: "최신 답안지와 내 수정 확인",
+                  message: [
+                    latest.enrollment_id !== detail.enrollment_id ? "다른 교사가 학생 연결을 변경했습니다." : "현재 학생 연결을 유지합니다.",
+                    pickedStudent ? `내 학생 지정: ${pickedStudent.student_name}` : "",
+                    "검토한 수정 사항은 저장 버튼을 누를 때 반영됩니다.",
+                  ].filter(Boolean).join("\n"),
+                  review: { items: comparedAnswers.map((value) => ({ label: "최신 답안 → 내 수정", value })) },
+                  confirmText: "내 수정 유지",
+                  cancelText: "계속 검토",
+                });
+                if (approved) {
+                  draftRevision.current = latest.edit_revision;
+                  setEditConflict(null);
+                }
+              } catch {
+                feedback.error("최신 답안지를 불러오지 못했습니다. 다시 시도해 주세요.");
+              } finally {
+                setReviewingLatest(false);
+              }
+            }}
+          >최신 답안 확인</button>}
+        </div>}
         <button
           className="orw-save-btn"
           type="button"

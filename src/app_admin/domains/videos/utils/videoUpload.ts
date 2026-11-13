@@ -3,6 +3,7 @@
 // 100MB 이하: 단일 PUT / 100MB 초과: R2 multipart upload
 
 import api from "@/shared/api/axios";
+import { completeVideoUpload } from "@/shared/api/videoUploadCompletion";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import type { UploadInitResponse } from "../api/videos.api";
 
@@ -216,11 +217,7 @@ async function singlePutAndComplete(
   }
   if (lastError) throw lastError;
 
-  await api.post<{ id: number }>(
-    `/media/videos/${videoId}/upload/complete/`,
-    { ok: true },
-    { timeout: 60_000 },
-  );
+  await completeVideoUpload(videoId);
 
   return videoId;
 }
@@ -336,9 +333,10 @@ async function multipartUploadAndComplete(
       // Concurrency-limited part upload within batch
       let cursor = 0;
       const batchParts = batchPartNumbers.map((pn) => pn);
+      let failed = false;
 
       async function uploadWorker() {
-        while (cursor < batchParts.length) {
+        while (!failed && cursor < batchParts.length) {
           const idx = cursor++;
           if (idx >= batchParts.length) break;
           const partNumber = batchParts[idx];
@@ -369,7 +367,10 @@ async function multipartUploadAndComplete(
               etag = await uploadPartOnce(allPartUrls[partNumber], blob);
               break;
             } catch (e) {
-              if (retry === PART_MAX_RETRIES) throw e;
+              if (retry === PART_MAX_RETRIES) {
+                failed = true;
+                throw e;
+              }
             }
           }
 
@@ -386,33 +387,23 @@ async function multipartUploadAndComplete(
         { length: Math.min(PART_CONCURRENCY, batchParts.length) },
         () => uploadWorker(),
       );
-      await Promise.all(workers);
+      const outcomes = await Promise.allSettled(workers);
+      const failure = outcomes.find((outcome) => outcome.status === "rejected");
+      if (failure) throw failure.reason;
     }
-
-    // 5. Multipart complete (R2 조립 + 인코딩 파이프라인)
-    const orderedParts = [...completedParts].sort(
-      (left, right) => left.PartNumber - right.PartNumber,
-    );
-    await api.post(
-      `/media/videos/${videoId}/upload/multipart/complete/`,
-      { upload_id: uploadId, parts: orderedParts },
-      { timeout: 120_000 },
-    );
-
-    return videoId;
   } catch (error) {
-    // 실패 시 abort 시도 (불완전 파트 정리)
-    try {
-      await api.post(
-        `/media/videos/${videoId}/upload/multipart/abort/`,
-        { upload_id: uploadId },
-        { timeout: 30_000 },
-      ).catch(() => {});
-    } catch {
-      // best-effort abort
-    }
+    await api.post(
+      `/media/videos/${videoId}/upload/multipart/abort/`,
+      { upload_id: uploadId },
+      { timeout: 30_000 },
+    ).catch(() => {});
     throw error;
   }
+
+  // 완료 요청 중 연결이 끊겨도 저장소에서 조립이 진행 중일 수 있다.
+  const orderedParts = completedParts.sort((left, right) => left.PartNumber - right.PartNumber);
+  await completeVideoUpload(videoId, { upload_id: uploadId, parts: orderedParts });
+  return videoId;
 }
 
 // ═══════════════════════════════════════════════════════════════
