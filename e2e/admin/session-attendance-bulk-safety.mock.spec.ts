@@ -898,6 +898,8 @@ test("전체 현장 출석은 최근 작업 기록에서 서명 토큰으로 되
   await page.getByRole("button", { name: "전체 현장 적용", exact: true }).click();
 
   await expect.poll(() => state.bulkSetCalls).toBe(1);
+  const record = page.getByRole("region", { name: "최근 일괄 출결 작업" });
+  await expect(record).toContainText("전체 현장 출석 적용됨");
   const undoStorage = await page.evaluate(() => ({
     scoped: sessionStorage.getItem("attendance:bulk-present-undo:v1:hakwonplus:user:12:session:9902"),
     wrongTenant: sessionStorage.getItem("attendance:bulk-present-undo:v1:other:user:12:session:9902"),
@@ -911,7 +913,6 @@ test("전체 현장 출석은 최근 작업 기록에서 서명 토큰으로 되
   expect(undoStorage.wrongSession).toBeNull();
   expect(undoStorage.localToken).toBeNull();
   await page.reload({ waitUntil: "domcontentloaded" });
-  const record = page.getByRole("region", { name: "최근 일괄 출결 작업" });
   await expect(record).toContainText("전체 현장 출석 적용됨");
   await expect(record).toContainText("2명의 기존 상태");
   await record.getByRole("button", { name: "되돌리기" }).click();
