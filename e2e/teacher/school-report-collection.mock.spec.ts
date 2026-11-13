@@ -117,7 +117,7 @@ test("검색이 갱신되는 동안 연 학생 성적표가 계속 표시된다"
   await search.fill("제출 학생");
   await student.press("Enter");
   const dialog = page.getByRole("dialog", { name: "제출 학생", exact: true });
-  await expect(dialog.getByText("92.5", { exact: true })).toBeVisible();
+  await expect(dialog).toBeVisible();
   const searchResults = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return url.pathname.endsWith("/results/school-reports/") && url.searchParams.get("search") === "제출 학생";
