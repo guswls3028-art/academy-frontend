@@ -388,7 +388,7 @@ test("legacy iOS native HLS contract starts and pauses without a play Promise or
   await tapLeft();
   await expect(player).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
   await video.evaluate((element) => {
-    (element as HTMLVideoElement).currentTime = 125;
+    Object.defineProperty(element, "currentTime", { configurable: true, get: () => 125 });
     element.dispatchEvent(new Event("timeupdate"));
   });
   await page.getByRole("button", { name: "일시정지", exact: true }).click();
