@@ -58,6 +58,59 @@ for (const width of [1366, 390]) {
 
 test.use({ serviceWorkers: "block" });
 
+test("늦게 도착한 학원 설정이 학생 등록에서 지운 비밀번호를 복원하지 않는다", async ({ page }) => {
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+  }, localJwt());
+  await installApi(page);
+
+  let releasePolicy!: () => void;
+  const policyReady = new Promise<void>((resolve) => { releasePolicy = resolve; });
+  await page.route("**/api/v1/students/account-password-settings/", async (route) => {
+    await policyReady;
+    await route.fulfill({ json: {
+      student_mode: "fixed", parent_mode: "fixed",
+      student_fixed_password: "synthetic-student-default", parent_fixed_password: "synthetic-parent-default",
+    } });
+  });
+  let registrations = 0;
+  page.on("request", (request) => {
+    if (request.method() === "POST" && new URL(request.url()).pathname === "/api/v1/students/") registrations += 1;
+  });
+
+  await page.setViewportSize({ width: 390, height: 900 });
+  await gotoAndSettle(page, `${BASE}/workspace/students/home`, { timeout: 45_000 });
+  await page.getByRole("button", { name: "학생 추가", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "학생 등록" });
+  await dialog.getByRole("button", { name: "1명만 등록", exact: true }).click();
+  await dialog.getByPlaceholder("이름", { exact: true }).fill("등록 테스트");
+  await dialog.getByLabel("학부모 전화 앞 4자리").fill("55551234");
+  await dialog.getByPlaceholder("로그인 아이디 (선택·비우면 학생 전화번호 사용)").fill("qa-register");
+  await dialog.getByRole("button", { name: "등록", exact: true }).click();
+
+  const confirmation = page.getByRole("alertdialog", { name: "학생 등록 최종 확인" });
+  const student = confirmation.getByRole("group", { name: "학생 초기 비밀번호", exact: true });
+  const parent = confirmation.getByRole("group", { name: "학부모 초기 비밀번호", exact: true });
+  await student.getByLabel("직접 입력", { exact: true }).check();
+  const studentPassword = student.getByLabel("학생 직접 입력 비밀번호", { exact: true });
+  await studentPassword.fill("123");
+  await studentPassword.clear();
+
+  releasePolicy();
+  await expect(student.getByText("학원 기본 설정: 직접 입력", { exact: true })).toBeVisible();
+  await expect(studentPassword).toHaveValue("");
+  await parent.getByLabel("직접 입력", { exact: true }).check();
+  await expect(parent.getByLabel("학부모 직접 입력 비밀번호", { exact: true })).toHaveValue("synthetic-parent-default");
+  await studentPassword.fill("123");
+  await confirmation.getByRole("button", { name: "확인하고 등록", exact: true }).click();
+  await expect(student.getByRole("alert")).toHaveText("학생 비밀번호를 4자 이상 입력해 주세요.");
+  expect(registrations).toBe(0);
+});
+
+
+
 test("학생 엑셀 읽기 중 닫고 다시 열어도 이전 실패가 새 읽기를 해제하지 않는다", async ({ page }) => {
   await installTenantOneInitScript(page);
   await page.addInitScript((jwt) => {

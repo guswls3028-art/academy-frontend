@@ -162,6 +162,10 @@ type MockState = {
   guidedQuestionsInitialized?: boolean;
   guidedQuestionCount?: number;
   guidedQuestionScores?: Record<number, number>;
+  /** 서술형으로 만들 문항 번호 (Beta 교사 채점란 검증) */
+  guidedEssayNumbers?: number[];
+  essayScoreMarks?: { enabled: boolean; available: boolean; reason: string; patches: boolean[] };
+  omrPreviewPosts?: number;
   answerKeySaves?: Array<Record<string, unknown>>;
   answerKeyReadMode?: "normal" | "empty" | "error" | "wrong-owner" | "changed-answer";
   answerKeyReadGate?: Promise<void>;
@@ -460,7 +464,8 @@ async function installApi(page: Page, state: MockState) {
       if (path === "/exams/9971/structure/ensure/" && method === "POST") return json(exam);
       const guidedQuestions = Array.from({ length: state.guidedQuestionCount ?? 1 }, (_, index) => {
         const id = 99711 + index;
-        return { id, sheet: 9971, number: index + 1, question_kind: "choice", score: state.guidedQuestionScores?.[id] ?? 1 };
+        const kind = state.guidedEssayNumbers?.includes(index + 1) ? "essay" : "choice";
+        return { id, sheet: 9971, number: index + 1, question_kind: kind, score: state.guidedQuestionScores?.[id] ?? 1 };
       });
       if (path === "/exams/9971/questions/" && method === "GET") {
         return json(state.guidedQuestionsInitialized ? guidedQuestions : []);
@@ -520,7 +525,21 @@ async function installApi(page: Page, state: MockState) {
           essay_question_numbers: [], logo_url: null,
         });
       }
+      if (path === "/exams/9971/omr/essay-score-marks/" && state.essayScoreMarks) {
+        const marks = state.essayScoreMarks;
+        if (method === "PATCH") {
+          const payload = request.postDataJSON() as { enabled: boolean };
+          marks.patches.push(payload.enabled);
+          if (payload.enabled && !marks.available) return json({ enabled: [marks.reason] }, 400);
+          marks.enabled = payload.enabled;
+        }
+        return json({
+          enabled: marks.enabled, available: marks.available, printed: marks.enabled && marks.available,
+          reason: marks.reason, essay_count: state.guidedEssayNumbers?.length ?? 0, max_score: 49.9, beta: true,
+        });
+      }
       if (path === "/exams/9971/omr/preview/" && method === "POST") {
+        state.omrPreviewPosts = (state.omrPreviewPosts ?? 0) + 1;
         return route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><html><body>OMR 미리보기</body></html>" });
       }
       if (path === "/exams/9971/omr/pdf/" && method === "POST") {
@@ -1330,6 +1349,83 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   expect(pickerBox!.width).toBeGreaterThan(330);
   expect(pickerBox!.x + pickerBox!.width).toBeLessThanOrEqual(390);
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+});
+
+for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
+  test(`${viewport.width}px OMR 답안지에서 서술형 교사 채점란(Beta)을 켜고 미리보기를 다시 그린다`, async ({ page }, testInfo) => {
+    const state: MockState = {
+      supplementTitle: "토요일 심화 클리닉",
+      patchTitles: [],
+      guidedExamFlow: true,
+      guidedQuestionsInitialized: true,
+      guidedQuestionCount: 3,
+      guidedEssayNumbers: [3],
+      createdExamPayloads: [{
+        title: "주간 테스트", max_score: 100, pass_score: 60,
+        grading_mode: "mixed", manual_grading_method: "score",
+      }],
+      examSessionEnrollmentRows: [],
+      answerKeySaves: [{ exam: 9971, answers: { "99711": "1", "99712": "2" } }],
+      essayScoreMarks: { enabled: false, available: true, reason: "", patches: [] },
+    };
+    await page.setViewportSize(viewport);
+    await openLecture(page, state);
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/exams?examId=9971`, {
+      waitUntil: "domcontentloaded",
+    });
+    await page.getByRole("button", { name: "문항·답안 확인" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("tab", { name: "OMR 답안지" }).click();
+    const option = dialog.getByRole("radiogroup", { name: "서술형 교사 채점란" });
+    await expect(option).toBeVisible();
+    await expect(dialog.getByText("서술형 교사 채점란", { exact: false }).first()).toContainText("Beta");
+    await expect.poll(() => state.omrPreviewPosts ?? 0).toBeGreaterThan(0);
+    const previewsBefore = state.omrPreviewPosts ?? 0;
+
+    await option.getByRole("radio", { name: "사용", exact: true }).click();
+    await expect.poll(() => state.essayScoreMarks?.patches).toEqual([true]);
+    await expect(option.getByRole("radio", { name: "사용", exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByText(/서술형 교사 채점란을 켰습니다/)).toBeVisible();
+    await expect.poll(() => state.omrPreviewPosts ?? 0).toBeGreaterThan(previewsBefore);
+    await expect(dialog.getByText(/문항별 점수 입력에서 OMR 제안을 확인하고 확정하세요/)).toBeVisible();
+    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await dialog.screenshot({ path: testInfo.outputPath(`omr-essay-strip-option-${viewport.width}.png`) });
+
+    await option.getByRole("radio", { name: "사용 안 함", exact: true }).click();
+    await expect.poll(() => state.essayScoreMarks?.patches).toEqual([true, false]);
+    await expect(option.getByRole("radio", { name: "사용 안 함", exact: true })).toHaveAttribute("aria-checked", "true");
+  });
+}
+
+test("OMR 교사 채점란을 넣을 수 없는 시험은 이유를 보여 주고 켜지 않는다", async ({ page }) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+    guidedExamFlow: true,
+    guidedQuestionsInitialized: true,
+    guidedQuestionCount: 3,
+    guidedEssayNumbers: [3],
+    createdExamPayloads: [{
+      title: "주간 테스트", max_score: 100, pass_score: 60,
+      grading_mode: "mixed", manual_grading_method: "score",
+    }],
+    examSessionEnrollmentRows: [],
+    answerKeySaves: [{ exam: 9971, answers: { "99711": "1", "99712": "2" } }],
+    essayScoreMarks: {
+      enabled: false, available: false, reason: "서술형 배점은 49.9점까지 점수칸으로 읽을 수 있습니다.", patches: [],
+    },
+  };
+  await openLecture(page, state);
+  await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/exams?examId=9971`, {
+    waitUntil: "domcontentloaded",
+  });
+  await page.getByRole("button", { name: "문항·답안 확인" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("tab", { name: "OMR 답안지" }).click();
+  const option = dialog.getByRole("radiogroup", { name: "서술형 교사 채점란" });
+  await expect(dialog.getByText("서술형 배점은 49.9점까지 점수칸으로 읽을 수 있습니다.")).toBeVisible();
+  await expect(option.getByRole("radio", { name: "사용", exact: true })).toBeDisabled();
+  expect(state.essayScoreMarks?.patches).toEqual([]);
 });
 
 async function openGuidedAnswerDialog(page: import("@playwright/test").Page, state: MockState) {
