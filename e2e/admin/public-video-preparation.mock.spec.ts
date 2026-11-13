@@ -15,6 +15,8 @@ async function installApp(page: Page, role: "admin" | "teacher") {
     videoListWait: null as Promise<void> | null,
     prepares: 0, uploads: 0, fileTransfers: 0, completes: 0, youtube: 0,
     failNextCompletionResponse: false,
+    multipartAborts: 0, multipartParts: [] as number[],
+    multipartCompletions: [] as Array<{ upload_id: string; parts: { ETag: string; PartNumber: number }[] }>,
     folders: [] as Array<{ id: number; name: string; session_id: number; parent_id: null; order: number }>,
     videos: [] as Array<Record<string, unknown>>,
     unexpected: [] as string[],
@@ -32,6 +34,11 @@ async function installApp(page: Page, role: "admin" | "teacher") {
   await page.route(`${BASE}/mock-public-video-upload`, (route) => {
     state.fileTransfers += 1;
     return route.fulfill({ status: 200, body: "ok" });
+  });
+  await page.route(`${BASE}/mock-public-video-part/*`, (route) => {
+    const part = Number(new URL(route.request().url()).pathname.split("/").pop());
+    state.multipartParts.push(part);
+    return route.fulfill({ status: 200, headers: { etag: `"part-${part}"` } });
   });
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -96,6 +103,20 @@ async function installApp(page: Page, role: "admin" | "teacher") {
         return json({ detail: "The gateway lost the upstream response." }, 502);
       }
       return json({ id: 9202 });
+    }
+    if (path === "/media/videos/9202/upload/multipart/init/" && method === "POST") return json({ upload_id: "mock-parts" });
+    if (path === "/media/videos/9202/upload/multipart/presign/" && method === "POST") {
+      const { part_numbers: parts } = request.postDataJSON() as { part_numbers: number[] };
+      return json({ urls: Object.fromEntries(parts.map((part) => [part, `${BASE}/mock-public-video-part/${part}`])) });
+    }
+    if (path === "/media/videos/9202/upload/multipart/complete/" && method === "POST") {
+      state.multipartCompletions.push(request.postDataJSON());
+      if (state.multipartCompletions.length === 1) return json({ detail: "Upstream completion is being reconciled." }, 502);
+      return json({ id: 9202, status: "UPLOADED" });
+    }
+    if (path === "/media/videos/9202/upload/multipart/abort/" && method === "POST") {
+      state.multipartAborts += 1;
+      return json({ detail: "aborted" });
     }
     if (method === "GET" && ["/lectures/lectures/", "/lectures/sessions/", "/staffs/currently-working/", "/results/admin/clinic-targets/"].includes(path)) return json([]);
     const shellReads: Record<string, unknown> = {
@@ -345,3 +366,29 @@ for (const width of [390, 1366]) {
     expect(state.unexpected).toEqual([]);
   });
 }
+
+test("admin retries multipart assembly with the same parts after an upstream error", async ({ page }) => {
+  const state = await installApp(page, "admin");
+  state.prepared = true;
+  state.failNextPrepare = false;
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await openPublicFolder(page);
+  await page.getByRole("button", { name: "영상 추가", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "영상 추가" });
+  await dialog.locator("input[type=file]").evaluate((element: HTMLInputElement) => {
+    const file = new File([new Uint8Array([1, 2, 3])], "multipart-video.mp4", { type: "video/mp4" });
+    // Exercise multipart routing without writing a large browser fixture to disk.
+    Object.defineProperty(file, "size", { value: 101 * 1024 * 1024 });
+    Object.defineProperty(element, "files", { value: [file], configurable: true });
+    element.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  await dialog.getByRole("button", { name: "업로드 (1개)", exact: true }).click();
+  await expect.poll(() => state.multipartCompletions.length).toBe(2);
+  expect(state.multipartCompletions[0].parts.length).toBeGreaterThan(1);
+  expect(state.multipartCompletions[0].parts.map((part) => part.PartNumber)).toEqual(
+    [...state.multipartParts].sort((a, b) => a - b),
+  );
+  expect(state.multipartCompletions[1]).toEqual(state.multipartCompletions[0]);
+  expect([state.uploads, state.fileTransfers, state.multipartAborts]).toEqual([1, 0, 0]);
+  await expect(dialog).toBeHidden();
+});
