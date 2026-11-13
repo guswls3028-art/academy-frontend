@@ -4,7 +4,7 @@
 .contact { display: flex; align-items: center; justify-content: center; min-height: 44px; }
 .profileActions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
 .action { min-height: 40px; }
-.tabs { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--tc-border); gap: 4px; }
+.tabs { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); border-bottom: 1px solid var(--tc-border); gap: 4px; }
 .tabs button { min-height: 44px; padding: 8px 4px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--tc-text-secondary); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: color 140ms ease, background 140ms ease; }
 .tabs button[aria-pressed="true"] { color: var(--tc-primary); border-bottom-color: var(--tc-primary); background: var(--tc-primary-bg); }
 .tabs button:focus-visible, .inlineError button:focus-visible { outline: 2px solid var(--tc-primary); outline-offset: 2px; }
@@ -15,3 +15,11 @@
 .inlineError button { min-height: 40px; padding: 6px 12px; border: 1px solid var(--tc-border); border-radius: var(--tc-radius-sm); color: var(--tc-text); background: var(--tc-surface); cursor: pointer; }
 @keyframes reveal { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .tabs button { transition: none; } .infoPanels { animation: none; } }
+.schoolReport {
+  display: grid;
+  gap: 0.85rem;
+}
+
+@media (max-width: 520px) {
+  .tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}

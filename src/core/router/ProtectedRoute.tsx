@@ -10,6 +10,7 @@ import { logout } from "@/auth/api/auth.api";
 import FirstLoginGuideModal from "@/auth/components/FirstLoginGuideModal";
 import AuthUnavailableState from "@/auth/components/AuthUnavailableState";
 import { getStudentSupportAccessToken } from "@/shared/auth/supportPreviewSession";
+import { studentSchoolReportPath } from "@/shared/product/schoolReports/period";
 import {
   dismissPasswordRecommendationForAuthSession,
   readPasswordRecommendationAuthSession,
@@ -99,6 +100,7 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
   }
 
   const preserveStudentLink = location.pathname === "/student/attendance/scan"
+    || location.pathname === studentSchoolReportPath
     || /^\/student\/surveys(?:\/[1-9]\d*)?\/?$/.test(location.pathname);
   const loginRedirect = preserveStudentLink
     ? <StudentLinkLoginRedirect /> : <Navigate to="/login" replace />;

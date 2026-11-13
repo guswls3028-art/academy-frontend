@@ -1,5 +1,6 @@
 /** Student baseline and parent selected-child inventory/score writes in isolated qa-* development. */
 import { expect, test } from "../fixtures/strictTest";
+import type { Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import {
   api,
@@ -13,11 +14,13 @@ import {
   logoutStudentApp,
   QA_BASE,
   reloadStudentApp,
+  seedBrowserAuth,
   selectParentStudentThroughUi,
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
+import { installReleaseContextGuard, releaseBoundaryFromEnv } from "../helpers/releaseApiBoundary";
 import { gotoAndSettle } from "../helpers/wait";
 
 test.setTimeout(360_000);
@@ -32,6 +35,66 @@ const studentFile = `qa-student-inventory-${runStamp}.pdf`;
 const parentFile = `qa-parent-inventory-${runStamp}.pdf`;
 const scoreFile = `qa-parent-score-${runStamp}.pdf`;
 const folderName = `QA 학부모 폴더 ${runStamp}`;
+
+async function verifySchoolReportFlow(studentPage: Page, teacherPage: Page, primary: QaFamily["students"][number]) {
+  const reportUrl = `${QA_BASE}/workspace/mobile/results?tab=school-report`;
+  let teacherRequests = 0;
+  teacherPage.on("request", (request) => {
+    if (request.method() === "POST" && new URL(request.url()).pathname.endsWith("/results/school-reports/requests/")) {
+      teacherRequests += 1;
+    }
+  });
+  await gotoAndSettle(teacherPage, reportUrl, { timeout: 30_000 });
+  const midterm = teacherPage.getByRole("button", { name: "2학기 중간", exact: true });
+  await expect(midterm).toBeVisible({ timeout: 20_000 });
+  await midterm.click();
+  await teacherPage.getByRole("searchbox", { name: "학생 검색" }).fill(primary.name);
+  const target = teacherPage.getByRole("checkbox", { name: `${primary.name} 선택` });
+  await target.check();
+  const requestButton = teacherPage.getByRole("button", { name: "앱으로 제출 요청" });
+  await requestButton.click();
+  const confirm = teacherPage.getByRole("alertdialog", { name: "성적표 제출 요청" });
+  await expect(confirm.getByText(/학생 1명에게/)).toBeVisible();
+  await confirm.getByRole("button", { name: "취소" }).click();
+  expect(teacherRequests).toBe(0);
+
+  await requestButton.click();
+  await confirm.getByRole("button", { name: "앱 알림 보내기" }).click();
+  await expect(teacherPage.getByText("요청함", { exact: true })).toBeVisible();
+  expect(teacherRequests).toBe(1);
+  await assertNoHorizontalOverflow(teacherPage);
+
+  await gotoAndSettle(studentPage, `${QA_BASE}/student/notifications`, { timeout: 30_000 });
+  await studentPage.getByRole("link", { name: /2학기 중간 성적표 제출/ }).click();
+  await expect(studentPage).toHaveURL(/\/student\/submit\/school-report\?academic_year=\d{4}&semester=2&exam_round=first/);
+  await studentPage.getByRole("button", { name: "점수 직접 입력" }).click();
+  await studentPage.getByRole("textbox", { name: "과목 1" }).fill("수학");
+  await studentPage.getByRole("button", { name: "성적표 제출", exact: true }).click();
+  await expect(studentPage.getByRole("alert")).toContainText("1번째 과목명과 점수");
+  await studentPage.getByRole("textbox", { name: "받은 점수 1" }).fill("0");
+  await studentPage.getByRole("button", { name: "+ 과목 추가" }).click();
+  await studentPage.getByRole("textbox", { name: "과목 2" }).fill("과학");
+  await studentPage.getByRole("textbox", { name: "받은 점수 2" }).fill("92.5");
+  await studentPage.getByRole("button", { name: "성적표 제출", exact: true }).click();
+  await expect(studentPage.getByText("성적표를 제출했습니다.", { exact: true })).toBeVisible();
+  await assertNoHorizontalOverflow(studentPage);
+  await reloadStudentApp(studentPage);
+  await expect(studentPage.getByText("92.5", { exact: true })).toBeVisible();
+  await expect(studentPage.getByText("0", { exact: true })).toBeVisible();
+
+  await gotoAndSettle(teacherPage, reportUrl, { timeout: 30_000 });
+  await expect(midterm).toBeVisible({ timeout: 20_000 });
+  await midterm.click();
+  await teacherPage.getByRole("searchbox", { name: "학생 검색" }).fill(primary.name);
+  await expect(teacherPage.getByText("제출 · 2과목", { exact: true })).toBeVisible();
+  await teacherPage.getByRole("button", { name: `${primary.name} 성적표 보기` }).click();
+  const detail = teacherPage.getByRole("dialog", { name: primary.name });
+  await expect(detail.getByText("92.5", { exact: true })).toBeVisible();
+  await detail.getByRole("link", { name: "학생 상세에서 보기" }).click();
+  await expect(teacherPage).toHaveURL(/\/workspace\/mobile\/students\/\d+\?tab=school-report/);
+  await expect(teacherPage.getByRole("region", { name: "학교 성적표", exact: true }).getByText("수학", { exact: true })).toBeVisible();
+  expect(teacherRequests).toBe(1);
+}
 
 async function cleanup(request: Parameters<typeof api>[0]): Promise<void> {
   if (!adminAccess) return;
@@ -91,7 +154,7 @@ test.describe.serial("[real-use] 학생·학부모 선택 자녀 자료함·성�
   test.beforeAll(() => assertQaStudentParentRuntime());
   test.afterAll(async ({ request }) => cleanup(request));
 
-  test("학생 기준선 뒤 학부모 390px 저장·삭제·자녀격리·reload/relogin·desktop을 완료한다", async ({ page, request }) => {
+  test("학생 성적 취합·학생 기준선 뒤 학부모 390px 저장·삭제·자녀격리·reload/relogin·desktop을 완료한다", async ({ page, request, browser: engine }) => {
     const boundary = await installQaStudentParentBoundary(page, request);
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
@@ -102,6 +165,20 @@ test.describe.serial("[real-use] 학생·학부모 선택 자녀 자료함·성�
 
     await page.setViewportSize({ width: 390, height: 844 });
     await loginThroughUi(page, primary.ps_number, primary.password);
+    const teacherContext = await engine.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
+    try {
+      const release = releaseBoundaryFromEnv(process.env);
+      if (!release || release.mode !== "development") throw new Error("School report requires the isolated development boundary.");
+      const teacherBoundary = await installReleaseContextGuard(teacherContext, release);
+      const teacherPage = await teacherContext.newPage();
+      const teacherBrowser = attachStrictBrowserGuards(teacherPage);
+      await seedBrowserAuth(teacherPage, admin);
+      await verifySchoolReportFlow(page, teacherPage, primary);
+      teacherBoundary.assertClean();
+      teacherBrowser.assertZeroDefects();
+    } finally {
+      await teacherContext.close();
+    }
     await gotoAndSettle(page, `${QA_BASE}/student/inventory`, { timeout: 30_000 });
     await uploadInventoryFile(page, studentFile);
     await logoutStudentApp(page);

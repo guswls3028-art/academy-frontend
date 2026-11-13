@@ -1655,7 +1655,7 @@ export interface paths {
             cookie?: never;
         };
         /** @description GET/POST /posts/:id/replies/ — 답변 목록 조회, 답변 등록(선생/관리자). */
-        get: operations["community_posts_replies_retrieve"];
+        get: operations["community_posts_replies_list"];
         put?: never;
         /** @description GET/POST /posts/:id/replies/ — 답변 목록 조회, 답변 등록(선생/관리자). */
         post: operations["community_posts_replies_create"];
@@ -1720,6 +1720,23 @@ export interface paths {
         put?: never;
         /** @description POST /posts/:id/replies/:reply_id/report/ — 댓글 신고. */
         post: operations["community_posts_replies_report_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/posts/{id}/replies/with-images/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Post CRUD. tenant from request. list: ?node_id= or admin list. */
+        post: operations["community_posts_replies_with_images_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3378,6 +3395,34 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exams/{exam_id}/omr/essay-score-marks/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description GET/PATCH /api/v1/exams/{exam_id}/omr/essay-score-marks/
+         *
+         *     Beta 서술형 교사 채점란 설정. PATCH {"enabled": bool}는 문항 편집과 같은
+         *     구조 소유권·템플릿 봉인 규칙을 따른다. 배치할 수 없으면 400과 사유를 반환한다.
+         */
+        get: operations["exams_omr_essay_score_marks_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * @description GET/PATCH /api/v1/exams/{exam_id}/omr/essay-score-marks/
+         *
+         *     Beta 서술형 교사 채점란 설정. PATCH {"enabled": bool}는 문항 편집과 같은
+         *     구조 소유권·템플릿 봉인 규칙을 따른다. 배치할 수 없으면 400과 사유를 반환한다.
+         */
+        patch: operations["exams_omr_essay_score_marks_partial_update"];
         trace?: never;
     };
     "/api/v1/exams/{exam_id}/omr/pdf/": {
@@ -6904,6 +6949,42 @@ export interface paths {
         patch: operations["media_videos_partial_update"];
         trace?: never;
     };
+    "/api/v1/media/videos/{id}/placements/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Video 관리 + 통계 + 학생 목록 */
+        get: operations["media_videos_placements_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description Video 관리 + 통계 + 학생 목록 */
+        patch: operations["media_videos_placements_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/media/videos/{id}/playback-export/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Video 관리 + 통계 + 학생 목록 */
+        get: operations["media_videos_playback_export_retrieve"];
+        put?: never;
+        /** @description Video 관리 + 통계 + 학생 목록 */
+        post: operations["media_videos_playback_export_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/videos/{id}/progress/": {
         parameters: {
             query?: never;
@@ -6932,6 +7013,23 @@ export interface paths {
         put?: never;
         /** @description Video 관리 + 통계 + 학생 목록 */
         post: operations["media_videos_retry_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/videos/{id}/source-download/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Video 관리 + 통계 + 학생 목록 */
+        post: operations["media_videos_source_download_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9193,6 +9291,70 @@ export interface paths {
         get: operations["results_parent_assessment_comments_list"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/school-reports/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["school_report_roster_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/school-reports/{student_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["school_report_staff_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/school-reports/me/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["school_report_student_retrieve"];
+        put: operations["school_report_student_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/school-reports/requests/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["school_report_request_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -12828,6 +12990,15 @@ export interface components {
          */
         AccountStateEnum: "ACTIVE" | "INACTIVE" | "DELETED" | "UNLINKED";
         /**
+         * @description * `A` - A
+         *     * `B` - B
+         *     * `C` - C
+         *     * `D` - D
+         *     * `E` - E
+         * @enum {string}
+         */
+        AchievementLevelEnum: "A" | "B" | "C" | "D" | "E";
+        /**
          * @description * `check_in` - check_in
          *     * `check_out` - check_out
          * @enum {string}
@@ -12926,6 +13097,7 @@ export interface components {
             final_pass?: boolean | null;
             /** Format: double */
             final_score: number | null;
+            grading_pending_reason?: (components["schemas"]["GradingPendingReasonEnum"] | components["schemas"]["NullEnum"]) | null;
             grading_status?: (components["schemas"]["GradingStatusEnum"] | components["schemas"]["NullEnum"]) | null;
             /** @default false */
             is_provisional: boolean;
@@ -13292,11 +13464,17 @@ export interface components {
             mode: components["schemas"]["ClinicReminderRequestModeEnum"];
             /** Format: date-time */
             repeat_until?: string;
+            /**
+             * Format: uuid
+             * @description 한 번 보내기 재시도 시 유지할 요청 키.
+             */
+            request_id?: string;
             send_to: components["schemas"]["SendToEnum"];
         };
         ClinicReminderResponse: {
             detail?: string;
             ok?: boolean;
+            retryable?: boolean;
             scheduled?: number;
             sent?: number;
             skipped?: number;
@@ -13924,6 +14102,16 @@ export interface components {
          * @enum {string}
          */
         EssayNumberingEnum: "continuous" | "separate";
+        EssayScoreMarksState: {
+            available: boolean;
+            beta: boolean;
+            enabled: boolean;
+            essay_count: number;
+            /** Format: double */
+            max_score: number;
+            printed: boolean;
+            reason: string;
+        };
         /**
          * @description * `1` - 1
          *     * `2` - 2
@@ -14205,6 +14393,12 @@ export interface components {
          * @enum {string}
          */
         ExamPassSourceEnum: "POLICY" | "EXAM";
+        /**
+         * @description * `first` - first
+         *     * `second` - second
+         * @enum {string}
+         */
+        ExamRoundEnum: "first" | "second";
         /**
          * @description * `template` - Template
          *     * `regular` - Regular
@@ -14519,6 +14713,19 @@ export interface components {
             errors: string[];
             skipped: number;
         };
+        /**
+         * @description * `five` - five
+         *     * `nine` - nine
+         * @enum {string}
+         */
+        GradeScaleEnum: "five" | "nine";
+        /**
+         * @description * `subjective_pending` - subjective_pending
+         *     * `objective_pending` - objective_pending
+         *     * `manual_review_required` - manual_review_required
+         * @enum {string}
+         */
+        GradingPendingReasonEnum: "subjective_pending" | "objective_pending" | "manual_review_required";
         /**
          * @description * `subjective_pending` - subjective_pending
          * @enum {string}
@@ -16008,6 +16215,21 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["PostEntity"][];
         };
+        PaginatedPostReplyList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["PostReply"][];
+        };
         PaginatedPostTemplateList: {
             /** @example 123 */
             count: number;
@@ -16666,6 +16888,9 @@ export interface components {
             lecture?: number;
             status?: components["schemas"]["Status2d4Enum"];
         };
+        PatchedEssayScoreMarksUpdateRequest: {
+            enabled?: boolean;
+        };
         /**
          * @description 수정 전용 serializer
          *     - exam_type, subject 직접 변경 ❌
@@ -17114,8 +17339,6 @@ export interface components {
             allow_skip?: boolean;
             /** Format: int64 */
             duration?: number | null;
-            /** @description S3 object key (presigned upload) */
-            file_key?: string;
             /** Format: double */
             max_speed?: number;
             /** Format: int64 */
@@ -17391,6 +17614,10 @@ export interface components {
             draft_content?: components["schemas"]["VideoContentRequest"];
             expected_revision?: number;
         };
+        PatchedVideoPlacementChangeRequest: {
+            add_session_ids?: number[];
+            remove_video_ids?: number[];
+        };
         PatchedVideoShowcaseRequest: {
             description?: string;
             expected_revision?: number;
@@ -17601,6 +17828,30 @@ export interface components {
         PostMappingRequest: {
             node: number;
             post: number;
+        };
+        /** @description QnA 답변 조회/생성. question 필드는 프론트 Answer 타입 호환용(post_id). */
+        PostReply: {
+            readonly attachments: components["schemas"]["PostAttachment"][];
+            /** @description 작성자 역할 (staff/student) */
+            readonly author_role: string;
+            content: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly created_by: number | null;
+            readonly created_by_display: string;
+            readonly id: number;
+            readonly is_liked: string;
+            readonly like_count: string;
+            /** @description 답글 — null이면 최상위 댓글, 값 있으면 해당 댓글의 답글 (2026-05-11 도입). */
+            parent_reply?: number | null;
+            readonly post: number;
+            readonly question: number;
+        };
+        /** @description QnA 답변 조회/생성. question 필드는 프론트 Answer 타입 호환용(post_id). */
+        PostReplyRequest: {
+            content: string;
+            /** @description 답글 — null이면 최상위 댓글, 값 있으면 해당 댓글의 답글 (2026-05-11 도입). */
+            parent_reply?: number | null;
         };
         PostTemplate: {
             content?: string;
@@ -18069,6 +18320,11 @@ export interface components {
         PublicVideoStatus: "draft" | "published" | "unpublished";
         PublicViewCount: {
             readonly view_count: number;
+        };
+        QnaPhotoReplyRequest: {
+            content?: string;
+            files: string[];
+            idempotency_key: string;
         };
         QrChoice: {
             can_check_in: boolean;
@@ -18552,6 +18808,133 @@ export interface components {
             enrollment_id: number;
             student_name: string;
         };
+        SchoolReportDetailResponse: {
+            academic_year: number;
+            direct_scores: components["schemas"]["SchoolReportScoreResponse"][];
+            exam_round: components["schemas"]["ExamRoundEnum"];
+            grade: number | null;
+            /** Format: date-time */
+            requested_at: string | null;
+            school: string;
+            scores: components["schemas"]["SchoolReportScoreResponse"][];
+            semester: number;
+            status: components["schemas"]["SchoolReportSubmissionStatus"];
+            student_id: number;
+            student_name: string;
+            /** Format: date-time */
+            submitted_at: string | null;
+        };
+        SchoolReportEntryRequest: {
+            subjects: components["schemas"]["SchoolReportSubjectRequest"][];
+        };
+        SchoolReportRequestRequest: {
+            academic_year: number;
+            exam_round: components["schemas"]["ExamRoundEnum"];
+            semester: number;
+            student_ids: number[];
+        };
+        SchoolReportRequestResponse: {
+            requested: number;
+            skipped: number;
+        };
+        SchoolReportRosterResponse: {
+            alimtalk_available: boolean;
+            count: number;
+            missing_count: number;
+            /** Format: uri */
+            next: string | null;
+            /** Format: uri */
+            previous: string | null;
+            results: components["schemas"]["SchoolReportRosterStudent"][];
+            submitted_count: number;
+            total_count: number;
+        };
+        SchoolReportRosterStudent: {
+            can_request: boolean;
+            can_request_alimtalk: boolean;
+            grade: number | null;
+            name: string;
+            /** Format: date-time */
+            requested_at: string | null;
+            school: string;
+            score_count: number;
+            status: components["schemas"]["SchoolReportSubmissionStatus"];
+            student_id: number;
+            /** Format: date-time */
+            submitted_at: string | null;
+        };
+        SchoolReportScoreResponse: {
+            academic_year: number;
+            achievement_level: (components["schemas"]["AchievementLevelEnum"] | components["schemas"]["NullEnum"]) | null;
+            cohort_size: number | null;
+            /** Format: date-time */
+            created_at: string;
+            direct_entry: boolean;
+            evidence_file_id: number | null;
+            evidence_r2_key: string;
+            /** Format: date */
+            exam_date: string | null;
+            exam_month: number | null;
+            exam_name: string | null;
+            exam_round: components["schemas"]["ExamRoundEnum"];
+            grade_rank: number | null;
+            grade_scale: (components["schemas"]["GradeScaleEnum"] | components["schemas"]["NullEnum"]) | null;
+            id: number;
+            label: string;
+            /** Format: double */
+            max_score: number;
+            /** Format: double */
+            percentile: number | null;
+            review_note: string;
+            /** Format: date-time */
+            reviewed_at: string | null;
+            /** Format: double */
+            score: number;
+            /** Format: double */
+            score_pct: number | null;
+            semester: number;
+            source: components["schemas"]["SchoolReportScoreResponseSourceEnum"];
+            source_group: components["schemas"]["SourceGroupEnum"];
+            /** Format: double */
+            standard_deviation: number | null;
+            /** Format: double */
+            standard_score: number | null;
+            status: components["schemas"]["SchoolReportScoreResponseStatusEnum"];
+            student_id: number;
+            subject: string;
+            /** Format: double */
+            subject_average: number | null;
+        };
+        /**
+         * @description * `school_exam` - school_exam
+         * @enum {string}
+         */
+        SchoolReportScoreResponseSourceEnum: "school_exam";
+        /**
+         * @description * `pending` - pending
+         *     * `verified` - verified
+         * @enum {string}
+         */
+        SchoolReportScoreResponseStatusEnum: "pending" | "verified";
+        SchoolReportSubjectRequest: {
+            achievement_level?: (components["schemas"]["AchievementLevelEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
+            cohort_size?: number | null;
+            /** Format: date */
+            exam_date?: string | null;
+            grade_rank?: number | null;
+            grade_scale?: (components["schemas"]["GradeScaleEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
+            max_score: number | string;
+            score: number | string;
+            standard_deviation?: (number | string) | null;
+            subject: string;
+            subject_average?: (number | string) | null;
+        };
+        /**
+         * @description * `submitted` - submitted
+         *     * `missing` - missing
+         * @enum {string}
+         */
+        SchoolReportSubmissionStatus: "submitted" | "missing";
         /**
          * @description * `ELEMENTARY` - 초등
          *     * `MIDDLE` - 중등
@@ -18603,7 +18986,7 @@ export interface components {
             readonly encoding_step_total: string;
             readonly error_reason: string | null;
             /** @description S3 object key (presigned upload) */
-            file_key?: string;
+            readonly file_key: string;
             readonly folder: number;
             /** @description HLS master playlist path (relative to CDN root) */
             readonly hls_path: string;
@@ -18794,8 +19177,6 @@ export interface components {
             allow_skip?: boolean;
             /** Format: int64 */
             duration?: number | null;
-            /** @description S3 object key (presigned upload) */
-            file_key?: string;
             /** Format: double */
             max_speed?: number;
             /** Format: int64 */
@@ -19126,6 +19507,11 @@ export interface components {
          * @enum {string}
          */
         SourceD60Enum: "auto" | "manual" | "student_request";
+        /**
+         * @description * `school` - school
+         * @enum {string}
+         */
+        SourceGroupEnum: "school";
         /**
          * @description * `s3` - 직접 업로드
          *     * `youtube` - YouTube 링크
@@ -19502,6 +19888,14 @@ export interface components {
          * @enum {string}
          */
         StaffWriteRoleEnum: "TEACHER" | "ASSISTANT";
+        /**
+         * @description * `not_requested` - not_requested
+         *     * `preparing` - preparing
+         *     * `ready` - ready
+         *     * `failed` - failed
+         * @enum {string}
+         */
+        StateEnum: "not_requested" | "preparing" | "ready" | "failed";
         /**
          * @description * `ACTIVE` - 활성
          *     * `INACTIVE` - 비활성
@@ -20297,6 +20691,7 @@ export interface components {
                 [key: string]: unknown;
             };
             policy_version: number;
+            progress_revision?: string | null;
             review_watch?: {
                 [key: string]: unknown;
             } | null;
@@ -20735,6 +21130,26 @@ export interface components {
             request_id: string;
             url: string;
         };
+        VideoPlacementItem: {
+            is_original: boolean;
+            lecture_id: number;
+            lecture_title: string;
+            session_id: number;
+            session_title: string;
+            video_id: number;
+        };
+        VideoPlacements: {
+            can_attach: boolean;
+            placements: components["schemas"]["VideoPlacementItem"][];
+            source_video_id: number;
+        };
+        VideoPlaybackExport: {
+            /** Format: uri */
+            download_url?: string;
+            expires_in?: number;
+            filename?: string;
+            state: components["schemas"]["StateEnum"];
+        };
         VideoPublication: {
             showcase_revision: number;
             video: components["schemas"]["ManagedVideo"];
@@ -20758,6 +21173,12 @@ export interface components {
             /** Format: uri */
             thumbnail_url: string;
             youtube_video_id: string;
+        };
+        VideoSourceDownload: {
+            /** Format: uri */
+            download_url: string;
+            expires_in: number;
+            filename: string;
         };
         /**
          * @description * `ENROLLED` - 수강생 전용
@@ -23399,9 +23820,14 @@ export interface operations {
             };
         };
     };
-    community_posts_replies_retrieve: {
+    community_posts_replies_list: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
+                page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
+            };
             header?: never;
             path: {
                 /** @description Post을 식별하는 고유한 정수 값. */
@@ -23416,7 +23842,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PostEntity"];
+                    "application/json": components["schemas"]["PaginatedPostReplyList"];
                 };
             };
         };
@@ -23433,18 +23859,18 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PostEntityRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PostEntityRequest"];
-                "multipart/form-data": components["schemas"]["PostEntityRequest"];
+                "application/json": components["schemas"]["PostReplyRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PostReplyRequest"];
+                "multipart/form-data": components["schemas"]["PostReplyRequest"];
             };
         };
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PostEntity"];
+                    "application/json": components["schemas"]["PostReply"];
                 };
             };
         };
@@ -23576,6 +24002,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PostEntity"];
+                };
+            };
+        };
+    };
+    community_posts_replies_with_images_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["QnaPhotoReplyRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostReply"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostReply"];
                 };
             };
         };
@@ -25915,6 +26375,54 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    exams_omr_essay_score_marks_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EssayScoreMarksState"];
+                };
+            };
+        };
+    };
+    exams_omr_essay_score_marks_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedEssayScoreMarksUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedEssayScoreMarksUpdateRequest"];
+                "multipart/form-data": components["schemas"]["PatchedEssayScoreMarksUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EssayScoreMarksState"];
+                };
             };
         };
     };
@@ -32340,6 +32848,106 @@ export interface operations {
             };
         };
     };
+    media_videos_placements_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description video을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoPlacements"];
+                };
+            };
+        };
+    };
+    media_videos_placements_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description video을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedVideoPlacementChangeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoPlacements"];
+                };
+            };
+        };
+    };
+    media_videos_playback_export_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description video을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoPlaybackExport"];
+                };
+            };
+        };
+    };
+    media_videos_playback_export_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description video을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoPlaybackExport"];
+                };
+            };
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoPlaybackExport"];
+                };
+            };
+        };
+    };
     media_videos_progress_retrieve: {
         parameters: {
             query?: never;
@@ -32382,6 +32990,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SealedVideo"];
+                };
+            };
+        };
+    };
+    media_videos_source_download_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description video을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoSourceDownload"];
                 };
             };
         };
@@ -35629,6 +36259,158 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AssessmentDetailError"];
+                };
+            };
+        };
+    };
+    school_report_roster_list: {
+        parameters: {
+            query: {
+                academic_year: number;
+                /**
+                 * @description * `first` - first
+                 *     * `second` - second
+                 */
+                exam_round: "first" | "second";
+                lecture_id?: number;
+                /** @description Page number. Defaults to 1. */
+                page?: number;
+                /** @description Students per page. Defaults to 50. */
+                page_size?: number;
+                search?: string;
+                semester: number;
+                /**
+                 * @description * `submitted` - submitted
+                 *     * `missing` - missing
+                 */
+                status?: "submitted" | "missing";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolReportRosterResponse"];
+                };
+            };
+        };
+    };
+    school_report_staff_retrieve: {
+        parameters: {
+            query: {
+                academic_year: number;
+                /**
+                 * @description * `first` - first
+                 *     * `second` - second
+                 */
+                exam_round: "first" | "second";
+                semester: number;
+            };
+            header?: never;
+            path: {
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolReportDetailResponse"];
+                };
+            };
+        };
+    };
+    school_report_student_retrieve: {
+        parameters: {
+            query: {
+                academic_year: number;
+                /**
+                 * @description * `first` - first
+                 *     * `second` - second
+                 */
+                exam_round: "first" | "second";
+                semester: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolReportDetailResponse"];
+                };
+            };
+        };
+    };
+    school_report_student_update: {
+        parameters: {
+            query: {
+                academic_year: number;
+                /**
+                 * @description * `first` - first
+                 *     * `second` - second
+                 */
+                exam_round: "first" | "second";
+                semester: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchoolReportEntryRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SchoolReportEntryRequest"];
+                "multipart/form-data": components["schemas"]["SchoolReportEntryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolReportDetailResponse"];
+                };
+            };
+        };
+    };
+    school_report_request_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchoolReportRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SchoolReportRequestRequest"];
+                "multipart/form-data": components["schemas"]["SchoolReportRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolReportRequestResponse"];
                 };
             };
         };

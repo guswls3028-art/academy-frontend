@@ -35,9 +35,13 @@ import StudentActivityPanel from "@/shared/studentSupport/StudentActivityPanel";
 import { openStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
 import styles from "./StudentDetailPage.module.css";
 import AccountNotificationHistory from "@/shared/product/students/AccountNotificationHistory";
+import SchoolReportPeriodPicker from "@/shared/product/schoolReports/SchoolReportPeriodPicker";
+import { currentSchoolReportPeriod, parseSchoolReportPeriod, schoolReportParams } from "@/shared/product/schoolReports/period";
+import SchoolReportStudentPanel from "@teacher/domains/results/components/SchoolReportStudentPanel";
 
 const STUDENT_TABS = [
   { key: "enrollments", label: "수강" }, { key: "exams", label: "시험" },
+  { key: "school-report", label: "학교 성적표" },
   { key: "homework", label: "과제" }, { key: "clinic", label: "클리닉" },
   { key: "questions", label: "질문" }, { key: "activity", label: "활동" },
   { key: "info", label: "정보" },
@@ -50,6 +54,7 @@ export default function StudentDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = STUDENT_TABS.find((item) => item.key === searchParams.get("tab"))?.key ?? "enrollments";
   const validStudentId = Number.isSafeInteger(sid) && sid > 0;
+  const reportPeriod = parseSchoolReportPeriod(Object.fromEntries(searchParams)) ?? currentSchoolReportPeriod();
 
   // Edit states
   const [editOpen, setEditOpen] = useState(false);
@@ -301,6 +306,14 @@ export default function StudentDetailPage() {
           isError={gradesError}
           onRetry={() => { void refetchGrades(); }}
         />
+      )}
+      {tab === "school-report" && (
+        <section className={styles.schoolReport} aria-label="학교 성적표">
+          <SchoolReportPeriodPicker period={reportPeriod} onChange={(next) => setSearchParams({
+            tab: "school-report", ...schoolReportParams(next),
+          }, { replace: true })} />
+          <SchoolReportStudentPanel studentId={sid} period={reportPeriod} />
+        </section>
       )}
       {tab === "homework" && (
         <HomeworkList
