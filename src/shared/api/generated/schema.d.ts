@@ -20691,6 +20691,7 @@ export interface components {
                 [key: string]: unknown;
             };
             policy_version: number;
+            progress_revision?: string | null;
             review_watch?: {
                 [key: string]: unknown;
             } | null;
