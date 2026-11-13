@@ -349,7 +349,7 @@ export default function AnswerKeyRegisterModal({
   });
   const questions = questionsData ?? EMPTY_QUESTIONS;
 
-  const { data: omrDefaults } = useQuery({
+  const { data: omrDefaults, isPending: omrDefaultsPending } = useQuery({
     queryKey: [...adminExamsQueryKeys.adminExam(examId), "answer-key-shape"],
     queryFn: () => fetchOMRDefaults(examId),
     enabled: open && Number.isFinite(examId) && structureReady,
@@ -455,21 +455,15 @@ export default function AnswerKeyRegisterModal({
     [questions]
   );
 
-  const isCountConfigured = choiceCount !== "" || essayCount !== "";
-  const effectiveChoiceCount =
-    choiceCount !== "" && essayCount !== ""
-      ? Math.max(0, Number(choiceCount) || 0)
-      : choiceCount !== ""
-        ? Math.max(0, Number(choiceCount) || 0)
-        : essayCount !== ""
-          ? Math.max(0, questions.length - (Number(essayCount) || 0))
-          : 0;
-  const resolvedQuestionTypes = useMemo<QuestionKind[]>(() => {
-    if (questionTypes.length === sortedQuestions.length) return questionTypes;
+  const savedQuestionTypes = useMemo<QuestionKind[]>(() => {
+    const fallbackChoiceCount = omrDefaults?.mc_count ?? sortedQuestions.length;
     return sortedQuestions.map((question, index) =>
-      question.question_kind ?? (index < effectiveChoiceCount ? "choice" : "essay")
+      question.question_kind ?? omrDefaults?.question_types?.[index] ?? (
+        index < fallbackChoiceCount ? "choice" : "essay"
+      )
     );
-  }, [effectiveChoiceCount, questionTypes, sortedQuestions]);
+  }, [omrDefaults, sortedQuestions]);
+  const resolvedQuestionTypes = questionTypes.length === sortedQuestions.length ? questionTypes : savedQuestionTypes;
   const choiceQuestions = sortedQuestions.filter((_, index) => resolvedQuestionTypes[index] === "choice");
   const essayQuestions = sortedQuestions.filter((_, index) => resolvedQuestionTypes[index] === "essay");
   const essayIndexById = new Map(essayQuestions.map((question, index) => [question.id, index + 1]));
@@ -522,49 +516,25 @@ export default function AnswerKeyRegisterModal({
   }, [answerKey, answerKeyLoaded, answerKeyFetching, answerKeyHydrated, open, structureReady]);
 
   useEffect(() => {
-    if (!open) return;
-    if (!answerKey || !answerKey.answers) return;
-    // 시트 계약을 먼저 사용해 숫자 단답 1~5를 객관식으로 오인하지 않는다.
-    if (choiceCount === "" && essayCount === "" && sortedQuestions.length > 0) {
-      if (omrDefaults) {
-        setChoiceCount(omrDefaults.mc_count);
-        setChoiceCountInput(omrDefaults.mc_count);
-        setEssayCount(omrDefaults.essay_count);
-        setEssayCountInput(omrDefaults.essay_count);
-        return;
-      }
-      const normalized = normalizeAnswers(answerKey.answers);
-      let choiceCnt = 0;
-      for (const q of sortedQuestions) {
-        const ans = (normalized[String(q.id)] ?? "").trim();
-        if (parseChoiceDraft(ans).size > 0) {
-          choiceCnt++;
-        }
-      }
-      // 연속된 앞 N개가 선택형인 경우에만 자동 분할 (섞여 있으면 전체 선택형)
-      const essayCnt = sortedQuestions.length - choiceCnt;
-      setChoiceCount(choiceCnt > 0 ? choiceCnt : sortedQuestions.length);
-      setChoiceCountInput(choiceCnt > 0 ? choiceCnt : sortedQuestions.length);
-      setEssayCount(essayCnt > 0 ? essayCnt : 0);
-      setEssayCountInput(essayCnt > 0 ? essayCnt : 0);
-    }
-  }, [answerKey, choiceCount, essayCount, omrDefaults, open, sortedQuestions]);
-
-  useEffect(() => {
     if (!open || sortedQuestions.length === 0) return;
-    const fallbackChoiceCount = omrDefaults?.mc_count ?? sortedQuestions.length;
-    const nextTypes = sortedQuestions.map((question, index) =>
-      question.question_kind ?? omrDefaults?.question_types?.[index] ?? (
-        index < fallbackChoiceCount ? "choice" : "essay"
-      )
-    );
     setQuestionTypes((previous) =>
-      previous.length === nextTypes.length && previous.every((kind, index) => kind === nextTypes[index])
+      previous.length === savedQuestionTypes.length && previous.every((kind, index) => kind === savedQuestionTypes[index])
         ? previous
-        : nextTypes
+        : savedQuestionTypes
     );
     setTotalCountInput(sortedQuestions.length);
-  }, [omrDefaults, open, sortedQuestions]);
+  }, [open, savedQuestionTypes, sortedQuestions.length]);
+
+  useEffect(() => {
+    if (!open || sortedQuestions.length === 0 || choiceCount !== "" || essayCount !== "") return;
+    if (omrDefaultsPending && sortedQuestions.some((question) => !question.question_kind)) return;
+    const savedChoiceCount = savedQuestionTypes.filter((kind) => kind === "choice").length;
+    const savedEssayCount = savedQuestionTypes.length - savedChoiceCount;
+    setChoiceCount(savedChoiceCount);
+    setChoiceCountInput((current) => current === "" ? savedChoiceCount : current);
+    setEssayCount(savedEssayCount);
+    setEssayCountInput((current) => current === "" ? savedEssayCount : current);
+  }, [choiceCount, essayCount, omrDefaultsPending, open, savedQuestionTypes, sortedQuestions]);
 
   /** 문항 목록 로드 시 점수 드래프트 동기화 */
   useEffect(() => {
@@ -1289,7 +1259,7 @@ export default function AnswerKeyRegisterModal({
                   </small>
                 )}
                 <ul className="answer-key-list answer-key-list--choice-scroll">
-                  {choiceQuestions.length === 0 && !isCountConfigured && questions.length > 0 && (
+                  {choiceQuestions.length === 0 && choiceCount === "" && questions.length > 0 && (
                     <li className="answer-key-empty-hint">문항 수를 입력하고 <strong>적용</strong>을 눌러주세요.</li>
                   )}
                   {choiceQuestions.map((q, index) => (
@@ -1412,7 +1382,7 @@ export default function AnswerKeyRegisterModal({
                   </small>
                 )}
                 <ul className="answer-key-list answer-key-list--essay-scroll">
-                  {essayQuestions.length === 0 && !isCountConfigured && questions.length > 0 && (
+                  {essayQuestions.length === 0 && essayCount === "" && questions.length > 0 && (
                     <li className="answer-key-empty-hint">문항 수를 입력하고 <strong>적용</strong>을 눌러주세요.</li>
                   )}
                   {essayQuestions.map((q, index) => (

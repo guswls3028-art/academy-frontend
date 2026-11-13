@@ -853,6 +853,7 @@ type InstallApiOptions = {
   answerKeyScenario?: {
     answers: Record<string, string> | null;
     questions?: Array<{ id: number; number: number; score: number; question_kind: "choice" | "essay" }>;
+    omrDefaultsGate?: Promise<void>;
     score: number;
     reads: number;
     writes: Array<Record<string, string>>;
@@ -1395,6 +1396,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     const allocationQuestions = options.answerKeyScenario?.questions;
     if (allocationQuestions) {
       if (path === `/exams/${EXAM_ID}/omr/defaults/`) {
+        await options.answerKeyScenario?.omrDefaultsGate;
         const choiceNumbers = allocationQuestions.filter(({ question_kind }) => question_kind === "choice").map(({ number }) => number);
         const essayNumbers = allocationQuestions.filter(({ question_kind }) => question_kind === "essay").map(({ number }) => number);
         await json({
@@ -1918,8 +1920,10 @@ test.describe("답안 초기 로드와 입력 보존", () => {
         score: 1,
         question_kind: index === 19 ? "essay" as const : "choice" as const,
       }));
+      let releaseOmrDefaults!: () => void;
       const state: NonNullable<InstallApiOptions["answerKeyScenario"]> = {
         questions,
+        omrDefaultsGate: new Promise<void>((resolve) => { releaseOmrDefaults = resolve; }),
         answers: { "1001": "3", "1020": "원래 서술형 답안" },
         score: 1, reads: 0, writes: [], failReads: false, failNextWrite: width === 390,
       };
@@ -1931,6 +1935,14 @@ test.describe("답안 초기 로드와 입력 보존", () => {
         return page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
       };
       let editor = await openAnswers();
+      const choiceCount = editor.locator(".answer-key-panel--choice").getByRole("spinbutton", { name: "문항 수", exact: true });
+      const essayCount = editor.locator(".answer-key-panel--essay").getByRole("spinbutton", { name: "문항 수", exact: true });
+      try {
+        await expect(choiceCount).toHaveValue("19");
+        await expect(essayCount).toHaveValue("1");
+      } finally {
+        releaseOmrDefaults();
+      }
       const openAllocation = () => editor.getByRole("button", { name: "자동 배점 설정", exact: true }).click();
       const allocation = page.getByRole("dialog", { name: "자동 배점 설정", exact: true });
       const choice = allocation.getByRole("textbox", { name: "선택형 목표 총점" });
@@ -1985,6 +1997,8 @@ test.describe("답안 초기 로드와 입력 보존", () => {
       await page.reload({ waitUntil: "domcontentloaded" });
       editor = await openAnswers();
       await expect(editor.locator(".answer-key-row__score-val")).toHaveText(Array(20).fill("5점"));
+      await expect(choiceCount).toHaveValue("19");
+      await expect(essayCount).toHaveValue("1");
     });
   }
 

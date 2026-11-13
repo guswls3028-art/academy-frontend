@@ -65,6 +65,8 @@ export async function verifyWrittenAnswerKeyEditor(
     const modal = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
     const answer = modal.getByRole("textbox", { name: "20번 정답", exact: true });
     const choice = modal.getByRole("checkbox", { name: "1번 2번 선택지", exact: true });
+    const choiceCount = modal.locator(".answer-key-panel--choice").getByRole("spinbutton", { name: "문항 수", exact: true });
+    const essayCount = modal.locator(".answer-key-panel--essay").getByRole("spinbutton", { name: "문항 수", exact: true });
     const save = modal.getByRole("button", { name: "저장 (총 100점)", exact: true });
     const scores = modal.locator(".answer-key-row__score-val");
     const appliedScores = Array<string>(20).fill("5점");
@@ -75,6 +77,8 @@ export async function verifyWrittenAnswerKeyEditor(
       await acknowledgeInitialAccountPromptsIfVisible(page);
       await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
       expect(await answer.evaluate((element) => element.tagName)).toBe("TEXTAREA");
+      await expect(choiceCount).toHaveValue("19");
+      await expect(essayCount).toHaveValue("1");
       if (width === 1366) {
         await expect(choice).not.toBeChecked();
         await choice.click();
@@ -125,6 +129,8 @@ export async function verifyWrittenAnswerKeyEditor(
       await expect(answer).toHaveValue(expected);
       await expect(choice).toBeChecked();
       await expect(scores).toHaveText(appliedScores);
+      await expect(choiceCount).toHaveValue("19");
+      await expect(essayCount).toHaveValue("1");
       await expectAnswerFits(answer);
       await assertNoHorizontalOverflow(page);
       await answer.scrollIntoViewIfNeeded();
