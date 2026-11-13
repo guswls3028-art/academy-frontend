@@ -26,6 +26,7 @@ import { useMySessions } from "@student/domains/sessions/hooks/useStudentSession
 import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
 import { getExamPassStatus } from "@student/domains/grades/public/examPassStatus";
+import { calculateHomeworkStats } from "@student/domains/grades/public/homeworkStats";
 import { useStudentExams } from "@student/domains/exams/hooks/useStudentExams";
 import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import {
@@ -954,15 +955,11 @@ function LearningStatusCard({
     return sessions.filter((s) => s.date && s.date >= cutoff && s.date <= today).length;
   }, [sessions, cutoff, today]);
 
-  /* 과제 통과율 */
-  const hwCount = grades?.homeworks?.length ?? 0;
-  const passedHw = grades?.homeworks?.filter((h) => (
-    h.teacher_resolved === true
-    || h.achievement === "PASS"
-    || h.achievement === "REMEDIATED"
-    || h.passed === true
-  )).length ?? 0;
-  const hwRate = hwCount > 0 ? Math.round((passedHw / hwCount) * 100) : null;
+  const homework = calculateHomeworkStats(grades?.homeworks ?? []);
+  const hwCount = homework?.total ?? 0;
+  const hwRate = homework == null ? null : wrongCompletionOnly
+    ? Math.round((homework.passed / homework.total) * 100)
+    : homework.passRate;
 
   /* 시험 합격률 (점수 평균 대신 합격/총합 비율) */
   const examJudgments = grades?.exams.map((exam) => getExamPassStatus(exam, wrongCompletionOnly)) ?? [];
@@ -998,9 +995,10 @@ function LearningStatusCard({
           value={sessionsError || sessionsPending ? null : recentSessionCount} unit="회"
           placeholder={placeholder(sessionsError, sessionsPending, "기록 없음")} tone="var(--stu-text)" />
         <Divider />
-        <Stat to="/student/grades?view=homework" label={wrongCompletionOnly ? "과제 완료" : "과제 통과"} scope="전체 과제"
+        <Stat to="/student/grades?view=homework" label={wrongCompletionOnly ? "과제 완료" : "과제 통과"}
+          scope={wrongCompletionOnly ? "전체 과제" : "전체 판정 결과"}
           value={gradesError || gradesPending ? null : hwRate} unit="%"
-          placeholder={placeholder(gradesError, gradesPending, "기록 없음")} tone={tone(hwRate)} />
+          placeholder={placeholder(gradesError, gradesPending, hwCount > 0 ? "결과 대기" : "기록 없음")} tone={tone(hwRate)} />
         <Divider />
         <Stat to="/student/grades" label={wrongCompletionOnly ? "오답 완료" : "시험 합격"} scope="전체 판정 결과"
           value={gradesError || gradesPending ? null : examRate} unit="%"

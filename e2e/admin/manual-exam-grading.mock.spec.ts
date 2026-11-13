@@ -224,6 +224,47 @@ for (const width of [390, 1366]) {
 }
 
 for (const width of [390, 1366]) {
+  test(`${width}px 문항 통계가 느리거나 실패해도 확정 성적을 보고 문항 통계만 다시 조회한다`, async ({ page }) => {
+    test.skip(!isLocalBase(BASE), "Local route-mock spec.");
+    await page.setViewportSize({ width, height: 900 });
+    await installApi(page, { gradingMode: "mixed", resultRows: [{
+      enrollment_id: ENROLLMENT_ID, student_id: 100, student_name: "김학생",
+      result_status: "DONE", ranking_score: 80, final_score: 80, rank: 1, cohort_size: 1,
+    }] });
+    let failStats = true;
+    let finishFirstResponse!: () => void;
+    const firstResponse = new Promise<void>((resolve) => { finishFirstResponse = resolve; });
+    await page.route(`**/results/admin/exams/${EXAM_ID}/questions/**`, async (route) => {
+      await firstResponse;
+      if (failStats) {
+        await route.fulfill({ status: 503, json: { detail: "temporarily unavailable" } });
+        return;
+      }
+      await route.fulfill({ json: [{
+        question_id: QUESTION_IDS[1], question_number: 2, attempts: 1, correct: 0,
+        accuracy: 0, avg_score: 40, max_score: 60,
+      }] });
+    });
+    await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
+    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    const results = page.getByRole("region", { name: "시험 학생별 결과", exact: true });
+    const priority = page.getByRole("region", { name: "보충 우선 문항", exact: true });
+    try {
+      await expect(results).toContainText("김학생");
+      await expect(priority).toContainText("문항 통계를 불러오는 중");
+    } finally {
+      finishFirstResponse();
+    }
+    await expect(priority).toContainText("문항 통계를 불러오지 못했습니다.");
+    await expect(results).toContainText("80");
+    await expect(page.getByText("공통 취약 문항이 뚜렷하지 않습니다.", { exact: false })).toHaveCount(0);
+    failStats = false;
+    await priority.getByRole("button", { name: "다시 시도" }).press("Enter");
+    await expect(priority).toContainText("0.0%");
+    await expect(results).toContainText("김학생");
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+
   test(`${width}px 학생 답안 상세에서 저장한 서술형 점수가 시험 통계에도 반영된다`, async ({ page }) => {
     test.skip(!isLocalBase(BASE), "Local route-mock spec.");
     await page.setViewportSize({ width, height: 900 });

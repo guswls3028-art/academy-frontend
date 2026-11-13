@@ -2,7 +2,8 @@
 // 영상 업로드 유틸리티 — 모달 밖에서 실행되어 작업 박스에서 진행률 표시
 // 100MB 이하: 단일 PUT / 100MB 초과: R2 multipart upload
 
-import api from "@/shared/api/axios";
+import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import { captureVideoUploadConfig, completeVideoUpload } from "@/shared/api/videoUploadCompletion";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import type { UploadInitResponse } from "../api/videos.api";
 
@@ -24,6 +25,7 @@ export interface InitVideoResult {
   putHeaders: Record<string, string>;
   tempId: string;
   contentType: string;
+  config: ApiRequestConfig;
 }
 
 let activeBrowserUploadCount = 0;
@@ -76,7 +78,9 @@ export async function runWithVideoUploadGuard<T>(work: () => Promise<T>): Promis
 /**
  * 업로드 init만 수행 — DB에 영상 row 생성, 목록에 바로 표시 가능
  */
-export async function initVideoUpload(params: VideoUploadParams): Promise<InitVideoResult> {
+export async function initVideoUpload(
+  params: VideoUploadParams, config: ApiRequestConfig = captureVideoUploadConfig(),
+): Promise<InitVideoResult> {
   const { sessionId, file, title, description, folderId, showWatermark, allowSkip, maxSpeed } = params;
 
   const initPayload = {
@@ -96,6 +100,7 @@ export async function initVideoUpload(params: VideoUploadParams): Promise<InitVi
   asyncStatusStore.addTask("영상 추가", tempId);
 
   const initRes = await api.post<UploadInitResponse>("/media/videos/upload/init/", initPayload, {
+    ...config,
     timeout: 60_000,
   });
 
@@ -117,7 +122,7 @@ export async function initVideoUpload(params: VideoUploadParams): Promise<InitVi
     putHeaders["Content-Type"] = contentTypeFromServer;
   }
 
-  return { videoId, uploadUrl, putHeaders, tempId: taskId, contentType: contentTypeFromServer };
+  return { videoId, uploadUrl, putHeaders, tempId: taskId, contentType: contentTypeFromServer, config };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -128,11 +133,11 @@ const MAX_R2_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 3000;
 
 /** Presigned URL 재발급 (만료 대비) */
-async function refreshPresignedUrl(videoId: number, contentType: string): Promise<string> {
+async function refreshPresignedUrl(videoId: number, contentType: string, config: ApiRequestConfig): Promise<string> {
   const res = await api.post<{ upload_url: string }>(
     `/media/videos/${videoId}/upload/refresh-url/`,
     { content_type: contentType },
-    { timeout: 30_000 },
+    { ...config, timeout: 30_000 },
   );
   return res.data.upload_url;
 }
@@ -184,7 +189,7 @@ async function singlePutAndComplete(
   initResult: InitVideoResult,
   file: File,
 ): Promise<number> {
-  const { videoId, putHeaders, tempId, contentType } = initResult;
+  const { videoId, putHeaders, tempId, contentType, config } = initResult;
   let currentUrl = initResult.uploadUrl;
 
   let lastError: Error | null = null;
@@ -195,7 +200,7 @@ async function singlePutAndComplete(
         asyncStatusStore.updateProgress(tempId, 0);
         await new Promise((r) => setTimeout(r, delay));
         try {
-          currentUrl = await refreshPresignedUrl(videoId, contentType);
+          currentUrl = await refreshPresignedUrl(videoId, contentType, config);
         } catch {
           // refresh 실패 시 기존 URL로 시도
         }
@@ -207,7 +212,7 @@ async function singlePutAndComplete(
       lastError = e as Error;
       if (e instanceof PresignedUrlExpiredError && attempt < MAX_R2_RETRIES) {
         try {
-          currentUrl = await refreshPresignedUrl(videoId, contentType);
+          currentUrl = await refreshPresignedUrl(videoId, contentType, config);
         } catch {
           // refresh 실패해도 다음 루프에서 재시도
         }
@@ -216,11 +221,7 @@ async function singlePutAndComplete(
   }
   if (lastError) throw lastError;
 
-  await api.post<{ id: number }>(
-    `/media/videos/${videoId}/upload/complete/`,
-    { ok: true },
-    { timeout: 60_000 },
-  );
+  await completeVideoUpload(videoId, config);
 
   return videoId;
 }
@@ -288,13 +289,13 @@ async function multipartUploadAndComplete(
   initResult: InitVideoResult,
   file: File,
 ): Promise<number> {
-  const { videoId, tempId, contentType } = initResult;
+  const { videoId, tempId, contentType, config } = initResult;
 
   // 1. Multipart upload 생성
   const mpInitRes = await api.post<MultipartInitResponse>(
     `/media/videos/${videoId}/upload/multipart/init/`,
     { content_type: contentType },
-    { timeout: 30_000 },
+    { ...config, timeout: 30_000 },
   );
   const uploadId = mpInitRes.data.upload_id;
 
@@ -314,7 +315,7 @@ async function multipartUploadAndComplete(
     const res = await api.post<MultipartPresignResponse>(
       `/media/videos/${videoId}/upload/multipart/presign/`,
       { upload_id: uploadId, part_numbers: needed },
-      { timeout: 30_000 },
+      { ...config, timeout: 30_000 },
     );
     for (const [pn, url] of Object.entries(res.data.urls)) {
       allPartUrls[Number(pn)] = url;
@@ -336,9 +337,10 @@ async function multipartUploadAndComplete(
       // Concurrency-limited part upload within batch
       let cursor = 0;
       const batchParts = batchPartNumbers.map((pn) => pn);
+      let failed = false;
 
       async function uploadWorker() {
-        while (cursor < batchParts.length) {
+        while (!failed && cursor < batchParts.length) {
           const idx = cursor++;
           if (idx >= batchParts.length) break;
           const partNumber = batchParts[idx];
@@ -358,7 +360,7 @@ async function multipartUploadAndComplete(
                   const freshRes = await api.post<MultipartPresignResponse>(
                     `/media/videos/${videoId}/upload/multipart/presign/`,
                     { upload_id: uploadId, part_numbers: [partNumber] },
-                    { timeout: 30_000 },
+                    { ...config, timeout: 30_000 },
                   );
                   allPartUrls[partNumber] = freshRes.data.urls[String(partNumber)];
                 } catch {
@@ -369,7 +371,10 @@ async function multipartUploadAndComplete(
               etag = await uploadPartOnce(allPartUrls[partNumber], blob);
               break;
             } catch (e) {
-              if (retry === PART_MAX_RETRIES) throw e;
+              if (retry === PART_MAX_RETRIES) {
+                failed = true;
+                throw e;
+              }
             }
           }
 
@@ -386,33 +391,23 @@ async function multipartUploadAndComplete(
         { length: Math.min(PART_CONCURRENCY, batchParts.length) },
         () => uploadWorker(),
       );
-      await Promise.all(workers);
+      const outcomes = await Promise.allSettled(workers);
+      const failure = outcomes.find((outcome) => outcome.status === "rejected");
+      if (failure) throw failure.reason;
     }
-
-    // 5. Multipart complete (R2 조립 + 인코딩 파이프라인)
-    const orderedParts = [...completedParts].sort(
-      (left, right) => left.PartNumber - right.PartNumber,
-    );
-    await api.post(
-      `/media/videos/${videoId}/upload/multipart/complete/`,
-      { upload_id: uploadId, parts: orderedParts },
-      { timeout: 120_000 },
-    );
-
-    return videoId;
   } catch (error) {
-    // 실패 시 abort 시도 (불완전 파트 정리)
-    try {
-      await api.post(
-        `/media/videos/${videoId}/upload/multipart/abort/`,
-        { upload_id: uploadId },
-        { timeout: 30_000 },
-      ).catch(() => {});
-    } catch {
-      // best-effort abort
-    }
+    await api.post(
+      `/media/videos/${videoId}/upload/multipart/abort/`,
+      { upload_id: uploadId },
+      { ...config, timeout: 30_000 },
+    ).catch(() => {});
     throw error;
   }
+
+  // 완료 요청 중 연결이 끊겨도 저장소에서 조립이 진행 중일 수 있다.
+  const orderedParts = completedParts.sort((left, right) => left.PartNumber - right.PartNumber);
+  await completeVideoUpload(videoId, config, { upload_id: uploadId, parts: orderedParts });
+  return videoId;
 }
 
 // ═══════════════════════════════════════════════════════════════

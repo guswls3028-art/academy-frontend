@@ -21,6 +21,7 @@ import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { initVideoUpload, runWithVideoUploadGuard, uploadFilesWithLimit } from "@admin/domains/videos/utils/videoUpload";
+import { captureVideoUploadConfig } from "@/shared/api/videoUploadCompletion";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import { adminVideoQueryKeys } from "@admin/domains/videos/queryKeys";
 import { createYoutubeVideo } from "@admin/domains/videos/api/videos.api";
@@ -169,6 +170,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
 
     try {
       await runWithVideoUploadGuard(async () => {
+        const config = captureVideoUploadConfig();
         const initResults: { init: Awaited<ReturnType<typeof initVideoUpload>>; file: File }[] = [];
         const successItemIds: string[] = [];
         const errorMsgs: string[] = [];
@@ -187,7 +189,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
               showWatermark,
               allowSkip,
               maxSpeed,
-            });
+            }, config);
             initResults.push({ init, file });
             successItemIds.push(id);
           } catch (error) {
@@ -255,6 +257,10 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
           feedback.error(r2Errors.join(" / "));
         }
       });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "업로드를 시작하지 못했습니다.";
+      setInitErrorMessages([message]);
+      feedback.error(message);
     } finally {
       if (mountedRef.current) {
         setIsUploading(false);

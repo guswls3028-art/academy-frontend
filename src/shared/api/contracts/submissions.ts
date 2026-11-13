@@ -162,6 +162,7 @@ export type ExamSubmissionRow = {
 };
 
 export type SubmissionManualEditInput = {
+  expectedEditRevision?: string;
   submissionId: number;
   identifier?: { enrollment_id: number | string } | Record<string, unknown> | null;
   note?: string;
@@ -174,6 +175,7 @@ export type SubmissionManualEditInput = {
 };
 
 export type SubmissionManualEditResult = {
+  edit_revision?: string;
   code?: string;
   readiness?: { can_grade: boolean; missing: string[] };
   recovery?: { action: string; exam_id: number };
@@ -359,6 +361,7 @@ export async function manualEditSubmissionApi(
     identifier: input.identifier ?? null,
     answers,
     note: String(input.note || "manual_edit"),
+    ...(input.expectedEditRevision === undefined ? {} : { expected_edit_revision: input.expectedEditRevision }),
     ...(input.resumeAbsence === true ? { resume_absence: true } : {}),
   };
 

@@ -168,6 +168,11 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
     [examMaxScore, passScore, questionLabel, questionStats, results],
   );
   const hasData = insight.scoredCount > 0;
+  const pendingQuestionInsight = {
+    title: statsQ.isError ? "문항 통계 확인 필요" : "문항 통계 확인 중",
+    detail: statsQ.isError ? "보충 우선 문항에서 다시 시도할 수 있습니다." : "통계를 불러오면 분석을 표시합니다.",
+    tone: "neutral" as const,
+  };
 
   const analysisExport = useMutation({
     mutationFn: () => downloadExamAnalysisExport(examId, exam?.title ?? "시험"),
@@ -185,8 +190,7 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
   });
 
   // Separate numbering needs the shared question query before rendering results.
-  const isLoading = resultsQ.isLoading || statsQ.isLoading
-    || (usesSeparateEssayNumbering && questionKindsQ.isLoading);
+  const isLoading = resultsQ.isLoading || (usesSeparateEssayNumbering && questionKindsQ.isLoading);
   const isError = resultsQ.isError || (usesSeparateEssayNumbering && questionKindsQ.isError);
   if (isLoading) {
     return (
@@ -326,9 +330,17 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
         ) : (
           <>
             <div className={styles.decisionGrid}>
-              <DecisionCard icon={<BookOpenCheck size={ICON.lg} />} label="수업 방향" {...insight.direction} />
+              <DecisionCard
+                icon={<BookOpenCheck size={ICON.lg} />}
+                label="수업 방향"
+                {...(statsQ.isSuccess ? insight.direction : pendingQuestionInsight)}
+              />
               <DecisionCard icon={<Gauge size={ICON.lg} />} label="컷 검토" {...insight.cutReview} />
-              <DecisionCard icon={<ListChecks size={ICON.lg} />} label="바로 할 일" {...insight.nextAction} />
+              <DecisionCard
+                icon={<ListChecks size={ICON.lg} />}
+                label="바로 할 일"
+                {...(statsQ.isSuccess ? insight.nextAction : pendingQuestionInsight)}
+              />
             </div>
 
             <div className={styles.policyNote}>

@@ -5,12 +5,12 @@ import { useLocation, useNavigate, useParams } from "react-router";
 
 import EmptyState from "../../../layout/EmptyState";
 import VideoPlaybackError from "../components/VideoPlaybackError";
+import { useVideoResume } from "../hooks/useVideoResume";
 import {
   checkStudentVideoAccess,
   fetchStudentVideoPlayback,
   fetchStudentSessionVideos,
   renewStudentVideoPlayback,
-  updateVideoProgress,
   toggleVideoLike,
   type StudentSessionVideosResponse,
   type StudentVideoAccessCheck,
@@ -42,9 +42,7 @@ import {
 import { sortStudentVideos } from "../utils/videoSort";
 import { studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
 import {
-  getStoredVideoPosition,
   getStudentCurrentVideoStorageKey,
-  storeVideoPosition,
 } from "../utils/videoPlaybackStorage";
 
 function playlistProgressStyle(progress: number): CSSProperties {
@@ -322,40 +320,11 @@ export default function VideoPlayerPage() {
   }, [effectiveEnrollmentId, enrollmentId, queryClient, queryScope, sessionId, videoId]);
 
   /* ─── 이어보기 위치 계산 ─── */
-  // Player teardown stores the latest position before a retry, even if the
-  // replacement grant still contains the earlier server checkpoint.
-  const initialPosition = videoId
-    ? Math.max(video?.last_position ?? 0, getStoredVideoPosition(videoId, playbackStorageScope))
-    : 0;
-
-  const progressMutation = useMutation({
-    mutationFn: (data: { progress?: number; completed?: boolean; last_position?: number }) => {
-      if (!videoId || !effectiveEnrollmentId || isDirectAccess) {
-        throw new Error("서버 진도를 저장할 수강 정보가 필요합니다.");
-      }
-      return updateVideoProgress(videoId, data, effectiveEnrollmentId);
-    },
-    onSuccess: (confirmed) => {
-      void queryClient.invalidateQueries({ queryKey: studentVideoQueryKeys.stats(queryScope) });
-      if (sessionId == null) return;
-      const key = studentVideoQueryKeys.sessionVideos(queryScope, sessionId, effectiveEnrollmentId ?? null);
-      const progress = Number.isFinite(confirmed.progress_percent)
-        ? confirmed.progress_percent
-        : confirmed.progress;
-      queryClient.setQueryData<StudentSessionVideosResponse>(key, (current) => current ? {
-        ...current,
-        items: current.items.map((item) => item.id === videoId ? {
-          ...item,
-          progress,
-          completed: confirmed.completed,
-          last_position: confirmed.last_position,
-        } : item),
-      } : current);
-    },
+  const playbackData = playbackQuery.data;
+  const { initialPosition, onLeaveProgress, playbackIdentity } = useVideoResume({
+    userId: user?.id, queryScope, videoId, enrollmentId, effectiveEnrollmentId,
+    sessionId, isDirectAccess, playbackData, serverPosition: video?.last_position ?? 0,
   });
-
-  const progressMutationRef = useRef(progressMutation);
-  progressMutationRef.current = progressMutation;
 
   /* ─── 다음 영상 ─── */
   const nextVideo = useMemo(() => {
@@ -392,7 +361,6 @@ export default function VideoPlayerPage() {
     policyTransitionGenerationRef.current += 1;
   }
   const onFatal = useCallback((reason: string) => setFatalError(reason), []);
-  const playbackData = playbackQuery.data;
   const refetchPlayback = playbackQuery.refetch;
   useEffect(() => {
     setFatalError(null);
@@ -685,21 +653,6 @@ export default function VideoPlayerPage() {
   const nextVideoRef = useRef(nextVideo);
   nextVideoRef.current = nextVideo;
 
-  const onLeaveProgress = useCallback(
-    (data: { progress?: number; completed?: boolean; last_position?: number }) => {
-      if (!videoId) return;
-      storeVideoPosition(videoId, data.last_position ?? 0, playbackStorageScope);
-      if (!isDirectAccess && effectiveEnrollmentId) {
-        progressMutationRef.current.mutate({
-          progress: data.progress,
-          last_position: data.last_position,
-          completed: data.completed,
-        });
-      }
-    },
-    [effectiveEnrollmentId, isDirectAccess, playbackStorageScope, videoId]
-  );
-
   // Completion is durable learning state; only a new media-end event advances playback.
   const onPlaybackEnded = useCallback(() => {
     if (!nextVideoRef.current || autoPlayTimerRef.current) return;
@@ -766,6 +719,7 @@ export default function VideoPlayerPage() {
           {/* ─── 플레이어 ─── */}
           <div className="vpp-player-section">
             <StudentVideoPlayer
+              key={playbackIdentity}
               video={video}
               bootstrap={boot}
               enrollmentId={effectiveEnrollmentId != null ? Number(effectiveEnrollmentId) : null}

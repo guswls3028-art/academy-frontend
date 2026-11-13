@@ -812,6 +812,41 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("결과 대기");
   });
 
+  for (const parentDashboard of [false, true]) {
+    test(`학습 현황과 성적 통계의 과제 판정이 일치한다 ${parentDashboard ? "학부모" : "학생"}`, async ({ page }) => {
+      await page.setViewportSize({ width: parentDashboard ? 390 : 1366, height: 900 });
+      await installStudentApi(page, { parentDashboard });
+      const unjudged = {
+        homework_id: 801, enrollment_id: 301, title: "판정 대기 과제",
+        score: null, max_score: 100, passed: null, achievement: null,
+      };
+      let homeworks: object[] = [unjudged];
+      const selections: string[] = [];
+      await page.route("**/api/v1/student/grades/", (route) => {
+        selections.push(route.request().headers()["x-student-id"] ?? "");
+        return route.fulfill({ json: { ...emptyGrades(), homeworks } });
+      });
+      const openDashboard = () => page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      const passRate = page.getByRole("region", { name: "학습 현황", exact: true })
+        .getByRole("link", { name: /과제 통과/ });
+      await openDashboard();
+      await expect(passRate).toContainText("결과 대기");
+      homeworks = [unjudged, { ...unjudged, homework_id: 802, title: "교사 확인 과제", teacher_resolved: true }];
+      await page.reload();
+      await expect(passRate).toContainText("100%");
+      await expect(passRate).toContainText("전체 판정 결과");
+      await passRate.click();
+      await expect(page).toHaveURL(/\/student\/grades\?view=homework/);
+      await page.getByRole("tab", { name: "추이 분석", exact: true }).click();
+      const summary = page.getByRole("region", { name: "과제 현황", exact: true });
+      await expect(summary).toContainText("100%");
+      homeworks = [unjudged, { ...unjudged, homework_id: 802, passed: false, achievement: "FAIL", score: 0 }];
+      await openDashboard();
+      await expect(passRate).toContainText("0%");
+      if (parentDashboard) expect(selections.every((id) => id === "11")).toBe(true);
+    });
+  }
+
   for (const date of ["2026-09-23", "2026-10-22"]) {
     test(`학습 현황은 집계 기간 밖 일정 ${date}을 기록 없음으로 오인하지 않는다`, async ({ page }) => {
       const parentDashboard = date === "2026-10-22";

@@ -1,6 +1,6 @@
 // PATH: src/app_teacher/domains/videos/api.ts
 // 영상 API — 기존 admin videos API 재사용
-import api from "@/shared/api/axios";
+import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { listFromApiResponse } from "@/shared/api/response";
 export { preparePublicSession } from "@/shared/api/contracts/videos";
 
@@ -84,8 +84,8 @@ export async function uploadInit(payload: {
   filename: string;
   content_type: string;
   review_watch_limit_enabled?: boolean;
-}) {
-  const res = await api.post("/media/videos/upload/init/", payload);
+}, config: ApiRequestConfig) {
+  const res = await api.post("/media/videos/upload/init/", payload, config);
   const data = res.data as {
     video?: { id?: number };
     id?: number;
@@ -102,10 +102,6 @@ export async function uploadInit(payload: {
     upload_url: data.upload_url,
     video_key: data.file_key ?? data.video_key ?? "",
   };
-}
-
-export async function uploadComplete(videoId: number) {
-  await api.post(`/media/videos/${videoId}/upload/complete/`);
 }
 
 export async function createYoutubeVideo(payload: {

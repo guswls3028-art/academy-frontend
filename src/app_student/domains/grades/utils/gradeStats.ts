@@ -1,5 +1,6 @@
-import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "../api/grades.api";
+import type { MyExamGradeSummary } from "../api/grades.api";
 import { getExamPassStatus } from "../public/examPassStatus";
+export { calculateHomeworkStats } from "../public/homeworkStats";
 export { getExamPassStatus } from "../public/examPassStatus";
 
 export function gradeLectureKey(grade: Pick<MyExamGradeSummary, "lecture_id" | "enrollment_id">): string {
@@ -21,26 +22,6 @@ export function calculateExamStats(exams: MyExamGradeSummary[], wrongCompletionO
     ? Math.round((rankedExams.reduce((sum, exam) => sum + exam.rank!, 0) / rankedExams.length) * 10) / 10
     : null;
   return { avgPct, passRate, count: exams.length, avgRank };
-}
-
-export function calculateHomeworkStats(homeworks: MyHomeworkGradeSummary[]) {
-  if (homeworks.length === 0) return null;
-  const graded = homeworks.filter((homework) => homework.score != null || homework.teacher_resolved === true);
-  const judgments = graded.map((homework) => {
-    if (homework.teacher_resolved === true || homework.achievement === "PASS" || homework.achievement === "REMEDIATED") return true;
-    if (homework.achievement === "FAIL") return false;
-    if (homework.achievement === "NOT_SUBMITTED") return null;
-    return homework.passed ?? null;
-  });
-  const passed = judgments.filter((status) => status === true).length;
-  const failed = judgments.filter((status) => status === false).length;
-  const withMax = graded.filter((homework) => homework.grading_mode !== "COMPLETION" && homework.score != null && homework.max_score != null && homework.max_score > 0);
-  const avgPct = withMax.length > 0
-    ? Math.round(withMax.reduce((sum, homework) => sum + (homework.score! / homework.max_score!) * 100, 0) / withMax.length)
-    : null;
-  const judgedCount = passed + failed;
-  const passRate = judgedCount > 0 ? Math.round((passed / judgedCount) * 100) : null;
-  return { passed, failed, graded: graded.length, total: homeworks.length, avgPct, passRate };
 }
 
 export function calculateWeakestLecture(exams: MyExamGradeSummary[], wrongCompletionOnly: boolean) {

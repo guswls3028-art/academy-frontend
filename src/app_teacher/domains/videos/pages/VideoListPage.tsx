@@ -15,7 +15,8 @@ import { extractYouTubeVideoId, isYouTubeSource, youtubeThumbnailUrl } from "@/s
 import CompactVideoThumbnail from "../components/CompactVideoThumbnail";
 import ReviewLimitOption from "@/shared/media/video/ReviewLimitOption";
 import { originalDurationSeconds } from "@/shared/media/video/reviewDuration";
-import { fetchVideos, retryVideo, uploadInit, uploadComplete, deleteVideo, preparePublicSession, createYoutubeVideo } from "../api";
+import { fetchVideos, retryVideo, uploadInit, deleteVideo, preparePublicSession, createYoutubeVideo } from "../api";
+import { captureVideoUploadConfig, completeVideoUpload } from "@/shared/api/videoUploadCompletion";
 import { teacherVideoQueryKeys } from "../queryKeys";
 import { VIDEO_STATUS_LABEL, type VideoStatus } from "@/shared/api/contracts/videos";
 
@@ -145,12 +146,13 @@ export default function VideoListPage() {
     setFileOptionsOpen(false);
     setUploading(true);
     try {
-      const pub = await preparePublicSession();
+      const config = captureVideoUploadConfig();
+      const pub = await preparePublicSession(config);
       const init = await uploadInit({ session: pub.session_id, title: file.name.replace(/\.[^.]+$/, ""), filename: file.name,
-        content_type: file.type || "video/mp4", review_watch_limit_enabled: fileLimit });
+        content_type: file.type || "video/mp4", review_watch_limit_enabled: fileLimit }, config);
       const put = await fetch(init.upload_url, { method: "PUT", body: file, headers: { "Content-Type": file.type || "video/mp4" } });
       if (!put.ok) throw new Error(`video_upload_put_failed_${put.status}`);
-      await uploadComplete(init.id);
+      await completeVideoUpload(init.id, config);
       qc.invalidateQueries({ queryKey: teacherVideoQueryKeys.list });
       teacherToast.success("업로드 완료. 처리는 잠시 후 시작됩니다.");
     } catch (error) {
