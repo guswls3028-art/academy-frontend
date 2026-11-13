@@ -512,8 +512,8 @@ export default function OmrReviewWorkspace({
 
           {/* ── CENTER: 스캔 이미지 ── */}
           {detailError && !detail ? (
-            <div className="orw-loading">
-              답안 상세를 불러오지 못했습니다.
+            <div className="orw-scan-pane">
+              <div className="orw-loading">답안 상세를 불러오지 못했습니다.<br />확인 탭에서 다시 시도할 수 있습니다.</div>
             </div>
           ) : (
           <ScanPane
