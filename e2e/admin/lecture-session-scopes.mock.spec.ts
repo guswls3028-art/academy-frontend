@@ -1341,8 +1341,10 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   await expect(printDialog.getByText("답안지 다운로드 완료")).toBeVisible();
   await printDialog.getByRole("button", { name: "설정 화면으로" }).click();
   await expect(page).toHaveURL(/\/exams\?examId=9971/);
-  await page.reload();
-  await page.getByRole("button", { name: "문항·답안 확인" }).click();
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const reopenAnswers = page.getByRole("button", { name: "문항·답안 확인", exact: true });
+  await expect(reopenAnswers).toBeVisible({ timeout: 30_000 });
+  await reopenAnswers.click();
   await expect(page.getByRole("dialog").locator(".answer-key-row--choice .answer-key-row__score-val")).toHaveText(["33.4점", "33.3점", "33.3점"]);
   await page.getByRole("dialog").getByRole("button", { name: "취소" }).click();
   await page.setViewportSize({ width: 390, height: 844 });
