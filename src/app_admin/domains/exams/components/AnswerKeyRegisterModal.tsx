@@ -32,6 +32,7 @@ import {
   type QuestionExplanation as ExplanationData,
 } from "../api/explanation.api";
 import ExamPdfUploadModal from "./ExamPdfUploadModal";
+import { adminResultsQueryKeys } from "@admin/domains/results/public/manualExamGrading";
 import AnswerKeyScoreAllocationDialog, {
   type ScoreAllocationPlan,
   type ScoreGroup,
@@ -744,7 +745,7 @@ export default function AnswerKeyRegisterModal({
       qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) }),
       qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamResultsRoot(examId) }),
       qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminExamSummary(examId) }),
-      qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestionStats(examId) }),
+      qc.invalidateQueries({ queryKey: adminResultsQueryKeys.examQuestionStats(examId) }),
       qc.invalidateQueries({ queryKey: adminExamsQueryKeys.sessionScoresRoot() }),
       qc.invalidateQueries({ queryKey: adminExamsQueryKeys.clinicTargetsRoot() }),
       qc.invalidateQueries({ queryKey: adminExamsQueryKeys.adminSubmissions }),

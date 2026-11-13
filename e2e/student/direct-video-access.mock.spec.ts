@@ -243,6 +243,7 @@ test("개별 영상 학생 재생은 canonical bootstrap·exact-only·로컬 이
   await video.evaluate((element) => {
     Object.defineProperty(element, "currentTime", { configurable: true, get: () => 125 });
     Object.defineProperty(element, "duration", { configurable: true, get: () => 600 });
+    element.dispatchEvent(new Event("seeking"));
     const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
     const visibility = Object.getOwnPropertyDescriptor(document, "visibilityState");
     Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
@@ -303,7 +304,11 @@ test("개별 영상에서 처음으로 돌아가면 이전 기기 위치를 복�
   await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.readyState)).toBeGreaterThan(0);
   const currentTime = () => video.evaluate((element: HTMLVideoElement) => element.currentTime);
   const savePosition = async (position: number) => {
-    await video.evaluate((element: HTMLVideoElement, position) => { element.currentTime = position; }, position);
+    await video.evaluate(async (element: HTMLVideoElement, position) => {
+      const seeked = new Promise<void>((resolve) => element.addEventListener("seeked", () => resolve(), { once: true }));
+      element.currentTime = position;
+      await seeked;
+    }, position);
     await expect.poll(currentTime).toBe(position);
     await video.evaluate(() => {
       const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
