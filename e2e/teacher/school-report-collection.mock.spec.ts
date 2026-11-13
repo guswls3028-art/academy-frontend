@@ -6,7 +6,7 @@ const base = process.env.E2E_BASE_URL || "http://127.0.0.1:5187";
 test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(base), "Local synthetic API only");
 test.use({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
 
-async function mockSchoolReports(page: Page, role: "teacher" | "student") {
+async function mockSchoolReports(page: Page, role: "teacher" | "student", alimtalkAvailable = false) {
   await installTenantOneInitScript(page);
   const payload = Buffer.from(JSON.stringify({ exp: 4_000_000_000, user_id: 12, tenant_code: "hakwonplus" })).toString("base64url");
   await page.addInitScript((token) => {
@@ -17,6 +17,8 @@ async function mockSchoolReports(page: Page, role: "teacher" | "student") {
     reminders: [] as unknown[],
     directSaves: [] as unknown[],
     selectedLectures: [] as string[],
+    alimtalkPreviews: [] as unknown[],
+    alimtalkConfirms: [] as unknown[],
     scores: [] as Array<{ id: number; subject: string; score: number; max_score: number; grade_rank: null }>,
   };
   await page.route("**/api/v1/**", async (route) => {
@@ -30,6 +32,18 @@ async function mockSchoolReports(page: Page, role: "teacher" | "student") {
     if (path === "/core/subscription/") return reply({ plan: "all", subscription_status: "active", is_subscription_active: true, days_remaining: 30 });
     if (path === "/student/me/") return reply({ id: 12, name: "검증 학생", ps_number: "qa-score", first_login_guide_required: false });
     if (path === "/lectures/lectures/") return reply([{ id: 71, title: "검증 강의", is_active: true }]);
+    if (path === "/messaging/manual-notification/preview/") {
+      state.alimtalkPreviews.push(request.postDataJSON());
+      return reply({
+        preview_token: "school-report-preview-token", total_count: 1, excluded_count: 0,
+        recipients: [{ student_id: 12, student_name: "미제출 학생", phone: "010****1234", excluded: false,
+          full_message_body: "2학기 중간 성적표 제출을 부탁드립니다." }],
+      });
+    }
+    if (path === "/messaging/manual-notification/confirm/") {
+      state.alimtalkConfirms.push(request.postDataJSON());
+      return reply({ batch_id: "school-report-batch", sent_count: 1, accepted_count: 1, failed_count: 0, blocked_count: 0 });
+    }
     if (path === "/results/school-reports/requests/") {
       state.reminders.push(request.postDataJSON());
       return reply({ requested: 1, skipped: 0 });
@@ -38,9 +52,9 @@ async function mockSchoolReports(page: Page, role: "teacher" | "student") {
       const lecture = url.searchParams.get("lecture_id");
       if (lecture) state.selectedLectures.push(lecture);
       const requested_at = state.reminders.length ? "2026-11-13T08:00:00Z" : null;
-      return reply({ count: 2, next: null, previous: null, total_count: 2, missing_count: 1, submitted_count: 1, results: [
-        { student_id: 12, name: "미제출 학생", school: "검증고", grade: 1, status: "missing", can_request: !requested_at, requested_at, score_count: 0 },
-        { student_id: 13, name: "제출 학생", school: "검증고", grade: 1, status: "submitted", can_request: false, requested_at: null, score_count: 1 },
+      return reply({ count: 2, next: null, previous: null, total_count: 2, missing_count: 1, submitted_count: 1, alimtalk_available: alimtalkAvailable, results: [
+        { student_id: 12, name: "미제출 학생", school: "검증고", grade: 1, status: "missing", can_request: !requested_at, can_request_alimtalk: alimtalkAvailable, requested_at, score_count: 0 },
+        { student_id: 13, name: "제출 학생", school: "검증고", grade: 1, status: "submitted", can_request: false, can_request_alimtalk: false, requested_at: null, score_count: 1 },
       ] });
     }
     if (path === "/results/school-reports/me/") {
@@ -69,6 +83,7 @@ test("미제출 대상만 선택하고 확인한 경우에만 앱 알림을 요�
   await page.getByRole("button", { name: "2학기 중간", exact: true }).click();
   await page.getByRole("combobox", { name: "강의", exact: true }).selectOption("71");
   await expect(page.getByRole("checkbox", { name: "제출 학생 선택", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "알림톡 미리보기" })).toHaveCount(0);
   await page.getByRole("checkbox", { name: "이 페이지 선택", exact: true }).check();
   await expect(page.getByText("1명 선택", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "앱으로 제출 요청" }).click();
@@ -81,6 +96,35 @@ test("미제출 대상만 선택하고 확인한 경우에만 앱 알림을 요�
   expect(state.reminders).toEqual([{ academic_year: expect.any(Number), semester: 2, exam_round: "first", student_ids: [12] }]);
   expect(state.selectedLectures).toContain("71");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(391);
+});
+
+test("승인된 채널의 알림톡은 선택·미리보기·최종 확인이 모두 필요하다", async ({ page }) => {
+  const state = await mockSchoolReports(page, "teacher", true);
+  await gotoAndSettle(page, `${base}/workspace/mobile/results?tab=school-report`);
+  const period = page.getByRole("button", { name: "2학기 중간", exact: true });
+  await expect(period).toBeVisible({ timeout: 20_000 });
+  await period.click();
+  const preview = page.getByRole("button", { name: "알림톡 미리보기" });
+  await expect(preview).toBeDisabled();
+  await page.getByRole("checkbox", { name: "미제출 학생 선택", exact: true }).check();
+  await preview.click();
+  const dialog = page.getByRole("dialog", { name: "학교 성적표 제출 요청 발송" });
+  await expect(dialog.getByText("2학기 중간 성적표 제출을 부탁드립니다.", { exact: true })).toBeVisible();
+  expect(state.alimtalkPreviews).toEqual([{
+    trigger: "school_report_request",
+    send_to: "student",
+    context_source: {
+      type: "school_report_request", academic_year: expect.any(Number), semester: 2, exam_round: "first", student_ids: [12],
+    },
+  }]);
+  const send = dialog.getByRole("button", { name: "1건 발송", exact: true });
+  await expect(send).toBeDisabled();
+  expect(state.alimtalkConfirms).toEqual([]);
+  await dialog.getByRole("checkbox", { name: /위 1명에게/ }).check();
+  await send.click();
+  await expect(dialog.getByText("알림톡 1건 접수", { exact: true })).toBeVisible();
+  expect(state.alimtalkConfirms).toEqual([{ preview_token: "school-report-preview-token" }]);
+  expect(state.reminders).toEqual([]);
 });
 
 test("학생이 파일 없이 0점과 소수점을 제출하며 시험 구분이 섞이지 않는다", async ({ page }) => {

@@ -126,9 +126,14 @@
 }
 
 .requestAction {
-  display: grid;
-  gap: 0.3rem;
-  justify-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.requestAction small {
+  flex-basis: 100%;
 }
 
 .selection input,

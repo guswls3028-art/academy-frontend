@@ -10,8 +10,8 @@ export type SchoolReportSubject = { subject: string; score: number; max_score: n
 export type SchoolReportScore = {
   id: number;
   subject: string;
-  score: number | string;
-  max_score: number | string;
+  score: number;
+  max_score: number;
   grade_rank: number | null;
 };
 export type SchoolReportDetail = SchoolReportPeriod & {
@@ -32,6 +32,7 @@ export type SchoolReportStudent = {
   submitted_at: string | null;
   requested_at: string | null;
   can_request: boolean;
+  can_request_alimtalk: boolean;
 };
 export type SchoolReportRosterFilters = {
   search: string;
@@ -47,6 +48,7 @@ type SchoolReportRoster = {
   total_count: number;
   submitted_count: number;
   missing_count: number;
+  alimtalk_available: boolean;
 };
 type SchoolReportRequestResult = { requested: number; skipped: number };
 

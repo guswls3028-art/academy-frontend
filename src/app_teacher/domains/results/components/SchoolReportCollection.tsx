@@ -1,10 +1,11 @@
-import { useDeferredValue, useLayoutEffect, useRef, useState } from "react";
+import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import {
   fetchSchoolReportRoster, requestSchoolReports, schoolReportKeys,
   type SchoolReportPeriod, type SchoolReportRosterFilters, type SchoolReportStatus,
 } from "@/shared/api/contracts/schoolReports";
+import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import SchoolReportPeriodPicker from "@/shared/product/schoolReports/SchoolReportPeriodPicker";
 import { currentSchoolReportPeriod, schoolReportParams, schoolReportPeriodLabel } from "@/shared/product/schoolReports/period";
 import { Button, EmptyState } from "@/shared/ui/ds";
@@ -17,6 +18,8 @@ import { teacherResultsQueryKeys } from "../queryKeys";
 import SchoolReportStudentPanel from "./SchoolReportStudentPanel";
 import styles from "./SchoolReportCollection.module.css";
 
+const NotificationPreviewModal = lazy(() => import("@/shared/ui/notifications/NotificationPreviewModal"));
+
 const STATUS_FILTERS = [
   { key: "all", label: "전체" },
   { key: "missing", label: "미제출" },
@@ -27,14 +30,14 @@ type Filter = "all" | SchoolReportStatus;
 export default function SchoolReportCollection() {
   const [period, setPeriod] = useState(currentSchoolReportPeriod);
   const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search.trim());
+  const settledSearch = useDebouncedValue(search.trim());
   const [status, setStatus] = useState<Filter>("all");
   const [lectureId, setLectureId] = useState<number>();
   const lectures = useQuery({
     queryKey: teacherResultsQueryKeys.activeLectures,
     queryFn: () => fetchLectures(true),
   });
-  const filters = { search: deferredSearch, status: status === "all" ? undefined : status, lecture_id: lectureId };
+  const filters = { search: settledSearch, status: status === "all" ? undefined : status, lecture_id: lectureId };
   return (
     <div className={styles.page}>
       <SchoolReportPeriodPicker period={period} onChange={setPeriod} />
@@ -64,7 +67,7 @@ export default function SchoolReportCollection() {
         key={JSON.stringify([period, filters])}
         period={period}
         filters={filters}
-        searchPending={search.trim() !== deferredSearch}
+        searchPending={search.trim() !== settledSearch}
       />
     </div>
   );
@@ -80,6 +83,7 @@ function SchoolReportRoster({ period, filters, searchPending }: {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<number[]>([]);
   const [confirming, setConfirming] = useState(false);
+  const [alimtalkSelection, setAlimtalkSelection] = useState<number[]>([]);
   const [openStudent, setOpenStudent] = useState<{ id: number; name: string } | null>(null);
   const allCheckbox = useRef<HTMLInputElement>(null);
   const params = { ...filters, page };
@@ -101,24 +105,27 @@ function SchoolReportRoster({ period, filters, searchPending }: {
     onError: (failure) => teacherToast.error(extractApiError(failure, "제출 요청에 실패했습니다. 다시 시도해 주세요.")),
   });
 
-  const eligibleIds = (roster.data?.results ?? []).filter((student) => student.can_request).map((student) => student.student_id);
+  const students = roster.data?.results ?? [];
+  const eligibleIds = students.filter((student) => student.can_request || student.can_request_alimtalk).map((student) => student.student_id);
   const selectedIds = selected.filter((id) => eligibleIds.includes(id));
+  const appIds = students.filter((student) => student.can_request && selectedIds.includes(student.student_id)).map((student) => student.student_id);
+  const alimtalkIds = students.filter((student) => student.can_request_alimtalk && selectedIds.includes(student.student_id)).map((student) => student.student_id);
   const allSelected = eligibleIds.length > 0 && selectedIds.length === eligibleIds.length;
-  const busy = confirming || reminder.isPending || searchPending;
+  const busy = confirming || reminder.isPending || searchPending || alimtalkSelection.length > 0;
   const partiallySelected = selectedIds.length > 0 && !allSelected;
   useLayoutEffect(() => {
     if (allCheckbox.current) allCheckbox.current.indeterminate = partiallySelected;
   }, [partiallySelected, roster.isPending]);
 
   async function confirmRequest() {
-    if (busy || selectedIds.length === 0) return;
+    if (busy || appIds.length === 0) return;
     setConfirming(true);
     try {
       if (await confirm({
         title: "성적표 제출 요청",
-        message: `${period.academic_year}학년도 ${schoolReportPeriodLabel(period)} 성적표가 미제출된 학생 ${selectedIds.length}명에게 학생 앱 알림을 보낼까요?`,
+        message: `${period.academic_year}학년도 ${schoolReportPeriodLabel(period)} 성적표가 미제출된 학생 ${appIds.length}명에게 학생 앱 알림을 보낼까요?`,
         confirmText: "앱 알림 보내기",
-      })) reminder.mutate(selectedIds);
+      })) reminder.mutate(appIds);
     } finally {
       setConfirming(false);
     }
@@ -155,16 +162,22 @@ function SchoolReportRoster({ period, filters, searchPending }: {
               <span className={styles.muted} aria-live="polite">{selectedIds.length}명 선택</span>
             </div>
             <div className={styles.requestAction}>
-              <Button disabled={busy || selectedIds.length === 0} onClick={() => void confirmRequest()}>
+              <Button disabled={busy || appIds.length === 0} onClick={() => void confirmRequest()}>
                 {reminder.isPending ? "요청 중…" : "앱으로 제출 요청"}
               </Button>
-              <small className={styles.muted}>알림톡은 제출 요청 템플릿 승인 후 사용할 수 있습니다.</small>
+              {data.alimtalk_available ? (
+                <Button intent="secondary" disabled={busy || alimtalkIds.length === 0}
+                  onClick={() => setAlimtalkSelection(alimtalkIds)}
+                >알림톡 미리보기</Button>
+              ) : (
+                <small className={styles.muted}>알림톡은 제출 요청 템플릿 승인 및 연결 후 사용할 수 있습니다.</small>
+              )}
             </div>
           </header>
           <ul className={styles.roster}>
             {data.results.map((student) => (
               <li key={student.student_id} className={styles.student}>
-                {student.can_request ? (
+                {student.can_request || student.can_request_alimtalk ? (
                   <input type="checkbox" aria-label={`${student.name} 선택`}
                     disabled={busy}
                     checked={selectedIds.includes(student.student_id)}
@@ -182,7 +195,7 @@ function SchoolReportRoster({ period, filters, searchPending }: {
                 <span data-submitted={student.status === "submitted"} className={styles.badge}>
                   {student.status === "submitted" ? `제출 · ${student.score_count}과목` : student.requested_at ? "요청함" : "미제출"}
                 </span>
-                {student.status === "missing" && !student.can_request && !student.requested_at && (
+                {student.status === "missing" && !student.can_request && !student.can_request_alimtalk && !student.requested_at && (
                   <small className={styles.account}>학생 계정 필요</small>
                 )}
               </li>
@@ -213,6 +226,23 @@ function SchoolReportRoster({ period, filters, searchPending }: {
           </div>
         )}
       </BottomSheet>
+      {alimtalkSelection.length > 0 && (
+        <Suspense fallback={<p role="status">알림톡 미리보기를 여는 중…</p>}>
+          <NotificationPreviewModal
+            mode="manual"
+            open
+            label="학교 성적표 제출 요청"
+            trigger="school_report_request"
+            sendTo="student"
+            contextSource={{ type: "school_report_request", ...period, student_ids: alimtalkSelection }}
+            onClose={() => setAlimtalkSelection([])}
+            onConfirmed={() => {
+              setSelected([]);
+              void qc.invalidateQueries({ queryKey: schoolReportKeys.all });
+            }}
+          />
+        </Suspense>
+      )}
     </>
   );
 }
