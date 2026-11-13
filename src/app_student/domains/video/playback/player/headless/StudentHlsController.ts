@@ -58,6 +58,8 @@ export class StudentHlsController {
 
   private maxWatchedRef = 0;
   private lastTimeRef = 0;
+  private hasProgressActivity = false;
+  private initialSeekTarget: number | null = null;
   private seekGuardRef = { blocking: false, lastWarnAt: 0, initialSeekActive: false };
   private eventQueue: Array<{ type: EventType; occurred_at: number; payload?: Record<string, unknown> }> = [];
   private intervals: ReturnType<typeof setInterval>[] = [];
@@ -173,6 +175,7 @@ export class StudentHlsController {
       }
       if (seekTo !== undefined && this.el) {
         this.el.currentTime = position;
+        this.hasProgressActivity = true;
         if (!this.el.paused) this.hls?.startLoad(position);
       } else {
         this.hls?.startLoad(position);
@@ -228,6 +231,7 @@ export class StudentHlsController {
     this.lastTimeRef = target;
     try {
       this.el.currentTime = target;
+      this.hasProgressActivity = true;
       this.setState({ current: target });
     } catch {
       ignoreBestEffortError();
@@ -580,7 +584,7 @@ export class StudentHlsController {
    * force: true → dispose 시에도 실행 (disposed 가드 무시)
    */
   private flushProgress(force = false) {
-    if ((!force && this.disposed) || !this.el || !this.opts.onLeaveProgress) return;
+    if ((!force && this.disposed) || !this.hasProgressActivity || !this.el || !this.opts.onLeaveProgress) return;
     const pending = this.pendingSourceResume;
     const currentTime = pending?.position ?? (this.el.error ? this.lastTimeRef : Number(this.el.currentTime || 0));
     const maxWatched = Math.max(0, this.maxWatchedRef);
@@ -595,7 +599,7 @@ export class StudentHlsController {
 
   private lastSavedPosition = -1;
   private flushProgressIfChanged() {
-    if (this.disposed || !this.el) return;
+    if (this.disposed || !this.hasProgressActivity || !this.el) return;
     const cur = Math.round(this.pendingSourceResume?.position ?? Number(this.el.currentTime || 0));
     if (Math.abs(cur - this.lastSavedPosition) < 5) return; // 5초 미만 변화 무시
     this.lastSavedPosition = cur;
@@ -779,6 +783,7 @@ export class StudentHlsController {
           this.seekGuardRef.initialSeekActive = true;
           this.maxWatchedRef = Math.max(this.maxWatchedRef, safePos);
           try {
+            this.initialSeekTarget = safePos;
             el.currentTime = safePos;
           } catch {
             ignoreBestEffortError();
@@ -798,7 +803,9 @@ export class StudentHlsController {
     const onTime = () => {
       if (this.disposed || this.pendingSourceResume || el.error) return;
       const t = Number(el.currentTime || 0);
-      const resumed = this.nativeRecovery.active && !el.paused && !el.seeking && t > this.lastTimeRef;
+      const advanced = !el.paused && !el.seeking && t > this.lastTimeRef;
+      if (advanced) this.hasProgressActivity = true;
+      const resumed = this.nativeRecovery.active && advanced;
       if (resumed) this.nativeRecovery.clear();
       this.setState(resumed ? { current: t, reconnecting: false } : { current: t });
       this.lastTimeRef = t;
@@ -825,6 +832,7 @@ export class StudentHlsController {
         this.maxWatchedRef = Math.max(this.maxWatchedRef, duration);
       }
       this.setState({ playing: false, buffering: false, current: Number(el.currentTime || 0) });
+      this.hasProgressActivity = true;
       this.flushProgress();
       this.opts.onEnded?.();
     };
@@ -861,17 +869,26 @@ export class StudentHlsController {
     const onSeeking = () => {
       if (this.disposed) return;
       this.stallWatch?.resetSample();
-      if (this.seekGuardRef.initialSeekActive) return; // 이어보기 초기 seek 시 가드 우회
+      const target = Number(el.currentTime || 0);
+      const initialSeekPending = this.initialSeekTarget !== null;
+      if (this.initialSeekTarget !== null) {
+        const initialTarget = this.initialSeekTarget;
+        this.initialSeekTarget = null;
+        if (Math.abs(target - initialTarget) < 0.01) return;
+      }
+      if (this.seekGuardRef.initialSeekActive && !initialSeekPending) return;
       const allowSeek = !!this.policy.allow_seek && this.policy.seek?.mode !== "blocked";
       const seekMode = this.policy.seek?.mode || "free";
       const grace = Math.max(0, Number(this.policy.seek?.grace_seconds ?? 3));
       const boundedForward = seekMode === "bounded_forward";
       const budgetedForward = seekMode === "budgeted_forward";
-      if (allowSeek && !boundedForward && !budgetedForward) return;
+      if (allowSeek && !boundedForward && !budgetedForward) {
+        this.hasProgressActivity = true;
+        return;
+      }
 
       const now = Date.now();
       const guard = this.seekGuardRef;
-      const target = Number(el.currentTime || 0);
       const maxWatched = this.maxWatchedRef;
       const allowedMax = (boundedForward || budgetedForward) ? maxWatched + grace : maxWatched;
       const isForwardBeyond = target > allowedMax + 0.001;
@@ -912,7 +929,9 @@ export class StudentHlsController {
           });
         }
         this.queueEvent("SEEK_ATTEMPT", { mode: seekMode, target, max_watched: maxWatched, grace });
+        return;
       }
+      this.hasProgressActivity = true;
     };
 
     const onError = () => {

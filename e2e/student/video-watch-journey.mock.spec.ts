@@ -248,6 +248,8 @@ test("replaying a completed lesson does not auto-advance on background progress 
   const { state, youtube } = await installWatchScenario(page, true);
   await openWatch(page);
   await expect.poll(async () => (await youtube.snapshot()).players.some((player) => player.ready)).toBe(true);
+  await page.getByRole("button", { name: "재생", exact: true }).click();
+  await expect.poll(async () => (await youtube.snapshot()).players.at(-1)?.current ?? 0).toBeGreaterThan(30);
   await page.evaluate(() => {
     const previous = Object.getOwnPropertyDescriptor(document, "hidden");
     Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
@@ -462,6 +464,53 @@ async function installStalledHls(page: Page) {
 }
 
 for (const width of [390, 1366]) {
+  for (const source of ["HLS", "YouTube"] as const) {
+    test(`idle ${source} resume leaves a newer checkpoint alone at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 840 });
+      const { state, videos, youtube } = await installWatchScenario(page);
+      videos[0].last_position = 42;
+      if (source === "HLS") {
+        videos[0].source_type = "s3";
+        await page.route("**/__qa__/video-long/**", (route) => {
+          const asset = syntheticLongVideoAsset(new URL(route.request().url()).pathname);
+          return route.fulfill({ body: asset.body, contentType: asset.contentType });
+        });
+        await page.route("**/api/v1/student/video/videos/562/playback/**", (route) => {
+          if (route.request().method() === "GET") return route.fallback();
+          return route.fulfill({ json: {
+            video: videos[0],
+            play_url: BASE + "/__qa__/video-long/master.m3u8",
+            playback_token: "synthetic-idle-token", playback_session_id: null,
+            playback_expires_at: Math.floor(Date.now() / 1000) + 900, policy_version: 1,
+            policy: { access_mode: "FREE_REVIEW", monitoring_enabled: false, allow_seek: true,
+              playback_rate: { max: 2, ui_control: true }, source: { type: "s3", provider: "uploaded" } },
+          } });
+        });
+      }
+      const current = () => source === "HLS"
+        ? page.locator("video.svpVideo").evaluate((el: HTMLVideoElement) => el.currentTime)
+        : youtube.snapshot().then(({ players }) => players.at(-1)?.current);
+      await openWatch(page);
+      await expect.poll(current).toBe(42);
+      videos[0].last_position = 90; // Another device saved while this player was idle.
+      await page.evaluate(() => {
+        const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
+        Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+        document.dispatchEvent(new Event("visibilitychange"));
+        if (hidden) Object.defineProperty(document, "hidden", hidden);
+        else Reflect.deleteProperty(document, "hidden");
+      });
+      await page.getByRole("link", { name: new RegExp(SECOND_TITLE) }).click();
+      await expect(page.getByRole("heading", { name: SECOND_TITLE })).toBeVisible();
+      expect(state.progress).toEqual([]);
+      await openWatch(page);
+      await expect.poll(current).toBe(90);
+      expect(state.progress).toEqual([]);
+    });
+  }
+}
+
+for (const width of [390, 1366]) {
   test(`resume keeps a failed rewind on the same revision and yields to a newer server checkpoint at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 840 });
     await installWatchScenario(page);
@@ -496,8 +545,10 @@ for (const width of [390, 1366]) {
     const video = page.locator("video.svpVideo");
     const currentTime = () => video.evaluate((el: HTMLVideoElement) => el.currentTime);
     await expect.poll(currentTime).toBe(42);
-    await video.evaluate((el: HTMLVideoElement) => {
+    await video.evaluate(async (el: HTMLVideoElement) => {
+      const seeked = new Promise<void>((resolve) => el.addEventListener("seeked", () => resolve(), { once: true }));
       el.currentTime = 0;
+      await seeked;
       const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
       Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
       document.dispatchEvent(new Event("visibilitychange"));
