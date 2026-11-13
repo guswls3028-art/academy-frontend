@@ -1,4 +1,4 @@
-import type { Page, Route } from "@playwright/test";
+import type { Locator, Page, Route } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { gotoAndSettle } from "../helpers/wait";
 
@@ -127,6 +127,23 @@ async function expectNoHorizontalOverflow(page: Page) {
   }))).toEqual({ body: true, root: true });
 }
 
+async function expectVideoAttachment(page: Page, link: Locator, filename: string, browserName: string) {
+  if (browserName === "webkit") {
+    // WebKit route.fulfill exposes the attachment response without a native download event.
+    const [response] = await Promise.all([
+      page.waitForResponse(`https://video-download.test/${filename}`),
+      link.click(),
+    ]);
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toBe("application/octet-stream");
+    expect(response.headers()["content-disposition"]).toBe(`attachment; filename="${filename}"`);
+    return;
+  }
+  const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
+  expect(download.suggestedFilename()).toBe(filename);
+  expect(await download.failure()).toBeNull();
+}
+
 test.use({ serviceWorkers: "block" });
 test.skip(!isLocalBase(BASE), "Local route-mock spec. Set E2E_BASE_URL to localhost to run.");
 
@@ -189,7 +206,7 @@ test("선생님 영상 상세는 390px과 PC에서 HLS와 YouTube를 재생하�
   expect(mocks.apiRequests.filter(({ path }) => path.startsWith("/student/video"))).toEqual([]);
 });
 
-test("선생님은 영상 목록에서 처리 실패한 영상의 원본을 저장할 수 있다", async ({ page }, testInfo) => {
+test("선생님은 영상 목록에서 처리 실패한 영상의 원본을 저장할 수 있다", async ({ page, browserName }, testInfo) => {
   const mocks = await installTeacherVideoMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });
   let requests = 0;
@@ -224,14 +241,12 @@ test("선생님은 영상 목록에서 처리 실패한 영상의 원본을 저�
   await original.click();
   const save = page.getByRole("link", { name: "파일 저장", exact: true });
   await expect(save).toBeFocused();
-  const [download] = await Promise.all([page.waitForEvent("download"), save.click()]);
-  expect(download.suggestedFilename()).toBe("lesson.mov");
-  expect(await download.failure()).toBeNull();
+  await expectVideoAttachment(page, save, "lesson.mov", browserName);
   expect(requests).toBe(2);
   expect(mocks.apiRequests.filter(({ path }) => /\/student\/video|\/playback\//.test(path))).toEqual([]);
 });
 
-test("선생님은 새로고침 뒤 MP4 준비 상태를 다시 확인하고 저장할 수 있다", async ({ page }, testInfo) => {
+test("선생님은 새로고침 뒤 MP4 준비 상태를 다시 확인하고 저장할 수 있다", async ({ page, browserName }, testInfo) => {
   await installTeacherVideoMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });
   let prepareRequests = 0;
@@ -280,11 +295,6 @@ test("선생님은 새로고침 뒤 MP4 준비 상태를 다시 확인하고 저
   await expect(ready).toBeVisible();
   expect(prepareRequests).toBe(1);
   await ready.click();
-  const [download] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByRole("link", { name: "파일 저장", exact: true }).click(),
-  ]);
-  expect(download.suggestedFilename()).toBe("playback.mp4");
-  expect(await download.failure()).toBeNull();
+  await expectVideoAttachment(page, page.getByRole("link", { name: "파일 저장", exact: true }), "playback.mp4", browserName);
   expect(prepareRequests).toBe(2);
 });
