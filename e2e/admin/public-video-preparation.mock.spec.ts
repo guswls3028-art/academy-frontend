@@ -13,7 +13,8 @@ async function installApp(page: Page, role: "admin" | "teacher") {
     uploadLimits: [] as boolean[],
     videoListFails: false, videoListReads: 0,
     videoListWait: null as Promise<void> | null,
-    prepares: 0, uploads: 0, completes: 0, youtube: 0,
+    prepares: 0, uploads: 0, fileTransfers: 0, completes: 0, youtube: 0,
+    loseNextCompletionResponse: false,
     folders: [] as Array<{ id: number; name: string; session_id: number; parent_id: null; order: number }>,
     videos: [] as Array<Record<string, unknown>>,
     unexpected: [] as string[],
@@ -28,7 +29,10 @@ async function installApp(page: Page, role: "admin" | "teacher") {
   await page.route("https://i.ytimg.com/**", (route) => route.fulfill({
     contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="90"/>',
   }));
-  await page.route(`${BASE}/mock-public-video-upload`, (route) => route.fulfill({ status: 200, body: "ok" }));
+  await page.route(`${BASE}/mock-public-video-upload`, (route) => {
+    state.fileTransfers += 1;
+    return route.fulfill({ status: 200, body: "ok" });
+  });
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
@@ -84,7 +88,13 @@ async function installApp(page: Page, role: "admin" | "teacher") {
     }
     if (path === "/media/videos/9202/upload/complete/" && method === "POST") {
       state.completes += 1;
-      state.videos.push({ id: 9202, session_id: SESSION.session_id, title: "first-video", source_type: "s3", status: "UPLOADED" });
+      if (!state.videos.some((video) => video.id === 9202)) {
+        state.videos.push({ id: 9202, session_id: SESSION.session_id, title: "first-video", source_type: "s3", status: "UPLOADED" });
+      }
+      if (state.loseNextCompletionResponse) {
+        state.loseNextCompletionResponse = false;
+        return route.abort("connectionreset");
+      }
       return json({ id: 9202 });
     }
     if (method === "GET" && ["/lectures/lectures/", "/lectures/sessions/", "/staffs/currently-working/", "/results/admin/clinic-targets/"].includes(path)) return json([]);
@@ -311,6 +321,27 @@ for (const width of [390, 1366]) {
     expect(state.completes).toBe(1);
     await page.reload();
     await expect(page.getByText("first-video", { exact: true })).toBeVisible();
+    expect(state.unexpected).toEqual([]);
+  });
+
+  test(`teacher recovers a lost completion response without transferring the file twice at ${width}px`, async ({ page }) => {
+    const state = await installApp(page, "teacher");
+    state.prepared = true;
+    state.failNextPrepare = false;
+    state.loseNextCompletionResponse = true;
+    await page.setViewportSize({ width, height: 900 });
+    await gotoAndSettle(page, `${BASE}/workspace/mobile/videos`, { timeout: 45_000 });
+    await page.getByRole("button", { name: "영상 업로드", exact: true }).first().click();
+    const dialog = page.getByRole("dialog", { name: "영상 업로드 설정" });
+    const chooser = page.waitForEvent("filechooser");
+    await dialog.getByRole("button", { name: "파일 선택" }).click();
+    await (await chooser).setFiles({ name: "first-video.mp4", mimeType: "video/mp4", buffer: Buffer.from("fixture-only") });
+
+    await expect(page.getByText("first-video", { exact: true })).toHaveCount(1);
+    expect([state.uploads, state.fileTransfers, state.completes]).toEqual([1, 1, 2]);
+    await page.reload();
+    await expect(page.getByText("first-video", { exact: true })).toHaveCount(1);
+    await assertViewport(page, width);
     expect(state.unexpected).toEqual([]);
   });
 }

@@ -104,10 +104,6 @@ export async function uploadInit(payload: {
   };
 }
 
-export async function uploadComplete(videoId: number) {
-  await api.post(`/media/videos/${videoId}/upload/complete/`);
-}
-
 export async function createYoutubeVideo(payload: {
   review_watch_limit_enabled?: boolean;
   duration?: number;
