@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 // PATH: src/app_teacher/domains/videos/pages/VideoDetailPage.tsx
-// 영상 상세 — 선생님 미리보기 + 시청 통계 + 댓글
+// 영상 상세 — 선생님 미리보기, 다운로드, 시청 통계, 댓글
 import { useState } from "react";
 import { watchLogsPath } from "@/shared/media/video/watchLogs";
 import { useParams, useNavigate, Link } from "react-router";
@@ -18,6 +18,8 @@ import { useConfirm } from "@/shared/ui/confirm";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { isVideoProgressComplete, videoProgressPercent } from "@/shared/api/contracts/videos";
 import { teacherVideoQueryKeys } from "../queryKeys";
+import VideoSourceDownload from "@/shared/media/video/VideoSourceDownload";
+import styles from "./VideoDetailPage.module.css";
 
 type Tab = "stats" | "comments";
 
@@ -48,6 +50,10 @@ export default function VideoDetailPage() {
     queryKey: teacherVideoQueryKeys.detail(vid),
     queryFn: () => fetchVideoDetail(vid),
     enabled: Number.isFinite(vid),
+    refetchInterval: ({ state }) => {
+      const status = state.data?.status;
+      return status === "PENDING" || status === "UPLOADED" || status === "PROCESSING" ? 5000 : false;
+    },
   });
 
   const { data: stats } = useQuery({
@@ -124,6 +130,13 @@ export default function VideoDetailPage() {
       </div>
 
       <TeacherVideoPreview video={video} />
+
+      {video.source_type === "s3" && video.status !== "PENDING" && (
+        <Card className={styles.download}>
+          <VideoSourceDownload key={vid} videoId={vid} canExport={video.status === "READY"}
+            styles={{ action: styles.action, error: styles.error }} />
+        </Card>
+      )}
 
       {/* Info */}
       <Card>

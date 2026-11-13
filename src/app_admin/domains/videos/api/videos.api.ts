@@ -21,32 +21,6 @@ export {
 
 import type { AccessMode, VideoRule } from "../types/access-mode";
 
-export async function requestVideoSourceDownload(videoId: number, signal: AbortSignal) {
-  const { data } = await api.post<{ download_url: string; filename: string; expires_in: number }>(
-    `/media/videos/${videoId}/source-download/`,
-    undefined,
-    { signal },
-  );
-  return data;
-}
-
-export type VideoPlaybackExportState = "not_requested" | "preparing" | "ready" | "failed";
-
-export interface VideoPlaybackExportResult {
-  state: VideoPlaybackExportState;
-  download_url?: string;
-  filename?: string;
-  expires_in?: number;
-}
-
-export async function fetchVideoPlaybackExport(videoId: number, signal: AbortSignal): Promise<VideoPlaybackExportResult> {
-  return (await api.get<VideoPlaybackExportResult>(`/media/videos/${videoId}/playback-export/`, { signal })).data;
-}
-
-export async function requestVideoPlaybackExport(videoId: number): Promise<VideoPlaybackExportResult> {
-  return (await api.post<VideoPlaybackExportResult>(`/media/videos/${videoId}/playback-export/`)).data;
-}
-
 export interface VideoPlacement {
   video_id: number;
   lecture_id: number;

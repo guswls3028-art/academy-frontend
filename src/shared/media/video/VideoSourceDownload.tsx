@@ -6,10 +6,11 @@ import {
   fetchVideoPlaybackExport,
   requestVideoPlaybackExport,
   requestVideoSourceDownload,
-} from "../../../../api/videos.api";
-import { adminVideoQueryKeys } from "../../../../queryKeys";
+} from "@/shared/api/contracts/videoDownloads";
 
 type SaveFile = { href: string; filename: string; lifetimeMs: number };
+type DownloadStyles = { action: string; error: string };
+type DownloadProps = { videoId: number; styles: DownloadStyles };
 
 function downloadFile(result: { download_url?: string; filename?: string; expires_in?: number }): SaveFile {
   if (
@@ -21,28 +22,28 @@ function downloadFile(result: { download_url?: string; filename?: string; expire
   return { href: url.href, filename: result.filename, lifetimeMs: (result.expires_in - 5) * 1000 };
 }
 
-function SaveVideoFile({ file, onExpiry }: { file: SaveFile; onExpiry: () => void }) {
+function SaveVideoFile({ file, onExpiry, className }: { file: SaveFile; onExpiry: () => void; className: string }) {
   const saveRef = useRef<HTMLAnchorElement | null>(null);
   useEffect(() => {
     saveRef.current?.focus({ preventScroll: true });
     const timeout = window.setTimeout(onExpiry, file.lifetimeMs);
     return () => window.clearTimeout(timeout);
   }, [file, onExpiry]);
-  return <a ref={saveRef} className="video-detail-action" href={file.href} download={file.filename} rel="noreferrer">
+  return <a ref={saveRef} className={className} href={file.href} download={file.filename} rel="noreferrer">
     파일 저장
   </a>;
 }
 
-function PlaybackExport({ videoId }: { videoId: number }) {
+function PlaybackExport({ videoId, styles }: DownloadProps) {
   const queryClient = useQueryClient();
-  const queryKey = adminVideoQueryKeys.playbackExport(videoId);
+  const queryKey = ["video-playback-export", videoId] as const;
   const [file, setFile] = useState<SaveFile | null>(null);
   const [error, setError] = useState("");
   const clearFile = useCallback(() => setFile(null), []);
   const progress = useQuery({
     queryKey,
     queryFn: ({ signal }) => fetchVideoPlaybackExport(videoId, signal),
-    refetchInterval: (query) => query.state.data?.state === "preparing" ? 5000 : false,
+    refetchInterval: (query) => query.state.status !== "error" && query.state.data?.state === "preparing" ? 5000 : false,
     retry: false,
   });
   const prepare = useMutation({
@@ -63,27 +64,33 @@ function PlaybackExport({ videoId }: { videoId: number }) {
     },
   });
   const state = progress.data?.state;
-  if (file) return <SaveVideoFile file={file} onExpiry={clearFile} />;
+  if (file) return <SaveVideoFile file={file} onExpiry={clearFile} className={styles.action} />;
+  if (progress.isError && !prepare.isPending) {
+    return <>
+      <span role="alert" className={styles.error}>
+        {state === "preparing"
+          ? "재생본 준비 상태를 확인하지 못했습니다. 준비 요청은 접수되었습니다."
+          : "재생본 준비 상태를 확인하지 못했습니다."}
+      </span>
+      <button type="button" className={styles.action} disabled={progress.isFetching} aria-busy={progress.isFetching}
+        onClick={() => void progress.refetch({ cancelRefetch: false })}>
+        {progress.isFetching ? "준비 상태 확인 중…" : "준비 상태 다시 확인"}
+      </button>
+    </>;
+  }
   return <>
-    {state === "preparing" ? (
-      progress.isError ? <>
-        <span role="alert" className="video-detail-download-error">재생본 준비 상태를 확인하지 못했습니다. 준비 요청은 접수되었습니다.</span>
-        <button type="button" className="video-detail-action" disabled={progress.isFetching}
-          onClick={() => void progress.refetch({ cancelRefetch: false })}>
-          {progress.isFetching ? "준비 상태 확인 중…" : "준비 상태 다시 확인"}
-        </button>
-      </> : <span role="status">재생본을 준비하고 있습니다. 나중에 다시 열어도 됩니다.</span>
-    )
-      : <button type="button" className="video-detail-action" onClick={() => prepare.mutate()} disabled={prepare.isPending}>
+    {state === "preparing" ? <span role="status">재생본을 준비하고 있습니다. 나중에 다시 열어도 됩니다.</span>
+      : <button type="button" className={styles.action} onClick={() => prepare.mutate()}
+        disabled={prepare.isPending} aria-busy={prepare.isPending}>
         {prepare.isPending ? "재생본 확인 중…" : state === "ready" ? "재생본 받기" : "재생본 MP4 준비"}
       </button>}
-    {(error || state === "failed") && <span role="alert" className="video-detail-download-error">
+    {(error || state === "failed") && <span role="alert" className={styles.error}>
       {error || "재생본 준비가 완료되지 않았습니다. 잠시 후 다시 시도해 주세요."}
     </span>}
   </>;
 }
 
-export default function VideoSourceDownload({ videoId, canExport }: { videoId: number; canExport: boolean }) {
+export default function VideoSourceDownload({ videoId, canExport, styles }: DownloadProps & { canExport: boolean }) {
   const requestRef = useRef<AbortController | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
@@ -119,11 +126,11 @@ export default function VideoSourceDownload({ videoId, canExport }: { videoId: n
 
   return <>
     {file
-      ? <SaveVideoFile file={file} onExpiry={clearFile} />
-      : <button type="button" className="video-detail-action" onClick={download} disabled={pending}>
+      ? <SaveVideoFile file={file} onExpiry={clearFile} className={styles.action} />
+      : <button type="button" className={styles.action} onClick={download} disabled={pending} aria-busy={pending}>
         {pending ? "원본 확인 중…" : "원본 다운로드"}
       </button>}
-    {error && <span role="alert" className="video-detail-download-error">{error}</span>}
-    {missing && canExport && <PlaybackExport videoId={videoId} />}
+    {error && <span role="alert" className={styles.error}>{error}</span>}
+    {missing && canExport && <PlaybackExport videoId={videoId} styles={styles} />}
   </>;
 }
