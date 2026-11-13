@@ -6,13 +6,15 @@ const base = process.env.E2E_BASE_URL || "http://127.0.0.1:5187";
 test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(base), "Local synthetic API only");
 test.use({ viewport: { width: 390, height: 844 }, serviceWorkers: "block" });
 
-async function mockSchoolReports(page: Page, role: "teacher" | "student", alimtalkAvailable = false) {
+async function mockSchoolReports(page: Page, role: "teacher" | "student" | "anonymous", alimtalkAvailable = false) {
   await installTenantOneInitScript(page);
   const payload = Buffer.from(JSON.stringify({ exp: 4_000_000_000, user_id: 12, tenant_code: "hakwonplus" })).toString("base64url");
-  await page.addInitScript((token) => {
-    localStorage.setItem("access", token);
-    localStorage.setItem("refresh", `${token}-refresh`);
-  }, `e30.${payload}.signature`);
+  if (role !== "anonymous") {
+    await page.addInitScript((token) => {
+      localStorage.setItem("access", token);
+      localStorage.setItem("refresh", `${token}-refresh`);
+    }, `e30.${payload}.signature`);
+  }
   const state = {
     reminders: [] as unknown[],
     directSaves: [] as unknown[],
@@ -158,4 +160,12 @@ test("학생이 파일 없이 0점과 소수점을 제출하며 시험 구분이
   await page.setViewportSize({ width: 1366, height: 900 });
   await expect(page.getByText("92.5", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1367);
+});
+
+test("로그아웃 상태에서 받은 성적표 링크는 로그인 후 복귀할 시험 구분을 보존한다", async ({ page }) => {
+  await mockSchoolReports(page, "anonymous");
+  const reportPath = "/student/submit/school-report?academic_year=2026&semester=1&exam_round=second";
+  await gotoAndSettle(page, `${base}${reportPath}`);
+  await expect(page).toHaveURL(/\/login(?:\/|$)/);
+  expect(await page.evaluate(() => sessionStorage.getItem("session_return_path"))).toBe(reportPath);
 });
