@@ -550,6 +550,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     const confirmedVersions: string[] = [];
     const editVersions: Array<string | undefined> = [];
     let editRevision = "edit-1";
+    let detailMode: "ok" | "failure" | "mismatch" | "retired" = "ok";
     let firstAnswer = "1";
     let reviewVersion: string | null = "review-1";
     const scan = "data:image/svg+xml," + encodeURIComponent(
@@ -600,18 +601,24 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
             firstAnswer = "3";
             return route.fulfill({ status: 409, json: { code: "OMR_EDIT_CHANGED" } });
           }
+          if (savedAnswers.length === 4) {
+            detailMode = "retired";
+            return route.fulfill({ status: 409, json: { code: "OMR_EDIT_CHANGED" } });
+          }
           expect(body.expected_edit_revision).toBe(editRevision);
           firstAnswer = body.answers![0].answer;
           savedAnswers.push(firstAnswer);
           return route.fulfill({ json: { graded: true, score: firstAnswer === "1" ? 27 : 26 } });
         }
+        if (detailMode === "failure") return route.fulfill({ status: 503, json: {} });
         return route.fulfill({ json: {
-          submission_id: submissionId, submission_status: status, enrollment_id: 9911,
+          submission_id: detailMode === "mismatch" ? submissionId + 1 : submissionId,
+          submission_status: detailMode === "retired" ? "superseded" : status, enrollment_id: 9911,
           target_type: "exam", target_id: MIXED_EXAM_ID, identifier: {},
           scan_image_url: scan, scan_image_size: { width: 900, height: 1200 },
           scan_image_is_aligned: true, meta: { manual_review: review }, duplicate_siblings: [],
           answer_review_version: reviewVersion,
-          edit_revision: editRevision,
+          edit_revision: detailMode === "retired" ? null : editRevision,
           answers: Array.from({ length: 30 }, (_, index) => ({
             question_id: 10001 + index, question_no: index + 1,
             answer: [firstAnswer, "", "3,5", "3,5"][index] ?? "1",
@@ -670,7 +677,28 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     await expect(saveEdit).toBeDisabled();
     await expect(firstAnswerRow.getByRole("button", { name: "2", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect.poll(() => dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-    await dialog.getByRole("button", { name: "최신 답안 확인" }).press("Enter");
+    const reviewLatest = dialog.getByRole("button", { name: "최신 답안 확인" });
+    const preservedChoice = firstAnswerRow.getByRole("button", { name: "2", exact: true });
+    const detailFailure = dialog.getByText("답안 상세를 새로 불러오지 못했습니다. 입력한 답안은 유지됩니다.");
+    detailMode = "failure";
+    await reviewLatest.press("Enter");
+    await expect(detailFailure).toBeVisible();
+    await expect(preservedChoice).toHaveAttribute("aria-pressed", "true");
+    await expect(saveEdit).toBeDisabled();
+
+    detailMode = "mismatch";
+    await reviewLatest.press("Enter");
+    await expect(reviewLatest).toBeEnabled();
+    await expect(detailFailure).toBeVisible();
+    await expect(preservedChoice).toHaveAttribute("aria-pressed", "true");
+    expect(editVersions).toEqual(["edit-1"]);
+
+    detailMode = "ok";
+    await dialog.getByRole("button", { name: "다시 시도" }).click();
+    await expect(detailFailure).toHaveCount(0);
+    await expect(preservedChoice).toHaveAttribute("aria-pressed", "true");
+    await expect(saveEdit).toBeDisabled();
+    await reviewLatest.press("Enter");
     const compare = page.getByRole("alertdialog", { name: "최신 답안지와 내 수정 확인" });
     await expect(compare).toContainText("1번: 3 → 1,2");
     await page.setViewportSize({ width: 1366, height: 900 });
@@ -686,6 +714,21 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       await expect(page.getByRole("button", { name: "변경 사항 없음", exact: true })).toBeDisabled();
       expect(savedAnswers.at(-1)).toBe(expected);
     }
+    expect(savedAnswers).toEqual(["1,2", "1", "", "1"]);
+    await firstAnswerRow.getByRole("button", { name: "4", exact: true }).click();
+    await saveEdit.click();
+    await reviewLatest.click();
+    await expect(dialog.getByText("보관된 답안지", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("저장하지 않은 수정", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("1번: 1,4", { exact: true })).toBeVisible();
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      if (width === 390) await dialog.getByRole("tab", { name: "확인", exact: true }).click();
+      await expect(dialog.getByText("1번: 1,4", { exact: true })).toBeVisible();
+      await expect(dialog.getByRole("button", { name: /저장 \+ 재채점|답안지 폐기|이 답안 채택|이 방향으로 다시 읽기/ })).toHaveCount(0);
+      await expect.poll(() => dialog.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    }
+    expect(editVersions).toHaveLength(6);
     expect(savedAnswers).toEqual(["1,2", "1", "", "1"]);
     expect(unexpectedMutations).toEqual([]);
   });

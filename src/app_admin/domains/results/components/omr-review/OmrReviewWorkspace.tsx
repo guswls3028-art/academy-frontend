@@ -143,6 +143,14 @@ type Props = {
   onOpenUpload?: () => void;
 };
 
+async function fetchExamOmrDetail(submissionId: number, examId: number) {
+  const detail = await fetchOmrReviewDetail(submissionId);
+  if (detail.submission_id !== submissionId || detail.target_type !== "exam" || detail.target_id !== examId) {
+    throw new Error("OMR detail does not match the selected exam submission");
+  }
+  return detail;
+}
+
 export default function OmrReviewWorkspace({
   examId,
   examTitle,
@@ -160,6 +168,7 @@ export default function OmrReviewWorkspace({
   const [zoom, setZoom] = useState(1);
   const [fitMode, setFitMode] = useState(true); // true = 컨테이너 맞춤, false = 100%*zoom
   const [editDirty, setEditDirty] = useState(false);
+  const [retiredId, setRetiredId] = useState<number | null>(null);
   const [focusedQid, setFocusedQid] = useState<number | null>(null);
   const [mobilePane, setMobilePane] = useState<MobilePane>("list");
 
@@ -225,10 +234,10 @@ export default function OmrReviewWorkspace({
     refetch: refetchDetail,
   } = useQuery({
     queryKey: adminResultsQueryKeys.omrReviewDetail(selectedId),
-    queryFn: () => fetchOmrReviewDetail(selectedId!),
+    queryFn: () => fetchExamOmrDetail(selectedId!, examId),
     enabled: open && selectedId != null,
   });
-  const detailMatchesSelection = !exactInitialSelection || loadedDetail == null || (
+  const detailMatchesSelection = loadedDetail == null || (
     loadedDetail.submission_id === selectedId
     && loadedDetail.target_type === "exam"
     && loadedDetail.target_id === examId
@@ -237,9 +246,10 @@ export default function OmrReviewWorkspace({
   const detailError = detailQueryError || !detailMatchesSelection;
   const selectedRow = rows.find((row) => row.id === selectedId);
   const selectedArchived = Boolean(
-    (selectedRow && isArchivedOmrReviewRow(selectedRow))
+    (selectedId != null && selectedId === retiredId)
+    || (selectedRow && isArchivedOmrReviewRow(selectedRow))
     || (detail && detail.submission_id === selectedId
-      && String(detail.submission_status || "").toLowerCase() === "superseded"),
+      && (detail.edit_revision === null || String(detail.submission_status || "").toLowerCase() === "superseded")),
   );
 
   // 카테고리별 카운트
@@ -266,7 +276,7 @@ export default function OmrReviewWorkspace({
     if (open && exactInitialSelection && initialSubmissionId != null) setSelectedId(initialSubmissionId);
   }, [exactInitialSelection, initialSubmissionId, open]);
   useEffect(() => {
-    if (!open) return;
+    if (!open || editDirty) return;
     // A caller opening one exact answer must never fall back to another student,
     // even when a completed answer is outside the latest 200 or the issues list.
     if (exactInitialSelection && initialSubmissionId != null) return;
@@ -283,7 +293,7 @@ export default function OmrReviewWorkspace({
       }
       return visibleRows[0].id;
     });
-  }, [exactInitialSelection, focusedIssue.isPending, initialSubmissionId, open, visibleRows]);
+  }, [editDirty, exactInitialSelection, focusedIssue.isPending, initialSubmissionId, open, visibleRows]);
 
   // open이 false로 닫히면 selection 초기화
   useEffect(() => {
@@ -292,6 +302,7 @@ export default function OmrReviewWorkspace({
       setSearch("");
       setFilter("all");
       setEditDirty(false);
+      setRetiredId(null);
       setFocusedQid(null);
       setMobilePane("list");
     }
@@ -500,7 +511,7 @@ export default function OmrReviewWorkspace({
           </div>
 
           {/* ── CENTER: 스캔 이미지 ── */}
-          {detailError ? (
+          {detailError && !detail ? (
             <div className="orw-loading">
               답안 상세를 불러오지 못했습니다.
               <Button intent="secondary" size="sm" onClick={() => void refetchDetail()}>다시 시도</Button>
@@ -534,21 +545,15 @@ export default function OmrReviewWorkspace({
           )}
 
           {/* ── RIGHT: 답안 편집 ── */}
-          {detailError ? (
-            <div className="orw-loading">상세 정보를 복구한 뒤 수정할 수 있습니다.</div>
-          ) : selectedArchived ? (
-          <div className="orw-edit-pane">
-            <div className="orw-edit-pane__header">
-              <div className="orw-edit-pane__title">보관된 답안지</div>
-              <div className="orw-edit-pane__summary">이전 판독 기록입니다. 원본을 확인할 수 있으며 식별·수정·채택·폐기·재판독은 할 수 없습니다.</div>
-            </div>
-          </div>
-          ) : (
           <EditPane
             key={selectedId ?? "empty"}
             examId={examId}
             detail={detail}
             reviewRow={selectedRow}
+            archived={selectedArchived}
+            detailError={detailError}
+            onRetryDetail={() => void refetchDetail()}
+            onRetired={setRetiredId}
             detailLoading={detailLoading}
             studentName={visibleRows.find((r) => r.id === selectedId)?.student_name ?? null}
             focusedQid={focusedQid}
@@ -615,7 +620,6 @@ export default function OmrReviewWorkspace({
             }}
             onNavigate={navigate}
           />
-          )}
         </div>
       </div>
     </>,
@@ -956,6 +960,10 @@ function EditPane({
   examId,
   detail,
   reviewRow,
+  archived,
+  detailError,
+  onRetryDetail,
+  onRetired,
   detailLoading,
   studentName,
   focusedQid,
@@ -968,6 +976,10 @@ function EditPane({
   examId: number;
   detail: OmrReviewDetail | undefined;
   reviewRow: OmrReviewRow | undefined;
+  archived: boolean;
+  detailError: boolean;
+  onRetryDetail: () => void;
+  onRetired: (submissionId: number) => void;
   detailLoading: boolean;
   studentName: string | null;
   focusedQid: number | null;
@@ -992,23 +1004,13 @@ function EditPane({
   const [pickedStudent, setPickedStudent] = useState<CandidateRow | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const draftRevision = useRef<string | null | undefined>(undefined);
-  const [editConflict, setEditConflict] = useState<"changed" | "retired" | null>(null);
+  const [editConflict, setEditConflict] = useState(false);
   const [reviewingLatest, setReviewingLatest] = useState(false);
   const captureDraftRevision = () => {
     draftRevision.current ??= detail?.edit_revision;
   };
 
   const setFocusedQid = onFocusedQidChange;
-
-  // detail 바뀔 때 폼 리셋. dep을 submission_id (primitive)만으로 → 매 렌더 트리거 제거.
-  useEffect(() => {
-    setAnswerEdits({});
-    setPickedStudent(null);
-    setPickerOpen(false);
-    draftRevision.current = undefined;
-    setEditConflict(null);
-    setReviewingLatest(false);
-  }, [detail?.submission_id]);
 
   const identifierNeeded = useMemo(() => {
     if (!detail) return false;
@@ -1057,9 +1059,7 @@ function EditPane({
     detail?.enrollment_id != null,
   );
 
-  const changedAnswers = Object.entries(answerEdits)
-    .filter(([qid, answer]) => answer !== initialAnswers[Number(qid)]);
-  const dirty = Boolean(detail && (changedAnswers.length > 0 || pickedStudent));
+  const dirty = Object.keys(answerEdits).length > 0 || pickedStudent != null;
   const answerReviewVersion = !dirty && !identifierNeeded ? detail?.answer_review_version : null;
   const needsMarkReview = detail?.meta?.manual_review?.required === true;
 
@@ -1095,7 +1095,7 @@ function EditPane({
       }
       if (!detail) throw new Error("no detail");
       if (answerReviewVersion) return confirmOmrAnswerReviewApi(detail.submission_id, answerReviewVersion);
-      const payloadAnswers = changedAnswers.map(([qid, answer]) => ({
+      const payloadAnswers = Object.entries(answerEdits).map(([qid, answer]) => ({
         exam_question_id: Number(qid),
         answer,
       }));
@@ -1153,7 +1153,8 @@ function EditPane({
       const code = err?.response?.data?.code;
       const conflict = err?.response?.data;
       if (status === 409 && (code === "OMR_EDIT_CHANGED" || code === "OMR_EDIT_RETIRED")) {
-        setEditConflict(code === "OMR_EDIT_CHANGED" ? "changed" : "retired");
+        if (code === "OMR_EDIT_RETIRED" && detail) onRetired(detail.submission_id);
+        else setEditConflict(true);
         return;
       }
       if (
@@ -1236,7 +1237,7 @@ function EditPane({
   });
 
   // mutate / navigate를 ref로 안정화 → 키보드 effect dep 최소화
-  const canSave = !editConflict && Boolean(dirty || canConfirmCurrentStudent || answerReviewVersion) &&
+  const canSave = !archived && !detailError && !editConflict && Boolean(dirty || canConfirmCurrentStudent || answerReviewVersion) &&
     !mut.isPending && !discardMut.isPending && !acceptMut.isPending;
   const submitRef = useRef<() => void>(() => {});
   submitRef.current = () => {
@@ -1270,6 +1271,7 @@ function EditPane({
   // 키보드: J/K, ⌘S, 1~5, n/p (다음/이전 flagged), Enter (다음 문항)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (archived || reviewingLatest) return;
       const target = e.target as HTMLElement | null;
       const isEditable =
         target &&
@@ -1323,8 +1325,31 @@ function EditPane({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // detail/focusedQid는 ref 없이 closure에서 사용 — 변경 시 리바인딩
-  }, [detail, answers, focusedQid, mut.isPending]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [archived, detail, answers, focusedQid, mut.isPending, reviewingLatest]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  if (archived) {
+    return (
+      <div className="orw-edit-pane">
+        <div className="orw-edit-pane__header">
+          <div className="orw-edit-pane__title">보관된 답안지</div>
+          <div className="orw-edit-pane__summary">
+            이 답안지는 대체되었거나 폐기되었습니다. 답안지 목록에서 현재 답안지를 열어 주세요.
+          </div>
+        </div>
+        {dirty && <div className="orw-edit-pane__body">
+          <p>저장하지 않은 수정</p>
+          {pickedStudent && <p>내 학생 지정: {pickedStudent.student_name}</p>}
+          <ul>
+            {Object.entries(answerEdits).map(([qid, answer]) => (
+              <li key={qid}>
+                {questionLabel(detail?.answers.find((item) => item.question_id === Number(qid))?.question_no)}: {answer || "빈 답안"}
+              </li>
+            ))}
+          </ul>
+        </div>}
+      </div>
+    );
+  }
   if (detailLoading) {
     return (
       <div className="orw-edit-pane">
@@ -1335,7 +1360,11 @@ function EditPane({
   if (!detail) {
     return (
       <div className="orw-edit-pane">
-        <div className="orw-loading">학생을 선택하면 답안 수정 폼이 여기에 표시됩니다.</div>
+        <div className="orw-loading">{detailError
+          ? "상세 정보를 복구한 뒤 수정할 수 있습니다."
+          : "학생을 선택하면 답안 수정 폼이 여기에 표시됩니다."}
+          {detailError && <Button intent="secondary" size="sm" onClick={onRetryDetail}>다시 시도</Button>}
+        </div>
       </div>
     );
   }
@@ -1357,11 +1386,15 @@ function EditPane({
       </div>
 
       <div className="orw-edit-pane__body">
+        {detailError && <div role="alert" className="orw-edit-conflict">
+          <p>답안 상세를 새로 불러오지 못했습니다. 입력한 답안은 유지됩니다.</p>
+          <Button intent="secondary" size="sm" onClick={onRetryDetail}>다시 시도</Button>
+        </div>}
         {reviewRequired && <OmrReviewReasons reasons={reasons}
           hint={answerReviewVersion
             ? "빈칸과 복수 선택이 원본과 같으면 ‘이상 없음’으로 확정하세요. 점수는 시험의 정답표에 따라 계산됩니다."
             : undefined}
-          onIdentify={identifierNeeded ? () => setPickerOpen(true) : undefined}
+          onIdentify={identifierNeeded && !reviewingLatest ? () => setPickerOpen(true) : undefined}
           onEdit={firstReviewAnswer ? () => setFocusedQid(firstReviewAnswer.question_id) : undefined} />}
         {canConfirmCurrentStudent && (
           <div className="orw-match-confirm" role="status">
@@ -1409,7 +1442,7 @@ function EditPane({
             </div>
           </div>
         )}
-        {identifierNeeded && (
+        {(identifierNeeded || pickedStudent) && (
           <div className="orw-identifier">
             <div className="orw-identifier__title">학생 식별 필요</div>
             <div className="orw-identifier__desc">
@@ -1436,6 +1469,7 @@ function EditPane({
                     type="button"
                     className="orw-identifier__change-btn"
                     onClick={() => setPickerOpen(true)}
+                    disabled={reviewingLatest}
                   >
                     변경
                   </button>
@@ -1443,6 +1477,7 @@ function EditPane({
                     type="button"
                     className="orw-identifier__clear-btn"
                     onClick={() => setPickedStudent(null)}
+                    disabled={reviewingLatest}
                     aria-label="선택 해제"
                   >
                     해제
@@ -1454,6 +1489,7 @@ function EditPane({
                 type="button"
                 className="orw-identifier__pick-btn"
                 onClick={() => setPickerOpen(true)}
+                disabled={reviewingLatest}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="11" cy="11" r="7" />
@@ -1468,7 +1504,7 @@ function EditPane({
         {identifierNeeded && (
           <StudentPickerModal
             examId={examId}
-            open={pickerOpen}
+            open={pickerOpen && !reviewingLatest}
             onClose={() => setPickerOpen(false)}
             onPick={(c) => {
               captureDraftRevision();
@@ -1490,7 +1526,7 @@ function EditPane({
                 current={answers[a.question_id] ?? ""}
                 flagged={needsMarkReview && isFlagged(a)}
                 focused={focusedQid === a.question_id}
-                disabled={mut.isPending}
+                disabled={mut.isPending || reviewingLatest}
                 onFocusRow={() => setFocusedQid(a.question_id)}
                 onChange={(v) => changeAnswer(a.question_id, v)}
               />
@@ -1515,17 +1551,15 @@ function EditPane({
                 if (ok) acceptMut.mutate();
               });
             }}
-            disabled={acceptMut.isPending || mut.isPending || discardMut.isPending}
+            disabled={detailError || reviewingLatest || acceptMut.isPending || mut.isPending || discardMut.isPending}
             title="이 답안만 학생의 답안으로 채택 + 다른 답안 자동 정리"
           >
             {acceptMut.isPending ? "처리 중…" : "이 답안 채택"}
           </button>
         )}
         {editConflict && <div role="alert" className="orw-edit-conflict">
-          <p>{editConflict === "retired"
-            ? "이 답안지는 대체되었거나 폐기되었습니다. 답안지 목록에서 현재 답안지를 열어 주세요."
-            : "다른 변경 사항이 저장되었습니다. 입력한 답안은 유지됩니다."}</p>
-          {editConflict === "changed" && <button type="button" className="orw-accept-btn"
+          <p>다른 변경 사항이 저장되었습니다. 입력한 답안은 유지됩니다.</p>
+          <button type="button" className="orw-accept-btn"
             disabled={reviewingLatest}
             onClick={async () => {
               if (!detail) return;
@@ -1535,11 +1569,14 @@ function EditPane({
                 await qc.cancelQueries({ queryKey, exact: true });
                 const latest = await qc.fetchQuery({
                   queryKey,
-                  queryFn: () => fetchOmrReviewDetail(detail.submission_id),
+                  queryFn: () => fetchExamOmrDetail(detail.submission_id, examId),
                   staleTime: 0,
                 });
                 if (!latest.edit_revision || latest.submission_status === "superseded") {
-                  setEditConflict("retired");
+                  if (latest.edit_revision !== null && latest.submission_status !== "superseded") {
+                    throw new Error("Missing OMR edit revision");
+                  }
+                  onRetired(detail.submission_id);
                   return;
                 }
                 const comparedAnswers = latest.answers
@@ -1558,7 +1595,7 @@ function EditPane({
                 });
                 if (approved) {
                   draftRevision.current = latest.edit_revision;
-                  setEditConflict(null);
+                  setEditConflict(false);
                 }
               } catch {
                 feedback.error("최신 답안지를 불러오지 못했습니다. 다시 시도해 주세요.");
@@ -1566,7 +1603,7 @@ function EditPane({
                 setReviewingLatest(false);
               }
             }}
-          >최신 답안 확인</button>}
+          >최신 답안 확인</button>
         </div>}
         <button
           className="orw-save-btn"
@@ -1603,7 +1640,7 @@ function EditPane({
               if (ok) discardMut.mutate();
             });
           }}
-          disabled={discardMut.isPending || mut.isPending || acceptMut.isPending}
+          disabled={detailError || reviewingLatest || discardMut.isPending || mut.isPending || acceptMut.isPending}
           title="스캔 불량·중복 등으로 채점 제외"
         >
           {discardMut.isPending ? "처리 중…" : "답안지 폐기"}
