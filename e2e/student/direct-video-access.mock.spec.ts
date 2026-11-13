@@ -275,17 +275,6 @@ test("개별 영상 학생 재생은 canonical bootstrap·exact-only·로컬 이
     || path.includes("activity")
   ))).toEqual([]);
 
-  await video.evaluate((element) => {
-    Object.defineProperty(element, "currentTime", { configurable: true, get: () => 0 });
-    Object.defineProperty(element, "duration", { configurable: true, get: () => 600 });
-    const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
-    Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
-    document.dispatchEvent(new Event("visibilitychange"));
-    if (hidden) Object.defineProperty(document, "hidden", hidden);
-    else Reflect.deleteProperty(document, "hidden");
-  });
-  await expect.poll(storedPosition).toBe(0);
-
   revoke();
   await page.clock.runFor(30_000);
   await expect(page.getByRole("heading", { name: "재생을 시작할 수 없어요" })).toBeVisible();
@@ -296,6 +285,35 @@ test("개별 영상 학생 재생은 canonical bootstrap·exact-only·로컬 이
   await expect.poll(
     () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
   ).toBeLessThanOrEqual(1);
+});
+
+test("개별 영상에서 처음으로 돌아가면 이전 기기 위치를 복원하지 않는다", async ({ page }) => {
+  const { evidence } = await installApp(page);
+  const url = `${BASE}/student/video/play?video=902&session=802`;
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  const video = page.locator("video");
+  await expect.poll(() => evidence.manifestRequests, { timeout: 30_000 }).toBe(1);
+  const savePosition = (position: number) => video.evaluate((element, position) => {
+    Object.defineProperty(element, "currentTime", { configurable: true, get: () => position });
+    Object.defineProperty(element, "duration", { configurable: true, get: () => 600 });
+    const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+    document.dispatchEvent(new Event("visibilitychange"));
+    if (hidden) Object.defineProperty(document, "hidden", hidden);
+    else Reflect.deleteProperty(document, "hidden");
+  }, position);
+  const storedPosition = () => page.evaluate(() => {
+    const key = Object.keys(localStorage).find((item) => item.includes("student-video-position:902:enrollment:self"));
+    return key ? JSON.parse(localStorage.getItem(key) || "null")?.pos : null;
+  });
+  await savePosition(125);
+  await expect.poll(storedPosition).toBe(125);
+  await savePosition(0);
+  await expect.poll(storedPosition).toBe(0);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(video).toBeVisible();
+  await expect.poll(storedPosition).toBe(0);
+  expect(evidence.requestedPaths.filter((path) => path.includes("/progress"))).toEqual([]);
 });
 
 test("기존 수강 재생은 canonical bootstrap 뒤 화면 활동을 한 번만 기록하고 만료 전에 갱신한다", async ({ page }) => {
