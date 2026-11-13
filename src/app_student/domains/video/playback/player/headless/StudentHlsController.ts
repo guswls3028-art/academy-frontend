@@ -13,7 +13,7 @@ import { PlaybackSessionEnd } from "./playbackSessionEnd";
 import { PlaybackStallWatch } from "./playbackStallWatch";
 import { NativePlaybackRecovery } from "./nativePlaybackRecovery";
 import { hlsErrorDetails } from "./hlsErrorDetails";
-import { capturePlaybackSource, describeQualityLevels, restorePlaybackSource, type PlaybackSourceSnapshot } from "./playbackMediaSettings";
+import { capturePlaybackSource, describeQualityLevels, progressFromPlayhead, restorePlaybackSource, type PlaybackSourceSnapshot } from "./playbackMediaSettings";
 import { normalizeControllerPolicy as normalizePolicy } from "./controllerTypes";
 import type { ControllerOptions, ControllerState, EventType, Policy } from "./controllerTypes";
 export type { ControllerOptions, ControllerState, EventType, Policy, QualityLevel } from "./controllerTypes";
@@ -575,21 +575,13 @@ export class StudentHlsController {
     this.videoListeners = [];
   }
 
-  /**
-   * force: true → dispose 시에도 실행 (disposed 가드 무시)
-   */
   private flushProgress(force = false) {
     if ((!force && this.disposed) || !this.hasProgressActivity || !this.el || !this.opts.onLeaveProgress) return;
     const pending = this.pendingSourceResume;
     const currentTime = pending?.position ?? (this.el.error ? this.lastTimeRef : Number(this.el.currentTime || 0));
-    const maxWatched = Math.max(0, this.maxWatchedRef);
-    const dur = pending || this.el.error ? this.state.duration : Number(this.el.duration);
-    // Do not overwrite server progress with a synthetic 0% before metadata is ready.
-    if (!(dur > 0 && Number.isFinite(dur))) return;
-    const baselineProgress = Math.min(100, Math.max(0, Number(this.opts.initialProgress) || 0));
-    const progressPercent = Math.max(baselineProgress, Math.min(100, (maxWatched / dur) * 100));
-    const completed = baselineProgress >= 100 || maxWatched >= dur - 0.5;
-    this.opts.onLeaveProgress({ progress: progressPercent, last_position: Math.round(currentTime), completed });
+    const duration = pending || this.el.error ? this.state.duration : Number(this.el.duration);
+    const progress = progressFromPlayhead(currentTime, duration, this.maxWatchedRef, this.opts.initialProgress);
+    if (progress) this.opts.onLeaveProgress(progress);
   }
 
   private lastSavedPosition = -1;

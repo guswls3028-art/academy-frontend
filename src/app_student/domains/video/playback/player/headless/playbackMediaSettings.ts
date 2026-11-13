@@ -35,3 +35,13 @@ export function describeQualityLevels(levels: Level[]): QualityLevel[] {
   options.sort((a, b) => b.height - a.height || b.bitrate - a.bitrate);
   return [{ index: -1, label: "Auto", height: 0, bitrate: 0 }, ...options];
 }
+
+export function progressFromPlayhead(position: number, duration: number, maxWatched: number, initialProgress: number | undefined) {
+  if (!(duration > 0 && Number.isFinite(duration))) return undefined;
+  const baseline = Math.min(100, Math.max(0, Number(initialProgress) || 0));
+  return {
+    progress: Math.max(baseline, Math.min(100, (Math.max(0, maxWatched) / duration) * 100)),
+    last_position: Math.round(position),
+    completed: baseline >= 100 || maxWatched >= duration - 0.5,
+  };
+}

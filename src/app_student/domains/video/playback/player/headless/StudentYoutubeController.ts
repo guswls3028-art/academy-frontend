@@ -1,3 +1,4 @@
+import { progressFromPlayhead } from "./playbackMediaSettings";
 import { postEvents, postHeartbeat, postRefresh } from "./playbackTransport";
 import { extractYouTubeVideoId } from "@/shared/media/video/youtube";
 import { clamp, getEpochSec } from "../design/utils";
@@ -623,19 +624,8 @@ export class StudentYoutubeController {
     const currentTime = this.safeCurrent();
     this.observeProgressActivity(currentTime);
     if (!this.hasProgressActivity) return;
-    const duration = this.safeDuration();
-    const maxWatched = Math.max(0, this.maxWatchedRef);
-    // Leaving before the SDK reports duration must not replace persisted
-    // progress with a fabricated 0% update.
-    if (!(duration > 0 && Number.isFinite(duration))) return;
-    const baselineProgress = Math.min(100, Math.max(0, Number(this.opts.initialProgress) || 0));
-    const progressPercent = Math.max(baselineProgress, Math.min(100, (maxWatched / duration) * 100));
-    const completed = baselineProgress >= 100 || maxWatched >= duration - 0.5;
-    this.opts.onLeaveProgress({
-      progress: progressPercent,
-      last_position: Math.round(currentTime),
-      completed,
-    });
+    const progress = progressFromPlayhead(currentTime, this.safeDuration(), this.maxWatchedRef, this.opts.initialProgress);
+    if (progress) this.opts.onLeaveProgress(progress);
   }
 
   private flushProgressIfChanged() {
