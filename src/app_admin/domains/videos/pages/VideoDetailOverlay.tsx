@@ -29,7 +29,7 @@ import { watchLogsPath } from "@/shared/media/video/watchLogs";
 
 import PermissionModal from "@admin/domains/videos/components/features/video-detail/modals/PermissionModal";
 import VideoPreviewSection from "@admin/domains/videos/components/features/video-detail/components/VideoPreviewSection";
-import VideoSourceDownload from "@admin/domains/videos/components/features/video-detail/components/VideoSourceDownload";
+import VideoSourceDownload from "@/shared/media/video/VideoSourceDownload";
 import VideoPolicySection from "@admin/domains/videos/components/features/video-detail/components/VideoPolicySection";
 import VideoStudentsSection from "@admin/domains/videos/components/features/video-detail/components/VideoStudentsSection";
 import VideoEngagementBar from "@admin/domains/videos/components/features/video-detail/components/VideoEngagementBar";
@@ -259,7 +259,8 @@ export default function VideoDetailOverlay({
                           </>
                         )}
                         <span className="video-detail-meta-spacer" />
-                        {video.source_type !== "youtube" && <VideoSourceDownload key={videoId} videoId={videoId} canExport={video.status === "READY"} />}
+                        {video.source_type !== "youtube" && <VideoSourceDownload key={videoId} videoId={videoId}
+                          canExport={video.status === "READY"} styles={{ action: "video-detail-action", error: "video-detail-download-error" }} />}
                         {video.status === "READY" && video.source_type !== "youtube" && <button
                           type="button" className="video-detail-action" onClick={() => setPlacementsOpen(true)}
                         >사용 차시 관리</button>}
