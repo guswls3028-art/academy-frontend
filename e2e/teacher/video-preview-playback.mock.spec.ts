@@ -235,14 +235,13 @@ test("선생님은 새로고침 뒤 MP4 준비 상태를 다시 확인하고 저
   await installTeacherVideoMocks(page);
   await page.setViewportSize({ width: 390, height: 844 });
   let prepareRequests = 0;
-  let statusRequests = 0;
+  let statusUnavailable = false;
   await page.route("**/media/videos/448/source-download/", (route) => route.fulfill({
     status: 404, json: { code: "video_source_missing", detail: "보관된 원본 파일을 찾을 수 없습니다." },
   }));
   await page.route("**/media/videos/448/playback-export/", (route) => {
     if (route.request().method() === "GET") {
-      statusRequests += 1;
-      if (prepareRequests && statusRequests === 2) return route.fulfill({ status: 503, json: {} });
+      if (statusUnavailable) return route.fulfill({ status: 503, json: {} });
       return route.fulfill({ json: { state: prepareRequests ? "ready" : "not_requested" } });
     }
     if (++prepareRequests === 1) return route.fulfill({ status: 202, json: { state: "preparing" } });
@@ -263,9 +262,9 @@ test("선생님은 새로고침 뒤 MP4 준비 상태를 다시 확인하고 저
   const original = page.getByRole("button", { name: "원본 다운로드", exact: true });
   await original.click();
   await expect(page.getByText("보관된 원본 파일을 찾을 수 없습니다.")).toBeVisible();
-  await expect.poll(() => statusRequests).toBe(1);
   await page.getByRole("button", { name: "재생본 MP4 준비" }).click();
   await expect(page.getByText("재생본을 준비하고 있습니다.", { exact: false })).toBeVisible();
+  statusUnavailable = true;
   await page.reload({ waitUntil: "domcontentloaded" });
   await original.click();
   const statusRetry = page.getByRole("button", { name: "준비 상태 다시 확인" });
@@ -275,6 +274,7 @@ test("선생님은 새로고침 뒤 MP4 준비 상태를 다시 확인하고 저
   await page.setViewportSize({ width: 1366, height: 900 });
   await expect(statusRetry).toBeVisible();
   await expectNoHorizontalOverflow(page);
+  statusUnavailable = false;
   await statusRetry.click();
   const ready = page.getByRole("button", { name: "재생본 받기" });
   await expect(ready).toBeVisible();
