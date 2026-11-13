@@ -1976,7 +1976,7 @@ test.describe("답안 초기 로드와 입력 보존", () => {
       await selectLecture();
       await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
       await expect(statistics).toContainText("1.0점");
-      await expect(statistics).toContainText("100%");
+      await expect(statistics).toContainText("100.0%");
       expect(lectureReads).toEqual([false, true]);
     });
   }
