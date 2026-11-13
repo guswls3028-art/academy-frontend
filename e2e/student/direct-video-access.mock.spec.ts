@@ -130,7 +130,7 @@ async function installApp(
         return;
       }
       if (revoked) return json({ detail: "현재 이 영상을 시청할 권한이 없습니다." }, 403);
-      const expiresAt = evidence.playbackRequests === 1 ? baseEpoch + 70 : baseEpoch + 670;
+      const expiresAt = evidence.playbackRequests === 1 && !loadMedia ? baseEpoch + 70 : baseEpoch + 670;
       return json({
         video: {
           id: 902,
@@ -301,14 +301,18 @@ test("개별 영상에서 처음으로 돌아가면 이전 기기 위치를 복�
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
   const video = page.locator("video");
   await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.readyState)).toBeGreaterThan(0);
-  const savePosition = (position: number) => video.evaluate((element, position) => {
-    (element as HTMLVideoElement).currentTime = position;
-    const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
-    Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
-    document.dispatchEvent(new Event("visibilitychange"));
-    if (hidden) Object.defineProperty(document, "hidden", hidden);
-    else Reflect.deleteProperty(document, "hidden");
-  }, position);
+  const currentTime = () => video.evaluate((element: HTMLVideoElement) => element.currentTime);
+  const savePosition = async (position: number) => {
+    await video.evaluate((element: HTMLVideoElement, position) => { element.currentTime = position; }, position);
+    await expect.poll(currentTime).toBe(position);
+    await video.evaluate(() => {
+      const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+      document.dispatchEvent(new Event("visibilitychange"));
+      if (hidden) Object.defineProperty(document, "hidden", hidden);
+      else Reflect.deleteProperty(document, "hidden");
+    });
+  };
   const storedPosition = () => page.evaluate(() => {
     const key = Object.keys(localStorage).find((item) => item.includes("student-video-position:902:enrollment:self"));
     return key ? JSON.parse(localStorage.getItem(key) || "null")?.pos : null;
