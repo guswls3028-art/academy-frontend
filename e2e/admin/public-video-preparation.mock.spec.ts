@@ -392,3 +392,34 @@ test("admin retries multipart assembly with the same parts after an upstream err
   expect([state.uploads, state.fileTransfers, state.multipartAborts]).toEqual([1, 0, 0]);
   await expect(dialog).toBeHidden();
 });
+
+test("upload completion stays with the original login when another tab signs in", async ({ page }) => {
+  const state = await installApp(page, "teacher");
+  state.prepared = true;
+  state.failNextPrepare = false;
+  state.failNextCompletionResponse = true;
+  await page.setViewportSize({ width: 390, height: 900 });
+  await gotoAndSettle(page, `${BASE}/workspace/mobile/videos`, { timeout: 45_000 });
+  await page.clock.install();
+  const interrupted = page.waitForResponse((response) => response.status() === 502
+    && new URL(response.url()).pathname.endsWith("/9202/upload/complete/"));
+  await page.getByRole("button", { name: "영상 업로드", exact: true }).first().click();
+  const dialog = page.getByRole("dialog", { name: "영상 업로드 설정" });
+  const chooser = page.waitForEvent("filechooser");
+  await dialog.getByRole("button", { name: "파일 선택" }).click();
+  await (await chooser).setFiles({ name: "first-video.mp4", mimeType: "video/mp4", buffer: Buffer.from("fixture-only") });
+
+  await interrupted;
+  await page.evaluate(() => {
+    const pointer = "academy:auth-active-generation:v1";
+    const prefix = "academy:auth-tokens:v1:";
+    const generation = "fixture-second-login";
+    const session = JSON.parse(localStorage.getItem(prefix + localStorage.getItem(pointer))!);
+    localStorage.setItem(prefix + generation, JSON.stringify({ ...session, generation }));
+    localStorage.setItem(pointer, generation);
+  });
+  await page.clock.runFor(2_000);
+  await expect(page.getByRole("button", { name: "영상 업로드", exact: true }).first()).toBeEnabled();
+  expect([state.uploads, state.fileTransfers, state.completes]).toEqual([1, 1, 1]);
+  expect(state.unexpected).toEqual([]);
+});

@@ -296,7 +296,7 @@ export default function VideoTreeView() {
   };
 
   const publicSessionMutation = useMutation({
-    mutationFn: preparePublicSession,
+    mutationFn: () => preparePublicSession(),
     onSuccess: (session) => {
       queryClient.setQueryData(adminVideoQueryKeys.publicSession, session);
     },
