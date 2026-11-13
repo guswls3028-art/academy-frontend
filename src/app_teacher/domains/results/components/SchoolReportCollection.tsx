@@ -33,6 +33,7 @@ export default function SchoolReportCollection() {
   const settledSearch = useDebouncedValue(search.trim());
   const [status, setStatus] = useState<Filter>("all");
   const [lectureId, setLectureId] = useState<number>();
+  const [openStudent, setOpenStudent] = useState<{ id: number; name: string } | null>(null);
   const lectures = useQuery({
     queryKey: teacherResultsQueryKeys.activeLectures,
     queryFn: () => fetchLectures(true),
@@ -68,15 +69,27 @@ export default function SchoolReportCollection() {
         period={period}
         filters={filters}
         searchPending={search.trim() !== settledSearch}
+        onOpenStudent={setOpenStudent}
       />
+      <BottomSheet open={openStudent != null} onClose={() => setOpenStudent(null)} title={openStudent?.name ?? "학생 성적표"}>
+        {openStudent && (
+          <div className={styles.sheet}>
+            <SchoolReportStudentPanel studentId={openStudent.id} period={period} />
+            <Link to={`/workspace/mobile/students/${openStudent.id}?${new URLSearchParams({ tab: "school-report", ...schoolReportParams(period) })}`}>
+              학생 상세에서 보기
+            </Link>
+          </div>
+        )}
+      </BottomSheet>
     </div>
   );
 }
 
-function SchoolReportRoster({ period, filters, searchPending }: {
+function SchoolReportRoster({ period, filters, searchPending, onOpenStudent }: {
   period: SchoolReportPeriod;
   filters: Omit<SchoolReportRosterFilters, "page">;
   searchPending: boolean;
+  onOpenStudent: (student: { id: number; name: string }) => void;
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -84,7 +97,6 @@ function SchoolReportRoster({ period, filters, searchPending }: {
   const [selected, setSelected] = useState<number[]>([]);
   const [confirming, setConfirming] = useState(false);
   const [alimtalkSelection, setAlimtalkSelection] = useState<number[]>([]);
-  const [openStudent, setOpenStudent] = useState<{ id: number; name: string } | null>(null);
   const allCheckbox = useRef<HTMLInputElement>(null);
   const params = { ...filters, page };
   const roster = useQuery({
@@ -188,7 +200,7 @@ function SchoolReportRoster({ period, filters, searchPending }: {
                 ) : <span aria-hidden="true" />}
                 <div className={styles.identity}>
                   <button type="button" className={styles.studentName}
-                    onClick={() => setOpenStudent({ id: student.student_id, name: student.name })}
+                    onClick={() => onOpenStudent({ id: student.student_id, name: student.name })}
                   >{student.name}<span className={styles.srOnly}> 성적표 보기</span></button>
                   <small>{[student.school, student.grade ? `${student.grade}학년` : null].filter(Boolean).join(" · ")}</small>
                 </div>
@@ -216,16 +228,6 @@ function SchoolReportRoster({ period, filters, searchPending }: {
           }}>다음</Button>
         </nav>
       )}
-      <BottomSheet open={openStudent != null} onClose={() => setOpenStudent(null)} title={openStudent?.name ?? "학생 성적표"}>
-        {openStudent && (
-          <div className={styles.sheet}>
-            <SchoolReportStudentPanel studentId={openStudent.id} period={period} />
-            <Link to={`/workspace/mobile/students/${openStudent.id}?${new URLSearchParams({ tab: "school-report", ...schoolReportParams(period) })}`}>
-              학생 상세에서 보기
-            </Link>
-          </div>
-        )}
-      </BottomSheet>
       {alimtalkSelection.length > 0 && (
         <Suspense fallback={<p role="status">알림톡 미리보기를 여는 중…</p>}>
           <NotificationPreviewModal

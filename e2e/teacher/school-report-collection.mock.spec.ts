@@ -59,6 +59,12 @@ async function mockSchoolReports(page: Page, role: "teacher" | "student" | "anon
         { student_id: 13, name: "제출 학생", school: "검증고", grade: 1, status: "submitted", can_request: false, can_request_alimtalk: false, requested_at: null, score_count: 1 },
       ] });
     }
+    if (path === "/results/school-reports/13/") {
+      return reply({
+        student_name: "제출 학생", status: "submitted", requested_at: null,
+        scores: [{ id: 1, subject: "과학", score: 92.5, max_score: 100, grade_rank: null }],
+      });
+    }
     if (path === "/results/school-reports/me/") {
       if (request.method() === "PUT") {
         const data = request.postDataJSON();
@@ -98,6 +104,27 @@ test("미제출 대상만 선택하고 확인한 경우에만 앱 알림을 요�
   expect(state.reminders).toEqual([{ academic_year: expect.any(Number), semester: 2, exam_round: "first", student_ids: [12] }]);
   expect(state.selectedLectures).toContain("71");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(391);
+});
+
+test("검색이 갱신되는 동안 연 학생 성적표가 계속 표시된다", async ({ page }) => {
+  await mockSchoolReports(page, "teacher");
+  await page.clock.install();
+  await gotoAndSettle(page, `${base}/workspace/mobile/results?tab=school-report`);
+  const search = page.getByRole("searchbox", { name: "학생 검색" });
+  const student = page.getByRole("button", { name: "제출 학생 성적표 보기", exact: true });
+  await expect(student).toBeVisible();
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  await search.fill("제출 학생");
+  await student.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "제출 학생", exact: true });
+  await expect(dialog).toBeVisible();
+  const searchResults = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname.endsWith("/results/school-reports/") && url.searchParams.get("search") === "제출 학생";
+  });
+  await page.clock.resume();
+  expect((await searchResults).ok()).toBe(true);
+  await expect(dialog.getByText("92.5", { exact: true })).toBeVisible();
 });
 
 test("승인된 채널의 알림톡은 선택·미리보기·최종 확인이 모두 필요하다", async ({ page }) => {
