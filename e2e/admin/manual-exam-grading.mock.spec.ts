@@ -852,6 +852,7 @@ function contrastRatio(foreground: string, background: string): number {
 type InstallApiOptions = {
   answerKeyScenario?: {
     answers: Record<string, string> | null;
+    questions?: Array<{ id: number; number: number; score: number; question_kind: "choice" | "essay" }>;
     score: number;
     reads: number;
     writes: Array<Record<string, string>>;
@@ -1146,7 +1147,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         title: "7월 진단평가",
         session_ids: [SESSION_ID],
         description: "답변형 정오 입력 검증",
-        subject: "MATH",
+        subject: options.answerKeyScenario?.questions ? "국어" : "MATH",
         exam_type: options.examType ?? "regular",
         is_active: true,
         allow_retake: false,
@@ -1155,7 +1156,8 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         max_score: 100,
         grading_mode: gradingMode,
         manual_grading_method: manualGradingMethod,
-        choice_question_count: options.answerKeyScenario ? 2 : 0,
+        choice_question_count: options.answerKeyScenario?.questions?.filter(({ question_kind }) => question_kind === "choice").length
+          ?? (options.answerKeyScenario ? 2 : 0),
         segmentation_status: segmentationStatus,
         source_filename: segmentationStatus === "ready" ? "july.pdf" : "",
         display_order: 0,
@@ -1389,6 +1391,31 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         }],
       });
       return;
+    }
+    const allocationQuestions = options.answerKeyScenario?.questions;
+    if (allocationQuestions) {
+      if (path === `/exams/${EXAM_ID}/omr/defaults/`) {
+        const choiceNumbers = allocationQuestions.filter(({ question_kind }) => question_kind === "choice").map(({ number }) => number);
+        const essayNumbers = allocationQuestions.filter(({ question_kind }) => question_kind === "essay").map(({ number }) => number);
+        await json({
+          mc_count: choiceNumbers.length, essay_count: essayNumbers.length, n_choices: 5,
+          question_types: allocationQuestions.map(({ question_kind }) => question_kind),
+          choice_question_numbers: choiceNumbers, essay_question_numbers: essayNumbers,
+        });
+        return;
+      }
+      if (path === `/exams/${EXAM_ID}/questions/`) {
+        await json(allocationQuestions.map((question) => ({ ...question, sheet: 1801 })));
+        return;
+      }
+      if (method === "PATCH") {
+        const question = allocationQuestions.find(({ id }) => path === `/exams/questions/${id}/`);
+        if (question) {
+          question.score = Number(request.postDataJSON().score);
+          await json({ ...question, sheet: 1801 });
+          return;
+        }
+      }
     }
     if (options.answerKeyScenario && path === `/exams/${EXAM_ID}/omr/defaults/`) {
       await json({ mc_count: 2, essay_count: 0, question_types: ["choice", "choice"], n_choices: 5, choice_question_numbers: [1, 2], essay_question_numbers: [] });
@@ -1880,6 +1907,86 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
 test.describe("답안 초기 로드와 입력 보존", () => {
   test.skip(!isLocalBase(BASE), "Local route-mock spec.");
   test.use({ serviceWorkers: "block" });
+
+  for (const width of [1366, 390]) {
+    test(`자동 배점 설정을 미리 보고 저장한다 (${width}px)`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 850 });
+      await page.route("**/*", (route) => new URL(route.request().url()).origin === BASE ? route.continue() : route.abort());
+      const questions = Array.from({ length: 20 }, (_, index) => ({
+        id: 1001 + index,
+        number: index + 1,
+        score: 1,
+        question_kind: index === 19 ? "essay" as const : "choice" as const,
+      }));
+      const state: NonNullable<InstallApiOptions["answerKeyScenario"]> = {
+        questions,
+        answers: { "1001": "3", "1020": "원래 서술형 답안" },
+        score: 1, reads: 0, writes: [], failReads: false, failNextWrite: width === 390,
+      };
+      await installApi(page, { gradingMode: "mixed", answerKeyScenario: state });
+      await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`, { waitUntil: "domcontentloaded" });
+      const openAnswers = async () => {
+        await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({ timeout: 30_000 });
+        await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+        return page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
+      };
+      let editor = await openAnswers();
+      const openAllocation = () => editor.getByRole("button", { name: "자동 배점 설정", exact: true }).click();
+      const allocation = page.getByRole("dialog", { name: "자동 배점 설정", exact: true });
+      const choice = allocation.getByRole("textbox", { name: "선택형 목표 총점" });
+      const essay = allocation.getByRole("textbox", { name: "서술형 목표 총점" });
+      const method = allocation.getByRole("combobox", { name: "선택형 배점 방식" });
+      const apply = allocation.getByRole("button", { name: "편집기에 적용", exact: true });
+      await openAllocation();
+      await expect(apply).toBeDisabled();
+      await choice.fill("2");
+      await expect(allocation.getByText("0점 문항이 17개 생깁니다.")).toBeVisible();
+      await choice.fill("95.5");
+      await expect(choice).toHaveAttribute("aria-invalid", "true");
+      await expect(apply).toBeDisabled();
+      await method.selectOption("decimal");
+      await expect(allocation.getByText("14문항 × 5점 + 5문항 × 5.1점")).toBeVisible();
+      await method.selectOption("decimal-with-base");
+      await expect(allocation.getByText("19문항 × 5점 + 기본점수 0.5점")).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(allocation).toBeHidden();
+      await expect(editor.getByRole("button", { name: "자동 배점 설정", exact: true })).toBeFocused();
+      await expect(editor.getByRole("button", { name: "저장 (총 20점)" })).toBeVisible();
+
+      await openAllocation();
+      await choice.fill("95");
+      await apply.click();
+      await expect(editor.getByRole("button", { name: "저장 (총 96점)" })).toBeVisible();
+      await expect(editor.locator(".answer-key-row--essay .answer-key-row__score-val")).toHaveText("1점");
+      await openAllocation();
+      await choice.fill("95");
+      await essay.fill("5");
+      await expect(allocation.getByText("19문항 × 5점")).toBeVisible();
+      await expect(allocation.getByText("1문항 × 5점")).toBeVisible();
+      await expect(allocation.getByText("적용 후 합계 100점")).toBeVisible();
+      expect(await allocation.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+      await allocation.screenshot({ path: testInfo.outputPath("answer-key-allocation.png") });
+      await apply.click();
+      expect(questions.map(({ score }) => score)).toEqual(Array(20).fill(1));
+      expect(state.writes).toHaveLength(0);
+      const save = editor.getByRole("button", { name: "저장 (총 100점)", exact: true });
+      await save.click();
+      if (width === 390) {
+        await expect(page.getByText(/배점이 일부 저장됐을 수 있습니다/)).toBeVisible();
+        expect(state.writes).toHaveLength(0);
+        await save.click();
+      }
+      await expect.poll(() => state.writes.length).toBe(1);
+      await expect(page.getByText("저장·재채점되었습니다.", { exact: true })).toBeVisible();
+      expect(state.recalculations).toBe(1);
+      await expect(save).toBeEnabled();
+      expect(questions.map(({ score }) => score)).toEqual(Array(20).fill(5));
+      expect(state.answers).toEqual({ "1001": "3", "1020": "원래 서술형 답안" });
+      await page.reload({ waitUntil: "domcontentloaded" });
+      editor = await openAnswers();
+      await expect(editor.locator(".answer-key-row__score-val")).toHaveText(Array(20).fill("5점"));
+    });
+  }
 
   for (const { width, existingKey } of [
     { width: 1366, existingKey: false },
