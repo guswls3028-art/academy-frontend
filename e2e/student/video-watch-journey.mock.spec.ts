@@ -461,6 +461,62 @@ async function installStalledHls(page: Page) {
   return { state, manifests: () => manifests, grants: () => grants, releaseReload };
 }
 
+for (const width of [390, 1366]) {
+  test(`resume keeps a failed rewind on the same revision and yields to a newer server checkpoint at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 840 });
+    await installWatchScenario(page);
+    let checkpoint = { position: 42, revision: "revision-a" };
+    let failedPosition: number | undefined;
+    await page.route("**/__qa__/video-long/**", async (route) => {
+      const asset = syntheticLongVideoAsset(new URL(route.request().url()).pathname);
+      await route.fulfill({ body: asset.body, contentType: asset.contentType });
+    });
+    await page.route("**/api/v1/student/video/videos/562/playback/**", (route) => {
+      if (route.request().method() === "GET") return route.fulfill({ json: {
+        ok: true, access_mode: "FREE_REVIEW", monitoring_enabled: false, policy_version: 1,
+      } });
+      return route.fulfill({ json: {
+        video: { id: 562, title: FIRST_TITLE, session_id: 394, enrollment_id: 1304, status: "READY",
+          source_type: "s3", duration: 600, last_position: checkpoint.position, progress: 25 },
+        progress_revision: checkpoint.revision,
+        play_url: BASE + "/__qa__/video-long/master.m3u8",
+        playback_token: "synthetic-resume-token",
+        playback_session_id: null,
+        playback_expires_at: Math.floor(Date.now() / 1000) + 900,
+        policy_version: 1,
+        policy: { access_mode: "FREE_REVIEW", monitoring_enabled: false, allow_seek: true,
+          playback_rate: { max: 2, ui_control: true }, source: { type: "s3", provider: "uploaded" } },
+      } });
+    });
+    await page.route("**/api/v1/student/video/videos/562/progress/", async (route) => {
+      failedPosition = route.request().postDataJSON().last_position;
+      await route.fulfill({ status: 503, json: { detail: "일시적인 연결 오류" } });
+    });
+    await openWatch(page);
+    const video = page.locator("video.svpVideo");
+    const currentTime = () => video.evaluate((el: HTMLVideoElement) => el.currentTime);
+    await expect.poll(currentTime).toBe(42);
+    await video.evaluate((el: HTMLVideoElement) => {
+      el.currentTime = 0;
+      const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+      document.dispatchEvent(new Event("visibilitychange"));
+      if (hidden) Object.defineProperty(document, "hidden", hidden);
+      else Reflect.deleteProperty(document, "hidden");
+    });
+    await expect.poll(() => failedPosition).toBe(0);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(video).toBeVisible();
+    await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.readyState)).toBeGreaterThan(0);
+    await expect.poll(currentTime).toBe(0);
+
+    checkpoint = { position: 18, revision: "revision-b" };
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(video).toBeVisible();
+    await expect.poll(currentTime).toBe(18);
+  });
+}
+
 // Freeze the playhead seen by the app without dispatching an error or replacing
 // the media element. Reload, seek, buffering, and resumed playback use real HLS.
 async function freezePlayhead(page: Page) {

@@ -36,25 +36,30 @@ function getVideoPositionStorageKey(
   );
 }
 
-export function getStoredVideoPosition(
+export function getVideoResumePosition(
   videoId: number | null,
   scope: PlaybackStorageScope,
+  serverPosition: number,
+  serverRevision: string | null | undefined,
+  localOnly: boolean,
 ): number {
+  const fallback = localOnly ? 0 : serverPosition;
   const key = getVideoPositionStorageKey(videoId, scope);
-  if (!key) return 0;
+  if (!key) return fallback;
   try {
     const raw = getLocalItem(key);
-    if (!raw) return 0;
-    const parsed = JSON.parse(raw) as { pos?: unknown; ts?: unknown };
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as { pos?: unknown; ts?: unknown; baseRevision?: unknown };
     const timestamp = Number(parsed.ts);
     const position = Number(parsed.pos);
     if (!Number.isFinite(timestamp) || Date.now() - timestamp > POSITION_MAX_AGE_MS) {
       removeLocalItem(key);
-      return 0;
+      return fallback;
     }
-    return Number.isFinite(position) && position > 0 ? position : 0;
+    if (!localOnly && (serverRevision === undefined || parsed.baseRevision !== serverRevision)) return fallback;
+    return Number.isFinite(position) && position >= 0 ? position : fallback;
   } catch {
-    return 0;
+    return fallback;
   }
 }
 
@@ -62,11 +67,17 @@ export function storeVideoPosition(
   videoId: number | null,
   position: number,
   scope: PlaybackStorageScope,
-): void {
+  baseRevision?: string | null,
+): (() => void) | undefined {
   const key = getVideoPositionStorageKey(videoId, scope);
-  if (!key || !Number.isFinite(position) || position < 1) return;
-  setLocalItem(key, JSON.stringify({
+  if (!key || !Number.isFinite(position) || position < 0) return;
+  const raw = JSON.stringify({
     pos: Math.round(position),
     ts: Date.now(),
-  }));
+    baseRevision,
+  });
+  setLocalItem(key, raw);
+  return () => {
+    if (getLocalItem(key) === raw) removeLocalItem(key);
+  };
 }

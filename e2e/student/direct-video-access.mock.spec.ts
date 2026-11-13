@@ -275,6 +275,17 @@ test("개별 영상 학생 재생은 canonical bootstrap·exact-only·로컬 이
     || path.includes("activity")
   ))).toEqual([]);
 
+  await video.evaluate((element) => {
+    Object.defineProperty(element, "currentTime", { configurable: true, get: () => 0 });
+    Object.defineProperty(element, "duration", { configurable: true, get: () => 600 });
+    const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+    document.dispatchEvent(new Event("visibilitychange"));
+    if (hidden) Object.defineProperty(document, "hidden", hidden);
+    else Reflect.deleteProperty(document, "hidden");
+  });
+  await expect.poll(storedPosition).toBe(0);
+
   revoke();
   await page.clock.runFor(30_000);
   await expect(page.getByRole("heading", { name: "재생을 시작할 수 없어요" })).toBeVisible();

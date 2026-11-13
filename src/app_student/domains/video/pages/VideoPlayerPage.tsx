@@ -21,6 +21,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import { removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 import { recordStudentScreenView } from "@/shared/studentSupport/studentSupport.api";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 
 import StudentVideoPlayer, {
   PlaybackBootstrap,
@@ -42,7 +43,7 @@ import {
 import { sortStudentVideos } from "../utils/videoSort";
 import { studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
 import {
-  getStoredVideoPosition,
+  getVideoResumePosition,
   getStudentCurrentVideoStorageKey,
   storeVideoPosition,
 } from "../utils/videoPlaybackStorage";
@@ -58,6 +59,7 @@ function useQueryParams() {
 
 const POLICY_CHANGED_MESSAGE = "재생 정책이 변경되었습니다. 새 권한을 확인한 뒤 다시 시도해 주세요.";
 const PLAYBACK_RENEWAL_LEAD_MS = 180_000;
+type ProgressPayload = Parameters<typeof updateVideoProgress>[1];
 
 function playbackMatchesAccess(
   playback: StudentVideoPlayback | undefined,
@@ -144,6 +146,9 @@ export default function VideoPlayerPage() {
   const queryClient = useQueryClient();
   const { user } = useAuthContext();
   const queryScope = studentVideoQueryScope(user);
+  const progressOwner = JSON.stringify([getTenantCodeForApiRequest(), queryScope]);
+  const progressOwnerRef = useRef(progressOwner);
+  progressOwnerRef.current = progressOwner;
 
   const videoId =
     safeParseInt(params.videoId) ??
@@ -322,29 +327,51 @@ export default function VideoPlayerPage() {
   }, [effectiveEnrollmentId, enrollmentId, queryClient, queryScope, sessionId, videoId]);
 
   /* ─── 이어보기 위치 계산 ─── */
-  // Player teardown stores the latest position before a retry, even if the
-  // replacement grant still contains the earlier server checkpoint.
-  const initialPosition = videoId
-    ? Math.max(video?.last_position ?? 0, getStoredVideoPosition(videoId, playbackStorageScope))
-    : 0;
+  const resumeStorageScope = useMemo(() => ({
+    userId: user?.id,
+    enrollmentId: effectiveEnrollmentId,
+  }), [effectiveEnrollmentId, user?.id]);
+  const playbackData = playbackQuery.data;
+  const legacyRetryPosition = useRef<{ key: string; position: number } | null>(null);
+  const playbackIdentity = JSON.stringify([queryScope, videoId, effectiveEnrollmentId]);
+  const initialPosition = getVideoResumePosition(
+    videoId, resumeStorageScope,
+    playbackData?.progress_revision === undefined && legacyRetryPosition.current?.key === playbackIdentity
+      ? legacyRetryPosition.current.position
+      : video?.last_position ?? 0,
+    playbackData?.progress_revision, isDirectAccess,
+  );
 
   const progressMutation = useMutation({
-    mutationFn: (data: { progress?: number; completed?: boolean; last_position?: number }) => {
-      if (!videoId || !effectiveEnrollmentId || isDirectAccess) {
-        throw new Error("서버 진도를 저장할 수강 정보가 필요합니다.");
-      }
-      return updateVideoProgress(videoId, data, effectiveEnrollmentId);
-    },
-    onSuccess: (confirmed) => {
-      void queryClient.invalidateQueries({ queryKey: studentVideoQueryKeys.stats(queryScope) });
-      if (sessionId == null) return;
-      const key = studentVideoQueryKeys.sessionVideos(queryScope, sessionId, effectiveEnrollmentId ?? null);
+    mutationFn: ({ data, target }: {
+      data: ProgressPayload;
+      target: {
+        videoId: number;
+        enrollmentId: number;
+        requestedEnrollmentId: number | null;
+        sessionId: number | null;
+        queryScope: string;
+        acknowledge?: () => void;
+      };
+    }) => updateVideoProgress(target.videoId, data, target.enrollmentId),
+    onSuccess: (confirmed, { target }) => {
+      if (confirmed.video_id !== target.videoId || confirmed.enrollment_id !== target.enrollmentId || confirmed.id <= 0) return;
+      target.acknowledge?.();
+      const playbackKey = studentVideoQueryKeys.playback(target.queryScope, target.videoId, target.requestedEnrollmentId);
+      queryClient.setQueryData<StudentVideoPlayback>(playbackKey, (current) => current ? {
+        ...current,
+        progress_revision: confirmed.progress_revision,
+        video: { ...current.video, last_position: confirmed.last_position },
+      } : undefined);
+      void queryClient.invalidateQueries({ queryKey: studentVideoQueryKeys.stats(target.queryScope) });
+      if (target.sessionId == null) return;
+      const key = studentVideoQueryKeys.sessionVideos(target.queryScope, target.sessionId, target.enrollmentId);
       const progress = Number.isFinite(confirmed.progress_percent)
         ? confirmed.progress_percent
         : confirmed.progress;
       queryClient.setQueryData<StudentSessionVideosResponse>(key, (current) => current ? {
         ...current,
-        items: current.items.map((item) => item.id === videoId ? {
+        items: current.items.map((item) => item.id === target.videoId ? {
           ...item,
           progress,
           completed: confirmed.completed,
@@ -354,8 +381,7 @@ export default function VideoPlayerPage() {
     },
   });
 
-  const progressMutationRef = useRef(progressMutation);
-  progressMutationRef.current = progressMutation;
+  const saveProgress = progressMutation.mutate;
 
   /* ─── 다음 영상 ─── */
   const nextVideo = useMemo(() => {
@@ -392,7 +418,6 @@ export default function VideoPlayerPage() {
     policyTransitionGenerationRef.current += 1;
   }
   const onFatal = useCallback((reason: string) => setFatalError(reason), []);
-  const playbackData = playbackQuery.data;
   const refetchPlayback = playbackQuery.refetch;
   useEffect(() => {
     setFatalError(null);
@@ -686,18 +711,22 @@ export default function VideoPlayerPage() {
   nextVideoRef.current = nextVideo;
 
   const onLeaveProgress = useCallback(
-    (data: { progress?: number; completed?: boolean; last_position?: number }) => {
-      if (!videoId) return;
-      storeVideoPosition(videoId, data.last_position ?? 0, playbackStorageScope);
-      if (!isDirectAccess && effectiveEnrollmentId) {
-        progressMutationRef.current.mutate({
-          progress: data.progress,
-          last_position: data.last_position,
-          completed: data.completed,
-        });
+    (data: ProgressPayload) => {
+      if (!videoId || data.last_position == null || progressOwnerRef.current !== progressOwner) return;
+      if (isDirectAccess) {
+        storeVideoPosition(videoId, data.last_position, resumeStorageScope);
+      } else if (effectiveEnrollmentId) {
+        const key = studentVideoQueryKeys.playback(queryScope, videoId, enrollmentId);
+        const revision = queryClient.getQueryData<StudentVideoPlayback>(key)?.progress_revision;
+        if (revision === undefined) legacyRetryPosition.current = { key: playbackIdentity, position: data.last_position };
+        const acknowledge = storeVideoPosition(videoId, data.last_position, resumeStorageScope, revision);
+        saveProgress({ data, target: {
+          videoId, enrollmentId: effectiveEnrollmentId, requestedEnrollmentId: enrollmentId,
+          sessionId, queryScope, acknowledge,
+        } });
       }
     },
-    [effectiveEnrollmentId, isDirectAccess, playbackStorageScope, videoId]
+    [effectiveEnrollmentId, enrollmentId, isDirectAccess, playbackIdentity, progressOwner, queryClient, queryScope, resumeStorageScope, saveProgress, sessionId, videoId]
   );
 
   // Completion is durable learning state; only a new media-end event advances playback.
@@ -766,6 +795,7 @@ export default function VideoPlayerPage() {
           {/* ─── 플레이어 ─── */}
           <div className="vpp-player-section">
             <StudentVideoPlayer
+              key={playbackIdentity}
               video={video}
               bootstrap={boot}
               enrollmentId={effectiveEnrollmentId != null ? Number(effectiveEnrollmentId) : null}
