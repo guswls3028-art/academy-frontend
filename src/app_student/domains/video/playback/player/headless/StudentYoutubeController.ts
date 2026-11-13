@@ -605,7 +605,10 @@ export class StudentYoutubeController {
 
   private observeProgressActivity(current: number) {
     if (this.initialSeekTarget !== null) {
-      if (Math.abs(current - this.initialSeekTarget) < 0.5 || this.player?.getPlayerState?.() === 1) {
+      const initialTarget = this.initialSeekTarget;
+      const playing = this.player?.getPlayerState?.() === 1;
+      if (playing && current > initialTarget) this.hasProgressActivity = true;
+      if (Math.abs(current - initialTarget) < 0.5 || playing) {
         this.initialSeekTarget = null;
         this.observedPosition = current;
       }
