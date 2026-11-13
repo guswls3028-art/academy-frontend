@@ -514,7 +514,6 @@ export default function OmrReviewWorkspace({
           {detailError && !detail ? (
             <div className="orw-loading">
               답안 상세를 불러오지 못했습니다.
-              <Button intent="secondary" size="sm" onClick={() => void refetchDetail()}>다시 시도</Button>
             </div>
           ) : (
           <ScanPane
