@@ -345,12 +345,21 @@ test("legacy iOS native HLS contract starts and pauses without a play Promise or
     };
     // Older WebKit returns void. Media events stand in for physical decoding;
     // the real controller, access bootstrap and rendered controls still run.
+    const playing = new WeakSet<HTMLMediaElement>();
+    Object.defineProperty(HTMLMediaElement.prototype, "paused", {
+      configurable: true,
+      get(this: HTMLMediaElement) { return !playing.has(this); },
+    });
     HTMLMediaElement.prototype.play = function () {
+      playing.add(this);
       this.dispatchEvent(new Event("play"));
       this.dispatchEvent(new Event("playing"));
       return undefined as unknown as Promise<void>;
     };
-    HTMLMediaElement.prototype.pause = function () { this.dispatchEvent(new Event("pause")); };
+    HTMLMediaElement.prototype.pause = function () {
+      playing.delete(this);
+      this.dispatchEvent(new Event("pause"));
+    };
   });
   await page.route("https://cdn.example.test/legacy/**", async (route) => {
     await new Promise<void>((resolve) => page.once("close", resolve));
@@ -378,10 +387,13 @@ test("legacy iOS native HLS contract starts and pauses without a play Promise or
   await expect(player).toHaveClass(/svpPlayerWrap--controlsHidden/);
   await tapLeft();
   await expect(player).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
+  await video.evaluate((element) => {
+    (element as HTMLVideoElement).currentTime = 125;
+    element.dispatchEvent(new Event("timeupdate"));
+  });
   await page.getByRole("button", { name: "일시정지", exact: true }).click();
   await expect(page.getByRole("button", { name: "재생", exact: true }).last()).toBeVisible();
-  await video.evaluate((element) => {
-    Object.defineProperty(element, "currentTime", { configurable: true, get: () => 125 });
+  await video.evaluate(() => {
     const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
     Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
     document.dispatchEvent(new Event("visibilitychange"));
