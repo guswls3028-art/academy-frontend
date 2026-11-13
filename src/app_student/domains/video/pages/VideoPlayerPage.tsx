@@ -351,6 +351,7 @@ export default function VideoPlayerPage() {
         requestedEnrollmentId: number | null;
         sessionId: number | null;
         queryScope: string;
+        baseRevision: string | null | undefined;
         acknowledge?: () => void;
       };
     }) => updateVideoProgress(target.videoId, data, target.enrollmentId),
@@ -358,11 +359,11 @@ export default function VideoPlayerPage() {
       if (confirmed.video_id !== target.videoId || confirmed.enrollment_id !== target.enrollmentId || confirmed.id <= 0) return;
       target.acknowledge?.();
       const playbackKey = studentVideoQueryKeys.playback(target.queryScope, target.videoId, target.requestedEnrollmentId);
-      queryClient.setQueryData<StudentVideoPlayback>(playbackKey, (current) => current ? {
+      queryClient.setQueryData<StudentVideoPlayback>(playbackKey, (current) => current?.progress_revision === target.baseRevision && current ? {
         ...current,
         progress_revision: confirmed.progress_revision,
         video: { ...current.video, last_position: confirmed.last_position },
-      } : undefined);
+      } : current);
       void queryClient.invalidateQueries({ queryKey: studentVideoQueryKeys.stats(target.queryScope) });
       if (target.sessionId == null) return;
       const key = studentVideoQueryKeys.sessionVideos(target.queryScope, target.sessionId, target.enrollmentId);
@@ -722,7 +723,7 @@ export default function VideoPlayerPage() {
         const acknowledge = storeVideoPosition(videoId, data.last_position, resumeStorageScope, revision);
         saveProgress({ data, target: {
           videoId, enrollmentId: effectiveEnrollmentId, requestedEnrollmentId: enrollmentId,
-          sessionId, queryScope, acknowledge,
+          sessionId, queryScope, baseRevision: revision, acknowledge,
         } });
       }
     },

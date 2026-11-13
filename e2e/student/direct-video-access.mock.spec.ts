@@ -1,6 +1,7 @@
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
+import { syntheticLongVideoAsset } from "../../scripts/run-development-release-canary.mjs";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const CLOCK_START = new Date("2026-08-29T14:00:00.000Z");
@@ -30,6 +31,7 @@ async function installApp(
   page: Page,
   mode: PlaybackMode = "direct",
   viewer: "student" | "parent" = "student",
+  loadMedia = false,
 ): Promise<{ evidence: Evidence; revoke: () => void }> {
   const evidence: Evidence = {
     playbackRequests: 0,
@@ -52,7 +54,13 @@ async function installApp(
   }, { token: jwt(), parent: viewer === "parent" });
 
   await page.route("https://cdn.example.test/direct/**", async (route) => {
-    if (new URL(route.request().url()).pathname === "/direct/master.m3u8") evidence.manifestRequests += 1;
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/direct/master.m3u8") evidence.manifestRequests += 1;
+    if (loadMedia) {
+      const asset = syntheticLongVideoAsset(path.replace("/direct/", "/__qa__/video-long/"));
+      await route.fulfill({ body: asset.body, contentType: asset.contentType, headers: { "access-control-allow-origin": "*" } });
+      return;
+    }
     // Keep media loading pending so this contract exercises direct access and
     // token refresh without coupling it to a browser codec or HLS transmuxer.
     await new Promise<void>((resolveClose) => page.once("close", resolveClose));
@@ -288,14 +296,13 @@ test("개별 영상 학생 재생은 canonical bootstrap·exact-only·로컬 이
 });
 
 test("개별 영상에서 처음으로 돌아가면 이전 기기 위치를 복원하지 않는다", async ({ page }) => {
-  const { evidence } = await installApp(page);
+  const { evidence } = await installApp(page, "direct", "student", true);
   const url = `${BASE}/student/video/play?video=902&session=802`;
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
   const video = page.locator("video");
-  await expect.poll(() => evidence.manifestRequests, { timeout: 30_000 }).toBe(1);
+  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.readyState)).toBeGreaterThan(0);
   const savePosition = (position: number) => video.evaluate((element, position) => {
-    Object.defineProperty(element, "currentTime", { configurable: true, get: () => position });
-    Object.defineProperty(element, "duration", { configurable: true, get: () => 600 });
+    (element as HTMLVideoElement).currentTime = position;
     const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
     Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
     document.dispatchEvent(new Event("visibilitychange"));
@@ -311,7 +318,8 @@ test("개별 영상에서 처음으로 돌아가면 이전 기기 위치를 복�
   await savePosition(0);
   await expect.poll(storedPosition).toBe(0);
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(video).toBeVisible();
+  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.readyState)).toBeGreaterThan(0);
+  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime)).toBe(0);
   await expect.poll(storedPosition).toBe(0);
   expect(evidence.requestedPaths.filter((path) => path.includes("/progress"))).toEqual([]);
 });
