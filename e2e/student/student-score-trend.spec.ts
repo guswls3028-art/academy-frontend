@@ -303,7 +303,7 @@ async function installApi(
   viewer: Viewer,
   options: {
     studentPoints?: TrendPoint[];
-    failAnalytics?: boolean;
+    beforeAnalytics?: () => boolean | Promise<boolean>;
     reportLayout?: unknown;
     analyticsRequests?: string[];
     lectureOptions?: LectureOption[];
@@ -399,7 +399,7 @@ async function installApi(
     if (path.endsWith("/student/grades/analytics/")) {
       selectedHeaders.push(rawSelectedId ?? "missing");
       options.analyticsRequests?.push(path);
-      if (options.failAnalytics) {
+      if (await options.beforeAnalytics?.()) {
         await route.fulfill({ status: 503, json: { detail: "temporarily unavailable" } });
         return;
       }
@@ -982,14 +982,42 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     await page.screenshot({ path: "test-results/student-score-trend/student-dark-390.png", fullPage: true });
   });
 
-  test("비교 분석 장애에도 누적 성적과 빈 상태가 독립적으로 유지된다", async ({ page }) => {
-    await installApi(page, "student", { studentPoints: [], failAnalytics: true });
+  test("비교 분석만 다시 시도하고 독립적인 성적 빈 상태는 유지한다", async ({ page }) => {
+    let failed = true;
+    let finishRetry!: () => void;
+    const retryResponse = new Promise<void>((resolve) => { finishRetry = resolve; });
+    const analyticsRequests: string[] = [];
+    await installApi(page, "student", {
+      studentPoints: [],
+      analyticsRequests,
+      beforeAnalytics: async () => {
+        if (!failed) await retryResponse;
+        return failed;
+      },
+    });
     await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
 
     const chart = page.getByTestId("student-score-trend");
     await expect(chart).toContainText("아직 연결할 점수가 없습니다.");
     await expect(chart).toContainText("첫 시험 점수가 입력되면 1회차 성적이 이곳에 표시됩니다.");
     await expect(page.getByText("비교 분석을 불러오지 못했습니다.", { exact: false })).toBeVisible();
+    const failedRequests = analyticsRequests.length;
+    failed = false;
+    const retry = page.getByRole("button", { name: "비교 분석 다시 시도" });
+    try {
+      await retry.focus();
+      await retry.press("Enter");
+      await expect(retry).toBeFocused();
+      await expect(retry).toBeDisabled();
+      await expect(page.getByRole("status").filter({ hasText: "비교 분석을 다시 불러오는 중입니다." })).toBeVisible();
+      await expect(chart).toContainText("아직 연결할 점수가 없습니다.");
+      await expect.poll(() => analyticsRequests.length).toBe(failedRequests + 1);
+    } finally {
+      finishRetry();
+    }
+    await expect(page.getByRole("region", { name: "성적 비교" })).toBeVisible();
+    await expect(retry).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   });
 
   test("긴 시험 이력은 페이지를 밀지 않고 그래프 안에서 스크롤된다", async ({ page }) => {

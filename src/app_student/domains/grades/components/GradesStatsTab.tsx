@@ -27,8 +27,10 @@ type Props = {
   examTrend: StudentExamTrendPoint[];
   lectureOptions: StudentScoreLectureOption[];
   analytics?: MyGradesAnalytics;
-  analyticsLoading?: boolean;
-  analyticsError?: boolean;
+  analyticsLoading: boolean;
+  analyticsError: boolean;
+  analyticsFetching: boolean;
+  onRetryAnalytics: () => void;
   reportLayout: StudentGradeReportLayout;
 };
 
@@ -46,6 +48,8 @@ export default function GradesStatsTab({
   analytics,
   analyticsLoading,
   analyticsError,
+  analyticsFetching,
+  onRetryAnalytics,
   reportLayout,
 }: Props) {
   const wrongCompletionOnly = useWrongCompletionDisplay();
@@ -82,7 +86,19 @@ export default function GradesStatsTab({
     if (analyticsError || !analytics) {
       return analyticsError && sectionId === firstVisibleAnalytics ? (
         <div className={styles.analyticsNotice}>
-          비교 분석을 불러오지 못했습니다. 다른 성적 정보는 계속 확인할 수 있습니다.
+          <span role="status">
+            {analyticsFetching
+              ? "비교 분석을 다시 불러오는 중입니다."
+              : "비교 분석을 불러오지 못했습니다. 다른 성적 정보는 계속 확인할 수 있습니다."}
+          </span>
+          <button
+            type="button"
+            className="stu-btn stu-btn--secondary"
+            aria-disabled={analyticsFetching}
+            onClick={() => { if (!analyticsFetching) onRetryAnalytics(); }}
+          >
+            비교 분석 다시 시도
+          </button>
         </div>
       ) : null;
     }
