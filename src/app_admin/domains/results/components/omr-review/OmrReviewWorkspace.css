@@ -520,8 +520,9 @@
   padding: 12px 14px;
   border-top: 1px solid var(--color-border-divider, #e5e7eb);
   background: var(--color-bg-surface, #fff);
-  display: flex; gap: 8px; align-items: center;
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
 }
+.orw-edit-conflict { flex-basis: 100%; min-width: 0; }
 
 /* 폐기 버튼 */
 .orw-discard-btn {

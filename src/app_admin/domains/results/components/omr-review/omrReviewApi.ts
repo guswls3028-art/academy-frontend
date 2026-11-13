@@ -94,6 +94,7 @@ export type OmrReviewDetail = {
   identifier: unknown;
   answers: OmrReviewDetailAnswer[];
   answer_review_version?: string | null;
+  edit_revision?: string | null;
   scan_image_url: string;
   original_scan_image_url?: string;
   scan_image_is_aligned?: boolean;
