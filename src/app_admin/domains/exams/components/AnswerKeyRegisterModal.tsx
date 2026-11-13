@@ -33,6 +33,10 @@ import {
 } from "../api/explanation.api";
 import ExamPdfUploadModal from "./ExamPdfUploadModal";
 import { adminResultsQueryKeys } from "@admin/domains/results/public/manualExamGrading";
+import AnswerKeyScoreAllocationDialog, {
+  type ScoreAllocationPlan,
+  type ScoreGroup,
+} from "./AnswerKeyScoreAllocationDialog";
 import { adminExamsQueryKeys } from "../queryKeys";
 import "./AnswerKeyRegisterModal.type-map.css";
 import "./AnswerKeyRegisterModal.css";
@@ -73,21 +77,11 @@ const MAX_OMR_MC_COUNT = 60;
 const MAX_OMR_ESSAY_COUNT = 20;
 const SCORE_ADJUSTMENT_KEY = "__score_adjustment__";
 type CountDraft = number | "";
-type ScoreInputDraft = string;
-type ScoreDistributionMode = "integer" | "decimal";
 type QuestionKind = "choice" | "essay";
 type ScoreAdjustmentDraft = {
   objective: number;
   subjective: number;
 };
-type ApplyQuestionOverrides = {
-  choiceCount?: CountDraft;
-  essayCount?: CountDraft;
-  choiceTotal?: number | null;
-  essayTotal?: number | null;
-  questionTypes?: QuestionKind[];
-};
-
 const CIRCLED_CHOICE_MAP: Record<string, string> = {
   "①": "1",
   "②": "2",
@@ -219,47 +213,12 @@ function answerKeysFromResponse(response: unknown): AnswerKey[] {
   return list.filter(isAnswerKey);
 }
 
-/** 총점을 문항 수만큼 분배. decimal 모드는 문항 배점을 1자리로 맞추고 잔여 총점을 기본점수로 둔다. */
-function distributeTotalToScores(
-  total: number,
-  count: number,
-  mode: ScoreDistributionMode
-): { scores: number[]; adjustment: number } {
-  if (count <= 0) return { scores: [], adjustment: 0 };
-  const unit = mode === "decimal" ? 10 : 1;
-  const totalUnits = Math.max(0, Math.round(total * unit));
-  const baseUnits = Math.floor(totalUnits / count);
-  const remainderUnits = totalUnits - baseUnits * count;
-  const baseScore = baseUnits / unit;
-
-  if (mode === "decimal") {
-    return {
-      scores: Array.from({ length: count }, () => baseScore),
-      adjustment: roundScore(remainderUnits / unit),
-    };
-  }
-
-  const lowCount = count - remainderUnits;
-  const result: number[] = [];
-  for (let i = 0; i < lowCount; i++) result.push(baseScore);
-  for (let i = 0; i < remainderUnits; i++) result.push(baseScore + 1);
-  return { scores: result, adjustment: 0 };
-}
-
 function roundScore(value: number): number {
   return Math.round((value + Number.EPSILON) * 10) / 10;
 }
 
 function formatScore(value: number): string {
   return String(Math.round((value + Number.EPSILON) * 100) / 100);
-}
-
-function parseScoreInputDraft(value: ScoreInputDraft): number | null {
-  const trimmed = String(value ?? "").trim();
-  if (!trimmed) return null;
-  const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed) || parsed < 0) return null;
-  return roundScore(parsed);
 }
 
 function parseScoreAdjustment(input: Record<string, AnswerKeyValue>): ScoreAdjustmentDraft {
@@ -423,16 +382,10 @@ export default function AnswerKeyRegisterModal({
 
   const [choiceCount, setChoiceCount] = useState<CountDraft>("");
   const [choiceCountInput, setChoiceCountInput] = useState<CountDraft>("");
-  /** 자동점수 부여 ON이면 총점 입력 후 선택한 단위로 분배. 기본값 OFF */
-  const [choiceAutoScore, setChoiceAutoScore] = useState(false);
-  const [choiceScoreMode, setChoiceScoreMode] = useState<ScoreDistributionMode>("integer");
-  const [choiceTotalInput, setChoiceTotalInput] = useState<ScoreInputDraft>("");
   const [essayCount, setEssayCount] = useState<CountDraft>("");
   const [essayCountInput, setEssayCountInput] = useState<CountDraft>("");
-  /** 자동점수 부여. 기본값 OFF */
-  const [essayAutoScore, setEssayAutoScore] = useState(false);
-  const [essayScoreMode, setEssayScoreMode] = useState<ScoreDistributionMode>("integer");
-  const [essayTotalInput, setEssayTotalInput] = useState<ScoreInputDraft>("");
+  const [allocationOpen, setAllocationOpen] = useState(false);
+  const [manualTargets, setManualTargets] = useState<Partial<Record<ScoreGroup, number>>>({});
   const [questionTypes, setQuestionTypes] = useState<QuestionKind[]>([]);
   const [typeMapExpanded, setTypeMapExpanded] = useState(false);
   const [totalCountInput, setTotalCountInput] = useState<CountDraft>("");
@@ -441,6 +394,8 @@ export default function AnswerKeyRegisterModal({
   const [saveBusy, setSaveBusy] = useState(false);
   const [pendingVerification, setPendingVerification] = useState<PendingAnswerKeyVerification | null>(null);
   const [verificationError, setVerificationError] = useState("");
+  // Keep successful score writes in the readback/regrade plan when the answer-key request needs a retry.
+  const writtenScores = useRef<Record<number, number>>({});
   /** 문항별 점수 드래프트 (문항 반영 시 초기값은 question.score) */
   const [scoreDraft, setScoreDraft] = useState<Record<number, number>>({});
   const [scoreAdjustmentDraft, setScoreAdjustmentDraft] = useState<ScoreAdjustmentDraft>({
@@ -470,14 +425,10 @@ export default function AnswerKeyRegisterModal({
     setPdfModalOpen(false);
     setChoiceCount("");
     setChoiceCountInput("");
-    setChoiceAutoScore(false);
-    setChoiceScoreMode("integer");
-    setChoiceTotalInput("");
     setEssayCount("");
     setEssayCountInput("");
-    setEssayAutoScore(false);
-    setEssayScoreMode("integer");
-    setEssayTotalInput("");
+    setAllocationOpen(false);
+    setManualTargets({});
     setQuestionTypes([]);
     setTypeMapExpanded(false);
     setTotalCountInput("");
@@ -490,6 +441,7 @@ export default function AnswerKeyRegisterModal({
     setSaveBusy(false);
     setPendingVerification(null);
     setVerificationError("");
+    writtenScores.current = {};
     choiceBubbleRefs.current = [];
     essayInputRefs.current = [];
   }, [initialTab]);
@@ -674,77 +626,13 @@ export default function AnswerKeyRegisterModal({
   }, [explanationsFromApi, open, sortedQuestions]);
 
   const initMut = useMutation({
-    mutationFn: async (overrides?: ApplyQuestionOverrides) => {
+    mutationFn: async (questionTypes: QuestionKind[]) => {
       if (examReadError || examReadPending) throw new Error("시험 정보를 다시 확인한 뒤 문항을 반영해 주세요.");
-      if (overrides?.questionTypes) {
-        if (overrides.questionTypes.length < 1) throw new Error("문항 수는 1개 이상이어야 합니다.");
-        if (overrides.questionTypes.length > MAX_EXAM_QUESTIONS) {
-          throw new Error(`문항 수는 최대 ${MAX_EXAM_QUESTIONS}문항입니다.`);
-        }
-        return initExamQuestions({
-          examId,
-          question_types: overrides.questionTypes,
-        });
-      }
-      const total = questions.length;
-      let cc: number;
-      let ec: number;
-      if (overrides) {
-        const oc = overrides.choiceCount;
-        const oe = overrides.essayCount;
-        cc = oc !== "" && oc !== undefined ? Math.max(0, Number(oc) || 0) : Math.max(0, total - (Number(oe) || 0));
-        ec = oe !== "" && oe !== undefined ? Math.max(0, Number(oe) || 0) : Math.max(0, total - (Number(oc) || 0));
-      } else {
-        cc =
-          choiceCount !== ""
-            ? Math.max(0, Number(choiceCount) || 0)
-            : Math.max(0, total - (Number(essayCount) || 0));
-        ec =
-          essayCount !== ""
-            ? Math.max(0, Number(essayCount) || 0)
-            : Math.max(0, total - (Number(choiceCount) || 0));
-      }
-      cc = Math.trunc(cc);
-      ec = Math.trunc(ec);
-      if (cc + ec === 0) throw new Error("객관식+주관식 문항 수 합이 1 이상이어야 합니다.");
-      if (cc + ec > MAX_EXAM_QUESTIONS) {
-        throw new Error(`객관식+주관식 문항 수 합은 최대 ${MAX_EXAM_QUESTIONS}문항입니다.`);
-      }
-      return initExamQuestions({
-        examId,
-        choice_count: cc,
-        essay_count: ec,
-      });
+      return initExamQuestions({ examId, question_types: questionTypes });
     },
-    onSuccess: async (result, overrides) => {
-      const list = result?.data ?? [];
-      const appliedTypes: QuestionKind[] = overrides?.questionTypes ?? list.map(
-        (question, index) => question.question_kind ?? (
-          index < Number(choiceCount || list.length) ? "choice" : "essay"
-        )
-      );
-      let appliedCc: number;
-      let appliedEc: number;
-      if (overrides?.questionTypes) {
-        appliedCc = appliedTypes.filter((kind) => kind === "choice").length;
-        appliedEc = appliedTypes.length - appliedCc;
-      } else if (overrides) {
-        const oc = overrides.choiceCount;
-        const oe = overrides.essayCount;
-        appliedCc = oc !== "" && oc !== undefined ? Math.max(0, Number(oc) || 0) : Math.max(0, list.length - (Number(oe) || 0));
-        appliedEc = oe !== "" && oe !== undefined ? Math.max(0, Number(oe) || 0) : Math.max(0, list.length - (Number(oc) || 0));
-      } else {
-        appliedCc =
-          choiceCount !== ""
-            ? Math.max(0, Number(choiceCount) || 0)
-            : Math.max(0, list.length - (Number(essayCount) || 0));
-        appliedEc =
-          essayCount !== ""
-            ? Math.max(0, Number(essayCount) || 0)
-            : Math.max(0, list.length - (Number(choiceCount) || 0));
-      }
-      appliedCc = Math.trunc(appliedCc);
-      appliedEc = Math.trunc(appliedEc);
+    onSuccess: async ({ data: list }, appliedTypes) => {
+      const appliedCc = appliedTypes.filter((kind) => kind === "choice").length;
+      const appliedEc = appliedTypes.length - appliedCc;
       setChoiceCount(appliedCc);
       setEssayCount(appliedEc);
       setChoiceCountInput(appliedCc);
@@ -752,144 +640,55 @@ export default function AnswerKeyRegisterModal({
       setQuestionTypes(appliedTypes);
       setTotalCountInput(list.length);
       qc.setQueryData(adminExamsQueryKeys.examQuestions(examId), list);
-      const sorted = [...list].sort((a: ExamQuestion, b: ExamQuestion) => a.number - b.number);
-      const choiceList = sorted.filter((_, index) => appliedTypes[index] === "choice");
-      const essayList = sorted.filter((_, index) => appliedTypes[index] === "essay");
-
-      const nextScoreDraft: Record<number, number> = {};
-      const nextScoreAdjustment: ScoreAdjustmentDraft = { ...scoreAdjustmentDraft };
       setDraft((prev) => {
-        const validQuestionIds = new Set(sorted.map((q: ExamQuestion) => String(q.id)));
-        const next: Record<string, string> = {};
-        for (const [key, value] of Object.entries(prev)) {
-          if (validQuestionIds.has(key)) next[key] = value;
-        }
+        const validQuestionIds = new Set(list.map((question) => String(question.id)));
+        const next = Object.fromEntries(Object.entries(prev).filter(([id]) => validQuestionIds.has(id)));
         return Object.keys(next).length === Object.keys(prev).length ? prev : next;
       });
-
-      const choiceTotal = overrides?.choiceTotal ?? parseScoreInputDraft(choiceTotalInput);
-      const essayTotal = overrides?.essayTotal ?? parseScoreInputDraft(essayTotalInput);
-      if (choiceAutoScore && choiceTotal !== null) {
-        const total = Math.max(0, choiceTotal);
-        const { scores, adjustment } = distributeTotalToScores(total, choiceList.length, choiceScoreMode);
-        nextScoreAdjustment.objective = adjustment;
-        choiceList.forEach((q: ExamQuestion, i: number) => {
-          nextScoreDraft[q.id] = scores[i] ?? 0;
-        });
-      }
-      if (essayAutoScore && essayTotal !== null) {
-        const total = Math.max(0, essayTotal);
-        const { scores, adjustment } = distributeTotalToScores(total, essayList.length, essayScoreMode);
-        nextScoreAdjustment.subjective = adjustment;
-        essayList.forEach((q: ExamQuestion, i: number) => {
-          nextScoreDraft[q.id] = scores[i] ?? 0;
-        });
-      }
-      setScoreAdjustmentDraft(nextScoreAdjustment);
-      setScoreDraft((prev) => {
-        const next: Record<number, number> = {};
-        sorted.forEach((q: ExamQuestion) => {
-          next[q.id] = nextScoreDraft[q.id] ?? prev[q.id] ?? q.score ?? 0;
-        });
-        return next;
-      });
-      if (Object.keys(nextScoreDraft).length > 0) {
-        if (canEditQuestions) {
-          for (const q of sorted) {
-            const score = nextScoreDraft[q.id];
-            if (score !== undefined && Number.isFinite(score)) {
-              await patchQuestionScore({ questionId: q.id, score });
-            }
-          }
-        }
+      setScoreDraft((prev) => Object.fromEntries(
+        list.map((question) => [question.id, prev[question.id] ?? question.score ?? 0]),
+      ));
+      if (appliedCc === 0 || appliedEc === 0) {
+        setManualTargets((prev) => ({
+          objective: appliedCc > 0 ? prev.objective : undefined,
+          subjective: appliedEc > 0 ? prev.subjective : undefined,
+        }));
       }
       await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.answerKey(examId) });
       await qc.invalidateQueries({ queryKey: adminExamsQueryKeys.examQuestions(examId) });
       await qc.invalidateQueries({
         queryKey: [...adminExamsQueryKeys.adminExam(examId), "answer-key-shape"],
       });
-      feedback.success("적용되었습니다.");
+      feedback.success("문항 수와 유형을 반영했습니다.");
     },
     onError: (error: unknown) => {
-      feedback.error(extractApiError(error, "적용 실패"));
+      feedback.error(extractApiError(error, "문항 변경에 실패했습니다. 다시 적용해 주세요."));
     },
   });
 
-  /** 적용 클릭: 자동점수 ON이면 총점 필수 검증, 선택형만 설정 시 서술형 0으로 전달 */
   const handleApply = () => {
-    if (!canEditStructure) {
-      feedback.info("시험 구조가 준비되지 않아 아직 수정할 수 없습니다.");
-      return;
-    }
-    const parsedChoiceTotal = parseScoreInputDraft(choiceTotalInput);
-    const parsedEssayTotal = parseScoreInputDraft(essayTotalInput);
-    if (choiceTotalInput.trim() !== "" && parsedChoiceTotal === null) {
-      feedback.error("선택형 총점을 숫자로 입력해 주세요.");
-      return;
-    }
-    if (essayTotalInput.trim() !== "" && parsedEssayTotal === null) {
-      feedback.error("서술형 총점을 숫자로 입력해 주세요.");
-      return;
-    }
-    if (!choiceAutoScore && parsedChoiceTotal !== null && parsedChoiceTotal < choiceQuestions.reduce((sum, q) => sum + getScore(q), 0)) {
-      feedback.error("선택형 총점이 문항별 배점 합계보다 작습니다. 배점을 먼저 조정해 주세요.");
-      return;
-    }
-    if (!essayAutoScore && parsedEssayTotal !== null && parsedEssayTotal < essayQuestions.reduce((sum, q) => sum + getScore(q), 0)) {
-      feedback.error("서술형 총점이 문항별 배점 합계보다 작습니다. 배점을 먼저 조정해 주세요.");
-      return;
-    }
-    if (choiceAutoScore) {
-      if (parsedChoiceTotal === null) {
-        feedback.error("자동점수 부여(사용) 시 선택형 총점을 입력해 주세요.");
-        return;
-      }
-    }
-    if (essayAutoScore) {
-      if (parsedEssayTotal === null) {
-        feedback.error("자동점수 부여(사용) 시 서술형 총점을 입력해 주세요.");
-        return;
-      }
-    }
+    if (!canEditStructure || initMut.isPending) return;
     const choiceVal = countDraftToNumber(choiceCountInput);
     const essayVal = countDraftToNumber(essayCountInput);
     if (choiceVal === undefined && essayVal === undefined) {
-      feedback.error("객관식 또는 서술형 문항 수를 입력해 주세요.");
+      feedback.error("선택형 또는 서술형 문항 수를 입력해 주세요.");
       return;
     }
-    const nextChoiceCount = choiceVal !== undefined
-      ? choiceVal
-      : Math.max(0, questions.length - (essayVal ?? 0));
-    const nextEssayCount = essayVal !== undefined ? essayVal : 0;
+    const nextChoiceCount = choiceVal ?? Math.max(0, questions.length - (essayVal ?? 0));
+    const nextEssayCount = essayVal ?? 0;
     const nextTotal = nextChoiceCount + nextEssayCount;
-    if (nextTotal < 1) {
-      feedback.error("객관식+주관식 문항 수 합이 1 이상이어야 합니다.");
+    if (nextTotal < 1 || nextTotal > MAX_EXAM_QUESTIONS) {
+      feedback.error(`전체 문항 수를 1~${MAX_EXAM_QUESTIONS} 사이로 입력해 주세요.`);
       return;
     }
-    if (nextTotal > MAX_EXAM_QUESTIONS) {
-      feedback.error(`객관식+주관식 문항 수 합은 최대 ${MAX_EXAM_QUESTIONS}문항입니다.`);
-      return;
-    }
-    setChoiceCount(nextChoiceCount);
-    setEssayCount(nextEssayCount);
-    setChoiceCountInput(nextChoiceCount);
-    setEssayCountInput(nextEssayCount);
-    const nextQuestionTypes: QuestionKind[] = [
+    initMut.mutate([
       ...Array<QuestionKind>(nextChoiceCount).fill("choice"),
       ...Array<QuestionKind>(nextEssayCount).fill("essay"),
-    ];
-    setQuestionTypes(nextQuestionTypes);
-    initMut.mutate({
-      choiceCount: nextChoiceCount,
-      essayCount: nextEssayCount,
-      choiceTotal: parsedChoiceTotal,
-      essayTotal: parsedEssayTotal,
-      questionTypes: nextQuestionTypes,
-    });
+    ]);
   };
 
   const applyQuestionTypePlan = () => {
-    if (!canEditStructure) return;
+    if (!canEditStructure || initMut.isPending) return;
     const total = countDraftToNumber(totalCountInput);
     if (total === undefined || total < 1 || total > MAX_EXAM_QUESTIONS) {
       feedback.error(`전체 문항 수를 1~${MAX_EXAM_QUESTIONS} 사이로 입력해 주세요.`);
@@ -899,8 +698,30 @@ export default function AnswerKeyRegisterModal({
       { length: total },
       (_, index): QuestionKind => questionTypes[index] ?? resolvedQuestionTypes[index] ?? "choice"
     );
-    setQuestionTypes(nextTypes);
-    initMut.mutate({ questionTypes: nextTypes });
+    initMut.mutate(nextTypes);
+  };
+
+  const applyScoreAllocation = (plans: ScoreAllocationPlan[]) => {
+    if (!canEditStructure || initMut.isPending || pendingVerification) return;
+    const nextScores: Record<number, number> = {};
+    const nextAdjustment = { ...scoreAdjustmentDraft };
+    const nextTargets = { ...manualTargets };
+    for (const plan of plans) {
+      if ("target" in plan) {
+        nextTargets[plan.group] = plan.target ?? undefined;
+        continue;
+      }
+      const groupQuestions = plan.group === "objective" ? choiceQuestions : essayQuestions;
+      groupQuestions.forEach((question, index) => {
+        nextScores[question.id] = plan.scores[index];
+      });
+      nextAdjustment[plan.group] = plan.adjustment;
+      delete nextTargets[plan.group];
+    }
+    setScoreDraft((prev) => ({ ...prev, ...nextScores }));
+    setScoreAdjustmentDraft(nextAdjustment);
+    setManualTargets(nextTargets);
+    setAllocationOpen(false);
   };
 
   const handleApplyEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -916,6 +737,7 @@ export default function AnswerKeyRegisterModal({
       feedback.warning("정답은 저장됐지만 재채점은 확인되지 않았습니다.");
       return;
     }
+    writtenScores.current = {};
     setPendingVerification(null);
     setVerificationError("");
     await Promise.allSettled([
@@ -991,16 +813,9 @@ export default function AnswerKeyRegisterModal({
       feedback.info("시험 구조가 준비되지 않아 아직 수정할 수 없습니다.");
       return;
     }
-    const manualChoiceTarget = choiceAutoScore || choiceTotalInput.trim() === "" ? null : parseScoreInputDraft(choiceTotalInput);
-    const manualEssayTarget = essayAutoScore || essayTotalInput.trim() === "" ? null : parseScoreInputDraft(essayTotalInput);
-    if ((!choiceAutoScore && choiceTotalInput.trim() !== "" && manualChoiceTarget === null)
-      || (!essayAutoScore && essayTotalInput.trim() !== "" && manualEssayTarget === null)) {
-      feedback.error("수동 총점을 숫자로 입력해 주세요.");
-      return;
-    }
-    if ((manualChoiceTarget !== null && Math.abs(choiceTotalScore - manualChoiceTarget) > 0.01)
-      || (manualEssayTarget !== null && Math.abs(essayTotalScore - manualEssayTarget) > 0.01)) {
-      feedback.error("수동 총점과 문항별 배점 합계를 맞춰 주세요. 자동 배점을 사용하면 균등 배점할 수 있습니다.");
+    if ((manualTargets.objective !== undefined && Math.abs(choiceTotalScore - manualTargets.objective) > 0.01)
+      || (manualTargets.subjective !== undefined && Math.abs(essayTotalScore - manualTargets.subjective) > 0.01)) {
+      feedback.error("문항별 배점을 목표 총점에 맞추거나 자동 배점 설정에서 목표를 조정해 주세요.");
       return;
     }
     if (flowStep === "answer") {
@@ -1064,6 +879,7 @@ export default function AnswerKeyRegisterModal({
       for (const q of toPatch) {
         const nextScore = scoreDraft[q.id] ?? q.score ?? 0;
         await patchQuestionScore({ questionId: q.id, score: nextScore });
+        writtenScores.current[q.id] = nextScore;
         patchedScoreCount += 1;
       }
       // The answer-key endpoint regrades immediately, so it must see the final weights.
@@ -1074,7 +890,9 @@ export default function AnswerKeyRegisterModal({
         keyId: savedKey.data.id,
         ownerId: effectiveStructureOwnerId,
         answers: answersPayload,
-        questionScores: Object.fromEntries(toPatch.map((question) => [question.id, scoreDraft[question.id] ?? question.score ?? 0])),
+        questionScores: Object.fromEntries(sortedQuestions.flatMap(({ id }) =>
+          writtenScores.current[id] === undefined ? [] : [[id, writtenScores.current[id]]],
+        )),
         questionTypes: shouldPersistQuestionTypes
           ? Object.fromEntries(sortedQuestions.map((question, index) => [question.id, questionTypes[index]]))
           : {},
@@ -1082,7 +900,7 @@ export default function AnswerKeyRegisterModal({
         draftFingerprint,
       };
       setPendingVerification(snapshot);
-      if (!snapshot.regrade && toPatch.length > 0) {
+      if (!snapshot.regrade && Object.keys(snapshot.questionScores).length > 0) {
         try {
           snapshot.regrade = [await recalculateExam(examId)];
         } catch (error: unknown) {
@@ -1248,6 +1066,20 @@ export default function AnswerKeyRegisterModal({
         examId={effectiveStructureOwnerId}
       />
 
+      {allocationOpen && (
+        <AnswerKeyScoreAllocationDialog
+          groups={[
+            { group: "objective", label: "선택형", count: choiceQuestions.length, total: choiceTotalScore, manualTarget: manualTargets.objective },
+            { group: "subjective", label: "서술형", count: essayQuestions.length, total: essayTotalScore, manualTarget: manualTargets.subjective },
+          ]}
+          examMaxScore={examMaxScore}
+          formatScore={formatScore}
+          disabled={!canEditStructure || initMut.isPending || Boolean(pendingVerification)}
+          onClose={() => setAllocationOpen(false)}
+          onApply={applyScoreAllocation}
+        />
+      )}
+
       <ModalBody>
         {examReadError && <div role="alert" className="mb-4 text-sm">
           시험 정보를 확인하지 못했습니다. 입력한 답안·배점·해설은 유지됩니다. 다시 확인한 뒤 저장해 주세요.
@@ -1350,10 +1182,28 @@ export default function AnswerKeyRegisterModal({
                 </button>
               )}
             </section>
+            {hasQuestions && (
+              <div className="answer-key-score-toolbar">
+                <div aria-live="polite">
+                  <strong>배점 합계 {formatScore(totalScore)}점</strong>
+                  {Number.isFinite(examMaxScore) && examMaxScore > 0 && <span>시험 만점 {formatScore(examMaxScore)}점</span>}
+                </div>
+                <Button
+                  type="button"
+                  intent="secondary"
+                  size="sm"
+                  aria-haspopup="dialog"
+                  disabled={!canEditStructure || initMut.isPending || Boolean(pendingVerification)}
+                  onClick={() => setAllocationOpen(true)}
+                >
+                  자동 배점 설정
+                </Button>
+              </div>
+            )}
             {guidedScoreMismatch && sortedQuestions.length > 0 && (
               <div className="answer-key-score-guide" role="status">
-                <span>문항 배점 합계 {formatScore(totalScore)}점 · 시험 만점 {formatScore(examMaxScore)}점</span>
-                <Button type="button" intent="secondary" size="sm" onClick={alignGuidedScores} disabled={!canEditStructure}>
+                <span>저장하려면 배점 합계를 시험 만점에 맞춰 주세요.</span>
+                <Button type="button" intent="secondary" size="sm" onClick={alignGuidedScores} disabled={!canEditStructure || initMut.isPending || Boolean(pendingVerification)}>
                   만점에 맞게 균등 배점
                 </Button>
               </div>
@@ -1422,64 +1272,6 @@ export default function AnswerKeyRegisterModal({
                       disabled={!canEditStructure}
                     />
                   </label>
-                  <label className="answer-key-field answer-key-field--total">
-                    <span className="answer-key-field__label">{choiceAutoScore ? "총점" : "목표 총점"}</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={choiceTotalInput}
-                      onChange={(e) => setChoiceTotalInput(e.target.value)}
-                      onKeyDown={handleApplyEnter}
-                      placeholder="예: 80"
-                      className="ds-input answer-key-input--score"
-                      disabled={!canEditStructure}
-                    />
-                    {!choiceAutoScore && choiceTotalInput.trim() !== "" && (
-                      <small role="status">현재 {formatScore(choiceTotalScore)}점 / 목표 {choiceTotalInput}점</small>
-                    )}
-                  </label>
-                  <div className="answer-key-field">
-                    <span className="answer-key-field__label">자동점수 부여</span>
-                    <div className="answer-key-default-score-toggle" role="group" aria-label="자동점수 부여">
-                      <button
-                        type="button"
-                        className={`answer-key-toggle-btn ${choiceAutoScore ? "is-active" : ""}`}
-                        onClick={() => setChoiceAutoScore(true)}
-                        disabled={!canEditStructure}
-                      >
-                        사용
-                      </button>
-                      <button
-                        type="button"
-                        className={`answer-key-toggle-btn ${!choiceAutoScore ? "is-active" : ""}`}
-                        onClick={() => setChoiceAutoScore(false)}
-                        disabled={!canEditStructure}
-                      >
-                        미사용
-                      </button>
-                    </div>
-                  </div>
-                  <div className={`answer-key-field ${!choiceAutoScore ? "answer-key-field--disabled" : ""}`}>
-                    <span className="answer-key-field__label">배점 단위</span>
-                    <div className="answer-key-default-score-toggle" role="group" aria-label="선택형 배점 단위">
-                      <button
-                        type="button"
-                        className={`answer-key-toggle-btn ${choiceScoreMode === "integer" ? "is-active" : ""}`}
-                        onClick={() => setChoiceScoreMode("integer")}
-                        disabled={!canEditStructure || !choiceAutoScore}
-                      >
-                        정수
-                      </button>
-                      <button
-                        type="button"
-                        className={`answer-key-toggle-btn ${choiceScoreMode === "decimal" ? "is-active" : ""}`}
-                        onClick={() => setChoiceScoreMode("decimal")}
-                        disabled={!canEditStructure || !choiceAutoScore}
-                      >
-                        소수 1자리
-                      </button>
-                    </div>
-                  </div>
                   <Button
                     type="button"
                     intent="primary"
@@ -1491,6 +1283,11 @@ export default function AnswerKeyRegisterModal({
                     적용
                   </Button>
                 </div>
+                {manualTargets.objective !== undefined && (
+                  <small className="answer-key-target-status" role="status">
+                    현재 {formatScore(choiceTotalScore)}점 / 목표 {formatScore(manualTargets.objective)}점
+                  </small>
+                )}
                 <ul className="answer-key-list answer-key-list--choice-scroll">
                   {choiceQuestions.length === 0 && !isCountConfigured && questions.length > 0 && (
                     <li className="answer-key-empty-hint">문항 수를 입력하고 <strong>적용</strong>을 눌러주세요.</li>
@@ -1598,64 +1395,6 @@ export default function AnswerKeyRegisterModal({
                       disabled={!canEditStructure}
                     />
                   </label>
-                  <label className="answer-key-field answer-key-field--total">
-                    <span className="answer-key-field__label">{essayAutoScore ? "총점" : "목표 총점"}</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={essayTotalInput}
-                      onChange={(e) => setEssayTotalInput(e.target.value)}
-                      onKeyDown={handleApplyEnter}
-                      placeholder="예: 50"
-                      className="ds-input answer-key-input--score"
-                      disabled={!canEditStructure}
-                    />
-                    {!essayAutoScore && essayTotalInput.trim() !== "" && (
-                      <small role="status">현재 {formatScore(essayTotalScore)}점 / 목표 {essayTotalInput}점</small>
-                    )}
-                  </label>
-                  <div className="answer-key-field">
-                    <span className="answer-key-field__label">자동점수 부여</span>
-                    <div className="answer-key-default-score-toggle" role="group" aria-label="자동점수 부여">
-                      <button
-                        type="button"
-                        className={`answer-key-toggle-btn ${essayAutoScore ? "is-active" : ""}`}
-                        onClick={() => setEssayAutoScore(true)}
-                        disabled={!canEditStructure}
-                      >
-                        사용
-                      </button>
-                      <button
-                        type="button"
-                        className={`answer-key-toggle-btn ${!essayAutoScore ? "is-active" : ""}`}
-                        onClick={() => setEssayAutoScore(false)}
-                        disabled={!canEditStructure}
-                      >
-                        미사용
-                      </button>
-                    </div>
-                  </div>
-                  <div className={`answer-key-field ${!essayAutoScore ? "answer-key-field--disabled" : ""}`}>
-                    <span className="answer-key-field__label">배점 단위</span>
-                    <div className="answer-key-default-score-toggle" role="group" aria-label="서술형 배점 단위">
-                      <button
-                        type="button"
-                        className={`answer-key-toggle-btn ${essayScoreMode === "integer" ? "is-active" : ""}`}
-                        onClick={() => setEssayScoreMode("integer")}
-                        disabled={!canEditStructure || !essayAutoScore}
-                      >
-                        정수
-                      </button>
-                      <button
-                        type="button"
-                        className={`answer-key-toggle-btn ${essayScoreMode === "decimal" ? "is-active" : ""}`}
-                        onClick={() => setEssayScoreMode("decimal")}
-                        disabled={!canEditStructure || !essayAutoScore}
-                      >
-                        소수 1자리
-                      </button>
-                    </div>
-                  </div>
                   <Button
                     type="button"
                     intent="primary"
@@ -1667,6 +1406,11 @@ export default function AnswerKeyRegisterModal({
                     적용
                   </Button>
                 </div>
+                {manualTargets.subjective !== undefined && (
+                  <small className="answer-key-target-status" role="status">
+                    현재 {formatScore(essayTotalScore)}점 / 목표 {formatScore(manualTargets.subjective)}점
+                  </small>
+                )}
                 <ul className="answer-key-list answer-key-list--essay-scroll">
                   {essayQuestions.length === 0 && !isCountConfigured && questions.length > 0 && (
                     <li className="answer-key-empty-hint">문항 수를 입력하고 <strong>적용</strong>을 눌러주세요.</li>
