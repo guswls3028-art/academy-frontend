@@ -55,7 +55,14 @@ function SchoolReportRequests() {
   });
   if (!enabled || requests.isPending) return null;
   if (requests.isError) {
-    return <EmptyState compact title="성적표 제출 요청을 불러오지 못했습니다" onRetry={() => void requests.refetch()} />;
+    return (
+      <div className={styles.schoolReportRequests}>
+        <p role="status">성적표 제출 요청을 불러오지 못했습니다.</p>
+        <button className="stu-btn stu-btn--secondary" type="button" onClick={() => void requests.refetch()}>
+          제출 요청 다시 불러오기
+        </button>
+      </div>
+    );
   }
   if (requests.data.length === 0) return null;
   return (
