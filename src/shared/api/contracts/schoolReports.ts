@@ -1,56 +1,18 @@
 import api from "@/shared/api/axios";
+import type { components, paths } from "@/shared/api/generated/schema";
 
-export type SchoolReportPeriod = {
-  academic_year: number;
-  semester: 1 | 2;
-  exam_round: "first" | "second";
-};
-export type SchoolReportStatus = "submitted" | "missing";
-export type SchoolReportSubject = { subject: string; score: number; max_score: number };
-export type SchoolReportScore = {
-  id: number;
-  subject: string;
-  score: number;
-  max_score: number;
-  grade_rank: number | null;
-};
-export type SchoolReportDetail = SchoolReportPeriod & {
-  student_name: string;
-  status: SchoolReportStatus;
-  submitted_at: string | null;
-  requested_at: string | null;
-  scores: SchoolReportScore[];
-  direct_scores: SchoolReportScore[];
-};
-export type SchoolReportStudent = {
-  student_id: number;
-  name: string;
-  school: string | null;
-  grade: number | string | null;
-  status: SchoolReportStatus;
-  score_count: number;
-  submitted_at: string | null;
-  requested_at: string | null;
-  can_request: boolean;
-  can_request_alimtalk: boolean;
-};
-export type SchoolReportRosterFilters = {
-  search: string;
-  status?: SchoolReportStatus;
-  lecture_id?: number;
-  page: number;
-};
-type SchoolReportRoster = {
-  count: number;
-  next: string | null;
-  previous: string | null;
-  results: SchoolReportStudent[];
-  total_count: number;
-  submitted_count: number;
-  missing_count: number;
-  alimtalk_available: boolean;
-};
-type SchoolReportRequestResult = { requested: number; skipped: number };
+type SchoolReportSchemas = components["schemas"];
+type SchoolReportRequest = SchoolReportSchemas["SchoolReportRequestRequest"];
+type SchoolReportRosterQuery = paths["/api/v1/results/school-reports/"]["get"]["parameters"]["query"];
+type SchoolReportDetail = SchoolReportSchemas["SchoolReportDetailResponse"];
+type SchoolReportRoster = SchoolReportSchemas["SchoolReportRosterResponse"];
+type SchoolReportRequestResult = SchoolReportSchemas["SchoolReportRequestResponse"];
+
+export type SchoolReportPeriod = Pick<SchoolReportRequest, "academic_year" | "exam_round"> & { semester: 1 | 2 };
+export type SchoolReportStatus = SchoolReportSchemas["SchoolReportSubmissionStatus"];
+export type SchoolReportSubject = Pick<SchoolReportSchemas["SchoolReportSubjectRequest"], "subject" | "score" | "max_score">;
+export type SchoolReportScore = SchoolReportSchemas["SchoolReportScoreResponse"];
+export type SchoolReportRosterFilters = Pick<SchoolReportRosterQuery, "status" | "lecture_id"> & { search: string; page: number };
 
 const endpoint = "/results/school-reports/";
 export const schoolReportKeys = {
@@ -67,7 +29,8 @@ export async function fetchOwnSchoolReport(period: SchoolReportPeriod, signal?: 
 }
 
 export async function saveOwnSchoolReport(period: SchoolReportPeriod, subjects: SchoolReportSubject[]) {
-  const { data } = await api.put<SchoolReportDetail>(endpoint + "me/", { subjects }, { params: period });
+  const { data } = await api.put<SchoolReportDetail>(endpoint + "me/",
+    { subjects } satisfies SchoolReportSchemas["SchoolReportEntryRequest"], { params: period });
   return data;
 }
 
@@ -82,6 +45,8 @@ export async function fetchSchoolReportRoster(period: SchoolReportPeriod, filter
 }
 
 export async function requestSchoolReports(period: SchoolReportPeriod, studentIds: number[]) {
-  const { data } = await api.post<SchoolReportRequestResult>(endpoint + "requests/", { ...period, student_ids: studentIds });
+  const { data } = await api.post<SchoolReportRequestResult>(
+    endpoint + "requests/", { ...period, student_ids: studentIds } satisfies SchoolReportRequest,
+  );
   return data;
 }
