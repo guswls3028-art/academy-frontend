@@ -434,6 +434,31 @@ function isExactReadonlyCloudflareBeacon(boundary: ReleaseBoundary, target: URL,
     && !target.search && !target.hash && !target.username && !target.password;
 }
 
+const READONLY_STUDENT_SCREEN_IDS = new Set([
+  "student.dashboard.home",
+  "student.session.list",
+  "student.grades.home",
+  "student.exam.list",
+  "student.video.home",
+  "student.clinic.home",
+  "student.guide.home",
+  "student.assignment.submit",
+]);
+
+function isSignedCatalogThumbnail(rawUrl: string): boolean {
+  if (!URL.canParse(rawUrl)) return false;
+  const target = new URL(rawUrl);
+  const query = target.searchParams;
+  return target.origin === "https://cdn.hakwonplus.com"
+    && rawUrl === target.origin + target.pathname + target.search
+    && /^\/tenants\/[1-9][0-9]*\/video\/hls\/[1-9][0-9]*\/thumbnail\.jpg$/.test(target.pathname)
+    && query.size === 4
+    && /^[1-9][0-9]*$/.test(query.get("exp") ?? "")
+    && /^[0-9]+$/.test(query.get("v") ?? "")
+    && /^[A-Za-z0-9_-]{1,32}$/.test(query.get("kid") ?? "")
+    && /^[A-Za-z0-9_-]{43}$/.test(query.get("sig") ?? "");
+}
+
 export function releaseBoundaryFromEnv(env: Record<string, string | undefined>): ReleaseBoundary | null {
   if (!env.E2E_RELEASE_API_MODE) return null;
   const mode = env.E2E_RELEASE_API_MODE;
@@ -490,7 +515,7 @@ export function assertReleaseRequestSafe(
     const payload = data as Record<string, unknown> | null;
     if (!payload || typeof payload !== "object" || Array.isArray(payload)
       || Object.keys(payload).sort().join(",") !== "device_class,screen_id"
-      || !["student.dashboard.home", "student.session.list", "student.grades.home", "student.guide.home", "student.assignment.submit"].some((screenId) => payload.screen_id === screenId)
+      || typeof payload.screen_id !== "string" || !READONLY_STUDENT_SCREEN_IDS.has(payload.screen_id)
       || !["desktop", "tablet", "mobile"].some((deviceClass) => payload.device_class === deviceClass)) {
       throw new Error("Production observation payload is outside the reviewed screen-view schema");
     }
@@ -1220,6 +1245,7 @@ export async function installReleaseContextGuard(
   const requestTransportDiagnostics: RequestTransportDiagnostic[] = [];
   const activeRoutes = new Set<Promise<void>>();
   const publicVideoIds = new Set<string>();
+  const signedCatalogThumbnails = new Set<string>();
   const publicVideoFrames = new WeakSet<Frame>();
   let publicEmbedIdentityCount = 0;
   let closing = false;
@@ -1388,6 +1414,26 @@ export async function installReleaseContextGuard(
           recordRouteTransport(request, upstream, "terminal", error, "route-fulfill");
           await reject("fulfill-transport");
         }
+        return;
+      }
+      if (boundary.mode === "readonly" && signedCatalogThumbnails.has(upstream)
+        && request.method() === "GET" && request.resourceType() === "image") {
+        const frame = new URL(request.frame().url());
+        if (frame.origin !== boundary.webOrigin || frame.pathname !== "/student/video") {
+          await reject("origin");
+          return;
+        }
+        const headers = await request.allHeaders();
+        if (headers.authorization || headers.cookie || headers["x-tenant-code"] || headers["x-csrftoken"] || headers["x-student-id"]) {
+          await reject("credentials");
+          return;
+        }
+        const response = await route.fetch({ maxRedirects: 0, timeout: 15_000, headers: { accept: "image/jpeg" } });
+        if (response.status() !== 200 || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== "image/jpeg") {
+          await reject("catalog-thumbnail-response");
+          return;
+        }
+        await route.fulfill({ response });
         return;
       }
       let data: unknown;
@@ -1666,6 +1712,19 @@ export async function installReleaseContextGuard(
           || response.headers()["access-control-allow-origin"] !== boundary.webOrigin
           || response.headers()["access-control-allow-credentials"] !== "true") {
           throw new Error("Real API CORS boundary mismatch");
+        }
+        if (boundary.mode === "readonly" && request.method() === "GET" && !target.search
+          && target.pathname === "/api/v1/student/video/me/" && response.status() === 200
+          && /^Bearer \S+$/.test(headers.authorization ?? "")) {
+          const catalog: unknown = await response.json();
+          if (isRecord(catalog)) {
+            const lectures: unknown[] = Array.isArray(catalog.lectures) ? catalog.lectures : [];
+            for (const entry of [catalog.public, ...lectures]) {
+              if (isRecord(entry) && typeof entry.thumbnail_url === "string" && isSignedCatalogThumbnail(entry.thumbnail_url)) {
+                signedCatalogThumbnails.add(entry.thumbnail_url);
+              }
+            }
+          }
         }
         const pptTarget = new URL(upstream);
         const surveyResponses = /^\/api\/v1\/surveys\/([1-9][0-9]*)\/responses\/$/.exec(pptTarget.pathname);
