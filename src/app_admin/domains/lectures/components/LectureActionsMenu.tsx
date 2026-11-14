@@ -51,7 +51,7 @@ export default function LectureActionsMenu({ lecture, isPast, onEdit, onChanged 
           title: action === "end" ? "강의 종료" : "강의 삭제",
           message: action === "end"
             ? `“${lecture.title}” 강의를 종료하시겠습니까? 수강·출결 이력은 보관되며 지난 강의에서 복원할 수 있습니다.`
-            : `“${lecture.title}” 강의를 삭제하면 복구할 수 없습니다. 사용 기록이 없는 차시·분반 등 연결 설정도 함께 삭제될 수 있습니다. 수강 등록이나 출결 등 보호되는 기록이 있으면 삭제가 제한됩니다.${isPast ? "" : " 기록을 보관하려면 강의 종료를 이용하세요."}`,
+            : `“${lecture.title}” 강의를 삭제하면 복구할 수 없습니다. 사용 기록이 없는 차시·분반도 함께 삭제될 수 있습니다. 수강 등록·출결 기록이나 연결된 수강료 설정 등이 있으면 삭제가 제한됩니다.${isPast ? "" : " 기록을 보관하려면 강의 종료를 이용하세요."}`,
           confirmText: action === "end" ? "종료" : "영구 삭제",
           danger: true,
         });

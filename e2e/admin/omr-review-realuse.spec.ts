@@ -1382,7 +1382,12 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
         const path = `/lectures/lectures/${target.id}/`;
         const deleted = page.waitForResponse((response) => matchesApiResponse(response, "DELETE", path));
         await confirmation.getByRole("button", { name: "영구 삭제", exact: true }).click();
-        expect((await deleted).status()).toBe(target.status);
+        const response = await deleted;
+        expect(response.status()).toBe(target.status);
+        if (target.status === 403) {
+          expect(await response.json()).toMatchObject({ detail: "This lecture has lecture enrollments and cannot be deleted." });
+          await expect(page.getByText(/연결된 기록이 있어 강의를 삭제할 수 없습니다/).first()).toBeVisible();
+        }
       }
       const kept = page.getByRole("link", { name: `${LECTURE_TITLE} 강의 열기`, exact: true });
       const removed = page.getByRole("link", { name: `${emptyLectureTitle} 강의 열기`, exact: true });

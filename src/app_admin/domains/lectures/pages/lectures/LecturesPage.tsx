@@ -51,6 +51,7 @@ type LectureSortKey = "title" | "subject" | "name" | "lecture_time" | "dateRange
 
 const REORDER_COLUMN_WIDTH = 40;
 const ACTION_COLUMN_WIDTH = 52;
+const CONTROL_COLUMNS_WIDTH = REORDER_COLUMN_WIDTH + ACTION_COLUMN_WIDTH;
 const REORDER_COLUMN_STYLE: CSSProperties = { width: REORDER_COLUMN_WIDTH };
 const ACTION_COLUMN_STYLE: CSSProperties = { width: ACTION_COLUMN_WIDTH };
 
@@ -95,10 +96,6 @@ function extractLectureListPayload(value: unknown): unknown[] {
   if (Array.isArray(value)) return value;
   if (isRecord(value) && Array.isArray(value.results)) return value.results;
   return [];
-}
-
-function columnWidthStyle(width: number): CSSProperties {
-  return { width };
 }
 
 function isLectureSortKey(key: string): key is LectureSortKey {
@@ -331,11 +328,9 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
     setDragOverLectureId(null);
   }, [dragLectureId, manualScopeList, persistMovedLecture]);
 
-  const tableWidth = useMemo(
+  const contentWidth = useMemo(
     () =>
-      LECTURES_TABLE_COLUMN_DEFS.reduce((sum, c) => sum + (columnWidths[c.key] ?? c.defaultWidth), 0)
-      + REORDER_COLUMN_WIDTH
-      + ACTION_COLUMN_WIDTH,
+      LECTURES_TABLE_COLUMN_DEFS.reduce((sum, column) => sum + (columnWidths[column.key] ?? column.defaultWidth), 0),
     [columnWidths]
   );
 
@@ -399,16 +394,18 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
           ) : list.length === 0 ? (
             <EmptyState scope="panel" tone="empty" title={q.trim() ? "검색한 강의가 없습니다." : tab === "past" ? "지난 강의가 없습니다." : "등록된 강의가 없습니다."} actions={q.trim() ? <Button intent="secondary" onClick={() => setQ("")}>검색 초기화</Button> : undefined} />
           ) : (
-            <div data-guide="lectures-table">
+            <div className="lecture-list-table" data-guide="lectures-table">
               <DomainTable
                 tableClassName="ds-table--flat ds-table--center ds-table--lectures"
-                tableStyle={{ tableLayout: "fixed", width: "100%", minWidth: tableWidth }}
+                tableStyle={{ tableLayout: "fixed", width: "100%", minWidth: contentWidth + CONTROL_COLUMNS_WIDTH }}
               >
                 <colgroup>
                   <col style={REORDER_COLUMN_STYLE} />
-                  {LECTURES_TABLE_COLUMN_DEFS.map((c) => (
-                    <col key={c.key} style={columnWidthStyle(columnWidths[c.key] ?? c.defaultWidth)} />
-                  ))}
+                  {LECTURES_TABLE_COLUMN_DEFS.map((column) => {
+                    const width = columnWidths[column.key] ?? column.defaultWidth;
+                    const share = width / contentWidth;
+                    return <col key={column.key} style={{ width: `max(${width}px, calc(${share * 100}cqw - ${share * CONTROL_COLUMNS_WIDTH}px))` }} />;
+                  })}
                   <col style={ACTION_COLUMN_STYLE} />
                 </colgroup>
                 <thead>

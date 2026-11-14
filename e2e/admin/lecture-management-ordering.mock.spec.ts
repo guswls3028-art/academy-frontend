@@ -411,11 +411,13 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
         return {
           tableWidth: rect.width,
           ownerWidth: owner.getBoundingClientRect().width,
+          gripColumnWidth: tableElement.querySelector(".lecture-reorder-cell")!.getBoundingClientRect().width,
           documentScrollWidth: document.documentElement.scrollWidth,
           viewportWidth: window.innerWidth,
         };
       }, undefined, { timeout: 60_000 });
       expect(metrics.tableWidth).toBeGreaterThanOrEqual(metrics.ownerWidth - 1);
+      expect(metrics.gripColumnWidth).toBeCloseTo(40, 0);
       expect(metrics.documentScrollWidth).toBeLessThanOrEqual(metrics.viewportWidth);
     }
 

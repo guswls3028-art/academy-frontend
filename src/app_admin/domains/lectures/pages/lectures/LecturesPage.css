@@ -1,3 +1,4 @@
+.lecture-list-table { container-type: inline-size; }
 .ds-table.ds-table--lectures th,
 .ds-table.ds-table--lectures td { border-inline: 0; }
 .ds-table-wrap .ds-table.ds-table--lectures.ds-table--center tbody td { padding-block: 8px; }
