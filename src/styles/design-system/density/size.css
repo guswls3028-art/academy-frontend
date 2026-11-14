@@ -42,15 +42,15 @@
    *   lg : kpi strip / 강조 카드
    * 수치는 px 폰트 — 단순 키우기가 아니라 컨텍스트 단계 정의용.
    * ============================================================ */
-  --badge-font-xs: 10px;
-  --badge-font-sm: 11px;
-  --badge-font-md: 12px;
-  --badge-font-lg: 13px;
+  --badge-font-xs: var(--ds-badge-font-xs);
+  --badge-font-sm: var(--ds-badge-font-sm);
+  --badge-font-md: var(--ds-badge-font-md);
+  --badge-font-lg: var(--ds-badge-font-lg);
 
-  --badge-pad-xs: 2px 6px;
-  --badge-pad-sm: 3px 8px;
-  --badge-pad-md: 4px 10px;
-  --badge-pad-lg: 5px 12px;
+  --badge-pad-xs: var(--ds-badge-pad-xs);
+  --badge-pad-sm: var(--ds-badge-pad-sm);
+  --badge-pad-md: var(--ds-badge-pad-md);
+  --badge-pad-lg: var(--ds-badge-pad-lg);
 
   /* ============================================================
    * TYPOGRAPHY SSOT — 학원장 시선 위계 4단계 (2026-05-13)

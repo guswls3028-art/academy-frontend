@@ -26,7 +26,11 @@ for (const role of ['student', 'parent']) for (const width of [390, 1366]) {
       if (path === '/student/me/') return json({ id: 11, name: '수업 학생', username: 'schedule-student', is_student: true, isParentReadOnly: role === 'parent' });
       if (path === '/student/sessions/me/') return json(sessions);
       const detail = path.match(/^\/student\/sessions\/(\d+)\/$/);
-      if (detail) return json({ ...sessions.find(s => s.id === Number(detail[1])), exam_ids: [] });
+      if (detail) return json({ ...sessions.find(s => s.id === Number(detail[1])), exam_ids: detail[1] === '202' ? [71, 72] : [] });
+      if (path === '/student/exams/') return json({ items: [
+        { id: 71, title: '정규 시험', close_at: '2026-11-06T18:00:00+09:00', has_result: false },
+        { id: 72, title: '재시험', has_result: true },
+      ] });
       return json({ results: [], count: 0, next: null, notices: [], today_sessions: [], badges: {} });
     });
     await page.goto(`${BASE}/student/sessions`);
@@ -47,7 +51,29 @@ for (const role of ['student', 'parent']) for (const width of [390, 1366]) {
     await expect(page.getByText('수업일 미배정', { exact: true })).toBeVisible();
     await page.goto(`${BASE}/student/sessions/202`);
     await expect(page.getByText(/목요일반 · 날짜:/)).toContainText('16:00 ~ 18:00');
+    const actions = page.getByRole('list', { name: '차시 학습' });
+    await expect(actions.getByRole('listitem')).toHaveCount(4);
+    const card = actions.locator('..');
+    await expect(card).toHaveCSS('border-top-left-radius', '14px');
+    await expect(card).toHaveCSS('padding-left', '16px');
+    await expect(actions.getByRole('link', { name: '과제 제출', exact: true })).toHaveAttribute('href', '/student/submit/assignment?sessionId=202');
+    await expect(actions.getByRole('link', { name: '성적 보기', exact: true })).toHaveAttribute('href', '/student/grades');
+    await expect(actions.getByText('응시 가능 1', { exact: true })).toBeVisible();
+    await expect(actions.getByText('채점 완료 1', { exact: true })).toBeVisible();
+    const firstExam = actions.getByRole('link', { name: '정규 시험', exact: true });
+    const choices = actions.locator('summary');
+    await expect(firstExam).toBeHidden();
+    await expect.poll(() => choices.evaluate(el => Math.round(el.getBoundingClientRect().height)))
+      .toBe(width === 390 ? 44 : 40);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await page.screenshot({ path: test.info().outputPath(`schedule-detail-${role}-${width}.png`), fullPage: true });
+    await choices.focus();
+    await choices.press('Enter');
+    await expect(firstExam).toBeVisible();
+    await expect(firstExam).toHaveAttribute('href', '/student/exams/71');
+    await expect(actions.getByRole('link', { name: '재시험', exact: true })).toHaveAttribute('href', '/student/exams/72');
+    await choices.press('Enter');
+    await expect(firstExam).toBeHidden();
     await page.goto(`${BASE}/student/sessions/203`);
     await expect(page.getByText('수업일 미배정', { exact: true })).toHaveCount(0);
     await expect(page.getByText(/^날짜:/)).toBeVisible();

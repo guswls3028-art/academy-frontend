@@ -58,15 +58,8 @@ export default function StaffSummaryTab({
   const s = summaryQ.data;
 
   return (
-    <div className="space-y-4">
-      <div
-        className={[
-          "rounded-xl border px-4 py-3 flex justify-between items-center",
-          locked
-            ? "border-[color-mix(in_srgb,var(--color-danger)_55%,transparent)] bg-[var(--color-danger-soft)]"
-            : "border-[var(--border-divider)] bg-[var(--bg-surface-soft)]",
-        ].join(" ")}
-      >
+    <section className="ds-record-card" aria-label="선택 월 요약">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <div className="text-sm font-semibold">선택 월 요약</div>
           <div className="text-xs text-[var(--text-muted)]">
@@ -79,13 +72,13 @@ export default function StaffSummaryTab({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <dl className="mt-4 grid grid-cols-2 gap-[var(--ds-card-gap)] border-t border-[var(--color-border-divider)] pt-4 sm:grid-cols-4">
         <Item label="근무시간" value={`${s.work_hours} h`} />
         <Item label="근무기록 금액" value={s.work_amount.toLocaleString()} />
         <Item label="승인 선결제 환급" value={s.expense_amount.toLocaleString()} />
         <Item label="공제 전 합계" value={s.total_amount.toLocaleString()} primary />
-      </div>
-    </div>
+      </dl>
+    </section>
   );
 }
 
@@ -99,15 +92,15 @@ function Item({
   primary?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-[var(--border-divider)] bg-[var(--bg-surface-soft)] px-4 py-3">
-      <div className="text-xs text-[var(--text-muted)]">{label}</div>
-      <div
+    <div className="min-w-0">
+      <dt className="text-xs text-[var(--text-muted)]">{label}</dt>
+      <dd
         className={`mt-1 text-lg font-semibold ${
           primary ? "text-[var(--color-primary)]" : ""
         }`}
       >
         {value}
-      </div>
+      </dd>
     </div>
   );
 }

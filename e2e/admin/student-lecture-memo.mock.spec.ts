@@ -209,6 +209,7 @@ test("학생 정보의 공통 메모 수정은 명단에 반영되고 강의 메
   await page.goto(`${BASE}${adminPath()}`);
   await page.getByRole("link", { name: `${NAME} 학생 상세 열기` }).click();
   const overlay = page.getByTestId("student-detail-overlay");
+  await overlay.getByRole("button", { name: "연락처·메모 보기" }).click();
   const input = overlay.getByRole("textbox", { name: "학생 공통 메모", exact: true });
   await input.fill("수정된 학생 공통 특이사항");
   await input.blur();

@@ -136,8 +136,9 @@
   justify-content: center;
   gap: 8px;
   white-space: nowrap;
+  text-decoration: none;
 
-  min-height: var(--stu-control);
+  min-height: var(--stu-button-size, var(--stu-control));
   padding: 0 var(--ds-space-4);
   font-size: var(--ds-text-md);
   line-height: 1.2;
@@ -265,14 +266,14 @@
 }
 
 .stu-btn--sm {
-  min-height: max(var(--ds-control-sm), var(--stu-touch));
+  min-height: var(--stu-button-size, var(--stu-touch));
   padding: 0 var(--ds-space-3);
   border-radius: var(--stu-radius-sm);
   font-size: var(--stu-font-size-13);
 }
 
 .stu-btn--lg {
-  min-height: var(--stu-control-lg);
+  min-height: var(--stu-button-size, var(--stu-control-lg));
   padding: 0 var(--ds-space-5);
   border-radius: var(--stu-radius-lg);
   font-size: var(--stu-font-size-15);
@@ -346,11 +347,11 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  padding: var(--ds-badge-pad-md);
   border-radius: 999px;
-  font-size: var(--stu-font-size-12);
+  font-size: var(--ds-badge-font-md);
   line-height: var(--stu-line-16);
-  font-weight: 900;
+  font-weight: 700;
   border: 1px solid transparent;
 }
 
@@ -380,8 +381,9 @@
 
 /* Badge size variants */
 .stu-badge--sm {
-  padding: 3px 7px;
-  font-size: 11px;
+  padding: var(--ds-badge-pad-sm);
+  font-size: var(--ds-badge-font-sm);
+  line-height: 1.2;
   gap: 3px;
 }
 
