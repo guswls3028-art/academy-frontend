@@ -168,6 +168,9 @@ export default function OmrReviewWorkspace({
   const [zoom, setZoom] = useState(1);
   const [fitMode, setFitMode] = useState(true); // true = 컨테이너 맞춤, false = 100%*zoom
   const [editDirty, setEditDirty] = useState(false);
+  const navigationPromptOpen = useRef(false);
+  const selectionState = useRef({ selectedId, editDirty });
+  selectionState.current = { selectedId, editDirty };
   const [retiredId, setRetiredId] = useState<number | null>(null);
   const [focusedQid, setFocusedQid] = useState<number | null>(null);
   const [mobilePane, setMobilePane] = useState<MobilePane>("list");
@@ -317,7 +320,7 @@ export default function OmrReviewWorkspace({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && !navigationPromptOpen.current) {
         // StudentPickerModal이 열려있으면 그쪽이 먼저 가로챔 — 본 리스너는 최상단에서만 작동
         // 실제로는 PickerModal도 Esc로 닫히므로 여기까지 오지 않음
         e.preventDefault();
@@ -340,18 +343,29 @@ export default function OmrReviewWorkspace({
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [open, editDirty]);
 
-  // 학생 이동 (1=다음, -1=이전)
-  const navigate = useCallback(
-    (dir: 1 | -1) => {
-      if (visibleRows.length === 0) return;
-      setSelectedId((prev) => {
-        const idx = visibleRows.findIndex((r) => r.id === prev);
-        const next = idx < 0 ? 0 : Math.max(0, Math.min(visibleRows.length - 1, idx + dir));
-        return visibleRows[next].id;
-      });
-    },
-    [visibleRows],
-  );
+  const requestSelection = async (submissionId: number, pane?: MobilePane) => {
+    if (navigationPromptOpen.current) return;
+    const current = selectionState.current;
+    if (submissionId !== current.selectedId && current.editDirty) {
+      navigationPromptOpen.current = true;
+      const confirmed = await confirm({
+        title: "다른 답안지로 이동",
+        message: "저장하지 않은 변경 사항이 있습니다. 변경 사항을 버리고 이동하시겠습니까?",
+        confirmText: "이동",
+        cancelText: "계속 편집",
+        danger: true,
+      }).finally(() => { navigationPromptOpen.current = false; });
+      if (!confirmed || selectionState.current.selectedId !== current.selectedId) return;
+    }
+    setSelectedId(submissionId);
+    if (pane) setMobilePane(pane);
+  };
+
+  const adjacentSubmissionId = (from: number | null, direction: 1 | -1) => {
+    const index = visibleRows.findIndex((row) => row.id === from);
+    const next = index < 0 ? 0 : Math.max(0, Math.min(visibleRows.length - 1, index + direction));
+    return visibleRows[next]?.id;
+  };
 
   // 진행도: ok/noid/flag/failed 중 처리 완료 (ok+done) vs 전체
   const progress = { done: summary.done, total: summary.activeTotal };
@@ -479,10 +493,7 @@ export default function OmrReviewWorkspace({
                   <div
                     key={r.id}
                     className={`orw-list-row ${selectedId === r.id ? "orw-list-row--active" : ""}`}
-                    onClick={() => {
-                      setSelectedId(r.id);
-                      setMobilePane("edit");
-                    }}
+                    onClick={() => void requestSelection(r.id, "edit")}
                   >
                     <div className="orw-list-row__name">
                       {r.student_name || <span className="orw-list-row__noname">미식별 학생</span>}
@@ -529,7 +540,7 @@ export default function OmrReviewWorkspace({
             focusedQid={focusedQid}
             onPickQuestion={setFocusedQid}
             onRescanCreated={(submissionId) => {
-              setSelectedId(submissionId);
+              void requestSelection(submissionId);
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewList(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewIssues(examId) });
               qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewDetail(submissionId) });
@@ -558,7 +569,7 @@ export default function OmrReviewWorkspace({
             focusedQid={focusedQid}
             onFocusedQidChange={setFocusedQid}
             onDirtyChange={setEditDirty}
-            onSelectSubmission={(subId) => setSelectedId(subId)}
+            onSelectSubmission={(subId) => void requestSelection(subId)}
             onSaved={(result) => {
               setEditDirty(false);
               const savedScore = scoreFromManualEditResult(result);
@@ -613,11 +624,18 @@ export default function OmrReviewWorkspace({
               }
               // 자동 다음 학생 이동 (운영자 가속)
               if (!exactInitialSelection && result?.code !== "OMR_GRADING_CONFIGURATION_REQUIRED") {
-                window.setTimeout(() => navigate(1), 250);
+                window.setTimeout(() => {
+                  const current = selectionState.current;
+                  if (current.selectedId !== selectedId || current.editDirty) return;
+                  setSelectedId(adjacentSubmissionId(selectedId, 1) ?? selectedId);
+                }, 250);
               }
               return detailRefetch;
             }}
-            onNavigate={navigate}
+            onNavigate={(direction) => {
+              const next = adjacentSubmissionId(selectedId, direction);
+              if (next != null) void requestSelection(next);
+            }}
           />
         </div>
       </div>
