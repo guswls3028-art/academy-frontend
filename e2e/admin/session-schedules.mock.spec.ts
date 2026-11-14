@@ -13,7 +13,9 @@ const roster = [
   { enrollment_id: 33, student_name: '박새봄' },
 ];
 async function capture(page: Page, name: string) {
-  await test.info().attach(name, { body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png' });
+  const path = test.info().outputPath(`${name}.png`);
+  await page.screenshot({ path, fullPage: true, animations: 'disabled' });
+  await test.info().attach(name, { path, contentType: 'image/png' });
 }
 function fixture(configured = false) {
   const state = {
@@ -26,7 +28,7 @@ function fixture(configured = false) {
     bulk: [] as { session: number; schedule?: string }[],
     presentEnrollmentIds: new Set<number>(),
     reads: [] as { kind: string; scope: string | null }[],
-    failSave: 0, failRead: false, failScores: false, failAttendance: false, attendanceFilled: 0,
+    failSave: 0, failRead: false, failSessionList: false, failScores: false, failAttendance: false, attendanceFilled: 0,
   };
   return state;
 }
@@ -48,7 +50,8 @@ async function install(page: Page, state: ReturnType<typeof fixture>) {
     if (endpoint === '/lectures/lectures/9901/') return json({ id: 9901, title: '요일별 수업', color: '#2563eb', chip_label: '수업' });
     const current = { id: 9902, lecture: 9901, lecture_title: '요일별 수업', title: '2차시', order: 2, regular_order: 2, session_type: 'REGULAR', date: '2026-11-04', schedule_dates: state.config.schedules, attendance_filled: state.attendanceFilled, attendance_total: 1 };
     if (endpoint === '/lectures/sessions/9902/') return json(current);
-    if (endpoint === '/lectures/sessions/') return json({ count: url.searchParams.has('date') ? 1 : 2, results: url.searchParams.has('date') ? [current] : [{ ...current, id: 9900, title: '1차시', order: 1, date: '2026-10-28' }, current] });
+    if (endpoint === '/lectures/sessions/' && state.failSessionList) return json({ detail: '차시 목록 조회 실패' }, 400);
+    if (endpoint === '/lectures/sessions/') return json({ count: url.searchParams.has('date') ? 1 : 2, results: url.searchParams.has('date') ? [current] : [{ ...current, id: 9900, title: '1차시', order: 1, regular_order: 1, date: '2026-10-28' }, current] });
     if (endpoint === '/enrollments/session-enrollments/') return json({ count: 3, results: roster.map(s => ({ id: s.enrollment_id + 300, session: 9902, enrollment: s.enrollment_id, student_id: s.enrollment_id + 200, student_name: s.student_name, enrollment_status: 'ACTIVE' })) });
     if (endpoint === '/exams/') return json({ count: 1, results: [{ id: 81, title: '공통 시험', max_score: 100, pass_score: 60 }] });
     if (endpoint === '/results/admin/exams/81/results/') return json({ count: 3, results: roster.map(s => ({ ...s, score: 80, final_score: 80, exam_score: 80, max_score: 100 })) });
@@ -100,31 +103,71 @@ async function install(page: Page, state: ReturnType<typeof fixture>) {
 for (const width of [390, 1366]) test(`수업일 작성·배정·저장·reload·출결/성적 범위 ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 });
   const state = fixture(); await install(page, state);
-  await page.goto(`${BASE}${path}/attendance`);
   const strip = page.getByRole('region', { name: '수업일 선택' });
-  await expect(strip.getByRole('button')).toHaveCount(1);
-  await strip.getByRole('button', { name: '수업일 관리' }).click();
+  await page.goto(`${BASE}/workspace/lectures/9901`, { waitUntil: 'domcontentloaded' });
+  const sessionCard = page.getByRole('region', { name: '2차시 차시 카드', exact: true });
+  await expect(sessionCard).toBeVisible();
+  const gear = sessionCard.getByRole('button', { name: '차시 설정', exact: true });
+  await gear.focus();
+  await gear.press('Enter');
+  await page.getByRole('menu', { name: '차시 설정 메뉴' }).getByRole('button', { name: '수정', exact: true }).click();
+  await page.getByRole('dialog', { name: '차시 설정 편집' }).getByRole('button', { name: '수업일 관리', exact: true }).click();
   const modal = page.getByRole('dialog', { name: '수업일 관리' });
   await modal.getByRole('button', { name: '수업일 추가' }).click();
   await modal.getByLabel('수업일 1 이름').fill('수요일반');
   await modal.getByLabel('학생 검색').fill('김');
-  await modal.getByRole('button', { name: '검색 결과 전체 선택' }).click();
+  await modal.getByRole('checkbox', { name: '검색 결과 전체 선택', exact: true }).check();
   await modal.getByRole('button', { name: '선택 학생 배정' }).click();
   await modal.getByRole('button', { name: '수업일 추가' }).click();
   await modal.getByLabel('수업일 2 이름').fill('목요일반');
-  await modal.getByRole('region', { name: '수업일 2', exact: true }).getByLabel('날짜').click();
+  await modal.getByLabel('날짜', { exact: true }).click();
   await page.getByRole('dialog', { name: '날짜 선택', exact: true }).getByRole('button', { name: '5', exact: true }).click();
   await modal.getByLabel('학생 검색').fill('이');
-  await modal.getByRole('button', { name: '검색 결과 전체 선택' }).click();
+  await modal.getByRole('checkbox', { name: '검색 결과 전체 선택', exact: true }).check();
   await modal.getByRole('button', { name: '선택 학생 배정' }).click();
-  await modal.getByLabel('수업일 1 이름', { exact: true }).scrollIntoViewIfNeeded();
+  await modal.getByRole('button', { name: '수업일 추가', exact: true }).click();
+  await modal.getByLabel('수업일 3 이름', { exact: true }).fill('금요일반');
+  await modal.getByLabel('날짜', { exact: true }).click();
+  await page.getByRole('dialog', { name: '날짜 선택', exact: true }).getByRole('button', { name: '6', exact: true }).click();
+  await modal.getByLabel('학생 검색', { exact: true }).fill('박새봄');
+  const fridayStudent = modal.getByRole('checkbox', { name: /박새봄/ });
+  await fridayStudent.check();
+  await modal.getByRole('button', { name: '선택 학생 배정', exact: true }).click();
+  const days = modal.getByRole('region', { name: '수업일 목록', exact: true });
+  await days.getByRole('button', { name: /^수요일반/ }).click();
+  await expect(modal.getByLabel('수업일 1 이름', { exact: true })).toHaveValue('수요일반');
+  await expect(modal.getByLabel('수업일 3 이름', { exact: true })).toHaveCount(0);
+  await days.getByRole('button', { name: /^금요일반/ }).click();
+  await modal.getByLabel('수업일 3 이름', { exact: true }).scrollIntoViewIfNeeded();
   await capture(page, `schedule-manager-${width}`);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   await modal.getByRole('button', { name: '저장', exact: true }).click();
   await expect(modal).toBeHidden();
-  expect(state.puts[0].schedules.map(s => [s.label, s.date, s.enrollment_ids])).toEqual([['수요일반', '2026-11-04', [31]], ['목요일반', '2026-11-05', [32]]]);
-  await page.reload();
-  await expect(page.getByText('기본 수업일: 2026-11-04', { exact: true })).toBeVisible();
+  expect(state.puts[0].schedules.map(s => [s.label, s.date, s.enrollment_ids])).toEqual([
+    ['수요일반', '2026-11-04', [31]],
+    ['목요일반', '2026-11-05', [32]],
+    ['금요일반', '2026-11-06', [33]],
+  ]);
+  await page.goto(`${BASE}${path}/attendance`);
+  await expect(sessionCard.getByRole('region', { name: '수업일 선택', exact: true })).toBeVisible();
+  await expect(strip.getByText('수업일 3개', { exact: true })).toBeVisible();
+  await capture(page, `schedule-card-${width}`);
+  await strip.getByRole('button', { name: /^금요일반/ }).click();
+  await expect(page).toHaveURL(/schedule=73/);
+  await expect(page.getByText('2026-11-06 · 금요일반', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: '박새봄 학생 상세 열기', exact: true })).toBeVisible();
+  await strip.getByRole('button', { name: '수업일 수정 · 금요일반', exact: true }).click();
+  await expect(modal.getByLabel('수업일 3 이름', { exact: true })).toHaveValue('금요일반');
+  await modal.getByLabel('날짜', { exact: true }).click();
+  await page.getByRole('dialog', { name: '날짜 선택', exact: true }).getByRole('button', { name: '13', exact: true }).click();
+  await modal.getByLabel('학생 검색', { exact: true }).fill('박새봄');
+  await fridayStudent.check();
+  await modal.getByRole('button', { name: '배정 해제', exact: true }).click();
+  await modal.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(modal).toBeHidden();
+  await expect(page.getByText('2026-11-13 · 금요일반', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: '박새봄 학생 상세 열기', exact: true })).toHaveCount(0);
+  expect(state.puts.at(-1)?.schedules.find(s => s.label === '금요일반')).toMatchObject({ id: 73, date: '2026-11-13', enrollment_ids: [] });
   await strip.getByRole('button', { name: /^수요일반/ }).click();
   await expect(page).toHaveURL(/schedule=71/);
   await expect(page.getByText('2026-11-04 · 수요일반', { exact: true })).toBeVisible();
@@ -228,8 +271,10 @@ for (const width of [390, 1366]) test(`수업일 전환 저장 대기 중 다른
     completed += 1;
   });
   try {
-    await page.goto(`${BASE}${path}/scores?schedule=71`);
-    await page.getByRole('button', { name: '수정', exact: true }).click();
+    await page.goto(`${BASE}${path}/scores?schedule=71`, { waitUntil: 'domcontentloaded' });
+    const edit = page.getByRole('group', { name: '성적 편집과 출력', exact: true }).getByRole('button', { name: '수정', exact: true });
+    await expect(edit).toBeEnabled();
+    await edit.click();
     await expect(page.getByRole('button', { name: '점수 입력 마침', exact: true })).toBeVisible();
     await page.getByRole('region', { name: '수업일 선택' }).getByRole('button', { name: /^목요일반/ }).click();
     await expect.poll(() => releases).toBe(1);
@@ -259,6 +304,8 @@ for (const width of [390, 1366]) test(`저장 실패·닫기 후 입력 보존·
   await page.goto(`${BASE}${path}/attendance?schedule=71`);
   await page.getByRole('button', { name: '수업일 관리', exact: true }).click();
   const modal = page.getByRole('dialog', { name: '수업일 관리' });
+  const days = modal.getByRole('region', { name: '수업일 목록', exact: true });
+  await days.getByRole('button', { name: /^수요일반/ }).click();
   const firstCard = modal.getByRole('region', { name: '수업일 1', exact: true });
   const timeDetails = firstCard.locator('details');
   const timeSummary = timeDetails.locator('summary').filter({ hasText: '시간 설정 (선택)' });
@@ -304,8 +351,9 @@ for (const width of [390, 1366]) test(`저장 실패·닫기 후 입력 보존·
   await expect(modal).toBeHidden();
   expect(state.puts.at(-1)?.version).toBe('other-edit');
   await page.getByRole('button', { name: '수업일 관리', exact: true }).click();
-  await expect(modal.getByRole('button', { name: '이전 차시에서 가져오기' })).toBeDisabled();
+  await days.getByRole('button', { name: /^수요일 심화반/ }).click();
   await modal.getByRole('button', { name: '수업일 1 삭제', exact: true }).click();
+  await days.getByRole('button', { name: /^목요일반 최신/ }).click();
   await modal.getByRole('button', { name: '수업일 1 삭제', exact: true }).click();
   await modal.getByRole('button', { name: '저장', exact: true }).click();
   await expect(page.locator('[data-confirm-dialog]')).toContainText('2026-11-04');
@@ -315,10 +363,11 @@ for (const width of [390, 1366]) test(`저장 실패·닫기 후 입력 보존·
   await expect(page.getByRole('alert').filter({ hasText: '선택한 수업일을 찾을 수 없습니다' })).toBeVisible();
   await expect(page.getByRole('link', { name: '김수연 학생 상세 열기' })).toHaveCount(0);
   await page.getByRole('button', { name: '수업일 관리', exact: true }).click();
-  await modal.getByRole('button', { name: '이전 차시에서 가져오기' }).click();
-  await page.getByRole('button', { name: '가져와 저장', exact: true }).click();
+  await modal.locator('summary').filter({ hasText: '이전 차시에서 가져오기' }).click();
+  await modal.getByRole('button', { name: '가져와 저장', exact: true }).click();
+  await page.getByRole('alertdialog', { name: '이전 차시의 수업일을 가져올까요?' }).getByRole('button', { name: '가져와 저장', exact: true }).click();
   await expect(modal.getByLabel('수업일 1 이름')).toHaveValue('수요일반');
-  await expect(modal.getByText('2명 배정', { exact: true })).toBeVisible();
+  await expect(days.getByRole('button', { name: /^수요일반.*2명/ })).toBeVisible();
   await modal.getByRole('button', { name: '닫기', exact: true }).click();
   await page.reload();
   await expect(page.getByRole('button', { name: /^수요일반.*2명/ })).toBeVisible();
@@ -343,12 +392,28 @@ test('조회 실패와 잘못된 범위가 전체 명단으로 대체되지 않�
   await expect(page.getByRole('link', { name: '김수연 학생 상세 열기' })).toHaveCount(0);
 });
 
+test('차시 목록을 불러오지 못해도 현재 차시의 수업일을 관리할 수 있다', async ({ page }) => {
+  const state = fixture(true);
+  state.failSessionList = true;
+  await install(page, state);
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.goto(`${BASE}${path}/attendance`, { waitUntil: 'domcontentloaded' });
+  const card = page.getByRole('region', { name: '2차시 차시 카드', exact: true });
+  await card.getByRole('button', { name: /^목요일반/ }).click();
+  await expect(page).toHaveURL(/schedule=72/);
+  await card.getByRole('button', { name: '수업일 관리', exact: true }).click();
+  const modal = page.getByRole('dialog', { name: '수업일 관리', exact: true });
+  await expect(modal.getByLabel('수업일 2 이름', { exact: true })).toHaveValue('목요일반');
+});
+
 test('닫힌 초안도 SPA 이탈을 확인하고 취소하면 보존한다', async ({ page }) => {
   const state = fixture(); await install(page, state);
   await page.goto(`${BASE}${path}/attendance`);
-  await page.getByRole('button', { name: '수업일 관리', exact: true }).click();
+  const scopes = page.getByRole('region', { name: '2차시 차시 카드', exact: true }).getByRole('region', { name: '수업일 선택', exact: true });
+  await scopes.getByRole('button', { name: '수업일 추가', exact: true }).click();
   const modal = page.getByRole('dialog', { name: '수업일 관리' });
-  await modal.getByRole('button', { name: '수업일 추가' }).click();
+  await expect(modal.getByLabel('수업일 1 이름', { exact: true })).toBeVisible();
+  expect(state.puts).toHaveLength(0);
   await modal.getByLabel('수업일 1 이름').fill('보존할 수요일반');
   await modal.getByRole('button', { name: '닫기', exact: true }).click();
   const lectureLink = page.getByRole('navigation', { name: '상위 경로', exact: true }).getByRole('link', { name: '요일별 수업', exact: true });

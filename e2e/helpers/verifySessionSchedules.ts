@@ -8,7 +8,7 @@ import { gotoAndSettle } from './wait';
 
 async function assign(modal: Locator, name: string) {
   await modal.getByLabel('학생 검색').fill(name);
-  await modal.getByRole('button', { name: '검색 결과 전체 선택', exact: true }).click();
+  await modal.getByRole('checkbox', { name: '검색 결과 전체 선택', exact: true }).check();
   await expect(modal.getByText('1명 선택', { exact: true })).toBeVisible();
   await modal.getByRole('button', { name: '선택 학생 배정', exact: true }).click();
 }
@@ -55,16 +55,16 @@ export async function verifySessionSchedules(
     await seedBrowserAuth(studentPage, student);
     await gotoAndSettle(page, `${route}/attendance`);
     await acknowledgeInitialAccountPromptsIfVisible(page);
-    await page.getByRole('button', { name: '수업일 관리', exact: true }).click();
+    await page.getByRole('region', { name: '수업일 선택', exact: true }).getByRole('button', { name: '수업일 추가', exact: true }).click();
     const modal = page.getByRole('dialog', { name: '수업일 관리', exact: true });
     for (const [index, label, day, studentName] of [[1, '수요일반', wedDay, primary.name], [2, '목요일반', wedDay + 1, peer.name]] as const) {
-      await modal.getByRole('button', { name: '수업일 추가', exact: true }).click();
+      if (index > 1) await modal.getByRole('button', { name: '수업일 추가', exact: true }).click();
       await modal.getByLabel(`수업일 ${index} 이름`, { exact: true }).fill(label);
-      await modal.getByRole('region', { name: `수업일 ${index}`, exact: true }).getByLabel('날짜', { exact: true }).click();
+      await modal.getByLabel('날짜', { exact: true }).click();
       await page.getByRole('dialog', { name: '날짜 선택', exact: true }).getByRole('button', { name: String(day), exact: true }).click();
       await assign(modal, studentName);
     }
-    await modal.getByLabel('수업일 1 이름', { exact: true }).scrollIntoViewIfNeeded();
+    await modal.getByLabel('수업일 2 이름', { exact: true }).scrollIntoViewIfNeeded();
     await testInfo.attach('session-schedules-admin-populated-1366.png', {
       body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
     });
@@ -115,6 +115,7 @@ export async function verifySessionSchedules(
 
     // Another authorized editor mutates this same synthetic configuration; the UI must retain its draft on 409.
     await page.getByRole('button', { name: '수업일 관리', exact: true }).click();
+    await modal.getByRole('region', { name: '수업일 목록', exact: true }).getByRole('button', { name: /^수요일반/ }).click();
     await modal.getByLabel('수업일 1 이름', { exact: true }).fill('수요일 작성 중');
     const concurrent = await expectApi<SessionSchedules>(request, 'PUT', endpoint, admin.access, {
       version: saved.version, schedules: saved.schedules.map(s => ({ ...s, label: `${s.label} 최신` })),
@@ -133,6 +134,7 @@ export async function verifySessionSchedules(
     await page.getByRole('button', { name: '최신 내용 불러오기', exact: true }).click();
     await expect(modal.getByLabel('수업일 1 이름', { exact: true })).toHaveValue('수요일반 최신');
     await modal.getByRole('button', { name: '수업일 1 삭제', exact: true }).click();
+    await modal.getByRole('region', { name: '수업일 목록', exact: true }).getByRole('button', { name: /^목요일반/ }).click();
     await modal.getByRole('button', { name: '수업일 1 삭제', exact: true }).click();
     await modal.getByRole('button', { name: '저장', exact: true }).click();
     const removal = page.locator('[data-confirm-dialog]');

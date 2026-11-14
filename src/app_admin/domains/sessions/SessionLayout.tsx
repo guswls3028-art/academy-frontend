@@ -14,6 +14,7 @@ import { fetchSessionSchedules, sessionSchedulesKey } from "@/shared/api/contrac
 import SessionAttendanceSummary from "./components/SessionAttendanceSummary";
 import summaryStyles from "./components/SessionAttendanceSummary.module.css";
 import SessionScheduleStrip from "./components/SessionScheduleStrip";
+import { CompactSessionScheduleCard } from "./components/SessionScheduleControls";
 
 export default function SessionLayout() {
   const { lectureId, sessionId } = useLectureSessionParams();
@@ -104,14 +105,16 @@ export default function SessionLayout() {
   const sectionSuffix = sectionLabel
     ? ` (${sectionType ? sectionType + " " : ""}${sectionLabel})`
     : "";
-  const sessionHeading = formatSessionBlockLabel(session) + sectionSuffix;
+  const sessionTitle = formatSessionBlockLabel(session);
+  const sessionHeading = sessionTitle + sectionSuffix;
   const selectedSchedule = scheduleQuery.data?.schedules.find(schedule => String(schedule.id) === scheduleScope);
   const scheduleDescription = scheduleScope === null
-    ? scheduleQuery.data?.schedules.length ? `기본 수업일: ${session.date}` : session.date
+    ? scheduleQuery.data?.schedules.length ? `수업일 ${scheduleQuery.data.schedules.length}개` : session.date
     : scheduleScope === "0" ? "수업일 미배정"
     : scheduleQuery.isPending ? "수업일 확인 중…"
     : scheduleQuery.isError || !selectedSchedule ? "수업일 확인 필요"
     : `${selectedSchedule.date} · ${selectedSchedule.label}`;
+  const isVideoDetail = location.pathname.startsWith(`${base}/videos/`);
   const breadcrumbs = [
     { label: "강의", to: "/workspace/lectures" },
     { label: lectureTitle, to: `/workspace/lectures/${lectureId}` },
@@ -128,7 +131,8 @@ export default function SessionLayout() {
       headerActions={<SessionAttendanceSummary sessionId={sessionId} />}
       className={summaryStyles.sessionDomainLayout}
     >
-      <SessionScheduleStrip key={sessionId} sessionId={sessionId} lectureId={lectureId} sessionDate={session.date ?? ""} sessionOrder={session.order} query={scheduleQuery} shared={!isScoresRoute && !location.pathname.endsWith("/attendance")}>
+      <SessionScheduleStrip key={sessionId} sessionId={sessionId} lectureId={lectureId} sessionDate={session.date ?? ""} sessionTitle={sessionTitle} sessionOrder={session.order} query={scheduleQuery} shared={!isScoresRoute && !location.pathname.endsWith("/attendance")}>
+        {isVideoDetail && <CompactSessionScheduleCard />}
         <Outlet />
       </SessionScheduleStrip>
     </DomainLayout>

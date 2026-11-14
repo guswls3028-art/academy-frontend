@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { CalendarDays, Plus, Search } from 'lucide-react';
 import { Button } from '@/shared/ui/ds';
-import { AdminModal, ModalHeader, ModalFooter } from '@/shared/ui/modal';
+import { AdminModal, ModalHeader, ModalBody, ModalFooter } from '@/shared/ui/modal';
 import { DatePicker } from '@/shared/ui/date';
 import { TimeRangeInput } from '@/shared/ui/time';
 import { useConfirm } from '@/shared/ui/confirm';
@@ -15,6 +16,8 @@ import { useScheduleLeaveGuard } from './useScheduleLeaveGuard';
 type Draft = SessionScheduleDraft & { key: string };
 type Props = {
   open: boolean;
+  addRequest: number;
+  editDayId: string | null;
   onClose: () => void;
   sessionId: number;
   lectureId: number;
@@ -24,7 +27,7 @@ type Props = {
   onSaved: (data: SessionSchedules) => void;
 };
 
-export default function SessionScheduleManager({ open, onClose, sessionId, lectureId, sessionDate, sessionOrder, data, onSaved }: Props) {
+export default function SessionScheduleManager({ open, addRequest, editDayId, onClose, sessionId, lectureId, sessionDate, sessionOrder, data, onSaved }: Props) {
   const confirm = useConfirm();
   const [base, setBase] = useState<SessionSchedules | null>(null);
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -37,6 +40,10 @@ export default function SessionScheduleManager({ open, onClose, sessionId, lectu
   const [selected, setSelected] = useState<number[]>([]);
   const [target, setTarget] = useState('');
   const [source, setSource] = useState('');
+  const handledAdd = useRef(0);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const activeDayRef = useRef<HTMLButtonElement>(null);
+  const focusName = useRef(false);
   useScheduleLeaveGuard(lectureId, sessionId, dirty, busy);
   const sessions = useQuery({
     queryKey: adminSessionQueryKeys.scheduleCopySessions(lectureId),
@@ -44,15 +51,63 @@ export default function SessionScheduleManager({ open, onClose, sessionId, lectu
   });
   const previous = (sessions.data ?? []).filter(s => s.id !== sessionId && s.order < sessionOrder).sort((a, b) => b.order - a.order);
   const sourceId = source || String(previous[0]?.id ?? '');
-  const reset = (value: SessionSchedules) => {
+  const reset = (value: SessionSchedules, preferredId?: string | null) => {
     setBase(value);
     setDrafts(value.schedules.map(s => ({ ...s, enrollment_ids: [...s.enrollment_ids], key: String(s.id) })));
-    setDirty(false); setSelected([]); setTarget(''); setError(''); setConflict(false);
+    const day = value.schedules.find(item => String(item.id) === preferredId) ?? value.schedules[0];
+    setDirty(false);
+    setSelected([]);
+    setTarget(String(day?.id ?? ''));
+    setSearch('');
+    setError('');
+    setConflict(false);
   };
   useEffect(() => {
     // Reopening an untouched form adopts fresh server state; never overwrite a draft.
-    if (open && !dirty) reset(data);
-  }, [open, data]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!open) return;
+    if (!dirty) reset(data, editDayId);
+    else if (editDayId && drafts.some(day => day.key === editDayId)) {
+      setTarget(editDayId);
+      setSelected([]);
+    }
+  }, [open, data, editDayId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const addDay = () => {
+    const key = crypto.randomUUID();
+    setDrafts(rows => {
+      const lastDate = rows[rows.length - 1]?.date;
+      const next = lastDate ? new Date(`${lastDate}T00:00:00Z`) : null;
+      if (next) next.setUTCDate(next.getUTCDate() + 1);
+      const date = next && Number.isFinite(next.getTime()) ? next.toISOString().slice(0, 10) : sessionDate;
+      return [...rows, { key, label: '', date, start_time: null, end_time: null, enrollment_ids: [] }];
+    });
+    setTarget(key);
+    setSelected([]);
+    setDirty(true);
+    if (!conflict) setError('');
+    focusName.current = true;
+  };
+  useEffect(() => {
+    if (!open || !base || addRequest === handledAdd.current) return;
+    handledAdd.current = addRequest;
+    addDay();
+  }, [open, base, addRequest]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const button = activeDayRef.current;
+    const list = button?.parentElement;
+    if (button && list) {
+      const dayBounds = button.getBoundingClientRect();
+      const listBounds = list.getBoundingClientRect();
+      if (dayBounds.left < listBounds.left) list.scrollBy({ left: dayBounds.left - listBounds.left });
+      else if (dayBounds.right > listBounds.right) list.scrollBy({ left: dayBounds.right - listBounds.right });
+      if (dayBounds.top < listBounds.top) list.scrollBy({ top: dayBounds.top - listBounds.top });
+      else if (dayBounds.bottom > listBounds.bottom) list.scrollBy({ top: dayBounds.bottom - listBounds.bottom });
+    }
+    if (!focusName.current) return;
+    nameRef.current?.focus({ preventScroll: true });
+    focusName.current = false;
+  }, [target]);
+
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
@@ -67,9 +122,9 @@ export default function SessionScheduleManager({ open, onClose, sessionId, lectu
   const change = (key: string, patch: Partial<Draft>) => {
     setDrafts(rows => rows.map(s => s.key === key ? { ...s, ...patch } : s)); setDirty(true); if (!conflict) setError('');
   };
-  const assign = () => {
+  const assign = (dayKey: string) => {
     setDrafts(rows => rows.map(s => ({ ...s, enrollment_ids: [
-      ...s.enrollment_ids.filter(id => !chosen.has(id)), ...(s.key === target ? selected : []),
+      ...s.enrollment_ids.filter(id => !chosen.has(id)), ...(s.key === dayKey ? selected : []),
     ] })));
     setDirty(true); setSelected([]); if (!conflict) setError('');
   };
@@ -80,8 +135,20 @@ export default function SessionScheduleManager({ open, onClose, sessionId, lectu
   };
   const save = async () => {
     if (!base || busyRef.current || conflict) return;
-    if (drafts.some(s => !s.label.trim() || !s.date)) { setError('각 수업일의 이름과 날짜를 입력해 주세요.'); return; }
-    if (drafts.some(s => s.start_time && s.end_time && s.start_time >= s.end_time)) { setError('종료 시간은 시작 시간보다 늦어야 합니다.'); return; }
+    const labels = new Set<string>();
+    for (const day of drafts) {
+      const name = day.label.trim();
+      let message = '';
+      if (!name || !day.date) message = '수업일 이름과 날짜를 입력해 주세요.';
+      else if (labels.has(name)) message = '수업일마다 다른 이름을 입력해 주세요.';
+      else if (day.end_time && (!day.start_time || day.start_time >= day.end_time)) message = '시작 시간을 입력하고 종료 시간을 더 늦게 설정해 주세요.';
+      if (message) {
+        setTarget(day.key);
+        setError(message);
+        return;
+      }
+      labels.add(name);
+    }
     if (base.schedules.length > 0 && drafts.length === 0) {
       const ok = await confirm({ title: '마지막 수업일 설정을 삭제할까요?', message: `저장하면 모든 학생의 수업일이 원래 차시 날짜${sessionDate ? ` (${sessionDate})` : ' (날짜 미설정)'}로 돌아갑니다. 출결·성적·시험·과제·영상 기록은 그대로 유지됩니다.`, confirmText: '원래 날짜로 돌아가기', danger: true });
       if (!ok || busyRef.current) return;
@@ -108,61 +175,129 @@ export default function SessionScheduleManager({ open, onClose, sessionId, lectu
     catch (e) { setError(extractApiError(e, '최신 내용을 불러오지 못했습니다. 작성 내용은 유지됩니다.')); }
     finally { busyRef.current = false; setBusy(false); }
   };
-  const assigned = new Map(drafts.flatMap(s => s.enrollment_ids.map(id => [id, s.label || '이름 없는 수업일'] as const)));
-  return <AdminModal open={open} onClose={onClose} width={680} noMinimize trapFocus closeDisabled={busy}>
-    <ModalHeader title="수업일 관리" noIcon description="한 차시를 여러 날짜에 진행해도 출결·성적·시험·과제·영상은 함께 유지됩니다." />
-    <div className={styles.body}>
-      {error && <div className={styles.error} role="alert">{error}{conflict && <div className={styles.actions}><Button size="sm" intent="secondary" disabled={busy} onClick={() => void reload()}>최신 내용으로 다시 시작</Button></div>}</div>}
-      <fieldset disabled={busy}>
-        <div className={styles.copy}>
-          <label>이전 차시<select value={sourceId} onChange={e => setSource(e.target.value)} disabled={!previous.length}>
-            {!previous.length && <option value="">{sessions.isPending ? '불러오는 중…' : '이전 차시 없음'}</option>}
-            {previous.map(s => <option value={s.id} key={s.id}>{s.title || `${s.order}차시`}{s.date ? ` · ${s.date}` : ''}</option>)}
-          </select></label>
-          <Button intent="secondary" size="sm" disabled={!sourceId || sessions.isError || conflict || Boolean(base?.schedules.length)} onClick={() => void copy()}>이전 차시에서 가져오기</Button>
+  const assigned = new Map(drafts.flatMap(day => day.enrollment_ids.map(id => [id, day] as const)));
+  const activeIndex = drafts.findIndex(day => day.key === target);
+  const active = drafts[activeIndex];
+  const activeLabel = active?.label.trim() || '선택한 수업일';
+  const unassignedCount = roster.length - assigned.size;
+  const canUnassign = selected.some(id => assigned.has(id));
+  const removeDay = (key: string) => {
+    const remaining = drafts.filter(day => day.key !== key);
+    setDrafts(remaining);
+    setTarget(remaining[Math.min(activeIndex, remaining.length - 1)]?.key ?? '');
+    setSelected([]);
+    setDirty(true);
+    if (!conflict) setError('');
+  };
+
+  function toggleAllVisible() {
+    const visibleIds = new Set(visible.map(student => student.enrollment_id));
+    setSelected(ids => allVisible ? ids.filter(id => !visibleIds.has(id)) : [...new Set([...ids, ...visibleIds])]);
+  }
+
+  return (
+    <AdminModal open={open} onClose={onClose} width={980} noMinimize trapFocus closeDisabled={busy}>
+      <ModalHeader title="수업일 관리" noIcon description="수업일을 추가하고 날짜별로 학생을 배정하세요." />
+      <ModalBody>
+        <div className={styles.body}>
+          {error && <div className={styles.error} role="alert">{error}{conflict && <div className={styles.actions}>
+            <Button size="sm" intent="secondary" disabled={busy} onClick={() => void reload()}>최신 내용으로 다시 시작</Button>
+          </div>}</div>}
+          <fieldset disabled={busy} className={styles.editor}>
+            <legend className="sr-only">수업일과 학생 배정</legend>
+            <section className={styles.editorDays} aria-label="수업일 목록">
+              <div className={styles.panelTitle}>
+                <h3>수업일 <small>{drafts.length}개</small></h3>
+                <Button size="sm" intent="secondary" leftIcon={<Plus size={15} aria-hidden />} onClick={addDay}>수업일 추가</Button>
+              </div>
+              {drafts.length > 0 && <div className={styles.editorDayList}>
+                {drafts.map((day, index) => (
+                  <button key={day.key} ref={day.key === target ? activeDayRef : undefined} type="button" className={styles.editorDay} aria-pressed={day.key === target}
+                    onClick={() => { setTarget(day.key); setSelected([]); }}>
+                    <CalendarDays size={16} aria-hidden />
+                    <span><strong>{day.label.trim() || `수업일 ${index + 1}`}</strong><small>{day.date ? day.date.slice(5).replace('-', '/') : '날짜 선택'} · {day.enrollment_ids.length}명</small></span>
+                  </button>
+                ))}
+              </div>}
+              {active ? (
+                <section className={styles.fieldsPanel} key={active.key} aria-label={`수업일 ${activeIndex + 1}`}>
+                  <div className={styles.fields}>
+                    <label>이름<input ref={nameRef} className="ds-input" aria-label={`수업일 ${activeIndex + 1} 이름`} maxLength={40} value={active.label} placeholder="예: 수요일반" onChange={e => change(active.key, { label: e.target.value })} /></label>
+                    <div><label htmlFor={`schedule-date-${active.key}`}>날짜</label><DatePicker id={`schedule-date-${active.key}`} value={active.date} onChange={date => change(active.key, { date })} disabled={busy} /></div>
+                  </div>
+                  <details className={styles.timeOptions}>
+                    <summary>시간 설정 (선택){(active.start_time || active.end_time) && <span>{active.start_time || '시작 미설정'} ~ {active.end_time || '종료 미설정'}</span>}</summary>
+                    <div role="group" aria-label={`수업일 ${activeIndex + 1} 시간 (선택)`}>
+                      <TimeRangeInput value={`${active.start_time ?? ''}~${active.end_time ?? ''}`} onChange={value => {
+                        const [start, end] = value.split('~');
+                        change(active.key, { start_time: start || null, end_time: end || null });
+                      }} disabled={busy} startLabel="시작" endLabel="종료" />
+                      {(active.start_time || active.end_time) && <Button intent="ghost" size="sm" onClick={() => change(active.key, { start_time: null, end_time: null })}>시간 지우기</Button>}
+                    </div>
+                  </details>
+                  <Button size="sm" intent="ghost" className={styles.removeDay} aria-label={`수업일 ${activeIndex + 1} 삭제`} onClick={() => removeDay(active.key)}>수업일 삭제</Button>
+                </section>
+              ) : (
+                <p className={styles.empty}>{base?.schedules.length ? '저장하면 원래 차시 날짜로 돌아갑니다. 기존 기록은 유지됩니다.' : '요일별 수업을 운영하려면 수업일을 추가하세요.'}</p>
+              )}
+              {!base?.schedules.length && previous.length > 0 && (
+                <details className={styles.copyDetails}>
+                  <summary>이전 차시에서 가져오기</summary>
+                  <div className={styles.copy}>
+                    <label>이전 차시<select className="ds-select" value={sourceId} onChange={e => setSource(e.target.value)}>
+                      {previous.map(s => <option value={s.id} key={s.id}>{s.title || `${s.order}차시`}{s.date ? ` · ${s.date}` : ''}</option>)}
+                    </select></label>
+                    <Button intent="secondary" size="sm" disabled={!sourceId || conflict} onClick={() => void copy()}>가져와 저장</Button>
+                  </div>
+                </details>
+              )}
+              {sessions.isError && <div role="alert" className={styles.error}>이전 차시를 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => void sessions.refetch()}>다시 불러오기</Button></div>}
+            </section>
+            <section className={styles.rosterPanel} aria-label="학생 배정">
+              <div className={styles.panelTitle}>
+                <h3>학생 배정 <small>미배정 {unassignedCount}명</small></h3>
+              </div>
+              <label className={styles.search}>
+                <span className="sr-only">학생 검색</span>
+                <Search size={16} aria-hidden />
+                <input type="search" className="ds-input" value={search} onChange={e => setSearch(e.target.value)} placeholder="학생 이름 검색" />
+              </label>
+              <div className={styles.rosterTable}>
+                <div className={styles.rosterHeader}>
+                  <label><input type="checkbox" aria-label="검색 결과 전체 선택" checked={allVisible} disabled={!visible.length} onChange={toggleAllVisible} />이름</label>
+                  <span>배정 수업일</span>
+                </div>
+                <div className={styles.roster}>
+                  {visible.map(student => {
+                    const day = assigned.get(student.enrollment_id);
+                    const checked = chosen.has(student.enrollment_id);
+                    return (
+                      <label className={styles.student} data-selected={checked} key={student.enrollment_id}>
+                        <input type="checkbox" checked={checked} onChange={e => setSelected(ids => e.target.checked ? [...ids, student.enrollment_id] : ids.filter(id => id !== student.enrollment_id))} />
+                        <span>{student.student_name}</span>
+                        <span className={styles.assignment} data-current={day != null && day.key === target}>{day ? (day.label || '이름 없는 수업일') : '미배정'}</span>
+                      </label>
+                    );
+                  })}
+                  {!visible.length && <p className={styles.empty}>{roster.length ? '검색 결과가 없습니다.' : '출결 화면에서 수강생을 등록하면 여기에 표시됩니다.'}</p>}
+                </div>
+              </div>
+              <div className={styles.rosterFooter}>
+                <span role="status">{selected.length}명 선택</span>
+                <div className={styles.actions}>
+                  {canUnassign && <Button size="sm" intent="ghost" onClick={() => assign('')}>배정 해제</Button>}
+                  <Button size="sm" intent="secondary" title={`${activeLabel}에 배정`} disabled={!active || !selected.length} onClick={() => assign(target)}>선택 학생 배정</Button>
+                </div>
+              </div>
+              {active && <p className={styles.note}>{activeLabel}에 배정합니다. 다른 수업일에 배정된 학생은 이 날짜로 이동합니다.</p>}
+            </section>
+          </fieldset>
         </div>
-        {Boolean(base?.schedules.length) && <p className={styles.note}>이전 차시 가져오기는 저장된 수업일이 없을 때 사용할 수 있습니다.</p>}
-        {sessions.isError && <div role="alert" className={styles.error}>이전 차시를 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => void sessions.refetch()}>다시 불러오기</Button></div>}
-      </fieldset>
-      <fieldset disabled={busy}>
-        <legend className={styles.label}>수업일 · {drafts.length}개</legend>
-        {drafts.length === 0 && <p className={styles.note}>{base?.schedules.length ? `저장하면 원래 차시 날짜${sessionDate ? ` (${sessionDate})` : ''}로 돌아갑니다. 기존 기록은 유지됩니다.` : '요일별로 수업한다면 수업일을 추가해 주세요.'}</p>}
-        {drafts.map((s, index) => <section className={styles.card} key={s.key} aria-label={`수업일 ${index + 1}`}>
-          <div className={styles.fields}>
-            <label>이름<input aria-label={`수업일 ${index + 1} 이름`} value={s.label} placeholder="예: 수요일반" onChange={e => change(s.key, { label: e.target.value })} /></label>
-            <div><label htmlFor={`schedule-date-${s.key}`}>날짜</label><DatePicker id={`schedule-date-${s.key}`} value={s.date} onChange={date => change(s.key, { date })} disabled={busy} /></div>
-          </div>
-          <details className={styles.timeOptions}>
-            <summary>시간 설정 (선택){(s.start_time || s.end_time) && <span>{s.start_time || '시작 미설정'} ~ {s.end_time || '종료 미설정'}</span>}</summary>
-            <div role="group" aria-label={`수업일 ${index + 1} 시간 (선택)`}>
-            <TimeRangeInput value={`${s.start_time ?? ''}~${s.end_time ?? ''}`} onChange={value => { const [start, end] = value.split('~'); change(s.key, { start_time: start || null, end_time: end || null }); }} disabled={busy} startLabel="시작" endLabel="종료" />
-            {(s.start_time || s.end_time) && <Button intent="ghost" size="sm" onClick={() => change(s.key, { start_time: null, end_time: null })}>시간 지우기</Button>}
-            </div>
-          </details>
-          <div className={styles.actions}><span className={styles.note}>{s.enrollment_ids.length}명 배정</span><Button size="sm" intent="ghost" onClick={() => { setDrafts(rows => rows.filter(r => r.key !== s.key)); setTarget(''); setDirty(true); }}>수업일 {index + 1} 삭제</Button></div>
-        </section>)}
-        <Button size="sm" intent="secondary" onClick={() => { const key = crypto.randomUUID(); setDrafts(rows => [...rows, { key, label: '', date: sessionDate || '', start_time: null, end_time: null, enrollment_ids: [] }]); setTarget(key); setDirty(true); }}>수업일 추가</Button>
-        <p className={styles.note}>수업일을 삭제하면 배정만 해제됩니다. 학생의 기존 기록은 유지됩니다.</p>
-      </fieldset>
-      <fieldset disabled={busy}>
-        <legend className={styles.label}>학생 배정 · 미배정 {roster.filter(s => !assigned.has(s.enrollment_id)).length}명</legend>
-        <div className={styles.rosterTools}>
-          <label>학생 검색<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="학생 이름" /></label>
-          <div className={styles.actions}>
-            <Button size="sm" intent="secondary" disabled={!visible.length} onClick={() => setSelected(ids => allVisible ? ids.filter(id => !visible.some(s => s.enrollment_id === id)) : [...new Set([...ids, ...visible.map(s => s.enrollment_id)])])}>{allVisible ? '검색 결과 선택 해제' : '검색 결과 전체 선택'}</Button>
-            <span role="status" className={styles.footerNote}>{selected.length}명 선택</span>
-            {!!selected.length && <Button size="sm" intent="ghost" onClick={() => setSelected([])}>선택 해제</Button>}
-          </div>
-          <label>배정할 수업일<select value={target} onChange={e => setTarget(e.target.value)}><option value="">미배정 (배정 해제)</option>{drafts.map((s, index) => <option key={s.key} value={s.key}>{s.label || `수업일 ${index + 1}`}{s.date ? ` · ${s.date}` : ''}</option>)}</select></label>
-          <Button size="sm" intent="secondary" disabled={!selected.length} onClick={assign}>선택 학생 배정</Button>
-        </div>
-        <p className={styles.note}>학생은 한 수업일에만 배정됩니다. 다른 수업일을 고르면 배정이 이동합니다.</p>
-        <div className={styles.roster}>{visible.map(s => <label className={styles.student} key={s.enrollment_id}>
-          <input type="checkbox" checked={chosen.has(s.enrollment_id)} onChange={e => setSelected(ids => e.target.checked ? [...ids, s.enrollment_id] : ids.filter(id => id !== s.enrollment_id))} />
-          <span>{s.student_name}</span><span className={styles.assignment}>{assigned.get(s.enrollment_id) ?? '미배정'}</span>
-        </label>)}{!visible.length && <p className={styles.note}>{roster.length ? '검색 결과가 없습니다.' : '등록된 학생이 없습니다. 출결 화면에서 수강생을 등록해 주세요.'}</p>}</div>
-      </fieldset>
-    </div>
-    <ModalFooter left={<span className={styles.footerNote}>{dirty ? '미저장 · 창을 닫아도 작성 내용은 유지됩니다.' : '저장된 수업일'}</span>} right={<><Button intent="secondary" disabled={busy} onClick={onClose}>닫기</Button><Button intent="primary" disabled={busy || !dirty || conflict} onClick={() => void save()}>{busy ? '처리 중…' : '저장'}</Button></>} />
-  </AdminModal>;
+      </ModalBody>
+      <ModalFooter left={<span className={styles.footerNote}>{dirty ? '미저장 변경사항' : ''}</span>} right={<>
+        <Button intent="secondary" disabled={busy} onClick={onClose}>닫기</Button>
+        <Button intent="primary" disabled={busy || !dirty || conflict} onClick={() => void save()}>{busy ? '처리 중…' : '저장'}</Button>
+      </>} />
+    </AdminModal>
+  );
 }
