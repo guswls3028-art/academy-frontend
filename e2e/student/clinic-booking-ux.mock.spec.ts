@@ -1265,12 +1265,14 @@ test.describe("학생 클리닉 예약 UX", () => {
     await seed(page);
     await installApi(page, state);
     await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
-    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
+    const dateButton = page.getByTestId(`clinic-calendar-day-${openDate}`);
+    await expect(dateButton).toBeEnabled({ timeout: 25_000 });
+    await dateButton.click();
     const selection = page.getByRole("region", { name: "선택한 클리닉 시간" });
     await selection.getByRole("button", { name: "16:00 시작, 잔여 1자리" }).click();
     await selection.getByRole("button", { name: "16:30 종료, 총 30분" }).click();
     await selection.getByRole("textbox").fill("오답노트 지참");
-    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
+    await dateButton.click();
     await expect(selection).toContainText("16:00–16:30");
     const submit = selection.getByRole("button", { name: "이 일정 예약하기" });
     await submit.click();
@@ -1300,7 +1302,9 @@ test.describe("학생 클리닉 예약 UX", () => {
     await seed(page);
     await installApi(page, state);
     await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: /자정 클리닉/ }).click();
+    const session = page.getByRole("button", { name: /자정 클리닉/ });
+    await expect(session).toBeEnabled({ timeout: 25_000 });
+    await session.click();
     await page.getByLabel("희망 시작 시간").fill("23:30");
     await page.getByLabel("희망 종료 시간").fill("00:30");
     await page.getByRole("button", { name: "이 일정 예약하기" }).click();
