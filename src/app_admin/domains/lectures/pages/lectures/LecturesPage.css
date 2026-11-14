@@ -1,6 +1,33 @@
+.lecture-list-table { container-type: inline-size; }
 .ds-table.ds-table--lectures th,
 .ds-table.ds-table--lectures td { border-inline: 0; }
-.ds-table.ds-table--lectures tbody td { padding-block: 12px; }
+.ds-table-wrap .ds-table.ds-table--lectures.ds-table--center tbody td { padding-block: 8px; }
+.ds-table-wrap .ds-table.ds-table--lectures.ds-table--center .lecture-reorder-cell {
+  position: relative;
+  padding: 0;
+}
+.ds-table-wrap .ds-table.ds-table--lectures.ds-table--center .lecture-actions-cell { padding: 4px 6px; }
+.lecture-reorder-grip {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-text-muted);
+  cursor: grab;
+  transition: color 120ms ease;
+}
+.lecture-reorder-grip svg { pointer-events: none; }
+.lecture-reorder-grip:enabled:hover,
+.lecture-reorder-grip:focus-visible { color: var(--color-brand-primary); }
+.lecture-reorder-grip:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: -4px; }
+.lecture-reorder-grip:enabled:active { cursor: grabbing; }
+.lecture-reorder-grip:disabled { cursor: not-allowed; opacity: 0.4; }
 .ds-table.ds-table--lectures .lecture-title-cell { text-align: left; }
 .lecture-title-link {
   display: flex;
@@ -37,4 +64,6 @@
   font: inherit;
   cursor: pointer;
 }
-@media (prefers-reduced-motion: reduce) { .lecture-title-link { transition: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .lecture-title-link, .lecture-reorder-grip { transition: none; }
+}
