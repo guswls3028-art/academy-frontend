@@ -171,7 +171,7 @@ export class StudentHlsController {
       if (!this.hls && this.el && !this.el.getAttribute("src")) {
         const url = resolveStudentVideoPlayUrl(this.opts.playUrl || "");
         if (!url) throw new Error("Invalid review playback URL");
-        this.el.src = url;
+        this.nativeRecovery.setSource(this.el, url);
       }
       if (seekTo !== undefined && this.el) {
         this.el.currentTime = position;
@@ -352,7 +352,7 @@ export class StudentHlsController {
         this.hls.loadSource(url);
         this.hls.startLoad?.(this.pendingSourceResume.position);
       } else {
-        el.src = url;
+        this.nativeRecovery.setSource(el, url);
         el.load();
       }
       this.opts.playUrl = playUrl;
@@ -419,8 +419,10 @@ export class StudentHlsController {
     const terminal = exhausted || Boolean(this.opts.reviewStream);
     this.queueEvent("PLAYER_ERROR", { details: "playhead_stall", fatal: terminal });
     if (terminal) {
-      this.pause();
-      this.opts.onFatal?.("영상 재생이 멈췄어요. 다시 시도해 보던 위치에서 이어보세요.");
+      const message = "영상 재생이 멈췄어요. 다시 시도해 보던 위치에서 이어보세요.";
+      if (this.hls) this.pause();
+      else this.dispose();
+      this.opts.onFatal?.(message);
       return;
     }
     // Do not compete with an already scheduled Hls.js fatal retry.
@@ -619,7 +621,7 @@ export class StudentHlsController {
 
     if (canNative) {
       if (this.opts.reviewStream) this.setState({ ready: true });
-      else el.src = url;
+      else this.nativeRecovery.setSource(el, url);
       this.bindVideoEvents();
       this.startIntervals();
       this.startDocListeners();
@@ -720,13 +722,13 @@ export class StudentHlsController {
         hls.loadSource(url);
         hls.attachMedia(el);
       } else if (!this.opts.reviewStream) {
-        el.src = url;
+        this.nativeRecovery.setSource(el, url);
       } else {
         this.setState({ ready: true });
       }
     } catch {
       if (this.opts.reviewStream) this.setState({ ready: true });
-      else el.src = url;
+      else this.nativeRecovery.setSource(el, url);
     }
 
     this.bindVideoEvents();
@@ -929,8 +931,7 @@ export class StudentHlsController {
         this.setState({ buffering: true, reconnecting: true, toast: null });
         this.reloadSource(this.opts.playUrl);
       }, (message) => {
-        this.stallWatch?.stop();
-        this.setState({ playing: false, buffering: false, reconnecting: false });
+        this.dispose();
         this.opts.onFatal?.(message);
       });
     };
@@ -991,6 +992,7 @@ export class StudentHlsController {
 
     this.playbackEnd.finish(() => postEvents(token, batch, this.opts.videoId, this.opts.enrollmentId));
 
+    this.nativeRecovery.releaseSource(this.el);
     this.el = null;
   }
 }
