@@ -32,7 +32,6 @@ import { Button, EmptyState, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { DomainListToolbar, getStoredTableOption, setStoredTableOption } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
-import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
 import { substituteScoreVars, buildScoreVars, buildScoreDetail, collectHighestScores, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
@@ -774,19 +773,21 @@ export default function SessionScoresEntryPage({
     && row.exams.some((exam) => exam.block.grading_status === "subjective_pending")
   ));
   const scoreAlimtalkDisabled = selectedEnrollmentIds.length === 0
-    || selectedHasSubjectivePending
+    || (selectedHasSubjectivePending && !(data?.rows ?? []).some((row) => (
+      selectedEnrollmentIds.includes(row.enrollment_id) && row.attendance_status === "ONLINE"
+    )))
     || isEditMode
     || isSaving
     || recoveryBlocked;
   const scoreAlimtalkTitle = selectedEnrollmentIds.length === 0
     ? "학생을 선택하세요."
-    : selectedHasSubjectivePending
+    : selectedHasSubjectivePending && scoreAlimtalkDisabled
       ? "서술형 점수 입력을 완료한 뒤 알림톡을 발송할 수 있습니다."
     : recoveryBlocked
       ? "이전 입력 복구 여부를 먼저 확인해 주세요."
     : isEditMode
       ? "점수 입력을 마친 뒤 알림톡을 발송할 수 있습니다."
-      : "선택한 학생 중 출석·지각으로 기록된 학생의 성적을 확인합니다.";
+      : "선택한 학생의 수업결과와 영상 학생 과제 안내를 확인합니다.";
   const handleOpenScoreAlimtalk = async () => {
     if (scoreAlimtalkDisabled || scoreAlimtalkRequestRef.current !== null) return;
     const request = Symbol();
@@ -798,6 +799,9 @@ export default function SessionScoresEntryPage({
     const selectAttendees = (snapshot: SessionScoresResponse) => snapshot.rows.filter(
       (row) => selectedIds.has(row.enrollment_id) && isScoreAlimtalkAttendance(row),
     );
+    const selectVideoStudents = (snapshot: SessionScoresResponse) => snapshot.rows.filter(
+      (row) => selectedIds.has(row.enrollment_id) && row.attendance_status === "ONLINE",
+    );
     const refreshError = "최신 출결과 성적을 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.";
 
     try {
@@ -808,7 +812,7 @@ export default function SessionScoresEntryPage({
         return;
       }
       const initialIssue = getScoreAlimtalkBlockReason(selectAttendees(initial.data), false);
-      if (initialIssue) {
+      if (initialIssue && selectVideoStudents(initial.data).length === 0) {
         setScoreAlimtalkError(initialIssue);
         return;
       }
@@ -821,18 +825,31 @@ export default function SessionScoresEntryPage({
         return;
       }
       const selectedRows = selectAttendees(latest.data);
+      const videoRows = selectVideoStudents(latest.data);
       const issue = getScoreAlimtalkBlockReason(selectedRows, true);
-      if (issue) {
+      if (issue && videoRows.length === 0) {
         setScoreAlimtalkError(issue);
         return;
       }
       const ids = selectedRows.map((row) => row.student_id);
       const activeStudentIds = [...new Set(ids.filter((id): id is number => id != null && Number.isFinite(id)))];
-      if (ids.some((id) => id == null || !Number.isFinite(id))) {
+      const videoIds = videoRows.map((row) => row.student_id);
+      const videoHomeworkStudentIds = [...new Set(videoIds.filter((id): id is number => id != null && Number.isFinite(id)))];
+      if ([...ids, ...videoIds].some((id) => id == null || !Number.isFinite(id))) {
         setScoreAlimtalkError("발송 대상 학생 정보를 확인하지 못했습니다. 성적표를 다시 불러와 주세요.");
         return;
       }
-      const excludedCount = selectedIds.size - selectedRows.length;
+      const excludedCount = selectedIds.size - selectedRows.length - videoRows.length;
+      if (issue) {
+        openSendMessageModal({
+          sessionId: numericSessionId,
+          recipientLabel: `과제 안내 — 영상 ${videoHomeworkStudentIds.length}명${excludedCount ? ` · ${excludedCount}명 제외` : ""}`,
+          blockCategory: "assignment",
+          videoHomeworkStudentIds,
+          scoreUnavailableReason: selectedRows.length > 0 ? issue : undefined,
+        });
+        return;
+      }
       const meta = latest.data.meta ?? null;
       // SSOT (2026-05-13): backend 응답 meta가 진짜 진리. 캐시 fallback은 호환.
       const lecture = qc.getQueryData<{ title?: string; name?: string }>(
@@ -850,29 +867,7 @@ export default function SessionScoresEntryPage({
       if (!isCurrentRequest()) return;
       const reportOptions = { lectureName, sessionTitle, highestScores: collectHighestScores(cohortData) };
 
-      let initialBody: string | undefined;
-      let initialTemplateId: number | null = null;
-      let initialTemplateUpdatedAt: string | undefined;
-      let scoreDetail = "";
-
-      try {
-        const templates = await fetchMessageTemplates("grades");
-        if (!isCurrentRequest()) return;
-        const chosenTpl = templates.find((t) => t.is_user_default && !t.is_system);
-
-        // 학원장 임근혁 보고(2026-05-12 23:50):
-        // 일괄 발송 양식이 첫 학생으로 치환되어 나와 "특정 대상 한 명으로 하드코딩됐다"는 오해.
-        // → 양식 본문은 변수 그대로 (#{학생이름}/#{시험1명}/...) 노출.
-        initialBody = chosenTpl
-          ? chosenTpl.body
-          : "";
-        initialTemplateId = chosenTpl?.id ?? null;
-        initialTemplateUpdatedAt = chosenTpl?.updated_at;
-        scoreDetail = buildScoreDetail(selectedRows[0], meta);
-      } catch {
-        if (isCurrentRequest()) setScoreAlimtalkError("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
-        return;
-      }
+      const scoreDetail = buildScoreDetail(selectedRows[0], meta);
 
       // SSOT (2026-05-14): 학생별 변수 재계산 callback.
       // 학원장이 modal textarea에서 본문 수정 시 modal이 currentBody 기반으로 이 callback 호출 →
@@ -897,11 +892,9 @@ export default function SessionScoresEntryPage({
       openSendMessageModal({
         sessionId: numericSessionId,
         studentIds: activeStudentIds,
+        videoHomeworkStudentIds,
         recipientLabel: `수업결과 발송 — 출석·지각 ${activeStudentIds.length}명${excludedCount ? ` · ${excludedCount}명 제외` : ""}`,
         blockCategory: "grades",
-        initialBody,
-        initialTemplateId,
-        initialTemplateUpdatedAt,
         alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail, ...firstScoreVars },
         recomputePerStudentVars,
       });

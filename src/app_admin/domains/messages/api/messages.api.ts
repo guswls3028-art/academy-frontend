@@ -256,6 +256,11 @@ export interface SendPreflightResponse {
     /** 실제 Solapi replacements로 조립된 승인 봉투 전체 문구 */
     full_message_body: string;
   }>;
+  video_makeup_homework_preview?: {
+    fingerprint: string | null;
+    recipients: Array<{ student_id: number; homework_titles: string[] }>;
+    excluded: Array<{ student_id: number; reason: "not_video" | "no_homework" }>;
+  };
   limits: {
     hourly_limit: number;
     sent_last_hour: number;
@@ -476,6 +481,8 @@ export interface SendMessagePayload {
    * 학원장 본문 어떻게 수정해도 봉투(검수 양식)는 유지되어 발송 (domain-policy §5).
    */
   block_category?: string;
+  video_makeup_homework?: true;
+  video_makeup_homework_fingerprint?: string;
   /** 알림톡 추가 치환 변수 (성적 발송 등) */
   alimtalk_extra_vars?: Record<string, string>;
   /** 학생별 개별 치환 변수 — key: student_id (대량 성적 발송 등) */

@@ -105,10 +105,12 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const subTab: SubTab = searchParams.get("view") === "homework" ? "homework" : "exams";
   const setSubTab = (nextTab: SubTab) => {
-    const next = new URLSearchParams(searchParams);
-    if (nextTab === "homework") next.set("view", "homework");
-    else next.delete("view");
-    setSearchParams(next, { replace: true });
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (nextTab === "homework") next.set("view", "homework");
+      else next.delete("view");
+      return next;
+    }, { replace: true });
   };
   const [examSort, setExamSort] = useState<SortMode>("lecture");
   const [examReview, setExamReview] = useState<ExamReviewFilter>("all");
