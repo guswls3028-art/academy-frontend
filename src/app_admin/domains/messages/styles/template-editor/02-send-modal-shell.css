@@ -48,6 +48,41 @@
   flex: 1 1 auto;
 }
 
+.send-modal__layout[data-video-homework-only="true"] {
+  display: block;
+  max-width: 38rem;
+  margin-inline: auto;
+}
+
+.send-modal__video-homework {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+}
+
+.send-modal__video-homework .send-modal__check {
+  min-height: 32px;
+  justify-content: flex-start;
+  white-space: normal;
+}
+
+.send-modal__video-homework-summary {
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.send-modal__video-homework p {
+  margin: 0;
+}
+
+.send-modal__notice-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .send-modal__left {
   flex-shrink: 0;
   width: 340px;

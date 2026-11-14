@@ -8,7 +8,7 @@ const original = {
   created_at: "2026-10-21T00:00:00Z", updated_at: "2026-10-21T00:00:00Z",
 };
 
-async function openSharedTemplate(page: Page, loseFirstAcknowledgement = false, initiallyDefault = true, changeBeforeModalRead = false) {
+async function openSharedTemplate(page: Page, loseFirstAcknowledgement = false, initiallyDefault = true, changeAfterFirstRead = false) {
   // Lowest-priority route: the official bundle has an absolute API origin.
   // Explicit shell reads stay synthetic; an unhandled API must never reach it.
   await page.route("**/api/v1/**", async route => {
@@ -40,7 +40,8 @@ async function openSharedTemplate(page: Page, loseFirstAcknowledgement = false, 
     } });
     if (path.endsWith("/templates/")) {
       const response = { ...saved };
-      if (++templateReads === 1 && changeBeforeModalRead) {
+      // A staff edit can commit while this single snapshot is in flight.
+      if (changeAfterFirstRead && request.method() === "GET" && ++templateReads === 1) {
         saved = { ...saved, body: "창을 여는 동안 다른 선생님이 저장한 안내입니다.", updated_at: "2026-10-21T00:00:01Z" };
       }
       return route.fulfill({ json: [response] });
@@ -78,14 +79,15 @@ async function openSharedTemplate(page: Page, loseFirstAcknowledgement = false, 
     await page.getByRole("button", { name: "이 안내문 적용", exact: true }).filter({ visible: true }).click();
   }
   await expect(editor).toContainText(original.body);
-  return { modal, editor, writes, sends, read: () => saved, defaults: () => defaults,
+  return { modal, editor, writes, sends, read: () => saved, defaults: () => defaults, templateReads: () => templateReads,
     otherEdit: (body: string) => { saved = { ...saved, body, updated_at: "2026-10-21T00:00:01Z" }; } };
 }
 
 for (const width of [1366, 390]) {
   test(`발송창 진입 중 변경된 공유 문구는 처음 읽은 본문 버전으로 충돌을 감지한다 ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    const { modal, editor, writes, read } = await openSharedTemplate(page, false, true, true);
+    const { modal, editor, writes, read, templateReads } = await openSharedTemplate(page, false, true, true);
+    expect(templateReads()).toBe(1);
     await editor.fill("처음 문구를 바탕으로 작성한 내 초안입니다.");
     await modal.getByRole("button", { name: "변경 내용 저장", exact: true }).click();
     await expect.poll(() => writes.length).toBe(1);

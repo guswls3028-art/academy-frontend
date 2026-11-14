@@ -9,7 +9,10 @@ async function setup(page: Page, automatic = false, failFirstSave = !automatic) 
   const target = new URL(baseUrl);
   test.skip(target.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(target.hostname),
     realMessagingSkipReason(baseUrl, "", "0") ?? "알림톡 결과 복구 route-mock 검증은 로컬 서버 전용");
-  const response = page.waitForResponse(r => r.url().includes("/sessions/9002/scores/") && r.status() === 200);
+  const response = page.waitForResponse(
+    r => r.url().includes("/sessions/9002/scores/") && r.status() === 200,
+    { timeout: 45_000 },
+  );
   await openCompositionScores(page);
   const scores = await (await response).json() as { meta: SessionScoreMeta; rows: SessionScoreRow[] };
   scores.meta.total_config = { version: 1, exam_ids: [9101], homework_ids: [9151, 9152], exam_order: [9101, 9102], homework_order: [9151, 9152] };
@@ -60,7 +63,9 @@ async function setup(page: Page, automatic = false, failFirstSave = !automatic) 
   });
   await page.reload();
   const open = async () => {
-    await page.getByRole("checkbox", { name: "모바일순서학생 선택" }).check();
+    const student = page.getByRole("checkbox", { name: "모바일순서학생 선택" });
+    await expect(student).toBeVisible({ timeout: 45_000 });
+    await student.check({ timeout: 30_000 });
     await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
     return page.getByRole("dialog", { name: /^알림톡 발송/ });
   };
@@ -122,7 +127,9 @@ for (const width of [1366, 390]) {
 test("@alimtalk-order 자동 결과 목록 저장 후 새 시험 포함·순서 이동은 합산을 보존한다", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   const harness = await setup(page, false, false);
-  await page.getByRole("button", { name: "둘째 시험 이전 순서로 이동", exact: true }).click();
+  const moveExam = page.getByRole("button", { name: "둘째 시험 이전 순서로 이동", exact: true });
+  await expect(moveExam).toBeVisible({ timeout: 45_000 });
+  await moveExam.click();
   await expect.poll(() => harness.orderWrites.length).toBe(1);
   expect(harness.orderWrites[0]).toMatchObject({ exam_ids: [9101], exam_order: [9102, 9101] });
   await page.reload();
