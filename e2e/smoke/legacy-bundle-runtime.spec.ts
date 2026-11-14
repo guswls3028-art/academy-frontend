@@ -155,6 +155,7 @@ async function installStudentApi(page: Page, role: "student" | "parent" = "stude
       policy: { access_mode: "FREE_REVIEW", monitoring_enabled: false, allow_seek: true,
         playback_rate: { max: 1, ui_control: true }, source: { type: "s3", provider: "uploaded" } } });
     if (path === "/student/video/sessions/802/videos/") return json({ items: [video] });
+    if (path === "/student/video/me/") return json({ lectures: [], archived_lectures: [], public: null });
     if (path === "/staffs/currently-working/") return json([]);
     if (path === "/media/videos/public-session/") return json(null);
     return json({});
@@ -333,7 +334,7 @@ test("390px legacy parent selects and switches children, then reloads the same s
   await page.screenshot({ path: test.info().outputPath("legacy-parent-home390.png"), fullPage: true, animations: "disabled" });
 });
 
-test("legacy iOS native HLS contract starts and pauses without a play Promise or MediaSource", async ({ page }) => {
+test("legacy video catalog and native HLS playback do not require the HLS library", async ({ page }) => {
   const { scriptRequests: scripts } = await installLegacyRuntime(page, profiles[0]);
   await installStudentApi(page);
   await page.addInitScript(() => {
@@ -366,6 +367,9 @@ test("legacy iOS native HLS contract starts and pauses without a play Promise or
     try { await route.abort(); } catch { /* Request closes with the page. */ }
   });
   await login(page);
+  await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "영상", exact: true }).click();
+  await expect(page.getByRole("tab", { name: "강의", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "강의", exact: true })).toHaveAttribute("aria-selected", "true");
   await page.goto(`${BASE}/student/video/play?video=902&session=802`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: VIDEO_TITLE })).toBeVisible({ timeout: 45_000 });
   const video = page.locator("video");
