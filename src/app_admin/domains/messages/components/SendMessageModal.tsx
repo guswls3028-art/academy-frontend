@@ -303,6 +303,7 @@ export default function SendMessageModal({
   const [sendAttempt, setSendAttempt] = useState<SendAttempt | null>(null);
   const [sendAttemptError, setSendAttemptError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<MessageTemplateItem[]>([]);
+  const templateListRequestRef = useRef<Promise<MessageTemplateItem[]> | null>(null);
   const [templatesError, setTemplatesError] = useState<string | null>(null);
   const [templatesRetry, setTemplatesRetry] = useState(0);
   const [showSaveForm, setShowSaveForm] = useState(false);
@@ -784,7 +785,11 @@ export default function SendMessageModal({
     if (!open || videoHomeworkOnly) return;
     let cancelled = false;
     setTemplatesError(null);
-    fetchMessageTemplates().then((list) => {
+    const request = templateListRequestRef.current ?? fetchMessageTemplates().finally(() => {
+      templateListRequestRef.current = null;
+    });
+    templateListRequestRef.current = request;
+    request.then((list) => {
       if (cancelled) return;
       setTemplates(list);
       const draft = currentDraftRef.current;
