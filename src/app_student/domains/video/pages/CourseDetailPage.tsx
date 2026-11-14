@@ -1,7 +1,7 @@
 /**
  * 수업 상세 페이지 — 상단에 수업 정보, 하단에 차시별 박스 (작은 썸네일 구조)
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router";
 import { useQuery, useQueries } from "@tanstack/react-query";
@@ -75,8 +75,23 @@ function SessionBox({
     };
   }, [videosData]);
 
+  const sessionPath = `/student/video/sessions/${sessionId}${enrollmentId ? `?enrollment=${enrollmentId}` : ""}`;
+  const sessionState = { sessionTitle, courseTitle, order, isPublic };
   if (isLoading) {
-    return <div className="stu-skel video-card-skeleton" aria-label={`${sessionTitle} 불러오는 중`} />;
+    return (
+      <Link to={sessionPath} state={sessionState} className="video-card">
+        <div className="video-thumb video-thumb--placeholder" aria-hidden="true">
+          <span className="video-play-orb"><IconPlay className="video-play-orb__icon" /></span>
+        </div>
+        <div className="video-card__body">
+          <div className="video-card__title">{sessionTitle}</div>
+          <div className="video-card__cta">
+            <span>차시 보기</span>
+            <IconChevronRight className="video-card__cta-icon" aria-hidden="true" />
+          </div>
+        </div>
+      </Link>
+    );
   }
 
   if (isError) {
@@ -118,8 +133,8 @@ function SessionBox({
 
   return (
     <Link
-      to={`/student/video/sessions/${sessionId}${enrollmentId ? `?enrollment=${enrollmentId}` : ""}`}
-      state={{ sessionTitle, courseTitle, order, isPublic }}
+      to={sessionPath}
+      state={sessionState}
       className="video-card"
     >
       <div className={`video-thumb${sessionData.thumbnailUrl ? "" : " video-thumb--placeholder"}`}>
@@ -211,30 +226,37 @@ export default function CourseDetailPage() {
       : (lecture?.sessions ?? []);
   }, [isLoading, isPublic, lecture, videoMe]);
   const firstSessionIdForQuery = sessionsForQuery[0]?.id ?? 0;
-  const enrollmentIdForQuery = isPublic ? null : (lecture ? (videoMe?.lectures?.find((l) => l.id === lecture.id)?.enrollment_id ?? null) : null);
+  const enrollmentIdForQuery = isPublic ? null : lecture?.enrollment_id ?? null;
 
-  // 모든 세션의 영상을 한꺼번에 fetch (N+1 → 부모에서 일괄 관리)
+  const sessionListRef = useRef<HTMLElement>(null);
+  const [nearbySessionIds, setNearbySessionIds] = useState<ReadonlySet<number>>(() => new Set());
+  useEffect(() => {
+    const cards = sessionListRef.current?.querySelectorAll<HTMLElement>("[data-video-session]");
+    if (!cards?.length || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver((entries) => {
+      const entering = entries.filter((entry) => entry.isIntersecting);
+      if (!entering.length) return;
+      entering.forEach((entry) => observer.unobserve(entry.target));
+      setNearbySessionIds((current) => new Set([
+        ...current, ...entering.map((entry) => Number((entry.target as HTMLElement).dataset.videoSession)),
+      ]));
+    }, { rootMargin: "200px 0px" });
+    cards.forEach((card) => observer.observe(card));
+    return () => observer.disconnect();
+  }, [sessionsForQuery, videoMeQ.isError]);
+
   const sessionVideoQueries = useQueries({
     queries: sessionsForQuery.map((s) => ({
       queryKey: studentVideoQueryKeys.sessionVideos(queryScope, s.id, enrollmentIdForQuery),
       queryFn: () => fetchStudentSessionVideos(s.id, enrollmentIdForQuery ?? undefined),
-      enabled: !isLoading && !!s.id && s.id > 0,
+      enabled: !isPublic && s.id > 0 && nearbySessionIds.has(s.id),
       staleTime: 30_000,
     })),
   });
 
-  // 모든 세션의 영상 수/총 재생시간 집계
-  const totalVideos = useMemo(
-    () => sessionVideoQueries.reduce((sum, q) => sum + (q.data?.items?.length ?? 0), 0),
-    [sessionVideoQueries]
-  );
-  const totalDuration = useMemo(
-    () => sessionVideoQueries.reduce(
-      (sum, q) => sum + (q.data?.items?.reduce((s, v) => s + (v.duration ?? 0), 0) ?? 0),
-      0
-    ),
-    [sessionVideoQueries]
-  );
+  const summary = isPublic ? videoMe?.public : lecture;
+  const totalVideos = summary?.video_count ?? 0;
+  const totalDuration = summary?.total_duration ?? 0;
 
   // 공개 영상 리다이렉트 (훅은 early return 이전에 호출)
   const [publicRedirected, setPublicRedirected] = useState(false);
@@ -305,7 +327,7 @@ export default function CourseDetailPage() {
           <div className="video-hero__stats">
             <span className="video-stat-pill">차시 {sessions.length}개</span>
             {totalVideos > 0 && (
-              <span className="video-stat-pill">영상 {totalVideos}개</span>
+              <span className="video-stat-pill">준비된 영상 {totalVideos}개</span>
             )}
             {totalDuration > 0 && (
               <span className="video-stat-pill">{formatDuration(totalDuration)}</span>
@@ -326,7 +348,7 @@ export default function CourseDetailPage() {
           )}
         </section>
 
-        <section className="video-list" aria-label="차시 목록">
+        <section ref={sessionListRef} className="video-list" aria-label="차시 목록">
           <div className="video-section-head">
             <h2 className="video-section-title">차시 목록</h2>
             <span className="video-section-sub">{sessions.length}개</span>
@@ -355,19 +377,20 @@ export default function CourseDetailPage() {
                   );
                 }
                 return (
-                  <SessionBox
-                    key={session.id}
-                    sessionId={session.id}
-                    sessionTitle={[session.title, session.schedule_configured && !session.date ? '수업일 미배정' : session.schedule_label].filter(Boolean).join(' · ')}
-                    enrollmentId={enrollmentIdForQuery}
-                    order={session.order}
-                    isPublic={isPublic}
-                    videosData={sessionVideoQueries[idx]?.data}
-                    isLoading={sessionVideoQueries[idx]?.isLoading}
-                    isError={sessionVideoQueries[idx]?.isError}
-                    onRetry={() => void sessionVideoQueries[idx]?.refetch()}
-                    courseTitle={isPublic ? "공개 강의실" : lecture?.title ?? "학습 강의"}
-                  />
+                  <div key={session.id} data-video-session={session.id}>
+                    <SessionBox
+                      sessionId={session.id}
+                      sessionTitle={[session.title, session.schedule_configured && !session.date ? '수업일 미배정' : session.schedule_label].filter(Boolean).join(' · ')}
+                      enrollmentId={enrollmentIdForQuery}
+                      order={session.order}
+                      isPublic={isPublic}
+                      videosData={sessionVideoQueries[idx]?.data}
+                      isLoading={sessionVideoQueries[idx]?.isPending}
+                      isError={sessionVideoQueries[idx]?.isError}
+                      onRetry={() => void sessionVideoQueries[idx]?.refetch()}
+                      courseTitle={isPublic ? "공개 강의실" : lecture?.title ?? "학습 강의"}
+                    />
+                  </div>
                 );
               })}
             </div>

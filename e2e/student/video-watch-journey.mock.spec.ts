@@ -200,6 +200,49 @@ async function openWatch(page: Page) {
 }
 
 test.use({ serviceWorkers: "block" });
+
+test("course opens sessions before details and requests offscreen details only when needed", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 840 });
+  const { videos } = await installWatchScenario(page);
+  const requested = new Set<number>();
+  const sessions = Array.from({ length: 24 }, (_, index) => ({
+    id: 394 + index, order: index + 1, title: `합성 차시 ${index + 1}`, date: null,
+  }));
+  let releaseFirst = () => {};
+  const firstDetail = new Promise<void>((resolve) => { releaseFirst = resolve; });
+  await page.route("**/api/v1/student/video/me/", (route) => route.fulfill({ json: {
+    lectures: [{ id: 7101, title: "합성 영상 강의", enrollment_id: 1304, sessions,
+      video_count: 24, total_duration: 14400 }],
+  } }));
+  await page.route("**/api/v1/student/video/sessions/*/videos/**", async (route) => {
+    const url = new URL(route.request().url());
+    const id = Number(url.pathname.split("/").at(-3));
+    requested.add(id);
+    expect(url.searchParams.get("enrollment")).toBe("1304");
+    if (id === 394) await firstDetail;
+    await route.fulfill({ json: { items: [{ ...videos[0], session_id: id }] } });
+  });
+
+  try {
+    await page.goto(`${BASE}/student/video/courses/7101`);
+    await expect(page.getByText("준비된 영상 24개")).toBeVisible();
+    const first = page.getByRole("link", { name: /합성 차시 1 차시 보기/ });
+    await expect(first).toHaveAttribute("href", "/student/video/sessions/394?enrollment=1304");
+    await expect.poll(() => requested.has(394)).toBe(true);
+    expect(requested.size).toBeLessThan(10);
+    expect(requested.has(417)).toBe(false);
+    const last = page.getByRole("link", { name: /합성 차시 24/ });
+    await last.scrollIntoViewIfNeeded();
+    await expect.poll(() => requested.has(417)).toBe(true);
+    await expect(last).toContainText("시청 가능 1/1개");
+    releaseFirst();
+    await last.click();
+    await expect(page).toHaveURL(/\/student\/video\/sessions\/417\?enrollment=1304$/);
+    await expect(page.getByText(FIRST_TITLE, { exact: true })).toBeVisible();
+  } finally {
+    releaseFirst();
+  }
+});
 test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "Closed local route-mock only");
 
 for (const width of [1366, 390]) {
