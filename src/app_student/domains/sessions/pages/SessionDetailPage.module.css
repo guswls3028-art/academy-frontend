@@ -1,3 +1,8 @@
+.sessionCard.sessionCard {
+  padding: var(--ds-card-padding);
+  border-radius: var(--ds-card-radius);
+}
+
 .scheduleNote {
   margin: 0;
   color: var(--stu-text-muted);

@@ -53,6 +53,9 @@ for (const role of ['student', 'parent']) for (const width of [390, 1366]) {
     await expect(page.getByText(/목요일반 · 날짜:/)).toContainText('16:00 ~ 18:00');
     const actions = page.getByRole('list', { name: '차시 학습' });
     await expect(actions.getByRole('listitem')).toHaveCount(4);
+    const card = actions.locator('..');
+    await expect(card).toHaveCSS('border-top-left-radius', '14px');
+    await expect(card).toHaveCSS('padding-left', '16px');
     await expect(actions.getByRole('link', { name: '과제 제출', exact: true })).toHaveAttribute('href', '/student/submit/assignment?sessionId=202');
     await expect(actions.getByRole('link', { name: '성적 보기', exact: true })).toHaveAttribute('href', '/student/grades');
     await expect(actions.getByText('응시 가능 1', { exact: true })).toBeVisible();

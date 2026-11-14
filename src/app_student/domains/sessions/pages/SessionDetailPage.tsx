@@ -52,7 +52,12 @@ export default function SessionDetailPage() {
   }
 
   return (
-    <StudentPageShell breadcrumbs={[{ label: "수업 목록", to: "/student/sessions" }]} title={data.title} description={description}>
+    <StudentPageShell
+      breadcrumbs={[{ label: "수업 목록", to: "/student/sessions" }]}
+      title={data.title}
+      description={description}
+      sectionClassName={styles.sessionCard}
+    >
       {data.schedule_configured && (
         <p className={styles.scheduleNote}>
           {!data.date && "아직 배정된 수업일이 없어요. 배정되면 내 일정에 표시됩니다. "}
