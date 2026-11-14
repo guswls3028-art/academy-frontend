@@ -1040,7 +1040,9 @@ async function verifyScoreMessageTemplate(
     await page.getByRole("checkbox", { name: "전체 선택", exact: true }).check();
     await page.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
     const send = page.getByRole("dialog", { name: "알림톡 발송" });
-    await expect(send.getByText("출석·지각 1명 · 1명 제외", { exact: true })).toBeVisible();
+    await expect(send.getByText("출석·지각 1명", { exact: true })).toBeVisible();
+    await expect(send.getByRole("checkbox", { name: "영상 학생에게 과제 안내도 보내기", exact: true })).not.toBeChecked();
+    await expect(send.getByText("선택한 영상 학생 1명은 수업결과 발송에서 제외됩니다.", { exact: true })).toBeVisible();
     // This family fixture has parent phones only. Verify the normal authorized recipient journey.
     await send.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
     await send.getByRole("checkbox", { name: "학부모", exact: true }).check();
