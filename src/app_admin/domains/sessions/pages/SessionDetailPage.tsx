@@ -29,7 +29,6 @@ import SessionAssessmentCreateModals from "../components/SessionAssessmentCreate
 import { adminSessionQueryKeys } from "../queryKeys";
 import { readAssessmentItemId } from "@/shared/lib/assessmentQueryParams";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
-import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { CompactSessionScheduleCard } from "../components/SessionScheduleControls";
 import { SessionScheduleControlsContext } from "../components/sessionScheduleControlsContext";
 import "./SessionDetailPage.css";
@@ -163,7 +162,7 @@ export default function SessionDetailPage() {
 
       {!showSessionStrip && (!hasAttendanceChooser || controls?.blockedNotice) && (
         <div className="session-detail-session-strip">
-          <CompactSessionScheduleCard title={formatSessionBlockLabel(session)} date={session.date ?? ""} />
+          <CompactSessionScheduleCard />
         </div>
       )}
       {controls?.blockedNotice ?? (

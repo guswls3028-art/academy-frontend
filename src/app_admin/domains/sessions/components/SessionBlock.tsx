@@ -24,6 +24,7 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { Tabs, SelectionButton } from "@/shared/ui/ds";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { adminSessionQueryKeys } from "../queryKeys";
+import { CompactSessionScheduleCard } from "./SessionScheduleControls";
 import { SessionScheduleControlsContext } from "./sessionScheduleControlsContext";
 import styles from "./SessionBlock.module.css";
 
@@ -351,6 +352,8 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   const showCreate = createForSection !== null;
   const createSessionType = viewMode === "SCOPED" ? sessionScope : undefined;
   const createKindLabel = formatSessionScopeName(createSessionType);
+  const scopeControls = useContext(SessionScheduleControlsContext);
+  const showCompactCard = scopeControls != null && currentSessionId != null;
   const firstSessionObject = formatFirstSessionObject(createSessionType);
 
   const openSchedules = (target: string) => navigate(target, { state: { openSessionSchedule: true } });
@@ -422,6 +425,9 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   if (sectionMode && sectionRows) {
     const { commonSessions, rows } = sectionRows;
     const hasAnySections = rows.length > 0;
+    const hasActiveCard = hasAnySections && !isLoading && !sectionsQ.isLoading && !isError && !sectionsQ.isError &&
+      (commonSessions.some(item => Number(item.id) === currentSessionId) ||
+        rows.some(row => row.sessions.some(item => Number(item.id) === currentSessionId)));
 
     return (
       <>
@@ -432,6 +438,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
           counts={sessionCounts}
           onScopeChange={handleScopeChange}
         />
+        {showCompactCard && !hasActiveCard && <CompactSessionScheduleCard />}
         <div
           id={viewMode === "SCOPED" ? "lecture-session-scope-panel" : undefined}
           role={viewMode === "SCOPED" ? "tabpanel" : undefined}
@@ -532,6 +539,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
         counts={sessionCounts}
         onScopeChange={handleScopeChange}
       />
+      {showCompactCard && (isLoading || isError || !sessions.some(item => Number(item.id) === currentSessionId)) && <CompactSessionScheduleCard />}
       <div
         id={viewMode === "SCOPED" ? "lecture-session-scope-panel" : undefined}
         role={viewMode === "SCOPED" ? "tabpanel" : undefined}

@@ -28,7 +28,7 @@ function fixture(configured = false) {
     bulk: [] as { session: number; schedule?: string }[],
     presentEnrollmentIds: new Set<number>(),
     reads: [] as { kind: string; scope: string | null }[],
-    failSave: 0, failRead: false, failScores: false, failAttendance: false, attendanceFilled: 0,
+    failSave: 0, failRead: false, failSessionList: false, failScores: false, failAttendance: false, attendanceFilled: 0,
   };
   return state;
 }
@@ -50,6 +50,7 @@ async function install(page: Page, state: ReturnType<typeof fixture>) {
     if (endpoint === '/lectures/lectures/9901/') return json({ id: 9901, title: '요일별 수업', color: '#2563eb', chip_label: '수업' });
     const current = { id: 9902, lecture: 9901, lecture_title: '요일별 수업', title: '2차시', order: 2, regular_order: 2, session_type: 'REGULAR', date: '2026-11-04', schedule_dates: state.config.schedules, attendance_filled: state.attendanceFilled, attendance_total: 1 };
     if (endpoint === '/lectures/sessions/9902/') return json(current);
+    if (endpoint === '/lectures/sessions/' && state.failSessionList) return json({ detail: '차시 목록 조회 실패' }, 400);
     if (endpoint === '/lectures/sessions/') return json({ count: url.searchParams.has('date') ? 1 : 2, results: url.searchParams.has('date') ? [current] : [{ ...current, id: 9900, title: '1차시', order: 1, regular_order: 1, date: '2026-10-28' }, current] });
     if (endpoint === '/enrollments/session-enrollments/') return json({ count: 3, results: roster.map(s => ({ id: s.enrollment_id + 300, session: 9902, enrollment: s.enrollment_id, student_id: s.enrollment_id + 200, student_name: s.student_name, enrollment_status: 'ACTIVE' })) });
     if (endpoint === '/exams/') return json({ count: 1, results: [{ id: 81, title: '공통 시험', max_score: 100, pass_score: 60 }] });
@@ -389,6 +390,20 @@ test('조회 실패와 잘못된 범위가 전체 명단으로 대체되지 않�
   await page.goto(`${BASE}${path}/attendance?schedule=999`);
   await expect(page.getByRole('alert').filter({ hasText: '선택한 수업일을 찾을 수 없습니다' })).toBeVisible();
   await expect(page.getByRole('link', { name: '김수연 학생 상세 열기' })).toHaveCount(0);
+});
+
+test('차시 목록을 불러오지 못해도 현재 차시의 수업일을 관리할 수 있다', async ({ page }) => {
+  const state = fixture(true);
+  state.failSessionList = true;
+  await install(page, state);
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.goto(`${BASE}${path}/attendance`, { waitUntil: 'domcontentloaded' });
+  const card = page.getByRole('region', { name: '2차시 차시 카드', exact: true });
+  await card.getByRole('button', { name: /^목요일반/ }).click();
+  await expect(page).toHaveURL(/schedule=72/);
+  await card.getByRole('button', { name: '수업일 관리', exact: true }).click();
+  const modal = page.getByRole('dialog', { name: '수업일 관리', exact: true });
+  await expect(modal.getByLabel('수업일 2 이름', { exact: true })).toHaveValue('목요일반');
 });
 
 test('닫힌 초안도 SPA 이탈을 확인하고 취소하면 보존한다', async ({ page }) => {

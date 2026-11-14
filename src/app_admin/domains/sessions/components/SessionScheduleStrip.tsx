@@ -10,9 +10,9 @@ import { SessionScheduleControlsContext } from './sessionScheduleControlsContext
 import SessionScheduleManager from './SessionScheduleManager';
 import styles from './SessionScheduleStrip.module.css';
 
-type Props = { sessionId: number; lectureId: number; sessionDate: string; sessionOrder: number; shared: boolean; children: ReactNode; query: UseQueryResult<SessionSchedules, Error> };
+type Props = { sessionId: number; lectureId: number; sessionDate: string; sessionTitle: string; sessionOrder: number; shared: boolean; children: ReactNode; query: UseQueryResult<SessionSchedules, Error> };
 
-export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate, sessionOrder, shared, children, query }: Props) {
+export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate, sessionTitle, sessionOrder, shared, children, query }: Props) {
   const [params, setParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -115,6 +115,8 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
     <SessionScheduleNavigationContext.Provider value={beforeChange}>
       <SessionScheduleControlsContext.Provider value={{
         content,
+        title: sessionTitle,
+        date: sessionDate,
         blockedNotice: blocked ? <p className={styles.note} role="status">{query.isPending ? '선택한 수업일을 확인하는 중…' : '수업일을 확인한 뒤 명단을 표시합니다.'}</p> : null,
         openManager: () => openManager(),
       }}>
