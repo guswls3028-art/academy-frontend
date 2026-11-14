@@ -51,7 +51,7 @@ export default function LectureActionsMenu({ lecture, isPast, onEdit, onChanged 
           title: action === "end" ? "강의 종료" : "강의 삭제",
           message: action === "end"
             ? `“${lecture.title}” 강의를 종료하시겠습니까? 수강·출결 이력은 보관되며 지난 강의에서 복원할 수 있습니다.`
-            : `“${lecture.title}” 강의를 삭제하면 복구할 수 없습니다. 사용 기록이 없는 차시·분반도 함께 삭제될 수 있습니다. 수강 등록·출결 기록이나 연결된 수강료 설정 등이 있으면 삭제가 제한됩니다.${isPast ? "" : " 기록을 보관하려면 강의 종료를 이용하세요."}`,
+            : `“${lecture.title}” 강의를 삭제하면 복구할 수 없습니다. 사용 기록이 없는 차시·분반과 사용을 중지한 출결 QR도 함께 삭제될 수 있습니다. 수강 등록·출결 기록이나 연결된 수강료 설정 등이 있으면 삭제가 제한됩니다.${isPast ? "" : " 기록을 보관하려면 강의 종료를 이용하세요."}`,
           confirmText: action === "end" ? "종료" : "영구 삭제",
           danger: true,
         });
@@ -66,9 +66,13 @@ export default function LectureActionsMenu({ lecture, isPast, onEdit, onChanged 
       const message = extractApiError(error, action === "delete"
         ? "강의를 삭제하지 못했습니다. 다시 시도해 주세요."
         : "변경하지 못했습니다. 다시 시도해 주세요.");
-      feedback.error(action === "delete" && /^This lecture has .+ and cannot be deleted\.$/.test(message)
-        ? `연결된 기록이 있어 강의를 삭제할 수 없습니다.${isPast ? " 지난 강의에서 기록을 확인할 수 있습니다." : " 기록을 보관하려면 강의 종료를 이용하세요."}`
-        : message);
+      if (action === "delete" && message === "This lecture has active attendance QR points and cannot be deleted.") {
+        feedback.error("사용 중인 출결 QR이 있어 강의를 삭제할 수 없습니다. QR을 더 이상 쓰지 않는다면 차시의 출결 → 출결 도구 → 출결 QR 출력에서 해당 QR을 선택해 사용을 중지하세요.");
+      } else if (action === "delete" && /^This lecture has .+ and cannot be deleted\.$/.test(message)) {
+        feedback.error(`연결된 기록이 있어 강의를 삭제할 수 없습니다.${isPast ? "" : " 기록을 보관하려면 강의 종료를 이용하세요."}`);
+      } else {
+        feedback.error(message);
+      }
     } finally {
       inFlight.current = false;
       setBusy(false);
