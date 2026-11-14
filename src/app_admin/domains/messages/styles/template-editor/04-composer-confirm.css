@@ -679,6 +679,26 @@
     flex-direction: column;
     gap: 8px;
   }
+
+  .send-modal__confirm-card[data-video-homework="true"] .kakao-alimtalk-preview__chat {
+    min-height: 0;
+    max-height: min(38dvh, 310px);
+  }
+
+  .send-modal__confirm-card[data-video-homework="true"] .send-modal__confirm-actions {
+    position: sticky;
+    bottom: -18px;
+    margin: 0 -14px -18px;
+    padding: 10px 14px max(12px, env(safe-area-inset-bottom));
+    background: var(--color-bg-surface);
+    border-top: 1px solid var(--color-border-divider);
+    flex-direction: row;
+  }
+
+  .send-modal__confirm-card[data-video-homework="true"] .send-modal__confirm-send-btn {
+    flex: 1;
+    min-height: 44px;
+  }
 }
 
 /* ----- 템플릿 카드 그리드 ----- */

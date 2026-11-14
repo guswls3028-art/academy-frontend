@@ -102,11 +102,16 @@ async function openLectureFromList(page: Page, lecture: TargetLecture): Promise<
   // This same read-only journey also runs after promotion against the live bundle.
   for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: 900 });
+    const grip = lectureRow.getByRole("button", { name: `${lecture.title} 순서 이동`, exact: true });
+    await expect(grip).toBeVisible();
+    await expect(grip).toHaveCSS("width", "40px");
+    await expect(grip).toHaveCSS("border-top-width", "0px");
     const settings = lectureRow.getByRole("button", { name: `${lecture.title} 설정`, exact: true });
     await settings.scrollIntoViewIfNeeded();
     await settings.click();
     const menu = page.getByRole("menu");
     await expect(menu.getByRole("menuitem", { name: "강의 수정", exact: true })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: "강의 삭제", exact: true })).toBeVisible();
     const bounds = await menu.evaluate((element) => ({ left: element.getBoundingClientRect().left, right: element.getBoundingClientRect().right }));
     expect(bounds.left).toBeGreaterThanOrEqual(0);
     expect(bounds.right).toBeLessThanOrEqual(width + 1);

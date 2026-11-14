@@ -483,6 +483,7 @@ jobs:
             test-results/**/homework-criteria-*.png
             test-results/**/homework-message-criteria-*.png
             test-results/**/homework-criteria-evidence-*.json
+            test-results/**/real-video-homework-notice-*.png
             test-results/**/attendance-export-1366.png
             test-results/**/attendance-export-390.png
             test-results/**/attendance-1366.xlsx
