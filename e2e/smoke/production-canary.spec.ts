@@ -133,14 +133,24 @@ test.describe("Production canary", () => {
   test("public promo page renders without browser or request defects", async ({ page }) => {
     const guard = attachProductionRequestGuard(page);
 
-    const response = await page.goto(`${BASE}/promo`, { waitUntil: "domcontentloaded", timeout: 45_000 });
-    expect(response?.ok(), `Unexpected /promo status ${response?.status()}`).toBe(true);
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
-
-    await expect(page.locator("body")).toBeVisible();
-    await expect(page.locator("text=Not Found")).not.toBeVisible();
-    const bodyText = (await page.locator("body").innerText({ timeout: 10_000 })).trim();
-    expect(bodyText.length).toBeGreaterThan(20);
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      const response = await page.goto(`${BASE}/promo`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      expect(response?.ok(), `Unexpected /promo status ${response?.status()}`).toBe(true);
+      await expect(page.getByRole("heading", { name: /학원의 모든 기록을/ })).toBeVisible();
+      const showcase = page.getByTestId("promo-real-product-showcase");
+      for (const name of [/합성 학생 출결 상태/, /오늘 수업과 다음 일정/]) {
+        const trigger = showcase.getByRole("button", { name });
+        await trigger.click();
+        const dialog = page.getByRole("dialog", { name: "실제 화면 크게 보기" });
+        await expect(dialog.getByRole("img", { name })).toBeVisible();
+        await expect.poll(() => dialog.getByRole("img").evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+        await page.keyboard.press("Escape");
+        await expect(dialog).toHaveCount(0);
+        await expect(trigger).toBeFocused();
+      }
+      expect(await page.locator("html").evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+    }
     guard.assertClean();
   });
 

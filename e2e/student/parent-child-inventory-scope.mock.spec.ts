@@ -69,6 +69,7 @@ async function installApi(page: Page, options: { role?: "student" | "parent"; de
       gradeScopes.push(selectedId ?? "self");
       return json({ exams: [], homeworks: [], exam_trend: [], lecture_options: [] });
     }
+    if (path.endsWith("/results/parent/assessment-comments/")) return json({ items: [] });
     if (path.endsWith("/student/sessions/me/")) return json([]);
     if (request.method() === "DELETE" && path.endsWith("/storage/inventory/folders/folder-11/")) {
       expect(url.searchParams.get("student_ps")).toBe(CHILDREN["11"].ps);
