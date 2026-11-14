@@ -404,7 +404,8 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                   {LECTURES_TABLE_COLUMN_DEFS.map((column) => {
                     const width = columnWidths[column.key] ?? column.defaultWidth;
                     const share = width / contentWidth;
-                    return <col key={column.key} style={{ width: `max(${width}px, calc(${share * 100}cqw - ${share * CONTROL_COLUMNS_WIDTH}px))` }} />;
+                    const style = { width: `max(${width}px, calc(${share * 100}cqw - ${share * CONTROL_COLUMNS_WIDTH}px))` };
+                    return <col key={column.key} style={style} />;
                   })}
                   <col style={ACTION_COLUMN_STYLE} />
                 </colgroup>
