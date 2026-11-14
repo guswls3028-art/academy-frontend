@@ -53,7 +53,7 @@ export default function Sidebar() {
       <div
         className={`sidebar-scroll ${styles.scroll}`}
       >
-        <AdminPrimaryNavigation compact={collapsed} />
+        <AdminPrimaryNavigation compact={collapsed} onExpandSidebar={collapsed ? () => setCollapsed(false) : undefined} />
       </div>
     </aside>
   );
