@@ -12,6 +12,9 @@ type SendPayload = {
   send_to?: string;
   template_id?: number;
   block_category?: string;
+  client_request_id?: string;
+  video_makeup_homework?: boolean;
+  video_makeup_homework_fingerprint?: string;
   raw_body?: string;
   alimtalk_extra_vars?: Record<string, string>;
   alimtalk_extra_vars_per_student?: Record<string, Record<string, string>>;
@@ -262,7 +265,8 @@ async function installScoreAlimtalkRoutes(
         return;
       }
       const perStudent = payload.alimtalk_extra_vars_per_student ?? {};
-      const recipients = payload.student_ids ?? [];
+      const selected = payload.student_ids ?? [];
+      const recipients = payload.video_makeup_homework ? selected.filter((id) => id === 9304) : selected;
       await route.fulfill({
         json: {
           ok: true,
@@ -270,7 +274,7 @@ async function installScoreAlimtalkRoutes(
           mode: "now",
           send_to: payload.send_to ?? "parent",
           recipient: {
-            selected: recipients.length,
+            selected: selected.length,
             resolved: recipients.length,
             valid_phone: recipients.length,
             skipped_no_phone: 0,
@@ -296,13 +300,22 @@ async function installScoreAlimtalkRoutes(
             phone: "010****00" + (studentId - 9300),
             excluded: false,
             exclude_reason: "",
-            full_message_body: (perStudent[String(studentId)]?._body_subst ?? "")
+            full_message_body: (payload.video_makeup_homework
+              ? "이번 차시는 영상으로 보강합니다.\n과제: 단원 복습"
+              : perStudent[String(studentId)]?._body_subst ?? "")
               .replaceAll("#{학원이름}", tenantName)
               .replaceAll("#{학원명}", tenantName),
           })),
           limits: { hourly_limit: 500, sent_last_hour: 0, remaining_this_hour: 500 },
-          blockers: [],
+          blockers: recipients.length ? [] : [{ code: "no_valid_phone", title: "과제 미배정", detail: "안내할 과제가 없습니다." }],
           warnings: [],
+          ...(payload.video_makeup_homework ? {
+            video_makeup_homework_preview: {
+              fingerprint: recipients.length ? "assignment-preview-" + payload.send_to : null,
+              recipients: recipients.map((student_id) => ({ student_id, homework_titles: ["단원 복습"] })),
+              excluded: selected.filter((id) => !recipients.includes(id)).map((student_id) => ({ student_id, reason: "no_homework" })),
+            },
+          } : {}),
         },
       });
       return;
@@ -361,7 +374,9 @@ async function openPersonalizedScores(
 }
 
 async function selectBothStudentsAndOpen(page: Page, insertResults = false) {
-  await page.getByRole("checkbox", { name: "개인화학생1 선택" }).check();
+  const firstStudent = page.getByRole("checkbox", { name: "개인화학생1 선택" });
+  await expect(firstStudent).toBeVisible({ timeout: 45_000 });
+  await firstStudent.check();
   await page.getByRole("checkbox", { name: "개인화학생2 선택" }).check();
   await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
   await expect(page.getByRole("dialog", { name: "알림톡 발송" })).toBeVisible();
@@ -388,9 +403,9 @@ test.describe("성적 알림톡 학생별 개인화", () => {
       }], undefined, false, attendanceStatuses);
       const open = page.getByRole("button", { name: "수업결과 알림톡 발송" });
       const modal = page.getByRole("dialog", { name: "알림톡 발송" });
-      const online = page.getByRole("checkbox", { name: "개인화학생4 선택" });
-      await expect(online).toBeVisible({ timeout: 45_000 });
-      await online.check();
+      const absent = page.getByRole("checkbox", { name: "개인화학생3 선택" });
+      await expect(absent).toBeVisible({ timeout: 45_000 });
+      await absent.check();
       await open.dblclick();
       const eligibilityError = page.getByRole("alert").filter({ hasText: "선택한 학생 중 출석·지각으로 기록된 학생이 없습니다. 출결을 확인해 주세요." });
       await expect(eligibilityError).toBeVisible();
@@ -402,7 +417,8 @@ test.describe("성적 알림톡 학생별 개인화", () => {
       // Another staff member records the absence after this selection.
       attendanceStatuses[2] = "ABSENT";
       await open.click();
-      await expect(modal.getByText("출석·지각 2명 · 3명 제외", { exact: true })).toBeVisible();
+      await expect(modal.getByText("출석·지각 2명 · 2명 제외", { exact: true })).toBeVisible();
+      await expect(modal.getByRole("checkbox", { name: "영상 학생에게 과제 안내도 보내기" })).not.toBeChecked();
       await expect(eligibilityError).toBeHidden();
       await expect.poll(() => modal.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
       await page.screenshot({ path: testInfo.outputPath(`score-attendance-recipients-${width}.png`) });
@@ -418,6 +434,68 @@ test.describe("성적 알림톡 학생별 개인화", () => {
       for (const payload of [...preflights, ...sends]) {
         expect(payload.student_ids).toEqual([9301, 9302]);
         expect(Object.keys(payload.alimtalk_extra_vars_per_student ?? {})).toEqual(["9301", "9302"]);
+      }
+    });
+
+    test(`${width}px 성적과 영상 과제 안내의 대상·문구를 같은 창에서 확인하고 한 번에 접수한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const preflights: SendPayload[] = [];
+      const sends: SendPayload[] = [];
+      await openPersonalizedScores(page, "success", preflights, sends, [{
+        id: 991, name: "수업 결과", category: "grades", body: "#{학생이름} #{시험총점}",
+        is_system: false, is_user_default: true,
+      }], undefined, false, ["PRESENT", "LATE", "ABSENT", "ONLINE", "ONLINE"]);
+
+      const open = page.getByRole("button", { name: "수업결과 알림톡 발송" });
+      const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+      const selectAll = page.getByRole("checkbox", { name: "전체 선택", exact: true });
+      await expect(selectAll).toBeVisible({ timeout: 45_000 });
+      await selectAll.check();
+      await open.click();
+      const option = modal.getByRole("checkbox", { name: "영상 학생에게 과제 안내도 보내기" });
+      await expect(option).not.toBeChecked();
+      await modal.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
+      await option.check();
+      await expect(modal.getByText("과제 미배정 1명 제외")).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`score-video-option-${width}.png`) });
+
+      await modal.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
+      const confirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
+      const preview = confirm.getByLabel("카카오톡 실제 발송 미리보기");
+      await expect(preview).toContainText("개인화학생1");
+      await confirm.getByRole("button", { name: "과제 안내 1명" }).click();
+      await expect(preview).toContainText("과제: 단원 복습");
+      await expect(confirm.getByText("개인화학생4").first()).toBeVisible();
+      await expect(preview).not.toContainText("개인화학생1");
+      await expect.poll(() => confirm.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`score-video-confirm-${width}.png`) });
+      if (width === 390) {
+        let failAssignmentOnce = true;
+        await page.route("**/api/v1/messaging/send/", async (route) => {
+          const payload = route.request().postDataJSON() as SendPayload;
+          if (!payload.video_makeup_homework || !failAssignmentOnce) return route.fallback();
+          failAssignmentOnce = false;
+          sends.push(payload);
+          return route.fulfill({ status: 503, json: { detail: "과제 안내 접수 응답이 끊겼습니다." } });
+        });
+      }
+      expect(sends).toHaveLength(0);
+      await confirm.getByRole("button", { name: "발송하기", exact: true }).click();
+      await expect.poll(() => sends.length).toBe(2);
+      expect(sends[0]).toMatchObject({ block_category: "grades", student_ids: [9301, 9302], send_to: "parent" });
+      expect(sends[1]).toMatchObject({
+        block_category: "assignment", student_ids: [9304, 9305], send_to: "parent",
+        video_makeup_homework: true, video_makeup_homework_fingerprint: "assignment-preview-parent",
+      });
+      expect(sends[1].client_request_id).not.toEqual(sends[0].client_request_id);
+      expect(sends[1].raw_body).toBeUndefined();
+      expect(sends[1].template_id).toBeUndefined();
+      if (width === 390) {
+        const retry = modal.getByRole("button", { name: "같은 요청으로 재시도" });
+        await expect(retry).toBeEnabled();
+        await retry.click();
+        await expect.poll(() => sends.length).toBe(3);
+        expect(sends[2]).toEqual(sends[1]);
       }
     });
 

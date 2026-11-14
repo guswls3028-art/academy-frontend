@@ -86,6 +86,8 @@ export type SendMessageModalProps = {
   onClose: () => void;
   initialStudentIds?: number[];
   recipientLabel?: string;
+  videoHomeworkStudentIds?: number[];
+  scoreUnavailableReason?: string;
   blockCategory?: TemplateCategory;
   initialBody?: string;
   initialTemplateId?: number | null;
@@ -121,9 +123,10 @@ function extractVars(body: string): string[] {
 type VarStatus = { name: string; status: "auto" | "provided" | "missing"; value?: string };
 type SendTiming = "now" | "scheduled";
 type SendAttempt = {
-  requestId: string;
   draftKey: string;
-  payloads: SendMessagePayload[];
+  payloads: Array<SendMessagePayload & { client_request_id: string }>;
+  /** Responses already received. Retries only repeat the unacknowledged request and the remaining requests. */
+  responses: Awaited<ReturnType<typeof sendMessage>>[];
   completed: boolean;
 };
 
@@ -143,6 +146,7 @@ type ConfirmPreviewRecipient = {
   excluded: boolean;
   excludeReason: string;
   fullMessageBody: string;
+  videoHomework: boolean;
 };
 const EMPTY_ID_LIST: number[] = [];
 const EDITABLE_ENVELOPE_OPTIONS: Array<{ category: TemplateCategory; label: string; hint: string }> = [
@@ -268,6 +272,8 @@ export default function SendMessageModal({
   sessionId,
   initialStudentIds = EMPTY_ID_LIST,
   recipientLabel,
+  videoHomeworkStudentIds = EMPTY_ID_LIST,
+  scoreUnavailableReason,
   blockCategory = "default",
   initialBody,
   initialTemplateId,
@@ -338,6 +344,13 @@ export default function SendMessageModal({
   const [preflightRetry, setPreflightRetry] = useState(0);
   const [confirmPreviewStudentId, setConfirmPreviewStudentId] = useState<number | null>(null);
   const [confirmRecipientsExpanded, setConfirmRecipientsExpanded] = useState(false);
+  const [includeVideoHomework, setIncludeVideoHomework] = useState(false);
+  const [confirmVideoHomework, setConfirmVideoHomework] = useState(false);
+  const [inspectedVideoHomework, setInspectedVideoHomework] = useState(false);
+  const [reviewPendingSend, setReviewPendingSend] = useState(false);
+  const [videoHomeworkSummaryLoading, setVideoHomeworkSummaryLoading] = useState(false);
+  const [videoHomeworkSummaryError, setVideoHomeworkSummaryError] = useState<string | null>(null);
+  const [videoHomeworkSummary, setVideoHomeworkSummary] = useState<SendPreflightResponse["video_makeup_homework_preview"]>();
   const bodyEditorRef = useRef<MessageBodyEditorHandle>(null);
   const composerSectionRef = useRef<HTMLDivElement>(null);
   const previewSectionRef = useRef<HTMLElement>(null);
@@ -347,8 +360,10 @@ export default function SendMessageModal({
 
   // ─── Derived ───
   const studentIds = initialStudentIds;
-  const hasRecipients = studentIds.length > 0;
-  const recipientCount = studentIds.length;
+  const videoHomeworkOnly = studentIds.length === 0 && videoHomeworkStudentIds.length > 0;
+  const sendsVideoHomework = videoHomeworkOnly || includeVideoHomework;
+  const hasRecipients = studentIds.length > 0 || sendsVideoHomework;
+  const recipientCount = studentIds.length + (sendsVideoHomework ? videoHomeworkStudentIds.length : 0);
   const sendToTargets: SendToType[] = (() => {
     const t: SendToType[] = [];
     if (sendToParent) t.push("parent");
@@ -383,7 +398,7 @@ export default function SendMessageModal({
   const bodyModified = selectedTemplate != null && templateBodySnapshot != null
     && body !== (selectedTemplateConflict ? prepareEditorBody(selectedTemplateConflict.body) : templateBodySnapshot);
   const presetBodyModified = selectedPreset != null && templateBodySnapshot != null && body !== templateBodySnapshot;
-  const hasSelectedBodySource = !!selectedTemplate || !!selectedPreset || alimtalkFreeForm;
+  const hasSelectedBodySource = videoHomeworkOnly || !!selectedTemplate || !!selectedPreset || alimtalkFreeForm;
   const missingScoreItems = effectiveBlockCategory === "grades" && body.trim()
     ? missingScoreMessageItems(body, alimtalkExtraVars) : [];
   const persistedBody = effectiveBlockCategory === "grades"
@@ -421,15 +436,22 @@ export default function SendMessageModal({
   const hasQualityBlockers = qualityBlockers.length > 0;
 
   const frontendReady = (() => {
-    if (!hasRecipients || sendToTargets.length === 0 || sending) return false;
+    if (!hasRecipients || sendToTargets.length === 0) return false;
     if (!hasSelectedBodySource) return false;
-    if (!body.trim()) return false;
-    if (hasMissingVars) return false;
-    if (hasQualityBlockers) return false;
+    if (!videoHomeworkOnly && (!body.trim() || hasMissingVars || hasQualityBlockers)) return false;
     if (scheduleError) return false;
     return true;
   })();
   const sendTargetKey = sendToTargets.join("|");
+  const videoHomeworkPayload = useCallback((sendTo: SendToType): SendMessagePayload => ({
+    session_id: sessionId,
+    student_ids: videoHomeworkStudentIds,
+    send_to: sendTo,
+    message_mode: "alimtalk",
+    block_category: "assignment",
+    video_makeup_homework: true,
+    ...(scheduledSendAtIso ? { scheduled_send_at: scheduledSendAtIso } : {}),
+  }), [scheduledSendAtIso, sessionId, videoHomeworkStudentIds]);
   const buildSendPayload = useCallback((sendTo: SendToType): Parameters<typeof sendMessage>[0] => {
     const payload: Parameters<typeof sendMessage>[0] = { send_to: sendTo, message_mode: "alimtalk" };
     payload.student_ids = studentIds;
@@ -472,12 +494,35 @@ export default function SendMessageModal({
   ]);
 
 
-  const currentPayloads = sendToTargets.map(buildSendPayload);
-  const preflightKey = sendDraftKey(currentPayloads);
+  const currentPayloads = useMemo(() => {
+    const targets = sendTargetKey.split("|").filter(Boolean) as SendToType[];
+    const result = videoHomeworkOnly ? [] : targets.map(buildSendPayload);
+    if (sendsVideoHomework) result.push(...targets.map(videoHomeworkPayload));
+    return result;
+  }, [buildSendPayload, sendsVideoHomework, sendTargetKey, videoHomeworkOnly, videoHomeworkPayload]);
+  const preflightKey = useMemo(() => sendDraftKey(currentPayloads), [currentPayloads]);
+  const videoHomeworkAttempt = sendAttempt?.payloads.some((payload) => payload.video_makeup_homework) ?? false;
+  const attemptMatchesDraft = sendAttempt?.draftKey === preflightKey;
   const canRetryAttempt = Boolean(sendAttempt && !sendAttempt.completed
-    && sendAttempt.draftKey === preflightKey && !sending);
-  const expectedPreflightCount = sendToTargets.length;
-  const apiPreflightBlockers = preflightResults.flatMap((result) => result.blockers);
+    && !reviewPendingSend && attemptMatchesDraft && !sending);
+  const reviewedPayloads = useMemo(() => reviewPendingSend && sendAttempt
+    ? sendAttempt.payloads.slice(sendAttempt.responses.length).map((payload) => ({
+        ...payload, client_request_id: undefined, video_makeup_homework_fingerprint: undefined,
+      }))
+    : currentPayloads, [currentPayloads, reviewPendingSend, sendAttempt]);
+  const expectedPreflightCount = reviewedPayloads.length;
+  const videoHomeworkPreview = preflightResults.find((result) => result.video_makeup_homework_preview)?.video_makeup_homework_preview
+    ?? videoHomeworkSummary;
+  const videoHomeworkCount = videoHomeworkPreview?.recipients.length ?? 0;
+  const videoHomeworkTitles = [...new Set(videoHomeworkPreview?.recipients.flatMap((recipient) => recipient.homework_titles))];
+  const unassignedVideoCount = videoHomeworkPreview?.excluded.filter((recipient) => recipient.reason === "no_homework").length ?? 0;
+  const otherVideoExcludedCount = (videoHomeworkPreview?.excluded.length ?? 0) - unassignedVideoCount;
+  const eligiblePreflightResults = preflightResults.filter((result) => !(
+    (!videoHomeworkOnly || reviewPendingSend)
+    && result.video_makeup_homework_preview?.recipients.length === 0
+    && result.video_makeup_homework_preview.excluded.length === videoHomeworkStudentIds.length
+  ));
+  const apiPreflightBlockers = eligiblePreflightResults.flatMap((result) => result.blockers);
   const preflightWarnings = preflightResults.flatMap((result) => result.warnings);
   const preflightRecipientStats = preflightResults.reduce(
     (acc, result) => {
@@ -504,11 +549,15 @@ export default function SendMessageModal({
   const preflightBlockers = [...apiPreflightBlockers, ...aggregatePreflightBlockers];
   const preflightPreviewReady =
     preflightResults.length === expectedPreflightCount
-    && preflightResults.every(
-      (result) =>
+    && preflightResults.every((result, index) =>
+      (!reviewedPayloads[index]?.video_makeup_homework || Boolean(result.video_makeup_homework_preview))
+      && (!eligiblePreflightResults.includes(result) || (
+        (!reviewedPayloads[index]?.video_makeup_homework || Boolean(result.video_makeup_homework_preview?.fingerprint))
+        &&
         Array.isArray(result.preview_recipients)
         && result.preview_recipients.length === result.recipient.resolved
-        && result.preview_recipients.every((recipient) => recipient.full_message_body.trim()),
+        && result.preview_recipients.every((recipient) => recipient.full_message_body.trim())
+      )),
     );
   const preflightReady = !frontendReady
     || (
@@ -525,17 +574,41 @@ export default function SendMessageModal({
       || preflightResults.length !== expectedPreflightCount
     );
   const canSend = frontendReady
+    && !sending
     && !savingTemplate
     && !templateCreateAttempt
+    && (!sendAttempt || reviewPendingSend || (!videoHomeworkAttempt && !attemptMatchesDraft))
     && preflightReady
     && preflightPreviewReady
+    && eligiblePreflightResults.length > 0
     && preflightBlockers.length === 0;
 
 
   const blocks = useMemo(() => getBlocksForCategory(effectiveBlockCategory), [effectiveBlockCategory]);
 
   useEffect(() => {
-    if (!open || !frontendReady || sendToTargets.length === 0) {
+    setVideoHomeworkSummary(undefined);
+    setVideoHomeworkSummaryLoading(false);
+    setVideoHomeworkSummaryError(null);
+    // A teacher can check assignments while the score draft is still empty.
+    if (!open || !includeVideoHomework || frontendReady || sending || videoHomeworkAttempt || !sendTargetKey || scheduleError) return;
+    let cancelled = false;
+    setVideoHomeworkSummaryLoading(true);
+    void preflightSendMessage(videoHomeworkPayload(sendTargetKey.startsWith("parent") ? "parent" : "student"))
+      .then((result) => {
+        if (cancelled) return;
+        if (!result.video_makeup_homework_preview) throw new Error("과제 배정 정보를 받지 못했습니다.");
+        setVideoHomeworkSummary(result.video_makeup_homework_preview);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setVideoHomeworkSummaryError(extractApiError(error, "과제 배정을 확인하지 못했습니다."));
+      })
+      .finally(() => { if (!cancelled) setVideoHomeworkSummaryLoading(false); });
+    return () => { cancelled = true; };
+  }, [frontendReady, includeVideoHomework, open, preflightRetry, scheduleError, sendTargetKey, sending, videoHomeworkAttempt, videoHomeworkPayload]);
+
+  useEffect(() => {
+    if (!open || !frontendReady || sending || (videoHomeworkAttempt && !reviewPendingSend)) {
       setPreflightResults([]);
       setPreflightResultKey("");
       setPreflightLoading(false);
@@ -544,14 +617,14 @@ export default function SendMessageModal({
     }
 
     let cancelled = false;
-    const targets = [...sendToTargets];
     setPreflightLoading(true);
+    setPreflightResults([]);
     setPreflightError(null);
 
     const timer = window.setTimeout(async () => {
       try {
         const results = await Promise.all(
-          targets.map((target) => preflightSendMessage(buildSendPayload(target))),
+          reviewedPayloads.map(preflightSendMessage),
         );
         if (cancelled) return;
         setPreflightResults(results);
@@ -570,7 +643,7 @@ export default function SendMessageModal({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [buildSendPayload, frontendReady, open, preflightKey, preflightRetry, sendTargetKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [frontendReady, open, preflightKey, preflightRetry, reviewedPayloads, reviewPendingSend, sending, videoHomeworkAttempt]);
 
   // 양식 선택 팝업의 정보 블록 예시에만 사용한다. 발송 문구는 서버 preflight가 조립한다.
   const getPreviewData = useCallback((currentBody: string): Record<string, string> => {
@@ -602,6 +675,7 @@ export default function SendMessageModal({
           excluded: recipient.excluded,
           excludeReason: recipient.exclude_reason,
           fullMessageBody: recipient.full_message_body,
+          videoHomework: Boolean(result.video_makeup_homework_preview),
         };
         const existing = merged.get(next.studentId);
         if (!existing) {
@@ -620,23 +694,23 @@ export default function SendMessageModal({
         );
       }
     }
-    return studentIds
+    return [...studentIds, ...videoHomeworkStudentIds]
       .map((studentId) => merged.get(studentId))
       .filter((recipient): recipient is ConfirmPreviewRecipient => Boolean(recipient));
-  }, [preflightResults, studentIds]);
+  }, [preflightResults, studentIds, videoHomeworkStudentIds]);
   const confirmSendableRecipients = serverPreviewRecipients.filter((recipient) => !recipient.excluded);
   const inlinePreviewRecipient =
     preflightResultKey === preflightKey && preflightPreviewReady && !preflightLoading && !preflightError
       ? confirmSendableRecipients[0] ?? null
       : null;
-  const confirmExcludedCount = Math.max(0, recipientCount - confirmSendableRecipients.length);
-  const validParentCount =
-    preflightResults.find((result) => result.send_to === "parent")?.recipient.valid_phone ?? 0;
-  const validStudentCount =
-    preflightResults.find((result) => result.send_to === "student")?.recipient.valid_phone ?? 0;
+  const confirmExcludedCount = Math.max(0, serverPreviewRecipients.length - confirmSendableRecipients.length);
+  const validParentCount = preflightResults.reduce((count, result) => count + (result.send_to === "parent" ? result.recipient.valid_phone : 0), 0);
+  const validStudentCount = preflightResults.reduce((count, result) => count + (result.send_to === "student" ? result.recipient.valid_phone : 0), 0);
+  const confirmGroupRecipients = confirmSendableRecipients.filter((recipient) => recipient.videoHomework === confirmVideoHomework);
+  const hasVideoHomeworkToConfirm = confirmSendableRecipients.some((recipient) => recipient.videoHomework);
   const confirmPreviewRecipient =
-    confirmSendableRecipients.find((recipient) => recipient.studentId === confirmPreviewStudentId)
-    ?? confirmSendableRecipients[0]
+    confirmGroupRecipients.find((recipient) => recipient.studentId === confirmPreviewStudentId)
+    ?? confirmGroupRecipients[0]
     ?? null;
 
   const [showConfirm, setShowConfirm] = useState(false);
@@ -696,6 +770,9 @@ export default function SendMessageModal({
     setPreflightRetry(0);
     setConfirmPreviewStudentId(null);
     setConfirmRecipientsExpanded(false);
+    setIncludeVideoHomework(false);
+    setConfirmVideoHomework(false);
+    setReviewPendingSend(false);
     sendingRef.current = false;
     setSendAttempt(null);
     setSendAttemptError(null);
@@ -703,7 +780,7 @@ export default function SendMessageModal({
 
   // Fetch saved content independently from the approved delivery envelope.
   useEffect(() => {
-    if (!open) return;
+    if (!open || videoHomeworkOnly) return;
     let cancelled = false;
     setTemplatesError(null);
     fetchMessageTemplates().then((list) => {
@@ -735,7 +812,7 @@ export default function SendMessageModal({
       if (!cancelled) setTemplatesError(extractApiError(error, "저장 문구를 불러오지 못했습니다."));
     });
     return () => { cancelled = true; };
-  }, [open, effectiveBlockCategory, templatesRetry, prepareEditorBody]);
+  }, [open, effectiveBlockCategory, templatesRetry, prepareEditorBody, videoHomeworkOnly]);
 
   const hasDraftChanges = body !== (selectedTemplateConflict
     ? prepareEditorBody(selectedTemplateConflict.body) : templateBodySnapshot ?? "")
@@ -1066,12 +1143,11 @@ export default function SendMessageModal({
   };
 
   const requestSend = () => {
-    if (!canSend || templateMutationRef.current) return;
-    setConfirmPreviewStudentId((current) => (
-      confirmSendableRecipients.some((recipient) => recipient.studentId === current)
-        ? current
-        : confirmSendableRecipients[0]?.studentId ?? null
-    ));
+    if (!canSend || showConfirm || templateMutationRef.current) return;
+    const startsWithVideoHomework = confirmSendableRecipients.every((recipient) => recipient.videoHomework);
+    setConfirmVideoHomework(startsWithVideoHomework);
+    setInspectedVideoHomework(startsWithVideoHomework);
+    setConfirmPreviewStudentId(null);
     setConfirmRecipientsExpanded(false);
     setShowConfirm(true);
   };
@@ -1082,42 +1158,49 @@ export default function SendMessageModal({
 
   const handleSend = async (retryAttempt = false) => {
     if (sendingRef.current || templateMutationRef.current || (retryAttempt ? !canRetryAttempt : !canSend)) return;
-    const attempt: SendAttempt = sendAttempt && !sendAttempt.completed
-      && sendAttempt.draftKey === preflightKey
-      ? sendAttempt
-      : {
-          requestId: createRandomUuid(),
-          draftKey: preflightKey,
-          // Props may change during an async call. Retry exactly what was confirmed.
-          payloads: JSON.parse(JSON.stringify(currentPayloads)) as SendMessagePayload[],
-          completed: false,
-        };
+    const gradeRequestId = retryAttempt ? "" : createRandomUuid();
+    const confirmedPayloads = retryAttempt ? [] : reviewedPayloads.flatMap((payload, index) => eligiblePreflightResults.includes(preflightResults[index]) ? [{
+      ...payload,
+      client_request_id: payload.video_makeup_homework ? createRandomUuid() : gradeRequestId,
+      ...(payload.video_makeup_homework
+        ? { video_makeup_homework_fingerprint: preflightResults[index]?.video_makeup_homework_preview?.fingerprint ?? undefined }
+        : {}),
+    }] : []);
+    const responses = reviewPendingSend ? [...(sendAttempt?.responses ?? [])] : [];
+    const attempt: SendAttempt = retryAttempt && sendAttempt ? sendAttempt : {
+      draftKey: preflightKey,
+      payloads: [...(sendAttempt?.payloads.slice(0, responses.length) ?? []), ...confirmedPayloads],
+      responses,
+      completed: false,
+    };
+    const requestId = attempt.payloads[0].client_request_id;
     setSendAttempt(attempt);
+    setReviewPendingSend(false);
     setSendAttemptError(null);
     sendingRef.current = true;
     setSending(true);
     setShowConfirm(false);
-    const taskId = `msg-${attempt.requestId}-${Date.now()}`;
+    const taskId = `msg-${requestId}-${Date.now()}`;
     asyncStatusStore.addWorkerJob(sendTiming === "scheduled" ? "알림톡 예약 접수" : "알림톡 발송 접수", taskId, "messaging");
-    let totalAccepted = 0;
-    let totalScheduled = 0;
-    let totalSkipped = 0;
-    let totalEnqueueFailed = 0;
+    const received = [...attempt.responses];
+    const accepted = (result: SendAttempt["responses"][number]) => result.accepted_count ?? ((result.enqueued ?? 0) + (result.scheduled ?? 0));
+    let totalAccepted = received.reduce((count, result) => count + accepted(result), 0);
+    let totalScheduled = received.reduce((count, result) => count + (result.scheduled ?? 0), 0);
+    let totalSkipped = received.reduce((count, result) => count + (result.skipped_no_phone ?? 0), 0);
+    let totalEnqueueFailed = received.reduce((count, result) => count + (result.enqueue_failed ?? 0), 0);
     try {
-      let completedCalls = 0;
       await runTrackedTask("messaging.alimtalk.request", async () => {
-        for (const payload of attempt.payloads) {
-          const res = await sendMessage({ ...payload, client_request_id: attempt.requestId });
-          if (res.request_id && res.request_id !== attempt.requestId) {
+        for (const payload of attempt.payloads.slice(received.length)) {
+          const res = await sendMessage(payload);
+          if (res.request_id && res.request_id !== payload.client_request_id) {
             throw new Error("발송 응답을 이번 요청과 연결하지 못했습니다.");
           }
-          // Additive fields preserve compatibility with the previous response shape.
-          totalAccepted += res.accepted_count ?? ((res.enqueued ?? 0) + (res.scheduled ?? 0));
+          received.push(res);
+          totalAccepted += accepted(res);
           totalScheduled += res.scheduled ?? 0;
           totalSkipped += res.skipped_no_phone ?? 0;
           totalEnqueueFailed += res.enqueue_failed ?? 0;
-          completedCalls++;
-          asyncStatusStore.updateProgress(taskId, Math.round((completedCalls / attempt.payloads.length) * 90));
+          asyncStatusStore.updateProgress(taskId, Math.round((received.length / attempt.payloads.length) * 90));
         }
       });
 
@@ -1126,16 +1209,25 @@ export default function SendMessageModal({
           ? "전화번호가 없어 접수할 수 있는 대상이 없습니다."
           : "발송 접수가 확인되지 않았습니다. 이번 발송 결과를 확인해 주세요.";
         setSendAttemptError(detail);
+        setSendAttempt({ ...attempt, responses: received, completed: true });
         feedback.warning(detail);
         asyncStatusStore.completeTask(taskId, "error", "발송 접수 미확인");
         return;
       }
-      setSendAttempt({ ...attempt, completed: true });
-      const sendToLabel = attempt.payloads.length === 2 ? "학부모·학생"
-        : formatSendTargetLabel(attempt.payloads[0].send_to);
+      setSendAttempt({ ...attempt, responses: received, completed: true });
+      const targetKinds = new Set(attempt.payloads.map((payload) => payload.send_to));
+      const sendToLabel = targetKinds.size === 2 ? "학부모·학생" : formatSendTargetLabel(attempt.payloads[0].send_to);
+      const sentVideoHomework = attempt.payloads.some((payload) => payload.video_makeup_homework);
       const actionLabel = sendTiming === "scheduled"
         ? `${formatScheduleLabel(scheduledSendAtIso)} 예약 접수` : "발송 접수";
       const notes = [
+        ...([false, true].flatMap((videoHomework) => {
+          if (!sentVideoHomework) return [];
+          const count = received.reduce((sum, result, index) => sum + (
+            Boolean(attempt.payloads[index]?.video_makeup_homework) === videoHomework ? accepted(result) : 0
+          ), 0);
+          return count > 0 ? [`${videoHomework ? "과제 안내" : "수업결과"} ${count}건`] : [];
+        })),
         totalScheduled > 0 ? `처리 대기 ${totalScheduled}건` : "",
         totalEnqueueFailed > 0 ? `처리 재확인 ${totalEnqueueFailed}건` : "",
         totalSkipped > 0 ? `전화번호 없음 ${totalSkipped}건 제외` : "",
@@ -1144,20 +1236,35 @@ export default function SendMessageModal({
       feedback.successWithAction({
         message: `${sendToLabel} 알림톡 ${totalAccepted}건 ${actionLabel}`,
         description: notes,
-        action: { label: "이번 발송 결과 보기", onClick: () => viewRequestResult(attempt.requestId) },
+        action: {
+          label: sentVideoHomework ? "발송 내역 보기" : "이번 발송 결과 보기",
+          onClick: () => sentVideoHomework ? navigate("/workspace/message/log") : viewRequestResult(requestId),
+        },
       });
       asyncStatusStore.setTaskLabel(taskId, `${sendToLabel} 알림톡 ${totalAccepted}건 접수`);
       asyncStatusStore.completeTask(taskId, "success");
       onClose();
     } catch (error: unknown) {
       const detail = extractApiError(error, "발송 응답을 확인하지 못했습니다.");
-      const errorData = error && typeof error === "object" && "response" in error
-        ? (error as { response?: { data?: { accepted_count?: number; request_id?: string } } }).response?.data
-        : undefined;
-      if (errorData?.request_id === attempt.requestId && typeof errorData.accepted_count === "number") {
+      const errorData = isAxiosError<{ accepted_count?: number; request_id?: string; code?: string }>(error)
+        ? error.response?.data : undefined;
+      const pending = attempt.payloads[received.length];
+      if (errorData?.request_id === pending?.client_request_id && typeof errorData?.accepted_count === "number") {
         totalAccepted += errorData.accepted_count;
       }
-      const notice = `${totalAccepted > 0 ? `확인된 접수 ${totalAccepted}건. ` : ""}${detail} 응답이 끊긴 대상은 이미 접수됐을 수 있습니다. 이번 결과를 확인하거나 같은 요청으로 재시도해 주세요.`;
+      setSendAttempt({ ...attempt, responses: attempt.payloads.some((payload) => payload.video_makeup_homework) ? received : [] });
+      const assignmentChanged = pending?.video_makeup_homework
+        && (errorData?.code === "video_makeup_homework_changed" || errorData?.code === "session_context_missing");
+      if (assignmentChanged) {
+        setReviewPendingSend(true);
+        setPreflightResults([]);
+        setPreflightResultKey("");
+        setPreflightRetry((value) => value + 1);
+      }
+      const recovery = assignmentChanged
+        ? "남은 과제 안내의 내용을 다시 확인해 주세요."
+        : "응답이 끊긴 대상은 이미 접수됐을 수 있습니다. 이번 결과를 확인하거나 같은 요청으로 재시도해 주세요.";
+      const notice = `${totalAccepted > 0 ? `확인된 접수 ${totalAccepted}건. ` : ""}${detail} ${recovery}`;
       setSendAttemptError(notice);
       feedback.warning(notice);
       asyncStatusStore.completeTask(taskId, "error", detail);
@@ -1191,7 +1298,7 @@ export default function SendMessageModal({
     if (!hasRecipients) return "수신자를 선택해 주세요";
     if (sendToTargets.length === 0) return "발송 대상을 선택해 주세요";
     if (!hasSelectedBodySource) return "문구를 선택하거나 직접 작성해 주세요";
-    if (!body.trim()) return "본문을 입력해 주세요";
+    if (!videoHomeworkOnly && !body.trim()) return "본문을 입력해 주세요";
     if (scheduleError) return scheduleError;
     if (hasMissingVars) {
       const list = missingVarNames.map((n) => `#{${n}}`).join(", ");
@@ -1201,6 +1308,7 @@ export default function SendMessageModal({
     if (preflightChecking) return "발송 가능 여부 확인 중입니다";
     if (preflightError) return preflightError;
     if (preflightBlockers.length > 0) return preflightBlockers[0]?.detail || preflightBlockers[0]?.title || "발송 조건 확인 필요";
+    if (reviewPendingSend && preflightReady && eligiblePreflightResults.length === 0) return "남은 과제 안내 대상이 없습니다.";
     if (preflightReady && !preflightPreviewReady) return "실제 카카오 미리보기를 준비하지 못했습니다. 잠시 후 다시 시도해 주세요";
     return null;
   })();
@@ -1224,7 +1332,7 @@ export default function SendMessageModal({
           </div>
         }
         description={
-          hasRecipients
+          videoHomeworkOnly ? "배정된 과제와 받는 사람을 확인한 뒤 발송하세요." : hasRecipients
             ? "안내문을 작성하고, 받는 사람에게 보일 내용을 확인한 뒤 발송하세요. 학생별 정보는 받는 사람에 맞게 바뀝니다."
             : "왼쪽에서 수신자를 먼저 선택해 주세요."
         }
@@ -1232,10 +1340,10 @@ export default function SendMessageModal({
 
       <ModalBody>
         <nav className="send-modal__section-nav" aria-label="알림톡 작성 영역 이동">
-          <Button intent="secondary" size="sm" onClick={() => moveToSection(composerSectionRef.current)} aria-label="본문 편집으로 이동">본문 편집</Button>
+          {!videoHomeworkOnly && <Button intent="secondary" size="sm" onClick={() => moveToSection(composerSectionRef.current)} aria-label="본문 편집으로 이동">본문 편집</Button>}
           <Button intent="secondary" size="sm" onClick={() => moveToSection(previewSectionRef.current)} aria-label="미리보기로 이동">미리보기</Button>
         </nav>
-        <div className="send-modal__layout">
+        <div className="send-modal__layout" data-video-homework-only={videoHomeworkOnly} inert={videoHomeworkAttempt}>
 
           {/* ═══ 좌측: 수신자 + 미리보기 (2 카드 통합) ═══ */}
           <div className="send-modal__left">
@@ -1246,6 +1354,47 @@ export default function SendMessageModal({
                 <div className="send-modal__recipient-context">{labelContext}</div>
               )}
               <div className="send-modal__recipient-name">{labelName}</div>
+              {scoreUnavailableReason && (
+                <div className="send-modal__hint send-modal__hint--warn">
+                  수업결과는 발송할 수 없습니다. {scoreUnavailableReason}
+                </div>
+              )}
+
+              {videoHomeworkStudentIds.length > 0 && (
+                <div className="send-modal__video-homework">
+                  {!videoHomeworkOnly && (
+                    <label className="send-modal__check">
+                      <input
+                        type="checkbox"
+                        checked={includeVideoHomework}
+                        onChange={(event) => setIncludeVideoHomework(event.target.checked)}
+                        disabled={videoHomeworkAttempt || sending || savingTemplate}
+                      />
+                      <span>영상 학생에게 과제 안내도 보내기</span>
+                    </label>
+                  )}
+                  {!sendsVideoHomework && <p className="send-modal__preflight-muted">선택한 영상 학생 {videoHomeworkStudentIds.length}명은 수업결과 발송에서 제외됩니다.</p>}
+                  {sendsVideoHomework && (
+                    <div className="send-modal__video-homework-summary" aria-live="polite">
+                      {videoHomeworkPreview ? (
+                        <>
+                          <strong>과제 안내 {videoHomeworkCount}명</strong>
+                          {videoHomeworkTitles.length > 0 && <p>{videoHomeworkTitles.join(" · ")}</p>}
+                          {unassignedVideoCount > 0 && <p>과제 미배정 {unassignedVideoCount}명 제외</p>}
+                          {otherVideoExcludedCount > 0 && <p>출결 변경 {otherVideoExcludedCount}명 제외</p>}
+                        </>
+                      ) : videoHomeworkSummaryError ? (
+                        <div role="alert">
+                          <p>{videoHomeworkSummaryError}</p>
+                          <Button intent="ghost" size="sm" onClick={() => setPreflightRetry((retry) => retry + 1)}>다시 확인</Button>
+                        </div>
+                      ) : (
+                        <p>{preflightChecking || videoHomeworkSummaryLoading ? "과제 배정을 확인 중입니다…" : "이 차시에 배정된 과제를 안내합니다."}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {!hasRecipients && (
                 <div className="send-modal__hint send-modal__hint--warn">
@@ -1257,11 +1406,11 @@ export default function SendMessageModal({
               {hasRecipients && (
                 <div className="send-modal__recipient-targets">
                   <label className="send-modal__check">
-                    <input type="checkbox" checked={sendToParent} onChange={(e) => setSendToParent(e.target.checked)} disabled={sending || savingTemplate} />
+                    <input type="checkbox" checked={sendToParent} onChange={(e) => setSendToParent(e.target.checked)} disabled={videoHomeworkAttempt || sending || savingTemplate} />
                     <span>학부모</span>
                   </label>
                   <label className="send-modal__check">
-                    <input type="checkbox" checked={sendToStudent} onChange={(e) => setSendToStudent(e.target.checked)} disabled={sending || savingTemplate} />
+                    <input type="checkbox" checked={sendToStudent} onChange={(e) => setSendToStudent(e.target.checked)} disabled={videoHomeworkAttempt || sending || savingTemplate} />
                     <span>학생</span>
                   </label>
                   {sendToTargets.length === 0 && (
@@ -1316,7 +1465,7 @@ export default function SendMessageModal({
                 <div className="template-preview-kakao__card">
                   <div className="template-preview-kakao__body" aria-live="polite">
                     {!hasSelectedBodySource ? "문구를 선택하거나 직접 작성해 주세요."
-                      : !body.trim() ? "안내문을 입력해 주세요."
+                      : !videoHomeworkOnly && !body.trim() ? "안내문을 입력해 주세요."
                       : !hasRecipients ? "수신자를 선택하면 실제 문구를 확인할 수 있습니다."
                       : preflightError ? (
                         <span role="alert">
@@ -1468,7 +1617,7 @@ export default function SendMessageModal({
           </div>
 
           {/* ═══ 우측: 양식 선택 + 본문 편집 ═══ */}
-          <div ref={composerSectionRef} tabIndex={-1} role="region" aria-label="안내문 편집 영역" className="send-modal__right">
+          {!videoHomeworkOnly && <div ref={composerSectionRef} tabIndex={-1} role="region" aria-label="안내문 편집 영역" className="send-modal__right">
             {needsEnvelopeChoice && (
               <div className="send-modal__envelope-selector">
                 <div className="send-modal__envelope-head">
@@ -1717,7 +1866,7 @@ export default function SendMessageModal({
                 </button>
               )}
             </div>
-          </div>
+          </div>}
         </div>
         {sendAttempt && sendAttemptError && (
           <section className="send-modal__schedule-note" role="status" aria-label="이번 발송 확인">
@@ -1730,11 +1879,12 @@ export default function SendMessageModal({
               <Button intent="secondary" size="sm" disabled={sending || savingTemplate} onClick={async () => {
                 if (!await confirmDiscardDraft(false, true)) return;
                 onClose();
-                viewRequestResult(sendAttempt.requestId);
-              }}>이번 발송 결과 보기</Button>
-              <Button intent="primary" size="sm" disabled={!canRetryAttempt || savingTemplate} onClick={() => void handleSend(true)}>
+                if (sendsVideoHomework) navigate("/workspace/message/log");
+                else viewRequestResult(sendAttempt.payloads[0].client_request_id);
+              }}>{sendsVideoHomework ? "발송 내역 보기" : "이번 발송 결과 보기"}</Button>
+              {!reviewPendingSend && <Button intent="primary" size="sm" disabled={!canRetryAttempt || savingTemplate} onClick={() => void handleSend(true)}>
                 같은 요청으로 재시도
-              </Button>
+              </Button>}
             </div>
           </section>
         )}
@@ -1764,6 +1914,33 @@ export default function SendMessageModal({
               </span>
             </div>
 
+            {sendsVideoHomework && videoHomeworkCount > 0 && (
+              <div className="send-modal__notice-groups" role="group" aria-label="미리볼 안내 선택">
+                {([false, true] as const).map((videoHomework) => {
+                  const count = confirmSendableRecipients.filter((recipient) => recipient.videoHomework === videoHomework).length;
+                  return count > 0 && (
+                    <Button
+                      key={String(videoHomework)}
+                      size="sm"
+                      intent={confirmVideoHomework === videoHomework ? "primary" : "secondary"}
+                      aria-pressed={confirmVideoHomework === videoHomework}
+                      onClick={() => {
+                        setConfirmVideoHomework(videoHomework);
+                        if (videoHomework) setInspectedVideoHomework(true);
+                        setConfirmPreviewStudentId(null);
+                        setConfirmRecipientsExpanded(false);
+                      }}
+                    >{videoHomework ? "과제 안내" : "수업결과"} {count}명</Button>
+                  );
+                })}
+              </div>
+            )}
+            {sendsVideoHomework && (unassignedVideoCount > 0 || otherVideoExcludedCount > 0) && (
+              <p className="send-modal__confirm-note">
+                {[unassignedVideoCount > 0 && `과제 미배정 ${unassignedVideoCount}명 제외`, otherVideoExcludedCount > 0 && `출결 변경 ${otherVideoExcludedCount}명 제외`].filter(Boolean).join(" · ")}
+              </p>
+            )}
+
             <div className="send-modal__confirm-layout">
               <section className="send-modal__confirm-kakao">
                 <div className="send-modal__confirm-previewing">
@@ -1771,7 +1948,7 @@ export default function SendMessageModal({
                   <strong>{confirmPreviewRecipient?.studentName ?? "선택 학생"}</strong>
                 </div>
                 <KakaoAlimtalkPreview
-                  channelLabel={activeAlimtalkLabel}
+                  channelLabel={confirmVideoHomework ? getAlimtalkTemplateLabel(getAlimtalkTemplateTypeFromCategory("assignment")) : activeAlimtalkLabel}
                 >
                   {confirmPreviewRecipient?.fullMessageBody || "미리볼 문구가 없습니다."}
                 </KakaoAlimtalkPreview>
@@ -1805,7 +1982,7 @@ export default function SendMessageModal({
                       })()}
                     </span>
                   </div>
-                  {hasSelectedBodySource && (
+                  {!confirmVideoHomework && hasSelectedBodySource && (
                     <div className="send-modal__confirm-row">
                       <span className="send-modal__confirm-key">적용 문구</span>
                       <span className="send-modal__confirm-val send-modal__confirm-val--ellipsis">
@@ -1819,7 +1996,7 @@ export default function SendMessageModal({
                   <div className="send-modal__confirm-recipients-head">
                     <div>
                       <span>발송 대상 학생</span>
-                      <strong>{confirmSendableRecipients.length}명</strong>
+                      <strong>{confirmGroupRecipients.length}명</strong>
                     </div>
                     <p>
                       학생 선택은 미리보기만 바꾸며, 발송 대상은 그대로 유지됩니다.
@@ -1827,7 +2004,7 @@ export default function SendMessageModal({
                     </p>
                   </div>
 
-                  {confirmSendableRecipients.length > 1 ? (
+                  {confirmGroupRecipients.length > 1 ? (
                     <button
                       type="button"
                       className="send-modal__confirm-recipients-toggle"
@@ -1840,14 +2017,14 @@ export default function SendMessageModal({
                     </button>
                   ) : null}
 
-                  {(confirmRecipientsExpanded || confirmSendableRecipients.length === 1) && (
+                  {(confirmRecipientsExpanded || confirmGroupRecipients.length === 1) && (
                     <div
                       id="send-modal-confirm-recipient-list"
                       className="send-modal__confirm-recipient-list"
                       role="radiogroup"
                       aria-label="미리보기 학생 선택"
                     >
-                      {confirmSendableRecipients.map((recipient) => {
+                      {confirmGroupRecipients.map((recipient) => {
                         const selected = recipient.studentId === confirmPreviewRecipient?.studentId;
                         return (
                           <button
@@ -1877,7 +2054,7 @@ export default function SendMessageModal({
                   )}
                 </div>
 
-                {qualityIssues.length > 0 && (
+                {!confirmVideoHomework && qualityIssues.length > 0 && (
                   <div className="send-modal__confirm-quality">
                     {qualityIssues.map((issue) => (
                       <div key={issue.id} className="send-modal__confirm-quality-row" data-severity={issue.severity}>
@@ -1894,9 +2071,18 @@ export default function SendMessageModal({
               <Button intent="secondary" onClick={() => setShowConfirm(false)} className="send-modal__confirm-back-btn">
                 돌아가기
               </Button>
-              <Button intent="primary" onClick={() => void handleSend()} disabled={sending || savingTemplate} className="send-modal__confirm-send-btn">
-                {sending ? "발송 중…" : sendTiming === "scheduled" ? "예약하기" : "발송하기"}
-              </Button>
+              {hasVideoHomeworkToConfirm && !inspectedVideoHomework ? (
+                <Button intent="primary" onClick={() => {
+                  setConfirmVideoHomework(true);
+                  setInspectedVideoHomework(true);
+                  setConfirmPreviewStudentId(null);
+                  setConfirmRecipientsExpanded(false);
+                }} className="send-modal__confirm-send-btn">과제 안내 확인</Button>
+              ) : (
+                <Button intent="primary" onClick={() => void handleSend()} disabled={!canSend || sending || savingTemplate} className="send-modal__confirm-send-btn">
+                  {sending ? "발송 중…" : sendTiming === "scheduled" ? "예약하기" : "발송하기"}
+                </Button>
+              )}
             </div>
           </div>
         </div>
