@@ -260,13 +260,14 @@
   .editor { grid-template-columns: minmax(0, 1fr); }
   .editorDayList {
     grid-auto-flow: column;
-    grid-auto-columns: minmax(110px, max-content);
+    grid-auto-columns: minmax(82px, max-content);
     overflow-x: auto;
     max-width: 100%;
     padding-bottom: 4px;
     scroll-snap-type: x proximity;
   }
-  .editorDay { scroll-snap-align: start; max-width: 170px; }
+  .editorDay { scroll-snap-align: start; max-width: 136px; }
+  .editorDay > svg { display: none; }
   .roster { max-height: 216px; }
 }
 

@@ -93,9 +93,18 @@ export default function SessionScheduleManager({ open, addRequest, editDayId, on
   }, [open, base, addRequest]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    activeDayRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    const button = activeDayRef.current;
+    const list = button?.parentElement;
+    if (button && list) {
+      const dayBounds = button.getBoundingClientRect();
+      const listBounds = list.getBoundingClientRect();
+      if (dayBounds.left < listBounds.left) list.scrollBy({ left: dayBounds.left - listBounds.left });
+      else if (dayBounds.right > listBounds.right) list.scrollBy({ left: dayBounds.right - listBounds.right });
+      if (dayBounds.top < listBounds.top) list.scrollBy({ top: dayBounds.top - listBounds.top });
+      else if (dayBounds.bottom > listBounds.bottom) list.scrollBy({ top: dayBounds.bottom - listBounds.bottom });
+    }
     if (!focusName.current) return;
-    nameRef.current?.focus();
+    nameRef.current?.focus({ preventScroll: true });
     focusName.current = false;
   }, [target]);
 
@@ -206,7 +215,7 @@ export default function SessionScheduleManager({ open, addRequest, editDayId, on
                   <button key={day.key} ref={day.key === target ? activeDayRef : undefined} type="button" className={styles.editorDay} aria-pressed={day.key === target}
                     onClick={() => { setTarget(day.key); setSelected([]); }}>
                     <CalendarDays size={16} aria-hidden />
-                    <span><strong>{day.label.trim() || `수업일 ${index + 1}`}</strong><small>{day.date || '날짜 선택'} · {day.enrollment_ids.length}명</small></span>
+                    <span><strong>{day.label.trim() || `수업일 ${index + 1}`}</strong><small>{day.date ? day.date.slice(5).replace('-', '/') : '날짜 선택'} · {day.enrollment_ids.length}명</small></span>
                   </button>
                 ))}
               </div>}
