@@ -46,6 +46,7 @@ export default function LectureActionsMenu({ lecture, isPast, onEdit, onChanged 
     setBusy(true);
     try {
       if (action !== "restore") {
+        trigger.current?.focus({ preventScroll: true });
         const accepted = await confirm({
           title: action === "end" ? "강의 종료" : "강의 삭제",
           message: action === "end"
