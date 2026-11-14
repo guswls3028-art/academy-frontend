@@ -963,6 +963,7 @@ test("빈 메모의 null 응답은 저장으로 확인하고 누락 응답은 �
   await expect(detail.getByText("저장됨", { exact: true })).toBeVisible();
   expect(serverMemo).toBeNull();
   await page.reload();
+  await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
   await expect(input).toHaveValue("");
   omitResult = true;
   await input.fill("다시 확인할 메모");
@@ -1011,6 +1012,7 @@ test("저장 중 뒤로 갔다 다시 연 학생의 새 메모는 앞선 쓰기�
   expect(patches).toEqual(["먼저 저장한 값", "다시 열어 수정한 값"]);
   expect(serverMemo).toBe("다시 열어 수정한 값");
   await page.reload();
+  await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
   await expect(input).toHaveValue("다시 열어 수정한 값");
 });
 
