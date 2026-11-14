@@ -557,13 +557,21 @@ release readonly strict browser는 이 exact host/path/SHA-512 mismatch 한 줄�
 - `POST /api/v1/students/me/activity/`의 정확한 두 키
   `{screen_id, device_class: "desktop"|"tablet"|"mobile"}`. `screen_id`는 운영 canary가
   실제 방문하는 `student.dashboard.home`, `student.session.list`, `student.grades.home`,
-  `student.guide.home`, `student.assignment.submit` 다섯 값만 허용한다. 홈 학습 현황에서
+  `student.exam.list`, `student.video.home`, `student.guide.home`, `student.assignment.submit`
+  일곱 값만 허용한다. 시험 결과 분석 탭과 영상 통계 탭의 운영 검사는 각각 목록 화면과
+  영상 홈의 화면 관측을 사용한다. 홈 학습 현황에서
   일정·과제·시험 내역으로 이동해 새로고침하는 흐름과 가이드에서 과제 제출 화면으로
   이동하고 돌아오는 흐름 모두 이 동일한 화면 열기 API를 사용한다.
   추가 키(과제 ID 등), 다른 screen/method와 `/activity/homework-open/`은 거부한다.
   이 요청은 append-only 화면 관측 감사 로그다.
   인증·관측 attempted/accepted를 각각 보고하며 전체 DB read-only 또는 총 쓰기 0으로
   표현하지 않는다. 진도·출결·성적·완료·결제·발송·product-usage mutation은 허용하지 않는다.
+
+영상 목록에서는 인증된 `GET /api/v1/student/video/me/` 응답이 해당 브라우저에 제공한
+`cdn.hakwonplus.com`의 서명된 HLS `thumbnail.jpg` URL만 이미지 GET으로 실제 조회한다.
+`/student/video`에서 시작한 요청이어야 하고 인증·쿠키·테넌트·CSRF 헤더가 있거나 CDN이
+리디렉션, 오류, JPEG 이외 응답을 반환하면 실패한다. 서명 검증은 CDN이 수행하며 URL의
+서명 값은 검증 로그에 출력하지 않는다.
 
 Backend 증거 소유자는 `apps/domains/students/tests/test_student_support.py`의
 `test_dashboard_screen_observation_only_appends_one_audit_row`이며, 실제 API 호출의

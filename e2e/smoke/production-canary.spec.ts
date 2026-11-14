@@ -45,10 +45,23 @@ async function verifyStudentAnalysisAndVideo(page: Page) {
   await expect(examAnalysis).toHaveAttribute("aria-selected", "true");
   await expect(examReady).toBeVisible();
 
-  await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "영상", exact: true }).click();
+  const [videoResponse] = await Promise.all([
+    page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/student/video/me/" && response.ok()),
+    page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "영상", exact: true }).click(),
+  ]);
   await expect(page).toHaveURL(`${BASE}/student/video`);
   const catalog = page.getByRole("tabpanel", { name: "강의", exact: true });
   await expect(catalog.locator(".video-course-grid").or(catalog.getByText("등록된 영상이 없습니다", { exact: true }))).toBeVisible();
+  const videoCatalog = await videoResponse.json() as {
+    public?: { thumbnail_url?: string | null } | null;
+    lectures?: { thumbnail_url?: string | null }[];
+  };
+  if ([videoCatalog.public, ...(videoCatalog.lectures ?? [])].some((item) =>
+    /^https:\/\/cdn\.hakwonplus\.com\/tenants\/\d+\/video\/hls\/\d+\/thumbnail\.jpg\?/.test(item?.thumbnail_url ?? ""))) {
+    const poster = catalog.locator('img[src^="https://cdn.hakwonplus.com/"][src*="/thumbnail.jpg?"]').first();
+    await poster.scrollIntoViewIfNeeded();
+    await expect.poll(() => poster.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+  }
   await page.getByRole("tab", { name: "통계", exact: true }).click();
   const videoStats = page.getByRole("tabpanel", { name: "통계", exact: true });
   await expect(videoStats.getByText("학습 완주율", { exact: true })
