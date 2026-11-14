@@ -36,7 +36,7 @@ const initialLectures: Lecture[] = [
   { id: 103, title: "Gamma", name: "관리자", subject: "영어", lecture_time: "11:00~12:00", start_date: "2026-08-03", end_date: "2026-09-03", color: "#eab308", chip_label: "G", is_active: true, display_order: 3, active_enrollment_count: 17 },
 ];
 
-async function seedLectureAdmin(page: Page, options?: { failFirstReorder?: boolean; failFirstEdit?: boolean; failDetail?: boolean; includeEmptyLecture?: boolean }) {
+async function seedLectureAdmin(page: Page, options?: { failFirstReorder?: boolean; failFirstEdit?: boolean; failDetail?: boolean; includeEmptyLecture?: boolean; activeQrLectureId?: number }) {
   test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
   let lectures = initialLectures.map((lecture) => ({ ...lecture, description: "기존 설명을 보존합니다." }));
   if (options?.includeEmptyLecture) {
@@ -85,6 +85,9 @@ async function seedLectureAdmin(page: Page, options?: { failFirstReorder?: boole
         Object.assign(lecture, payload);
       } else if (route.request().method() === "DELETE") {
         deletes.push(lecture.id);
+        if (lecture.id === options?.activeQrLectureId) {
+          return json({ detail: "This lecture has active attendance QR points and cannot be deleted." }, 403);
+        }
         if (lecture.active_enrollment_count > 0) {
           return json({ detail: "This lecture has lecture enrollments and cannot be deleted." }, 403);
         }
@@ -233,7 +236,7 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
   });
 
   test("강의 삭제는 취소를 기본으로 두고 연결 기록을 보호하며 빈 강의만 삭제한다 @dialog-journey", async ({ page }, testInfo) => {
-    const { deletes } = await seedLectureAdmin(page, { includeEmptyLecture: true });
+    const { deletes } = await seedLectureAdmin(page, { includeEmptyLecture: true, activeQrLectureId: 102 });
     await page.setViewportSize({ width: 1366, height: 900 });
     await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });
     const confirmation = page.getByRole("alertdialog", { name: "강의 삭제", exact: true });
@@ -246,6 +249,7 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     await page.getByRole("menuitem", { name: "강의 삭제", exact: true }).click();
     await expect(confirmation).toContainText("“Alpha” 강의");
     await expect(confirmation).toContainText("복구할 수 없습니다");
+    await expect(confirmation).toContainText("사용을 중지한 출결 QR");
     await expect(confirmation).toContainText("강의 종료");
     await expect(cancel).toBeFocused();
     await cancel.press("Enter");
@@ -260,6 +264,12 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     await expect(alphaLink).toBeVisible();
     expect(deletes).toEqual([101]);
 
+    await page.getByRole("button", { name: "Beta 설정", exact: true }).click();
+    await page.getByRole("menuitem", { name: "강의 삭제", exact: true }).click();
+    await confirmDelete.click();
+    await expect(page.getByText(/출결 도구 → 출결 QR 출력에서 해당 QR을 선택해 사용을 중지하세요/).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Beta 강의 열기", exact: true })).toBeVisible();
+
     await page.setViewportSize({ width: 390, height: 844 });
     const emptySettings = page.getByRole("button", { name: "잘못 등록한 강의 설정", exact: true });
     await emptySettings.click();
@@ -269,7 +279,7 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     await page.screenshot({ path: testInfo.outputPath("lecture-delete-390.png"), animations: "disabled" });
     await confirmDelete.click();
     await expect(emptySettings).toHaveCount(0);
-    expect(deletes).toEqual([101, 104]);
+    expect(deletes).toEqual([101, 102, 104]);
     await page.reload();
     await expect(alphaLink).toBeVisible();
     await expect(page.getByRole("link", { name: "잘못 등록한 강의 강의 열기", exact: true })).toHaveCount(0);
