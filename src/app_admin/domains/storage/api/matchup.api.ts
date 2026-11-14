@@ -915,6 +915,7 @@ export type HitReportCandidate = {
   number: number;
   text_preview: string;
   similarity: number;
+  display_similarity?: number | null;
   image_key: string;
   image_url?: string;
   // 학원장이 후보 "다시 자르기" 진입 시 ManualCropModal 의 initialPage 로 활용 (2026-05-11).
@@ -932,6 +933,7 @@ export type HitReportExamProblem = {
   entry: {
     id: number;
     selected_problem_ids: number[];
+    selected_display_similarity?: Record<number, number | null>;
     comment: string;
     order: number;
     // 강사가 매칭 못한/큐레이션 의도 없는 Q를 PDF에서 빼는 토글 (2026-05-05).
