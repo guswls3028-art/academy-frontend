@@ -168,6 +168,7 @@ export default function OmrReviewWorkspace({
   const [zoom, setZoom] = useState(1);
   const [fitMode, setFitMode] = useState(true); // true = 컨테이너 맞춤, false = 100%*zoom
   const [editDirty, setEditDirty] = useState(false);
+  const navigationPromptOpen = useRef(false);
   const [retiredId, setRetiredId] = useState<number | null>(null);
   const [focusedQid, setFocusedQid] = useState<number | null>(null);
   const [mobilePane, setMobilePane] = useState<MobilePane>("list");
@@ -317,7 +318,7 @@ export default function OmrReviewWorkspace({
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && !navigationPromptOpen.current) {
         // StudentPickerModal이 열려있으면 그쪽이 먼저 가로챔 — 본 리스너는 최상단에서만 작동
         // 실제로는 PickerModal도 Esc로 닫히므로 여기까지 오지 않음
         e.preventDefault();
@@ -341,14 +342,16 @@ export default function OmrReviewWorkspace({
   }, [open, editDirty]);
 
   const requestSelection = async (submissionId: number, pane?: MobilePane) => {
+    if (navigationPromptOpen.current) return;
     if (submissionId !== selectedId && editDirty) {
+      navigationPromptOpen.current = true;
       const confirmed = await confirm({
         title: "다른 답안지로 이동",
         message: "저장하지 않은 변경 사항이 있습니다. 변경 사항을 버리고 이동하시겠습니까?",
         confirmText: "이동",
         cancelText: "계속 편집",
         danger: true,
-      });
+      }).finally(() => { navigationPromptOpen.current = false; });
       if (!confirmed) return;
     }
     setSelectedId(submissionId);

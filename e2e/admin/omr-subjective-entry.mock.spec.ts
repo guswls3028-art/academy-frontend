@@ -851,15 +851,15 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       await confirmNavigation.getByRole("button", { name: "계속 편집" }).click();
       await expect(draft).toHaveAttribute("aria-pressed", "true");
       await expect(conflict).toBeVisible();
-      if (width === 390) await review.getByRole("tab", { name: "대상 목록" }).click();
+      if (width === 390) await review.getByRole("tab", { name: "목록", exact: true }).click();
       await anotherRow.click();
       await confirmNavigation.getByRole("button", { name: "이동", exact: true }).click();
       await expect(review.getByRole("button", { name: "학생 검색·연결" })).toBeVisible();
-      if (width === 390) await review.getByRole("tab", { name: "대상 목록" }).click();
+      if (width === 390) await review.getByRole("tab", { name: "목록", exact: true }).click();
       await completedRow.click();
       await expect(draft).toHaveAttribute("aria-pressed", "false");
       await expect(conflict).toHaveCount(0);
-      if (width === 390) await review.getByRole("tab", { name: "대상 목록" }).click();
+      if (width === 390) await review.getByRole("tab", { name: "목록", exact: true }).click();
       await review.locator(".orw-filter-chip").filter({ hasText: "보관" }).click();
       await expect(review.locator(".orw-list-row")).toHaveCount(2);
       await review.locator(".orw-list-row").first().click();
