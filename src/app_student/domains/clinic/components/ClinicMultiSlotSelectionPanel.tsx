@@ -19,7 +19,8 @@ type Props = {
   availabilityError: boolean;
   pending: boolean;
   changingBooking: boolean;
-  hasError: boolean;
+  canSubmit: boolean;
+  submitError: string | null;
   onMemoChange: (value: string) => void;
   onPreferredStartChange: (value: string) => void;
   onPreferredEndChange: (value: string) => void;
@@ -89,7 +90,8 @@ export default function ClinicMultiSlotSelectionPanel({
   availabilityError,
   pending,
   changingBooking,
-  hasError,
+  canSubmit,
+  submitError,
   onMemoChange,
   onPreferredStartChange,
   onPreferredEndChange,
@@ -190,7 +192,7 @@ export default function ClinicMultiSlotSelectionPanel({
       <button
         type="button"
         className={`stu-btn stu-btn--primary ${styles.selectionSubmit}`}
-        disabled={pending || (isTimeRange && (
+        disabled={pending || !canSubmit || (isTimeRange && (
           !bookingStart || !bookingEnd || availabilityPending || availabilityError
         ))}
         onClick={onSubmit}
@@ -203,13 +205,7 @@ export default function ClinicMultiSlotSelectionPanel({
               ? `${selectedSessions.length}개 시간대 예약하기`
               : "이 일정 예약하기"}
       </button>
-      {hasError && (
-        <p className={styles.errorText}>
-          {changingBooking
-            ? "일정 변경에 실패했습니다. 기존 예약은 유지됩니다."
-            : "예약 신청에 실패했습니다."} 다시 시도해 주세요.
-        </p>
-      )}
+      {submitError && <p className={styles.errorText} role="alert">{submitError}</p>}
     </section>
   );
 }
