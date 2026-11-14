@@ -3,13 +3,15 @@
  * 홈: 상태별 그룹핑된 시험 목록
  * 통계: grades API 기반 시험 성적 분석
  */
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { lazyWithRetry } from "@/shared/utils/lazyWithRetry";
 import DomainTabShell from "@student/shared/ui/pages/DomainTabShell";
 import EmptyState from "@student/layout/EmptyState";
 import { IconExam } from "@student/shared/ui/icons/Icons";
 import { useStudentExams } from "../hooks/useStudentExams";
 import ExamHomeTab from "../components/ExamHomeTab";
-import ExamStatsTab from "../components/ExamStatsTab";
+
+const ExamStatsTab = lazyWithRetry(() => import("../components/ExamStatsTab"));
 
 const TABS = [
   { key: "home", label: "시험지" },
@@ -57,7 +59,9 @@ export default function ExamListPage() {
       )}
 
       {!isLoading && !isError && tab === "stats" && (
-        <ExamStatsTab />
+        <Suspense fallback={<p role="status">결과 분석을 불러오는 중…</p>}>
+          <ExamStatsTab />
+        </Suspense>
       )}
     </DomainTabShell>
   );

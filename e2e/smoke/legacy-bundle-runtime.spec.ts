@@ -334,7 +334,7 @@ test("390px legacy parent selects and switches children, then reloads the same s
   await page.screenshot({ path: test.info().outputPath("legacy-parent-home390.png"), fullPage: true, animations: "disabled" });
 });
 
-test("legacy video catalog and native HLS playback do not require the HLS library", async ({ page }) => {
+test("legacy student lists load analysis and HLS code only where needed", async ({ page }) => {
   const { scriptRequests: scripts } = await installLegacyRuntime(page, profiles[0]);
   await installStudentApi(page);
   await page.addInitScript(() => {
@@ -367,6 +367,13 @@ test("legacy video catalog and native HLS playback do not require the HLS librar
     try { await route.abort(); } catch { /* Request closes with the page. */ }
   });
   await login(page);
+  const learningSummary = page.getByRole("region", { name: "학습 현황", exact: true });
+  await learningSummary.locator('a[href="/student/grades"]').click();
+  await expect(page.getByText("시험 결과가 아직 없습니다.", { exact: true })).toBeVisible();
+  expect(scripts.filter((url) => /vendor-charts.*\.js/.test(url))).toEqual([]);
+  await page.getByRole("tab", { name: "추이 분석", exact: true }).click();
+  await expect(page.getByRole("region", { name: "과제 현황", exact: true })).toBeVisible();
+  expect(scripts.some((url) => /vendor-charts.*\.js/.test(url))).toBe(true);
   await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "영상", exact: true }).click();
   await expect(page.getByRole("tab", { name: "강의", exact: true })).toBeVisible();
   await expect(page.getByRole("tab", { name: "강의", exact: true })).toHaveAttribute("aria-selected", "true");
