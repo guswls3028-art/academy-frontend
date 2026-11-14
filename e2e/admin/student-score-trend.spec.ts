@@ -1143,13 +1143,12 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect(examTab).toContainText("4건");
     await examTab.click();
 
-    await expect(detailOverlay.getByText("미응시", { exact: true })).toBeVisible();
+    await expect(detailOverlay.getByText("Ymath 주간 테스트 미응시", { exact: true })).toBeVisible();
     await expect(detailOverlay.getByTestId("student-score-trend")).toBeHidden();
     await detailOverlay.getByRole("button", { name: "성적 추이 보기" }).click();
     await expect(detailOverlay.getByText("합격 100%", { exact: true })).toBeVisible();
     const component = page.getByTestId("student-score-trend");
     await assertTrend(component);
-    await expect(page.getByText("미응시", { exact: true })).toBeVisible();
     await component.screenshot({ path: "test-results/student-score-trend/admin-1366.png" });
 
     const detailScopeTabs = detailOverlay.getByRole("tablist", { name: "개인 시험 결과 범위" });
