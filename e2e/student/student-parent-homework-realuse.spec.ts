@@ -5,7 +5,8 @@
  */
 import { expect, test } from "../fixtures/strictTest";
 import { readFileSync } from "node:fs";
-import type { APIRequestContext, Locator, Page } from "@playwright/test";
+import type { APIRequestContext, Locator, Page, Route } from "@playwright/test";
+import type { SendPreflightResponse } from "@/app_admin/domains/messages/api/messages.api";
 import type { StudentGradeReportLayout } from "@/shared/api/contracts/studentGradeReportLayout";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import {
@@ -398,32 +399,81 @@ async function verifyHomeworkFeedback(
       // the real assignment mapping. Stop at confirmation.
       expect(previewAttendanceId).toBeGreaterThan(0);
       const previewAttendancePath = `/lectures/attendance/${previewAttendanceId}/`;
-      await expectApi(request, "PATCH", previewAttendancePath, admin.access, { status: "ONLINE" });
+      const sendRoute = "**/api/v1/messaging/send/";
+      let sendAttempts = 0;
+      const rejectSend = async (route: Route) => {
+        sendAttempts += 1;
+        await route.abort("blockedbyclient");
+      };
+      await staffPage.route(sendRoute, rejectSend);
       try {
-        for (const width of [1366, 390]) {
+        await expectApi(request, "PATCH", previewAttendancePath, admin.access, { status: "ONLINE" });
+        for (const width of [1366, 390] as const) {
+          checkpoint.phase = "preview-compose";
+          checkpoint.viewport = width;
           await staffPage.setViewportSize({ width, height: 900 });
           await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
           await staffPage.getByRole("checkbox", { name: previewStudent.name + " 선택", exact: true }).check();
-          await staffPage.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
+          const [response] = await Promise.all([
+            staffPage.waitForResponse((response) => {
+              const request = response.request();
+              if (request.method() !== "POST" || new URL(response.url()).pathname !== "/api/v1/messaging/send/preflight/") return false;
+              const payload = request.postDataJSON();
+              return payload.video_makeup_homework === true && payload.send_to === "parent";
+            }),
+            staffPage.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click(),
+          ]);
           const notice = staffPage.getByRole("dialog", { name: "알림톡 발송" });
-          await expect(notice.getByText("과제 안내 1명", { exact: true })).toBeVisible();
           await notice.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
+          checkpoint.phase = "preview-preflight";
+          expect(response.status()).toBe(200);
+          expect(response.request().postDataJSON()).toMatchObject({
+            session_id: created.sessionId,
+            student_ids: [previewStudent.id],
+            block_category: "assignment",
+          });
+          const preflight = await response.json() as SendPreflightResponse;
+          expect(preflight).toMatchObject({
+            ok: true,
+            can_send: true,
+            send_to: "parent",
+            blockers: [],
+            video_makeup_homework_preview: {
+              fingerprint: expect.any(String),
+              recipients: [{
+                student_id: previewStudent.id,
+                homework_titles: expect.arrayContaining([completionTitle, homeworkTitle]),
+              }],
+              excluded: [],
+            },
+            preview_recipients: [{ student_id: previewStudent.id, excluded: false }],
+          });
+          await expect(notice.getByText("과제 안내 1명", { exact: true })).toBeVisible();
+          checkpoint.phase = "preview-final";
           await notice.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
           const finalNotice = staffPage.getByRole("dialog", { name: "보내기 전 마지막 확인" });
           const renderedNotice = finalNotice.getByLabel("카카오톡 실제 발송 미리보기");
           await expect(renderedNotice).toContainText("이번 차시는 영상으로 보강합니다.");
-          await expect(renderedNotice).toContainText(completionTitle);
-          await expect(renderedNotice).toContainText(homeworkTitle);
+          await expect(renderedNotice.locator(".kakao-alimtalk-preview__body"))
+            .toHaveText(preflight.preview_recipients[0].full_message_body);
           await expect(finalNotice.getByText("학부모 1명", { exact: true })).toBeVisible();
           await expect(finalNotice.getByRole("button", { name: "발송하기", exact: true })).toBeInViewport();
           await assertNoHorizontalOverflow(staffPage);
-          await staffPage.screenshot({ path: test.info().outputPath(`real-video-homework-notice-${width}.png`), animations: "disabled" });
+          const name = `real-video-homework-notice-${width}`;
+          const path = test.info().outputPath(`${name}.png`);
+          await staffPage.screenshot({ path, animations: "disabled" });
+          await test.info().attach(name, { path, contentType: "image/png" });
           await finalNotice.getByRole("button", { name: "돌아가기", exact: true }).click();
           await notice.getByRole("button", { name: "취소", exact: true }).click();
           await expect(notice).toBeHidden();
         }
+        expect(sendAttempts).toBe(0);
       } finally {
-        await expectApi(request, "PATCH", previewAttendancePath, admin.access, { status: "LATE" });
+        try {
+          await expectApi(request, "PATCH", previewAttendancePath, admin.access, { status: "LATE" });
+        } finally {
+          await staffPage.unroute(sendRoute, rejectSend);
+        }
       }
       // Keep later existing single-score-card/average assertions unchanged.
       await expectApi(request, "DELETE", `/homeworks/${completion.id}/`, admin.access, undefined, [204]);
