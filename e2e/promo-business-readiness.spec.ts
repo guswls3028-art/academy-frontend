@@ -24,6 +24,33 @@ test.describe("promo business readiness", () => {
     await stubPromoBootstrap(page);
   });
 
+  for (const width of [390, 1366]) {
+    test(`product preview zoom targets are distinct and open their own image at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(BASE + "/promo", { waitUntil: "load" });
+      const showcase = page.getByTestId("promo-real-product-showcase");
+      const desktop = showcase.getByRole("button", { name: /합성 학생 출결 상태/ });
+      const mobile = showcase.getByRole("button", { name: /오늘 수업과 다음 일정/ });
+      await expect(desktop).toBeVisible();
+      await expect(mobile).toBeVisible();
+      const [pcBox, phoneBox] = await Promise.all([desktop.boundingBox(), mobile.boundingBox()]);
+      expect(pcBox).not.toBeNull();
+      expect(phoneBox).not.toBeNull();
+      expect(pcBox!.x + pcBox!.width).toBeLessThan(phoneBox!.x);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+      for (const trigger of [desktop, mobile]) {
+        const source = await trigger.getAttribute("src");
+        const alt = await trigger.getAttribute("alt");
+        await trigger.click();
+        const dialog = page.getByRole("dialog");
+        await expect(dialog.getByRole("img", { name: alt! })).toHaveAttribute("src", source!);
+        await dialog.getByRole("button", { name: "확대 화면 닫기" }).click();
+        await expect(trigger).toBeFocused();
+      }
+    });
+  }
+
   test("shows concise features and links to their full explanations", async ({ page }) => {
     await page.goto(BASE + "/promo?utm_source=teacher-referral&utm_campaign=matchup-ppt", { waitUntil: "load" });
     await expect(page.getByRole("heading", { name: /학원의 모든 기록을,\s*하나로\./ })).toBeVisible();

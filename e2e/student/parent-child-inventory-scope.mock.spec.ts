@@ -24,6 +24,8 @@ async function installApi(page: Page, options: { role?: "student" | "parent"; de
   const scopes: InventoryScope[] = [];
   const deletes: string[] = [];
   const deleted = new Set<string>();
+  const profileScopes: string[] = [];
+  const gradeScopes: string[] = [];
   const role = options.role ?? "parent";
   const token = fakeJwt();
   await page.addInitScript((access) => {
@@ -59,9 +61,16 @@ async function installApi(page: Page, options: { role?: "student" | "parent"; de
     }
     const selectedId = request.headers()["x-student-id"] as ChildId | undefined;
     if (path.endsWith("/student/me/")) {
+      profileScopes.push(selectedId ?? "self");
       const child = CHILDREN[selectedId ?? "11"];
       return json({ id: child.id, name: child.name, displayName: child.name, ps_number: child.ps, is_student: true, isParentReadOnly: role === "parent" });
     }
+    if (path.endsWith("/student/grades/")) {
+      gradeScopes.push(selectedId ?? "self");
+      return json({ exams: [], homeworks: [], exam_trend: [], lecture_options: [] });
+    }
+    if (path.endsWith("/results/parent/assessment-comments/")) return json({ items: [] });
+    if (path.endsWith("/student/sessions/me/")) return json([]);
     if (request.method() === "DELETE" && path.endsWith("/storage/inventory/folders/folder-11/")) {
       expect(url.searchParams.get("student_ps")).toBe(CHILDREN["11"].ps);
       expect(selectedId).toBe(role === "parent" ? "11" : undefined);
@@ -114,7 +123,41 @@ async function installApi(page: Page, options: { role?: "student" | "parent"; de
     if (path.endsWith("/storage/quota/")) return json({ usedBytes: 0, limitBytes: 1, plan: "all" });
     return json({ count: 0, results: [] });
   });
-  return { scopes, deletes };
+  return { scopes, deletes, profileScopes, gradeScopes };
+}
+
+for (const { width, role } of [
+  { width: 390, role: "student" },
+  { width: 1366, role: "parent" },
+] as const) {
+  test(`${role} ${width}px 홈에서 프로필을 공유하고 성적표에서 돌아올 때 성적을 재사용한다`, async ({ page }) => {
+    test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
+    await page.setViewportSize({ width, height: 900 });
+    const { profileScopes, gradeScopes } = await installApi(page, { role });
+    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+
+    const expectedScope = role === "parent" ? "11" : "self";
+    const card = page.getByRole("region", { name: "학습 현황", exact: true });
+    await expect(card).toBeVisible();
+    await expect(card).not.toContainText(/확인 중|확인 필요/);
+    expect(profileScopes).toEqual([expectedScope]);
+    expect(gradeScopes).toEqual([expectedScope]);
+
+    await card.locator('a[href="/student/grades"]').click();
+    await expect(page).toHaveURL(/\/student\/grades$/);
+    await expect.poll(() => gradeScopes).toEqual([expectedScope, expectedScope]);
+    await page.locator('.stu-tabbar a[href="/student/dashboard"]').click();
+    await expect(card).toBeVisible();
+    await expect(card).not.toContainText(/확인 중|확인 필요/);
+    expect(gradeScopes).toEqual([expectedScope, expectedScope]);
+
+    if (role === "parent") {
+      await page.getByRole("tab", { name: CHILDREN["12"].name, exact: true }).click();
+      await expect.poll(() => gradeScopes).toEqual(["11", "11", "12"]);
+      await expect.poll(() => profileScopes).toEqual(["11", "12"]);
+      await expect(card).not.toContainText(/확인 중|확인 필요/);
+    }
+  });
 }
 
 for (const viewport of [

@@ -3,7 +3,7 @@
  * 홈: 시험 성적 / 과제 현황 목록
  * 통계: 점수 추이, 합격률, 과제 진행 분석
  */
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import DomainTabShell from "@student/shared/ui/pages/DomainTabShell";
 import EmptyState from "@student/layout/EmptyState";
 import { IconGrade } from "@student/shared/ui/icons/Icons";
@@ -12,12 +12,13 @@ import { useMyGradesSummary } from "../hooks/useMyGradesSummary";
 import GradesHomeTab from "../components/GradesHomeTab";
 import SessionAssessmentTotals from "../components/SessionAssessmentTotals";
 import ParentAssessmentComments from "../components/ParentAssessmentComments";
-import GradesStatsTab from "../components/GradesStatsTab";
 import {
   defaultStudentGradeReportLayout,
   STUDENT_GRADE_REPORT_ANALYTICS_SECTION_IDS,
 } from "@/shared/api/contracts/studentGradeReportLayout";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
+
+const GradesStatsTab = lazy(() => import("../components/GradesStatsTab"));
 
 const TABS = [
   { key: "home", label: "요약" },
@@ -83,18 +84,20 @@ export default function GradesPage() {
       )}
 
       {!isLoading && !isError && tab === "stats" && (
-        <GradesStatsTab
-          exams={exams}
-          homeworks={homeworks}
-          examTrend={examTrend}
-          lectureOptions={lectureOptions}
-          analytics={analytics}
-          analyticsLoading={analyticsLoading && !analyticsFetched}
-          analyticsError={analyticsError || (analyticsLoading && analyticsFetched)}
-          analyticsFetching={analyticsFetching}
-          onRetryAnalytics={() => void refetchAnalytics()}
-          reportLayout={reportLayout}
-        />
+        <Suspense fallback={<div role="status" aria-label="추이 분석을 불러오는 중"><Skeletons /></div>}>
+          <GradesStatsTab
+            exams={exams}
+            homeworks={homeworks}
+            examTrend={examTrend}
+            lectureOptions={lectureOptions}
+            analytics={analytics}
+            analyticsLoading={analyticsLoading && !analyticsFetched}
+            analyticsError={analyticsError || (analyticsLoading && analyticsFetched)}
+            analyticsFetching={analyticsFetching}
+            onRetryAnalytics={() => void refetchAnalytics()}
+            reportLayout={reportLayout}
+          />
+        </Suspense>
       )}
     </DomainTabShell>
   );

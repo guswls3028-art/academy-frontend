@@ -21,11 +21,9 @@
 .primaryLink { color: #fff; background: var(--accent); border-color: var(--accent); }
 .primaryLink:hover { background: #2b4b59; }
 .secondaryLink:hover { background: #f5f7f8; }
-/* 첫 화면: 관리자 화면을 실제 크기에 가깝게 보여 주고 학생 앱을 겹쳐 하나의 제품으로 읽히게 한다. */
+/* 두 제품 화면은 각자의 확대 영역을 가진다. */
 .productPreview { min-width: 0; margin: 0; animation: promo-rise 640ms 120ms cubic-bezier(.2, .7, .2, 1) both; }
-.productScreens { position: relative; padding-right: 9%; padding-bottom: 6%; }
-.desktopScreen { min-width: 0; }
-.mobileScreen { position: absolute; right: 0; bottom: 0; width: 19%; }
+.productScreens { display: grid; grid-template-columns: minmax(0, 1fr) 19%; align-items: end; gap: clamp(8px, 2vw, 24px); }
 .productScreens img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; box-shadow: 0 1px 2px rgb(20 33 41 / 6%), 0 24px 60px -24px rgb(20 33 41 / 28%); }
 .mobileScreen img { border-radius: 18px; border-color: #d3dade; box-shadow: 0 2px 4px rgb(20 33 41 / 8%), 0 28px 56px -18px rgb(20 33 41 / 38%); }
 .productPreview figcaption { margin-top: 18px; color: var(--muted); font-size: 12px; line-height: 1.6; }
@@ -65,8 +63,7 @@
   .hero { gap: 36px; padding: 52px 0 44px; }
   .heroCopy h1 { font-size: 36px; }
   .heroCopy > p { margin-top: 18px; font-size: 16px; }
-  .productScreens { padding-right: 14%; padding-bottom: 10%; }
-  .mobileScreen { width: 27%; }
+  .productScreens { grid-template-columns: minmax(0, 1fr) 27%; }
   .productScreens img { border-radius: 7px; }
   .mobileScreen img { border-radius: 12px; }
   .actions { margin-top: 24px; gap: 8px; }

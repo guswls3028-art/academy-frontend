@@ -5,9 +5,56 @@ import { assertInteractiveSurface } from "../helpers/assertInteractiveSurface";
 import { captureGuideEvidence } from "../helpers/guideEvidence";
 import { verifyFeatureGuideImages } from "../helpers/featureGuideEvidence";
 import { verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
+import type { StudentGradeReportLayout } from "../../src/shared/api/contracts/studentGradeReportLayout";
 
 const BASE = getBaseUrl("admin").replace(/\/+$/, "");
 const API_BASE = getApiBaseUrl().replace(/\/+$/, "");
+
+async function verifyStudentAnalysisAndVideo(page: Page) {
+  const [gradeResponse] = await Promise.all([
+    page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/student/grades/" && response.ok()),
+    page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" }),
+  ]);
+  const { report_layout: layout } = await gradeResponse.json() as { report_layout?: StudentGradeReportLayout };
+  const analysis = page.getByRole("tab", { name: "추이 분석", exact: true });
+  const hasComparison = layout?.sections.some((section) => section.visible
+    && ["score_comparison", "lecture_average", "improvement_priority"].includes(section.id)) ?? true;
+  if (hasComparison) {
+    await Promise.all([
+      page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/student/grades/analytics/" && response.ok()),
+      analysis.click(),
+    ]);
+  } else {
+    await analysis.click();
+  }
+  await expect(analysis).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { name: "성장 그래프", exact: true })).toBeVisible();
+  if (layout?.sections.find((section) => section.id === "score_trend")?.visible !== false) {
+    await expect(page.getByRole("region", { name: "회차별 성적 추이", exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole("button", { name: "비교 분석 다시 시도" })).toHaveCount(0);
+
+  await page.goto(`${BASE}/student/exams`, { waitUntil: "domcontentloaded" });
+  const examAnalysis = page.getByRole("tab", { name: "결과 분석", exact: true });
+  await examAnalysis.click();
+  const examResult = page.getByRole("tabpanel", { name: "결과 분석", exact: true });
+  const examReady = examResult.getByText("총 시험", { exact: true })
+    .or(examResult.getByText("시험 데이터가 없습니다.", { exact: true }));
+  await expect(examReady).toBeVisible();
+  await page.reload();
+  await expect(examAnalysis).toHaveAttribute("aria-selected", "true");
+  await expect(examReady).toBeVisible();
+
+  await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "영상", exact: true }).click();
+  await expect(page).toHaveURL(`${BASE}/student/video`);
+  const catalog = page.getByRole("tabpanel", { name: "강의", exact: true });
+  await expect(catalog.locator(".video-course-grid").or(catalog.getByText("등록된 영상이 없습니다", { exact: true }))).toBeVisible();
+  await page.getByRole("tab", { name: "통계", exact: true }).click();
+  const videoStats = page.getByRole("tabpanel", { name: "통계", exact: true });
+  await expect(videoStats.getByText("학습 완주율", { exact: true })
+    .or(videoStats.getByText("시청 기록이 없습니다", { exact: true }))).toBeVisible();
+  expect(await page.locator("html").evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+}
 
 async function verifyGuideJourney(
   page: Page,
@@ -133,14 +180,24 @@ test.describe("Production canary", () => {
   test("public promo page renders without browser or request defects", async ({ page }) => {
     const guard = attachProductionRequestGuard(page);
 
-    const response = await page.goto(`${BASE}/promo`, { waitUntil: "domcontentloaded", timeout: 45_000 });
-    expect(response?.ok(), `Unexpected /promo status ${response?.status()}`).toBe(true);
-    await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
-
-    await expect(page.locator("body")).toBeVisible();
-    await expect(page.locator("text=Not Found")).not.toBeVisible();
-    const bodyText = (await page.locator("body").innerText({ timeout: 10_000 })).trim();
-    expect(bodyText.length).toBeGreaterThan(20);
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      const response = await page.goto(`${BASE}/promo`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+      expect(response?.ok(), `Unexpected /promo status ${response?.status()}`).toBe(true);
+      await expect(page.getByRole("heading", { name: /학원의 모든 기록을/ })).toBeVisible();
+      const showcase = page.getByTestId("promo-real-product-showcase");
+      for (const name of [/합성 학생 출결 상태/, /오늘 수업과 다음 일정/]) {
+        const trigger = showcase.getByRole("button", { name });
+        await trigger.click();
+        const dialog = page.getByRole("dialog", { name: "실제 화면 크게 보기" });
+        await expect(dialog.getByRole("img", { name })).toBeVisible();
+        await expect.poll(() => dialog.getByRole("img").evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+        await page.keyboard.press("Escape");
+        await expect(dialog).toHaveCount(0);
+        await expect(trigger).toBeFocused();
+      }
+      expect(await page.locator("html").evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+    }
     guard.assertClean();
   });
 
@@ -237,6 +294,7 @@ test.describe("Production canary", () => {
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await verifyStudentLearningSummary(page, BASE);
+      await verifyStudentAnalysisAndVideo(page);
     }
 
     expect(page.url()).toMatch(/\/student(\/|$)/);

@@ -155,6 +155,7 @@ async function installStudentApi(page: Page, role: "student" | "parent" = "stude
       policy: { access_mode: "FREE_REVIEW", monitoring_enabled: false, allow_seek: true,
         playback_rate: { max: 1, ui_control: true }, source: { type: "s3", provider: "uploaded" } } });
     if (path === "/student/video/sessions/802/videos/") return json({ items: [video] });
+    if (path === "/student/video/me/") return json({ lectures: [], archived_lectures: [], public: null });
     if (path === "/staffs/currently-working/") return json([]);
     if (path === "/media/videos/public-session/") return json(null);
     return json({});
@@ -333,7 +334,7 @@ test("390px legacy parent selects and switches children, then reloads the same s
   await page.screenshot({ path: test.info().outputPath("legacy-parent-home390.png"), fullPage: true, animations: "disabled" });
 });
 
-test("legacy iOS native HLS contract starts and pauses without a play Promise or MediaSource", async ({ page }) => {
+test("legacy student lists load analysis and HLS code only where needed", async ({ page }) => {
   const { scriptRequests: scripts } = await installLegacyRuntime(page, profiles[0]);
   await installStudentApi(page);
   await page.addInitScript(() => {
@@ -366,6 +367,16 @@ test("legacy iOS native HLS contract starts and pauses without a play Promise or
     try { await route.abort(); } catch { /* Request closes with the page. */ }
   });
   await login(page);
+  const learningSummary = page.getByRole("region", { name: "학습 현황", exact: true });
+  await learningSummary.locator('a[href="/student/grades"]').click();
+  await expect(page.getByText("시험 결과가 아직 없습니다.", { exact: true })).toBeVisible();
+  expect(scripts.filter((url) => /vendor-charts.*\.js/.test(url))).toEqual([]);
+  await page.getByRole("tab", { name: "추이 분석", exact: true }).click();
+  await expect(page.getByRole("region", { name: "회차별 성적 추이", exact: true })).toContainText("아직 연결할 점수가 없습니다.");
+  expect(scripts.some((url) => /vendor-charts.*\.js/.test(url))).toBe(true);
+  await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "영상", exact: true }).click();
+  await expect(page.getByRole("tab", { name: "강의", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "강의", exact: true })).toHaveAttribute("aria-selected", "true");
   await page.goto(`${BASE}/student/video/play?video=902&session=802`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: VIDEO_TITLE })).toBeVisible({ timeout: 45_000 });
   const video = page.locator("video");

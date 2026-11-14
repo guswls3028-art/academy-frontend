@@ -49,8 +49,8 @@ function normalizeMyProfile(profile: MyProfile): MyProfile {
   };
 }
 
-export async function fetchMyProfile(): Promise<MyProfile> {
-  const res = await api.get<MyProfile>("/student/me/");
+export async function fetchMyProfile({ signal }: { signal?: AbortSignal } = {}): Promise<MyProfile> {
+  const res = await api.get<MyProfile>("/student/me/", { signal });
   return normalizeMyProfile(res.data);
 }
 

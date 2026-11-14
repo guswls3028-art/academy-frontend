@@ -820,6 +820,9 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
             answers: [{ question_id: 10001, question_no: 1, answer: "1", omr: null }],
           } });
         }
+        if (row && route.request().method() === "POST") {
+          return route.fulfill({ status: 409, json: { code: "OMR_EDIT_CHANGED" } });
+        }
         return route.fallback();
       });
 
@@ -834,6 +837,29 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       await expect(review.locator(".orw-filter-chip").filter({ hasText: /^식별실패\s*1$/ })).toHaveCount(1);
       await expect(review.locator(".orw-filter-chip").filter({ hasText: /^실패\s*1$/ })).toHaveCount(1);
       await expect(review.locator(".orw-filter-chip").filter({ hasText: /^보관\s*2$/ })).toHaveCount(1);
+      const completedRow = review.locator(".orw-list-row").filter({ hasText: "테스트 학생" });
+      const anotherRow = review.locator(".orw-list-row").filter({ hasText: "미식별 학생" }).first();
+      await completedRow.click();
+      const draft = review.getByRole("button", { name: "2", exact: true });
+      await draft.click();
+      await review.getByRole("button", { name: "저장 + 재채점" }).click();
+      const conflict = review.getByText("다른 변경 사항이 저장되었습니다. 입력한 답안은 유지됩니다.");
+      await expect(conflict).toBeVisible();
+      const confirmNavigation = page.getByRole("alertdialog", { name: "다른 답안지로 이동" });
+      await page.keyboard.press("k");
+      await expect(confirmNavigation).toBeVisible();
+      await confirmNavigation.getByRole("button", { name: "계속 편집" }).click();
+      await expect(draft).toHaveAttribute("aria-pressed", "true");
+      await expect(conflict).toBeVisible();
+      if (width === 390) await review.getByRole("tab", { name: "목록", exact: true }).click();
+      await anotherRow.click();
+      await confirmNavigation.getByRole("button", { name: "이동", exact: true }).click();
+      await expect(review.getByRole("button", { name: "학생 검색·연결" })).toBeVisible();
+      if (width === 390) await review.getByRole("tab", { name: "목록", exact: true }).click();
+      await completedRow.click();
+      await expect(draft).toHaveAttribute("aria-pressed", "false");
+      await expect(conflict).toHaveCount(0);
+      if (width === 390) await review.getByRole("tab", { name: "목록", exact: true }).click();
       await review.locator(".orw-filter-chip").filter({ hasText: "보관" }).click();
       await expect(review.locator(".orw-list-row")).toHaveCount(2);
       await review.locator(".orw-list-row").first().click();
