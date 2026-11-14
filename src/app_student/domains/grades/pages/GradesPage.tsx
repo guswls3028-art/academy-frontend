@@ -3,8 +3,7 @@
  * 홈: 시험 성적 / 과제 현황 목록
  * 통계: 점수 추이, 합격률, 과제 진행 분석
  */
-import { Suspense, useState } from "react";
-import { lazyWithRetry } from "@/shared/utils/lazyWithRetry";
+import { lazy, Suspense, useState } from "react";
 import DomainTabShell from "@student/shared/ui/pages/DomainTabShell";
 import EmptyState from "@student/layout/EmptyState";
 import { IconGrade } from "@student/shared/ui/icons/Icons";
@@ -19,7 +18,7 @@ import {
 } from "@/shared/api/contracts/studentGradeReportLayout";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 
-const GradesStatsTab = lazyWithRetry(() => import("../components/GradesStatsTab"));
+const GradesStatsTab = lazy(() => import("../components/GradesStatsTab"));
 
 const TABS = [
   { key: "home", label: "요약" },
