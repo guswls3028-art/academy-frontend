@@ -22,7 +22,7 @@
   outline: 2px solid var(--color-brand-primary);
   outline-offset: 2px;
 }
-.lecture-actions-trigger:disabled { cursor: wait; }
+.lecture-actions-trigger[aria-disabled="true"] { cursor: wait; }
 .lecture-actions-dropdown .ant-dropdown-menu { min-width: 168px; padding: 6px; }
 .lecture-actions-dropdown .ant-dropdown-menu-item { min-height: 40px; gap: 6px; }
 .lecture-actions-spinner { animation: lecture-actions-spin 900ms linear infinite; }

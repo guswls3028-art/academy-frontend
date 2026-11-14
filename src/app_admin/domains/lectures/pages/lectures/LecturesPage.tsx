@@ -7,7 +7,7 @@ import { Link, useNavigate } from "react-router";
 import { ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 
 import api from "@/shared/api/axios";
-import { EmptyState, Button } from "@/shared/ui/ds";
+import { EmptyState, Button, ICON } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import LectureChip from "@/shared/ui/chips/LectureChip";
@@ -49,7 +49,7 @@ type LectureItem = {
 
 type LectureSortKey = "title" | "subject" | "name" | "lecture_time" | "dateRange" | "active_enrollment_count";
 
-const REORDER_COLUMN_WIDTH = 52;
+const REORDER_COLUMN_WIDTH = 40;
 const ACTION_COLUMN_WIDTH = 52;
 const REORDER_COLUMN_STYLE: CSSProperties = { width: REORDER_COLUMN_WIDTH };
 const ACTION_COLUMN_STYLE: CSSProperties = { width: ACTION_COLUMN_WIDTH };
@@ -380,7 +380,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                   ? "강의 순서를 저장하는 중입니다."
                   : hasDisplayTransform
                     ? "검색 또는 열 정렬 중에는 순서를 변경할 수 없습니다."
-                    : "점 손잡이를 끌거나 눌러 강의 순서를 바꿀 수 있습니다. 방향키도 사용할 수 있습니다."}
+                    : "점 손잡이로 순서 변경 · 끌기, 누르기, 방향키"}
               </span>
               {sort && (
                 <Button size="sm" intent="secondary" onClick={() => setSort("")}>
@@ -413,7 +413,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                 </colgroup>
                 <thead>
                   <tr>
-                    <th scope="col" style={REORDER_COLUMN_STYLE}>순서</th>
+                    <th scope="col" aria-label="순서" className="lecture-reorder-cell" style={REORDER_COLUMN_STYLE} />
                     <LectureSortableTh
                       colKey="title"
                       label="강의 이름"
@@ -487,7 +487,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                     >
                       <td
                         onClick={(event) => event.stopPropagation()}
-                        className="relative px-1 py-1"
+                        className="lecture-reorder-cell"
                       >
                         <div className="group flex items-center justify-center">
                           <button
@@ -496,7 +496,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                             disabled={!canReorder}
                             aria-label={`${lec.title} 순서 이동`}
                             title="끌기 · 누르기 · 방향키로 순서 이동"
-                            className="inline-flex h-10 w-10 min-w-10 shrink-0 cursor-grab items-center justify-center rounded text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-brand-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                            className="lecture-reorder-grip"
                             onClick={(event) => event.stopPropagation()}
                             onKeyDown={(event) => {
                               if (event.key === "Escape") event.currentTarget.blur();
@@ -513,12 +513,12 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                               setDragOverLectureId(null);
                             }}
                           >
-                            <GripVertical size={17} aria-hidden />
+                            <GripVertical size={ICON.sm} aria-hidden />
                           </button>
                           <div
                             role="group"
                             aria-label={`${lec.title} 순서 변경`}
-                            className="absolute left-1/2 top-[calc(100%_-_2px)] z-20 hidden -translate-x-1/2 items-center gap-0.5 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-1 shadow-lg group-focus-within:flex"
+                            className="absolute left-1 top-[calc(100%_-_2px)] z-20 hidden items-center gap-0.5 rounded-lg border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-1 shadow-lg group-focus-within:flex"
                           >
                             <button
                               type="button"
@@ -582,7 +582,7 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
                             ? `${lec.start_date}부터`
                             : <span className="font-normal text-[var(--color-text-muted)]">미설정</span>}
                       </td>
-                      <td onClick={(e) => e.stopPropagation()} className="align-middle px-2 py-1">
+                      <td onClick={(e) => e.stopPropagation()} className="lecture-actions-cell align-middle">
                         <LectureActionsMenu lecture={lec} isPast={tab === "past"} onEdit={setEditLectureId} onChanged={(action) => {
                           void qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures });
                           void qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lecture(lec.id) });

@@ -69,6 +69,7 @@ type CurrentUser = {
 type CreatedState = {
   adminAccess?: string;
   lectureId?: number;
+  emptyLectureId?: number;
   sessionId?: number;
   examId?: number;
   extraExamIds: number[];
@@ -1059,6 +1060,11 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   };
 
   if (created.staffId) await remove("DELETE", `/staffs/${created.staffId}/`);
+  if (created.emptyLectureId) {
+    const path = `/lectures/lectures/${created.emptyLectureId}/`;
+    await remove("DELETE", path, undefined, [204, 404]);
+    await remove("GET", path, undefined, [404]);
+  }
 
   for (const id of created.submissionIds) {
     await remove("DELETE", `/submissions/submissions/${id}/`);
@@ -1350,11 +1356,43 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       pdfBuffer, EXPECTED_ANSWERS, null, teacherBubbles,
     );
 
-    await loginBrowserAsRealUser(
-      page,
-      `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
-      { role: "admin", username: ADMIN_USER, password: ADMIN_PASS },
-    );
+    const emptyLectureTitle = `[E2E-${TS}] 삭제 확인용 강의`;
+    const emptyLecture = await expectApi<{ id: number }>(request, "POST", "/lectures/lectures/", adminTokens.access, {
+      title: emptyLectureTitle,
+      name: "E2E검증",
+      subject: "수학",
+      start_date: TODAY_KST,
+      is_active: true,
+    });
+    created.emptyLectureId = emptyLecture.id;
+
+    await loginBrowserAsRealUser(page, "/workspace/lectures", {
+      role: "admin", username: ADMIN_USER, password: ADMIN_PASS,
+    });
+    await test.step("강의 삭제는 연결된 수강 기록을 보호하고 빈 강의는 목록에서 제거한다", async () => {
+      const confirmation = page.getByRole("alertdialog", { name: "강의 삭제", exact: true });
+      for (const target of [
+        { title: LECTURE_TITLE, id: created.lectureId, status: 403 },
+        { title: emptyLectureTitle, id: emptyLecture.id, status: 204 },
+      ]) {
+        await page.getByRole("button", { name: `${target.title} 설정`, exact: true }).click();
+        await page.getByRole("menuitem", { name: "강의 삭제", exact: true }).click();
+        await expect(confirmation).toContainText(target.title);
+        await expect(confirmation.getByRole("button", { name: "취소", exact: true })).toBeFocused();
+        const path = `/lectures/lectures/${target.id}/`;
+        const deleted = page.waitForResponse((response) => matchesApiResponse(response, "DELETE", path));
+        await confirmation.getByRole("button", { name: "영구 삭제", exact: true }).click();
+        expect((await deleted).status()).toBe(target.status);
+      }
+      const kept = page.getByRole("link", { name: `${LECTURE_TITLE} 강의 열기`, exact: true });
+      const removed = page.getByRole("link", { name: `${emptyLectureTitle} 강의 열기`, exact: true });
+      await expect(removed).toHaveCount(0);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(kept).toBeVisible();
+      await expect(removed).toHaveCount(0);
+      await expectApi(request, "GET", `/lectures/lectures/${emptyLecture.id}/`, adminTokens.access, undefined, [404]);
+    });
+    await gotoAndSettle(page, `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`, { timeout: 45_000 });
     const draftDialog = page.getByRole("dialog", { name: /임시저장된 변경/ });
     if (await draftDialog.isVisible({ timeout: 2_000 }).catch(() => false)) {
       await draftDialog.getByRole("button", { name: "버리기", exact: true }).click();
