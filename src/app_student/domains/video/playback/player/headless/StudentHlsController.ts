@@ -26,8 +26,6 @@ type Listener = (state: ControllerState) => void;
 export class StudentHlsController {
   private el: HTMLVideoElement | null = null;
   private hls: Hls | null = null;
-  private directSource: string | null = null;
-  private directMediaFailed = false;
   private playGeneration = 0;
   private pendingPreparation: Promise<number> = Promise.resolve(0);
   private nativeGestureUntil = 0;
@@ -130,7 +128,7 @@ export class StudentHlsController {
   }
 
   play() {
-    if (this.disposed || this.directMediaFailed || !this.el) return;
+    if (this.disposed || !this.el) return;
     if (this.opts.reviewStream) {
       const generation = ++this.playGeneration;
       if (performance.now() < this.nativeGestureUntil) this.playPreparedMedia(generation);
@@ -173,7 +171,7 @@ export class StudentHlsController {
       if (!this.hls && this.el && !this.el.getAttribute("src")) {
         const url = resolveStudentVideoPlayUrl(this.opts.playUrl || "");
         if (!url) throw new Error("Invalid review playback URL");
-        this.setDirectSource(this.el, url);
+        this.nativeRecovery.setSource(this.el, url);
       }
       if (seekTo !== undefined && this.el) {
         this.el.currentTime = position;
@@ -209,7 +207,7 @@ export class StudentHlsController {
   }
 
   seek(t: number) {
-    if (this.disposed || this.directMediaFailed || !this.el) return;
+    if (this.disposed || !this.el) return;
     const d = Number(this.el.duration) || 0;
     const safe = clamp(t, 0, Math.max(0, d));
     if (this.opts.reviewStream) {
@@ -330,43 +328,8 @@ export class StudentHlsController {
     }
   }
   setSource(playUrl: string) {
-    if (this.disposed || this.directMediaFailed || !playUrl || playUrl === this.opts.playUrl) return;
+    if (this.disposed || !playUrl || playUrl === this.opts.playUrl) return;
     this.reloadSource(playUrl);
-  }
-
-  private setDirectSource(el: HTMLVideoElement, url: string) {
-    el.src = url;
-    this.directSource = url;
-  }
-
-  private releaseDirectSource() {
-    const source = this.directSource;
-    const el = this.el;
-    this.directSource = null;
-    if (!el || source === null || el.getAttribute("src") !== source) return;
-    try {
-      el.pause();
-    } catch {
-      ignoreBestEffortError();
-    }
-    el.removeAttribute("src");
-    // Pausing by itself can leave native HLS buffering the old source.
-    el.load();
-  }
-
-  private failDirectMedia(message: string) {
-    if (this.directMediaFailed) return;
-    this.directMediaFailed = true;
-    this.flushProgress();
-    this.hasProgressActivity = false;
-    this.removeAllVideoListeners();
-    this.playGeneration++;
-    this.nativeGestureUntil = 0;
-    this.stallWatch?.stop();
-    this.nativeRecovery.clear();
-    this.setState({ playing: false, buffering: false, reconnecting: false });
-    this.releaseDirectSource();
-    this.opts.onFatal?.(message);
   }
 
   private reloadSource(playUrl: string) {
@@ -389,7 +352,7 @@ export class StudentHlsController {
         this.hls.loadSource(url);
         this.hls.startLoad?.(this.pendingSourceResume.position);
       } else {
-        this.setDirectSource(el, url);
+        this.nativeRecovery.setSource(el, url);
         el.load();
       }
       this.opts.playUrl = playUrl;
@@ -457,11 +420,9 @@ export class StudentHlsController {
     this.queueEvent("PLAYER_ERROR", { details: "playhead_stall", fatal: terminal });
     if (terminal) {
       const message = "영상 재생이 멈췄어요. 다시 시도해 보던 위치에서 이어보세요.";
-      if (!this.hls) this.failDirectMedia(message);
-      else {
-        this.pause();
-        this.opts.onFatal?.(message);
-      }
+      if (this.hls) this.pause();
+      else this.dispose();
+      this.opts.onFatal?.(message);
       return;
     }
     // Do not compete with an already scheduled Hls.js fatal retry.
@@ -660,7 +621,7 @@ export class StudentHlsController {
 
     if (canNative) {
       if (this.opts.reviewStream) this.setState({ ready: true });
-      else this.setDirectSource(el, url);
+      else this.nativeRecovery.setSource(el, url);
       this.bindVideoEvents();
       this.startIntervals();
       this.startDocListeners();
@@ -761,13 +722,13 @@ export class StudentHlsController {
         hls.loadSource(url);
         hls.attachMedia(el);
       } else if (!this.opts.reviewStream) {
-        this.setDirectSource(el, url);
+        this.nativeRecovery.setSource(el, url);
       } else {
         this.setState({ ready: true });
       }
     } catch {
       if (this.opts.reviewStream) this.setState({ ready: true });
-      else this.setDirectSource(el, url);
+      else this.nativeRecovery.setSource(el, url);
     }
 
     this.bindVideoEvents();
@@ -969,7 +930,10 @@ export class StudentHlsController {
         };
         this.setState({ buffering: true, reconnecting: true, toast: null });
         this.reloadSource(this.opts.playUrl);
-      }, (message) => this.failDirectMedia(message));
+      }, (message) => {
+        this.dispose();
+        this.opts.onFatal?.(message);
+      });
     };
 
     this.addVideoListener("loadedmetadata", onLoadedMeta);
@@ -1028,7 +992,7 @@ export class StudentHlsController {
 
     this.playbackEnd.finish(() => postEvents(token, batch, this.opts.videoId, this.opts.enrollmentId));
 
-    this.releaseDirectSource();
+    this.nativeRecovery.releaseSource(this.el);
     this.el = null;
   }
 }
