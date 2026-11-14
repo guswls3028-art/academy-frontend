@@ -37,6 +37,10 @@ export default function Sidebar() {
   useEffect(() => {
     applySidebarLayout(collapsed);
     safeSetCollapsed(collapsed);
+    return () => {
+      document.documentElement.removeAttribute("data-sidebar");
+      document.documentElement.style.removeProperty("--sidebar-width");
+    };
   }, [collapsed]);
 
   useEffect(() => {
@@ -53,7 +57,7 @@ export default function Sidebar() {
       <div
         className={`sidebar-scroll ${styles.scroll}`}
       >
-        <AdminPrimaryNavigation compact={collapsed} />
+        <AdminPrimaryNavigation compact={collapsed} onExpandSidebar={collapsed ? () => setCollapsed(false) : undefined} />
       </div>
     </aside>
   );
