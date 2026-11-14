@@ -5,10 +5,10 @@ import styles from './SessionBlock.module.css';
 export function CompactSessionScheduleCard() {
   const controls = useContext(SessionScheduleControlsContext);
   if (!controls) return null;
-  const { title, date } = controls;
+  const { title, date, inlineActions } = controls;
   return (
-    <section className={styles.activeCard} aria-label={`${title} 차시 카드`}>
-      <span className={styles.compactCardTitle}>{title}{date ? <small>{date}</small> : null}</span>
+    <section className={styles.activeCard} data-inline={inlineActions} aria-label={`${title} 차시 카드`}>
+      <span className={styles.compactCardTitle}>{title}{date && !inlineActions ? <small>{date}</small> : null}</span>
       {controls.content}
     </section>
   );

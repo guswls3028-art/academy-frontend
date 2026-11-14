@@ -6,6 +6,8 @@
   min-width: 0;
 }
 
+.stripActions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+
 .stripHeader, .panelTitle, .rosterHeader, .rosterFooter, .actions {
   display: flex;
   flex-wrap: wrap;
@@ -24,6 +26,28 @@
 }
 
 .strip > button { justify-self: start; }
+
+:global([data-inline='true']) > .strip[data-empty='true'] {
+  padding: 0 4px;
+  border-top: 0;
+}
+
+:global([data-inline='true']) > .strip[data-empty='true'] .stripHeader > span {
+  display: none;
+}
+
+:global([data-inline='true']) > .strip[data-empty='true'] .stripActions {
+  flex-wrap: nowrap;
+  margin-inline-start: auto;
+}
+
+:global([data-inline='true']) > .strip[data-empty='true'] .quickAdd {
+  padding-inline: 6px;
+}
+
+:global([data-inline='true']) > .strip[data-empty='true'] .quickAdd > :global(.ds-button__left) {
+  display: none;
+}
 
 .dayChoices {
   display: grid;

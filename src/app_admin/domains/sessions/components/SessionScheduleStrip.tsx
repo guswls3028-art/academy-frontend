@@ -78,13 +78,13 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
   const unknown = scope !== null && scope !== '0' && !data?.schedules.some(s => String(s.id) === scope);
   const blocked = scope !== null && (query.isError || query.isPending || unknown);
   const content = (
-    <section className={styles.strip} aria-label="수업일 선택" aria-busy={preparing}>
+    <section className={styles.strip} data-empty={!!data && !query.isError && !hasDays} aria-label="수업일 선택" aria-busy={preparing}>
       <div className={styles.stripHeader}>
         <span><CalendarDays size={15} aria-hidden />수업일{data?.schedules.length ? ` ${data.schedules.length}개` : ''}</span>
         {query.isPending ? <span className={styles.note} role="status">불러오는 중…</span> : (
-          <div className={styles.actions}>
+          <div className={styles.stripActions}>
             <Button intent="ghost" size="sm" onClick={() => openManager()} disabled={!data || query.isError}>수업일 관리</Button>
-            {!hasDays && data && !query.isError && <Button intent="ghost" size="sm" leftIcon={<Plus size={15} aria-hidden />} onClick={() => openManager(true)}>수업일 추가</Button>}
+            {!hasDays && data && !query.isError && <Button intent="ghost" size="sm" className={styles.quickAdd} leftIcon={<Plus size={15} aria-hidden />} onClick={() => openManager(true)}>수업일 추가</Button>}
           </div>
         )}
       </div>
@@ -117,6 +117,7 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
         content,
         title: sessionTitle,
         date: sessionDate,
+        inlineActions: !!data && !query.isError && !hasDays,
         blockedNotice: blocked ? <p className={styles.note} role="status">{query.isPending ? '선택한 수업일을 확인하는 중…' : '수업일을 확인한 뒤 명단을 표시합니다.'}</p> : null,
         openManager: () => openManager(),
       }}>

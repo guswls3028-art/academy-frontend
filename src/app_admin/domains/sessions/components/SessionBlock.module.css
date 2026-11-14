@@ -562,3 +562,15 @@
 }
 
 .legacyBar:has(> .activeCard) { align-items: start; }
+
+.activeCard[data-inline='true'] {
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+}
+
+.activeCard[data-inline='true'] > .compactCardTitle {
+  align-self: stretch;
+  align-items: center;
+  border-radius: var(--radius-md, 8px) 0 0 var(--radius-md, 8px);
+  padding-block: 4px;
+}

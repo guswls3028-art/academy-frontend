@@ -4,6 +4,7 @@ type ScheduleControls = {
   content: ReactNode;
   title: string;
   date: string;
+  inlineActions: boolean;
   blockedNotice: ReactNode;
   openManager: () => void;
 };
