@@ -1,18 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import { Link } from "react-router";
 
-import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { clinicTimeLabel, isOngoingPreviousClinic, isOngoingPreviousBooking } from "@/shared/ui/clinic/clinicTimeRange";
 import { useClinicClock } from "@/shared/ui/clinic/useClinicClock";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { hhmmText as formatTime } from "@/shared/ui/time/timeFormat";
 import { useTrackedTask } from "@/shared/productAnalytics";
-import EmptyState from "@student/layout/EmptyState";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
-import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { formatYmd } from "@student/shared/utils/date";
 import {
   cancelClinicBookingRequest,
@@ -27,11 +24,12 @@ import {
 import { fetchStudentClinicSummary } from "../api/clinicSummary.api";
 import { clinicDateParts } from "../clinicDate";
 import { studentClinicQueryKeys } from "../queryKeys";
+import { bookingErrorMessage, useClinicBookingUpdates } from "../useClinicBookingUpdates";
 import ClinicBookingCalendar from "../components/ClinicBookingCalendar";
 import ClinicMultiSlotSelectionPanel from "../components/ClinicMultiSlotSelectionPanel";
 import ClinicSelfCancelControl from "../components/ClinicSelfCancelControl";
 import ClinicTimePickerRevealButton from "../components/ClinicTimePickerRevealButton";
-import { ClinicAttendanceHistory, ClinicEmptySchedule, ClinicRejectedBookingHistory, ClinicSavedBookingNotice } from "../components/ClinicBookingFeedback";
+import { ClinicAttendanceHistory, ClinicEmptySchedule, ClinicListError, ClinicRejectedBookingHistory, ClinicSavedBookingNotice } from "../components/ClinicBookingFeedback";
 import { resolveClinicSessionSelection } from "../components/clinicSessionSelection";
 import {
   displayTargetText,
@@ -49,18 +47,9 @@ import styles from "./ClinicPage.module.css";
 type ClinicTab = "book" | "schedule";
 const EMPTY_BOOKINGS: ClinicBookingRequest[] = [];
 const EMPTY_SESSIONS: ClinicSession[] = [];
-const BOOKING_ACTION_ERROR_STATUSES = new Set([400, 403, 404, 409, 422]);
-
-function bookingErrorMessage(error: AxiosError, fallback: string) {
-  const status = error.response?.status;
-  const body = error.response?.data;
-  return status && BOOKING_ACTION_ERROR_STATUSES.has(status) && body && typeof body === "object"
-    ? getApiErrorMessage(error, fallback)
-    : fallback;
-}
 
 export default function ClinicPage() {
-  const queryClient = useQueryClient();
+  const { refreshAfterSave, refreshAfterFailure } = useClinicBookingUpdates();
   const now = useClinicClock();
   const today = now.format("YYYY-MM-DD");
   const runTrackedTask = useTrackedTask();
@@ -251,24 +240,6 @@ export default function ClinicPage() {
         : selectedSessionIds[0] ?? null
     ));
   }, [selectedSessionIds]);
-
-  const refreshBookingLists = () => Promise.all([
-    queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.availableSessions }),
-    queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.bookings }),
-    queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.availabilities }),
-  ]);
-
-  const refreshAfterSave = () => {
-    void queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.summary });
-    void queryClient.invalidateQueries({ queryKey: studentQueryKeys.clinicIdcard });
-    void queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.notificationCounts });
-    return refreshBookingLists();
-  };
-
-  const refreshAfterFailure = (error: AxiosError) => {
-    if (!error.response || BOOKING_ACTION_ERROR_STATUSES.has(error.response.status)
-      || error.response.status >= 500) return refreshBookingLists();
-  };
 
   const beginMutation = () => {
     mutationLock.current = true;
@@ -543,21 +514,7 @@ export default function ClinicPage() {
   if (requestsError) {
     return (
       <StudentPageShell title="클리닉">
-        <EmptyState
-          title="클리닉 정보를 불러오지 못했습니다"
-          description="네트워크 연결을 확인하고 다시 시도해 주세요."
-        />
-        <div className={styles.retryWrap}>
-          <button
-            type="button"
-            className="stu-btn stu-btn--secondary"
-            onClick={() => {
-              refetchRequests();
-            }}
-          >
-            다시 시도
-          </button>
-        </div>
+        <ClinicListError description="네트워크 연결을 확인하고 다시 시도해 주세요." onRetry={refetchRequests} />
       </StudentPageShell>
     );
   }
@@ -745,17 +702,7 @@ export default function ClinicPage() {
               {sessionsLoading ? (
                 <div className={`stu-skel ${styles.loadingCard}`} aria-label="열린 일정 불러오는 중" />
               ) : sessionsError ? (
-                <div>
-                  <EmptyState
-                    title="클리닉 정보를 불러오지 못했습니다"
-                    description="열린 일정을 확인하려면 다시 시도해 주세요."
-                  />
-                  <div className={styles.retryWrap}>
-                    <button type="button" className="stu-btn stu-btn--secondary" onClick={() => refetchSessions()}>
-                      다시 시도
-                    </button>
-                  </div>
-                </div>
+                <ClinicListError description="열린 일정을 확인하려면 다시 시도해 주세요." onRetry={refetchSessions} />
               ) : (
                 <ClinicBookingCalendar
                 sessions={orderedSessions}
