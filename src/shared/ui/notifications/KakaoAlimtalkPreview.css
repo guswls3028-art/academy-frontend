@@ -92,7 +92,6 @@
   position: relative;
   min-width: 0;
   width: min(100%, 330px);
-  padding-bottom: 14px;
 }
 
 .kakao-alimtalk-preview__message::before {
@@ -181,11 +180,11 @@
 }
 
 .kakao-alimtalk-preview__time {
-  position: absolute;
-  right: -27px;
-  bottom: 14px;
+  display: block;
+  margin-top: 3px;
   color: #566b7d;
   font-size: 9px;
+  text-align: right;
 }
 
 @media (max-width: 640px) {
@@ -205,9 +204,5 @@
 
   .kakao-alimtalk-preview__message {
     width: calc(100% - 16px);
-  }
-
-  .kakao-alimtalk-preview__time {
-    right: -22px;
   }
 }
