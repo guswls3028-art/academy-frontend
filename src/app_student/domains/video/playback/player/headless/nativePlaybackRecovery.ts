@@ -1,9 +1,28 @@
 /** A native HLS load can fail before the playhead watchdog starts. */
 export class NativePlaybackRecovery {
   private timeout: ReturnType<typeof setTimeout> | null = null;
+  private source: string | null = null;
   private failed = false;
 
   get active() { return this.timeout !== null; }
+
+  setSource(el: HTMLVideoElement, url: string) {
+    el.src = url;
+    this.source = url;
+  }
+
+  releaseSource(el: HTMLVideoElement | null) {
+    const source = this.source;
+    this.source = null;
+    if (!el || source === null || el.getAttribute("src") !== source) return;
+    try {
+      el.pause();
+    } finally {
+      el.removeAttribute("src");
+      // A paused native player can keep buffering until its source is reset.
+      el.load();
+    }
+  }
 
   clear() {
     if (this.timeout !== null) clearTimeout(this.timeout);
