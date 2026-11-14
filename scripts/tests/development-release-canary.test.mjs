@@ -3186,7 +3186,7 @@ test("APIRequestContext retries one transport rejection only for GET/HEAD and re
 
 test("only the reviewed canary screen observation schemas are permitted", () => {
   const url = "https://api.hakwonplus.com/api/v1/students/me/activity/";
-  for (const screen_id of ["student.dashboard.home", "student.session.list", "student.grades.home", "student.exam.list", "student.video.home", "student.guide.home", "student.assignment.submit"]) {
+  for (const screen_id of ["student.dashboard.home", "student.session.list", "student.grades.home", "student.exam.list", "student.video.home", "student.clinic.home", "student.guide.home", "student.assignment.submit"]) {
     for (const device_class of ["desktop", "tablet", "mobile"]) {
       const valid = { screen_id, device_class };
       assert.equal(assertReleaseRequestSafe(production, url, "POST", production.tenantCode, valid), "observation");
@@ -3200,6 +3200,8 @@ test("only the reviewed canary screen observation schemas are permitted", () => 
         assert.throws(() => assertReleaseRequestSafe(production, url, method, production.tenantCode, valid), /mutation refused/);
       }
       assert.throws(() => assertReleaseRequestSafe(production, `${url}homework-open/`, "POST", production.tenantCode, { homework_id: 1 }), /mutation refused/);
+      assert.throws(() => assertReleaseRequestSafe(production, `${production.apiOrigin}/api/v1/clinic/participants/bulk-create/`,
+        "POST", production.tenantCode, { session_ids: [1] }), /mutation refused/);
     }
   }
 });

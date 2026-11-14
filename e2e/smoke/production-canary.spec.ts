@@ -125,6 +125,22 @@ async function verifyGuideJourney(
   }
 }
 
+async function verifyStudentClinicSchedule(page: Page) {
+  const completedClinicRead = (path: string) => page.waitForResponse((response) =>
+    new URL(response.url()).pathname === path && response.request().method() === "GET" && response.status() === 200);
+  await Promise.all([
+    completedClinicRead("/api/v1/clinic/sessions/"),
+    completedClinicRead("/api/v1/clinic/participants/"),
+    page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" }),
+  ]);
+  await expect(page.getByRole("grid", { name: "클리닉 월간 일정" })).toBeVisible();
+  const schedule = page.getByRole("tab", { name: /^내 일정(?:\s+\d+)?$/ });
+  await schedule.click();
+  await expect(schedule).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { name: "내 일정", exact: true })).toBeVisible();
+  expect(await page.locator("html").evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+}
+
 function trackedHostnames(): Set<string> {
   const hosts = new Set<string>();
   for (const url of [BASE, API_BASE]) {
@@ -308,6 +324,7 @@ test.describe("Production canary", () => {
       await page.setViewportSize({ width, height: 900 });
       await verifyStudentLearningSummary(page, BASE);
       await verifyStudentAnalysisAndVideo(page);
+      if (process.env.E2E_RELEASE_API_MODE === "readonly") await verifyStudentClinicSchedule(page);
     }
 
     expect(page.url()).toMatch(/\/student(\/|$)/);

@@ -440,6 +440,7 @@ const READONLY_STUDENT_SCREEN_IDS = new Set([
   "student.grades.home",
   "student.exam.list",
   "student.video.home",
+  "student.clinic.home",
   "student.guide.home",
   "student.assignment.submit",
 ]);

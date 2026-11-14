@@ -557,9 +557,10 @@ release readonly strict browser는 이 exact host/path/SHA-512 mismatch 한 줄�
 - `POST /api/v1/students/me/activity/`의 정확한 두 키
   `{screen_id, device_class: "desktop"|"tablet"|"mobile"}`. `screen_id`는 운영 canary가
   실제 방문하는 `student.dashboard.home`, `student.session.list`, `student.grades.home`,
-  `student.exam.list`, `student.video.home`, `student.guide.home`, `student.assignment.submit`
-  일곱 값만 허용한다. 시험 결과 분석 탭과 영상 통계 탭의 운영 검사는 각각 목록 화면과
-  영상 홈의 화면 관측을 사용한다. 홈 학습 현황에서
+  `student.exam.list`, `student.video.home`, `student.clinic.home`, `student.guide.home`,
+  `student.assignment.submit` 여덟 값만 허용한다. 시험 결과 분석, 영상 통계, 클리닉 달력과
+  내 일정의 운영 검사는 해당 화면의 관측을 사용한다. 클리닉 검사는 두 일정 목록을 조회한
+  뒤 탭을 전환하며 예약을 변경하지 않는다. 홈 학습 현황에서
   일정·과제·시험 내역으로 이동해 새로고침하는 흐름과 가이드에서 과제 제출 화면으로
   이동하고 돌아오는 흐름 모두 이 동일한 화면 열기 API를 사용한다.
   추가 키(과제 ID 등), 다른 screen/method와 `/activity/homework-open/`은 거부한다.
