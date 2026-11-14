@@ -155,11 +155,13 @@ async function verifyHomeworkFeedback(
       created.sessionEnrollmentIds.push(...previewSessionEnrollments.map(row => row.id));
       // The preview must use two eligible parents; an unmarked student is
       // deliberately excluded by the class score message attendance rule.
+      let previewAttendanceId = 0;
       for (const [studentId, status] of [[created.family!.students[0].id, "PRESENT"], [previewStudent.id, "LATE"]] as const) {
         const attendance = await expectApi<Array<{ id: number }>>(request, "POST", "/lectures/attendance/bulk_create/",
           admin.access, { session: created.sessionId, students: [studentId] }, [201]);
         expect(attendance).toHaveLength(1);
         await expectApi(request, "PATCH", `/lectures/attendance/${attendance[0].id}/`, admin.access, { status });
+        if (studentId === previewStudent.id) previewAttendanceId = attendance[0].id;
       }
       for (const homeworkId of [created.homeworkId, completion.id]) {
         await expectApi(request, "PUT", `/homework/assignments/?homework_id=${homeworkId}`, admin.access,
@@ -391,6 +393,37 @@ async function verifyHomeworkFeedback(
         await expect(parentPage.getByRole("region", { name: "과제 현황", exact: true }).getByText("92%", { exact: true })).toBeVisible();
         await parentPage.getByRole("tab", { name: "요약", exact: true }).click();
         await assertNoHorizontalOverflow(parentPage);
+      }
+      // Preview against the deployed API, with a disposable video enrollee and
+      // the real assignment mapping. Stop at confirmation.
+      expect(previewAttendanceId).toBeGreaterThan(0);
+      const previewAttendancePath = `/lectures/attendance/${previewAttendanceId}/`;
+      await expectApi(request, "PATCH", previewAttendancePath, admin.access, { status: "ONLINE" });
+      try {
+        for (const width of [1366, 390]) {
+          await staffPage.setViewportSize({ width, height: 900 });
+          await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
+          await staffPage.getByRole("checkbox", { name: previewStudent.name + " 선택", exact: true }).check();
+          await staffPage.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
+          const notice = staffPage.getByRole("dialog", { name: "알림톡 발송" });
+          await expect(notice.getByText("과제 안내 1명", { exact: true })).toBeVisible();
+          await notice.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
+          await notice.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
+          const finalNotice = staffPage.getByRole("dialog", { name: "보내기 전 마지막 확인" });
+          const renderedNotice = finalNotice.getByLabel("카카오톡 실제 발송 미리보기");
+          await expect(renderedNotice).toContainText("이번 차시는 영상으로 보강합니다.");
+          await expect(renderedNotice).toContainText(completionTitle);
+          await expect(renderedNotice).toContainText(homeworkTitle);
+          await expect(finalNotice.getByText("학부모 1명", { exact: true })).toBeVisible();
+          await expect(finalNotice.getByRole("button", { name: "발송하기", exact: true })).toBeInViewport();
+          await assertNoHorizontalOverflow(staffPage);
+          await staffPage.screenshot({ path: test.info().outputPath(`real-video-homework-notice-${width}.png`), animations: "disabled" });
+          await finalNotice.getByRole("button", { name: "돌아가기", exact: true }).click();
+          await notice.getByRole("button", { name: "취소", exact: true }).click();
+          await expect(notice).toBeHidden();
+        }
+      } finally {
+        await expectApi(request, "PATCH", previewAttendancePath, admin.access, { status: "LATE" });
       }
       // Keep later existing single-score-card/average assertions unchanged.
       await expectApi(request, "DELETE", `/homeworks/${completion.id}/`, admin.access, undefined, [204]);
