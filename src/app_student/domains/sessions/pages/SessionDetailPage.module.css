@@ -1,49 +1,47 @@
-.loadingStack,
-.stack {
-  display: flex;
-  flex-direction: column;
+.scheduleNote {
+  margin: 0;
+  color: var(--stu-text-muted);
+  font-size: var(--stu-font-size-13);
+  overflow-wrap: anywhere;
 }
 
-.loadingStack {
-  gap: var(--stu-space-3);
-  padding: var(--stu-space-4);
+.actions {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.stack {
-  gap: 12px;
+.scheduleNote + .actions {
+  margin-top: var(--ds-space-2);
+  border-top: 1px solid var(--stu-border-normal);
 }
 
-.skelCard {
-  height: 80px;
-  border-radius: var(--stu-radius);
+.actionRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  justify-items: end;
+  gap: var(--ds-space-2);
+  padding-block: var(--ds-space-2);
 }
 
-.videoLink {
+.actionRow + .actionRow {
+  border-top: 1px solid var(--stu-border-normal);
+}
+
+.actionTitle {
   display: inline-flex;
-  gap: 8px;
   align-items: center;
-  min-height: 44px;
-  padding: 10px 20px;
-  color: var(--stu-primary-contrast);
-  font-size: 14px;
-  font-weight: 700;
-  text-decoration: none;
-  background: var(--stu-primary);
-  border-radius: var(--stu-radius-md);
-  transition: background var(--stu-motion-fast);
-}
-
-.primaryCard {
-  background: var(--stu-tint-primary);
-  border-color: var(--stu-primary);
-}
-
-.cardTitle {
-  font-size: 15px;
+  align-self: start;
+  gap: var(--ds-space-2);
+  min-height: var(--ds-control-md);
+  color: var(--stu-text);
+  font-size: var(--ds-text-md);
   font-weight: 700;
 }
 
-.cardDescription {
-  margin-bottom: var(--stu-space-4);
-  font-size: 13px;
+.actionTitle svg {
+  color: var(--stu-text-muted);
+  flex: none;
 }

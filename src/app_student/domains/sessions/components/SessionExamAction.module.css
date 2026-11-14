@@ -1,24 +1,44 @@
-.stack {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
+.examActions,
 .statusRow,
 .linkRow {
   display: flex;
+  align-items: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
+  gap: var(--ds-space-2);
+  min-width: 0;
 }
 
-.statusRow {
-  gap: 6px;
-  font-size: 13px;
+.examChoices {
+  text-align: end;
+  min-width: 0;
+}
+
+.examChoices[open] {
+  flex-basis: 100%;
+}
+
+.examChoices summary::-webkit-details-marker {
+  display: none;
 }
 
 .linkRow {
-  gap: 8px;
+  margin-top: var(--ds-space-2);
 }
 
-.statusChip {
-  margin-right: 0;
+.linkRow a {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: start;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .chevron {
+    transition: transform var(--stu-motion-fast);
+  }
+}
+
+.examChoices[open] .chevron {
+  transform: rotate(180deg);
 }

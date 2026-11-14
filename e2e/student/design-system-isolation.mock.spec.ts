@@ -29,6 +29,10 @@ for (const width of [390, 1366, 1920]) {
         sample.style.cssText = "display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:16px";
         sample.innerHTML = `<button class="stu-btn stu-btn--secondary">선택한 과제 확인하기</button>
           <button class="stu-btn stu-btn--sm">확인</button><button class="stu-btn stu-btn--lg">다음</button>
+          <button class="stu-btn" data-size="sm">보조</button>
+          <button class="stu-btn" data-size="md">기본</button>
+          <button class="stu-btn" data-size="lg">툴바</button>
+          <button class="stu-btn" data-size="xl">큰 실행</button>
           <button class="stu-icon-btn" aria-label="뒤로">←</button>
           <input class="stu-input" aria-label="학생 규격 입력" /><select class="stu-select" aria-label="학생 규격 선택"><option>전체 보기</option></select>`;
         element.append(sample);
@@ -36,7 +40,7 @@ for (const width of [390, 1366, 1920]) {
       const sample = page.locator("#student-control-contract");
       await expect.poll(() => sample.locator("button, input, select").evaluateAll((controls) =>
         controls.map((control) => Math.round(control.getBoundingClientRect().height)),
-      )).toEqual([44, 44, 48, 44, 44, 44]);
+      )).toEqual([44, 44, 48, width === 390 ? 44 : 32, width === 390 ? 44 : 40, 44, 48, 44, 44, 44]);
       await sample.getByRole("textbox").fill("입력 유지 확인");
       await expect(sample.getByRole("textbox")).toHaveValue("입력 유지 확인");
       if (width === 390) await expect(sample.getByRole("textbox")).toHaveCSS("font-size", "16px");
