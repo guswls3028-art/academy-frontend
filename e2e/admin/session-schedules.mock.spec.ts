@@ -103,8 +103,9 @@ for (const width of [390, 1366]) test(`수업일 작성·배정·저장·reload�
   await page.setViewportSize({ width, height: 900 });
   const state = fixture(); await install(page, state);
   const strip = page.getByRole('region', { name: '수업일 선택' });
-  await page.goto(`${BASE}/workspace/lectures/9901`);
+  await page.goto(`${BASE}/workspace/lectures/9901`, { waitUntil: 'domcontentloaded' });
   const sessionCard = page.getByRole('region', { name: '2차시 차시 카드', exact: true });
+  await expect(sessionCard).toBeVisible();
   const gear = sessionCard.getByRole('button', { name: '차시 설정', exact: true });
   await gear.focus();
   await gear.press('Enter');
@@ -269,7 +270,7 @@ for (const width of [390, 1366]) test(`수업일 전환 저장 대기 중 다른
     completed += 1;
   });
   try {
-    await page.goto(`${BASE}${path}/scores?schedule=71`);
+    await page.goto(`${BASE}${path}/scores?schedule=71`, { waitUntil: 'domcontentloaded' });
     const edit = page.getByRole('group', { name: '성적 편집과 출력', exact: true }).getByRole('button', { name: '수정', exact: true });
     await expect(edit).toBeEnabled();
     await edit.click();
