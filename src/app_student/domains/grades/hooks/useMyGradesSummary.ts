@@ -4,12 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchMyGradesSummary } from "@student/domains/grades/api/grades.api";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 
-export function useMyGradesSummary(opts?: { enabled?: boolean }) {
+export function useMyGradesSummary(opts?: { enabled?: boolean; reuseFreshData?: boolean }) {
   return useQuery({
     queryKey: studentQueryKeys.gradesSummary,
     queryFn: fetchMyGradesSummary,
     staleTime: 60 * 1000,
-    refetchOnMount: "always",
+    refetchOnMount: opts?.reuseFreshData ? true : "always",
     enabled: opts?.enabled ?? true,
   });
 }

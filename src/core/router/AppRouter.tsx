@@ -14,7 +14,13 @@ import {
   WORKSPACE_PATHS,
 } from "./workspaceRoutes";
 
-const StudentRouter = lazy(() => import("@student/app/StudentRouter"));
+const StudentRouter = lazy(() => {
+  // Start the entry page and its router together on a cold home visit.
+  if (/^\/student(?:\/dashboard)?\/?$/i.test(window.location.pathname)) {
+    void import("@student/domains/dashboard/pages/DashboardPage").catch(() => undefined);
+  }
+  return import("@student/app/StudentRouter");
+});
 const MobileWorkspaceRouter = lazy(() => import("@teacher/app/TeacherRouter"));
 import AuthRouter from "./AuthRouter";
 

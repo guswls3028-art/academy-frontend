@@ -12,12 +12,14 @@ export function useNotificationCounts() {
   const queryClient = useQueryClient();
   return useQuery({
     queryKey: studentQueryKeys.notificationCounts,
-    queryFn: async () => {
-      let profile = queryClient.getQueryData<{ id: number }>(studentQueryKeys.me);
-      if (profile?.id == null) {
-        profile = await fetchMyProfile();
-        queryClient.setQueryData(studentQueryKeys.me, profile);
-      }
+    queryFn: async ({ signal }) => {
+      const profile = await queryClient.fetchQuery({
+        queryKey: studentQueryKeys.me,
+        queryFn: fetchMyProfile,
+        staleTime: Infinity,
+        retry: false,
+      });
+      if (signal.aborted) throw new DOMException("Notification lookup was canceled", "AbortError");
       if (profile?.id == null) {
         throw new Error("Student profile id is required for notification counts.");
       }

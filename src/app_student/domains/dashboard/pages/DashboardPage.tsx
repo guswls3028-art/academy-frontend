@@ -201,7 +201,7 @@ export default function DashboardPage() {
   const feesEnabled = useFeesEnabled();
   const dashboardQ = useStudentDashboard();
   const sessionsQ = useMySessions();
-  const gradesQ = useMyGradesSummary();
+  const gradesQ = useMyGradesSummary({ reuseFreshData: true });
   const examsQ = useStudentExams({ include_upcoming: true });
   const notificationCountsQ = useNotificationCounts();
   const dashboard = dashboardQ.data;
