@@ -50,6 +50,7 @@ type MockState = {
   availability?: Record<number, Record<string, unknown>>;
   availabilityReady?: Promise<void>;
   bookingResponse?: () => Promise<{ detail: string } | null>;
+  changeBookingConflict?: boolean;
   cancelNotificationFailed?: number;
   clinicPagination?: {
     requests: { sessions: number[]; participants: number[] };
@@ -519,6 +520,12 @@ async function installApi(
     if (path === "/clinic/participants/501/change-booking/" && method === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       state.changePayloads.push(payload);
+      if (state.changeBookingConflict) {
+        state.bookings = state.bookings.map((booking) => (
+          booking.id === 501 ? { ...booking, status: "booked" } : booking
+        ));
+        return json({ detail: "승인 대기 중인 예약만 변경할 수 있습니다." }, 409);
+      }
       state.bookings = [{
         id: 502,
         session: 202,
@@ -1493,6 +1500,31 @@ test.describe("학생 클리닉 예약 UX", () => {
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("tab", { name: "내 일정 1" }).click();
     await expect(page.locator("article").filter({ hasText: "토요일 5시 클리닉" })).toBeVisible();
+  });
+
+  test("변경 중 승인된 예약을 확인하고 변경 모드를 나와 새 일정을 예약한다", async ({ page }) => {
+    const state = createState();
+    state.changeBookingConflict = true;
+    await seed(page);
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "내 일정 1" }).click();
+    await page.getByRole("button", { name: "일정 바꾸기" }).click();
+    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
+    const replacement = page.getByRole("button", { name: /토요일 5시 클리닉/ });
+    await replacement.click();
+    await page.getByRole("button", { name: "이 일정으로 변경하기" }).click();
+    const banner = page.getByRole("region", { name: "변경 중인 예약" });
+    await expect(banner).toContainText("변경할 수 없는 예약입니다");
+    await expect(page.getByRole("button", { name: "이 일정으로 변경하기" })).toBeDisabled();
+    await banner.getByRole("button", { name: "변경 취소" }).click();
+    await replacement.click();
+    await page.getByRole("button", { name: "이 일정 예약하기" }).click();
+    await expect(page.getByRole("status")).toContainText("예약 신청이 접수되었습니다.");
+    await page.getByRole("tab", { name: "내 일정 2" }).click();
+    await expect(page.locator("article").filter({ hasText: "대수 오답 클리닉" })).toContainText("예약 확정");
+    expect(state.changePayloads).toHaveLength(1);
+    expect(state.bookingPayloads).toEqual([{ session_ids: [202] }]);
   });
 
   test("다른 날짜로 옮길 때는 한 타임 전용 일정도 바로 선택할 수 있다", async ({ page }) => {

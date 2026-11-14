@@ -139,8 +139,8 @@ export default function ClinicPage() {
   );
   const activeBookingCount = pendingBookings.length + approvedBookings.length;
   const changingBooking = useMemo(
-    () => myRequests.find((request) => request.id === changingBookingId) ?? null,
-    [changingBookingId, myRequests],
+    () => pendingBookings.find((request) => request.id === changingBookingId) ?? null,
+    [changingBookingId, pendingBookings],
   );
 
   const orderedSessions = useMemo(
@@ -449,7 +449,7 @@ export default function ClinicPage() {
   };
 
   const selectCalendarDate = (date: string) => {
-    if (mutationLock.current) return;
+    if (mutationLock.current || (changingBookingId != null && !changingBooking)) return;
     if (date === selectedDate && selectedSessions.length > 0) return;
     setSelectedDate(date);
     const dateSessions = sessionGroups.find((group) => group.date === date)?.sessions ?? [];
@@ -642,15 +642,15 @@ export default function ClinicPage() {
               ) : null}
             </section>
 
-            {changingBooking && (
+            {changingBookingId != null && (
               <section className={styles.changeBanner} aria-label="변경 중인 예약">
                 <div>
                   <span className={styles.changeBannerLabel}>일정 변경 중</span>
-                  <strong>{changingBooking.session_title || "클리닉 수업"}</strong>
-                  <span>
+                  <strong>{changingBooking ? changingBooking.session_title || "클리닉 수업" : "변경할 수 없는 예약입니다"}</strong>
+                  {changingBooking ? <span>
                     {formatYmd(changingBooking.session_date)} {formatTime(changingBooking.session_start_time)} ·{" "}
                     {changingBooking.session_location || "장소 추후 안내"}
-                  </span>
+                  </span> : <span>내 일정에서 현재 예약 상태를 확인해 주세요.</span>}
                 </div>
                 <button
                   type="button"
@@ -747,7 +747,8 @@ export default function ClinicPage() {
                               ))
                             );
                             const policyBlockedByExisting = conflictsWithExistingBooking(session);
-                            const disabled = mutationsPending || full || currentChangingSession || !!activeRequest
+                            const disabled = mutationsPending || (changingBookingId != null && !changingBooking)
+                              || full || currentChangingSession || !!activeRequest
                               || policyBlockedBySelection || policyBlockedByExisting;
                             const remaining = session.booking_mode === "time_range" || session.max_participants == null
                               ? null
@@ -858,7 +859,8 @@ export default function ClinicPage() {
                             availabilityPending={availabilityQ.isFetching}
                             availabilityError={availabilityQ.isError}
                             pending={mutationsPending}
-                            changingBooking={!!changingBooking}
+                            changingBooking={changingBookingId != null}
+                            canSubmit={changingBookingId == null || changingBooking != null}
                             submitError={bookingError}
                             onMemoChange={setMemo}
                             onPreferredStartChange={setPreferredStart}

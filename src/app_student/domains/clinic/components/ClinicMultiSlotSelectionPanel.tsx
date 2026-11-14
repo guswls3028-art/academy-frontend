@@ -19,6 +19,7 @@ type Props = {
   availabilityError: boolean;
   pending: boolean;
   changingBooking: boolean;
+  canSubmit: boolean;
   submitError: string | null;
   onMemoChange: (value: string) => void;
   onPreferredStartChange: (value: string) => void;
@@ -89,6 +90,7 @@ export default function ClinicMultiSlotSelectionPanel({
   availabilityError,
   pending,
   changingBooking,
+  canSubmit,
   submitError,
   onMemoChange,
   onPreferredStartChange,
@@ -190,7 +192,7 @@ export default function ClinicMultiSlotSelectionPanel({
       <button
         type="button"
         className={`stu-btn stu-btn--primary ${styles.selectionSubmit}`}
-        disabled={pending || (isTimeRange && (
+        disabled={pending || !canSubmit || (isTimeRange && (
           !bookingStart || !bookingEnd || availabilityPending || availabilityError
         ))}
         onClick={onSubmit}
