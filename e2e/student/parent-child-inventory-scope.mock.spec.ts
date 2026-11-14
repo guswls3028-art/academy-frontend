@@ -136,25 +136,25 @@ for (const { width, role } of [
     await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
 
     const expectedScope = role === "parent" ? "11" : "self";
-    const main = page.locator("main");
-    await expect(main.getByRole("heading", { name: "학습 현황", exact: true })).toBeVisible();
-    await expect(main.getByText("확인 중", { exact: true })).toHaveCount(0);
+    const card = page.getByRole("region", { name: "학습 현황", exact: true });
+    await expect(card).toBeVisible();
+    await expect(card).not.toContainText(/확인 중|확인 필요/);
     expect(profileScopes).toEqual([expectedScope]);
     expect(gradeScopes).toEqual([expectedScope]);
 
-    await main.locator('a[href="/student/grades"]').first().click();
+    await card.locator('a[href="/student/grades"]').click();
     await expect(page).toHaveURL(/\/student\/grades$/);
     await expect.poll(() => gradeScopes).toEqual([expectedScope, expectedScope]);
     await page.locator('.stu-tabbar a[href="/student/dashboard"]').click();
-    await expect(main.getByRole("heading", { name: "학습 현황", exact: true })).toBeVisible();
-    await expect(main.getByText("확인 중", { exact: true })).toHaveCount(0);
+    await expect(card).toBeVisible();
+    await expect(card).not.toContainText(/확인 중|확인 필요/);
     expect(gradeScopes).toEqual([expectedScope, expectedScope]);
 
     if (role === "parent") {
       await page.getByRole("tab", { name: CHILDREN["12"].name, exact: true }).click();
-      await expect(main.getByText("확인 중", { exact: true })).toHaveCount(0);
       await expect.poll(() => gradeScopes).toEqual(["11", "11", "12"]);
       await expect.poll(() => profileScopes).toEqual(["11", "12"]);
+      await expect(card).not.toContainText(/확인 중|확인 필요/);
     }
   });
 }
