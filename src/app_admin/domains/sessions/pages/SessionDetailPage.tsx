@@ -11,7 +11,7 @@
 // - 점수/합불/정책 해석
 // ------------------------------------------------------------
 
-import { lazy, Suspense, useState, useMemo } from "react";
+import { lazy, Suspense, useState, useMemo, useContext } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useSearchParams, Navigate, useNavigate } from "react-router";
 import { BarChart3, ClipboardList, FileText, Plus } from "lucide-react";
@@ -29,6 +29,9 @@ import SessionAssessmentCreateModals from "../components/SessionAssessmentCreate
 import { adminSessionQueryKeys } from "../queryKeys";
 import { readAssessmentItemId } from "@/shared/lib/assessmentQueryParams";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
+import { formatSessionBlockLabel } from "@/shared/ui/session-block";
+import { CompactSessionScheduleCard } from "../components/SessionScheduleControls";
+import { SessionScheduleControlsContext } from "../components/sessionScheduleControlsContext";
 import "./SessionDetailPage.css";
 
 const SessionBlock = lazy(() => import("@admin/domains/sessions/components/SessionBlock"));
@@ -66,6 +69,7 @@ export default function SessionDetailPage() {
   const { lectureId, sessionId } = useLectureParams();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const controls = useContext(SessionScheduleControlsContext);
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const qc = useQueryClient();
@@ -141,8 +145,9 @@ export default function SessionDetailPage() {
   }
 
   const assessmentRemoteKind = SESSION_ASSESSMENT_REMOTE_KIND_BY_TAB[activeTab];
+  const hasAttendanceChooser = activeTab === "attendance" && searchParams.get("view") === "sessions";
   const showSessionStrip =
-    (activeTab === "attendance" && !isMobile && searchParams.get("view") !== "sessions") ||
+    (activeTab === "attendance" && !isMobile && !hasAttendanceChooser) ||
     activeTab === "scores" ||
     activeTab === "exams" ||
     activeTab === "assignments";
@@ -156,97 +161,104 @@ export default function SessionDetailPage() {
         </div>
       )}
 
-      <div className={assessmentRemoteKind != null ? "session-assessment-layout" : "flex flex-col gap-4"}>
-        {assessmentRemoteKind != null && (
-          <div className="session-assessment-navigation">
-            <SessionAssessmentSidePanel
-              lectureId={lecId}
-              sessionId={sId}
-              activeKind={assessmentRemoteKind}
-              openCreateExam={openCreateExam}
-              onCloseCreateExam={() => setOpenCreateExam(false)}
-              onOpenCreateExam={() => setOpenCreateExam(true)}
-              openCreateHomework={openCreateHomework}
-              onCloseCreateHomework={() => setOpenCreateHomework(false)}
-              onOpenCreateHomework={() => setOpenCreateHomework(true)}
-            />
-          </div>
-        )}
-        <div className="min-w-0 w-full">
-          {activeTab === "attendance" && (
-            <SessionAttendancePage
-              sessionId={sId}
-              lectureId={lecId}
-              sessionType={session.session_type}
-              sessionDate={session.date}
-              sessionSelector={<SessionBlock lectureId={lecId} currentSessionId={sId} />}
-              onOpenEnrollModal={() => setShowEnrollModal(true)}
-            />
-          )}
-
-          {activeTab === "exams" &&
-            (examId ? (
-              <div className="flex flex-col">
-                <SessionAssessmentWorkspace mode="exam" />
-                <AssessmentDeleteBar
-                  type="exam"
-                  id={examId}
-                  sessionId={sId}
-                  onDeleted={() => navigate(`${basePath}/exams`, {
-                    state: { skipAssessmentAutoSelect: true },
-                  })}
-                />
-              </div>
-            ) : (
-              <AssessmentEmptyPanel
-                kind="exam"
-                onCreate={() => setOpenCreateExam(true)}
-                onScores={() => navigate(`${basePath}/scores`)}
-              />
-            ))}
-
-          {activeTab === "scores" && (
-            <SessionScoresEntryPage
-              key={sId}
-              onOpenCreateExam={() => setOpenCreateExam(true)}
-              onOpenCreateHomework={() => setOpenCreateHomework(true)}
-            />
-          )}
-
-          {activeTab === "assignments" &&
-            (homeworkId ? (
-              <div className="flex flex-col">
-                <SessionAssessmentWorkspace mode="homework" />
-                <AssessmentDeleteBar
-                  type="homework"
-                  id={homeworkId}
-                  sessionId={sId}
-                  onDeleted={() => navigate(`${basePath}/assignments`)}
-                />
-              </div>
-            ) : (
-              <AssessmentEmptyPanel
-                kind="homework"
-                onCreate={() => setOpenCreateHomework(true)}
-                onScores={() => navigate(`${basePath}/scores`)}
-              />
-            ))}
-
-          {activeTab === "notice" && (
-            <CommunityScopeProvider>
-              <NoticeAdminPage embedded />
-            </CommunityScopeProvider>
-          )}
-
-          {activeTab === "videos" && (
-            <SessionVideosTab sessionId={sId} />
-          )}
-
-          {activeTab === "clinic" && (
-            <SessionClinicTab sessionId={sId} lectureId={lecId} />
-          )}
+      {!showSessionStrip && (!hasAttendanceChooser || controls?.blockedNotice) && (
+        <div className="session-detail-session-strip">
+          <CompactSessionScheduleCard title={formatSessionBlockLabel(session)} date={session.date ?? ""} />
         </div>
-      </div>
+      )}
+      {controls?.blockedNotice ?? (
+        <div className={assessmentRemoteKind != null ? "session-assessment-layout" : "flex flex-col gap-4"}>
+          {assessmentRemoteKind != null && (
+            <div className="session-assessment-navigation">
+              <SessionAssessmentSidePanel
+                lectureId={lecId}
+                sessionId={sId}
+                activeKind={assessmentRemoteKind}
+                openCreateExam={openCreateExam}
+                onCloseCreateExam={() => setOpenCreateExam(false)}
+                onOpenCreateExam={() => setOpenCreateExam(true)}
+                openCreateHomework={openCreateHomework}
+                onCloseCreateHomework={() => setOpenCreateHomework(false)}
+                onOpenCreateHomework={() => setOpenCreateHomework(true)}
+              />
+            </div>
+          )}
+          <div className="min-w-0 w-full">
+            {activeTab === "attendance" && (
+              <SessionAttendancePage
+                sessionId={sId}
+                lectureId={lecId}
+                sessionType={session.session_type}
+                sessionDate={session.date}
+                sessionSelector={<SessionBlock lectureId={lecId} currentSessionId={sId} />}
+                onOpenEnrollModal={() => setShowEnrollModal(true)}
+              />
+            )}
+
+            {activeTab === "exams" &&
+              (examId ? (
+                <div className="flex flex-col">
+                  <SessionAssessmentWorkspace mode="exam" />
+                  <AssessmentDeleteBar
+                    type="exam"
+                    id={examId}
+                    sessionId={sId}
+                    onDeleted={() => navigate(`${basePath}/exams`, {
+                      state: { skipAssessmentAutoSelect: true },
+                    })}
+                  />
+                </div>
+              ) : (
+                <AssessmentEmptyPanel
+                  kind="exam"
+                  onCreate={() => setOpenCreateExam(true)}
+                  onScores={() => navigate(`${basePath}/scores`)}
+                />
+              ))}
+
+            {activeTab === "scores" && (
+              <SessionScoresEntryPage
+                key={sId}
+                onOpenCreateExam={() => setOpenCreateExam(true)}
+                onOpenCreateHomework={() => setOpenCreateHomework(true)}
+              />
+            )}
+
+            {activeTab === "assignments" &&
+              (homeworkId ? (
+                <div className="flex flex-col">
+                  <SessionAssessmentWorkspace mode="homework" />
+                  <AssessmentDeleteBar
+                    type="homework"
+                    id={homeworkId}
+                    sessionId={sId}
+                    onDeleted={() => navigate(`${basePath}/assignments`)}
+                  />
+                </div>
+              ) : (
+                <AssessmentEmptyPanel
+                  kind="homework"
+                  onCreate={() => setOpenCreateHomework(true)}
+                  onScores={() => navigate(`${basePath}/scores`)}
+                />
+              ))}
+
+            {activeTab === "notice" && (
+              <CommunityScopeProvider>
+                <NoticeAdminPage embedded />
+              </CommunityScopeProvider>
+            )}
+
+            {activeTab === "videos" && (
+              <SessionVideosTab sessionId={sId} />
+            )}
+
+            {activeTab === "clinic" && (
+              <SessionClinicTab sessionId={sId} lectureId={lecId} />
+            )}
+          </div>
+        </div>
+      )}
 
       {showEnrollModal && (
         <SessionEnrollModal

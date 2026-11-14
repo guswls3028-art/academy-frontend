@@ -107,7 +107,7 @@ export default function SessionLayout() {
   const sessionHeading = formatSessionBlockLabel(session) + sectionSuffix;
   const selectedSchedule = scheduleQuery.data?.schedules.find(schedule => String(schedule.id) === scheduleScope);
   const scheduleDescription = scheduleScope === null
-    ? scheduleQuery.data?.schedules.length ? `기본 수업일: ${session.date}` : session.date
+    ? scheduleQuery.data?.schedules.length ? `수업일 ${scheduleQuery.data.schedules.length}개` : session.date
     : scheduleScope === "0" ? "수업일 미배정"
     : scheduleQuery.isPending ? "수업일 확인 중…"
     : scheduleQuery.isError || !selectedSchedule ? "수업일 확인 필요"
