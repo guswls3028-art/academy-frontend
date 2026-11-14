@@ -42,6 +42,7 @@ export default function SessionScheduleManager({ open, addRequest, editDayId, on
   const [source, setSource] = useState('');
   const handledAdd = useRef(0);
   const nameRef = useRef<HTMLInputElement>(null);
+  const activeDayRef = useRef<HTMLButtonElement>(null);
   const focusName = useRef(false);
   useScheduleLeaveGuard(lectureId, sessionId, dirty, busy);
   const sessions = useQuery({
@@ -92,6 +93,7 @@ export default function SessionScheduleManager({ open, addRequest, editDayId, on
   }, [open, base, addRequest]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    activeDayRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     if (!focusName.current) return;
     nameRef.current?.focus();
     focusName.current = false;
@@ -201,7 +203,7 @@ export default function SessionScheduleManager({ open, addRequest, editDayId, on
               </div>
               {drafts.length > 0 && <div className={styles.editorDayList}>
                 {drafts.map((day, index) => (
-                  <button key={day.key} type="button" className={styles.editorDay} aria-pressed={day.key === target}
+                  <button key={day.key} ref={day.key === target ? activeDayRef : undefined} type="button" className={styles.editorDay} aria-pressed={day.key === target}
                     onClick={() => { setTarget(day.key); setSelected([]); }}>
                     <CalendarDays size={16} aria-hidden />
                     <span><strong>{day.label.trim() || `수업일 ${index + 1}`}</strong><small>{day.date || '날짜 선택'} · {day.enrollment_ids.length}명</small></span>

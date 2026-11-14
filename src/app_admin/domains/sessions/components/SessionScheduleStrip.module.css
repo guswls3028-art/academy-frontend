@@ -49,6 +49,8 @@
   transition: background-color 140ms ease, border-color 140ms ease;
 }
 
+.strip .dayChoice { text-align: left; justify-content: flex-start; }
+
 .dayChoice span, .editorDay small {
   color: var(--color-text-secondary);
   font-weight: 400;
@@ -256,7 +258,15 @@
 
 @media (max-width: 720px) {
   .editor { grid-template-columns: minmax(0, 1fr); }
-  .editorDayList { max-height: 145px; }
+  .editorDayList {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(110px, max-content);
+    overflow-x: auto;
+    max-width: 100%;
+    padding-bottom: 4px;
+    scroll-snap-type: x proximity;
+  }
+  .editorDay { scroll-snap-align: start; max-width: 170px; }
   .roster { max-height: 216px; }
 }
 
