@@ -1153,6 +1153,9 @@ test("학생 ID 복사는 구두점을 보존하고 키보드로 사용할 수 �
     json: { id: 1001, name: "학생", ps_number: "student.name+01", tags: [], enrollments: [] },
   }));
   await gotoAndSettle(page, BASE + "/workspace/students/1001");
+  const profileToggle = page.getByRole("button", { name: "연락처·메모 보기" });
+  await profileToggle.focus();
+  await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "아이디 student.name+01 복사", exact: true }).focus();
   await page.keyboard.press("Enter");
   await expect(page.locator("html")).toHaveAttribute("data-copied-student-id", "student.name+01");
