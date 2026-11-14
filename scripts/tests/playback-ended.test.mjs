@@ -17,8 +17,9 @@ test('native HLS restores playback after a network error and saves the resumed p
     canPlayType: () => 'probably',
     async play() { this.paused = false; this.dispatchEvent(new Event('play')); },
     pause() { this.paused = true; },
-    removeAttribute() {},
-    load() { loads++; this.currentTime = 0; this.error = null; },
+    getAttribute() { return this.src ?? null; },
+    removeAttribute() { this.src = null; },
+    load() { if (this.src) loads++; this.currentTime = 0; this.error = null; },
   });
   await controller.attach(el);
   el.dispatchEvent(new Event('loadedmetadata'));
@@ -46,6 +47,10 @@ test('native HLS restores playback after a network error and saves the resumed p
   h.fireTimers();
   assert.equal(loads, 2, 'a second source load is not attempted when the retry itself stalls');
   assert.equal(errors.length, 1);
+  assert.equal(el.src, null, 'a failed native source is released before the error UI unmounts it');
+  assert.equal(el.currentTime, 0, 'source release resets the native media element');
+  controller.setSource('https://unit.invalid/late-renewal.m3u8');
+  assert.equal(el.src, null, 'a late renewal cannot restart a terminal player');
   controller.dispose();
   assert.equal(saved.at(-1)?.last_position, 124);
 });
@@ -60,7 +65,10 @@ test('a native source error that clears media metadata does not erase the saved 
   });
   const el = Object.assign(new EventTarget(), {
     currentTime: 0, duration: 600, paused: true, playbackRate: 1, error: null,
-    canPlayType: () => 'probably', pause() {}, removeAttribute() {}, load() {},
+    canPlayType: () => 'probably', pause() {},
+    getAttribute() { return this.src ?? null; },
+    removeAttribute() { this.src = null; },
+    load() {},
   });
   await controller.attach(el);
   el.dispatchEvent(new Event('loadedmetadata'));
@@ -73,6 +81,34 @@ test('a native source error that clears media metadata does not erase the saved 
   controller.dispose();
   assert.equal(saved.at(-1)?.last_position, 123);
   assert.equal(saved.at(-1)?.completed, false);
+});
+
+test('native HLS releases the previous source once when its controller is disposed', async () => {
+  const h = harness();
+  const calls = [];
+  const oldUrl = 'https://unit.invalid/old/master.m3u8';
+  const nextUrl = 'https://unit.invalid/next/master.m3u8';
+  const first = h.controller('hls', 'student-fixture', { playUrl: oldUrl });
+  const el = Object.assign(new EventTarget(), {
+    canPlayType: () => 'probably',
+    getAttribute() { return this.src ?? null; },
+    pause() { calls.push('pause'); },
+    removeAttribute() { this.src = null; calls.push('clear'); },
+    load() { calls.push(this.src ?? 'reset'); },
+  });
+  await first.attach(el);
+  assert.equal(el.src, oldUrl);
+  calls.length = 0;
+
+  first.dispose();
+  assert.deepEqual(calls, ['pause', 'clear', 'reset']);
+  assert.equal(el.src, null);
+
+  const next = h.controller('hls', 'student-fixture', { playUrl: nextUrl });
+  await next.attach(el);
+  first.dispose();
+  assert.equal(el.src, nextUrl);
+  next.dispose();
 });
 
 for (const kind of ['hls', 'youtube']) {
