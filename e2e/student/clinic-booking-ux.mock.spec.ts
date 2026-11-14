@@ -49,6 +49,7 @@ type MockState = {
   sessions?: Array<Record<string, unknown>>;
   availability?: Record<number, Record<string, unknown>>;
   availabilityReady?: Promise<void>;
+  bookingResponse?: () => Promise<{ detail: string } | null>;
   cancelNotificationFailed?: number;
   clinicPagination?: {
     requests: { sessions: number[]; participants: number[] };
@@ -346,6 +347,8 @@ async function installApi(
     if (path === "/clinic/participants/bulk-create/" && method === "POST") {
       const payload = request.postDataJSON() as Record<string, unknown>;
       state.bookingPayloads.push(payload);
+      const conflict = await state.bookingResponse?.();
+      if (conflict) return json(conflict, 409);
       const selectedSessions = sessionRows.filter((session) => (
         (payload.session_ids as number[]).includes(session.id)
       ));
@@ -752,7 +755,12 @@ test.describe("학생 클리닉 예약 UX", () => {
         await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
 
         await expect(page.getByText("클리닉 정보를 불러오지 못했습니다", { exact: true })).toBeVisible({ timeout: 20_000 });
-        await expect(page.getByRole("heading", { name: "열린 일정" })).not.toBeVisible();
+        await expect(page.getByTestId(`clinic-calendar-day-${openDate}`)).not.toBeVisible();
+        if (failingList === "sessions") {
+          await page.getByRole("tab", { name: "내 일정 1", exact: true }).click();
+          await expect(page.locator("article").filter({ hasText: "대수 오답 클리닉" })).toContainText("오답노트 지참");
+          await page.getByRole("tab", { name: "예약하기" }).click();
+        }
         expect(state.clinicPagination!.requests[failingList]).toContain(2);
         const previousStarts = state.clinicPagination!.requests[failingList].filter((number) => number === 1).length;
         state.clinicPagination!.fail = undefined;
@@ -1223,6 +1231,87 @@ test.describe("학생 클리닉 예약 UX", () => {
       booking_end_time: "17:00",
     }]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test("예약 충돌 뒤 정원을 갱신하고 메모를 유지한 채 다른 시간으로 예약한다", async ({ page }) => {
+    const state = createState();
+    state.sessions = [{
+      ...sessions[2],
+      title: "시간 선택 클리닉",
+      start_time: "16:00:00",
+      end_time: "17:00:00",
+      booking_mode: "time_range",
+      allow_multi_slot_booking: false,
+    }];
+    const slots = [
+      { start_time: "16:00", end_time: "16:30", remaining_capacity: 1 },
+      { start_time: "16:30", end_time: "17:00", remaining_capacity: 1 },
+    ];
+    state.availability = {
+      201: {
+        booking_mode: "time_range",
+        interval_minutes: 30,
+        max_stay_minutes: 60,
+        window: { start_time: "16:00", end_time: "17:00" },
+        slots,
+      },
+    };
+    state.bookingResponse = async () => {
+      if (state.bookingPayloads.length !== 1) return null;
+      slots[0].remaining_capacity = 0;
+      return { detail: "해당 클리닉은 선택한 시간의 정원이 마감되었습니다." };
+    };
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seed(page);
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
+    const selection = page.getByRole("region", { name: "선택한 클리닉 시간" });
+    await selection.getByRole("button", { name: "16:00 시작, 잔여 1자리" }).click();
+    await selection.getByRole("button", { name: "16:30 종료, 총 30분" }).click();
+    await selection.getByRole("textbox").fill("오답노트 지참");
+    await page.getByTestId(`clinic-calendar-day-${openDate}`).click();
+    await expect(selection).toContainText("16:00–16:30");
+    const submit = selection.getByRole("button", { name: "이 일정 예약하기" });
+    await submit.click();
+    await expect(selection.getByRole("alert")).toHaveText("해당 클리닉은 선택한 시간의 정원이 마감되었습니다.");
+    await expect(selection.getByRole("button", { name: /16:00 시작, .*부족/ })).toBeDisabled();
+    await expect(submit).toBeDisabled();
+    await expect(selection.getByRole("textbox")).toHaveValue("오답노트 지참");
+    await selection.getByRole("button", { name: "16:30 시작, 잔여 1자리" }).click();
+    await selection.getByRole("button", { name: "17:00 종료, 총 30분" }).click();
+    await submit.click();
+    await expect(page.getByRole("status")).toContainText("예약 신청이 접수되었습니다.");
+    expect(state.bookingPayloads.map((payload) => payload.booking_start_time)).toEqual(["16:00", "16:30"]);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: /내 일정/ }).click();
+    await expect(page.locator("article").filter({ hasText: "시간 선택 클리닉" })).toContainText("오답노트 지참");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+
+  test("자정을 넘는 고정 일정에서 희망 시간을 예약하고 새로고침 뒤 확인한다", async ({ page }) => {
+    const state = createState();
+    state.sessions = [{
+      ...sessions[3],
+      title: "자정 클리닉",
+      start_time: "23:00:00",
+      end_time: "01:00:00",
+    }];
+    await seed(page);
+    await installApi(page, state);
+    await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: /자정 클리닉/ }).click();
+    await page.getByLabel("희망 시작 시간").fill("23:30");
+    await page.getByLabel("희망 종료 시간").fill("00:30");
+    await page.getByRole("button", { name: "이 일정 예약하기" }).click();
+    await expect.poll(() => state.bookingPayloads).toEqual([{
+      session_ids: [202],
+      preferred_start_time: "23:30",
+      preferred_end_time: "00:30",
+    }]);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: /내 일정/ }).click();
+    await expect(page.locator("article").filter({ hasText: "자정 클리닉" })).toContainText("희망 23:30–익일 00:30");
   });
 
   test("시간 범위의 오류·마감·휴무 상태에서 막히지 않고 다음 행동을 안내한다", async ({ page }) => {

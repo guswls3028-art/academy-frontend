@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import { Link } from "react-router";
 
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { clinicTimeLabel, isOngoingPreviousClinic, isOngoingPreviousBooking } from "@/shared/ui/clinic/clinicTimeRange";
 import { useClinicClock } from "@/shared/ui/clinic/useClinicClock";
 import LectureChip from "@/shared/ui/chips/LectureChip";
@@ -45,8 +46,18 @@ import {
 } from "../clinicBookingPresentation";
 import styles from "./ClinicPage.module.css";
 
-type ApiErrorBody = { detail?: string; message?: string };
 type ClinicTab = "book" | "schedule";
+const EMPTY_BOOKINGS: ClinicBookingRequest[] = [];
+const EMPTY_SESSIONS: ClinicSession[] = [];
+const BOOKING_ACTION_ERROR_STATUSES = new Set([400, 403, 404, 409, 422]);
+
+function bookingErrorMessage(error: AxiosError, fallback: string) {
+  const status = error.response?.status;
+  const body = error.response?.data;
+  return status && BOOKING_ACTION_ERROR_STATUSES.has(status) && body && typeof body === "object"
+    ? getApiErrorMessage(error, fallback)
+    : fallback;
+}
 
 export default function ClinicPage() {
   const queryClient = useQueryClient();
@@ -59,6 +70,7 @@ export default function ClinicPage() {
   const [selectedSessionIds, setSelectedSessionIds] = useState<number[]>([]);
   const [rangeStartSessionId, setRangeStartSessionId] = useState<number | null>(null);
   const [selectionNotice, setSelectionNotice] = useState<string | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
   const [changingBookingId, setChangingBookingId] = useState<number | null>(null);
   const [memo, setMemo] = useState("");
   const [preferredStart, setPreferredStart] = useState("");
@@ -66,19 +78,20 @@ export default function ClinicPage() {
   const [bookingStart, setBookingStart] = useState("");
   const [bookingEnd, setBookingEnd] = useState("");
   const pickerHeadingRef = useRef<HTMLHeadingElement>(null);
+  const mutationLock = useRef(false);
 
   const {
-    data: myRequests = [],
+    data: myRequests = EMPTY_BOOKINGS,
     isLoading: requestsLoading,
     isError: requestsError,
     refetch: refetchRequests,
   } = useQuery({
     queryKey: studentClinicQueryKeys.bookings,
-    queryFn: fetchMyClinicBookingRequests,
+    queryFn: ({ signal }) => fetchMyClinicBookingRequests({ signal }),
   });
 
   const {
-    data: sessions = [],
+    data: sessions = EMPTY_SESSIONS,
     isLoading: sessionsLoading,
     isError: sessionsError,
     refetch: refetchSessions,
@@ -159,31 +172,47 @@ export default function ClinicPage() {
   const sessionGroups = useMemo(() => {
     const groups = new Map<string, ClinicSession[]>();
     orderedSessions.forEach((session) => {
-      groups.set(session.date, [...(groups.get(session.date) ?? []), session]);
+      const group = groups.get(session.date);
+      if (group) group.push(session);
+      else groups.set(session.date, [session]);
     });
     return Array.from(groups.entries()).map(([date, dateSessions]) => ({
       date,
       sessions: dateSessions,
     }));
   }, [orderedSessions]);
+  const sessionsById = useMemo(
+    () => new Map(orderedSessions.map((session) => [session.id, session])),
+    [orderedSessions],
+  );
+  const activeRequestsBySession = useMemo(() => {
+    const requests = new Map<number, ClinicBookingRequest>();
+    for (const request of myRequests) {
+      if (request.session != null && (request.status === "pending" || request.status === "booked")) {
+        requests.set(request.session, request);
+      }
+    }
+    return requests;
+  }, [myRequests]);
   const selectedSessionGroup = sessionGroups.find((group) => group.date === selectedDate) ?? null;
   const selectedDateParts = selectedSessionGroup ? clinicDateParts(selectedSessionGroup.date) : null;
-  const selectedSessions = orderedSessions.filter((session) => (
+  const selectedSessions = selectedSessionGroup?.sessions.filter((session) => (
     selectedSessionIds.includes(session.id)
-  ));
-  const selectedSessionsInGroup = selectedSessionGroup?.sessions.filter((session) => (
-    selectedSessionIds.includes(session.id)
-  )) ?? [];
+  )) ?? EMPTY_SESSIONS;
   const selectedSession = selectedSessions.length === 1 ? selectedSessions[0] : null;
   const availabilityQ = useQuery({
     queryKey: studentClinicQueryKeys.availability(selectedSession?.id),
-    queryFn: () => fetchClinicAvailability(selectedSession!.id),
-    enabled: selectedSession?.booking_mode === "time_range",
+    queryFn: ({ signal }) => fetchClinicAvailability(selectedSession!.id, signal),
+    enabled: activeTab === "book" && selectedSession?.booking_mode === "time_range",
     staleTime: 10_000,
   });
-  const activeBookedSessions = orderedSessions.filter((session) => myRequests.some(
-    (request) => request.session === session.id &&
-      (request.status === "pending" || request.status === "booked"),
+  const activeBookedSessions = useMemo(
+    () => orderedSessions.filter((session) => activeRequestsBySession.has(session.id)),
+    [activeRequestsBySession, orderedSessions],
+  );
+  const conflictsWithExistingBooking = (session: ClinicSession) => activeBookedSessions.some((active) => (
+    active.id !== session.id && active.id !== changingBooking?.session && active.date === session.date
+    && (active.allow_multi_slot_booking !== true || session.allow_multi_slot_booking !== true)
   ));
 
   useEffect(() => {
@@ -198,17 +227,14 @@ export default function ClinicPage() {
   useEffect(() => {
     setSelectedSessionIds((current) => {
       const available = current.filter((sessionId) => {
-        const session = orderedSessions.find((item) => item.id === sessionId);
+        const session = sessionsById.get(sessionId);
         if (!session || isSessionFull(session) || session.id === changingBooking?.session) {
           return false;
         }
-        return !myRequests.some(
-          (request) => request.session === session.id &&
-            (request.status === "pending" || request.status === "booked"),
-        );
+        return !activeRequestsBySession.has(session.id);
       });
       const policySafe = available.length > 1 && available.some((sessionId) => (
-        orderedSessions.find((session) => session.id === sessionId)?.allow_multi_slot_booking !== true
+        sessionsById.get(sessionId)?.allow_multi_slot_booking !== true
       ))
         ? available.slice(0, 1)
         : available;
@@ -216,7 +242,7 @@ export default function ClinicPage() {
         ? current
         : policySafe;
     });
-  }, [changingBooking?.session, myRequests, orderedSessions]);
+  }, [activeRequestsBySession, changingBooking?.session, sessionsById]);
 
   useEffect(() => {
     setRangeStartSessionId((current) => (
@@ -225,6 +251,31 @@ export default function ClinicPage() {
         : selectedSessionIds[0] ?? null
     ));
   }, [selectedSessionIds]);
+
+  const refreshBookingLists = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.availableSessions }),
+    queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.bookings }),
+    queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.availabilities }),
+  ]);
+
+  const refreshAfterSave = () => {
+    void queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.summary });
+    void queryClient.invalidateQueries({ queryKey: studentQueryKeys.clinicIdcard });
+    void queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.notificationCounts });
+    return refreshBookingLists();
+  };
+
+  const refreshAfterFailure = (error: AxiosError) => {
+    if (!error.response || BOOKING_ACTION_ERROR_STATUSES.has(error.response.status)
+      || error.response.status >= 500) return refreshBookingLists();
+  };
+
+  const beginMutation = () => {
+    mutationLock.current = true;
+    setBookingError(null);
+  };
+
+  const endMutation = () => { mutationLock.current = false; };
 
   const bookingMutation = useMutation({
     mutationFn: (data: {
@@ -238,15 +289,6 @@ export default function ClinicPage() {
       runTrackedTask("clinic.booking.create", () => createClinicBookingRequests(data)),
     onMutate: () => { setSavedBookingNotice(null); },
     onSuccess: (data, variables) => {
-      const session = variables.session_ids.length === 1
-        ? sessions.find((item) => item.id === variables.session_ids[0])
-        : null;
-      const bookedCount = session ? (session.booked_count ?? 0) + 1 : null;
-      queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.availableSessions });
-      queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.bookings });
-      queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.summary });
-      queryClient.invalidateQueries({ queryKey: studentQueryKeys.clinicIdcard });
-      queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.notificationCounts });
       setMemo("");
       setPreferredStart("");
       setPreferredEnd("");
@@ -260,17 +302,14 @@ export default function ClinicPage() {
       const message = variables.session_ids.length > 1
         ? `${variables.session_ids.length}개 시간대 예약${allBooked ? "이 확정되었습니다." : " 신청이 접수되었습니다."}`
         : allBooked ? "예약이 확정되었습니다." : "예약 신청이 접수되었습니다.";
-      studentToast.success(
-        bookedCount == null ? message : `${message} (현재 예약인원 ${bookedCount}명)`,
-      );
+      studentToast.success(message);
+      return refreshAfterSave();
     },
-    onError: (error: AxiosError<ApiErrorBody>) => {
-      studentToast.error(
-        error.response?.data?.detail ||
-          error.response?.data?.message ||
-          "예약 신청에 실패했습니다. 다시 시도해 주세요.",
-      );
+    onError: (error: AxiosError) => {
+      setBookingError(bookingErrorMessage(error, "예약 신청 결과를 확인하지 못했습니다. 내 일정에서 확인하고 다시 시도해 주세요."));
+      return refreshAfterFailure(error);
     },
+    onSettled: endMutation,
   });
 
   const cancelMutation = useMutation({
@@ -278,21 +317,19 @@ export default function ClinicPage() {
       runTrackedTask("clinic.booking.cancel", () => cancelClinicBookingRequest(id)),
     onSuccess: (data, id) => {
       setSavedBookingNotice(null);
-      queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.bookings });
-      queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.availableSessions });
-      queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.summary });
-      queryClient.invalidateQueries({ queryKey: studentQueryKeys.clinicIdcard });
-      queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.notificationCounts });
       if (changingBookingId === id) setChangingBookingId(null);
       if ((data.notification?.failed ?? 0) > 0) {
         studentToast.info("예약 취소가 저장되었습니다. 안내 알림톡은 자동 재시도 대기 중입니다.");
       } else {
         studentToast.success("예약 취소가 저장되었습니다. 학생·학부모 안내 알림톡도 접수되었습니다.");
       }
+      return refreshAfterSave();
     },
-    onError: (error: AxiosError<ApiErrorBody>) => {
-      studentToast.error(error.response?.data?.detail || "취소에 실패했습니다.");
+    onError: (error: AxiosError) => {
+      studentToast.error(bookingErrorMessage(error, "취소 결과를 확인하지 못했습니다. 내 일정을 확인해 주세요."));
+      return refreshAfterFailure(error);
     },
+    onSettled: endMutation,
   });
 
   const changeMutation = useMutation({
@@ -318,14 +355,7 @@ export default function ClinicPage() {
         ),
       ),
     onMutate: () => { setSavedBookingNotice(null); },
-    onSuccess: (data, variables) => {
-      const session = sessions.find((item) => item.id === variables.newSessionId);
-      const bookedCount = session ? (session.booked_count ?? 0) + 1 : null;
-      queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.availableSessions });
-      queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.bookings });
-      queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.summary });
-      queryClient.invalidateQueries({ queryKey: studentQueryKeys.clinicIdcard });
-      queryClient.invalidateQueries({ queryKey: studentClinicQueryKeys.notificationCounts });
+    onSuccess: (data) => {
       setChangingBookingId(null);
       setMemo("");
       setPreferredStart("");
@@ -336,25 +366,22 @@ export default function ClinicPage() {
         ? "일정 변경이 확정되었습니다."
         : "일정 변경 신청이 접수되었습니다.";
       setSavedBookingNotice(data.status === "booked" ? "변경된 일정을 확인해 주세요." : "일정 변경은 선생님 승인 후 확정됩니다.");
-      studentToast.success(
-        bookedCount == null ? message : `${message} (현재 예약인원 ${bookedCount}명)`,
-      );
+      studentToast.success(message);
+      return refreshAfterSave();
     },
-    onError: (error: AxiosError<ApiErrorBody>) => {
-      studentToast.error(
-        error.response?.data?.detail ||
-          error.response?.data?.message ||
-          "일정 변경에 실패했습니다. 기존 예약은 유지됩니다.",
-      );
+    onError: (error: AxiosError) => {
+      setBookingError(bookingErrorMessage(error, "일정 변경 결과를 확인하지 못했습니다. 내 일정을 확인해 주세요."));
+      return refreshAfterFailure(error);
     },
+    onSettled: endMutation,
   });
 
   const mutationsPending =
     bookingMutation.isPending || cancelMutation.isPending || changeMutation.isPending;
 
   const submitBooking = () => {
-    if (mutationsPending) return;
-    if (selectedSessionIds.length === 0) {
+    if (mutationLock.current || changingBookingId != null) return;
+    if (selectedSessions.length === 0) {
       studentToast.info("예약할 클리닉 일정을 선택해 주세요.");
       return;
     }
@@ -378,8 +405,9 @@ export default function ClinicPage() {
       studentToast.info("실제 이용 시작과 종료 시간을 선택해 주세요.");
       return;
     }
+    beginMutation();
     bookingMutation.mutate({
-      session_ids: selectedSessionIds,
+      session_ids: selectedSessions.map((session) => session.id),
       student_request_memo: memo.trim() || undefined,
       preferred_start_time: selectedSession?.booking_mode !== "time_range" && selectedSession?.allow_time_preference ? preferredStart || undefined : undefined,
       preferred_end_time: selectedSession?.booking_mode !== "time_range" && selectedSession?.allow_time_preference ? preferredEnd || undefined : undefined,
@@ -389,12 +417,12 @@ export default function ClinicPage() {
   };
 
   const submitChange = () => {
-    if (mutationsPending) return;
+    if (mutationLock.current) return;
     if (!changingBooking) {
       studentToast.error("변경할 예약을 찾을 수 없습니다.");
       return;
     }
-    const selectedSessionId = selectedSessionIds[0];
+    const selectedSessionId = selectedSession?.id;
     if (!selectedSessionId) {
       studentToast.info("변경할 클리닉 일정을 선택해 주세요.");
       return;
@@ -416,6 +444,7 @@ export default function ClinicPage() {
       studentToast.info("실제 이용 시작과 종료 시간을 선택해 주세요.");
       return;
     }
+    beginMutation();
     changeMutation.mutate({
       oldId: changingBooking.id,
       newSessionId: selectedSessionId,
@@ -427,7 +456,14 @@ export default function ClinicPage() {
     });
   };
 
+  const cancelBooking = (id: number) => {
+    if (mutationLock.current) return;
+    beginMutation();
+    cancelMutation.mutate(id);
+  };
+
   const startChangingBooking = (request: ClinicBookingRequest) => {
+    setBookingError(null);
     setChangingBookingId(request.id);
     setSelectedDate(request.session_date);
     setSelectedSessionIds([]);
@@ -442,28 +478,25 @@ export default function ClinicPage() {
   };
 
   const selectCalendarDate = (date: string) => {
+    if (mutationLock.current) return;
+    if (date === selectedDate && selectedSessions.length > 0) return;
     setSelectedDate(date);
     const dateSessions = sessionGroups.find((group) => group.date === date)?.sessions ?? [];
     const onlySession = dateSessions.length === 1 ? dateSessions[0] : null;
-    const onlySessionHasActiveBooking = onlySession
-      ? myRequests.some((request) => (
-          request.session === onlySession.id
-          && (request.status === "pending" || request.status === "booked")
-        ))
-      : false;
     const openTimeRangeSession = onlySession?.booking_mode === "time_range"
       && !isSessionFull(onlySession)
       && onlySession.id !== changingBooking?.session
-      && !onlySessionHasActiveBooking;
+      && !activeRequestsBySession.has(onlySession.id)
+      && !conflictsWithExistingBooking(onlySession);
     if (openTimeRangeSession && onlySession) {
       setSelectedSessionIds([onlySession.id]);
       setRangeStartSessionId(onlySession.id);
     } else {
       setSelectedSessionIds((current) => current.filter((sessionId) => (
-        orderedSessions.find((session) => session.id === sessionId)?.date === date
+        sessionsById.get(sessionId)?.date === date
       )));
       setRangeStartSessionId((current) => (
-        orderedSessions.find((session) => session.id === current)?.date === date ? current : null
+        current != null && sessionsById.get(current)?.date === date ? current : null
       ));
     }
     setPreferredStart("");
@@ -471,9 +504,11 @@ export default function ClinicPage() {
     setBookingStart("");
     setBookingEnd("");
     setSelectionNotice(null);
+    setBookingError(null);
   };
 
   const selectSessionRange = (session: ClinicSession) => {
+    setBookingError(null);
     setPreferredStart("");
     setPreferredEnd("");
     setBookingStart("");
@@ -486,14 +521,14 @@ export default function ClinicPage() {
       groupSessions,
       rangeStartSessionId,
       selectedSessionIds,
-      bookings: myRequests,
+      bookedSessionIds: activeRequestsBySession,
     });
     setSelectedSessionIds(result.sessionIds);
     setRangeStartSessionId(result.rangeStartSessionId);
     setSelectionNotice(result.notice);
   };
 
-  if (requestsLoading || sessionsLoading) {
+  if (requestsLoading) {
     return (
       <StudentPageShell title="클리닉">
         <div className={styles.loadingStack}>
@@ -505,7 +540,7 @@ export default function ClinicPage() {
     );
   }
 
-  if (sessionsError || requestsError) {
+  if (requestsError) {
     return (
       <StudentPageShell title="클리닉">
         <EmptyState
@@ -517,7 +552,6 @@ export default function ClinicPage() {
             type="button"
             className="stu-btn stu-btn--secondary"
             onClick={() => {
-              refetchSessions();
               refetchRequests();
             }}
           >
@@ -664,6 +698,7 @@ export default function ClinicPage() {
                 <button
                   type="button"
                   className={styles.changeCancelButton}
+                  disabled={mutationsPending}
                   onClick={() => {
                     setChangingBookingId(null);
                     setSelectedSessionIds([]);
@@ -672,6 +707,9 @@ export default function ClinicPage() {
                     setMemo("");
                     setPreferredStart("");
                     setPreferredEnd("");
+                    setBookingStart("");
+                    setBookingEnd("");
+                    setBookingError(null);
                   }}
                 >
                   변경 취소
@@ -701,20 +739,38 @@ export default function ClinicPage() {
                 </div>
               </header>
 
-              <ClinicBookingCalendar
+              {bookingError && selectedSessions.length === 0 && (
+                <p role="alert" className={styles.errorText}>{bookingError}</p>
+              )}
+              {sessionsLoading ? (
+                <div className={`stu-skel ${styles.loadingCard}`} aria-label="열린 일정 불러오는 중" />
+              ) : sessionsError ? (
+                <div>
+                  <EmptyState
+                    title="클리닉 정보를 불러오지 못했습니다"
+                    description="열린 일정을 확인하려면 다시 시도해 주세요."
+                  />
+                  <div className={styles.retryWrap}>
+                    <button type="button" className="stu-btn stu-btn--secondary" onClick={() => refetchSessions()}>
+                      다시 시도
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <ClinicBookingCalendar
                 sessions={orderedSessions}
                 bookings={myRequests}
                 selectedDate={selectedDate}
                 onDateSelect={selectCalendarDate}
-              />
-              {sessionGroups.length === 0 ? (
+                />
+              )}
+              {!sessionsLoading && !sessionsError && sessionGroups.length === 0 && (
                 <div className={styles.noOpenDates} role="status">
                   <strong>지금 예약 가능한 일정이 없습니다</strong>
                   <p>학원에서 일정을 열면 달력에 예약 가능 날짜가 표시됩니다.</p>
                 </div>
-              ) : (
-                <>
-                  {selectedSessionGroup && selectedDateParts && (
+              )}
+              {!sessionsLoading && !sessionsError && selectedSessionGroup && selectedDateParts && (
                     <section
                       className={styles.dateGroup}
                       aria-label={selectedDateParts.ariaLabel}
@@ -734,11 +790,7 @@ export default function ClinicPage() {
                               currentTargetLectureIds,
                             );
                             const currentChangingSession = changingBooking?.session === session.id;
-                            const activeRequest = myRequests.find(
-                              (request) =>
-                                request.session === session.id &&
-                                (request.status === "pending" || request.status === "booked"),
-                            );
+                            const activeRequest = activeRequestsBySession.get(session.id);
                             const policyBlockedBySelection = !changingBooking && !selected && selectedSessions.some(
                               (item) => item.date === session.date,
                             ) && (
@@ -747,15 +799,8 @@ export default function ClinicPage() {
                                 item.date === session.date && item.allow_multi_slot_booking !== true
                               ))
                             );
-                            const policyBlockedByExisting = !selected && activeBookedSessions.some((activeSession) => (
-                              activeSession.id !== session.id && activeSession.id !== changingBooking?.session &&
-                              activeSession.date === session.date &&
-                              (
-                                activeSession.allow_multi_slot_booking !== true ||
-                                session.allow_multi_slot_booking !== true
-                              )
-                            ));
-                            const disabled = full || currentChangingSession || !!activeRequest
+                            const policyBlockedByExisting = conflictsWithExistingBooking(session);
+                            const disabled = mutationsPending || full || currentChangingSession || !!activeRequest
                               || policyBlockedBySelection || policyBlockedByExisting;
                             const remaining = session.booking_mode === "time_range" || session.max_participants == null
                               ? null
@@ -853,9 +898,9 @@ export default function ClinicPage() {
                         {selectedSession?.booking_mode === "time_range" && (
                           <ClinicTimePickerRevealButton pickerHeadingRef={pickerHeadingRef} />
                         )}
-                        {selectedSessionsInGroup.length > 0 && (
+                        {selectedSessions.length > 0 && (
                           <ClinicMultiSlotSelectionPanel
-                            selectedSessions={selectedSessionsInGroup}
+                            selectedSessions={selectedSessions}
                             selectedSession={selectedSession}
                             memo={memo}
                             preferredStart={preferredStart}
@@ -863,25 +908,23 @@ export default function ClinicPage() {
                             bookingStart={bookingStart}
                             bookingEnd={bookingEnd}
                             availability={availabilityQ.data}
-                            availabilityPending={availabilityQ.isLoading}
+                            availabilityPending={availabilityQ.isFetching}
                             availabilityError={availabilityQ.isError}
-                            pending={changeMutation.isPending || bookingMutation.isPending}
+                            pending={mutationsPending}
                             changingBooking={!!changingBooking}
-                            hasError={bookingMutation.isError || changeMutation.isError}
+                            submitError={bookingError}
                             onMemoChange={setMemo}
                             onPreferredStartChange={setPreferredStart}
                             onPreferredEndChange={setPreferredEnd}
                             onBookingStartChange={setBookingStart}
                             onBookingEndChange={setBookingEnd}
                             onAvailabilityRetry={() => availabilityQ.refetch()}
-                            onSubmit={changingBooking ? submitChange : submitBooking}
+                            onSubmit={changingBookingId != null ? submitChange : submitBooking}
                             pickerHeadingRef={pickerHeadingRef}
                           />
                         )}
                       </div>
                     </section>
-                  )}
-                </>
               )}
             </section>
           </>
@@ -922,10 +965,10 @@ export default function ClinicPage() {
                         </div>
                         <ClinicSelfCancelControl
                           booking={request}
-                          isPending={cancelMutation.isPending}
-                          onCancel={(id) => cancelMutation.mutate(id)}
+                          isPending={mutationsPending}
+                          onCancel={cancelBooking}
                         >
-                          <button type="button" onClick={() => startChangingBooking(request)}>
+                          <button type="button" disabled={mutationsPending} onClick={() => startChangingBooking(request)}>
                             일정 바꾸기
                           </button>
                         </ClinicSelfCancelControl>
@@ -964,8 +1007,8 @@ export default function ClinicPage() {
                         </div>
                         <ClinicSelfCancelControl
                           booking={request}
-                          isPending={cancelMutation.isPending}
-                          onCancel={(id) => cancelMutation.mutate(id)}
+                          isPending={mutationsPending}
+                          onCancel={cancelBooking}
                         />
                       </article>
                     );
