@@ -518,11 +518,22 @@ export default function SendMessageModal({
   const videoHomeworkTitles = [...new Set(videoHomeworkPreview?.recipients.flatMap((recipient) => recipient.homework_titles))];
   const unassignedVideoCount = videoHomeworkPreview?.excluded.filter((recipient) => recipient.reason === "no_homework").length ?? 0;
   const otherVideoExcludedCount = (videoHomeworkPreview?.excluded.length ?? 0) - unassignedVideoCount;
-  const eligiblePreflightResults = preflightResults.filter((result) => !(
-    (!videoHomeworkOnly || reviewPendingSend)
-    && result.video_makeup_homework_preview?.recipients.length === 0
-    && result.video_makeup_homework_preview.excluded.length === videoHomeworkStudentIds.length
-  ));
+  const canSkipUnavailableVideoRoute = preflightResults.some((result) => result.can_send && result.recipient.valid_phone > 0)
+    || (reviewPendingSend && Boolean(sendAttempt?.responses.length));
+  const eligiblePreflightResults = preflightResults.filter((result) => {
+    const homework = result.video_makeup_homework_preview;
+    if (!homework) return true;
+    if ((!videoHomeworkOnly || reviewPendingSend) && homework.recipients.length === 0
+      && homework.excluded.length === videoHomeworkStudentIds.length) return false;
+    return !(canSkipUnavailableVideoRoute && result.recipient.valid_phone === 0
+      && result.blockers.length === 1 && result.blockers[0].code === "no_valid_phone");
+  });
+  const videoHomeworkPhoneExclusions = preflightResults.flatMap((result) => {
+    const count = result.recipient.skipped_no_phone;
+    return result.video_makeup_homework_preview && count > 0
+      ? [`${formatSendTargetLabel(result.send_to)} 번호 없음 ${count}건 제외`]
+      : [];
+  });
   const apiPreflightBlockers = eligiblePreflightResults.flatMap((result) => result.blockers);
   const preflightWarnings = preflightResults.flatMap((result) => result.warnings);
   const preflightRecipientStats = preflightResults.reduce(
@@ -672,7 +683,8 @@ export default function SendMessageModal({
         const next: ConfirmPreviewRecipient = {
           studentId: recipient.student_id,
           studentName: recipient.student_name,
-          targetPhones: [{ sendTo: result.send_to, phone: recipient.phone }],
+          targetPhones: result.video_makeup_homework_preview && recipient.excluded
+            ? [] : [{ sendTo: result.send_to, phone: recipient.phone }],
           excluded: recipient.excluded,
           excludeReason: recipient.exclude_reason,
           fullMessageBody: recipient.full_message_body,
@@ -1388,6 +1400,7 @@ export default function SendMessageModal({
                           {videoHomeworkTitles.length > 0 && <p>{videoHomeworkTitles.join(" · ")}</p>}
                           {unassignedVideoCount > 0 && <p>과제 미배정 {unassignedVideoCount}명 제외</p>}
                           {otherVideoExcludedCount > 0 && <p>출결 변경 {otherVideoExcludedCount}명 제외</p>}
+                          {videoHomeworkPhoneExclusions.map((reason) => <p key={reason}>{reason}</p>)}
                         </>
                       ) : videoHomeworkSummaryError ? (
                         <div role="alert">
@@ -1942,9 +1955,13 @@ export default function SendMessageModal({
                 })}
               </div>
             )}
-            {sendsVideoHomework && (unassignedVideoCount > 0 || otherVideoExcludedCount > 0) && (
+            {sendsVideoHomework && (unassignedVideoCount > 0 || otherVideoExcludedCount > 0 || videoHomeworkPhoneExclusions.length > 0) && (
               <p className="send-modal__confirm-note">
-                {[unassignedVideoCount > 0 && `과제 미배정 ${unassignedVideoCount}명 제외`, otherVideoExcludedCount > 0 && `출결 변경 ${otherVideoExcludedCount}명 제외`].filter(Boolean).join(" · ")}
+                {[
+                  unassignedVideoCount > 0 && `과제 미배정 ${unassignedVideoCount}명 제외`,
+                  otherVideoExcludedCount > 0 && `출결 변경 ${otherVideoExcludedCount}명 제외`,
+                  ...videoHomeworkPhoneExclusions.map((reason) => `과제 안내 ${reason}`),
+                ].filter(Boolean).join(" · ")}
               </p>
             )}
 
@@ -1983,8 +2000,8 @@ export default function SendMessageModal({
                     <span className="send-modal__confirm-val">
                       {(() => {
                         const parts: string[] = [];
-                        if (sendToParent) parts.push(`학부모 ${validParentCount}명`);
-                        if (sendToStudent) parts.push(`학생 ${validStudentCount}명`);
+                        if (confirmVideoHomework ? validParentCount > 0 : sendToParent) parts.push(`학부모 ${validParentCount}명`);
+                        if (confirmVideoHomework ? validStudentCount > 0 : sendToStudent) parts.push(`학생 ${validStudentCount}명`);
                         return parts.join(" + ");
                       })()}
                     </span>

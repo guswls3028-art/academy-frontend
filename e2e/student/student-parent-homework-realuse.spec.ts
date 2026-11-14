@@ -424,7 +424,7 @@ async function verifyHomeworkFeedback(
             staffPage.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click(),
           ]);
           const notice = staffPage.getByRole("dialog", { name: "알림톡 발송" });
-          await notice.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
+          await expect(notice.getByRole("checkbox", { name: "학생", exact: true })).toBeChecked();
           checkpoint.phase = "preview-preflight";
           expect(response.status()).toBe(200);
           expect(response.request().postDataJSON()).toMatchObject({
@@ -449,6 +449,7 @@ async function verifyHomeworkFeedback(
             preview_recipients: [{ student_id: previewStudent.id, excluded: false }],
           });
           await expect(notice.getByText("과제 안내 1명", { exact: true })).toBeVisible();
+          await expect(notice.getByText("학생 번호 없음 1건 제외", { exact: true })).toBeVisible();
           checkpoint.phase = "preview-final";
           await notice.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
           const finalNotice = staffPage.getByRole("dialog", { name: "보내기 전 마지막 확인" });
@@ -457,6 +458,7 @@ async function verifyHomeworkFeedback(
           await expect(renderedNotice.locator(".kakao-alimtalk-preview__body"))
             .toHaveText(preflight.preview_recipients[0].full_message_body);
           await expect(finalNotice.getByText("학부모 1명", { exact: true })).toBeVisible();
+          await expect(finalNotice.getByText("과제 안내 학생 번호 없음 1건 제외", { exact: true })).toBeVisible();
           await expect(finalNotice.getByRole("button", { name: "발송하기", exact: true })).toBeInViewport();
           await assertNoHorizontalOverflow(staffPage);
           const name = `real-video-homework-notice-${width}`;
