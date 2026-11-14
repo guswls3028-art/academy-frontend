@@ -169,6 +169,8 @@ export default function OmrReviewWorkspace({
   const [fitMode, setFitMode] = useState(true); // true = 컨테이너 맞춤, false = 100%*zoom
   const [editDirty, setEditDirty] = useState(false);
   const navigationPromptOpen = useRef(false);
+  const selectionState = useRef({ selectedId, editDirty });
+  selectionState.current = { selectedId, editDirty };
   const [retiredId, setRetiredId] = useState<number | null>(null);
   const [focusedQid, setFocusedQid] = useState<number | null>(null);
   const [mobilePane, setMobilePane] = useState<MobilePane>("list");
@@ -343,7 +345,8 @@ export default function OmrReviewWorkspace({
 
   const requestSelection = async (submissionId: number, pane?: MobilePane) => {
     if (navigationPromptOpen.current) return;
-    if (submissionId !== selectedId && editDirty) {
+    const current = selectionState.current;
+    if (submissionId !== current.selectedId && current.editDirty) {
       navigationPromptOpen.current = true;
       const confirmed = await confirm({
         title: "다른 답안지로 이동",
@@ -352,7 +355,7 @@ export default function OmrReviewWorkspace({
         cancelText: "계속 편집",
         danger: true,
       }).finally(() => { navigationPromptOpen.current = false; });
-      if (!confirmed) return;
+      if (!confirmed || selectionState.current.selectedId !== current.selectedId) return;
     }
     setSelectedId(submissionId);
     if (pane) setMobilePane(pane);
@@ -622,7 +625,9 @@ export default function OmrReviewWorkspace({
               // 자동 다음 학생 이동 (운영자 가속)
               if (!exactInitialSelection && result?.code !== "OMR_GRADING_CONFIGURATION_REQUIRED") {
                 window.setTimeout(() => {
-                  setSelectedId((current) => current === selectedId ? adjacentSubmissionId(current, 1) ?? current : current);
+                  const current = selectionState.current;
+                  if (current.selectedId !== selectedId || current.editDirty) return;
+                  setSelectedId(adjacentSubmissionId(selectedId, 1) ?? selectedId);
                 }, 250);
               }
               return detailRefetch;
