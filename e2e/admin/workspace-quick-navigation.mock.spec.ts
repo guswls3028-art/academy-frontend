@@ -167,6 +167,14 @@ test.describe("업무 화면 기능 검색", () => {
     await guide.scrollIntoViewIfNeeded();
     await expect(guide).toBeInViewport();
     await expect(page).toHaveURL(/\/workspace\/guide$/);
+
+    await page.getByRole("button", { name: "사이드바 토글" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-sidebar", "collapsed");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole("button", { name: "메뉴", exact: true }).click();
+    await expect(learning.getByText("학습·운영", { exact: true })).toBeVisible();
+    await learning.click();
+    await expect(menu.getByRole("link", { name: "시험", exact: true })).toBeVisible();
   });
 
   test("관리 분류 권한 조회 실패는 안내와 재시도로 복구한다", async ({ page }) => {

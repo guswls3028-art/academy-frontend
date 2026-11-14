@@ -37,6 +37,10 @@ export default function Sidebar() {
   useEffect(() => {
     applySidebarLayout(collapsed);
     safeSetCollapsed(collapsed);
+    return () => {
+      document.documentElement.removeAttribute("data-sidebar");
+      document.documentElement.style.removeProperty("--sidebar-width");
+    };
   }, [collapsed]);
 
   useEffect(() => {
