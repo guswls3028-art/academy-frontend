@@ -8,12 +8,10 @@
 import { memo, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, Maximize2, Minus, Plus, RotateCcw, X } from "lucide-react";
 import { ICON } from "@/shared/ui/ds";
-import type {
-  HitReportCandidate,
-  HitReportExamProblem,
-} from "../../../api/matchup.api";
+import type { HitReportExamProblem } from "../../../api/matchup.api";
 import {
   classifyMatch,
+  displayedSimilarity,
   TIER_BG,
   TIER_COLOR,
   TIER_LABEL,
@@ -61,14 +59,12 @@ function PreviewPaneInner({
   const singleActiveCand = activeCandidateId != null ? candidateMap.get(activeCandidateId) : null;
   const groupBestCand = selectedCandidates.reduce<CandidateMeta | null>((best, cand) => {
     if (!best) return cand;
-    const bestSim = "similarity" in best ? best.similarity : -1;
-    const candSim = "similarity" in cand ? cand.similarity : -1;
+    const bestSim = displayedSimilarity(active, best) ?? -1;
+    const candSim = displayedSimilarity(active, cand) ?? -1;
     return candSim > bestSim ? cand : best;
   }, null);
   const activeCand = showSelectedGroup ? groupBestCand : singleActiveCand;
-  const sim: number | null = activeCand && "similarity" in activeCand
-    ? (activeCand as HitReportCandidate).similarity
-    : null;
+  const sim = activeCand ? displayedSimilarity(active, activeCand) : null;
   const tier: Tier = sim != null ? classifyMatch(sim) : "miss";
   const labelText = showSelectedGroup
     ? `선택 자료 ${selectedCandidates.length}건${sim != null ? `  ·  최고 ${(sim * 100).toFixed(1)}%` : ""}`
@@ -155,7 +151,7 @@ function PreviewPaneInner({
           onOpenZoom={openZoom}
         />
         {showSelectedGroup ? (
-          <PreviewMatchRail candidates={selectedCandidates} onOpenZoom={openZoom} />
+          <PreviewMatchRail problem={active} candidates={selectedCandidates} onOpenZoom={openZoom} />
         ) : (
           <PreviewSubPane
             captionLabel="내 수업 자료"
@@ -224,8 +220,9 @@ function candidateDocTitle(candidate: CandidateMeta): string {
 }
 
 function PreviewMatchRail({
-  candidates, onOpenZoom,
+  problem, candidates, onOpenZoom,
 }: {
+  problem: HitReportExamProblem;
   candidates: CandidateMeta[];
   onOpenZoom: (item: PreviewZoomItem) => void;
 }) {
@@ -281,20 +278,20 @@ function PreviewMatchRail({
         gap: 8,
       }}>
         {candidates.map((candidate, index) => {
-          const sim = "similarity" in candidate ? candidate.similarity : 0;
-          const tier = "similarity" in candidate ? classifyMatch(sim) : "miss";
+          const sim = displayedSimilarity(problem, candidate);
+          const tier = sim != null ? classifyMatch(sim) : "miss";
           const label = `내 수업 자료 ${index + 1}/${candidates.length}`;
           const sub = [
             `${candidateDocTitle(candidate)}  ·  Q${candidate.number}`,
-            "similarity" in candidate ? `${(sim * 100).toFixed(1)}%` : "",
+            sim != null ? `${(sim * 100).toFixed(1)}%` : "유사도 정보 없음",
           ].filter(Boolean).join("  ·  ");
           return (
             <PreviewSubPane
               key={candidate.id}
               captionLabel={label}
               captionSub={sub}
-              captionColor={"similarity" in candidate ? TIER_COLOR[tier] : "#94A3B8"}
-              captionBg={"similarity" in candidate ? TIER_BG[tier] : "#F1F5F9"}
+              captionColor={TIER_COLOR[tier]}
+              captionBg={TIER_BG[tier]}
               imageUrl={candidate.image_url || null}
               placeholderText="이미지가 없습니다"
               paneStyle={shouldFitRows ? undefined : { minHeight: 320 }}
