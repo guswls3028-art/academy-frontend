@@ -363,7 +363,7 @@ export default function SendMessageModal({
   const videoHomeworkOnly = studentIds.length === 0 && videoHomeworkStudentIds.length > 0;
   const sendsVideoHomework = videoHomeworkOnly || includeVideoHomework;
   const hasRecipients = studentIds.length > 0 || sendsVideoHomework;
-  const recipientCount = studentIds.length + (sendsVideoHomework ? videoHomeworkStudentIds.length : 0);
+  const recipientCount = videoHomeworkOnly ? videoHomeworkStudentIds.length : studentIds.length;
   const sendToTargets: SendToType[] = (() => {
     const t: SendToType[] = [];
     if (sendToParent) t.push("parent");
@@ -703,10 +703,11 @@ export default function SendMessageModal({
     preflightResultKey === preflightKey && preflightPreviewReady && !preflightLoading && !preflightError
       ? confirmSendableRecipients[0] ?? null
       : null;
-  const confirmExcludedCount = Math.max(0, serverPreviewRecipients.length - confirmSendableRecipients.length);
-  const validParentCount = preflightResults.reduce((count, result) => count + (result.send_to === "parent" ? result.recipient.valid_phone : 0), 0);
-  const validStudentCount = preflightResults.reduce((count, result) => count + (result.send_to === "student" ? result.recipient.valid_phone : 0), 0);
   const confirmGroupRecipients = confirmSendableRecipients.filter((recipient) => recipient.videoHomework === confirmVideoHomework);
+  const confirmGroupResults = preflightResults.filter((result) => Boolean(result.video_makeup_homework_preview) === confirmVideoHomework);
+  const confirmExcludedCount = serverPreviewRecipients.filter((recipient) => recipient.videoHomework === confirmVideoHomework && recipient.excluded).length;
+  const validParentCount = confirmGroupResults.find((result) => result.send_to === "parent")?.recipient.valid_phone ?? 0;
+  const validStudentCount = confirmGroupResults.find((result) => result.send_to === "student")?.recipient.valid_phone ?? 0;
   const hasVideoHomeworkToConfirm = confirmSendableRecipients.some((recipient) => recipient.videoHomework);
   const confirmPreviewRecipient =
     confirmGroupRecipients.find((recipient) => recipient.studentId === confirmPreviewStudentId)
@@ -1430,7 +1431,7 @@ export default function SendMessageModal({
               )}
 
               {/* 일괄 발송 안내 — 변수 치환 인지 보조 */}
-              {hasRecipients && recipientCount > 1 && (
+              {!videoHomeworkOnly && recipientCount > 1 && (
                 <div className="send-modal__bulk-hint">
                   <div className="send-modal__bulk-hint-title">
                     일괄 발송 · {recipientCount}명
@@ -1896,6 +1897,7 @@ export default function SendMessageModal({
           <div
             ref={confirmDialogRef}
             className="send-modal__confirm-card"
+            data-video-homework={sendsVideoHomework}
             role="dialog"
             aria-modal="true"
             aria-labelledby="send-modal-confirm-title"

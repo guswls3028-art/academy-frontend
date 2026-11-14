@@ -457,16 +457,19 @@ test.describe("성적 알림톡 학생별 개인화", () => {
       await modal.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
       await option.check();
       await expect(modal.getByText("과제 미배정 1명 제외")).toBeVisible();
+      await expect(modal.getByRole("textbox", { name: "안내문" })).toBeVisible();
       await page.screenshot({ path: testInfo.outputPath(`score-video-option-${width}.png`) });
 
       await modal.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
       const confirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
       const preview = confirm.getByLabel("카카오톡 실제 발송 미리보기");
       await expect(preview).toContainText("개인화학생1");
-      await confirm.getByRole("button", { name: "과제 안내 1명" }).click();
+      await confirm.getByRole("button", { name: "과제 안내 확인", exact: true }).click();
       await expect(preview).toContainText("과제: 단원 복습");
       await expect(confirm.getByText("개인화학생4").first()).toBeVisible();
+      await expect(confirm.getByText("학부모 1명", { exact: true })).toBeVisible();
       await expect(preview).not.toContainText("개인화학생1");
+      await expect(confirm.getByRole("button", { name: "발송하기", exact: true })).toBeInViewport();
       await expect.poll(() => confirm.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
       await page.screenshot({ path: testInfo.outputPath(`score-video-confirm-${width}.png`) });
       if (width === 390) {
