@@ -3,7 +3,8 @@
  * 홈: 시험 성적 / 과제 현황 목록
  * 통계: 점수 추이, 합격률, 과제 진행 분석
  */
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense } from "react";
+import { useSearchParams } from "react-router";
 import DomainTabShell from "@student/shared/ui/pages/DomainTabShell";
 import EmptyState from "@student/layout/EmptyState";
 import { IconGrade } from "@student/shared/ui/icons/Icons";
@@ -26,7 +27,16 @@ const TABS = [
 ];
 
 export default function GradesPage() {
-  const [tab, setTab] = useState("home");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") === "stats" ? "stats" : "home";
+  const setTab = (key: string) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (key === "stats") next.set("tab", "stats");
+      else next.delete("tab");
+      return next;
+    }, { replace: true });
+  };
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const { data, isLoading, isError, refetch } = useMyGradesSummary();
   const reportLayout = data?.report_layout ?? defaultStudentGradeReportLayout();
@@ -65,6 +75,7 @@ export default function GradesPage() {
       tabs={TABS}
       activeTab={tab}
       onTabChange={setTab}
+      noSearchParam
     >
       {isLoading && <Skeletons />}
 

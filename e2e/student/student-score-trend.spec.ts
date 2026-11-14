@@ -514,8 +514,6 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
         await homework.scrollIntoViewIfNeeded();
         await page.screenshot({ path: testInfo.outputPath(`completion-only-${viewer}-${width}.png`) });
         await page.getByRole("tab", { name: "요약", exact: true }).click();
-        await expect(page).toHaveURL(url => !url.searchParams.has("tab"));
-        await expect(page.getByRole("tab", { name: "요약", exact: true })).toHaveAttribute("aria-selected", "true");
         await page.getByRole("button", { name: "과제 현황 2" }).click();
         const homeworkSummaryUrl = (url: URL) => url.searchParams.get("view") === "homework" && !url.searchParams.has("tab");
         await expect(page).toHaveURL(homeworkSummaryUrl);
@@ -529,6 +527,12 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
         await expect(page).toHaveURL(homeworkSummaryUrl);
         await expect(page.getByText("확인할 과제가 없습니다.", { exact: true })).toBeVisible();
         await expect(page.getByText(/모든 과제를 완료했습니다/)).toBeVisible();
+        await page.getByRole("link", { name: "학생 대시보드로 이동", exact: true }).click();
+        await expect(page).toHaveURL(/\/student\/dashboard/);
+        await page.goBack();
+        await expect(page).toHaveURL(homeworkSummaryUrl);
+        await expect(page.getByRole("tab", { name: "요약", exact: true })).toHaveAttribute("aria-selected", "true");
+        await expect(page.getByRole("button", { name: "과제 현황 2", exact: true })).toHaveAttribute("aria-pressed", "true");
       });
     }
   }
