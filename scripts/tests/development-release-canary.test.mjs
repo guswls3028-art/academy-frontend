@@ -3186,11 +3186,11 @@ test("APIRequestContext retries one transport rejection only for GET/HEAD and re
 
 test("only the reviewed canary screen observation schemas are permitted", () => {
   const url = "https://api.hakwonplus.com/api/v1/students/me/activity/";
-  for (const screen_id of ["student.dashboard.home", "student.session.list", "student.grades.home", "student.guide.home", "student.assignment.submit"]) {
+  for (const screen_id of ["student.dashboard.home", "student.session.list", "student.grades.home", "student.exam.list", "student.video.home", "student.clinic.home", "student.guide.home", "student.assignment.submit"]) {
     for (const device_class of ["desktop", "tablet", "mobile"]) {
       const valid = { screen_id, device_class };
       assert.equal(assertReleaseRequestSafe(production, url, "POST", production.tenantCode, valid), "observation");
-      for (const data of [undefined, {}, [], { ...valid, score: 100 }, { ...valid, homework_id: 1 }, { ...valid, screen_id: "student.video.player" }, { ...valid, screen_id: "student.session.detail" }, { ...valid, screen_id: "student.grades.unknown" }, { ...valid, screen_id: "student.guide.unknown" }, { ...valid, screen_id: [screen_id] }, { ...valid, device_class: "unknown" }, { ...valid, device_class: [device_class] }]) {
+      for (const data of [undefined, {}, [], { ...valid, score: 100 }, { ...valid, homework_id: 1 }, { ...valid, screen_id: "student.video.player" }, { ...valid, screen_id: "student.exam.result" }, { ...valid, screen_id: "student.session.detail" }, { ...valid, screen_id: "student.grades.unknown" }, { ...valid, screen_id: "student.guide.unknown" }, { ...valid, screen_id: [screen_id] }, { ...valid, device_class: "unknown" }, { ...valid, device_class: [device_class] }]) {
         assert.throws(() => assertReleaseRequestSafe(production, url, "POST", production.tenantCode, data), /observation payload/);
       }
       for (const tenant of [undefined, "foreign-tenant"]) {
@@ -3200,6 +3200,8 @@ test("only the reviewed canary screen observation schemas are permitted", () => 
         assert.throws(() => assertReleaseRequestSafe(production, url, method, production.tenantCode, valid), /mutation refused/);
       }
       assert.throws(() => assertReleaseRequestSafe(production, `${url}homework-open/`, "POST", production.tenantCode, { homework_id: 1 }), /mutation refused/);
+      assert.throws(() => assertReleaseRequestSafe(production, `${production.apiOrigin}/api/v1/clinic/participants/bulk-create/`,
+        "POST", production.tenantCode, { session_ids: [1] }), /mutation refused/);
     }
   }
 });
@@ -3562,6 +3564,73 @@ test("context teardown counts an aborted in-flight API request as closingAborts,
   await teardown.handler(webRequest.route);
   assert.equal(webRequest.wasAborted(), "aborted", "a non-API request is still aborted on teardown");
   assert.equal(teardown.guard.transport.closingAborts, 1, "but only an API-origin abort extends the strict-browser suppression cap");
+});
+
+test("production browser guard relays only signed JPEGs found in the authenticated video catalog", async () => {
+  const production = releaseBoundaryFromEnv({ E2E_RELEASE_API_MODE: "readonly", E2E_ALLOW_PRODUCTION_WRITES: "0",
+    E2E_BASE_URL: "https://hakwonplus.com", E2E_API_URL: "https://api.hakwonplus.com", E2E_TENANT_CODE: "hakwonplus" });
+  const catalogUrl = `${production.apiOrigin}/api/v1/student/video/me/`;
+  const thumbnail = `https://cdn.hakwonplus.com/tenants/1/video/hls/20/thumbnail.jpg?v=10&exp=2000000000&sig=${"a".repeat(43)}&kid=v1`;
+  const fixture = async ({ catalogThumbnail = thumbnail, register = true } = {}) => {
+    let handler;
+    const guard = await installReleaseContextGuard({
+      request: Object.fromEntries(["fetch", "get", "head", "post", "put", "patch", "delete"].map((verb) => [verb, async () => {}])),
+      on() {}, route: async (_pattern, next) => { handler = next; },
+    }, production);
+    const makeRequest = ({ url, method = "GET", resourceType = "image", headers = {}, frame = `${production.webOrigin}/student/video`,
+      status = 200, contentType = "image/jpeg", catalog } = {}) => {
+      const fetched = [], fulfilled = [], aborted = [];
+      const response = { status: () => status, headers: () => ({ "content-type": contentType,
+        "access-control-allow-origin": production.webOrigin, "access-control-allow-credentials": "true" }), json: async () => catalog };
+      return { fetched, fulfilled, aborted, value: {
+        request: () => ({ url: () => url, method: () => method, resourceType: () => resourceType,
+          frame: () => ({ url: () => frame }), postDataJSON: () => null,
+          allHeaders: async () => ({ ...headers }), headerValue: async (name) => headers[name] }),
+        fetch: async (options) => { fetched.push(options); return response; },
+        fulfill: async (options) => { fulfilled.push(options); },
+        abort: async (reason) => { aborted.push(reason); },
+      } };
+    };
+    if (register) {
+      const listing = makeRequest({ url: catalogUrl, resourceType: "xhr", contentType: "application/json",
+        headers: { origin: production.webOrigin, "x-tenant-code": production.tenantCode, authorization: "Bearer fixture" },
+        catalog: { public: null, lectures: [{ thumbnail_url: catalogThumbnail }] } });
+      await handler(listing.value);
+      assert.equal(listing.fulfilled.length, 1);
+    }
+    return { handler, guard, makeRequest };
+  };
+
+  const { handler, guard, makeRequest } = await fixture();
+  const image = makeRequest({ url: thumbnail });
+  await handler(image.value);
+  assert.deepEqual(image.fetched, [{ maxRedirects: 0, timeout: 15_000, headers: { accept: "image/jpeg" } }]);
+  assert.equal(image.fulfilled.length, 1);
+  assert.doesNotThrow(() => guard.assertClean());
+
+  for (const { options, change, code, reachedCdn = false } of [
+    { options: { register: false }, change: {}, code: "origin" },
+    { change: { url: thumbnail.replace("/20/", "/21/") }, code: "origin" },
+    { options: { catalogThumbnail: `${thumbnail}&v=20` }, change: { url: `${thumbnail}&v=20` }, code: "origin" },
+    { options: { catalogThumbnail: thumbnail.replace("cdn.hakwonplus.com", "example.org") },
+      change: { url: thumbnail.replace("cdn.hakwonplus.com", "example.org") }, code: "origin" },
+    { change: { resourceType: "document" }, code: "origin" },
+    { change: { method: "POST" }, code: "origin" },
+    { change: { frame: `${production.webOrigin}/student/grades` }, code: "origin" },
+    { change: { headers: { authorization: "Bearer blocked" } }, code: "credentials" },
+    { change: { headers: { cookie: "blocked" } }, code: "credentials" },
+    { change: { status: 302 }, code: "catalog-thumbnail-response", reachedCdn: true },
+    { change: { status: 403 }, code: "catalog-thumbnail-response", reachedCdn: true },
+    { change: { contentType: "text/html" }, code: "catalog-thumbnail-response", reachedCdn: true },
+  ]) {
+    const invalid = await fixture(options);
+    const request = invalid.makeRequest({ url: thumbnail, ...change });
+    await invalid.handler(request.value);
+    assert.equal(request.fetched.length, reachedCdn ? 1 : 0);
+    assert.deepEqual(request.fulfilled, []);
+    assert.deepEqual(request.aborted, ["blockedbyclient"]);
+    assert.throws(() => invalid.guard.assertClean(), new RegExp(`Release request rejected \\[${code}\\]`));
+  }
 });
 
 test("production browser guard locally neutralizes only exact non-business telemetry", async () => {

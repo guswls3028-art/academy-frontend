@@ -45,10 +45,23 @@ async function verifyStudentAnalysisAndVideo(page: Page) {
   await expect(examAnalysis).toHaveAttribute("aria-selected", "true");
   await expect(examReady).toBeVisible();
 
-  await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "영상", exact: true }).click();
+  const [videoResponse] = await Promise.all([
+    page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/student/video/me/" && response.ok()),
+    page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "영상", exact: true }).click(),
+  ]);
   await expect(page).toHaveURL(`${BASE}/student/video`);
   const catalog = page.getByRole("tabpanel", { name: "강의", exact: true });
   await expect(catalog.locator(".video-course-grid").or(catalog.getByText("등록된 영상이 없습니다", { exact: true }))).toBeVisible();
+  const videoCatalog = await videoResponse.json() as {
+    public?: { thumbnail_url?: string | null } | null;
+    lectures?: { thumbnail_url?: string | null }[];
+  };
+  if ([videoCatalog.public, ...(videoCatalog.lectures ?? [])].some((item) =>
+    /^https:\/\/cdn\.hakwonplus\.com\/tenants\/\d+\/video\/hls\/\d+\/thumbnail\.jpg\?/.test(item?.thumbnail_url ?? ""))) {
+    const poster = catalog.locator('img[src^="https://cdn.hakwonplus.com/"][src*="/thumbnail.jpg?"]').first();
+    await poster.scrollIntoViewIfNeeded();
+    await expect.poll(() => poster.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+  }
   await page.getByRole("tab", { name: "통계", exact: true }).click();
   const videoStats = page.getByRole("tabpanel", { name: "통계", exact: true });
   await expect(videoStats.getByText("학습 완주율", { exact: true })
@@ -110,6 +123,22 @@ async function verifyGuideJourney(
       await verifyFeatureGuideImages(page, testInfo, `live-guide-${guide.scope}-${width}-feature-reader`);
     }
   }
+}
+
+async function verifyStudentClinicSchedule(page: Page) {
+  const completedClinicRead = (path: string) => page.waitForResponse((response) =>
+    new URL(response.url()).pathname === path && response.request().method() === "GET" && response.status() === 200);
+  await Promise.all([
+    completedClinicRead("/api/v1/clinic/sessions/"),
+    completedClinicRead("/api/v1/clinic/participants/"),
+    page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" }),
+  ]);
+  await expect(page.getByRole("grid", { name: "클리닉 월간 일정" })).toBeVisible();
+  const schedule = page.getByRole("tab", { name: /^내 일정(?:\s+\d+)?$/ });
+  await schedule.click();
+  await expect(schedule).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { name: "내 일정", exact: true })).toBeVisible();
+  expect(await page.locator("html").evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
 }
 
 function trackedHostnames(): Set<string> {
@@ -295,6 +324,7 @@ test.describe("Production canary", () => {
       await page.setViewportSize({ width, height: 900 });
       await verifyStudentLearningSummary(page, BASE);
       await verifyStudentAnalysisAndVideo(page);
+      if (process.env.E2E_RELEASE_API_MODE === "readonly") await verifyStudentClinicSchedule(page);
     }
 
     expect(page.url()).toMatch(/\/student(\/|$)/);
