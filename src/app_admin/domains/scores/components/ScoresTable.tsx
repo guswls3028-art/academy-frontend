@@ -1241,6 +1241,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           학원장 캡처에서 헤더 위 "+OMR +OMR" 줄이 시각 노이즈 + 툴바 OMR 버튼과 중복.
           전체 시험 대상 업로드는 툴바, 한 시험의 업로드는 시험명 작업 화면에서 제공한다. */}
     <DomainTable
+      scrollLabel="차시 성적표"
       tableClassName="ds-table--flat ds-table--center ds-scores-table"
       tableStyle={{ tableLayout: "fixed", width: tableWidth, ...stickyColumnVars }}
       dataAttributes={{

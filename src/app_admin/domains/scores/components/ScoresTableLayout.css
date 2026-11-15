@@ -1,4 +1,16 @@
 .scores-table-layout { min-width: 0; max-width: 100%; }
+.scores-table-layout > .ds-table-wrap {
+  max-block-size: 70vh;
+  max-block-size: 70dvh;
+  overflow: auto;
+  scroll-padding-block-start: var(--scores-table-header-height, 0px);
+}
+.scores-table-layout .ds-scores-table thead {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 10;
+  background: var(--color-bg-surface);
+}
 .scores-table-layout-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-bottom: 8px; }
 @media (max-width: 520px) {
   .scores-table-layout-controls .ds-button { min-height: 44px !important; }

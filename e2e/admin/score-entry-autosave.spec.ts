@@ -1603,6 +1603,68 @@ test("완료형 과제 셀은 focus 시 version을 고정해 원격 저장 뒤 s
   }
 });
 
+for (const width of [1366, 390]) {
+  test(`성적표 제목을 고정하고 하단 학생의 첫 과제 점수를 상세에서 저장한다 (${width}px)`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await openScores(page, {
+      includeHomework: true,
+      homeworkAssignedRows: Array(24).fill(true),
+      initialScores: [50, ...Array(23).fill(null)],
+      initialHomeworkScores: Array(24).fill(null),
+    });
+    const table = page.getByRole("region", { name: "차시 성적표" });
+    const title = table.getByRole("columnheader", { name: /단원 복습/ });
+    await table.scrollIntoViewIfNeeded();
+    await table.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+    await expect.poll(async () => {
+      const top = await table.boundingBox();
+      const header = await title.boundingBox();
+      return top && header && Math.abs(top.y - header.y) < 3;
+    }).toBe(true);
+    expect(await table.evaluate((element) => element.scrollTop)).toBeGreaterThan(300);
+    if (width === 390) {
+      const cell = table.locator('[data-score-cell="homework:9224:9151"]');
+      await cell.scrollIntoViewIfNeeded();
+      await expect(title).toBeInViewport();
+      const [headerBox, cellBox] = await Promise.all([title.boundingBox(), cell.boundingBox()]);
+      expect(Math.abs(headerBox!.x - cellBox!.x)).toBeLessThan(2);
+      await table.evaluate((element) => { element.scrollLeft = 0; });
+    }
+
+    await table.getByText("자동저장학생24", { exact: true }).click();
+    const drawer = page.getByRole("complementary", { name: /자동저장학생24 학생 상세/ });
+    await drawer.getByRole("button", { name: /^단원 복습/ }).click();
+    await drawer.getByRole("button", { name: "점수 입력", exact: true }).click();
+    const editor = drawer.getByRole("form", { name: "단원 복습 점수 입력" });
+    const input = editor.getByRole("spinbutton", { name: "과제 점수" });
+    await expect(input).toBeFocused();
+    await input.fill("101");
+    await input.press("Enter");
+    await expect(drawer.getByRole("alert")).toContainText("0점부터 100점까지");
+    expect(homeworkPatches).toHaveLength(0);
+
+    await page.route("**/homework/scores/quick/", (route) => route.fulfill({
+      status: 400,
+      json: { detail: "과제 점수를 다시 저장해 주세요." },
+    }), { times: 1 });
+    await input.fill("72.5");
+    await editor.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(drawer.getByRole("alert")).toHaveText("과제 점수를 다시 저장해 주세요.");
+    await expect(input).toHaveValue("72.5");
+    await page.screenshot({ path: testInfo.outputPath(`homework-drawer-retry-${width}.png`) });
+    await editor.getByRole("button", { name: "저장", exact: true }).click();
+    await expect(drawer.getByRole("button", { name: /^단원 복습/ })).toContainText("72.5");
+    expect(homeworkPatches).toEqual([expect.objectContaining({
+      enrollment_id: 9224, homework_id: 9151, score: 72.5, expected_updated_at: null,
+    })]);
+    expect(currentHomeworkScores.slice(0, 23).every((score) => score === null)).toBe(true);
+    await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toHaveCount(0);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(table.locator('[data-score-cell="homework:9224:9151"]')).toContainText("72.5");
+  });
+}
+
 test("학생 상세 1차 과제 편집은 시작 version을 고정해 원격 저장을 덮어쓰지 않는다", async ({ browser }) => {
   test.setTimeout(300_000);
   const contextA = await browser.newContext({ serviceWorkers: "block" });
@@ -1624,9 +1686,9 @@ test("학생 상세 1차 과제 편집은 시작 version을 고정해 원격 저
     const drawer = pageB.getByRole("complementary", { name: /자동저장학생1 학생 상세/ });
     await expect(drawer).toBeVisible();
     await drawer.getByRole("button", { name: /^단원 복습/ }).click();
-    const attemptCard = drawer.locator(".ssd-attempt-card").filter({ hasText: "1차 과제" });
-    await attemptCard.getByTitle("점수 수정").click();
-    const drawerScoreInput = attemptCard.getByRole("spinbutton").first();
+    await drawer.getByRole("button", { name: "점수 수정", exact: true }).click();
+    const editor = drawer.getByRole("form", { name: "단원 복습 점수 수정" });
+    const drawerScoreInput = editor.getByRole("spinbutton");
     await expect(drawerScoreInput).toHaveValue("10");
 
     let pageBObservedHomeworkScore: number | null | undefined;
@@ -1648,14 +1710,14 @@ test("학생 상세 1차 과제 편집은 시작 version을 고정해 원격 저
     await expect(drawerScoreInput).toHaveValue("10");
 
     await drawerScoreInput.fill("88");
-    await attemptCard.getByRole("button", { name: "저장", exact: true }).click();
-    const conflict = attemptCard.getByRole("alert").filter({ hasText: "최신 서버값 77" });
+    await editor.getByRole("button", { name: "저장", exact: true }).click();
+    const conflict = editor.getByRole("alert").filter({ hasText: "최신 서버값 77" });
     await expect(conflict).toContainText("내 입력 88");
     await expect(drawerScoreInput).toHaveValue("88");
     expect(currentHomeworkScores[0]).toBe(77);
 
     await conflict.getByRole("button", { name: "내 점수 다시 적용" }).click();
-    await attemptCard.getByRole("button", { name: "저장", exact: true }).click();
+    await editor.getByRole("button", { name: "저장", exact: true }).click();
     await expect.poll(() => currentHomeworkScores[0]).toBe(88);
 
     await pageA.reload({ waitUntil: "domcontentloaded", timeout: 90_000 });
