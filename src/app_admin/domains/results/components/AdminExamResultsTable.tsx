@@ -82,10 +82,10 @@ export default function AdminExamResultsTable({
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
         <input
           type="search"
-          className="ds-input col-span-2 h-9 min-w-0 text-sm"
+          className="ds-input col-span-2 h-9 min-w-0 text-sm sm:col-span-1"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="학생 이름 검색"
@@ -135,6 +135,8 @@ export default function AdminExamResultsTable({
             <button
               key={r.enrollment_id}
               type="button"
+              aria-label={`${r.student_name} 답안 상세`}
+              aria-haspopup="dialog"
               className="grid min-h-16 w-full grid-cols-[44px_minmax(0,1fr)] items-center gap-x-2.5 gap-y-1.5 border-b border-[var(--border-divider)] px-2 py-2.5 text-left last:border-b-0 hover:bg-[var(--color-bg-surface-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-border-focus)]"
               onClick={() => onSelectEnrollment(r.enrollment_id)}
             >
@@ -255,6 +257,16 @@ export default function AdminExamResultsTable({
 
                 {/* eslint-disable-next-line no-restricted-syntax */}
                 <td style={{ textAlign: "left" }}>
+                  <button
+                    type="button"
+                    className="inline-flex min-h-9 max-w-full items-center rounded-md text-left hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-border-focus)]"
+                    aria-label={`${r.student_name} 답안 상세`}
+                    aria-haspopup="dialog"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onSelectEnrollment(r.enrollment_id);
+                    }}
+                  >
                   <StudentNameWithLectureChip
                     name={r.student_name}
                     lectures={r.lecture_title ? [{ lectureName: r.lecture_title, color: r.lecture_color, chipLabel: r.lecture_chip_label }] : undefined}
@@ -263,6 +275,7 @@ export default function AdminExamResultsTable({
                     clinicHighlight={r.name_highlight_clinic_target}
                     examNotSubmittedCount={r.exam_not_submitted_count}
                   />
+                  </button>
                 </td>
 
                 {/* eslint-disable-next-line no-restricted-syntax */}

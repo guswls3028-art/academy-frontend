@@ -43,6 +43,7 @@ import {
 } from "../utils/choiceAnswerMatching";
 import type { AnswerEditController } from "./useAnswerEditQueue";
 import StudentResultAnswerEditor from "./StudentResultAnswerEditor";
+import { useDialogSurface } from "@/shared/ui/overlays/useDialogSurface";
 export type { AnswerEditController } from "./useAnswerEditQueue";
 
 function toBadgeTone(t: ReturnType<typeof achievementTone>): BadgeTone {
@@ -287,6 +288,9 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   };
   const exitEdit = () => { void finishEditing(false); };
   const closeDrawer = () => { void finishEditing(true); };
+  const compact = readOnly && !onRequestEdit;
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogSurface(compact, dialogRef, closeDrawer);
 
   useEffect(() => {
     if (readOnly && !editorRef.current?.hasPending()) setIsEditMode(false);
@@ -337,7 +341,15 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
     <>
       <div className="srd-modal-backdrop" onClick={closeDrawer} aria-hidden />
       <div className="srd-modal-wrap">
-        <div className="srd-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <div
+          ref={dialogRef}
+          className={compact ? "srd-modal srd-modal--compact" : "srd-modal"}
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${studentName} 답안 상세`}
+          tabIndex={-1}
+        >
           <CloseButton className="srd-modal__close" onClick={closeDrawer} />
 
           {/* ── 헤더 ── */}

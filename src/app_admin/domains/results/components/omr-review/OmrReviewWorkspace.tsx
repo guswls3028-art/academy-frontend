@@ -51,6 +51,7 @@ import {
   type SubmissionManualEditResult,
 } from "@admin/domains/materials/sheets/components/submissions/submissions.api";
 import StudentPickerModal from "./StudentPickerModal";
+import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import BBoxOverlay from "./BBoxOverlay";
 import { OmrReviewReasons } from "./OmrReviewReasons";
@@ -161,6 +162,7 @@ export default function OmrReviewWorkspace({
   onOpenUpload,
 }: Props) {
   const qc = useQueryClient();
+  const { sessionId } = useLectureSessionParams();
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
@@ -193,27 +195,28 @@ export default function OmrReviewWorkspace({
   }, [editDirty, onClose, confirm]);
 
   // 리스트
+  const listQueryKey = adminResultsQueryKeys.omrReviewList(examId, sessionId);
   const {
     data: recentRows = [],
     isLoading: listLoading,
     isError: listError,
     refetch: refetchList,
   } = useQuery({
-    queryKey: adminResultsQueryKeys.omrReviewList(examId),
-    queryFn: () => listOmrReviewRows(examId),
+    queryKey: listQueryKey,
+    queryFn: () => listOmrReviewRows(examId, sessionId),
     enabled: open && Number.isFinite(examId),
     refetchInterval: open ? 8000 : false,
   });
   const issues = useInfiniteQuery({
-    queryKey: adminResultsQueryKeys.omrReviewIssuesPages(examId),
-    queryFn: ({ pageParam }) => listOmrReviewIssuesPage(examId, { cursor: pageParam }),
+    queryKey: adminResultsQueryKeys.omrReviewIssuesPages(examId, sessionId),
+    queryFn: ({ pageParam }) => listOmrReviewIssuesPage(examId, { cursor: pageParam, sessionId }),
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (page) => page.next_cursor ?? undefined,
     enabled: open && Number.isFinite(examId),
   });
   const focusedIssue = useQuery({
-    queryKey: adminResultsQueryKeys.omrReviewIssuesFocus(examId, initialSubmissionId),
-    queryFn: () => listOmrReviewIssuesPage(examId, { focusId: initialSubmissionId }),
+    queryKey: adminResultsQueryKeys.omrReviewIssuesFocus(examId, initialSubmissionId, sessionId),
+    queryFn: () => listOmrReviewIssuesPage(examId, { focusId: initialSubmissionId, sessionId }),
     enabled: open && initialSubmissionId != null,
   });
   const rows = useMemo(() => {
@@ -556,8 +559,9 @@ export default function OmrReviewWorkspace({
 
           {/* ── RIGHT: 답안 편집 ── */}
           <EditPane
-            key={selectedId ?? "empty"}
+            key={`${sessionId ?? "exam"}:${selectedId ?? "empty"}`}
             examId={examId}
+            sessionId={sessionId}
             detail={detail}
             reviewRow={selectedRow}
             archived={selectedArchived}
@@ -574,7 +578,7 @@ export default function OmrReviewWorkspace({
               setEditDirty(false);
               const savedScore = scoreFromManualEditResult(result);
               if (selectedId != null) {
-                qc.setQueryData<OmrReviewRow[]>(adminResultsQueryKeys.omrReviewList(examId), (prev) => {
+                qc.setQueryData<OmrReviewRow[]>(listQueryKey, (prev) => {
                   if (!prev) return prev;
                   return prev.map((row) =>
                     row.id === selectedId
@@ -975,6 +979,7 @@ function ScanPane({
  * ────────────────────────────────────────────── */
 function EditPane({
   examId,
+  sessionId,
   detail,
   reviewRow,
   archived,
@@ -991,6 +996,7 @@ function EditPane({
   onSelectSubmission,
 }: {
   examId: number;
+  sessionId?: number;
   detail: OmrReviewDetail | undefined;
   reviewRow: OmrReviewRow | undefined;
   archived: boolean;
@@ -1104,6 +1110,7 @@ function EditPane({
         return await manualEditSubmissionApi({
           submissionId: opts.resume.submissionId,
           identifier: { enrollment_id: opts.resume.enrollmentId },
+          sessionId,
           note: "omr_review_ui_resume_absence",
           answers: [],
           resumeAbsence: true,
@@ -1111,7 +1118,9 @@ function EditPane({
         });
       }
       if (!detail) throw new Error("no detail");
-      if (answerReviewVersion) return confirmOmrAnswerReviewApi(detail.submission_id, answerReviewVersion);
+      if (answerReviewVersion) {
+        return confirmOmrAnswerReviewApi(detail.submission_id, answerReviewVersion, sessionId);
+      }
       const payloadAnswers = Object.entries(answerEdits).map(([qid, answer]) => ({
         exam_question_id: Number(qid),
         answer,
@@ -1125,6 +1134,7 @@ function EditPane({
       return await manualEditSubmissionApi({
         submissionId: detail.submission_id,
         identifier: idPayload,
+        sessionId,
         note: canConfirmCurrentStudent
           ? "omr_review_ui_confirm_match"
           : "omr_review_ui",
@@ -1225,7 +1235,7 @@ function EditPane({
   const acceptMut = useMutation({
     mutationFn: async () => {
       if (!detail) throw new Error("no detail");
-      return await acceptFromDuplicatesApi(detail.submission_id);
+      return await acceptFromDuplicatesApi(detail.submission_id, sessionId);
     },
     onSuccess: () => {
       feedback.success("이 답안을 채택했습니다. 다른 답안지는 자동 정리됐어요.");
@@ -1521,6 +1531,7 @@ function EditPane({
         {identifierNeeded && (
           <StudentPickerModal
             examId={examId}
+            sessionId={sessionId}
             open={pickerOpen && !reviewingLatest}
             onClose={() => setPickerOpen(false)}
             onPick={(c) => {

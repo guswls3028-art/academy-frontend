@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Download,
-  FileSpreadsheet,
   RotateCcw,
   Upload,
 } from "lucide-react";
@@ -22,6 +21,7 @@ import {
   type ExamResultImportPreview,
 } from "../api/examResultExcel";
 import { adminResultsQueryKeys } from "../queryKeys";
+import { AssessmentDisclosure } from "./AssessmentDisclosure";
 import styles from "./ExamResultExcelImport.module.css";
 
 type Props = {
@@ -120,21 +120,17 @@ function ExamResultExcelImportContent({ examId, examTitle, beforeApply }: Props)
   const hasErrors = Boolean(preview && preview.errors.length > 0);
   const isApplied = Boolean(preview?.applied);
 
+  const title = "엑셀로 채점 결과 넣기";
+  const summary = importPending ? "결과 반영 중…"
+    : previewMutation.isPending ? "파일 확인 중…"
+    : previewMutation.isError || applyMutation.isError || hasErrors ? "파일 확인 필요"
+    : isApplied ? "반영 완료"
+    : preview ? "반영 대기"
+    : "양식 받기 · 파일 올리기";
+
   return (
-    <section className={styles.card} aria-labelledby="exam-result-excel-title">
+    <AssessmentDisclosure title={title} summary={summary} contentClassName={styles.card}>
       <div className={styles.header}>
-        <div className={styles.headingGroup}>
-          <span className={styles.iconWrap} aria-hidden>
-            <FileSpreadsheet size={ICON.lg} />
-          </span>
-          <div>
-            <h3 id="exam-result-excel-title" className={styles.title}>엑셀로 채점 결과 넣기</h3>
-            <p className={styles.description}>
-              정답 O, 오답 X, 맞았지만 다시 볼 문항은 오답노트로 표시합니다.
-              기존 엑셀 양식의 숫자 0도 오답노트로 읽습니다.
-            </p>
-          </div>
-        </div>
         <Button
           className={styles.templateButton}
           type="button"
@@ -311,7 +307,7 @@ function ExamResultExcelImportContent({ examId, examTitle, beforeApply }: Props)
           )}
         </div>
       )}
-    </section>
+    </AssessmentDisclosure>
   );
 }
 

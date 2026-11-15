@@ -7,7 +7,7 @@
  * 학생/관리자 projection까지 확인한다.
  */
 import { test, expect } from "../fixtures/strictTest";
-import type { APIRequestContext, Page, Response } from "@playwright/test";
+import type { APIRequestContext, Locator, Page, Response } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { PDFDocument, rgb } from "pdf-lib";
 import { setTimeout as delay } from "node:timers/promises";
@@ -353,6 +353,37 @@ async function chooseExamHeaderAction(
   const menu = page.getByRole("menu", { name: `${EXAM_TITLE} 작업 선택` });
   await expect(menu).toBeVisible();
   await menu.getByRole("menuitem", { name: new RegExp(`^${action}`) }).click();
+}
+
+async function openOmrReviewFromWorkbox(page: Page, needsIdentification = false) {
+  const trigger = page.getByRole("button", { name: /^작업박스/ });
+  if (await trigger.getAttribute("aria-expanded") === "false") {
+    await trigger.click();
+  }
+  const panel = page.locator(".alarm-panel--workbox-style");
+  const batches = panel.locator(".async-status-bar__item").filter({
+    has: page.getByText("OMR 1장", { exact: true }),
+  });
+  // All batches in this serial fixture belong to the same exam. When choosing
+  // the replacement, wait for the server to report the unresolved batch.
+  const batch = needsIdentification
+    ? batches.filter({ has: page.getByText("식별 필요 1", { exact: true }) })
+    : batches.first();
+  await batch.getByRole("button", { name: "OMR 검토", exact: true }).click({ timeout: 30_000 });
+  const scoresPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`;
+  await expect(page).toHaveURL((url) => url.pathname === scoresPath);
+  const review = page.getByRole("dialog", { name: "OMR 검토", exact: true });
+  await expect(review).toBeVisible({ timeout: 30_000 });
+  await expect(review).toContainText(EXAM_TITLE);
+  return review;
+}
+
+async function expectDecodedOmrScan(review: Locator) {
+  const scanImage = review.getByRole("img", { name: "OMR 스캔 원본", exact: true });
+  await expect(scanImage).toBeVisible({ timeout: 30_000 });
+  await expect.poll(() => scanImage.evaluate((element: HTMLImageElement) => (
+    element.complete && element.naturalWidth > 0 && element.naturalHeight > 0
+  )), { timeout: 30_000 }).toBe(true);
 }
 
 const omrPrintOptions = {
@@ -1415,7 +1446,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeEnabled();
     await page.getByRole("button", { name: "OMR 스캔 등록" }).click();
     const uploadDialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
-    await expect(uploadDialog.locator(".admin-omr-upload").getByText("스캔 파일 선택")).toBeVisible({ timeout: 10_000 });
+    await expect(uploadDialog.locator(".admin-omr-upload").getByText("스캔본·촬영 사진 선택")).toBeVisible({ timeout: 10_000 });
 
     await uploadDialog.locator(".admin-omr-upload input[type='file']").setInputFiles({
       name: `omr-realuse-${TS}.pdf`,
@@ -1460,9 +1491,8 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const submissionId = created.submissionIds[0];
     expect(uploadBody.items).toHaveLength(1);
     expect(uploadBody.items?.[0]).toMatchObject({ ordinal: 1, submission_id: submissionId });
-    // AdminOmrBatchUploadBox.tsx's post-upload notice (single file, no
-    // duplicates/failures): `${created_count}건을 접수했습니다. ...`.
-    await expect(page.getByText("1건을 접수했습니다. AI 처리 상태는 작업박스에서 계속 확인할 수 있습니다.")).toBeVisible({ timeout: 20_000 });
+    // The durable receipt counts admitted files separately from grading.
+    await expect(uploadDialog.getByText("접수 확인 1장")).toBeVisible({ timeout: 20_000 });
     const ledger = uploadDialog.getByLabel("답안지별 접수 내역");
     await ledger.locator("summary").click();
     await expect(ledger.getByRole("listitem")).toHaveCount(1);
@@ -1496,21 +1526,21 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const reviewEntry = page.locator(".omr-entry");
     await expect(reviewEntry.locator(".omr-entry__title")).toContainText("OMR 검토", { timeout: 30_000 });
     await reviewEntry.getByRole("button", { name: /처리하기|OMR 다시 보기/ }).click();
-    await expect(page.getByRole("dialog", { name: "OMR 검토" })).toBeVisible({ timeout: 20_000 });
+    const examReview = page.getByRole("dialog", { name: "OMR 검토", exact: true });
+    await expect(examReview).toBeVisible({ timeout: 20_000 });
+    await examReview.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(examReview).toBeHidden();
+    const workboxReview = await openOmrReviewFromWorkbox(page);
     // Objective answers are reviewed here. Teacher score marks are reviewed in the grading grid.
-    await expect(page.locator(".orw-q-row")).toHaveCount(objectiveQuestionIds.length, { timeout: 30_000 });
-    const scanImage = page.getByRole("img", { name: "OMR 스캔 원본", exact: true });
-    await expect(scanImage).toBeVisible();
-    await expect.poll(() => scanImage.evaluate((element: HTMLImageElement) => (
-      element.complete && element.naturalWidth > 0 && element.naturalHeight > 0
-    )), { timeout: 30_000 }).toBe(true);
+    await expect(workboxReview.locator(".orw-q-row")).toHaveCount(objectiveQuestionIds.length, { timeout: 30_000 });
+    await expectDecodedOmrScan(workboxReview);
     await page.screenshot({ path: `e2e/screenshots/omr-review-realuse-scan-${TS}.png`, fullPage: true });
 
     const pickButton = page.getByRole("button", { name: "학생 검색·연결" });
     if (await pickButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await pickButton.click();
       const studentPicker = page.getByRole("dialog", { name: "학생 선택" });
-      await studentPicker.getByPlaceholder("학생 이름 또는 전화번호 뒤 4자리").fill(STUDENT_NAME);
+      await studentPicker.getByRole("textbox", { name: "학생 검색" }).fill(STUDENT_NAME);
       await expect(studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }))
         .toBeVisible({ timeout: 15_000 });
       await studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
@@ -1984,14 +2014,10 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const replacementDetailResponse = page.waitForResponse((response) => matchesApiResponse(
       response, "GET", `/submissions/submissions/${replacementId}/manual-edit/`,
     ), { timeout: 30_000 });
-    await gotoAndSettle(page,
-      `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}&reviewOmr=1&reviewSubmissionId=${replacementId}`,
-      { timeout: 45_000 });
-    await page.getByRole("tab", { name: "채점·결과" }).click();
-    const replacementReview = page.getByRole("dialog", { name: "OMR 검토" });
-    await expect(replacementReview).toBeVisible({ timeout: 30_000 });
-    // This journey retains the student's 390px viewport. Open the mobile edit
-    // pane just as a teacher does; the initial list pane hides its controls.
+    const replacementReview = await openOmrReviewFromWorkbox(page, true);
+    await replacementReview.locator(".orw-list-row").filter({ hasText: "미식별 학생" }).click();
+    await replacementReview.getByRole("tab", { name: "원본", exact: true }).click();
+    await expectDecodedOmrScan(replacementReview);
     const editTab = replacementReview.getByRole("tab", { name: "확인", exact: true });
     await editTab.click();
     await expect(editTab).toHaveAttribute("aria-selected", "true");
@@ -2022,7 +2048,19 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(picker).toBeVisible();
     await picker.click();
     const studentPicker = page.getByRole("dialog", { name: "학생 선택" });
-    await studentPicker.getByPlaceholder("학생 이름 또는 전화번호 뒤 4자리").fill(STUDENT_NAME);
+    const phoneSuffix = CONTROLLED_PHONE.slice(-4);
+    const candidates = page.waitForResponse((response) => {
+      if (!matchesApiResponse(response, "GET", `/submissions/submissions/exams/${created.examId}/candidates/`)) return false;
+      const params = new URL(response.url()).searchParams;
+      return params.get("session_id") === String(created.sessionId) && params.get("q") === phoneSuffix;
+    });
+    await studentPicker.getByRole("textbox", { name: "학생 검색" }).fill(phoneSuffix);
+    const candidateResponse = await candidates;
+    expect(candidateResponse.status()).toBe(200);
+    expect(await candidateResponse.json()).toMatchObject({
+      session_id: created.sessionId,
+      candidates: [expect.objectContaining({ enrollment_id: created.enrollmentId })],
+    });
     await studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
     await expect(studentPicker).toBeHidden();
     await expect(replacementReview.locator(".orw-identifier__picked")).toContainText(STUDENT_NAME);
@@ -2051,9 +2089,12 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       `/results/admin/exams/${created.examId}/enrollments/${created.enrollmentId}/`, adminAccess);
     expect(current.submission_id).toBe(replacementId);
     expect(current.total_score).toBe(EXPECTED_SCORE - 1);
-    await gotoAndSettle(page,
-      `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
-      { timeout: 30_000 });
+    const reopened = await openOmrReviewFromWorkbox(page);
+    await expect(reopened.locator(".orw-list-row").filter({
+      has: reopened.getByText(STUDENT_NAME, { exact: true }),
+    }).filter({ has: reopened.getByText(`${EXPECTED_SCORE - 1}점`, { exact: true }) })).toBeVisible();
+    await reopened.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(reopened).toBeHidden();
     await chooseExamHeaderAction(page, "문항별 점수 입력");
     const gradingDialog = page.getByRole("dialog").filter({ hasText: `${EXAM_TITLE} 혼합 채점` });
     await expect(gradingDialog.getByRole("spinbutton", {

@@ -1042,9 +1042,27 @@ export default function SessionScoresEntryPage({
     "manual",
   );
   const openPendingSubjectiveGradingRef = useRef(openPendingSubjectiveGrading);
+  const openExamGradingRef = useRef(openExamGrading);
   useEffect(() => {
     openPendingSubjectiveGradingRef.current = openPendingSubjectiveGrading;
+    openExamGradingRef.current = openExamGrading;
   });
+
+  useEffect(() => {
+    if (!searchParams.has("omrReviewExamId") || isLoading || isError || recoveryBlocked) return;
+    const examId = Number(searchParams.get("omrReviewExamId"));
+    const exam = omrExamOptions.find((option) => option.exam_id === examId);
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.delete("omrReviewExamId");
+      return next;
+    }, { replace: true });
+    if (exam) {
+      void openExamGradingRef.current(exam.exam_id, exam.title, resolveExamGradingMode(exam), exam.manual_grading_method ?? "score", "omr");
+    } else {
+      feedback.info("이 차시에서 해당 시험의 OMR 검토를 열 수 없습니다.");
+    }
+  }, [isError, isLoading, omrExamOptions, recoveryBlocked, searchParams, setSearchParams]);
 
   useEffect(() => {
     const examId = Number(searchParams.get("gradingExamId"));

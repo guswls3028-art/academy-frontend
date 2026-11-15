@@ -69,6 +69,7 @@ export async function verifyExcelAssessment(
     const guards = attachStrictBrowserGuards(page);
     await seedBrowserAuth(page, admin);
     await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${scope.lectureId}/sessions/${scope.sessionId}/exams?examId=${exam.id}&examTab=results`);
+    await page.locator("summary").filter({ hasText: "엑셀로 채점 결과 넣기" }).click();
     const importer = page.getByRole("region", { name: "엑셀로 채점 결과 넣기", exact: true });
     await expect(importer).toBeVisible();
     const template = await downloadWorkbook(page, "전용 양식 받기", testInfo, "real-exam-excel-template");
