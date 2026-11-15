@@ -1407,7 +1407,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeEnabled();
     await page.getByRole("button", { name: "OMR 스캔 등록" }).click();
     const uploadDialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
-    await expect(uploadDialog.locator(".admin-omr-upload").getByText("스캔 파일 선택")).toBeVisible({ timeout: 10_000 });
+    await expect(uploadDialog.locator(".admin-omr-upload").getByText("스캔본·촬영 사진 선택")).toBeVisible({ timeout: 10_000 });
 
     await uploadDialog.locator(".admin-omr-upload input[type='file']").setInputFiles({
       name: `omr-realuse-${TS}.pdf`,
@@ -1454,7 +1454,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(uploadBody.items?.[0]).toMatchObject({ ordinal: 1, submission_id: submissionId });
     // AdminOmrBatchUploadBox.tsx's post-upload notice (single file, no
     // duplicates/failures): `${created_count}건을 접수했습니다. ...`.
-    await expect(page.getByText("1건을 접수했습니다. AI 처리 상태는 작업박스에서 계속 확인할 수 있습니다.")).toBeVisible({ timeout: 20_000 });
+    await expect(uploadDialog.getByText("접수 확인 1장")).toBeVisible({ timeout: 20_000 });
     const ledger = uploadDialog.getByLabel("답안지별 접수 내역");
     await ledger.locator("summary").click();
     await expect(ledger.getByRole("listitem")).toHaveCount(1);

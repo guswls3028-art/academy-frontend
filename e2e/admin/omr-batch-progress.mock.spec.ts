@@ -35,14 +35,15 @@ function batchSummary(options: {
   claimed?: boolean;
   admissionFailure?: boolean;
   subjectivePending?: boolean;
+  legacy?: boolean;
 } = {}) {
   const terminal = options.terminal ?? false;
   const admissionFailure = terminal && (options.admissionFailure ?? false);
   return {
     id: BATCH_ID,
     exam_id: EXAM_ID,
-    session_id: SESSION_ID,
-    lecture_id: LECTURE_ID,
+    session_id: options.legacy ? null : SESSION_ID,
+    lecture_id: options.legacy ? null : LECTURE_ID,
     total_count: 22,
     counts: terminal
       ? {
@@ -88,13 +89,14 @@ function batchSummary(options: {
   };
 }
 
-function admissionSummary(state: "pending" | "received") {
+function admissionSummary(state: "pending" | "received", totalCount = 22) {
   const pending = state === "pending";
   return {
     ...batchSummary(),
+    total_count: totalCount,
     counts: {
-      pending_admission: pending ? 22 : 0,
-      received: pending ? 0 : 22,
+      pending_admission: pending ? totalCount : 0,
+      received: pending ? 0 : totalCount,
       duplicate: 0,
       processing: 0,
       completed: 0,
@@ -102,8 +104,8 @@ function admissionSummary(state: "pending" | "received") {
       failed: 0,
       superseded: 0,
     },
-    pending_admission_ordinals: pending ? Array.from({ length: 22 }, (_, index) => index + 1) : [],
-    items: Array.from({ length: 22 }, (_, index) => ({
+    pending_admission_ordinals: pending ? Array.from({ length: totalCount }, (_, index) => index + 1) : [],
+    items: Array.from({ length: totalCount }, (_, index) => ({
       id: `${BATCH_ID}:${index + 1}`,
       ordinal: index + 1,
       admission_status: state,
@@ -147,6 +149,7 @@ async function installDashboardApi(
     holdListResponse?: boolean;
     listDelayMs?: number;
     uploadFlow?: boolean;
+    reviewFlow?: boolean;
     holdUploadResponse?: boolean;
     failFirstUploadAfterPartialAdmission?: boolean;
     admissionFailure?: boolean;
@@ -161,12 +164,15 @@ async function installDashboardApi(
   await installTenantOneInitScript(page);
 
   const scoresFlow = options.uploadFlow
+    || options.reviewFlow
     || options.admissionFailure
     || options.resumeOrdinals !== undefined
     || options.detailExamId !== undefined
     || options.failDetail;
   let terminal = false;
   let claimed = false;
+  let uploadBatchTotal = 22;
+  let uploadBatchReceived = false;
   let listGets = 0;
   let listResponses = 0;
   let detailGets = 0;
@@ -251,8 +257,10 @@ async function installDashboardApi(
       && request.method() === "POST"
     ) {
       initializedUploads = true;
+      uploadBatchTotal = request.postDataJSON().total_count;
+      uploadBatchReceived = false;
       initializePosts += 1;
-      await safeJson(route, admissionSummary("pending"), 201);
+      await safeJson(route, admissionSummary("pending", uploadBatchTotal), 201);
       return;
     }
     if (
@@ -269,10 +277,11 @@ async function installDashboardApi(
         return;
       }
       partialUpload = false;
+      uploadBatchReceived = true;
       const createdCount = uploadBody.match(/name="files"/g)?.length ?? 0;
       if (options.holdUploadResponse && uploadPosts === 1) await uploadResponseGate;
       await safeJson(route, {
-        ...admissionSummary("received"),
+        ...admissionSummary("received", uploadBatchTotal),
         created_count: createdCount,
         submission_ids: Array.from({ length: createdCount }, (_, index) => 2001 + index),
       }, 201);
@@ -292,7 +301,7 @@ async function installDashboardApi(
         return;
       }
       const batch = options.uploadFlow && initializedUploads
-        ? partialUpload ? partialAdmissionSummary() : admissionSummary(uploadPosts > 0 ? "received" : "pending")
+        ? partialUpload ? partialAdmissionSummary() : admissionSummary(uploadBatchReceived ? "received" : "pending", uploadBatchTotal)
         : options.batch ?? batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure, subjectivePending: options.subjectivePending });
       const response = options.empty || hideBatches ? [] : [batch];
       if (options.holdListResponse && listGets === 1) await listResponseGate;
@@ -319,7 +328,7 @@ async function installDashboardApi(
         : options.uploadFlow
           ? partialUpload
             ? partialAdmissionSummary()
-            : admissionSummary(uploadPosts > 0 ? "received" : "pending")
+            : admissionSummary(uploadBatchReceived ? "received" : "pending", uploadBatchTotal)
           : options.batch ?? batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure, subjectivePending: options.subjectivePending });
       await safeJson(route, batch);
       return;
@@ -558,6 +567,7 @@ test.describe("OMR durable batch progress", () => {
       await page.setViewportSize({ width, height: 900 });
       const initial = batchSummary();
       const api = await installDashboardApi(page, {
+        reviewFlow: true,
         batch: {
           ...initial,
           total_count: 20,
@@ -588,12 +598,22 @@ test.describe("OMR durable batch progress", () => {
       expect(api.retryBodies()).toEqual([]);
       const task = page.locator(".async-status-bar__item").filter({ hasText: "OMR 20장" });
       await task.getByRole("button", { name: "OMR 검토" }).click();
-      await expect(page).toHaveURL(new RegExp(`/workspace/mobile/exams/${EXAM_ID}/omr`));
+      await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores$`));
+      await expect(page.getByRole("dialog", { name: "OMR 검토" })).toBeVisible();
     });
   }
 
+  test("차시 없는 이전 OMR 등록은 기존 스캔 화면을 열 수 있다", async ({ page }) => {
+    await installDashboardApi(page, { batch: batchSummary({ legacy: true }) });
+    await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
+
+    const task = await openWorkbox(page);
+    await task.getByRole("button", { name: "OMR 검토" }).click();
+    await expect(page).toHaveURL(new RegExp(`/workspace/mobile/exams/${EXAM_ID}/omr$`));
+  });
+
   test("GET 복구는 읽기 전용이고 terminal 최초 관찰만 1회 claim한다", async ({ page }) => {
-    const api = await installDashboardApi(page);
+    const api = await installDashboardApi(page, { reviewFlow: true });
     await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
 
     let task = await openWorkbox(page);
@@ -624,8 +644,9 @@ test.describe("OMR durable batch progress", () => {
 
     await task.getByRole("button", { name: "OMR 검토" }).click();
     await expect(page).toHaveURL(
-      new RegExp(`/workspace/mobile/exams/${EXAM_ID}/omr`),
+      new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores$`),
     );
+    await expect(page.getByRole("dialog", { name: "OMR 검토" })).toBeVisible();
   });
 
   test("OMR 처리가 끝나도 서술형 채점 대기를 표시하고 해당 차시로 연결한다", async ({ page }) => {
@@ -735,7 +756,7 @@ test.describe("OMR durable batch progress", () => {
       })),
     );
     await dialog.getByRole("button", { name: "등록 시작" }).click();
-    await expect(dialog.getByText("22건을 접수했습니다", { exact: false })).toBeVisible();
+    await expect(dialog.getByText("접수 확인 22장", { exact: false })).toBeVisible();
 
     const { uploadPosts, uploadBodies } = api.uploadState();
     expect(uploadPosts).toBe(1);
@@ -840,7 +861,7 @@ test.describe("OMR durable batch progress", () => {
       buffer: Buffer.from("partial-22-retry"),
     });
     await dialog.getByRole("button", { name: "미접수 파일 다시 접수" }).click();
-    await expect(dialog.getByText("1건을 접수했습니다", { exact: false })).toBeVisible();
+    await expect(dialog.getByText("접수 확인 22장", { exact: false })).toBeVisible();
 
     const { uploadPosts, uploadBodies } = api.uploadState();
     expect(uploadPosts).toBe(2);
@@ -923,7 +944,7 @@ test.describe("OMR durable batch progress", () => {
     expect(ordinals.every((value) => Number.isFinite(Number(value)))).toBe(true);
   });
 
-  test("완료한 일반 선택을 비운 뒤 새 선택은 새 batch와 유효 ordinal로 시작한다", async ({ page }) => {
+  test("접수 완료 후 새 선택은 바로 새 batch와 유효 ordinal로 시작한다", async ({ page }) => {
     const api = await installDashboardApi(page, { uploadFlow: true });
     await page.goto(
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
@@ -938,8 +959,7 @@ test.describe("OMR durable batch progress", () => {
       buffer: Buffer.from("first-batch"),
     });
     await dialog.getByRole("button", { name: "등록 시작" }).click();
-    await expect(dialog.getByText("1건을 접수했습니다", { exact: false })).toBeVisible();
-    await dialog.getByRole("button", { name: "비우기" }).click();
+    await expect(dialog.getByText("접수 확인 1장", { exact: false })).toBeVisible();
     await input.setInputFiles({
       name: "second-batch.jpg",
       mimeType: "image/jpeg",

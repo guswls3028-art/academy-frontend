@@ -3146,7 +3146,7 @@ test.describe("문항별 직접 채점", () => {
     const uploadDialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
     await expect(uploadDialog).toBeVisible();
     await expect(uploadDialog.getByText("7월 진단평가", { exact: true })).toBeVisible();
-    await expect(uploadDialog.getByText("스캔 파일 선택", { exact: true })).toBeVisible();
+    await expect(uploadDialog.getByText("스캔본·촬영 사진 선택", { exact: true })).toBeVisible();
     // The visible appear-start frame precedes the frame that creates the animation.
     await expect.poll(() => uploadDialog.evaluate((dialog) =>
       (dialog.closest(".admin-modal") ?? dialog).getAnimations().filter((animation) =>

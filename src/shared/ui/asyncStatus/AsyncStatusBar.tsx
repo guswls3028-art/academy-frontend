@@ -2,7 +2,7 @@
 // 우하단 Windows 스타일 비동기 상태 바 — 워커 작업 프로그래스바만 표시
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { Download, RefreshCw } from "lucide-react";
@@ -15,6 +15,7 @@ import {
 import { fetchSession } from "@/shared/api/contracts/sessions";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import { WORKSPACE_PATHS } from "@/core/router/workspaceRoutes";
 import { useAsyncStatus } from "./useAsyncStatus";
 import { useWorkerJobPoller } from "./useWorkerJobPoller";
 import { useWorkbox } from "@/shared/ui/layout/useWorkbox";
@@ -183,6 +184,7 @@ function BanIcon({ className, size = 16 }: { className?: string; size?: number }
 
 function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const workbox = useWorkbox();
   const queryClient = useQueryClient();
   const TypeIcon = task.meta?.jobType ? JOB_TYPE_ICONS[task.meta.jobType] : null;
@@ -233,6 +235,21 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
     }
   }, [showActions]);
 
+  const openOmrReview = () => {
+    const batch = task.omrBatch;
+    if (!batch?.exam_id) {
+      feedback.info("시험의 OMR 검토 화면을 열 수 없습니다.");
+      return;
+    }
+    const { exam_id: examId, lecture_id: lectureId, session_id: sessionId } = batch;
+    const inMobileWorkspace = pathname === WORKSPACE_PATHS.mobile
+      || pathname.startsWith(`${WORKSPACE_PATHS.mobile}/`);
+    workbox?.setWorkboxOpen(false);
+    navigate(!inMobileWorkspace && lectureId && sessionId
+      ? `${WORKSPACE_PATHS.full}/lectures/${lectureId}/sessions/${sessionId}/scores?omrReviewExamId=${examId}`
+      : `${WORKSPACE_PATHS.mobile}/exams/${examId}/omr`);
+  };
+
   // ✅ 작업 클릭 시 해당 페이지로 이동 (영상은 강의-차시-영상 탭으로)
   // 영상은 fetchVideoDetail + fetchSession 2단계 fetch 필요 — 무반응 UX 방지하려고
   // 패널을 즉시 닫고 navigating 표시. 실패해도 fallback 페이지로 이동.
@@ -268,13 +285,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
       return;
     }
     if (jobType === "omr_batch" && task.omrBatch) {
-      const { exam_id: examId } = task.omrBatch;
-      if (examId) {
-        workbox?.setWorkboxOpen(false);
-        navigate(`/workspace/mobile/exams/${examId}/omr`);
-      } else {
-        feedback.info("시험의 OMR 검토 화면을 열 수 없습니다.");
-      }
+      openOmrReview();
       return;
     }
     workbox?.setWorkboxOpen(false);
@@ -555,8 +566,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
               className="async-status-bar__item-btn async-status-bar__item-btn--review"
               onClick={(event) => {
                 event.stopPropagation();
-                workbox?.setWorkboxOpen(false);
-                navigate(`/workspace/mobile/exams/${task.omrBatch!.exam_id}/omr`);
+                openOmrReview();
               }}
               aria-label="OMR 검토"
             >

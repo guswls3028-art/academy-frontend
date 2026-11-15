@@ -153,9 +153,11 @@ export async function rotateRescanApi(
  */
 export async function acceptFromDuplicatesApi(
   submissionId: number,
+  sessionId?: number,
 ): Promise<AcceptFromDuplicatesResult> {
   const res = await api.post(
     `/submissions/submissions/${submissionId}/accept-from-duplicates/`,
+    sessionId === undefined ? undefined : { session_id: sessionId },
   );
   return res.data as AcceptFromDuplicatesResult;
 }
@@ -237,9 +239,17 @@ export type CandidateRow = {
 export async function fetchExamCandidates(
   examId: number,
   q: string,
+  sessionId?: number,
 ): Promise<CandidateRow[]> {
-  const params = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : "";
-  const res = await api.get(`/submissions/submissions/exams/${examId}/candidates/${params}`);
+  const res = await api.get(`/submissions/submissions/exams/${examId}/candidates/`, {
+    params: { q: q.trim() || undefined, session_id: sessionId },
+  });
+  if (sessionId !== undefined) {
+    if (res.data?.session_id !== sessionId || !Array.isArray(res.data?.candidates)) {
+      throw new Error("차시 응시 대상자 목록을 확인하지 못했습니다.");
+    }
+    return res.data.candidates as CandidateRow[];
+  }
   return (Array.isArray(res.data) ? res.data : []) as CandidateRow[];
 }
 
