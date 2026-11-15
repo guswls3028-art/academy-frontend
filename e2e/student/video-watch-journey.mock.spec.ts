@@ -19,7 +19,7 @@ type NativeRecoveryFixture = {
 };
 declare global { interface Window { __nativeRecoveryFixture: NativeRecoveryFixture } }
 
-async function openNativeRecoveryFixture(page: Page, options: { review?: boolean; unsupported?: boolean; disposeImmediately?: boolean; stall?: boolean; knownDuration?: boolean } = {}) {
+async function openNativeRecoveryFixture(page: Page, options: { review?: boolean; unsupported?: boolean; disposeImmediately?: boolean; stall?: boolean; knownDuration?: boolean; autoplayBlocked?: boolean } = {}) {
   let segments = 0;
   await page.route("**/__qa__/native-recovery", (route) => route.fulfill({
     contentType: "text/html", body: '<!doctype html><html><body><video muted playsinline controls></video></body></html>',
@@ -63,6 +63,21 @@ async function openNativeRecoveryFixture(page: Page, options: { review?: boolean
     }
     video.playbackRate = 1.5;
     video.volume = 0.4;
+    if (options.autoplayBlocked) {
+      const ignoreNativeError = (event: Event) => event.stopImmediatePropagation();
+      video.addEventListener("error", ignoreNativeError, true);
+      video.play = () => Promise.reject(new DOMException("Synthetic autoplay denial", "NotAllowedError"));
+      controller.play();
+      await new Promise<void>((resolve, reject) => {
+        const deadline = window.setTimeout(() => { clearInterval(poll); reject(new Error("Autoplay denial was not handled")); }, 5000);
+        const poll = window.setInterval(() => {
+          if (!controller.getState().toast?.text.includes("재생 준비가 끝났어요")) return;
+          clearInterval(poll); clearTimeout(deadline); resolve();
+        }, 10);
+      });
+      Reflect.deleteProperty(video, "play");
+      video.removeEventListener("error", ignoreNativeError, true);
+    }
     if (options.stall) {
       // Freeze only the failed native engine's observations; replacement media plays normally.
       Object.defineProperty(video, "error", { configurable: true, get: () => null });
@@ -215,11 +230,62 @@ test.describe("native HLS engine recovery", () => {
       }
     });
   }
+  test("a native autoplay denial cannot skip preparation for the replacement engine", async ({ page }) => {
+    let preparations = 0;
+    await page.route("**/api/v1/student/video/videos/562/review-watch/", route => {
+      preparations++;
+      return route.fulfill({ json: { stream: "synthetic-review-stream", remaining_ms: 100_000, used_ms: 0 } });
+    });
+    const fixture = await openNativeRecoveryFixture(page, { review: true, autoplayBlocked: true });
+    await expect.poll(() => page.locator("video").getAttribute("src")).toMatch(/^blob:/);
+    expect(preparations).toBe(1);
+    await page.evaluate(() => window.__nativeRecoveryFixture.controller.play());
+    await expect.poll(() => preparations).toBe(2);
+    await expect.poll(() => page.locator("video").evaluate((el: HTMLVideoElement) => el.currentTime), { timeout: 20_000 }).toBeGreaterThan(43);
+    expect(fixture.segments()).toBeGreaterThan(0);
+    expect(await page.evaluate(() => window.__nativeRecoveryFixture.fatals)).toEqual([]);
+    await page.evaluate(() => window.__nativeRecoveryFixture.controller.dispose());
+  });
   test("unsupported alternate engine retains visible fatal recovery", async ({ page }) => {
     await openNativeRecoveryFixture(page, { unsupported: true });
     await expect.poll(() => page.evaluate(() => window.__nativeRecoveryFixture.fatals)).toEqual(["비디오 디코딩 오류가 발생했습니다."]);
     expect(await page.locator("video").getAttribute("src")).toBeNull();
   });
+  for (const width of [390, 1366]) {
+    test(`paused native recovery exposes a working primary play button at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await page.addInitScript(() => {
+        const canPlayType = HTMLMediaElement.prototype.canPlayType;
+        HTMLMediaElement.prototype.canPlayType = function (type) {
+          return type.includes("mpegurl") || type.includes("mpegURL") ? "probably" : canPlayType.call(this, type);
+        };
+      });
+      const { state, videos } = await installWatchScenario(page);
+      state.reviewRemaining = 100_000;
+      videos[0].last_position = 42;
+      await page.route("**/review-media/**", route => {
+        const file = new URL(route.request().url()).pathname.split("/").pop();
+        if (file !== "master.m3u8") expect(state.prepared).toBe(true);
+        const asset = syntheticLongVideoAsset(`/__qa__/video-long/${file}`);
+        return route.fulfill({ body: asset.body, contentType: asset.contentType });
+      });
+      await openWatch(page);
+      const video = page.locator("video.svpVideo");
+      await video.evaluate((element: HTMLVideoElement) => {
+        Object.defineProperty(element, "error", { configurable: true, get: () => ({ code: 3, message: "Synthetic native decode failure" }) });
+        element.dispatchEvent(new Event("error"));
+        Reflect.deleteProperty(element, "error");
+      });
+      await expect.poll(() => video.getAttribute("src")).toMatch(/^blob:/);
+      expect(state.prepared).toBe(false);
+      await expect(page.getByText("연결을 다시 시도하고 있어요…")).toHaveCount(0);
+      await page.locator("button.svpBigPlay").click();
+      await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime), { timeout: 20_000 }).toBeGreaterThan(43);
+      await expect.poll(() => state.playingSignal).toBe(true);
+      expect(state.prepared).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+  }
   test("leaving during native recovery never attaches a late engine", async ({ page }) => {
     const fixture = await openNativeRecoveryFixture(page, { disposeImmediately: true });
     await page.evaluate(() => new Promise((resolve) => window.setTimeout(resolve, 200)));

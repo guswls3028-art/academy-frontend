@@ -6,14 +6,13 @@
 import { postEvents, postHeartbeat, postRefresh } from "./playbackTransport";
 import { prepareReviewPlayback, REVIEW_EXHAUSTED } from "../../../api/reviewWatch.api";
 import type Hls from "hls.js";
-import type { ErrorData, LevelSwitchedData } from "hls.js";
 import { clamp, getEpochSec } from "../design/utils";
 import { resolveStudentVideoPlayUrl } from "../playbackUrl";
 import { PlaybackSessionEnd } from "./playbackSessionEnd";
 import { PlaybackStallWatch } from "./playbackStallWatch";
 import { NativePlaybackRecovery } from "./nativePlaybackRecovery";
-import { hlsErrorDetails } from "./hlsErrorDetails";
-import { capturePlaybackSource, describeQualityLevels, progressFromPlayhead, restorePlaybackSource, type PlaybackSourceSnapshot } from "./playbackMediaSettings";
+import { createStudentHls } from "./studentHlsEngine";
+import { capturePlaybackSource, progressFromPlayhead, restorePlaybackSource, type PlaybackSourceSnapshot } from "./playbackMediaSettings";
 import { normalizeControllerPolicy as normalizePolicy } from "./controllerTypes";
 import type { ControllerOptions, ControllerState, EventType, Policy } from "./controllerTypes";
 export type { ControllerOptions, ControllerState, EventType, Policy, QualityLevel } from "./controllerTypes";
@@ -423,11 +422,6 @@ export class StudentHlsController {
     }
   }
 
-  private publishQualities() {
-    if (this.disposed || !this.hls) return;
-    this.setState({ qualities: describeQualityLevels(this.hls.levels) });
-  }
-
   private recoverStall(exhausted: boolean) {
     const terminal = exhausted || Boolean(this.opts.reviewStream);
     const alternate = terminal && !this.hls && this.nativeEngineRecovery === "idle";
@@ -674,93 +668,19 @@ export class StudentHlsController {
   }
 
   private attachHls(Hls: typeof import("hls.js").default, el: HTMLVideoElement, url: string) {
-    const hls = new Hls({
-      lowLatencyMode: false,
-      autoStartLoad: !this.opts.reviewStream,
-      backBufferLength: 30,
-      maxBufferLength: 60,
-      maxMaxBufferLength: 120,
-      startLevel: -1,
-      abrEwmaDefaultEstimate: 20_000_000,
-      abrEwmaDefaultEstimateMax: 50_000_000,
+    this.hls = createStudentHls(Hls, {
+      protectedReview: Boolean(this.opts.reviewStream),
+      disposed: () => this.disposed,
+      setState: (state) => this.setState(state),
+      currentQuality: () => this.state.currentQuality,
+      buffered: () => { this.reconnectAttempts = 0; },
+      error: (payload) => this.queueEvent("PLAYER_ERROR", payload),
+      canRetry: () => !this.stallWatch?.retrying && this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS,
+      retry: (kind) => this.scheduleReconnect(kind),
+      fatal: (message) => this.opts.onFatal?.(message),
     });
-    this.hls = hls;
-
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      if (this.disposed) return;
-      if (this.opts.reviewStream) this.setState({ ready: true });
-      this.publishQualities();
-    });
-    hls.on(Hls.Events.FRAG_BUFFERED, () => {
-      if (this.disposed) return;
-      if (this.reconnectAttempts > 0) {
-        this.reconnectAttempts = 0;
-      }
-    });
-    hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data: LevelSwitchedData) => {
-      if (this.disposed) return;
-      // ABR(Auto) 상태에서는 currentQuality는 -1로 유지
-      if ((this.hls?.autoLevelEnabled ?? true) === true) {
-        if (this.state.currentQuality !== -1) this.setState({ currentQuality: -1 });
-      } else if (typeof data?.level === "number" && data.level !== this.state.currentQuality) {
-        this.setState({ currentQuality: data.level });
-      }
-    });
-
-    hls.on(Hls.Events.ERROR, (_event, data: ErrorData) => {
-      if (this.disposed) return;
-      try {
-        this.queueEvent("PLAYER_ERROR", {
-          fatal: !!data?.fatal,
-          details: data?.details || "",
-          type: data?.type || "",
-        });
-      } catch {
-        ignoreBestEffortError();
-      }
-
-      if (!data?.fatal) return;
-
-      const { detail: errorMsg, is404, isServiceAuthError, isServiceUnavailable, isNetworkError, isMediaError } =
-        hlsErrorDetails(data, Hls.ErrorTypes.NETWORK_ERROR, Hls.ErrorTypes.MEDIA_ERROR);
-
-      if (is404) {
-        this.setState({
-          toast: { text: "비디오 파일을 찾을 수 없습니다. 처리 중이거나 업로드되지 않았을 수 있습니다.", kind: "danger" },
-          reconnecting: false,
-        });
-        this.opts.onFatal?.("비디오 파일을 찾을 수 없습니다.");
-        return;
-      }
-
-      // CDN 인증 실패는 같은 URL 재시도로 복구되지 않는다. 학생 네트워크
-      // 문제로 안내하지 말고 페이지가 새 재생 URL을 요청할 수 있게 종료한다.
-      if (isServiceAuthError) {
-        const message = "영상 서비스 인증에 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.";
-        this.setState({
-          toast: { text: message, kind: "danger" },
-          reconnecting: false,
-        });
-        this.opts.onFatal?.(message);
-        return;
-      }
-
-      if (!this.stallWatch?.retrying && (isNetworkError || isMediaError) && this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
-        this.scheduleReconnect(isMediaError ? "media" : "network");
-        return;
-      }
-
-      const message = isServiceUnavailable
-        ? "영상 서비스 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요."
-        : isNetworkError
-        ? "영상 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요."
-        : `재생 오류가 발생했습니다: ${errorMsg}`;
-      this.setState({ toast: { text: message, kind: "danger" }, reconnecting: false });
-      this.opts.onFatal?.(message);
-    });
-
-    hls.loadSource(url);
-    hls.attachMedia(el);
+    this.hls.loadSource(url);
+    this.hls.attachMedia(el);
   }
 
   private async recoverNativePlayback(): Promise<boolean> {
@@ -781,14 +701,17 @@ export class StudentHlsController {
       if (!this.initialPositionApplied && this.pendingSourceResume.position === 0) {
         this.pendingSourceResume.position = Number(this.opts.initialPosition || 0);
       }
+      // A gesture admission belongs to the old engine; ignore its late play rejection too.
+      this.nativeGestureUntil = 0;
+      this.playGeneration++;
       this.nativeRecovery.clear();
       this.stallWatch?.stop();
       this.nativeRecovery.releaseSource(el);
       this.nativeEngineRecovery = "recovering";
-      this.setState({ buffering: true, reconnecting: true, toast: null });
+      const resuming = this.pendingSourceResume.wasPlaying;
+      this.setState({ buffering: resuming, reconnecting: resuming, toast: null });
       this.attachHls(Hls, el, url);
-      // Protected media still requires the existing authenticated preparation.
-      // Merely changing transport must not fetch new segments or spend allowance.
+      // Reuse protected review admission before loading segments with the new engine.
       if (this.opts.reviewStream && this.pendingSourceResume?.wasPlaying) {
         void this.startReviewPlayback(++this.playGeneration, this.opts.reviewStream);
       }
