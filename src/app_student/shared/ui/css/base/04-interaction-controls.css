@@ -263,19 +263,29 @@
     0 5px 14px rgba(15, 23, 42, 0.055);
 }
 
-/* =========================
-   Touch Target Enforcement (44px)
-   ========================= */
-[data-app="student"] .stu-btn {
-  min-height: var(--stu-control);
+/* Explicit action sizes use the shared narrow-screen and coarse-pointer tokens. */
+[data-app="student"] .stu-btn[data-size="sm"] {
+  --stu-button-size: var(--ds-control-sm);
+  padding-inline: var(--ds-space-3);
+  font-size: var(--ds-text-xs);
 }
 
-[data-app="student"] .stu-btn--sm {
-  min-height: max(var(--ds-control-sm), var(--stu-touch));
+[data-app="student"] .stu-btn[data-size="md"] {
+  --stu-button-size: var(--ds-control-md);
+  padding-inline: var(--ds-space-4);
+  font-size: var(--ds-text-md);
 }
 
-[data-app="student"] .stu-btn--lg {
-  min-height: var(--stu-control-lg);
+[data-app="student"] .stu-btn[data-size="lg"] {
+  --stu-button-size: var(--ds-control-lg);
+  padding-inline: var(--ds-space-5);
+  font-size: var(--ds-text-md);
+}
+
+[data-app="student"] .stu-btn[data-size="xl"] {
+  --stu-button-size: var(--ds-control-xl);
+  padding-inline: var(--ds-space-6);
+  font-size: var(--ds-text-lg);
 }
 
 /* =========================
