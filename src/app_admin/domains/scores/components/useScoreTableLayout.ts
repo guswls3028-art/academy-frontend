@@ -20,13 +20,18 @@ export function useScoreTableLayout(
     if (!container) return;
     // Measure the scroll viewport, excluding its border, rather than the table itself.
     const viewport = container.querySelector<HTMLElement>(".ds-table-wrap");
-    if (!viewport) return;
-    const measure = () => setAvailableWidth(viewport.clientWidth);
+    const header = viewport?.querySelector("thead");
+    if (!viewport || !header) return;
+    const measure = () => {
+      setAvailableWidth(viewport.clientWidth);
+      viewport.style.setProperty("--scores-table-header-height", `${header.offsetHeight}px`);
+    };
     measure();
     // Assessment menus use the same browser API; install the existing shim for both.
     if (typeof window.ResizeObserver === "undefined") window.ResizeObserver = ResizeObserverPolyfill;
     const observer = new ResizeObserver(measure);
     observer.observe(viewport);
+    observer.observe(header);
     return () => observer.disconnect();
   }, []);
 
