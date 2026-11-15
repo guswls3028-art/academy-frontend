@@ -22,9 +22,14 @@ export type ExamAnalysisInsights = {
   trends: ScoreTrend[];
 };
 
-function formatRate(rate: number, difference: number | null) {
-  if (difference == null) return `${rate.toFixed(1)}%`;
-  return `${rate.toFixed(1)}% (${difference > 0 ? "+" : ""}${difference.toFixed(1)}%p)`;
+function ScoreRate({ rate, difference = null }: { rate: number | null; difference?: number | null }) {
+  if (rate == null) return <dd>기록 없음</dd>;
+  return (
+    <dd>
+      {rate.toFixed(1)}%
+      {difference != null && ` (${difference > 0 ? "+" : ""}${difference.toFixed(1)}%p)`}
+    </dd>
+  );
 }
 
 export default function ExamScoreTrends({
@@ -83,18 +88,14 @@ export default function ExamScoreTrends({
                         <span>{student.lecture_title}</span>
                       </div>
                       <dl className={styles.trendScores}>
-                        <div><dt>이번 시험</dt><dd>{formatRate(student.current_rate, null)}</dd></div>
+                        <div><dt>이번 시험</dt><ScoreRate rate={student.current_rate} /></div>
                         <div>
                           <dt>직전 차시 평균</dt>
-                          <dd>{student.previous_session_rate == null
-                            ? "기록 없음"
-                            : formatRate(student.previous_session_rate, student.previous_delta_pp)}</dd>
+                          <ScoreRate rate={student.previous_session_rate} difference={student.previous_delta_pp} />
                         </div>
                         <div>
                           <dt>이전 누적 평균 ({student.prior_exam_count}회)</dt>
-                          <dd>{student.cumulative_rate == null
-                            ? "기록 없음"
-                            : formatRate(student.cumulative_rate, student.cumulative_delta_pp)}</dd>
+                          <ScoreRate rate={student.cumulative_rate} difference={student.cumulative_delta_pp} />
                         </div>
                       </dl>
                     </li>
