@@ -350,11 +350,13 @@
 .highlights :focus-visible { outline-color: var(--video-deep); }
 .heroVideo .heroPoster:focus-visible { outline: 3px solid white; outline-offset: -6px; }
 .heroPoster:focus-visible::after {
-  border: 2px solid #102b23;
+  border: 3px solid white;
+  box-shadow: 0 0 0 2px #102b23;
   content: "";
-  inset: 1px;
+  inset: 5px;
   pointer-events: none;
   position: absolute;
+  z-index: 1;
 }
 .heroPlay { backdrop-filter: blur(8px); background: rgba(15, 36, 31, 0.74); border-color: rgba(255, 255, 255, 0.42); }
 .heroCaption { padding: 26px 26px 28px; }
