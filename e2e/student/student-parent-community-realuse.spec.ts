@@ -406,6 +406,7 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
       await expect(detail.getByText(qnaTitle, { exact: true })).toBeVisible();
       await expect(detail.getByText(counselTitle, { exact: true })).toHaveCount(0);
       const sharedMemo = "QA 학생 상세 저장·후속 화면 확인";
+      await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
       const memo = detail.getByRole("textbox", { name: "학생 공통 메모" });
       await memo.fill(sharedMemo);
       const saved = adminPage.waitForResponse((response) => response.request().method() === "PATCH"
@@ -414,11 +415,11 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
       expect((await saved).status()).toBe(200);
       await expect(detail.getByText("저장됨", { exact: true })).toBeVisible();
       await adminPage.reload({ waitUntil: "domcontentloaded" });
+      await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
       await expect(memo).toHaveValue(sharedMemo);
       await assertNoHorizontalOverflow(adminPage);
       await adminPage.screenshot({ path: testInfo.outputPath("student-detail-development-desktop.png") });
       await adminPage.setViewportSize({ width: 390, height: 844 });
-      await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
       await expect(memo).toHaveValue(sharedMemo);
       await assertNoHorizontalOverflow(adminPage);
       await adminPage.screenshot({ path: testInfo.outputPath("student-detail-development-mobile.png") });

@@ -6,6 +6,7 @@ import { IconChevronRight } from "../icons/Icons";
 import { InlineHelp } from "@/shared/ui/guide";
 import PageTrail, { type PageCrumb } from "@/shared/ui/navigation/PageTrail";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
+import { cx } from "@/shared/utils/cx";
 
 export default function StudentPageShell({
   title,
@@ -19,6 +20,7 @@ export default function StudentPageShell({
   breadcrumbs,
   /** 영상 강의/차시 상세처럼 배경을 검정으로 채울 때 사용. .stu-section 외곽 박스/패딩 제거 */
   noSectionFrame,
+  sectionClassName,
 }: {
   title: string;
   description?: string;
@@ -30,6 +32,7 @@ export default function StudentPageShell({
   onBack?: () => void;
   breadcrumbs?: PageCrumb[];
   noSectionFrame?: boolean;
+  sectionClassName?: string;
 }) {
   const navigate = useNavigate();
   const displayTitle = richHtmlToPlainText(title);
@@ -88,7 +91,7 @@ export default function StudentPageShell({
         </header>
       )}
 
-      <div className={`${noSectionFrame ? "stu-section stu-section--video-page" : "stu-section"} student-page-shell__section`}>
+      <div className={cx("stu-section", "student-page-shell__section", noSectionFrame && "stu-section--video-page", sectionClassName)}>
         {children}
       </div>
     </div>

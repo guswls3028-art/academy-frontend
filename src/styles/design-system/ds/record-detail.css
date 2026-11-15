@@ -1,0 +1,76 @@
+/* One reading surface for the selected record, with navigation on its own row. */
+.ds-record-tabs {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.ds-record-tab {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-1);
+  min-height: var(--ds-control-lg);
+  padding-inline: var(--ds-space-3);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--ds-text-sm);
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ds-record-tab:hover {
+  background: var(--color-bg-surface-hover);
+}
+
+.ds-record-tab[aria-selected="true"] {
+  border-bottom-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+}
+
+.ds-record-tab:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: -3px;
+}
+
+.ds-record-tab-count {
+  color: var(--color-text-muted);
+  font-size: var(--ds-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.ds-record-content {
+  min-width: 0;
+  padding-top: var(--ds-space-4);
+}
+
+.ds-record-card {
+  min-width: 0;
+  padding: var(--ds-card-padding);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--ds-card-radius);
+  background: var(--color-bg-surface);
+}
+
+.ds-record-card > :first-child {
+  margin-top: 0;
+}
+
+.ds-record-card[hidden] {
+  display: none;
+}
+
+.ds-record-reveal {
+  animation: ds-record-reveal var(--ds-motion-base);
+}
+
+@keyframes ds-record-reveal {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
