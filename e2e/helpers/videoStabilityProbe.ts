@@ -3,7 +3,8 @@ import { dismissDevelopmentFirstLoginGuide } from "./auth";
 import { installSyntheticVideoPosterBridge } from "./syntheticVideoPosterBridge";
 
 type Prepared = { context: BrowserContext; page: Page; apiAccessToken: string; state: { bootstraps: Array<{
-  playback_token?: unknown; playback_session_id?: unknown; event_protocol_version?: unknown; video?: { session_id?: unknown };
+  playback_token?: unknown; playback_session_id?: unknown; event_protocol_version?: unknown;
+  play_url?: unknown; video?: { id?: unknown; session_id?: unknown };
 }> } };
 type Prepare = (viewport: { width: number; height: number }, name: "desktop" | "mobile",
   username: string, password: string, tenant: string, tenantId: number,
@@ -93,13 +94,29 @@ async function seed(context: BrowserContext, page: Page, api: string, tenant: st
  * Auth, support, policy, progress and usage requests remain real development APIs.
  * This proves UI/API integration; it does not stand in for protected R2-origin proof.
  */
-async function mediaBridge(context: BrowserContext, base: string, api: string, tenantId: number, videoId: number) {
+async function mediaBridge(context: BrowserContext, base: string, api: string, tenantId: number, videoId: number,
+  priorClassMaster?: string) {
   const state = { responseChain: Promise.resolve(), allowedMasterUrls: new Set<string>(),
     allowedPosterUrls: new Set<string>(), supportPosterExpiries: new Map<string, number>(), posterLoads: 0 };
   const directOrigins = new Set<string>();
+  const grantedMasterUrls = new Set<string>();
   const reviewRoots = new Set<string>();
   const admittedRoots = new Set<string>();
   let error: unknown;
+  const assertDirectMaster = (master: URL) => {
+    expect(master.protocol).toBe("https:");
+    expect(master.pathname).toBe("/qa-fixtures/video-long/master.m3u8");
+    expect([...master.searchParams.keys()].sort()).toEqual(["exp", "kid", "sig", "uid"]);
+    expect(master.searchParams.get("sig")).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(Number(master.searchParams.get("exp"))).toBeGreaterThan(Math.floor(Date.now() / 1_000));
+  };
+  if (priorClassMaster) {
+    const master = new URL(priorClassMaster);
+    assertDirectMaster(master);
+    // The same student's earlier exact class grant proves only the poster
+    // origin. Review media must still come from the new review bootstrap.
+    state.allowedMasterUrls.add(master.href);
+  }
   const bootstraps: Array<{ support_preview?: boolean; playback_session_id?: unknown;
     playback_token?: unknown; review_watch?: { stream: string } | null; video: { enrollment_id: number; session_id: number } }> = [];
   context.on("response", response => {
@@ -112,16 +129,16 @@ async function mediaBridge(context: BrowserContext, base: string, api: string, t
         expect(data.video.id).toBe(videoId);
         bootstraps.push(data);
         const master = new URL(data.play_url, api);
+        grantedMasterUrls.add(master.href);
         state.allowedMasterUrls.add(master.href);
         if (master.pathname === "/qa-fixtures/video-long/master.m3u8") {
-          expect(master.protocol).toBe("https:");
-          expect([...master.searchParams.keys()].sort()).toEqual(["exp", "kid", "sig", "uid"]);
-          expect(master.searchParams.get("sig")).toMatch(/^[A-Za-z0-9_-]{43}$/);
+          assertDirectMaster(master);
           directOrigins.add(master.origin);
         } else {
           expect(master.pathname).toMatch(/^\/api\/v1\/media\/review-stream\/[0-9a-f-]{36}\/master\.m3u8$/);
           expect(master.origin).toBe(api);
           const browserMaster = new URL(master.pathname.replace("/api/v1/media/review-stream/", "/review-media/") + master.search, base);
+          grantedMasterUrls.add(browserMaster.href);
           state.allowedMasterUrls.add(browserMaster.href);
           reviewRoots.add(new URL(".", browserMaster).href);
         }
@@ -151,7 +168,7 @@ async function mediaBridge(context: BrowserContext, base: string, api: string, t
       await expect.poll(async () => {
         await state.responseChain;
         if (error) throw error;
-        return state.allowedMasterUrls.has(target.href);
+        return grantedMasterUrls.has(target.href);
       }).toBe(true);
       admittedRoots.add(root);
     } else {
@@ -299,7 +316,9 @@ export async function runVideoStabilityProbe(browser: Browser, prepare: Prepare)
       const reviewContext = await browser.newContext({ viewport: { width, height: 900 }, serviceWorkers: "block" });
       contexts.add(reviewContext);
       student = await reviewContext.newPage();
-      const reviewMedia = await mediaBridge(reviewContext, base, api, tenantId, videoId);
+      expect(classGrant.video?.id).toBe(videoId);
+      expect(typeof classGrant.play_url).toBe("string");
+      const reviewMedia = await mediaBridge(reviewContext, base, api, tenantId, videoId, classGrant.play_url as string);
       await seed(reviewContext, student, api, tenant,
         required(mobile ? "E2E_STUDENT2_USER" : "E2E_STUDENT_USER"), required(mobile ? "E2E_STUDENT2_PASS" : "E2E_STUDENT_PASS"));
       await student.goto(`${base}/student/video/play?video=${videoId}`);
