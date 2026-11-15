@@ -12,8 +12,7 @@
 import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ChartColumn, ChevronDown, ClipboardCheck, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
-import { buildAssessmentSearch, EXAM_ANALYSIS_ANCHOR } from "@/shared/lib/assessmentQueryParams";
+import { AlertCircle, ChevronDown, ClipboardCheck, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/public/SessionScoresPanel";
@@ -155,6 +154,7 @@ function resolveExamGradingMode(
 // Keep the OMR upload workspace (batch ledger, file preparation and upload UI)
 // outside the score-entry module. Both exports share the same lazy chunk.
 const SessionOmrUploadAction = lazy(() => import("./SessionOmrUploadAction"));
+const SessionExamAnalysisAction = lazy(() => import("./SessionExamAnalysisAction"));
 const SessionOmrUploadModal = lazy(() => import("./SessionOmrUploadAction").then(module => ({ default: module.SessionOmrUploadModal })));
 const ScorePrintPreviewModal = lazy(() => import("@admin/domains/scores/public/ScorePrintPreviewModal"));
 const StudentScoreReportModal = lazy(() => import("@admin/domains/scores/public/StudentScoreReportModal"));
@@ -244,8 +244,6 @@ export default function SessionScoresEntryPage({
   const [showClinicPreview, setShowClinicPreview] = useState(false);
   const [showBillboardPreview, setShowBillboardPreview] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [showAnalysisPicker, setShowAnalysisPicker] = useState(false);
-  const openingAnalysisRef = useRef(false);
   const [gradingExam, setGradingExam] = useState<{
     examId: number;
     title: string;
@@ -1019,22 +1017,6 @@ export default function SessionScoresEntryPage({
     }
   };
 
-  const openExamAnalysis = async (examId: number) => {
-    if (openingAnalysisRef.current || recoveryBlocked || !Number.isFinite(numericLectureId)) return;
-    openingAnalysisRef.current = true;
-    setShowAnalysisPicker(false);
-    try {
-      if (!await finishScoreEditing()) return;
-      navigate({
-        pathname: `/workspace/lectures/${numericLectureId}/sessions/${numericSessionId}/exams`,
-        search: buildAssessmentSearch("exam", examId) + "&examTab=results",
-        hash: `#${EXAM_ANALYSIS_ANCHOR}`,
-      });
-    } finally {
-      openingAnalysisRef.current = false;
-    }
-  };
-
   const openExamGrading = async (
     examId: number,
     title: string,
@@ -1535,21 +1517,15 @@ export default function SessionScoresEntryPage({
   const outputActions = (
     <div className="scores-output-actions" role="group" aria-label="성적표 출력과 관리">
       {examOptions.length > 0 && (
-        <Button
-          type="button"
-          intent="secondary"
-          size="sm"
-          leftIcon={<ChartColumn size={ICON_FOR_BUTTON.sm} />}
-          disabled={recoveryBlocked || isSaving || isLoading || isError || draft.isStartingEdit}
-          aria-haspopup={examOptions.length > 1 ? "dialog" : undefined}
-          onClick={() => {
-            const firstExam = examOptions[0];
-            if (examOptions.length === 1) void openExamAnalysis(firstExam.exam_id);
-            else setShowAnalysisPicker(true);
-          }}
-        >
-          시험 성적 분석
-        </Button>
+        <Suspense fallback={<Button type="button" intent="secondary" size="sm" disabled>시험 성적 분석</Button>}>
+          <SessionExamAnalysisAction
+            exams={examOptions}
+            lectureId={numericLectureId}
+            sessionId={numericSessionId}
+            disabled={recoveryBlocked || isSaving || isLoading || isError || draft.isStartingEdit}
+            onBeforeNavigate={finishScoreEditing}
+          />
+        </Suspense>
       )}
       {hasExamsOrHomeworks && (
         <Button type="button" intent="secondary" size="sm" disabled={recoveryBlocked || isLoading || isError || displayCount === 0} leftIcon={<UserRound size={ICON_FOR_BUTTON.sm} />} onClick={() => void openStudentScoreReport()} title={displayCount === 0 ? "수강생이 등록되면 개인 성적표를 출력할 수 있습니다" : undefined}>
@@ -2249,29 +2225,6 @@ export default function SessionScoresEntryPage({
         }}
       />
       </Suspense>}
-
-      {showAnalysisPicker && (
-        <AdminModal open onClose={() => setShowAnalysisPicker(false)} type="inspect" width={440} noMinimize>
-          <ModalHeader title="분석할 시험 선택" type="inspect" />
-          <ModalBody>
-            <div className="grid gap-2">
-              {examOptions.map((exam) => (
-                <Button
-                  key={exam.exam_id}
-                  type="button"
-                  intent="secondary"
-                  size="md"
-                  className="min-w-0 justify-start whitespace-normal text-left"
-                  disabled={isSaving}
-                  onClick={() => void openExamAnalysis(exam.exam_id)}
-                >
-                  {exam.title}
-                </Button>
-              ))}
-            </div>
-          </ModalBody>
-        </AdminModal>
-      )}
 
       {/* 성적표 인쇄 미리보기 */}
       {showPrintPreview && data?.meta && (
