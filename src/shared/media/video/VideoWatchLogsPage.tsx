@@ -100,7 +100,7 @@ export default function VideoWatchLogsPage() {
         <section className="watch-logs__summary" aria-label="학생 누적 재생 요약">
           {selected.remaining_ms !== undefined && (selected.can_adjust === false && selected.applicable === false ? <section className="watch-logs__notice" aria-label="복습 시청기록">
             <strong>현재 시청 권한 확인이 필요합니다</strong>
-            <p>기존 사용 {watchDuration(selected.used_ms)} · 기존 허용 {selected.limit_ms == null ? "제한 없음" : watchDuration(selected.limit_ms)}</p>
+            <p>기존 사용 {watchDuration(selected.used_ms)} · 기존 허용 {selected.limit_ms == null ? (data.enabled ? "한도 확인 필요" : "제한 없음") : watchDuration(selected.limit_ms)}</p>
             <p>학생의 현재 수강·시청 권한을 확인해 주세요. 이전 시청 기록과 한도는 보존됩니다.</p>
           </section> : <ReviewWatchSummaryPanel summary={{ enabled: data.enabled,
             applicable: selected.applicable ?? true, used_ms: selected.used_ms, limit_ms: selected.limit_ms ?? null,
