@@ -11,6 +11,224 @@ const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const FIRST_TITLE = "통합과학 1강 · 원리를 연결하는 아주 긴 제목의 복습 영상";
 const SECOND_TITLE = "통합과학 2강 · 적용 문제 해설";
 
+type NativeRecoveryFixture = {
+  controller: import("../../src/app_student/domains/video/playback/player/headless/StudentHlsController").StudentHlsController;
+  video: HTMLVideoElement;
+  fatals: string[];
+  saved: Array<{ last_position?: number }>;
+};
+declare global { interface Window { __nativeRecoveryFixture: NativeRecoveryFixture } }
+
+async function openNativeRecoveryFixture(page: Page, options: { review?: boolean; unsupported?: boolean; disposeImmediately?: boolean; stall?: boolean; knownDuration?: boolean } = {}) {
+  let segments = 0;
+  await page.route("**/__qa__/native-recovery", (route) => route.fulfill({
+    contentType: "text/html", body: '<!doctype html><html><body><video muted playsinline controls></video></body></html>',
+  }));
+  await page.route("**/__qa__/video-long/**", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith(".m4s")) segments++;
+    const asset = syntheticLongVideoAsset(path);
+    return route.fulfill({ body: asset.body, contentType: asset.contentType });
+  });
+  await page.goto(`${BASE}/__qa__/native-recovery`);
+  await page.evaluate(async ({ base, options, token }) => {
+    localStorage.setItem("access", token);
+    localStorage.setItem("tenant_code", "limglish");
+    sessionStorage.setItem("tenantCode", "limglish");
+    if (options.unsupported) {
+      Object.defineProperty(window, "MediaSource", { configurable: true, value: undefined });
+      Object.defineProperty(window, "ManagedMediaSource", { configurable: true, value: undefined });
+    }
+    const { StudentHlsController } = await import("/src/app_student/domains/video/playback/player/headless/StudentHlsController.ts");
+    const video = document.querySelector("video")!;
+    // Inject a native decoder failure; the replacement MSE pipeline below is real.
+    const canPlayType = video.canPlayType.bind(video);
+    video.canPlayType = (type) => type.includes("mpegurl") || type.includes("mpegURL") ? "probably" : canPlayType(type);
+    const fatals: string[] = [];
+    const saved: Array<{ last_position?: number }> = [];
+    const controller = new StudentHlsController({
+      videoId: 562, enrollmentId: 1304, playUrl: `${base}/__qa__/video-long/master.m3u8`,
+      token: "synthetic-native-recovery", initialPosition: 42,
+      reviewStream: options.review ? "synthetic-review-stream" : undefined,
+      policy: { access_mode: "FREE_REVIEW", monitoring_enabled: false, allow_seek: true,
+        playback_rate: { max: 2, ui_control: true } },
+      onFatal: (message) => fatals.push(message), onLeaveProgress: (value) => saved.push(value),
+    });
+    window.__nativeRecoveryFixture = { controller, video, fatals, saved };
+    await controller.attach(video);
+    if (options.knownDuration) {
+      Object.defineProperty(video, "duration", { configurable: true, get: () => 600 });
+      video.dispatchEvent(new Event("loadedmetadata"));
+      Reflect.deleteProperty(video, "duration");
+    }
+    video.playbackRate = 1.5;
+    video.volume = 0.4;
+    if (options.stall) {
+      // Freeze only the failed native engine's observations; replacement media plays normally.
+      Object.defineProperty(video, "error", { configurable: true, get: () => null });
+      Object.defineProperty(video, "currentTime", { configurable: true, get: () => 42, set: () => {} });
+      Object.defineProperty(video, "paused", { configurable: true, get: () => false });
+      const sourceChanged = new MutationObserver(() => {
+        if (!video.getAttribute("src")?.startsWith("blob:")) return;
+        for (const key of ["error", "currentTime", "paused"]) Reflect.deleteProperty(video, key);
+        sourceChanged.disconnect();
+      });
+      sourceChanged.observe(video, { attributes: true, attributeFilter: ["src"] });
+      video.dispatchEvent(new Event("play"));
+    } else {
+      if (!options.review) void video.play().catch(() => {});
+      Object.defineProperty(video, "error", { configurable: true, get: () => ({ code: 3, message: "Synthetic native decoder failure" }) });
+      video.dispatchEvent(new Event("error"));
+      delete (video as unknown as { error?: unknown }).error;
+    }
+    if (options.disposeImmediately) controller.dispose();
+  }, { base: BASE, options, token: `e30.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "limglish", user_id: 1772 })).toString("base64url")}.sig` });
+  return { segments: () => segments };
+}
+
+test.describe("native HLS engine recovery", () => {
+  test.skip(!["127.0.0.1", "localhost"].includes(new URL(BASE).hostname), "Local synthetic media only");
+  test.use({ serviceWorkers: "block" });
+  for (const width of [390, 1366]) {
+    test(`native decode failure resumes real MSE playback at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      await openNativeRecoveryFixture(page);
+      const video = page.locator("video");
+      await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime), { timeout: 20_000 }).toBeGreaterThan(43);
+      const state = await page.evaluate(() => {
+        const { controller, video, fatals, saved } = window.__nativeRecoveryFixture;
+        const before = { src: video.src, position: video.currentTime, rate: video.playbackRate, volume: video.volume,
+          muted: video.muted, connected: video.isConnected, reconnecting: controller.getState().reconnecting };
+        controller.dispose();
+        return { before, fatals, saved, detached: !video.getAttribute("src") };
+      });
+      expect(state.before.src).toMatch(/^blob:/);
+      expect(state.before.rate).toBe(1.5);
+      expect(state.before.volume).toBeCloseTo(0.4);
+      expect(state.before.muted).toBe(true);
+      expect(state.before.connected).toBe(true);
+      expect(state.before.reconnecting).toBe(false);
+      expect(state.fatals).toEqual([]);
+      expect(state.saved.at(-1)?.last_position).toBeGreaterThanOrEqual(43);
+      expect(state.detached).toBe(true);
+    });
+  }
+  for (const allowed of [true, false]) {
+    test(`native recovery preserves review preparation ${allowed ? "approval" : "denial"}`, async ({ page }) => {
+      const preparations: number[] = [];
+      await page.route("**/api/v1/student/video/videos/562/review-watch/", (route) => {
+        const body = route.request().postDataJSON();
+        if (body.prepare) preparations.push(body.position_ms);
+        return route.fulfill({ status: allowed ? 200 : 403, json: allowed
+          ? { stream: "synthetic-review-stream", remaining_ms: 100_000, used_ms: 0 }
+          : { detail: "수강 권한이 종료되었습니다." } });
+      });
+      const fixture = await openNativeRecoveryFixture(page, { review: true });
+      await expect.poll(() => page.locator("video").getAttribute("src")).toMatch(/^blob:/);
+      expect(fixture.segments()).toBe(0);
+      await page.evaluate(() => window.__nativeRecoveryFixture.controller.play());
+      await expect.poll(() => preparations.length).toBe(1);
+      expect(preparations[0]).toBe(42_000);
+      if (allowed) {
+        await expect.poll(() => page.locator("video").evaluate((el: HTMLVideoElement) => el.currentTime), { timeout: 20_000 }).toBeGreaterThan(43);
+        expect(fixture.segments()).toBeGreaterThan(0);
+        expect(await page.evaluate(() => window.__nativeRecoveryFixture.fatals)).toEqual([]);
+      } else {
+        await expect.poll(() => page.evaluate(() => window.__nativeRecoveryFixture.fatals.length)).toBe(1);
+        expect(fixture.segments()).toBe(0);
+      }
+      await page.evaluate(() => window.__nativeRecoveryFixture.controller.dispose());
+    });
+  }
+  test("persistent native stall tries the alternate engine once and resumes", async ({ page }) => {
+    await openNativeRecoveryFixture(page, { stall: true });
+    await expect.poll(() => page.locator("video").getAttribute("src"), { timeout: 35_000 }).toMatch(/^blob:/);
+    await page.evaluate(() => {
+      const { video } = window.__nativeRecoveryFixture;
+      for (const key of ["error", "currentTime", "paused"]) Reflect.deleteProperty(video, key);
+    });
+    await expect.poll(() => page.locator("video").evaluate((el: HTMLVideoElement) => el.currentTime), { timeout: 15_000 }).toBeGreaterThan(43);
+    expect(await page.evaluate(() => window.__nativeRecoveryFixture.fatals)).toEqual([]);
+    await page.evaluate(() => window.__nativeRecoveryFixture.controller.dispose());
+  });
+  for (const allowed of [true, false]) {
+    test(`grant renewal waits for pending native recovery preparation ${allowed ? "approval" : "denial"}`, async ({ page }) => {
+      let preparations = 0;
+      let release!: () => void;
+      const pending = new Promise<void>((resolve) => { release = resolve; });
+      await page.route("**/api/v1/student/video/videos/562/review-watch/", async (route) => {
+        preparations++;
+        await pending;
+        await route.fulfill({ status: allowed ? 200 : 403, json: allowed
+          ? { stream: "synthetic-review-stream", remaining_ms: 100_000, used_ms: 0 }
+          : { detail: "수강 권한이 종료되었습니다." } });
+      });
+      const fixture = await openNativeRecoveryFixture(page, { review: true });
+      try {
+        await expect.poll(() => page.locator("video").getAttribute("src")).toMatch(/^blob:/);
+        await page.evaluate(() => window.__nativeRecoveryFixture.controller.play());
+        await expect.poll(() => preparations).toBe(1);
+        await page.evaluate((base) => window.__nativeRecoveryFixture.controller.setSource(`${base}/__qa__/video-long/master.m3u8?grant=renewed`), BASE);
+        await page.evaluate(() => new Promise((resolve) => window.setTimeout(resolve, 500)));
+        expect(fixture.segments()).toBe(0);
+        release();
+        if (allowed) {
+          await expect.poll(() => page.locator("video").evaluate((el: HTMLVideoElement) => el.currentTime), { timeout: 20_000 }).toBeGreaterThan(43);
+        } else {
+          await expect.poll(() => page.evaluate(() => window.__nativeRecoveryFixture.fatals.length)).toBe(1);
+          expect(fixture.segments()).toBe(0);
+        }
+      } finally {
+        release();
+        await page.evaluate(() => window.__nativeRecoveryFixture.controller.dispose());
+      }
+    });
+  }
+  for (const renew of [false, true]) {
+    test(`seek during pending native recovery resumes the latest authorized position${renew ? " after renewal" : ""}`, async ({ page }) => {
+      const preparations: number[] = [];
+      let release!: () => void;
+      const pending = new Promise<void>((resolve) => { release = resolve; });
+      await page.route("**/api/v1/student/video/videos/562/review-watch/", async (route) => {
+        preparations.push(route.request().postDataJSON().position_ms);
+        await pending;
+        await route.fulfill({ json: { stream: "synthetic-review-stream", remaining_ms: 100_000, used_ms: 0 } });
+      });
+      const fixture = await openNativeRecoveryFixture(page, { review: true, knownDuration: true });
+      try {
+        await expect.poll(() => page.locator("video").getAttribute("src")).toMatch(/^blob:/);
+        await page.evaluate(() => window.__nativeRecoveryFixture.controller.play());
+        await expect.poll(() => preparations.length).toBe(1);
+        await page.evaluate(({ base, renew }) => {
+          const { controller } = window.__nativeRecoveryFixture;
+          controller.seek(75);
+          if (renew) controller.setSource(`${base}/__qa__/video-long/master.m3u8?grant=renewed`);
+        }, { base: BASE, renew });
+        expect(fixture.segments()).toBe(0);
+        release();
+        await expect.poll(() => preparations.at(-1)).toBe(75_000);
+        await expect.poll(() => page.locator("video").evaluate((el: HTMLVideoElement) => el.currentTime), { timeout: 20_000 }).toBeGreaterThan(76);
+        expect(await page.evaluate(() => window.__nativeRecoveryFixture.fatals)).toEqual([]);
+      } finally {
+        release();
+        await page.evaluate(() => window.__nativeRecoveryFixture.controller.dispose());
+      }
+    });
+  }
+  test("unsupported alternate engine retains visible fatal recovery", async ({ page }) => {
+    await openNativeRecoveryFixture(page, { unsupported: true });
+    await expect.poll(() => page.evaluate(() => window.__nativeRecoveryFixture.fatals)).toEqual(["비디오 디코딩 오류가 발생했습니다."]);
+    expect(await page.locator("video").getAttribute("src")).toBeNull();
+  });
+  test("leaving during native recovery never attaches a late engine", async ({ page }) => {
+    const fixture = await openNativeRecoveryFixture(page, { disposeImmediately: true });
+    await page.evaluate(() => new Promise((resolve) => window.setTimeout(resolve, 200)));
+    expect(await page.locator("video").getAttribute("src")).toBeNull();
+    expect(fixture.segments()).toBe(0);
+    expect(await page.evaluate(() => window.__nativeRecoveryFixture.fatals)).toEqual([]);
+  });
+});
+
 async function installWatchScenario(page: Page, completed = false) {
   const vendorRequests = await guardUnmockedYouTubeRequests(page);
   const youtube = await installYouTubeSdkFixture(page);
