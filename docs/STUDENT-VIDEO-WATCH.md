@@ -240,3 +240,9 @@ Pages Function은 등록된 운영 호스트와 테넌트 코드의 일치를 �
 - `e2e/student/video-watch-journey.mock.spec.ts`: Chromium·WebKit, PC·390px 동선·버튼·긴 목록, 좋아요/댓글의 실패·재시도·reload, 삭제 댓글의 기존 답글, 재생 종료·취소·다음 이동, 완료 영상 복습의 배경 저장.
 - `scripts/tests/playback-ended.test.mjs`: HLS·YouTube 종료 즉시 완료 저장, 배경 저장과 종료 후 늦은 이벤트의 자동 이동 방지. 기존 seek-budget·review-transition·unload·direct-access 검사도 유지한다.
 - `e2e/student/video-playback-renewal.realuse.spec.ts`: 동일 배포 산출물을 격리 개발 환경의 합성 학생 두 명으로 PC·390px에서 690초 이상 재생하고 토큰 갱신·이어보기·좋아요·댓글 저장과 reload를 실제 API로 확인한다. 합성 영상과 좋아요·댓글은 시나리오 테넌트 정리 시 함께 제거하며 cleanup0이 필수다. 운영에 합성 학생·댓글을 만들지 않는다.
+- 같은 spec의 `E2E_VIDEO_STABILITY_PROBE=1` 추가 검증은 별도 소유한 disposable 개발 scenario와
+  정확한 frontend artifact에서 학생 수업 세션 유지 중 대리보기, 진도·사용량 분리,
+  실제 사용량·한도 감액·소진·동시 수정·증액 재개·기본 복원을 desktop/390px에서 검사한다.
+  기본 필수 릴리스 suite를 대체하지 않는다. API가 발급한 정확한 재생 경로의 합성 미디어만
+  loopback에서 제공하며 이 증거를 보호 R2 원점 검증과 구분한다. 토큰은 프로세스 메모리에만
+  유지하고 owning Setup/Inspect/Cleanup 및 cleanup0 절차를 그대로 적용한다.

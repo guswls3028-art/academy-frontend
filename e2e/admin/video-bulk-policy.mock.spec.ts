@@ -305,7 +305,7 @@ for (const width of [1366, 390]) {
     await expect(settings).toBeVisible({ timeout: 60_000 });
     await settings.click();
     await page.getByRole("button", { name: "시간 제한 꺼짐" }).click();
-    await expect(page.getByText(/학생당 84분 0초.*기준에 도달한 학생 1명/)).toBeVisible();
+    await expect(page.getByText(/학생당 84분 0초.*기본 기준에 도달한 학생은 1명.*별도 조정한 한도는 유지/)).toBeVisible();
     await page.getByRole("group", {name: "복습 시청시간 변경 확인"}).getByRole("button", {name: "취소"}).click();
     expect(enabled).toBe(false);
     await page.getByRole("button", { name: "시간 제한 꺼짐" }).click();
@@ -328,10 +328,10 @@ for (const width of [1366, 390]) {
     await settings.click();
     await page.getByRole("button", {name: "YouTube 원본 길이 수정"}).click();
     await page.getByLabel("원본 길이 (분 또는 분:초)").fill("61");
-    await expect(page.getByText(/변경 후 복습 기준 85분 24초/)).toBeVisible();
+    await expect(page.getByText(/변경 후 기본 복습 기준 85분 24초/)).toBeVisible();
     await page.getByRole("button", {name: "원본 길이 저장"}).click();
     await expect.poll(() => length).toBe(3660);
-    await expect(page.getByText(/학생 한 명당 원본의 1.4배 · 85분 24초/)).toBeVisible();
+    await expect(page.getByText(/기본 한도는 원본의 1.4배 · 85분 24초.*학생별 조정값이 우선/)).toBeVisible();
     const panel = page.locator("section.review-watch");
     expect(await panel.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     await info.attach("review-watch-settings", { body: await panel.screenshot(), contentType: "image/png" });
