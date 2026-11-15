@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { reportReviewWatch, REVIEW_EXHAUSTED, type ReviewWatch } from "../../api/reviewWatch.api";
+import type { ReviewWatchSummary } from "@/shared/media/video/reviewWatchSummary";
 
 export function useReviewWatch(
   videoId: number, enrollmentId: number | null, watch: ReviewWatch | null | undefined,
   playing: boolean, position: number, stop: (reason: string) => void,
+  onSummary?: (summary: ReviewWatchSummary) => void,
 ) {
   const stream = watch?.stream;
   const sequence = useRef({ value: 0, failureGeneration: 0 }).current;
@@ -11,13 +13,17 @@ export function useReviewWatch(
   positionRef.current = position;
   const stopRef = useRef(stop);
   stopRef.current = stop;
+  const onSummaryRef = useRef(onSummary);
+  onSummaryRef.current = onSummary;
   const budget = useRef<number | null>(null);
   const [reconnecting, setReconnecting] = useState(false);
   const [remaining, setRemaining] = useState<number | null>(watch?.remaining_ms ?? null);
+  const [summary, setSummary] = useState(watch?.review_watch_summary);
 
   useEffect(() => {
     budget.current = watch?.remaining_ms ?? null;
     setRemaining(budget.current);
+    setSummary(watch?.review_watch_summary);
     if (!stream) return;
     return () => {
       sequence.failureGeneration++;
@@ -25,7 +31,7 @@ export function useReviewWatch(
         // Abrupt disconnects are bounded by the server's active-signal timeout.
       });
     };
-  }, [stream, videoId, enrollmentId, sequence, watch?.remaining_ms]);
+  }, [stream, videoId, enrollmentId, sequence, watch?.remaining_ms, watch?.review_watch_summary]);
 
   useEffect(() => {
     if (!stream) return;
@@ -60,6 +66,11 @@ export function useReviewWatch(
         clearTimeout(retry);
         setReconnecting(false);
         lastAck = performance.now();
+        if (data.review_watch_summary) {
+          setSummary(data.review_watch_summary);
+          // Preserve the confirmed ledger before a fatal error unmounts this player.
+          onSummaryRef.current?.(data.review_watch_summary);
+        }
         if (data.remaining_ms === 0) {
           fail(REVIEW_EXHAUSTED);
         } else {
@@ -89,7 +100,8 @@ export function useReviewWatch(
       if (deadline === null || !live) return;
       const ms = Math.max(0, deadline - performance.now());
       setRemaining(ms);
-      if (ms === 0) fail(confirmedPlaying ? REVIEW_EXHAUSTED : "남은 복습시간을 확인하지 못했습니다. 연결을 확인하고 다시 시도해 주세요.");
+      // A local deadline cannot confirm the ledger or a teacher's concurrent extension.
+      if (ms === 0) fail(confirmedPlaying ? "남은 복습시간을 다시 확인해 주세요." : "남은 복습시간을 확인하지 못했습니다. 연결을 확인하고 다시 시도해 주세요.");
       else if (performance.now() - lastAck > 15000) fail("연결을 확인하고 영상을 다시 열어 주세요.");
     }, 200) : undefined;
     return () => {
@@ -109,6 +121,11 @@ export function useReviewWatch(
       try {
         // The last denied fragment can reach the player before its next usage heartbeat.
         const final = await reportReviewWatch(videoId, enrollmentId, limitedStream, ++sequence.value, false, positionRef.current);
+        if (generation !== sequence.failureGeneration) return;
+        if (final.review_watch_summary) {
+          setSummary(final.review_watch_summary);
+          onSummaryRef.current?.(final.review_watch_summary);
+        }
         if (final.remaining_ms === 0) message = REVIEW_EXHAUSTED;
       } catch {
         // Keep the player's recovery action if the server cannot confirm exhaustion.
@@ -117,5 +134,5 @@ export function useReviewWatch(
     if (generation === sequence.failureGeneration) stopRef.current(message);
   }, [limitedStream, videoId, enrollmentId, sequence]);
 
-  return { remaining, reconnecting, settleMediaFailure };
+  return { remaining, summary, reconnecting, settleMediaFailure };
 }

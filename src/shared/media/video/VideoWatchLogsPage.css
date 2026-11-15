@@ -72,3 +72,10 @@
 }
 
 .watch-logs--teacher { --color-text-primary: var(--tc-text); --color-text-secondary: var(--tc-text-muted); --color-border-divider: var(--tc-border); --color-bg-surface: var(--tc-surface); }
+.watch-allowance { margin-top: 1rem; }
+.watch-allowance__form { padding: 1rem; border: 1px solid var(--color-border-divider, #d9dee3); border-radius: 12px; }
+.watch-allowance__form h3 { margin: 0 0 .5rem; font-size: 1rem; }
+.watch-allowance__form p { line-height: 1.6; overflow-wrap: anywhere; }
+.watch-allowance__form label { display: grid; gap: .4rem; font-size: .875rem; font-weight: 600; }
+.watch-allowance__form input { width: 100%; max-width: 20rem; min-height: 44px; padding: .65rem; border: 1px solid var(--color-border-divider, #d9dee3); border-radius: 8px; background: var(--color-bg-surface, #fff); color: inherit; }
+.watch-allowance__actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .75rem; }
