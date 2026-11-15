@@ -26,6 +26,8 @@ function fakeJwt(): string {
 type ReviewMockOptions = {
   resultMode?: "SCORE" | "COMPLETION";
   resultScores?: Array<number | null>;
+  resultTitles?: { lecture: string; session: string; homework: string };
+  resultNames?: string[];
   workbook?: boolean;
   olderSubmission?: boolean;
   reviewImagesOnly?: boolean;
@@ -61,7 +63,7 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
   const session = {
     id: SESSION_ID,
     lecture: LECTURE_ID,
-    title: "3차시",
+    title: options.resultTitles?.session ?? "3차시",
     display_label: "3차시",
     order: 3,
     regular_order: 3,
@@ -74,7 +76,7 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
     session: SESSION_ID,
     session_id: SESSION_ID,
     homework_type: "regular",
-    title: "도형 풀이 인증",
+    title: options.resultTitles?.homework ?? "도형 풀이 인증",
     grading_mode: options.resultMode ?? "SCORE",
     max_score: options.resultMode === "COMPLETION" ? 1 : 100,
     cutline_mode: "PERCENT",
@@ -107,9 +109,9 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
       return json({ ok: true });
     }
     if (path === `/lectures/lectures/${LECTURE_ID}/`) {
-      return json({ id: LECTURE_ID, title: "고1 수학", name: "김선생", subject: "수학", is_active: true });
+      return json({ id: LECTURE_ID, title: options.resultTitles?.lecture ?? "고1 수학", name: "김선생", subject: "수학", is_active: true });
     }
-    if (path === "/lectures/lectures/") return json([{ id: LECTURE_ID, title: "고1 수학", is_active: true }]);
+    if (path === "/lectures/lectures/") return json([{ id: LECTURE_ID, title: options.resultTitles?.lecture ?? "고1 수학", is_active: true }]);
     if (path === "/lectures/sessions/") return json([session]);
     if (path === `/lectures/sessions/${SESSION_ID}/`) return json(session);
     if (path === `/lectures/sessions/${SESSION_ID}/schedules/` && request.method() === "GET") {
@@ -124,7 +126,8 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
     if (path === "/homework/assignments/") return json({ items: [] });
     if (path === `/results/admin/sessions/${SESSION_ID}/scores/`) {
       if (options.resultMode) return json({ meta: { exams: [], homeworks: [] }, rows: (options.resultScores ?? []).map((score, index) => ({
-        enrollment_id: 9902 + index, student_id: 9950 + index, student_name: `결과학생${index + 1}`,
+        enrollment_id: 9902 + index, student_id: 9950 + index, student_name: options.resultNames?.[index] ?? `결과학생${index + 1}`,
+        lecture_title: options.resultTitles?.lecture,
         homeworks: [{ homework_id: HOMEWORK_ID, block: { score, max_score: options.resultMode === "COMPLETION" ? 1 : 100,
           passed: score == null ? null : score >= (options.resultMode === "COMPLETION" ? 1 : 80),
           clinic_required: score != null && score < (options.resultMode === "COMPLETION" ? 1 : 80),
@@ -621,6 +624,39 @@ for (const width of [1366, 1100, 390]) {
     await expect(page.getByRole("table").getByRole("row").filter({ hasText: "결과학생2" }).locator("td").nth(2)).toHaveText("X");
   });
 }
+
+test("@homework-results 390px 과제 상세를 열어도 화면에 가로 스크롤이 생기지 않는다", async ({ page }, testInfo) => {
+  const resultTitles = {
+    lecture: "QA 과제 projection 1794772800000",
+    session: "QA 과제 1차시 1794772800000",
+    homework: "QA 준비물 통과형 1794772800000",
+  };
+  const resultNames = ["QA homework 자녀 1", "QA homework-preview 자녀 1"];
+  await page.setViewportSize({ width: 390, height: 900 });
+  await installApi(page, "submitted", false, { resultMode: "COMPLETION", resultScores: [0, 1], resultTitles, resultNames });
+  await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/assignments?homeworkId=${HOMEWORK_ID}`);
+  await expect(page.getByRole("heading", { name: resultTitles.homework, exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "결과", exact: true }).click();
+  const student = resultNames[0];
+  const detailButton = page.getByRole("button", { name: `${student} 결과 상세`, exact: true });
+  const detail = page.getByRole("dialog", { name: `${student} 과제 결과`, exact: true });
+  const readOverflow = () => page.evaluate(() => {
+    const { scrollWidth, clientWidth } = document.documentElement;
+    return scrollWidth - clientWidth;
+  });
+  await expect(page.getByRole("columnheader", { name: "결과 상세", exact: true })).toBeVisible();
+  expect(await readOverflow()).toBeLessThanOrEqual(1);
+  await detailButton.click();
+  await expect(detail.getByText("X", { exact: true })).toBeVisible();
+  await detail.scrollIntoViewIfNeeded();
+  await expect(detail).toBeInViewport();
+  expect(await readOverflow()).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: testInfo.outputPath("homework-long-name-detail-390.png"), animations: "disabled" });
+  await page.keyboard.press("Escape");
+  await expect(detail).toBeHidden();
+  await expect(detailButton).toBeFocused();
+  expect(await readOverflow()).toBeLessThanOrEqual(1);
+});
 
 test("@homework-results 점수형 소수점 경계는 분포에서 누락되지 않고 기존 점수를 유지한다", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 900 });
