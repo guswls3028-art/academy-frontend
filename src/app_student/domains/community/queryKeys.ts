@@ -5,7 +5,6 @@ import { studentQueryKeys } from "@student/shared/api/queryKeys";
 export const studentCommunityQueryKeys = {
   myActivity: (limit: number) => ["student", "community", "my-activity", limit] as const,
   me: studentQueryKeys.me,
-  videoMe: ["student", "video", "me"] as const,
   notificationCounts: studentQueryKeys.notificationCounts,
 
   noticePosts: ["student", "notice", "posts"] as const,
