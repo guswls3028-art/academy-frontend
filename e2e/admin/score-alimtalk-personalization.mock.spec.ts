@@ -22,12 +22,12 @@ type SendPayload = {
 
 type PreflightMode = "success" | "stale";
 
-function createLocalJwt() {
+function createLocalJwt(tenantCode = "hakwonplus") {
   const encode = (payload: unknown) => Buffer.from(JSON.stringify(payload)).toString("base64url");
   const now = Math.floor(Date.now() / 1000);
   return `${encode({ alg: "none", typ: "JWT" })}.${encode({
     exp: now + 3600,
-    tenant_code: "hakwonplus",
+    tenant_code: tenantCode,
     user_id: 12,
   })}.sig`;
 }
@@ -40,11 +40,15 @@ async function installScoreAlimtalkRoutes(
   templates: Record<string, unknown>[] = [],
   completionHomework = false,
   attendanceStatuses: (string | null)[] = ["PRESENT", "LATE"],
+  tenantCode = "hakwonplus",
 ) {
   const tenantName = "실제 발송학원";
+  const limglish = tenantCode === "limglish";
   const scoreRoster = attendanceStatuses.map((_, index) => ({
-    examScore: [70, 80][index] ?? null,
-    homeworkScore: (completionHomework ? [1, 0] : [100, 20])[index] ?? null,
+    examScore: limglish && attendanceStatuses[index] === "ONLINE" ? null : [70, 80][index] ?? null,
+    homeworkScore: limglish && index < 2 ? null : limglish && index === 2
+      ? (completionHomework ? 1 : 87)
+      : (completionHomework ? [1, 0] : [100, 20])[index] ?? null,
   }));
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -107,12 +111,12 @@ async function installScoreAlimtalkRoutes(
                 passed: examScore == null ? null : examScore >= 60,
                 achievement: examScore == null ? null : examScore >= 60 ? "PASS" : "FAIL",
                 clinic_required: examScore != null && examScore < 60,
-                grading_status: attendanceStatuses[index] === "ONLINE" ? "subjective_pending" : undefined,
+                grading_status: !limglish && attendanceStatuses[index] === "ONLINE" ? "subjective_pending" : undefined,
                 is_locked: false,
                 objective_score: examScore,
                 subjective_score: 0,
                 correction_status: examScore != null && examScore >= 100 ? "NOT_REQUIRED" : "PENDING",
-                meta: {},
+                meta: limglish && attendanceStatuses[index] === "ONLINE" ? { status: "NOT_SUBMITTED" } : {},
               },
             }],
             homeworks: [{
@@ -124,7 +128,7 @@ async function installScoreAlimtalkRoutes(
                 passed: homeworkScore == null ? null : homeworkScore >= (completionHomework ? 1 : 60),
                 clinic_required: homeworkScore != null && homeworkScore < (completionHomework ? 1 : 60),
                 is_locked: false,
-                meta: {},
+                meta: limglish && index < 2 ? { status: "NOT_SUBMITTED" } : {},
               },
             }],
             exam_total: { score: examScore, max_score: 100, selected_count: 1, scored_count: Number(examScore != null), complete: examScore != null },
@@ -348,6 +352,7 @@ async function openPersonalizedScores(
   academyName?: string,
   completionHomework = false,
   attendanceStatuses: (string | null)[] = ["PRESENT", "LATE"],
+  tenantCode = "hakwonplus",
 ) {
   const baseUrl = getBaseUrl("admin");
   const mockOnlyReason = realMessagingSkipReason(baseUrl, "", "0");
@@ -356,16 +361,20 @@ async function openPersonalizedScores(
     mockOnlyReason ?? "성적 알림톡 개인화 route-mock 검증은 로컬 dev 서버 전용",
   );
   await installLocalAuthApiStubs(page);
-  await installTenantOneInitScript(page);
-  await page.addInitScript((token) => {
+  if (tenantCode === "hakwonplus") await installTenantOneInitScript(page);
+  await page.addInitScript(({ token, tenantCode }) => {
+    if (tenantCode !== "hakwonplus") {
+      localStorage.setItem("tenant_code", tenantCode);
+      sessionStorage.setItem("tenantCode", tenantCode);
+    }
     localStorage.setItem("access", token);
     localStorage.setItem("refresh", `${token}-refresh`);
-  }, createLocalJwt());
-  await installScoreAlimtalkRoutes(page, mode, preflightPayloads, sendPayloads, templates, completionHomework, attendanceStatuses);
-  if (academyName) {
+  }, { token: createLocalJwt(tenantCode), tenantCode });
+  await installScoreAlimtalkRoutes(page, mode, preflightPayloads, sendPayloads, templates, completionHomework, attendanceStatuses, tenantCode);
+  if (academyName || tenantCode !== "hakwonplus") {
     await page.route("**/api/v1/core/program/", (route) => route.fulfill({ json: {
-      tenantCode: "hakwonplus",
-      display_name: academyName,
+      tenantCode,
+      display_name: academyName ?? "릴리스 검증 학원",
       isPlatformAdmin: true,
       is_active: true,
       feature_flags: {},
@@ -398,6 +407,52 @@ test.describe("성적 알림톡 학생별 개인화", () => {
   test.use({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
 
   for (const width of [1366, 390]) {
+    test(`${width}px 임근혁 영어 영상 학생의 저장된 미제출만 영상보강으로 발송한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const preflights: SendPayload[] = [];
+      const sends: SendPayload[] = [];
+      const scoreWrites: string[] = [];
+      page.on("request", (request) => {
+        const path = new URL(request.url()).pathname;
+        if (["POST", "PATCH", "PUT"].includes(request.method()) && /\/api\/v1\/(results|homework|lectures)\//.test(path)) {
+          scoreWrites.push(path);
+        }
+      });
+      const completion = width === 390;
+      await openPersonalizedScores(page, "success", preflights, sends, [{
+        id: 991, name: "수업 결과", category: "grades",
+        body: "시험: #{시험1결과}\n과제: #{과제1결과}\n#{과제목록}",
+        is_system: false, is_user_default: true,
+      }], undefined, completion, ["PRESENT", "ONLINE", "ONLINE"], "limglish");
+
+      await page.getByRole("checkbox", { name: "전체 선택", exact: true }).check();
+      await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
+      const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+      await expect(modal.getByRole("checkbox", { name: "영상 학생에게 과제 안내도 보내기" })).toHaveCount(0);
+      await modal.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
+      await modal.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
+      const confirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
+      const preview = confirm.getByLabel("카카오톡 실제 발송 미리보기");
+      await expect(preview).toContainText("과제: 미제출");
+      await confirm.getByRole("button", { name: "전체 학생 열기" }).click();
+      await confirm.getByRole("radio", { name: /개인화학생2/ }).click();
+      await expect(preview).toContainText("시험: 미응시");
+      await expect(preview).toContainText("과제: 영상보강");
+      await expect(preview).toContainText("단원 복습: 영상보강");
+      await page.screenshot({ path: testInfo.outputPath(`limglish-video-homework-${width}.png`) });
+      await confirm.getByRole("radio", { name: /개인화학생3/ }).click();
+      await expect(preview).toContainText(completion ? "과제: 통과" : "과제: 87/100");
+      await expect(preview).not.toContainText("영상보강");
+
+      expect(sends).toHaveLength(0);
+      await confirm.getByRole("button", { name: "발송하기", exact: true }).click();
+      await expect.poll(() => sends.length).toBe(1);
+      expect(sends[0]).toMatchObject({ block_category: "grades", student_ids: [9301, 9302, 9303], send_to: "parent" });
+      expect(sends[0].video_makeup_homework).toBeUndefined();
+      expect(sends[0].alimtalk_extra_vars_per_student).toEqual(preflights.at(-1)?.alimtalk_extra_vars_per_student);
+      expect(scoreWrites).toEqual([]);
+    });
+
     test(`${width}px 전체 선택은 출석·지각만 미리보고 같은 학생으로 발송을 접수한다`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 900 });
       const preflights: SendPayload[] = [];

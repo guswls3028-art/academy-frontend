@@ -34,7 +34,7 @@ import { Button, EmptyState, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { DomainListToolbar, getStoredTableOption, setStoredTableOption } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
-import { substituteScoreVars, buildScoreVars, buildScoreDetail, collectHighestScores, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
+import { substituteScoreVars, buildScoreVars, buildScoreDetail, collectHighestScores, collectUnenteredScoreItems, usesVideoHomeworkLabelInScoreAlimtalk } from "@/shared/scoring/scoreReport";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
@@ -69,13 +69,15 @@ type SessionScoresEntryPageProps = {
   onOpenCreateHomework?: () => void;
 };
 
-function isScoreAlimtalkAttendance(row: SessionScoreRow): boolean {
-  return row.attendance_status === "PRESENT" || row.attendance_status === "LATE";
+function isScoreAlimtalkAttendance(row: SessionScoreRow, includeVideo: boolean): boolean {
+  return row.attendance_status === "PRESENT" || row.attendance_status === "LATE"
+    || (includeVideo && row.attendance_status === "ONLINE");
 }
 
-function getScoreAlimtalkBlockReason(rows: SessionScoreRow[], afterSave: boolean): string | null {
+function getScoreAlimtalkBlockReason(rows: SessionScoreRow[], afterSave: boolean, includeVideo: boolean): string | null {
   if (rows.length === 0) {
-    return "선택한 학생 중 출석·지각으로 기록된 학생이 없습니다. 출결을 확인해 주세요.";
+    const applicableAttendance = includeVideo ? "출석·지각·영상" : "출석·지각";
+    return `선택한 학생 중 ${applicableAttendance} 상태인 학생이 없습니다. 출결을 확인해 주세요.`;
   }
   if (rows.some((row) => row.exams.some((exam) => exam.block.grading_status === "subjective_pending"))) {
     return "최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.";
@@ -163,6 +165,7 @@ export default function SessionScoresEntryPage({
   const isMobile = useIsMobile();
   const { user } = useAuth();
   const { program } = useProgram();
+  const includeVideoInScoreAlimtalk = usesVideoHomeworkLabelInScoreAlimtalk(program?.tenantCode);
   const isAnonymousBillboardMode = program?.feature_flags?.score_output_mode === "anonymous_billboard";
   const defaultSummaryColumnMode: SessionScoresSummaryColumnMode =
     program?.feature_flags?.score_summary_column_default === "exam_wrong" ? "exam_wrong" : "verdict";
@@ -789,13 +792,15 @@ export default function SessionScoresEntryPage({
   });
   const selectedHasSubjectivePending = (data?.rows ?? []).some((row) => (
     selectedEnrollmentIds.includes(row.enrollment_id)
-    && isScoreAlimtalkAttendance(row)
+    && isScoreAlimtalkAttendance(row, includeVideoInScoreAlimtalk)
     && row.exams.some((exam) => exam.block.grading_status === "subjective_pending")
   ));
   const scoreAlimtalkDisabled = selectedEnrollmentIds.length === 0
-    || (selectedHasSubjectivePending && !(data?.rows ?? []).some((row) => (
-      selectedEnrollmentIds.includes(row.enrollment_id) && row.attendance_status === "ONLINE"
-    )))
+    || (selectedHasSubjectivePending && (
+      includeVideoInScoreAlimtalk || !(data?.rows ?? []).some((row) => (
+        selectedEnrollmentIds.includes(row.enrollment_id) && row.attendance_status === "ONLINE"
+      ))
+    ))
     || isEditMode
     || isSaving
     || recoveryBlocked;
@@ -807,7 +812,9 @@ export default function SessionScoresEntryPage({
       ? "이전 입력 복구 여부를 먼저 확인해 주세요."
     : isEditMode
       ? "점수 입력을 마친 뒤 알림톡을 발송할 수 있습니다."
-      : "선택한 학생의 수업결과와 영상 학생 과제 안내를 확인합니다.";
+      : includeVideoInScoreAlimtalk
+        ? "선택한 출석·지각·영상 학생의 수업결과를 확인합니다."
+        : "선택한 학생의 수업결과와 영상 학생 과제 안내를 확인합니다.";
   const handleOpenScoreAlimtalk = async () => {
     if (scoreAlimtalkDisabled || scoreAlimtalkRequestRef.current !== null) return;
     const request = Symbol();
@@ -817,11 +824,11 @@ export default function SessionScoresEntryPage({
     const isCurrentRequest = () => scoreAlimtalkRequestRef.current === request;
     const selectedIds = new Set(selectedEnrollmentIds);
     const selectAttendees = (snapshot: SessionScoresResponse) => snapshot.rows.filter(
-      (row) => selectedIds.has(row.enrollment_id) && isScoreAlimtalkAttendance(row),
+      (row) => selectedIds.has(row.enrollment_id) && isScoreAlimtalkAttendance(row, includeVideoInScoreAlimtalk),
     );
-    const selectVideoStudents = (snapshot: SessionScoresResponse) => snapshot.rows.filter(
-      (row) => selectedIds.has(row.enrollment_id) && row.attendance_status === "ONLINE",
-    );
+    const selectVideoStudents = (snapshot: SessionScoresResponse) => includeVideoInScoreAlimtalk
+      ? []
+      : snapshot.rows.filter((row) => selectedIds.has(row.enrollment_id) && row.attendance_status === "ONLINE");
     const refreshError = "최신 출결과 성적을 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.";
 
     try {
@@ -831,7 +838,7 @@ export default function SessionScoresEntryPage({
         setScoreAlimtalkError(refreshError);
         return;
       }
-      const initialIssue = getScoreAlimtalkBlockReason(selectAttendees(initial.data), false);
+      const initialIssue = getScoreAlimtalkBlockReason(selectAttendees(initial.data), false, includeVideoInScoreAlimtalk);
       if (initialIssue && selectVideoStudents(initial.data).length === 0) {
         setScoreAlimtalkError(initialIssue);
         return;
@@ -846,7 +853,7 @@ export default function SessionScoresEntryPage({
       }
       const selectedRows = selectAttendees(latest.data);
       const videoRows = selectVideoStudents(latest.data);
-      const issue = getScoreAlimtalkBlockReason(selectedRows, true);
+      const issue = getScoreAlimtalkBlockReason(selectedRows, true, includeVideoInScoreAlimtalk);
       if (issue && videoRows.length === 0) {
         setScoreAlimtalkError(issue);
         return;
@@ -885,9 +892,14 @@ export default function SessionScoresEntryPage({
         return null;
       });
       if (!isCurrentRequest()) return;
-      const reportOptions = { lectureName, sessionTitle, highestScores: collectHighestScores(cohortData) };
+      const reportOptions = {
+        lectureName,
+        sessionTitle,
+        highestScores: collectHighestScores(cohortData),
+        showVideoHomeworkLabel: includeVideoInScoreAlimtalk,
+      };
 
-      const scoreDetail = buildScoreDetail(selectedRows[0], meta);
+      const scoreDetail = buildScoreDetail(selectedRows[0], meta, reportOptions);
 
       // SSOT (2026-05-14): 학생별 변수 재계산 callback.
       // 학원장이 modal textarea에서 본문 수정 시 modal이 currentBody 기반으로 이 callback 호출 →
@@ -913,7 +925,7 @@ export default function SessionScoresEntryPage({
         sessionId: numericSessionId,
         studentIds: activeStudentIds,
         videoHomeworkStudentIds,
-        recipientLabel: `수업결과 발송 — 출석·지각 ${activeStudentIds.length}명${excludedCount ? ` · ${excludedCount}명 제외` : ""}`,
+        recipientLabel: `수업결과 발송 — ${includeVideoInScoreAlimtalk ? "출석·지각·영상" : "출석·지각"} ${activeStudentIds.length}명${excludedCount ? ` · ${excludedCount}명 제외` : ""}`,
         blockCategory: "grades",
         alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail, ...firstScoreVars },
         recomputePerStudentVars,
