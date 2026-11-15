@@ -331,6 +331,50 @@ test("학생 활동은 대리보기를 기본 제외하고 팝업 토큰은 교�
     await popup.screenshot({ path: "test-results/student-support-popup-mobile.png", fullPage: true });
   }
 
+  const endBodies: string[] = [];
+  await popup.route("**/api/v1/media/playback/v2/end/", async (route) => {
+    expect(route.request().headers().authorization).toBe(`Bearer ${SUPPORT_ACCESS}`);
+    const body = route.request().postDataJSON() as {
+      batches: Array<{ batch_id: string; events: unknown[] }>;
+    };
+    endBodies.push(JSON.stringify(body));
+    if (!await popup.evaluate(() => document.documentElement.hasAttribute("data-qa-support-save-retry"))) {
+      return route.fulfill({ status: 503, json: { detail: "synthetic_ack_unavailable" } });
+    }
+    return route.fulfill({ json: {
+      protocol_version: 2,
+      session_status: "ENDED",
+      inserted_count: 0,
+      acknowledgements: body.batches.map((batch) => ({
+        batch_id: batch.batch_id, event_count: batch.events.length, duplicate: true,
+      })),
+    } });
+  });
+  await popup.evaluate(async () => {
+    document.addEventListener("click", (event) => {
+      const button = event.target instanceof Element && event.target.closest("button");
+      if (event.isTrusted && button && button.textContent?.trim() === "저장 다시 시도"
+        && button.closest('[aria-label="시청 기록 저장"]')) {
+        document.documentElement.setAttribute("data-qa-support-save-retry", "");
+      }
+    }, true);
+    const { acquirePlaybackEventBatches } = await import(
+      "/src/app_student/domains/video/playback/player/headless/playbackEventBatches.ts"
+    );
+    const writer = acquirePlaybackEventBatches(
+      "signed-synthetic-playback", Math.floor(Date.now() / 1000) + 600, "support-receipt", () => {},
+    );
+    writer.enqueue({ type: "FOCUS_GAINED", occurred_at: Date.now() / 1000 });
+    writer.finish();
+  });
+  const saveNotice = popup.getByRole("status", { name: "시청 기록 저장" });
+  await expect(saveNotice).toContainText("저장을 확인하지 못했어요");
+  await saveNotice.getByRole("button", { name: "저장 다시 시도" }).click();
+  await expect(popup.locator("html")).toHaveAttribute("data-qa-support-save-retry", "");
+  await expect(saveNotice).toHaveCount(0);
+  expect(endBodies.length).toBeGreaterThanOrEqual(2);
+  expect(new Set(endBodies).size).toBe(1);
+
   const closed = popup.waitForEvent("close");
   await popup.getByRole("button", { name: "보기 종료" }).click();
   await closed;

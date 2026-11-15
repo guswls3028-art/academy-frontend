@@ -50,8 +50,10 @@
 
 .send-modal__layout[data-video-homework-only="true"] {
   display: block;
-  max-width: 38rem;
-  margin-inline: auto;
+}
+
+.send-modal__layout[data-video-homework-only="true"] .send-modal__left {
+  width: 100%;
 }
 
 .send-modal__video-homework {
@@ -249,6 +251,23 @@
 
 .send-modal__hint--warn {
   color: var(--color-status-warning, #d97706);
+}
+
+.send-modal__score-unavailable {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  border-inline-start: 3px solid var(--color-status-warning, #d97706);
+  padding-inline-start: 10px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.send-modal__score-unavailable p {
+  margin: 0;
 }
 
 .send-modal__recipient-targets {
