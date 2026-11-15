@@ -15185,6 +15185,14 @@ export interface components {
             /** @description 강의 시간 (예: 토 12:00 ~ 13:00) */
             lecture_time?: string;
             name: string;
+            schedule_defaults?: components["schemas"]["LectureScheduleDefault"][];
+            /**
+             * @description 새 차시의 기본 수업일 구성
+             *
+             *     * `SINGLE` - 한 날짜
+             *     * `SPLIT` - 여러 날짜
+             */
+            schedule_mode?: components["schemas"]["ScheduleModeEnum"];
             /** Format: date */
             start_date?: string | null;
             subject: string;
@@ -15298,10 +15306,28 @@ export interface components {
             /** @description 강의 시간 (예: 토 12:00 ~ 13:00) */
             lecture_time?: string;
             name: string;
+            schedule_defaults?: components["schemas"]["LectureScheduleDefaultRequest"][];
+            /**
+             * @description 새 차시의 기본 수업일 구성
+             *
+             *     * `SINGLE` - 한 날짜
+             *     * `SPLIT` - 여러 날짜
+             */
+            schedule_mode?: components["schemas"]["ScheduleModeEnum"];
             /** Format: date */
             start_date?: string | null;
             subject: string;
             title: string;
+        };
+        LectureScheduleDefault: {
+            label: string;
+            /** @description ISO 요일 (1=월요일, 7=일요일) */
+            weekday: number;
+        };
+        LectureScheduleDefaultRequest: {
+            label: string;
+            /** @description ISO 요일 (1=월요일, 7=일요일) */
+            weekday: number;
         };
         LectureSection: {
             /** @default 0 */
@@ -17124,6 +17150,14 @@ export interface components {
             /** @description 강의 시간 (예: 토 12:00 ~ 13:00) */
             lecture_time?: string;
             name?: string;
+            schedule_defaults?: components["schemas"]["LectureScheduleDefaultRequest"][];
+            /**
+             * @description 새 차시의 기본 수업일 구성
+             *
+             *     * `SINGLE` - 한 날짜
+             *     * `SPLIT` - 여러 날짜
+             */
+            schedule_mode?: components["schemas"]["ScheduleModeEnum"];
             /** Format: date */
             start_date?: string | null;
             subject?: string;
@@ -18836,6 +18870,12 @@ export interface components {
             /** Format: time */
             start_time?: string | null;
         };
+        /**
+         * @description * `SINGLE` - 한 날짜
+         *     * `SPLIT` - 여러 날짜
+         * @enum {string}
+         */
+        ScheduleModeEnum: "SINGLE" | "SPLIT";
         ScheduleRosterEntry: {
             enrollment_id: number;
             student_name: string;

@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { useFloatingPosition } from "@/shared/ui/floating/useFloatingPosition";
 import { useLocation, useNavigate } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Settings, BookOpen, Stethoscope, ArrowRightLeft, CalendarDays, Layers, Users } from "lucide-react";
+import { Plus, Settings, BookOpen, Stethoscope, CalendarDays, Layers } from "lucide-react";
 
 import { fetchSessions, type Session } from "@/shared/api/contracts/sessions";
 import { fetchSections, type Section as SectionType } from "@/shared/api/contracts/lectureSections";
@@ -204,7 +204,7 @@ function SessionGearMenu({
               <div className={styles.dropdownDivider} />
               <div className="px-3 py-1 text-[11px] text-[var(--color-text-muted)]">반 이동</div>
               {session.section && (
-                <button type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={async () => { setBusy(true); try { await updateSession(session.id, { section: null }); feedback.success("반 미지정으로 이동"); setOpen(false); onDone("updated"); } catch { feedback.error("이동 실패"); } setBusy(false); }} disabled={busy}>미지정</button>
+                <button type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={async () => { setBusy(true); try { await updateSession(session.id, { section: null }); feedback.success("공통 차시로 이동"); setOpen(false); onDone("updated"); } catch { feedback.error("이동 실패"); } setBusy(false); }} disabled={busy}>공통 차시</button>
               )}
               {sections.filter(s => s.id !== session.section).map(s => (
                 <button key={s.id} type="button" className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--color-bg-surface-hover)]" onClick={async () => { setBusy(true); try { await updateSession(session.id, { section: s.id }); feedback.success(`${s.section_type === "CLASS" ? "수업" : "클리닉"} ${s.label}반으로 이동`); setOpen(false); onDone("updated"); } catch { feedback.error("이동 실패"); } setBusy(false); }} disabled={busy}>{s.section_type === "CLASS" ? "수업" : "클리닉"} {s.label}반</button>
@@ -428,10 +428,8 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   // --- 렌더: section_mode ---
   if (sectionMode && sectionRows) {
     const { commonSessions, rows } = sectionRows;
-    const hasAnySections = rows.length > 0;
-    const hasActiveCard = hasAnySections && !isLoading && !sectionsQ.isLoading && !isError && !sectionsQ.isError &&
-      (commonSessions.some(item => Number(item.id) === currentSessionId) ||
-        rows.some(row => row.sessions.some(item => Number(item.id) === currentSessionId)));
+    const hasActiveCard = !isLoading && !isError && (commonSessions.some(item => Number(item.id) === currentSessionId) ||
+      rows.some(row => row.sessions.some(item => Number(item.id) === currentSessionId)));
 
     return (
       <>
@@ -448,41 +446,28 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
           role={viewMode === "SCOPED" ? "tabpanel" : undefined}
           className={styles.sectionModeStack}
         >
-          {isLoading || sectionsQ.isLoading ? (
+          {isLoading ? (
             <span className={styles.loadingText}>불러오는 중…</span>
-          ) : isError || sectionsQ.isError || !validLectureId ? (
-            <SessionLoadError onRetry={() => {
-              if (validLectureId) {
-                void refetch();
-                void sectionsQ.refetch();
-              }
-            }} />
-          ) : !hasAnySections ? (
-            <EmptySectionNotice
-              onGoToSections={() => navigate(`/workspace/lectures/${lectureId}/sections`)}
-            />
+          ) : isError || !validLectureId ? (
+            <SessionLoadError onRetry={() => { if (validLectureId) void refetch(); }} />
           ) : (
             <>
-              {/* 반 미지정 차시 (section=null) — 기존 차시 보존
-                  정규형: 레거시 차시로 잘못 남을 확률 높으므로 warning 톤으로 강조. */}
-              {commonSessions.length > 0 && (
-                <SessionRow
-                  label={clinicMode === "regular" ? "반 미지정 (정리 필요)" : "반 미지정"}
-                  sublabel={clinicMode === "regular" ? "기어 메뉴에서 반으로 이동하세요" : undefined}
-                  tone={clinicMode === "regular" ? "warning" : "muted"}
-                  sessions={commonSessions}
-                  sections={sections}
-                  lectureId={lectureId}
-                  currentSessionId={currentSessionId}
-                  navigate={navigate}
-                  getSessionTargetPath={getSessionTargetPath}
-                  invalidate={invalidate}
-                  openSchedules={openSchedules}
-                  onAdd={() => setCreateForSection({ id: null, label: null, sessionType: createSessionType })}
-                  sessionScope={createSessionType}
-                  isUnassigned
-                />
-              )}
+              <SessionRow
+                label="공통 차시"
+                tone="muted"
+                sessions={commonSessions}
+                sections={sections}
+                lectureId={lectureId}
+                currentSessionId={currentSessionId}
+                navigate={navigate}
+                getSessionTargetPath={getSessionTargetPath}
+                invalidate={invalidate}
+                openSchedules={openSchedules}
+                onAdd={() => setCreateForSection({ id: null, label: null, sessionType: createSessionType })}
+                sessionScope={createSessionType}
+                isCommon
+              />
+              {sectionsQ.isError && <SessionLoadError onRetry={() => void sectionsQ.refetch()} />}
 
               {/* 반별 차시 */}
               {rows.map(({ section: sec, sessions: secSessions }) => {
@@ -702,29 +687,6 @@ function SessionScopeSwitcher({
   );
 }
 
-/** 반 편성 모드이지만 반이 하나도 없을 때의 온보딩 안내 */
-function EmptySectionNotice({ onGoToSections }: { onGoToSections: () => void }) {
-  return (
-    <div className={styles.emptyNotice}>
-      <div className={styles.emptyNoticeText}>
-        <span className={styles.emptyNoticeTitle}>
-          이 강의에 반이 아직 없습니다
-        </span>
-        <span className={styles.emptyNoticeBody}>
-          수업 반(A, B…)과 클리닉 반을 만들면 차시를 반별로 관리할 수 있습니다.
-        </span>
-      </div>
-      <button
-        type="button"
-        onClick={onGoToSections}
-        className={styles.emptyNoticeButton}
-      >
-        <Users size={14} /> 반 편성 열기
-      </button>
-    </div>
-  );
-}
-
 function SessionCard({ session, sections, lectureId, currentSessionId, navigate, target, invalidate, openSchedules }: {
   session: Session;
   sections?: SectionType[];
@@ -762,7 +724,7 @@ function SessionCard({ session, sections, lectureId, currentSessionId, navigate,
 /** 한 줄: 라벨 + 차시 블록들 + 추가 버튼 */
 function SessionRow({
   label, sublabel, tone, sessions, sections, lectureId, currentSessionId, navigate, getSessionTargetPath, invalidate, onAdd,
-  sessionScope, sectionType, isUnassigned, openSchedules,
+  sessionScope, sectionType, isCommon, openSchedules,
 }: {
   label: string;
   sublabel?: string;
@@ -778,16 +740,16 @@ function SessionRow({
   onAdd: () => void;
   sessionScope?: SessionScope;
   sectionType?: "CLASS" | "CLINIC";
-  isUnassigned?: boolean;
+  isCommon?: boolean;
 }) {
-  const LabelIcon = sectionType === "CLINIC" ? Stethoscope : isUnassigned ? Layers : BookOpen;
+  const LabelIcon = sectionType === "CLINIC" ? Stethoscope : isCommon ? Layers : BookOpen;
   const iconSize = 13;
   const addKindLabel = formatSessionScopeName(sessionScope);
 
   return (
     <div className={styles.sessionRow}>
       {/* Lane header: icon + label + schedule */}
-      <div className={styles.rowHeader} data-unassigned={isUnassigned ? "true" : undefined}>
+      <div className={styles.rowHeader}>
         <span className={styles.labelChip} data-tone={tone}>
           <LabelIcon size={iconSize} strokeWidth={2.2} className={styles.labelIcon} />
           {label}
@@ -795,12 +757,6 @@ function SessionRow({
         {sublabel && (
           <span className={styles.sublabel}>
             {sublabel}
-          </span>
-        )}
-        {isUnassigned && sessions.length > 0 && (
-          <span className={styles.moveHint}>
-            <ArrowRightLeft size={10} strokeWidth={2} />
-            반 이동
           </span>
         )}
       </div>

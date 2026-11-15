@@ -17,8 +17,9 @@ import {
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
-import { createSession, type CreateSessionOptions } from "../api/sessions";
+import { createSession, fetchLecture, type CreateSessionOptions } from "../api/sessions";
 import { adminLectureQueryKeys } from "../queryKeys";
+import { datesFromLectureDefaults, offsetDate } from "../lectureScheduleSettings";
 import InitialSessionDays, { type NewSessionDay } from "./InitialSessionDays";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import {
@@ -53,13 +54,6 @@ function extractTimeFromLectureTime(lectureTime: string | null | undefined): str
   const s = lectureTime.trim();
   const match = s.match(/\d{1,2}:\d{2}\s*~?\s*-?\s*\d{1,2}:\d{2}/);
   return match ? match[0].replace(/\s/g, "") : s;
-}
-
-function offsetDate(date: string, days: number): string {
-  const parsed = new Date(`${date}T12:00:00Z`);
-  if (!Number.isFinite(parsed.getTime())) return "";
-  parsed.setUTCDate(parsed.getUTCDate() + days);
-  return parsed.toISOString().slice(0, 10);
 }
 
 const weekday = new Intl.DateTimeFormat("ko-KR", { weekday: "long", timeZone: "UTC" });
@@ -113,15 +107,15 @@ export default function SessionCreateModal({
   const [supplementAfterOrder, setSupplementAfterOrder] = useState<number | null>(null);
   const [dateMode, setDateMode] = useState<DateMode>("default");
   const [date, setDate] = useState("");
-  const [baseDayLabel, setBaseDayLabel] = useState("");
-  const [extraDays, setExtraDays] = useState<NewSessionDay[]>([]);
+  const [dayDraft, setDayDraft] = useState<{ baseLabel: string; extraDays: NewSessionDay[] } | null>(null);
   const [timeMode, setTimeMode] = useState<TimeMode>("default");
   const [timeInput, setTimeInput] = useState("");
 
   const lectureQ = useQuery({
     queryKey: adminLectureQueryKeys.lecture(lectureId),
-    queryFn: async () => (await api.get(`/lectures/lectures/${lectureId}/`)).data,
+    queryFn: () => fetchLecture(lectureId),
     enabled: Number.isFinite(lectureId),
+    refetchOnMount: "always",
   });
   const lecture = lectureQ.data;
 
@@ -131,7 +125,7 @@ export default function SessionCreateModal({
     enabled: Number.isFinite(lectureId),
   });
   const sessionsData = sessionsQ.data;
-  const dependencyLoading = lectureQ.isLoading || sessionsQ.isLoading;
+  const dependencyLoading = lectureQ.isLoading || (lectureQ.isFetching && !lectureQ.isFetchedAfterMount) || sessionsQ.isLoading;
   const dependencyError = lectureQ.isError || sessionsQ.isError;
   const formLocked = busy || dependencyLoading || dependencyError;
 
@@ -146,11 +140,8 @@ export default function SessionCreateModal({
     () => sortSessionsByDisplayOrder(sessionsList as SessionOrderLike[]),
     [sessionsList]
   );
-  // section_mode: 해당 반 내 차시만 카운트
-  const sectionSessions = useMemo(() => {
-    if (sectionId == null) return sortedSessions;
-    return sortedSessions.filter((s) => (s as { section?: number | null }).section === sectionId);
-  }, [sortedSessions, sectionId]);
+  const sectionSessions = useMemo(() => sortedSessions.filter(session =>
+    ((session as { section?: number | null }).section ?? null) === (sectionId ?? null)), [sortedSessions, sectionId]);
   const regularSessions = useMemo(
     () => sectionSessions.filter((s) => !isSupplementSession(s)),
     [sectionSessions]
@@ -168,11 +159,14 @@ export default function SessionCreateModal({
     const regular = regularSessions.filter((s) => s.date);
     return regular.slice(-1)[0];
   }, [regularSessions]);
-  const defaultDateFromLecture = useMemo(() => {
-    const lectureStart = (lecture as { start_date?: string | null })?.start_date ?? null;
-    if (lastRegularSessionWithDate?.date) return offsetDate(lastRegularSessionWithDate.date, 7);
-    return lectureStart?.trim() || "";
-  }, [lastRegularSessionWithDate?.date, lecture]);
+  const referenceDate = lastRegularSessionWithDate?.date
+    ? offsetDate(lastRegularSessionWithDate.date, 7)
+    : lecture?.start_date?.trim() || "";
+  const presetDays = sessionType === "regular" && sectionId == null && lecture?.schedule_mode === "SPLIT"
+    ? datesFromLectureDefaults(lecture.schedule_defaults ?? [], referenceDate) : [];
+  const defaultDateFromLecture = presetDays[0]?.date || referenceDate;
+  const presetDraft = { baseLabel: presetDays[0]?.label ?? "", extraDays: presetDays.slice(1) };
+  const { baseLabel, extraDays } = dayDraft ?? presetDraft;
 
   const lectureTimeRaw = lecture?.lecture_time?.trim() || "";
   // 정규 차시 기본 시간: 강의 생성 모달 lecture_time(시작~종료) 연결
@@ -218,12 +212,16 @@ export default function SessionCreateModal({
   }, [sessionType, dateMode, defaultDateFromLecture]);
 
   const effectiveDate = dateMode === "default" ? (defaultDateFromLecture || date) : date;
-  const days = [{ key: "base", date: effectiveDate, label: baseDayLabel }, ...extraDays];
+  const days = [{ key: "base", date: effectiveDate, label: baseLabel }, ...extraDays];
   const dayNames = initialDayNames(days);
 
   function addDay() {
     const key = crypto.randomUUID();
-    setExtraDays(rows => [...rows, { key, label: "", date: offsetDate(rows[rows.length - 1]?.date || effectiveDate, 1) }]);
+    setDayDraft(draft => {
+      const current = draft ?? presetDraft;
+      const date = offsetDate(current.extraDays[current.extraDays.length - 1]?.date || effectiveDate, 1);
+      return { ...current, extraDays: [...current.extraDays, { key, label: "", date }] };
+    });
   }
 
   const MAX_SESSIONS = 52;
@@ -502,10 +500,17 @@ export default function SessionCreateModal({
                 disabled={busy || pending !== null}
                 onAdd={addDay}
                 onChange={(key, patch) => {
-                  if (key === "base") setBaseDayLabel(patch.label ?? "");
-                  else setExtraDays(rows => rows.map(day => day.key === key ? { ...day, ...patch } : day));
+                  setDayDraft(draft => {
+                    const current = draft ?? presetDraft;
+                    return key === "base"
+                      ? { ...current, baseLabel: patch.label ?? "" }
+                      : { ...current, extraDays: current.extraDays.map(day => day.key === key ? { ...day, ...patch } : day) };
+                  });
                 }}
-                onRemove={key => setExtraDays(rows => rows.filter(day => day.key !== key))}
+                onRemove={key => setDayDraft(draft => {
+                  const current = draft ?? presetDraft;
+                  return { ...current, extraDays: current.extraDays.filter(day => day.key !== key) };
+                })}
               >
                 <ModalDateSection
                   name="dateMode"
@@ -517,7 +522,9 @@ export default function SessionCreateModal({
                   disableDefaultOption={isSupplement}
                   defaultLabel={
                     defaultDateFromLecture
-                      ? lastRegularSessionWithDate?.date
+                      ? presetDays.length
+                        ? `반별 기본 일정 (${defaultDateFromLecture})`
+                        : lastRegularSessionWithDate?.date
                         ? `다음 주 같은 요일 (${defaultDateFromLecture})`
                         : `강의 시작일 (${defaultDateFromLecture})`
                       : "미설정"

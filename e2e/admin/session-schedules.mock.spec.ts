@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures/strictTest';
 import { installTenantOneInitScript } from '../helpers/localAuthApiStubs';
 import type { SessionScheduleDraft, SessionSchedules } from '../../src/shared/api/contracts/sessionSchedules';
+import type { LectureScheduleSettings } from '../../src/app_admin/domains/lectures/lectureScheduleSettings';
 
 const BASE = process.env.E2E_BASE_URL || 'http://127.0.0.1:5174';
 const path = '/workspace/lectures/9901/sessions/9902';
@@ -28,6 +29,9 @@ function fixture(configured = false) {
     puts: [] as { version: string; schedules: SessionScheduleDraft[] }[],
     creates: [] as CreateRequest[],
     created: null as CreatedSession | null,
+    lectureSettings: null as LectureScheduleSettings | null,
+    legacySection: false,
+    lecturePatches: [] as LectureScheduleSettings[],
     copies: [] as { version: string; source_session: number }[],
     bulk: [] as { session: number; schedule?: string }[],
     presentEnrollmentIds: new Set<number>(),
@@ -48,13 +52,24 @@ async function install(page: Page, state: ReturnType<typeof fixture>) {
     const method = request.method();
     const json = (body: unknown, status = 200) => route.fulfill({ status, json: body });
     if (method === 'OPTIONS') return route.fulfill({ status: 204 });
-    if (endpoint === '/core/program/') return json({ tenantCode: 'hakwonplus', isPlatformAdmin: true, display_name: '학원플러스', feature_flags: {}, is_active: true });
+    if (endpoint === '/core/program/') return json({ tenantCode: 'hakwonplus', isPlatformAdmin: true, display_name: '학원플러스', feature_flags: { section_mode: state.legacySection }, is_active: true });
     if (endpoint === '/core/me/') return json({ id: 12, username: 'admin', name: '관리자', is_staff: true, is_superuser: true, tenantRole: 'admin', must_change_password: false });
     if (endpoint === '/results/admin/teacher-dashboard-counts/') return json({ qna_pending: 0, counsel_pending: 0, submission_pending: 0, video_failed: 0 });
     if (endpoint === '/lectures/attendance/arrival-overview/') return json({ generated_at: '2026-11-05T00:00:00Z', today: '2026-11-05', tomorrow: '2026-11-06', range_end: '2026-11-11', range_days: 7, soon_window_minutes: 60, summary: { soon: 0, today: 0, tomorrow: 0, upcoming: 0, time_unset: 0, overdue: 0 }, items: [] });
-    if (endpoint === '/lectures/lectures/9901/') return json({ id: 9901, title: '요일별 수업', color: '#2563eb', chip_label: '수업' });
+    if (endpoint === '/lectures/lectures/instructor-options/') return json([{ name: '관리자', type: 'owner' }]);
+    if (endpoint === '/lectures/sections/' && state.legacySection) return json([{ id: 41, label: 'A', section_type: 'CLASS', is_active: true, day_of_week_display: '수요일', start_time: '16:00' }]);
+    if (endpoint === '/lectures/lectures/9901/') {
+      if (method === 'PATCH') {
+        const { schedule_mode, schedule_defaults } = request.postDataJSON() as LectureScheduleSettings;
+        state.lectureSettings = { schedule_mode, schedule_defaults };
+        state.lecturePatches.push(state.lectureSettings);
+      }
+      return json({ id: 9901, title: '요일별 수업', color: '#2563eb', chip_label: '수업', ...(state.lectureSettings && {
+        name: '관리자', subject: '수학', start_date: '2026-11-04', lecture_time: '16:00~18:00', ...state.lectureSettings,
+      }) });
+    }
     const current = { id: 9902, lecture: 9901, lecture_title: '요일별 수업', title: '2차시', order: 2, regular_order: 2, session_type: 'REGULAR', date: '2026-11-04', schedule_dates: state.config.schedules, attendance_filled: state.attendanceFilled, attendance_total: 1 };
-    const previous = { ...current, id: 9900, title: '1차시', order: 1, regular_order: 1, date: '2026-10-28', schedule_dates: [] };
+    const previous = { ...current, id: 9900, title: '1차시', order: 1, regular_order: 1, date: '2026-10-28', schedule_dates: [], section: state.legacySection ? 41 : null };
     if (endpoint === '/lectures/sessions/9902/') return json(current);
     if (endpoint === '/lectures/sessions/9900/') return json(previous);
     if (endpoint === '/lectures/sessions/9903/' && state.created) return json(state.created);
@@ -132,6 +147,68 @@ async function install(page: Page, state: ReturnType<typeof fixture>) {
     return json({ count: 0, next: null, results: [] });
   });
 }
+
+for (const width of [390, 1366]) test(`저장한 강의의 반별 기본 일정은 새 공통 차시에 적용된다 ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
+  const state = fixture(true);
+  state.lectureSettings = { schedule_mode: 'SINGLE', schedule_defaults: [] };
+  state.legacySection = true;
+  await install(page, state);
+  await page.goto(`${BASE}/workspace/lectures/9901`, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('수업 A반', { exact: true })).toBeVisible();
+  const settings = page.getByRole('button', { name: '강의 설정', exact: true });
+  await settings.click();
+  const edit = page.getByRole('dialog', { name: '강의 수정', exact: true });
+  const mode = edit.getByLabel('수업 운영 방식');
+  await expect(mode).toHaveValue('SINGLE');
+  await expect(edit.getByLabel('1번째 반 이름')).toHaveCount(0);
+  await mode.selectOption('SPLIT');
+  await edit.getByLabel('1번째 반 이름').fill('수요일 A반');
+  await edit.getByLabel('1번째 반 기본 요일').selectOption('3');
+  await edit.getByLabel('2번째 반 이름').fill('목요일 B반');
+  await edit.getByLabel('2번째 반 기본 요일').selectOption('4');
+  await edit.getByRole('button', { name: '반 추가', exact: true }).click();
+  await edit.getByLabel('3번째 반 이름').fill('금요일 C반');
+  await edit.getByLabel('3번째 반 기본 요일').selectOption('5');
+  await edit.getByLabel('3번째 반 이름').scrollIntoViewIfNeeded();
+  await capture(page, `lecture-schedule-setting-${width}`);
+  const form = edit.locator('.lecture-create-modal-form');
+  expect(await form.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+  await edit.getByRole('button', { name: '수정', exact: true }).click();
+  await expect(edit).toBeHidden();
+  expect(state.lecturePatches).toEqual([{ schedule_mode: 'SPLIT', schedule_defaults: [
+    { label: '수요일 A반', weekday: 3 }, { label: '목요일 B반', weekday: 4 }, { label: '금요일 C반', weekday: 5 },
+  ] }]);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await settings.click();
+  await expect(mode).toHaveValue('SPLIT');
+  await expect(edit.getByLabel('3번째 반 기본 요일')).toHaveValue('5');
+  await edit.getByRole('button', { name: '취소', exact: true }).click();
+  const commonAdd = page.getByRole('button', { name: '공통 차시 수업 추가', exact: true });
+  await commonAdd.click();
+  const create = page.getByRole('dialog', { name: '차시 추가', exact: true });
+  await create.getByRole('button', { name: /정규 차시 추가/ }).click();
+  await expect(create.getByLabel('수업일 1 이름')).toHaveValue('수요일 A반');
+  await expect(create.getByLabel('수업일 2 이름')).toHaveValue('목요일 B반');
+  await expect(create.getByLabel('수업일 3 이름')).toHaveValue('금요일 C반');
+  await create.getByRole('button', { name: '저장', exact: true }).click();
+  await page.getByRole('alertdialog', { name: '차시 생성 최종 확인', exact: true }).getByRole('button', { name: '확인하고 추가', exact: true }).click();
+  await expect(create).toBeHidden();
+  const savedDates = state.created?.schedule_dates;
+  expect(savedDates?.map(({ label, date }) => [label, date])).toEqual([
+    ['수요일 A반', '2026-11-11'], ['목요일 B반', '2026-11-12'], ['금요일 C반', '2026-11-13'],
+  ]);
+  await expect(page.getByText('수업 A반', { exact: true })).toBeVisible();
+  await settings.click();
+  await mode.selectOption('SINGLE');
+  await edit.getByRole('button', { name: '수정', exact: true }).click();
+  await expect(edit).toBeHidden();
+  await commonAdd.click();
+  await create.getByRole('button', { name: /정규 차시 추가/ }).click();
+  await expect(create.getByLabel('수업일 1 이름')).toHaveCount(0);
+  expect(state.created?.schedule_dates).toEqual(savedDates);
+  expect(state.puts).toEqual([]);
+});
 
 for (const width of [390, 1366]) test(`새 차시에서 여러 수업일을 작성하고 안전하게 재시도한다 ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 });

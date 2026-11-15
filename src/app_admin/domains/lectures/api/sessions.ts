@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/lectures/api/sessions.ts
 import api from "@/shared/api/axios";
 import type { components } from "@/shared/api/generated/schema";
+import type { LectureScheduleSettings } from "../lectureScheduleSettings";
 import {
   sortSessionsByDateDesc,
   sortSessionsByDisplayOrder,
@@ -13,7 +14,7 @@ export type { SessionType };
 // ----------------------------------------
 // TYPES
 // ----------------------------------------
-export interface Lecture {
+export interface Lecture extends Partial<LectureScheduleSettings> {
   id: number;
   title: string;
   name: string;

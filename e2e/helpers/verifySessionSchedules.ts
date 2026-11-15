@@ -1,5 +1,6 @@
 import type { APIRequestContext, Locator, Page, TestInfo } from '@playwright/test';
 import type { SessionSchedules } from '../../src/shared/api/contracts/sessionSchedules';
+import type { LectureScheduleSettings } from '../../src/app_admin/domains/lectures/lectureScheduleSettings';
 import { expect } from '../fixtures/strictTest';
 import { acknowledgeInitialAccountPromptsIfVisible } from './firstLoginGuide';
 import { api, assertQaStudentParentRuntime, assertNoHorizontalOverflow, expectApi, installQaStudentParentBoundary, QA_BASE, seedBrowserAuth, type QaFamily, type QaTokens } from './qaStudentParentScenario';
@@ -16,19 +17,41 @@ async function assign(modal: Locator, name: string) {
 async function verifyInitialSchedules(page: Page, request: APIRequestContext, admin: QaTokens, lectureId: number, sessionId: number, info: TestInfo) {
   const endpoint = '/lectures/sessions/';
   const createEndpoint = `${endpoint}with-schedules/`;
+  const lectureEndpoint = `/lectures/lectures/${lectureId}/`;
   const title = `qa-schedule-create-${sessionId}`;
   const listing = `${endpoint}?lecture=${lectureId}`;
+  const lectureUrl = `${QA_BASE}/workspace/lectures/${lectureId}`;
   type SessionRow = { id: number; title: string; lecture: number };
+  const original = await expectApi<LectureScheduleSettings>(request, 'GET', lectureEndpoint, admin.access);
+  const defaults = [{ label: '첫째 반', weekday: 3 }, { label: '둘째 반', weekday: 4 }, { label: '셋째 반', weekday: 5 }];
+  let settingsSubmitted = false;
   try {
-    await page.getByRole('button', { name: /^(정규 )?수업 추가$/ }).click();
+    await gotoAndSettle(page, lectureUrl);
+    const settings = page.getByRole('button', { name: '강의 설정', exact: true });
+    await settings.click();
+    const editor = page.getByRole('dialog', { name: '강의 수정', exact: true });
+    await editor.getByLabel('수업 운영 방식').selectOption('SPLIT');
+    await editor.getByRole('button', { name: '반 추가', exact: true }).click();
+    for (const [index, row] of defaults.entries()) {
+      await editor.getByLabel(`${index + 1}번째 반 이름`).fill(row.label);
+      await editor.getByLabel(`${index + 1}번째 반 기본 요일`).selectOption(String(row.weekday));
+    }
+    settingsSubmitted = true;
+    await editor.getByRole('button', { name: '수정', exact: true }).click();
+    await expect(editor).toBeHidden();
+    expect(await expectApi<LectureScheduleSettings>(request, 'GET', lectureEndpoint, admin.access)).toMatchObject({
+      schedule_mode: 'SPLIT', schedule_defaults: defaults,
+    });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: /^(공통 차시 )?(정규 )?수업 추가$/ }).click();
     const modal = page.getByRole('dialog', { name: '차시 추가', exact: true });
     await modal.getByRole('button', { name: /정규 차시 추가/ }).click();
     await modal.getByLabel('차시 이름 (선택)', { exact: true }).fill(title);
+    const labels = [];
+    for (const index of [1, 2, 3]) labels.push(await modal.getByLabel(`수업일 ${index} 이름`, { exact: true }).inputValue());
+    expect(labels.slice().sort()).toEqual(defaults.map(row => row.label).sort());
     const add = modal.getByRole('button', { name: '수업일 추가', exact: true });
-    for (let index = 0; index < 3; index++) await add.click();
-    for (const [index, name] of [[1, '첫째 반'], [2, '둘째 반'], [3, '셋째 반']] as const) {
-      await modal.getByLabel(`수업일 ${index} 이름`, { exact: true }).fill(name);
-    }
+    await add.click();
     await modal.getByRole('button', { name: '수업일 4 제거', exact: true }).click();
     await modal.getByLabel('수업일 3 이름', { exact: true }).scrollIntoViewIfNeeded();
     await info.attach('session-create-three-days-1366.png', { body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png' });
@@ -42,20 +65,30 @@ async function verifyInitialSchedules(page: Page, request: APIRequestContext, ad
     const replay = await expectApi<SessionRow>(request, 'POST', createEndpoint, admin.access, payload, [201]);
     expect(replay.id).toBe(id);
     const fresh = await expectApi<SessionSchedules>(request, 'GET', `${endpoint}${id}/schedules/`, admin.access);
-    expect(fresh.schedules.map(day => day.label)).toEqual(['첫째 반', '둘째 반', '셋째 반']);
+    expect(fresh.schedules.map(day => ({ label: day.label, weekday: new Date(`${day.date}T12:00:00Z`).getUTCDay() || 7 })))
+      .toEqual(expect.arrayContaining(defaults));
     expect(new Set(fresh.schedules.map(day => day.date)).size).toBe(3);
     expect(fresh.roster).toEqual([]);
     await expect(modal).toBeHidden();
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('region', { name: new RegExp(`${title}.*차시 카드`) })).toHaveCount(1);
   } finally {
-    const sessions = await expectApi<{ results: SessionRow[] } | SessionRow[]>(request, 'GET', listing, admin.access);
-    for (const row of Array.isArray(sessions) ? sessions : sessions.results) {
-      if (row.lecture !== lectureId || (row.title !== title && !row.title.startsWith(`${title} (`))) continue;
-      await expectApi(request, 'DELETE', `${endpoint}${row.id}/`, admin.access, undefined, [204]);
-      expect((await api(request, 'GET', `${endpoint}${row.id}/`, admin.access)).status).toBe(404);
+    try {
+      const sessions = await expectApi<{ results: SessionRow[] } | SessionRow[]>(request, 'GET', listing, admin.access);
+      for (const row of Array.isArray(sessions) ? sessions : sessions.results) {
+        if (row.lecture !== lectureId || (row.title !== title && !row.title.startsWith(`${title} (`))) continue;
+        await expectApi(request, 'DELETE', `${endpoint}${row.id}/`, admin.access, undefined, [204]);
+        expect((await api(request, 'GET', `${endpoint}${row.id}/`, admin.access)).status).toBe(404);
+      }
+    } finally {
+      if (settingsSubmitted) {
+        const previous = { schedule_mode: original.schedule_mode, schedule_defaults: original.schedule_defaults };
+        await expectApi(request, 'PATCH', lectureEndpoint, admin.access, previous, [200]);
+        expect(await expectApi<LectureScheduleSettings>(request, 'GET', lectureEndpoint, admin.access)).toMatchObject(previous);
+      }
     }
   }
+  await gotoAndSettle(page, `${lectureUrl}/sessions/${sessionId}/attendance`);
 }
 
 /** Existing assessment canary step only: no added test or production execution path. */
