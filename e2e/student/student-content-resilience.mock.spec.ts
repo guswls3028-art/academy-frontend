@@ -1056,20 +1056,38 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     test(`학부모 성적 조회 실패는 안정 상태로 표시하지 않고 복구한다 ${width}`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await installStudentApi(page, { parentDashboard: true });
+      let releaseDashboard!: () => void;
+      const dashboardReady = new Promise<void>((resolve) => { releaseDashboard = resolve; });
+      await page.route("**/api/v1/student/dashboard/", async (route) => {
+        await dashboardReady;
+        await route.fallback();
+      });
       let failed = true;
-      await page.route("**/api/v1/student/grades/", (route) => route.fulfill(failed
-        ? { status: 503, json: { detail: "temporary grade failure" } }
-        : { json: emptyGrades() }));
+      let recoveredReads = 0;
+      await page.route("**/api/v1/student/grades/", (route) => {
+        if (failed) return route.fulfill({ status: 503, json: { detail: "temporary grade failure" } });
+        recoveredReads += 1;
+        return route.fulfill({ json: emptyGrades() });
+      });
       await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
       const summary = page.getByRole("region", { name: "우리 아이 요약" });
+      const schedule = summary.getByText("오늘 일정", { exact: true }).locator("..");
+      try {
+        await expect(schedule).toContainText("확인 중");
+      } finally {
+        releaseDashboard();
+      }
       await expect(summary.getByText("확인 필요", { exact: true }).first()).toBeVisible({ timeout: 15_000 });
       await expect(summary.getByText("정리됨", { exact: true })).toHaveCount(0);
       await expect(summary.getByText("안정", { exact: true })).toHaveCount(0);
-      const retry = page.getByRole("alert").filter({ hasText: "일부 정보를 확인하지 못했어요" }).getByRole("button", { name: "다시 시도", exact: true });
-      // Keep failing through background retries; this banner retries by reloading.
-      page.once("framenavigated", () => { failed = false; });
-      await retry.click();
+      await expect(schedule).toContainText("0개");
+      await expect(summary.getByText("보충 필요", { exact: true }).locator("..")).toContainText("확인 필요");
+      const failure = page.getByRole("alert").filter({ hasText: "일부 정보를 확인하지 못했어요" });
+      await expect(page.getByRole("link", { name: "알림 수 확인 실패" })).toBeVisible({ timeout: 15_000 });
+      failed = false;
+      await failure.getByRole("button", { name: "다시 시도", exact: true }).click();
       await expect(summary.getByText("정리됨", { exact: true })).toBeVisible();
+      expect(recoveredReads).toBe(1);
       await assertNoRenderedHtmlLeak(page);
     });
   }
@@ -1494,6 +1512,90 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
   });
 
   for (const width of [390, 1366]) {
+    for (const parentDashboard of [false, true]) {
+      test(`홈 일부 조회는 실패한 요청만 다시 시도한다 (${width}px ${parentDashboard ? "학부모" : "학생"})`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 900 });
+        await installStudentApi(page, { parentDashboard });
+        const paths = [
+          "/api/v1/student/dashboard/", "/api/v1/student/sessions/me/", "/api/v1/student/grades/",
+          "/api/v1/student/exams/", "/api/v1/clinic/participants/",
+        ];
+        const healthyReads = new Map<string, number>();
+        page.on("request", (request) => {
+          const url = new URL(request.url());
+          if (request.method() !== "GET") return;
+          const path = url.pathname === "/api/v1/community/posts/" && url.searchParams.get("post_type") === "qna"
+            ? "qna" : url.pathname;
+          if (path === "qna" || paths.includes(path)) {
+            healthyReads.set(path, (healthyReads.get(path) ?? 0) + 1);
+          }
+        });
+
+        let allowCounsel = false;
+        let releaseCounsel!: () => void;
+        const counselReady = new Promise<void>((resolve) => { releaseCounsel = resolve; });
+        const counselSelections: (string | undefined)[] = [];
+        await page.route((url) => url.pathname === "/api/v1/community/posts/" && url.searchParams.get("post_type") === "counsel", async (route) => {
+          if (route.request().method() !== "GET") return route.fallback();
+          counselSelections.push(route.request().headers()["x-student-id"]);
+          if (!allowCounsel) return route.fulfill({ status: 503, json: { detail: "상담 조회 실패" } });
+          await counselReady;
+          const now = new Date().toISOString();
+          return route.fulfill({ json: { count: 1, results: [{
+            id: 982, title: "새 상담 답변", post_type: "counsel", content: "답변을 확인해 주세요.",
+            created_by: 11, created_at: now, updated_at: now, replies_count: 1, mappings: [], attachments: [],
+          }] } });
+        });
+
+        try {
+          await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+          const failure = page.getByRole("alert").filter({ hasText: "일부 정보를 확인하지 못했어요" });
+          await expect(failure).toBeVisible();
+          const learning = page.getByRole("region", { name: "학습 현황" });
+          await expect(learning).toBeVisible();
+          expect(Object.fromEntries(healthyReads)).toEqual(Object.fromEntries([...paths, "qna"].map((path) => [path, 1])));
+          const failedReads = counselSelections.length;
+          expect(failedReads).toBeGreaterThan(0);
+          const documentStart = await page.evaluate(() => performance.timeOrigin);
+          allowCounsel = true;
+          if (parentDashboard) await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+          await failure.getByRole("button", { name: "다시 시도", exact: true }).click();
+          if (parentDashboard) {
+            const waiting = page.getByRole("status").filter({ hasText: "연결되면 일부 정보를 다시 확인해요." });
+            await expect(waiting.getByRole("button", { name: "연결 대기 중" })).toBeDisabled();
+            await expect(learning).toBeVisible();
+            expect(counselSelections).toHaveLength(failedReads);
+            await page.evaluate(() => window.dispatchEvent(new Event("online")));
+          }
+          await expect.poll(() => counselSelections.length).toBe(failedReads + 1);
+          expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStart);
+          const retrying = page.getByRole("status").filter({ hasText: "일부 정보를 다시 확인하고 있어요" });
+          const retryButton = retrying.getByRole("button", { name: "다시 확인 중" });
+          await expect(retryButton).toBeDisabled();
+          expect(await retryButton.locator(".ds-button__label").evaluate((label) => label.scrollWidth - label.clientWidth)).toBeLessThanOrEqual(1);
+          await expect(learning).toBeVisible();
+          if (parentDashboard) {
+            const summary = page.getByRole("region", { name: "우리 아이 요약" });
+            await expect(summary.getByText("오늘 일정", { exact: true }).locator("..")).toContainText("0개");
+            await expect(summary.getByText("보충 필요", { exact: true }).locator("..")).toContainText("0건");
+          }
+          await expect(page.getByText("오늘은 급한 일이 없어요", { exact: true })).toHaveCount(0);
+          await page.screenshot({ path: testInfo.outputPath("home-retrying.png"), animations: "disabled" });
+
+          releaseCounsel();
+          await expect(failure).toHaveCount(0);
+          await expect(retrying).toHaveCount(0);
+          await expect(page.getByRole("link", { name: "알림, 1개", exact: true })).toBeVisible();
+          expect(Object.fromEntries(healthyReads)).toEqual(Object.fromEntries([...paths, "qna"].map((path) => [path, 1])));
+          if (parentDashboard) expect(counselSelections).toEqual(Array<string>(failedReads + 1).fill("11"));
+          expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+          await page.screenshot({ path: testInfo.outputPath("home-recovered.png"), animations: "disabled" });
+        } finally {
+          releaseCounsel();
+        }
+      });
+    }
+
     test(`시험 조회가 끝나기 전에는 오늘 할 일을 0건으로 단정하지 않는다 (${width}px)`, async ({ page }) => {
       await installStudentApi(page);
       await page.setViewportSize({ width, height: 900 });
