@@ -700,6 +700,7 @@ async function emitHomeworkGradingState(page: Page, phase: HomeworkGradingPhase,
 
 async function gradeHomework(
   page: Page, request: APIRequestContext, username: string, password: string, staffAccess: string,
+  studentName: string,
 ): Promise<void> {
   const context = await page.context().browser()!.newContext({ serviceWorkers: "block" });
   const staffPage = await context.newPage();
@@ -733,24 +734,45 @@ async function gradeHomework(
         if (await options.getAttribute("aria-expanded") === "false") await options.click();
         gradingPhase = "editing";
         const cell = staffPage.locator(cellSelector);
-        if (previousScore !== null) {
+        const finishEditing = staffPage.getByRole("button", { name: "점수 입력 마침", exact: true });
+        const drawer = staffPage.getByRole("complementary", { name: `${studentName} 학생 상세` });
+        const homeworkCard = drawer.getByRole("button", { name: new RegExp(`^${homeworkTitle}`) });
+        let saveButton = finishEditing;
+        if (width === 390) {
+          // Finish the blank sheet's automatic bulk mode to exercise the single-student lease.
+          await expect(cell.getByRole("textbox")).toBeVisible();
+          await finishEditing.click();
+          await expect(staffPage.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+          await staffPage.getByRole("region", { name: "차시 성적표" }).getByText(studentName, { exact: true }).click();
+          await homeworkCard.click();
+          await drawer.getByRole("button", { name: "점수 입력", exact: true }).click();
+          const editor = drawer.getByRole("form", { name: `${homeworkTitle} 점수 입력` });
+          await editor.getByRole("spinbutton", { name: "과제 점수" }).fill(String(value));
+          saveButton = editor.getByRole("button", { name: "저장", exact: true });
+        } else {
           await expect(cell).toContainText(String(previousScore));
           await staffPage.getByRole("button", { name: "수정", exact: true }).click();
+          await expect(cell.getByRole("textbox")).toBeVisible();
+          await cell.getByRole("textbox").fill(String(value));
         }
-        // A blank score sheet starts editing asynchronously; wait for its input
-        // instead of choosing a button from an intermediate loading state.
-        await expect(cell.getByRole("textbox")).toBeVisible();
-        await cell.getByRole("textbox").fill(String(value));
         gradingPhase = "save";
         const saved = staffPage.waitForResponse((response) => (
           response.request().method() === "PATCH"
           && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
         ));
-        await staffPage.getByRole("button", { name: "점수 입력 마침", exact: true }).click();
+        await saveButton.click();
         const response = await saved;
         expect(response.status()).toBe(200);
         expect(await response.json()).toMatchObject({ score: value, passed: true });
         await expect(staffPage.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+        if (width === 390) {
+          await expect(homeworkCard).toContainText(String(value));
+          await expect(cell).toContainText(String(value));
+          await assertNoHorizontalOverflow(staffPage);
+          await test.info().attach("assistant-homework-drawer-390", {
+            body: await drawer.screenshot(), contentType: "image/png",
+          });
+        }
         gradingPhase = "reload";
         await staffPage.reload({ waitUntil: "domcontentloaded" });
         await expect(cell).toContainText(String(value));
@@ -1128,7 +1150,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await page.getByRole("button", { name: "미리보기 닫기", exact: true }).click();
     await assertNoHorizontalOverflow(page);
 
-    await gradeHomework(page, request, staffUsername, student.password, staffTokens.access);
+    await gradeHomework(page, request, staffUsername, student.password, staffTokens.access, student.name);
     await seedSameTitleLecture(request);
     await waitForHomeworkSummary(request, parentTokens.access, (row) => row.score === 92, student.id);
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
