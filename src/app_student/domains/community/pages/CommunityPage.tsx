@@ -32,7 +32,7 @@ import { useDurableDraft, type DurableDraftStatus } from "@/shared/hooks/useDura
 import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { fetchVideoMe } from "@student/domains/video/api/video.api";
-import { studentVideoQueryKeys, studentVideoQueryScope } from "@student/domains/video/queryKeys";
+import { STUDENT_VIDEO_CATALOG_STALE_MS, studentVideoQueryKeys, studentVideoQueryScope } from "@student/domains/video/queryKeys";
 import { useMarkNotificationsSeen } from "@student/domains/notifications/hooks/useSeenNotifications";
 import {
   fetchMyQuestions,
@@ -816,7 +816,7 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
   const videoMeQ = useQuery({
     queryKey: studentVideoQueryKeys.me(studentVideoQueryScope(user)),
     queryFn: fetchVideoMe,
-    staleTime: 60_000,
+    staleTime: STUDENT_VIDEO_CATALOG_STALE_MS,
   });
   const videoMe = videoMeQ.data;
   const lectureOptions = useMemo(() => (videoMe?.lectures ?? []).map((l) => l.title), [videoMe]);

@@ -1417,6 +1417,46 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await assertNoRenderedHtmlLeak(page);
   });
 
+  for (const width of [390, 1366]) {
+    for (const detail of ["course", "session"] as const) {
+      test(`영상 목록에서 11초 뒤 ${detail}로 이동해도 강의 목록을 재사용한다 (${width}px)`, async ({ page }) => {
+        await installStudentApi(page);
+        await page.setViewportSize({ width, height: 900 });
+        const isCatalogGet = (request: { method(): string; url(): string }) =>
+          request.method() === "GET" && new URL(request.url()).pathname === "/api/v1/student/video/me/";
+        let catalogGets = 0;
+        page.on("request", (request) => { if (isCatalogGet(request)) catalogGets++; });
+        const firstCatalog = page.waitForResponse((response) => isCatalogGet(response.request()));
+        await page.goto(`${BASE}/student/video`, { waitUntil: "domcontentloaded", timeout: 45_000 });
+        expect((await firstCatalog).status()).toBe(200);
+        const course = page.locator('a[href="/student/video/courses/71"]');
+        const session = page.getByRole("link", { name: /1차시 · 미적분/ });
+        await expect(course).toBeVisible();
+        await page.evaluate(() => { document.documentElement.dataset.catalogTestDocument = "initial"; });
+
+        if (detail === "session") {
+          await course.click();
+          await expect(session).toBeVisible();
+        }
+        expect(catalogGets).toBe(1);
+        const clock = await page.evaluate(() => Date.now());
+        await page.clock.setFixedTime(clock + 11_000);
+
+        await (detail === "course" ? course : session).click();
+        if (detail === "course") {
+          await expect(page).toHaveURL(/\/student\/video\/courses\/71$/);
+          await expect(page.getByRole("heading", { name: "고등 수학" })).toBeVisible();
+          await expect(session).toBeVisible();
+        } else {
+          await expect(page).toHaveURL(/\/student\/video\/sessions\/24(?:\?|$)/);
+          await expect(page.getByText("극한의 기본", { exact: true })).toBeVisible();
+        }
+        await expect(page.locator("html")).toHaveAttribute("data-catalog-test-document", "initial");
+        expect(catalogGets).toBe(1);
+      });
+    }
+  }
+
   test("종료 강의는 현재 강의 뒤 접힌 읽기 전용 시청 기록으로 표시한다", async ({ page }) => {
     await installStudentApi(page);
     await page.setViewportSize({ width: 390, height: 844 });
