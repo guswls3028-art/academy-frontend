@@ -29,7 +29,10 @@ export function harness(options = {}) {
   document.hidden = false;
   const timers = new Map();
   let timerOrdinal = 0;
-  window.setTimeout = (callback, delay) => { timers.set(++timerOrdinal, { callback, delay }); return timerOrdinal; };
+  window.setTimeout = (callback, delay) => {
+    timers.set(++timerOrdinal, { callback, delay, dueAt: clockOffset + delay });
+    return timerOrdinal;
+  };
   window.clearTimeout = (id) => timers.delete(id);
   const counts = { refresh: 0, clear: 0, supportEnd: 0, apiError: 0 };
   const requests = [];
@@ -117,6 +120,12 @@ export function harness(options = {}) {
     setSupportSessionId: (value) => { supportSessionId = value; },
     setParentId: (value) => { parentId = value; }, setTenant: (value) => { tenant = value; },
     advance: (milliseconds) => { clockOffset += milliseconds; },
+    fireDueTimers: () => {
+      const due = [...timers].filter(([, timer]) => timer.dueAt <= clockOffset);
+      for (const [id, timer] of due) {
+        if (timers.delete(id)) timer.callback();
+      }
+    },
     fireTimers: (maximumDelay = Infinity) => {
       const callbacks = [...timers].filter(([, timer]) => timer.delay <= maximumDelay);
       callbacks.forEach(([id]) => timers.delete(id));

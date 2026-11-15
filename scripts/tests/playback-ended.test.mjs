@@ -83,6 +83,75 @@ test('a native source error that clears media metadata does not erase the saved 
   assert.equal(saved.at(-1)?.completed, false);
 });
 
+for (const outcome of ['resumes', 'times out silently', 'times out after retry', 'fails twice']) {
+  test(`a renewed native HLS grant uses its own bounded recovery window: ${outcome}`, async () => {
+    const h = harness();
+    const errors = [];
+    const loaded = [];
+    const oldUrl = 'https://unit.invalid/master.m3u8?grant=old';
+    const newUrl = 'https://unit.invalid/master.m3u8?grant=new';
+    const controller = h.controller('hls', 'student-fixture', {
+      playUrl: oldUrl, policy: { monitoring_enabled: false },
+      onFatal: (error) => errors.push(error),
+    });
+    const el = Object.assign(new EventTarget(), {
+      currentTime: 0, duration: 600, readyState: 4, HAVE_FUTURE_DATA: 3,
+      paused: true, playbackRate: 1, volume: 0.5, error: null,
+      canPlayType: () => 'probably',
+      async play() { this.paused = false; this.dispatchEvent(new Event('play')); },
+      pause() { this.paused = true; },
+      getAttribute() { return this.src ?? null; },
+      removeAttribute() { this.src = null; },
+      load() { loaded.push(this.src); this.currentTime = 0; this.error = null; },
+    });
+    const networkError = () => {
+      el.error = { code: 2, message: '' };
+      el.dispatchEvent(new Event('error'));
+    };
+    await controller.attach(el);
+    el.dispatchEvent(new Event('loadedmetadata'));
+    await el.play();
+    el.currentTime = 123;
+    el.dispatchEvent(new Event('timeupdate'));
+    networkError();
+    h.advance(9_000);
+    controller.setSource(newUrl);
+    h.advance(1_000);
+    h.fireDueTimers();
+    el.dispatchEvent(new Event('error'));
+    assert.equal(el.src, newUrl, 'a stale deadline or media event cannot discard the new grant');
+    assert.deepEqual(errors, []);
+
+    if (outcome === 'resumes') {
+      el.dispatchEvent(new Event('loadedmetadata'));
+      assert.equal(el.currentTime, 123);
+      el.currentTime = 124;
+      el.dispatchEvent(new Event('timeupdate'));
+      h.advance(9_000);
+      h.fireDueTimers();
+      assert.deepEqual(errors, []);
+      assert.equal(controller.getState().reconnecting, false);
+    } else {
+      if (outcome !== 'times out silently') {
+        networkError();
+        assert.deepEqual(loaded, [oldUrl, newUrl, newUrl], 'the renewed grant gets one retry');
+      }
+      if (outcome !== 'fails twice') {
+        h.advance(8_999);
+        h.fireDueTimers();
+        assert.deepEqual(errors, []);
+        h.advance(1);
+        h.fireDueTimers();
+      } else {
+        networkError();
+      }
+      assert.equal(errors.length, 1);
+      assert.equal(el.src, null);
+    }
+    controller.dispose();
+  });
+}
+
 test('native HLS releases the previous source once when its controller is disposed', async () => {
   const h = harness();
   const calls = [];

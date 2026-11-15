@@ -16,7 +16,7 @@ import {
 } from "react";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
-import { FolderOpen, MonitorSmartphone } from "lucide-react";
+import { ChevronDown, FolderOpen, MonitorSmartphone } from "lucide-react";
 import api from "@/shared/api/axios";
 import { useModalKeyboard } from "@/shared/ui/modal/useModalKeyboard";
 import { useStudentMemo } from "./useStudentMemo";
@@ -33,14 +33,11 @@ import {
   type ClientEnrollmentLite,
   type ClientStudentTag,
 } from "../api/students.api";
-import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import LectureChip from "@/shared/ui/chips/LectureChip";
-import StudentScoreTrendChart from "@/shared/ui/assessment/StudentScoreTrendChart";
 import {
   fetchAdminStudentGrades,
   type StudentExamGrade,
   type StudentGradesResponse,
-  type StudentHomeworkGrade,
 } from "@/shared/api/contracts/studentGrades";
 import { EmptyState, Button, CloseButton, Badge, ICON, type BadgeTone } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -56,6 +53,7 @@ import StudentActivityPanel from "@/shared/studentSupport/StudentActivityPanel";
 import { openStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
 import StudentExamCorrectionCard from "./StudentExamCorrectionCard";
 
+const StudentScoreTrendChart = lazy(() => import("@/shared/ui/assessment/StudentScoreTrendChart"));
 const StudentFormModal = lazy(() => import("../components/EditStudentModal"));
 const StudentSurveyHistory = lazy(() => import("@admin/domains/surveys/public/StudentSurveyHistory"));
 const TagCreateModal = lazy(() => import("../components/TagCreateModal"));
@@ -150,7 +148,7 @@ function StudentDetailContent({
 
   const [tab, setTab] = useState<StatTabKey>("enroll");
   const [accountToolsOpen, setAccountToolsOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
+  const [accountHistoryOpen, setAccountHistoryOpen] = useState(false);
   const tabId = useId();
   const leaving = useRef(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -194,6 +192,7 @@ function StudentDetailContent({
   });
   const memo = useStudentMemo(id, student);
   const saveMemo = memo.save;
+  const [showProfile, setProfileOpen] = useState(memo.hasDraft);
   const onClose = useCallback(() => {
     if (leaving.current) return;
     leaving.current = true;
@@ -218,11 +217,13 @@ function StudentDetailContent({
   const { data: customFieldDefinitions = [], isError: customFieldsError, refetch: refetchCustomFields } = useQuery({
     queryKey: adminStudentsQueryKeys.customFields,
     queryFn: () => fetchStudentCustomFields(true),
+    enabled: showProfile,
   });
 
   const { data: tags } = useQuery({
     queryKey: adminStudentsQueryKeys.tags,
     queryFn: getTags,
+    enabled: showProfile,
   });
 
   // 공유 데이터: 대시보드 + 탭에서 중복 호출 제거
@@ -353,20 +354,7 @@ function StudentDetailContent({
                 </div>
                 <div className={`ds-overlay-header__title-block ${styles.headerTitleBlock}`}>
                   <h1 className="ds-overlay-header__title" title={student.name}>
-                    <StudentNameWithLectureChip
-                      name={student.name ?? ""}
-                      avatarSize={0}
-                      chipSize={36}
-                      lectures={
-                        Array.isArray(student.enrollments) && student.enrollments.length > 0
-                          ? student.enrollments.filter((en) => en.lectureActive && (en.status ?? "ACTIVE") === "ACTIVE").map((en) => ({
-                              lectureName: en.lectureName ?? "—",
-                              color: en.lectureColor ?? undefined,
-                              chipLabel: en.lectureChipLabel ?? undefined,
-                            }))
-                          : undefined
-                      }
-                    />
+                    {student.name}
                   </h1>
                   <p className={styles.schoolSummary}>
                     {[student.school, student.grade != null ? student.grade + "학년" : null, student.schoolClass ? student.schoolClass + "반" : null].filter(Boolean).join(" · ") || "학교 정보 미등록"}
@@ -379,46 +367,20 @@ function StudentDetailContent({
               </div>
               <div className="ds-overlay-header__right">
                 <div className={`ds-overlay-header__actions ${styles.headerActions}`}>
-                  <Button
-                    type="button"
-                    intent="secondary"
-                    size="sm"
-                    disabled={supportOpening}
-                    leftIcon={<MonitorSmartphone size={ICON.sm} aria-hidden />}
-                    onClick={async () => {
-                      setSupportOpening(true);
-                      try {
-                        await openStudentSupportPreview(id);
-                      } catch (error) {
-                        feedback.error(error instanceof Error ? error.message : "학생 화면을 열지 못했습니다.");
-                      } finally {
-                        setSupportOpening(false);
-                      }
-                    }}
-                  >
-                    {supportOpening ? "여는 중…" : "학생 화면 보기"}
-                  </Button>
-                  <Button type="button" intent="primary" size="sm" onClick={() => { void memo.save().then((saved) => { if (saved) setEditOpen(true); }); }}>정보 수정</Button>
-                  <Button type="button" intent="ghost" size="sm" aria-expanded={accountToolsOpen} aria-controls={tabId + "-account-tools"} onClick={() => setAccountToolsOpen((open) => !open)}>계정·관리</Button>
+                  <Button type="button" intent="primary" size="lg" onClick={() => { void memo.save().then((saved) => { if (saved) setEditOpen(true); }); }}>정보 수정</Button>
+                  <Button type="button" intent="secondary" size="lg" aria-expanded={accountToolsOpen} aria-controls={tabId + "-account-tools"} onClick={() => setAccountToolsOpen((open) => !open)}>계정·관리</Button>
                 </div>
               </div>
             </div>
-            {accountToolsOpen && <div id={tabId + "-account-tools"} className={profileStyles.accountTools} aria-label="학생 계정·관리">
-                  <div className={styles.statusControl}>
-                    <span className={styles.statusLabel}>관리 대상</span>
-                    <button
-                    type="button"
-                    className={styles.statusToggle}
-                    data-active={student.active ? "true" : "false"}
-                    onClick={() => toggleActive.mutate(!student.active)}
+            <div id={tabId + "-account-tools"} hidden={!accountToolsOpen} className={`${profileStyles.accountTools} ds-record-reveal`} aria-label="학생 계정·관리">
+                  <Button
+                    intent="secondary"
+                    size="sm"
                     disabled={toggleActive.isPending}
-                    aria-label={student.active ? "현재 관리 중, 관리 대상에서 제외" : "현재 관리 제외, 관리 대상으로 포함"}
-                    title={student.active ? "관리 대상에서 제외" : "관리 대상으로 포함"}
+                    onClick={() => toggleActive.mutate(!student.active)}
                   >
-                      <span className={styles.statusDot} aria-hidden />
-                      {toggleActive.isPending ? "변경 중" : student.active ? "관리 중" : "관리 제외"}
-                    </button>
-                  </div>
+                    {toggleActive.isPending ? "변경 중…" : student.active ? "관리 대상에서 제외" : "관리 대상으로 포함"}
+                  </Button>
                   <Button
                     type="button"
                     intent="secondary"
@@ -438,228 +400,246 @@ function StudentDetailContent({
                   >
                     비밀번호 초기화
                   </Button>
-                  <Button type="button" intent="ghost" size="sm" className={styles.deleteAction} onClick={() => setDeleteConfirmOpen(true)}>
+                  <Button type="button" intent="danger" size="sm" onClick={() => setDeleteConfirmOpen(true)}>
                     삭제
                   </Button>
-            </div>}
+            </div>
           </header>
 
           <div className="ds-overlay-body" data-testid="student-detail-scroll">
-            <Button type="button" intent="secondary" className={profileStyles.profileToggle} aria-expanded={profileOpen} aria-controls={tabId + "-profile"} onClick={() => setProfileOpen((open) => !open)}>
-              {profileOpen ? "연락처·메모 접기" : "연락처·메모 보기"}
-            </Button>
-            <div className="ds-overlay-body__grid">
-              {/* Left panel — 단일 카드, 섹션 구분선 */}
-              <div id={tabId + "-profile"} className={"ds-overlay-sidebar " + profileStyles.profilePanel} data-expanded={profileOpen}>
-                <div className="ds-overlay-sidebar-card">
-                  {/* 연락처 */}
-                  <div className="ds-overlay-sidebar-section">
-                    <div className="ds-overlay-sidebar-section__title">기본 정보</div>
-                    <div className="ds-overlay-info-rows">
-                      {student.psNumber && <InfoRow label="아이디" value={student.psNumber} accent copyable />}
-                      {student.omrCode && <InfoRow label="시험코드" value={formatOmrCode(student.omrCode)} accent copyable />}
-                      <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} copyable />
-                      <InfoRow label="학생 전화" value={formatStudentPhoneDisplay(student.studentPhone)} copyable />
-                      {student.gender && <InfoRow label="성별" value={formatGenderDisplay(student.gender)} />}
-                      <InfoRow label="등록일" value={student.registeredAt?.slice(0, 10)} />
-                      {student.address && <InfoRow label="주소" value={student.address} />}
-                    </div>
-                  </div>
-
-                  <div className="ds-overlay-sidebar-section">
-                    <div className="ds-overlay-sidebar-section__title">학생 공통 메모</div>
-                    <textarea
-                      aria-label="학생 공통 메모"
-                      className={"ds-textarea w-full " + styles.memoTextarea}
-                      rows={4}
-                      value={memo.value}
-                      placeholder="학생 지도·상담에 필요한 메모"
-                      onChange={(event) => memo.change(event.target.value)}
-                      onBlur={() => { void memo.save(); }}
-                    />
-                    <div className={profileStyles.memoFooter}>
-                      <span role={memo.status === "error" ? "alert" : "status"}>
-                        {memo.status === "saving" ? "저장 중…" : memo.status === "error" ? "저장 실패 · 입력은 유지됩니다" : memo.dirty ? "저장할 변경 내용이 있습니다" : memo.status === "saved" ? "저장됨" : "입력 후 다른 곳을 누르면 저장"}
-                      </span>
-                      {(memo.dirty || memo.status === "error") && <Button intent="secondary" size="sm" onClick={() => { void memo.save(); }}>{memo.status === "error" ? "다시 저장" : "저장"}</Button>}
-                    </div>
-                  </div>
-                  <Suspense fallback={<p role="status">설문 기록을 불러오는 중…</p>}><StudentSurveyHistory key={id} studentId={id} /></Suspense>
-                  <details className={"ds-overlay-sidebar-section " + profileStyles.accountHistory}>
-                    <summary className="ds-overlay-sidebar-section__title">계정 알림톡 이력</summary>
-                    <AccountNotificationHistory key={id} studentId={id} queryKey={adminStudentsQueryKeys.studentAccountNotifications(id)} />
-                  </details>
-
-                  {/* 학교 정보 */}
-                  {(student.school || student.grade != null || student.schoolClass != null || student.major || (student.schoolType === "HIGH" && student.originMiddleSchool)) && (
-                  <div className="ds-overlay-sidebar-section">
-                    <div className="ds-overlay-sidebar-section__title">학교</div>
-                    <div className="ds-overlay-info-rows">
-                      {student.school && <InfoRow label="학교" value={student.school} />}
-                      {student.schoolType === "HIGH" && student.originMiddleSchool && (
-                        <InfoRow label="출신중학교" value={student.originMiddleSchool} />
-                      )}
-                      {student.grade != null && <InfoRow label="학년" value={`${student.grade}학년`} />}
-                      {student.schoolClass != null && student.schoolClass !== "" && <InfoRow label="반" value={student.schoolClass} />}
-                      {student.major && <InfoRow label="계열" value={student.major} />}
-                    </div>
-                  </div>
-                  )}
-
-                  {customFieldsError && <div role="alert" className={profileStyles.sectionError}>맞춤 정보를 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => { void refetchCustomFields(); }}>다시 불러오기</Button></div>}
-                  {customFieldDefinitions.some(
-                    (definition) => {
-                      const value = student.customFields[definition.key];
-                      return value !== null && value !== undefined && value !== "";
-                    },
-                  ) && (
-                    <div className="ds-overlay-sidebar-section">
-                      <div className="ds-overlay-sidebar-section__title">맞춤 정보</div>
-                      <div className="ds-overlay-info-rows">
-                        {customFieldDefinitions.map((definition) => {
-                          const value = student.customFields[definition.key];
-                          return value === null || value === undefined || value === ""
-                            ? null
-                            : (
-                              <InfoRow
-                                key={definition.key}
-                                label={definition.label}
-                                value={String(value)}
-                              />
-                            );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 태그 */}
-                  <div className="ds-overlay-sidebar-section">
-                    <div className="ds-overlay-sidebar-section__title">
-                      태그
-                      {student.tags?.length > 0 && <span className="ds-overlay-sidebar-section__count">{student.tags.length}</span>}
-                    </div>
-                    <div className="ds-overlay-tags">
-                      {student.tags.length ? (
-                        student.tags.map((tag: ClientStudentTag) => {
-                          const c = tag.color.toLowerCase();
-                          const lightColors = ["#eab308", "#06b6d4"];
-                          const isLight = lightColors.some((x) => c === x);
-                          return (
-                            <span
-                              key={tag.id}
-                              className={`ds-overlay-tag ${styles.studentTag}`}
-                              data-light={isLight ? "" : undefined}
-                              style={{ "--student-tag-color": tag.color } as CSSProperties}
-                            >
-                              {tag.name}
-                              <button
-                                type="button"
-                                className={`ds-overlay-tag__remove ${styles.studentTagRemove}`}
-                                onClick={(e) => { e.stopPropagation(); removeTag.mutate(tag.id); }}
-                                disabled={removeTag.isPending}
-                                data-pending={removeTag.isPending ? "" : undefined}
-                                aria-label={`${tag.name} 태그 제거`}
-                              >
-                                ×
-                              </button>
-                            </span>
-                          );
-                        })
-                      ) : (
-                        <span className="ds-overlay-info-row__label">태그 없음</span>
-                      )}
-                    </div>
-                    <div className={styles.tagControls}>
-                      <Button type="button" intent="primary" size="sm" onClick={() => setTagCreateOpen(true)}>
-                        + 추가
-                      </Button>
-                      {availableTags.length > 0 && (
-                        <select
-                          aria-label="기존 태그 추가"
-                          disabled={addTag.isPending}
-                          className={`ds-input ${styles.tagSelect}`}
-                          onChange={(e) => {
-                            const tagId = Number(e.target.value);
-                            if (tagId) addTag.mutate(tagId);
-                            e.currentTarget.value = "";
-                          }}
-                        >
-                          <option value="">기존 태그…</option>
-                          {availableTags.map((tag) => (
-                            <option key={tag.id} value={tag.id}>{tag.name}</option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
-              {/* Right panel — Stat-Tab 네비게이터 + 콘텐츠 */}
-              <div className="ds-overlay-content-panel">
-                {/* Stat-Tab 네비게이터: 요약 + 탭 전환 통합 */}
-                <StudentStatTabs
-                  id={tabId}
-                  activeTab={tab}
-                  onTabChange={setTab}
-                  enrollments={student.enrollments}
-                  examGrades={examGrades}
-                  examSummary={gradesData?.exam_summary}
-                  homeworkGrades={homeworkGrades}
-                  gradesLoading={gradesLoading}
-                  gradesError={gradesError}
-                  clinicCount={clinic.data?.pages[0]?.count ?? 0}
-                  questionCount={questions.data?.pages[0]?.count ?? 0}
-                  clinicLoading={clinic.isLoading}
-                  clinicError={clinic.isError}
-                  questionsLoading={questions.isLoading}
-                  questionsError={questions.isError}
-                />
-
-                <div className="ds-overlay-content-panel__scrollable" role="tabpanel" id={tabId + "-panel"} aria-labelledby={tabId + "-" + tab} tabIndex={0}>
-                  {tab === "enroll" && <EnrollmentsTab studentId={id} studentName={student.name || ""} enrollments={student.enrollments} onNavigate={onNavigate} />}
-                  {tab === "score" && (
-                    <ScoreTab
-                      studentId={id}
-                      data={examGrades}
-                      trend={gradesData?.exam_trend ?? []}
-                      isLoading={gradesLoading}
-                      isError={gradesError}
-                      onRetry={() => { void refetchGrades(); }}
-                      onNavigate={onNavigate}
-                    />
-                  )}
-                  {tab === "homework" && (
-                    <StudentHomeworkTab
-                      data={homeworkGrades}
-                      isLoading={gradesLoading}
-                      isError={gradesError}
-                      onRetry={() => { void refetchGrades(); }}
-                      onUpdated={async () => { await refetchGrades(); }}
-                      onNavigate={onNavigate}
-                    />
-                  )}
-                  {tab === "wrong-note" && <StudentWrongNoteBuilder studentId={id} />}
-                  {tab === "clinic" && <HistoryState label="클리닉" loading={clinic.isLoading} error={clinic.isError} hasData={clinicData.length > 0} hasNext={clinic.hasNextPage} fetchingMore={clinic.isFetchingNextPage} onRetry={() => { void (clinic.isFetchNextPageError ? clinic.fetchNextPage() : clinic.refetch()); }} onMore={() => { void clinic.fetchNextPage(); }}><ClinicTab data={clinicData} onNavigate={onNavigate} /></HistoryState>}
-                  {tab === "question" && <HistoryState label="질문" loading={questions.isLoading} error={questions.isError} hasData={questionsData.length > 0} hasNext={questions.hasNextPage} fetchingMore={questions.isFetchingNextPage} onRetry={() => { void (questions.isFetchNextPageError ? questions.fetchNextPage() : questions.refetch()); }} onMore={() => { void questions.fetchNextPage(); }}><QuestionTab data={questionsData} onNavigate={onNavigate} /></HistoryState>}
-                  {tab === "activity" && <StudentActivityPanel studentId={id} />}
-                </div>
-              </div>
+            <div className={profileStyles.profileTools}>
+              <Button
+                intent="secondary"
+                size="md"
+                aria-expanded={showProfile}
+                aria-controls={tabId + "-profile"}
+                rightIcon={<ChevronDown size={ICON.sm} aria-hidden />}
+                onClick={() => {
+                  if (showProfile) void saveMemo().then((saved) => { if (saved) setProfileOpen(false); });
+                  else setProfileOpen(true);
+                }}
+              >
+                {showProfile ? "연락처·메모 접기" : "연락처·메모 보기"}
+              </Button>
+              <Button
+                type="button"
+                intent="secondary"
+                size="md"
+                disabled={supportOpening}
+                leftIcon={<MonitorSmartphone size={ICON.sm} aria-hidden />}
+                onClick={async () => {
+                  setSupportOpening(true);
+                  try {
+                    await openStudentSupportPreview(id);
+                  } catch (error) {
+                    feedback.error(error instanceof Error ? error.message : "학생 화면을 열지 못했습니다.");
+                  } finally {
+                    setSupportOpening(false);
+                  }
+                }}
+              >
+                {supportOpening ? "여는 중…" : "학생 화면 보기"}
+              </Button>
+              <Button
+                intent="ghost"
+                size="md"
+                leftIcon={<FolderOpen size={ICON.sm} aria-hidden />}
+                onClick={() => setInventoryOpen(true)}
+              >
+                학생 자료
+              </Button>
             </div>
-          </div>
+            <div id={tabId + "-profile"} hidden={!showProfile} className={`ds-record-card ds-record-reveal ${profileStyles.profilePanel}`}>
+              {showProfile && <>
+                {/* 연락처 */}
+                <div className="ds-overlay-sidebar-section">
+                  <div className="ds-overlay-sidebar-section__title">기본 정보</div>
+                  <div className="ds-overlay-info-rows">
+                    {student.psNumber && <InfoRow label="아이디" value={student.psNumber} accent copyable />}
+                    {student.omrCode && <InfoRow label="시험코드" value={formatOmrCode(student.omrCode)} accent copyable />}
+                    <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} copyable />
+                    <InfoRow label="학생 전화" value={formatStudentPhoneDisplay(student.studentPhone)} copyable />
+                    {student.gender && <InfoRow label="성별" value={formatGenderDisplay(student.gender)} />}
+                    <InfoRow label="등록일" value={student.registeredAt?.slice(0, 10)} />
+                    {student.address && <InfoRow label="주소" value={student.address} />}
+                  </div>
+                </div>
 
-          {/* 우하단 인벤토리 트리거 — 아이콘만 큼지막하게, 클릭 시 좌측 패널 */}
-          <div className="ds-overlay-inventory-wrap">
-            <button
-              type="button"
-              className={`ds-inventory-trigger-btn ${styles.inventoryTrigger}`}
-              onClick={() => setInventoryOpen(true)}
-              title="인벤토리"
-              aria-label="인벤토리 열기"
-            >
-              <FolderOpen size={ICON.lg} aria-hidden />
-            </button>
+                <div className="ds-overlay-sidebar-section">
+                  <div className="ds-overlay-sidebar-section__title">학생 공통 메모</div>
+                  <textarea
+                    aria-label="학생 공통 메모"
+                    className={"ds-textarea w-full " + styles.memoTextarea}
+                    rows={4}
+                    value={memo.value}
+                    placeholder="학생 지도·상담에 필요한 메모"
+                    onChange={(event) => memo.change(event.target.value)}
+                    onBlur={() => { void memo.save(); }}
+                  />
+                  <div className={profileStyles.memoFooter}>
+                    <span role={memo.status === "error" ? "alert" : "status"}>
+                      {memo.status === "saving" ? "저장 중…" : memo.status === "error" ? "저장 실패 · 입력은 유지됩니다" : memo.dirty ? "저장할 변경 내용이 있습니다" : memo.status === "saved" ? "저장됨" : "입력 후 다른 곳을 누르면 저장"}
+                    </span>
+                    {(memo.dirty || memo.status === "error") && <Button intent="secondary" size="sm" onClick={() => { void memo.save(); }}>{memo.status === "error" ? "다시 저장" : "저장"}</Button>}
+                  </div>
+                </div>
+                <Suspense fallback={<p role="status">설문 기록을 불러오는 중…</p>}><StudentSurveyHistory key={id} studentId={id} /></Suspense>
+                <details className={"ds-overlay-sidebar-section " + profileStyles.accountHistory} onToggle={(event) => setAccountHistoryOpen(event.currentTarget.open)}>
+                  <summary className="ds-overlay-sidebar-section__title">계정 알림톡 이력</summary>
+                  {accountHistoryOpen && <AccountNotificationHistory studentId={id} queryKey={adminStudentsQueryKeys.studentAccountNotifications(id)} />}
+                </details>
+
+                {/* 학교 정보 */}
+                {(student.school || student.grade != null || student.schoolClass != null || student.major || (student.schoolType === "HIGH" && student.originMiddleSchool)) && (
+                <div className="ds-overlay-sidebar-section">
+                  <div className="ds-overlay-sidebar-section__title">학교</div>
+                  <div className="ds-overlay-info-rows">
+                    {student.school && <InfoRow label="학교" value={student.school} />}
+                    {student.schoolType === "HIGH" && student.originMiddleSchool && (
+                      <InfoRow label="출신중학교" value={student.originMiddleSchool} />
+                    )}
+                    {student.grade != null && <InfoRow label="학년" value={`${student.grade}학년`} />}
+                    {student.schoolClass != null && student.schoolClass !== "" && <InfoRow label="반" value={student.schoolClass} />}
+                    {student.major && <InfoRow label="계열" value={student.major} />}
+                  </div>
+                </div>
+                )}
+
+                {customFieldsError && <div role="alert" className={profileStyles.sectionError}>맞춤 정보를 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => { void refetchCustomFields(); }}>다시 불러오기</Button></div>}
+                {customFieldDefinitions.some(
+                  (definition) => {
+                    const value = student.customFields[definition.key];
+                    return value !== null && value !== undefined && value !== "";
+                  },
+                ) && (
+                  <div className="ds-overlay-sidebar-section">
+                    <div className="ds-overlay-sidebar-section__title">맞춤 정보</div>
+                    <div className="ds-overlay-info-rows">
+                      {customFieldDefinitions.map((definition) => {
+                        const value = student.customFields[definition.key];
+                        return value === null || value === undefined || value === ""
+                          ? null
+                          : (
+                            <InfoRow
+                              key={definition.key}
+                              label={definition.label}
+                              value={String(value)}
+                            />
+                          );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 태그 */}
+                <div className="ds-overlay-sidebar-section">
+                  <div className="ds-overlay-sidebar-section__title">
+                    태그
+                    {student.tags?.length > 0 && <span className="ds-overlay-sidebar-section__count">{student.tags.length}</span>}
+                  </div>
+                  <div className="ds-overlay-tags">
+                    {student.tags.length ? (
+                      student.tags.map((tag: ClientStudentTag) => {
+                        const c = tag.color.toLowerCase();
+                        const lightColors = ["#eab308", "#06b6d4"];
+                        const isLight = lightColors.some((x) => c === x);
+                        return (
+                          <span
+                            key={tag.id}
+                            className={`ds-overlay-tag ${styles.studentTag}`}
+                            data-light={isLight ? "" : undefined}
+                            style={{ "--student-tag-color": tag.color } as CSSProperties}
+                          >
+                            {tag.name}
+                            <button
+                              type="button"
+                              className={`ds-overlay-tag__remove ${styles.studentTagRemove}`}
+                              onClick={(e) => { e.stopPropagation(); removeTag.mutate(tag.id); }}
+                              disabled={removeTag.isPending}
+                              data-pending={removeTag.isPending ? "" : undefined}
+                              aria-label={`${tag.name} 태그 제거`}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        );
+                      })
+                    ) : (
+                      <span className="ds-overlay-info-row__label">태그 없음</span>
+                    )}
+                  </div>
+                  <div className={styles.tagControls}>
+                    <Button type="button" intent="primary" size="sm" onClick={() => setTagCreateOpen(true)}>
+                      + 추가
+                    </Button>
+                    {availableTags.length > 0 && (
+                      <select
+                        aria-label="기존 태그 추가"
+                        disabled={addTag.isPending}
+                        className={`ds-input ${styles.tagSelect}`}
+                        onChange={(e) => {
+                          const tagId = Number(e.target.value);
+                          if (tagId) addTag.mutate(tagId);
+                          e.currentTarget.value = "";
+                        }}
+                      >
+                        <option value="">기존 태그…</option>
+                        {availableTags.map((tag) => (
+                          <option key={tag.id} value={tag.id}>{tag.name}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+
+              </>}
+            </div>
+            <StudentStatTabs
+              id={tabId}
+              activeTab={tab}
+              onTabChange={setTab}
+              enrollments={student.enrollments}
+              examGrades={examGrades}
+              homeworkCount={homeworkGrades.length}
+              gradesLoading={gradesLoading}
+              gradesError={gradesError}
+              clinicCount={clinic.data?.pages[0]?.count ?? 0}
+              questionCount={questions.data?.pages[0]?.count ?? 0}
+              clinicLoading={clinic.isLoading}
+              clinicError={clinic.isError}
+              questionsLoading={questions.isLoading}
+              questionsError={questions.isError}
+            />
+
+            <div className="ds-record-content" role="tabpanel" id={tabId + "-panel"} aria-labelledby={tabId + "-" + tab} tabIndex={0}>
+              {tab === "enroll" && <EnrollmentsTab studentId={id} studentName={student.name || ""} enrollments={student.enrollments} onNavigate={onNavigate} />}
+              {tab === "score" && (
+                <ScoreTab
+                  studentId={id}
+                  data={examGrades}
+                  summary={gradesData?.exam_summary}
+                  trend={gradesData?.exam_trend ?? []}
+                  isLoading={gradesLoading}
+                  isError={gradesError}
+                  onRetry={() => { void refetchGrades(); }}
+                  onNavigate={onNavigate}
+                />
+              )}
+              {tab === "homework" && (
+                <StudentHomeworkTab
+                  data={homeworkGrades}
+                  isLoading={gradesLoading}
+                  isError={gradesError}
+                  onRetry={() => { void refetchGrades(); }}
+                  onUpdated={async () => { await refetchGrades(); }}
+                  onNavigate={onNavigate}
+                />
+              )}
+              {tab === "wrong-note" && <StudentWrongNoteBuilder studentId={id} />}
+              {tab === "clinic" && <HistoryState label="클리닉" loading={clinic.isLoading} error={clinic.isError} hasData={clinicData.length > 0} hasNext={clinic.hasNextPage} fetchingMore={clinic.isFetchingNextPage} onRetry={() => { void (clinic.isFetchNextPageError ? clinic.fetchNextPage() : clinic.refetch()); }} onMore={() => { void clinic.fetchNextPage(); }}><ClinicTab data={clinicData} onNavigate={onNavigate} /></HistoryState>}
+              {tab === "question" && <HistoryState label="질문" loading={questions.isLoading} error={questions.isError} hasData={questionsData.length > 0} hasNext={questions.hasNextPage} fetchingMore={questions.isFetchingNextPage} onRetry={() => { void (questions.isFetchNextPageError ? questions.fetchNextPage() : questions.refetch()); }} onMore={() => { void questions.fetchNextPage(); }}><QuestionTab data={questionsData} onNavigate={onNavigate} /></HistoryState>}
+              {tab === "activity" && <StudentActivityPanel studentId={id} />}
+            </div>
           </div>
       </StudentDetailShell>
 
@@ -800,8 +780,8 @@ function StudentDetailShell({
           onKeyDown={(event) => {
             if (event.key !== "Tab") return;
             const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
-              "button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex='0']",
-            )).filter((element) => element.getClientRects().length > 0);
+              "button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), summary, [tabindex='0']",
+            )).filter((element) => element.tabIndex >= 0 && element.getClientRects().length > 0);
             const first = items[0];
             const last = items[items.length - 1];
             if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
@@ -876,8 +856,7 @@ function StudentStatTabs({
   onTabChange,
   enrollments,
   examGrades,
-  examSummary,
-  homeworkGrades,
+  homeworkCount,
   gradesLoading,
   gradesError,
   clinicCount,
@@ -892,8 +871,7 @@ function StudentStatTabs({
   onTabChange: (tab: StatTabKey) => void;
   enrollments: ClientEnrollmentLite[];
   examGrades: StudentExamGrade[];
-  examSummary?: StudentGradesResponse["exam_summary"];
-  homeworkGrades: StudentHomeworkGrade[];
+  homeworkCount: number;
   gradesLoading: boolean;
   gradesError: boolean;
   clinicCount: number;
@@ -903,100 +881,26 @@ function StudentStatTabs({
   questionsLoading: boolean;
   questionsError: boolean;
 }) {
-  // 정책: 합격률은 "성취"(1차 + 보강합격) 기준. achievement가 내려오면 우선 사용.
-  // 드리프트 방지: 같은 오버레이의 ScoreTab이 achievement 기반으로 뱃지를 그리므로
-  // 요약 KPI도 동일 기준이어야 한다.
-  let examPassCount = 0;
-  let examFailCount = 0;
-  for (const e of examGrades) {
-    const ach: string | null | undefined = e.achievement;
-    if (ach === "PASS" || ach === "REMEDIATED") examPassCount += 1;
-    else if (ach === "FAIL") examFailCount += 1;
-    else if (ach === "NOT_SUBMITTED") {
-      continue;
-    } else if (ach == null) {
-      // achievement 필드 없는 구서버 폴백 — remediated/is_pass로 계산
-      if (e.remediated === true || e.final_pass === true || e.is_pass === true) examPassCount += 1;
-      else if (e.is_pass === false || e.final_pass === false) examFailCount += 1;
-    }
-  }
-  const examJudged = examPassCount + examFailCount;
-  const avgScore = examSummary?.average_score_pct ?? null;
-  const passRate = examJudged > 0 ? `${Math.round((examPassCount / examJudged) * 100)}%` : null;
-
-  const hwPassCount = homeworkGrades.filter((homework) => (
-    homework.achievement === "PASS" || homework.achievement === "REMEDIATED"
-  )).length;
-  const hwNotSubmittedCount = homeworkGrades.filter((homework) => (
-    homework.achievement === "NOT_SUBMITTED"
-  )).length;
-  const hwTotal = homeworkGrades.length;
-
   const activeEnrollments = (enrollments ?? []).filter((enrollment) => (
     (enrollment.status ?? "ACTIVE") === "ACTIVE" && enrollment.lectureActive
   )).length;
+  const countLabel = (count: number, loading: boolean, error: boolean) =>
+    loading ? "…" : error ? "확인 필요" : `${count}건`;
 
-  const tabs: { key: StatTabKey; label: string; value: string; sub?: string; tone?: string }[] = [
-    {
-      key: "enroll",
-      label: "수강",
-      value: `${activeEnrollments}`,
-      sub: enrollments?.length !== activeEnrollments ? `전체 ${enrollments?.length ?? 0}` : undefined,
-    },
-    {
-      key: "score",
-      label: "시험",
-      value: gradesLoading ? "…" : gradesError ? "확인 필요" : `${examGrades.length}건`,
-      sub: gradesLoading
-        ? "불러오는 중"
-        : gradesError
-          ? "불러오기 실패"
-          : [avgScore != null ? `평균 ${avgScore}%` : null, passRate ? `합격 ${passRate}` : null].filter(Boolean).join(" · ") || undefined,
-      tone: examJudged > 0 ? (examPassCount >= examFailCount ? "success" : "danger") : undefined,
-    },
-    {
-      key: "homework",
-      label: "과제",
-      value: gradesLoading ? "…" : gradesError ? "확인 필요" : `${hwTotal}건`,
-      sub: gradesLoading
-        ? "불러오는 중"
-        : gradesError
-          ? "불러오기 실패"
-          : hwTotal > 0
-            ? [`완료 ${hwPassCount}`, hwNotSubmittedCount > 0 ? `미제출 ${hwNotSubmittedCount}` : null].filter(Boolean).join(" · ")
-            : undefined,
-    },
-    {
-      key: "wrong-note",
-      label: "오답노트",
-      value: "통합",
-      sub: "시험 + 워크북",
-    },
-    {
-      key: "clinic",
-      label: "클리닉",
-      value: clinicLoading ? "…" : clinicError ? "확인 필요" : `${clinicCount}건`,
-    },
-    {
-      key: "question",
-      label: "질문",
-      value: questionsLoading ? "…" : questionsError ? "확인 필요" : `${questionCount}건`,
-    },
-    {
-      key: "activity",
-      label: "활동",
-      value: "기록",
-      sub: "로그인 · 열람",
-    },
+  const tabs: { key: StatTabKey; label: string; count?: string }[] = [
+    { key: "enroll", label: "수강", count: `${activeEnrollments}건` },
+    { key: "score", label: "시험", count: countLabel(examGrades.length, gradesLoading, gradesError) },
+    { key: "homework", label: "과제", count: countLabel(homeworkCount, gradesLoading, gradesError) },
+    { key: "wrong-note", label: "오답노트" },
+    { key: "clinic", label: "클리닉", count: countLabel(clinicCount, clinicLoading, clinicError) },
+    { key: "question", label: "질문", count: countLabel(questionCount, questionsLoading, questionsError) },
+    { key: "activity", label: "활동" },
   ];
 
-  const isZero = (v: string) => v === "0" || v === "0건";
-
   return (
-    <div className={styles.statTabs} role="tablist" aria-label="학생 활동 요약">
+    <div className="ds-record-tabs" role="tablist" aria-label="학생 활동 요약">
       {tabs.map((t) => {
         const active = activeTab === t.key;
-        const muted = isZero(t.value);
         return (
           <button
             key={t.key}
@@ -1014,14 +918,11 @@ function StudentStatTabs({
               onTabChange(tabs[next].key);
               document.getElementById(id + "-" + tabs[next].key)?.focus();
             }}
-            className={`${styles.statTab}${active ? ` ${styles.statTabActive}` : ""}${muted ? ` ${styles.statTabMuted}` : ""}`}
+            className="ds-record-tab"
             onClick={() => onTabChange(t.key)}
           >
-            <span className={styles.statTabLabel}>{t.label}</span>
-            <span className={`${styles.statTabValue}${t.tone === "success" ? ` ${styles.statTabValueSuccess}` : t.tone === "danger" ? ` ${styles.statTabValueDanger}` : ""}`}>
-              {t.value}
-            </span>
-            {t.sub && <span className={styles.statTabSub}>{t.sub}</span>}
+            <span>{t.label}</span>
+            {t.count && <span className="ds-record-tab-count">{t.count}</span>}
           </button>
         );
       })}
@@ -1050,6 +951,7 @@ function ChevronIcon() {
 
 function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { studentId: number; studentName: string; enrollments: ClientEnrollmentLite[]; onNavigate: (path: string) => void }) {
   const [matrixOpen, setMatrixOpen] = useState(false);
+  const matrixId = useId();
   if (!enrollments?.length) return <EmptyState scope="panel" tone="empty" title="수강 이력이 없습니다." />;
 
   const statusLabel: Record<string, string> = { ACTIVE: "수강중", INACTIVE: "비활성", PENDING: "대기" };
@@ -1062,27 +964,21 @@ function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { s
 
   return (
     <div className={styles.tabList}>
-      {/* Phase #11/#12 Matrix 진입 — 학생 단위 시험/과제 개별 추가·제거 */}
       {activeLectures.length > 0 && (
-        <div className={styles.matrixBanner}>
-          <div className={styles.matrixCopy}>
-            <span className={styles.matrixTitle}>📋 수강 매트릭스</span>
-            <span className={styles.matrixDescription}>학생 1명 × 세션별 시험·과제 빠른 추가/제거</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setMatrixOpen((v) => !v)}
+        <div className={styles.recordToolbar}>
+          <Button
+            size="sm"
+            onClick={() => setMatrixOpen((open) => !open)}
+            aria-expanded={matrixOpen}
+            aria-controls={matrixId}
             data-testid="enroll-matrix-toggle"
-            className="ds-button"
-            data-intent={matrixOpen ? "ghost" : "primary"}
-            data-size="sm"
           >
-            {matrixOpen ? "닫기" : "열기"}
-          </button>
+            {matrixOpen ? "시험·과제 배정 접기" : "시험·과제 배정"}
+          </Button>
         </div>
       )}
-      {matrixOpen && activeLectures.length > 0 && (
-        <div className={styles.matrixPanel}>
+      <div id={matrixId} className="ds-record-card ds-record-reveal" hidden={!matrixOpen}>
+        {matrixOpen && activeLectures.length > 0 && (
           <Suspense fallback={<div className={styles.matrixLoading}>로딩 중...</div>}>
             <StudentEnrollmentMatrixDrawer
               studentId={studentId}
@@ -1090,8 +986,8 @@ function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { s
               lectures={activeLectures}
             />
           </Suspense>
-        </div>
-      )}
+        )}
+      </div>
       <div className={styles.tabList}>
       {[...enrollments].sort((a, b) => Number(b.lectureActive) - Number(a.lectureActive)).map((enrollment) => {
         const { id, status: rawStatus, lectureId, lectureName, lectureColor, lectureChipLabel, enrolledAt } = enrollment;
@@ -1115,7 +1011,7 @@ function EnrollmentsTab({ studentId, studentName, enrollments, onNavigate }: { s
                 </span>
               )}
             </div>
-            <Badge variant="solid" size="sm" tone={(statusTone[status] || "muted") as BadgeTone}>
+            <Badge variant="solid" size="sm" tone={enrollment.lectureActive ? (statusTone[status] || "muted") as BadgeTone : "muted"}>
               {enrollment.lectureActive ? (statusLabel[status] || status) : "강의 종료"}
             </Badge>
             {canNav && <ChevronIcon />}
@@ -1262,6 +1158,7 @@ function QuestionTab({ data, onNavigate }: { data: CommunityPost[]; onNavigate: 
 function ScoreTab({
   studentId,
   data,
+  summary,
   trend,
   isLoading,
   isError,
@@ -1270,6 +1167,7 @@ function ScoreTab({
 }: {
   studentId: number;
   data: StudentExamGrade[];
+  summary?: StudentGradesResponse["exam_summary"];
   trend: StudentGradesResponse["exam_trend"];
   isLoading: boolean;
   isError: boolean;
@@ -1277,6 +1175,8 @@ function ScoreTab({
   onNavigate: (path: string) => void;
 }) {
   const [sessionScope, setSessionScope] = useState<ExamSessionScope>("all");
+  const [trendOpen, setTrendOpen] = useState(false);
+  const trendId = useId();
   const sessionScopeTabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const sessionScopePanelId = useId();
   if (isLoading) return <EmptyState scope="panel" tone="loading" title="성적 추이를 불러오는 중…" />;
@@ -1314,6 +1214,14 @@ function ScoreTab({
     ? trend
     : trend.filter((point) => point.session_type === sessionScope);
   const selectedScopeLabel = EXAM_SESSION_SCOPE_OPTIONS.find((option) => option.value === sessionScope)?.label ?? "전체";
+  const judgedExams = data.flatMap((exam) => {
+    if (exam.achievement === "PASS" || exam.achievement === "REMEDIATED") return [true];
+    if (exam.achievement === "FAIL") return [false];
+    if (exam.achievement != null) return [];
+    if (exam.remediated === true || exam.final_pass === true || exam.is_pass === true) return [true];
+    if (exam.is_pass === false || exam.final_pass === false) return [false];
+    return [];
+  });
 
   function selectSessionScope(value: ExamSessionScope) {
     setSessionScope(value);
@@ -1334,15 +1242,8 @@ function ScoreTab({
 
   return (
     <div>
-      <section className={styles.scoreScope} aria-labelledby={`${sessionScopePanelId}-title`}>
-        <div className={styles.scoreScopeHeader}>
-          <div>
-            <span>시험 범위</span>
-            <strong id={`${sessionScopePanelId}-title`}>정규 수업과 보강을 나눠 봅니다</strong>
-          </div>
-          <p>차시의 수업 구분에 따라 추이와 목록이 함께 바뀝니다.</p>
-        </div>
-        <div className={styles.scoreScopeTabs} role="tablist" aria-label="개인 시험 결과 범위">
+      <div className={styles.scoreToolbar}>
+        <div className="ds-record-tabs" role="tablist" aria-label="개인 시험 결과 범위">
           {EXAM_SESSION_SCOPE_OPTIONS.map((option, index) => {
             const tabId = `${sessionScopePanelId}-${option.value.toLowerCase()}`;
             return (
@@ -1355,18 +1256,30 @@ function ScoreTab({
                 aria-selected={sessionScope === option.value}
                 aria-controls={sessionScopePanelId}
                 tabIndex={sessionScope === option.value ? 0 : -1}
+                className="ds-record-tab"
                 data-active={sessionScope === option.value ? "true" : "false"}
                 data-session-type={option.value}
                 onClick={() => selectSessionScope(option.value)}
                 onKeyDown={(event) => handleSessionScopeKeyDown(event, index)}
               >
                 <span>{option.label}</span>
-                <strong>{sessionScopeCounts[option.value]}<small>건</small></strong>
+                <span className="ds-record-tab-count">{sessionScopeCounts[option.value]}건</span>
               </button>
             );
           })}
         </div>
-      </section>
+        {visibleExams.length > 0 && (
+          <Button
+            size="sm"
+            aria-expanded={trendOpen}
+            aria-controls={trendId}
+            rightIcon={<ChevronDown size={ICON.sm} aria-hidden />}
+            onClick={() => setTrendOpen((open) => !open)}
+          >
+            {trendOpen ? "성적 추이 접기" : "성적 추이 보기"}
+          </Button>
+        )}
+      </div>
       <div
         id={sessionScopePanelId}
         role="tabpanel"
@@ -1374,17 +1287,33 @@ function ScoreTab({
       >
       {visibleExams.length > 0 ? (
         <>
-      <StudentScoreTrendChart points={visibleTrend} />
-      <div className={styles.tabList}>
-      {visibleExams.map((exam) => (
-        <StudentExamCorrectionCard
-          key={exam.exam_id}
-          exam={exam}
-          studentId={studentId}
-          onNavigate={onNavigate}
-        />
-      ))}
-      </div>
+          <div id={trendId} hidden={!trendOpen} className="ds-record-reveal">
+            {trendOpen && (
+              <>
+                {sessionScope === "all" && (summary?.average_score_pct != null || judgedExams.length > 0) && (
+                  <div className={styles.trendSummary}>
+                    {summary?.average_score_pct != null && <span>전체 평균 {summary.average_score_pct}%</span>}
+                    {judgedExams.length > 0 && (
+                      <span>합격 {Math.round(judgedExams.filter(Boolean).length * 100 / judgedExams.length)}%</span>
+                    )}
+                  </div>
+                )}
+                <Suspense fallback={<EmptyState scope="panel" tone="loading" title="성적 추이를 불러오는 중…" />}>
+                  <StudentScoreTrendChart points={visibleTrend} />
+                </Suspense>
+              </>
+            )}
+          </div>
+          <div className={styles.tabList}>
+            {visibleExams.map((exam) => (
+              <StudentExamCorrectionCard
+                key={exam.exam_id}
+                exam={exam}
+                studentId={studentId}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
         </>
       ) : (
         <EmptyState
