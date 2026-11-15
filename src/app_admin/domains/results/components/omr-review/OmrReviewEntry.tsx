@@ -16,6 +16,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
+import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 
 import OmrReviewWorkspace from "./OmrReviewWorkspace";
 import { listOmrReviewIssuesPage, listOmrReviewRows } from "./omrReviewApi";
@@ -32,6 +33,7 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
   const [open, setOpen] = useState(false);
   const [initialSubmissionId, setInitialSubmissionId] = useState<number | undefined>();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { sessionId } = useLectureSessionParams();
 
   useEffect(() => {
     if (searchParams.get("reviewOmr") !== "1") return;
@@ -45,14 +47,14 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
   }, [searchParams, setSearchParams]);
 
   const { data: rows = [], isError, refetch } = useQuery({
-    queryKey: adminResultsQueryKeys.omrReviewList(examId),
-    queryFn: () => listOmrReviewRows(examId),
+    queryKey: adminResultsQueryKeys.omrReviewList(examId, sessionId),
+    queryFn: () => listOmrReviewRows(examId, sessionId),
     enabled: Number.isFinite(examId),
     refetchInterval: 15000,
   });
   const issues = useQuery({
-    queryKey: adminResultsQueryKeys.omrReviewIssuesSummary(examId),
-    queryFn: () => listOmrReviewIssuesPage(examId),
+    queryKey: adminResultsQueryKeys.omrReviewIssuesSummary(examId, sessionId),
+    queryFn: () => listOmrReviewIssuesPage(examId, { sessionId }),
     enabled: Number.isFinite(examId),
     refetchInterval: 15000,
   });
@@ -150,7 +152,7 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
           </div>
           <div className="omr-entry__detail">
             {allClean ? (
-              <span>미해결 OMR이 없습니다. 최근 활성 답안 {badge.total}건은 다시 열 수 있습니다.{badge.archivedTotal > 0 ? ` 보관 기록 ${badge.archivedTotal}건은 읽기 전용입니다.` : ""}</span>
+              <span>최근 답안 {badge.total}건{badge.archivedTotal > 0 ? ` · 보관 기록 ${badge.archivedTotal}건` : ""}</span>
             ) : (
               <>
                 <span>최근 표시된 답안 {badge.total}건 · 전체 검토 대기 {pending}건</span>

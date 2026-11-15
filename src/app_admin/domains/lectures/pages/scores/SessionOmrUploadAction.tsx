@@ -46,11 +46,11 @@ export function SessionOmrUploadModal({
   };
 
   return (
-    <AdminModal open onClose={closeUpload} type="action" width={640} noMinimize className="scores-omr-upload-modal">
+    <AdminModal open onClose={closeUpload} type="action" width={720} noMinimize className="scores-omr-upload-modal">
       <ModalHeader
         type="action"
         title="OMR 스캔 등록"
-        description="스캔 파일은 아래에 표시된 시험의 답안으로 등록됩니다."
+        description="스캔본 또는 휴대폰으로 찍은 답안지 사진을 올릴 수 있습니다."
         noIcon
       />
       <ModalBody>

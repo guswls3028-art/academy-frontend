@@ -335,7 +335,7 @@ export default function OmrPage() {
               return (
                 <div key={r.id ?? enrollmentId} className={`${styles.resultRow} flex items-center justify-between`}>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
+                    <div className={styles.resultIdentity}>
                       <StudentNameWithLectureChip
                         name={studentName}
                         profilePhotoUrl={r.profile_photo_url}
@@ -349,11 +349,13 @@ export default function OmrPage() {
                         }] : undefined}
                         className={`${styles.title} text-[13px] font-semibold`}
                       />
-                      {isScoring ? (
-                        <Badge tone="info" size="xs">채점 중…</Badge>
-                      ) : hasSubmission ? (
-                        <Badge tone="success" size="xs"><Check size={9} /> 제출됨</Badge>
-                      ) : null}
+                      {(isScoring || hasSubmission) && (
+                        <span className={styles.resultStatus}>
+                          {isScoring
+                            ? <Badge tone="info" size="xs">채점 중…</Badge>
+                            : <Badge tone="success" size="xs"><Check size={9} /> 제출됨</Badge>}
+                        </span>
+                      )}
                     </div>
                     {score != null && (
                       <div className={`${styles.mutedText} text-[11px] mt-0.5`}>
