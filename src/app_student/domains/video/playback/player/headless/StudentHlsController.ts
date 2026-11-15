@@ -917,9 +917,9 @@ export class StudentHlsController {
 
     const onError = () => {
       if (this.disposed) return;
-      const elErr: MediaError | null = el.error;
-      const errorCode = elErr?.code || 0;
-      const errorMessage = elErr?.message || "";
+      const elErr = el.error;
+      if (!elErr) return;
+      const { code: errorCode, message: errorMessage } = elErr;
       this.queueEvent("PLAYER_ERROR", { code: errorCode, message: errorMessage });
       // Hls.js reports the HTTP status more reliably than a generic MediaError.
       if (this.hls) return;
