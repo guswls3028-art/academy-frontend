@@ -138,7 +138,7 @@ async function verifyScopeDeletionRecovery(
       const [response] = await Promise.all([
         page.waitForResponse((value) => value.request().method() === "DELETE"
           && new URL(value.url()).pathname === `/api/v1${scopePath}`),
-        confirmation.getByRole("button", { name: "삭제", exact: true }).click(),
+        confirmation.getByRole("button", { name: kind === "lecture" ? "영구 삭제" : "삭제", exact: true }).click(),
       ]);
       return response;
     };
