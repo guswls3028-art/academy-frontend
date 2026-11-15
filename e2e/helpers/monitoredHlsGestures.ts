@@ -2,6 +2,7 @@ import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
 import { syntheticLongVideoAsset } from "../../scripts/run-development-release-canary.mjs";
 import { withVideoControlInputTrace } from "./videoControlInputTrace";
+import { verifyClassPlaybackActivity } from "./videoStabilityProbe";
 
 type GestureRateAuditWindow = Window & { __qaGestureRateWrites: number[] };
 
@@ -82,6 +83,20 @@ async function openMonitoredHlsPlayer({ page, speedLocked, base, viewport, insta
   const writes = () => page.evaluate(() => (window as GestureRateAuditWindow).__qaGestureRateWrites);
   const clearWrites = () => page.evaluate(() => { (window as GestureRateAuditWindow).__qaGestureRateWrites = []; });
   return { video, state, writes, clearWrites };
+}
+
+export async function verifyResumedClassActivity(scenario: GestureScenario) {
+  const { page } = scenario;
+  const { video, state } = await openMonitoredHlsPlayer(scenario);
+  await page.getByRole("button", { name: "일시정지", exact: true }).click();
+  await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.paused)).toBe(true);
+  await verifyClassPlaybackActivity(page, "synthetic-gesture-token", 2);
+  expect(state.grants).toBe(1);
+  expect(state.active).toBe(true);
+  expect(state.events.filter(event => event.type.startsWith("FULLSCREEN_")).map(event => event.type))
+    .toEqual(["FULLSCREEN_ENTER", "FULLSCREEN_EXIT"]);
+  expect(state.receipts).toBeGreaterThanOrEqual(2);
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
 }
 
 export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {

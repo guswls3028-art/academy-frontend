@@ -1,4 +1,4 @@
-import { verifyFullscreenControls, verifyMonitoredHlsGestures } from "../helpers/monitoredHlsGestures";
+import { verifyFullscreenControls, verifyMonitoredHlsGestures, verifyResumedClassActivity } from "../helpers/monitoredHlsGestures";
 import type { VideoCommentItem } from "../../src/app_student/domains/video/api/video.api";
 import type { Page } from "@playwright/test";
 import { syntheticLongVideoAsset } from "../../scripts/run-development-release-canary.mjs";
@@ -883,6 +883,10 @@ for (const speedLocked of [true, false]) {
 test.describe("student fullscreen activation", () => {
   test.use({ hasTouch: true });
   for (const width of [390, 1366]) {
+    test(`resumed class proves active v2 session through trusted fullscreen at ${width}px`, async ({ page }, info) => {
+      await verifyResumedClassActivity({ page, info, speedLocked: true, base: BASE,
+        viewport: { width, height: width === 390 ? 844 : 900 }, installScenario: installWatchScenario, openPlayer: openWatch });
+    });
     test(`fullscreen controls complete trusted touch once and preserve cancel, guide and keyboard journeys at ${width}px`, async ({ page }, info) => {
       await verifyFullscreenControls({ page, info, speedLocked: true, base: BASE,
         viewport: { width, height: width === 390 ? 844 : 900 }, installScenario: installWatchScenario, openPlayer: openWatch });

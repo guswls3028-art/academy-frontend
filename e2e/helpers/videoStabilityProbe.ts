@@ -1,6 +1,7 @@
 import { expect, type Browser, type BrowserContext, type Page } from "../fixtures/strictTest";
 import { dismissDevelopmentFirstLoginGuide } from "./auth";
 import { installSyntheticVideoPosterBridge } from "./syntheticVideoPosterBridge";
+import { exerciseFullscreenAudit } from "./playbackExitProbe";
 
 type Prepared = { context: BrowserContext; page: Page; apiAccessToken: string; state: { bootstraps: Array<{
   playback_token?: unknown; playback_session_id?: unknown; event_protocol_version?: unknown;
@@ -31,6 +32,22 @@ async function play(page: Page) {
     await page.locator("button.svpBigPlay").click();
   }
   await expect.poll(() => page.locator("video.svpVideo").evaluate((node: HTMLVideoElement) => node.currentTime)).toBeGreaterThan(before + 1);
+}
+
+/** Resume alone queues no v2 event; use trusted UI to prove this session is still active. */
+export async function verifyClassPlaybackActivity(page: Page, token: unknown, protocol: unknown) {
+  expect([1, 2]).toContain(protocol);
+  if (protocol === 2) {
+    await play(page);
+    await exerciseFullscreenAudit(page, token, { requireActive: true, timeout: 40_000 });
+    await play(page);
+    return;
+  }
+  const heartbeat = page.waitForResponse(response => response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/v1/media/playback/heartbeat/"
+    && response.request().postDataJSON().token === token, { timeout: 40_000 });
+  const [response] = await Promise.all([heartbeat, play(page)]);
+  expect(response.status()).toBe(200);
 }
 
 async function pause(page: Page) {
@@ -280,21 +297,7 @@ export async function runVideoStabilityProbe(browser: Browser, prepare: Prepare)
       checkpoint("support-isolated");
       const classGrant = run.state.bootstraps.at(-1)!;
       const classProtocol = classGrant.event_protocol_version ?? 1;
-      expect([1, 2]).toContain(classProtocol);
-      const activityPath = classProtocol === 2 ? "/api/v1/media/playback/v2/events/" : "/api/v1/media/playback/heartbeat/";
-      const liveClass = student.waitForResponse(response => response.request().method() === "POST"
-        && new URL(response.url()).pathname === activityPath
-        && response.request().postDataJSON().token === classGrant.playback_token, { timeout: 40_000 });
-      const [classHeartbeat] = await Promise.all([liveClass, play(student)]);
-      expect(classHeartbeat.status()).toBe(200);
-      if (classProtocol === 2) {
-        const batch = classHeartbeat.request().postDataJSON().batch;
-        expect(batch.events.length).toBeGreaterThan(0);
-        expect(await classHeartbeat.json()).toMatchObject({
-          protocol_version: 2, session_status: "ACTIVE",
-          acknowledgements: [expect.objectContaining({ batch_id: batch.batch_id, event_count: batch.events.length })],
-        });
-      }
+      await verifyClassPlaybackActivity(student, classGrant.playback_token, classProtocol);
       expect(run.state.bootstraps).toHaveLength(1);
       checkpoint("class-heartbeat-ok");
       await leaveStudentPlayer(student, videoId, run.state.bootstraps.at(-1)?.playback_token);
