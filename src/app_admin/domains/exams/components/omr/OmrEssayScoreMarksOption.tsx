@@ -18,7 +18,7 @@ type Props = {
 };
 
 /**
- * Beta: 서술형 교사 채점란. 교사가 서술형 칸 아래 점수를 칠하면 스캔 후 채점표에
+ * Beta: 서술형 교사 채점란. 교사가 서술형 칸 옆에 점수를 칠하면 스캔 후 채점표에
  * 점수가 제안된다. 교사가 채점표에서 확인하고 확정한다.
  * 계약: docs/GRADING-WRONG-NOTE-WORKFLOW.md "OMR 교사 채점란 (Beta)".
  */
@@ -60,8 +60,8 @@ export default function OmrEssayScoreMarksOption({ examId, onChanged }: Props) {
     help = state.reason;
   } else {
     help = enabled
-      ? "답안지에 점수를 칠하고 스캔한 뒤, 문항별 점수 입력에서 OMR 제안을 확인하고 확정하세요."
-      : `선생님이 답안지에 서술형 점수를 칠해 스캔으로 입력합니다. 최대 ${state.max_score}점, 소수 첫째 자리까지.`;
+      ? `0~8점은 해당 숫자 하나를, 9점 이상은 합이 되는 숫자들을 칠하세요(15점 = 7+8). 스캔한 뒤 문항별 점수 입력에서 확인하고 확정하세요. 소수나 ${state.max_score}점을 넘는 점수는 채점표에 직접 입력하세요.`
+      : "서술형 문항 옆에 선생님이 칠할 0~8 배점 버블을 인쇄합니다.";
   }
 
   return (
