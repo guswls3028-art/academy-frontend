@@ -41,6 +41,7 @@ type Props = {
   isEditMode?: boolean;
   schedule?: string;
   onRequestAnswerEdit?: () => Promise<boolean>;
+  onSaveDrawerHomeworkScore?: import("../api/patchHomeworkQuick").SaveDrawerHomeworkScore;
   /** 수정 중 알림톡 등 저장된 점수 소비 액션을 잠시 막는 상태 */
   hasUnsavedChanges?: boolean;
   /** 판정·비고는 점수 수정 모드가 아니라 실제 저장/복구 대기 중에만 차단한다. */
@@ -111,6 +112,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   isEditMode = false,
   schedule,
   onRequestAnswerEdit,
+  onSaveDrawerHomeworkScore,
   hasUnsavedChanges = false,
   hasPendingScoreChanges = hasUnsavedChanges,
   assessmentDeleteLocked = false,
@@ -598,12 +600,15 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
       {drawerRow && (
         <Suspense fallback={<div role="status">학생 성적 상세를 불러오는 중...</div>}>
           <StudentScoresDrawer
+            key={drawerRow.enrollment_id}
             row={drawerRow}
             meta={meta}
             sessionId={sessionId}
             isEditMode={isEditMode}
             hasUnsavedChanges={hasUnsavedChanges}
             hasPendingScoreChanges={hasPendingScoreChanges}
+            homeworkEdit={homeworkEdit}
+            onSaveDrawerHomeworkScore={onSaveDrawerHomeworkScore}
             onClose={() => {
               void (answerEditRef.current?.flush() ?? Promise.resolve()).then(() => {
                 setDrawerEnrollmentId(null);
