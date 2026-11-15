@@ -157,16 +157,17 @@ for (const width of [390, 1366]) test(`수업일 작성·배정·저장·reload�
   await expect(page).toHaveURL(/attendance\?schedule=0/);
   await expect(page.getByRole('group', { name: '박새봄 출결 상태 선택', exact: true }).getByRole('button', { pressed: true })).toHaveText('미입력');
   await page.getByRole('button', { name: '출결 도구', exact: true }).click();
-  await expect(page).toHaveURL(/attendance\?schedule=0&view=tools$/);
-  const tools = page.getByRole('region', { name: '출결 도구', exact: true });
+  await expect(page).toHaveURL(/attendance\?schedule=0$/);
+  const tools = page.getByRole('dialog', { name: '출결 도구', exact: true });
   await expect(tools.getByRole('heading', { name: '출결 도구', exact: true })).toBeVisible();
   const scopedTools = tools.getByRole('region', { name: '수업일 명단 도구', exact: true });
-  await expect(scopedTools.getByText('선택한 수업일의 출결을 일괄 변경합니다. 엑셀은 강의 전체의 출결 기록입니다.', { exact: true })).toBeVisible();
+  await expect(scopedTools.getByText('현장 출석은 선택한 수업일에 적용됩니다. 엑셀에는 강의 전체 출결 기록이 담깁니다.', { exact: true })).toBeVisible();
   const readsBeforeSave = state.reads.filter(r => r.kind === 'attendance' && r.scope === '0').length;
   await scopedTools.getByRole('button', { name: '수업일 현장 출석', exact: true }).click();
   await expect(page.getByText('선택한 수업일을 현장 출석으로 바꿀까요?', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '전체 현장 적용', exact: true }).click();
   await expect.poll(() => state.bulk).toEqual([{ session: 9902, schedule: '0' }]);
+  await expect(tools).toBeHidden();
   await expect(page).toHaveURL(/attendance\?schedule=0$/);
   await expect.poll(() => state.reads.filter(r => r.kind === 'attendance' && r.scope === '0').length).toBeGreaterThan(readsBeforeSave);
   await expect(page.getByRole('group', { name: '박새봄 출결 상태 선택', exact: true }).getByRole('button', { pressed: true })).toHaveText('현장');
@@ -175,7 +176,7 @@ for (const width of [390, 1366]) test(`수업일 작성·배정·저장·reload�
   await expect(page).toHaveURL(/attendance\?schedule=0$/);
   await expect(page.getByRole('group', { name: '박새봄 출결 상태 선택', exact: true }).getByRole('button', { pressed: true })).toHaveText('현장');
   await page.getByRole('button', { name: '출결 도구', exact: true }).click();
-  await page.getByRole('link', { name: '← 출결 명단', exact: true }).click();
+  await tools.getByRole('button', { name: '대화상자 종료' }).click();
   await expect(page).toHaveURL(/attendance\?schedule=0$/);
   await strip.getByRole('button', { name: /^수요일반/ }).click();
   await expect(page).toHaveURL(/attendance\?schedule=71$/);
@@ -184,24 +185,13 @@ for (const width of [390, 1366]) test(`수업일 작성·배정·저장·reload�
   await expect(page.getByRole('link', { name: '박새봄 학생 상세 열기', exact: true })).toHaveCount(0);
   await expect.poll(() => state.reads.some(r => r.kind === 'scores' && r.scope === '0')).toBe(true);
 
-  // This same-turn handler boundary check is NOT trusted pointer evidence.
-  // Keep the ordinary pointer sequence above and async navigation below.
-  // The visible controls call their real handlers without DOM/URL injection.
-  await page.getByRole('button', { name: '출결 도구', exact: true }).click();
-  const backToList = page.getByRole('link', { name: '← 출결 명단', exact: true });
+  // Bookmarked tool URLs still retain the current schedule when dismissed.
+  await page.goto(`${page.url()}&view=tools`);
+  await expect(tools).toBeVisible();
+  await tools.getByRole('button', { name: '대화상자 종료' }).click();
+  await expect(page).toHaveURL(/attendance\?schedule=71$/);
   const thursday = strip.getByRole('button', { name: /^목요일반/ });
-  await expect(backToList).toBeVisible();
-  await thursday.scrollIntoViewIfNeeded();
-  await expect(thursday).toBeInViewport();
-  await expect(backToList).toBeInViewport();
-  await expect(thursday).toBeEnabled();
-  const thursdayHandle = await thursday.elementHandle();
-  await backToList.evaluate((link, button) => {
-    if (!(link instanceof HTMLAnchorElement) || !(button instanceof HTMLButtonElement)) throw new Error('Missing navigation controls');
-    link.click();
-    button.click();
-  }, thursdayHandle);
-  await thursdayHandle?.dispose();
+  await thursday.click();
   await expect(page).toHaveURL(/attendance\?schedule=72$/);
   await expect(tools).toBeHidden();
   await expect(page.getByRole('link', { name: '이목현 학생 상세 열기', exact: true })).toBeVisible();
