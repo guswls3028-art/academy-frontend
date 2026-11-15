@@ -151,6 +151,7 @@ async function installDashboardApi(
     uploadFlow?: boolean;
     reviewFlow?: boolean;
     holdUploadResponse?: boolean;
+    failFirstInitializeAfterCreation?: boolean;
     failFirstUploadAfterPartialAdmission?: boolean;
     admissionFailure?: boolean;
     resumeOrdinals?: number[];
@@ -182,6 +183,8 @@ async function installDashboardApi(
   let hideBatches = false;
   let initializedUploads = false;
   let initializePosts = 0;
+  const initializeRequestIds: Array<string | undefined> = [];
+  const initializedRequestIds = new Set<string>();
   let uploadPosts = 0;
   let uploadResponses = 0;
   const uploadBodies: string[] = [];
@@ -257,9 +260,16 @@ async function installDashboardApi(
       && request.method() === "POST"
     ) {
       initializedUploads = true;
-      uploadBatchTotal = request.postDataJSON().total_count;
+      const payload = request.postDataJSON() as { total_count: number; client_request_id?: string };
+      uploadBatchTotal = payload.total_count;
       uploadBatchReceived = false;
       initializePosts += 1;
+      initializeRequestIds.push(payload.client_request_id);
+      initializedRequestIds.add(payload.client_request_id ?? `legacy-${initializePosts}`);
+      if (options.failFirstInitializeAfterCreation && initializePosts === 1) {
+        await safeJson(route, { detail: "synthetic initialization response timeout" }, 504);
+        return;
+      }
       await safeJson(route, admissionSummary("pending", uploadBatchTotal), 201);
       return;
     }
@@ -450,6 +460,8 @@ async function installDashboardApi(
     releaseUploadResponse: () => { releaseUploadResponse?.(); },
     uploadState: () => ({
       initializePosts,
+      initializeRequestIds: [...initializeRequestIds],
+      initializedBatchCount: initializedRequestIds.size,
       uploadPosts,
       uploadResponses,
       uploadBodies: [...uploadBodies],
@@ -806,6 +818,39 @@ test.describe("OMR durable batch progress", () => {
   });
 
   for (const width of [1366, 390]) {
+    test(`${width}px OMR 등록 시작 응답이 끊겨도 기존 작업에 두 장을 접수한다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const api = await installDashboardApi(page, { uploadFlow: true, failFirstInitializeAfterCreation: true });
+      await page.goto(
+        `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+        { waitUntil: "domcontentloaded" },
+      );
+      await openOmrUpload(page);
+      const dialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
+      await dialog.locator('input[type="file"]').setInputFiles(
+        ["retry-a.jpg", "retry-b.jpg"].map((name) => ({
+          name, mimeType: "image/jpeg", buffer: Buffer.from(name),
+        })),
+      );
+      const start = dialog.getByRole("button", { name: "등록 시작" });
+      await start.click();
+      await expect(dialog.getByText("등록 작업 응답을 확인하지 못했습니다", { exact: false })).toBeVisible();
+      await expect(dialog.locator(".admin-omr-upload__file")).toHaveCount(2);
+      expect(api.uploadState()).toMatchObject({ initializePosts: 1, initializedBatchCount: 1, uploadPosts: 0 });
+
+      await start.click();
+      await expect(dialog.getByText("접수 확인 2장", { exact: false })).toBeVisible();
+      const upload = api.uploadState();
+      const requestId = upload.initializeRequestIds[0];
+      expect(requestId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+      expect(upload.initializeRequestIds).toEqual([requestId, requestId]);
+      expect(upload).toMatchObject({ initializePosts: 2, initializedBatchCount: 1, uploadPosts: 1 });
+      expect(multipartFieldValues(upload.uploadBodies[0], "batch_id")).toEqual([BATCH_ID]);
+      expect(multipartFieldValues(upload.uploadBodies[0], "item_ordinals")).toEqual(["1", "2"]);
+    });
+  }
+
+  for (const width of [1366, 390]) {
   test(`${width}px 중단된 접수 응답은 서버 ordinal을 복구해 22번만 명시 재선택한다`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     const api = await installDashboardApi(page, {
@@ -971,6 +1016,8 @@ test.describe("OMR durable batch progress", () => {
     await expect.poll(() => api.uploadState().uploadPosts).toBe(2);
     const uploadState = api.uploadState();
     expect(uploadState.initializePosts).toBe(2);
+    expect(uploadState.initializedBatchCount).toBe(2);
+    expect(uploadState.initializeRequestIds.every(Boolean)).toBe(true);
     expect(multipartFieldValues(uploadState.uploadBodies[1], "item_ordinals")).toEqual(["1"]);
     expect(uploadState.uploadBodies[1]).not.toContain("NaN");
   });
