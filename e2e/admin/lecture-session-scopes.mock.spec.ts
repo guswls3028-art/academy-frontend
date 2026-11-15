@@ -534,7 +534,7 @@ async function installApi(page: Page, state: MockState) {
         }
         return json({
           enabled: marks.enabled, available: marks.available, printed: marks.enabled && marks.available,
-          reason: marks.reason, essay_count: state.guidedEssayNumbers?.length ?? 0, max_score: 49.9, beta: true,
+          reason: marks.reason, essay_count: state.guidedEssayNumbers?.length ?? 0, max_score: 36, beta: true,
         });
       }
       if (path === "/exams/9971/omr/preview/" && method === "POST") {
@@ -1392,6 +1392,7 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
     await expect(option.getByRole("radio", { name: "사용", exact: true })).toHaveAttribute("aria-checked", "true");
     await expect(page.getByText(/서술형 교사 채점란을 켰습니다/)).toBeVisible();
     await expect.poll(() => state.omrPreviewPosts ?? 0).toBeGreaterThan(previewsBefore);
+    await expect(dialog.getByText("15점 = 7+8", { exact: false })).toBeVisible();
     await expect(dialog.getByText(/문항별 점수 입력에서 OMR 제안을 확인하고 확정하세요/)).toBeVisible();
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     await dialog.screenshot({ path: testInfo.outputPath(`omr-essay-strip-option-${viewport.width}.png`) });
@@ -1417,7 +1418,7 @@ test("OMR 교사 채점란을 넣을 수 없는 시험은 이유를 보여 주�
     examSessionEnrollmentRows: [],
     answerKeySaves: [{ exam: 9971, answers: { "99711": "1", "99712": "2" } }],
     essayScoreMarks: {
-      enabled: false, available: false, reason: "서술형 배점은 49.9점까지 점수칸으로 읽을 수 있습니다.", patches: [],
+      enabled: false, available: false, reason: "배점이 없는 서술형 문항이 있습니다.", patches: [],
     },
   };
   await openLecture(page, state);
@@ -1428,7 +1429,7 @@ test("OMR 교사 채점란을 넣을 수 없는 시험은 이유를 보여 주�
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("tab", { name: "OMR 답안지" }).click();
   const option = dialog.getByRole("radiogroup", { name: "서술형 교사 채점란" });
-  await expect(dialog.getByText("서술형 배점은 49.9점까지 점수칸으로 읽을 수 있습니다.")).toBeVisible();
+  await expect(dialog.getByText("배점이 없는 서술형 문항이 있습니다.")).toBeVisible();
   await expect(option.getByRole("radio", { name: "사용", exact: true })).toBeDisabled();
   expect(state.essayScoreMarks?.patches).toEqual([]);
 });
