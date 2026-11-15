@@ -28,10 +28,11 @@ import {
 } from "@admin/domains/results/public/examResultExcel";
 import { adminExamsQueryKeys } from "../queryKeys";
 import { fetchExamLectureAssignments } from "../api/examLectureAssignments";
-import { buildExamResultsInsightModel } from "./examResultsInsights";
 import styles from "./ExamResultsViewerPanel.module.css";
 import ExamScoreTrends, { type ExamAnalysisInsights } from "./ExamScoreTrends";
 import SubjectiveGradingEntry from "./SubjectiveGradingEntry";
+
+const SCORE_BANDS = ["0–20%", ">20–40%", ">40–60%", ">60–80%", ">80–100%"] as const;
 
 type Props = {
   examId: number;
@@ -132,13 +133,10 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
   });
 
   const results = useMemo(() => resultsQ.data ?? [], [resultsQ.data]);
-  const questionStats = useMemo(() => statsQ.data ?? [], [statsQ.data]);
-  const resultMaxScore = results.find((row) => typeof row.exam_max_score === "number")?.exam_max_score;
-  const examMaxScore = typeof exam?.max_score === "number" && exam.max_score > 0
-    ? exam.max_score
-    : typeof resultMaxScore === "number" && resultMaxScore > 0
-      ? resultMaxScore
-      : 100;
+  const questionAccuracy = useMemo(() => [...(statsQ.data ?? [])]
+    .sort((left, right) => left.accuracy - right.accuracy
+      || right.attempts - left.attempts || left.question_number - right.question_number)
+    .map((question) => ({ ...question, accuracyPercent: question.accuracy * 100 })), [statsQ.data]);
   const assignments = assignmentsQ.data?.assignments ?? [];
   const selectedAssignment = assignments.find(
     (assignment) => assignment.lecture_id === selectedLectureId,
@@ -151,32 +149,30 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
   const mixedCutoffs = selectedLectureId == null && hasMixedCutoffs;
   const scopeName = selectedAssignment?.lecture_title ?? "전체 강의";
   const cutoffLabel = mixedCutoffs ? "강의별 기준" : `${passScore}점`;
-  const insight = useMemo(
-    () => buildExamResultsInsightModel({
-      results,
-      questionStats,
-      maxScore: examMaxScore,
-      passScore,
-    }),
-    [examMaxScore, passScore, questionStats, results],
-  );
-  const hasData = insight.scoredCount > 0;
-  const largestBandCount = Math.max(1, ...insight.distribution.map(({ count }) => count));
   const analysisQ = useQuery({
     queryKey: adminExamsQueryKeys.examAnalysisInsights(examId, selectedLectureId),
     queryFn: async () => {
       const response = await api.get<ExamAnalysisInsights>(`/results/admin/exams/${examId}/analysis-insights/`, {
         params: selectedLectureId == null ? undefined : { lecture_id: selectedLectureId },
       });
-      if (!Array.isArray(response.data?.trends)) {
+      if (!Array.isArray(response.data?.trends)
+        || !Array.isArray(response.data.score_summary?.distribution_counts)
+        || response.data.score_summary.distribution_counts.length !== SCORE_BANDS.length) {
         throw new Error("시험 성적 분석 응답 형식이 올바르지 않습니다.");
       }
       return response.data;
     },
-    enabled: hasData,
+    enabled: Number.isFinite(examId),
   });
-  const recommendedPassScore = analysisQ.isError ? null : analysisQ.data?.recommended_cutoff;
-
+  const analysis = analysisQ.isError ? undefined : analysisQ.data;
+  const summary = analysis?.score_summary;
+  const hasData = (analysis?.scored_count ?? 0) > 0;
+  const largestBandCount = Math.max(1, ...(summary?.distribution_counts ?? []));
+  const recommendedPassScore = analysis?.recommended_cutoff;
+  const hasWrongNoteData = results.some((row) => (
+    (row.result_status == null || row.result_status === "DONE")
+    && Number.isFinite(row.ranking_score ?? row.final_score)
+  ));
   const analysisExport = useMutation({
     mutationFn: () => downloadExamAnalysisExport(examId, exam?.title ?? "시험"),
     onSuccess: () => feedback.success("수업 분석 리포트를 내려받았습니다."),
@@ -297,10 +293,10 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
               size="sm"
               leftIcon={<FileSpreadsheet size={ICON_FOR_BUTTON.sm} />}
               loading={analysisExport.isPending}
-              disabled={!hasData}
-              title={hasData
-                ? "화면의 강의 필터와 관계없이 전체 강의 분포·성적 변화·등수·답안을 내려받습니다."
-                : "채점 결과가 저장되면 내려받을 수 있습니다."}
+              disabled={analysis?.scored_count === 0}
+              title={analysis?.scored_count === 0
+                ? "채점 결과가 저장되면 내려받을 수 있습니다."
+                : "화면의 강의 필터와 관계없이 전체 강의 분포·성적 변화·등수·답안을 내려받습니다."}
               onClick={() => analysisExport.mutate()}
             >
               {assignments.length > 1 ? "전체 강의 분석 리포트" : "수업 분석 리포트"} (엑셀)
@@ -311,8 +307,8 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
               size="sm"
               leftIcon={<Download size={ICON_FOR_BUTTON.sm} />}
               loading={wrongNoteExport.isPending}
-              disabled={!hasData}
-              title={hasData
+              disabled={!hasWrongNoteData}
+              title={hasWrongNoteData
                 ? "화면의 강의 필터와 관계없이 전체 강의의 현재 오답과 복습 지정 문항을 내려받습니다."
                 : "채점 결과가 저장되면 내려받을 수 있습니다."}
               onClick={() => wrongNoteExport.mutate()}
@@ -322,138 +318,140 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
           </div>
         </header>
 
-        {!hasData ? (
+        {analysisQ.isLoading ? (
+          <EmptyState scope="panel" tone="loading" title="시험 성적 분석을 불러오는 중…" />
+        ) : analysisQ.isError ? (
+          <EmptyState
+            scope="panel"
+            tone="error"
+            title="시험 성적 분석을 불러오지 못했습니다."
+            actions={<Button type="button" intent="secondary" size="sm" onClick={() => void analysisQ.refetch()}>다시 시도</Button>}
+          />
+        ) : !hasData && (
           <EmptyState
             scope="panel"
             tone="empty"
             title="아직 분석할 확정 채점 결과가 없습니다"
-            description="점수를 저장하고 채점을 확정하면 성적 분석과 보고서를 볼 수 있습니다. 미응시·채점 중·채점 실패 결과는 통계에서 제외됩니다."
+            description="점수를 저장하고 채점을 확정하면 성적 분석과 보고서를 볼 수 있습니다."
           />
-        ) : (
-          <>
-            <div className={styles.metricStrip} aria-label="시험 핵심 지표">
-              <Metric label="응시" value={`${insight.scoredCount}명`} sub={insight.unscoredCount > 0 ? `미응시·미채점 ${insight.unscoredCount}명` : "전원 집계"} />
-              <Metric label="평균" value={`${insight.average.toFixed(1)}점`} sub={`중앙값 ${insight.median.toFixed(1)}점`} />
-              <Metric label="상위 10%" value={`${insight.topTenAverage.toFixed(1)}점`} sub={`최고 ${insight.highest.toFixed(1)}점`} />
-              <Metric label="표준편차" value={insight.stdDev.toFixed(1)} sub={`만점 대비 ${insight.stdRate.toFixed(1)}%`} />
-              <Metric
-                label="추천 합격 컷"
-                value={recommendedPassScore == null ? "—" : `${recommendedPassScore}점`}
-                sub={analysisQ.isLoading ? "불러오는 중"
-                  : analysisQ.isError ? "성적 변화에서 다시 시도"
-                  : "평균을 5점 단위로 반올림 · 참고용"}
-              />
-              <Metric
-                label={insight.hasPassCriterion ? `1차 합격 컷 ${cutoffLabel}` : "1차 합격 기준"}
-                value={insight.hasPassCriterion ? `${Math.round(insight.passRate * 100)}%` : "기준 미설정"}
-                sub={insight.hasPassCriterion
-                  ? `합격 ${insight.passCount} · 미달 ${insight.failCount} · 기준 적용 ${insight.passCriterionCount}명 · 보충 완료 ${insight.remediatedCount}`
-                  : "시험 설정의 합격 컷"}
-              />
-            </div>
-
-            <div className={styles.evidenceGrid}>
-              <section className={styles.evidencePanel} aria-labelledby="distribution-title">
-                <div className={styles.panelHeading}>
-                  <h3 id="distribution-title">점수 분포</h3>
-                  <small>만점 {examMaxScore}점 대비 득점률</small>
-                </div>
-                <ul className={styles.histogram} aria-label="득점률 구간별 인원">
-                  {insight.distribution.map((band) => (
-                    <li className={styles.histogramColumn} key={band.label}>
-                      <div className={styles.barTrack}>
-                        <div
-                          className={styles.barFill}
-                          style={{ "--bar-height": `${(band.count / largestBandCount) * 100}%` } as CSSProperties}
-                        >
-                          <span className={styles.barCount}>{band.count}명</span>
-                        </div>
-                      </div>
-                      <strong>{band.label}</strong>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-
-              <section className={styles.evidencePanel} aria-labelledby="priority-title">
-                <div className={styles.panelHeading}>
-                  <h3 id="priority-title">문항별 정답률</h3>
-                  <small>정답률 낮은 순</small>
-                </div>
-                {statsQ.isLoading ? (
-                  <EmptyState scope="panel" tone="loading" title="문항 통계를 불러오는 중…" />
-                ) : statsQ.isError ? (
-                  <EmptyState
-                    scope="panel"
-                    tone="error"
-                    title="문항 통계를 불러오지 못했습니다."
-                    actions={<Button type="button" intent="secondary" size="sm" onClick={() => void statsQ.refetch()}>다시 시도</Button>}
-                  />
-                ) : insight.questionAccuracy.length === 0 ? (
-                  <EmptyState scope="panel" tone="empty" title="문항별 채점 데이터가 없습니다" />
-                ) : (
-                  <ol className={styles.priorityList}>
-                    {insight.questionAccuracy.slice(0, 5).map((question) => (
-                      <li key={question.question_id}>
-                        <span className={styles.questionNumber}>{questionLabel(question.question_number)}</span>
-                        <div className={styles.questionBody}>
-                          <div className={styles.questionTopline}>
-                            <strong>정답률</strong>
-                            <span>{question.accuracyPercent.toFixed(1)}%</span>
-                          </div>
-                          <svg className={styles.accuracyTrack} viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden>
-                            <rect className={styles.accuracyTrackBase} x="0" y="0" width="100" height="4" rx="2" />
-                            <rect className={styles.accuracyTrackFill} x="0" y="0" width={question.accuracyPercent} height="4" rx="2" />
-                          </svg>
-                          <small>{question.attempts}명 중 {question.correct}명 정답</small>
-                        </div>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </section>
-            </div>
-
-            <ExamScoreTrends
-              data={analysisQ.data}
-              loading={analysisQ.isLoading}
-              error={analysisQ.isError}
-              onRetry={() => void analysisQ.refetch()}
+        )}
+        {hasData && analysis && summary && (
+          <div className={styles.metricStrip} aria-label="시험 핵심 지표">
+            <Metric label="응시" value={`${analysis.scored_count}명`} sub={summary.unscored_count > 0 ? `미응시·미채점 ${summary.unscored_count}명` : "전원 집계"} />
+            <Metric label="평균" value={`${summary.average?.toFixed(1) ?? "—"}점`} sub={`중앙값 ${summary.median?.toFixed(1) ?? "—"}점`} />
+            <Metric label="상위 10%" value={`${summary.top_ten_average?.toFixed(1) ?? "—"}점`} sub={`최고 ${summary.highest?.toFixed(1) ?? "—"}점`} />
+            <Metric label="표준편차" value={summary.std_dev?.toFixed(1) ?? "—"} sub={`만점 대비 ${summary.std_rate?.toFixed(1) ?? "—"}%`} />
+            <Metric
+              label="추천 합격 컷"
+              value={recommendedPassScore == null ? "—" : `${recommendedPassScore}점`}
+              sub="평균을 5점 단위로 반올림 · 참고용"
             />
+            <Metric
+              label={summary.pass_criterion_count > 0 ? `1차 합격 컷 ${cutoffLabel}` : "1차 합격 기준"}
+              value={summary.pass_criterion_count > 0 ? `${Math.round(summary.pass_count / summary.pass_criterion_count * 100)}%` : "기준 미설정"}
+              sub={summary.pass_criterion_count > 0
+                ? `합격 ${summary.pass_count} · 미달 ${summary.pass_criterion_count - summary.pass_count} · 기준 적용 ${summary.pass_criterion_count}명 · 보충 완료 ${summary.remediated_count}`
+                : "시험 설정의 합격 컷"}
+            />
+          </div>
+        )}
+        <div className={styles.evidenceGrid} data-single={!hasData}>
+          {hasData && summary && (
+            <section className={styles.evidencePanel} aria-labelledby="distribution-title">
+              <div className={styles.panelHeading}>
+                <h3 id="distribution-title">점수 분포</h3>
+                <small>만점 대비 득점률</small>
+              </div>
+              <ul className={styles.histogram} aria-label="득점률 구간별 인원">
+                {SCORE_BANDS.map((label, index) => (
+                  <li className={styles.histogramColumn} key={label}>
+                    <div className={styles.barTrack}>
+                      <div
+                        className={styles.barFill}
+                        style={{ "--bar-height": `${(summary.distribution_counts[index] / largestBandCount) * 100}%` } as CSSProperties}
+                      >
+                        <span className={styles.barCount}>{summary.distribution_counts[index]}명</span>
+                      </div>
+                    </div>
+                    <strong>{label}</strong>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
-            {insight.questionAccuracy.length > 0 && (
-              <details ref={statisticsRef} tabIndex={-1} className={`${styles.questionDetails} ${styles.jumpTarget}`} open={statisticsOpen} onToggle={(event) => setStatisticsOpen(event.currentTarget.open)}>
-                <summary>전체 문항 통계 보기</summary>
-                <p className={styles.statisticsNote}>주관식·서술형도 포함됩니다. 정답률은 만점을 받은 비율이며, 부분점수는 평균 득점에 반영됩니다.</p>
-                <div className={styles.tableScroller}>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>문항</th>
-                        <th>정답률</th>
-                        <th>평균 득점</th>
-                        <th>정답 수</th>
-                        <th>응시 수</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[...insight.questionAccuracy]
-                        .sort((left, right) => left.question_number - right.question_number)
-                        .map((question) => (
-                          <tr key={question.question_id}>
-                            <td>{questionLabel(question.question_number)}</td>
-                            <td>{question.accuracyPercent.toFixed(1)}%</td>
-                            <td>{question.avg_score.toFixed(1)}점</td>
-                            <td>{question.correct}</td>
-                            <td>{question.attempts}</td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              </details>
+          <section className={styles.evidencePanel} aria-labelledby="priority-title">
+            <div className={styles.panelHeading}>
+              <h3 id="priority-title">문항별 정답률</h3>
+              <small>정답률 낮은 순</small>
+            </div>
+            {statsQ.isLoading ? (
+              <EmptyState scope="panel" tone="loading" title="문항 통계를 불러오는 중…" />
+            ) : statsQ.isError ? (
+              <EmptyState
+                scope="panel"
+                tone="error"
+                title="문항 통계를 불러오지 못했습니다."
+                actions={<Button type="button" intent="secondary" size="sm" onClick={() => void statsQ.refetch()}>다시 시도</Button>}
+              />
+            ) : questionAccuracy.length === 0 ? (
+              <EmptyState scope="panel" tone="empty" title="문항별 채점 데이터가 없습니다" />
+            ) : (
+              <ol className={styles.priorityList}>
+                {questionAccuracy.slice(0, 5).map((question) => (
+                  <li key={question.question_id}>
+                    <span className={styles.questionNumber}>{questionLabel(question.question_number)}</span>
+                    <div className={styles.questionBody}>
+                      <div className={styles.questionTopline}>
+                        <strong>정답률</strong>
+                        <span>{question.accuracyPercent.toFixed(1)}%</span>
+                      </div>
+                      <svg className={styles.accuracyTrack} viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden>
+                        <rect className={styles.accuracyTrackBase} x="0" y="0" width="100" height="4" rx="2" />
+                        <rect className={styles.accuracyTrackFill} x="0" y="0" width={question.accuracyPercent} height="4" rx="2" />
+                      </svg>
+                      <small>{question.attempts}명 중 {question.correct}명 정답</small>
+                    </div>
+                  </li>
+                ))}
+              </ol>
             )}
-          </>
+          </section>
+        </div>
+
+        {hasData && analysis && <ExamScoreTrends data={analysis} />}
+
+        {questionAccuracy.length > 0 && (
+          <details ref={statisticsRef} tabIndex={-1} className={`${styles.questionDetails} ${styles.jumpTarget}`} open={statisticsOpen} onToggle={(event) => setStatisticsOpen(event.currentTarget.open)}>
+            <summary>전체 문항 통계 보기</summary>
+            <p className={styles.statisticsNote}>주관식·서술형도 포함됩니다. 정답률은 만점을 받은 비율이며, 부분점수는 평균 득점에 반영됩니다.</p>
+            <div className={styles.tableScroller}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>문항</th>
+                    <th>정답률</th>
+                    <th>평균 득점</th>
+                    <th>정답 수</th>
+                    <th>응시 수</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...questionAccuracy]
+                    .sort((left, right) => left.question_number - right.question_number)
+                    .map((question) => (
+                      <tr key={question.question_id}>
+                        <td>{questionLabel(question.question_number)}</td>
+                        <td>{question.accuracyPercent.toFixed(1)}%</td>
+                        <td>{question.avg_score.toFixed(1)}점</td>
+                        <td>{question.correct}</td>
+                        <td>{question.attempts}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
         )}
       </section>
 

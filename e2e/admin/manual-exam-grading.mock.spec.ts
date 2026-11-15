@@ -1799,10 +1799,24 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       return;
     }
     if (path === `/results/admin/exams/${EXAM_ID}/analysis-insights/`) {
+      const count = options.resultRows?.length ?? 0;
       await json({
         recommended_cutoff: null,
         below_recommended_count: null,
-        scored_count: options.resultRows?.length ?? 0,
+        scored_count: count,
+        score_summary: {
+          average: 80,
+          median: 80,
+          top_ten_average: 80,
+          highest: 80,
+          std_dev: 0,
+          std_rate: 0,
+          unscored_count: 0,
+          pass_criterion_count: count,
+          pass_count: count,
+          remediated_count: 0,
+          distribution_counts: [0, 0, 0, count, 0],
+        },
         trend_threshold_pp: 10,
         trends: [],
       });

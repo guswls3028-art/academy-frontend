@@ -246,6 +246,10 @@
   padding: 18px 28px 28px;
 }
 
+.evidenceGrid[data-single='true'] {
+  grid-template-columns: 1fr;
+}
+
 .evidencePanel {
   min-width: 0;
   border: 1px solid var(--border-divider);

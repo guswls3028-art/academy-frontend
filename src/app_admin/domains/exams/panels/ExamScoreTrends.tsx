@@ -1,4 +1,4 @@
-import { Button, EmptyState } from "@/shared/ui/ds";
+import { EmptyState } from "@/shared/ui/ds";
 import styles from "./ExamResultsViewerPanel.module.css";
 
 type ScoreTrend = {
@@ -18,6 +18,19 @@ export type ExamAnalysisInsights = {
   recommended_cutoff: number | null;
   below_recommended_count: number | null;
   scored_count: number;
+  score_summary: {
+    average: number | null;
+    median: number | null;
+    top_ten_average: number | null;
+    highest: number | null;
+    std_dev: number | null;
+    std_rate: number | null;
+    unscored_count: number;
+    pass_criterion_count: number;
+    pass_count: number;
+    remediated_count: number;
+    distribution_counts: [number, number, number, number, number];
+  };
   trend_threshold_pp: number;
   trends: ScoreTrend[];
 };
@@ -32,17 +45,7 @@ function ScoreRate({ rate, difference = null }: { rate: number | null; differenc
   );
 }
 
-export default function ExamScoreTrends({
-  data,
-  loading,
-  error,
-  onRetry,
-}: {
-  data: ExamAnalysisInsights | undefined;
-  loading: boolean;
-  error: boolean;
-  onRetry: () => void;
-}) {
+export default function ExamScoreTrends({ data }: { data: ExamAnalysisInsights }) {
   const groups = [
     { label: "칭찬 참고", signal: "up" },
     { label: "상담 참고", signal: "down" },
@@ -54,16 +57,7 @@ export default function ExamScoreTrends({
       <div className={styles.panelHeading}>
         <h3 id="score-trends-title">학생별 성적 변화</h3>
       </div>
-      {loading ? (
-        <EmptyState scope="panel" tone="loading" title="추천 컷과 성적 변화를 불러오는 중…" />
-      ) : error || !data ? (
-        <EmptyState
-          scope="panel"
-          tone="error"
-          title="추천 컷과 성적 변화를 불러오지 못했습니다."
-          actions={<Button type="button" intent="secondary" size="sm" onClick={onRetry}>다시 시도</Button>}
-        />
-      ) : data.trends.length === 0 ? (
+      {data.trends.length === 0 ? (
         <EmptyState scope="panel" tone="empty" title="같은 강의에 비교할 이전 확정 시험 점수가 없습니다" />
       ) : (
         <>

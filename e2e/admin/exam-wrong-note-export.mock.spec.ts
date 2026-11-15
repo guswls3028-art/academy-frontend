@@ -14,6 +14,7 @@ async function installApi(page: Page, options: {
   passScore?: number;
   resultStatus?: "NOT_SUBMITTED" | "PROCESSING" | "PARTIAL" | "DONE" | "FAILED";
   remediated?: boolean;
+  confirmedFirstScore?: number;
   sharedExam?: boolean;
 }) {
   let exportCalls = 0;
@@ -169,21 +170,40 @@ async function installApi(page: Page, options: {
         ]
         : [{ id: 901, name: "김학생", lecture: "공통수학2 정규반", lectureId: "101", rate: 60, prior: 45, signal: "up" }];
       const scopedTrends = trends.filter((trend) => lectureId == null || trend.lectureId === lectureId);
+      const score = options.confirmedFirstScore ?? (options.sharedExam ? 65 : 60);
+      const count = options.hasResults && (resultStatus === "DONE" || options.confirmedFirstScore != null)
+        ? scopedTrends.length : 0;
+      const criteria = options.sharedExam ? count : passScore > 0 ? count : 0;
+      const passes = options.sharedExam ? Number(count > 0 && lectureId !== "202") : Number(criteria > 0 && score >= passScore);
       await json(route, {
-        recommended_cutoff: options.sharedExam ? 65 : 60,
-        below_recommended_count: 0,
-        scored_count: scopedTrends.length,
+        recommended_cutoff: count ? Math.round(score / 5) * 5 : null,
+        below_recommended_count: count ? Number(score < Math.round(score / 5) * 5) * count : null,
+        scored_count: count,
+        score_summary: {
+          average: count ? score : null,
+          median: count ? score : null,
+          top_ten_average: count ? score : null,
+          highest: count ? score : null,
+          std_dev: count ? 0 : null,
+          std_rate: count ? 0 : null,
+          unscored_count: options.hasResults ? scopedTrends.length - count : 0,
+          pass_criterion_count: criteria,
+          pass_count: passes,
+          remediated_count: options.remediated && count ? 1 : 0,
+          distribution_counts: [20, 40, 60, 80, 100].map((limit) =>
+            score > limit - 20 && score <= limit ? count : 0),
+        },
         trend_threshold_pp: 10,
-        trends: scopedTrends.map((trend) => ({
+        trends: scopedTrends.slice(0, count).map((trend) => ({
           enrollment_id: trend.id,
           student_name: trend.name,
           lecture_title: trend.lecture,
-          current_rate: trend.rate,
+          current_rate: score,
           previous_session_rate: trend.prior,
           cumulative_rate: trend.prior,
           prior_exam_count: 2,
-          previous_delta_pp: trend.rate - trend.prior,
-          cumulative_delta_pp: trend.rate - trend.prior,
+          previous_delta_pp: score - trend.prior,
+          cumulative_delta_pp: score - trend.prior,
           signal: trend.signal,
         })),
       });
@@ -364,7 +384,7 @@ test("시험 성적 지표와 학생별 변화를 확인하고 분석 리포트�
   });
 });
 
-test("성적 변화 조회를 다시 시도해도 시험 지표와 다운로드를 유지한다", async ({ page }) => {
+test("성적 분석에 실패해도 문항 통계와 다운로드를 계속 사용할 수 있다", async ({ page }) => {
   await installApi(page, { hasResults: true });
   let fail = true;
   await page.route("**/results/admin/exams/77/analysis-insights/", async (route) => {
@@ -372,13 +392,28 @@ test("성적 변화 조회를 다시 시도해도 시험 지표와 다운로드�
     await route.fallback();
   });
   await gotoAndSettle(page, `${BASE}/e2e-exam-results-export-harness.html`);
-  const trends = page.getByRole("region", { name: "학생별 성적 변화" });
-  await expect(trends.getByText("추천 컷과 성적 변화를 불러오지 못했습니다.")).toBeVisible();
-  await expect(page.getByRole("list", { name: "득점률 구간별 인원" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "수업 분석 리포트 (엑셀)" })).toBeEnabled();
+  const report = page.getByRole("region", { name: "시험 성적 분석" });
+  await expect(report.getByText("시험 성적 분석을 불러오지 못했습니다.")).toBeVisible();
+  await expect(report.getByRole("heading", { name: "문항별 정답률" })).toBeVisible();
+  await expect(report.getByRole("button", { name: "학생별 틀린 문항 (엑셀)" })).toBeEnabled();
+  await expect(report.getByRole("button", { name: "수업 분석 리포트 (엑셀)" })).toBeEnabled();
   fail = false;
-  await trends.getByRole("button", { name: "다시 시도" }).press("Enter");
-  await expect(trends.getByText("칭찬 참고", { exact: false })).toBeVisible();
+  await report.getByRole("button", { name: "다시 시도", exact: true }).press("Enter");
+  await expect(report.getByText("칭찬 참고", { exact: false })).toBeVisible();
+});
+
+test("대표 재시험이 채점 중이어도 확정된 1차 점수로 시험 분석을 표시한다", async ({ page }) => {
+  await installApi(page, { hasResults: true, resultStatus: "PARTIAL", confirmedFirstScore: 73 });
+  await gotoAndSettle(page, `${BASE}/e2e-exam-results-export-harness.html`);
+  const report = page.getByRole("region", { name: "시험 성적 분석" });
+  await expect(report.getByText("중앙값 73.0점", { exact: true })).toBeVisible();
+  await expect(report.getByText("75점", { exact: true })).toBeVisible();
+  const band = report.getByRole("listitem").filter({ hasText: ">60–80%" });
+  await expect(band.getByText("1명", { exact: true })).toBeVisible();
+  await expect(report.getByRole("button", { name: "수업 분석 리포트 (엑셀)" })).toBeEnabled();
+  await report.getByText("칭찬 참고", { exact: false }).click();
+  await expect(report.getByText("73.0%", { exact: true })).toBeVisible();
+  await expect(report.getByText("45.0% (+28.0%p)", { exact: true })).toHaveCount(2);
 });
 
 test("저장된 채점 결과가 없으면 오답 엑셀 버튼과 이유를 함께 비활성화한다", async ({ page }) => {
