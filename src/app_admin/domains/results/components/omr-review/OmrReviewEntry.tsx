@@ -16,6 +16,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
+import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 
 import OmrReviewWorkspace from "./OmrReviewWorkspace";
 import { listOmrReviewIssuesPage, listOmrReviewRows } from "./omrReviewApi";
@@ -32,6 +33,8 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
   const [open, setOpen] = useState(false);
   const [initialSubmissionId, setInitialSubmissionId] = useState<number | undefined>();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { sessionId } = useLectureSessionParams();
+  const sessionKey = sessionId === undefined ? [] : [sessionId];
 
   useEffect(() => {
     if (searchParams.get("reviewOmr") !== "1") return;
@@ -45,14 +48,14 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
   }, [searchParams, setSearchParams]);
 
   const { data: rows = [], isError, refetch } = useQuery({
-    queryKey: adminResultsQueryKeys.omrReviewList(examId),
-    queryFn: () => listOmrReviewRows(examId),
+    queryKey: [...adminResultsQueryKeys.omrReviewList(examId), ...sessionKey],
+    queryFn: () => listOmrReviewRows(examId, sessionId),
     enabled: Number.isFinite(examId),
     refetchInterval: 15000,
   });
   const issues = useQuery({
-    queryKey: adminResultsQueryKeys.omrReviewIssuesSummary(examId),
-    queryFn: () => listOmrReviewIssuesPage(examId),
+    queryKey: [...adminResultsQueryKeys.omrReviewIssuesSummary(examId), ...sessionKey],
+    queryFn: () => listOmrReviewIssuesPage(examId, { sessionId }),
     enabled: Number.isFinite(examId),
     refetchInterval: 15000,
   });

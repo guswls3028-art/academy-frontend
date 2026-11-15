@@ -759,6 +759,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
         });
       }
       if (url.pathname.endsWith(`/exams/${MIXED_EXAM_ID}/`)) {
+        expect(url.searchParams.get("session_id")).toBe(String(SESSION_ID));
         if (url.searchParams.get("review_issues") === "1") {
           return route.fulfill({ json: { items: [{
             id: 10020, enrollment_id: 0, student_name: "", status: "needs_identification",

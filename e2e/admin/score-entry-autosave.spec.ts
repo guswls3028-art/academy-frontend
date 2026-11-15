@@ -840,7 +840,7 @@ test("같은 계정의 다른 화면이 선택한 과제 셀을 표시하고 다
 });
 
 for (const viewportWidth of [1366, 390]) {
-test(`reload의 기존 셀 잠금을 자동 점유하지 않고 OMR 재전송의 기존 접수를 표시한다 (${viewportWidth}px)`, async ({ page }) => {
+test(`reload의 기존 셀 잠금을 자동 점유하지 않고 OMR 재전송의 기존 접수를 표시한다 (${viewportWidth}px)`, async ({ page }, testInfo) => {
   await page.setViewportSize({ width: viewportWidth, height: 900 });
   const clientIds = new Set<string>();
   page.on("request", (request) => {
@@ -953,6 +953,7 @@ test(`reload의 기존 셀 잠금을 자동 점유하지 않고 OMR 재전송의
     return Math.max(-rect.left, rect.right - window.innerWidth, modal.scrollWidth - modal.clientWidth);
   })).toBeLessThanOrEqual(1);
   await expectNoModalOverflow();
+  await testInfo.attach("OMR 파일 선택", { body: await dialog.screenshot(), contentType: "image/png" });
   await dialog.getByRole("button", { name: "등록 시작", exact: true }).click();
   await expect(dialog).toContainText("전체 2장");
   await expect(dialog).toContainText("접수 확인 2장");
@@ -962,8 +963,9 @@ test(`reload의 기존 셀 잠금을 자동 점유하지 않고 OMR 재전송의
   await expect(ledger).toHaveCount(1);
   await ledger.locator("summary").click();
   await expect(ledger.getByRole("listitem")).toHaveCount(2);
-  await expect(ledger.getByText(longFileName, { exact: true })).toBeVisible();
+  await expect(ledger.getByText(longFileName, { exact: false })).toHaveCount(0);
   await expectNoModalOverflow();
+  await testInfo.attach("OMR 접수 원장", { body: await dialog.screenshot(), contentType: "image/png" });
   expect(initializeCount).toBe(1);
   expect(uploadCount).toBe(1);
   expect(rejectedClaims).toEqual([]);

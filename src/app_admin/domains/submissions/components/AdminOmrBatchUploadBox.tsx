@@ -350,6 +350,13 @@ export default function AdminOmrBatchUploadBox({
     const tenant = getTenantCodeForApiRequest() ?? "";
     const generation = asyncStatusStore.getSessionGeneration();
     const isActive = () => isCurrentSession(tenant, generation);
+    const rememberSelectedNames = (replayedOrdinals?: ReadonlySet<number>) => {
+      const names = Object.fromEntries(uploadItems.flatMap((item) =>
+        item.ordinal === undefined || replayedOrdinals?.has(item.ordinal)
+          ? []
+          : [[item.ordinal, item.file.name]]));
+      setLedgerFileNames((previous) => ({ ...previous, ...names }));
+    };
     const showReceipt = (batch: OmrUploadBatchSummary) => {
       const fileRetryOrdinals = getFileRetryOrdinals(batch);
       asyncStatusStore.upsertOmrBatch(batch);
@@ -389,10 +396,6 @@ export default function AdminOmrBatchUploadBox({
         ));
       }
 
-      setLedgerFileNames((previous) => ({
-        ...previous,
-        ...Object.fromEntries(uploadItems.map((item) => [Number(item.ordinal), item.file.name])),
-      }));
       const result = await uploadOmrBatchApi({
         examId,
         files: preparedFiles,
@@ -400,6 +403,11 @@ export default function AdminOmrBatchUploadBox({
         itemOrdinals: uploadItems.map((item) => Number(item.ordinal)),
       });
       if (!isActive()) return;
+      const createdIds = new Set(result.submission_ids);
+      const replayedOrdinals = new Set(result.items
+        ?.filter((item) => item.admission_status === "received" && !createdIds.has(item.submission_id ?? 0))
+        .map((item) => item.ordinal));
+      rememberSelectedNames(replayedOrdinals);
       showReceipt(result);
     } catch (e: unknown) {
       if (!isActive()) return;
@@ -413,6 +421,7 @@ export default function AdminOmrBatchUploadBox({
         try {
           const recovered = await fetchOmrUploadBatchApi(activeBatchId);
           if (!isActive()) return;
+          rememberSelectedNames();
           showReceipt(recovered);
           setNotice("응답이 중단되어 서버의 접수 결과를 복구했습니다.");
         } catch {

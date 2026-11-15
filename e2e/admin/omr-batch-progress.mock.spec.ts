@@ -283,7 +283,8 @@ async function installDashboardApi(
       await safeJson(route, {
         ...admissionSummary("received", uploadBatchTotal),
         created_count: createdCount,
-        submission_ids: Array.from({ length: createdCount }, (_, index) => 2001 + index),
+        submission_ids: multipartFieldValues(uploadBody, "item_ordinals")
+          .map((ordinal) => 2000 + Number(ordinal)),
       }, 201);
       uploadResponses += 1;
       return;

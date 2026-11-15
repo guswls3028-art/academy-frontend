@@ -162,8 +162,10 @@ export async function acceptFromDuplicatesApi(
   return res.data as AcceptFromDuplicatesResult;
 }
 
-export async function listOmrReviewRows(examId: number): Promise<OmrReviewRow[]> {
-  const res = await api.get(`/submissions/submissions/exams/${examId}/`);
+export async function listOmrReviewRows(examId: number, sessionId?: number): Promise<OmrReviewRow[]> {
+  const res = await api.get(`/submissions/submissions/exams/${examId}/`, {
+    params: { session_id: sessionId },
+  });
   const data = res.data;
   const items = Array.isArray(data)
     ? data
@@ -184,11 +186,12 @@ export type OmrReviewIssuesPage = {
 /** 전체 시험에서 미해결 건만 서버가 세어 반환한다. 최신 200건 제한을 사용하지 않는다. */
 export async function listOmrReviewIssuesPage(
   examId: number,
-  options: { cursor?: number; enrollmentIds?: number[]; includeUnbound?: boolean; focusId?: number } = {},
+  options: { cursor?: number; enrollmentIds?: number[]; includeUnbound?: boolean; focusId?: number; sessionId?: number } = {},
 ): Promise<OmrReviewIssuesPage> {
   const res = await api.get(`/submissions/submissions/exams/${examId}/`, {
     params: {
       review_issues: 1,
+      session_id: options.sessionId,
       ...(options.cursor ? { cursor: options.cursor } : {}),
       ...(options.enrollmentIds ? { enrollment_ids: options.enrollmentIds.join(",") } : {}),
       ...(options.includeUnbound === false ? { include_unbound: 0 } : {}),
@@ -216,10 +219,12 @@ export async function fetchOmrReviewDetail(submissionId: number): Promise<OmrRev
 export async function confirmOmrAnswerReviewApi(
   submissionId: number,
   version: string,
+  sessionId?: number,
 ): Promise<SubmissionManualEditResult> {
   const res = await api.post(`/submissions/submissions/${submissionId}/manual-edit/`, {
     answer_review_version: version,
     note: "omr_review_ui_confirm_answers",
+    ...(sessionId === undefined ? {} : { session_id: sessionId }),
   });
   return res.data;
 }

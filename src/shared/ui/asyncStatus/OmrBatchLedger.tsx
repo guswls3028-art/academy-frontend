@@ -31,7 +31,7 @@ export default function OmrBatchLedger({ batch, fileNames, inline = false }: {
           <li key={item.id} data-status={item.status}>
             <span className={styles.ordinal}>
               {item.ordinal}번 답안지
-              {fileNames?.[item.ordinal] && <span className={styles.fileName}>{fileNames[item.ordinal]}</span>}
+              {fileNames?.[item.ordinal] && <span className={styles.fileName}>선택 파일 · {fileNames[item.ordinal]}</span>}
             </span>
             <span className={styles.state}>
               {batch.subjective_pending_ordinals?.includes(item.ordinal)

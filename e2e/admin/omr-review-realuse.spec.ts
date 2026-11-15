@@ -1452,8 +1452,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const submissionId = created.submissionIds[0];
     expect(uploadBody.items).toHaveLength(1);
     expect(uploadBody.items?.[0]).toMatchObject({ ordinal: 1, submission_id: submissionId });
-    // AdminOmrBatchUploadBox.tsx's post-upload notice (single file, no
-    // duplicates/failures): `${created_count}건을 접수했습니다. ...`.
+    // The durable receipt counts admitted files separately from grading.
     await expect(uploadDialog.getByText("접수 확인 1장")).toBeVisible({ timeout: 20_000 });
     const ledger = uploadDialog.getByLabel("답안지별 접수 내역");
     await ledger.locator("summary").click();

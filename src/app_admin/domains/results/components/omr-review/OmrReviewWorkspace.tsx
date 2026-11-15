@@ -195,27 +195,29 @@ export default function OmrReviewWorkspace({
   }, [editDirty, onClose, confirm]);
 
   // 리스트
+  const sessionKey = sessionId === undefined ? [] : [sessionId];
+  const listQueryKey = [...adminResultsQueryKeys.omrReviewList(examId), ...sessionKey];
   const {
     data: recentRows = [],
     isLoading: listLoading,
     isError: listError,
     refetch: refetchList,
   } = useQuery({
-    queryKey: adminResultsQueryKeys.omrReviewList(examId),
-    queryFn: () => listOmrReviewRows(examId),
+    queryKey: listQueryKey,
+    queryFn: () => listOmrReviewRows(examId, sessionId),
     enabled: open && Number.isFinite(examId),
     refetchInterval: open ? 8000 : false,
   });
   const issues = useInfiniteQuery({
-    queryKey: adminResultsQueryKeys.omrReviewIssuesPages(examId),
-    queryFn: ({ pageParam }) => listOmrReviewIssuesPage(examId, { cursor: pageParam }),
+    queryKey: [...adminResultsQueryKeys.omrReviewIssuesPages(examId), ...sessionKey],
+    queryFn: ({ pageParam }) => listOmrReviewIssuesPage(examId, { cursor: pageParam, sessionId }),
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (page) => page.next_cursor ?? undefined,
     enabled: open && Number.isFinite(examId),
   });
   const focusedIssue = useQuery({
-    queryKey: adminResultsQueryKeys.omrReviewIssuesFocus(examId, initialSubmissionId),
-    queryFn: () => listOmrReviewIssuesPage(examId, { focusId: initialSubmissionId }),
+    queryKey: [...adminResultsQueryKeys.omrReviewIssuesFocus(examId, initialSubmissionId), ...sessionKey],
+    queryFn: () => listOmrReviewIssuesPage(examId, { focusId: initialSubmissionId, sessionId }),
     enabled: open && initialSubmissionId != null,
   });
   const rows = useMemo(() => {
@@ -577,7 +579,7 @@ export default function OmrReviewWorkspace({
               setEditDirty(false);
               const savedScore = scoreFromManualEditResult(result);
               if (selectedId != null) {
-                qc.setQueryData<OmrReviewRow[]>(adminResultsQueryKeys.omrReviewList(examId), (prev) => {
+                qc.setQueryData<OmrReviewRow[]>(listQueryKey, (prev) => {
                   if (!prev) return prev;
                   return prev.map((row) =>
                     row.id === selectedId
@@ -1117,7 +1119,9 @@ function EditPane({
         });
       }
       if (!detail) throw new Error("no detail");
-      if (answerReviewVersion) return confirmOmrAnswerReviewApi(detail.submission_id, answerReviewVersion);
+      if (answerReviewVersion) {
+        return confirmOmrAnswerReviewApi(detail.submission_id, answerReviewVersion, sessionId);
+      }
       const payloadAnswers = Object.entries(answerEdits).map(([qid, answer]) => ({
         exam_question_id: Number(qid),
         answer,
@@ -1131,7 +1135,7 @@ function EditPane({
       return await manualEditSubmissionApi({
         submissionId: detail.submission_id,
         identifier: idPayload,
-        sessionId: idPayload ? sessionId : undefined,
+        sessionId,
         note: canConfirmCurrentStudent
           ? "omr_review_ui_confirm_match"
           : "omr_review_ui",
