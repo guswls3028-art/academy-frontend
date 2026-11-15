@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/lectures/api/sessions.ts
 import api from "@/shared/api/axios";
+import type { components } from "@/shared/api/generated/schema";
 import {
   sortSessionsByDateDesc,
   sortSessionsByDisplayOrder,
@@ -151,7 +152,10 @@ export interface CreateSessionOptions {
   sessionType?: SessionType;
   regularOrder?: number | null;
   insertAfterOrder?: number | null;
+  initialSchedule?: { requestId: string; days: InitialSessionDay[] };
 }
+
+export type InitialSessionDay = components["schemas"]["SessionCreateScheduleInputRequest"];
 
 export async function createSession(
   lectureId: number,
@@ -168,8 +172,13 @@ export async function createSession(
   if (options.sessionType) payload.session_type = options.sessionType;
   if (options.regularOrder != null) payload.regular_order = options.regularOrder;
   if (options.insertAfterOrder != null) payload.insert_after_order = options.insertAfterOrder;
+  if (options.initialSchedule) {
+    payload.create_request_id = options.initialSchedule.requestId;
+    payload.initial_schedules = options.initialSchedule.days;
+  }
 
-  const res = await api.post(`/lectures/sessions/`, payload);
+  const endpoint = options.initialSchedule ? "/lectures/sessions/with-schedules/" : "/lectures/sessions/";
+  const res = await api.post<Session>(endpoint, payload);
   return res.data;
 }
 

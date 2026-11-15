@@ -280,6 +280,32 @@
 .rosterFooter { color: var(--color-text-secondary); font-size: 12px; font-weight: 600; }
 .empty { padding: 14px 8px; margin: 0; color: var(--color-text-muted); font-size: 13px; }
 
+.transferForm, .transferTarget {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.transferForm { gap: 12px; border: 0; margin: 0; padding: 0; }
+.transferTarget { color: var(--color-text-secondary); font-size: 13px; }
+.transferTarget select { width: 100%; }
+.transferRoster { max-height: 188px; }
+.transferRoster small { color: var(--color-text-muted); }
+
+.transferPreview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--state-selected-bg);
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.transferPreview svg { display: inline; vertical-align: middle; }
+
 @media (max-width: 720px) {
   .editor { grid-template-columns: minmax(0, 1fr); }
   .editorDayList {

@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
-import { CalendarDays, Pencil, Plus } from 'lucide-react';
+import { ArrowRightLeft, CalendarDays, Pencil, Plus } from 'lucide-react';
 import { Button } from '@/shared/ui/ds';
-import { sessionSchedulesKey, type SessionSchedules } from '@/shared/api/contracts/sessionSchedules';
+import { sessionSchedulesKey, type SessionSchedule, type SessionSchedules } from '@/shared/api/contracts/sessionSchedules';
 import { feedback } from '@/shared/ui/feedback/feedback';
 import { SessionScheduleNavigationContext } from '@/shared/hooks/useSessionScheduleScope';
 import { SessionScheduleControlsContext } from './sessionScheduleControlsContext';
 import SessionScheduleManager from './SessionScheduleManager';
+import SessionScheduleTransfer from './SessionScheduleTransfer';
 import styles from './SessionScheduleStrip.module.css';
 
 type Props = { sessionId: number; lectureId: number; sessionDate: string; sessionTitle: string; sessionOrder: number; shared: boolean; children: ReactNode; query: UseQueryResult<SessionSchedules, Error> };
@@ -18,6 +19,8 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
   const navigate = useNavigate();
   const scope = params.get('schedule');
   const [open, setOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [transferBusy, setTransferBusy] = useState(false);
   const [editDayId, setEditDayId] = useState<string | null>(null);
   const [addRequest, setAddRequest] = useState(0);
   const [preparing, setPreparing] = useState(false);
@@ -65,11 +68,23 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
     });
   };
 
-  const saved = (value: SessionSchedules) => {
+  const saved = (value: SessionSchedules, destination?: SessionSchedule) => {
     qc.setQueryData(sessionSchedulesKey(sessionId), value);
     void qc.invalidateQueries({ queryKey: sessionSchedulesKey(sessionId) });
     for (const key of [['attendance', sessionId], ['attendance-for-pdf', sessionId], ['session-scores', sessionId], ['session-enrollments', sessionId], ['attendance-enrolled-ids', sessionId], ['attendance-matrix', lectureId]]) {
       void qc.invalidateQueries({ queryKey: key });
+    }
+    if (destination) {
+      setTransferOpen(false);
+      if (window.location.pathname === location.pathname) {
+        const next = new URLSearchParams(window.location.search);
+        if (next.get('schedule') !== String(destination.id)) {
+          next.set('schedule', String(destination.id));
+          setParams(next);
+        }
+      }
+      feedback.success(`이번 차시의 수업일을 ${destination.label}(으)로 변경했습니다.`);
+      return;
     }
     const removed = scope !== null && scope !== '0' && !value.schedules.some(s => String(s.id) === scope);
     feedback.success(removed ? '수업일을 저장했습니다. 선택했던 수업일이 삭제되어 다른 수업일을 선택해야 합니다.' : '수업일을 저장했습니다.');
@@ -78,6 +93,8 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
   const hasDays = !!data?.schedules.length || scope !== null;
   const unknown = scope !== null && scope !== '0' && !data?.schedules.some(s => String(s.id) === scope);
   const blocked = scope !== null && (query.isError || query.isPending || unknown);
+  const canTransfer = location.pathname.endsWith('/attendance') && !!data?.roster.length
+    && (data.schedules.length > 1 || (data.schedules.length > 0 && data.unassigned_enrollment_ids.length > 0));
   const content = (
     <section className={styles.strip} data-empty={!!data && !query.isError && !hasDays} aria-label="수업일 선택" aria-busy={preparing}>
       <div className={styles.stripHeader}>
@@ -107,7 +124,10 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
         </div>}
         {!query.isPending && unknown && <p className={styles.error} role="alert">선택한 수업일을 찾을 수 없습니다. 수업일을 다시 선택해 주세요.</p>}
         {shared && data.schedules.length > 0 && <p className={styles.note}>시험·과제·영상·공지는 모든 수업일에 공유됩니다.</p>}
-        {hasDays && <Button intent="ghost" size="sm" leftIcon={<Plus size={15} aria-hidden />} onClick={() => openManager(true)}>수업일 추가</Button>}
+        {hasDays && <div className={styles.stripActions}>
+          <Button intent="ghost" size="sm" leftIcon={<Plus size={15} aria-hidden />} onClick={() => openManager(true)}>수업일 추가</Button>
+          {canTransfer && <Button intent="secondary" size="sm" leftIcon={<ArrowRightLeft size={15} aria-hidden />} onClick={() => void prepare(() => setTransferOpen(true))}>학생 수업일 변경</Button>}
+        </div>}
       </>}
     </section>
   );
@@ -124,7 +144,8 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
         prepareTransition: prepare,
       }}>
         {children}
-        {data && <SessionScheduleManager open={open} addRequest={addRequest} editDayId={editDayId} onClose={() => setOpen(false)} sessionId={sessionId} lectureId={lectureId} sessionDate={sessionDate} sessionOrder={sessionOrder} data={data} onSaved={saved} />}
+        {data && <SessionScheduleManager open={open} addRequest={addRequest} editDayId={editDayId} onClose={() => setOpen(false)} sessionId={sessionId} lectureId={lectureId} sessionDate={sessionDate} sessionOrder={sessionOrder} data={data} onSaved={saved} assignmentBusy={transferBusy} />}
+        {data && transferOpen && <SessionScheduleTransfer sessionId={sessionId} data={data} scope={scope} busy={transferBusy} setBusy={setTransferBusy} onClose={() => setTransferOpen(false)} onSaved={saved} />}
       </SessionScheduleControlsContext.Provider>
     </SessionScheduleNavigationContext.Provider>
   );

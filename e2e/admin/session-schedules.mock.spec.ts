@@ -12,6 +12,8 @@ const roster = [
   { enrollment_id: 32, student_name: '이목현' },
   { enrollment_id: 33, student_name: '박새봄' },
 ];
+type CreateRequest = { create_request_id: string; title: string; date: string; initial_schedules: Pick<SessionScheduleDraft, 'label' | 'date'>[] };
+type CreatedSession = { id: number; lecture: number; title: string; date: string; order: number; regular_order: number; session_type: string; schedule_dates: CreateRequest['initial_schedules'] };
 async function capture(page: Page, name: string) {
   const path = test.info().outputPath(`${name}.png`);
   await page.screenshot({ path, fullPage: true, animations: 'disabled' });
@@ -24,11 +26,14 @@ function fixture(configured = false) {
       { id: 72, label: '목요일반', date: '2026-11-05', start_time: null, end_time: null, enrollment_ids: [32] },
     ] : [], roster, unassigned_enrollment_ids: configured ? [33] : [31, 32, 33] } as SessionSchedules,
     puts: [] as { version: string; schedules: SessionScheduleDraft[] }[],
+    creates: [] as CreateRequest[],
+    created: null as CreatedSession | null,
     copies: [] as { version: string; source_session: number }[],
     bulk: [] as { session: number; schedule?: string }[],
     presentEnrollmentIds: new Set<number>(),
     reads: [] as { kind: string; scope: string | null }[],
     failSave: 0, failRead: false, failSessionList: false, failScores: false, failAttendance: false, attendanceFilled: 0,
+    loseCreateResponse: false, loseTransferResponse: false,
   };
   return state;
 }
@@ -52,9 +57,27 @@ async function install(page: Page, state: ReturnType<typeof fixture>) {
     const previous = { ...current, id: 9900, title: '1차시', order: 1, regular_order: 1, date: '2026-10-28', schedule_dates: [] };
     if (endpoint === '/lectures/sessions/9902/') return json(current);
     if (endpoint === '/lectures/sessions/9900/') return json(previous);
+    if (endpoint === '/lectures/sessions/9903/' && state.created) return json(state.created);
     if (endpoint === '/lectures/sessions/9900/schedules/' && method === 'GET') return json(fixture().config);
     if (endpoint === '/lectures/sessions/' && state.failSessionList) return json({ detail: '차시 목록 조회 실패' }, 400);
-    if (endpoint === '/lectures/sessions/') return json({ count: url.searchParams.has('date') ? 1 : 2, results: url.searchParams.has('date') ? [current] : [previous, current] });
+    if (endpoint === '/lectures/sessions/with-schedules/' && method === 'POST') {
+      const body: CreateRequest = request.postDataJSON();
+      state.creates.push(body);
+      if (state.created) {
+        expect(body).toEqual(state.creates[0]);
+      } else {
+        state.created = { id: 9903, lecture: 9901, title: body.title, date: body.date, order: 3, regular_order: 3, session_type: 'REGULAR', schedule_dates: body.initial_schedules };
+      }
+      if (state.loseCreateResponse) {
+        state.loseCreateResponse = false;
+        return json({ detail: '응답 확인 실패' }, 503);
+      }
+      return json(state.created, 201);
+    }
+    if (endpoint === '/lectures/sessions/') {
+      const results = url.searchParams.has('date') ? [current] : [previous, current, ...(state.created ? [state.created] : [])];
+      return json({ count: results.length, results });
+    }
     if (endpoint === '/enrollments/session-enrollments/') return json({ count: 3, results: roster.map(s => ({ id: s.enrollment_id + 300, session: 9902, enrollment: s.enrollment_id, student_id: s.enrollment_id + 200, student_name: s.student_name, enrollment_status: 'ACTIVE' })) });
     if (endpoint === '/exams/') return json({ count: 1, results: [{ id: 81, title: '공통 시험', max_score: 100, pass_score: 60 }] });
     if (endpoint === '/results/admin/exams/81/results/') return json({ count: 3, results: roster.map(s => ({ ...s, score: 80, final_score: 80, exam_score: 80, max_score: 100 })) });
@@ -67,6 +90,10 @@ async function install(page: Page, state: ReturnType<typeof fixture>) {
         const ids = body.schedules.flatMap((s: SessionScheduleDraft) => s.enrollment_ids);
         expect(new Set(ids).size).toBe(ids.length);
         state.config = { ...state.config, version: `v${state.puts.length + 1}`, schedules: body.schedules.map((s: SessionScheduleDraft, i: number) => ({ ...s, id: s.id ?? 71 + i })), unassigned_enrollment_ids: roster.filter(s => !ids.includes(s.enrollment_id)).map(s => s.enrollment_id) };
+        if (state.loseTransferResponse) {
+          state.loseTransferResponse = false;
+          return json({ detail: '응답 확인 실패' }, 503);
+        }
         return json(state.config);
       }
       if (method === 'POST') {
@@ -102,6 +129,91 @@ async function install(page: Page, state: ReturnType<typeof fixture>) {
     return json({ count: 0, next: null, results: [] });
   });
 }
+
+for (const width of [390, 1366]) test(`새 차시에서 여러 수업일을 작성하고 안전하게 재시도한다 ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
+  const state = fixture();
+  state.loseCreateResponse = true;
+  await install(page, state);
+  const entry = width === 390 ? '/workspace/lectures/9901' : `${path}/attendance`;
+  await page.goto(`${BASE}${entry}`, { waitUntil: 'domcontentloaded' });
+  const addSession = page.getByRole('button', { name: '수업 추가', exact: true });
+  await expect(addSession).toBeVisible();
+  await addSession.click();
+  const create = page.getByRole('dialog', { name: '차시 추가', exact: true });
+  await create.getByRole('button', { name: /정규 차시 추가/ }).click();
+  const days = create.getByRole('region', { name: '차시 수업일', exact: true });
+  for (let index = 0; index < 3; index++) await days.getByRole('button', { name: '수업일 추가', exact: true }).click();
+  await days.getByRole('button', { name: '수업일 4 제거', exact: true }).click();
+  await expect(days.getByLabel('수업일 1 이름', { exact: true })).toHaveAttribute('placeholder', '수요일반');
+  await days.getByLabel('수업일 2 이름', { exact: true }).fill('목요일반');
+  await days.getByLabel('수업일 3 이름', { exact: true }).fill('토요일반');
+  await days.getByRole('button', { name: '수업일 3 날짜', exact: true }).click();
+  await page.getByRole('dialog', { name: '날짜 선택', exact: true }).getByRole('button', { name: '14', exact: true }).click();
+  await days.getByLabel('수업일 3 이름', { exact: true }).scrollIntoViewIfNeeded();
+  await capture(page, `session-create-days-${width}`);
+  expect(await days.evaluate(element => element.scrollWidth)).toBeLessThanOrEqual(await days.evaluate(element => element.clientWidth));
+  await create.getByRole('button', { name: '저장', exact: true }).click();
+  const confirm = page.getByRole('alertdialog', { name: '차시 생성 최종 확인', exact: true });
+  await expect(confirm).toContainText('2026-11-14');
+  await confirm.getByRole('button', { name: '확인하고 추가', exact: true }).click();
+  await expect(create.getByRole('alert')).toContainText('같은 요청');
+  await expect(days.getByLabel('수업일 3 이름', { exact: true })).toBeDisabled();
+  expect(state.creates).toHaveLength(1);
+  expect(state.creates[0].create_request_id).toMatch(/^[\da-f-]{36}$/);
+  await create.getByRole('button', { name: '같은 요청 다시 보내기', exact: true }).click();
+  await expect(create).toBeHidden();
+  expect(state.creates).toHaveLength(2);
+  expect(state.created?.schedule_dates).toEqual([
+    { label: '수요일반', date: '2026-11-11' },
+    { label: '목요일반', date: '2026-11-12' },
+    { label: '토요일반', date: '2026-11-14' },
+  ]);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('region', { name: '3차시 차시 카드', exact: true })).toHaveCount(1);
+});
+
+for (const width of [390, 1366]) test(`이번 차시의 학생만 새 수업일로 옮긴다 ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: width === 390 ? 700 : 900 });
+  const state = fixture(true);
+  state.presentEnrollmentIds.add(32);
+  await install(page, state);
+  await page.goto(`${BASE}${path}/attendance?schedule=71`);
+  const strip = page.getByRole('region', { name: '수업일 선택', exact: true });
+  const studentLink = page.getByRole('link', { name: '이목현 학생 상세 열기', exact: true });
+  await expect(studentLink).toHaveCount(0);
+  await strip.getByRole('button', { name: '학생 수업일 변경', exact: true }).click();
+  const move = page.getByRole('dialog', { name: '학생 수업일 변경', exact: true });
+  await expect(move.getByLabel('옮길 수업일')).toHaveValue('71');
+  await move.getByRole('searchbox', { name: '학생 이름 검색', exact: true }).fill('목현');
+  await move.getByRole('radio', { name: /이목현.*목요일반/ }).check();
+  await expect(move.getByRole('status')).toContainText('목요일반');
+  await expect(move.getByRole('status')).toContainText('수요일반');
+  await capture(page, `session-student-move-${width}`);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+  const change = move.getByRole('button', { name: '수업일 변경', exact: true });
+  state.config = { ...state.config, version: 'concurrent', schedules: state.config.schedules.map(day => day.id === 72 ? { ...day, label: '목요일 심화반' } : day) };
+  state.failSave = 409;
+  await change.click();
+  await expect(move.getByRole('alert')).toContainText('최신 배정을 불러왔습니다');
+  await expect(move.getByRole('status')).toContainText('목요일 심화반');
+  expect(state.config.schedules[1].enrollment_ids).toEqual([32]);
+  state.failSave = 0;
+  state.loseTransferResponse = true;
+  await change.click();
+  await expect(move).toBeHidden();
+  expect(state.puts).toHaveLength(2);
+  expect(state.puts[1].version).toBe('concurrent');
+  expect(state.config.schedules.map(day => day.enrollment_ids)).toEqual([[31, 32], []]);
+  expect(state.config.unassigned_enrollment_ids).toEqual([33]);
+  await expect(studentLink).toBeVisible();
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(studentLink).toBeVisible();
+  expect([...state.presentEnrollmentIds]).toEqual([32]);
+  await strip.getByRole('button', { name: /^목요일 심화반/ }).click();
+  await expect(page).toHaveURL(/schedule=72/);
+  await expect(studentLink).toHaveCount(0);
+});
 
 for (const width of [390, 1366]) test(`수업일 작성·배정·저장·reload·출결/성적 범위 ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 });

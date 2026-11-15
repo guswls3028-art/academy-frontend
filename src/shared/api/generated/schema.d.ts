@@ -6401,6 +6401,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/lectures/sessions/with-schedules/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["lectures_sessions_with_schedules_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/admin/videos/landing-stats/": {
         parameters: {
             query?: never;
@@ -15404,6 +15420,22 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
         };
+        LectureSessionCreateRequest: {
+            /** Format: uuid */
+            create_request_id: string;
+            /** Format: date */
+            date?: string | null;
+            initial_schedules: components["schemas"]["SessionCreateScheduleInputRequest"][];
+            insert_after_order?: number | null;
+            lecture: number;
+            order?: number | null;
+            regular_order?: number | null;
+            /** @description 반별 차시 (section_mode=true). null이면 반 무관 공통 차시. */
+            section?: number | null;
+            /** @default REGULAR */
+            session_type: components["schemas"]["SessionTypeEnum"];
+            title?: string;
+        };
         LectureSessionRequest: {
             /** Format: date */
             date?: string | null;
@@ -19310,6 +19342,9 @@ export interface components {
             /** @description 수신 대상 학생 ID 목록 (send_to가 student/parent일 때 사용) */
             student_ids?: number[];
             template_id?: number | null;
+            /** @default false */
+            video_makeup_homework: boolean;
+            video_makeup_homework_fingerprint?: string;
         };
         SendMessageResponse: {
             accepted_count: number;
@@ -19345,6 +19380,15 @@ export interface components {
          * @enum {string}
          */
         SessionAttendanceStatus: "UNSET" | "PRESENT" | "LATE" | "ONLINE" | "SUPPLEMENT" | "EARLY_LEAVE" | "ABSENT" | "RUNAWAY" | "MATERIAL" | "INACTIVE" | "SECESSION";
+        SessionCreateScheduleInputRequest: {
+            /** Format: date */
+            date: string;
+            /** Format: time */
+            end_time?: string | null;
+            label: string;
+            /** Format: time */
+            start_time?: string | null;
+        };
         SessionEnrollment: {
             /** Format: date-time */
             readonly created_at: string;
@@ -31640,6 +31684,38 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SessionScheduleState"];
                 };
+            };
+        };
+    };
+    lectures_sessions_with_schedules_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LectureSessionCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureSessionCreateRequest"];
+                "multipart/form-data": components["schemas"]["LectureSessionCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LectureSession"];
+                };
+            };
+            /** @description 같은 생성 요청 ID에 이미 다른 입력이 저장되었습니다. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

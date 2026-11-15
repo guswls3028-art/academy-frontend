@@ -25,9 +25,10 @@ type Props = {
   sessionOrder: number;
   data: SessionSchedules;
   onSaved: (data: SessionSchedules) => void;
+  assignmentBusy: boolean;
 };
 
-export default function SessionScheduleManager({ open, addRequest, editDayId, onClose, sessionId, lectureId, sessionDate, sessionOrder, data, onSaved }: Props) {
+export default function SessionScheduleManager({ open, addRequest, editDayId, onClose, sessionId, lectureId, sessionDate, sessionOrder, data, onSaved, assignmentBusy }: Props) {
   const confirm = useConfirm();
   const [base, setBase] = useState<SessionSchedules | null>(null);
   const [drafts, setDrafts] = useState<Draft[]>([]);
@@ -44,7 +45,7 @@ export default function SessionScheduleManager({ open, addRequest, editDayId, on
   const nameRef = useRef<HTMLInputElement>(null);
   const activeDayRef = useRef<HTMLButtonElement>(null);
   const focusName = useRef(false);
-  useScheduleLeaveGuard(lectureId, sessionId, dirty, busy);
+  useScheduleLeaveGuard(lectureId, sessionId, dirty, busy || assignmentBusy);
   const sessions = useQuery({
     queryKey: adminSessionQueryKeys.scheduleCopySessions(lectureId),
     queryFn: () => fetchSessions(lectureId), enabled: open,
