@@ -37,7 +37,7 @@ const STUDENT_USER = `e2eomr${String(TS).slice(-8)}`;
 const CONTROLLED_PHONE = `010${String(TS).slice(-8)}`;
 const EXPECTED_ANSWERS = Array.from({ length: 30 }, (_, index) => index === 8 ? "3,5" : String((index % 5) + 1));
 const EXPECTED_OBJECTIVE_SCORE = 30;
-const EXPECTED_WRITTEN_SCORES = [8, 9.5] as const;
+const EXPECTED_WRITTEN_SCORES = [8, 9] as const;
 const EXPECTED_SCORE = EXPECTED_OBJECTIVE_SCORE
   + EXPECTED_WRITTEN_SCORES.reduce((sum, score) => sum + score, 0);
 
@@ -367,43 +367,51 @@ type PrintedEssayBubble = { x: number; y: number; radiusX: number; radiusY: numb
 async function essayBubblesFromPreview(
   page: Page,
   html: string,
-  selections: ReadonlyArray<{ ones: readonly number[]; tenths?: number }>,
+  selections: ReadonlyArray<readonly number[]>,
 ): Promise<PrintedEssayBubble[]> {
-  const strips = await page.evaluate((markup) => {
+  const preview = await page.evaluate((markup) => {
     const parsed = new DOMParser().parseFromString(markup, "text/html");
-    const rows: PrintedEssayBubble[][] = [];
-    for (const element of Array.from(parsed.querySelectorAll<HTMLDivElement>(".es, .es-b"))) {
-      if (element.classList.contains("es")) {
-        rows.push([]);
-      } else {
-        const radiusX = parseFloat(element.style.width) / 2;
-        const radiusY = parseFloat(element.style.height) / 2;
-        rows.at(-1)?.push({
-          x: parseFloat(element.style.left) + radiusX,
-          y: parseFloat(element.style.top) + radiusY,
+    const stylesheet = new CSSStyleSheet();
+    stylesheet.replaceSync(Array.from(parsed.querySelectorAll("style"), (style) => style.textContent).join("\n"));
+    const bubbleRule = Array.from(stylesheet.cssRules)
+      .find((rule): rule is CSSStyleRule => rule instanceof CSSStyleRule && rule.selectorText === ".bu");
+    if (!bubbleRule) throw new Error("Print preview has no shared OMR bubble style");
+    const { width, height, alignItems, justifyContent } = bubbleRule.style;
+    const radiusX = parseFloat(width) / 2;
+    const radiusY = parseFloat(height) / 2;
+    return {
+      width, height, alignItems, justifyContent,
+      questions: Array.from(parsed.querySelectorAll("[data-essay-score-question]"), (question) =>
+        Array.from(question.querySelectorAll<HTMLElement>(".essay-score-bubble"), (bubble) => ({
+          sharedStyle: bubble.classList.contains("bu"),
+          x: parseFloat(bubble.style.left) + radiusX,
+          y: parseFloat(bubble.style.top) + radiusY,
           radiusX,
           radiusY,
-          label: element.textContent?.trim() ?? "",
-        });
-      }
-    }
-    return rows;
+          label: bubble.textContent?.trim() ?? "",
+        }))),
+    };
   }, html);
-  expect(strips).toHaveLength(selections.length);
-  return selections.flatMap(({ ones, tenths }, index) => {
-    const row = strips[index];
-    expect(row).toHaveLength(25);
-    const bubbles = ones.map((digit) => {
-      const bubble = row[5 + digit];
-      expect(bubble.label).toBe(String(digit));
-      return bubble;
-    });
-    if (tenths !== undefined) {
-      const bubble = row[15 + tenths];
-      expect(bubble.label).toBe(`.${tenths}`);
-      bubbles.push(bubble);
+  expect(preview).toMatchObject({
+    width: "3.6mm", height: "5.2mm", alignItems: "center", justifyContent: "center",
+  });
+  expect(preview.questions).toHaveLength(selections.length);
+  return selections.flatMap((digits, index) => {
+    const bubbles = preview.questions[index];
+    expect(bubbles.map(({ label }) => label).join("")).toBe("012345678");
+    expect(bubbles.every(({ sharedStyle }) => sharedStyle)).toBe(true);
+    const [left, center, right] = bubbles.slice(0, 3).map(({ x }) => x);
+    const [top, middle, bottom] = [bubbles[0].y, bubbles[3].y, bubbles[6].y];
+    expect(center - left).toBeGreaterThan(3.6);
+    expect(right - center).toBeCloseTo(center - left);
+    expect(middle - top).toBeGreaterThan(5.2);
+    expect(bottom - middle).toBeCloseTo(middle - top);
+    for (let row = 0; row < 3; row += 1) {
+      const group = bubbles.slice(row * 3, row * 3 + 3);
+      expect(group.map(({ x }) => x)).toEqual([left, center, right]);
+      expect(group.map(({ y }) => y)).toEqual(Array(3).fill([top, middle, bottom][row]));
     }
-    return bubbles;
+    return digits.map((digit) => bubbles[digit]);
   });
 }
 
@@ -1347,7 +1355,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     });
     expect(teacherPreview.status()).toBe(200);
     const teacherBubbles = await essayBubblesFromPreview(page, await teacherPreview.text(), [
-      { ones: [8] }, { ones: [9], tenths: 5 },
+      [8], [5, 4],
     ]);
     const pdfBuffer = await downloadOmrPdf(request, adminTokens.access, created.examId);
     // A sheet printed before the setting was turned off remains eligible for scanning.
@@ -1933,7 +1941,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const answers = [...EXPECTED_ANSWERS];
     answers[0] = "2";
     const replacementBubbles = await essayBubblesFromPreview(page, previewHtml, [
-      { ones: [0] }, { ones: [1, 2] },
+      [0], [0, 2],
     ]);
     const markedPdf = await markThirtyQuestionOmrPdf(
       await downloadOmrPdf(request, adminAccess, created.examId!), answers, CONTROLLED_PHONE.slice(-8), replacementBubbles,
@@ -1991,10 +1999,19 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(detailResponse.status()).toBe(200);
     const replacementDetail = await detailResponse.json() as {
       submission_id: number; enrollment_id: number | null; submission_status: string;
-      answers: unknown[]; meta: { identifier_status?: string; manual_review?: { reasons?: string[] } };
+      answers: unknown[];
+      meta: {
+        identifier_status?: string;
+        manual_review?: { reasons?: string[] };
+        ai_result?: { result?: { essay_scores?: unknown[] } };
+      };
     };
     expect(replacementDetail.submission_id).toBe(replacementId);
     expect(replacementDetail.answers).toHaveLength(30);
+    expect(replacementDetail.meta.ai_result?.result?.essay_scores).toMatchObject([
+      { question_number: 31, status: "ok", score: 0, marked_values: [0] },
+      { question_number: 32, status: "ambiguous", score: null },
+    ]);
     // A second scan is deliberately left unmatched until the teacher confirms
     // replacement of the student's existing completed answer sheet.
     expect(replacementDetail.enrollment_id).toBeNull();
