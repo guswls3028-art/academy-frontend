@@ -383,7 +383,13 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     const key = e.key;
     const isTab = key === "Tab";
 
-    if (key === "ArrowDown" || key === "Enter") {
+    if (key === "Enter") {
+      if (e.target !== e.currentTarget) return;
+      e.preventDefault();
+      onRequestMoveWithinRow(e.shiftKey);
+      return;
+    }
+    if (key === "ArrowDown") {
       e.preventDefault();
       focusVertical(cur.r, cur.c, 1);
       return;
@@ -420,6 +426,17 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     if (!moved) tableRef.current?.commitActiveCell();
     return moved;
   }, [ensureSelection, focusLinear]);
+
+  const onRequestMoveWithinRow = useCallback((backward: boolean) => {
+    const cur = ensureSelection();
+    if (!cur.ok) return;
+    const direction = backward ? -1 : 1;
+    for (let c = cur.c + direction; c >= 0 && c < editableCols.length; c += direction) {
+      if (focusAt(cur.r, c)) return;
+    }
+    // Commit at the row boundary and leave keyboard navigation on this student.
+    if (tableRef.current?.commitActiveCell()) focusAt(cur.r, cur.c);
+  }, [editableCols.length, ensureSelection, focusAt]);
 
   const onRequestMoveDown = useCallback(() => {
     const cur = ensureSelection();
@@ -553,11 +570,12 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           onClaimOwnCell={onClaimOwnCell}
           onRequestMoveNext={onRequestMoveNext}
           onRequestMovePrev={onRequestMovePrev}
+          onRequestMoveWithinRow={onRequestMoveWithinRow}
           onRequestMoveDown={onRequestMoveDown}
           onRequestMoveUp={onRequestMoveUp}
           onPendingChange={onPendingChange}
           onSelectCell={isEditMode
-            ? (row, type, id, questionIdOrSub) => {
+            ? (row, type, id, questionIdOrSub, focus = true) => {
                 setSelectedEnrollmentId(row.enrollment_id);
                 const rIdx = rows.findIndex((r) => r.enrollment_id === row.enrollment_id);
                 if (type === "exam") {
@@ -572,12 +590,12 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
                   });
                   const colIdx = cIdx >= 0 ? cIdx : 0;
                   setSelectedColIndex(colIdx);
-                  focusAt(rIdx, colIdx);
+                  if (focus) focusAt(rIdx, colIdx);
                 } else {
                   const c = editableCols.findIndex((c) => c.type === "homework" && c.homeworkId === id);
                   const colIdx = c >= 0 ? c : 0;
                   setSelectedColIndex(colIdx);
-                  focusAt(rIdx, colIdx);
+                  if (focus) focusAt(rIdx, colIdx);
                 }
               }
             : () => {}}

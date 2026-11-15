@@ -26,10 +26,12 @@ type Props = {
 
   /** optional: 외부에서 focus 제어 */
   inputRef?: (el: HTMLInputElement | null) => void;
+  onFocus?: () => void;
 
   /** optional: 키보드 연속 입력용 */
   onMovePrev?: () => void;
   onMoveNext?: () => void;
+  onEnter?: (backward: boolean) => void;
 };
 
 export default function ScoreInputCell({
@@ -42,8 +44,10 @@ export default function ScoreInputCell({
   disabled,
   onSaved,
   inputRef,
+  onFocus,
   onMovePrev,
   onMoveNext,
+  onEnter,
 }: Props) {
   const [draft, setDraft] = useState<string>(value == null ? "" : String(value));
   const [saving, setSaving] = useState(false);
@@ -119,6 +123,7 @@ export default function ScoreInputCell({
       max={maxScore}
       value={draft}
       disabled={disabled || saving}
+      onFocus={onFocus}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
         if (skipNextBlurRef.current) {
@@ -132,7 +137,9 @@ export default function ScoreInputCell({
 
         if (e.key === "Enter") {
           e.preventDefault();
-          commitAndMove(onMoveNext);
+          e.stopPropagation();
+          const backward = e.shiftKey;
+          commitAndMove(() => onEnter?.(backward));
           return;
         }
 

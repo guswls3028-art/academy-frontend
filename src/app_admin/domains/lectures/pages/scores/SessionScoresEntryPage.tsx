@@ -1220,7 +1220,7 @@ export default function SessionScoresEntryPage({
               </div>
             </div>
             {data?.meta.homeworks.some(homework => homework.grading_mode === "COMPLETION") && (
-              <span className="scores-completion-shortcuts">과제: O 통과 · X 미통과 · Enter 다음 학생</span>
+              <span className="scores-completion-shortcuts">과제: O 통과 · X 미통과 · Enter 오른쪽 칸</span>
             )}
           </>
         )}
@@ -1233,11 +1233,13 @@ export default function SessionScoresEntryPage({
           >
             {isEditMode ? (
               <ul>
-                <li><strong>Enter</strong>: 입력 확정 후 아래 학생으로 이동</li>
+                <li><strong>Enter / Shift+Enter</strong>: 저장하고 같은 학생의 오른쪽 / 왼쪽 입력 칸으로 이동. 끝 칸에서는 그 자리에 머뭅니다.</li>
                 <li><strong>Tab / Shift+Tab</strong>: 입력 확정 후 오른쪽 / 왼쪽 칸으로 이동</li>
-                <li><strong>/ + Enter 또는 Tab</strong>: 미응시·미제출 처리 후 계속 이동</li>
+                <li><strong>↑ / ↓</strong>: 위 / 아래 학생으로 이동</li>
+                <li>점수형 과제에서 <strong>/</strong>를 입력한 뒤 다른 칸을 클릭하거나 이동하면 미제출로 저장합니다.</li>
+                <li>시험 합산 칸에서 <strong>/ + Enter</strong>를 누르면 미응시로 저장합니다.</li>
                 <li>통과형 과제: <strong>O / 1</strong> 통과, <strong>X / 0</strong> 미통과, <strong>Delete / Backspace</strong> 초기화</li>
-                <li>통과형 과제는 <strong>Enter / Shift+Enter</strong>로 다음 / 이전 학생, 좌우 화살표와 Space로 버튼 선택도 가능합니다.</li>
+                <li>통과형 과제는 좌우 화살표와 Space로 버튼을 선택할 수 있습니다.</li>
                 <li><strong>Esc</strong>: 숫자 입력 취소</li>
                 <li>입력은 자동 저장되며 <strong>Ctrl+S / Ctrl+Z</strong>도 사용할 수 있습니다.</li>
               </ul>

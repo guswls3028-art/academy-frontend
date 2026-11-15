@@ -737,7 +737,8 @@ async function gradeHomework(
         const finishEditing = staffPage.getByRole("button", { name: "점수 입력 마침", exact: true });
         const drawer = staffPage.getByRole("complementary", { name: `${studentName} 학생 상세` });
         const homeworkCard = drawer.getByRole("button", { name: new RegExp(`^${homeworkTitle}`) });
-        let saveButton = finishEditing;
+        const scoreInput = cell.getByRole("textbox");
+        let commitScore = () => scoreInput.press("Enter");
         if (width === 390) {
           // Finish the blank sheet's automatic bulk mode to exercise the single-student lease.
           await expect(cell.getByRole("textbox")).toBeVisible();
@@ -748,22 +749,33 @@ async function gradeHomework(
           await drawer.getByRole("button", { name: "점수 입력", exact: true }).click();
           const editor = drawer.getByRole("form", { name: `${homeworkTitle} 점수 입력` });
           await editor.getByRole("spinbutton", { name: "과제 점수" }).fill(String(value));
-          saveButton = editor.getByRole("button", { name: "저장", exact: true });
+          commitScore = () => editor.getByRole("button", { name: "저장", exact: true }).click();
         } else {
           await expect(cell).toContainText(String(previousScore));
           await staffPage.getByRole("button", { name: "수정", exact: true }).click();
-          await expect(cell.getByRole("textbox")).toBeVisible();
-          await cell.getByRole("textbox").fill(String(value));
+          await expect(scoreInput).toBeVisible();
+          await scoreInput.fill("/");
+          const marked = staffPage.waitForResponse((response) => (
+            response.request().method() === "PATCH"
+            && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
+          ));
+          await options.click();
+          const markedResponse = await marked;
+          expect(markedResponse.status()).toBe(200);
+          expect(await markedResponse.json()).toMatchObject({ score: null, meta: { status: "NOT_SUBMITTED" } });
+          await expect(scoreInput).toHaveText("미제출");
+          await scoreInput.fill(String(value));
         }
         gradingPhase = "save";
         const saved = staffPage.waitForResponse((response) => (
           response.request().method() === "PATCH"
           && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
         ));
-        await saveButton.click();
+        await commitScore();
         const response = await saved;
         expect(response.status()).toBe(200);
         expect(await response.json()).toMatchObject({ score: value, passed: true });
+        if (width !== 390) await finishEditing.click();
         await expect(staffPage.getByRole("button", { name: "수정", exact: true })).toBeVisible();
         if (width === 390) {
           await expect(homeworkCard).toContainText(String(value));

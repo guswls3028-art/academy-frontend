@@ -441,12 +441,16 @@ type Props = {
   )) | null;
   activeEditors?: ScoreActiveEditor[];
   onClaimOwnCell?: (cell: ScoreActiveCell) => Promise<boolean>;
-  onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number, questionIdOrSub?: number | "total" | "objective" | "subjective") => void;
+  onSelectCell: (
+    row: SessionScoreRow, type: "exam" | "homework", id: number,
+    questionIdOrSub?: number | "total" | "objective" | "subjective", focus?: boolean,
+  ) => void;
   onSelectRow: (row: SessionScoreRow) => void;
 
   /** 키보드 셀 이동 — Tab/Enter/Arrow 시 패널에서 다음 셀로 이동 */
   onRequestMoveNext?: () => boolean;
   onRequestMovePrev?: () => boolean;
+  onRequestMoveWithinRow?: (backward: boolean) => void;
   onRequestMoveDown?: () => void;
   onRequestMoveUp?: () => void;
   /** 셀 변경이 pending에 등록되는 즉시 자동 저장 시작 */
@@ -497,6 +501,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   deleteAssessmentLocked = false,
   onRequestMoveNext,
   onRequestMovePrev,
+  onRequestMoveWithinRow,
   onRequestMoveDown,
   onRequestMoveUp,
   onPendingChange,
@@ -1071,7 +1076,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       if (cell.type === "exam") {
         if (cell.sub === "item" && cell.questionId != null) {
           const el = examItemInputRefs.current[`${cell.enrollmentId}-${cell.examId}-${cell.questionId}`];
-          if (!el) return false;
+          if (!el || el.disabled) return false;
           el.focus();
           return true;
         }
@@ -1767,6 +1772,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     liveHistoryKeyRef.current = null;
                                     const focusValue = firstLine(el.innerText);
                                     beginCellEdit(`examTotal:${row.enrollment_id}:${ex.exam_id}`, el);
+                                    if (!isSelected) onSelectCell(row, "exam", ex.exam_id, "total", false);
                                     examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}`] = focusValue;
                                     el.dataset.focusValue = focusValue;
                                     requestAnimationFrame(() => selectAllScoreCell(el));
@@ -1888,7 +1894,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                           );
                                         }
                                       }
-                                      onRequestMoveDown?.();
+                                      onRequestMoveWithinRow?.(e.shiftKey);
                                     } else if (e.key === "Tab") {
                                       e.preventDefault(); e.stopPropagation();
                                       if (e.shiftKey) onRequestMovePrev?.();
@@ -1987,6 +1993,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     liveHistoryKeyRef.current = null;
                                     const focusValue = firstLine(el.innerText);
                                     beginCellEdit(`examObjective:${row.enrollment_id}:${ex.exam_id}`, el);
+                                    if (!isSelected) onSelectCell(row, "exam", ex.exam_id, "objective", false);
                                     examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-objective`] = focusValue;
                                     el.dataset.focusValue = focusValue;
                                     requestAnimationFrame(() => selectAllScoreCell(el));
@@ -2044,7 +2051,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                         if (parsed == null) feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다.");
                                         return;
                                       }
-                                      onRequestMoveDown?.();
+                                      onRequestMoveWithinRow?.(e.shiftKey);
                                     } else if (e.key === "Tab") {
                                       e.preventDefault(); e.stopPropagation();
                                       if (e.shiftKey) onRequestMovePrev?.();
@@ -2120,6 +2127,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     liveHistoryKeyRef.current = null;
                                     const focusValue = firstLine(el.innerText);
                                     beginCellEdit(`examSubjective:${row.enrollment_id}:${ex.exam_id}`, el);
+                                    if (!isSelected) onSelectCell(row, "exam", ex.exam_id, "subjective", false);
                                     examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-subjective`] = focusValue;
                                     el.dataset.focusValue = focusValue;
                                     requestAnimationFrame(() => selectAllScoreCell(el));
@@ -2177,7 +2185,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                         if (parsed == null) feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다.");
                                         return;
                                       }
-                                      onRequestMoveDown?.();
+                                      onRequestMoveWithinRow?.(e.shiftKey);
                                     } else if (e.key === "Tab") {
                                       e.preventDefault(); e.stopPropagation();
                                       if (e.shiftKey) onRequestMovePrev?.();
@@ -2238,6 +2246,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   inputRef={(el) => { examItemInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-${col.questionId}`] = el; }}
                                   onMovePrev={onRequestMovePrev}
                                   onMoveNext={onRequestMoveNext}
+                                  onFocus={() => {
+                                    if (!isSelected) onSelectCell(row, "exam", ex.exam_id, col.questionId, false);
+                                  }}
+                                  onEnter={onRequestMoveWithinRow}
                                 />
                               ) : (
                                 value != null ? (
@@ -2366,11 +2378,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 className="ds-scores-completion-control"
                                 role="group"
                                 aria-label={`${row.student_name} · ${hw.title} 완료 상태`}
-                                title="O·1 통과 / X·0 미통과 / Delete 초기화 / Enter 다음 학생 / Tab 다음 칸"
+                                title="O·1 통과 / X·0 미통과 / Delete 초기화 / Enter 같은 학생의 다음 칸"
                                 onClick={(event) => event.stopPropagation()}
                                 onFocus={() => {
                                   freezeObservedHomeworkVersion(scoreCellKey);
-                                  if (!isSelected) onSelectCell(row, "homework", hw.homework_id);
+                                  if (!isSelected) onSelectCell(row, "homework", hw.homework_id, undefined, false);
                                 }}
                                 onKeyDown={(event) => {
                                   if (event.ctrlKey || event.metaKey || event.altKey || event.nativeEvent.isComposing) return;
@@ -2394,8 +2406,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   }
                                   event.preventDefault();
                                   if (event.key === "Enter") {
-                                    if (event.shiftKey) { onRequestMoveUp?.(); return; }
-                                    onRequestMoveDown?.();
+                                    onRequestMoveWithinRow?.(event.shiftKey);
                                   } else if (event.key === "ArrowDown") onRequestMoveDown?.();
                                   else if (event.key === "ArrowUp") onRequestMoveUp?.();
                                 }}
@@ -2480,6 +2491,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 freezeObservedHomeworkVersion(`homework:${row.enrollment_id}:${hw.homework_id}`);
                                 const focusValue = firstLine(el.innerText);
                                 beginCellEdit(`homework:${row.enrollment_id}:${hw.homework_id}`, el);
+                                if (!isSelected) onSelectCell(row, "homework", hw.homework_id, undefined, false);
                                 scoreValueOnFocusRef.current[key] = focusValue;
                                 el.dataset.focusValue = focusValue;
                                 requestAnimationFrame(() => selectAllScoreCell(el));
@@ -2517,30 +2529,30 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 el.focus();
                                 selectAllScoreCell(el);
                               }}
-                              onBlur={async (event) => {
+                              onBlur={(event) => {
                                 if (cancelledBlurRef.current === event.currentTarget) {
                                   cancelledBlurRef.current = null;
                                   return;
                                 }
-                                const key = `${row.enrollment_id}-${hw.homework_id}`;
                                 const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                const el = homeworkInputRefs.current[key];
-                                if (!el) return;
+                                const el = event.currentTarget;
                                 const raw = el.innerText.trim();
                                 const wasLiveChange = liveHistoryKeyRef.current === cellKey;
-                                liveHistoryKeyRef.current = null;
                                 const serverValue: PendingChange = isNotSubmitted
                                   ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
                                   : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null };
-                                if (raw === "미제출") {
-                                  if (wasLiveChange) return;
-                                  stagePendingChange(
+                                if (raw === "/" || raw === "미제출") {
+                                  el.innerText = "미제출";
+                                  const stage = wasLiveChange ? stageLivePendingChange : stagePendingChange;
+                                  stage(
                                     cellKey,
                                     { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" },
                                     serverValue,
                                   );
+                                  liveHistoryKeyRef.current = null;
                                   return;
                                 }
+                                liveHistoryKeyRef.current = null;
                                 if (raw === "") {
                                   if (wasLiveChange) return;
                                   stagePendingChange(
@@ -2580,50 +2592,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 }
                                 if (e.key === "Tab") {
                                   e.preventDefault(); e.stopPropagation();
-                                  if (raw === "/" || raw === "미제출") {
-                                    if (el) el.innerText = "미제출";
-                                    const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                    stagePendingChange(
-                                      cellKey,
-                                      { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" },
-                                      isNotSubmitted
-                                        ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
-                                        : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null },
-                                    );
-                                  }
                                   if (e.shiftKey) onRequestMovePrev?.();
                                   else onRequestMoveNext?.();
                                   return;
                                 }
                                 if (e.key === "Enter") {
                                   e.preventDefault(); e.stopPropagation();
-                                  if (e.shiftKey) {
-                                    onRequestMoveUp?.();
-                                    return;
-                                  }
-                                  if (raw === "/") {
-                                    if (el) el.innerText = "미제출";
-                                    const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                    stagePendingChange(
-                                      cellKey,
-                                      { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" },
-                                      isNotSubmitted
-                                        ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
-                                        : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null },
-                                    );
-                                    onRequestMoveDown?.();
-                                    return;
-                                  }
-                                  if (raw === "미제출") {
-                                    const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                    stagePendingChange(
-                                      cellKey,
-                                      { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" },
-                                      isNotSubmitted
-                                        ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
-                                        : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null },
-                                    );
-                                    onRequestMoveDown?.();
+                                  if (raw === "/" || raw === "미제출") {
+                                    onRequestMoveWithinRow?.(e.shiftKey);
                                     return;
                                   }
                                   const parsed = parseScoreInput(raw, hw.max_score);
@@ -2646,7 +2622,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                         : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null },
                                     );
                                   }
-                                  onRequestMoveDown?.();
+                                  onRequestMoveWithinRow?.(e.shiftKey);
                                   return;
                                 }
                                 if (e.key === "Delete" || e.key === "Backspace") {
