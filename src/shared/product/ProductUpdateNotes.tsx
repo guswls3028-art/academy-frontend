@@ -32,7 +32,7 @@ export function ProductUpdateNotes() {
   const [latest, ...previous] = PRODUCT_UPDATES;
   return (
     <div className={styles.notes}>
-      <article className={styles.latest}>
+      <article>
         <time dateTime={latest.date}>{latest.date}</time>
         <h3>{latest.title}</h3>
         <UpdateDetails update={latest} />

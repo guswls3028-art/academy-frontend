@@ -299,7 +299,7 @@ export default function AdminRouter() {
 
         {/* ================= Developer (To개발자) ================= */}
         <Route path="developer" element={renderLazyRoute(DeveloperLayout)}>
-          <Route index element={renderLazyRoute(ProductUpdatePage)} />
+          <Route index element={<ProductUpdatePage />} />
           <Route path="bug" element={renderLazyRoute(BugReportPage)} />
           <Route path="feedback" element={renderLazyRoute(FeedbackPage)} />
           <Route path="flags" element={renderLazyRoute(FeatureFlagsPage)} />
