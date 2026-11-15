@@ -29,7 +29,7 @@ import {
   matchesSessionRowExamReviewFilter,
   matchesSessionScoreStudentSearch,
 } from "@/shared/scoring/sessionScoreRows";
-import type { ScoreActiveCell, ScoreActiveEditor } from "../api/scoreDraft";
+import { activeScoreCellKey, type ScoreActiveCell, type ScoreActiveEditor } from "../api/scoreDraft";
 
 const StudentScoresDrawer = lazy(() => import("../components/StudentScoresDrawer"));
 const AssessmentTotalsModal = lazy(() => import("../components/AssessmentTotalsModal"));
@@ -319,12 +319,21 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     return Math.max(0, Math.min(i, editableCols.length - 1));
   }, [editableCols.length]);
 
-  const ensureSelection = useCallback(() => {
+  const ensureSelection = useCallback((from: Element | null = document.activeElement) => {
     if (!rows.length || editableCols.length === 0) return { r: 0, c: 0, ok: false as const };
+    // Keyboard focus can enter a cell before the table has selected it.
+    // Resolve movement from that cell without publishing an edit lease on focus.
+    const key = from?.closest<HTMLTableCellElement>("td[data-score-cell]")?.dataset.scoreCell;
+    if (key) {
+      const enrollmentId = Number(key.split(":")[1]);
+      const r = rows.findIndex((row) => row.enrollment_id === enrollmentId);
+      const c = editableCols.findIndex((col) => activeScoreCellKey({ ...col, enrollmentId }) === key);
+      if (r >= 0 && c >= 0) return { r, c, ok: true as const };
+    }
     const r = Math.max(0, Math.min(rowIndex, rows.length - 1));
     const c = clampCol(selectedColIndex);
     return { r, c, ok: true as const };
-  }, [rows.length, editableCols.length, rowIndex, clampCol, selectedColIndex]);
+  }, [rows, editableCols, rowIndex, clampCol, selectedColIndex]);
 
   const focusAt = useCallback((r: number, c: number): boolean => {
     if (r < 0 || r >= rows.length || c < 0 || c >= editableCols.length) return false;
@@ -386,7 +395,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     if (key === "Enter") {
       if (e.target !== e.currentTarget) return;
       e.preventDefault();
-      onRequestMoveWithinRow(e.shiftKey);
+      onRequestMoveWithinRow(e.shiftKey, e.currentTarget);
       return;
     }
     if (key === "ArrowDown") {
@@ -427,8 +436,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     return moved;
   }, [ensureSelection, focusLinear]);
 
-  const onRequestMoveWithinRow = useCallback((backward: boolean) => {
-    const cur = ensureSelection();
+  const onRequestMoveWithinRow = useCallback((backward: boolean, from: HTMLElement) => {
+    const cur = ensureSelection(from);
     if (!cur.ok) return;
     const direction = backward ? -1 : 1;
     for (let c = cur.c + direction; c >= 0 && c < editableCols.length; c += direction) {
@@ -575,7 +584,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           onRequestMoveUp={onRequestMoveUp}
           onPendingChange={onPendingChange}
           onSelectCell={isEditMode
-            ? (row, type, id, questionIdOrSub, focus = true) => {
+            ? (row, type, id, questionIdOrSub) => {
                 setSelectedEnrollmentId(row.enrollment_id);
                 const rIdx = rows.findIndex((r) => r.enrollment_id === row.enrollment_id);
                 if (type === "exam") {
@@ -590,12 +599,12 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
                   });
                   const colIdx = cIdx >= 0 ? cIdx : 0;
                   setSelectedColIndex(colIdx);
-                  if (focus) focusAt(rIdx, colIdx);
+                  focusAt(rIdx, colIdx);
                 } else {
                   const c = editableCols.findIndex((c) => c.type === "homework" && c.homeworkId === id);
                   const colIdx = c >= 0 ? c : 0;
                   setSelectedColIndex(colIdx);
-                  if (focus) focusAt(rIdx, colIdx);
+                  focusAt(rIdx, colIdx);
                 }
               }
             : () => {}}
