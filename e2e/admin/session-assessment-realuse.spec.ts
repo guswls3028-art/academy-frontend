@@ -139,6 +139,30 @@ async function openFirstSessionFromLecture(page: Page): Promise<void> {
   await expect(page.getByText("Not Found", { exact: true })).toHaveCount(0);
 }
 
+async function exerciseAttendanceTools(page: Page): Promise<void> {
+  const viewport = page.viewportSize();
+  const url = page.url();
+  const trigger = page.getByRole("button", { name: "출결 도구", exact: true });
+  const dialog = page.getByRole("dialog", { name: "출결 도구", exact: true });
+  const close = dialog.getByRole("button", { name: "대화상자 종료" });
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await trigger.click();
+    await expect(dialog.getByRole("heading", { name: "출결 도구", exact: true })).toBeInViewport();
+    await expect(close).toBeInViewport();
+    await expect(dialog.getByRole("button", { name: "엑셀 다운로드", exact: true })).toBeVisible();
+    await expect(page).toHaveURL(url);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
+    const path = test.info().outputPath(`attendance-tools-${width}.png`);
+    await dialog.screenshot({ path, animations: "disabled" });
+    await test.info().attach(`attendance-tools-${width}`, { path, contentType: "image/png" });
+    await close.click();
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
+  }
+  if (viewport) await page.setViewportSize(viewport);
+}
+
 async function assertCoreSessionTabs(page: Page): Promise<void> {
   for (const label of ["성적", "시험", "과제"] as const) {
     await expect(sessionTab(page, label), `${label} tab should be visible`).toBeVisible({ timeout: 10_000 });
@@ -270,6 +294,7 @@ test.describe("admin real-use session assessment flow", () => {
 
     await openLectureFromList(page, targetLecture);
     await openFirstSessionFromLecture(page);
+    await exerciseAttendanceTools(page);
     await assertCoreSessionTabs(page);
 
     await clickSessionTab(page, "성적", "scores");

@@ -58,7 +58,7 @@ import { useBulkPresentUndo } from "./useBulkPresentUndo";
 import StudentLectureMemo from "@/shared/ui/enrollment/StudentLectureMemo";
 import { DEFAULT_ATTENDANCE_SORT, getStoredAttendanceSort, type AttendanceSort, type AttendanceSortColumn } from "./attendanceSort";
 import "./attendance-ui.css";
-import AttendanceToolsPage from "./AttendanceToolsPage";
+import AttendanceToolsDialog from "./AttendanceToolsDialog";
 import { useSessionScheduleScope } from "@/shared/hooks/useSessionScheduleScope";
 
 import AttendanceSessionPage from "./AttendanceSessionPage";
@@ -92,12 +92,12 @@ export default function SessionAttendancePage({
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const requestedView = new URLSearchParams(location.search).get("view");
-  const attendanceView = requestedView === "tools" ? "tools"
-    : requestedView === "sessions" && lectureId != null ? "sessions" : "list";
+  const attendanceView = requestedView === "sessions" && lectureId != null ? "sessions" : "list";
+  const [toolsLocationKey, setToolsLocationKey] = useState<string | null>(null);
+  const toolsOpen = requestedView === "tools" || toolsLocationKey === location.key;
   const listParams = new URLSearchParams(location.search);
   listParams.delete("view");
   const listPath = `${location.pathname}${listParams.size ? `?${listParams}` : ""}`;
-  const toolsPath = `${listPath}${listParams.size ? "&" : "?"}view=tools`;
   const contentRef = useRef<HTMLDivElement>(null);
   const previousView = useRef(attendanceView);
   const sessionsPath = `${listPath}${listParams.size ? "&" : "?"}view=sessions`;
@@ -285,6 +285,12 @@ export default function SessionAttendancePage({
     </div>
   );
 
+  const openTools = () => setToolsLocationKey(location.key);
+  const closeTools = () => {
+    setToolsLocationKey(null);
+    if (requestedView === "tools") navigate(listPath + location.hash, { replace: true });
+  };
+
   const allIds = sorted.map((att) => att.id);
   const allSelected = sorted.length > 0 && allIds.every((attendanceId: number) => selectedSet.has(attendanceId));
 
@@ -355,7 +361,7 @@ export default function SessionAttendancePage({
       }
     } finally {
       setDeleting(false);
-      navigate(listPath);
+      closeTools();
     }
   };
 
@@ -370,11 +376,9 @@ export default function SessionAttendancePage({
       >
         {selectedIds.length}명 선택됨
       </span>
-      <span className="text-[var(--color-border-divider)]">|</span>
       <Button intent="secondary" size="lg" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
         선택 해제
       </Button>
-      <span className="text-[var(--color-border-divider)]">|</span>
       <Button intent="secondary" size="lg" disabled={selectedIds.length === 0} onClick={async () => {
         const selectedRows = sorted.filter((att) => selectedSet.has(att.id));
         const studentIds = selectedRows
@@ -550,7 +554,7 @@ export default function SessionAttendancePage({
         setBulkPresentUndo(undoRecord);
       }
       feedback.success(result.updated > 0 ? `${result.updated}명을 현장 출석으로 변경했습니다.` : "이미 전원 현장 출석입니다.");
-      navigate(listPath);
+      closeTools();
     } catch (error) {
       feedback.error(extractApiError(error, "일괄 출석 변경에 실패했습니다."));
     } finally {
@@ -578,7 +582,7 @@ export default function SessionAttendancePage({
   const primaryAction = (
     <div className="flex flex-wrap items-center gap-2">
       {chooseSessionAction}
-      <Button type="button" intent="secondary" size="lg" onClick={() => navigate(toolsPath)}>출결 도구</Button>
+      <Button type="button" intent="secondary" size="lg" aria-haspopup="dialog" onClick={openTools}>출결 도구</Button>
       {onOpenEnrollModal && <Button type="button" intent="primary" size="lg" onClick={onOpenEnrollModal}>수강생 등록</Button>}
     </div>
   );
@@ -587,7 +591,7 @@ export default function SessionAttendancePage({
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-sm font-semibold">{selectedIds.length}명 선택됨</span>
       <Button size="sm" intent="secondary" onClick={() => setSelectedIds([])}>선택 해제</Button>
-      <Button size="sm" intent="secondary" onClick={() => navigate(toolsPath)}>선택한 학생 작업</Button>
+      <Button size="sm" intent="secondary" aria-haspopup="dialog" onClick={openTools}>선택한 학생 작업</Button>
     </div>
   ) : null;
 
@@ -658,11 +662,6 @@ export default function SessionAttendancePage({
     <div ref={contentRef} className="flex flex-col gap-4 relative">
       {attendanceView === "sessions" && lectureId != null ? (
         <AttendanceSessionPage listPath={listPath} notice={safetyRecord}>{sessionSelector}</AttendanceSessionPage>
-      ) : attendanceView === "tools" ? (
-        <AttendanceToolsPage listPath={listPath} lectureId={lectureId} selectedCount={selectedIds.length} scheduleScoped={schedule !== undefined}
-          selectionActions={selectionBar} notice={safetyRecord} busy={bulkPresentBusy}
-          onNotify={type => setNotifModal({ type, open: true })}
-          onMarkAllPresent={() => void handleBulkSetPresent()} onDownload={handleExcelDownload} />
       ) : <>
       <DomainListToolbar
         totalLabel={isLoading ? "…" : `총 ${totalCount}명`}
@@ -856,6 +855,21 @@ export default function SessionAttendancePage({
       </div>
 
       </>}
+      {attendanceView === "list" && (
+        <AttendanceToolsDialog
+          open={toolsOpen}
+          onClose={closeTools}
+          lectureId={lectureId}
+          selectedCount={selectedIds.length}
+          scheduleScoped={schedule !== undefined}
+          selectionActions={selectionBar}
+          bulkPresentBusy={bulkPresentBusy}
+          deleting={deleting}
+          onNotify={type => setNotifModal({ type, open: true })}
+          onMarkAllPresent={() => void handleBulkSetPresent()}
+          onDownload={handleExcelDownload}
+        />
+      )}
       {/* 수동 알림 발송 모달 */}
       {secessionDialog}
       <NotificationPreviewModal
