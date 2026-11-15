@@ -83,7 +83,7 @@ test('a native source error that clears media metadata does not erase the saved 
   assert.equal(saved.at(-1)?.completed, false);
 });
 
-for (const outcome of ['resumes', 'times out', 'fails twice']) {
+for (const outcome of ['resumes', 'times out silently', 'times out after retry', 'fails twice']) {
   test(`a renewed native HLS grant uses its own bounded recovery window: ${outcome}`, async () => {
     const h = harness();
     const errors = [];
@@ -132,9 +132,11 @@ for (const outcome of ['resumes', 'times out', 'fails twice']) {
       assert.deepEqual(errors, []);
       assert.equal(controller.getState().reconnecting, false);
     } else {
-      networkError();
-      assert.deepEqual(loaded, [oldUrl, newUrl, newUrl], 'the renewed grant gets one retry');
-      if (outcome === 'times out') {
+      if (outcome !== 'times out silently') {
+        networkError();
+        assert.deepEqual(loaded, [oldUrl, newUrl, newUrl], 'the renewed grant gets one retry');
+      }
+      if (outcome !== 'fails twice') {
         h.advance(8_999);
         h.fireDueTimers();
         assert.deepEqual(errors, []);
