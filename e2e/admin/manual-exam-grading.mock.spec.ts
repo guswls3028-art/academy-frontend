@@ -248,7 +248,7 @@ for (const width of [390, 1366]) {
     await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
     const results = page.getByRole("region", { name: "시험 학생별 결과", exact: true });
-    const priority = page.getByRole("region", { name: "보충 우선 문항", exact: true });
+    const priority = page.getByRole("region", { name: "문항별 정답률", exact: true });
     try {
       await expect(results).toContainText("김학생");
       await expect(priority).toContainText("문항 통계를 불러오는 중");
@@ -1795,6 +1795,16 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         next: null,
         previous: null,
         results: options.resultRows ?? [],
+      });
+      return;
+    }
+    if (path === `/results/admin/exams/${EXAM_ID}/analysis-insights/`) {
+      await json({
+        recommended_cutoff: null,
+        below_recommended_count: null,
+        scored_count: options.resultRows?.length ?? 0,
+        trend_threshold_pp: 10,
+        trends: [],
       });
       return;
     }
