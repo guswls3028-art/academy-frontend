@@ -34,7 +34,8 @@ import { submitClinicRetake, updateClinicRetake } from "@admin/domains/clinic/ap
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import type { SaveDrawerHomeworkScore } from "../api/patchHomeworkQuick";
 import HomeworkScoreEditor from "./HomeworkScoreEditor";
-import { buildScoreVars, buildScoreDetail, collectHighestScores, substituteScoreVars, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
+import { buildScoreVars, buildScoreDetail, collectHighestScores, substituteScoreVars, collectUnenteredScoreItems, usesVideoHomeworkLabelInScoreAlimtalk } from "@/shared/scoring/scoreReport";
+import { useProgram } from "@/shared/program";
 import {
   getSessionRowAttentionCountLabel,
   getSessionRowAttentionSummary,
@@ -113,6 +114,8 @@ export default function StudentScoresDrawer({
   const [expandedHwId, setExpandedHwId] = useState<number | null>(null);
   const { openSendMessageModal } = useSendMessageModal();
   const labels = useTenantLabels();
+  const { program } = useProgram();
+  const showVideoHomeworkLabel = usesVideoHomeworkLabelInScoreAlimtalk(program?.tenantCode);
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const qc = useQueryClient();
   // SSOT: 일괄 발송 path(SessionScoresEntryPage)와 동일하게 React Query cache에서 lecture/session 메타 조회.
@@ -263,10 +266,10 @@ export default function StudentScoresDrawer({
     const lectureName = currentMeta?.lecture_title ?? lecture?.title ?? lecture?.name ?? (currentRow as any).lecture_title ?? "";
     const sessionTitle = currentMeta?.session_title ?? session?.title ?? (currentRow as any).session_title ?? "";
     // Phase #5 (2026-05-12) — 학원장 커스텀 합/불 라벨 메시지 본문에 반영.
-    const reportOptions = { lectureName, sessionTitle, passLabel: labels.pass, failLabel: labels.fail, highestScores };
+    const reportOptions = { lectureName, sessionTitle, passLabel: labels.pass, failLabel: labels.fail, highestScores, showVideoHomeworkLabel };
 
     // 명시적으로 기본 지정한 사용자 문구가 없으면 빈 본문에서 작성한다.
-    const scoreDetail = buildScoreDetail(currentRow, currentMeta, { passLabel: labels.pass, failLabel: labels.fail });
+    const scoreDetail = buildScoreDetail(currentRow, currentMeta, reportOptions);
     // SSOT (2026-05-14): 단건 path 도 학원장이 textarea 본문에 #{학생이름}/#{시험성적} 다시 쓰면
     // raw 변수 잔존 가능. substituteScoreVars 가 학생이름2/학생이름3/시험성적 까지 처리하니 callback 통과.
     const sid = currentRow.student_id;
@@ -292,7 +295,7 @@ export default function StudentScoresDrawer({
       },
       recomputePerStudentVars,
     });
-  }, [hasUnsavedChanges, row, meta, openSendMessageModal, labels.pass, labels.fail, qc, numericLectureId, sessionId, onClose]);
+  }, [hasUnsavedChanges, row, meta, openSendMessageModal, labels.pass, labels.fail, showVideoHomeworkLabel, qc, numericLectureId, sessionId, onClose]);
 
   return (
     <div className="student-scores-drawer-side-panel">

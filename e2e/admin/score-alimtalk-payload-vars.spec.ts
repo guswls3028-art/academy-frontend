@@ -481,6 +481,23 @@ test("@alimtalk-order 전체 성적 블록과 목록은 차시 순서를 사용�
   expect(row.exams.map(exam => exam.exam_id)).toEqual([11, 12]);
   expect(row.homeworks.map(hw => hw.homework_id)).toEqual([21, 22]);
 
+  const [practice, firstHomework] = row.homeworks;
+  const videoRow: SessionScoreRow = {
+    ...row,
+    attendance_status: "ONLINE",
+    homeworks: [
+      { ...practice, block: { ...practice.block, meta: { ...practice.block.meta, status: "NOT_SUBMITTED" } } },
+      firstHomework,
+    ],
+  };
+  const videoOptions = { showVideoHomeworkLabel: true };
+  const videoVars = buildScoreVars(videoRow, meta, videoOptions);
+  expect(videoVars).toMatchObject({ 과제1결과: "점수 미입력", 과제2결과: "영상보강" });
+  expect(videoVars["과제목록"]).toMatch(/먼저 보는 과제: 점수 미입력[\s\S]*연습과제: 영상보강/);
+  expect(videoVars["시험성적"]).toMatch(/┌ 먼저 보는 과제\n└ 점수 미입력[\s\S]*┌ 연습과제\n└ 영상보강/);
+  expect(buildScoreDetail(videoRow, meta, videoOptions)).toBe(videoVars["시험성적"]);
+  expect(buildScoreVars(videoRow, meta)["과제2결과"]).toBe("미제출");
+
   const sparse = buildScoreVars(scoreRow(null), meta);
   expect(sparse["시험1결과"]).toBe("미배정");
   expect(sparse["과제1결과"]).toBe("미배정");
