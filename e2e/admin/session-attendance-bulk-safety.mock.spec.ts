@@ -10,8 +10,7 @@ const SESSION_ID = 9902;
 
 async function openAttendanceTools(page: Page) {
   await page.getByRole("button", { name: "출결 도구", exact: true }).click();
-  await expect(page).toHaveURL(/view=tools/);
-  await expect(page.getByRole("heading", { name: "출결 도구", exact: true })).toBeInViewport();
+  await expect(page.getByRole("dialog", { name: "출결 도구", exact: true })).toBeInViewport();
 }
 
 function attendanceChoices(page: Page, student: string) {
@@ -859,7 +858,7 @@ test("중간 출결 페이지가 비면 등록을 막고 다시 시도 후 정�
 });
 
 for (const width of [1366, 390]) {
-  test(`출결 도구로 이동하고 선택 문맥을 보존하며 새로고침은 선택을 초기화한다 ${width}px`, async ({ page }, info) => {
+  test(`출결 도구 팝업을 닫으면 명단의 검색·선택·스크롤·포커스로 돌아간다 ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 900 });
     const state = createState();
     await openAttendance(page, state);
@@ -867,20 +866,52 @@ for (const width of [1366, 390]) {
       await expect(page.getByRole("button", { name, exact: true })).toHaveCount(0);
     }
     await expect(page.getByText("0명 선택됨", { exact: true })).toHaveCount(0);
+    const search = page.getByPlaceholder("이름 / 전화번호 검색");
+    const filteredRoster = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/v1/lectures/attendance/"
+        && url.searchParams.get("search") === "학생"
+        && response.ok();
+    });
+    await search.fill("학생");
+    await filteredRoster;
     const checkbox = page.getByRole("checkbox", { name: "미입력학생 선택" });
     await checkbox.check();
-    await page.getByRole("button", { name: "선택한 학생 작업", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "출결 도구", exact: true })).toBeInViewport();
-    await expect(page.getByRole("button", { name: "삭제", exact: true })).toBeEnabled();
-    await expect(page.getByText("1명 선택됨", { exact: true })).toBeVisible();
-    await page.screenshot({ path: info.outputPath(`attendance-tools-${width}.png`), fullPage: true });
-    await page.getByRole("link", { name: "← 출결 명단", exact: true }).click();
+    const trigger = page.getByRole("button", { name: "선택한 학생 작업", exact: true });
+    await trigger.scrollIntoViewIfNeeded();
+    await trigger.focus();
+    const main = page.getByRole("main");
+    const scrollTop = await main.evaluate(node => node.scrollTop);
+    const listUrl = page.url();
+    await trigger.press("Enter");
+    const tools = page.getByRole("dialog", { name: "출결 도구", exact: true });
+    await expect(tools.getByRole("heading", { name: "출결 도구", exact: true })).toBeInViewport();
+    await expect(tools.getByRole("button", { name: "삭제", exact: true })).toBeEnabled();
+    await expect(tools.getByText("1명 선택됨", { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(listUrl);
+    await expect(checkbox).toBeChecked();
+    await page.screenshot({ path: info.outputPath(`attendance-tools-${width}.png`) });
+    await tools.getByRole("button", { name: "대화상자 종료" }).focus();
+    await page.keyboard.press("Shift+Tab");
+    await expect(tools.getByRole("button", { name: "삭제", exact: true })).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(tools.getByRole("button", { name: "대화상자 종료" })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(tools).toBeHidden();
+    await expect(trigger).toBeFocused();
+    expect(await main.evaluate(node => node.scrollTop)).toBe(scrollTop);
+    await expect(search).toHaveValue("학생");
     await expect(checkbox).toBeChecked();
     await openAttendanceTools(page);
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "출결 도구", exact: true })).toBeInViewport();
-    await expect(page.getByRole("button", { name: "삭제", exact: true })).toBeDisabled();
-    await page.getByRole("link", { name: "명단에서 학생 선택", exact: true }).click();
+    await expect(tools).toBeHidden();
+    await expect(checkbox).not.toBeChecked();
+    await page.goto(`${listUrl}?view=tools`);
+    await expect(tools).toBeInViewport();
+    await expect(tools.getByRole("button", { name: "삭제", exact: true })).toBeDisabled();
+    await tools.getByRole("button", { name: "명단에서 학생 선택", exact: true }).click();
+    await expect(tools).toBeHidden();
+    await expect(page).toHaveURL(listUrl);
     await expect(checkbox).not.toBeChecked();
     expect(state.bulkSetCalls).toBe(0);
     expect(state.attendanceDeleteCalls).toEqual([]);
