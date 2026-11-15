@@ -19,6 +19,8 @@ import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domain
 import { buildScoreCsv } from "@admin/domains/scores/public/scoreCsvGenerator";
 import { useScoreEditDraft } from "@admin/domains/scores/public/useScoreEditDraft";
 import { isScoreEditStaleError, type ScoreActiveCell } from "@admin/domains/scores/public/scoreDraft";
+import { patchHomeworkQuick, type SaveDrawerHomeworkScore } from "@admin/domains/scores/public/patchHomeworkQuick";
+import { runWithScoreEditLease, trackScoreDraftWrite } from "@/shared/scoring/scoreEditLease";
 import {
   fetchSessionScores,
   type SessionScoreMeta,
@@ -754,6 +756,24 @@ export default function SessionScoresEntryPage({
     draft.recoveryCheckFailed ||
     draft.editLockConflict ||
     draft.hasDraftToRestore;
+
+  const saveDrawerHomeworkScore: SaveDrawerHomeworkScore = async (change) => {
+    if (isSaving || draft.isStartingEdit || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error") {
+      throw new Error("진행 중인 저장이나 복구를 마친 뒤 다시 시도해 주세요.");
+    }
+    if (!homeworkEdit) throw new Error("과제 입력 옵션을 켜 주세요.");
+
+    const save = () => patchHomeworkQuick({ ...change, sessionId: numericSessionId });
+    setIsSaving(true);
+    try {
+      // Reuse the table's lease only while editing. A single save in view mode
+      // acquires and releases its own lease without starting bulk editing.
+      if (isEditMode) await trackScoreDraftWrite(numericSessionId, save);
+      else await runWithScoreEditLease(numericSessionId, save);
+    } finally {
+      setIsSaving(false);
+    }
+  };
   useBeforeScheduleChange(async () => {
     if (isSaving || draft.isStartingEdit || recoveryBlocked) {
       feedback.info("진행 중인 저장이나 복구를 마친 뒤 다시 시도해 주세요.");
@@ -1045,6 +1065,7 @@ export default function SessionScoresEntryPage({
       isFetching ||
       isError ||
       isEditMode ||
+      isSaving ||
       recoveryBlocked ||
       autoEditAttemptedSessionsRef.current.has(sessionIdForDraft)
     ) {
@@ -1073,6 +1094,7 @@ export default function SessionScoresEntryPage({
     isError,
     isFetching,
     isLoading,
+    isSaving,
     recoveryBlocked,
     releaseScoreEditLease,
     sessionIdForDraft,
@@ -1859,6 +1881,7 @@ export default function SessionScoresEntryPage({
           search={searchInput}
           schedule={schedule}
           isEditMode={isEditMode}
+          onSaveDrawerHomeworkScore={saveDrawerHomeworkScore}
           onRequestAnswerEdit={async () => {
             if (isSaving || draft.isStartingEdit || draft.isRecoveryCheckPending || draft.recoveryCheckFailed || draft.hasDraftToRestore) {
               feedback.info("진행 중인 저장이나 복구를 마친 뒤 다시 시도해 주세요.");
@@ -1872,9 +1895,9 @@ export default function SessionScoresEntryPage({
             setIsEditMode(true);
             return true;
           }}
-          hasUnsavedChanges={isEditMode || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
+          hasUnsavedChanges={isEditMode || isSaving || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
           hasPendingScoreChanges={isSaving || draft.isStartingEdit || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
-          assessmentDeleteLocked={recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error" || activeScoreCell !== null}
+          assessmentDeleteLocked={isSaving || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error" || activeScoreCell !== null}
           onPendingChange={draft.requestAutosave}
           activeEditors={draft.activeEditors}
           onClaimOwnCell={draft.claimOwnCell}
