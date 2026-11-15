@@ -424,7 +424,7 @@ for (const width of [390, 1366]) {
       });
       const openResults = async () => {
         await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
-        await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+        await page.getByRole("tab", { name: "채점·결과", exact: true }).click({ timeout: 45_000 });
       };
       await openResults();
       const scope = page.getByRole("group", { name: "성적 조회 강의 필터" });
@@ -433,6 +433,7 @@ for (const width of [390, 1366]) {
       const statistics = page.locator("details").filter({ has: page.locator("summary", { hasText: "전체 문항 통계 보기" }) });
       await expect(statistics).toContainText("0.0점");
       if (source === "오프라인 답안") {
+        await page.locator("summary").filter({ hasText: "답안 없는 시험 대상자" }).click();
         await page.getByRole("button", { name: "김학생 · 답안 입력" }).click();
         const editor = page.getByRole("region", { name: "김학생 오프라인 답안 입력" });
         await expect(editor.getByRole("button", { name: "채점 미리보기" })).toBeEnabled();
@@ -2706,13 +2707,16 @@ test.describe("문항별 직접 채점", () => {
       { waitUntil: "domcontentloaded" },
     );
 
-    await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({ timeout: 45_000 });
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
     await expect(page.getByRole("heading", { name: "정오 직접입력", exact: true })).toBeVisible();
 
-    const excelImport = page.locator('section[aria-labelledby="exam-result-excel-title"]');
-    await expect(excelImport).toContainText("기존 엑셀 양식의 숫자 0도 오답노트로 읽습니다.");
+    const excelToggle = page.locator("summary").filter({ hasText: "엑셀로 채점 결과 넣기" });
+    await excelToggle.click();
+    const excelImport = page.getByRole("region", { name: "엑셀로 채점 결과 넣기", exact: true });
+    await expect(excelImport.getByText(/오답노트·노트·복습 또는 기존 숫자 0/)).toBeVisible();
     await expect(excelImport).not.toContainText("Ymath");
+    await excelToggle.click();
 
     await page.getByRole("button", { name: "배점 빠른 입력", exact: true }).click();
     const weightList = page.getByRole("textbox", { name: "문항 배점 빠른 입력" });

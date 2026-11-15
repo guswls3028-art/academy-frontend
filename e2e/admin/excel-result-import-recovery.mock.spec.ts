@@ -2,6 +2,16 @@ import { expect, test } from "../fixtures/strictTest";
 import { installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
+
+async function openExcelImport(page: Parameters<typeof installLocalAuthApiStubs>[0]) {
+  const title = "엑셀로 채점 결과 넣기";
+  const importer = page.getByRole("region", { name: title, exact: true });
+  await expect(importer).toBeHidden();
+  await page.locator("summary").filter({ hasText: title }).click();
+  await expect(importer).toBeVisible();
+  return importer;
+}
+
 async function installAuth(page: Parameters<typeof installLocalAuthApiStubs>[0]) {
   await installLocalAuthApiStubs(page);
   await installTenantOneInitScript(page);
@@ -27,21 +37,25 @@ for (const width of [390, 1366]) {
       }) });
     });
     await page.goto(`${BASE}/e2e-excel-result-import-harness.html`);
+    const importer = await openExcelImport(page);
+    const fileInput = importer.locator('input[type="file"]');
+    const applyButton = importer.getByRole("button", { name: "1명 결과 반영", exact: true });
     const file = { name: "시험결과.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: Buffer.from("synthetic backend-owned parsing fixture") };
-    await page.locator('input[type="file"]').setInputFiles(file);
-    await expect(page.getByText("학생과 문항을 맞춰보는 중…", { exact: true })).toBeVisible();
+    await fileInput.setInputFiles(file);
+    await expect(importer.getByText("학생과 문항을 맞춰보는 중…", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "다음 시험" }).click();
     releaseFirst();
     await expect(page.getByText("현재 시험 78", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "1명 결과 반영" })).toHaveCount(0);
-    await page.locator('input[type="file"]').setInputFiles(file);
-    await expect(page.getByRole("button", { name: "1명 결과 반영" })).toBeVisible();
+    await openExcelImport(page);
+    await expect(applyButton).toHaveCount(0);
+    await fileInput.setInputFiles(file);
+    await expect(applyButton).toBeVisible();
     await testInfo.attach(`synthetic-exam-preview-${width}px`, {
       body: await page.screenshot({ path: testInfo.outputPath(`synthetic-exam-preview-${width}px.png`), fullPage: true, animations: "disabled" }),
       contentType: "image/png",
     });
-    await page.getByRole("button", { name: "1명 결과 반영" }).dblclick();
-    await expect(page.getByText("채점 결과를 반영했습니다", { exact: true })).toBeVisible();
+    await applyButton.dblclick();
+    await expect(importer.getByText("채점 결과를 반영했습니다", { exact: true })).toBeVisible();
     expect(applies).toHaveLength(1);
     expect(applies[0]).toContain("/78/");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -84,19 +98,20 @@ for (const width of [390, 1366]) {
       await expect(page.getByTestId("other-exam")).toHaveText("55");
     };
     await expectUnchanged();
-    await page.locator('input[type="file"]').setInputFiles({
+    const importer = await openExcelImport(page);
+    await importer.locator('input[type="file"]').setInputFiles({
       name: "시험결과.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       buffer: Buffer.from("synthetic backend-owned parsing fixture"),
     });
-    const applyButton = page.getByRole("button", { name: "1명 결과 반영" });
+    const applyButton = importer.getByRole("button", { name: "1명 결과 반영", exact: true });
     await expect(applyButton).toBeVisible();
     await expectUnchanged();
     await applyButton.click();
-    await expect(page.getByText("합성 반영 일시 실패", { exact: true })).toBeVisible();
+    await expect(importer.getByText("합성 반영 일시 실패", { exact: true })).toBeVisible();
     await expect(applyButton).toBeEnabled();
     await expectUnchanged();
     await applyButton.click();
-    await expect(page.getByText("채점 결과를 반영했습니다", { exact: true })).toBeVisible();
+    await expect(importer.getByText("채점 결과를 반영했습니다", { exact: true })).toBeVisible();
     for (const name of affected) {
       await expect(page.getByTestId(name)).toHaveText("80");
       expect(reads.get(name)).toBe(2);
