@@ -514,9 +514,15 @@ for (const width of [390, 1366]) {
     };
     await openResults();
     const entry = page.getByRole("region", { name: "주관식·서술형 채점 안내" });
-    await expect(entry).toContainText("합계 점수만 입력하면 문항별 정답률은 계산되지 않습니다.");
+    const gradingGuide = entry.locator("summary").filter({ hasText: "채점 안내" });
+    const explanation = entry.getByText("문항별 점수를 입력하면 정답률을 계산합니다.", { exact: false });
+    await expect(gradingGuide).toBeVisible();
+    await expect(explanation).toBeHidden();
+    await gradingGuide.click();
+    await expect(explanation).toBeVisible();
+    await gradingGuide.click();
     if (initialMode === "choice") {
-      await expect(entry).toContainText("서술형 1문항이 있지만 현재 OMR 자동 채점만 켜져 있습니다.");
+      await expect(entry).toContainText("서술형 1문항 · 채점 설정 필요");
       await entry.getByRole("button", { name: "서술형 채점 켜고 입력하기" }).click();
       if (conflictOnSetup) {
         await expect(entry.getByRole("alert")).toContainText("다른 화면에서 설정이 바뀌었습니다.");
@@ -615,8 +621,10 @@ async function openGradingWithExcel(page: Page, method: "score" | "correctness")
   const grid = page.locator("[data-manual-grading-workspace]");
   const row = grid.locator("tbody tr").filter({ hasText: "김학생" });
   const excel = page.getByRole("region", { name: "엑셀로 채점 결과 넣기", exact: true });
+  const toggle = page.locator("summary").filter({ hasText: "엑셀로 채점 결과 넣기" });
+  await expect(toggle).toBeVisible({ timeout: 45_000 });
   await expect(excel).toBeHidden();
-  await page.locator("summary").filter({ hasText: "엑셀로 채점 결과 넣기" }).click();
+  await toggle.click();
   await excel.locator('input[type="file"]').setInputFiles({
     name: "문항별채점.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     buffer: Buffer.from("synthetic backend-owned result import fixture"),
