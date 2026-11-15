@@ -119,11 +119,13 @@
 }
 
 .send-modal__confirm-card {
+  --confirm-padding-block: 22px;
+  --confirm-padding-inline: 22px;
   width: 820px;
   max-width: 100%;
   max-height: 100%;
   overflow-y: auto;
-  padding: 22px;
+  padding: var(--confirm-padding-block) var(--confirm-padding-inline);
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-divider);
   border-radius: 16px;
@@ -200,6 +202,17 @@
 .send-modal__confirm-kakao .kakao-alimtalk-preview__chat {
   min-height: 310px;
   max-height: 385px;
+}
+
+.send-modal__confirm-card[data-video-homework="true"] .send-modal__confirm-actions {
+  position: sticky;
+  bottom: calc(-1 * var(--confirm-padding-block));
+  z-index: 1;
+  flex-shrink: 0;
+  margin: 0 calc(-1 * var(--confirm-padding-inline)) calc(-1 * var(--confirm-padding-block));
+  padding: 10px var(--confirm-padding-inline) max(12px, env(safe-area-inset-bottom));
+  background: var(--color-bg-surface);
+  border-top: 1px solid var(--color-border-divider);
 }
 
 .send-modal__confirm-homework {
@@ -657,9 +670,9 @@
   }
 
   .send-modal__confirm-card {
+    --confirm-padding-inline: 18px;
     width: min(680px, 100%);
     max-width: calc(100% - 24px);
-    padding: 22px 18px;
   }
 
   .send-modal__confirm-layout {
@@ -695,8 +708,9 @@
   }
 
   .send-modal__confirm-card {
+    --confirm-padding-block: 18px;
+    --confirm-padding-inline: 14px;
     max-width: 100%;
-    padding: 18px 14px;
     border-radius: 13px;
   }
 
@@ -719,12 +733,6 @@
   }
 
   .send-modal__confirm-card[data-video-homework="true"] .send-modal__confirm-actions {
-    position: sticky;
-    bottom: -18px;
-    margin: 0 -14px -18px;
-    padding: 10px 14px max(12px, env(safe-area-inset-bottom));
-    background: var(--color-bg-surface);
-    border-top: 1px solid var(--color-border-divider);
     flex-direction: row;
   }
 

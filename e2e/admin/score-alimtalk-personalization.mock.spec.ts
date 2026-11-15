@@ -623,9 +623,7 @@ test.describe("성적 알림톡 학생별 개인화", () => {
       const collapse = confirm.getByRole("button", { name: "문구 접기" });
       await expect(collapse).toHaveAttribute("aria-expanded", "true");
       await expect.poll(() => chat.evaluate(node => node.scrollHeight <= node.clientHeight + 1)).toBe(true);
-      if (width === 390) {
-        await expect(confirm.getByRole("button", { name: "발송하기", exact: true })).toBeInViewport();
-      }
+      await expect(confirm.getByRole("button", { name: "발송하기", exact: true })).toBeInViewport();
       await page.screenshot({ path: testInfo.outputPath(`score-video-confirm-expanded-${width}.png`) });
       await collapse.click();
       if (width === 390) {
