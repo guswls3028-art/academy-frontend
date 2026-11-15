@@ -1,12 +1,11 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { CalendarDays, Plus, X } from "lucide-react";
+import { SESSION_SCHEDULE_DAY_LIMIT } from "@/shared/api/contracts/sessionSchedules";
 import { DatePicker } from "@/shared/ui/date";
 import { Button } from "@/shared/ui/ds";
 import styles from "./InitialSessionDays.module.css";
 
 export type NewSessionDay = { key: string; label: string; date: string };
-
-const MAX_DAYS = 20;
 
 type Props = {
   days: NewSessionDay[];
@@ -55,9 +54,9 @@ export default function InitialSessionDays({ days, names, disabled, onChange, on
           </div>
         ))}
       </div>}
-      {days.length < MAX_DAYS ? (
+      {days.length < SESSION_SCHEDULE_DAY_LIMIT ? (
         <Button className={styles.add} intent="secondary" size="sm" leftIcon={<Plus size={16} aria-hidden />} onClick={() => { focusLast.current = true; onAdd(); }} disabled={disabled}>수업일 추가</Button>
-      ) : <p className={styles.limit}>차시당 최대 {MAX_DAYS}개의 수업일을 추가할 수 있습니다.</p>}
+      ) : <p className={styles.limit}>차시당 최대 {SESSION_SCHEDULE_DAY_LIMIT}개의 수업일을 추가할 수 있습니다.</p>}
     </section>
   );
 }

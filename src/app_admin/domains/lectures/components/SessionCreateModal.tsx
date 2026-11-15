@@ -244,7 +244,7 @@ export default function SessionCreateModal({
     }
     if (!effectiveDate?.trim()) return "날짜를 선택하세요.";
     if (extraDays.some(day => !day.date)) return "각 수업일의 날짜를 선택하세요.";
-    if (extraDays.length && new Set(dayNames.map(name => name.toLowerCase())).size < days.length) {
+    if (extraDays.length && new Set(dayNames).size < days.length) {
       return "수업일마다 서로 다른 반 이름을 입력하세요.";
     }
     if (sessionType === "supplement" || timeMode === "custom") {

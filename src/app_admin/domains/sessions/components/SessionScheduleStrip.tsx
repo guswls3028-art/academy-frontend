@@ -3,7 +3,7 @@ import { useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ArrowRightLeft, CalendarDays, Pencil, Plus } from 'lucide-react';
 import { Button } from '@/shared/ui/ds';
-import { sessionSchedulesKey, type SessionSchedule, type SessionSchedules } from '@/shared/api/contracts/sessionSchedules';
+import { SESSION_SCHEDULE_DAY_LIMIT, sessionSchedulesKey, type SessionSchedule, type SessionSchedules } from '@/shared/api/contracts/sessionSchedules';
 import { feedback } from '@/shared/ui/feedback/feedback';
 import { SessionScheduleNavigationContext } from '@/shared/hooks/useSessionScheduleScope';
 import { SessionScheduleControlsContext } from './sessionScheduleControlsContext';
@@ -125,7 +125,7 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
         {!query.isPending && unknown && <p className={styles.error} role="alert">선택한 수업일을 찾을 수 없습니다. 수업일을 다시 선택해 주세요.</p>}
         {shared && data.schedules.length > 0 && <p className={styles.note}>시험·과제·영상·공지는 모든 수업일에 공유됩니다.</p>}
         {hasDays && <div className={styles.stripActions}>
-          <Button intent="ghost" size="sm" leftIcon={<Plus size={15} aria-hidden />} onClick={() => openManager(true)}>수업일 추가</Button>
+          {data.schedules.length < SESSION_SCHEDULE_DAY_LIMIT && <Button intent="ghost" size="sm" leftIcon={<Plus size={15} aria-hidden />} onClick={() => openManager(true)}>수업일 추가</Button>}
           {canTransfer && <Button intent="secondary" size="sm" leftIcon={<ArrowRightLeft size={15} aria-hidden />} onClick={() => void prepare(() => setTransferOpen(true))}>학생 수업일 변경</Button>}
         </div>}
       </>}

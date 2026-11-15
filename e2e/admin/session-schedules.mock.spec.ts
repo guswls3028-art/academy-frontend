@@ -125,6 +125,9 @@ async function install(page: Page, state: ReturnType<typeof fixture>) {
       if (state.failScores) return json({ detail: '성적 조회 실패' }, 400);
       return json({ meta: { session_title: '2차시', lecture_title: '요일별 수업', lecture_id: 9901, exams: [{ exam_id: 81, title: '공통 시험', max_score: 100, pass_score: 60, objective_max_score: 100, subjective_max_score: 0 }], homeworks: [] }, rows: students.map(s => ({ ...s, student_id: s.enrollment_id + 200, exams: [{ exam_id: 81, title: '공통 시험', block: { score: 80, max_score: 100, passed: true, objective_score: 80, subjective_score: 0, is_locked: false, meta: {} } }], homeworks: [], updated_at: '2026-11-04T00:00:00Z' })) });
     }
+    if (endpoint === '/results/admin/sessions/9900/scores/') {
+      return json({ meta: { session_title: '1차시', lecture_title: '요일별 수업', lecture_id: 9901, exams: [], homeworks: [] }, rows: [] });
+    }
     if (endpoint.endsWith('/score-draft/')) return json({ changes: [] });
     return json({ count: 0, next: null, results: [] });
   });
@@ -528,7 +531,9 @@ for (const width of [390, 1366]) test(`저장 실패·닫기 후 입력 보존·
   await page.getByRole('button', { name: '수업일 관리', exact: true }).click();
   await modal.locator('summary').filter({ hasText: '이전 차시에서 가져오기' }).click();
   await modal.getByRole('button', { name: '가져와 저장', exact: true }).click();
-  await page.getByRole('alertdialog', { name: '이전 차시의 수업일을 가져올까요?' }).getByRole('button', { name: '가져와 저장', exact: true }).click();
+  const confirmation = page.getByRole('alertdialog', { name: '이전 차시의 수업일을 가져올까요?' });
+  await expect(confirmation).toContainText('당일 옮긴 학생이 포함됩니다');
+  await confirmation.getByRole('button', { name: '가져와 저장', exact: true }).click();
   await expect(modal.getByLabel('수업일 1 이름')).toHaveValue('수요일반');
   await expect(days.getByRole('button', { name: /^수요일반.*2명/ })).toBeVisible();
   await modal.getByRole('button', { name: '닫기', exact: true }).click();

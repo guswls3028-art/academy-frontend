@@ -9,7 +9,7 @@ import { useConfirm } from '@/shared/ui/confirm';
 import { extractApiError } from '@/shared/utils/extractApiError';
 import { fetchSessions } from '@/shared/api/contracts/sessions';
 import { adminSessionQueryKeys } from '../queryKeys';
-import { copySessionSchedules, fetchSessionSchedules, saveSessionSchedules, type SessionScheduleDraft, type SessionSchedules } from '@/shared/api/contracts/sessionSchedules';
+import { SESSION_SCHEDULE_DAY_LIMIT, copySessionSchedules, fetchSessionSchedules, saveSessionSchedules, type SessionScheduleDraft, type SessionSchedules } from '@/shared/api/contracts/sessionSchedules';
 import styles from './SessionScheduleStrip.module.css';
 import { useScheduleLeaveGuard } from './useScheduleLeaveGuard';
 
@@ -73,6 +73,7 @@ export default function SessionScheduleManager({ open, addRequest, editDayId, on
     }
   }, [open, data, editDayId]); // eslint-disable-line react-hooks/exhaustive-deps
   const addDay = () => {
+    if (drafts.length >= SESSION_SCHEDULE_DAY_LIMIT) return;
     const key = crypto.randomUUID();
     setDrafts(rows => {
       const lastDate = rows[rows.length - 1]?.date;
@@ -162,7 +163,7 @@ export default function SessionScheduleManager({ open, addRequest, editDayId, on
   };
   const copy = async () => {
     if (!base || base.schedules.length > 0 || !sourceId || busyRef.current || conflict) return;
-    const ok = await confirm({ title: '이전 차시의 수업일을 가져올까요?', message: '작성 중인 내용을 대신해 이전 차시의 수업일을 가져와 바로 저장합니다. 날짜는 두 차시의 날짜 차이만큼 이동하며, 학생 배정은 현재 수강 명단을 기준으로 가져옵니다. 기존 출결·성적·영상은 유지됩니다.', confirmText: '가져와 저장' });
+    const ok = await confirm({ title: '이전 차시의 수업일을 가져올까요?', message: '작성 중인 내용을 대신해 이전 차시의 수업일을 가져와 바로 저장합니다. 날짜는 두 차시의 날짜 차이만큼 이동합니다. 이전 차시에 저장한 학생 배정도 가져오며 당일 옮긴 학생이 포함됩니다. 기존 출결·성적·영상은 유지됩니다.', confirmText: '가져와 저장' });
     if (!ok || busyRef.current) return;
     busyRef.current = true; setBusy(true); setError('');
     try { const saved = await copySessionSchedules(sessionId, base.version, Number(sourceId)); reset(saved); onSaved(saved); }
@@ -209,7 +210,9 @@ export default function SessionScheduleManager({ open, addRequest, editDayId, on
             <section className={styles.editorDays} aria-label="수업일 목록">
               <div className={styles.panelTitle}>
                 <h3>수업일 <small>{drafts.length}개</small></h3>
-                <Button size="sm" intent="secondary" leftIcon={<Plus size={15} aria-hidden />} onClick={addDay}>수업일 추가</Button>
+                {drafts.length < SESSION_SCHEDULE_DAY_LIMIT
+                  ? <Button size="sm" intent="secondary" leftIcon={<Plus size={15} aria-hidden />} onClick={addDay}>수업일 추가</Button>
+                  : <small>최대 {SESSION_SCHEDULE_DAY_LIMIT}개</small>}
               </div>
               {drafts.length > 0 && <div className={styles.editorDayList}>
                 {drafts.map((day, index) => (
