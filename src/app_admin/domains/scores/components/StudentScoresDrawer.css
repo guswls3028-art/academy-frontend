@@ -805,6 +805,36 @@ a.student-scores-drawer__student-link:focus-visible {
   color: var(--color-error);
 }
 
+.student-scores-drawer__homework-editor {
+  border-top: 1px solid var(--color-border-divider);
+  padding: 10px 12px;
+  animation: ssd-homework-editor-in 120ms ease-out;
+}
+
+.student-scores-drawer__homework-editor-note,
+.student-scores-drawer__homework-editor-error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.student-scores-drawer__homework-editor-error { color: var(--color-error); }
+.student-scores-drawer__homework-editor .ssd-attempt-card__conflict { flex-wrap: wrap; }
+
+@keyframes ssd-homework-editor-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+  .student-scores-drawer__homework-editor :is(.ds-button, .ssd-attempt-card__input) { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .student-scores-drawer__homework-editor { animation: none; }
+}
+
 /* ── Retry / detail section ── */
 .student-scores-drawer__retry-section {
   border-top: 1px solid var(--color-border-divider);

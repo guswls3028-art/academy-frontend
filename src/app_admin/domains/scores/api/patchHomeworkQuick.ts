@@ -37,6 +37,10 @@ type HomeworkQuickPatchResult = {
   updated_at: string;
 };
 
+export type SaveDrawerHomeworkScore = (
+  change: Omit<Parameters<typeof patchHomeworkQuick>[0], "sessionId">,
+) => Promise<void>;
+
 export async function patchHomeworkQuick(params: {
   sessionId: number;
   enrollmentId: number;
