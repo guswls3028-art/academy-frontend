@@ -117,6 +117,6 @@ export function useStudentMemo(studentId: number, student?: ClientStudent) {
     };
   }, [qc]);
 
-  return { value: draft ?? student?.memo ?? "", change, save, status,
+  return { value: draft ?? student?.memo ?? "", change, save, status, hasDraft: draft !== null,
     dirty: draft !== null && draft !== (qc.getQueryData<ClientStudent>(queryKey)?.memo ?? student?.memo ?? "") };
 }
