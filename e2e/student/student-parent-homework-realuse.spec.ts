@@ -6,6 +6,7 @@
 import { expect, test } from "../fixtures/strictTest";
 import { readFileSync } from "node:fs";
 import type { APIRequestContext, Locator, Page, Route } from "@playwright/test";
+import { PDFDocument } from "pdf-lib";
 import type { SendPreflightResponse } from "@/app_admin/domains/messages/api/messages.api";
 import type { StudentGradeReportLayout } from "@/shared/api/contracts/studentGradeReportLayout";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
@@ -295,7 +296,27 @@ async function verifyHomeworkFeedback(
         await expect(preview.locator(".session-fact").filter({ hasText: "과제 총점" })).toHaveText("과제 총점92 / 100");
         await expect(preview.locator(".session-fact").filter({ hasText: "과제 평균" })).toHaveText("과제 평균92%");
         await completionResult.scrollIntoViewIfNeeded();
+        const reportDownload = report.getByRole("button", { name: "개인 성적표 PDF 다운로드", exact: true });
+        await expect(reportDownload).toBeInViewport({ ratio: 1 });
+        const reportScroll = report.getByRole("region", { name: "성적표 미리보기" });
+        await expect.poll(() => reportScroll.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
         await staffPage.screenshot({ path: test.info().outputPath(`real-homework-report-${width}.png`), animations: "disabled" });
+        if (width === 390) {
+          await report.getByRole("button", { name: "요약 1쪽", exact: true }).click();
+          await expect(preview.locator(".student-report-page")).toHaveCount(1);
+          const [download] = await Promise.all([
+            staffPage.waitForEvent("download", { timeout: 60_000 }),
+            reportDownload.click(),
+          ]);
+          expect(download.suggestedFilename()).toMatch(/^개인성적표_.+\.pdf$/);
+          const pdfPath = await download.path();
+          expect(pdfPath).toBeTruthy();
+          const pdf = await PDFDocument.load(readFileSync(pdfPath!));
+          expect(pdf.getPageCount()).toBe(1);
+          const paper = pdf.getPage(0);
+          expect(Math.round(paper.getWidth())).toBe(595);
+          expect(Math.round(paper.getHeight())).toBe(842);
+        }
         await report.getByRole("button", { name: "닫기", exact: true }).click();
         await expect(report).toBeHidden();
         await staffPage.getByRole("button", { name: "성적 도구", exact: true }).click();

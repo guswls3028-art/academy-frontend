@@ -4,6 +4,8 @@ import { apiCall } from "../helpers/api";
 import { loginViaUI } from "../helpers/auth";
 import { waitForRenderSettled } from "../helpers/wait";
 
+test.use({ screenshot: "off", trace: "off", video: "off" });
+
 const VISIBLE_DIALOG = "[role='dialog']:visible, .admin-modal-overlay:visible";
 
 type ListEnvelope<T> = T[] | { results?: T[]; items?: T[] };
@@ -220,6 +222,46 @@ async function exerciseScoresMoreMenu(page: Page): Promise<void> {
   await expect(menu).toBeHidden({ timeout: 5_000 });
 }
 
+async function inspectIndividualScoreReport(page: Page): Promise<void> {
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    const tools = page.getByRole("button", { name: "성적 도구" });
+    await tools.click();
+    const entry = page.getByRole("menuitem", { name: /^개인 성적표/ });
+    await expect(entry).toBeVisible();
+    if (await entry.isDisabled()) {
+      await tools.click();
+      console.log(JSON.stringify({ individualScoreReport: "entry-unavailable", width }));
+      continue;
+    }
+
+    await entry.click();
+    const report = page.locator(".student-score-report-modal");
+    await expect(report).toBeVisible();
+    let view = "loading";
+    await expect.poll(async () => {
+      view = await report.evaluate((dialog) => {
+        const frame = dialog.querySelector<HTMLIFrameElement>(".student-score-report-preview__iframe");
+        if (frame?.contentDocument?.querySelector(".student-report-page")) return "preview";
+        if (dialog.querySelector(".student-score-report-preview__empty")) return "empty";
+        return "loading";
+      });
+      return view;
+    }).not.toBe("loading");
+    await expect(report.locator(".student-score-report-modal__title")).toBeInViewport({ ratio: 1 });
+    await expect(report.getByRole("button", { name: "개인 성적표 PDF 다운로드", exact: true }))
+      .toBeInViewport({ ratio: 1 });
+    if (view === "preview") {
+      const preview = report.getByRole("region", { name: "성적표 미리보기" });
+      await expect.poll(() => preview.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    }
+    console.log(JSON.stringify({ individualScoreReport: view, width }));
+    await report.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(report).toBeHidden();
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+}
+
 async function openScoresToolAssessmentModal(page: Page, kind: "시험" | "과제"): Promise<void> {
   await openCreateAssessmentModal(page, page.getByRole("button", { name: `${kind} 추가`, exact: true }).first(), kind);
 }
@@ -278,6 +320,7 @@ test.describe("admin real-use session assessment flow", () => {
     });
     await expect(assessmentRemote(page), "성적 탭은 시험/과제 리모컨을 렌더하지 않는다").toHaveCount(0);
     await exerciseScoresMoreMenu(page);
+    await inspectIndividualScoreReport(page);
     await exerciseOmrIfAvailable(page);
     await openScoresToolAssessmentModal(page, "시험");
     await openScoresToolAssessmentModal(page, "과제");
