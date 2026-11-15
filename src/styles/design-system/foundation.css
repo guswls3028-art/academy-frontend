@@ -39,6 +39,17 @@
   --ds-control-icon-md: 18px;
   --ds-control-icon-lg: 18px;
   --ds-control-icon-xl: 22px;
+  --ds-badge-font-xs: 10px;
+  --ds-badge-font-sm: 11px;
+  --ds-badge-font-md: 12px;
+  --ds-badge-font-lg: 13px;
+  --ds-badge-pad-xs: 2px 6px;
+  --ds-badge-pad-sm: 3px 8px;
+  --ds-badge-pad-md: 4px 10px;
+  --ds-badge-pad-lg: 5px 12px;
+  --ds-card-radius: var(--ds-radius-lg);
+  --ds-card-padding: var(--ds-space-4);
+  --ds-card-gap: var(--ds-space-3);
   --ds-duration-fast: 100ms;
   --ds-duration-base: 160ms;
   --ds-duration-slow: 240ms;
