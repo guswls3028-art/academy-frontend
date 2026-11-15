@@ -283,13 +283,13 @@ export default function GodminLandingPage() {
               통합과학·화학 강사로 소개되어 있으며, 수업에서 배운 내용을 교재와 테스트,
               연구실 클리닉으로 끝까지 이어갑니다.
             </p>
-            <blockquote className={styles.teacherPrinciple}>
+            <div className={styles.teacherPrinciple}>
               <p>
                 화학교육을 전공했고, 뮤지컬 무대에 섰습니다.
                 그 무대 경험이 학생과 호흡하는 강의에 도움이 된다고 말합니다.
               </p>
-              <footer>2023 르무통 인터뷰에서</footer>
-            </blockquote>
+              <small>2023 르무통 인터뷰 요약</small>
+            </div>
             <div className={styles.profileLinks}>
               {PROFILE_LINKS.map((link) => (
                 <a href={link.href} target="_blank" rel="noreferrer" key={link.label}>

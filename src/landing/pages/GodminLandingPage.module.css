@@ -8,6 +8,7 @@
   --gm-paper: #f9f8f4;
   --gm-ivory: #f6f3ea;
   --gm-coral: #e2725a;
+  --gm-coral-text: #a94432;
   --gm-muted: #5b6b66;
   --gm-line: rgba(15, 36, 31, 0.1);
   --gm-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
@@ -18,6 +19,7 @@
   font-family: "Pretendard Variable", "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", sans-serif;
   min-width: 0;
   overflow: hidden;
+  overflow: clip;
   overflow-wrap: anywhere;
   word-break: keep-all;
 }
@@ -298,7 +300,7 @@
 .disciplineCard:hover { background: #fff; }
 .disciplineCard:nth-of-type(n + 3) { justify-content: flex-end; }
 .disciplineMeta { align-items: baseline; display: flex; gap: 12px; justify-content: space-between; }
-.disciplineMeta span:first-child { color: var(--gm-coral); font-family: var(--gm-serif); font-size: 17px; font-style: italic; }
+.disciplineMeta span:first-child { color: var(--gm-coral-text); font-family: var(--gm-serif); font-size: 17px; font-style: italic; }
 .disciplineMeta span:last-child { color: var(--gm-muted); font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; }
 .disciplineCard h3 { font-size: 34px; font-weight: 650; letter-spacing: -0.05em; margin: 48px 0 12px; }
 .disciplineCard p { color: var(--gm-muted); font-size: 15px; line-height: 1.75; margin: 0; max-width: 260px; }
@@ -319,7 +321,7 @@
 .step p { color: var(--gm-muted); font-size: 16px; line-height: 1.8; margin: 0; max-width: 560px; }
 
 /* Research room */
-.labStatement { align-items: end; background: var(--gm-ink); color: #f6f4ee; display: grid; gap: 80px; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); isolation: isolate; overflow: hidden; padding: 150px var(--gm-gutter); position: relative; }
+.labStatement { align-items: end; background: var(--gm-ink); color: #f6f4ee; display: grid; gap: 80px; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); isolation: isolate; overflow: hidden; overflow: clip; padding: 150px var(--gm-gutter); position: relative; }
 .labStatement .sectionLabel { color: var(--gm-mint-soft); }
 .labStatement h2 { font-size: clamp(38px, 4.3vw, 60px); }
 .labRings { height: 640px; pointer-events: none; position: absolute; right: -220px; top: -260px; width: 640px; z-index: -1; }
@@ -338,10 +340,9 @@
 .teacherPortrait figcaption a { color: var(--gm-deep); text-underline-offset: 3px; }
 .teacherCopy { min-width: 0; overflow-wrap: anywhere; padding-top: 12px; word-break: keep-all; }
 .teacherIntro { color: var(--gm-muted); font-size: 17px; letter-spacing: -0.03em; line-height: 1.85; margin: 28px 0 0; max-width: 600px; }
-.teacherPrinciple { border-top: 1px solid var(--gm-line); margin: 48px 0; padding: 36px 0 0 56px; position: relative; }
-.teacherPrinciple::before { color: var(--gm-mint); content: "\201C"; font-family: var(--gm-serif); font-size: 72px; left: 0; line-height: 1; position: absolute; top: 28px; }
+.teacherPrinciple { border-inline-start: 2px solid var(--gm-deep); margin: 48px 0; padding-inline-start: 24px; }
 .teacherPrinciple p { color: var(--gm-ink); font-size: clamp(19px, 1.9vw, 23px); font-weight: 500; letter-spacing: -0.04em; line-height: 1.7; margin: 0; }
-.teacherPrinciple footer { color: var(--gm-muted); font-size: 13px; margin-top: 14px; }
+.teacherPrinciple small { color: var(--gm-muted); display: block; font-size: 13px; margin-top: 14px; }
 .profileLinks { border-top: 1px solid var(--gm-line); }
 .profileLinks a { align-items: center; border-bottom: 1px solid var(--gm-line); display: flex; gap: 16px; justify-content: space-between; min-height: 88px; padding: 16px 12px; text-decoration: none; transition: background 180ms ease; }
 .profileLinks a:hover { background: rgba(255, 255, 255, 0.8); }
@@ -362,6 +363,7 @@
   isolation: isolate;
   min-height: 600px;
   overflow: hidden;
+  overflow: clip;
   padding: 160px var(--gm-gutter);
   position: relative;
 }
@@ -385,7 +387,9 @@
 .footer > p { border-top: 1px solid rgba(255, 255, 255, 0.1); font-size: 11px; grid-column: 1 / -1; letter-spacing: 0.04em; margin: 8px 0 0; padding-top: 24px; }
 
 .page a:focus-visible,
-.enrollment summary:focus-visible { border-radius: 6px; outline: 3px solid rgba(226, 114, 90, 0.75); outline-offset: 4px; }
+.enrollment summary:focus-visible { border-radius: 6px; outline: 3px solid var(--gm-deep); outline-offset: 4px; }
+.finalCta a:focus-visible,
+.footer a:focus-visible { outline-color: var(--gm-mint-soft, #bdebdc); }
 
 @media (min-width: 981px) {
   /* The two-column heading starts at 315px; allow full-width Korean fallback glyphs. */
@@ -483,8 +487,7 @@
   .teacherPhoto img { aspect-ratio: 4 / 5; }
   .teacherPortrait figcaption { margin-top: 26px; }
   .teacherIntro { font-size: 15px; }
-  .teacherPrinciple { margin: 40px 0; padding: 30px 0 0 40px; }
-  .teacherPrinciple::before { font-size: 56px; top: 24px; }
+  .teacherPrinciple { margin: 40px 0; padding-inline-start: 16px; }
   .teacherPrinciple p { font-size: 18px; }
   .profileLinks a { padding-inline: 4px; }
   .profileLinks small { max-width: 250px; }
@@ -502,8 +505,6 @@
   .heroMedia { animation: godmin-copy-enter 820ms 120ms var(--gm-ease) backwards; }
   .portraitFrame { animation: godmin-portrait-enter 760ms 100ms var(--gm-ease) both; }
   .orbitField { animation: godmin-orbit-enter 900ms 180ms ease both; }
-  .orbitDotOne { animation: godmin-dot-drift 4.6s ease-in-out infinite alternate; }
-  .orbitDotTwo { animation: godmin-dot-drift 5.4s 400ms ease-in-out infinite alternate-reverse; }
 }
 
 /* Section copy settles in as it scrolls into view where scroll timelines exist. */
@@ -514,6 +515,7 @@
       animation-range: entry 0% entry 70%;
       animation-timeline: view();
     }
+    .reveal:focus-within { animation: none; }
   }
 }
 
@@ -538,13 +540,8 @@
   to { opacity: 1; transform: scale(1); }
 }
 
-@keyframes godmin-dot-drift {
-  from { transform: translate3d(-4px, -5px, 0); }
-  to { transform: translate3d(7px, 8px, 0); }
-}
-
 @keyframes godmin-reveal {
-  from { opacity: 0; transform: translateY(24px); }
+  from { opacity: 0.88; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 

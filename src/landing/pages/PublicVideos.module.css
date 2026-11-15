@@ -346,6 +346,16 @@
 .heroLabel span:first-child { align-items: center; color: var(--video-ink); display: inline-flex; gap: 10px; }
 .heroLabel span:first-child::before { background: #35c7a0; border-radius: 50%; box-shadow: 0 0 0 4px rgba(53, 199, 160, 0.18); content: ""; flex: 0 0 6px; height: 6px; }
 .heroPoster img { opacity: 0.95; }
+.heroVideo :focus-visible,
+.highlights :focus-visible { outline-color: var(--video-deep); }
+.heroVideo .heroPoster:focus-visible { outline: 3px solid white; outline-offset: -6px; }
+.heroPoster:focus-visible::after {
+  border: 2px solid #102b23;
+  content: "";
+  inset: 1px;
+  pointer-events: none;
+  position: absolute;
+}
 .heroPlay { backdrop-filter: blur(8px); background: rgba(15, 36, 31, 0.74); border-color: rgba(255, 255, 255, 0.42); }
 .heroCaption { padding: 26px 26px 28px; }
 .heroCaption h2 { font-size: 21px; font-weight: 650; letter-spacing: -0.04em; line-height: 1.5; }
