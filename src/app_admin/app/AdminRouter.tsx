@@ -2,6 +2,7 @@
 // 선생앱(관리자) 라우터 — 라우트별 lazy 로딩으로 첫 진입·탭 전환 시 청크 분리
 
 import { Suspense, type ComponentType } from "react";
+import ProductUpdatePage from "@/shared/product/ProductUpdateNotes";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import {
   Routes,
@@ -15,9 +16,7 @@ import {
 } from "react-router";
 import { default as AppLayout } from "@admin/layout/AppLayout";
 import RouteFallback from "@/core/router/RouteFallback";
-import ExternalRedirect from "@/core/router/ExternalRedirect";
 import { renderLazyRoute } from "@/core/router/renderLazyRoute";
-import { PUBLIC_UPDATES_URL } from "@/shared/constants/origins";
 
 /* ================= Lazy: Dashboard ================= */
 const DashboardPage = lazy(() => import("@admin/domains/dashboard/pages/DashboardPage"));
@@ -300,7 +299,7 @@ export default function AdminRouter() {
 
         {/* ================= Developer (To개발자) ================= */}
         <Route path="developer" element={renderLazyRoute(DeveloperLayout)}>
-          <Route index element={<ExternalRedirect to={PUBLIC_UPDATES_URL} />} />
+          <Route index element={renderLazyRoute(ProductUpdatePage)} />
           <Route path="bug" element={renderLazyRoute(BugReportPage)} />
           <Route path="feedback" element={renderLazyRoute(FeedbackPage)} />
           <Route path="flags" element={renderLazyRoute(FeatureFlagsPage)} />

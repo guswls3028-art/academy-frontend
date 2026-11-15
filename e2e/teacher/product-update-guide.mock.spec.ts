@@ -1,5 +1,6 @@
 import { test, expect } from "../fixtures/strictTest";
 import type { Page, Route } from "@playwright/test";
+import { PRODUCT_UPDATES } from "../../src/shared/product/productUpdates";
 
 const BASE = process.env.E2E_BASE_URL || process.env.PLAYWRIGHT_BASE_URL
   || process.env.E2E_LOCAL_BASE_URL || "http://127.0.0.1:5175";
@@ -13,11 +14,13 @@ function fakeJwt(): string {
   return `e30.${payload}.sig`;
 }
 
-async function installTeacherMocks(page: Page, options: {
+async function installWorkspaceMocks(page: Page, options: {
   qnaPending?: number;
   videoFailed?: number;
   registrationStatus?: 200 | 503;
+  tenantRole?: "teacher" | "owner";
 } = {}) {
+  const tenantRole = options.tenantRole ?? "teacher";
   let registrationStatus = options.registrationStatus ?? 200;
   const mutations: string[] = [];
   await page.route("**/api/v1/**", async (route: Route) => {
@@ -37,7 +40,7 @@ async function installTeacherMocks(page: Page, options: {
     });
     if (path === "/core/me/") return json({
       id: 101, username: "teacher", name: "선생님", phone: null,
-      is_staff: true, is_superuser: false, tenantRole: "teacher",
+      is_staff: true, is_superuser: false, tenantRole,
     });
     if (path === "/community/admin/posts/") {
       const results = url.searchParams.get("post_type") === "qna"
@@ -63,67 +66,58 @@ async function installTeacherMocks(page: Page, options: {
     });
     return json({ count: 0, results: [] });
   });
-  await page.addInitScript((access) => {
+  await page.addInitScript(({ access, tenantRole }) => {
     localStorage.setItem("access", access);
     localStorage.setItem("refresh", access);
     localStorage.setItem("tenant_code", "hakwonplus");
     sessionStorage.setItem("tenantCode", "hakwonplus");
-    localStorage.setItem("teacher:preferAdmin", "0");
-  }, fakeJwt());
+    localStorage.setItem("teacher:preferAdmin", tenantRole === "owner" ? "1" : "0");
+  }, { access: fakeJwt(), tenantRole });
   return { mutations, setRegistrationStatus: (status: 200 | 503) => { registrationStatus = status; } };
 }
 
-test.describe("선생님 업데이트 안내의 도움말 이동", () => {
+test.describe("업무 알림 옆 패치노트", () => {
   test.use({ serviceWorkers: "block" });
 
-  test("390px 도움말에서 패치노트를 열고 읽음 상태가 유지되며 종은 업무 0건이다", async ({ page }) => {
+  test("390px 선생님 화면에서 패치노트를 열고 읽음 상태가 유지된다", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    const { mutations } = await installTeacherMocks(page);
-    await page.context().route("**/promo/updates**", (route) => route.fulfill({
-      status: 200, contentType: "text/html", body: "<h1>업데이트 소식</h1>",
-    }));
-    await page.goto(`${BASE}/workspace/mobile/notifications`, { waitUntil: "load" });
+    const { mutations } = await installWorkspaceMocks(page);
+    const notificationsUrl = `${BASE}/workspace/mobile/notifications`;
+    await page.goto(notificationsUrl, { waitUntil: "load" });
     await expect(page.getByRole("button", { name: "알림", exact: true })).toBeVisible();
     await expect(page.getByText("처리할 업무 알림이 없습니다", { exact: true })).toBeVisible();
-    await expect(page.getByText("새 제품 업데이트", { exact: true })).toHaveCount(0);
     await expect(page.getByText(/^총 \d+건$/)).toHaveCount(0);
 
-    const guide = page.getByRole("button", { name: "가이드북, 새 제품 업데이트" });
-    await guide.focus();
+    await expect(page.getByRole("button", { name: "가이드북", exact: true })).toBeVisible();
+    const update = page.getByRole("button", { name: "업데이트, 새 패치노트" });
+    await update.focus();
     await page.keyboard.press("Enter");
-    const dialog = page.getByRole("dialog", { name: "선생님 가이드북" });
+    const dialog = page.getByRole("dialog", { name: "패치노트" });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("button", { name: /오늘 수업과 학생/ })).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "선생님 전체 가이드" })).toBeVisible();
-    const updateLink = dialog.getByRole("link", { name: /새 제품 업데이트.*패치노트 보기/ });
-    await expect(updateLink).toHaveAttribute("href", /\/promo\/updates#latest-update$/);
-    await expect(updateLink).toHaveAttribute("target", "_blank");
+    await expect(dialog.getByRole("heading", { name: PRODUCT_UPDATES[0].title })).toBeVisible();
+    await expect(dialog.getByText(PRODUCT_UPDATES[0].highlights[0].text)).toBeVisible();
+    await expect(page).toHaveURL(notificationsUrl);
+    await expect(dialog.getByText(PRODUCT_UPDATES[1].summary)).toBeHidden();
+    await page.screenshot({ path: testInfo.outputPath("teacher-patch-notes-390.png") });
+    await dialog.getByText(PRODUCT_UPDATES[1].title, { exact: true }).click();
+    await expect(dialog.getByText(PRODUCT_UPDATES[1].summary)).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
     await page.keyboard.press("Escape");
-    await expect(dialog).toHaveCount(0);
-    await expect(guide).toBeFocused();
-    await guide.click();
-    const [popup] = await Promise.all([page.waitForEvent("popup"), updateLink.click()]);
-    await expect(popup).toHaveURL(/\/promo\/updates#latest-update$/);
-    await popup.close();
-    await expect(page.getByRole("button", { name: "가이드북", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "가이드북", exact: true })).toBeFocused();
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole("button", { name: "업데이트", exact: true })).toBeFocused();
     await expect(page.getByRole("button", { name: "알림", exact: true })).toBeVisible();
     await page.reload();
-    await expect(page.getByRole("button", { name: "가이드북", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "업데이트", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "알림", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "메뉴", exact: true }).click();
-    const drawer = page.getByRole("navigation", { name: "선생님 메뉴" });
-    await drawer.getByRole("button", { name: /지원/ }).click();
-    await expect(page).toHaveURL(/\/workspace\/mobile\/menu\?group=help$/);
-    await expect(page.getByRole("region", { name: "지원", exact: true }).getByText("사용 가이드", { exact: true })).toBeVisible();
-    await expect(page.getByRole("region", { name: "지원", exact: true }).getByText("업데이트 소식", { exact: true })).toHaveCount(0);
+    await page.goto(`${BASE}/workspace/mobile/developer`);
+    await expect(page.getByRole("heading", { name: "패치노트", level: 1 })).toBeVisible();
+    await expect(page).toHaveURL(`${BASE}/workspace/mobile/developer`);
     expect(mutations).toEqual([]);
   });
 
   test("1366px 업무·오류 알림은 업데이트 읽음과 무관하게 남고 재시도된다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 768 });
-    const mocks = await installTeacherMocks(page, {
+    const mocks = await installWorkspaceMocks(page, {
       qnaPending: 2, videoFailed: 1, registrationStatus: 503,
     });
     await page.goto(`${BASE}/workspace/mobile/notifications`, { waitUntil: "load" });
@@ -131,7 +125,9 @@ test.describe("선생님 업데이트 안내의 도움말 이동", () => {
     await expect(page.getByRole("alert")).toContainText("일부 업무 알림을 불러오지 못했습니다");
     await expect(page.getByText("답변 대기 질문", { exact: true })).toBeVisible();
     await expect(page.getByText("영상 인코딩 실패", { exact: true })).toBeVisible();
-    await expect(page.getByText("새 제품 업데이트", { exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "업데이트, 새 패치노트" }).click();
+    await page.getByRole("button", { name: "패치노트 닫기" }).click();
+    await expect(page.getByRole("alert")).toContainText("일부 업무 알림을 불러오지 못했습니다");
     mocks.setRegistrationStatus(200);
     await page.getByRole("button", { name: "다시 시도", exact: true }).click();
     await expect(page.getByRole("button", { name: "알림 3건" })).toBeVisible();
@@ -140,4 +136,36 @@ test.describe("선생님 업데이트 안내의 도움말 이동", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
     expect(mocks.mutations).toEqual([]);
   });
+
+  for (const width of [1366, 390]) {
+    test(`${width}px 관리자 알림 박스와 패치노트 버튼은 각각 동작한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 844 });
+      const { mutations } = await installWorkspaceMocks(page, { tenantRole: "owner" });
+      await page.goto(`${BASE}/workspace/settings/appearance`);
+      const bell = page.getByRole("button", { name: "알림", exact: true });
+      const update = page.getByRole("button", { name: "업데이트, 새 패치노트" });
+      await expect(update).toBeVisible();
+      await expect(bell.locator(".ant-badge-count")).toHaveCount(0);
+      await bell.click();
+      const menu = page.getByRole("menu").filter({ hasText: "공지사항 보기" });
+      await expect(menu.getByText("처리할 업무 알림이 없습니다")).toBeVisible();
+      await expect(menu.getByText(PRODUCT_UPDATES[0].title)).toHaveCount(0);
+      await page.screenshot({ path: testInfo.outputPath(`admin-notifications-${width}.png`) });
+      const workspaceUrl = page.url();
+      await update.click();
+      const dialog = page.getByRole("dialog", { name: "패치노트" });
+      await expect(dialog.getByText(PRODUCT_UPDATES[0].summary)).toBeVisible();
+      await expect(page).toHaveURL(workspaceUrl);
+      await expect(menu).toBeHidden();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+      await page.screenshot({ path: testInfo.outputPath(`admin-patch-notes-${width}.png`) });
+      await dialog.getByRole("button", { name: "패치노트 닫기" }).click();
+      await page.reload();
+      await expect(page.getByRole("button", { name: "업데이트", exact: true })).toBeVisible();
+      await page.goto(`${BASE}/workspace/developer`);
+      await expect(page.getByRole("heading", { name: PRODUCT_UPDATES[0].title })).toBeVisible();
+      await expect(page).toHaveURL(`${BASE}/workspace/developer`);
+      expect(mutations).toEqual([]);
+    });
+  }
 });
