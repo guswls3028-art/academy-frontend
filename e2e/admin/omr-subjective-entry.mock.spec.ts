@@ -803,7 +803,8 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     const picker = page.getByRole("dialog", { name: "학생 선택" });
     await expect(picker).toContainText("학생 목록을 불러오지 못했습니다.");
     await expect(picker.getByText("다른 차시 학생")).toHaveCount(0);
-    const search = picker.getByPlaceholder("학생 이름 또는 전화번호 뒤 4·8자리");
+    const search = picker.getByRole("textbox", { name: "학생 검색" });
+    await expect(search).toHaveAttribute("placeholder", "학생 이름 또는 전화번호 뒤 4·8자리");
     await search.fill("12345678");
     const result = picker.getByRole("button", { name: /차시 응시 학생/ });
     await expect(result).toBeVisible();

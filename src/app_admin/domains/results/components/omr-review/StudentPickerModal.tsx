@@ -132,6 +132,7 @@ export default function StudentPickerModal({
             ref={inputRef}
             type="text"
             className="spm-search"
+            aria-label="학생 검색"
             placeholder={fetchCandidates ? "학생 이름 또는 전화번호 뒤 4자리" : "학생 이름 또는 전화번호 뒤 4·8자리"}
             value={query}
             onChange={(e) => setQuery(e.target.value)}

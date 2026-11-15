@@ -1194,7 +1194,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       return;
     }
     if (path === `/submissions/submissions/exams/${EXAM_ID}/candidates/` && method === "GET") {
-      await json([{
+      const candidates = [{
         enrollment_id: ENROLLMENT_ID,
         student_name: "박서연",
         student_phone_last4: "3333",
@@ -1203,7 +1203,8 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         lecture_color: "#2563eb",
         lecture_chip_label: "수2",
         already_matched: false,
-      }]);
+      }];
+      await json(url.searchParams.has("session_id") ? { session_id: SESSION_ID, candidates } : candidates);
       return;
     }
     if (path === "/submissions/submissions/omr/batches/" && method === "GET") {
@@ -3525,7 +3526,7 @@ test.describe("문항별 직접 채점", () => {
 
     const picker = page.getByRole("dialog", { name: "학생 선택" });
     await expect(picker).toBeVisible();
-    await picker.getByPlaceholder("학생 이름 또는 전화번호 뒤 4자리").fill("박서연");
+    await picker.getByRole("textbox", { name: "학생 검색" }).fill("박서연");
     await picker.getByRole("button", { name: /박서연/ }).click();
     await expect(omrDialog.getByText("박서연", { exact: true })).toBeVisible();
 

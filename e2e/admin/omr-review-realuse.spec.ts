@@ -1501,7 +1501,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     if (await pickButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await pickButton.click();
       const studentPicker = page.getByRole("dialog", { name: "학생 선택" });
-      await studentPicker.getByPlaceholder("학생 이름 또는 전화번호 뒤 4자리").fill(STUDENT_NAME);
+      await studentPicker.getByRole("textbox", { name: "학생 검색" }).fill(STUDENT_NAME);
       await expect(studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }))
         .toBeVisible({ timeout: 15_000 });
       await studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
@@ -2004,7 +2004,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(picker).toBeVisible();
     await picker.click();
     const studentPicker = page.getByRole("dialog", { name: "학생 선택" });
-    await studentPicker.getByPlaceholder("학생 이름 또는 전화번호 뒤 4자리").fill(STUDENT_NAME);
+    await studentPicker.getByRole("textbox", { name: "학생 검색" }).fill(STUDENT_NAME);
     await studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
     await expect(studentPicker).toBeHidden();
     await expect(replacementReview.locator(".orw-identifier__picked")).toContainText(STUDENT_NAME);
