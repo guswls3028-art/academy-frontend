@@ -867,7 +867,14 @@ for (const width of [1366, 390]) {
     }
     await expect(page.getByText("0명 선택됨", { exact: true })).toHaveCount(0);
     const search = page.getByPlaceholder("이름 / 전화번호 검색");
+    const filteredRoster = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.pathname === "/api/v1/lectures/attendance/"
+        && url.searchParams.get("search") === "학생"
+        && response.ok();
+    });
     await search.fill("학생");
+    await filteredRoster;
     const checkbox = page.getByRole("checkbox", { name: "미입력학생 선택" });
     await checkbox.check();
     const trigger = page.getByRole("button", { name: "선택한 학생 작업", exact: true });
