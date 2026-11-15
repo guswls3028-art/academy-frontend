@@ -18,6 +18,7 @@ type DomainTableProps = {
   tableStyle?: DomainTableStyle;
   /** data-* 속성 전달 (예: data-edit-mode) */
   dataAttributes?: Record<string, string>;
+  scrollLabel?: string;
 };
 
 function getResolvedTableStyle(tableStyle?: DomainTableStyle): CSSProperties | undefined {
@@ -31,10 +32,16 @@ export default function DomainTable({
   tableClassName,
   tableStyle,
   dataAttributes,
+  scrollLabel,
 }: DomainTableProps) {
   const hasExplicitWidth = tableStyle?.width != null;
   return (
-    <div className="ds-table-wrap ds-table-wrap--domain-scroll">
+    <div
+      className="ds-table-wrap ds-table-wrap--domain-scroll"
+      role={scrollLabel ? "region" : undefined}
+      aria-label={scrollLabel}
+      tabIndex={scrollLabel ? 0 : undefined}
+    >
       <table
         className={`ds-table ${hasExplicitWidth ? "" : "w-full"} ${tableClassName ?? ""}`.trim()}
         style={getResolvedTableStyle(tableStyle)}
