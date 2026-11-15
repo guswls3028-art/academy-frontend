@@ -1930,8 +1930,9 @@ test.describe("직원 운영 계약", () => {
 
     await directorRow.getByText("박철", { exact: true }).click();
     const detail = page.getByTestId("staff-detail-overlay");
-    await expect(detail.locator("dl").getByText("직위", { exact: true }).locator("..")).toContainText("실장");
-    await expect(detail.locator("dl").getByText("계정", { exact: true }).locator("..")).toContainText("관리자 계정");
+    await expect(detail.getByText("실장", { exact: true })).toBeVisible();
+    await detail.getByRole("button", { name: "직원 정보·계정" }).click();
+    await expect(detail.getByText("관리자 계정", { exact: true })).toBeVisible();
     await expect(detail.getByRole("button", { name: "퇴사 처리" })).toHaveCount(0);
     await expect(detail.getByRole("button", { name: /권한 부여|권한 회수/ })).toHaveCount(0);
 
@@ -2013,6 +2014,7 @@ test.describe("직원 운영 계약", () => {
     await page.getByText("김조교", { exact: true }).first().click();
     const staffDetail = page.getByTestId("staff-detail-overlay");
     await expect(staffDetail).toBeVisible();
+    await staffDetail.getByRole("button", { name: "직원 정보·계정" }).click();
     await expect(staffDetail.getByRole("button", { name: "퇴사 처리" })).toBeVisible();
     await expect(staffDetail.getByRole("button", { name: "잘못 등록한 직원 삭제" })).toHaveCount(0);
 
@@ -2039,9 +2041,14 @@ test.describe("직원 운영 계약", () => {
     await expect(staffDetail.getByRole("button", { name: "닫기" })).toBeFocused();
     await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe("hidden");
     await expect(staffRow).toBeVisible();
-    await expect(staffDetail.getByLabel("재직 상태: 재직")).toBeVisible();
+    await expect(staffDetail.getByText("재직", { exact: true })).toBeVisible();
     await expect(staffDetail.getByRole("button", { name: "정보 수정" })).toBeVisible();
+    const employeeInfo = staffDetail.getByRole("button", { name: "직원 정보·계정" });
+    await expect(employeeInfo).toHaveAttribute("aria-expanded", "false");
+    await expect(staffDetail.getByText("공제 전 합계", { exact: true })).toHaveCount(1);
     const managerToggle = staffDetail.getByRole("button", { name: "직원관리 권한 없음, 권한 부여" });
+    await expect(managerToggle).toBeHidden();
+    await employeeInfo.click();
     await expect(managerToggle).toBeVisible();
     await expect(managerToggle).toHaveAttribute("title", "눌러서 직원관리 권한 부여");
     const summaryTab = staffDetail.getByRole("tab", { name: "요약", exact: true });
@@ -2469,6 +2476,8 @@ test.describe("직원 운영 계약", () => {
       name: "비밀번호 변경",
       exact: true,
     });
+    await expect(passwordButton).toBeHidden();
+    await detail.getByRole("button", { name: "직원 정보·계정" }).click();
     await expect(passwordButton).toBeVisible();
     await passwordButton.click();
 

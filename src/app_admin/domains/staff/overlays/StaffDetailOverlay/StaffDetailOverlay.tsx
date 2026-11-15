@@ -1,5 +1,4 @@
 // PATH: src/app_admin/domains/staff/overlays/StaffDetailOverlay/StaffDetailOverlay.tsx
-// Design SSOT: 학생 상세 오버레이와 동일한 ds-overlay-* 구조 (overlay.css)
 
 import { useParams, useNavigate, useLocation, Navigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,7 +15,6 @@ import { createPortal } from "react-dom";
 
 import {
   fetchStaffDetail,
-  fetchStaffSummaryByRange,
   patchStaffDetail,
 } from "../../api/staff.detail.api";
 import {
@@ -74,10 +72,9 @@ function StaffManagerToggle({
     },
   });
   return (
-    <button
-      type="button"
-      className={styles.managerToggle}
-      data-active={isManager ? "true" : "false"}
+    <Button
+      intent="secondary"
+      size="sm"
       disabled={mutation.isPending}
       onClick={async () => {
         const nextManager = !isManager;
@@ -94,9 +91,8 @@ function StaffManagerToggle({
       aria-label={isManager ? "직원관리 권한 있음, 권한 회수" : "직원관리 권한 없음, 권한 부여"}
       title={isManager ? "눌러서 직원관리 권한 회수" : "눌러서 직원관리 권한 부여"}
     >
-      <span className={styles.managerDot} aria-hidden />
-      {mutation.isPending ? "변경 중" : isManager ? "권한 있음" : "권한 없음"}
-    </button>
+      {mutation.isPending ? "변경 중…" : isManager ? "권한 있음" : "권한 없음"}
+    </Button>
   );
 }
 
@@ -114,10 +110,7 @@ function getSelectedMonthRange(location: ReturnType<typeof useLocation>) {
   const m = Number.isInteger(requestedMonth) && requestedMonth >= 1 && requestedMonth <= 12
     ? requestedMonth
     : d.getMonth() + 1;
-  const from = `${y}-${String(m).padStart(2, "0")}-01`;
-  const last = new Date(y, m, 0).getDate();
-  const to = `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`;
-  return { y, m, from, to };
+  return { y, m };
 }
 
 /** 직원 상세용 아바타 역할 — API role OWNER → owner, 나머지 그대로 */
@@ -145,13 +138,17 @@ export default function StaffDetailOverlay({
   const qc = useQueryClient();
   const sid = staffId ?? Number(routeParams.staffId);
   const [tab, setTab] = useState<StaffTabKey>("summary");
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const tabPanelId = useId();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   // staffId 변경 시 탭을 기본값으로 리셋
-  useEffect(() => { setTab("summary"); }, [sid]);
+  useEffect(() => {
+    setTab("summary");
+    setDetailsOpen(false);
+  }, [sid]);
   const confirm = useConfirm();
   const deleteMutation = useDeleteStaff();
   const onClose = useCallback(() => {
@@ -166,7 +163,7 @@ export default function StaffDetailOverlay({
     navigate(-1);
   }, [closeOverride, location.key, navigate]);
 
-  const { y, m, from, to } = getSelectedMonthRange(location);
+  const { y, m } = getSelectedMonthRange(location);
 
   const staffQ = useQuery({
     queryKey: staffQueryKeys.staffDetail(sid),
@@ -177,12 +174,6 @@ export default function StaffDetailOverlay({
   const meQ = useQuery({
     queryKey: staffQueryKeys.me,
     queryFn: fetchStaffMe,
-  });
-
-  const summaryQ = useQuery({
-    queryKey: staffQueryKeys.summaryRange(sid, from, to),
-    queryFn: () => fetchStaffSummaryByRange(sid, from, to),
-    enabled: !!sid,
   });
 
   const locksQ = useQuery({
@@ -245,7 +236,6 @@ export default function StaffDetailOverlay({
   }
 
   const staff = staffQ.data;
-  const summary = summaryQ.data;
   const locked = isLockedFromLocks(locksQ.data);
   const lockFailed = locksQ.isError;
   const canManage = true; // meQ guard 통과 = payroll manager 확정
@@ -275,25 +265,6 @@ export default function StaffDetailOverlay({
   return (
     <>
       <StaffDetailShell onClose={onClose}>
-          {/* 월 마감 배너 — 학생 오버레이에는 없음, 직원 전용 */}
-          {locked && (
-            <div
-              className="ds-overlay-lock-banner px-6 py-3 border-b"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <LockBadge state="LOCKED" />
-                  <span className="text-sm font-semibold text-[var(--color-danger)]">
-                    이번달 근태·환급 정산이 고정되었습니다.
-                  </span>
-                </div>
-                <span className="text-xs text-[var(--color-text-muted)]">
-                  마감된 월은 근무/비용 생성·수정·삭제가 불가능합니다.
-                </span>
-              </div>
-            </div>
-          )}
-
           <header className={`ds-overlay-header ${styles.detailHeader}`}>
             <div className="ds-overlay-header__inner">
               <div className="ds-overlay-header__left">
@@ -308,210 +279,167 @@ export default function StaffDetailOverlay({
                 </div>
                 <div className={`ds-overlay-header__title-block ${styles.headerTitleBlock}`}>
                   <h1 id="staff-detail-title" className="ds-overlay-header__title">{staff.name}</h1>
-                  <dl className={styles.identityMeta}>
-                    <div className={styles.identityMetaItem}>
-                      <dt>직위</dt>
-                      <dd>{staffPositionLabel(staff.position, staff.role)}</dd>
-                    </div>
-                    <div className={styles.identityMetaItem}>
-                      <dt>계정</dt>
-                      <dd>{staffAccountRoleLabel(staff.account_role, staff.role)}</dd>
-                    </div>
-                    <div className={styles.identityMetaItem}>
-                      <dt>로그인</dt>
-                      <dd>{staff.user_username || "없음"}</dd>
-                    </div>
-                  </dl>
+                  <div className={styles.identityMeta}>
+                    <span>{staffPositionLabel(staff.position, staff.role)}</span>
+                    <Badge size="sm" tone={staff.is_active ? "success" : "muted"}>
+                      {staff.is_active ? "재직" : "퇴사"}
+                    </Badge>
+                  </div>
                 </div>
               </div>
               <div className="ds-overlay-header__right">
                 <div className={`ds-overlay-header__actions ${styles.headerActions}`}>
-                  <div className={styles.employmentStatus} aria-label={`재직 상태: ${staff.is_active ? "재직" : "퇴사"}`}>
-                    <span className={styles.statusLabel}>재직 상태</span>
-                    <span className={styles.statusValue} data-active={staff.is_active ? "true" : "false"}>
-                      <span className={styles.statusDot} aria-hidden />
-                      {staff.is_active ? "재직" : "퇴사"}
-                    </span>
-                  </div>
-                  <span className={styles.actionDivider} aria-hidden />
                   {canManage && (
                     <Button
                       type="button"
-                      intent="secondary"
-                      size="sm"
+                      intent="primary"
+                      size="lg"
                       onClick={() => setEditOpen(true)}
                     >
                       정보 수정
                     </Button>
                   )}
-                  {canManage &&
-                    staff.is_active &&
-                    staff.user != null &&
-                    staff.account_role !== "OWNER" &&
-                    (staff.account_role !== "ADMIN" || meQ.data.is_owner) && (
-                      <Button
-                        type="button"
-                        intent="secondary"
-                        size="sm"
-                        onClick={() => setPasswordOpen(true)}
-                      >
-                        비밀번호 변경
-                      </Button>
-                    )}
-                  {canManage && staff.is_active && canEditStaffAccountRole(staff.account_role) && (
-                    <Button
-                      type="button"
-                      intent="ghost"
-                      size="sm"
-                      className={styles.destructiveAction}
-                      disabled={offboardMutation.isPending}
-                      onClick={async () => {
-                        const ok = await confirm({
-                          title: "퇴사 처리",
-                          message: `${staff.name}의 로그인을 중지하고 퇴사 처리하시겠습니까?\n기존 근무·비용·급여 이력은 보존됩니다.`,
-                          confirmText: "퇴사 처리",
-                          danger: true,
-                        });
-                        if (!ok) return;
-                        offboardMutation.mutate();
-                      }}
-                    >
-                      {offboardMutation.isPending ? "처리 중…" : "퇴사 처리"}
-                    </Button>
-                  )}
-                  {canManage && !staff.is_active && canEditStaffAccountRole(staff.account_role) && (
-                    <Button
-                      type="button"
-                      intent="ghost"
-                      size="sm"
-                      className={styles.destructiveAction}
-                      disabled={deleteMutation.isPending}
-                      onClick={async () => {
-                        const ok = await confirm({
-                          title: "잘못 등록한 직원 삭제",
-                          message: `${staff.name}을(를) 영구 삭제하시겠습니까?\n근무·비용·마감·급여 이력이 한 건이라도 있으면 삭제되지 않습니다.`,
-                          confirmText: "영구 삭제",
-                          danger: true,
-                        });
-                        if (ok) deleteMutation.mutate(sid);
-                      }}
-                    >
-                      {deleteMutation.isPending ? "삭제 중…" : "잘못 등록한 직원 삭제"}
-                    </Button>
-                  )}
+                  <Button
+                    intent="secondary"
+                    size="lg"
+                    aria-expanded={detailsOpen}
+                    aria-controls={tabPanelId + "-staff-info"}
+                    onClick={() => setDetailsOpen((open) => !open)}
+                  >
+                    직원 정보·계정
+                  </Button>
                 </div>
               </div>
             </div>
           </header>
 
           <div className="ds-overlay-body">
-            <div className="ds-overlay-body__grid">
-              {/* 좌측 — 정보·이번달 요약 (섹션별 그룹화) */}
-              <div className="ds-overlay-sidebar">
-                {/* 기본 정보 섹션 */}
-                <div className="ds-overlay-section">
-                  <div className="ds-overlay-section__title">
-                    <span className="ds-overlay-section__title-icon">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    </span>
-                    기본 정보
-                  </div>
-                  <div className="ds-overlay-info-rows">
-                    <InfoRow label="계정" value={staff.user_username || "계정 없음"} />
-                    <InfoRow label="전화번호" value={formatPhone(staff.phone)} />
-                    <InfoRow label="급여유형" value={staff.pay_type === "HOURLY" ? "시급" : "월급(수동 확인)"} />
-                    <InfoRow label="직위" value={staffPositionLabel(staff.position, staff.role)} />
-                    <InfoRow label="계정 유형" value={staffAccountRoleLabel(staff.account_role, staff.role)} />
-                    <div className="ds-overlay-info-row" title="강사·조교의 직원 관리(시급·급여·비용) 접근 권한입니다. 대표·관리자는 항상 접근할 수 있고, OFF여도 본인 출퇴근 등 일반 기능은 사용할 수 있습니다.">
-                      <span className="ds-overlay-info-row__label">직원관리 권한</span>
-                      <span className="ds-overlay-info-row__value">
-                        {canManage && canEditStaffAccountRole(staff.account_role) ? (
-                          <StaffManagerToggle staffId={staff.id} isManager={!!(staff.can_manage_staff ?? staff.is_manager)} />
-                        ) : (
-                          <Badge
-                            variant="solid"
-                            status={(staff.can_manage_staff ?? staff.is_manager) ? "active" : "inactive"}
-                            title={staff.account_role === "ADMIN" ? "관리자 계정은 직원관리 권한이 항상 있습니다." : undefined}
-                          >
-                            {(staff.can_manage_staff ?? staff.is_manager) ? "ON" : "OFF"}
-                          </Badge>
-                        )}
-                      </span>
-                    </div>
-                    <InfoRow label="등록일" value={staff.created_at?.slice(0, 10)} />
-                  </div>
-                </div>
-
-                {/* 이번달 요약 섹션 */}
-                <div className="ds-overlay-section">
-                  <div className="ds-overlay-section__title">
-                    <span className="ds-overlay-section__title-icon">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    </span>
-                    이번달 요약
-                  </div>
-                  <div className="ds-overlay-stat-grid ds-overlay-stat-grid--two">
-                    <div className="ds-overlay-stat-card">
-                      <div className="ds-overlay-stat-card__label">근무시간</div>
-                      <div className="ds-overlay-stat-card__value ds-overlay-stat-card__value--brand">
-                        {summary?.work_hours ?? 0}<span className="ds-overlay-stat-card__unit">h</span>
-                      </div>
-                    </div>
-                    <div className="ds-overlay-stat-card">
-                      <div className="ds-overlay-stat-card__label">공제 전 합계</div>
-                      <div className="ds-overlay-stat-card__value">
-                        {summaryQ.isError ? "—" : (summary?.total_amount ?? 0).toLocaleString()}<span className="ds-overlay-stat-card__unit ds-overlay-stat-card__unit--currency">원</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="ds-overlay-info-rows ds-overlay-info-rows--summary">
-                    <div className="ds-overlay-info-row">
-                      <span className="ds-overlay-info-row__label">마감상태</span>
-                      <span className="ds-overlay-info-row__value">
-                        <div className="flex items-center gap-2">
-                          {lockFailed ? (
-                            <span className="font-semibold ds-overlay-lock-state">확인 실패</span>
-                          ) : (
-                            <LockBadge state={locked ? "LOCKED" : "OPEN"} />
-                          )}
-                        </div>
-                      </span>
-                    </div>
-                  </div>
-                </div>
+            {locked && (
+              <div className={styles.lockNotice} role="status">
+                <LockBadge state="LOCKED" />
+                <span>선택 월의 근무·비용 기록은 마감되어 변경할 수 없습니다.</span>
               </div>
-
-              {/* 우측 — 탭 + 콘텐츠 (학생 상세와 동일 플랫탭) */}
-              <div className="ds-overlay-content-panel">
-                <div className={styles.staffTabs} role="tablist" aria-label="직원 상세 보기">
-                    {tabItems.map((t, index) => (
-                      <button
-                        key={t.key}
-                        ref={(node) => { tabRefs.current[index] = node; }}
-                        id={`${tabPanelId}-${t.key}`}
-                        type="button"
-                        role="tab"
-                        aria-selected={tab === t.key}
-                        aria-controls={tabPanelId}
-                        tabIndex={tab === t.key ? 0 : -1}
-                        className={`${styles.staffTab}${tab === t.key ? ` ${styles.staffTabActive}` : ""}`}
-                        onClick={() => setTab(t.key)}
-                        onKeyDown={(event) => handleTabKeyDown(event, index)}
+            )}
+            {lockFailed && tab !== "summary" && (
+              <div className={styles.lockNotice} role="alert">
+                <span>선택 월 마감 상태를 확인하지 못했습니다.</span>
+                <Button size="sm" onClick={() => { void locksQ.refetch(); }}>다시 시도</Button>
+              </div>
+            )}
+            <section
+              id={tabPanelId + "-staff-info"}
+              hidden={!detailsOpen}
+              className={`ds-record-card ds-record-reveal ${styles.staffInfo}`}
+              aria-label="직원 정보·계정"
+            >
+              <div className="ds-overlay-info-rows">
+                <InfoRow label="계정" value={staff.user_username || "계정 없음"} />
+                <InfoRow label="전화번호" value={formatPhone(staff.phone)} />
+                <InfoRow label="급여유형" value={staff.pay_type === "HOURLY" ? "시급" : "월급(수동 확인)"} />
+                <InfoRow label="계정 유형" value={staffAccountRoleLabel(staff.account_role, staff.role)} />
+                <div className="ds-overlay-info-row" title="강사·조교의 직원 관리(시급·급여·비용) 접근 권한입니다. 대표·관리자는 항상 접근할 수 있고, OFF여도 본인 출퇴근 등 일반 기능은 사용할 수 있습니다.">
+                  <span className="ds-overlay-info-row__label">직원관리 권한</span>
+                  <span className="ds-overlay-info-row__value">
+                    {canManage && canEditStaffAccountRole(staff.account_role) ? (
+                      <StaffManagerToggle staffId={staff.id} isManager={!!(staff.can_manage_staff ?? staff.is_manager)} />
+                    ) : (
+                      <Badge
+                        size="sm"
+                        status={(staff.can_manage_staff ?? staff.is_manager) ? "active" : "inactive"}
+                        title={staff.account_role === "ADMIN" ? "관리자 계정은 직원관리 권한이 항상 있습니다." : undefined}
                       >
-                        {t.label}
-                      </button>
-                    ))}
+                        {(staff.can_manage_staff ?? staff.is_manager) ? "권한 있음" : "권한 없음"}
+                      </Badge>
+                    )}
+                  </span>
                 </div>
-
-                <div
-                  id={tabPanelId}
-                  role="tabpanel"
-                  aria-labelledby={`${tabPanelId}-${tab}`}
-                  className={`ds-overlay-tab-content ${styles.tabPanel}`}
-                >
-                  {tabItems.find((i) => i.key === tab)?.children}
-                </div>
+                <InfoRow label="등록일" value={staff.created_at?.slice(0, 10)} />
               </div>
+            <div className={styles.accountActions}>
+              {canManage &&
+                staff.is_active &&
+                staff.user != null &&
+                staff.account_role !== "OWNER" &&
+                (staff.account_role !== "ADMIN" || meQ.data.is_owner) && (
+                  <Button
+                    type="button"
+                    intent="secondary"
+                    size="sm"
+                    onClick={() => setPasswordOpen(true)}
+                  >
+                    비밀번호 변경
+                  </Button>
+                )}
+              {canManage && staff.is_active && canEditStaffAccountRole(staff.account_role) && (
+                <Button
+                  type="button"
+                  intent="danger"
+                  size="sm"
+                  disabled={offboardMutation.isPending}
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: "퇴사 처리",
+                      message: `${staff.name}의 로그인을 중지하고 퇴사 처리하시겠습니까?\n기존 근무·비용·급여 이력은 보존됩니다.`,
+                      confirmText: "퇴사 처리",
+                      danger: true,
+                    });
+                    if (!ok) return;
+                    offboardMutation.mutate();
+                  }}
+                >
+                  {offboardMutation.isPending ? "처리 중…" : "퇴사 처리"}
+                </Button>
+              )}
+              {canManage && !staff.is_active && canEditStaffAccountRole(staff.account_role) && (
+                <Button
+                  type="button"
+                  intent="danger"
+                  size="sm"
+                  disabled={deleteMutation.isPending}
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: "잘못 등록한 직원 삭제",
+                      message: `${staff.name}을(를) 영구 삭제하시겠습니까?\n근무·비용·마감·급여 이력이 한 건이라도 있으면 삭제되지 않습니다.`,
+                      confirmText: "영구 삭제",
+                      danger: true,
+                    });
+                    if (ok) deleteMutation.mutate(sid);
+                  }}
+                >
+                  {deleteMutation.isPending ? "삭제 중…" : "잘못 등록한 직원 삭제"}
+                </Button>
+              )}
+            </div>
+            </section>
+
+            <div className="ds-record-tabs" role="tablist" aria-label="직원 상세 보기">
+                {tabItems.map((t, index) => (
+                  <button
+                    key={t.key}
+                    ref={(node) => { tabRefs.current[index] = node; }}
+                    id={`${tabPanelId}-${t.key}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={tab === t.key}
+                    aria-controls={tabPanelId}
+                    tabIndex={tab === t.key ? 0 : -1}
+                    className="ds-record-tab"
+                    onClick={() => setTab(t.key)}
+                    onKeyDown={(event) => handleTabKeyDown(event, index)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+            </div>
+
+            <div
+              id={tabPanelId}
+              role="tabpanel"
+              aria-labelledby={`${tabPanelId}-${tab}`}
+              className="ds-record-content"
+              tabIndex={0}
+            >
+              {tabItems.find((i) => i.key === tab)?.children}
             </div>
           </div>
       </StaffDetailShell>
