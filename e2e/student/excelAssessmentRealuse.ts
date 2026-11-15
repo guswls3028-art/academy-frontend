@@ -104,6 +104,13 @@ export async function verifyExcelAssessment(
     expect(applied.status()).toBe(200);
     expect(await applied.json()).toMatchObject({ ok: true, applied: true, exam_id: exam.id, matched_count: 1, errors: [], rows: preview.rows });
     await expect(importer.getByText("채점 결과를 반영했습니다", { exact: true })).toBeVisible();
+    const insightPath = `/results/admin/exams/${exam.id}/analysis-insights/?lecture_id=${scope.lectureId}`;
+    expect(await expectApi(request, "GET", insightPath, admin.access)).toMatchObject({
+      scored_count: 1,
+      recommended_cutoff: 80,
+      below_recommended_count: 0,
+      score_summary: { average: 80, distribution_counts: [0, 0, 0, 1, 0] },
+    });
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await page.reload({ waitUntil: "domcontentloaded" });
@@ -113,6 +120,11 @@ export async function verifyExcelAssessment(
       const resultRow = page.getByRole(width === 390 ? "button" : "row")
         .filter({ has: page.getByText(scope.studentName, { exact: true }) });
       await expect(resultRow).toContainText("80");
+      const report = page.getByRole("region", { name: "시험 성적 분석", exact: true });
+      await expect(report.getByText("추천 합격 컷", { exact: true })).toBeVisible();
+      await expect(report.getByText("80점", { exact: true })).toBeVisible();
+      const distribution = report.getByRole("list", { name: "득점률 구간별 인원" });
+      await expect(distribution.getByRole("listitem").filter({ hasText: ">60–80%" }).getByText("1명")).toBeVisible();
       await resultRow.scrollIntoViewIfNeeded();
       await expect(resultRow).toBeInViewport();
       await assertNoHorizontalOverflow(page);
@@ -128,6 +140,11 @@ export async function verifyExcelAssessment(
     expect(wrongRows).toHaveLength(1);
     expect([3, 6, 7, 8, 9].map(column => wrongRows[0].getCell(column).value)).toEqual([scope.studentName, 80, 100, 1, "5"]);
     const analysis = await downloadWorkbook(page, "수업 분석 리포트 (엑셀)", testInfo, "real-exam-analysis");
+    const overview = analysis.getWorksheet("시험 요약")!;
+    expect(overview).toBeDefined();
+    expect(overview.getCell("A11").value).toBe("80점");
+    expect(overview.getCell("C11").value).toBe("0/1명");
+    expect([15, 16, 17, 18, 19].map(row => overview.getCell(row, 2).value)).toEqual([0, 0, 0, 1, 0]);
     const ranked = analysis.getWorksheet("학생별 등수")!;
     expect(ranked).toBeDefined();
     const rankedRows: ExcelJS.Row[] = [];

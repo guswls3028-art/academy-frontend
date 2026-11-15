@@ -284,7 +284,7 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
         <header className={styles.analysisHeader}>
           <div className={styles.headingCopy}>
             <h2 id="exam-analysis-title">시험 성적 분석</h2>
-            <p>확정된 석차 기준 1차 점수로 집계합니다.</p>
+            <p>확정된 1차 점수로 집계합니다.</p>
           </div>
           <div className={styles.reportActions}>
             <Button
