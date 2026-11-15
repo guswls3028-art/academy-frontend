@@ -437,7 +437,7 @@ test("support playback keeps preview position locally without posting student pr
     sessionStorage.setItem("hplus_student_support_info", JSON.stringify({ studentId: 1772, studentName: "합성 학생", sessionId: "preview-only", expiresAt: new Date(Date.now() + 900000).toISOString() }));
   });
   await openWatch(page);
-  await expect(page.getByText(/학생 기록·시청시간에 반영되지 않음/)).toBeVisible();
+  await expect(page.getByText(/학생 시청 기록·시청시간에 반영되지 않음/)).toBeVisible();
   await expect.poll(async () => (await youtube.snapshot()).players.some(player => player.ready)).toBe(true);
   await youtube.play();
   await expect.poll(async () => (await youtube.snapshot()).players.at(-1)?.current ?? 0).toBeGreaterThan(1);
