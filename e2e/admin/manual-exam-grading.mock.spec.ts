@@ -615,6 +615,8 @@ async function openGradingWithExcel(page: Page, method: "score" | "correctness")
   const grid = page.locator("[data-manual-grading-workspace]");
   const row = grid.locator("tbody tr").filter({ hasText: "김학생" });
   const excel = page.getByRole("region", { name: "엑셀로 채점 결과 넣기", exact: true });
+  await expect(excel).toBeHidden();
+  await page.locator("summary").filter({ hasText: "엑셀로 채점 결과 넣기" }).click();
   await excel.locator('input[type="file"]').setInputFiles({
     name: "문항별채점.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     buffer: Buffer.from("synthetic backend-owned result import fixture"),
@@ -2814,13 +2816,30 @@ test.describe("문항별 직접 채점", () => {
   test("OMR 없는 학생의 답안을 미리 채점한 뒤 한 번에 확정한다", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1100, height: 800 });
     const apiState = await installApi(page, { gradingMode: "choice", editable: false, resultRows: [] });
+    let attendanceStatus = "ONLINE";
+    let rosterReads = 0;
+    await page.route("**/lectures/attendance/?**", (route) => {
+      const params = new URL(route.request().url()).searchParams;
+      if (params.get("ordering") !== "name") return route.fallback();
+      expect(params.get("session")).toBe(String(SESSION_ID));
+      rosterReads += 1;
+      return route.fulfill({ json: {
+        count: 1, next: null, results: [{ id: 1, enrollment_id: ENROLLMENT_ID, status: attendanceStatus }],
+      } });
+    });
     await gotoAndSettle(page,
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
       { timeout: 60_000 });
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
 
     const missing = page.getByRole("region", { name: "답안 없는 시험 대상자" });
-    await expect(missing).toContainText("1명");
+    const missingToggle = page.locator("summary").filter({ hasText: "답안 없는 시험 대상자" });
+    await expect(missingToggle).toContainText("1명");
+    await expect(missing).toBeHidden();
+    expect(rosterReads).toBe(0);
+    await missingToggle.click();
+    await expect(missing).toContainText("출결 영상");
+    await expect(missing).toContainText("답안 미등록");
     await missing.getByRole("button", { name: "김학생 · 답안 입력" }).click();
     const editor = page.getByRole("region", { name: "김학생 오프라인 답안 입력" });
     await expect(editor).toBeVisible();
@@ -2834,10 +2853,13 @@ test.describe("문항별 직접 채점", () => {
     await editor.screenshot({ path: testInfo.outputPath("offline-answer-desktop.png") });
 
     await page.setViewportSize({ width: 390, height: 844 });
+    attendanceStatus = "INACTIVE";
     await gotoAndSettle(page,
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
       { timeout: 60_000 });
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await missingToggle.click();
+    await expect(missing).toContainText("출결 부재");
     await missing.getByRole("button", { name: "김학생 · 답안 입력" }).click();
     expect((await editor.boundingBox())?.width).toBeGreaterThanOrEqual(380);
     expect((await editor.getByRole("heading", { name: "김학생 · 오프라인 답안 입력" }).boundingBox())?.y).toBeGreaterThanOrEqual(56);
@@ -2853,7 +2875,7 @@ test.describe("문항별 직접 채점", () => {
     await expect.poll(() => apiState.offlineAnswerWrites.filter((write) => write.apply).length).toBe(1);
     expect(apiState.offlineAnswerWrites.find((write) => write.apply)?.preview_token).toBe("offline-preview-v1");
     await expect(page.getByRole("region", { name: "시험 학생별 결과" })).toContainText("김학생");
-    await expect(missing).toContainText("0명");
+    await expect(missingToggle).toContainText("0명");
   });
 
   test("결시로 기록된 학생도 늦은 오프라인 답안을 입력할 수 있다", async ({ page }) => {
@@ -2861,12 +2883,17 @@ test.describe("문항별 직접 채점", () => {
       enrollment_id: ENROLLMENT_ID, student_name: "김학생", result_status: "NOT_SUBMITTED",
       meta_status: "NOT_SUBMITTED", final_score: null, ranking_score: null,
     }] });
+    await page.route("**/lectures/attendance/?**", (route) => route.fulfill({ json: {
+      count: 0, next: null, results: [],
+    } }));
     await gotoAndSettle(page,
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
       { timeout: 60_000 });
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
     const missing = page.getByRole("region", { name: "답안 없는 시험 대상자" });
-    await expect(missing).toContainText("1명");
+    const missingToggle = page.locator("summary").filter({ hasText: "답안 없는 시험 대상자" });
+    await expect(missingToggle).toContainText("1명");
+    await missingToggle.click();
     await missing.getByRole("button", { name: "김학생 · 답안 입력" }).click();
     await expect(page.getByRole("region", { name: "김학생 오프라인 답안 입력" })).toBeVisible();
   });
@@ -2932,6 +2959,7 @@ test.describe("문항별 직접 채점", () => {
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
       { timeout: 60_000 },
     );
+    await page.setViewportSize({ width: 1600, height: 900 });
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
 
     const resultRegion = page.getByRole("region", { name: "시험 학생별 결과" });
@@ -2942,7 +2970,18 @@ test.describe("문항별 직접 채점", () => {
     await expect(resultRows.nth(0)).toContainText("최종 19");
     await expect(resultRows.nth(0)).toContainText("완료");
     await expect(resultRows.nth(1)).toContainText("이도규");
-    await resultRegion.screenshot({ path: testInfo.outputPath("results-desktop-1100.png") });
+    const table = resultRegion.getByRole("table");
+    expect((await table.boundingBox())!.width).toBeGreaterThan((await resultRegion.boundingBox())!.width * 0.95);
+    const answerButton = resultRegion.getByRole("button", { name: "심하윤 답안 상세" });
+    await answerButton.press("Enter");
+    const answer = page.getByRole("dialog", { name: "심하윤 답안 상세" });
+    await expect(answer.getByRole("tab", { name: "답안지" })).toBeVisible();
+    expect((await answer.boundingBox())!.height).toBeLessThan(620);
+    await answer.screenshot({ path: testInfo.outputPath("answer-detail-desktop.png") });
+    await page.keyboard.press("Escape");
+    await expect(answer).toBeHidden();
+    await expect(answerButton).toBeFocused();
+    await resultRegion.screenshot({ path: testInfo.outputPath("results-desktop-1600.png") });
 
     await resultRegion.getByRole("combobox", { name: "시험 결과 정렬" }).selectOption("final_score");
     await expect(resultRows.nth(0)).toContainText("이도규");
@@ -2979,6 +3018,15 @@ test.describe("문항별 직접 채점", () => {
     await expect.poll(() => resultRegion.evaluate(
       (element) => element.scrollWidth <= element.clientWidth,
     )).toBe(true);
+    await mobileResultRows.nth(0).click();
+    await expect(answer).toBeInViewport();
+    await expect(answer.getByRole("tab", { name: "답안지" })).toBeVisible();
+    const mobileAnswer = (await answer.boundingBox())!;
+    expect(mobileAnswer.x).toBeGreaterThanOrEqual(0);
+    expect(mobileAnswer.x + mobileAnswer.width).toBeLessThanOrEqual(390);
+    await answer.screenshot({ path: testInfo.outputPath("answer-detail-390.png") });
+    await page.keyboard.press("Escape");
+    await expect(mobileResultRows.nth(0)).toBeFocused();
     await resultRegion.screenshot({ path: testInfo.outputPath("results-mobile-390.png") });
     await page.screenshot({ path: testInfo.outputPath("results-mobile-page-390.png"), fullPage: true });
   });

@@ -26,6 +26,7 @@ function fakeJwt(): string {
 type ReviewMockOptions = {
   resultMode?: "SCORE" | "COMPLETION";
   resultScores?: Array<number | null>;
+  workbook?: boolean;
   olderSubmission?: boolean;
   reviewImagesOnly?: boolean;
   reviewPdf?: boolean;
@@ -83,6 +84,7 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
     effective_cutline_value: options.resultMode === "COMPLETION" ? 1 : 80,
     effective_round_unit_percent: 5,
     uses_session_cutline_default: false,
+    source_status: options.workbook ? "ready" : "none",
     meta: {},
     created_at: "2026-08-23T00:00:00Z",
     updated_at: "2026-08-23T00:00:00Z",
@@ -571,7 +573,7 @@ test("신규 조교가 계정 안내 확인 후 모바일 과제 파일을 열�
   await page.screenshot({ path: testInfo.outputPath("mobile-homework-preview-1366.png"), fullPage: true, animations: "disabled" });
 });
 
-for (const width of [1366, 390]) {
+for (const width of [1366, 1100, 390]) {
   test(`@homework-results ${width}px 통과형 결과는 OX·미입력·미제출로 구분하고 상세를 화면 안에서 확인한다`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     await installApi(page, "submitted", false, { resultMode: "COMPLETION", resultScores: [1, 0, null, null] });
@@ -581,7 +583,13 @@ for (const width of [1366, 390]) {
     await expect(table.getByRole("columnheader", { name: "O/X", exact: true })).toBeVisible();
     await expect(page.getByText("점수 분포 (%)", { exact: true })).toHaveCount(0);
     await expect(page.getByText(/최소 1점/)).toHaveCount(0);
-    await expect(page.getByText("미입력 1명 · 미제출 처리 1명 · 판정 입력 2명", { exact: true })).toBeVisible();
+    const statistics = page.getByText("과제 통계", { exact: true });
+    const inputCounts = page.getByText("미입력 1명 · 미제출 처리 1명 · 판정 입력 2명", { exact: true });
+    await expect(inputCounts).toBeHidden();
+    await statistics.click();
+    await expect(inputCounts).toBeVisible();
+    await statistics.click();
+    await expect(inputCounts).toBeHidden();
     for (const [index, value] of ["O", "X", "미입력", "미제출"].entries()) {
       const row = table.getByRole("row").filter({ hasText: `결과학생${index + 1}` });
       await expect(row.locator("td").nth(2)).toHaveText(value);
@@ -591,17 +599,22 @@ for (const width of [1366, 390]) {
     await expect(table.locator("tbody tr")).toContainText("결과학생2");
     await page.getByRole("combobox", { name: "과제 결과 상태 필터" }).selectOption("all");
     const second = table.getByRole("row").filter({ hasText: "결과학생2" });
-    await second.locator("td").nth(2).click();
-    const detail = page.getByRole("complementary", { name: "선택 학생 상세", exact: true });
+    const detailButton = second.getByRole("button", { name: "결과학생2 결과 상세", exact: true });
+    const detail = page.getByRole("dialog", { name: "결과학생2 과제 결과", exact: true });
+    await expect(detail).toBeHidden();
+    await detailButton.focus();
+    await detailButton.press("Enter");
     await expect(detail.getByText("X", { exact: true })).toBeVisible();
-    await detail.scrollIntoViewIfNeeded();
+    await expect(detail).toBeInViewport();
     const bounds = await detail.boundingBox();
     expect(bounds).not.toBeNull();
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-    await table.evaluate(node => { if (node.parentElement) node.parentElement.scrollLeft = 0; });
     await page.screenshot({ path: testInfo.outputPath(`completion-detail-${width}.png`), animations: "disabled" });
+    await page.keyboard.press("Escape");
+    await expect(detail).toBeHidden();
+    await expect(detailButton).toBeFocused();
     await page.reload({ waitUntil: "domcontentloaded" });
     await waitForRenderSettled(page, { timeout: 20_000 });
     await page.getByRole("tab", { name: "결과", exact: true }).click();
@@ -614,12 +627,15 @@ test("@homework-results 점수형 소수점 경계는 분포에서 누락되지 
   await installApi(page, "submitted", false, { resultMode: "SCORE", resultScores: [0, 20, 20.5, 40, 40.5, 60, 60.5, 80, 80.5, 100] });
   await openSubmissionReview(page);
   await page.getByRole("tab", { name: "결과", exact: true }).click();
-  await expect(page.getByText("점수 분포 (%)", { exact: true })).toBeVisible();
+  const distributionTitle = page.getByText("점수 분포 (%)", { exact: true });
+  await expect(distributionTitle).toBeHidden();
+  await page.getByText("과제 통계", { exact: true }).click();
+  await expect(distributionTitle).toBeVisible();
   for (const label of ["0-20", "20초과-40", "40초과-60", "60초과-80", "80초과-100"]) {
     await expect(page.getByTitle(`${label}: 2명`, { exact: true })).toBeVisible();
   }
   await expect(page.getByRole("table").getByRole("row").filter({ hasText: "결과학생3" }).locator("td").nth(2)).toHaveText("20.5 / 100");
-  const distribution = page.getByText("점수 분포 (%)", { exact: true }).locator("..");
+  const distribution = distributionTitle.locator("..");
   await distribution.scrollIntoViewIfNeeded();
   expect(await distribution.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
@@ -637,7 +653,56 @@ test("@homework-results 전원 미입력은 제출률100% 대신 실제 입력 �
   await installApi(page, "submitted", false, { resultMode: "SCORE", resultScores: [null, null, null] });
   await openSubmissionReview(page);
   await page.getByRole("tab", { name: "결과", exact: true }).click();
+  await page.getByText("과제 통계", { exact: true }).click();
   await expect(page.getByText("미입력 3명 · 미제출 처리 0명 · 채점 입력 0명", { exact: true })).toBeVisible();
   await expect(page.getByText(/제출률/)).toHaveCount(0);
   await expect(page.getByRole("table").locator("tbody tr")).toHaveCount(3);
+});
+
+test("@homework-results 워크북 채점표를 열고 저장한 표시를 다시 확인한다", async ({ page }) => {
+  await installApi(page, "submitted", false, { resultMode: "SCORE", resultScores: [90], workbook: true });
+  let readCount = 0;
+  let savedMarks = {};
+  await page.route(`**/homeworks/${HOMEWORK_ID}/question-grading/`, async (route) => {
+    const request = route.request();
+    if (request.method() === "PATCH") {
+      const payload = request.postDataJSON();
+      expect(payload).toEqual({ updates: [{
+        enrollment_id: 9902, question_number: 1, is_correct: false, include_in_wrong_note: true,
+      }] });
+      savedMarks = { "1": { is_correct: false, include_in_wrong_note: true } };
+    } else {
+      readCount += 1;
+    }
+    await route.fulfill({ json: {
+      homework_id: HOMEWORK_ID,
+      source_exam_id: 44,
+      source_status: "ready",
+      questions: [{ id: 1, number: 1, image_key: "" }],
+      rows: [{ enrollment_id: 9902, student_id: 9950, student_name: "결과학생1", score_id: 431, marks: savedMarks }],
+    } });
+  });
+  await openSubmissionReview(page);
+  await page.getByRole("tab", { name: "결과", exact: true }).click();
+  const ledger = page.locator("summary").filter({ hasText: "워크북 문항 채점표" });
+  const mark = page.getByRole("combobox", { name: "결과학생1 1번 채점", exact: true });
+  await expect(ledger).toBeVisible();
+  await expect(mark).toHaveCount(0);
+  expect(readCount).toBe(0);
+  await ledger.click();
+  await expect(mark).toHaveValue("unset");
+  expect(readCount).toBe(1);
+  await mark.selectOption("wrong");
+  await expect(mark).toHaveValue("wrong");
+  await ledger.click();
+  await expect(mark).toBeHidden();
+  await ledger.click();
+  await expect(mark).toHaveValue("wrong");
+  expect(readCount).toBe(1);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByRole("tab", { name: "결과", exact: true }).click();
+  await expect(mark).toHaveCount(0);
+  await ledger.click();
+  await expect(mark).toHaveValue("wrong");
+  expect(readCount).toBe(2);
 });
