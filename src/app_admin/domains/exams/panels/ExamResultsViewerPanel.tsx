@@ -240,10 +240,8 @@ function ExamResultsViewerContent({
     );
   }
 
-  return (
+  const gradingTools = (
     <>
-      {excelApplying && <p role="status">수동 채점 저장과 엑셀 반영을 마칠 때까지 채점표 편집을 잠시 기다려 주세요.</p>}
-      <div ref={editingRegionRef} className={styles.workspace} inert={excelApplying} aria-busy={excelApplying}>
       {exam && (
         <SubjectiveGradingEntry
           key={examId}
@@ -258,10 +256,18 @@ function ExamResultsViewerContent({
       )}
       {exam?.grading_mode !== "choice" && (
         <div ref={gradingEntryRef} tabIndex={-1} className={styles.jumpTarget}>
-          <ManualExamGradingGrid ref={manualGridRef} examId={examId} showUnavailableState />
+          <ManualExamGradingGrid ref={manualGridRef} examId={examId} showUnavailableState autoFocusFirstCell={!focusAnalysis} />
         </div>
       )}
       <ExamResultExcelImport examId={examId} examTitle={exam?.title ?? "시험"} beforeApply={prepareExcelApply} />
+    </>
+  );
+
+  return (
+    <>
+      {excelApplying && <p role="status">수동 채점 저장과 엑셀 반영을 마칠 때까지 채점표 편집을 잠시 기다려 주세요.</p>}
+      <div ref={editingRegionRef} className={styles.workspace} inert={excelApplying} aria-busy={excelApplying}>
+      {!focusAnalysis && gradingTools}
 
       <section className={styles.scopePanel} aria-labelledby="exam-result-scope-title">
         <div className={styles.scopeHeading}>
@@ -471,6 +477,8 @@ function ExamResultsViewerContent({
           </details>
         )}
       </section>
+
+      {focusAnalysis && gradingTools}
 
       <section className={styles.studentResultsSection}>
         <div className={styles.sectionHeading}>

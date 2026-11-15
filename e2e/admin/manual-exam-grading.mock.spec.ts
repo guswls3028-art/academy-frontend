@@ -3161,13 +3161,18 @@ test.describe("문항별 직접 채점", () => {
         `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
         { timeout: 30_000 },
       );
-      const analysis = page.waitForResponse((response) => {
-        const url = new URL(response.url());
-        return url.pathname.endsWith(`/exams/${EXAM_ID}/analysis-insights/`)
-          && url.searchParams.get("lecture_id") === String(LECTURE_ID);
-      });
-      await page.getByRole("button", { name: "시험 성적 분석", exact: true }).click();
-      expect((await analysis).ok()).toBe(true);
+      const shortcut = page.getByRole("button", { name: "시험 성적 분석", exact: true });
+      await expect(shortcut).toBeEnabled({ timeout: 60_000 });
+      const [analysis] = await Promise.all([
+        page.waitForResponse((response) => {
+          const url = new URL(response.url());
+          return url.pathname.endsWith(`/exams/${EXAM_ID}/analysis-insights/`)
+            && url.searchParams.get("lecture_id") === String(LECTURE_ID);
+        }, { timeout: 25_000 }),
+        shortcut.click(),
+      ]);
+      expect(analysis.ok()).toBe(true);
+      await expect(page.locator("[data-manual-grade-cell]").first()).toBeVisible();
       const report = page.getByRole("region", { name: "시험 성적 분석", exact: true });
       await expect(report).toBeFocused();
       await expect(report.getByRole("heading", { name: "시험 성적 분석" })).toBeInViewport();

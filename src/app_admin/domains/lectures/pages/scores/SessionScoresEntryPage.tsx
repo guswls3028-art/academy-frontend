@@ -216,6 +216,7 @@ export default function SessionScoresEntryPage({
     || summaryColumnMode !== defaultSummaryColumnMode;
   const { openSendMessageModal } = useSendMessageModal();
   const panelRef = useRef<SessionScoresPanelHandle>(null);
+  const scoreGridRef = useRef<HTMLDivElement>(null);
   const [activeScoreCell, setActiveScoreCell] = useState<ScoreActiveCell | null>(null);
   const [showBulkScoreModal, setShowBulkScoreModal] = useState(false);
   const [bulkScoreValue, setBulkScoreValue] = useState("");
@@ -526,7 +527,7 @@ export default function SessionScoresEntryPage({
   }, [draft.hasDraftToRestore]);
 
   const changeScoreHistory = useCallback((redo: boolean, notifyEmpty = false) => {
-    if (!isEditMode || panelRef.current?.hasUncommittedActiveCell?.()) return false;
+    if (!isEditMode || scoreGridRef.current?.inert || panelRef.current?.hasUncommittedActiveCell?.()) return false;
     const changed = redo ? panelRef.current?.redoLastChange?.() : panelRef.current?.undoLastChange?.();
     if (!changed && notifyEmpty) feedback.info(redo ? "다시 실행할 변경이 없습니다." : "이 화면에서 되돌릴 변경이 없습니다.");
     return Boolean(changed);
@@ -537,6 +538,10 @@ export default function SessionScoresEntryPage({
       if (!isEditMode) return;
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
       const key = event.key.toLowerCase();
+      if (scoreGridRef.current?.inert) {
+        if (key === "s" || key === "z" || key === "y") event.preventDefault();
+        return;
+      }
       if (key === "s") {
         event.preventDefault();
         void saveScoresNow(true);
@@ -963,13 +968,21 @@ export default function SessionScoresEntryPage({
 
   const finishScoreEditing = async () => {
     if (!isEditMode) return true;
-    if (!await saveScoresNow()) return false;
-    setIsSaving(true);
+    const grid = scoreGridRef.current;
+    if (!grid || grid.inert) return false;
+    // Wait for saving and lease release without accepting another cell edit.
+    grid.inert = true;
     try {
-      if (!await draft.releaseEditLease()) return false;
+      if (!await saveScoresNow()) return false;
+      setIsSaving(true);
+      if (!await draft.releaseEditLease()) {
+        feedback.error("점수 입력 종료를 마친 뒤 다시 시도해 주세요.");
+        return false;
+      }
       setIsEditMode(false);
       return true;
     } finally {
+      grid.inert = false;
       setIsSaving(false);
     }
   };
@@ -977,9 +990,9 @@ export default function SessionScoresEntryPage({
   const openExamAnalysis = async (examId: number) => {
     if (openingAnalysisRef.current || recoveryBlocked || !Number.isFinite(numericLectureId)) return;
     openingAnalysisRef.current = true;
+    setShowAnalysisPicker(false);
     try {
       if (!await finishScoreEditing()) return;
-      setShowAnalysisPicker(false);
       navigate({
         pathname: `/workspace/lectures/${numericLectureId}/sessions/${numericSessionId}/exams`,
         search: buildAssessmentSearch("exam", examId) + "&examTab=results",
@@ -1898,49 +1911,51 @@ export default function SessionScoresEntryPage({
       )}
 
       {data && (
-        <SessionScoresPanel
-          ref={setPanelHandle}
-          sessionId={numericSessionId}
-          lectureId={numericLectureId}
-          search={searchInput}
-          schedule={schedule}
-          isEditMode={isEditMode}
-          onSaveDrawerHomeworkScore={saveDrawerHomeworkScore}
-          onRequestAnswerEdit={async () => {
-            if (isSaving || draft.isStartingEdit || draft.isRecoveryCheckPending || draft.recoveryCheckFailed || draft.hasDraftToRestore) {
-              feedback.info("진행 중인 저장이나 복구를 마친 뒤 다시 시도해 주세요.");
-              return false;
-            }
-            if (isEditMode) return true;
-            if (!await beginScoreEditing()) {
-              feedback.error("답안 수정 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-              return false;
-            }
-            setIsEditMode(true);
-            return true;
-          }}
-          hasUnsavedChanges={isEditMode || isSaving || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
-          hasPendingScoreChanges={isSaving || draft.isStartingEdit || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
-          assessmentDeleteLocked={isSaving || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error" || activeScoreCell !== null}
-          onPendingChange={draft.requestAutosave}
-          activeEditors={draft.activeEditors}
-          onClaimOwnCell={draft.claimOwnCell}
-          onActiveCellChange={setActiveScoreCell}
-          examEditTotal={examEditTotal}
-          examEditObjective={false}
-          examEditSubjective={examEditSubjective}
-          homeworkEdit={homeworkEdit}
-          scoreDisplayMode={scoreDisplayMode}
-          scoreFormat={scoreFormat}
-          viewFilter={viewFilter}
-          summaryColumnMode={summaryColumnMode}
-          examReviewFilter={examReviewFilter}
-          selectedEnrollmentIds={selectedEnrollmentIds}
-          onSelectionChange={changeScoreSelection}
-          onOpenExamGrading={(examId, title, gradingMode, manualGradingMethod, action) => {
-            void openExamGrading(examId, title, gradingMode, manualGradingMethod, action);
-          }}
-        />
+        <div className="min-w-0" ref={scoreGridRef}>
+          <SessionScoresPanel
+            ref={setPanelHandle}
+            sessionId={numericSessionId}
+            lectureId={numericLectureId}
+            search={searchInput}
+            schedule={schedule}
+            isEditMode={isEditMode}
+            onSaveDrawerHomeworkScore={saveDrawerHomeworkScore}
+            onRequestAnswerEdit={async () => {
+              if (isSaving || draft.isStartingEdit || draft.isRecoveryCheckPending || draft.recoveryCheckFailed || draft.hasDraftToRestore) {
+                feedback.info("진행 중인 저장이나 복구를 마친 뒤 다시 시도해 주세요.");
+                return false;
+              }
+              if (isEditMode) return true;
+              if (!await beginScoreEditing()) {
+                feedback.error("답안 수정 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+                return false;
+              }
+              setIsEditMode(true);
+              return true;
+            }}
+            hasUnsavedChanges={isEditMode || isSaving || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
+            hasPendingScoreChanges={isSaving || draft.isStartingEdit || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
+            assessmentDeleteLocked={isSaving || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error" || activeScoreCell !== null}
+            onPendingChange={draft.requestAutosave}
+            activeEditors={draft.activeEditors}
+            onClaimOwnCell={draft.claimOwnCell}
+            onActiveCellChange={setActiveScoreCell}
+            examEditTotal={examEditTotal}
+            examEditObjective={false}
+            examEditSubjective={examEditSubjective}
+            homeworkEdit={homeworkEdit}
+            scoreDisplayMode={scoreDisplayMode}
+            scoreFormat={scoreFormat}
+            viewFilter={viewFilter}
+            summaryColumnMode={summaryColumnMode}
+            examReviewFilter={examReviewFilter}
+            selectedEnrollmentIds={selectedEnrollmentIds}
+            onSelectionChange={changeScoreSelection}
+            onOpenExamGrading={(examId, title, gradingMode, manualGradingMethod, action) => {
+              void openExamGrading(examId, title, gradingMode, manualGradingMethod, action);
+            }}
+          />
+        </div>
       )}
 
       {/* 성적 일괄 변경 모달.
