@@ -77,6 +77,12 @@ export function isPlaybackEventScopeCurrent(scope: PlaybackEventScope): boolean 
     && current.supportSessionId === scope.supportSessionId;
 }
 
+function isResponseAuthCurrent(config: RetryConfig): boolean {
+  if (config.playbackEventScope) return isPlaybackEventScopeCurrent(config.playbackEventScope);
+  return config._authGeneration === undefined
+    || config._authGeneration === (readAuthTokenEnvelopeSafely()?.generation ?? null);
+}
+
 /** Reject a queued mutation if another login becomes active before its interceptor runs. */
 export function createAuthSessionBoundConfig(expectedGeneration: string, signal?: AbortSignal, expectedTenant?: string): ApiRequestConfig {
   const config: RetryConfig = { signal, _authGeneration: expectedGeneration, _expectedTenant: expectedTenant };
@@ -487,7 +493,9 @@ api.interceptors.request.use(async (config) => {
       || shouldSkipAuth(cfg.url, cfg) || !isPlaybackEventScopeCurrent(retryCfg.playbackEventScope)) {
       throw new axios.CanceledError("Playback event scope changed.");
     }
-    retryCfg._authGeneration = retryCfg.playbackEventScope.generation;
+    if (retryCfg.playbackEventScope.generation !== null) {
+      retryCfg._authGeneration = retryCfg.playbackEventScope.generation;
+    }
   }
 
   // Attach Authorization if access exists (JWT)
@@ -674,12 +682,9 @@ api.interceptors.response.use(
   (res: AxiosResponse) => {
     const responseConfig = res.config as RetryConfig;
     const id = responseConfig._asyncId;
-    if (responseConfig._authGeneration !== undefined) {
-      const currentGeneration = readAuthTokenEnvelopeSafely()?.generation ?? null;
-      if (responseConfig._authGeneration !== currentGeneration) {
-        if (id) asyncStatusStore.completeTask(id, "error", "Authentication session changed.");
-        throw new axios.CanceledError("Authentication session changed.");
-      }
+    if (!isResponseAuthCurrent(responseConfig)) {
+      if (id) asyncStatusStore.completeTask(id, "error", "Authentication session changed.");
+      throw new axios.CanceledError("Authentication session changed.");
     }
     if (id) asyncStatusStore.completeTask(id, "success");
     return res;
@@ -697,14 +702,11 @@ api.interceptors.response.use(
     // Reject every stale response class before retry/status handling. A delayed
     // 403/404/network/timeout from account A must never reach account B's
     // AuthContext or query consumers.
-    if (original._authGeneration !== undefined) {
-      const currentGeneration = readAuthTokenEnvelopeSafely()?.generation ?? null;
-      if (original._authGeneration !== currentGeneration) {
-        if (asyncId) {
-          asyncStatusStore.completeTask(asyncId, "error", "Authentication session changed.");
-        }
-        throw new axios.CanceledError("Authentication session changed.");
+    if (!isResponseAuthCurrent(original)) {
+      if (asyncId) {
+        asyncStatusStore.completeTask(asyncId, "error", "Authentication session changed.");
       }
+      throw new axios.CanceledError("Authentication session changed.");
     }
 
     if (shouldRetryTransientApiError(err, original)) {
