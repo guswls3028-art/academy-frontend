@@ -32,6 +32,7 @@ function fixture(configured = false) {
     lectureSettings: null as LectureScheduleSettings | null,
     legacySection: false,
     lecturePatches: [] as LectureScheduleSettings[],
+    rejectLectureSettings: false,
     copies: [] as { version: string; source_session: number }[],
     bulk: [] as { session: number; schedule?: string }[],
     presentEnrollmentIds: new Set<number>(),
@@ -58,8 +59,9 @@ async function install(page: Page, state: ReturnType<typeof fixture>) {
     if (endpoint === '/lectures/attendance/arrival-overview/') return json({ generated_at: '2026-11-05T00:00:00Z', today: '2026-11-05', tomorrow: '2026-11-06', range_end: '2026-11-11', range_days: 7, soon_window_minutes: 60, summary: { soon: 0, today: 0, tomorrow: 0, upcoming: 0, time_unset: 0, overdue: 0 }, items: [] });
     if (endpoint === '/lectures/lectures/instructor-options/') return json([{ name: '관리자', type: 'owner' }]);
     if (endpoint === '/lectures/sections/' && state.legacySection) return json([{ id: 41, label: 'A', section_type: 'CLASS', is_active: true, day_of_week_display: '수요일', start_time: '16:00' }]);
-    if (endpoint === '/lectures/lectures/9901/') {
-      if (method === 'PATCH') {
+    if (endpoint === '/lectures/lectures/9901/' || endpoint === '/lectures/lectures/9901/schedule-settings/') {
+      if (endpoint.endsWith('/schedule-settings/') && method === 'PATCH') {
+        if (state.rejectLectureSettings) return json({ detail: '일정 설정을 저장할 수 없습니다.' }, 404);
         const { schedule_mode, schedule_defaults } = request.postDataJSON() as LectureScheduleSettings;
         state.lectureSettings = { schedule_mode, schedule_defaults };
         state.lecturePatches.push(state.lectureSettings);
@@ -174,6 +176,12 @@ for (const width of [390, 1366]) test(`저장한 강의의 반별 기본 일정�
   await capture(page, `lecture-schedule-setting-${width}`);
   const form = edit.locator('.lecture-create-modal-form');
   expect(await form.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+  state.rejectLectureSettings = true;
+  await edit.getByRole('button', { name: '수정', exact: true }).click();
+  await expect(edit.getByRole('alert')).toContainText('일정 설정을 저장할 수 없습니다.');
+  await expect(edit.getByLabel('3번째 반 이름')).toHaveValue('금요일 C반');
+  expect(state.lecturePatches).toEqual([]);
+  state.rejectLectureSettings = false;
   await edit.getByRole('button', { name: '수정', exact: true }).click();
   await expect(edit).toBeHidden();
   expect(state.lecturePatches).toEqual([{ schedule_mode: 'SPLIT', schedule_defaults: [
@@ -191,6 +199,13 @@ for (const width of [390, 1366]) test(`저장한 강의의 반별 기본 일정�
   await expect(create.getByLabel('수업일 1 이름')).toHaveValue('수요일 A반');
   await expect(create.getByLabel('수업일 2 이름')).toHaveValue('목요일 B반');
   await expect(create.getByLabel('수업일 3 이름')).toHaveValue('금요일 C반');
+  await create.getByLabel('수업일 2 이름').fill('목요일 이름 변경 초안');
+  await create.getByRole('button', { name: /^보강/ }).first().click();
+  await expect(create.getByLabel('수업일 2 이름')).toHaveCount(0);
+  await expect(create.getByRole('button', { name: '날짜 선택', exact: true })).toBeVisible();
+  await create.getByRole('button', { name: /정규 차시 추가/ }).click();
+  await expect(create.getByLabel('수업일 2 이름')).toHaveValue('목요일 이름 변경 초안');
+  await create.getByLabel('수업일 2 이름').fill('목요일 B반');
   await create.getByRole('button', { name: '저장', exact: true }).click();
   await page.getByRole('alertdialog', { name: '차시 생성 최종 확인', exact: true }).getByRole('button', { name: '확인하고 추가', exact: true }).click();
   await expect(create).toBeHidden();

@@ -4,7 +4,6 @@ import { useNavigate } from "react-router";
 import { Popover } from "antd";
 import { Trash2, FolderOpen, Save } from "lucide-react";
 
-import api from "@/shared/api/axios";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import { DatePicker } from "@/shared/ui/date";
@@ -13,7 +12,7 @@ import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { normalizeLectureChipText } from "@/shared/ui/chips/lectureChipText";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
-import { fetchLecture, fetchLectureInstructorOptions, updateLecture } from "@admin/domains/lectures/api/sessions";
+import { createLecture, fetchLecture, fetchLectureInstructorOptions, updateLecture } from "@admin/domains/lectures/api/sessions";
 import { fetchStaffMe } from "@/shared/staff/api";
 import { staffWorkQueryKeys } from "@/shared/staff/queryKeys";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -177,7 +176,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
       if (isEditMode && lectureId != null) {
         await updateLecture(lectureId, payload);
       } else {
-        await api.post("/lectures/lectures/", { ...payload, is_active: true });
+        await createLecture({ ...payload, is_active: true });
       }
     },
     onSuccess: () => {

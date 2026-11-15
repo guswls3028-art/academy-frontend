@@ -199,6 +199,7 @@ pnpm build
 - 레거시 반 편성이 있는 강의에서 `공통 차시` 행은 강의 기본 일정으로 차시를 추가한다.
   기존에 개별 차시를 운영하던 수업 반과 클리닉 반은 해당 행과 `반 편성`에서 관리한다.
   분반 기능을 쓰던 학원도 강의 생성·수정 화면에서 공통 차시의 운영 방식을 설정한다.
+  학원 설정의 `개별 차시·클리닉 반 편성`은 기존에 차시와 클리닉을 개별 운영하는 반에 적용된다.
 - 새 정규·보강 차시를 추가할 때 날짜 아래의 `수업일 추가`로 기본 날짜를 포함해
   최대 20개를 설정할 수 있다. 추가한 행의 날짜·이름·제거는 저장 전에 수정할 수 있고,
   이름을 비워 두면 요일 이름으로 표시한다. 같은 날의 여러 반에는 다른 이름을 사용한다.
@@ -273,7 +274,9 @@ pnpm build
 저장/복사 모두 같은 응답을 반환한다. 버전은 문자열이며 stale 409, invalid 400.
 강의 `POST`/`PATCH`는 `schedule_mode`(`SINGLE`, `SPLIT`)와 `schedule_defaults`
 (`{label, weekday}`, 월요일 1–일요일 7)를 저장한다. 운영 방식을 바꿀 때 두 필드를
-함께 전송한다. 강의의 다른 값만 수정할 때 일정 필드는 생략한다.
+함께 전송한다. 일정이 포함된 생성은 `/lectures/lectures/with-schedule-settings/`,
+설정이 바뀐 수정은 `/lectures/lectures/{id}/schedule-settings/`에서 저장한다.
+강의의 다른 값만 수정할 때는 기존 경로를 사용한다.
 여러 수업일과 차시를 함께 생성하는 `POST /lectures/sessions/with-schedules/`는
 차시 필드, `create_request_id` UUID와 `initial_schedules`를 받는다. 일반 차시 생성은
 `POST /lectures/sessions/`를 사용한다. [백엔드 강의 차시 계약](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/lecture-sessions.md)이 권한과 원자적 저장을 소유한다.

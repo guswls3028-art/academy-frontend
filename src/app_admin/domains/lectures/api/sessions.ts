@@ -91,10 +91,16 @@ export async function createLecture(payload: {
   end_date?: string | null;
   lecture_time?: string | null;
   color?: string | null;
+  chip_label?: string | null;
   is_active?: boolean;
-}): Promise<Lecture> {
-  const res = await api.post("/lectures/lectures/", payload);
+} & Partial<LectureScheduleSettings>): Promise<Lecture> {
+  const endpoint = hasLectureScheduleSettings(payload) ? "/lectures/lectures/with-schedule-settings/" : "/lectures/lectures/";
+  const res = await api.post<Lecture>(endpoint, payload);
   return res.data;
+}
+
+function hasLectureScheduleSettings(payload: Partial<LectureScheduleSettings>): boolean {
+  return payload.schedule_mode !== undefined || payload.schedule_defaults !== undefined;
 }
 
 // ----------------------------------------
@@ -104,7 +110,8 @@ export async function updateLecture(
   lectureId: number,
   payload: Partial<Omit<Lecture, "id" | "tenant" | "created_at" | "updated_at">>
 ): Promise<Lecture> {
-  const res = await api.patch(`/lectures/lectures/${lectureId}/`, payload);
+  const suffix = hasLectureScheduleSettings(payload) ? "schedule-settings/" : "";
+  const res = await api.patch<Lecture>(`/lectures/lectures/${lectureId}/${suffix}`, payload);
   return res.data;
 }
 

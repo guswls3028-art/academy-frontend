@@ -83,7 +83,7 @@ async function verifyInitialSchedules(page: Page, request: APIRequestContext, ad
     } finally {
       if (settingsSubmitted) {
         const previous = { schedule_mode: original.schedule_mode, schedule_defaults: original.schedule_defaults };
-        await expectApi(request, 'PATCH', lectureEndpoint, admin.access, previous, [200]);
+        await expectApi(request, 'PATCH', `${lectureEndpoint}schedule-settings/`, admin.access, previous, [200]);
         expect(await expectApi<LectureScheduleSettings>(request, 'GET', lectureEndpoint, admin.access)).toMatchObject(previous);
       }
     }

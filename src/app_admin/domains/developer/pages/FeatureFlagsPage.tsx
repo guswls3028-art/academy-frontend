@@ -53,28 +53,28 @@ const PRESETS: Preset[] = [
   {
     id: "default",
     label: "기본",
-    description: "중고등 · 반 없음 · 보충 클리닉",
+    description: "중고등 · 보충 클리닉",
     flags: { section_mode: false, school_level_mode: "middle_high", clinic_mode: "remediation" },
     color: "var(--color-text-secondary)",
   },
   {
     id: "sswe",
     label: "SSWE",
-    description: "중고등 · A/B반 · 정규 클리닉",
+    description: "중고등 · 개별 반 편성 · 정규 클리닉",
     flags: { section_mode: true, school_level_mode: "middle_high", clinic_mode: "regular" },
     color: "#7c3aed",
   },
   {
     id: "elementary",
     label: "초중등",
-    description: "초중등 · 반 없음 · 보충 클리닉",
+    description: "초중등 · 보충 클리닉",
     flags: { section_mode: false, school_level_mode: "elementary_middle", clinic_mode: "remediation" },
     color: "#0891b2",
   },
   {
     id: "elementary_section",
     label: "초중등+반",
-    description: "초중등 · A/B반 · 보충 클리닉",
+    description: "초중등 · 개별 반 편성 · 보충 클리닉",
     flags: { section_mode: true, school_level_mode: "elementary_middle", clinic_mode: "remediation" },
     color: "#0d9488",
   },
@@ -90,11 +90,11 @@ const MODE_OPTIONS: {
 }[] = [
   {
     key: "section_mode",
-    label: "반 편성 모드",
-    description: "강의 내 A/B반 운영 여부",
+    label: "개별 차시·클리닉 반 편성",
+    description: "반마다 별도의 차시와 클리닉을 관리하는 학원 설정",
     options: [
-      { value: "false", label: "기본 (반 없음)", description: "하나의 강의에 모든 학생이 동일한 차시로 수업" },
-      { value: "true", label: "A/B반 운영", description: "강의 내 수업/클리닉을 A반·B반으로 분리 운영 (SSWE 방식)" },
+      { value: "false", label: "미사용", description: "공통 차시의 반별 일정은 각 강의의 설정에서 관리" },
+      { value: "true", label: "사용", description: "별도 차시를 운영하는 반과 클리닉 반을 편성" },
     ],
   },
   {
@@ -372,7 +372,7 @@ export default function FeatureFlagsPage() {
                 const tff = tenant.featureFlags || {};
                 const desc = [
                   tff.school_level_mode === "elementary_middle" ? "초중등" : "중고등",
-                  tff.section_mode ? "A/B반" : "반 없음",
+                  tff.section_mode ? "개별 반 편성 사용" : "개별 반 편성 미사용",
                   tff.clinic_mode === "regular" ? "정규 클리닉" : "보충 클리닉",
                 ].join(" · ");
                 return (
@@ -584,8 +584,8 @@ export default function FeatureFlagsPage() {
           현재 적용 중
         </div>
         <div>
-          <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>반 편성:</span>{" "}
-          {ff.section_mode ? "A/B반 운영" : "기본 (반 없음)"}
+          <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>개별 차시·클리닉 반 편성:</span>{" "}
+          {ff.section_mode ? "사용" : "미사용"}
         </div>
         <div>
           <span style={{ fontWeight: 600, color: "var(--color-text-secondary)" }}>학생 대상:</span>{" "}

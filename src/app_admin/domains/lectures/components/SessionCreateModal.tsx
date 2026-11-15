@@ -36,6 +36,7 @@ type SessionCreateKind = "regular" | "supplement";
 type DateMode = "default" | "custom";
 type TimeMode = "default" | "custom";
 type RegularMode = "auto" | "manual";
+type DayDraft = { baseLabel: string; extraDays: NewSessionDay[] };
 
 interface Props {
   lectureId: number;
@@ -106,8 +107,8 @@ export default function SessionCreateModal({
   const [supplementTitle, setSupplementTitle] = useState("보강");
   const [supplementAfterOrder, setSupplementAfterOrder] = useState<number | null>(null);
   const [dateMode, setDateMode] = useState<DateMode>("default");
-  const [date, setDate] = useState("");
-  const [dayDraft, setDayDraft] = useState<{ baseLabel: string; extraDays: NewSessionDay[] } | null>(null);
+  const [customDates, setCustomDates] = useState<Partial<Record<SessionCreateKind, string>>>({});
+  const [dayDrafts, setDayDrafts] = useState<Partial<Record<SessionCreateKind, DayDraft>>>({});
   const [timeMode, setTimeMode] = useState<TimeMode>("default");
   const [timeInput, setTimeInput] = useState("");
 
@@ -166,7 +167,9 @@ export default function SessionCreateModal({
     ? datesFromLectureDefaults(lecture.schedule_defaults ?? [], referenceDate) : [];
   const defaultDateFromLecture = presetDays[0]?.date || referenceDate;
   const presetDraft = { baseLabel: presetDays[0]?.label ?? "", extraDays: presetDays.slice(1) };
-  const { baseLabel, extraDays } = dayDraft ?? presetDraft;
+  const draft = sessionType ? dayDrafts[sessionType] : undefined;
+  const { baseLabel, extraDays } = draft ?? presetDraft;
+  const customDate = sessionType === "supplement" ? customDates.supplement ?? "" : customDates.regular ?? defaultDateFromLecture;
 
   const lectureTimeRaw = lecture?.lecture_time?.trim() || "";
   // 정규 차시 기본 시간: 강의 생성 모달 lecture_time(시작~종료) 연결
@@ -204,21 +207,18 @@ export default function SessionCreateModal({
     }
   }, [timeMode, sessionType, lectureTimeExtract]);
 
-  // 정규 차시 + 날짜 기본값 사용 시 날짜 자동 채우기 (다음 주 같은 요일)
-  useEffect(() => {
-    if (sessionType === "regular" && dateMode === "default" && defaultDateFromLecture) {
-      setDate(defaultDateFromLecture);
-    }
-  }, [sessionType, dateMode, defaultDateFromLecture]);
-
-  const effectiveDate = dateMode === "default" ? (defaultDateFromLecture || date) : date;
+  const effectiveDate = sessionType === "regular" && dateMode === "default" ? (defaultDateFromLecture || customDate) : customDate;
   const days = [{ key: "base", date: effectiveDate, label: baseLabel }, ...extraDays];
   const dayNames = initialDayNames(days);
 
+  function changeDays(update: (current: DayDraft) => DayDraft) {
+    if (!sessionType) return;
+    setDayDrafts(drafts => ({ ...drafts, [sessionType]: update(drafts[sessionType] ?? presetDraft) }));
+  }
+
   function addDay() {
     const key = crypto.randomUUID();
-    setDayDraft(draft => {
-      const current = draft ?? presetDraft;
+    changeDays(current => {
       const date = offsetDate(current.extraDays[current.extraDays.length - 1]?.date || effectiveDate, 1);
       return { ...current, extraDays: [...current.extraDays, { key, label: "", date }] };
     });
@@ -499,25 +499,17 @@ export default function SessionCreateModal({
                 names={dayNames}
                 disabled={busy || pending !== null}
                 onAdd={addDay}
-                onChange={(key, patch) => {
-                  setDayDraft(draft => {
-                    const current = draft ?? presetDraft;
-                    return key === "base"
-                      ? { ...current, baseLabel: patch.label ?? "" }
-                      : { ...current, extraDays: current.extraDays.map(day => day.key === key ? { ...day, ...patch } : day) };
-                  });
-                }}
-                onRemove={key => setDayDraft(draft => {
-                  const current = draft ?? presetDraft;
-                  return { ...current, extraDays: current.extraDays.filter(day => day.key !== key) };
-                })}
+                onChange={(key, patch) => changeDays(current => key === "base"
+                  ? { ...current, baseLabel: patch.label ?? "" }
+                  : { ...current, extraDays: current.extraDays.map(day => day.key === key ? { ...day, ...patch } : day) })}
+                onRemove={key => changeDays(current => ({ ...current, extraDays: current.extraDays.filter(day => day.key !== key) }))}
               >
                 <ModalDateSection
                   name="dateMode"
                   useDefault={dateMode === "default"}
                   onUseDefaultChange={(use) => setDateMode(use ? "default" : "custom")}
-                  customDate={date}
-                  onCustomDateChange={setDate}
+                  customDate={customDate}
+                  onCustomDateChange={value => setCustomDates(dates => ({ ...dates, [sessionType]: value }))}
                   showDefaultOption={showDefaultDateOption}
                   disableDefaultOption={isSupplement}
                   defaultLabel={

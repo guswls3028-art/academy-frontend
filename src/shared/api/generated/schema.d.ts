@@ -6159,6 +6159,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/lectures/lectures/{id}/schedule-settings/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description 일반 강의 필드는 생략할 수 있지만 schedule_mode와 schedule_defaults는 모두 필요합니다. */
+        patch: operations["lectures_lectures_schedule_settings_partial_update"];
+        trace?: never;
+    };
     "/api/v1/lectures/lectures/instructor-options/": {
         parameters: {
             query?: never;
@@ -6190,6 +6207,22 @@ export interface paths {
         put?: never;
         /** @description Persist one active/past lecture scope as an exact tenant-local order. */
         post: operations["lectures_lectures_reorder_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/lectures/lectures/with-schedule-settings/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["lectures_lectures_with_schedule_settings_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -15329,6 +15362,27 @@ export interface components {
             /** @description ISO 요일 (1=월요일, 7=일요일) */
             weekday: number;
         };
+        LectureScheduleSettingsRequest: {
+            /** @description 강의딱지 2글자 (미입력 시 제목 앞 2자 사용) */
+            chip_label?: string;
+            /** @description 아이콘/라벨 색상 */
+            color?: string;
+            description?: string;
+            /** Format: date */
+            end_date?: string | null;
+            is_active?: boolean;
+            /** @description 시스템용 강의 (전체공개영상 컨테이너 등). 강의 목록·성적 등에서 자동 제외. */
+            is_system?: boolean;
+            /** @description 강의 시간 (예: 토 12:00 ~ 13:00) */
+            lecture_time?: string;
+            name: string;
+            schedule_defaults: components["schemas"]["LectureScheduleDefaultRequest"][];
+            schedule_mode: components["schemas"]["ScheduleModeEnum"];
+            /** Format: date */
+            start_date?: string | null;
+            subject: string;
+            title: string;
+        };
         LectureSection: {
             /** @default 0 */
             readonly assignment_count: number;
@@ -17157,6 +17211,27 @@ export interface components {
              *     * `SINGLE` - 한 날짜
              *     * `SPLIT` - 여러 날짜
              */
+            schedule_mode?: components["schemas"]["ScheduleModeEnum"];
+            /** Format: date */
+            start_date?: string | null;
+            subject?: string;
+            title?: string;
+        };
+        PatchedLectureScheduleSettingsRequest: {
+            /** @description 강의딱지 2글자 (미입력 시 제목 앞 2자 사용) */
+            chip_label?: string;
+            /** @description 아이콘/라벨 색상 */
+            color?: string;
+            description?: string;
+            /** Format: date */
+            end_date?: string | null;
+            is_active?: boolean;
+            /** @description 시스템용 강의 (전체공개영상 컨테이너 등). 강의 목록·성적 등에서 자동 제외. */
+            is_system?: boolean;
+            /** @description 강의 시간 (예: 토 12:00 ~ 13:00) */
+            lecture_time?: string;
+            name?: string;
+            schedule_defaults?: components["schemas"]["LectureScheduleDefaultRequest"][];
             schedule_mode?: components["schemas"]["ScheduleModeEnum"];
             /** Format: date */
             start_date?: string | null;
@@ -31115,6 +31190,33 @@ export interface operations {
             };
         };
     };
+    lectures_lectures_schedule_settings_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedLectureScheduleSettingsRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedLectureScheduleSettingsRequest"];
+                "multipart/form-data": components["schemas"]["PatchedLectureScheduleSettingsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lecture"];
+                };
+            };
+        };
+    };
     lectures_lectures_instructor_options_retrieve: {
         parameters: {
             query?: never;
@@ -31150,6 +31252,31 @@ export interface operations {
         };
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lecture"];
+                };
+            };
+        };
+    };
+    lectures_lectures_with_schedule_settings_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LectureScheduleSettingsRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureScheduleSettingsRequest"];
+                "multipart/form-data": components["schemas"]["LectureScheduleSettingsRequest"];
+            };
+        };
+        responses: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

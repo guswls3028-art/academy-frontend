@@ -55,7 +55,7 @@ async function seedLocalAdmin(page: Page): Promise<Array<Record<string, unknown>
     });
 
     if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204 });
-    if (path === "/lectures/lectures/" && route.request().method() === "POST") {
+    if (["/lectures/lectures/", "/lectures/lectures/with-schedule-settings/"].includes(path) && route.request().method() === "POST") {
       createdLectures.push(route.request().postDataJSON() as Record<string, unknown>);
       return json({ id: 901, ...createdLectures[createdLectures.length - 1] });
     }
