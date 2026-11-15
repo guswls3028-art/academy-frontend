@@ -4,25 +4,32 @@
   gap: 24px;
 }
 
+.gradingTools {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
 .gradingEntry {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: 8px 16px;
   border: 1px solid var(--border-divider);
   border-radius: 12px;
-  padding: 20px;
+  padding: 12px;
   background: var(--bg-surface);
 }
 
-.gradingEntry > div:first-child {
-  flex: 1 1 280px;
+.gradingEntryHeading {
+  flex: 1 1 190px;
   min-width: 0;
 }
 
 .gradingEntry h2 {
-  margin: 0 0 8px;
-  font-size: 18px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .gradingEntry p,
@@ -38,6 +45,26 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.gradingEntryHeading p { margin: 2px 0 0; }
+
+.gradingGuide {
+  flex: 1 0 100%;
+  max-width: 65ch;
+  font-size: 13px;
+}
+
+.gradingGuide summary {
+  width: fit-content;
+  padding: 6px 0;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+}
+
+.gradingGuide summary:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
 }
 
 .jumpTarget {
@@ -167,8 +194,7 @@
 }
 
 .eyebrow,
-.panelHeading span,
-.sectionHeading > span {
+.panelHeading span {
   color: var(--color-primary);
   font-size: 10px;
   font-weight: 850;

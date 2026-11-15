@@ -124,7 +124,12 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
       {tab === "assets" && mode === "design" && <ExamAssetsPanel examId={examId} />}
       {tab === "submissions" && <ExamSubmissionsPanel examId={examId} sessionId={sessionId} />}
       {tab === "results" && (
-        <ExamResultsViewerPanel examId={examId} wrongCompletionOnly={wrongCompletionOnly} onOpenSetup={() => changeTab("setup")} />
+        <ExamResultsViewerPanel
+          examId={examId}
+          sessionId={sessionId ?? undefined}
+          wrongCompletionOnly={wrongCompletionOnly}
+          onOpenSetup={() => changeTab("setup")}
+        />
       )}
       </fieldset>
     </div>

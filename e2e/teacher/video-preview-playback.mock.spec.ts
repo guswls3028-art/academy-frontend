@@ -1,6 +1,7 @@
 import type { Locator, Page, Route } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { gotoAndSettle } from "../helpers/wait";
+import { emptyArrivalOverview } from "../helpers/workspaceReadApiStubs";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5174").replace(/\/+$/, "");
 
@@ -77,6 +78,9 @@ async function installTeacherVideoMocks(page: Page) {
         tenantRole: "teacher",
         must_change_password: false,
       });
+    }
+    if (request.method() === "GET" && path === "/lectures/attendance/arrival-overview/") {
+      return json(route, emptyArrivalOverview);
     }
     if (path === "/media/videos/448/") {
       return json(route, {

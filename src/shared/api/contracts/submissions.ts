@@ -343,7 +343,7 @@ export async function retrySubmissionApi(submissionId: number): Promise<unknown>
 }
 
 export async function manualEditSubmissionApi(
-  input: SubmissionManualEditInput & { allowDuplicate?: boolean },
+  input: SubmissionManualEditInput & { allowDuplicate?: boolean; sessionId?: number },
 ): Promise<SubmissionManualEditResult> {
   const sid = Number(input.submissionId);
   if (!Number.isFinite(sid) || sid <= 0) {
@@ -361,6 +361,7 @@ export async function manualEditSubmissionApi(
     identifier: input.identifier ?? null,
     answers,
     note: String(input.note || "manual_edit"),
+    ...(input.sessionId === undefined ? {} : { session_id: input.sessionId }),
     ...(input.expectedEditRevision === undefined ? {} : { expected_edit_revision: input.expectedEditRevision }),
     ...(input.resumeAbsence === true ? { resume_absence: true } : {}),
   };
