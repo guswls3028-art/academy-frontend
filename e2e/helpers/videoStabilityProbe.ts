@@ -3,7 +3,7 @@ import { dismissDevelopmentFirstLoginGuide } from "./auth";
 import { installSyntheticVideoPosterBridge } from "./syntheticVideoPosterBridge";
 
 type Prepared = { context: BrowserContext; page: Page; apiAccessToken: string; state: { bootstraps: Array<{
-  playback_session_id?: unknown; video?: { session_id?: unknown };
+  playback_token?: unknown; playback_session_id?: unknown; video?: { session_id?: unknown };
 }> } };
 type Prepare = (viewport: { width: number; height: number }, name: "desktop" | "mobile",
   username: string, password: string, tenant: string, tenantId: number,
@@ -38,6 +38,43 @@ async function pause(page: Page) {
   await expect.poll(() => page.locator("video.svpVideo").evaluate((node: HTMLVideoElement) => node.paused)).toBe(true);
 }
 
+async function pauseAndPersist(page: Page, videoId: number) {
+  await expect.poll(() => page.locator("video.svpVideo").evaluate((node: HTMLVideoElement) => node.currentTime)).toBeGreaterThan(5);
+  const minimum = await page.locator("video.svpVideo").evaluate((node: HTMLVideoElement) => Math.floor(node.currentTime));
+  const [response] = await Promise.all([
+    page.waitForResponse(response => response.request().method() === "POST"
+      && new URL(response.url()).pathname === `/api/v1/student/video/videos/${videoId}/progress/`
+      && Number(response.request().postDataJSON().last_position) >= minimum, { timeout: 40_000 }),
+    pause(page),
+  ]);
+  expect(response.status()).toBe(200);
+  const confirmed = await response.json();
+  const pausedAt = await page.locator("video.svpVideo").evaluate((node: HTMLVideoElement) => node.currentTime);
+  expect(Math.abs(confirmed.last_position - pausedAt)).toBeLessThanOrEqual(1);
+  return confirmed.last_position as number;
+}
+
+async function leaveStudentPlayer(page: Page, videoId: number, token: unknown, stream?: unknown) {
+  const position = await page.locator("video.svpVideo").evaluate((node: HTMLVideoElement) => Math.floor(node.currentTime));
+  const progress = page.waitForResponse(response => response.request().method() === "POST"
+    && new URL(response.url()).pathname === `/api/v1/student/video/videos/${videoId}/progress/`
+    && Number(response.request().postDataJSON().last_position) >= position);
+  const terminal = page.waitForResponse(response => {
+    if (response.request().method() !== "POST") return false;
+    const path = new URL(response.url()).pathname;
+    if (stream) return path === `/api/v1/student/video/videos/${videoId}/review-watch/`
+      && response.request().postDataJSON().stream === stream && response.request().postDataJSON().playing === false;
+    return ["/api/v1/media/playback/end/", "/api/v1/media/playback/v2/end/"].includes(path)
+      && response.request().postDataJSON().token === token;
+  }, { timeout: 45_000 });
+  const [response, saved] = await Promise.all([terminal, progress,
+    page.locator('a[href="/student/video"]').filter({ visible: true }).first().click()]);
+  expect(response.status()).toBe(200);
+  expect(saved.status()).toBe(200);
+  await Promise.all([response.finished(), saved.finished()]);
+  await expect(page).toHaveURL(/\/student\/video$/);
+}
+
 async function seed(context: BrowserContext, page: Page, api: string, tenant: string, username: string, password: string) {
   const login = await context.request.post(`${api}/api/v1/token/`, {
     headers: { "X-Tenant-Code": tenant }, data: { username, password, tenant_code: tenant },
@@ -64,7 +101,7 @@ async function mediaBridge(context: BrowserContext, base: string, api: string, t
   const admittedRoots = new Set<string>();
   let error: unknown;
   const bootstraps: Array<{ support_preview?: boolean; playback_session_id?: unknown;
-    review_watch?: unknown; video: { enrollment_id: number; session_id: number } }> = [];
+    playback_token?: unknown; review_watch?: { stream: string } | null; video: { enrollment_id: number; session_id: number } }> = [];
   context.on("response", response => {
     const url = new URL(response.url());
     // The release guard forwards the artifact's production API origin to the isolated API.
@@ -134,21 +171,27 @@ export async function runVideoStabilityProbe(browser: Browser, prepare: Prepare)
   const tenantId = Number(required("E2E_LONG_VIDEO_TENANT_ID", /^[1-9][0-9]*$/));
   const videoId = Number(required("E2E_LONG_VIDEO_ID", /^[1-9][0-9]*$/));
   const hlsPath = required("E2E_LONG_VIDEO_HLS_PATH", /^qa-fixtures\/video-long\/master\.m3u8$/);
-  const contexts: BrowserContext[] = [];
+  const contexts = new Set<BrowserContext>();
+  const closeContext = async (context: BrowserContext) => {
+    if (contexts.delete(context)) await context.close();
+  };
+  let cleanupFailure: PromiseRejectedResult | undefined;
   try {
     for (const width of [1366, 390]) {
+      const checkpoint = (stage: "student-prepared" | "student-saved" | "support-open" | "support-isolated"
+        | "review-playing" | "review-support-isolated" | "review-exhausted" | "review-recovered" | "complete") => {
+        console.log(JSON.stringify({ videoStabilityCheckpoint: { width, stage } }));
+      };
       const mobile = width === 390;
       const run = await prepare({ width, height: 900 }, mobile ? "mobile" : "desktop",
         required(mobile ? "E2E_STUDENT2_USER" : "E2E_STUDENT_USER", mobile ? /^ymath-qa-student-02$/ : /^ymath-qa-student-01$/),
         required(mobile ? "E2E_STUDENT2_PASS" : "E2E_STUDENT_PASS"), tenant, tenantId, videoId, hlsPath, base);
-      contexts.push(run.context);
+      contexts.add(run.context);
       let student = run.page;
-      const pausedProgress = student.waitForResponse(response => response.request().method() === "POST"
-        && new URL(response.url()).pathname === `/api/v1/student/video/videos/${videoId}/progress/`, { timeout: 40_000 });
-      await pause(student);
-      const confirmedPause = await pausedProgress;
-      expect(confirmedPause.status()).toBe(200);
-      await confirmedPause.finished();
+      checkpoint("student-prepared");
+      await play(student);
+      const savedPosition = await pauseAndPersist(student, videoId);
+      checkpoint("student-saved");
       const studentHeaders = { Authorization: `Bearer ${run.apiAccessToken}`, "X-Tenant-Code": tenant };
       const profileResponse = await run.context.request.get(`${api}/api/v1/student/me/`, { headers: studentHeaders });
       expect(profileResponse.status()).toBe(200);
@@ -156,7 +199,7 @@ export async function runVideoStabilityProbe(browser: Browser, prepare: Prepare)
       const studentId = Number(profile.id);
       expect(Number.isSafeInteger(studentId) && studentId > 0).toBe(true);
       const teacherContext = await browser.newContext({ viewport: { width, height: 900 }, serviceWorkers: "block" });
-      contexts.push(teacherContext);
+      contexts.add(teacherContext);
       const teacherMedia = await mediaBridge(teacherContext, base, api, tenantId, videoId);
       const teacher = await teacherContext.newPage();
       const headers = await seed(teacherContext, teacher, api, tenant,
@@ -171,39 +214,54 @@ export async function runVideoStabilityProbe(browser: Browser, prepare: Prepare)
       };
       const sessionId = Number(run.state.bootstraps[0].video?.session_id);
       const list = async () => {
-        const response = await run.context.request.get(`${api}/api/v1/student/video/sessions/${sessionId}/videos/`, { headers: studentHeaders });
+        const response = await teacherContext.request.get(`${api}/api/v1/student/video/sessions/${sessionId}/videos/`, { headers: studentHeaders });
         expect(response.status()).toBe(200);
         return (await response.json()).items.find((row: { id: number }) => row.id === videoId);
       };
       await teacher.goto(`${base}/workspace/mobile/students/${studentId}`);
       await dismissDevelopmentFirstLoginGuide(teacher, tenant);
       const initial = await list();
+      expect(initial.last_position).toBe(savedPosition);
       const initialUsage = (await report()).student.used_ms;
-      const popupPromise = teacher.waitForEvent("popup");
-      await teacher.getByRole("button", { name: "학생 화면", exact: true }).click();
-      const preview = await popupPromise;
-      await expect(preview.getByText("교직원 대리보기", { exact: true })).toBeVisible();
-      await preview.goto(`${base}/student/video/play?video=${videoId}`);
-      await play(preview);
-      await reveal(preview);
-      const beforeSeek = await preview.locator("video.svpVideo").evaluate((node: HTMLVideoElement) => node.currentTime);
-      await preview.getByRole("button", { name: "+10초", exact: true }).click();
-      await expect.poll(() => preview.locator("video.svpVideo").evaluate((node: HTMLVideoElement) => node.currentTime)).toBeGreaterThanOrEqual(beforeSeek + 9);
-      await pause(preview);
-      const previewGrant = teacherMedia.bootstraps.at(-1)!;
-      expect(previewGrant.support_preview).toBe(true);
-      expect(previewGrant.playback_session_id).toBeNull();
-      expect(previewGrant.review_watch).toBeNull();
-      const close = preview.waitForEvent("close");
-      await preview.getByRole("button", { name: "보기 종료", exact: true }).click();
-      await close;
-      const after = await list();
-      for (const key of ["progress", "last_position", "completed"]) expect(after[key]).toBe(initial[key]);
-      expect((await report()).student.used_ms).toBe(initialUsage);
-      await play(student);
+      const previewWithoutStudentWrites = async () => {
+        const before = await list();
+        const usageBefore = (await report()).student.used_ms;
+        const popupPromise = teacher.waitForEvent("popup");
+        await teacher.getByRole("button", { name: "학생 화면", exact: true }).click();
+        const preview = await popupPromise;
+        checkpoint("support-open");
+        await expect(preview.getByText("교직원 대리보기", { exact: true })).toBeVisible();
+        await preview.goto(`${base}/student/video/play?video=${videoId}`);
+        await play(preview);
+        await reveal(preview);
+        const beforeSeek = await preview.locator("video.svpVideo").evaluate((node: HTMLVideoElement) => node.currentTime);
+        await preview.getByRole("button", { name: "+10초", exact: true }).click();
+        await expect.poll(() => preview.locator("video.svpVideo").evaluate((node: HTMLVideoElement) => node.currentTime)).toBeGreaterThanOrEqual(beforeSeek + 9);
+        await pause(preview);
+        const previewGrant = teacherMedia.bootstraps.at(-1)!;
+        expect(previewGrant.support_preview).toBe(true);
+        expect(previewGrant.playback_session_id).toBeNull();
+        expect(previewGrant.review_watch).toBeNull();
+        const close = preview.waitForEvent("close");
+        const ended = preview.waitForResponse(response => response.request().method() === "POST"
+          && new URL(response.url()).pathname === "/api/v1/students/me/support-session/end/");
+        const [endResponse] = await Promise.all([ended,
+          preview.getByRole("button", { name: "보기 종료", exact: true }).click(), close]);
+        expect(endResponse.status()).toBe(200);
+        const after = await list();
+        for (const key of ["progress", "last_position", "completed"]) expect(after[key]).toBe(before[key]);
+        expect((await report()).student.used_ms).toBe(usageBefore);
+      };
+      await previewWithoutStudentWrites();
+      checkpoint("support-isolated");
+      const liveClass = student.waitForResponse(response => response.request().method() === "POST"
+        && new URL(response.url()).pathname === "/api/v1/media/playback/heartbeat/"
+        && response.request().postDataJSON().token === run.state.bootstraps.at(-1)?.playback_token, { timeout: 40_000 });
+      const [classHeartbeat] = await Promise.all([liveClass, play(student)]);
+      expect(classHeartbeat.status()).toBe(200);
       expect(run.state.bootstraps).toHaveLength(1);
-      await student.goto(`${base}/student/dashboard`);
-      await run.context.close();
+      await leaveStudentPlayer(student, videoId, run.state.bootstraps.at(-1)?.playback_token);
+      await closeContext(run.context);
 
       // The setup's exact video and enrollment are the only policy mutation targets.
       const mode = await teacherContext.request.post(`${api}/api/v1/media/video-permissions/bulk_set/`, {
@@ -216,7 +274,7 @@ export async function runVideoStabilityProbe(browser: Browser, prepare: Prepare)
       });
       expect(toggle.status()).toBe(200);
       const reviewContext = await browser.newContext({ viewport: { width, height: 900 }, serviceWorkers: "block" });
-      contexts.push(reviewContext);
+      contexts.add(reviewContext);
       student = await reviewContext.newPage();
       const reviewMedia = await mediaBridge(reviewContext, base, api, tenantId, videoId);
       await seed(reviewContext, student, api, tenant,
@@ -224,6 +282,22 @@ export async function runVideoStabilityProbe(browser: Browser, prepare: Prepare)
       await student.goto(`${base}/student/video/play?video=${videoId}`);
       await play(student);
       await expect.poll(async () => (await report()).student.used_ms).toBeGreaterThan(initialUsage);
+      checkpoint("review-playing");
+      const pausedReview = student.waitForResponse(response => response.request().method() === "POST"
+        && new URL(response.url()).pathname === `/api/v1/student/video/videos/${videoId}/review-watch/`
+        && response.request().postDataJSON().playing === false);
+      const [reviewPause, reviewPosition] = await Promise.all([pausedReview, pauseAndPersist(student, videoId)]);
+      expect(reviewPause.status()).toBe(200);
+      expect((await list()).last_position).toBe(reviewPosition);
+      await previewWithoutStudentWrites();
+      const liveReview = student.waitForResponse(response => response.request().method() === "POST"
+        && new URL(response.url()).pathname === `/api/v1/student/video/videos/${videoId}/review-watch/`
+        && response.request().postDataJSON().playing === true
+        && response.request().postDataJSON().stream === reviewMedia.bootstraps[0]?.review_watch?.stream);
+      const [reviewHeartbeat] = await Promise.all([liveReview, play(student)]);
+      expect(reviewHeartbeat.status()).toBe(200);
+      expect(reviewMedia.bootstraps).toHaveLength(1);
+      checkpoint("review-support-isolated");
       await teacher.goto(`${base}${mobile ? "/workspace/mobile" : "/workspace"}/videos/${videoId}/logs/${studentId}`);
       const editor = teacher.getByRole("region", { name: "학생 복습 한도 조정" });
       await editor.getByRole("button", { name: "복습 한도 조정", exact: true }).click();
@@ -233,6 +307,7 @@ export async function runVideoStabilityProbe(browser: Browser, prepare: Prepare)
       await expect(student.getByText("복습 시청시간을 모두 사용했어요", { exact: true })).toBeVisible();
       const exhausted = (await report()).student;
       expect(exhausted.exhausted).toBe(true); expect(exhausted.used_ms).toBeGreaterThan(0);
+      checkpoint("review-exhausted");
       const changes = await Promise.all([60000, 120000].map(limit_ms => teacherContext.request.patch(
         `${api}/api/v1/media/videos/${videoId}/review-watch/students/${studentId}/allowance/`,
         { headers, data: { limit_ms, expected_revision: exhausted.revision } },
@@ -240,6 +315,7 @@ export async function runVideoStabilityProbe(browser: Browser, prepare: Prepare)
       expect(changes.map(response => response.status()).sort()).toEqual([200, 409]);
       await student.getByRole("button", { name: "한도 변경 확인", exact: true }).click();
       await play(student);
+      checkpoint("review-recovered");
       await teacher.reload();
       await editor.getByRole("button", { name: "복습 한도 조정", exact: true }).click();
       await editor.getByRole("button", { name: "기본 1.4배 적용", exact: true }).click();
@@ -252,13 +328,17 @@ export async function runVideoStabilityProbe(browser: Browser, prepare: Prepare)
       await expect.poll(() => teacher.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
       await expect.poll(() => student.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
       await teacherMedia.verify(); await reviewMedia.verify();
-      await student.goto(`${base}/student/dashboard`);
-      await reviewContext.close(); await teacherContext.close();
+      const latestReview = reviewMedia.bootstraps.at(-1)!;
+      await leaveStudentPlayer(student, videoId, latestReview.playback_token, latestReview.review_watch?.stream);
+      await closeContext(reviewContext); await closeContext(teacherContext);
+      checkpoint("complete");
       console.log(JSON.stringify({ videoStabilityProbe: { schema: "video-stability-probe/v1", width,
-        supportIsolated: true, studentSessionPreserved: true, usagePreserved: true,
+        supportIsolated: true, reviewSupportIsolated: true, studentSessionPreserved: true, usagePreserved: true,
         exhaustionRecovered: true, concurrentConflict: true, defaultRestored: true } }));
     }
   } finally {
-    await Promise.all(contexts.map(context => context.close()));
+    const outcomes = await Promise.allSettled([...contexts].map(closeContext));
+    cleanupFailure = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
   }
+  if (cleanupFailure) throw cleanupFailure.reason;
 }
