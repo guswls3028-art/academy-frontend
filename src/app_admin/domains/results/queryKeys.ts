@@ -45,12 +45,15 @@ export const adminResultsQueryKeys = {
   wrongNoteDocument: (jobId: number | null) =>
     ["wrong-note-document", jobId] as const,
 
-  omrReviewList: (examId: number) => ["omr-review-list", examId] as const,
+  omrReviewList: (examId: number, sessionId?: number) =>
+    ["omr-review-list", examId, ...(sessionId === undefined ? [] : [sessionId])] as const,
   omrReviewIssues: (examId: number) => ["omr-review-issues", examId] as const,
-  omrReviewIssuesPages: (examId: number) => ["omr-review-issues", examId, "pages"] as const,
-  omrReviewIssuesSummary: (examId: number) => ["omr-review-issues", examId, "summary"] as const,
-  omrReviewIssuesFocus: (examId: number, submissionId: number | undefined) =>
-    ["omr-review-issues", examId, "focus", submissionId] as const,
+  omrReviewIssuesPages: (examId: number, sessionId?: number) =>
+    ["omr-review-issues", examId, "pages", ...(sessionId === undefined ? [] : [sessionId])] as const,
+  omrReviewIssuesSummary: (examId: number, sessionId?: number) =>
+    ["omr-review-issues", examId, "summary", ...(sessionId === undefined ? [] : [sessionId])] as const,
+  omrReviewIssuesFocus: (examId: number, submissionId: number | undefined, sessionId?: number) =>
+    ["omr-review-issues", examId, "focus", submissionId, ...(sessionId === undefined ? [] : [sessionId])] as const,
   omrReviewDetail: (submissionId: number | null | undefined) => ["omr-review-detail", submissionId] as const,
   omrCandidates: (queryKeyId: string, query: string) => ["omr-candidates", queryKeyId, query] as const,
 

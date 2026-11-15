@@ -37,6 +37,7 @@ const SCORE_BANDS = ["0–20%", ">20–40%", ">40–60%", ">60–80%", ">80–10
 
 type Props = {
   examId: number;
+  sessionId?: number;
   wrongCompletionOnly?: boolean;
   focusAnalysis?: boolean;
   initialLectureId?: number;
@@ -66,7 +67,7 @@ export default function ExamResultsViewerPanel(props: Props) {
 }
 
 function ExamResultsViewerContent({
-  examId, wrongCompletionOnly = false, focusAnalysis = false, initialLectureId, onOpenSetup,
+  examId, sessionId, wrongCompletionOnly = false, focusAnalysis = false, initialLectureId, onOpenSetup,
 }: Props) {
   const [selectedLectureId, setSelectedLectureId] = useState<number | null>(initialLectureId ?? null);
   const manualGridRef = useRef<ManualExamGradingGridHandle>(null);
@@ -242,24 +243,26 @@ function ExamResultsViewerContent({
 
   const gradingTools = (
     <>
-      {exam && (
-        <SubjectiveGradingEntry
-          key={examId}
-          exam={exam}
-          onEnter={() => jumpTo(gradingEntryRef.current)}
-          onStatistics={() => { setStatisticsOpen(true); jumpTo(statisticsRef.current ?? analysisRef.current); }}
-          onOpenSetup={onOpenSetup}
-        />
-      )}
-      {exam?.grading_mode !== "written" && (
-        <OmrReviewEntry examId={examId} examTitle={exam?.title ?? "시험"} />
-      )}
+      <div className={styles.gradingTools}>
+        {exam && (
+          <SubjectiveGradingEntry
+            key={examId}
+            exam={exam}
+            onEnter={() => jumpTo(gradingEntryRef.current)}
+            onStatistics={() => { setStatisticsOpen(true); jumpTo(statisticsRef.current ?? analysisRef.current); }}
+            onOpenSetup={onOpenSetup}
+          />
+        )}
+        {exam?.grading_mode !== "written" && (
+          <OmrReviewEntry examId={examId} examTitle={exam?.title ?? "시험"} />
+        )}
+        <ExamResultExcelImport examId={examId} examTitle={exam?.title ?? "시험"} beforeApply={prepareExcelApply} />
+      </div>
       {exam?.grading_mode !== "choice" && (
         <div ref={gradingEntryRef} tabIndex={-1} className={styles.jumpTarget}>
           <ManualExamGradingGrid ref={manualGridRef} examId={examId} showUnavailableState autoFocusFirstCell={!focusAnalysis} />
         </div>
       )}
-      <ExamResultExcelImport examId={examId} examTitle={exam?.title ?? "시험"} beforeApply={prepareExcelApply} />
     </>
   );
 
@@ -482,13 +485,13 @@ function ExamResultsViewerContent({
 
       <section className={styles.studentResultsSection}>
         <div className={styles.sectionHeading}>
-          <span>Student evidence</span>
           <h2>학생별 결과</h2>
-          <p>학생을 선택하면 상세 채점 결과와 오답 확인 상태를 볼 수 있습니다.</p>
+          <p>학생 이름을 누르면 답안지와 오답노트를 볼 수 있습니다.</p>
         </div>
         <ExamResultsPanel
           key={`${examId}:${selectedLectureId ?? "all"}`}
           examId={examId}
+          sessionId={sessionId}
           lectureId={selectedLectureId}
           wrongCompletionOnly={wrongCompletionOnly}
         />

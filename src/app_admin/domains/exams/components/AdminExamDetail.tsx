@@ -131,6 +131,7 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
       {tab === "results" && (
         <ExamResultsViewerPanel
           examId={examId}
+          sessionId={sessionId ?? undefined}
           wrongCompletionOnly={wrongCompletionOnly}
           focusAnalysis={focusAnalysis}
           initialLectureId={focusAnalysis ? lectureId : undefined}

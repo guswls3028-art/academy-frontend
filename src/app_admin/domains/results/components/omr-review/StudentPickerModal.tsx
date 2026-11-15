@@ -20,6 +20,7 @@ import "./StudentPickerModal.css";
 type Props = {
   /** Exam picker (legacy 호출 형태) — examId 만 주면 fetchExamCandidates 사용 */
   examId?: number;
+  sessionId?: number;
   /** Generic — fetcher 자체를 주입 (homework picker 등 재사용) */
   fetchCandidates?: (q: string) => Promise<CandidateRow[]>;
   /** 빈 검색어 hint 컨텍스트 ("응시 대상" / "수강생" 등) */
@@ -41,6 +42,7 @@ function lecturesForCandidate(row: CandidateRow) {
 
 export default function StudentPickerModal({
   examId,
+  sessionId,
   fetchCandidates,
   contextLabel,
   open,
@@ -69,15 +71,19 @@ export default function StudentPickerModal({
 
   // fetcher 우선순위: 명시 fetchCandidates > examId 의 기본 fetchExamCandidates.
   // 둘 다 없으면 enabled=false 로 막아 NPE 회피.
-  const fetcher = fetchCandidates ?? (examId != null ? (q: string) => fetchExamCandidates(examId, q) : null);
-  const queryKeyId = fetchCandidates ? "custom" : String(examId ?? "");
+  const fetcher = fetchCandidates
+    ?? (examId != null ? (q: string) => fetchExamCandidates(examId, q, sessionId) : null);
+  const queryKeyId = fetchCandidates ? "custom" : `exam:${examId}:session:${sessionId ?? "all"}`;
 
-  const { data: rows = [], isFetching, isError, refetch } = useQuery({
+  const { data, isFetching, isError, refetch } = useQuery({
     queryKey: adminResultsQueryKeys.omrCandidates(queryKeyId, debouncedQ),
     queryFn: () => fetcher ? fetcher(debouncedQ) : Promise.resolve([] as CandidateRow[]),
     enabled: open && !!fetcher,
     staleTime: 30_000,
   });
+  const queryChanging = query.trim() !== debouncedQ.trim();
+  const rows = queryChanging || isError ? [] : data ?? [];
+  const searching = queryChanging || isFetching;
 
   // 결과 바뀌면 highlight 0으로
   useEffect(() => {
@@ -85,13 +91,13 @@ export default function StudentPickerModal({
   }, [rows.length, debouncedQ]);
 
   const total = rows.length;
-  const ctx = contextLabel ?? "응시 대상";
+  const ctx = contextLabel ?? (sessionId === undefined ? "응시 대상" : "이 차시 응시 대상");
   const hint = useMemo(() => {
-    if (isFetching) return "검색 중…";
+    if (searching) return "검색 중…";
     if (!debouncedQ.trim()) return `${ctx} ${total}명${total >= 50 ? " (상위 50명)" : ""}`;
     if (total === 0) return "검색 결과 없음";
     return `${total}명 일치${total >= 50 ? " (상위 50명)" : ""}`;
-  }, [isFetching, debouncedQ, total, ctx]);
+  }, [searching, debouncedQ, total, ctx]);
 
   const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {
@@ -126,7 +132,8 @@ export default function StudentPickerModal({
             ref={inputRef}
             type="text"
             className="spm-search"
-            placeholder="학생 이름 또는 전화번호 뒤 4자리"
+            aria-label="학생 검색"
+            placeholder={fetchCandidates ? "학생 이름 또는 전화번호 뒤 4자리" : "학생 이름 또는 전화번호 뒤 4·8자리"}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKey}
@@ -149,7 +156,7 @@ export default function StudentPickerModal({
         </div>
 
         <div className="spm-list">
-          {isError ? (
+          {isError && !queryChanging ? (
             <div className="spm-empty">
               학생 목록을 불러오지 못했습니다.
               <button type="button" className="spm-close" onClick={() => void refetch()} aria-label="학생 목록 다시 시도">
@@ -158,7 +165,7 @@ export default function StudentPickerModal({
             </div>
           ) : rows.length === 0 ? (
             <div className="spm-empty">
-              {isFetching
+              {searching
                 ? "검색 중…"
                 : debouncedQ.trim()
                   ? "일치하는 학생이 없습니다."

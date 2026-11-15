@@ -45,6 +45,36 @@
   to   { transform: scale(1);    opacity: 1; }
 }
 
+.srd-modal--compact {
+  width: 780px;
+  height: auto;
+  max-height: min(85dvh, 720px);
+}
+
+.srd-modal--compact .srd-modal__header-inner {
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.srd-modal--compact .srd-modal__title {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.srd-modal--compact .srd-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+@media (max-width: 480px) {
+  .srd-modal-wrap:has(> .srd-modal--compact) { padding: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .srd-modal-backdrop,
+  .srd-modal { animation: none; }
+}
+
 .srd-modal__close {
   position: absolute;
   top: 12px;

@@ -74,7 +74,11 @@ export async function verifyExcelAssessment(
     await expect(picker).toBeVisible();
     await picker.getByRole("button", { name: title, exact: true }).click();
     await expect(page.getByRole("heading", { name: "시험 성적 분석", exact: true })).toBeInViewport();
+    const importerToggle = page.locator("summary").filter({ hasText: "엑셀로 채점 결과 넣기" });
     const importer = page.getByRole("region", { name: "엑셀로 채점 결과 넣기", exact: true });
+    await expect(importerToggle).toBeVisible();
+    await expect(importer).toBeHidden();
+    await importerToggle.click();
     await expect(importer).toBeVisible();
     const template = await downloadWorkbook(page, "전용 양식 받기", testInfo, "real-exam-excel-template");
     const sheet = template.worksheets.find(item => item.getCell(8, 1).value === "수강등록ID");
@@ -119,6 +123,9 @@ export async function verifyExcelAssessment(
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(importerToggle).toBeVisible();
+      await expect(importer).toBeHidden();
+      await importerToggle.click();
       await expect(importer).toBeVisible();
       await expect(importer.getByRole("button", { name: "1명 결과 반영", exact: true })).toHaveCount(0);
       expect(await readResults()).toEqual([{ enrollment_id: scope.enrollmentId, student_name: scope.studentName, final_score: 80 }]);
