@@ -77,7 +77,7 @@ function isScoreAlimtalkAttendance(row: SessionScoreRow, includeVideo: boolean):
 function getScoreAlimtalkBlockReason(rows: SessionScoreRow[], afterSave: boolean, includeVideo: boolean): string | null {
   if (rows.length === 0) {
     const applicableAttendance = includeVideo ? "출석·지각·영상" : "출석·지각";
-    return `선택한 학생 중 ${applicableAttendance} 상태인 학생이 없습니다. 출결을 확인해 주세요.`;
+    return `선택한 학생 중 ${applicableAttendance}으로 기록된 학생이 없습니다. 출결을 확인해 주세요.`;
   }
   if (rows.some((row) => row.exams.some((exam) => exam.block.grading_status === "subjective_pending"))) {
     return "최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.";
