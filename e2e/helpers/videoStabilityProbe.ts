@@ -3,7 +3,7 @@ import { dismissDevelopmentFirstLoginGuide } from "./auth";
 import { installSyntheticVideoPosterBridge } from "./syntheticVideoPosterBridge";
 
 type Prepared = { context: BrowserContext; page: Page; apiAccessToken: string; state: { bootstraps: Array<{
-  playback_token?: unknown; playback_session_id?: unknown; video?: { session_id?: unknown };
+  playback_token?: unknown; playback_session_id?: unknown; event_protocol_version?: unknown; video?: { session_id?: unknown };
 }> } };
 type Prepare = (viewport: { width: number; height: number }, name: "desktop" | "mobile",
   username: string, password: string, tenant: string, tenantId: number,
@@ -261,11 +261,23 @@ export async function runVideoStabilityProbe(browser: Browser, prepare: Prepare)
       };
       await previewWithoutStudentWrites();
       checkpoint("support-isolated");
+      const classGrant = run.state.bootstraps.at(-1)!;
+      const classProtocol = classGrant.event_protocol_version ?? 1;
+      expect([1, 2]).toContain(classProtocol);
+      const activityPath = classProtocol === 2 ? "/api/v1/media/playback/v2/events/" : "/api/v1/media/playback/heartbeat/";
       const liveClass = student.waitForResponse(response => response.request().method() === "POST"
-        && new URL(response.url()).pathname === "/api/v1/media/playback/heartbeat/"
-        && response.request().postDataJSON().token === run.state.bootstraps.at(-1)?.playback_token, { timeout: 40_000 });
+        && new URL(response.url()).pathname === activityPath
+        && response.request().postDataJSON().token === classGrant.playback_token, { timeout: 40_000 });
       const [classHeartbeat] = await Promise.all([liveClass, play(student)]);
       expect(classHeartbeat.status()).toBe(200);
+      if (classProtocol === 2) {
+        const batch = classHeartbeat.request().postDataJSON().batch;
+        expect(batch.events.length).toBeGreaterThan(0);
+        expect(await classHeartbeat.json()).toMatchObject({
+          protocol_version: 2, session_status: "ACTIVE",
+          acknowledgements: [expect.objectContaining({ batch_id: batch.batch_id, event_count: batch.events.length })],
+        });
+      }
       expect(run.state.bootstraps).toHaveLength(1);
       checkpoint("class-heartbeat-ok");
       await leaveStudentPlayer(student, videoId, run.state.bootstraps.at(-1)?.playback_token);
