@@ -337,9 +337,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
                     <th className="px-2 py-2 sm:px-3 text-left font-medium text-[var(--color-text-secondary)]">이름</th>
                     <th className="px-2 py-2 sm:px-3 text-left font-medium text-[var(--color-text-secondary)]">상태</th>
                     <th className="px-2 py-2 sm:px-3 text-center font-medium text-[var(--color-text-secondary)]">{completion ? "O/X" : "점수"}</th>
-                    <th className="px-2 py-2 text-center font-medium text-[var(--color-text-secondary)]">
-                      <span className="sr-only">결과 상세</span>
-                    </th>
+                    <th aria-label="결과 상세" className="px-2 py-2 text-center font-medium text-[var(--color-text-secondary)]" />
                   </tr>
                 </thead>
                 <tbody>
