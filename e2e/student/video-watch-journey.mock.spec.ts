@@ -767,7 +767,9 @@ async function installStalledHls(page: Page) {
   const reloadAllowed = new Promise<void>((resolve) => { releaseReload = resolve; });
   await page.route("**/__qa__/video-long/**", async (route) => {
     const pathname = new URL(route.request().url()).pathname;
-    if (pathname.endsWith("/master.m3u8") && ++manifests === 2) await reloadAllowed;
+    // Hold every reconnect, including an alternate engine or transport retry,
+    // until the scenario explicitly allows media to load again.
+    if (pathname.endsWith("/master.m3u8") && ++manifests >= 2) await reloadAllowed;
     const asset = syntheticLongVideoAsset(pathname);
     await route.fulfill({ body: asset.body, contentType: asset.contentType });
   });
@@ -959,19 +961,19 @@ test("silent HLS stall offers a position-preserving retry if reconnect does not 
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(42);
     const initiallyNative = !(await video.getAttribute("src"))?.startsWith("blob:");
     await video.evaluate((el: HTMLVideoElement) => { el.currentTime = 83; });
-    await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(83);
+    await expect.poll(() => video.evaluate((el: HTMLVideoElement) => !el.seeking && el.currentTime > 83)).toBe(true);
     const stalledAt = await freezePlayhead(page);
-    await page.clock.fastForward(2_000);
-    await page.clock.fastForward(10_500);
+    // The watchdog samples once per second before measuring ten stalled seconds.
+    // runFor fires those samples; fastForward represents suspension and skips them.
+    await page.clock.runFor(11_000);
     await expect.poll(hls.manifests).toBe(2);
-    await page.clock.fastForward(10_500);
+    await page.clock.runFor(11_000);
     const retry = page.getByRole("button", { name: "다시 시도", exact: true });
     if (initiallyNative) {
       // Supported native playback gets one bounded alternate-engine attempt.
       await expect.poll(async () => await retry.count() > 0 || (await video.getAttribute("src"))?.startsWith("blob:")).toBe(true);
       if (await retry.count() === 0) {
-        await page.clock.fastForward(2_000);
-        await page.clock.fastForward(10_500);
+        await page.clock.runFor(11_000);
       }
     }
     await expect(retry).toBeVisible();
