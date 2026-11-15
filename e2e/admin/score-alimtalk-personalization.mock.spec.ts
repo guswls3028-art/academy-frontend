@@ -507,6 +507,60 @@ test.describe("성적 알림톡 학생별 개인화", () => {
       }
     });
 
+    test(`${width}px 영상 과제 안내에서 미입력 학생만 선택 해제하고 준비된 성적을 발송한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      const preflights: SendPayload[] = [];
+      const sends: SendPayload[] = [];
+      await openPersonalizedScores(page, "success", preflights, sends, [{
+        id: 991, name: "수업 결과", category: "grades", body: "#{학생이름} #{시험총점}",
+        is_system: false, is_user_default: true,
+      }], "릴리스 검증 학원", false, ["PRESENT", "ABSENT", "PRESENT", "ONLINE"], "godmin");
+
+      const ready = page.getByRole("checkbox", { name: "개인화학생1 선택", exact: true });
+      const incomplete = page.getByRole("checkbox", { name: "개인화학생3 선택", exact: true });
+      const video = page.getByRole("checkbox", { name: "개인화학생4 선택", exact: true });
+      await expect(ready).toBeVisible({ timeout: 45_000 });
+      for (const row of [ready, incomplete, video]) await row.check();
+      await expect(page.getByText("3명 선택됨", { exact: true })).toBeVisible();
+
+      const open = page.getByRole("button", { name: "수업결과 알림톡 발송", exact: true });
+      const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+      await open.click();
+      await expect(modal.getByText("과제 안내", { exact: true })).toBeVisible();
+      await expect(modal.getByText(/^영상 1명(?: · \d+명 제외)?$/)).toBeVisible();
+      await expect(modal.getByText(/개인화학생3/)).toBeVisible();
+      await expect(modal.getByText(/2\s*(?:건|개)/)).toBeVisible();
+      expect(sends).toHaveLength(0);
+      const exclude = modal.getByRole("button", { name: "미입력 학생 선택 해제", exact: true });
+      await expect(exclude).toBeInViewport({ ratio: 1 });
+      await expect.poll(() => modal.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`score-missing-recovery-${width}.png`), animations: "disabled" });
+      await exclude.click();
+      await expect(modal).toBeHidden();
+      await expect(page.getByText("2명 선택됨", { exact: true })).toBeVisible();
+      await expect(ready).toBeChecked();
+      await expect(incomplete).not.toBeChecked();
+      await expect(video).toBeChecked();
+
+      preflights.length = 0;
+      await open.click();
+      await expect(modal.getByText("출석·지각 1명", { exact: true })).toBeVisible();
+      await expect(modal.getByRole("checkbox", { name: "영상 학생에게 과제 안내도 보내기" })).not.toBeChecked();
+      await modal.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
+      await modal.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
+      const confirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
+      await expect(confirm.getByLabel("카카오톡 실제 발송 미리보기")).toContainText("개인화학생1");
+      expect(sends).toHaveLength(0);
+      await confirm.getByRole("button", { name: "발송하기", exact: true }).click();
+      await expect.poll(() => sends.length).toBe(1);
+      expect(preflights.length).toBeGreaterThan(0);
+      for (const payload of [...preflights, ...sends]) {
+        expect(payload).toMatchObject({ student_ids: [9301], block_category: "grades" });
+        expect(payload.video_makeup_homework).toBeUndefined();
+      }
+      expect(sends[0].send_to).toBe("parent");
+    });
+
     test(`${width}px 성적과 영상 과제 안내의 대상·문구를 같은 창에서 확인하고 한 번에 접수한다`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 900 });
       const preflights: SendPayload[] = [];

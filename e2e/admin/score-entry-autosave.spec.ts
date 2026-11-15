@@ -840,7 +840,7 @@ test("같은 계정의 다른 화면이 선택한 과제 셀을 표시하고 다
 });
 
 for (const viewportWidth of [1366, 390]) {
-test(`reload의 기존 셀 잠금을 자동 점유하지 않고 준비 후 OMR 파일을 접수한다 (${viewportWidth}px)`, async ({ page }) => {
+test(`reload의 기존 셀 잠금을 자동 점유하지 않고 OMR 재전송의 기존 접수를 표시한다 (${viewportWidth}px)`, async ({ page }, testInfo) => {
   await page.setViewportSize({ width: viewportWidth, height: 900 });
   const clientIds = new Set<string>();
   page.on("request", (request) => {
@@ -898,14 +898,26 @@ test(`reload의 기존 셀 잠금을 자동 점유하지 않고 준비 후 OMR �
   await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
 
   const batchId = "12345678-1234-4234-8234-123456789abc";
+  const longFileName = `${"long-omr-filename".repeat(12)}.pdf`;
+  const fileNames = [longFileName, "reload-omr.pdf"];
   let uploadCount = 0;
   let initializeCount = 0;
   const batch = () => ({
-    id: batchId, exam_id: 9101, session_id: 9002, lecture_id: 9001, total_count: 1,
-    counts: { pending_admission: uploadCount ? 0 : 1, received: uploadCount,
-      duplicate: 0, processing: 0, completed: 0, needs_identification: 0, failed: 0, superseded: 0 },
-    pending_admission_ordinals: uploadCount ? [] : [1], admission_failed_ordinals: [],
-    failed_ordinals: [], duplicate_ordinals: [], terminal: false, overall_status: "receiving",
+    id: batchId, exam_id: 9101, session_id: 9002, lecture_id: 9001, total_count: 2,
+    counts: { pending_admission: uploadCount ? 0 : 2, received: 0,
+      duplicate: 0, processing: uploadCount ? 2 : 0, completed: 0,
+      needs_identification: 0, failed: 0, superseded: 0 },
+    pending_admission_ordinals: uploadCount ? [] : [1, 2], admission_failed_ordinals: [],
+    failed_ordinals: [], duplicate_ordinals: [], terminal: false,
+    overall_status: uploadCount ? "processing" : "receiving",
+    items: [1, 2].map((ordinal) => ({
+      id: `${batchId}:${ordinal}`, ordinal,
+      admission_status: uploadCount ? "received" : "pending",
+      status: uploadCount ? "processing" : "pending_admission",
+      submission_id: uploadCount ? 9900 + ordinal : null,
+      submission_status: uploadCount ? "dispatched" : null,
+      identifier_status: null, failure_code: null, failure_message: null,
+    })),
     completion_notice_claimed: false, created_at: "2026-09-19T01:00:00Z", updated_at: "2026-09-19T01:00:00Z",
   });
   await page.route("**/api/v1/submissions/submissions/**", async (route) => {
@@ -914,9 +926,10 @@ test(`reload의 기존 셀 잠금을 자동 점유하지 않고 준비 후 OMR �
       initializeCount += 1;
       await route.fulfill({ status: 201, json: batch() });
     } else if (route.request().method() === "POST" && path.endsWith("/exams/9101/omr/batch/")) {
-      expect(route.request().postDataBuffer()?.toString("latin1")).toContain("reload-omr.pdf");
+      const body = route.request().postDataBuffer()?.toString("latin1");
+      for (const fileName of fileNames) expect(body).toContain(fileName);
       uploadCount += 1;
-      await route.fulfill({ status: 201, json: { ...batch(), created_count: 1, submission_ids: [9901] } });
+      await route.fulfill({ status: 201, json: { ...batch(), created_count: 0, submission_ids: [] } });
     } else if (path.endsWith(`/omr/batches/${batchId}/`)) {
       await route.fulfill({ json: batch() });
     } else if (path.endsWith("/omr/batches/")) {
@@ -928,11 +941,31 @@ test(`reload의 기존 셀 잠금을 자동 점유하지 않고 준비 후 OMR �
   await openUpload.click();
   const dialog = page.getByRole("dialog", { name: "OMR 스캔 등록" });
   await expect(dialog).toBeVisible();
-  await dialog.locator('input[type="file"]').setInputFiles({
-    name: "reload-omr.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n%%EOF"),
-  });
+  await dialog.locator('input[type="file"]').setInputFiles(fileNames.map((name) => ({
+    name, mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n%%EOF"),
+  })));
+  const selectedFiles = dialog.getByRole("list", { name: "선택한 OMR 파일" });
+  await expect(selectedFiles.getByText(longFileName, { exact: true })).toBeVisible();
+  await expect.poll(() => selectedFiles.evaluate((list) => list.scrollWidth - list.clientWidth))
+    .toBeLessThanOrEqual(1);
+  const expectNoModalOverflow = () => expect.poll(() => dialog.evaluate((modal) => {
+    const rect = modal.getBoundingClientRect();
+    return Math.max(-rect.left, rect.right - window.innerWidth, modal.scrollWidth - modal.clientWidth);
+  })).toBeLessThanOrEqual(1);
+  await expectNoModalOverflow();
+  await testInfo.attach("OMR 파일 선택", { body: await dialog.screenshot(), contentType: "image/png" });
   await dialog.getByRole("button", { name: "등록 시작", exact: true }).click();
-  await expect(dialog).toContainText("1건을 접수했습니다.");
+  await expect(dialog).toContainText("전체 2장");
+  await expect(dialog).toContainText("접수 확인 2장");
+  await expect(dialog).not.toContainText("0건을 접수했습니다");
+  await expect(selectedFiles).toHaveCount(0);
+  const ledger = dialog.getByLabel("답안지별 접수 내역");
+  await expect(ledger).toHaveCount(1);
+  await ledger.locator("summary").click();
+  await expect(ledger.getByRole("listitem")).toHaveCount(2);
+  await expect(ledger.getByText(longFileName, { exact: false })).toHaveCount(0);
+  await expectNoModalOverflow();
+  await testInfo.attach("OMR 접수 원장", { body: await dialog.screenshot(), contentType: "image/png" });
   expect(initializeCount).toBe(1);
   expect(uploadCount).toBe(1);
   expect(rejectedClaims).toEqual([]);
@@ -941,7 +974,6 @@ test(`reload의 기존 셀 잠금을 자동 점유하지 않고 준비 후 OMR �
   expect(activeEditors[0].client_id).toBe(previousClientId);
   await expect(page.getByText("자동 저장 실패", { exact: true })).toHaveCount(0);
   await expect(dialog).toBeVisible();
-  await expect.poll(async () => (await dialog.boundingBox())?.width ?? Infinity).toBeLessThanOrEqual(viewportWidth);
   await dialog.getByRole("button", { name: "닫기", exact: true }).click();
   await expect(dialog).toBeHidden();
 });
@@ -1800,7 +1832,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(omrButton).toBeEnabled({ timeout: 10_000 });
     await omrButton.click();
 
-    await expect(page.locator(".admin-omr-upload").getByText("스캔 파일 선택")).toBeVisible();
+    await expect(page.locator(".admin-omr-upload").getByText("스캔본·촬영 사진 선택")).toBeVisible();
     await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
     await expect
       .poll(

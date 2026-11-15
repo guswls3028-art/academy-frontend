@@ -738,13 +738,6 @@
   transform: none !important;
 }
 
-.scores-omr-modal__body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: var(--space-5);
-}
-
 .scores-omr-modal__target {
   display: flex;
   flex-wrap: wrap;

@@ -736,9 +736,30 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
   test("390px OMR 검토에서 최근 목록 밖의 미식별 답안을 찾는다", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openScores(page);
+    const eligibleCandidate = {
+      enrollment_id: 9911,
+      student_name: "차시 응시 학생",
+      student_phone_last4: "5678",
+      parent_phone_last4: "",
+      lecture_title: "중대부고",
+      already_matched: false,
+    };
+    let assignment: unknown;
     await page.route("**/api/v1/submissions/submissions/**", async (route) => {
       const url = new URL(route.request().url());
+      if (url.pathname.endsWith(`/exams/${MIXED_EXAM_ID}/candidates/`)) {
+        expect(url.searchParams.get("session_id")).toBe(String(SESSION_ID));
+        const query = url.searchParams.get("q");
+        if (!query) {
+          // A previous backend can return an exam-wide list without validating the session.
+          return route.fulfill({ json: [{ ...eligibleCandidate, student_name: "다른 차시 학생" }] });
+        }
+        return route.fulfill({
+          json: { session_id: SESSION_ID, candidates: query === "12345678" ? [eligibleCandidate] : [] },
+        });
+      }
       if (url.pathname.endsWith(`/exams/${MIXED_EXAM_ID}/`)) {
+        expect(url.searchParams.get("session_id")).toBe(String(SESSION_ID));
         if (url.searchParams.get("review_issues") === "1") {
           return route.fulfill({ json: { items: [{
             id: 10020, enrollment_id: 0, student_name: "", status: "needs_identification",
@@ -755,6 +776,10 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
         }] });
       }
       if (url.pathname.endsWith("/10020/manual-edit/")) {
+        if (route.request().method() === "POST") {
+          assignment = route.request().postDataJSON();
+          return route.fulfill({ json: { submission_id: 10020, enrollment_id: 9911, graded: true } });
+        }
         return route.fulfill({ json: {
           submission_id: 10020, submission_status: "needs_identification", enrollment_id: null,
           target_type: "exam", target_id: MIXED_EXAM_ID, identifier: {},
@@ -772,6 +797,26 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     await expect(review.getByText("미식별 학생", { exact: true })).toBeVisible();
     await expect(review.getByRole("button", { name: "검토 현황 새로고침" })).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await review.getByText("미식별 학생", { exact: true }).click();
+    await review.getByRole("tab", { name: "확인", exact: true }).click();
+    await review.getByRole("button", { name: "학생 검색·연결" }).click();
+    const picker = page.getByRole("dialog", { name: "학생 선택" });
+    await expect(picker).toContainText("학생 목록을 불러오지 못했습니다.");
+    await expect(picker.getByText("다른 차시 학생")).toHaveCount(0);
+    const search = picker.getByRole("textbox", { name: "학생 검색" });
+    await expect(search).toHaveAttribute("placeholder", "학생 이름 또는 전화번호 뒤 4·8자리");
+    await search.fill("12345678");
+    const result = picker.getByRole("button", { name: /차시 응시 학생/ });
+    await expect(result).toBeVisible();
+    await search.fill("일치 없음");
+    await expect(result).toHaveCount(0);
+    await search.fill("12345678");
+    await result.click();
+    await review.getByRole("button", { name: "저장 + 재채점" }).click();
+    await expect.poll(() => assignment).toMatchObject({
+      identifier: { enrollment_id: 9911 },
+      session_id: SESSION_ID,
+    });
   });
 
   for (const width of [1366, 390]) {
