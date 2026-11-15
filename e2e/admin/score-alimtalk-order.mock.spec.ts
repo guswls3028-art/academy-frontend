@@ -21,6 +21,7 @@ async function setup(page: Page, automatic = false, failFirstSave = !automatic) 
   const orderWrites: Record<string, unknown>[] = [];
   await page.route("**/api/v1/results/admin/sessions/9002/scores/", route => route.fulfill({ json: scores }));
   await page.route("**/api/v1/results/admin/sessions/9002/total-config/", async route => {
+    if (route.request().method() === "GET") return route.fulfill({ json: scores.meta.total_config });
     const payload = route.request().postDataJSON();
     orderWrites.push(payload);
     expect(payload.exam_ids).toEqual([9101]);
@@ -33,6 +34,7 @@ async function setup(page: Page, automatic = false, failFirstSave = !automatic) 
     body: automatic ? "직접 쓴 공지\n#{시험목록}\n#{과제목록}" : "직접 쓴 공지\n#{시험1명}: #{시험1}/#{시험1만점}\n총점 #{시험총점}/#{시험총만점}\n#{과제목록}",
     is_system: false, is_user_default: true, solapi_status: "", solapi_template_id: "", updated_at: "2026-11-05T10:00:00Z" };
   const saves: Record<string, unknown>[] = [], sends: Record<string, unknown>[] = [];
+  const reviewedByRoute = new Map<string, string>();
   let failSave = failFirstSave;
   await page.route("**/api/v1/messaging/**", async route => {
     const path = new URL(route.request().url()).pathname;
@@ -47,6 +49,7 @@ async function setup(page: Page, automatic = false, failFirstSave = !automatic) 
       const payload = route.request().postDataJSON();
       const rendered = payload.alimtalk_extra_vars_per_student?.[9301]?._body_subst;
       expect(typeof rendered).toBe("string");
+      reviewedByRoute.set(payload.send_to, rendered);
       return route.fulfill({ json: {
         ok: true, can_send: true, mode: "now", send_to: payload.send_to,
         recipient: { selected: 1, resolved: 1, valid_phone: 1, skipped_no_phone: 0, duplicate_phone: 0, unique_phone: 1, invalid_or_deleted: 0, limit: 500 },
@@ -69,7 +72,7 @@ async function setup(page: Page, automatic = false, failFirstSave = !automatic) 
     await page.getByRole("button", { name: "수업결과 알림톡 발송" }).click();
     return page.getByRole("dialog", { name: /^알림톡 발송/ });
   };
-  return { open, scores, saves, sends, orderWrites, saved: () => saved };
+  return { open, scores, saves, sends, orderWrites, reviewedByRoute, saved: () => saved };
 }
 
 for (const width of [1366, 390]) {
@@ -124,14 +127,18 @@ for (const width of [1366, 390]) {
   });
 }
 
-test("@alimtalk-order 자동 결과 목록 저장 후 새 시험 포함·순서 이동은 합산을 보존한다", async ({ page }) => {
+test("@alimtalk-order 합산 설정의 순서가 미리보기와 실제 발송 요청에 그대로 적용된다", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   const harness = await setup(page, false, false);
-  const moveExam = page.getByRole("button", { name: "둘째 시험 이전 순서로 이동", exact: true });
-  await expect(moveExam).toBeVisible({ timeout: 45_000 });
-  await moveExam.click();
+  const openSettings = page.getByRole("button", { name: "시험 총점 합산 설정", exact: true });
+  await expect(openSettings).toBeVisible({ timeout: 45_000 });
+  await openSettings.click();
+  const settings = page.getByRole("dialog", { name: "합산 설정", exact: true });
+  await settings.getByRole("button", { name: "둘째 시험 위로 이동", exact: true }).click();
+  await settings.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
   await expect.poll(() => harness.orderWrites.length).toBe(1);
   expect(harness.orderWrites[0]).toMatchObject({ exam_ids: [9101], exam_order: [9102, 9101] });
+  await expect(settings).toBeHidden();
   await page.reload();
   const modal = await harness.open();
   const editor = modal.getByRole("textbox", { name: "안내문", exact: true });
@@ -149,7 +156,16 @@ test("@alimtalk-order 자동 결과 목록 저장 후 새 시험 포함·순서 
   harness.scores.rows[0].exams.push({ ...harness.scores.rows[0].exams[0], exam_id: 9103, title: exam.title });
   await page.reload(); await harness.open();
   await expect(editor.locator('[data-message-variable="시험3결과"]')).toHaveCount(1);
-  await expect(modal.getByLabel("현재 학생의 실제 발송 문구", { exact: true })).toContainText("새 하프모의: 80/100");
+  const preview = modal.getByLabel("현재 학생의 실제 발송 문구", { exact: true });
+  const expectedOrder = /둘째 시험: 80\/100[\s\S]*첫 시험:[\s\S]*새 하프모의: 80\/100/;
+  await expect(preview).toContainText(expectedOrder);
   expect(harness.scores.meta.total_config!.exam_ids).toEqual([9101]);
-  expect(harness.sends).toEqual([]);
+  await modal.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
+  await page.getByRole("dialog", { name: "보내기 전 마지막 확인" }).getByRole("button", { name: "발송하기", exact: true }).click();
+  await expect.poll(() => harness.sends.length).toBe(2);
+  for (const payload of harness.sends) {
+    const body = (payload.alimtalk_extra_vars_per_student as Record<string, { _body_subst: string }>)[9301]._body_subst;
+    expect(body).toMatch(expectedOrder);
+    expect(body).toBe(harness.reviewedByRoute.get(String(payload.send_to)));
+  }
 });

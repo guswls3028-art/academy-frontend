@@ -461,3 +461,29 @@ test("@alimtalk-order 번호형 결과는 순서 변경·학생별 미배정에�
   expect(rendered).toContain("총점 0/100");
   expect(compactGradesPerStudentPayloadVars(body, { 101: { _body_subst: rendered } })?.[101]).toEqual({ _body_subst: rendered });
 });
+
+test("@alimtalk-order 전체 성적 블록과 목록은 차시 순서를 사용하고 학생별 미배정은 목록에서 생략한다", () => {
+  const meta: SessionScoreMeta = {
+    exams: [{ ...scoreMeta.exams[0], exam_id: 12, title: "먼저 보는 시험" }, scoreMeta.exams[0]],
+    homeworks: [{ ...scoreMeta.homeworks[0], homework_id: 22, title: "먼저 보는 과제" }, scoreMeta.homeworks[0]],
+  };
+  const row = scoreRow(null);
+  row.exams.push({ ...row.exams[0], exam_id: 12, title: "먼저 보는 시험" });
+  row.homeworks.push({ ...row.homeworks[0], homework_id: 22, title: "먼저 보는 과제" });
+  const vars = buildScoreVars(row, meta);
+  expect(vars["시험목록"]).toMatch(/먼저 보는 시험[\s\S]*단원평가/);
+  expect(vars["시험이력"]).toBe(vars["시험목록"]);
+  expect(vars["과제목록"]).toMatch(/먼저 보는 과제[\s\S]*연습과제/);
+  expect(vars["전체요약"]).toContain("미입력 항목: 먼저 보는 시험, 단원평가, 먼저 보는 과제, 연습과제");
+  expect(vars["시험성적"]).toMatch(/먼저 보는 시험[\s\S]*단원평가[\s\S]*먼저 보는 과제[\s\S]*연습과제/);
+  expect(vars["선생님메모"]).toBe(vars["시험성적"]);
+  expect(buildScoreDetail(row, meta)).toBe(vars["시험성적"]);
+  expect(row.exams.map(exam => exam.exam_id)).toEqual([11, 12]);
+  expect(row.homeworks.map(hw => hw.homework_id)).toEqual([21, 22]);
+
+  const sparse = buildScoreVars(scoreRow(null), meta);
+  expect(sparse["시험1결과"]).toBe("미배정");
+  expect(sparse["과제1결과"]).toBe("미배정");
+  expect(sparse["시험목록"]).not.toContain("먼저 보는 시험");
+  expect(sparse["과제목록"]).not.toContain("먼저 보는 과제");
+});
