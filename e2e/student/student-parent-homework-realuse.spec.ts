@@ -439,6 +439,12 @@ async function verifyHomeworkFeedback(
             can_send: true,
             send_to: "parent",
             blockers: [],
+            template: {
+              source: "unified",
+              template_type: "attendance",
+              solapi_status: "APPROVED",
+              solapi_template_id: "KA01TP260406121126868FGddLmrDFUC",
+            },
             video_makeup_homework_preview: {
               fingerprint: expect.any(String),
               recipients: [{
@@ -455,10 +461,14 @@ async function verifyHomeworkFeedback(
           await notice.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
           const finalNotice = staffPage.getByRole("dialog", { name: "보내기 전 마지막 확인" });
           const renderedNotice = finalNotice.getByLabel("카카오톡 실제 발송 미리보기");
+          await expect(renderedNotice.getByText("출석 안내", { exact: true })).toBeVisible();
           await expect(renderedNotice).toContainText("이번 차시는 영상으로 보강합니다.");
+          const assigned = finalNotice.getByRole("list", { name: "배정 과제" });
+          await expect(assigned.getByText(completionTitle, { exact: true })).toBeInViewport();
+          await expect(assigned.getByText(homeworkTitle, { exact: true })).toBeInViewport();
           await expect(renderedNotice.locator(".kakao-alimtalk-preview__body"))
             .toHaveText(preflight.preview_recipients[0].full_message_body);
-          await expect(finalNotice.getByText("학부모 1명", { exact: true })).toBeVisible();
+          await expect(finalNotice.getByText("학부모 1명", { exact: true })).toBeInViewport();
           await expect(finalNotice.getByText("과제 안내 학생 번호 없음 1건 제외", { exact: true })).toBeVisible();
           await expect(finalNotice.getByRole("button", { name: "발송하기", exact: true })).toBeInViewport();
           await assertNoHorizontalOverflow(staffPage);

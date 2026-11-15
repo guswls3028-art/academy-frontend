@@ -202,6 +202,31 @@
   max-height: 385px;
 }
 
+.send-modal__confirm-homework {
+  margin-bottom: 10px;
+  padding: 6px 12px 10px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 10px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+}
+
+.send-modal__confirm-homework-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.send-modal__confirm-homework ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-inline-start: 16px;
+  list-style: disc;
+  overflow-wrap: anywhere;
+}
+
 .send-modal__confirm-details {
   display: flex;
   flex-direction: column;
@@ -680,6 +705,14 @@
     gap: 8px;
   }
 
+  .send-modal__confirm-card[data-video-preview="true"] .send-modal__confirm-details {
+    display: contents;
+  }
+
+  .send-modal__confirm-card[data-video-preview="true"] .send-modal__confirm-meta {
+    grid-row: 1;
+  }
+
   .send-modal__confirm-card[data-video-homework="true"] .kakao-alimtalk-preview__chat {
     min-height: 0;
     max-height: min(38dvh, 310px);
@@ -699,6 +732,11 @@
     flex: 1;
     min-height: 44px;
   }
+}
+
+.send-modal__confirm-kakao[data-full-message="true"] .kakao-alimtalk-preview__chat {
+  max-height: none;
+  overflow-y: visible;
 }
 
 /* ----- 템플릿 카드 그리드 ----- */
