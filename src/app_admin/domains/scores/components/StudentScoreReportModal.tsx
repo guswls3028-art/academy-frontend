@@ -79,7 +79,7 @@ export default function StudentScoreReportModal({
   const studentListId = useId();
   const previewScrollRef = useRef<HTMLDivElement>(null);
   const downloadInProgressRef = useRef(false);
-  const previewResizeObserverRef = useRef<ResizeObserver | null>(null);
+  const previewCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -108,7 +108,7 @@ export default function StudentScoreReportModal({
 
   useEffect(() => {
     if (!open) return;
-    return () => previewResizeObserverRef.current?.disconnect();
+    return () => previewCleanupRef.current?.();
   }, [open]);
 
   const selectedRow = useMemo(
@@ -255,25 +255,33 @@ export default function StudentScoreReportModal({
   };
 
   const handlePreviewLoad = (iframe: HTMLIFrameElement) => {
-    previewResizeObserverRef.current?.disconnect();
+    previewCleanupRef.current?.();
     const doc = iframe.contentDocument;
     const paper = iframe.parentElement;
-    if (!doc?.body || !paper || !doc.querySelector(".student-report-page")) return;
+    const scrollRegion = paper?.parentElement;
+    if (!doc?.body || !paper || !scrollRegion || !doc.querySelector(".student-report-page")) return;
     doc.documentElement.style.overflow = "hidden";
 
     const updatePreviewSize = () => {
       const height = Math.ceil(doc.body.getBoundingClientRect().height);
-      const scale = Math.min(1, paper.getBoundingClientRect().width / PAPER_WIDTH);
+      const scale = Math.min(1, paper.clientWidth / PAPER_WIDTH);
       if (height > 0 && scale > 0) {
         setPreviewSize((current) => current.height === height && current.scale === scale ? current : { height, scale });
       }
     };
 
     updatePreviewSize();
-    const observer = new ResizeObserver(updatePreviewSize);
+    let resizeFrame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(updatePreviewSize);
+    });
     observer.observe(doc.body);
-    observer.observe(paper);
-    previewResizeObserverRef.current = observer;
+    observer.observe(scrollRegion);
+    previewCleanupRef.current = () => {
+      observer.disconnect();
+      cancelAnimationFrame(resizeFrame);
+    };
   };
 
   const handleDownload = async () => {
