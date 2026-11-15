@@ -9,6 +9,7 @@ import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import { Badge } from "@/shared/ui/ds";
 import { useMyExamResult } from "@student/domains/exams/hooks/useMyExamResult";
+import { deriveAchievement, deriveFinalPass } from "@/shared/scoring/achievement";
 import { examQuestionLabel } from "@/shared/scoring/examQuestionNumber";
 import type { ExamResultAnalysis, MyExamResultItem } from "@student/domains/exams/api/results";
 import GradeBadge from "@student/domains/grades/components/GradeBadge";
@@ -88,18 +89,15 @@ export default function ExamResultPage() {
     r.essay_numbering,
     essayIndices.get(number),
   );
-  const pct = r.max_score > 0 ? clampPercent(Math.round((r.total_score / r.max_score) * 100)) : 0;
-  // 최종 합격 여부: 1차 합격(is_pass) OR 클리닉 재시험 통과(remediated)
-  const finalPass = r.final_pass ?? r.is_pass;
-  const achievement = r.meta_status === "NOT_SUBMITTED"
-    ? "NOT_SUBMITTED"
-    : r.remediated
-      ? "REMEDIATED"
-      : undefined;
+  const totalScore = r.total_score;
+  const pct = totalScore != null && r.max_score > 0 ? clampPercent(Math.round((totalScore / r.max_score) * 100)) : 0;
+  const finalPass = deriveFinalPass(r);
+  const achievement = deriveAchievement(r);
+  const firstAttemptMissing = r.meta_status === "NOT_SUBMITTED" || achievement === "NOT_SUBMITTED";
   const analysis = r.analysis ?? buildAnalysisFromItems(items);
   const correctCount = analysis.correct_count;
   const wrongCount = analysis.wrong_count;
-  const hasQuestionAnalysis = analysis.total_questions > 0 && achievement !== "NOT_SUBMITTED";
+  const hasQuestionAnalysis = analysis.total_questions > 0 && !firstAttemptMissing;
 
   return (
     <StudentPageShell
@@ -132,9 +130,9 @@ export default function ExamResultPage() {
 
         {/* ── Score Gauge ── */}
         <div className={styles.scorePanel}>
-          <ScoreGauge pct={pct} passed={finalPass} />
+          {!firstAttemptMissing && totalScore != null && <ScoreGauge pct={pct} passed={finalPass} />}
           <div className={styles.scoreText}>
-            {r.total_score} / {r.max_score}점
+            {firstAttemptMissing ? "원시험 미응시" : totalScore == null ? "원시험 점수 없음" : `${totalScore} / ${r.max_score}점`}
           </div>
           {!wrongCompletionOnly && (
             <GradeBadge
@@ -166,29 +164,29 @@ export default function ExamResultPage() {
           <CorrectionStatusCard status={r.correction_status} wrongCompletionOnly={wrongCompletionOnly} />
         )}
 
-        {hasQuestionAnalysis && (
+        {hasQuestionAnalysis && totalScore != null && (
           <AnalysisOverviewCard
             analysis={analysis}
             cohortAvg={r.cohort_avg ?? null}
-            myScore={r.total_score}
+            myScore={totalScore}
             maxScore={r.max_score}
             questionLabel={questionLabel}
           />
         )}
 
         {/* ── Clinic CTA (불합격 + 미해소 클리닉 대상) ── */}
-        {r.clinic_required && finalPass === false && r.meta_status !== "NOT_SUBMITTED" && (
+        {r.clinic_required && finalPass === false && !firstAttemptMissing && (
           <ClinicRequiredCard wrongCompletionOnly={wrongCompletionOnly} />
         )}
 
         {/* ── Rank & Comparison ── */}
-        {r.meta_status !== "NOT_SUBMITTED" && (r.rank != null || (r.cohort_size != null && r.cohort_size > 0)) && (
+        {!firstAttemptMissing && totalScore != null && (r.rank != null || (r.cohort_size != null && r.cohort_size > 0)) && (
           <RankComparisonCard
             rank={r.rank ?? null}
             cohortSize={r.cohort_size ?? null}
             percentile={r.percentile ?? null}
             cohortAvg={r.cohort_avg ?? null}
-            myScore={r.total_score}
+            myScore={totalScore}
             maxScore={r.max_score}
           />
         )}
@@ -199,7 +197,7 @@ export default function ExamResultPage() {
         )}
 
         {/* ── Per-question results (OMR Grid) — 미응시는 숨김 ── */}
-        {achievement !== "NOT_SUBMITTED" && (
+        {!firstAttemptMissing && (
           <div>
             <div className={styles.sectionTitle}>
               문항별 결과

@@ -2,7 +2,9 @@ import type { MyHomeworkGradeSummary } from "../api/grades.api";
 
 export function calculateHomeworkStats(homeworks: MyHomeworkGradeSummary[]) {
   if (homeworks.length === 0) return null;
-  const graded = homeworks.filter((homework) => homework.score != null || homework.teacher_resolved === true);
+  const graded = homeworks.filter((homework) =>
+    homework.score != null || homework.teacher_resolved === true || homework.achievement === "REMEDIATED",
+  );
   const judgments = homeworks.map((homework) => {
     if (homework.teacher_resolved === true || homework.achievement === "PASS" || homework.achievement === "REMEDIATED") return true;
     if (homework.achievement === "FAIL") return false;
@@ -17,5 +19,6 @@ export function calculateHomeworkStats(homeworks: MyHomeworkGradeSummary[]) {
     : null;
   const judgedCount = passed + failed;
   const passRate = judgedCount > 0 ? Math.round((passed / judgedCount) * 100) : null;
-  return { passed, failed, graded: graded.length, total: homeworks.length, avgPct, passRate };
+  const completionRate = Math.round((passed / homeworks.length) * 100);
+  return { passed, failed, graded: graded.length, total: homeworks.length, avgPct, passRate, completionRate };
 }

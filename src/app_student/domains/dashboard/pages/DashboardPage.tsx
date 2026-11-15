@@ -957,9 +957,7 @@ function LearningStatusCard({
 
   const homework = calculateHomeworkStats(grades?.homeworks ?? []);
   const hwCount = homework?.total ?? 0;
-  const hwRate = homework == null ? null : wrongCompletionOnly
-    ? Math.round((homework.passed / homework.total) * 100)
-    : homework.passRate;
+  const hwRate = (wrongCompletionOnly ? homework?.completionRate : homework?.passRate) ?? null;
 
   /* 시험 합격률 (점수 평균 대신 합격/총합 비율) */
   const examJudgments = grades?.exams.map((exam) => getExamPassStatus(exam, wrongCompletionOnly)) ?? [];

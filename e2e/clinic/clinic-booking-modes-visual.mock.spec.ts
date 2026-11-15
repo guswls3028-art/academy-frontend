@@ -169,7 +169,7 @@ async function installApi(
       booking = { id: 1901, session: 910, session_title: timeRangeSession.title, session_date: date, session_start_time: timeRangeSession.start_time, session_location: "자율 학습실", status: "booked", booking_start_time: payload.booking_start_time, booking_end_time: payload.booking_end_time, booking_start_date: String(payload.booking_start_time) < timeRangeSession.start_time.slice(0, 5) ? endDate : date, booking_end_date: String(payload.booking_end_time) < timeRangeSession.start_time.slice(0, 5) ? endDate : date, created_at: "2026-09-01T00:30:00+09:00", can_self_cancel: true };
       return json({ count: 1, participants: [{ id: 1901, status: "booked" }] }, 201);
     }
-    if (path === "/clinic/idcard/" && request.method() === "GET") return json({ result: "FAIL" });
+    if (path === "/clinic/idcard/" && request.method() === "GET") return json({ current_targets: [], current_result: "SUCCESS", passcard_state: "PASSED" });
     if (path === "/lectures/lectures/" || path === "/lectures/sections/" || path === "/staffs/currently-working/") return json([]);
     if (path === "/students/" && request.method() === "GET") return json({ count: 0, results: [] });
     if (path === "/messaging/auto-send/" && request.method() === "GET") return json([]);
