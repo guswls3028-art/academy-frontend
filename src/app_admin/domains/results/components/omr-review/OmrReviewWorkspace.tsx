@@ -195,8 +195,7 @@ export default function OmrReviewWorkspace({
   }, [editDirty, onClose, confirm]);
 
   // 리스트
-  const sessionKey = sessionId === undefined ? [] : [sessionId];
-  const listQueryKey = [...adminResultsQueryKeys.omrReviewList(examId), ...sessionKey];
+  const listQueryKey = adminResultsQueryKeys.omrReviewList(examId, sessionId);
   const {
     data: recentRows = [],
     isLoading: listLoading,
@@ -209,14 +208,14 @@ export default function OmrReviewWorkspace({
     refetchInterval: open ? 8000 : false,
   });
   const issues = useInfiniteQuery({
-    queryKey: [...adminResultsQueryKeys.omrReviewIssuesPages(examId), ...sessionKey],
+    queryKey: adminResultsQueryKeys.omrReviewIssuesPages(examId, sessionId),
     queryFn: ({ pageParam }) => listOmrReviewIssuesPage(examId, { cursor: pageParam, sessionId }),
     initialPageParam: undefined as number | undefined,
     getNextPageParam: (page) => page.next_cursor ?? undefined,
     enabled: open && Number.isFinite(examId),
   });
   const focusedIssue = useQuery({
-    queryKey: [...adminResultsQueryKeys.omrReviewIssuesFocus(examId, initialSubmissionId), ...sessionKey],
+    queryKey: adminResultsQueryKeys.omrReviewIssuesFocus(examId, initialSubmissionId, sessionId),
     queryFn: () => listOmrReviewIssuesPage(examId, { focusId: initialSubmissionId, sessionId }),
     enabled: open && initialSubmissionId != null,
   });

@@ -34,7 +34,6 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
   const [initialSubmissionId, setInitialSubmissionId] = useState<number | undefined>();
   const [searchParams, setSearchParams] = useSearchParams();
   const { sessionId } = useLectureSessionParams();
-  const sessionKey = sessionId === undefined ? [] : [sessionId];
 
   useEffect(() => {
     if (searchParams.get("reviewOmr") !== "1") return;
@@ -48,13 +47,13 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
   }, [searchParams, setSearchParams]);
 
   const { data: rows = [], isError, refetch } = useQuery({
-    queryKey: [...adminResultsQueryKeys.omrReviewList(examId), ...sessionKey],
+    queryKey: adminResultsQueryKeys.omrReviewList(examId, sessionId),
     queryFn: () => listOmrReviewRows(examId, sessionId),
     enabled: Number.isFinite(examId),
     refetchInterval: 15000,
   });
   const issues = useQuery({
-    queryKey: [...adminResultsQueryKeys.omrReviewIssuesSummary(examId), ...sessionKey],
+    queryKey: adminResultsQueryKeys.omrReviewIssuesSummary(examId, sessionId),
     queryFn: () => listOmrReviewIssuesPage(examId, { sessionId }),
     enabled: Number.isFinite(examId),
     refetchInterval: 15000,
