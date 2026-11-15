@@ -1,10 +1,3 @@
-.detailPanel.detailPanel :global(.ds-overlay-inventory-wrap) {
-  top: auto;
-  bottom: 16px;
-  right: 16px;
-}
-.detailPanel :global(.ds-overlay-body) { padding-bottom: 64px; }
-
 .accountTools {
   display: flex;
   flex-wrap: wrap;
@@ -13,11 +6,21 @@
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--color-border-divider);
-  animation: detail-reveal 140ms ease-out;
 }
 
-.profileToggle.profileToggle { display: none; }
-.profilePanel { min-width: 0; }
+.accountTools[hidden] { display: none; }
+
+.profileTools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+  margin-bottom: var(--ds-space-2);
+}
+
+.profilePanel {
+  margin-bottom: var(--ds-space-3);
+}
+
 .infoRow.infoRow {
   width: 100%;
   grid-template-columns: max-content minmax(0, 1fr);
@@ -57,23 +60,17 @@
 .historyFeedback { padding: 16px; text-align: center; }
 .sectionError { padding: 12px; font-size: 12px; }
 
-@keyframes detail-reveal {
-  from { opacity: 0; transform: translateY(-3px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
 .accountHistory summary { cursor: pointer; }
-.accountHistory[open] summary { margin-bottom: 10px; }
+.accountHistory[open] summary { margin-bottom: var(--ds-space-2); }
 
 @media (max-width: 768px) {
-  .detailPanel :global(.ds-overlay-header__left) { padding-right: 40px; }
-  .profileToggle.profileToggle { display: flex; width: 100%; margin-bottom: 12px; }
-  .profilePanel { order: -2; }
-  .profilePanel[data-expanded="false"] { display: none; }
-  .profilePanel[data-expanded="true"] { animation: detail-reveal 140ms ease-out; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .accountTools,
-  .profilePanel[data-expanded="true"] { animation: none; }
+  .detailPanel :global(.ds-overlay-header__left) {
+    grid-template-columns: var(--ds-control-xl) minmax(0, 1fr);
+    padding-inline-end: var(--ds-control-lg);
+  }
+  .detailPanel :global(.ds-overlay-header__avatar) {
+    width: var(--ds-control-xl);
+    height: var(--ds-control-xl);
+    font-size: var(--ds-text-xl);
+  }
 }

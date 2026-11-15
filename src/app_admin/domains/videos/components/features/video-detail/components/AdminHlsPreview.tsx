@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/videos/components/features/video-detail/components/AdminHlsPreview.tsx
 
 import { useEffect, useRef } from "react";
-import Hls from "hls.js";
+import type Hls from "hls.js";
 import "./AdminHlsPreview.css";
 
 export default function AdminHlsPreview({ src }: { src: string }) {
@@ -9,30 +9,42 @@ export default function AdminHlsPreview({ src }: { src: string }) {
 
   useEffect(() => {
     const video = ref.current;
-    if (!video) return;
+    if (!video || !src) return;
 
-    if (!src) {
-      video.removeAttribute("src");
-      video.load();
-      return;
-    }
-
+    let active = true;
+    let hls: Hls | undefined;
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = src;
-      return;
-    }
-
-    if (Hls.isSupported()) {
-      const hls = new Hls({
-        startLevel: -1,
-        abrEwmaDefaultEstimate: 20_000_000,
+    } else {
+      void import("hls.js").then(({ default: HlsPlayer }) => {
+        if (!active) return;
+        if (!HlsPlayer.isSupported()) {
+          video.src = src;
+          return;
+        }
+        hls = new HlsPlayer({
+          startLevel: -1,
+          abrEwmaDefaultEstimate: 20_000_000,
+        });
+        hls.loadSource(src);
+        hls.attachMedia(video);
+      }).catch(() => {
+        if (!active) return;
+        hls?.destroy();
+        hls = undefined;
+        video.src = src;
       });
-      hls.loadSource(src);
-      hls.attachMedia(video);
-      return () => hls.destroy();
     }
 
-    video.src = src;
+    return () => {
+      active = false;
+      hls?.destroy();
+      if (video.hasAttribute("src")) {
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+      }
+    };
   }, [src]);
 
   return (
