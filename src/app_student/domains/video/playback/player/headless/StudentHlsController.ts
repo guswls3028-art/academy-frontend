@@ -423,7 +423,7 @@ export class StudentHlsController {
   }
 
   private recoverStall(exhausted: boolean) {
-    const terminal = exhausted || Boolean(this.opts.reviewStream);
+    const terminal = exhausted || Boolean(this.opts.reviewStream) || this.nativeEngineRecovery === "recovering";
     const alternate = terminal && !this.hls && this.nativeEngineRecovery === "idle";
     this.queueEvent("PLAYER_ERROR", { details: "playhead_stall", fatal: terminal && !alternate });
     if (alternate) {
@@ -668,7 +668,7 @@ export class StudentHlsController {
   }
 
   private attachHls(Hls: typeof import("hls.js").default, el: HTMLVideoElement, url: string) {
-    this.hls = createStudentHls(Hls, {
+    const hls = createStudentHls(Hls, {
       protectedReview: Boolean(this.opts.reviewStream),
       disposed: () => this.disposed,
       setState: (state) => this.setState(state),
@@ -679,8 +679,9 @@ export class StudentHlsController {
       retry: (kind) => this.scheduleReconnect(kind),
       fatal: (message) => this.opts.onFatal?.(message),
     });
-    this.hls.loadSource(url);
-    this.hls.attachMedia(el);
+    this.hls = hls;
+    hls.loadSource(url);
+    hls.attachMedia(el);
   }
 
   private async recoverNativePlayback(): Promise<boolean> {
@@ -711,7 +712,7 @@ export class StudentHlsController {
       const resuming = this.pendingSourceResume.wasPlaying;
       this.setState({ buffering: resuming, reconnecting: resuming, toast: null });
       this.attachHls(Hls, el, url);
-      // Reuse protected review admission before loading segments with the new engine.
+      if (resuming) this.stallWatch?.start();
       if (this.opts.reviewStream && this.pendingSourceResume?.wasPlaying) {
         void this.startReviewPlayback(++this.playGeneration, this.opts.reviewStream);
       }

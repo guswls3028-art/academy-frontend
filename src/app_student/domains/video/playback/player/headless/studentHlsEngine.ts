@@ -37,7 +37,7 @@ export function createStudentHls(HlsClass: typeof Hls, host: EngineHost): Hls {
   });
   hls.on(HlsClass.Events.LEVEL_SWITCHED, (_event, data) => {
     if (host.disposed()) return;
-    const quality = hls.autoLevelEnabled ? -1 : data.level;
+    const quality = hls.autoLevelEnabled ? -1 : data?.level;
     if (typeof quality === "number" && quality !== host.currentQuality()) {
       host.setState({ currentQuality: quality });
     }

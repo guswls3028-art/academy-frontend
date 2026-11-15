@@ -957,6 +957,7 @@ test("silent HLS stall offers a position-preserving retry if reconnect does not 
     await openWatch(page);
     await page.locator("button.svpBigPlay").press("Enter");
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(42);
+    const initiallyNative = !(await video.getAttribute("src"))?.startsWith("blob:");
     await video.evaluate((el: HTMLVideoElement) => { el.currentTime = 83; });
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(83);
     const stalledAt = await freezePlayhead(page);
@@ -965,6 +966,14 @@ test("silent HLS stall offers a position-preserving retry if reconnect does not 
     await expect.poll(hls.manifests).toBe(2);
     await page.clock.fastForward(10_500);
     const retry = page.getByRole("button", { name: "다시 시도", exact: true });
+    if (initiallyNative) {
+      // Supported native playback gets one bounded alternate-engine attempt.
+      await expect.poll(async () => await retry.count() > 0 || (await video.getAttribute("src"))?.startsWith("blob:")).toBe(true);
+      if (await retry.count() === 0) {
+        await page.clock.fastForward(2_000);
+        await page.clock.fastForward(10_500);
+      }
+    }
     await expect(retry).toBeVisible();
     await expect.poll(() => hls.state.progress.some(({ body }) =>
       body.last_position === Math.round(stalledAt) && body.completed === false)).toBe(true);
