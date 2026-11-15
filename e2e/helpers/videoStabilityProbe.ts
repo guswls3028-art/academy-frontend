@@ -95,7 +95,7 @@ async function seed(context: BrowserContext, page: Page, api: string, tenant: st
  */
 async function mediaBridge(context: BrowserContext, base: string, api: string, tenantId: number, videoId: number) {
   const state = { responseChain: Promise.resolve(), allowedMasterUrls: new Set<string>(),
-    allowedPosterUrls: new Set<string>(), posterLoads: 0 };
+    allowedPosterUrls: new Set<string>(), supportPosterExpiries: new Map<string, number>(), posterLoads: 0 };
   const directOrigins = new Set<string>();
   const reviewRoots = new Set<string>();
   const admittedRoots = new Set<string>();
@@ -126,6 +126,12 @@ async function mediaBridge(context: BrowserContext, base: string, api: string, t
           reviewRoots.add(new URL(".", browserMaster).href);
         }
         if (data.video.thumbnail_url) state.allowedPosterUrls.add(data.video.thumbnail_url);
+        if (data.support_preview === true && data.video.thumbnail_url) {
+          expect(Number.isSafeInteger(data.playback_expires_at)).toBe(true);
+          expect(data.playback_expires_at).toBeGreaterThan(Math.floor(Date.now() / 1_000));
+          expect(Number(new URL(data.video.thumbnail_url).searchParams.get("exp"))).toBe(data.playback_expires_at);
+          state.supportPosterExpiries.set(data.video.thumbnail_url, data.playback_expires_at);
+        }
       } else if (/^\/api\/v1\/student\/video\/sessions\/\d+\/videos\/$/.test(url.pathname)) {
         const data = await response.json();
         for (const item of data.items ?? []) if (item.id === videoId && item.thumbnail_url) state.allowedPosterUrls.add(item.thumbnail_url);
@@ -179,6 +185,7 @@ export async function runVideoStabilityProbe(browser: Browser, prepare: Prepare)
   try {
     for (const width of [1366, 390]) {
       const checkpoint = (stage: "student-prepared" | "student-saved" | "support-open" | "support-isolated"
+        | "class-heartbeat-ok" | "class-exit-saved" | "review-mode-updated" | "review-toggle-updated"
         | "review-playing" | "review-support-isolated" | "review-exhausted" | "review-recovered" | "complete") => {
         console.log(JSON.stringify({ videoStabilityCheckpoint: { width, stage } }));
       };
@@ -260,19 +267,23 @@ export async function runVideoStabilityProbe(browser: Browser, prepare: Prepare)
       const [classHeartbeat] = await Promise.all([liveClass, play(student)]);
       expect(classHeartbeat.status()).toBe(200);
       expect(run.state.bootstraps).toHaveLength(1);
+      checkpoint("class-heartbeat-ok");
       await leaveStudentPlayer(student, videoId, run.state.bootstraps.at(-1)?.playback_token);
       await closeContext(run.context);
+      checkpoint("class-exit-saved");
 
       // The setup's exact video and enrollment are the only policy mutation targets.
       const mode = await teacherContext.request.post(`${api}/api/v1/media/video-permissions/bulk_set/`, {
         headers, data: { video_id: videoId, enrollments: [initial.enrollment_id], access_mode: "FREE_REVIEW" },
       });
       expect(mode.ok()).toBe(true);
+      checkpoint("review-mode-updated");
       const beforeToggle = await report();
       const toggle = await teacherContext.request.patch(`${api}/api/v1/media/videos/${videoId}/`, {
         headers: { ...headers, "X-Expected-Updated-At": beforeToggle.updated_at }, data: { review_watch_limit_enabled: true },
       });
       expect(toggle.status()).toBe(200);
+      checkpoint("review-toggle-updated");
       const reviewContext = await browser.newContext({ viewport: { width, height: 900 }, serviceWorkers: "block" });
       contexts.add(reviewContext);
       student = await reviewContext.newPage();

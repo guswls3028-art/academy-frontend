@@ -2886,6 +2886,8 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
   const sessionPosterUrl = `${mediaOrigin}${posterPath}?v=${version}&exp=${expiresAt + 1}&sig=${"b".repeat(43)}&kid=v1`;
   const delayedSessionPosterUrl = `${mediaOrigin}${posterPath}?v=${version}&exp=${expiresAt + 2}&sig=${"c".repeat(43)}&kid=v1`;
   const clockSkewPosterUrl = `${mediaOrigin}${posterPath}?v=${version}&exp=${Math.floor(Date.now() / 1_000) + 21_630}&sig=${"d".repeat(43)}&kid=v1`;
+  const supportExpiry = Math.floor(Date.now() / 1_000) + 600;
+  const supportPosterUrl = `${mediaOrigin}${posterPath}?v=${version}&exp=${supportExpiry}&sig=${"e".repeat(43)}&kid=v1`;
   let browser;
   try {
     browser = await chromium.launch();
@@ -2908,7 +2910,8 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
     const state = {
       responseChain: Promise.resolve(),
       allowedMasterUrls: new Set([masterUrl]),
-      allowedPosterUrls: new Set([posterUrl, sessionPosterUrl, clockSkewPosterUrl]),
+      allowedPosterUrls: new Set([posterUrl, sessionPosterUrl, clockSkewPosterUrl, supportPosterUrl]),
+      supportPosterExpiries: new Map([[supportPosterUrl, supportExpiry]]),
       posterLoads: 0,
     };
     await installSyntheticVideoPosterBridge(context, state, 7, 77);
@@ -2944,7 +2947,13 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
       image.onerror = () => resolve(false);
       image.src = url;
     }), clockSkewPosterUrl), true);
-    assert.equal(state.posterLoads, 4);
+    assert.equal(await page.evaluate((url) => new Promise((resolve) => {
+      const image = new Image();
+      image.onload = () => resolve(true);
+      image.onerror = () => resolve(false);
+      image.src = url;
+    }), supportPosterUrl), true);
+    assert.equal(state.posterLoads, 5);
     assert.doesNotThrow(() => guard.assertClean());
     await context.close();
 
@@ -2964,8 +2973,13 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
       { url: `${mediaOrigin}${posterPath}?v=1e3&exp=${expiresAt}&sig=${signature}&kid=v1`, kind: "poster" },
       { url: `${mediaOrigin}${posterPath}?v=0${version}&exp=${expiresAt}&sig=${signature}&kid=v1`, kind: "poster" },
       { url: masterUrl.replace("&uid=11", ""), kind: "hls" },
+      { url: supportPosterUrl, kind: "poster" },
+      { url: supportPosterUrl, kind: "poster", supportExpiry: supportExpiry + 1 },
+      { url: supportPosterUrl, kind: "poster", supportExpiry, responseDerived: false },
+      { url: supportPosterUrl.replace(mediaOrigin, "https://foreign.fixture.invalid"), kind: "poster", supportExpiry },
+      { url: supportPosterUrl.replace(`exp=${supportExpiry}`, `exp=${version - 1}`), kind: "poster", supportExpiry: version - 1 },
     ];
-    for (const { url: candidate, kind, responseDerived = true } of rejected) {
+    for (const { url: candidate, kind, responseDerived = true, supportExpiry: boundExpiry } of rejected) {
       const rejectedContext = await browser.newContext();
       const rejectedGuard = await installReleaseContextGuard(rejectedContext, {
         mode: "development", webOrigin, apiOrigin: "http://127.0.0.1:1", tenantCode: "qa-ymath-realuse-unit",
@@ -2974,6 +2988,7 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
         responseChain: Promise.resolve(),
         allowedMasterUrls: new Set([masterUrl]),
         allowedPosterUrls: new Set(responseDerived ? [candidate] : [posterUrl]),
+        supportPosterExpiries: new Map(boundExpiry === undefined ? [] : [[candidate, boundExpiry]]),
         posterLoads: 0,
       };
       await rejectedContext.route("**/qa-fixtures/video-long/**", async (route) => {
