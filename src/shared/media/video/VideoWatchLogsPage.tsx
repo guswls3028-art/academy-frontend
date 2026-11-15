@@ -98,9 +98,13 @@ export default function VideoWatchLogsPage() {
       <Link className="watch-logs__back" to={`${base}?${searchParams}`}>← 학생 목록으로</Link>
       {!selected ? <section className="watch-logs__state"><h2>이 학생의 누적 재생 기록이 없습니다</h2><p>학생 목록에서 집계된 학생을 다시 선택해 주세요.</p></section> : <>
         <section className="watch-logs__summary" aria-label="학생 누적 재생 요약">
-          {selected.remaining_ms !== undefined && <ReviewWatchSummaryPanel summary={{ enabled: data.enabled,
+          {selected.remaining_ms !== undefined && (selected.can_adjust === false && selected.applicable === false ? <section className="watch-logs__notice" aria-label="복습 시청기록">
+            <strong>현재 시청 권한 확인이 필요합니다</strong>
+            <p>기존 사용 {watchDuration(selected.used_ms)} · 기존 허용 {selected.limit_ms == null ? "제한 없음" : watchDuration(selected.limit_ms)}</p>
+            <p>학생의 현재 수강·시청 권한을 확인해 주세요. 이전 시청 기록과 한도는 보존됩니다.</p>
+          </section> : <ReviewWatchSummaryPanel summary={{ enabled: data.enabled,
             applicable: selected.applicable ?? true, used_ms: selected.used_ms, limit_ms: selected.limit_ms ?? null,
-            remaining_ms: selected.remaining_ms, exhausted: selected.exhausted ?? false, revision: selected.revision ?? "" }} />}
+            remaining_ms: selected.remaining_ms, exhausted: selected.exhausted ?? false, revision: selected.revision ?? "" }} />)}
           <VideoReviewAllowanceEditor key={`${videoId}:${studentId}`} videoId={videoId} student={selected} enabled={data.enabled} defaultLimit={data.threshold_ms} />
           {selected.remaining_ms !== undefined ? <details className="watch-logs__activity"><summary>집계 정보 보기</summary>{summaryDetails}</details> : summaryDetails}
         </section>

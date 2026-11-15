@@ -17,7 +17,7 @@ async function installAllowance(page: Page) {
     if (route.request().method() === "OPTIONS") return route.fallback();
     if (path.endsWith("/report/") && state.reportFail) return route.fulfill({ status: 503, json: { detail: "합성 기록 갱신 실패" } });
     if (path.endsWith("/report/")) return route.fulfill({ json: { enabled: true, duration: 3600, threshold_ms: 5_040_000,
-      students: [{ student_id: 501, student_name: studentName, used_ms: state.used, started_at: state.used ? "2026-11-01T00:00:00Z" : null, applicable: true, can_adjust: state.canAdjust,
+      students: [{ student_id: 501, student_name: studentName, used_ms: state.used, started_at: state.used ? "2026-11-01T00:00:00Z" : null, applicable: state.canAdjust, can_adjust: state.canAdjust,
         limit_ms: state.limit, remaining_ms: Math.max(0, state.limit - state.used), exhausted: state.used >= state.limit, revision: state.revision }],
     } });
     if (path.endsWith("/students/501/allowance/") && route.request().method() === "PATCH") {
@@ -25,6 +25,7 @@ async function installAllowance(page: Page) {
       const summary = () => ({ enabled: true, applicable: true, limit_ms: state.limit, used_ms: state.used,
         remaining_ms: Math.max(0, state.limit - state.used), exhausted: state.used >= state.limit, revision: state.revision });
       if (state.fail) return route.fulfill({ status: 503, json: { detail: "합성 저장 실패" } });
+      if (!state.canAdjust) return route.fulfill({ status: 404, json: { code: "video_student_unavailable" } });
       if (body.expected_revision !== state.revision) return route.fulfill({ status: 409, json: summary() });
       state.limit = body.limit_ms ?? 5_040_000;
       state.revision = `${state.revision}-next`;
@@ -36,6 +37,39 @@ async function installAllowance(page: Page) {
 }
 
 for (const width of [1366, 390]) {
+  test(`open allowance draft follows changed playback permission and recovers at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = await installAllowance(page);
+    await page.goto(`${BASE}${width === 390 ? "/workspace/mobile" : "/workspace"}/videos/901/logs/501`);
+    const editor = page.getByRole("region", { name: "학생 복습 한도 조정" });
+    await editor.getByRole("button", { name: "복습 한도 조정", exact: true }).click();
+    await editor.getByLabel("총 허용시간 (분 또는 분:초)").fill("101:30");
+    state.canAdjust = false;
+    await editor.getByRole("button", { name: "한도 저장", exact: true }).click();
+    await expect(editor.getByRole("alert")).toContainText("현재 수강·시청 권한을 확인");
+    const history = page.getByRole("region", { name: "복습 시청기록", exact: true });
+    await expect(history).toContainText("현재 시청 권한 확인이 필요합니다");
+    await expect(history).toContainText("기존 사용 1시간 24분");
+    await expect(page.getByRole("region", { name: "복습 시청시간", exact: true })).toHaveCount(0);
+    await expect(editor.getByLabel("총 허용시간 (분 또는 분:초)")).toHaveValue("101:30");
+    await expect(editor.getByRole("button", { name: "한도 저장", exact: true })).toBeDisabled();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    await page.screenshot({ path: `test-results/teacher-video-permission-${width}.png`, fullPage: true });
+    expect(state.writes).toHaveLength(1); expect(state.limit).toBe(5_040_000);
+    await editor.getByRole("button", { name: "취소", exact: true }).click();
+    await expect(editor.getByRole("button", { name: "복습 한도 조정", exact: true })).toHaveCount(0);
+    state.canAdjust = true;
+    await page.getByRole("button", { name: "새로고침", exact: true }).click();
+    await editor.getByRole("button", { name: "복습 한도 조정", exact: true }).click();
+    await editor.getByRole("button", { name: "+10분", exact: true }).click();
+    await editor.getByRole("button", { name: "한도 저장", exact: true }).click();
+    await expect(editor.getByRole("status")).toBeVisible();
+    expect(state.limit).toBe(5_640_000); expect(state.used).toBe(5_040_000);
+    await page.reload();
+    await expect(page.getByRole("region", { name: "복습 시청시간", exact: true })).toContainText("10분 0초 남음");
+    await expect(history).toHaveCount(0);
+  });
+
   test(`teacher adjusts review allowance with saved usage preserved and retry at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     const state = await installAllowance(page);
