@@ -98,7 +98,7 @@ test.describe("업무 알림 옆 패치노트", () => {
     await expect(dialog.getByText(PRODUCT_UPDATES[0].highlights[0].text)).toBeVisible();
     await expect(page).toHaveURL(notificationsUrl);
     await expect(dialog.getByText(PRODUCT_UPDATES[1].summary)).toBeHidden();
-    await page.screenshot({ path: testInfo.outputPath("teacher-patch-notes-390.png") });
+    await page.screenshot({ path: testInfo.outputPath("teacher-patch-notes-390.png"), animations: "disabled" });
     await dialog.getByText(PRODUCT_UPDATES[1].title, { exact: true }).click();
     await expect(dialog.getByText(PRODUCT_UPDATES[1].summary)).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
@@ -142,6 +142,8 @@ test.describe("업무 알림 옆 패치노트", () => {
       await page.setViewportSize({ width, height: 844 });
       const { mutations } = await installWorkspaceMocks(page, { tenantRole: "owner" });
       await page.goto(`${BASE}/workspace/settings/appearance`);
+      const appearanceHeading = page.getByRole("heading", { name: "테마", exact: true });
+      await expect(appearanceHeading).toBeVisible();
       const bell = page.getByRole("button", { name: "알림", exact: true });
       const update = page.getByRole("button", { name: "업데이트, 새 패치노트" });
       await expect(update).toBeVisible();
@@ -158,9 +160,10 @@ test.describe("업무 알림 옆 패치노트", () => {
       await expect(page).toHaveURL(workspaceUrl);
       await expect(menu).toBeHidden();
       expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
-      await page.screenshot({ path: testInfo.outputPath(`admin-patch-notes-${width}.png`) });
+      await page.screenshot({ path: testInfo.outputPath(`admin-patch-notes-${width}.png`), animations: "disabled" });
       await dialog.getByRole("button", { name: "패치노트 닫기" }).click();
       await page.reload();
+      await expect(appearanceHeading).toBeVisible();
       await expect(page.getByRole("button", { name: "업데이트", exact: true })).toBeVisible();
       await page.goto(`${BASE}/workspace/developer`);
       await expect(page.getByRole("heading", { name: PRODUCT_UPDATES[0].title })).toBeVisible();
