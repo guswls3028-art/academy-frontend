@@ -482,6 +482,7 @@ for (const width of [1366, 390]) {
 
   test(`exhausted review displays usage and recovers after teacher allowance at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
+    if (width === 390) await page.addInitScript(() => localStorage.setItem("hakwonplus:student-theme-mode", "dark"));
     await installWatchScenario(page);
     let extended = false;
     await page.route("**/api/v1/student/video/videos/562/playback/**", route => {
