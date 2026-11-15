@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { PUBLIC_UPDATES_URL } from "@/shared/constants/origins";
 import {
   getTenantUserLocalItem,
   setTenantUserLocalItem,
@@ -36,9 +35,7 @@ export function useProductUpdateAwareness(userId?: string | number | null) {
   }, [userId]);
 
   return {
-    latest: LATEST_PRODUCT_UPDATE,
     isUnread,
     markRead,
-    href: `${PUBLIC_UPDATES_URL}#latest-update`,
   };
 }

@@ -3,9 +3,8 @@
  * 선생님 전용 모바일 앱 라우터 — 하단 4탭(오늘|강의|학생|커뮤니티) + 헤더 햄버거 드로어
  */
 import { Suspense, type ReactNode } from "react";
+import ProductUpdatePage from "@/shared/product/ProductUpdateNotes";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
-import ExternalRedirect from "@/core/router/ExternalRedirect";
-import { PUBLIC_UPDATES_URL } from "@/shared/constants/origins";
 import { Navigate, Route, Routes } from "react-router";
 import TeacherLayout from "@teacher/layout/TeacherLayout";
 import RoleGuard from "@teacher/shared/ui/RoleGuard";
@@ -186,7 +185,7 @@ export default function TeacherRouter() {
           <Route path="tools/stopwatch" element={<StopwatchPage />} />
 
           {/* To개발자 (Phase 4) */}
-          <Route path="developer" element={<ExternalRedirect to={PUBLIC_UPDATES_URL} />} />
+          <Route path="developer" element={<ProductUpdatePage />} />
           <Route path="developer/bug" element={<BugReportPage />} />
           <Route path="developer/feedback" element={<FeedbackPage />} />
         </Route>

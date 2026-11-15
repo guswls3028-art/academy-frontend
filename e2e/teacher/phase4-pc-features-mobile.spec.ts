@@ -301,15 +301,15 @@ test.describe("Phase 4 — PC 기능 모바일 운영 스모크", () => {
     expect(cap.errors).toEqual([]);
   });
 
-  test("패치노트 — 카드 리스트 + 상세 BottomSheet", async ({ page }) => {
+  test("패치노트 최신 상세와 이전 항목 펼치기", async ({ page }) => {
     const cap = attachNetCapture(page);
     await visit(page, "/workspace/mobile/developer");
 
     await expect(page.getByRole("heading", { name: "패치노트" })).toBeVisible();
-    const latest = page.getByText("LATEST").first();
-    await expect(latest).toBeVisible();
-    await latest.click();
-    await settleAfterClick(page);
+    await expect(page.locator("article").filter({ has: page.getByRole("heading") }).first()).toBeVisible();
+    const previous = page.getByRole("region", { name: "이전 패치노트" }).locator("details").first();
+    await previous.locator("summary").click();
+    await expect(previous.locator("ul")).toBeVisible();
 
     await page.screenshot({ path: `${SCREEN_DIR}/developer-patchnotes.png`, fullPage: true });
     logNet("developer-patchnotes", cap);
