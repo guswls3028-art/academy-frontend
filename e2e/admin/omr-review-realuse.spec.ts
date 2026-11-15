@@ -2090,9 +2090,10 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(current.submission_id).toBe(replacementId);
     expect(current.total_score).toBe(EXPECTED_SCORE - 1);
     const reopened = await openOmrReviewFromWorkbox(page);
-    await expect(reopened.locator(".orw-list-row").filter({
-      has: reopened.getByText(STUDENT_NAME, { exact: true }),
-    }).filter({ has: reopened.getByText(`${EXPECTED_SCORE - 1}점`, { exact: true }) })).toBeVisible();
+    const savedRow = reopened.locator(".orw-list-row")
+      .filter({ has: page.getByText(STUDENT_NAME, { exact: true }) })
+      .filter({ has: page.getByText(`${EXPECTED_SCORE - 1}점`, { exact: true }) });
+    await expect(savedRow).toBeVisible();
     await reopened.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(reopened).toBeHidden();
     await chooseExamHeaderAction(page, "문항별 점수 입력");
