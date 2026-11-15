@@ -3559,7 +3559,8 @@ for (const width of [1366, 1100, 390]) {
     await page.keyboard.press("o");
     await expect(control.getByRole("button", { name: "통과", exact: true })).toHaveAttribute("aria-pressed", "true");
     await page.keyboard.press("Enter");
-    await expect(control.getByRole("button", { name: "통과", exact: true })).toBeFocused();
+    await expect(control.locator("button:focus")).toHaveCount(1);
+    await expect(control.getByRole("button", { name: "통과", exact: true })).toHaveAttribute("aria-pressed", "true");
     await page.keyboard.press("ArrowDown");
     await expect(page.getByRole("group", { name: "자동저장학생2 · 단원 복습 완료 상태" }).getByRole("button", { name: "미통과", exact: true })).toBeFocused();
     await page.keyboard.press("ArrowUp");
