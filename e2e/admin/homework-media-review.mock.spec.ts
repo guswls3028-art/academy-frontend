@@ -700,6 +700,7 @@ test("@homework-results 워크북 채점표를 열고 저장한 표시를 다시
   await expect(mark).toHaveValue("wrong");
   expect(readCount).toBe(1);
   await page.reload({ waitUntil: "domcontentloaded" });
+  await waitForRenderSettled(page, { timeout: 20_000 });
   await page.getByRole("tab", { name: "결과", exact: true }).click();
   await expect(mark).toHaveCount(0);
   await ledger.click();

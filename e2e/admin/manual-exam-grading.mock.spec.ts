@@ -510,7 +510,7 @@ for (const width of [390, 1366]) {
     }] }));
     const openResults = async () => {
       await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
-      await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+      await page.getByRole("tab", { name: "채점·결과", exact: true }).click({ timeout: 45_000 });
     };
     await openResults();
     const entry = page.getByRole("region", { name: "주관식·서술형 채점 안내" });
@@ -661,6 +661,7 @@ for (const width of [390, 1366]) {
     await expect(firstScore).toHaveValue("0");
     await expect(row.getByRole("spinbutton", { name: /60점 만점 점수/ })).toHaveValue("60");
     await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(grid).toBeVisible({ timeout: 45_000 });
     await expect(firstScore).toHaveValue("0");
     await expect(row.getByRole("spinbutton", { name: /60점 만점 점수/ })).toHaveValue("60");
     expect(apiState.excelApplyStates).toHaveLength(1);
@@ -987,7 +988,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     );
     const created = {
       expectedVersion: null,
-      isNotSubmitted: false,
+      isNotSubmitted: options.resultRows?.some((row) => row.enrollment_id === enrollmentId && row.result_status === "NOT_SUBMITTED") ?? false,
       cells,
     };
     persistedRows.set(enrollmentId, created);
@@ -2902,6 +2903,8 @@ test.describe("문항별 직접 채점", () => {
     const missingToggle = page.locator("summary").filter({ hasText: "답안 없는 시험 대상자" });
     await expect(missingToggle).toContainText("1명");
     await missingToggle.click();
+    await expect(missing).toContainText("결시 처리");
+    await expect(missing).toContainText("이 차시 출결 기록 없음");
     await missing.getByRole("button", { name: "김학생 · 답안 입력" }).click();
     await expect(page.getByRole("region", { name: "김학생 오프라인 답안 입력" })).toBeVisible();
   });
