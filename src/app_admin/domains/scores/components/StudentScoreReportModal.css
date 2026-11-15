@@ -1,12 +1,11 @@
-.student-score-report-modal .ant-modal-content {
-  height: min(1000px, calc(100vh - 24px));
-  height: min(1000px, calc(100dvh - 24px));
+.admin-modal.student-score-report-modal .ant-modal-container {
   padding: 0;
   overflow: hidden;
 }
 
 .student-score-report-modal .admin-modal__inner {
-  height: 100%;
+  height: min(1000px, calc(100vh - 24px));
+  height: min(1000px, calc(100dvh - 24px));
   max-height: none;
 }
 
@@ -384,7 +383,7 @@
 }
 
 @media (max-width: 760px) {
-  .student-score-report-modal .ant-modal-content {
+  .student-score-report-modal .admin-modal__inner {
     height: calc(100vh - 16px);
     height: calc(100dvh - 16px);
   }

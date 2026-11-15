@@ -810,12 +810,12 @@ test.describe("개인 성적표", () => {
     await expect(secondFrame.locator(".report-footer")).toContainText("1 / 1");
     await dialog.getByRole("button", { name: "상세 2쪽" }).click();
     await expect(secondFrame.locator(".student-report-page")).toHaveCount(2);
-    await secondFrame.locator('[data-page="1"]').screenshot({
-      path: testInfo.outputPath("individual-score-report-page-1.png"),
-    });
     await page.screenshot({
       path: testInfo.outputPath("individual-score-report-preview.png"),
       fullPage: false,
+    });
+    await secondFrame.locator('[data-page="1"]').screenshot({
+      path: testInfo.outputPath("individual-score-report-page-1.png"),
     });
     await secondFrame.locator('[data-page="2"]').screenshot({
       path: testInfo.outputPath("individual-score-report-page-2.png"),
@@ -870,10 +870,13 @@ test.describe("개인 성적표", () => {
     const scrollRegion = dialog.getByRole("region", { name: "성적표 미리보기" });
     await expect.poll(() => scrollRegion.evaluate((element) => {
       const paper = element.querySelector("iframe")!;
-      const innerWidth = element.clientWidth - 32;
       return element.scrollWidth === element.clientWidth
-        && Math.abs(paper.getBoundingClientRect().width - innerWidth) < 2;
+        && Math.abs(paper.getBoundingClientRect().width - paper.parentElement!.clientWidth) < 2
+        && element.scrollHeight > element.clientHeight;
     })).toBe(true);
+    await scrollRegion.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+    await expect(dialog.getByText("개인 성적표", { exact: true })).toBeInViewport({ ratio: 1 });
+    await expect(dialog.getByRole("button", { name: "2명 성적표 PDF 다운로드" })).toBeInViewport({ ratio: 1 });
 
     const requestCountBeforeReopen = apiTracker.getStudentGradesRequestCount();
     await dialog.getByRole("button", { name: "닫기", exact: true }).click();
@@ -910,7 +913,7 @@ test.describe("개인 성적표", () => {
     const search = students.getByRole("searchbox", { name: "성적표 학생 검색" });
     await search.fill("박도윤");
     await students.getByRole("checkbox", { name: "박도윤 성적표 출력 선택" }).check();
-    await expect(dialog.getByRole("button", { name: "2명 성적표 PDF 다운로드" })).toBeInViewport();
+    await expect(dialog.getByRole("button", { name: "2명 성적표 PDF 다운로드" })).toBeInViewport({ ratio: 1 });
     await students.getByRole("checkbox", { name: "박도윤 성적표 출력 선택" }).uncheck();
     await dialog.getByRole("button", { name: "학생 목록 닫기" }).click();
     await page.setViewportSize({ width: 390, height: 844 });

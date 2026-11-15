@@ -124,6 +124,7 @@ export default function StudentScoreReportModal({
     staleTime: 0,
     refetchOnMount: "always",
   });
+  const previewGrades = gradesQuery.isError ? null : gradesQuery.data ?? null;
 
   const filteredRows = useMemo(() => {
     const query = normalizeSearch(search);
@@ -181,7 +182,7 @@ export default function StudentScoreReportModal({
   const reportParams = useMemo(() => selectedRow ? ({
     row: selectedRow,
     meta,
-    grades: gradesQuery.data ?? null,
+    grades: previewGrades,
     sessionTitle,
     lectureTitle,
     attendanceStatus: attendanceMap?.[selectedRow.enrollment_id] ?? null,
@@ -193,7 +194,7 @@ export default function StudentScoreReportModal({
   }) : null, [
     selectedRow,
     meta,
-    gradesQuery.data,
+    previewGrades,
     sessionTitle,
     lectureTitle,
     attendanceMap,
