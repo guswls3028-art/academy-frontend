@@ -68,7 +68,12 @@ export async function verifyExcelAssessment(
     const boundary = await installQaStudentParentBoundary(page, request);
     const guards = attachStrictBrowserGuards(page);
     await seedBrowserAuth(page, admin);
-    await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${scope.lectureId}/sessions/${scope.sessionId}/exams?examId=${exam.id}&examTab=results`);
+    await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${scope.lectureId}/sessions/${scope.sessionId}/scores`);
+    await page.getByRole("button", { name: "시험 성적 분석", exact: true }).click();
+    const picker = page.getByRole("dialog", { name: "분석할 시험 선택", exact: true });
+    await expect(picker).toBeVisible();
+    await picker.getByRole("button", { name: title, exact: true }).click();
+    await expect(page.getByRole("heading", { name: "시험 성적 분석", exact: true })).toBeInViewport();
     const importer = page.getByRole("region", { name: "엑셀로 채점 결과 넣기", exact: true });
     await expect(importer).toBeVisible();
     const template = await downloadWorkbook(page, "전용 양식 받기", testInfo, "real-exam-excel-template");

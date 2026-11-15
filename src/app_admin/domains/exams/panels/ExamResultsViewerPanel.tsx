@@ -3,9 +3,10 @@
  * 제안은 현재 대표 결과에서 계산하며 시험 컷이나 재시험 정책을 자동 변경하지 않는다.
  */
 
-import { useCallback, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useIsMutating, useMutation, useQuery } from "@tanstack/react-query";
 import { Download, FileSpreadsheet } from "lucide-react";
+import { EXAM_ANALYSIS_ANCHOR } from "@/shared/lib/assessmentQueryParams";
 import api from "@/shared/api/axios";
 import type {
   AdminExamResultRow,
@@ -37,6 +38,8 @@ const SCORE_BANDS = ["0–20%", ">20–40%", ">40–60%", ">60–80%", ">80–10
 type Props = {
   examId: number;
   wrongCompletionOnly?: boolean;
+  focusAnalysis?: boolean;
+  initialLectureId?: number;
   onOpenSetup?: () => void;
 };
 
@@ -62,8 +65,10 @@ export default function ExamResultsViewerPanel(props: Props) {
   return <ExamResultsViewerContent key={props.examId} {...props} />;
 }
 
-function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenSetup }: Props) {
-  const [selectedLectureId, setSelectedLectureId] = useState<number | null>(null);
+function ExamResultsViewerContent({
+  examId, wrongCompletionOnly = false, focusAnalysis = false, initialLectureId, onOpenSetup,
+}: Props) {
+  const [selectedLectureId, setSelectedLectureId] = useState<number | null>(initialLectureId ?? null);
   const manualGridRef = useRef<ManualExamGradingGridHandle>(null);
   const editingRegionRef = useRef<HTMLDivElement>(null);
   const excelApplying = useIsMutating({ mutationKey: adminResultsQueryKeys.examResultImport(examId) }) > 0;
@@ -91,12 +96,13 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
   const gradingEntryRef = useRef<HTMLDivElement>(null);
   const statisticsRef = useRef<HTMLDetailsElement>(null);
   const analysisRef = useRef<HTMLElement>(null);
+  const didFocusAnalysis = useRef(false);
   const [statisticsOpen, setStatisticsOpen] = useState(false);
-  const jumpTo = (element: HTMLElement | null) => {
+  const jumpTo = useCallback((element: HTMLElement | null) => {
     if (!element) return;
     element.focus({ preventScroll: true });
     element.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
-  };
+  }, []);
   const { data: exam } = useAdminExam(examId);
   const usesSeparateEssayNumbering = exam?.essay_numbering === "separate";
   const questionKindsQ = useQuery({
@@ -191,6 +197,17 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
   // Separate numbering needs the shared question query before rendering results.
   const isLoading = resultsQ.isLoading || (usesSeparateEssayNumbering && questionKindsQ.isLoading);
   const isError = resultsQ.isError || (usesSeparateEssayNumbering && questionKindsQ.isError);
+
+  useEffect(() => {
+    if (!focusAnalysis) {
+      didFocusAnalysis.current = false;
+      return;
+    }
+    if (isLoading || isError || didFocusAnalysis.current || !analysisRef.current) return;
+    didFocusAnalysis.current = true;
+    jumpTo(analysisRef.current);
+  }, [focusAnalysis, isError, isLoading, jumpTo]);
+
   if (isLoading) {
     return (
       <section className={styles.statePanel}>
@@ -280,7 +297,7 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
         </div>
       </section>
 
-      <section ref={analysisRef} tabIndex={-1} className={`${styles.analysisShell} ${styles.jumpTarget}`} aria-labelledby="exam-analysis-title">
+      <section id={EXAM_ANALYSIS_ANCHOR} ref={analysisRef} tabIndex={-1} className={`${styles.analysisShell} ${styles.jumpTarget}`} aria-labelledby="exam-analysis-title">
         <header className={styles.analysisHeader}>
           <div className={styles.headingCopy}>
             <h2 id="exam-analysis-title">시험 성적 분석</h2>

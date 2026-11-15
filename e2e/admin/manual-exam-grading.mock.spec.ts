@@ -3145,6 +3145,44 @@ test.describe("문항별 직접 채점", () => {
     await expect(cells.nth(1)).toHaveAccessibleName("김학생 2번 오답노트");
   });
 
+  for (const width of [390, 1366]) {
+    test(`성적 탭의 시험 성적 분석이 ${width}px에서 현재 강의의 리포트로 바로 이동한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await installApi(page, {
+        resultRows: [{
+          enrollment_id: ENROLLMENT_ID, student_name: "김학생", result_status: "DONE",
+          rank: 1, ranking_score: 80, final_score: 80, cohort_size: 1,
+        }],
+      });
+
+      await gotoAndSettle(
+        page,
+        `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+        { timeout: 30_000 },
+      );
+      const analysis = page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return url.pathname.endsWith(`/exams/${EXAM_ID}/analysis-insights/`)
+          && url.searchParams.get("lecture_id") === String(LECTURE_ID);
+      });
+      await page.getByRole("button", { name: "시험 성적 분석", exact: true }).click();
+      expect((await analysis).ok()).toBe(true);
+      const report = page.getByRole("region", { name: "시험 성적 분석", exact: true });
+      await expect(report).toBeFocused();
+      await expect(report.getByRole("heading", { name: "시험 성적 분석" })).toBeInViewport();
+      await expect(report).toContainText("80.0점");
+      await expect(page.getByRole("dialog", { name: "분석할 시험 선택" })).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await testInfo.attach("성적 탭에서 연 시험 분석", {
+        body: await page.screenshot({ animations: "disabled" }),
+        contentType: "image/png",
+      });
+      await page.goBack();
+      await expect(page.getByRole("button", { name: "시험 성적 분석", exact: true })).toBeVisible();
+    });
+  }
+
   test("선택형 시험명은 직접 채점표 대신 OMR 검토를 연다", async ({ page }) => {
     await installApi(page, {
       gradingMode: "choice",
