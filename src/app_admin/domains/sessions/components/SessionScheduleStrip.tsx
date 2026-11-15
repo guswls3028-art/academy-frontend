@@ -36,16 +36,18 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
   }, [location, navigate]);
 
   const prepare = async (onReady: () => void) => {
-    if (navigating.current) return;
+    const pathname = location.pathname;
+    if (navigating.current || window.location.pathname !== pathname) return;
     navigating.current = true;
     setPreparing(true);
-    try { if (await beforeChange.current?.() ?? true) onReady(); }
-    finally { navigating.current = false; setPreparing(false); }
+    try {
+      const ready = await beforeChange.current?.() ?? true;
+      if (ready && window.location.pathname === pathname) onReady();
+    } finally { navigating.current = false; setPreparing(false); }
   };
 
   const openManager = (add = false, dayId = scope) => {
     void prepare(() => {
-      if (window.location.pathname !== location.pathname) return;
       setEditDayId(add ? null : dayId);
       if (add) setAddRequest(request => request + 1);
       setOpen(true);
@@ -56,7 +58,6 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
     const pathname = window.location.pathname;
     if (pathname !== location.pathname || value === new URLSearchParams(window.location.search).get('schedule')) return;
     await prepare(() => {
-      if (window.location.pathname !== pathname) return;
       // Read the current URL after the score save guard completes.
       const next = new URLSearchParams(window.location.search);
       if (value === null) next.delete('schedule'); else next.set('schedule', value);
@@ -120,6 +121,7 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
         inlineActions: !!data && !query.isError && !hasDays,
         blockedNotice: blocked ? <p className={styles.note} role="status">{query.isPending ? '선택한 수업일을 확인하는 중…' : '수업일을 확인한 뒤 명단을 표시합니다.'}</p> : null,
         openManager: () => openManager(),
+        prepareTransition: prepare,
       }}>
         {children}
         {data && <SessionScheduleManager open={open} addRequest={addRequest} editDayId={editDayId} onClose={() => setOpen(false)} sessionId={sessionId} lectureId={lectureId} sessionDate={sessionDate} sessionOrder={sessionOrder} data={data} onSaved={saved} />}

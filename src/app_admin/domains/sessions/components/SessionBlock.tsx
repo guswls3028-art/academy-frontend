@@ -356,7 +356,11 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   const showCompactCard = scopeControls != null && currentSessionId != null;
   const firstSessionObject = formatFirstSessionObject(createSessionType);
 
-  const openSchedules = (target: string) => navigate(target, { state: { openSessionSchedule: true } });
+  const openSchedules = (target: string) => {
+    const openTarget = () => navigate(target, { state: { openSessionSchedule: true } });
+    if (scopeControls) void scopeControls.prepareTransition(openTarget);
+    else openTarget();
+  };
 
   const getSessionTargetPath = useCallback((nextSessionId: number) => {
     const match = location.pathname.match(/\/workspace\/lectures\/\d+\/sessions\/\d+\/(attendance|scores|exams|assignments|videos|clinic)(?:\/|$)/);

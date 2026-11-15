@@ -49,9 +49,12 @@ async function install(page: Page, state: ReturnType<typeof fixture>) {
     if (endpoint === '/lectures/attendance/arrival-overview/') return json({ generated_at: '2026-11-05T00:00:00Z', today: '2026-11-05', tomorrow: '2026-11-06', range_end: '2026-11-11', range_days: 7, soon_window_minutes: 60, summary: { soon: 0, today: 0, tomorrow: 0, upcoming: 0, time_unset: 0, overdue: 0 }, items: [] });
     if (endpoint === '/lectures/lectures/9901/') return json({ id: 9901, title: '요일별 수업', color: '#2563eb', chip_label: '수업' });
     const current = { id: 9902, lecture: 9901, lecture_title: '요일별 수업', title: '2차시', order: 2, regular_order: 2, session_type: 'REGULAR', date: '2026-11-04', schedule_dates: state.config.schedules, attendance_filled: state.attendanceFilled, attendance_total: 1 };
+    const previous = { ...current, id: 9900, title: '1차시', order: 1, regular_order: 1, date: '2026-10-28', schedule_dates: [] };
     if (endpoint === '/lectures/sessions/9902/') return json(current);
+    if (endpoint === '/lectures/sessions/9900/') return json(previous);
+    if (endpoint === '/lectures/sessions/9900/schedules/' && method === 'GET') return json(fixture().config);
     if (endpoint === '/lectures/sessions/' && state.failSessionList) return json({ detail: '차시 목록 조회 실패' }, 400);
-    if (endpoint === '/lectures/sessions/') return json({ count: url.searchParams.has('date') ? 1 : 2, results: url.searchParams.has('date') ? [current] : [{ ...current, id: 9900, title: '1차시', order: 1, regular_order: 1, date: '2026-10-28' }, current] });
+    if (endpoint === '/lectures/sessions/') return json({ count: url.searchParams.has('date') ? 1 : 2, results: url.searchParams.has('date') ? [current] : [previous, current] });
     if (endpoint === '/enrollments/session-enrollments/') return json({ count: 3, results: roster.map(s => ({ id: s.enrollment_id + 300, session: 9902, enrollment: s.enrollment_id, student_id: s.enrollment_id + 200, student_name: s.student_name, enrollment_status: 'ACTIVE' })) });
     if (endpoint === '/exams/') return json({ count: 1, results: [{ id: 81, title: '공통 시험', max_score: 100, pass_score: 60 }] });
     if (endpoint === '/results/admin/exams/81/results/') return json({ count: 3, results: roster.map(s => ({ ...s, score: 80, final_score: 80, exam_score: 80, max_score: 100 })) });
@@ -293,6 +296,54 @@ for (const width of [390, 1366]) test(`수업일 전환 저장 대기 중 다른
     await expect(page.getByRole('link', { name: '김수연 학생 상세 열기', exact: true })).toBeVisible();
     expect(state.reads.some(r => r.kind === 'scores' && r.scope === '72')).toBe(false);
     await capture(page, `schedule-pending-save-navigation-${width}`);
+  } finally {
+    releaseSave();
+  }
+});
+
+test('다른 차시의 수업일 관리는 현재 성적 편집을 저장한 뒤 연다', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await install(page, fixture(true));
+  let releaseSave!: () => void;
+  const saveGate = new Promise<void>(resolve => { releaseSave = resolve; });
+  let releases = 0;
+  await page.route('**/api/v1/results/admin/sessions/9902/score-draft/commit/', async route => {
+    expect(route.request().method()).toBe('POST');
+    expect(route.request().postDataJSON().release_lease).toBe(true);
+    releases += 1;
+    if (releases === 1) {
+      await route.fulfill({ status: 500, json: { detail: '입력 잠금 해제 실패' } });
+      return;
+    }
+    await saveGate;
+    await route.fulfill({ status: 204, body: '' });
+  });
+  try {
+    await page.goto(`${BASE}${path}/scores?schedule=71`, { waitUntil: 'domcontentloaded' });
+    const scoreControls = page.getByRole('group', { name: '성적 편집과 출력', exact: true });
+    await scoreControls.getByRole('button', { name: '수정', exact: true }).click();
+    await expect(scoreControls.getByRole('button', { name: '점수 입력 마침', exact: true })).toBeVisible();
+    const previousCard = page.getByRole('region', { name: '1차시 차시 카드', exact: true });
+    const openPreviousSchedules = async () => {
+      await previousCard.getByRole('button', { name: '차시 설정', exact: true }).press('Enter');
+      await page.getByRole('menu', { name: '차시 설정 메뉴' }).getByRole('button', { name: '수정', exact: true }).click();
+      await page.getByRole('dialog', { name: '차시 설정 편집' }).getByRole('button', { name: '수업일 관리', exact: true }).click();
+    };
+    const modal = page.getByRole('dialog', { name: '수업일 관리', exact: true });
+    const strip = page.getByRole('region', { name: '수업일 선택', exact: true });
+    await openPreviousSchedules();
+    await expect.poll(() => releases).toBe(1);
+    await expect(strip).toHaveAttribute('aria-busy', 'false');
+    await expect(page).toHaveURL(/sessions\/9902\/scores\?schedule=71$/);
+    await expect(modal).toBeHidden();
+    await openPreviousSchedules();
+    await expect.poll(() => releases).toBe(2);
+    await expect(page).toHaveURL(/sessions\/9902\/scores\?schedule=71$/);
+    await expect(modal).toBeHidden();
+    releaseSave();
+    await expect(page).toHaveURL(/sessions\/9900\/scores$/);
+    await expect(modal).toBeVisible();
+    await expect(modal.getByRole('button', { name: '수업일 추가', exact: true })).toBeEnabled();
   } finally {
     releaseSave();
   }

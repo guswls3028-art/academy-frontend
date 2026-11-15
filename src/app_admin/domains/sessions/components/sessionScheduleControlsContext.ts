@@ -7,6 +7,7 @@ type ScheduleControls = {
   inlineActions: boolean;
   blockedNotice: ReactNode;
   openManager: () => void;
+  prepareTransition: (onReady: () => void) => Promise<void>;
 };
 
 export const SessionScheduleControlsContext = createContext<ScheduleControls | null>(null);
