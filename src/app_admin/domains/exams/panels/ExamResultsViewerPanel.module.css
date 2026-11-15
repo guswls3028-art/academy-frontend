@@ -305,6 +305,7 @@
 
 .barFill {
   position: relative;
+  height: var(--bar-height);
   width: 75%;
   max-width: 68px;
   border-radius: 5px 5px 0 0;

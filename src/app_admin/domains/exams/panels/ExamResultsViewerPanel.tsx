@@ -176,11 +176,6 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
     enabled: hasData,
   });
   const recommendedPassScore = analysisQ.isError ? null : analysisQ.data?.recommended_cutoff;
-  const pendingQuestionInsight = {
-    title: statsQ.isError ? "문항 통계 확인 필요" : "문항 통계 확인 중",
-    detail: statsQ.isError ? "문항별 정답률에서 다시 시도할 수 있습니다." : "통계를 불러오면 분석을 표시합니다.",
-    tone: "neutral" as const,
-  };
 
   const analysisExport = useMutation({
     mutationFn: () => downloadExamAnalysisExport(examId, exam?.title ?? "시험"),
@@ -369,7 +364,7 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
                       <div className={styles.barTrack}>
                         <div
                           className={styles.barFill}
-                          style={{ height: `${(band.count / largestBandCount) * 100}%` }}
+                          style={{ "--bar-height": `${(band.count / largestBandCount) * 100}%` } as CSSProperties}
                         >
                           <span className={styles.barCount}>{band.count}명</span>
                         </div>
