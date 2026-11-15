@@ -45,16 +45,6 @@
   transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
-.guidebook-trigger__update-dot {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--guidebook-accent);
-}
-
 .guidebook-trigger:hover,
 .guidebook-trigger[aria-expanded="true"] {
   background: color-mix(in srgb, var(--guidebook-accent) 10%, var(--guidebook-panel));

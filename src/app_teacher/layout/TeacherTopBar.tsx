@@ -22,7 +22,7 @@ import { GuideBookLauncher, getGuideBookPreset } from "@/shared/ui/guide";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Menu, Bell, BellRing, Search } from "@teacher/shared/ui/Icons";
 import CompactStaffClockButton from "@/features/staff-clock/CompactStaffClockButton";
-import { useProductUpdateAwareness } from "@/shared/product/useProductUpdateAwareness";
+import { ProductUpdateLauncher } from "@/shared/product/ProductUpdateLauncher";
 import useAuth from "@/auth/hooks/useAuth";
 interface Props {
   onMenuClick: () => void;
@@ -41,7 +41,6 @@ export default function TeacherTopBar({
   const { program } = useProgram();
   const { user } = useAuth();
   const { counts, failures, isLoading, isError } = useTeacherPendingCounts();
-  const productUpdate = useProductUpdateAwareness(user?.id);
   const tenantName = program?.display_name?.trim() || "";
   const tenantResult = resolveTenantCode();
   const tenantId = tenantResult.ok ? getTenantIdFromCode(tenantResult.code) : null;
@@ -204,14 +203,8 @@ export default function TeacherTopBar({
           iconSize={ICON.lg}
           ariaLabel="가이드북"
           onNavigate={navigate}
-          updateNotice={{
-            title: productUpdate.latest.title,
-            date: productUpdate.latest.date,
-            href: productUpdate.href,
-            isUnread: productUpdate.isUnread,
-            onOpen: productUpdate.markRead,
-          }}
         />
+        <ProductUpdateLauncher userId={user?.id} />
         <button
           onClick={() => navigate("/workspace/mobile/notifications")}
           aria-label={notificationAriaLabel}
