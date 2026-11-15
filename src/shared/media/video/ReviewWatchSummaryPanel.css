@@ -1,0 +1,13 @@
+.review-usage { --review-fill: var(--stu-primary, var(--color-primary, #4169e1)); min-width: 0; padding: 1rem; border: 1px solid var(--color-border-divider, #d9dee3); border-radius: 12px; background: var(--stu-surface, var(--color-bg-surface, #fff)); color: var(--stu-text, var(--color-text-primary, #1e293b)); }
+.review-usage__heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: .35rem 1rem; font-size: .875rem; }
+.review-usage__heading span { font-weight: 600; }
+.review-usage progress { appearance: none; display: block; width: 100%; height: .5rem; margin-block: .65rem; border: 0; border-radius: 999px; overflow: hidden; background: var(--stu-surface-soft, #e5e9ef); accent-color: var(--review-fill); }
+.review-usage progress::-webkit-progress-bar { background: var(--stu-surface-soft, #e5e9ef); border-radius: 999px; }
+.review-usage progress::-webkit-progress-value { background: var(--review-fill); border-radius: 999px; transition: width .18s ease-out; }
+.review-usage progress::-moz-progress-bar { background: var(--review-fill); border-radius: 999px; }
+.review-usage__numbers, .review-usage__help { margin: .4rem 0 0; font-size: .8rem; line-height: 1.55; overflow-wrap: anywhere; }
+.review-usage__help { color: var(--stu-text-muted, var(--color-text-secondary, #566275)); }
+.review-usage--compact { padding: .65rem 0 0; border: 0; background: transparent; }
+.review-usage--exhausted .review-usage__heading span { color: var(--color-text-danger, #b42318); }
+.review-usage--exhausted { --review-fill: var(--color-text-danger, #b42318); }
+@media (prefers-reduced-motion: reduce) { .review-usage progress::-webkit-progress-value { transition: none; } }
