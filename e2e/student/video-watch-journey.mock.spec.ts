@@ -587,11 +587,12 @@ for (const width of [390, 1366]) {
     await openWatch(page);
     const video = page.locator("video.svpVideo");
     const currentTime = () => video.evaluate((el: HTMLVideoElement) => el.currentTime);
-    await expect.poll(currentTime).toBe(42);
-    await video.evaluate(async (el: HTMLVideoElement) => {
-      const seeked = new Promise<void>((resolve) => el.addEventListener("seeked", () => resolve(), { once: true }));
-      el.currentTime = 0;
-      await seeked;
+    const seekState = () => video.evaluate((el: HTMLVideoElement) => ({ position: el.currentTime, seeking: el.seeking }));
+    await expect.poll(seekState).toEqual({ position: 42, seeking: false });
+    await video.evaluate((el: HTMLVideoElement) => { el.currentTime = 0; });
+    // A queued seeked event can belong to the initial resume on WebKit.
+    await expect.poll(seekState).toEqual({ position: 0, seeking: false });
+    await page.evaluate(() => {
       const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
       Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
       document.dispatchEvent(new Event("visibilitychange"));
