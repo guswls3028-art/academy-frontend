@@ -8,6 +8,7 @@ import type { RegistrationRequest } from "../api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import { formatPhone } from "@/shared/utils/formatPhone";
 import { teacherCommsQueryKeys } from "../queryKeys";
 import { useRegistrationPasswordConfirmation, type RegistrationPasswordChoice } from "@/shared/product/students/RegistrationPasswordConfirmation";
 
@@ -131,8 +132,8 @@ function RequestDetail({
     ["이름", r.name],
     ["학교", school],
     ["학년", r.grade || "-"],
-    ["연락처", maskPhone(r.phone)],
-    ["학부모 연락처", maskPhone(r.parent_phone)],
+    ["연락처", formatPhone(r.phone)],
+    ["학부모 연락처", formatPhone(r.parent_phone)],
     ["접수일", new Date(r.created_at).toLocaleDateString("ko-KR")],
   ];
   if (r.memo) rows.push(["메모", r.memo]);
@@ -193,12 +194,4 @@ function RequestDetail({
       </div>
     </div>
   );
-}
-
-function maskPhone(phone?: string) {
-  if (!phone) return "-";
-  if (phone.length >= 8) {
-    return phone.slice(0, 3) + "-****-" + phone.slice(-4);
-  }
-  return phone;
 }
