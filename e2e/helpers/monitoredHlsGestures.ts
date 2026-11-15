@@ -2,7 +2,7 @@ import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
 import { syntheticLongVideoAsset } from "../../scripts/run-development-release-canary.mjs";
 import { withVideoControlInputTrace } from "./videoControlInputTrace";
-import { verifyClassPlaybackActivity } from "./videoStabilityProbe";
+import { leaveStudentPlayer, verifyClassPlaybackActivity } from "./videoStabilityProbe";
 
 type GestureRateAuditWindow = Window & { __qaGestureRateWrites: number[] };
 
@@ -97,6 +97,7 @@ export async function verifyResumedClassActivity(scenario: GestureScenario) {
     .toEqual(["FULLSCREEN_ENTER", "FULLSCREEN_EXIT"]);
   expect(state.receipts).toBeGreaterThanOrEqual(2);
   await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await leaveStudentPlayer(page, { videoId: 562, enrollmentId: 1304, sessionId: 394, token: "synthetic-gesture-token" });
 }
 
 export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {

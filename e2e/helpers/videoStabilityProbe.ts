@@ -72,11 +72,13 @@ async function pauseAndPersist(page: Page, videoId: number) {
   return confirmed.last_position as number;
 }
 
-async function leaveStudentPlayer(page: Page, videoId: number, token: unknown, stream?: unknown) {
+export async function leaveStudentPlayer(page: Page, { videoId, enrollmentId, sessionId, token, stream }: {
+  videoId: number; enrollmentId: number; sessionId: number; token: unknown; stream?: unknown;
+}) {
   const position = await page.locator("video.svpVideo").evaluate((node: HTMLVideoElement) => Math.floor(node.currentTime));
   const progress = page.waitForResponse(response => response.request().method() === "POST"
     && new URL(response.url()).pathname === `/api/v1/student/video/videos/${videoId}/progress/`
-    && Number(response.request().postDataJSON().last_position) >= position);
+    && response.request().postDataJSON().enrollment_id === enrollmentId);
   const terminal = page.waitForResponse(response => {
     if (response.request().method() !== "POST") return false;
     const path = new URL(response.url()).pathname;
@@ -86,11 +88,18 @@ async function leaveStudentPlayer(page: Page, videoId: number, token: unknown, s
       && response.request().postDataJSON().token === token;
   }, { timeout: 45_000 });
   const [response, saved] = await Promise.all([terminal, progress,
-    page.locator('a[href="/student/video"]').filter({ visible: true }).first().click()]);
+    page.getByRole("button", { name: "목록으로", exact: true }).click()]);
   expect(response.status()).toBe(200);
   expect(saved.status()).toBe(200);
+  const sentPosition = saved.request().postDataJSON().last_position;
+  expect(Number.isInteger(sentPosition)).toBe(true);
+  expect(sentPosition).toBeGreaterThanOrEqual(position);
+  const confirmed = await saved.json();
+  expect(confirmed).toMatchObject({ video_id: videoId, enrollment_id: enrollmentId, last_position: sentPosition });
   await Promise.all([response.finished(), saved.finished()]);
-  await expect(page).toHaveURL(/\/student\/video$/);
+  await expect(page).toHaveURL(url => url.pathname === `/student/video/sessions/${sessionId}`
+    && url.searchParams.get("enrollment") === String(enrollmentId));
+  return sentPosition as number;
 }
 
 async function seed(context: BrowserContext, page: Page, api: string, tenant: string, username: string, password: string) {
@@ -300,7 +309,10 @@ export async function runVideoStabilityProbe(browser: Browser, prepare: Prepare)
       await verifyClassPlaybackActivity(student, classGrant.playback_token, classProtocol);
       expect(run.state.bootstraps).toHaveLength(1);
       checkpoint("class-heartbeat-ok");
-      await leaveStudentPlayer(student, videoId, run.state.bootstraps.at(-1)?.playback_token);
+      const classSavedPosition = await leaveStudentPlayer(student, {
+        videoId, enrollmentId: initial.enrollment_id, sessionId, token: classGrant.playback_token,
+      });
+      expect((await list()).last_position).toBe(classSavedPosition);
       await closeContext(run.context);
       checkpoint("class-exit-saved");
 
@@ -353,9 +365,9 @@ export async function runVideoStabilityProbe(browser: Browser, prepare: Prepare)
       const exhausted = (await report()).student;
       expect(exhausted.exhausted).toBe(true); expect(exhausted.used_ms).toBeGreaterThan(0);
       checkpoint("review-exhausted");
-      const changes = await Promise.all([60000, 120000].map(limit_ms => teacherContext.request.patch(
+      const changes = await Promise.all([60000, 120000].map(additional => teacherContext.request.patch(
         `${api}/api/v1/media/videos/${videoId}/review-watch/students/${studentId}/allowance/`,
-        { headers, data: { limit_ms, expected_revision: exhausted.revision } },
+        { headers, data: { limit_ms: exhausted.used_ms + additional, expected_revision: exhausted.revision } },
       )));
       expect(changes.map(response => response.status()).sort()).toEqual([200, 409]);
       await student.getByRole("button", { name: "한도 변경 확인", exact: true }).click();
@@ -374,7 +386,11 @@ export async function runVideoStabilityProbe(browser: Browser, prepare: Prepare)
       await expect.poll(() => student.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
       await teacherMedia.verify(); await reviewMedia.verify();
       const latestReview = reviewMedia.bootstraps.at(-1)!;
-      await leaveStudentPlayer(student, videoId, latestReview.playback_token, latestReview.review_watch?.stream);
+      const reviewSavedPosition = await leaveStudentPlayer(student, {
+        videoId, enrollmentId: initial.enrollment_id, sessionId,
+        token: latestReview.playback_token, stream: latestReview.review_watch?.stream,
+      });
+      expect((await list()).last_position).toBe(reviewSavedPosition);
       await closeContext(reviewContext); await closeContext(teacherContext);
       checkpoint("complete");
       console.log(JSON.stringify({ videoStabilityProbe: { schema: "video-stability-probe/v1", width,

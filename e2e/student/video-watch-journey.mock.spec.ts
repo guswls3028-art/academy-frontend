@@ -883,7 +883,7 @@ for (const speedLocked of [true, false]) {
 test.describe("student fullscreen activation", () => {
   test.use({ hasTouch: true });
   for (const width of [390, 1366]) {
-    test(`resumed class proves active v2 session through trusted fullscreen at ${width}px`, async ({ page }, info) => {
+    test(`resumed class proves active v2 session and saved route exit at ${width}px`, async ({ page }, info) => {
       await verifyResumedClassActivity({ page, info, speedLocked: true, base: BASE,
         viewport: { width, height: width === 390 ? 844 : 900 }, installScenario: installWatchScenario, openPlayer: openWatch });
     });
