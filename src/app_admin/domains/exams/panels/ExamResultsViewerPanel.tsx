@@ -41,6 +41,7 @@ import SubjectiveGradingEntry from "./SubjectiveGradingEntry";
 
 type Props = {
   examId: number;
+  sessionId?: number;
   wrongCompletionOnly?: boolean;
   onOpenSetup?: () => void;
 };
@@ -67,7 +68,7 @@ export default function ExamResultsViewerPanel(props: Props) {
   return <ExamResultsViewerContent key={props.examId} {...props} />;
 }
 
-function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenSetup }: Props) {
+function ExamResultsViewerContent({ examId, sessionId, wrongCompletionOnly = false, onOpenSetup }: Props) {
   const [selectedLectureId, setSelectedLectureId] = useState<number | null>(null);
   const manualGridRef = useRef<ManualExamGradingGridHandle>(null);
   const editingRegionRef = useRef<HTMLDivElement>(null);
@@ -228,6 +229,7 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
     <>
       {excelApplying && <p role="status">수동 채점 저장과 엑셀 반영을 마칠 때까지 채점표 편집을 잠시 기다려 주세요.</p>}
       <div ref={editingRegionRef} className={styles.workspace} inert={excelApplying} aria-busy={excelApplying}>
+      <div className={styles.gradingTools}>
       {exam && (
         <SubjectiveGradingEntry
           key={examId}
@@ -240,13 +242,13 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
       {exam?.grading_mode !== "written" && (
         <OmrReviewEntry examId={examId} examTitle={exam?.title ?? "시험"} />
       )}
+      <ExamResultExcelImport examId={examId} examTitle={exam?.title ?? "시험"} beforeApply={prepareExcelApply} />
+      </div>
       {exam?.grading_mode !== "choice" && (
         <div ref={gradingEntryRef} tabIndex={-1} className={styles.jumpTarget}>
           <ManualExamGradingGrid ref={manualGridRef} examId={examId} showUnavailableState />
         </div>
       )}
-      <ExamResultExcelImport examId={examId} examTitle={exam?.title ?? "시험"} beforeApply={prepareExcelApply} />
-
       <section className={styles.scopePanel} aria-labelledby="exam-result-scope-title">
         <div className={styles.scopeHeading}>
           <div>
@@ -478,13 +480,13 @@ function ExamResultsViewerContent({ examId, wrongCompletionOnly = false, onOpenS
 
       <section className={styles.studentResultsSection}>
         <div className={styles.sectionHeading}>
-          <span>Student evidence</span>
           <h2>학생별 결과</h2>
-          <p>학생을 선택하면 상세 채점 결과와 오답 확인 상태를 볼 수 있습니다.</p>
+          <p>학생 이름을 누르면 답안지와 오답노트를 볼 수 있습니다.</p>
         </div>
         <ExamResultsPanel
           key={`${examId}:${selectedLectureId ?? "all"}`}
           examId={examId}
+          sessionId={sessionId}
           lectureId={selectedLectureId}
           wrongCompletionOnly={wrongCompletionOnly}
         />

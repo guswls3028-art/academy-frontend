@@ -152,7 +152,7 @@ export default function OmrReviewEntry({ examId, examTitle }: Props) {
           </div>
           <div className="omr-entry__detail">
             {allClean ? (
-              <span>미해결 OMR이 없습니다. 최근 활성 답안 {badge.total}건은 다시 열 수 있습니다.{badge.archivedTotal > 0 ? ` 보관 기록 ${badge.archivedTotal}건은 읽기 전용입니다.` : ""}</span>
+              <span>최근 답안 {badge.total}건{badge.archivedTotal > 0 ? ` · 보관 기록 ${badge.archivedTotal}건` : ""}</span>
             ) : (
               <>
                 <span>최근 표시된 답안 {badge.total}건 · 전체 검토 대기 {pending}건</span>
