@@ -76,7 +76,15 @@ async function installWorkspaceMocks(page: Page, options: {
   return { mutations, setRegistrationStatus: (status: 200 | 503) => { registrationStatus = status; } };
 }
 
-test.describe("업무 알림 옆 패치노트", () => {
+function guideButton(page: Page) {
+  return page.getByRole("button", { name: "가이드북", exact: true });
+}
+
+function guidePopup(page: Page) {
+  return page.getByRole("dialog", { name: /가이드북/ });
+}
+
+test.describe("가이드 안의 패치노트", () => {
   test.use({ serviceWorkers: "block" });
 
   test("390px 선생님 화면에서 패치노트를 열고 읽음 상태가 유지된다", async ({ page }, testInfo) => {
@@ -88,12 +96,18 @@ test.describe("업무 알림 옆 패치노트", () => {
     await expect(page.getByText("처리할 업무 알림이 없습니다", { exact: true })).toBeVisible();
     await expect(page.getByText(/^총 \d+건$/)).toHaveCount(0);
 
-    await expect(page.getByRole("button", { name: "가이드북", exact: true })).toBeVisible();
-    const update = page.getByRole("button", { name: "업데이트, 새 패치노트" });
+    const guide = guideButton(page);
+    await expect(page.getByRole("button", { name: /^(업데이트|패치노트 보기)/ })).toHaveCount(0);
+    await guide.focus();
+    await page.keyboard.press("Enter");
+    const update = guidePopup(page).getByRole("button", { name: "패치노트 보기, 새 글" });
+    await expect(update).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath("teacher-guide-390.png"), animations: "disabled" });
     await update.focus();
     await page.keyboard.press("Enter");
     const dialog = page.getByRole("dialog", { name: "패치노트" });
     await expect(dialog).toBeVisible();
+    await expect(guidePopup(page)).toBeHidden();
     await expect(dialog.getByRole("heading", { name: PRODUCT_UPDATES[0].title })).toBeVisible();
     await expect(dialog.getByText(PRODUCT_UPDATES[0].highlights[0].text)).toBeVisible();
     await expect(page).toHaveURL(notificationsUrl);
@@ -104,10 +118,13 @@ test.describe("업무 알림 옆 패치노트", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
-    await expect(page.getByRole("button", { name: "업데이트", exact: true })).toBeFocused();
+    await expect(guide).toBeFocused();
     await expect(page.getByRole("button", { name: "알림", exact: true })).toBeVisible();
     await page.reload();
-    await expect(page.getByRole("button", { name: "업데이트", exact: true })).toBeVisible();
+    await expect(page.getByText("처리할 업무 알림이 없습니다", { exact: true })).toBeVisible();
+    await guide.click();
+    await expect(guidePopup(page).getByRole("button", { name: "패치노트 보기", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
     await expect(page.getByRole("button", { name: "알림", exact: true })).toBeVisible();
     await page.goto(`${BASE}/workspace/mobile/developer`);
     await expect(page.getByRole("heading", { name: "패치노트", level: 1 })).toBeVisible();
@@ -125,7 +142,8 @@ test.describe("업무 알림 옆 패치노트", () => {
     await expect(page.getByRole("alert")).toContainText("일부 업무 알림을 불러오지 못했습니다");
     await expect(page.getByText("답변 대기 질문", { exact: true })).toBeVisible();
     await expect(page.getByText("영상 인코딩 실패", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "업데이트, 새 패치노트" }).click();
+    await guideButton(page).click();
+    await guidePopup(page).getByRole("button", { name: "패치노트 보기, 새 글" }).click();
     await page.getByRole("button", { name: "패치노트 닫기" }).click();
     await expect(page.getByRole("alert")).toContainText("일부 업무 알림을 불러오지 못했습니다");
     mocks.setRegistrationStatus(200);
@@ -138,15 +156,16 @@ test.describe("업무 알림 옆 패치노트", () => {
   });
 
   for (const width of [1366, 390]) {
-    test(`${width}px 관리자 알림 박스와 패치노트 버튼은 각각 동작한다`, async ({ page }, testInfo) => {
+    test(`${width}px 관리자 가이드의 한 줄에서 패치노트를 연다`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 844 });
       const { mutations } = await installWorkspaceMocks(page, { tenantRole: "owner" });
       await page.goto(`${BASE}/workspace/settings/appearance`);
       const appearanceHeading = page.getByRole("heading", { name: "테마", exact: true });
       await expect(appearanceHeading).toBeVisible();
       const bell = page.getByRole("button", { name: "알림", exact: true });
-      const update = page.getByRole("button", { name: "업데이트, 새 패치노트" });
-      await expect(update).toBeVisible();
+      const guide = guideButton(page);
+      await expect(guide).toBeVisible();
+      await expect(page.getByRole("button", { name: /^(업데이트|패치노트 보기)/ })).toHaveCount(0);
       await expect(bell.locator(".ant-badge-count")).toHaveCount(0);
       await bell.click();
       const menu = page.getByRole("menu").filter({ hasText: "공지사항 보기" });
@@ -154,6 +173,10 @@ test.describe("업무 알림 옆 패치노트", () => {
       await expect(menu.getByText(PRODUCT_UPDATES[0].title)).toHaveCount(0);
       await page.screenshot({ path: testInfo.outputPath(`admin-notifications-${width}.png`) });
       const workspaceUrl = page.url();
+      await guide.click();
+      const update = guidePopup(page).getByRole("button", { name: "패치노트 보기, 새 글" });
+      await expect(update).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`admin-guide-${width}.png`), animations: "disabled" });
       await update.click();
       const dialog = page.getByRole("dialog", { name: "패치노트" });
       await expect(dialog.getByText(PRODUCT_UPDATES[0].summary)).toBeVisible();
@@ -162,9 +185,11 @@ test.describe("업무 알림 옆 패치노트", () => {
       expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
       await page.screenshot({ path: testInfo.outputPath(`admin-patch-notes-${width}.png`), animations: "disabled" });
       await dialog.getByRole("button", { name: "패치노트 닫기" }).click();
+      await expect(guide).toBeFocused();
       await page.reload();
       await expect(appearanceHeading).toBeVisible();
-      await expect(page.getByRole("button", { name: "업데이트", exact: true })).toBeVisible();
+      await guide.click();
+      await expect(guidePopup(page).getByRole("button", { name: "패치노트 보기", exact: true })).toBeVisible();
       await page.goto(`${BASE}/workspace/developer`);
       await expect(page.getByRole("heading", { name: PRODUCT_UPDATES[0].title })).toBeVisible();
       await expect(page).toHaveURL(`${BASE}/workspace/developer`);
