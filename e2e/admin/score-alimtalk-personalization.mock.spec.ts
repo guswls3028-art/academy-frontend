@@ -22,6 +22,12 @@ type SendPayload = {
 
 type PreflightMode = "success" | "stale";
 
+const LIMGLISH_TEST_STUDENTS = [
+  "테스트학생(현장 과제 미제출)",
+  "테스트학생(영상 과제 미제출)",
+  "테스트학생(영상 과제 채점 완료)",
+];
+
 function createLocalJwt(tenantCode = "hakwonplus") {
   const encode = (payload: unknown) => Buffer.from(JSON.stringify(payload)).toString("base64url");
   const now = Math.floor(Date.now() / 1000);
@@ -44,6 +50,7 @@ async function installScoreAlimtalkRoutes(
 ) {
   const tenantName = "실제 발송학원";
   const limglish = tenantCode === "limglish";
+  const studentName = (index: number) => (limglish ? LIMGLISH_TEST_STUDENTS[index] : undefined) ?? `개인화학생${index + 1}`;
   const scoreRoster = attendanceStatuses.map((_, index) => ({
     examScore: limglish && attendanceStatuses[index] === "ONLINE" ? null : [70, 80][index] ?? null,
     homeworkScore: limglish && index < 2 ? null : limglish && index === 2
@@ -95,7 +102,7 @@ async function installScoreAlimtalkRoutes(
             assessment_todo_eligible: attendanceStatuses[index] !== "ABSENT",
             enrollment_id: 9201 + index,
             student_id: 9301 + index,
-            student_name: `개인화학생${index + 1}`,
+            student_name: studentName(index),
             lecture_title: "개인화 검증반",
             lecture_color: "#2563eb",
             lecture_chip_label: "개",
@@ -156,7 +163,7 @@ async function installScoreAlimtalkRoutes(
             session: 9002,
             enrollment: 9201 + index,
             student_id: 9301 + index,
-            student_name: `개인화학생${index + 1}`,
+            student_name: studentName(index),
           })),
         },
       });
@@ -306,7 +313,7 @@ async function installScoreAlimtalkRoutes(
           // Preflight resolves Tenant.name inside each grade body before returning its preview.
           preview_recipients: recipients.map(studentId => ({
             student_id: studentId,
-            student_name: "개인화학생" + (studentId - 9300),
+            student_name: studentName(studentId - 9301),
             phone: missingPhone ? "" : "010****00" + (studentId - 9300),
             excluded: missingPhone,
             exclude_reason: missingPhone ? "전화번호 없음" : "",
@@ -421,7 +428,7 @@ test.describe("성적 알림톡 학생별 개인화", () => {
       const completion = width === 390;
       await openPersonalizedScores(page, "success", preflights, sends, [{
         id: 991, name: "수업 결과", category: "grades",
-        body: "시험: #{시험1결과}\n과제: #{과제1결과}\n#{과제목록}",
+        body: "#{학생이름}\n시험: #{시험1결과}\n과제: #{과제1결과}\n#{과제목록}",
         is_system: false, is_user_default: true,
       }], undefined, completion, ["PRESENT", "ONLINE", "ONLINE"], "limglish");
 
@@ -433,14 +440,16 @@ test.describe("성적 알림톡 학생별 개인화", () => {
       await modal.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
       const confirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
       const preview = confirm.getByLabel("카카오톡 실제 발송 미리보기");
+      await expect(preview).toContainText(LIMGLISH_TEST_STUDENTS[0]);
       await expect(preview).toContainText("과제: 미제출");
       await confirm.getByRole("button", { name: "전체 학생 열기" }).click();
-      await confirm.getByRole("radio", { name: /개인화학생2/ }).click();
+      await confirm.getByRole("radio", { name: /테스트학생\(영상 과제 미제출\)/ }).click();
+      await expect(preview).toContainText(LIMGLISH_TEST_STUDENTS[1]);
       await expect(preview).toContainText("시험: 미응시");
       await expect(preview).toContainText("과제: 영상보강");
       await expect(preview).toContainText("단원 복습: 영상보강");
       await page.screenshot({ path: testInfo.outputPath(`limglish-video-homework-${width}.png`) });
-      await confirm.getByRole("radio", { name: /개인화학생3/ }).click();
+      await confirm.getByRole("radio", { name: /테스트학생\(영상 과제 채점 완료\)/ }).click();
       await expect(preview).toContainText(completion ? "과제: 통과" : "과제: 87/100");
       await expect(preview).not.toContainText("영상보강");
 

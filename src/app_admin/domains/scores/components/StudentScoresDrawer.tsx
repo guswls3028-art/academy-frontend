@@ -295,7 +295,7 @@ export default function StudentScoresDrawer({
       },
       recomputePerStudentVars,
     });
-  }, [hasUnsavedChanges, row, meta, openSendMessageModal, labels.pass, labels.fail, qc, numericLectureId, sessionId, onClose]);
+  }, [hasUnsavedChanges, row, meta, openSendMessageModal, labels.pass, labels.fail, showVideoHomeworkLabel, qc, numericLectureId, sessionId, onClose]);
 
   return (
     <div className="student-scores-drawer-side-panel">
