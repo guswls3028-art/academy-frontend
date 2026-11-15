@@ -60,7 +60,7 @@ export default function OmrEssayScoreMarksOption({ examId, onChanged }: Props) {
     help = state.reason;
   } else {
     help = enabled
-      ? `0~8점은 해당 숫자 하나를, 9점 이상은 합이 되는 숫자들을 칠하세요(15점 = 7+8). 스캔한 뒤 문항별 점수 입력에서 확인하고 확정하세요. 소수나 ${state.max_score}점을 넘는 점수는 채점표에 직접 입력하세요.`
+      ? `0~8점은 해당 숫자 하나를, 9점 이상은 합이 되는 숫자들을 칠하세요(15점 = 7+8). 스캔한 뒤 문항별 점수 입력에서 OMR 제안을 확인하고 확정하세요. 소수나 ${state.max_score}점을 넘는 점수는 채점표에 직접 입력하세요.`
       : "서술형 문항 옆에 선생님이 칠할 0~8 배점 버블을 인쇄합니다.";
   }
 
