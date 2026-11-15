@@ -213,6 +213,7 @@ export default function StudentExamCorrectionCard({ exam, studentId, onNavigate 
             <Button
               size="sm"
               intent="secondary"
+              leftIcon={<PencilLine size={ICON.xs} aria-hidden />}
               aria-expanded={editorOpen}
               onClick={(event) => {
                 event.stopPropagation();
@@ -220,7 +221,6 @@ export default function StudentExamCorrectionCard({ exam, studentId, onNavigate 
                 setPersistedReadbackError(null);
               }}
             >
-              <PencilLine size={ICON.xs} aria-hidden />
               오답 수정
             </Button>
           )}

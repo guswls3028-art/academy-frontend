@@ -14,7 +14,7 @@ export default function SessionAssignmentAction({ sessionId }: SessionAssignment
     ? `/student/submit/assignment?sessionId=${sessionId}`
     : "/student/submit/assignment";
   return (
-    <Link to={to} className="stu-cta-link">
+    <Link to={to} className="stu-btn stu-btn--secondary" data-size="md">
       과제 제출
     </Link>
   );
