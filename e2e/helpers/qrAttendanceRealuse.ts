@@ -26,11 +26,16 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
   const errors: unknown[] = [];
   const createSign = async (route: string, kind: "class" | "clinic") => {
     await gotoAndSettle(teacherPage, `${QA_BASE}${route}`);
+    const tools = teacherPage.getByRole("dialog", { name: "출결 도구", exact: true });
     if (kind === "class") {
+      const rosterUrl = teacherPage.url();
       await teacherPage.getByRole("button", { name: "출결 도구", exact: true }).click();
-      await expect(teacherPage.getByRole("heading", { name: "출결 도구", exact: true })).toBeInViewport();
+      await expect(tools.getByRole("heading", { name: "출결 도구", exact: true })).toBeInViewport();
+      await expect(teacherPage).toHaveURL(rosterUrl);
+      await assertNoHorizontalOverflow(teacherPage);
+      await testInfo.attach("attendance-tools", { body: await teacherPage.screenshot(), contentType: "image/png" });
     }
-    await teacherPage.getByRole("button", { name: "출결 QR 출력", exact: true }).click();
+    await (kind === "class" ? tools : teacherPage).getByRole("button", { name: "출결 QR 출력", exact: true }).click();
     const dialog = teacherPage.getByRole("dialog", { name: "출결 QR 출력", exact: true });
     const details = dialog.locator("details");
     if (!(await details.evaluate((element) => element.hasAttribute("open")))) await details.locator("summary").click();
@@ -49,7 +54,10 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
     await assertNoHorizontalOverflow(teacherPage);
     await testInfo.attach(`qr-${kind}-poster`, { body: await dialog.screenshot(), contentType: "image/png" });
     await dialog.getByRole("button", { name: "닫기", exact: true }).last().click();
-    if (kind === "class") await teacherPage.getByRole("link", { name: "← 출결 명단", exact: true }).click();
+    if (kind === "class") {
+      await tools.getByRole("button", { name: "대화상자 종료" }).click();
+      await expect(tools).toBeHidden();
+    }
     return { point, photo };
   };
   const scanPhoto = async (photo: Buffer) => {
