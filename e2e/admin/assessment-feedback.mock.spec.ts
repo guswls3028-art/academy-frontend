@@ -702,7 +702,8 @@ for (const width of [1366, 390]) {
     await secondHomework.uncheck();
     const homeworkRows = modal.getByRole("group", { name: /과제 총점/ }).locator(".assessment-totals-option");
     if (width === 1366) {
-      await homeworkRows.filter({ has: secondHomework }).locator(".assessment-totals-drag-handle").dragTo(homeworkRows.first());
+      const moved = homeworkRows.filter({ has: page.getByRole("checkbox", { name: "둘째 과제 합산에 포함", exact: true }) });
+      await moved.locator(".assessment-totals-drag-handle").dragTo(homeworkRows.first());
     } else {
       await modal.getByRole("button", { name: "둘째 과제 위로 이동", exact: true }).click();
     }

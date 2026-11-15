@@ -916,8 +916,8 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
           Math.abs(node.getBoundingClientRect().width - node.clientWidth),
         )).toBeLessThan(1);
         const rows = totals.getByRole("group", { name: /시험 총점/ }).locator(".assessment-totals-option");
-        const moved = rows.filter({ has: totals.getByRole("checkbox", { name: `${manualExamTitle} 합산에 포함`, exact: true }) });
-        const target = rows.filter({ has: totals.getByRole("checkbox", { name: `${examTitle} 합산에 포함`, exact: true }) });
+        const moved = rows.filter({ has: page.getByRole("checkbox", { name: `${manualExamTitle} 합산에 포함`, exact: true }) });
+        const target = rows.filter({ has: page.getByRole("checkbox", { name: `${examTitle} 합산에 포함`, exact: true }) });
         await moved.locator(".assessment-totals-drag-handle").dragTo(target);
       } else await totals.getByRole("button", { name: `${manualExamTitle} 위로 이동`, exact: true }).click();
       await expect(totals.getByRole("checkbox", { name: `${manualExamTitle} 합산에 포함`, exact: true })).not.toBeChecked();
