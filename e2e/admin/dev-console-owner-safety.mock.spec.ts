@@ -550,10 +550,10 @@ test.describe("개발자 콘솔 소유자 실패 안전", () => {
     expect(bodyWidth.scrollWidth).toBeLessThanOrEqual(bodyWidth.clientWidth);
     await page.getByRole("button", { name: "임시 비밀번호 설정" }).click();
 
-    expect(resetBody).toEqual({ password: "temporary-owner-password" });
+    await expect.poll(() => resetBody).toEqual({ password: "temporary-owner-password" });
     await expect(page.getByText("Existing Owner 임시 비밀번호 설정")).toHaveCount(0);
     await expect(page.getByRole("alert")).toContainText("첫 로그인에서 새 비밀번호로 변경");
-    expect(ownerReadCount).toBeGreaterThanOrEqual(2);
+    await expect.poll(() => ownerReadCount).toBeGreaterThanOrEqual(2);
   });
 
   test("소유자 인계 완료와 비밀번호 설정 필요 상태를 구분한다", async ({ page }, testInfo) => {
