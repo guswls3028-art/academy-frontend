@@ -20,7 +20,7 @@ import { useNavigate } from "react-router";
 import { Input } from "antd";
 import { isAxiosError } from "axios";
 import { Check, AlertCircle, AlertTriangle, Tag, Shield, CalendarClock } from "lucide-react";
-import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
+import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Badge, Button, ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -87,7 +87,7 @@ export type SendMessageModalProps = {
   initialStudentIds?: number[];
   recipientLabel?: string;
   videoHomeworkStudentIds?: number[];
-  scoreUnavailableReason?: string;
+  scoreUnavailableReason?: { message: string; onExcludeUnentered?: () => void };
   blockCategory?: TemplateCategory;
   initialBody?: string;
   initialTemplateId?: number | null;
@@ -1340,7 +1340,7 @@ export default function SendMessageModal({
 
   return (
     <>
-    <AdminModal open={open} onClose={() => void requestClose()} closeDisabled={sending || savingTemplate} width={1080} onEnterConfirm={requestSend} className="send-message-modal" noMinimize>
+    <AdminModal open={open} onClose={() => void requestClose()} closeDisabled={sending || savingTemplate} width={videoHomeworkOnly ? MODAL_WIDTH.form : 1080} onEnterConfirm={requestSend} className="send-message-modal" noMinimize>
       <ModalHeader
         noIcon
         title={
@@ -1373,8 +1373,21 @@ export default function SendMessageModal({
               )}
               <div className="send-modal__recipient-name">{labelName}</div>
               {scoreUnavailableReason && (
-                <div className="send-modal__hint send-modal__hint--warn">
-                  수업결과는 발송할 수 없습니다. {scoreUnavailableReason}
+                <div className="send-modal__score-unavailable">
+                  <strong>수업결과는 발송할 수 없습니다.</strong>
+                  <p>{scoreUnavailableReason.message}</p>
+                  {scoreUnavailableReason.onExcludeUnentered && (
+                    <Button
+                      intent="secondary"
+                      size="sm"
+                      onClick={() => {
+                        scoreUnavailableReason.onExcludeUnentered?.();
+                        onClose();
+                      }}
+                    >
+                      미입력 학생 선택 해제
+                    </Button>
+                  )}
                 </div>
               )}
 
