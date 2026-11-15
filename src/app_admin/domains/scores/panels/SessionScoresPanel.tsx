@@ -384,7 +384,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     return false;
   }, [editableCols.length, rows.length, focusAt]);
 
-  const handleGridKeyDown = (e: React.KeyboardEvent) => {
+  const handleGridKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!isEditMode) return;
     const cur = ensureSelection();
     if (!cur.ok) return;
