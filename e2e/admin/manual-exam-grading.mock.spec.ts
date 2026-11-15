@@ -2965,6 +2965,13 @@ test.describe("문항별 직접 채점", () => {
         },
       ],
     });
+    await page.route(`**/results/admin/exams/${EXAM_ID}/enrollments/${ENROLLMENT_ID}/`, (route) => route.fulfill({ json: {
+      enrollment_id: ENROLLMENT_ID, total_score: 20, max_score: 100, attempt_id: 1,
+      items: [{
+        question_id: QUESTION_IDS[0], question_number: 1, answer: "4",
+        score: 20, max_score: 40, is_correct: false,
+      }],
+    } }));
     await gotoAndSettle(
       page,
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
