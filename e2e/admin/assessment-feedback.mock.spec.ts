@@ -650,7 +650,10 @@ for (const width of [1366, 390]) {
     const examTotal = row.locator('[data-col-type="exam-summary"]');
     const homeworkTotal = row.locator('[data-col-type="homework-summary"]');
     const visibleColumns = await table.locator("colgroup col").count();
-    await page.getByRole("button", { name: "시험 총점 숨기기", exact: true }).click();
+    const hideExam = page.getByRole("button", { name: "시험 총점 숨기기", exact: true });
+    const hideBounds = await hideExam.boundingBox();
+    expect(hideBounds?.width).toBeGreaterThanOrEqual(width === 390 ? 44 : 24);
+    await hideExam.click();
     await expect(examTotal).toHaveCount(0);
     await expect(homeworkTotal).toBeVisible();
     await page.getByRole("button", { name: "과제 총점 숨기기", exact: true }).click();
