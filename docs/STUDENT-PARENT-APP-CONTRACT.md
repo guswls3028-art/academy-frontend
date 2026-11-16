@@ -232,7 +232,10 @@ academy-backend의 `docs/domain/inventory-storage.md`가 소유한다.
 `/student/attendance`는 본인 또는 선택한 자녀의 누적 출결과 최근 기록을 표시한다.
 `UNSET`은 `미입력`으로 표시한다. 조퇴를 포함하는 합계는 `지각·조퇴`, 이탈을
 포함하는 합계는 `결석·이탈`로 구분하며 도움말에서 전체와 출석의 집계 범위를
-설명한다. 오류를 빈 출결로 표시하지 않고 같은 화면에서 재시도한다.
+설명한다. 이전 출결을 불러온 뒤 새로 확인할 때 연결 오류 또는 서버 오류가 나면
+현재 본인·자녀의 이전 기록과 재시도를 표시한다. 다른 오류로 조회가 거부되거나
+확인할 수 없으면 이전 출결을 숨기고 다시 시도한다. 자녀 변경은 기존 출결을
+다른 자녀에게 표시하지 않는다.
 
 최근 기록의 `can_view_session=true`인 차시만 상세로 연결한다. 종료된 강의나 차시
 퇴원 기록은 제목·날짜·출결 상태와 `출결 이력`을 읽을 수 있는 카드로 유지한다.
@@ -241,7 +244,8 @@ academy-backend의 `docs/domain/inventory-storage.md`가 소유한다.
 실제 조회·권한 정책은 backend [출결 계약](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/attendance.md)이 소유한다.
 
 `e2e/student/attendance-history.mock.spec.ts`에서 학생·학부모, 390px·1366px, 오류 후
-재시도, 현재 차시 상세 연결, 뒤로가기·새로고침과 과거 이력 보존을 검증한다.
+재시도, 현재 차시 상세 연결, 뒤로가기·새로고침과 과거 이력 보존,
+조회 거부 후 이전 기록 숨김과 자녀 전환을 검증한다.
 
 ## 게시판·자료실 바로가기
 
