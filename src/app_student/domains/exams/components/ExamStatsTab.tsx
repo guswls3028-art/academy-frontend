@@ -15,6 +15,8 @@ import EmptyState from "@student/layout/EmptyState";
 import { StatCard, StatGrid } from "@student/shared/ui/components/StatCard";
 import ProgressRing from "@student/shared/ui/components/ProgressRing";
 import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
+import { calculateExamStats } from "@student/domains/grades/utils/gradeStats";
+import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 import styles from "./ExamStatsTab.module.css";
 
 export default function ExamStatsTab() {
@@ -22,26 +24,9 @@ export default function ExamStatsTab() {
   const data = gradesQ.data;
   const isLoading = gradesQ.isLoading;
   const sourceExams = data?.exams;
+  const wrongCompletionOnly = useWrongCompletionDisplay();
   const exams = useMemo(() => sourceExams ?? [], [sourceExams]);
-
-  const stats = useMemo(() => {
-    if (exams.length === 0) return null;
-
-    const total = exams.length;
-    const submitted = exams.filter((e) => e.total_score != null);
-    const scored = submitted.filter((e) => e.max_score > 0);
-
-    const avgPct = scored.length > 0
-      ? Math.round(scored.reduce((s, e) => s + ((e.total_score ?? 0) / e.max_score) * 100, 0) / scored.length)
-      : 0;
-
-    const withCriteria = exams.filter((e) => e.is_pass !== null);
-    const passRate = withCriteria.length > 0
-      ? Math.round((withCriteria.filter((e) => e.is_pass).length / withCriteria.length) * 100)
-      : 0;
-
-    return { total, submitted: submitted.length, avgPct, passRate };
-  }, [exams]);
+  const stats = useMemo(() => calculateExamStats(exams, wrongCompletionOnly), [exams, wrongCompletionOnly]);
 
   // 강좌별 평균 점수
   const lectureStats = useMemo(() => {
@@ -89,22 +74,24 @@ export default function ExamStatsTab() {
   return (
     <div className={styles.statsStack}>
       {/* 요약 */}
-      <div className={styles.summaryRow}>
+      <section className={styles.summaryRow} aria-label="시험 분석 요약">
         <ProgressRing
-          percent={stats.avgPct}
+          percent={stats.avgPct ?? 0}
+          label={stats.avgPct == null ? "미채점" : undefined}
           size={88}
-          color={stats.avgPct >= 70 ? "var(--stu-success)" : stats.avgPct >= 40 ? "var(--stu-warn)" : "var(--stu-danger)"}
+          color={stats.avgPct == null ? "var(--stu-text-muted)" : stats.avgPct >= 70 ? "var(--stu-success)" : stats.avgPct >= 40 ? "var(--stu-warn)" : "var(--stu-danger)"}
           sublabel="평균 득점"
         />
         <div className={styles.summaryStats}>
           <StatGrid>
-            <StatCard label="총 시험" value={`${stats.total}건`} />
-            <StatCard label="응시완료" value={`${stats.submitted}건`} />
-            <StatCard label="합격률" value={`${stats.passRate}%`}
-              accent={stats.passRate >= 70 ? "success" : stats.passRate > 0 ? "danger" : undefined} />
+            <StatCard label="총 시험" value={`${stats.count}건`} />
+            <StatCard label="응시완료" value={`${stats.submittedCount}건`} />
+            <StatCard label={wrongCompletionOnly ? "오답 완료율" : "합격률"}
+              value={stats.passRate == null ? "미판정" : `${stats.passRate}%`}
+              accent={stats.passRate == null ? undefined : stats.passRate >= 70 ? "success" : "danger"} />
           </StatGrid>
         </div>
-      </div>
+      </section>
 
       {/* 강좌별 성적 비교 */}
       {lectureStats.length >= 2 && (
