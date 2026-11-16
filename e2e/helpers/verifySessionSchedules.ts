@@ -244,6 +244,7 @@ export async function verifySessionSchedules(
     await page.setViewportSize({ width: 1366, height: 900 });
     await page.getByRole('tab', { name: '성적', exact: true }).click();
     await strip.getByRole('button', { name: /^목요일반/ }).click();
+    await expect(page).toHaveURL(new RegExp(`scores\\?schedule=${thu.id}$`));
 
     phase = 'assessment-schedule-conflict-removal';
     // Another authorized editor mutates this same synthetic configuration; the UI must retain its draft on 409.

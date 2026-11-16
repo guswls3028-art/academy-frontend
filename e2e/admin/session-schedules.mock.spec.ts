@@ -455,6 +455,67 @@ for (const width of [390, 1366]) test(`수업일 작성·배정·저장·reload�
   await capture(page, `schedule-rapid-list-navigation-${width}`);
 });
 
+for (const width of [390, 1366]) test(`성적 탭이 열리는 중에 누른 수업일이 유지된다 ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
+  const state = fixture(true); await install(page, state);
+  await page.goto(`${BASE}${path}/attendance?schedule=71`, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('link', { name: '김수연 학생 상세 열기', exact: true })).toBeVisible();
+  const thursday = page.getByRole('region', { name: '수업일 선택', exact: true }).getByRole('button', { name: /^목요일반/ });
+  // Reproduce the window where browser history has moved and React still renders the previous tab.
+  await page.evaluate((url) => window.history.replaceState(window.history.state, '', url), `${path}/scores?schedule=71`);
+  await expect(page).toHaveURL(/scores\?schedule=71$/);
+  await thursday.click();
+
+  await expect(page).toHaveURL(/scores\?schedule=72$/);
+  await expect(thursday).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('checkbox', { name: '이목현 선택', exact: true })).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: '김수연 선택', exact: true })).toHaveCount(0);
+  expect(state.reads).toContainEqual({ kind: 'scores', scope: '72' });
+});
+
+for (const width of [390, 1366]) test(`성적 초안을 읽는 중에도 수업일별 명단을 조회한다 ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
+  const state = fixture(true); await install(page, state);
+  const draftPath = '/api/v1/results/admin/sessions/9902/score-draft/';
+  let releaseDraft!: () => void;
+  const draftGate = new Promise<void>(resolve => { releaseDraft = resolve; });
+  const draftRead = page.waitForRequest(request => new URL(request.url()).pathname === draftPath && request.method() === 'GET');
+  const writes: string[] = [];
+  page.on('request', request => {
+    const url = new URL(request.url());
+    if (/^\/api\/v1\/(results|lectures)\//.test(url.pathname) && !['GET', 'HEAD', 'OPTIONS'].includes(request.method())) {
+      writes.push(request.method());
+    }
+  });
+  await page.route(url => url.pathname === draftPath, async route => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    await draftGate;
+    await route.fulfill({ json: { changes: [], active_editors: [] } });
+  });
+  try {
+    await page.goto(`${BASE}${path}/scores?schedule=71`, { waitUntil: 'domcontentloaded' });
+    await draftRead;
+    await expect(page.getByRole('checkbox', { name: '김수연 선택', exact: true })).toBeVisible();
+    expect(writes).toEqual([]);
+    const thursday = page.getByRole('region', { name: '수업일 선택', exact: true }).getByRole('button', { name: /^목요일반/ });
+    await thursday.click();
+    await expect(page).toHaveURL(/scores\?schedule=72$/);
+    await expect(page.getByRole('checkbox', { name: '이목현 선택', exact: true })).toBeVisible();
+    await expect(page.getByRole('checkbox', { name: '김수연 선택', exact: true })).toHaveCount(0);
+    expect(state.reads).toContainEqual({ kind: 'scores', scope: '72' });
+    expect(writes).toEqual([]);
+
+    const draftResponse = page.waitForResponse(response => new URL(response.url()).pathname === draftPath && response.request().method() === 'GET');
+    releaseDraft();
+    expect((await draftResponse).status()).toBe(200);
+    await expect(thursday).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('checkbox', { name: '이목현 선택', exact: true })).toBeVisible();
+    expect(writes).toEqual([]);
+  } finally {
+    releaseDraft();
+  }
+});
+
 for (const width of [390, 1366]) test(`수업일 전환 저장 대기 중 다른 탭으로 이동하면 되돌아가지 않는다 ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 });
   const state = fixture(true); await install(page, state);
