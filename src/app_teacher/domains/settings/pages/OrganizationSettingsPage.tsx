@@ -21,6 +21,10 @@ import styles from "./OrganizationSettingsPage.module.css";
 export default function OrganizationSettingsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const goBack = () => {
+    if (window.history.state?.idx > 0) navigate(-1);
+    else navigate("/workspace/mobile/menu?group=account", { replace: true });
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: teacherSharedQueryKeys.tenantInfo,
@@ -76,7 +80,7 @@ export default function OrganizationSettingsPage() {
   return (
     <div className={styles.page}>
       <div className={styles.header}>
-        <BackButton onClick={() => navigate(-1)} />
+        <BackButton onClick={goBack} />
         <h1 className={styles.title}>학원 정보</h1>
       </div>
 
