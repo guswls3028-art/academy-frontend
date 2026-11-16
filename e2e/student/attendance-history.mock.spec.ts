@@ -15,7 +15,8 @@ for (const role of ["student", "parent"]) {
         localStorage.setItem("refresh", `${token}-refresh`);
         localStorage.setItem("tenant_code", "hakwonplus");
         sessionStorage.setItem("tenantCode", "hakwonplus");
-        localStorage.setItem("parent_selected_student_id_hakwonplus_11", "11");
+        const selectionKey = "parent_selected_student_id_hakwonplus_11";
+        if (!localStorage.getItem(selectionKey)) localStorage.setItem(selectionKey, "11");
       }, `e30.${payload}.signature`);
       let attendanceStatus = 400;
       let historyTitle = "종료된 특강";
