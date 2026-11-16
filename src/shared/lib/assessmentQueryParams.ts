@@ -1,3 +1,5 @@
+export const EXAM_ANALYSIS_ANCHOR = "exam-analysis";
+
 export type AssessmentKind = "exam" | "homework";
 
 const ASSESSMENT_QUERY_KEYS: Record<AssessmentKind, { primary: string; legacy: string }> = {

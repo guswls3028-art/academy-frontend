@@ -26,6 +26,8 @@ export const adminExamsQueryKeys = {
   clinicTargetsRoot: () => ["clinic-targets"] as const,
   adminExamResults: (examId: number, lectureId?: number | null) =>
     ["admin-exam-results", examId, lectureId ?? "all"] as const,
+  examAnalysisInsights: (examId: number, lectureId: number | null) =>
+    ["admin-exam-results", examId, "analysis-insights", lectureId ?? "all"] as const,
   examQuestionStats: (examId: number, lectureId?: number | null) =>
     ["exam-question-stats", examId, lectureId ?? "all"] as const,
   examSubmissions: (examId: number) => ["exam-submissions", examId] as const,

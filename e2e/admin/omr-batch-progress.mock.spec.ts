@@ -990,6 +990,54 @@ test.describe("OMR durable batch progress", () => {
     expect(ordinals.every((value) => Number.isFinite(Number(value)))).toBe(true);
   });
 
+  for (const width of [1366, 390]) {
+    test(`${width}px 재접수에서 전체 파일을 다시 골라도 미접수 파일과 순서를 고쳐 보낸다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const api = await installDashboardApi(page, { resumeOrdinals: [21, 22] });
+      const dialog = await openResumeOmrUpload(page);
+      const input = dialog.locator('input[type="file"]');
+      await expect(input).toBeEnabled();
+      await input.setInputFiles([
+        "received-first.pdf", "received-second.pdf", "remaining-22.pdf", "remaining-21.pdf",
+      ].map((name) => ({ name, mimeType: "application/pdf", buffer: Buffer.from(name) })));
+
+      const rows = dialog.getByRole("list", { name: "선택한 OMR 파일" }).getByRole("listitem");
+      const retry = dialog.getByRole("button", { name: "미접수 파일 다시 접수" });
+      await expect(rows).toHaveCount(4);
+      await expect(dialog.getByText(/미접수 2장만 남도록 이미 접수된 파일을 선택에서 빼고/)).toBeVisible();
+      await expect(retry).toBeDisabled();
+      expect(api.uploadState().uploadPosts).toBe(0);
+
+      for (const name of ["received-first.pdf", "received-second.pdf"]) {
+        await rows.filter({ hasText: name }).getByRole("button", { name: "선택에서 빼기" }).click();
+      }
+      await expect(rows.nth(0)).toContainText("remaining-22.pdf");
+      await expect(rows.nth(0)).toContainText("21번 답안지");
+      const move = rows.filter({ hasText: "remaining-21.pdf" }).getByRole("button", { name: "위로 이동" });
+      await move.press("Enter");
+      await expect(move).toBeFocused();
+      await expect(move).toBeDisabled();
+      const moveDown = rows.filter({ hasText: "remaining-21.pdf" }).getByRole("button", { name: "아래로 이동" });
+      await moveDown.press("Enter");
+      await expect(moveDown).toBeFocused();
+      await expect(moveDown).toBeDisabled();
+      await move.press("Enter");
+      await expect(rows.nth(0)).toContainText("remaining-21.pdf");
+      await expect(rows.nth(0)).toContainText("21번 답안지");
+      await expect(rows.nth(1)).toContainText("remaining-22.pdf");
+      await expect(rows.nth(1)).toContainText("22번 답안지");
+      await expect(retry).toBeEnabled();
+      await retry.click();
+
+      await expect.poll(() => api.uploadState().uploadPosts).toBe(1);
+      const body = api.uploadState().uploadBodies[0];
+      expect(multipartFieldValues(body, "item_ordinals")).toEqual(["21", "22"]);
+      expect([...body.matchAll(/filename="([^"]+)"/g)].map((match) => match[1]))
+        .toEqual(["remaining-21.pdf", "remaining-22.pdf"]);
+      expect(api.uploadState().initializePosts).toBe(0);
+    });
+  }
+
   test("접수 완료 후 새 선택은 바로 새 batch와 유효 ordinal로 시작한다", async ({ page }) => {
     const api = await installDashboardApi(page, { uploadFlow: true });
     await page.goto(

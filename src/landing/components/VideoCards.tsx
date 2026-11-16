@@ -59,7 +59,7 @@ export function VideoHighlights({ onReady }: { onReady?: () => void }) {
     Promise.all([listVideos(), getVideoShowcase()]).then(([page, settings]) => { if (!disposed) { setVideos(page.results.slice(0, 4)); setPresentation(settings); } }).catch(() => { if (!disposed) setError(true); }).finally(() => { if (!disposed) onReady?.(); });
     return () => { disposed = true; };
   }, [retry, onReady]);
-  return <section className={s.highlights} aria-labelledby="video-highlights-title"><div className={s.sectionHeading}><div><h2 id="video-highlights-title">{presentation.title}</h2>{presentation.description && <p>{presentation.description}</p>}</div><div className={s.actions}><VideoPublisherLink /><Link className={s.secondary} to="/landing/videos">영상 전체 보기 <ArrowUpRight size={ICON.sm} /></Link></div></div>
+  return <section className={s.highlights} aria-labelledby="video-highlights-title"><div className={s.sectionHeading}><div><span className={s.highlightsLabel}>Latest Videos</span><h2 id="video-highlights-title">{presentation.title}</h2>{presentation.description && <p>{presentation.description}</p>}</div><div className={s.actions}><VideoPublisherLink /><Link className={s.secondary} to="/landing/videos">영상 전체 보기 <ArrowUpRight size={ICON.sm} /></Link></div></div>
     {error ? <VideoFailure message="영상을 불러오지 못했습니다." retry={() => setRetry((value) => value + 1)} /> : videos ? videos.length ? <VideoCollection videos={videos} /> : <p className={s.empty}>등록된 공개 영상이 없습니다.</p> : <p role="status" className={s.empty}>영상을 불러오고 있습니다.</p>}
   </section>;
 }

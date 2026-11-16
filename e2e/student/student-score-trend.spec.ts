@@ -310,6 +310,7 @@ async function installApi(
     omitLectureOptions?: boolean;
     gradeSummary?: Partial<MyGradesSummary>;
     wrongCompletionOnly?: boolean;
+    examResultOverrides?: Record<string, unknown>;
   } = {},
 ): Promise<string[]> {
   const selectedHeaders: string[] = [];
@@ -386,6 +387,7 @@ async function installApi(
           accuracy_rate: 85,
           wrong_question_numbers: [5, 11, 13],
         },
+        ...options.examResultOverrides,
       } });
       return;
     }
@@ -538,14 +540,70 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
   }
 
   for (const viewer of ["student", "parent"] as const) {
-    test(`${viewer}: 미응시는 중립 상태이고 점수 없는 교사 완료 과제는 평균에 포함하지 않는다`, async ({ page }) => {
-      if (viewer === "parent") await page.setViewportSize({ width: 1366, height: 900 });
+    test(`${viewer}: 오답 완료 모드의 과제 완료율은 홈과 성적에서 전체 과제를 기준으로 한다`, async ({ page }) => {
+      await page.setViewportSize({ width: viewer === "parent" ? 1366 : 390, height: 900 });
+      await installApi(page, viewer, {
+        studentPoints: [], wrongCompletionOnly: true, gradeSummary: { exams: [], homeworks: [
+          { ...unscoredHomework, score: 90, passed: true, achievement: "PASS" },
+          { ...unscoredHomework, homework_id: 904, achievement: "NOT_SUBMITTED" },
+        ] },
+      });
+      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      if (viewer === "parent") {
+        await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김첫째" }).click();
+      }
+      const homeworkTile = page.getByRole("link", { name: /과제 완료/ });
+      await expect(homeworkTile).toContainText(/50\s*%/);
+      await expect(homeworkTile).toContainText("전체 과제");
+      await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
+      const homework = page.getByRole("region", { name: "과제 현황" });
+      await expect(homework.getByText("완료율", { exact: true })).toBeVisible();
+      await expect(homework.getByText("50%", { exact: true })).toBeVisible();
+      await expect(homework.getByText("1/2건", { exact: true })).toBeVisible();
+    });
+
+    test(`${viewer}: 원시험 미응시 이력과 보강 합격을 각각 표시한다`, async ({ page }) => {
+      await page.setViewportSize({ width: viewer === "parent" ? 1366 : 390, height: 900 });
+      const remediated = {
+        ...unscoredExam, exam_id: 302, title: "미응시 정정 후 보강 시험",
+        meta_status: "NOT_SUBMITTED", achievement: "REMEDIATED",
+      } as const;
+      const childHeaders = await installApi(page, viewer, {
+        studentPoints: [], wrongCompletionOnly: false, gradeSummary: { exams: [remediated], homeworks: [] },
+        examResultOverrides: { total_score: null, meta_status: "NOT_SUBMITTED", achievement: "REMEDIATED", submitted_at: null },
+      });
+      const resultUrl = `${BASE}/student/exams/302/result`;
+      await page.goto(resultUrl, { waitUntil: "domcontentloaded" });
+      if (viewer === "parent") {
+        await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김첫째" }).click();
+        await expect(page).toHaveURL(/\/student\/dashboard/);
+        await page.goto(resultUrl, { waitUntil: "domcontentloaded" });
+      }
+      for (const reload of [false, true]) {
+        if (reload) await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(page.getByText("원시험 미응시", { exact: true })).toBeVisible();
+        await expect(page.getByText("보강 합격", { exact: true })).toBeVisible();
+        await expect(page.getByText("이 시험은 응시하지 않았습니다.", { exact: true })).toHaveCount(0);
+        await expect(page.getByText("문항별 결과", { exact: true })).toHaveCount(0);
+      }
+      await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
+      const summary = page.getByRole("region", { name: "시험 성적 요약" });
+      await expect(summary.getByText("100%", { exact: true })).toBeVisible();
+      await expect(summary.getByText("미채점", { exact: true })).toBeVisible();
+      if (viewer === "parent") expect(childHeaders).toContain("11");
+    });
+
+    test(`${viewer}: 미응시는 중립 상태이고 점수 없는 교사 확인·보강은 처리 완료에 반영한다`, async ({ page }) => {
+      await page.setViewportSize({ width: viewer === "parent" ? 1366 : 390, height: 900 });
       const headers = await installApi(page, viewer, {
         studentPoints: [],
         wrongCompletionOnly: false,
         gradeSummary: {
           exams: [unscoredExam],
-          homeworks: [{ ...unscoredHomework, teacher_resolved: true }],
+          homeworks: [
+            { ...unscoredHomework, teacher_resolved: true },
+            { ...unscoredHomework, homework_id: 904, achievement: "REMEDIATED", teacher_resolved: false },
+          ],
         },
       });
       await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
@@ -567,7 +625,7 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
         await expect(summary.locator("circle[stroke]")).toHaveAttribute("stroke", "var(--stu-text-muted)");
         await expect(homework.getByText("미채점", { exact: true })).toBeVisible();
         await expect(homework.getByText("100%", { exact: true })).toBeVisible();
-        await expect(homework.getByText("1/1건", { exact: true })).toBeVisible();
+        await expect(homework.getByText("2/2건", { exact: true })).toBeVisible();
       }
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
       if (viewer === "parent") {
@@ -1135,6 +1193,45 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
   });
 
   for (const width of [1366, 390]) {
+    test(`@assessment-feedback ${width}px 학부모 코멘트 요청이 성적 응답을 기다리지 않는다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await installApi(page, "parent");
+      await page.addInitScript(() => localStorage.setItem("parent_selected_student_id_ymath_2", "11"));
+
+      let releaseGrades!: () => void;
+      const gradesGate = new Promise<void>(resolve => { releaseGrades = resolve; });
+      const gradeRequests: string[] = [];
+      const commentRequests: string[] = [];
+      await page.route("**/api/v1/student/grades/", async route => {
+        gradeRequests.push(route.request().headers()["x-student-id"] ?? "missing");
+        await gradesGate;
+        await route.fallback();
+      });
+      await page.route("**/api/v1/results/parent/assessment-comments/", async route => {
+        commentRequests.push(route.request().headers()["x-student-id"] ?? "missing");
+        await route.fulfill({ json: { items: [{
+          session_id: 9999, assessment_kind: "exam", assessment_id: 9999,
+          assessment_title: "점수 입력 전 평가", session_title: "예정 차시",
+          text: "성적 응답이 늦어도 미리 받은 코멘트입니다.",
+          version: 1, updated_at: "2026-10-19T09:00:00Z",
+        }] } });
+      });
+
+      const summaryComment = page.getByRole("region", { name: "성적 입력 전 학부모 코멘트" });
+      try {
+        await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+        await expect.poll(() => gradeRequests).toEqual(["11"]);
+        await expect.poll(() => commentRequests).toEqual(["11"]);
+        await expect(summaryComment).toHaveCount(0);
+      } finally {
+        releaseGrades();
+      }
+      await expect(summaryComment).toContainText("성적 응답이 늦어도 미리 받은 코멘트입니다.");
+      await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId("student-score-trend")).toBeVisible();
+      expect(commentRequests).toEqual(["11"]);
+    });
+
     for (const viewer of ["parent", "student"] as const) {
       test(`@assessment-feedback ${width}px ${viewer} 평가별 코멘트와 자녀 범위`, async ({ page }, testInfo) => {
         await page.setViewportSize({ width, height: 900 });

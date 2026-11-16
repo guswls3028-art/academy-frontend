@@ -1,5 +1,4 @@
 import api from "@/shared/api/axios";
-import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 
 export type AssessmentKind = "exam" | "homework";
 export const assessmentCommentQueryKeys = {
@@ -16,7 +15,6 @@ export async function fetchAdminParentComments(sessionId: number, kind: Assessme
 export async function saveParentComment(sessionId: number, kind: AssessmentKind, id: number, enrollmentId: number, text: string, version: number) {
   return (await api.put<AdminParentComment>(`${base(sessionId, kind, id)}${enrollmentId}/`, { text, version })).data;
 }
-export async function fetchParentComments() {
-  const childId = getParentStudentId();
-  return (await api.get<{ items: ParentComment[] }>("/results/parent/assessment-comments/", { headers: childId ? { "X-Student-Id": String(childId) } : undefined })).data.items;
+export async function fetchParentComments(childId: number) {
+  return (await api.get<{ items: ParentComment[] }>("/results/parent/assessment-comments/", { headers: { "X-Student-Id": String(childId) } })).data.items;
 }
