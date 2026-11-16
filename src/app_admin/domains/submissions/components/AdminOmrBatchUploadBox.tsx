@@ -32,6 +32,7 @@ type Props = {
 };
 
 type UploadItem = {
+  id: number;
   file: File;
   rotation: 0 | 90 | 180 | 270;
   ordinal?: number;
@@ -176,6 +177,7 @@ export default function AdminOmrBatchUploadBox({
   const [resumeOrdinals, setResumeOrdinals] = useState<number[]>([]);
   const [validatedResumeBatchId, setValidatedResumeBatchId] = useState<string | null>(null);
   const mountedRef = useRef(false);
+  const nextFileId = useRef(0);
   const initializationRef = useRef<{ scope: string; id: string } | null>(null);
   useEffect(() => {
     mountedRef.current = true;
@@ -191,6 +193,9 @@ export default function AdminOmrBatchUploadBox({
   const resumeUploadBlocked = Boolean(
     resumeBatchId && validatedResumeBatchId !== resumeBatchId,
   );
+  const resuming = resumeOrdinals.length > 0;
+  const needsResumeOrdering = resuming && items.some((item) => item.ordinal === undefined);
+  const resumeSelectionComplete = !resuming || items.length === resumeOrdinals.length;
 
   const ledgerRetryCount = ledgerBatch ? getFileRetryOrdinals(ledgerBatch).length : 0;
   const ledgerReceivedCount = ledgerBatch
@@ -255,35 +260,29 @@ export default function AdminOmrBatchUploadBox({
       return;
     }
     setNotice(null);
-    const selectionLimit = resumeOrdinals.length > 0 ? resumeOrdinals.length : MAX_FILES;
-    const usedOrdinals = new Set(items.map((item) => item.ordinal));
-    const vacantResumeOrdinals = resumeOrdinals.filter((ordinal) => !usedOrdinals.has(ordinal));
-    const remaining = resumeOrdinals.length > 0
-      ? vacantResumeOrdinals.length
-      : Math.max(0, selectionLimit - items.length);
-    if (remaining === 0) {
-      setNotice(
-        resumeOrdinals.length > 0
-          ? `${resumeOrdinals.length}개 미접수 파일만 다시 선택할 수 있습니다.`
-          : `한 번에 최대 ${MAX_FILES}개 파일까지 업로드할 수 있습니다.`,
-      );
+    const remainingCapacity = MAX_FILES - items.length;
+    if (remainingCapacity === 0 || (resuming && files.length > remainingCapacity)) {
+      setNotice(`최대 ${MAX_FILES}장까지 선택할 수 있습니다. 목록에서 파일을 빼고 다시 선택해 주세요.`);
       return;
     }
-    const accepted = files.slice(0, remaining);
+    const accepted = files.slice(0, remainingCapacity);
     if (accepted.length < files.length) {
-      setNotice(
-        resumeOrdinals.length > 0
-          ? `${resumeOrdinals.length}개 미접수 파일만 다시 선택할 수 있습니다.`
-          : `한 번에 최대 ${MAX_FILES}개 파일까지 업로드할 수 있습니다.`,
-      );
+      setNotice(`한 번에 최대 ${MAX_FILES}개 파일까지 업로드할 수 있습니다.`);
     }
+    const usedOrdinals = new Set(items.map((item) => item.ordinal));
+    const vacantResumeOrdinals = resumeOrdinals.filter((ordinal) => !usedOrdinals.has(ordinal));
+    const reviewSelection = resuming && (needsResumeOrdering || accepted.length > vacantResumeOrdinals.length);
     const next: UploadItem[] = accepted.map((file, index) => ({
+      id: ++nextFileId.current,
       file,
       rotation: 0,
-      ordinal: resumeOrdinals.length > 0 ? vacantResumeOrdinals[index] : undefined,
+      ordinal: reviewSelection ? undefined : vacantResumeOrdinals[index],
       status: "ready" as const,
     }));
-    setItems((prev) => [...prev, ...next]);
+    setItems((prev) => [
+      ...(reviewSelection ? prev.map((item) => ({ ...item, ordinal: undefined })) : prev),
+      ...next,
+    ]);
   };
 
   const clear = () => {
@@ -297,13 +296,21 @@ export default function AdminOmrBatchUploadBox({
     setItems((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const moveOne = (idx: number, delta: -1 | 1) => {
-    if (busy || resumeOrdinals.length > 0) return;
+  const moveOne = (idx: number, delta: -1 | 1, button: HTMLButtonElement) => {
+    const nextIndex = idx + delta;
+    if (busy || nextIndex < 0 || nextIndex >= items.length) return;
+    if (document.activeElement === button) {
+      requestAnimationFrame(() => {
+        if (button.isConnected && document.activeElement === document.body) {
+          button.focus({ preventScroll: true });
+        }
+      });
+    }
     setItems((previous) => {
-      const nextIndex = idx + delta;
-      if (nextIndex < 0 || nextIndex >= previous.length) return previous;
+      if (nextIndex >= previous.length || idx >= previous.length) return previous;
       const next = [...previous];
-      [next[idx], next[nextIndex]] = [next[nextIndex], next[idx]];
+      next[idx] = { ...previous[nextIndex], ordinal: previous[idx].ordinal };
+      next[nextIndex] = { ...previous[idx], ordinal: previous[nextIndex].ordinal };
       return next;
     });
   };
@@ -332,14 +339,17 @@ export default function AdminOmrBatchUploadBox({
       return;
     }
 
-    if (resumeOrdinals.length > 0 && items.length !== resumeOrdinals.length) {
+    if (!resumeSelectionComplete) {
       setNotice(`${resumeOrdinals.length}개 미접수 파일을 모두 다시 선택해 주세요.`);
       return;
     }
 
     let activeBatchId = batchId;
     let initializationSent = false;
-    let uploadItems = items.filter((item) => item.status === "ready" || item.status === "fail");
+    const orderedItems = needsResumeOrdering
+      ? items.map((item, index) => ({ ...item, ordinal: resumeOrdinals[index] }))
+      : items;
+    let uploadItems = orderedItems.filter((item) => item.status === "ready" || item.status === "fail");
     if (
       activeBatchId
       && (
@@ -397,14 +407,8 @@ export default function AdminOmrBatchUploadBox({
         setLedgerFileNames({});
         asyncStatusStore.upsertOmrBatch(initialized);
         uploadItems = uploadItems.map((item, index) => ({ ...item, ordinal: index + 1 }));
-        setItems(uploadItems.map((item) => ({ ...item, status: "uploading" })));
-      } else {
-        setItems((previous) => previous.map((item) =>
-          uploadItems.includes(item)
-            ? { ...item, status: "uploading" }
-            : item
-        ));
       }
+      setItems(uploadItems.map((item) => ({ ...item, status: "uploading" })));
 
       const result = await uploadOmrBatchApi({
         examId,
@@ -476,17 +480,24 @@ export default function AdminOmrBatchUploadBox({
           {notice}
         </div>
       )}
+      {resuming && items.length > 0 && !busy && (
+        <p className="admin-omr-upload__notice" role="status">
+          {needsResumeOrdering
+            ? `미접수 ${resumeOrdinals.length}장만 남도록 이미 접수된 파일을 선택에서 빼고 답안지 번호 순서로 맞춰 주세요.`
+            : `미접수 ${resumeOrdinals.length}장의 파일과 접수 순번을 확인해 주세요.`}
+        </p>
+      )}
 
       <div className="admin-omr-upload__actions">
         <Button
           type="button"
           intent={items.length === 0 ? "secondary" : "primary"}
           size="lg"
-          disabled={busy || loadingResume || resumeUploadBlocked || items.length === 0}
+          disabled={busy || loadingResume || resumeUploadBlocked || items.length === 0 || !resumeSelectionComplete}
           onClick={() => void upload()}
           leftIcon={<UploadCloud size={ICON_FOR_BUTTON.lg} />}
         >
-          {busy ? "접수 중..." : resumeOrdinals.length > 0 ? "미접수 파일 다시 접수" : "등록 시작"}
+          {busy ? "접수 중..." : resuming ? "미접수 파일 다시 접수" : "등록 시작"}
         </Button>
         {items.length > 0 && (
           <Button type="button" intent="secondary" size="md" disabled={busy} onClick={clear}>
@@ -499,12 +510,15 @@ export default function AdminOmrBatchUploadBox({
       {items.length > 0 ? (
         <ul className="admin-omr-upload__file-list" aria-label="선택한 OMR 파일">
           {items.map((it, idx) => (
-            <li key={`${it.file.name}-${idx}`} className="admin-omr-upload__file">
+            <li key={it.id} className="admin-omr-upload__file">
               <div className="admin-omr-upload__file-main">
                 <UploadPreview item={it} />
                 <div className="admin-omr-upload__file-text">
                   <span className="admin-omr-upload__file-name" title={it.file.name}>{it.file.name}</span>
                   <span className="admin-omr-upload__file-size">{humanizeBytes(it.file.size)}</span>
+                  {resuming && items.length <= resumeOrdinals.length && (
+                    <span className="admin-omr-upload__file-size">{it.ordinal ?? resumeOrdinals[idx]}번 답안지</span>
+                  )}
                   {it.rotation !== 0 ? (
                     <span className="admin-omr-upload__file-rotation">업로드 회전 {it.rotation}°</span>
                   ) : null}
@@ -520,10 +534,12 @@ export default function AdminOmrBatchUploadBox({
                     type="button"
                     intent="ghost"
                     size="sm"
-                    disabled={busy || resumeOrdinals.length > 0 || idx === 0}
-                    onClick={() => moveOne(idx, -1)}
+                    disabled={busy}
+                    aria-disabled={idx === 0 || undefined}
+                    tabIndex={idx === 0 ? -1 : undefined}
+                    onClick={(event) => moveOne(idx, -1, event.currentTarget)}
                     aria-label="위로 이동"
-                    title={resumeOrdinals.length > 0 ? "재접수 순서는 변경할 수 없습니다." : "위로 이동"}
+                    title="위로 이동"
                   >
                     <ArrowUp size={ICON_FOR_BUTTON.sm} />
                   </Button>
@@ -531,10 +547,12 @@ export default function AdminOmrBatchUploadBox({
                     type="button"
                     intent="ghost"
                     size="sm"
-                    disabled={busy || resumeOrdinals.length > 0 || idx === items.length - 1}
-                    onClick={() => moveOne(idx, 1)}
+                    disabled={busy}
+                    aria-disabled={idx === items.length - 1 || undefined}
+                    tabIndex={idx === items.length - 1 ? -1 : undefined}
+                    onClick={(event) => moveOne(idx, 1, event.currentTarget)}
                     aria-label="아래로 이동"
-                    title={resumeOrdinals.length > 0 ? "재접수 순서는 변경할 수 없습니다." : "아래로 이동"}
+                    title="아래로 이동"
                   >
                     <ArrowDown size={ICON_FOR_BUTTON.sm} />
                   </Button>
@@ -568,7 +586,7 @@ export default function AdminOmrBatchUploadBox({
                   onClick={() => removeOne(idx)}
                   leftIcon={<Trash2 size={ICON_FOR_BUTTON.sm} />}
                 >
-                  삭제
+                  {needsResumeOrdering ? "선택에서 빼기" : "삭제"}
                 </Button>
               </div>
             </li>
