@@ -71,8 +71,10 @@ test.describe('completed first watch remains playing in review', () => {
     const snapshot = await youtube.snapshot();
     expect(snapshot.players).toHaveLength(1);
     expect(snapshot.players[0]).toMatchObject({ destroyed: false, state: 1 });
+    const gestureLayer = page.locator('.svpGestureLayer');
+    await gestureLayer.hover({ position: { x: 24, y: 24 } });
     await expect(page.locator('.svpPlayerWrap')).toHaveClass(/svpPlayerWrap--controlsHidden/);
-    await page.locator('.svpGestureLayer').click({ position: { x: 24, y: 24 } });
+    await gestureLayer.click({ position: { x: 24, y: 24 } });
     await expect(slider).toBeVisible();
     await expect(slider).toBeEnabled();
     const bounds = await slider.boundingBox();
