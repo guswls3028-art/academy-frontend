@@ -20,7 +20,7 @@ import {
   isStudentVideoBlocked,
   isStudentVideoComplete,
 } from "../utils/videoAccess";
-import { studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
+import { STUDENT_VIDEO_CATALOG_STALE_MS, studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
 import { useAuthContext } from "@/auth/context/AuthContext";
 
 function progressWidthStyle(value: number): CSSProperties {
@@ -205,6 +205,7 @@ export default function CourseDetailPage() {
   const videoMeQ = useQuery({
     queryKey: studentVideoQueryKeys.me(queryScope),
     queryFn: fetchVideoMe,
+    staleTime: STUDENT_VIDEO_CATALOG_STALE_MS,
   });
   const videoMe = videoMeQ.data;
   const isLoading = videoMeQ.isLoading;

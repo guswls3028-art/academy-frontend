@@ -7287,6 +7287,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media/videos/{video_id}/review-watch/students/{student_id}/allowance/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["media_videos_review_watch_students_allowance_partial_update"];
+        trace?: never;
+    };
     "/api/v1/media/videos/bulk-policy/": {
         parameters: {
             query?: never;
@@ -8517,6 +8533,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["results_admin_exams_analysis_export_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/admin/exams/{exam_id}/analysis-insights/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["results_admin_exams_analysis_insights_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -13078,6 +13110,14 @@ export interface components {
          * @enum {string}
          */
         AdminClinicTargetReasonEnum: "score" | "confidence" | "missing";
+        AdminExamAnalysisInsights: {
+            below_recommended_count: number | null;
+            recommended_cutoff: number | null;
+            score_summary: components["schemas"]["ExamScoreSummary"];
+            scored_count: number;
+            trend_threshold_pp: number;
+            trends: components["schemas"]["ExamScoreTrend"][];
+        };
         AdminExamResultRow: {
             achievement?: string | null;
             clinic_required: boolean;
@@ -14399,6 +14439,46 @@ export interface components {
          * @enum {string}
          */
         ExamRoundEnum: "first" | "second";
+        ExamScoreSummary: {
+            /** Format: double */
+            average: number | null;
+            distribution_counts: number[];
+            /** Format: double */
+            highest: number | null;
+            /** Format: double */
+            median: number | null;
+            /** Format: double */
+            p25: number | null;
+            /** Format: double */
+            p75: number | null;
+            pass_count: number;
+            pass_criterion_count: number;
+            remediated_count: number;
+            /** Format: double */
+            std_dev: number | null;
+            /** Format: double */
+            std_rate: number | null;
+            /** Format: double */
+            top_ten_average: number | null;
+            unscored_count: number;
+        };
+        ExamScoreTrend: {
+            /** Format: double */
+            cumulative_delta_pp: number;
+            /** Format: double */
+            cumulative_rate: number;
+            /** Format: double */
+            current_rate: number;
+            enrollment_id: number;
+            lecture_title: string;
+            /** Format: double */
+            previous_delta_pp: number | null;
+            /** Format: double */
+            previous_session_rate: number | null;
+            prior_exam_count: number;
+            signal: (components["schemas"]["SignalEnum"] | components["schemas"]["NullEnum"]) | null;
+            student_name: string;
+        };
         /**
          * @description * `template` - Template
          *     * `regular` - Regular
@@ -15724,7 +15804,12 @@ export interface components {
             batch: components["schemas"]["OmrUploadBatchSummary"];
             notify: boolean;
         };
+        OmrUploadBatchInitializeConflict: {
+            detail: string;
+        };
         OmrUploadBatchInitializeRequestRequest: {
+            /** Format: uuid */
+            client_request_id?: string;
             session_id?: number | null;
             total_count: number;
         };
@@ -17280,6 +17365,11 @@ export interface components {
             request_id?: string;
             title?: string;
         };
+        PatchedReviewAllowanceRequest: {
+            expected_revision?: string;
+            /** Format: int64 */
+            limit_ms?: number | null;
+        };
         /** @description API uses access_mode (SSOT). DB table kept as video_videopermission. */
         PatchedSealedVideoAccessRequest: {
             /**
@@ -18738,15 +18828,32 @@ export interface components {
         ReviewState: {
             remaining_ms: number | null;
             retry_after_ms?: number;
+            review_watch_summary?: components["schemas"]["ReviewWatchSummary"];
             /** Format: uuid */
             stream: string;
             used_ms: number;
         };
         ReviewStudent: {
+            applicable: boolean;
+            can_adjust: boolean;
+            enabled: boolean;
+            exhausted: boolean;
+            limit_ms: number | null;
+            remaining_ms: number | null;
+            revision: string;
             /** Format: date-time */
-            started_at: string;
+            started_at: string | null;
             student_id: number;
             student_name: string;
+            used_ms: number;
+        };
+        ReviewWatchSummary: {
+            applicable: boolean;
+            enabled: boolean;
+            exhausted: boolean;
+            limit_ms: number | null;
+            remaining_ms: number | null;
+            revision: string;
             used_ms: number;
         };
         RiskLog: {
@@ -19310,6 +19417,9 @@ export interface components {
             /** @description 수신 대상 학생 ID 목록 (send_to가 student/parent일 때 사용) */
             student_ids?: number[];
             template_id?: number | null;
+            /** @default false */
+            video_makeup_homework: boolean;
+            video_makeup_homework_fingerprint?: string;
         };
         SendMessageResponse: {
             accepted_count: number;
@@ -19482,6 +19592,12 @@ export interface components {
             /** Format: int64 */
             total_questions?: number;
         };
+        /**
+         * @description * `up` - up
+         *     * `down` - down
+         * @enum {string}
+         */
+        SignalEnum: "up" | "down";
         /**
          * @description * `` - 미신청
          *     * `PENDING` - 검수 대기
@@ -20654,6 +20770,7 @@ export interface components {
              * @default 0
              */
             progress: number;
+            review_watch_summary?: components["schemas"]["ReviewWatchSummary"];
             session_id: number | null;
             show_watermark: boolean;
             /** @default s3 */
@@ -20695,6 +20812,8 @@ export interface components {
             review_watch?: {
                 [key: string]: unknown;
             } | null;
+            review_watch_summary?: components["schemas"]["ReviewWatchSummary"];
+            support_preview?: boolean;
             video: components["schemas"]["StudentVideoListItem"];
         };
         StudentVideoPlaybackOrAccessCheck: components["schemas"]["StudentVideoPlayback"] | components["schemas"]["StudentVideoAccessCheck"];
@@ -33339,6 +33458,42 @@ export interface operations {
             };
         };
     };
+    media_videos_review_watch_students_allowance_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                student_id: number;
+                video_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedReviewAllowanceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedReviewAllowanceRequest"];
+                "multipart/form-data": components["schemas"]["PatchedReviewAllowanceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewWatchSummary"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewWatchSummary"];
+                };
+            };
+        };
+    };
     media_videos_bulk_policy_create: {
         parameters: {
             query?: never;
@@ -35250,6 +35405,30 @@ export interface operations {
                 };
                 content: {
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+        };
+    };
+    results_admin_exams_analysis_insights_retrieve: {
+        parameters: {
+            query?: {
+                /** @description An exam-linked lecture in the current tenant. */
+                lecture_id?: number;
+            };
+            header?: never;
+            path: {
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminExamAnalysisInsights"];
                 };
             };
         };
@@ -40514,6 +40693,14 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OmrUploadBatchSummary"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OmrUploadBatchInitializeConflict"];
                 };
             };
         };

@@ -20,6 +20,7 @@ import { useAsyncStatus } from "@/shared/ui/asyncStatus/useAsyncStatus";
 import OmrBatchLedger from "@/shared/ui/asyncStatus/OmrBatchLedger";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import FileUploadZone from "@/shared/ui/upload/FileUploadZone";
+import { createRandomUuid } from "@/shared/utils/randomUuid";
 import { getRejectionMessage } from "@admin/domains/submissions/contracts/aiJobContract";
 import "./AdminOmrBatchUploadBox.css";
 
@@ -175,6 +176,7 @@ export default function AdminOmrBatchUploadBox({
   const [resumeOrdinals, setResumeOrdinals] = useState<number[]>([]);
   const [validatedResumeBatchId, setValidatedResumeBatchId] = useState<string | null>(null);
   const mountedRef = useRef(false);
+  const initializationRef = useRef<{ scope: string; id: string } | null>(null);
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -336,6 +338,7 @@ export default function AdminOmrBatchUploadBox({
     }
 
     let activeBatchId = batchId;
+    let initializationSent = false;
     let uploadItems = items.filter((item) => item.status === "ready" || item.status === "fail");
     if (
       activeBatchId
@@ -375,12 +378,19 @@ export default function AdminOmrBatchUploadBox({
         uploadItems.map((item) => rotatedImageFile(item.file, item.rotation)),
       );
       if (!activeBatchId) {
+        const scope = JSON.stringify([tenant, generation, examId, sessionId ?? null, uploadItems.length]);
+        if (initializationRef.current?.scope !== scope) {
+          initializationRef.current = { scope, id: createRandomUuid() };
+        }
+        initializationSent = true;
         const initialized = await initializeOmrUploadBatchApi({
           examId,
           totalCount: uploadItems.length,
           sessionId,
+          clientRequestId: initializationRef.current.id,
         });
         if (!isActive()) return;
+        initializationRef.current = null;
         activeBatchId = initialized.id;
         setBatchId(initialized.id);
         setLedgerBatchId(initialized.id);
@@ -434,7 +444,9 @@ export default function AdminOmrBatchUploadBox({
         setItems((previous) => previous.map((item) =>
           item.status === "uploading" ? { ...item, status: "fail", message } : item
         ));
-        setNotice(message);
+        setNotice(initializationSent && (!err.response || err.response.status >= 500)
+          ? "등록 작업 응답을 확인하지 못했습니다. 선택한 파일로 등록 시작을 다시 눌러 주세요."
+          : message);
       }
     } finally {
       if (isActive()) setBusy(false);
