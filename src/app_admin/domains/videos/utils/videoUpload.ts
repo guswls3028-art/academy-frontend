@@ -236,6 +236,7 @@ const MIN_PART_SIZE = 5 * 1024 * 1024; // R2 최소 파트 크기: 5MB
 const MAX_PARTS = 10_000; // R2/S3 최대 파트 수
 const PART_CONCURRENCY = 3; // 동시 파트 업로드 수
 const PART_MAX_RETRIES = 3;
+const PART_IDLE_TIMEOUT_MS = 90_000;
 const PRESIGN_BATCH_SIZE = 50; // 한 번에 presign 요청할 파트 수
 
 /** 파일 크기에 따라 파트 크기 동적 계산 (R2: 최대 10,000 파트, 파트 최소 5MB) */
@@ -262,6 +263,23 @@ type MultipartPresignResponse = {
 function uploadPartOnce(url: string, blob: Blob): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    let sentBytes = 0;
+
+    const armIdleTimeout = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        reject(new Error("파트 전송이 90초 동안 멈췄습니다."));
+        xhr.abort();
+      }, PART_IDLE_TIMEOUT_MS);
+    };
+
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.loaded <= sentBytes) return;
+      sentBytes = event.loaded;
+      armIdleTimeout();
+    });
+    xhr.addEventListener("loadend", () => clearTimeout(idleTimer));
     xhr.addEventListener("load", () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         const etag = xhr.getResponseHeader("ETag");
@@ -278,9 +296,16 @@ function uploadPartOnce(url: string, blob: Blob): Promise<string> {
     });
     xhr.addEventListener("error", () => reject(new Error("파트 업로드 네트워크 오류")));
     xhr.addEventListener("timeout", () => reject(new Error("파트 업로드 시간 초과")));
-    xhr.timeout = 60 * 60 * 1000; // 1시간 (100MB 파트에 충분)
+    xhr.addEventListener("abort", () => reject(new Error("파트 업로드 연결이 끊겼습니다.")));
+    xhr.timeout = 60 * 60 * 1000;
     xhr.open("PUT", url);
-    xhr.send(blob);
+    armIdleTimeout();
+    try {
+      xhr.send(blob);
+    } catch (error) {
+      clearTimeout(idleTimer);
+      throw error;
+    }
   });
 }
 
