@@ -646,6 +646,36 @@ for (const width of [1366, 390]) {
     const row = page.locator("tbody tr").filter({ hasText: "모바일순서학생" }).last();
     await expect(row.locator(".assessment-total-value").first()).toContainText("0 / 200");
     await expect(row.locator(".assessment-total-value").first()).toContainText("집계 중 · 1/2");
+    const table = page.locator(".ds-scores-table");
+    const examTotal = row.locator('[data-col-type="exam-summary"]');
+    const homeworkTotal = row.locator('[data-col-type="homework-summary"]');
+    const visibleColumns = await table.locator("colgroup col").count();
+    const hideExam = page.getByRole("button", { name: "시험 총점 숨기기", exact: true });
+    const hideBounds = await hideExam.boundingBox();
+    expect(hideBounds?.width).toBeGreaterThanOrEqual(width === 390 ? 44 : 24);
+    await hideExam.click();
+    await expect(examTotal).toHaveCount(0);
+    await expect(homeworkTotal).toBeVisible();
+    await page.getByRole("button", { name: "과제 총점 숨기기", exact: true }).click();
+    await expect(homeworkTotal).toHaveCount(0);
+    await expect(table.locator("colgroup col")).toHaveCount(visibleColumns - 2);
+    await page.reload();
+    await expect(row).toBeVisible();
+    await expect(examTotal).toHaveCount(0);
+    await expect(homeworkTotal).toHaveCount(0);
+    await page.getByRole("button", { name: /표시 옵션/ }).click();
+    const totalVisibility = page.getByRole("group", { name: "총점 열 표시", exact: true });
+    const showExam = totalVisibility.getByRole("button", { name: "시험 총점", exact: true });
+    const showHomework = totalVisibility.getByRole("button", { name: "과제 총점", exact: true });
+    await expect(showExam).toHaveAttribute("aria-pressed", "false");
+    await expect(showHomework).toHaveAttribute("aria-pressed", "false");
+    await showExam.click();
+    await expect(examTotal).toContainText("0 / 200");
+    await expect(homeworkTotal).toHaveCount(0);
+    await showHomework.click();
+    await expect(homeworkTotal).toContainText("65 / 200");
+    await expect(table.locator("colgroup col")).toHaveCount(visibleColumns);
+    expect(harness.writes).toHaveLength(0);
     await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
     const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
     // Wait for the opening scale animation before drag or visual capture.
@@ -671,15 +701,26 @@ for (const width of [1366, 390]) {
     await expect(examGroup.getByRole("checkbox", { checked: true })).toHaveCount(2);
     await secondExam.uncheck();
     await expect(modal.getByRole("group", { name: "시험 총점 · 1개 합산" })).toBeVisible();
-    await modal.getByRole("checkbox", { name: "둘째 과제 합산에 포함", exact: true }).uncheck();
+    const secondHomework = modal.getByRole("checkbox", { name: "둘째 과제 합산에 포함", exact: true });
+    await secondHomework.uncheck();
+    const homeworkRows = modal.getByRole("group", { name: /과제 총점/ }).locator(".assessment-totals-option");
+    if (width === 1366) {
+      const moved = homeworkRows.filter({ has: page.getByRole("checkbox", { name: "둘째 과제 합산에 포함", exact: true }) });
+      await moved.locator(".assessment-totals-drag-handle").dragTo(homeworkRows.first());
+    } else {
+      await modal.getByRole("button", { name: "둘째 과제 위로 이동", exact: true }).click();
+    }
+    await expect(homeworkRows.locator("strong")).toHaveText(["둘째 과제", "첫 과제", "준비물 통과형"]);
+    await expect(secondHomework).not.toBeChecked();
     await page.screenshot({ path: testInfo.outputPath(`assessment-totals-modal-${width}.png`), animations: "disabled" });
     await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
     await expect(modal.getByRole("alert")).toContainText("합산 저장 일시 실패");
+    await expect(homeworkRows.locator("strong")).toHaveText(["둘째 과제", "첫 과제", "준비물 통과형"]);
     await expect(modal.getByRole("group", { name: "시험 총점 · 1개 합산" })).toBeVisible();
     await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
     await expect(modal).toBeHidden();
     expect(harness.writes).toHaveLength(2);
-    expect(harness.writes[1]).toMatchObject({ exam_ids: [9101], homework_ids: [9151] });
+    expect(harness.writes[1]).toMatchObject({ exam_ids: [9101], homework_ids: [9151], homework_order: [9152, 9151, 9153] });
     await page.reload();
     await expect(row.locator(".assessment-total-value").first()).toHaveText("0 / 100");
     await expect(row.locator(".assessment-total-value").last()).toHaveText("25 / 100");
@@ -699,15 +740,15 @@ for (const width of [1366, 390]) {
     await page.screenshot({ path: testInfo.outputPath(`assessment-main-column-inclusion-${width}.png`), animations: "disabled" });
     // Completion-only items can move anywhere without entering the sum.
     if (width === 1366) {
-      await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "준비물 통과형 작업 선택", exact: true }) }).locator(".scores-table-kind-badge").dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "첫 과제 작업 선택", exact: true }) }).locator(".scores-table-kind-badge"));
+      await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "준비물 통과형 작업 선택", exact: true }) }).locator(".scores-table-kind-badge").dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "둘째 과제 작업 선택", exact: true }) }).locator(".scores-table-kind-badge"));
     } else {
       await page.getByRole("button", { name: "준비물 통과형 이전 순서로 이동", exact: true }).click();
       await expect.poll(() => harness.writes.length).toBe(4);
-      await expect.poll(() => page.locator('[data-testid^="score-column-order-homework-"]').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-column-id"))))).toEqual([9151, 9153, 9152]);
+      await expect.poll(() => page.locator('[data-testid^="score-column-order-homework-"]').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-column-id"))))).toEqual([9152, 9153, 9151]);
       await page.getByRole("button", { name: "준비물 통과형 이전 순서로 이동", exact: true }).click();
     }
     await expect.poll(() => harness.writes.length).toBe(width === 1366 ? 4 : 5);
-    expect(harness.writes.at(-1)).toMatchObject({ homework_ids: [9151], homework_order: [9153, 9151, 9152] });
+    expect(harness.writes.at(-1)).toMatchObject({ homework_ids: [9151], homework_order: [9153, 9152, 9151] });
     await page.reload();
     await expect(row.locator(".assessment-total-value").last()).toHaveText("25 / 100");
 
@@ -717,9 +758,9 @@ for (const width of [1366, 390]) {
     await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
     await expect(modal).toBeHidden();
     expect(harness.writes).toHaveLength(writesBeforeReopen + 1);
-    expect(harness.writes.at(-1)).toMatchObject({ homework_ids: [9151], homework_order: [9153, 9151, 9152] });
+    expect(harness.writes.at(-1)).toMatchObject({ homework_ids: [9151], homework_order: [9153, 9152, 9151] });
     await page.reload();
-    await expect.poll(() => page.locator('[data-testid^="score-column-order-homework-"]').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-column-id"))))).toEqual([9153, 9151, 9152]);
+    await expect.poll(() => page.locator('[data-testid^="score-column-order-homework-"]').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-column-id"))))).toEqual([9153, 9152, 9151]);
 
     await row.locator('[data-col-type="exam-summary"]').scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`assessment-totals-${width}.png`), animations: "disabled" });

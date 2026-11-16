@@ -250,12 +250,8 @@
     font-size: 11px;
   }
 
-  .clinic-ops__student-row .clinic-ops__card-reasons {
-    display: grid;
+  .clinic-ops__task-grid {
     grid-template-columns: minmax(0, 1fr);
-    align-items: stretch;
-    gap: 8px;
-    overflow: visible;
   }
 
   .clinic-ops__task-chip {

@@ -1,16 +1,94 @@
 import type { APIRequestContext, Locator, Page, TestInfo } from '@playwright/test';
 import type { SessionSchedules } from '../../src/shared/api/contracts/sessionSchedules';
+import type { LectureScheduleSettings } from '../../src/app_admin/domains/lectures/lectureScheduleSettings';
 import { expect } from '../fixtures/strictTest';
 import { acknowledgeInitialAccountPromptsIfVisible } from './firstLoginGuide';
-import { assertQaStudentParentRuntime, assertNoHorizontalOverflow, expectApi, installQaStudentParentBoundary, QA_BASE, seedBrowserAuth, type QaFamily, type QaTokens } from './qaStudentParentScenario';
+import { api, assertQaStudentParentRuntime, assertNoHorizontalOverflow, expectApi, installQaStudentParentBoundary, QA_BASE, seedBrowserAuth, type QaFamily, type QaTokens } from './qaStudentParentScenario';
 import { attachStrictBrowserGuards } from './strictBrowser';
 import { gotoAndSettle } from './wait';
 
 async function assign(modal: Locator, name: string) {
   await modal.getByLabel('학생 검색').fill(name);
-  await modal.getByRole('button', { name: '검색 결과 전체 선택', exact: true }).click();
+  await modal.getByRole('checkbox', { name: '검색 결과 전체 선택', exact: true }).check();
   await expect(modal.getByText('1명 선택', { exact: true })).toBeVisible();
   await modal.getByRole('button', { name: '선택 학생 배정', exact: true }).click();
+}
+
+async function verifyInitialSchedules(page: Page, request: APIRequestContext, admin: QaTokens, lectureId: number, sessionId: number, info: TestInfo) {
+  const endpoint = '/lectures/sessions/';
+  const createEndpoint = `${endpoint}with-schedules/`;
+  const lectureEndpoint = `/lectures/lectures/${lectureId}/`;
+  const title = `qa-schedule-create-${sessionId}`;
+  const listing = `${endpoint}?lecture=${lectureId}`;
+  const lectureUrl = `${QA_BASE}/workspace/lectures/${lectureId}`;
+  type SessionRow = { id: number; title: string; lecture: number };
+  const original = await expectApi<LectureScheduleSettings>(request, 'GET', lectureEndpoint, admin.access);
+  const defaults = [{ label: '첫째 반', weekday: 3 }, { label: '둘째 반', weekday: 4 }, { label: '셋째 반', weekday: 5 }];
+  let settingsSubmitted = false;
+  try {
+    await gotoAndSettle(page, lectureUrl);
+    const settings = page.getByRole('button', { name: '강의 설정', exact: true });
+    await settings.click();
+    const editor = page.getByRole('dialog', { name: '강의 수정', exact: true });
+    await editor.getByLabel('수업 운영 방식').selectOption('SPLIT');
+    await editor.getByRole('button', { name: '반 추가', exact: true }).click();
+    for (const [index, row] of defaults.entries()) {
+      await editor.getByLabel(`${index + 1}번째 반 이름`).fill(row.label);
+      await editor.getByLabel(`${index + 1}번째 반 기본 요일`).selectOption(String(row.weekday));
+    }
+    settingsSubmitted = true;
+    await editor.getByRole('button', { name: '수정', exact: true }).click();
+    await expect(editor).toBeHidden();
+    expect(await expectApi<LectureScheduleSettings>(request, 'GET', lectureEndpoint, admin.access)).toMatchObject({
+      schedule_mode: 'SPLIT', schedule_defaults: defaults,
+    });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByRole('button', { name: /^(공통 차시 )?(정규 )?수업 추가$/ }).click();
+    const modal = page.getByRole('dialog', { name: '차시 추가', exact: true });
+    await modal.getByRole('button', { name: /정규 차시 추가/ }).click();
+    await modal.getByLabel('차시 이름 (선택)', { exact: true }).fill(title);
+    const labels = [];
+    for (const index of [1, 2, 3]) labels.push(await modal.getByLabel(`수업일 ${index} 이름`, { exact: true }).inputValue());
+    expect(labels.slice().sort()).toEqual(defaults.map(row => row.label).sort());
+    const add = modal.getByRole('button', { name: '수업일 추가', exact: true });
+    await add.click();
+    await modal.getByRole('button', { name: '수업일 4 제거', exact: true }).click();
+    await modal.getByLabel('수업일 3 이름', { exact: true }).scrollIntoViewIfNeeded();
+    await info.attach('session-create-three-days-1366.png', { body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png' });
+    await modal.getByRole('button', { name: '저장', exact: true }).click();
+    const posted = page.waitForResponse(r => r.request().method() === 'POST' && new URL(r.url()).pathname === `/api/v1${createEndpoint}`);
+    await page.getByRole('button', { name: '확인하고 추가', exact: true }).click();
+    const response = await posted;
+    expect(response.status()).toBe(201);
+    const { id } = await response.json() as SessionRow;
+    const payload = response.request().postDataJSON();
+    const replay = await expectApi<SessionRow>(request, 'POST', createEndpoint, admin.access, payload, [201]);
+    expect(replay.id).toBe(id);
+    const fresh = await expectApi<SessionSchedules>(request, 'GET', `${endpoint}${id}/schedules/`, admin.access);
+    expect(fresh.schedules.map(day => ({ label: day.label, weekday: new Date(`${day.date}T12:00:00Z`).getUTCDay() || 7 })))
+      .toEqual(expect.arrayContaining(defaults));
+    expect(new Set(fresh.schedules.map(day => day.date)).size).toBe(3);
+    expect(fresh.roster).toEqual([]);
+    await expect(modal).toBeHidden();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('region', { name: new RegExp(`${title}.*차시 카드`) })).toHaveCount(1);
+  } finally {
+    try {
+      const sessions = await expectApi<{ results: SessionRow[] } | SessionRow[]>(request, 'GET', listing, admin.access);
+      for (const row of Array.isArray(sessions) ? sessions : sessions.results) {
+        if (row.lecture !== lectureId || (row.title !== title && !row.title.startsWith(`${title} (`))) continue;
+        await expectApi(request, 'DELETE', `${endpoint}${row.id}/`, admin.access, undefined, [204]);
+        expect((await api(request, 'GET', `${endpoint}${row.id}/`, admin.access)).status).toBe(404);
+      }
+    } finally {
+      if (settingsSubmitted) {
+        const previous = { schedule_mode: original.schedule_mode, schedule_defaults: original.schedule_defaults };
+        await expectApi(request, 'PATCH', `${lectureEndpoint}schedule-settings/`, admin.access, previous, [200]);
+        expect(await expectApi<LectureScheduleSettings>(request, 'GET', lectureEndpoint, admin.access)).toMatchObject(previous);
+      }
+    }
+  }
+  await gotoAndSettle(page, `${lectureUrl}/sessions/${sessionId}/attendance`);
 }
 
 /** Existing assessment canary step only: no added test or production execution path. */
@@ -55,16 +133,17 @@ export async function verifySessionSchedules(
     await seedBrowserAuth(studentPage, student);
     await gotoAndSettle(page, `${route}/attendance`);
     await acknowledgeInitialAccountPromptsIfVisible(page);
-    await page.getByRole('button', { name: '수업일 관리', exact: true }).click();
+    await verifyInitialSchedules(page, request, admin, scope.lectureId, scope.sessionId, testInfo);
+    await page.getByRole('region', { name: '수업일 선택', exact: true }).getByRole('button', { name: '수업일 추가', exact: true }).click();
     const modal = page.getByRole('dialog', { name: '수업일 관리', exact: true });
     for (const [index, label, day, studentName] of [[1, '수요일반', wedDay, primary.name], [2, '목요일반', wedDay + 1, peer.name]] as const) {
-      await modal.getByRole('button', { name: '수업일 추가', exact: true }).click();
+      if (index > 1) await modal.getByRole('button', { name: '수업일 추가', exact: true }).click();
       await modal.getByLabel(`수업일 ${index} 이름`, { exact: true }).fill(label);
-      await modal.getByRole('region', { name: `수업일 ${index}`, exact: true }).getByLabel('날짜', { exact: true }).click();
+      await modal.getByLabel('날짜', { exact: true }).click();
       await page.getByRole('dialog', { name: '날짜 선택', exact: true }).getByRole('button', { name: String(day), exact: true }).click();
       await assign(modal, studentName);
     }
-    await modal.getByLabel('수업일 1 이름', { exact: true }).scrollIntoViewIfNeeded();
+    await modal.getByLabel('수업일 2 이름', { exact: true }).scrollIntoViewIfNeeded();
     await testInfo.attach('session-schedules-admin-populated-1366.png', {
       body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
     });
@@ -113,11 +192,33 @@ export async function verifySessionSchedules(
       body: await studentPage.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
     });
 
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.getByRole('tab', { name: '출결', exact: true }).click();
+    await strip.getByRole('button', { name: /^수요일반/ }).click();
+    await strip.getByRole('button', { name: '학생 수업일 변경', exact: true }).click();
+    const transfer = page.getByRole('dialog', { name: '학생 수업일 변경', exact: true });
+    await expect(transfer.getByLabel('옮길 수업일')).toHaveValue(String(wed.id));
+    await transfer.getByRole('searchbox', { name: '학생 이름 검색', exact: true }).fill(peer.name);
+    await transfer.getByRole('radio', { name: /목요일반/ }).check();
+    await assertNoHorizontalOverflow(page);
+    await testInfo.attach('session-student-transfer-390.png', { body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png' });
+    await transfer.getByRole('button', { name: '수업일 변경', exact: true }).click();
+    await expect(transfer).toBeHidden();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('link', { name: `${peer.name} 학생 상세 열기`, exact: true })).toBeVisible();
+    const moved = await expectApi<SessionSchedules>(request, 'GET', endpoint, admin.access);
+    expect(new Set(moved.schedules.find(day => day.id === wed.id)?.enrollment_ids)).toEqual(new Set([primaryId, peerId]));
+    expect(moved.schedules.find(day => day.id === thu.id)?.enrollment_ids).toEqual([]);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.getByRole('tab', { name: '성적', exact: true }).click();
+    await strip.getByRole('button', { name: /^목요일반/ }).click();
+
     // Another authorized editor mutates this same synthetic configuration; the UI must retain its draft on 409.
     await page.getByRole('button', { name: '수업일 관리', exact: true }).click();
+    await modal.getByRole('region', { name: '수업일 목록', exact: true }).getByRole('button', { name: /^수요일반/ }).click();
     await modal.getByLabel('수업일 1 이름', { exact: true }).fill('수요일 작성 중');
     const concurrent = await expectApi<SessionSchedules>(request, 'PUT', endpoint, admin.access, {
-      version: saved.version, schedules: saved.schedules.map(s => ({ ...s, label: `${s.label} 최신` })),
+      version: moved.version, schedules: moved.schedules.map(s => ({ ...s, label: `${s.label} 최신` })),
     });
     const staleResponse = page.waitForResponse(r => r.request().method() === 'PUT' && new URL(r.url()).pathname === `/api/v1${endpoint}`);
     await modal.getByRole('button', { name: '저장', exact: true }).click();
@@ -133,6 +234,7 @@ export async function verifySessionSchedules(
     await page.getByRole('button', { name: '최신 내용 불러오기', exact: true }).click();
     await expect(modal.getByLabel('수업일 1 이름', { exact: true })).toHaveValue('수요일반 최신');
     await modal.getByRole('button', { name: '수업일 1 삭제', exact: true }).click();
+    await modal.getByRole('region', { name: '수업일 목록', exact: true }).getByRole('button', { name: /^목요일반/ }).click();
     await modal.getByRole('button', { name: '수업일 1 삭제', exact: true }).click();
     await modal.getByRole('button', { name: '저장', exact: true }).click();
     const removal = page.locator('[data-confirm-dialog]');

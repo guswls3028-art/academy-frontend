@@ -4,7 +4,6 @@ import { useNavigate } from "react-router";
 import { Popover } from "antd";
 import { Trash2, FolderOpen, Save } from "lucide-react";
 
-import api from "@/shared/api/axios";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import { DatePicker } from "@/shared/ui/date";
@@ -13,7 +12,7 @@ import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { normalizeLectureChipText } from "@/shared/ui/chips/lectureChipText";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
-import { fetchLecture, fetchLectureInstructorOptions, updateLecture } from "@admin/domains/lectures/api/sessions";
+import { createLecture, fetchLecture, fetchLectureInstructorOptions, updateLecture } from "@admin/domains/lectures/api/sessions";
 import { fetchStaffMe } from "@/shared/staff/api";
 import { staffWorkQueryKeys } from "@/shared/staff/queryKeys";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -23,6 +22,8 @@ import { validateRequiredFields } from "@/shared/utils/modalValidation";
 import { getTenantLocalItem, setTenantLocalItem } from "@/shared/utils/safeLocalStorage";
 import { adminLectureQueryKeys } from "../queryKeys";
 import { invalidateLectureStatusCaches } from "@/shared/ui/asyncStatus/asyncStatusQueryInvalidations";
+import LectureScheduleFields, { type LectureScheduleDraftRow } from "./LectureScheduleFields";
+import { lectureWeekday, lectureWeekdays, type LectureScheduleMode, type LectureScheduleSettings } from "../lectureScheduleSettings";
 import "./LectureCreateModal.css";
 
 const SAVED_SUBJECTS_KEY = "academy-lecture-saved-subjects";
@@ -62,7 +63,7 @@ interface Props {
   lectureId?: number;
 }
 
-interface CreateLecturePayload {
+interface CreateLecturePayload extends Partial<LectureScheduleSettings> {
   title: string;
   name: string;
   subject: string;
@@ -72,7 +73,6 @@ interface CreateLecturePayload {
   lecture_time: string;
   color: string;
   chip_label: string;
-  is_active: boolean;
 }
 
 export default function LectureCreateModal(props: Props) {
@@ -99,6 +99,9 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
   const [lectureTime, setLectureTime] = useState("");
   const [color, setColor] = useState(() => getDefaultColorForPicker(usedColors));
   const [chipLabel, setChipLabel] = useState("");
+  const [scheduleMode, setScheduleMode] = useState<LectureScheduleMode>("SINGLE");
+  const [scheduleRows, setScheduleRows] = useState<LectureScheduleDraftRow[]>([]);
+  const [scheduleChanged, setScheduleChanged] = useState(false);
 
   const [savedSubjects, setSavedSubjects] = useState<string[]>(() => getSavedList(SAVED_SUBJECTS_KEY));
   const [subjectPopoverOpen, setSubjectPopoverOpen] = useState(false);
@@ -152,6 +155,8 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
     setColor(existingLecture.color ?? getDefaultColorForPicker(usedColors));
     const chip = (existingLecture as { chip_label?: string | null }).chip_label;
     setChipLabel(chip ?? (existingLecture.title ?? "").slice(0, 2));
+    setScheduleMode(existingLecture.schedule_mode ?? "SINGLE");
+    setScheduleRows((existingLecture.schedule_defaults ?? []).map((row, index) => ({ ...row, key: `saved-${index}` })));
     setHydrated(true);
   }, [isOpen, isEditMode, existingLecture, existingLectureQ.isFetching, existingLectureQ.isError, usedColors]);
 
@@ -169,19 +174,9 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
   const { mutate, isPending } = useMutation({
     mutationFn: async (payload: CreateLecturePayload) => {
       if (isEditMode && lectureId != null) {
-        await updateLecture(lectureId, {
-          title: payload.title,
-          name: payload.name,
-          subject: payload.subject,
-          description: payload.description,
-          start_date: payload.start_date,
-          end_date: payload.end_date,
-          lecture_time: payload.lecture_time,
-          color: payload.color,
-          chip_label: payload.chip_label,
-        });
+        await updateLecture(lectureId, payload);
       } else {
-        await api.post("/lectures/lectures/", payload);
+        await createLecture({ ...payload, is_active: true });
       }
     },
     onSuccess: () => {
@@ -206,6 +201,16 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
   const effectiveChipLabel = normalizeLectureChipText(chipLabel) || normalizeLectureChipText(title);
   const previewChipLabel = effectiveChipLabel || "강의";
 
+  function changeScheduleMode(mode: LectureScheduleMode) {
+    setScheduleMode(mode);
+    setScheduleChanged(true);
+    const weekday = lectureWeekday(startDate) ?? 1;
+    if (mode === "SPLIT" && scheduleRows.length < 2) {
+      const first = scheduleRows[0] ?? { key: "preset-a", label: "A반", weekday };
+      setScheduleRows([first, { key: "preset-b", label: first.label === "B반" ? "A반" : "B반", weekday: first.weekday % 7 + 1 }]);
+    }
+  }
+
   async function submit() {
     if (!formReady || saveInFlightRef.current || isPending || confirmationInFlightRef.current) return;
     setApiError("");
@@ -226,6 +231,17 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
       return;
     }
 
+    const defaults = scheduleMode === "SPLIT"
+      ? scheduleRows.map(({ label, weekday }) => ({ label: label.trim(), weekday })) : [];
+    if (scheduleMode === "SPLIT" && (defaults.length < 2 || defaults.some(row => !row.label))) {
+      setApiError("반별로 진행하려면 반 이름을 두 개 이상 입력해 주세요.");
+      return;
+    }
+    if (new Set(defaults.map(row => row.label.toLowerCase())).size !== defaults.length) {
+      setApiError("각 반에 서로 다른 이름을 입력해 주세요.");
+      return;
+    }
+
     const payload: CreateLecturePayload = {
       title: title.trim(),
       name: name.trim(),
@@ -235,7 +251,8 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
       lecture_time: lectureTime.trim(),
       color,
       chip_label: effectiveChipLabel,
-      is_active: true,
+      ...((isEditMode ? scheduleChanged : scheduleMode === "SPLIT")
+        ? { schedule_mode: scheduleMode, schedule_defaults: defaults } : {}),
     };
     if (endDate.trim() || isEditMode) payload.end_date = endDate.trim() || null;
     if (!isEditMode) {
@@ -251,6 +268,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
             { label: "과목", value: payload.subject },
             { label: "운영 기간", value: `${payload.start_date}${payload.end_date ? `–${payload.end_date}` : "부터"}` },
             { label: "수업 시간", value: payload.lecture_time },
+            ...(scheduleMode === "SPLIT" ? [{ label: "반별 일정", value: defaults.map(row => `${row.label} (${lectureWeekdays[row.weekday - 1]})`).join(" · ") }] : []),
             { label: "목록 표기", value: payload.chip_label || "강의" },
           ],
           note: "강의 기본정보만 만듭니다. 차시와 수강생은 자동으로 등록되지 않습니다.",
@@ -691,6 +709,8 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
                   endLabel="종료"
                 />
               </div>
+              <LectureScheduleFields mode={scheduleMode} rows={scheduleRows} disabled={isPending}
+                onModeChange={changeScheduleMode} onRowsChange={rows => { setScheduleRows(rows); setScheduleChanged(true); }} />
             </div>
           </div>
         </div>

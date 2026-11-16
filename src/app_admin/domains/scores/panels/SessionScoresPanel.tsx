@@ -11,6 +11,7 @@ import {
   type SessionScoreMeta,
   type SessionScoresExamReviewFilter,
   type SessionScoresSummaryColumnMode,
+  type ScoreTotalColumnKind,
 } from "../api/sessionScores";
 import { scoresQueryKeys } from "../api/queryKeys";
 import { attendanceQueryKeys } from "@/shared/api/queryKeys/attendance";
@@ -59,6 +60,8 @@ type Props = {
   viewFilter?: "all" | "exam" | "homework";
   /** 마지막 요약 열: 전체 상태 판정 | 시험 오답 확인 상태 */
   summaryColumnMode?: SessionScoresSummaryColumnMode;
+  hiddenTotalColumns: Readonly<Record<ScoreTotalColumnKind, boolean>>;
+  onHideTotalColumn: (kind: ScoreTotalColumnKind) => void;
   /** 테스트 오답 확인 모드의 학생 행 필터 */
   examReviewFilter?: SessionScoresExamReviewFilter;
   selectedEnrollmentIds?: number[];
@@ -124,6 +127,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   scoreFormat = "raw",
   viewFilter = "all",
   summaryColumnMode = "verdict",
+  hiddenTotalColumns,
+  onHideTotalColumn,
   examReviewFilter = "all",
   selectedEnrollmentIds = [],
   onSelectionChange,
@@ -547,6 +552,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           scoreFormat={scoreFormat}
           viewFilter={viewFilter}
           summaryColumnMode={summaryColumnMode}
+          hiddenTotalColumns={hiddenTotalColumns}
+          onHideTotalColumn={onHideTotalColumn}
           selectedEnrollmentId={selectedEnrollmentId}
           selectedCell={selectedCell}
           activeEditors={activeEditors}

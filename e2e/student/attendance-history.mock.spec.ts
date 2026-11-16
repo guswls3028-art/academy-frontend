@@ -15,24 +15,48 @@ for (const role of ["student", "parent"]) {
         localStorage.setItem("refresh", `${token}-refresh`);
         localStorage.setItem("tenant_code", "hakwonplus");
         sessionStorage.setItem("tenantCode", "hakwonplus");
+        const selectionKey = "parent_selected_student_id_hakwonplus_11";
+        if (!localStorage.getItem(selectionKey)) localStorage.setItem(selectionKey, "11");
       }, `e30.${payload}.signature`);
-      let failing = true;
+      let attendanceStatus = 400;
+      let secondChildStatus = 503;
+      let historyTitle = "종료된 특강";
+      let holdOldChild = false;
+      let releaseOldChild: () => void = () => undefined;
+      const oldChildResponse = new Promise<void>(resolve => { releaseOldChild = resolve; });
+      let oldChildPending = false;
+      let oldChildSettled = false;
       const detailIds: string[] = [];
       await page.route("**/api/v1/**", async (route) => {
         const request = route.request();
         const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
         if (request.method() === "OPTIONS") return route.fulfill({ status: 204 });
         if (path === "/core/program/") return route.fulfill({ json: { tenantCode: "hakwonplus", display_name: "검증 학원", is_active: true, feature_flags: {} } });
-        if (path === "/core/me/") return route.fulfill({ json: { id: 11, name: "출결 검증", username: "attendance-reader", is_staff: false, tenantRole: role, linkedStudents: role === "parent" ? [{ id: 11, name: "출결 학생" }] : [] } });
+        if (path === "/core/me/") return route.fulfill({ json: { id: 11, name: "출결 검증", username: "attendance-reader", is_staff: false, tenantRole: role, linkedStudents: role === "parent" ? [{ id: 11, name: "출결 학생" }, { id: 12, name: "다른 학생" }] : [] } });
         if (path === "/student/me/") return route.fulfill({ json: { id: 11, name: "출결 학생", username: "attendance-student", is_student: true, isParentReadOnly: role === "parent" } });
         if (path === "/student/attendance/summary/") {
-          if (failing) return route.fulfill({ status: 400, json: { detail: "QA attendance failure" } });
-          if (role === "parent") expect(request.headers()["x-student-id"]).toBe("11");
+          const selected = request.headers()["x-student-id"];
+          if (role === "parent") expect(["11", "12"]).toContain(selected);
+          if (selected === "12") {
+            if (secondChildStatus === 503) return route.fulfill({ status: 503, json: { detail: "Second child attendance unavailable" } });
+            return route.fulfill({ json: {
+              summary: { total: 1, present: 1, late: 0, early_leave: 0, absent: 0, runaway: 0 },
+              recent: [{ session_id: 28, lecture_title: "둘째의 출결", session_title: "둘째 차시", date: null, status: "PRESENT" }],
+            } });
+          }
+          if (holdOldChild) {
+            oldChildPending = true;
+            await oldChildResponse;
+            await route.fulfill({ status: 403, json: { detail: "Old child validation failed" } }).catch(() => undefined);
+            oldChildSettled = true;
+            return;
+          }
+          if (attendanceStatus !== 200) return route.fulfill({ status: attendanceStatus, json: { detail: "QA attendance failure" } });
           return route.fulfill({ json: {
             summary: { total: 4, present: 1, late: 0, early_leave: 1, absent: 0, runaway: 1 },
             recent: [
               { session_id: 24, lecture_title: "현재 수강", session_title: "정규 수업", date: "2026-10-08", status: "PRESENT", can_view_session: true },
-              { session_id: 25, lecture_title: "종료된 특강", session_title: "마지막 수업", date: "2026-08-31", status: "EARLY_LEAVE", can_view_session: false },
+              { session_id: 25, lecture_title: historyTitle, session_title: "마지막 수업", date: "2026-08-31", status: "EARLY_LEAVE", can_view_session: false },
               { session_id: 26, lecture_title: "다음 수업", session_title: "출결 확인 대기", date: "2026-10-09", status: "UNSET", can_view_session: true },
               { session_id: 27, lecture_title: "보존된 출결", session_title: "이전 수업", date: "2026-08-30", status: "RUNAWAY", can_view_session: false },
             ],
@@ -46,7 +70,7 @@ for (const role of ["student", "parent"]) {
       });
       await gotoAndSettle(page, `${BASE}/student/attendance`);
       await expect(page.getByText("출결 정보를 불러오지 못했습니다", { exact: true })).toBeVisible();
-      failing = false;
+      attendanceStatus = 200;
       await page.getByRole("button", { name: "다시 시도", exact: true }).click();
       await expect(page.getByText("종료된 특강", { exact: true })).toBeVisible();
       await expect.soft(page.getByText("미입력", { exact: true })).toBeVisible();
@@ -63,6 +87,89 @@ for (const role of ["student", "parent"]) {
       await page.reload();
       await expect(page.getByText("종료된 특강", { exact: true })).toBeVisible();
       await expect(page.locator('a[href="/student/sessions/25"]')).toHaveCount(0);
+      const agedBack = async () => {
+        const origin = await page.evaluate(() => performance.timeOrigin);
+        await page.locator('a[href="/student/sessions/24"]').click();
+        await expect(page.getByRole("heading", { name: "정규 수업", exact: true })).toBeVisible();
+        await page.evaluate(() => {
+          const now = Date.now.bind(Date);
+          Date.now = () => now() + 31_000;
+        });
+        await page.goBack();
+        await expect(page).toHaveURL(/\/student\/attendance$/);
+        expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+      };
+      const oldHistory = page.getByText("종료된 특강", { exact: true });
+      const retry = page.getByRole("button", { name: "다시 시도", exact: true });
+      attendanceStatus = 503;
+      await agedBack();
+      await expect(page.getByRole("status").filter({ hasText: "이전에 확인한 출결을 표시합니다" })).toBeVisible({ timeout: 20_000 });
+      await expect(oldHistory).toBeVisible();
+      attendanceStatus = 200;
+      historyTitle = "갱신된 출결";
+      await retry.click();
+      const freshHistory = page.getByText("갱신된 출결", { exact: true });
+      await expect(freshHistory).toBeVisible();
+      await expect(oldHistory).toHaveCount(0);
+
+      attendanceStatus = role === "parent" ? 403 : 404;
+      await agedBack();
+      await expect(page.getByText("출결 정보를 불러오지 못했습니다", { exact: true })).toBeVisible();
+      await expect(freshHistory).toHaveCount(0);
+      attendanceStatus = 503;
+      let retryResponses = 0;
+      await Promise.all([
+        page.waitForResponse(response => response.request().method() === "GET"
+          && new URL(response.url()).pathname === "/api/v1/student/attendance/summary/"
+          && response.status() === 503
+          // Two Axios attempts for each of the three query attempts.
+          && ++retryResponses === 6, { timeout: 20_000 }),
+        retry.click(),
+      ]);
+      await expect(page.getByText("출결 정보를 불러오지 못했습니다", { exact: true })).toBeVisible({ timeout: 20_000 });
+      await expect(freshHistory).toHaveCount(0);
+      await expect(page.getByText(/이전에 확인한 출결을 표시합니다/)).toHaveCount(0);
+
+      if (role === "parent") {
+        attendanceStatus = 200;
+        await retry.click();
+        await expect(freshHistory).toBeVisible();
+        holdOldChild = true;
+        try {
+          await agedBack();
+          await expect.poll(() => oldChildPending).toBe(true);
+          const childSwitchDocument = await page.evaluate(() => performance.timeOrigin);
+          await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "다른 학생" }).click();
+          await expect(page).toHaveURL(/\/student\/dashboard/);
+          const secondChildResponse = (status: number) => page.waitForResponse(response => {
+            const request = response.request();
+            return request.method() === "GET"
+              && new URL(response.url()).pathname === "/api/v1/student/attendance/summary/"
+              && request.headers()["x-student-id"] === "12"
+              && response.status() === status;
+          });
+          await Promise.all([
+            secondChildResponse(503),
+            page.getByRole("link", { name: /출결 최근 출결/ }).click(),
+          ]);
+          await expect(page).toHaveURL(/\/student\/attendance$/);
+          expect(await page.evaluate(() => performance.timeOrigin)).toBe(childSwitchDocument);
+          const secondHistory = page.getByText("둘째의 출결", { exact: true });
+          await expect(page.getByText("출결 정보를 불러오지 못했습니다", { exact: true })).toBeVisible({ timeout: 20_000 });
+          await expect(retry).toBeVisible();
+          await expect(secondHistory).toHaveCount(0);
+          await expect(freshHistory).toHaveCount(0);
+          releaseOldChild();
+          await expect.poll(() => oldChildSettled).toBe(true);
+          await expect(freshHistory).toHaveCount(0);
+          secondChildStatus = 200;
+          await Promise.all([secondChildResponse(200), retry.click()]);
+          await expect(secondHistory).toBeVisible();
+          await expect(freshHistory).toHaveCount(0);
+        } finally {
+          releaseOldChild();
+        }
+      }
       expect(detailIds.every((path) => path === "/student/sessions/24/")).toBe(true);
     });
   }

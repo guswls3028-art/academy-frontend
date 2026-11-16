@@ -2,7 +2,8 @@
 // 차시 추가: 2차시/보강 선택 + 날짜·시간 (전역 모달 SSOT: ModalDateSection, ModalTimeSection 사용)
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import {
@@ -16,8 +17,10 @@ import {
 import { Button } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
-import { createSession } from "../api/sessions";
+import { createSession, fetchLecture, type CreateSessionOptions } from "../api/sessions";
 import { adminLectureQueryKeys } from "../queryKeys";
+import { datesFromLectureDefaults, offsetDate } from "../lectureScheduleSettings";
+import InitialSessionDays, { type NewSessionDay } from "./InitialSessionDays";
 import { SessionBlockView } from "@/shared/ui/session-block";
 import {
   formatSessionLabel,
@@ -33,6 +36,7 @@ type SessionCreateKind = "regular" | "supplement";
 type DateMode = "default" | "custom";
 type TimeMode = "default" | "custom";
 type RegularMode = "auto" | "manual";
+type DayDraft = { baseLabel: string; extraDays: NewSessionDay[] };
 
 interface Props {
   lectureId: number;
@@ -53,17 +57,29 @@ function extractTimeFromLectureTime(lectureTime: string | null | undefined): str
   return match ? match[0].replace(/\s/g, "") : s;
 }
 
-/** 마지막 차시 날짜 + 7일 (다음 주 같은 요일) */
-function nextWeekDate(lastDateStr: string | null | undefined): string {
-  if (!lastDateStr) return "";
-  const d = new Date(lastDateStr + "T12:00:00");
-  if (Number.isNaN(d.getTime())) return "";
-  d.setDate(d.getDate() + 7);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+const weekday = new Intl.DateTimeFormat("ko-KR", { weekday: "long", timeZone: "UTC" });
+
+function initialDayNames(days: NewSessionDay[]) {
+  const occurrences = new Map<string, number>();
+  return days.map((day, index) => {
+    const parsed = new Date(`${day.date}T12:00:00Z`);
+    const name = Number.isFinite(parsed.getTime()) ? `${weekday.format(parsed)}반` : `수업일 ${index + 1}`;
+    const occurrence = (occurrences.get(name) ?? 0) + 1;
+    occurrences.set(name, occurrence);
+    return day.label.trim() || (occurrence === 1 ? name : `${name} ${occurrence}`);
+  });
 }
+
+function scheduleTime(value: string): { start_time?: string; end_time?: string } {
+  const match = value.match(/^([01]?\d|2[0-3]):([0-5]\d)\s*[~–-]\s*([01]?\d|2[0-3]):([0-5]\d)$/);
+  if (!match) return {};
+  const [, startHour, startMinute, endHour, endMinute] = match;
+  const start = `${startHour.padStart(2, "0")}:${startMinute}`;
+  const end = `${endHour.padStart(2, "0")}:${endMinute}`;
+  return start < end ? { start_time: start, end_time: end } : {};
+}
+
+type CreateRequest = Parameters<typeof createSession>;
 
 export default function SessionCreateModal({
   lectureId,
@@ -73,8 +89,11 @@ export default function SessionCreateModal({
   onClose,
 }: Props) {
   const confirm = useConfirm();
+  const qc = useQueryClient();
   const confirmationInFlightRef = useRef(false);
+  const requestInFlight = useRef(false);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<CreateRequest | null>(null);
   const [sessionType, setSessionType] = useState<SessionCreateKind | null>(
     initialSessionType === "REGULAR"
       ? "regular"
@@ -88,14 +107,16 @@ export default function SessionCreateModal({
   const [supplementTitle, setSupplementTitle] = useState("보강");
   const [supplementAfterOrder, setSupplementAfterOrder] = useState<number | null>(null);
   const [dateMode, setDateMode] = useState<DateMode>("default");
-  const [date, setDate] = useState("");
+  const [customDates, setCustomDates] = useState<Partial<Record<SessionCreateKind, string>>>({});
+  const [dayDrafts, setDayDrafts] = useState<Partial<Record<SessionCreateKind, DayDraft>>>({});
   const [timeMode, setTimeMode] = useState<TimeMode>("default");
   const [timeInput, setTimeInput] = useState("");
 
   const lectureQ = useQuery({
     queryKey: adminLectureQueryKeys.lecture(lectureId),
-    queryFn: async () => (await api.get(`/lectures/lectures/${lectureId}/`)).data,
+    queryFn: () => fetchLecture(lectureId),
     enabled: Number.isFinite(lectureId),
+    refetchOnMount: "always",
   });
   const lecture = lectureQ.data;
 
@@ -105,7 +126,7 @@ export default function SessionCreateModal({
     enabled: Number.isFinite(lectureId),
   });
   const sessionsData = sessionsQ.data;
-  const dependencyLoading = lectureQ.isLoading || sessionsQ.isLoading;
+  const dependencyLoading = lectureQ.isLoading || (lectureQ.isFetching && !lectureQ.isFetchedAfterMount) || sessionsQ.isLoading;
   const dependencyError = lectureQ.isError || sessionsQ.isError;
   const formLocked = busy || dependencyLoading || dependencyError;
 
@@ -120,11 +141,8 @@ export default function SessionCreateModal({
     () => sortSessionsByDisplayOrder(sessionsList as SessionOrderLike[]),
     [sessionsList]
   );
-  // section_mode: 해당 반 내 차시만 카운트
-  const sectionSessions = useMemo(() => {
-    if (sectionId == null) return sortedSessions;
-    return sortedSessions.filter((s) => (s as { section?: number | null }).section === sectionId);
-  }, [sortedSessions, sectionId]);
+  const sectionSessions = useMemo(() => sortedSessions.filter(session =>
+    ((session as { section?: number | null }).section ?? null) === (sectionId ?? null)), [sortedSessions, sectionId]);
   const regularSessions = useMemo(
     () => sectionSessions.filter((s) => !isSupplementSession(s)),
     [sectionSessions]
@@ -142,11 +160,16 @@ export default function SessionCreateModal({
     const regular = regularSessions.filter((s) => s.date);
     return regular.slice(-1)[0];
   }, [regularSessions]);
-  const defaultDateFromLecture = useMemo(() => {
-    const lectureStart = (lecture as { start_date?: string | null })?.start_date ?? null;
-    if (lastRegularSessionWithDate?.date) return nextWeekDate(lastRegularSessionWithDate.date);
-    return lectureStart?.trim() ? lectureStart : nextWeekDate(lectureStart);
-  }, [lastRegularSessionWithDate?.date, lecture]);
+  const referenceDate = lastRegularSessionWithDate?.date
+    ? offsetDate(lastRegularSessionWithDate.date, 7)
+    : lecture?.start_date?.trim() || "";
+  const presetDays = sessionType === "regular" && sectionId == null && lecture?.schedule_mode === "SPLIT"
+    ? datesFromLectureDefaults(lecture.schedule_defaults ?? [], referenceDate) : [];
+  const defaultDateFromLecture = presetDays[0]?.date || referenceDate;
+  const presetDraft = { baseLabel: presetDays[0]?.label ?? "", extraDays: presetDays.slice(1) };
+  const draft = sessionType ? dayDrafts[sessionType] : undefined;
+  const { baseLabel, extraDays } = draft ?? presetDraft;
+  const customDate = sessionType === "supplement" ? customDates.supplement ?? "" : customDates.regular ?? defaultDateFromLecture;
 
   const lectureTimeRaw = lecture?.lecture_time?.trim() || "";
   // 정규 차시 기본 시간: 강의 생성 모달 lecture_time(시작~종료) 연결
@@ -184,14 +207,22 @@ export default function SessionCreateModal({
     }
   }, [timeMode, sessionType, lectureTimeExtract]);
 
-  // 정규 차시 + 날짜 기본값 사용 시 날짜 자동 채우기 (다음 주 같은 요일)
-  useEffect(() => {
-    if (sessionType === "regular" && dateMode === "default" && defaultDateFromLecture) {
-      setDate(defaultDateFromLecture);
-    }
-  }, [sessionType, dateMode, defaultDateFromLecture]);
+  const effectiveDate = sessionType === "regular" && dateMode === "default" ? (defaultDateFromLecture || customDate) : customDate;
+  const days = [{ key: "base", date: effectiveDate, label: baseLabel }, ...extraDays];
+  const dayNames = initialDayNames(days);
 
-  const effectiveDate = dateMode === "default" ? (defaultDateFromLecture || date) : date;
+  function changeDays(update: (current: DayDraft) => DayDraft) {
+    if (!sessionType) return;
+    setDayDrafts(drafts => ({ ...drafts, [sessionType]: update(drafts[sessionType] ?? presetDraft) }));
+  }
+
+  function addDay() {
+    const key = crypto.randomUUID();
+    changeDays(current => {
+      const date = offsetDate(current.extraDays[current.extraDays.length - 1]?.date || effectiveDate, 1);
+      return { ...current, extraDays: [...current.extraDays, { key, label: "", date }] };
+    });
+  }
 
   const MAX_SESSIONS = 52;
 
@@ -210,6 +241,10 @@ export default function SessionCreateModal({
       return "보강 이름을 입력하세요.";
     }
     if (!effectiveDate?.trim()) return "날짜를 선택하세요.";
+    if (extraDays.some(day => !day.date)) return "각 수업일의 날짜를 선택하세요.";
+    if (extraDays.length && new Set(dayNames).size < days.length) {
+      return "수업일마다 서로 다른 반 이름을 입력하세요.";
+    }
     if (sessionType === "supplement" || timeMode === "custom") {
       if (!timeInput.trim()) return "시간을 입력하세요.";
     }
@@ -217,7 +252,12 @@ export default function SessionCreateModal({
   }
 
   async function handleSubmit() {
-    if (formLocked || confirmationInFlightRef.current) {
+    if (requestInFlight.current || confirmationInFlightRef.current) return;
+    if (pending) {
+      await send(pending);
+      return;
+    }
+    if (formLocked) {
       if (dependencyError) feedback.warning("강의와 기존 차시를 다시 불러온 뒤 추가해 주세요.");
       return;
     }
@@ -231,6 +271,9 @@ export default function SessionCreateModal({
         : lectureTimeExtract || lectureTimeRaw;
     if (timeStr) title = `${title} (${timeStr})`;
     if (title.length > 255) return feedback.warning("차시 이름과 시간을 합쳐 255자 이내로 입력하세요.");
+    const initialDays = extraDays.length > 0 ? days.map((day, index) => ({
+      label: dayNames[index], date: day.date, ...scheduleTime(timeStr),
+    })) : null;
 
     confirmationInFlightRef.current = true;
     const confirmed = await confirm({
@@ -243,42 +286,54 @@ export default function SessionCreateModal({
           ...(sectionLabel ? [{ label: "반", value: sectionLabel }] : []),
           { label: "차시", value: defaultTitle, tone: "accent" },
           { label: "유형", value: sessionType === "regular" ? "정규 차시" : "보강" },
-          { label: "날짜", value: effectiveDate },
+          ...(initialDays ? initialDays.map(day => ({ label: day.label, value: day.date })) : [{ label: "날짜", value: effectiveDate }]),
           { label: "시간", value: timeStr || "강의 기본 시간" },
         ],
-        note: "차시만 추가합니다. 수강생과 출결 상태는 자동으로 등록되지 않습니다.",
+        note: "수강생 배정은 차시를 추가한 뒤 출결 화면에서 할 수 있습니다.",
       },
       confirmText: "확인하고 추가",
       cancelText: "다시 확인",
     });
     confirmationInFlightRef.current = false;
     if (!confirmed || busy) return;
+    const options: CreateSessionOptions = sessionType === "regular" ? {
+      sessionType: "REGULAR",
+      regularOrder: regularMode === "manual" ? effectiveRegularOrder : undefined,
+    } : {
+      sessionType: "SUPPLEMENT",
+      insertAfterOrder: supplementAfterOrder,
+    };
+    if (initialDays) options.initialSchedule = { requestId: crypto.randomUUID(), days: initialDays };
+    await send([lectureId, title, effectiveDate || undefined, undefined, sectionId, options]);
+  }
 
+  async function send(request: CreateRequest) {
+    requestInFlight.current = true;
     setBusy(true);
     try {
-      await createSession(
-        lectureId,
-        title,
-        effectiveDate || undefined,
-        undefined,
-        sectionId,
-        sessionType === "regular"
-          ? {
-              sessionType: "REGULAR",
-              regularOrder: regularMode === "manual" ? effectiveRegularOrder : undefined,
-            }
-          : {
-              sessionType: "SUPPLEMENT",
-              insertAfterOrder: supplementAfterOrder,
-            },
-      );
+      await createSession(...request);
+      void qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionsForLecture(lectureId) });
       feedback.success("차시가 추가되었습니다.");
       onClose();
     } catch (e: unknown) {
+      const status = isAxiosError(e) ? e.response?.status : undefined;
+      setPending(request[5]?.initialSchedule && (status == null || status === 408 || status >= 500) ? request : null);
       feedback.error(extractApiError(e, "차시 추가에 실패했습니다."));
     } finally {
+      requestInFlight.current = false;
       setBusy(false);
     }
+  }
+
+  async function close() {
+    if (requestInFlight.current || confirmationInFlightRef.current) return;
+    if (pending && !await confirm({
+      title: "차시 추가 상태를 확인할까요?",
+      message: "응답을 받지 못했습니다. 닫으면 차시 목록에서 추가된 차시가 있는지 확인해 주세요.",
+      confirmText: "닫고 목록 확인",
+      cancelText: "계속하기",
+    })) return;
+    onClose();
   }
 
   const isSupplement = sessionType === "supplement";
@@ -286,13 +341,14 @@ export default function SessionCreateModal({
   const showDefaultTimeOption = sessionType === "regular";
 
   return (
-    <AdminModal open={true} onClose={onClose} type="action" width={620} onEnterConfirm={!formLocked ? handleSubmit : undefined}>
+    <AdminModal open={true} onClose={close} type="action" width={620} closeDisabled={busy} onEnterConfirm={!pending && !formLocked ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
         title={sectionLabel ? `${sectionLabel} 차시 추가` : "차시 추가"}
       />
 
       <ModalBody>
+        {pending && <p role="alert" className="modal-hint modal-hint--block">추가 결과를 확인하지 못했습니다. 같은 요청을 다시 보내 결과를 확인해 주세요.</p>}
         {dependencyLoading ? (
           <div className="modal-hint modal-hint--block">강의와 기존 차시를 불러오는 중입니다.</div>
         ) : dependencyError ? (
@@ -310,7 +366,7 @@ export default function SessionCreateModal({
             </Button>
           </div>
         ) : (
-        <div className="modal-scroll-body grid gap-6 w-full max-w-full box-border">
+        <fieldset disabled={busy || pending !== null} className="modal-scroll-body grid gap-6 w-full max-w-full min-w-0 box-border border-0 m-0 p-0">
           {/* 차시 유형: 2차시 / 보강 (전역 SessionBlockView SSOT) */}
           <div>
             <div className="modal-section-label mb-3">차시 유형</div>
@@ -438,24 +494,37 @@ export default function SessionCreateModal({
 
           {sessionType && (
             <>
-              <ModalDateSection
-                name="dateMode"
-                useDefault={dateMode === "default"}
-                onUseDefaultChange={(use) => setDateMode(use ? "default" : "custom")}
-                customDate={date}
-                onCustomDateChange={setDate}
-                showDefaultOption={showDefaultDateOption}
-                disableDefaultOption={isSupplement}
-                defaultLabel={
-                  defaultDateFromLecture
-                    ? lastRegularSessionWithDate?.date
-                      ? `다음 주 같은 요일 (${defaultDateFromLecture})`
-                      : `강의 시작일 (${defaultDateFromLecture})`
-                    : "미설정"
-                }
-                placeholder="날짜 선택"
-                disabled={busy}
-              />
+              <InitialSessionDays
+                days={days}
+                names={dayNames}
+                disabled={busy || pending !== null}
+                onAdd={addDay}
+                onChange={(key, patch) => changeDays(current => key === "base"
+                  ? { ...current, baseLabel: patch.label ?? "" }
+                  : { ...current, extraDays: current.extraDays.map(day => day.key === key ? { ...day, ...patch } : day) })}
+                onRemove={key => changeDays(current => ({ ...current, extraDays: current.extraDays.filter(day => day.key !== key) }))}
+              >
+                <ModalDateSection
+                  name="dateMode"
+                  useDefault={dateMode === "default"}
+                  onUseDefaultChange={(use) => setDateMode(use ? "default" : "custom")}
+                  customDate={customDate}
+                  onCustomDateChange={value => setCustomDates(dates => ({ ...dates, [sessionType]: value }))}
+                  showDefaultOption={showDefaultDateOption}
+                  disableDefaultOption={isSupplement}
+                  defaultLabel={
+                    defaultDateFromLecture
+                      ? presetDays.length
+                        ? `반별 기본 일정 (${defaultDateFromLecture})`
+                        : lastRegularSessionWithDate?.date
+                        ? `다음 주 같은 요일 (${defaultDateFromLecture})`
+                        : `강의 시작일 (${defaultDateFromLecture})`
+                      : "미설정"
+                  }
+                  placeholder="날짜 선택"
+                  disabled={busy || pending !== null}
+                />
+              </InitialSessionDays>
               <ModalTimeSection
                 name="timeMode"
                 useDefault={timeMode === "default"}
@@ -465,22 +534,22 @@ export default function SessionCreateModal({
                 showDefaultOption={showDefaultTimeOption}
                 disableDefaultOption={isSupplement}
                 defaultLabel={lectureTimeRaw || "미설정"}
-                disabled={busy}
+                disabled={busy || pending !== null}
               />
             </>
           )}
-        </div>
+        </fieldset>
         )}
       </ModalBody>
 
       <ModalFooter
         right={
           <>
-            <Button intent="secondary" onClick={onClose} disabled={busy}>
+            <Button intent="secondary" onClick={close} disabled={busy}>
               취소
             </Button>
-            <Button intent="primary" onClick={handleSubmit} disabled={formLocked}>
-              {busy ? "저장 중…" : "저장"}
+            <Button intent="primary" onClick={handleSubmit} disabled={busy || (!pending && formLocked)}>
+              {busy ? "저장 중…" : pending ? "같은 요청 다시 보내기" : "저장"}
             </Button>
           </>
         }

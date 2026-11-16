@@ -149,6 +149,24 @@ test("the production OMR gate accepts only the canonical same-origin redirect", 
   assert.match(omrGate, /Unexpected OMR effective URL/);
 });
 
+test("production propagation retries only the interrupted URL within the same deadline", () => {
+  const start = workflow.indexOf("- name: Wait for current Cloudflare build to propagate");
+  const end = workflow.indexOf("- name: Run production canary (login smoke)", start);
+  assert.ok(start >= 0 && end > start);
+  const propagation = workflow.slice(start, end);
+
+  assert.match(propagation, /DEADLINE=\$\(\(SECONDS \+ 300\)\)/);
+  assert.match(propagation, /case "\$curl_status" in\s+35\|56\) ;;\s+\*\) return "\$curl_status"/);
+  assert.match(propagation, /remaining=\$\(\(DEADLINE - SECONDS\)\)\s+if \[ "\$remaining" -le 0 \]; then return "\$curl_status"; fi/);
+  assert.match(propagation, /--max-time "\$\(\(remaining < 5 \? remaining : 5\)\)" -o "\$output" "\$url"/);
+  assert.match(propagation, /if probe_cloudflare_url "\$VERSION_FILE" "\$\{E2E_BASE_URL\}\/version\.json\?deploy_probe=/);
+  assert.match(propagation, /if \[ "\$ACTUAL_VERSION" != "\$EXPECTED_VERSION" \]; then\s+READY=false/);
+  assert.match(propagation, /probe_cloudflare_url \/dev\/null "\$\{E2E_BASE_URL\}\/assets\/\$\{ASSET\}\?deploy_probe=/);
+  assert.match(propagation, /probe_cloudflare_url \/dev\/null "\$\{E2E_BASE_URL\}\/assets\/\$\{ASSET\}"; then/);
+  assert.match(propagation, /if \[ "\$CONSECUTIVE" -ge 3 \]; then/);
+  assert.match(propagation, /else\s+CONSECUTIVE=0/);
+});
+
 test("a failed authenticated roundtrip also restores the prior deployment", () => {
   assert.match(workflow, /\n  rollback-on-e2e-failure:/);
   assert.match(workflow, /needs: \[deploy, e2e-roundtrip\]/);

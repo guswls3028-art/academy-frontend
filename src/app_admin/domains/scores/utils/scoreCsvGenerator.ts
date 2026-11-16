@@ -1,4 +1,5 @@
 import type { ScoreBlock, SessionScoreMeta, SessionScoreRow } from "@/shared/api/contracts/sessionScores";
+import { downloadBlob } from "@/shared/utils/safeDownload";
 
 function literalText(value: string): string {
   // Quoting CSV alone does not stop Excel from interpreting a text cell as a formula.
@@ -23,4 +24,9 @@ export function buildScoreCsv(meta: SessionScoreMeta, rows: SessionScoreRow[]): 
     ...meta.exams.map(exam => displayScore(row.exams.find(entry => entry.exam_id === exam.exam_id)?.block)),
     ...meta.homeworks.map(homework => displayScore(row.homeworks.find(entry => entry.homework_id === homework.homework_id)?.block, homework.grading_mode === "COMPLETION"))]);
   return "\uFEFF" + [headers, ...values].map(cells => cells.map(value => `"${value.replace(/"/g, '""')}"`).join(",")).join("\r\n");
+}
+
+export function downloadScoreCsv(meta: SessionScoreMeta, rows: SessionScoreRow[]): void {
+  const blob = new Blob([buildScoreCsv(meta, rows)], { type: "text/csv;charset=utf-8" });
+  downloadBlob(blob, `성적_${rows.length}명.csv`);
 }
