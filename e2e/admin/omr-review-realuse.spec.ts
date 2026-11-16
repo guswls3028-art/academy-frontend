@@ -1458,9 +1458,10 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const startUpload = uploadDialog.getByRole("button", { name: "등록 시작", exact: true });
     await expect(startUpload).toBeEnabled();
 
+    const initializePath = `/submissions/submissions/exams/${created.examId}/omr/batches/`;
     const initializeResponsePromise = page.waitForResponse(
       (resp) => resp.request().method() === "POST"
-        && new URL(resp.url()).pathname === `/api/v1/submissions/submissions/exams/${created.examId}/omr/batches/`,
+        && new URL(resp.url()).pathname === `/api/v1${initializePath}`,
       { timeout: 90_000 },
     ).then((response) => {
       expect(response.status(), "OMR batch initialization must succeed before file admission").toBe(201);
@@ -1482,8 +1483,9 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(initializeResponse.status()).toBe(201);
     expect(uploadResponse.status()).toBe(201);
     const uploadBody = await uploadResponse.json() as {
+      id: string;
       submission_ids?: number[];
-      items?: { ordinal: number; submission_id: number | null; status: string }[];
+      items?: { id: string; ordinal: number; submission_id: number | null; status: string }[];
     };
     created.submissionIds = (uploadBody.submission_ids ?? []).map((id) => Number(id));
     expect(created.submissionIds.length).toBe(1);
@@ -1491,6 +1493,31 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const submissionId = created.submissionIds[0];
     expect(uploadBody.items).toHaveLength(1);
     expect(uploadBody.items?.[0]).toMatchObject({ ordinal: 1, submission_id: submissionId });
+    await test.step("같은 등록 시작 요청은 서버의 작업과 접수 순번을 재사용한다", async () => {
+      const input = initializeResponse.request().postDataJSON() as Record<string, unknown>;
+      expect(input).toMatchObject({
+        client_request_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+        session_id: created.sessionId,
+        total_count: 1,
+      });
+      const original = await initializeResponse.json() as { id: string; items: { id: string }[] };
+      expect(uploadBody.id).toBe(original.id);
+      expect(uploadBody.items?.[0].id).toBe(original.items[0].id);
+      const replay = await expectApi<{
+        id: string;
+        items: { id: string; ordinal: number; submission_id: number | null }[];
+      }>(request, "POST", initializePath, adminTokens.access, input, [201]);
+      expect(replay).toMatchObject({
+        id: original.id,
+        items: [{ id: original.items[0].id, ordinal: 1, submission_id: submissionId }],
+      });
+      await expectApi(request, "POST", initializePath, adminTokens.access, { ...input, total_count: 2 }, [409]);
+      const workbox = await expectApi<{ id: string; exam_id: number; session_id: number | null }[]>(
+        request, "GET", "/submissions/submissions/omr/batches/", adminTokens.access,
+      );
+      expect(workbox.filter((batch) => batch.exam_id === created.examId && batch.session_id === created.sessionId)
+        .map((batch) => batch.id)).toEqual([original.id]);
+    });
     // The durable receipt counts admitted files separately from grading.
     await expect(uploadDialog.getByText("접수 확인 1장")).toBeVisible({ timeout: 20_000 });
     const ledger = uploadDialog.getByLabel("답안지별 접수 내역");
