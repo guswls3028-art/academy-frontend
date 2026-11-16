@@ -35,6 +35,47 @@ function documentRequest(host: string, pathname: string) {
   } as never);
 }
 
+test("student shell requests branding while the fallback index is loading", async () => {
+  const originalFetch = globalThis.fetch;
+  const host = "qa-shell-branding.example";
+  let brandingHost: string | null = null;
+  let indexRequested!: () => void;
+  let completeIndex!: (response: Response) => void;
+  const indexStarted = new Promise<void>((resolve) => { indexRequested = resolve; });
+  const pendingIndex = new Promise<Response>((resolve) => { completeIndex = resolve; });
+  const headers = { "Content-Type": "text/html; charset=utf-8" };
+  globalThis.fetch = async (input) => {
+    brandingHost = new URL(String(input)).searchParams.get("hostname");
+    return Response.json({ title: "QA Student Academy", tenant_code: "qa-shell-branding" });
+  };
+  const response = onRequestGet({
+    request: new Request(`https://${host}/student/dashboard`),
+    env: {
+      ASSETS: {
+        fetch: async (request: Request) => {
+          if (new URL(request.url).pathname === "/index.html") {
+            indexRequested();
+            return pendingIndex;
+          }
+          return new Response("first asset lookup", { headers });
+        },
+      },
+    },
+  } as never);
+  try {
+    await indexStarted;
+    const calledWhileIndexPending = brandingHost;
+    completeIndex(new Response(readFileSync(resolve(process.cwd(), "index.html"), "utf8"), { headers }));
+    const document = await response;
+    expect(calledWhileIndexPending).toBe(host);
+    expect(document.status).toBe(200);
+    expect(await document.text()).toContain("<title>QA Student Academy</title>");
+    expect(document.headers.get("Content-Security-Policy")).toContain("script-src 'self' 'nonce-");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("tenant metadata preserves special characters as text without injecting tags or replacement patterns", async () => {
   const originalFetch = globalThis.fetch;
   const title = 'QA </title><script id="qa-meta-injection">alert(1)</script> $&';

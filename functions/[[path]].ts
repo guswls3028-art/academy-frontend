@@ -792,7 +792,12 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
   // index.html 가져오기 (SPA 루트)
   const indexUrl = new URL(context.request.url);
   indexUrl.pathname = "/index.html";
-  const res = await context.env.ASSETS.fetch(new Request(indexUrl));
+  const indexAsset = context.env.ASSETS.fetch(new Request(indexUrl));
+  // SPA 폴백을 확인한 요청에서는 index와 테넌트 메타를 함께 조회한다.
+  const branding = host !== DEV_CONSOLE_HOST && assetRes.status === 200 && assetCt.includes("text/html")
+    ? fetchOgMeta(host)
+    : null;
+  const res = await indexAsset;
 
   if (res.status !== 200) {
     return res;
@@ -806,7 +811,7 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
   let html = await res.text();
 
   // 테넌트별 메타 치환 — API 우선, 빈 필드는 폴백으로 보완
-  const apiMeta = host === DEV_CONSOLE_HOST ? null : await fetchOgMeta(host);
+  const apiMeta = host === DEV_CONSOLE_HOST ? null : await (branding ?? fetchOgMeta(host));
   const fallback = FALLBACK_META[host];
   const tenantMeta = apiMeta
     ? {
