@@ -837,26 +837,34 @@ test.describe("OMR durable batch progress", () => {
       await row.getByRole("button", { name: "오른쪽 회전" }).click();
       await expect(row).toContainText("업로드 회전 90°");
 
-      const request = page.waitForRequest((candidate) => candidate.method() === "POST"
-        && new URL(candidate.url()).pathname.endsWith(`/exams/${EXAM_ID}/omr/batch/`));
+      const capturedFiles = await page.evaluateHandle(() => {
+        const files: File[] = [];
+        const original = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.send = function (body) {
+          if (body instanceof FormData && body.has("item_ordinals")) {
+            const file = body.get("files");
+            if (file instanceof File) files.push(file);
+            XMLHttpRequest.prototype.send = original;
+          }
+          return original.call(this, body);
+        };
+        return files;
+      });
       await dialog.getByRole("button", { name: "등록 시작" }).click();
       await expect(dialog.getByText("접수 확인 1장", { exact: false })).toBeVisible();
-      const body = (await request).postDataBuffer();
-      expect(body).not.toBeNull();
-      const marker = Buffer.from('filename="phone.jpg"\r\nContent-Type: image/jpeg\r\n\r\n');
-      const header = body!.indexOf(marker);
-      expect(header).toBeGreaterThan(-1);
-      const start = header + marker.length;
-      const end = body!.indexOf(Buffer.from("\r\n--"), start);
-      expect(end).toBeGreaterThan(start);
-      const dimensions = await page.evaluate(async (bytes) => {
-        const image = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: "image/jpeg" }));
-        const result = [image.width, image.height];
+      const encoded = await capturedFiles.evaluate(async ([file]) => {
+        if (!file) throw new Error("No image was sent in the OMR multipart request");
+        const image = await createImageBitmap(file);
+        const result = { filename: file.name, mimeType: file.type, size: file.size, dimensions: [image.width, image.height] };
         image.close();
         return result;
-      }, [...body!.subarray(start, end)]);
-      expect(dimensions).toEqual([360, 640]);
-      expect(api.uploadState()).toMatchObject({ initializePosts: 1, uploadPosts: 1 });
+      });
+      await capturedFiles.dispose();
+      expect(encoded).toMatchObject({ filename: "phone.jpg", mimeType: "image/jpeg", dimensions: [360, 640] });
+      expect(encoded.size).toBeGreaterThan(0);
+      const upload = api.uploadState();
+      expect(upload).toMatchObject({ initializePosts: 1, uploadPosts: 1 });
+      expect(upload.uploadBodies[0]).toContain('filename="phone.jpg"');
     });
 
     test(`${width}px OMR 등록 시작 응답이 끊겨도 기존 작업에 두 장을 접수한다`, async ({ page }) => {
