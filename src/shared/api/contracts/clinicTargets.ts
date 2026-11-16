@@ -1,4 +1,5 @@
 import api from "@/shared/api/axios";
+import type { components } from "@/shared/api/generated/schema";
 import { listFromApiResponse } from "@/shared/api/response";
 
 export type ClinicReason = "exam" | "homework" | "both";
@@ -51,6 +52,7 @@ export type ClinicTarget = {
   student_id?: number | null;
   student_name: string;
   session_title: string;
+  session_label?: components["schemas"]["AdminClinicTarget"]["session_label"];
   clinic_reason?: ClinicReason;
   reason?: "score" | "confidence" | "missing";
   exam_score?: number | null;

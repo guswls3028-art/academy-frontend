@@ -13093,6 +13093,7 @@ export interface components {
             /** @default  */
             school: string;
             session_id?: number | null;
+            session_label: string;
             session_title: string;
             source_id?: number | null;
             source_scope?: string | null;
