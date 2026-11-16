@@ -28,6 +28,7 @@ function fmtScore(total: number | null, max: number): string {
 function examScoreLabel(exam: MyExamGradeSummary): string {
   if (exam.grading_status === "subjective_pending") return "채점 진행 중";
   if (exam.is_provisional) return "채점 확인 중";
+  if (exam.meta_status === "NOT_SUBMITTED" && exam.achievement === "REMEDIATED") return "원시험 미응시";
   return fmtScore(exam.total_score, exam.max_score);
 }
 

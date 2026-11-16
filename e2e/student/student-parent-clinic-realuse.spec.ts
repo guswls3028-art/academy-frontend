@@ -13,7 +13,9 @@ import {
   loginApi,
   loginThroughUi,
   logoutStudentApp,
+  QA_API,
   QA_BASE,
+  QA_TENANT,
   reloadStudentApp,
   seedBrowserAuth,
   STUDENT_PARENT_REALUSE_ENABLED,
@@ -243,6 +245,29 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
     expect(participant).toMatchObject({ booking_start_date: bookingDate, booking_end_date: bookingDate });
     expect(participant.booking_start_time?.slice(0, 5)).toBe("00:30");
     expect(participant.booking_end_time?.slice(0, 5)).toBe("01:00");
+    const parentTokens = await loginApi(request, family.parentPhone, family.parentPassword);
+    async function expectLearnerSchedules(status: "예약됨" | "등원") {
+      await Promise.all([
+        { role: "student", access: studentTokens.access },
+        { role: "parent", access: parentTokens.access },
+      ].map(async ({ role, access }) => {
+        const headers: Record<string, string> = { Authorization: `Bearer ${access}`, "X-Tenant-Code": QA_TENANT };
+        if (role === "parent") headers["X-Student-Id"] = String(student.id);
+        const response = await request.get(`${QA_API}/api/v1/student/sessions/me/`, {
+          headers,
+          timeout: 60_000,
+        });
+        expect(response.status(), `${role} schedule read`).toBe(200);
+        const row = listFrom(await response.json()).find(({ id }) => id === -participant.id);
+        expect(row, `${role} overnight clinic schedule (${status})`).toMatchObject({
+          type: "clinic",
+          date: bookingDate,
+          start_time: "00:30:00",
+          status,
+        });
+      }));
+    }
+    await expectLearnerSchedules("예약됨");
     await page.getByRole("tab", { name: /내 일정/ }).click();
     await expect(page.locator("article").filter({ hasText: sessionTitle })).toContainText(bookingMemo);
     await expect(page.locator("article").filter({ hasText: sessionTitle })).toContainText(`이용 ${bookingDate} 00:30–01:00`);
@@ -279,6 +304,7 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
       const participantPath = "/clinic/participants/" + participant.id + "/";
       const arrived = await expectApi<ClinicParticipant>(request, "GET", participantPath, admin.access);
       expect(arrived).toMatchObject({ status: "attended", checked_in_at: expect.any(String), checked_out_at: null });
+      await expectLearnerSchedules("등원");
 
       const stale = await api(request, "PATCH", participantPath + "set_status/", admin.access, {
         status: "booked",
@@ -310,12 +336,28 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
       });
       await staffPage.reload({ waitUntil: "domcontentloaded" });
       await expect(rosterCard.locator(".clinic-ops__status-badge")).toHaveText("미등원");
+      await expectLearnerSchedules("예약됨");
       await assertNoHorizontalOverflow(staffPage);
       staffBoundary.assertClean();
       staffBrowser.assertZeroDefects();
     } finally {
       await staffContext.close();
     }
+
+    await gotoAndSettle(page, `${QA_BASE}/student/sessions`, { timeout: 30_000 });
+    const nextCalendarMonth = page.getByRole("button", { name: "다음 달" });
+    await expect(nextCalendarMonth).toBeVisible();
+    const [bookingYear, bookingMonth, bookingDay] = bookingDate.split("-");
+    const bookingMonthLabel = page.getByText(`${bookingYear}년 ${Number(bookingMonth)}월`, { exact: true });
+    if (!(await bookingMonthLabel.isVisible())) {
+      await nextCalendarMonth.click();
+    }
+    await expect(bookingMonthLabel).toBeVisible();
+    await page.getByRole("button", { name: String(Number(bookingDay)), exact: true })
+      .and(page.locator("button:enabled")).click();
+    const calendarBooking = page.getByRole("link").filter({ hasText: sessionTitle });
+    await expect(calendarBooking).toBeVisible();
+    await expect(calendarBooking).toContainText("00:30 · 예약됨");
 
     await logoutStudentApp(page);
     await loginThroughUi(page, family.parentPhone, family.parentPassword);

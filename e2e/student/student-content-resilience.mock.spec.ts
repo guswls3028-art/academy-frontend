@@ -370,7 +370,8 @@ async function installStudentApi(
           source_type: "exam",
         }],
         current_result: "FAIL",
-      } : { current_targets: [], current_result: "SUCCESS" } });
+        passcard_state: "CLINIC_REQUIRED",
+      } : { current_targets: [], current_result: "SUCCESS", passcard_state: "PASSED" } });
       return;
     }
     if (path.endsWith("/community/posts/77/")) {
