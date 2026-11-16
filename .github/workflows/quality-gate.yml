@@ -20,6 +20,7 @@ on:
         options:
           - full-suite
           - excel-learning-homework
+          - video-multipart-storage
 
 concurrency:
   group: frontend-quality-${{ github.ref }}

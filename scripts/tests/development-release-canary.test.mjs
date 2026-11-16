@@ -922,13 +922,58 @@ test("student-parent cleanup seals hard-delete storage cleanup before reporting 
   assert.match(source, /return deletion;/);
 });
 
+test("multipart diagnostic is dispatch-only and requires matching browser and sealed storage receipts", () => {
+  const scope = "video-multipart-storage";
+  const env = { ACADEMY_RELEASE_DIAGNOSTIC_SCOPE: scope, ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: "1" };
+  assert.throws(() => runner.readDiagnosticScope({ ...env, GITHUB_EVENT_NAME: "push" }));
+  assert.throws(() => runner.readDiagnosticScope({ ...env, GITHUB_EVENT_NAME: "workflow_dispatch", ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: "0" }));
+  assert.equal(runner.readDiagnosticScope({ ...env, GITHUB_EVENT_NAME: "workflow_dispatch" }), scope);
+  assert.equal(developmentRealUseCases[runner.VIDEO_MULTIPART_STORAGE_SPEC], undefined);
+  const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  assert.match(source, /E2E_VIDEO_MULTIPART_SESSION_ID: multipartOnly \? String\(multipartStorage\.setup\.session_id\) : undefined/);
+  assert.match(source, /E2E_VIDEO_MULTIPART_LECTURE_ID: multipartOnly \? String\(multipartStorage\.setup\.lecture_id\) : undefined/);
+  const file = runner.VIDEO_MULTIPART_STORAGE_SPEC;
+  const payload = {
+    status: "YMATH_REALUSE_SCENARIO_READY", r2_scope_proven: true,
+    synthetic_multipart_video: { session_id: 12, lecture_id: 4, objects: 0, uploads: 0 },
+  };
+  const sealed = runner.assertMultipartSetup(payload);
+  assert.throws(() => runner.assertMultipartSetup({ ...payload, synthetic_multipart_video: { ...sealed, uploads: 1 } }));
+  const browser = {
+    schema: "development-video-multipart-browser/v1", uploadedPartCount: 2, expectedBytes: 105906176,
+    completionStatus: 503, persistedStatus: "FAILED",
+  };
+  const report = (body, projectName = "chromium") => ({
+    errors: [], stats: { expected: 1, unexpected: 0, flaky: 0, skipped: 0 },
+    suites: [{ specs: [{ file, tests: [{
+      expectedStatus: "passed", status: "expected", projectName, results: [{
+        status: "passed", attachments: [{ name: "multipart-storage-browser", contentType: "application/json",
+          body: Buffer.from(JSON.stringify(body)).toString("base64") }],
+      }],
+    }] }] }],
+  });
+  assert.deepEqual(runner.assertMultipartBrowserReport(report(browser)).browser, browser);
+  assert.throws(() => runner.assertMultipartBrowserReport(report({ ...browser, persistedStatus: "UPLOADED" })));
+  assert.throws(() => runner.assertMultipartBrowserReport(report({ ...browser, unexpected: true })));
+  assert.throws(() => runner.assertMultipartBrowserReport(report(browser, "webkit")));
+  const stored = { session_id: 12, objects: 1, uploads: 0, content_length: 105906176, batch_submitted: false, status: "FAILED" };
+  assert.deepEqual(runner.assertMultipartReadback({ synthetic_multipart_video: stored }, sealed, browser), stored);
+  for (const mismatch of [{ uploads: 1 }, { session_id: 13 }, { content_length: 105906175 }, { batch_submitted: true }]) {
+    assert.throws(() => runner.assertMultipartReadback({ synthetic_multipart_video: { ...stored, ...mismatch } }, sealed, browser));
+  }
+  assert.throws(() => runner.assertMultipartReadback({ synthetic_multipart_video: stored }, sealed));
+  const empty = { session_id: 12, objects: 0, uploads: 0 };
+  assert.deepEqual(runner.assertMultipartReadback({ synthetic_multipart_video: empty }, sealed), empty);
+});
+
 test("development canary seals required-student two-slot self-cancellation and mock delivery", () => {
   const specName = "student-clinic-required-cancel-realuse.spec.ts";
   const spec = readFileSync(new URL(`../../e2e/student/${specName}`, import.meta.url), "utf8");
   const config = readFileSync(new URL("../../playwright.development-release.config.ts", import.meta.url), "utf8");
   const runnerSource = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
 
-  assert.match(config, /testMatch: diagnosticScope === "excel-learning-homework" \? \[\.\.\.EXCEL_LEARNING_HOMEWORK_SPECS\] : Object\.keys\(developmentRealUseCases\)/);
+  assert.match(config, /testMatch: diagnosticScope === "video-multipart-storage" \? \[VIDEO_MULTIPART_STORAGE_SPEC\]/);
+  assert.match(config, /: diagnosticScope === "excel-learning-homework" \? \[\.\.\.EXCEL_LEARNING_HOMEWORK_SPECS\] : Object\.keys\(developmentRealUseCases\)/);
   assert.match(runnerSource, /Object\.entries\(developmentRealUseCases\)/);
   assert.equal(developmentRealUseCases[`student/${specName}`], 1);
   for (const required of [
@@ -2792,7 +2837,8 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.match(runnerSource, /SyntheticLongVideo: \[syntheticLongVideo \? "true" : "false"\]/);
   assert.match(runnerSource, /scenario = await operation\("Setup"\)/);
   assert.match(runnerSource, /E2E_STUDENT2_USER: "ymath-qa-student-02"/);
-  assert.match(runnerSource, /E2E_LONG_VIDEO_ID: String\(scenario\.synthetic_long_video\.video_id\)/);
+  assert.match(runnerSource, /const longVideo = multipartOnly \? null : assertLongVideoSetup\(scenario\)/);
+  assert.match(runnerSource, /E2E_LONG_VIDEO_ID: longVideo \? String\(longVideo\.video_id\) : ""/);
   assert.match(runnerSource, /E2E_LONG_VIDEO_TENANT_ID: String\(scenario\.tenant_id\)/);
   assert.equal(developmentRealUseCases["student/video-playback-renewal.realuse.spec.ts"], 1);
   assert.match(configSource, /timeout: 17 \* 60_000/);

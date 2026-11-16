@@ -1,13 +1,14 @@
 import { defineConfig, devices } from "@playwright/test";
 import { developmentRealUseCases } from "./e2e/suites.mjs";
-import { EXCEL_LEARNING_HOMEWORK_SPECS, readDiagnosticFullSuiteMode, readDiagnosticScope } from "./scripts/run-development-release-canary.mjs";
+import { EXCEL_LEARNING_HOMEWORK_SPECS, VIDEO_MULTIPART_STORAGE_SPEC, readDiagnosticFullSuiteMode, readDiagnosticScope } from "./scripts/run-development-release-canary.mjs";
 
 const diagnosticOnly = readDiagnosticFullSuiteMode();
 const diagnosticScope = readDiagnosticScope();
 
 export default defineConfig({
   testDir: "./e2e",
-  testMatch: diagnosticScope === "excel-learning-homework" ? [...EXCEL_LEARNING_HOMEWORK_SPECS] : Object.keys(developmentRealUseCases),
+  testMatch: diagnosticScope === "video-multipart-storage" ? [VIDEO_MULTIPART_STORAGE_SPEC]
+    : diagnosticScope === "excel-learning-homework" ? [...EXCEL_LEARNING_HOMEWORK_SPECS] : Object.keys(developmentRealUseCases),
   forbidOnly: true,
   fullyParallel: false,
   workers: 1,
