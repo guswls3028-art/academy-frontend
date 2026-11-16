@@ -19,6 +19,7 @@ for (const role of ["student", "parent"]) {
         if (!localStorage.getItem(selectionKey)) localStorage.setItem(selectionKey, "11");
       }, `e30.${payload}.signature`);
       let attendanceStatus = 400;
+      let secondChildStatus = 503;
       let historyTitle = "종료된 특강";
       let holdOldChild = false;
       let releaseOldChild: () => void = () => undefined;
@@ -36,10 +37,13 @@ for (const role of ["student", "parent"]) {
         if (path === "/student/attendance/summary/") {
           const selected = request.headers()["x-student-id"];
           if (role === "parent") expect(["11", "12"]).toContain(selected);
-          if (selected === "12") return route.fulfill({ json: {
-            summary: { total: 1, present: 1, late: 0, early_leave: 0, absent: 0, runaway: 0 },
-            recent: [{ session_id: 28, lecture_title: "둘째의 출결", session_title: "둘째 차시", date: null, status: "PRESENT" }],
-          } });
+          if (selected === "12") {
+            if (secondChildStatus === 503) return route.fulfill({ status: 503, json: { detail: "Second child attendance unavailable" } });
+            return route.fulfill({ json: {
+              summary: { total: 1, present: 1, late: 0, early_leave: 0, absent: 0, runaway: 0 },
+              recent: [{ session_id: 28, lecture_title: "둘째의 출결", session_title: "둘째 차시", date: null, status: "PRESENT" }],
+            } });
+          }
           if (holdOldChild) {
             oldChildPending = true;
             await oldChildResponse;
@@ -113,9 +117,13 @@ for (const role of ["student", "parent"]) {
       await expect(page.getByText("출결 정보를 불러오지 못했습니다", { exact: true })).toBeVisible();
       await expect(freshHistory).toHaveCount(0);
       attendanceStatus = 503;
+      let retryResponses = 0;
       await Promise.all([
         page.waitForResponse(response => response.request().method() === "GET"
-          && new URL(response.url()).pathname === "/api/v1/student/attendance/summary/" && response.status() === 503),
+          && new URL(response.url()).pathname === "/api/v1/student/attendance/summary/"
+          && response.status() === 503
+          // Two Axios attempts for each of the three query attempts.
+          && ++retryResponses === 6, { timeout: 20_000 }),
         retry.click(),
       ]);
       await expect(page.getByText("출결 정보를 불러오지 못했습니다", { exact: true })).toBeVisible({ timeout: 20_000 });
@@ -130,14 +138,32 @@ for (const role of ["student", "parent"]) {
         try {
           await agedBack();
           await expect.poll(() => oldChildPending).toBe(true);
+          const childSwitchDocument = await page.evaluate(() => performance.timeOrigin);
           await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "다른 학생" }).click();
           await expect(page).toHaveURL(/\/student\/dashboard/);
-          await page.goto(`${BASE}/student/attendance`, { waitUntil: "domcontentloaded" });
+          const secondChildResponse = (status: number) => page.waitForResponse(response => {
+            const request = response.request();
+            return request.method() === "GET"
+              && new URL(response.url()).pathname === "/api/v1/student/attendance/summary/"
+              && request.headers()["x-student-id"] === "12"
+              && response.status() === status;
+          });
+          await Promise.all([
+            secondChildResponse(503),
+            page.getByRole("link", { name: /출결 최근 출결/ }).click(),
+          ]);
+          await expect(page).toHaveURL(/\/student\/attendance$/);
+          expect(await page.evaluate(() => performance.timeOrigin)).toBe(childSwitchDocument);
           const secondHistory = page.getByText("둘째의 출결", { exact: true });
-          await expect(secondHistory).toBeVisible();
+          await expect(page.getByText("출결 정보를 불러오지 못했습니다", { exact: true })).toBeVisible({ timeout: 20_000 });
+          await expect(retry).toBeVisible();
+          await expect(secondHistory).toHaveCount(0);
           await expect(freshHistory).toHaveCount(0);
           releaseOldChild();
           await expect.poll(() => oldChildSettled).toBe(true);
+          await expect(freshHistory).toHaveCount(0);
+          secondChildStatus = 200;
+          await Promise.all([secondChildResponse(200), retry.click()]);
           await expect(secondHistory).toBeVisible();
           await expect(freshHistory).toHaveCount(0);
         } finally {
