@@ -176,6 +176,11 @@
   gap: 2px;
 }
 
+.admin-omr-upload__file-controls button[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: default;
+}
+
 @container omr-upload (max-width: 560px) {
   .admin-omr-upload__file {
     grid-template-columns: minmax(0, 1fr) auto;
