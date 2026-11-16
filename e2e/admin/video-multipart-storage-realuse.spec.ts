@@ -1,5 +1,6 @@
 import { readFile, open, unlink } from "node:fs/promises";
 import { expect, test } from "../fixtures/strictTest";
+import { installMultipartAckLoss } from "../helpers/multipartAckLoss";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import {
   assertQaStudentParentRuntime,
@@ -15,6 +16,7 @@ const videoName = "qa-native-multipart.mp4";
 const sessionId = Number(process.env.E2E_VIDEO_MULTIPART_SESSION_ID);
 const lectureId = Number(process.env.E2E_VIDEO_MULTIPART_LECTURE_ID);
 const optedIn = process.env.E2E_VIDEO_MULTIPART_SESSION_ID !== undefined;
+const presignPath = /^\/api\/v1\/media\/videos\/([1-9][0-9]*)\/upload\/multipart\/presign\/$/;
 const completionPath = /^\/api\/v1\/media\/videos\/([1-9][0-9]*)\/upload\/multipart\/complete\/$/;
 
 async function makeMultipartFixture(path: string): Promise<void> {
@@ -51,13 +53,31 @@ test("staff uploads an assembled two-part file to the exact isolated video store
   await addVideo.click();
   const dialog = page.getByRole("dialog").filter({ hasText: "영상 추가" });
   const fixturePath = testInfo.outputPath(videoName);
-  const uploadedParts: number[] = [];
+  const uploadedParts: { part: number; identity: string; uploadId: string | null; etag: string }[] = [];
+  const presigns: { videoId: number; parts: number[]; uploadId: string }[] = [];
+  const restoreAck = await installMultipartAckLoss(page, sessionId);
+  let ackLossCount = 0;
+
+  page.on("request", (request) => {
+    if (request.method() !== "POST") return;
+    const match = presignPath.exec(new URL(request.url()).pathname);
+    if (!match) return;
+    const { part_numbers, upload_id } = request.postDataJSON();
+    presigns.push({ videoId: Number(match[1]), parts: part_numbers, uploadId: upload_id });
+  });
 
   page.on("response", (response) => {
     if (response.request().method() !== "PUT" || !response.ok()) return;
     const signed = new URL(response.url());
     if (!signed.searchParams.has("uploadId") || !signed.searchParams.has("partNumber")) return;
-    if (response.headers().etag) uploadedParts.push(Number(signed.searchParams.get("partNumber")));
+    const etag = response.headers().etag;
+    if (!etag) return;
+    uploadedParts.push({
+      part: Number(signed.searchParams.get("partNumber")),
+      identity: JSON.stringify([signed.origin, signed.pathname, signed.searchParams.get("uploadId")]),
+      uploadId: signed.searchParams.get("uploadId"),
+      etag,
+    });
   });
 
   try {
@@ -70,7 +90,21 @@ test("staff uploads an assembled two-part file to the exact isolated video store
     ]);
     const videoId = Number(completionPath.exec(new URL(complete.url()).pathname)?.[1]);
     expect(Number.isSafeInteger(videoId) && videoId > 0).toBe(true);
-    await expect.poll(() => [...uploadedParts].sort()).toEqual([1, 2]);
+    await expect.poll(() => uploadedParts.map(({ part }) => part).sort()).toEqual([1, 1, 2]);
+    ackLossCount = await restoreAck();
+    expect(ackLossCount).toBe(1);
+    const completion = complete.request().postDataJSON();
+    const samePartRetried = new Set(uploadedParts.map(({ identity }) => identity)).size === 1
+      && uploadedParts.every((item) => item.uploadId === completion.upload_id)
+      && presigns.length === 2
+      && presigns.every((item) => item.videoId === videoId && item.uploadId === completion.upload_id)
+      && JSON.stringify(presigns.map(({ parts }) => parts)) === "[[1,2],[1]]";
+    expect(samePartRetried).toBe(true);
+    const completionParts = completion.parts as { PartNumber: number; ETag: string }[];
+    const lastEtags = new Map(uploadedParts.map(({ part, etag }) => [part, etag]));
+    expect(Array.isArray(completionParts) && completionParts.length === 2
+      && [1, 2].every((part) => completionParts.some((item) => item.PartNumber === part
+        && item.ETag === lastEtags.get(part)))).toBe(true);
     if (complete.status() === 503) {
       expect((await complete.json()).code).toBe("VIDEO_BATCH_SUBMIT_FAILED");
     } else {
@@ -85,14 +119,18 @@ test("staff uploads an assembled two-part file to the exact isolated video store
     await testInfo.attach("multipart-storage-browser", {
       contentType: "application/json",
       body: JSON.stringify({
-        schema: "development-video-multipart-browser/v1",
-        uploadedPartCount: uploadedParts.length,
+        schema: "development-video-multipart-browser/v2",
+        uploadedPartCount: new Set(uploadedParts.map(({ part }) => part)).size,
+        successfulPutCount: uploadedParts.length,
+        ackLossCount,
+        samePartRetried,
         expectedBytes: sourceSize,
         completionStatus: complete.status(),
         persistedStatus: row.status,
       }),
     });
   } finally {
+    try { await restoreAck(); } catch { /* The page may already be closed during timeout teardown. */ }
     await unlink(fixturePath).catch((error: NodeJS.ErrnoException) => {
       if (error.code !== "ENOENT") throw error;
     });

@@ -940,7 +940,8 @@ test("multipart diagnostic is dispatch-only and requires matching browser and se
   const sealed = runner.assertMultipartSetup(payload);
   assert.throws(() => runner.assertMultipartSetup({ ...payload, synthetic_multipart_video: { ...sealed, uploads: 1 } }));
   const browser = {
-    schema: "development-video-multipart-browser/v1", uploadedPartCount: 2, expectedBytes: 105906176,
+    schema: "development-video-multipart-browser/v2", uploadedPartCount: 2, expectedBytes: 105906176,
+    ackLossCount: 1, samePartRetried: true, successfulPutCount: 3,
     completionStatus: 503, persistedStatus: "FAILED",
   };
   const report = (body, projectName = "chromium") => ({
@@ -954,7 +955,9 @@ test("multipart diagnostic is dispatch-only and requires matching browser and se
   });
   assert.deepEqual(runner.assertMultipartBrowserReport(report(browser)).browser, browser);
   assert.throws(() => runner.assertMultipartBrowserReport(report({ ...browser, persistedStatus: "UPLOADED" })));
-  assert.throws(() => runner.assertMultipartBrowserReport(report({ ...browser, unexpected: true })));
+  for (const mismatch of [{ ackLossCount: 0 }, { samePartRetried: false }, { successfulPutCount: 2 }, { unexpected: true }]) {
+    assert.throws(() => runner.assertMultipartBrowserReport(report({ ...browser, ...mismatch })));
+  }
   assert.throws(() => runner.assertMultipartBrowserReport(report(browser, "webkit")));
   const stored = { session_id: 12, objects: 1, uploads: 0, content_length: 105906176, batch_submitted: false, status: "FAILED" };
   assert.deepEqual(runner.assertMultipartReadback({ synthetic_multipart_video: stored }, sealed, browser), stored);
@@ -1261,7 +1264,7 @@ test("actual runtime finalization requires both zero-residue receipts for the no
       postCleanupInspectObservation: { proven: true },
       multipartStorage: {
         setup: { ...empty, lecture_id: 4 },
-        browser: { uploadedPartCount: 2, expectedBytes: 105906176 },
+        browser: { uploadedPartCount: 2, expectedBytes: 105906176, ackLossCount: 1, samePartRetried: true, successfulPutCount: 3 },
         inspect: { session_id: 12, objects: 1, uploads: 0, content_length: 105906176, batch_submitted: false },
         cleanup: empty,
         postCleanup: missingPostCleanup ? null : empty,

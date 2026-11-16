@@ -1051,8 +1051,11 @@ export function assertMultipartBrowserReport(report) {
   assert.equal(contentType, "application/json");
   assert.ok(typeof body === "string" && body.length <= 2048, "Invalid multipart browser receipt encoding");
   const value = JSON.parse(Buffer.from(body, "base64").toString("utf8"));
-  assert.deepEqual(Object.keys(value).sort(), ["completionStatus", "expectedBytes", "persistedStatus", "schema", "uploadedPartCount"]);
-  assert.equal(value.schema, "development-video-multipart-browser/v1");
+  assert.deepEqual(Object.keys(value).sort(), ["ackLossCount", "completionStatus", "expectedBytes", "persistedStatus", "samePartRetried", "schema", "successfulPutCount", "uploadedPartCount"]);
+  assert.equal(value.schema, "development-video-multipart-browser/v2");
+  assert.equal(value.ackLossCount, 1);
+  assert.equal(value.samePartRetried, true);
+  assert.equal(value.successfulPutCount, 3);
   assert.equal(value.uploadedPartCount, 2);
   assert.equal(value.expectedBytes, VIDEO_MULTIPART_BYTES);
   assert.ok([200, 503].includes(value.completionStatus));
