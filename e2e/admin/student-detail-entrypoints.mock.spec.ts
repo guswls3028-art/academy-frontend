@@ -1,4 +1,4 @@
-import type { Page, Route } from "@playwright/test";
+import type { Page, Request, Route } from "@playwright/test";
 import ExcelJS from "exceljs";
 
 import { expect, test } from "../fixtures/strictTest";
@@ -902,9 +902,11 @@ test("학생 메모는 느린 저장 중 재입력한 내용을 보존하고 닫
 
 test("메모 저장 이전에 시작한 상세 재조회가 저장 결과를 되돌리지 않는다", async ({ page }) => {
   await prepareDetail(page);
-  let serverMemo = "저장 전 메모";
+  const oldMemo = "저장 전 메모";
+  const savedMemo = "저장 완료한 메모";
+  let serverMemo = oldMemo;
   let removed = false;
-  let reads = 0;
+  let staleRead: Request | undefined;
   let releaseSave!: () => void;
   let releaseRead!: () => void;
   const saving = new Promise<void>((resolve) => { releaseSave = resolve; });
@@ -920,8 +922,10 @@ test("메모 저장 이전에 시작한 상세 재조회가 저장 결과를 되
       return route.fulfill({ json: { id: 1001, memo: serverMemo } });
     }
     const memo = serverMemo;
-    reads++;
-    if (reads === 2) await reading;
+    if (removed && memo === oldMemo && !staleRead) {
+      staleRead = route.request();
+      await reading;
+    }
     return route.fulfill({ json: { id: 1001, name: "재조회학생", memo,
       tags: removed ? [] : [{ id: 91, name: "재조회 태그", color: "#2563eb" }], enrollments: [] } });
   });
@@ -929,18 +933,28 @@ test("메모 저장 이전에 시작한 상세 재조회가 저장 결과를 되
   const overlay = page.getByTestId("student-detail-overlay");
   await overlay.getByRole("button", { name: "연락처·메모 보기" }).click();
   const input = overlay.getByRole("textbox", { name: "학생 공통 메모" });
-  await input.fill("저장 완료한 메모");
-  await overlay.getByRole("button", { name: "재조회 태그 태그 제거", exact: true }).click();
-  await expect.poll(() => reads).toBe(2);
-  releaseSave();
-  await expect(overlay.getByText("저장됨", { exact: true })).toBeVisible();
-  const lateResponse = page.waitForResponse((response) => response.request().method() === "GET"
-    && new URL(response.url()).pathname === "/api/v1/students/1001/");
-  releaseRead();
-  await lateResponse;
-  await expect(overlay.getByRole("button", { name: "재조회 태그 태그 제거", exact: true })).toHaveCount(0);
-  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-  await expect(input).toHaveValue("저장 완료한 메모");
+  const tag = overlay.getByRole("button", { name: "재조회 태그 태그 제거", exact: true });
+  try {
+    await input.fill(savedMemo);
+    await Promise.all([
+      page.waitForRequest((request) => request.method() === "PATCH"
+        && new URL(request.url()).pathname === "/api/v1/students/1001/"),
+      input.blur(),
+    ]);
+    await tag.click();
+    await expect.poll(() => Boolean(staleRead)).toBe(true);
+    releaseSave();
+    await expect(overlay.getByText("저장됨", { exact: true })).toBeVisible();
+    const lateResponse = page.waitForResponse((response) => response.request() === staleRead);
+    releaseRead();
+    await lateResponse;
+    await expect(tag).toHaveCount(0);
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    await expect(input).toHaveValue(savedMemo);
+  } finally {
+    releaseSave();
+    releaseRead();
+  }
 });
 
 test("빈 메모의 null 응답은 저장으로 확인하고 누락 응답은 재시도한다", async ({ page }) => {

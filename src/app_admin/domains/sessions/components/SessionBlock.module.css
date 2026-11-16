@@ -282,51 +282,6 @@
   cursor: pointer;
 }
 
-.emptyNotice {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px dashed var(--color-border-divider);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
-}
-
-.emptyNoticeText {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.emptyNoticeTitle {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.emptyNoticeBody {
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-.emptyNoticeButton {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-  gap: 6px;
-  padding: 8px 14px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--color-brand-primary);
-  color: var(--color-brand-primary-contrast);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
 .sessionRow {
   display: flex;
   align-items: center;
@@ -349,10 +304,6 @@
   flex-shrink: 0;
   gap: 6px;
   min-width: 120px;
-}
-
-.rowHeader[data-unassigned="true"] {
-  min-width: 80px;
 }
 
 .labelChip {
@@ -397,19 +348,6 @@
   font-weight: 600;
   color: var(--color-text-tertiary);
   letter-spacing: 0;
-  white-space: nowrap;
-}
-
-.moveHint {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--color-bg-surface-hover);
-  color: var(--color-text-muted);
-  font-size: 10px;
-  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -512,4 +450,65 @@
     width: 148px;
     padding-block: 6px;
   }
+}
+
+.activeCard {
+  display: grid;
+  position: relative;
+  width: min(272px, 100%);
+  align-self: start;
+  border: 1px solid var(--color-brand-primary);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-surface);
+}
+
+.activeCard > :global(.session-block) {
+  width: 100%;
+  border: 0;
+  border-radius: var(--radius-md, 8px) var(--radius-md, 8px) 0 0;
+  box-shadow: none;
+}
+
+.activeCard :global(.session-block__gear) { opacity: 1; }
+.compactCardTitle {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 8px 12px;
+  background: var(--state-selected-bg);
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+  color: var(--color-text-primary);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.compactCardTitle small { color: var(--color-text-secondary); font-size: 12px; font-weight: 500; }
+
+.scheduleEditLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm, 6px);
+  color: var(--color-brand-primary);
+  background: var(--state-selected-bg);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.legacyBar:has(> .activeCard) { align-items: start; }
+
+.activeCard[data-inline='true'] {
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+}
+
+.activeCard[data-inline='true'] > .compactCardTitle {
+  align-self: stretch;
+  align-items: center;
+  border-radius: var(--radius-md, 8px) 0 0 var(--radius-md, 8px);
+  padding-block: 4px;
 }
