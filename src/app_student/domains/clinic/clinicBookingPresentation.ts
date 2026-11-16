@@ -29,6 +29,7 @@ export function targetResolutionLink(
   const sourceId = Number(target.source_id);
   if (!Number.isInteger(sourceId) || sourceId <= 0) return null;
   if (target.source_type === "homework") {
+    if (target.can_submit_homework_files === false) return null;
     return {
       to: `/student/submit/assignment?sessionId=${target.session_id}&homeworkId=${sourceId}`,
       label: "과제 온라인 제출",

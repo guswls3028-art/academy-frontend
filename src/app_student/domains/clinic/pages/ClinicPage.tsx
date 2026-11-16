@@ -22,6 +22,7 @@ import {
   type ClinicSession,
 } from "../api/clinicBooking.api";
 import { fetchStudentClinicSummary } from "../api/clinicSummary.api";
+import { retryClinicVerdict } from "@student/shared/api/clinicVerdict";
 import { clinicDateParts } from "../clinicDate";
 import { studentClinicQueryKeys } from "../queryKeys";
 import { bookingErrorMessage, useClinicBookingUpdates } from "../useClinicBookingUpdates";
@@ -101,19 +102,20 @@ export default function ClinicPage() {
   } = useQuery({
     queryKey: studentClinicQueryKeys.summary,
     queryFn: fetchStudentClinicSummary,
+    retry: retryClinicVerdict,
     staleTime: 30_000,
   });
 
   const currentTargets = useMemo(
-    () => [...(clinicSummary?.current_targets ?? [])].sort(sortTargetsNewestFirst),
-    [clinicSummary],
+    () => clinicSummaryError ? [] : [...(clinicSummary?.current_targets ?? [])].sort(sortTargetsNewestFirst),
+    [clinicSummary, clinicSummaryError],
   );
   const currentTargetLectureIds = useMemo(
     () => new Set(currentTargets.map((target) => target.lecture_id)),
     [currentTargets],
   );
   const hasClinicRequirement =
-    currentTargets.length > 0 || clinicSummary?.current_result === "FAIL";
+    !clinicSummaryError && (currentTargets.length > 0 || clinicSummary?.current_result === "FAIL");
 
   const pendingBookings = useMemo(
     () => myRequests.filter((request) => request.status === "pending").sort(sortBookings),

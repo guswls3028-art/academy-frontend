@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
+import { retryClinicVerdict } from "@student/shared/api/clinicVerdict";
 import { isApiError } from "@/shared/api/axios";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import LectureChip from "@/shared/ui/chips/LectureChip";
@@ -53,6 +54,7 @@ export default function ClinicIDCardPage() {
   const query = useQuery({
     queryKey: studentQueryKeys.clinicIdcard,
     queryFn: ({ signal }) => fetchClinicIdcard(signal),
+    retry: retryClinicVerdict,
     // Five missed polling intervals must not leave a live-looking credential.
     staleTime: 10_000,
     refetchInterval: 2_000,

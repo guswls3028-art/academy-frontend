@@ -97,6 +97,8 @@ export default function StudentVideoPlayer({
   const [ctrlState, setCtrlState] = useState<ControllerState>(initialControllerState);
   const [theater, setTheater] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [controlsHovered, setControlsHovered] = useState(false);
+  const [rangeKeyboardFocused, setRangeKeyboardFocused] = useState(false);
   const { isFullscreen, requestFullscreen } = usePlayerFullscreen(wrapElRef, videoElRef, controllerRef, setShowControls);
   const policySkipBudget = useMemo<ForwardSkipBudgetState>(() => ({
     enabled: policy.seek?.enabled === true,
@@ -257,7 +259,7 @@ export default function StudentVideoPlayer({
       clearTimeout(hideControlsTimerRef.current);
       hideControlsTimerRef.current = null;
     }
-    if (playing && !buffering && showControls) {
+    if (playing && !buffering && showControls && !controlsHovered && !rangeKeyboardFocused) {
       hideControlsTimerRef.current = window.setTimeout(() => {
         hideControlsTimerRef.current = null;
         setShowControls(false);
@@ -266,7 +268,13 @@ export default function StudentVideoPlayer({
     return () => {
       if (hideControlsTimerRef.current) clearTimeout(hideControlsTimerRef.current);
     };
-  }, [playing, buffering, showControls, isFullscreen]);
+  }, [playing, buffering, showControls, controlsHovered, rangeKeyboardFocused, isFullscreen]);
+
+  const exposeKeyboardRange = (target: EventTarget) => {
+    if (!(target instanceof HTMLInputElement) || target.type !== "range") return;
+    setRangeKeyboardFocused(true);
+    setShowControls(true);
+  };
 
   const togglePlay = useCallback(() => {
     const ctrl = controllerRef.current;
@@ -676,7 +684,23 @@ export default function StudentVideoPlayer({
             </div>
 
             {usesCustomControls && (
-              <div className="svpControls">
+              <div
+                className="svpControls"
+                onPointerEnter={(event) => {
+                  if (event.pointerType === "mouse") setControlsHovered(true);
+                }}
+                onPointerLeave={(event) => {
+                  if (event.pointerType === "mouse") setControlsHovered(false);
+                }}
+                onPointerDownCapture={() => setRangeKeyboardFocused(false)}
+                onFocusCapture={(event) => {
+                  if (window.CSS?.supports("selector(:focus-visible)") && event.target.matches(":focus-visible")) {
+                    exposeKeyboardRange(event.target);
+                  }
+                }}
+                onKeyDownCapture={(event) => exposeKeyboardRange(event.target)}
+                onBlurCapture={() => setRangeKeyboardFocused(false)}
+              >
                 <div className="svpProgressRow">
                   <RangeSlider
                     value={current}

@@ -23,18 +23,21 @@ export type FetchNotificationCountsOptions = {
   /** 프로필 id. 전달 시 QnA·상담 질문 조회 가능 */
   profileId: number;
   queryClient: QueryClient;
+  recovering?: boolean;
 };
 
+export const NOTIFICATION_COUNTS_REFRESH_INTERVAL_MS = 60_000;
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function fetchNotificationCounts(
   options: FetchNotificationCountsOptions
 ): Promise<NotificationCounts> {
   const sevenDaysAgo = Date.now() - SEVEN_DAYS_MS;
+  const staleTime = options.recovering ? NOTIFICATION_COUNTS_REFRESH_INTERVAL_MS : 30_000;
   // Badge and list share in-flight requests and fresh data. The 50-item notification
   // slices have their own keys so they cannot replace the full community lists.
   const cached = <T,>(queryKey: readonly string[], queryFn: () => Promise<T>) =>
-    options.queryClient.fetchQuery({ queryKey, queryFn, staleTime: 30_000, retry: false });
+    options.queryClient.fetchQuery({ queryKey, queryFn, staleTime, retry: false });
 
   const [clinicBookings, questions, counselRequests, gradesSummary] = await Promise.all([
     cached(studentQueryKeys.clinicBookings, fetchMyClinicBookingRequests),

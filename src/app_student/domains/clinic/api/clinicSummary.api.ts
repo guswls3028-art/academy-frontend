@@ -1,4 +1,5 @@
 import api from "@student/shared/api/student.api";
+import { decodeClinicVerdict, type ClinicIdcardResult } from "@student/shared/api/clinicVerdict";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 export type ClinicCurrentTarget = {
@@ -15,23 +16,24 @@ export type ClinicCurrentTarget = {
   source_id?: number | null;
   source_title?: string | null;
   source_scope?: string | null;
+  can_submit_homework_files?: boolean;
   created_at?: string | null;
 };
 
 export type StudentClinicSummary = {
   current_targets: ClinicCurrentTarget[];
-  current_result: "SUCCESS" | "FAIL";
+  current_result: ClinicIdcardResult;
 };
 
 /**
  * 학생 클리닉 대상 요약.
  *
- * 백엔드의 기존 `/clinic/idcard/` 읽기 계약은 구버전 앱 호환을 위해
- * 유지되지만, 현재 학생 앱은 패스카드 필드를 소비하지 않는다.
+ * 패스카드와 같은 서버 판정을 검증하고 대상 요약에 필요한 값만 노출한다.
  */
 export async function fetchStudentClinicSummary(): Promise<StudentClinicSummary> {
   const response = await api.get("/clinic/idcard/");
   const data = response.data as Partial<StudentClinicSummary>;
+  const { current_result } = decodeClinicVerdict(data);
 
   return {
     current_targets: Array.isArray(data.current_targets)
@@ -52,6 +54,6 @@ export async function fetchStudentClinicSummary(): Promise<StudentClinicSummary>
             : richHtmlToPlainText(target.source_scope),
         }))
       : [],
-    current_result: data.current_result === "FAIL" ? "FAIL" : "SUCCESS",
+    current_result,
   };
 }

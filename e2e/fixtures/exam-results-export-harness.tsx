@@ -122,6 +122,28 @@ if (visualMode === "shared" || visualMode === "assignments") {
       data = lectureId > 0
         ? sharedRows.filter((row) => row.lecture_id === lectureId).map((row) => ({ ...row, cohort_size: 1 }))
         : sharedRows;
+    } else if (path === "/results/admin/exams/77/analysis-insights/") {
+      const rows = sharedRows.filter((row) => !lectureId || row.lecture_id === lectureId);
+      data = {
+        recommended_cutoff: 65,
+        below_recommended_count: 0,
+        scored_count: rows.length,
+        score_summary: {
+          average: 65,
+          median: 65,
+          top_ten_average: 65,
+          highest: 65,
+          std_dev: 0,
+          std_rate: 0,
+          unscored_count: 0,
+          pass_criterion_count: rows.length,
+          pass_count: rows.filter((row) => row.passed).length,
+          remediated_count: 0,
+          distribution_counts: [0, 0, 0, rows.length, 0],
+        },
+        trend_threshold_pp: 10,
+        trends: [],
+      };
     } else if (path === "/results/admin/exams/77/questions/") {
       data = [
         { question_id: 1001, question_number: 1, attempts: lectureId > 0 ? 1 : 2, correct: 1, accuracy: 0.5, avg_score: 2.5, max_score: 5 },

@@ -1278,6 +1278,43 @@ test("다른 화면이 선택한 서술형 셀만 막고 같은 시험의 다른
   await expect(page.locator('[data-score-cell="exam:9202:9101:subjective:"]')).toContainText("7");
 });
 
+test("시험 분석 이동 중 추가 점수 입력을 막고 잠금 해제 실패를 복구한다", async ({ page }) => {
+  await openScores(page, { includeSecondExam: true });
+  await ensureScoreEditing(page);
+
+  let releaseStarted = false;
+  let unblockRelease: (() => void) | undefined;
+  const releaseGate = new Promise<void>((resolve) => { unblockRelease = resolve; });
+  await page.route("**/api/v1/results/admin/sessions/9002/score-draft/commit/", async (route) => {
+    if (route.request().postDataJSON()?.release_lease === true) {
+      releaseStarted = true;
+      await releaseGate;
+    }
+    await route.fallback();
+  });
+  failNextLeaseRelease = true;
+  const cells = page.locator(".ds-scores-cell-editable");
+  const picker = page.getByRole("dialog", { name: "분석할 시험 선택", exact: true });
+  try {
+    await page.getByRole("button", { name: "시험 성적 분석", exact: true }).click();
+    await expect(picker).toBeVisible();
+    await picker.getByRole("button", { name: "주간 확인", exact: true }).click();
+    await expect.poll(() => releaseStarted).toBe(true);
+    await expect(picker).toHaveCount(0);
+    await expect.poll(() => cells.first().evaluate((cell) => Boolean(cell.closest("[inert]")))).toBe(true);
+    await expect(page).toHaveURL(/\/scores/);
+  } finally {
+    unblockRelease?.();
+  }
+
+  const retry = page.getByRole("button", { name: "입력 종료 다시 시도", exact: true });
+  await expect(retry).toBeVisible();
+  await expect.poll(() => cells.first().evaluate((cell) => Boolean(cell.closest("[inert]")))).toBe(false);
+  await retry.click();
+  await expect(page.getByRole("button", { name: "수정", exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/scores/);
+});
+
 test("일시적인 셀 점유 충돌 뒤 정상 presence가 오면 편집 잠금을 마칠 수 있다", async ({ page }) => {
   await openScores(page, {
     includeHomework: true,
