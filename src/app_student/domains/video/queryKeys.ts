@@ -1,6 +1,8 @@
 import type { User } from "@/auth/context/AuthContext";
 import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 
+export const STUDENT_VIDEO_CATALOG_STALE_MS = 60_000;
+
 export function studentVideoQueryScope(user: Pick<User, "id" | "tenantRole"> | null): string {
   const selectedStudentId = user?.tenantRole === "parent" ? getParentStudentId() : null;
   return `${user?.tenantRole ?? "anonymous"}:${user?.id ?? "none"}:${selectedStudentId ?? "self"}`;
