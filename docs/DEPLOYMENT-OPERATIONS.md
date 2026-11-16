@@ -146,6 +146,9 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
    route-critical lazy asset이 연속 3회 일치한 뒤 login, tenant availability,
    조회-only session-assessment canary를 실행한다. notice/QnA/clinic 쓰기는 개발
    job에서만 실행한다. 후보마다 실제 IAM/격리 검증과 cleanup0을 통과해야 한다.
+   운영 전파 검사 중 TLS 연결 또는 데이터 수신 오류(curl 35/56)는 300초 전체
+   한도 안에서 같은 URL을 한 번 재시도한다. 재시도는 최대 5초이며 HTTP 오류,
+   잘못된 revision 또는 남은 시간 소진 시 해당 회차를 실패로 기록한다.
    진입 자산을 빼면 새
    HTML만 먼저 전파되어 `index-*.js`가 404인 순간을 안정화 완료로 오인할 수 있다.
 7. deploy job 내부 검증 실패는 같은 승인 job에서 즉시 baseline으로 rollback한다.
