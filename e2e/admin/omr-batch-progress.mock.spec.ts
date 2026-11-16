@@ -1,6 +1,7 @@
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
+import { applyHomeworkPreviewCsp, homeworkHeic } from "../helpers/homeworkHeicFixture";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
@@ -818,6 +819,46 @@ test.describe("OMR durable batch progress", () => {
   });
 
   for (const width of [1366, 390]) {
+    test(`${width}px HEIC 사진을 미리 보고 회전한 JPEG로 접수한다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const api = await installDashboardApi(page, { uploadFlow: true });
+      await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await openOmrUpload(page);
+      await applyHomeworkPreviewCsp(page);
+      const dialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
+      const input = dialog.locator('input[type="file"]');
+      await expect(input).toHaveAttribute("accept", /\.heic/);
+      await input.setInputFiles({ name: "phone.heic", mimeType: "", buffer: homeworkHeic });
+      const row = dialog.getByRole("listitem").filter({ hasText: "phone.heic" });
+      await row.scrollIntoViewIfNeeded();
+      const preview = row.locator("img");
+      await expect.poll(async () => (await preview.count()) > 0
+        && await preview.evaluate((image) => (image as HTMLImageElement).naturalWidth > 0)).toBe(true);
+      await row.getByRole("button", { name: "오른쪽 회전" }).click();
+      await expect(row).toContainText("업로드 회전 90°");
+
+      const request = page.waitForRequest((candidate) => candidate.method() === "POST"
+        && new URL(candidate.url()).pathname.endsWith(`/exams/${EXAM_ID}/omr/batch/`));
+      await dialog.getByRole("button", { name: "등록 시작" }).click();
+      await expect(dialog.getByText("접수 확인 1장", { exact: false })).toBeVisible();
+      const body = (await request).postDataBuffer();
+      expect(body).not.toBeNull();
+      const marker = Buffer.from('filename="phone.jpg"\r\nContent-Type: image/jpeg\r\n\r\n');
+      const header = body!.indexOf(marker);
+      expect(header).toBeGreaterThan(-1);
+      const start = header + marker.length;
+      const end = body!.indexOf(Buffer.from("\r\n--"), start);
+      expect(end).toBeGreaterThan(start);
+      const dimensions = await page.evaluate(async (bytes) => {
+        const image = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: "image/jpeg" }));
+        const result = [image.width, image.height];
+        image.close();
+        return result;
+      }, [...body!.subarray(start, end)]);
+      expect(dimensions).toEqual([360, 640]);
+      expect(api.uploadState()).toMatchObject({ initializePosts: 1, uploadPosts: 1 });
+    });
+
     test(`${width}px OMR 등록 시작 응답이 끊겨도 기존 작업에 두 장을 접수한다`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       const api = await installDashboardApi(page, { uploadFlow: true, failFirstInitializeAfterCreation: true });
@@ -988,6 +1029,34 @@ test.describe("OMR durable batch progress", () => {
     expect(ordinals).toEqual(["22", "21"]);
     expect(new Set(ordinals).size).toBe(ordinals.length);
     expect(ordinals.every((value) => Number.isFinite(Number(value)))).toBe(true);
+  });
+
+  test("손상된 HEIC 재선택 중에는 기존 작업을 조회 완료로 바꾸지 않는다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const api = await installDashboardApi(page, { resumeOrdinals: [21, 22] });
+    const dialog = await openResumeOmrUpload(page);
+    const input = dialog.locator('input[type="file"]');
+    await expect(input).toBeEnabled();
+    await input.setInputFiles([
+      { name: "broken.heic", mimeType: "image/heic", buffer: Buffer.from("damaged HEIC") },
+      { name: "kept.heic", mimeType: "image/heic", buffer: homeworkHeic },
+    ]);
+    const resume = dialog.getByRole("button", { name: "미접수 파일 다시 접수" });
+    await resume.click();
+    await expect(dialog.getByText(/1개 사진을 읽거나 회전하지 못했습니다/)).toBeVisible();
+    expect(api.uploadState()).toMatchObject({ initializePosts: 0, uploadPosts: 0 });
+    const broken = dialog.getByRole("listitem").filter({ hasText: "broken.heic" });
+    await expect(broken).toContainText("실패");
+    await expect(dialog.getByRole("listitem").filter({ hasText: "kept.heic" })).toContainText("22번 답안지");
+    await broken.getByRole("button", { name: "삭제" }).click();
+    await input.setInputFiles({ name: "replacement.heif", mimeType: "application/octet-stream", buffer: homeworkHeic });
+    await resume.click();
+    await expect.poll(() => api.uploadState().uploadPosts).toBe(1);
+    const body = api.uploadState().uploadBodies[0];
+    expect(body).toContain('filename="replacement.jpg"');
+    expect(body).toContain('filename="kept.jpg"');
+    expect(multipartFieldValues(body, "item_ordinals")).toEqual(["22", "21"]);
+    expect(api.uploadState().initializePosts).toBe(0);
   });
 
   for (const width of [1366, 390]) {
