@@ -30,7 +30,7 @@ const DEFAULT_LIMITS = {
   max_total_size_bytes: 500 * 1024 * 1024,
 };
 
-type SelectedTarget = { type: "homework"; id: number; title: string; enrollmentId: number; sessionId: number | null; locationKey: string };
+type SelectedTarget = { type: "homework"; id: number; title: string; enrollmentId: number; sessionId: number | null };
 
 function positiveId(value: string | null): number | null {
   const parsed = Number(value);
@@ -104,14 +104,21 @@ export default function SubmitAssignmentPage() {
   const runTrackedTask = useTrackedTask();
   const requestedSessionId = positiveId(searchParams.get("sessionId"));
   const requestedHomeworkId = positiveId(searchParams.get("homeworkId"));
-  const [selection, setSelected] = useState<SelectedTarget | null>(null);
+  const [selectionState, setSelectionState] = useState<{ locationKey: string; target: SelectedTarget | null }>({
+    locationKey, target: null,
+  });
+  const selection = selectionState.target;
   // A new exact-link entry restores its target. A deliberate choice within
   // the same history entry may select another homework from that session.
   const selectionOutsideRoute = selection != null && (
     (requestedSessionId != null && selection.sessionId !== requestedSessionId)
-    || (requestedHomeworkId != null && selection.id !== requestedHomeworkId && selection.locationKey !== locationKey)
+    || (requestedHomeworkId != null && selection.id !== requestedHomeworkId && selectionState.locationKey !== locationKey)
   );
   const selected = selectionOutsideRoute ? null : selection;
+  if (selectionState.locationKey !== locationKey && !selectionOutsideRoute) {
+    // Keep the upload target reference while carrying it into this entry.
+    setSelectionState({ locationKey, target: selection });
+  }
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
   const { files: pendingFiles, setFiles: setPendingFiles, awaitRestoredFiles, draftStatus } = useHomeworkDraft(selected, user?.id);
@@ -329,12 +336,12 @@ export default function SubmitAssignmentPage() {
   useEffect(() => {
     if (!selectionOutsideRoute) return;
     uploadController.current?.abort();
-    setSelected(null);
+    setSelectionState({ locationKey, target: null });
     setError(null);
     setReviewLocked(false);
     setPreviewFile(null);
     resetUpload();
-  }, [selectionOutsideRoute, resetUpload]);
+  }, [locationKey, selectionOutsideRoute, resetUpload]);
 
   const removeMut = useMutation({
     mutationFn: async (file: HomeworkMediaFile) => {
@@ -439,10 +446,9 @@ export default function SubmitAssignmentPage() {
       title: homework.title,
       enrollmentId: homework.enrollment_id,
       sessionId: positiveId(String(homework.session_id ?? "")),
-      locationKey,
     };
     const changed = selected?.id !== next.id || selected?.enrollmentId !== next.enrollmentId;
-    setSelected(next);
+    setSelectionState({ locationKey, target: next });
     if (recordsStudentActivity) {
       void studentApi.post("/students/me/activity/homework-open/", { homework_id: homework.homework_id }).catch(() => undefined);
     }
@@ -460,13 +466,15 @@ export default function SubmitAssignmentPage() {
       (homework) => homework.homework_id === requestedHomeworkId,
     );
     if (!requestedHomework) return;
-    setSelected({
-      type: "homework",
-      id: requestedHomework.homework_id,
-      title: requestedHomework.title,
-      enrollmentId: requestedHomework.enrollment_id,
-      sessionId: positiveId(String(requestedHomework.session_id ?? "")),
+    setSelectionState({
       locationKey,
+      target: {
+        type: "homework",
+        id: requestedHomework.homework_id,
+        title: requestedHomework.title,
+        enrollmentId: requestedHomework.enrollment_id,
+        sessionId: positiveId(String(requestedHomework.session_id ?? "")),
+      },
     });
     if (recordsStudentActivity) {
       void studentApi.post(

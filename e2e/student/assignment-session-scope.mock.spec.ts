@@ -14,7 +14,7 @@ function fakeJwt(): string {
   })}.sig`;
 }
 
-async function installApi(page: Page) {
+async function installApi(page: Page, beforeUploadResponse?: () => Promise<void>) {
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE),
     "학생 제출 route-mock 검증은 로컬 dev 서버 전용",
@@ -173,6 +173,7 @@ async function installApi(page: Page) {
       expect(body).toContain("401");
       const field = (name: string) => body.match(new RegExp(`name="${name}"\\r?\\n\\r?\\n([^\\r\\n]+)`))?.[1] ?? "";
       await new Promise((resolve) => setTimeout(resolve, 250));
+      await beforeUploadResponse?.();
       const uploaded = {
         id: String(900 + submissionCount),
         legacy: false,
@@ -284,9 +285,15 @@ test("클리닉 링크는 해당 차시의 정확한 과제를 바로 선택한�
     .toBeLessThanOrEqual(1);
 });
 
+const assignmentReturnCases = [
+  { otherSession: true, chooseBeforeExpand: false },
+  { otherSession: false, chooseBeforeExpand: false },
+  { otherSession: false, chooseBeforeExpand: true },
+];
 for (const width of [390, 1366]) {
-  for (const otherSession of [true, false]) {
-    test(`${width}px 전체 제출에서 돌아오면 ${otherSession ? "다른" : "같은"} 차시의 다른 과제 파일을 보관하고 링크 과제만 제출한다`, async ({ page }) => {
+  for (const { otherSession, chooseBeforeExpand } of assignmentReturnCases) {
+    const timing = chooseBeforeExpand ? " 전체 제출을 열기 전에 과제를 선택해도" : "";
+    test(`${width}px${timing} 전체 제출에서 돌아오면 ${otherSession ? "다른" : "같은"} 차시의 다른 과제 파일을 보관하고 링크 과제만 제출한다`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       const api = await installApi(page);
       const scoped = `${BASE}/student/submit/assignment?sessionId=${SESSION_ID}&homeworkId=501`;
@@ -300,8 +307,14 @@ for (const width of [390, 1366]) {
       const expand = page.getByRole("link", { name: "전체 제출 대상 보기" });
       const origin = await page.evaluate(() => performance.timeOrigin);
       await expect(summary).toContainText("현재 차시 필수 과제");
+      if (chooseBeforeExpand) {
+        await otherTarget.click();
+        await expect(summary).toContainText(bTitle);
+      }
       await expand.click();
-      await otherTarget.click();
+      await expect(page).toHaveURL(`${BASE}/student/submit/assignment`);
+      await expect(expand).toHaveCount(0);
+      if (!chooseBeforeExpand) await otherTarget.click();
       await expect(summary).toContainText(bTitle);
       await expect(picker).toBeEnabled();
       await picker.setInputFiles({
@@ -335,6 +348,35 @@ for (const width of [390, 1366]) {
     });
   }
 }
+
+test("전체 제출 대상으로 이동해도 진행 중인 과제의 결과를 같은 파일 목록에 표시한다", async ({ page }) => {
+  let releaseUpload: () => void = () => {};
+  const uploadResponse = new Promise<void>((resolve) => { releaseUpload = resolve; });
+  const api = await installApi(page, () => uploadResponse);
+  await page.goto(`${BASE}/student/submit/assignment?sessionId=${SESSION_ID}&homeworkId=501`, { waitUntil: "domcontentloaded" });
+  const picker = page.locator('input[type="file"]');
+  try {
+    await expect(picker).toBeEnabled();
+    await picker.setInputFiles({
+      name: "active-assignment.png",
+      mimeType: "image/png",
+      buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "base64"),
+    });
+    await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
+    await expect.poll(() => api.submissionTargets).toEqual(["501"]);
+    const expand = page.getByRole("link", { name: "전체 제출 대상 보기" });
+    await expand.click();
+    await expect(page).toHaveURL(`${BASE}/student/submit/assignment`);
+    await expect(expand).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "파일별로 제출 중…" })).toBeVisible();
+    releaseUpload();
+    await expect(page.getByRole("region", { name: "이미 제출한 파일" }).getByText("active-assignment.png", { exact: true }))
+      .toBeVisible();
+    expect(api.submissionTargets).toEqual(["501"]);
+  } finally {
+    releaseUpload();
+  }
+});
 
 for (const device of [
   { name: "iPhone", viewport: { width: 390, height: 844 }, filename: "아이폰풀이.heic", mimeType: "image/heic" },
