@@ -53,7 +53,7 @@ async function setup(page: Page, automatic = false, failFirstSave = !automatic) 
       return route.fulfill({ json: {
         ok: true, can_send: true, mode: "now", send_to: payload.send_to,
         recipient: { selected: 1, resolved: 1, valid_phone: 1, skipped_no_phone: 0, duplicate_phone: 0, unique_phone: 1, invalid_or_deleted: 0, limit: 500 },
-        template: { ok: true, source: "unified", name: "성적 안내", solapi_template_id: "E2E_GRADES", solapi_status: "APPROVED", detail: "", uses_unified_template: true, template_type: "grades" },
+        template: { ok: true, source: "unified", name: "성적 안내", solapi_template_id: "E2E_GRADES", solapi_status: "APPROVED", detail: "", uses_unified_template: true, template_type: "score" },
         preview_recipients: [{ student_id: 9301, student_name: "모바일순서학생", phone: "010****0001", excluded: false, exclude_reason: "", full_message_body: rendered }],
         limits: { hourly_limit: 500, sent_last_hour: 0, remaining_this_hour: 500 }, blockers: [], warnings: [],
       } });
