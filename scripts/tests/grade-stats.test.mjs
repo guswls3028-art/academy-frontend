@@ -20,7 +20,7 @@ const homework = (overrides = {}) => ({
 
 test("teacher completion without a score counts as completed, not as a numeric zero", () => {
   assert.deepEqual(calculateHomeworkStats([homework({ teacher_resolved: true })]), {
-    passed: 1, failed: 0, graded: 1, total: 1, avgPct: null, passRate: 100,
+    passed: 1, failed: 0, graded: 1, total: 1, avgPct: null, passRate: 100, completionRate: 100,
   });
 });
 
@@ -36,13 +36,13 @@ test("teacher-completed unscored homework does not dilute scored homework averag
 
 test("homework preserves scored zero and an explicit failure", () => {
   assert.deepEqual(calculateHomeworkStats([homework({ score: 0, passed: false, achievement: "FAIL" })]), {
-    passed: 0, failed: 1, graded: 1, total: 1, avgPct: 0, passRate: 0,
+    passed: 0, failed: 1, graded: 1, total: 1, avgPct: 0, passRate: 0, completionRate: 0,
   });
 });
 
 test("unscored and unjudged homework has no average, failure or pass rate", () => {
   assert.deepEqual(calculateHomeworkStats([homework()]), {
-    passed: 0, failed: 0, graded: 0, total: 1, avgPct: null, passRate: null,
+    passed: 0, failed: 0, graded: 0, total: 1, avgPct: null, passRate: null, completionRate: 0,
   });
   const scored = calculateHomeworkStats([homework({ score: 0 })]);
   assert.equal(scored.avgPct, 0);
