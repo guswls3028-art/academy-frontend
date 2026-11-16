@@ -339,3 +339,43 @@
   .sortButtons button { padding-inline: 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .formatTabs button, .sortButtons button { transition: none; } }
+
+/* Godmin home only: the hero feature card and latest-video band follow the homepage's editorial tone. */
+.heroVideo { border-color: rgba(15, 36, 31, 0.08); border-radius: 24px; box-shadow: 0 48px 90px -40px rgba(15, 36, 31, 0.42), 0 2px 6px rgba(15, 36, 31, 0.04); }
+.heroLabel { align-items: center; color: var(--video-muted); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; padding: 18px 26px; }
+.heroLabel span:first-child { align-items: center; color: var(--video-ink); display: inline-flex; gap: 10px; }
+.heroLabel span:first-child::before { background: #35c7a0; border-radius: 50%; box-shadow: 0 0 0 4px rgba(53, 199, 160, 0.18); content: ""; flex: 0 0 6px; height: 6px; }
+.heroPoster img { opacity: 0.95; }
+.heroVideo :focus-visible,
+.highlights :focus-visible { outline-color: var(--video-deep); }
+.heroVideo .heroPoster:focus-visible { outline: 3px solid white; outline-offset: -6px; }
+.heroPoster:focus-visible::after {
+  border: 3px solid white;
+  box-shadow: 0 0 0 2px #102b23;
+  content: "";
+  inset: 5px;
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+}
+.heroPlay { backdrop-filter: blur(8px); background: rgba(15, 36, 31, 0.74); border-color: rgba(255, 255, 255, 0.42); }
+.heroCaption { padding: 26px 26px 28px; }
+.heroCaption h2 { font-size: 21px; font-weight: 650; letter-spacing: -0.04em; line-height: 1.5; }
+.heroCaption p { -webkit-box-orient: vertical; -webkit-line-clamp: 2; display: -webkit-box; overflow: hidden; }
+.highlights { background: #fff; border-block: 0; padding-block: 128px; }
+.highlightsLabel { align-items: center; color: var(--video-deep); display: inline-flex; font-size: 12px; font-weight: 600; gap: 12px; letter-spacing: 0.18em; text-transform: uppercase; }
+.highlightsLabel::before { background: currentColor; content: ""; flex: 0 0 28px; height: 1px; opacity: 0.55; }
+.highlights .sectionHeading { align-items: flex-end; margin-bottom: 44px; }
+.highlights .sectionHeading h2 { font-size: clamp(34px, 3.6vw, 48px); font-weight: 700; letter-spacing: -0.065em; line-height: 1.18; margin: 20px 0 0; }
+.highlights .secondary { border-color: rgba(15, 36, 31, 0.16); border-radius: 999px; color: var(--video-ink); padding-inline: 22px; }
+@media (max-width: 640px) {
+  .heroVideo { border-radius: 20px; }
+  .heroLabel { padding: 15px 18px; }
+  .heroCaption { padding: 20px; }
+  .heroCaption h2 { font-size: 19px; }
+  .highlights { padding-block: 96px; }
+  .highlights .sectionHeading { align-items: flex-start; }
+  .highlightsLabel { font-size: 11px; gap: 10px; letter-spacing: 0.16em; }
+  .highlightsLabel::before { flex-basis: 20px; }
+  .highlights .sectionHeading h2 { font-size: clamp(30px, 8.8vw, 38px); }
+}
