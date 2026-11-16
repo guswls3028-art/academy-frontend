@@ -739,16 +739,31 @@ test.describe("시험·과제 수동 검사 상태", () => {
     await expect(examCard.getByRole("button", { name: "보완 필요에서 교사 통과로 변경" })).toHaveCount(0);
     await expect(examCard.getByRole("button", { name: "통과로 처리", exact: true })).toHaveCount(1);
     await page.setViewportSize({ width: 1366, height: 900 });
+    // Position the drawer while help is closed so the pointer can cross without scrolling.
+    await help.evaluate((element) => element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }));
     await help.hover();
-    await expect(examCard.getByRole("dialog")).toContainText("시험 점수는 바뀌지 않으며");
+    const desktopHelp = examCard.getByRole("dialog");
+    await expect(desktopHelp).toContainText("시험 점수는 바뀌지 않으며");
     const triggerBox = await help.boundingBox();
     expect(triggerBox).not.toBeNull();
-    await page.mouse.move(triggerBox!.x + triggerBox!.width / 2, triggerBox!.y - 4);
-    await expect(examCard.getByRole("dialog")).toBeVisible();
-    await examCard.getByRole("dialog").hover();
-    await expect(examCard.getByRole("dialog")).toBeVisible();
+    const pointerX = triggerBox!.x + triggerBox!.width / 2;
+    const bridgeY = triggerBox!.y - 4;
+    const bridge = help.locator("..").locator(".inline-help__hover-bridge");
+    expect(await bridge.evaluate((element, { x, y }) => (
+      element.ownerDocument.elementFromPoint(x, y) === element
+    ), { x: pointerX, y: bridgeY })).toBe(true);
+    await page.mouse.move(pointerX, bridgeY);
+    await expect(desktopHelp).toBeVisible();
+    const popupY = await desktopHelp.evaluate(async (element, x) => {
+      await Promise.all(element.getAnimations().map((animation) => animation.finished));
+      const y = element.getBoundingClientRect().bottom - 12;
+      return element.contains(element.ownerDocument.elementFromPoint(x, y)) ? y : null;
+    }, pointerX);
+    expect(popupY).not.toBeNull();
+    await page.mouse.move(pointerX, popupY!);
+    await expect(desktopHelp).toBeVisible();
     await page.mouse.move(0, 0);
-    await expect(examCard.getByRole("dialog")).toHaveCount(0);
+    await expect(desktopHelp).toHaveCount(0);
     await page.setViewportSize({ width: 390, height: 844 });
     await help.click();
     const helpDialog = examCard.getByRole("dialog");
