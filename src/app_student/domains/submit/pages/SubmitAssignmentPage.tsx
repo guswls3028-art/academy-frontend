@@ -1,7 +1,7 @@
 /** 과제 제출 — 사진·동영상 여러 개를 파일별로 안전하게 제출한다. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router";
+import { Link, useLocation, useSearchParams } from "react-router";
 
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
@@ -30,7 +30,7 @@ const DEFAULT_LIMITS = {
   max_total_size_bytes: 500 * 1024 * 1024,
 };
 
-type SelectedTarget = { type: "homework"; id: number; title: string; enrollmentId: number };
+type SelectedTarget = { type: "homework"; id: number; title: string; enrollmentId: number; sessionId: number | null; locationKey: string };
 
 function positiveId(value: string | null): number | null {
   const parsed = Number(value);
@@ -99,9 +99,21 @@ export default function SubmitAssignmentPage() {
   const { user } = useAuthContext();
   const recordsStudentActivity = user?.tenantRole === "student";
   const [searchParams] = useSearchParams();
+  const { key: locationKey } = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const runTrackedTask = useTrackedTask();
-  const [selected, setSelected] = useState<SelectedTarget | null>(null);
+  const requestedSessionId = positiveId(searchParams.get("sessionId"));
+  const requestedHomeworkId = positiveId(searchParams.get("homeworkId"));
+  const [selection, setSelected] = useState<SelectedTarget | null>(null);
+  // A new exact-link entry restores its target. A deliberate choice within
+  // the same history entry may select another homework from that session.
+  const selectionOutsideRoute = selection != null && (
+    (requestedSessionId != null && selection.sessionId !== requestedSessionId)
+    || (requestedHomeworkId != null && selection.id !== requestedHomeworkId && selection.locationKey !== locationKey)
+  );
+  const selected = selectionOutsideRoute ? null : selection;
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
   const { files: pendingFiles, setFiles: setPendingFiles, awaitRestoredFiles, draftStatus } = useHomeworkDraft(selected, user?.id);
   const uploadController = useRef<AbortController | null>(null);
   const [online, setOnline] = useState(navigator.onLine);
@@ -111,8 +123,6 @@ export default function SubmitAssignmentPage() {
   const [previewFile, setPreviewFile] = useState<HomeworkMediaFile | null>(null);
   const gradesQ = useMyGradesSummary();
   const grades = gradesQ.data;
-  const requestedSessionId = positiveId(searchParams.get("sessionId"));
-  const requestedHomeworkId = positiveId(searchParams.get("homeworkId"));
 
   const unfinishedHomeworks = useMemo(
     () => (grades?.homeworks ?? []).filter((homework) => (
@@ -182,12 +192,11 @@ export default function SubmitAssignmentPage() {
   }, [mediaQ.data, mediaQ.isError, draftStatus, pendingFiles, setPendingFiles]);
 
   const uploadMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (target: SelectedTarget) => {
       if (uploadController.current) throw new Error("이미 제출 중입니다. 현재 제출 결과를 기다려 주세요.");
       if (gradesQ.isError) throw new Error("제출 대상을 다시 불러온 뒤 제출해 주세요.");
-      if (!selected) throw new Error("제출 대상을 선택해 주세요.");
+      if (selectedRef.current !== target) throw new Error("제출 대상을 다시 선택해 주세요.");
       if (!navigator.onLine) throw new Error("인터넷 연결이 돌아오면 이어서 제출해 주세요.");
-      const target = selected;
       const candidates = pendingFiles.filter((item) => item.status === "queued" || item.status === "failed");
       if (candidates.length === 0) throw new Error("새로 제출할 파일을 선택해 주세요.");
       const controller = new AbortController();
@@ -285,7 +294,8 @@ export default function SubmitAssignmentPage() {
       }
       return { succeeded, failed, reviewLocked, paused };
     },
-    onSuccess: async ({ succeeded, failed, reviewLocked, paused }) => {
+    onSuccess: async ({ succeeded, failed, reviewLocked, paused }, target) => {
+      if (selectedRef.current !== target) return;
       setPendingFiles((current) => current.filter((item) => !succeeded.includes(item.clientFileId)));
       void qc.invalidateQueries({ queryKey: studentQueryKeys.gradesSummary });
       if (paused) {
@@ -295,6 +305,7 @@ export default function SubmitAssignmentPage() {
         return;
       }
       await mediaQ.refetch();
+      if (selectedRef.current !== target) return;
       if (reviewLocked) {
         setReviewLocked(true);
         setError("선생님 확인으로 제출이 잠겼습니다. 아직 제출하지 못한 파일은 보관했습니다. 선생님이 제출을 다시 열면 상태를 확인하고 이어서 제출할 수 있습니다.");
@@ -310,8 +321,21 @@ export default function SubmitAssignmentPage() {
           : failed.length + "개 파일을 올리지 못했습니다. 파일별 오류를 확인해 주세요.");
       }
     },
-    onError: (uploadError) => setError(apiErrorMessage(uploadError)),
+    onError: (uploadError, target) => {
+      if (selectedRef.current === target) setError(apiErrorMessage(uploadError));
+    },
   });
+  const resetUpload = uploadMut.reset;
+  useEffect(() => {
+    if (!selectionOutsideRoute) return;
+    uploadController.current?.abort();
+    setSelected(null);
+    setError(null);
+    setReviewLocked(false);
+    setPreviewFile(null);
+    resetUpload();
+  }, [selectionOutsideRoute, resetUpload]);
+
   const removeMut = useMutation({
     mutationFn: async (file: HomeworkMediaFile) => {
       if (!selected) throw new Error("제출 대상을 다시 선택해 주세요.");
@@ -409,7 +433,14 @@ export default function SubmitAssignmentPage() {
     setPendingFiles((current) => current.filter((file) => file.clientFileId !== clientFileId));
   };
   const selectHomework = (homework: MyHomeworkGradeSummary) => {
-    const next: SelectedTarget = { type: "homework", id: homework.homework_id, title: homework.title, enrollmentId: homework.enrollment_id };
+    const next: SelectedTarget = {
+      type: "homework",
+      id: homework.homework_id,
+      title: homework.title,
+      enrollmentId: homework.enrollment_id,
+      sessionId: positiveId(String(homework.session_id ?? "")),
+      locationKey,
+    };
     const changed = selected?.id !== next.id || selected?.enrollmentId !== next.enrollmentId;
     setSelected(next);
     if (recordsStudentActivity) {
@@ -434,6 +465,8 @@ export default function SubmitAssignmentPage() {
       id: requestedHomework.homework_id,
       title: requestedHomework.title,
       enrollmentId: requestedHomework.enrollment_id,
+      sessionId: positiveId(String(requestedHomework.session_id ?? "")),
+      locationKey,
     });
     if (recordsStudentActivity) {
       void studentApi.post(
@@ -441,11 +474,12 @@ export default function SubmitAssignmentPage() {
         { homework_id: requestedHomework.homework_id },
       ).catch(() => undefined);
     }
-  }, [recordsStudentActivity, requestedHomeworkId, selected, unfinishedHomeworks]);
+  }, [locationKey, recordsStudentActivity, requestedHomeworkId, selected, unfinishedHomeworks]);
   const retryableCount = pendingFiles.filter((file) => file.status === "queued" || file.status === "failed").length;
   const refreshReviewStatus = async () => {
     if (!selected) return;
     const refreshed = await gradesQ.refetch();
+    if (selectedRef.current !== selected) return;
     const target = refreshed.data?.homeworks.find((homework) => homework.homework_id === selected.id
       && homework.enrollment_id === selected.enrollmentId);
     if (refreshed.isError || !target) {
@@ -473,8 +507,8 @@ export default function SubmitAssignmentPage() {
   return (
     <StudentPageShell title="과제 제출" description="풀이 사진과 동영상을 제출하고 선생님 확인 결과를 학습 현황에서 확인하세요." descriptionMode="help" onBack={() => window.history.back()}>
       <div className={`stu-section stu-section--nested ${styles.section}`}>
-        {(uploadMut.isError || error) && <div role="alert" className={styles.errorMessage}>{error || apiErrorMessage(uploadMut.error)}</div>}
-        {reviewLocked && <div className={styles.scopeNotice}>
+        {!selectionOutsideRoute && (uploadMut.isError || error) && <div role="alert" className={styles.errorMessage}>{error || apiErrorMessage(uploadMut.error)}</div>}
+        {!selectionOutsideRoute && reviewLocked && <div className={styles.scopeNotice}>
           <span>아래 임시 보관 상태를 확인해 주세요.</span>
           <button type="button" className="stu-btn stu-btn--secondary" disabled={gradesQ.isFetching} onClick={() => void refreshReviewStatus()}>제출 가능 상태 다시 확인</button>
         </div>}
@@ -484,7 +518,7 @@ export default function SubmitAssignmentPage() {
             <Link to="/student/submit/assignment" className={styles.scopeLink}>전체 제출 대상 보기</Link>
           </div>
         )}
-        {uploadMut.isSuccess && uploadMut.data?.failed.length === 0 && !uploadMut.data.paused && uploadMut.data.reviewLocked !== true && (
+        {!selectionOutsideRoute && uploadMut.isSuccess && uploadMut.data?.failed.length === 0 && !uploadMut.data.paused && uploadMut.data.reviewLocked !== true && (
           <div className={styles.successMessage}><span><span>선택한 파일을 모두 제출했습니다.</span> 확인 결과는 학습 현황에서 확인하세요.</span><Link to="/student/grades" className={styles.successLink}>학습 현황<IconChevronRight className={styles.successLinkIcon} aria-hidden="true" /></Link></div>
         )}
 
@@ -560,7 +594,7 @@ export default function SubmitAssignmentPage() {
         {selected && (
           <div className={styles.submitRow}>
             <div className={styles.submitSummary}><span>제출 대상</span><b>{selected.title}</b><small>파일별로 저장되어 일부 실패해도 성공한 파일은 유지됩니다.</small></div>
-            <button type="button" data-guide="submit-btn" className={`stu-btn stu-btn--primary ${styles.submitButton}`} disabled={!canSubmit} onClick={() => uploadMut.mutate()}>
+            <button type="button" data-guide="submit-btn" className={`stu-btn stu-btn--primary ${styles.submitButton}`} disabled={!canSubmit} onClick={() => uploadMut.mutate(selected)}>
               {submitButtonLabel}
             </button>
             {uploadMut.isPending && <button type="button" className="stu-btn stu-btn--secondary" onClick={() => uploadController.current?.abort()}>잠시 멈추기</button>}
