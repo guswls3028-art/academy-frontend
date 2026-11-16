@@ -4269,10 +4269,21 @@ test.describe("문항별 직접 채점", () => {
     test(`시험 작업 메뉴가 열리는 중에도 클릭 위치를 유지한다 ${width}px`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 900 });
       await installApi(page, { manualGradingMethod: "score" });
+      let releaseAnalysisModule!: () => void;
+      const analysisModuleReady = new Promise<void>((resolve) => { releaseAnalysisModule = resolve; });
+      page.once("close", releaseAnalysisModule);
+      await page.route("**/SessionExamAnalysisAction.tsx*", async (route) => {
+        await analysisModuleReady;
+        await route.continue();
+      });
       await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "domcontentloaded" });
       // Hold the real entrance motion at its first frame, then finish it between
       // pointer down/up. A scaling popup used to move the action out of the click.
       const motionHold = await page.addStyleTag({ content: ".ant-popover { animation-play-state: paused !important; }" });
+      const analysis = page.getByRole("button", { name: "시험 성적 분석", exact: true });
+      await expect(analysis).toBeDisabled();
+      const analysisWidth = () => analysis.evaluate((button) => button.getBoundingClientRect().width);
+      const loadingAnalysisWidth = await analysisWidth();
       const trigger = page.getByRole("button", { name: "7월 진단평가 작업 선택" });
       await expect(trigger).toBeVisible();
       await trigger.click();
@@ -4287,6 +4298,8 @@ test.describe("문항별 직접 채점", () => {
       expect(before).not.toBeNull();
       await page.mouse.move(before!.x + before!.width / 2, before!.y + before!.height / 2);
       await page.mouse.down();
+      releaseAnalysisModule();
+      await expect(analysis).toBeEnabled();
       await menu.evaluate(async (element) => {
         for (const animation of element.closest(".ant-popover")!.getAnimations()) animation.finish();
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -4294,6 +4307,7 @@ test.describe("문항별 직접 채점", () => {
       const after = await action.boundingBox();
       await page.mouse.up();
       expect(after).not.toBeNull();
+      expect(Math.abs(await analysisWidth() - loadingAnalysisWidth)).toBeLessThan(1);
       expect(Math.abs(after!.x - before!.x)).toBeLessThan(1);
       expect(Math.abs(after!.y - before!.y)).toBeLessThan(1);
       expect(Math.abs(after!.width - before!.width)).toBeLessThan(1);

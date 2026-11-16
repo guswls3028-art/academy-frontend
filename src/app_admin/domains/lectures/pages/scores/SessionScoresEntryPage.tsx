@@ -12,7 +12,7 @@
 import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ChevronDown, ClipboardCheck, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
+import { AlertCircle, ChartColumn, ChevronDown, ClipboardCheck, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/public/SessionScoresPanel";
@@ -1517,7 +1517,11 @@ export default function SessionScoresEntryPage({
   const outputActions = (
     <div className="scores-output-actions" role="group" aria-label="성적표 출력과 관리">
       {examOptions.length > 0 && (
-        <Suspense fallback={<Button type="button" intent="secondary" size="sm" disabled>시험 성적 분석</Button>}>
+        <Suspense fallback={(
+          <Button type="button" intent="secondary" size="sm" leftIcon={<ChartColumn size={ICON_FOR_BUTTON.sm} />} disabled aria-busy="true">
+            시험 성적 분석
+          </Button>
+        )}>
           <SessionExamAnalysisAction
             exams={examOptions}
             lectureId={numericLectureId}
