@@ -21,7 +21,12 @@ export function calculateExamStats(exams: MyExamGradeSummary[], wrongCompletionO
   const avgRank = rankedExams.length > 0
     ? Math.round((rankedExams.reduce((sum, exam) => sum + exam.rank!, 0) / rankedExams.length) * 10) / 10
     : null;
-  return { avgPct, passRate, count: exams.length, avgRank };
+  const submittedCount = exams.filter((exam) =>
+    exam.achievement !== "NOT_SUBMITTED" && exam.meta_status !== "NOT_SUBMITTED" &&
+    (exam.total_score != null || exam.submitted_at != null ||
+      exam.grading_status === "subjective_pending" || exam.submission_pending),
+  ).length;
+  return { avgPct, passRate, count: exams.length, avgRank, submittedCount };
 }
 
 export function calculateWeakestLecture(exams: MyExamGradeSummary[], wrongCompletionOnly: boolean) {

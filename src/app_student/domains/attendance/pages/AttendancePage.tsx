@@ -1,13 +1,17 @@
 /**
  * 출결 현황 — 본인 누적 카운트 + 최근 차시별 상태
  */
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import { Link } from "react-router";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import api from "@student/shared/api/student.api";
 import { formatYmd } from "@student/shared/utils/date";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
+import { useAuthContext } from "@/auth/context/AuthContext";
+import { getParentStudentId } from "@/shared/api/parentStudentSelection";
+import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import { getAttendanceLabel } from "@/shared/ui/badges/attendanceStatus";
 import styles from "./AttendancePage.module.css";
@@ -45,8 +49,17 @@ const STATUS_TONE: Partial<Record<string, AttendanceTone>> = {
   RUNAWAY: "danger",
 };
 
-async function fetchAttendanceSummary(): Promise<AttendanceSummary> {
-  const res = await api.get<AttendanceSummary>("/student/attendance/summary/");
+function isTransientAttendanceError(error: unknown): boolean {
+  if (!isAxiosError(error)) return false;
+  if (error.response) return error.response.status >= 500 && error.response.status < 600;
+  return ["ERR_NETWORK", "ECONNABORTED", "ETIMEDOUT"].includes(error.code ?? "");
+}
+
+async function fetchAttendanceSummary(childId: number | null, signal: AbortSignal): Promise<AttendanceSummary> {
+  const res = await api.get<AttendanceSummary>("/student/attendance/summary/", {
+    signal,
+    headers: childId === null ? undefined : { "X-Student-Id": String(childId) },
+  });
   return {
     ...res.data,
     recent: Array.isArray(res.data.recent)
@@ -60,11 +73,30 @@ async function fetchAttendanceSummary(): Promise<AttendanceSummary> {
 }
 
 export default function AttendancePage() {
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: studentQueryKeys.attendanceSummary,
-    queryFn: fetchAttendanceSummary,
+  const { user } = useAuthContext();
+  const queryClient = useQueryClient();
+  const tenantCode = getTenantCodeForApiRequest();
+  const isParent = user?.tenantRole === "parent";
+  const childId = isParent ? getParentStudentId() : null;
+  const queryKey = [...studentQueryKeys.attendanceSummary, tenantCode, user?.id, user?.tenantRole, childId] as const;
+  const { data, error, isLoading, isError, isFetching, refetch } = useQuery<AttendanceSummary | null>({
+    queryKey,
+    queryFn: async ({ signal }) => {
+      try {
+        return await fetchAttendanceSummary(childId, signal);
+      } catch (cause) {
+        // A later connection failure must not resurrect rows rejected by a
+        // previous read. Leave a different learner's query untouched.
+        if (!signal.aborted && !isTransientAttendanceError(cause) && queryClient.getQueryData(queryKey)) {
+          queryClient.setQueryData(queryKey, null);
+        }
+        throw cause;
+      }
+    },
+    enabled: Boolean(tenantCode && user && (!isParent || childId !== null)),
     staleTime: 30_000,
   });
+  const refreshFailed = isError && isTransientAttendanceError(error);
 
   if (isLoading) {
     return (
@@ -77,7 +109,7 @@ export default function AttendancePage() {
     );
   }
 
-  if (isError || !data) {
+  if (!data || (isError && !refreshFailed)) {
     return (
       <StudentPageShell title="출결 현황">
         <EmptyState
@@ -95,6 +127,16 @@ export default function AttendancePage() {
   return (
     <StudentPageShell title="출결 현황" description="누적 출결과 최근 차시 상태입니다. 출석은 현장·영상·보강을 합산하며, 전체에는 미입력·자료·부재·퇴원 기록도 포함됩니다." descriptionMode="help">
       <QrScanLink />
+      {refreshFailed && (
+        <div className="stu-panel">
+          <p role="status">
+            {isFetching ? "출결 정보를 다시 확인하고 있습니다." : "최신 출결 정보를 확인하지 못했습니다. 이전에 확인한 출결을 표시합니다."}
+          </p>
+          <button type="button" className="stu-btn stu-btn--secondary" disabled={isFetching} onClick={() => void refetch()}>
+            다시 시도
+          </button>
+        </div>
+      )}
       {!hasAny ? (
         <EmptyState
           title="출결 기록이 없습니다"

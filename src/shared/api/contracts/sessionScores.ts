@@ -3,6 +3,7 @@ import type { Achievement } from "@/shared/scoring/achievement";
 
 export type SessionScoresSummaryColumnMode = "verdict" | "exam_wrong";
 export type SessionScoresExamReviewFilter = "all" | "incomplete" | "pending" | "resolved";
+export type ScoreTotalColumnKind = "exam" | "homework";
 
 export type ScoreBlock = {
   score: number | null;

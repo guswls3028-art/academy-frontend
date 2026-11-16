@@ -2,6 +2,7 @@ import api from '@/shared/api/axios';
 import type { components } from '@/shared/api/generated/schema';
 
 type ScheduleStateTransport = components['schemas']['SessionScheduleState'];
+export const SESSION_SCHEDULE_DAY_LIMIT = 20;
 export type SessionSchedule = Omit<components['schemas']['ScheduleInput'], 'id' | 'start_time' | 'end_time'> & {
   id: number;
   start_time: string | null;

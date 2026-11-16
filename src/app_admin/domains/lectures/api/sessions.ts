@@ -1,5 +1,7 @@
 // PATH: src/app_admin/domains/lectures/api/sessions.ts
 import api from "@/shared/api/axios";
+import type { components } from "@/shared/api/generated/schema";
+import type { LectureScheduleSettings } from "../lectureScheduleSettings";
 import {
   sortSessionsByDateDesc,
   sortSessionsByDisplayOrder,
@@ -12,7 +14,7 @@ export type { SessionType };
 // ----------------------------------------
 // TYPES
 // ----------------------------------------
-export interface Lecture {
+export interface Lecture extends Partial<LectureScheduleSettings> {
   id: number;
   title: string;
   name: string;
@@ -89,10 +91,16 @@ export async function createLecture(payload: {
   end_date?: string | null;
   lecture_time?: string | null;
   color?: string | null;
+  chip_label?: string | null;
   is_active?: boolean;
-}): Promise<Lecture> {
-  const res = await api.post("/lectures/lectures/", payload);
+} & Partial<LectureScheduleSettings>): Promise<Lecture> {
+  const endpoint = hasLectureScheduleSettings(payload) ? "/lectures/lectures/with-schedule-settings/" : "/lectures/lectures/";
+  const res = await api.post<Lecture>(endpoint, payload);
   return res.data;
+}
+
+function hasLectureScheduleSettings(payload: Partial<LectureScheduleSettings>): boolean {
+  return payload.schedule_mode !== undefined || payload.schedule_defaults !== undefined;
 }
 
 // ----------------------------------------
@@ -102,7 +110,8 @@ export async function updateLecture(
   lectureId: number,
   payload: Partial<Omit<Lecture, "id" | "tenant" | "created_at" | "updated_at">>
 ): Promise<Lecture> {
-  const res = await api.patch(`/lectures/lectures/${lectureId}/`, payload);
+  const suffix = hasLectureScheduleSettings(payload) ? "schedule-settings/" : "";
+  const res = await api.patch<Lecture>(`/lectures/lectures/${lectureId}/${suffix}`, payload);
   return res.data;
 }
 
@@ -151,7 +160,10 @@ export interface CreateSessionOptions {
   sessionType?: SessionType;
   regularOrder?: number | null;
   insertAfterOrder?: number | null;
+  initialSchedule?: { requestId: string; days: InitialSessionDay[] };
 }
+
+export type InitialSessionDay = components["schemas"]["SessionCreateScheduleInputRequest"];
 
 export async function createSession(
   lectureId: number,
@@ -168,8 +180,13 @@ export async function createSession(
   if (options.sessionType) payload.session_type = options.sessionType;
   if (options.regularOrder != null) payload.regular_order = options.regularOrder;
   if (options.insertAfterOrder != null) payload.insert_after_order = options.insertAfterOrder;
+  if (options.initialSchedule) {
+    payload.create_request_id = options.initialSchedule.requestId;
+    payload.initial_schedules = options.initialSchedule.days;
+  }
 
-  const res = await api.post(`/lectures/sessions/`, payload);
+  const endpoint = options.initialSchedule ? "/lectures/sessions/with-schedules/" : "/lectures/sessions/";
+  const res = await api.post<Session>(endpoint, payload);
   return res.data;
 }
 

@@ -1018,15 +1018,35 @@ jobs:
 
           CURL_ARGS=(--connect-timeout 5 -fsS)
           DEADLINE=$((SECONDS + 300))
+          VERSION_FILE=$(mktemp)
+          trap 'rm -f -- "$VERSION_FILE"' EXIT
+          probe_cloudflare_url() {
+            local output="$1" url="$2"
+            local remaining=$((DEADLINE - SECONDS))
+            local curl_status
+            if [ "$remaining" -le 0 ]; then return 1; fi
+            if curl "${CURL_ARGS[@]}" --max-time "$((remaining < 15 ? remaining : 15))" -o "$output" "$url"; then
+              return 0
+            else
+              curl_status=$?
+            fi
+            # A connection interruption can recover without losing a complete round.
+            case "$curl_status" in
+              35|56) ;;
+              *) return "$curl_status" ;;
+            esac
+            remaining=$((DEADLINE - SECONDS))
+            if [ "$remaining" -le 0 ]; then return "$curl_status"; fi
+            curl "${CURL_ARGS[@]}" --max-time "$((remaining < 5 ? remaining : 5))" -o "$output" "$url"
+          }
           ATTEMPT=0
           CONSECUTIVE=0
           while [ "$SECONDS" -lt "$DEADLINE" ]; do
             ATTEMPT=$((ATTEMPT + 1))
-            REMAINING=$((DEADLINE - SECONDS))
-            MAX_TIME=$((REMAINING < 15 ? REMAINING : 15))
-            ACTUAL_VERSION=$(curl "${CURL_ARGS[@]}" --max-time "$MAX_TIME" "${E2E_BASE_URL}/version.json?deploy_probe=${ATTEMPT}-${RANDOM}" \
-              | node -e "let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{try{process.stdout.write(String(JSON.parse(s).version||''))}catch{}})" \
-              || true)
+            ACTUAL_VERSION=
+            if probe_cloudflare_url "$VERSION_FILE" "${E2E_BASE_URL}/version.json?deploy_probe=${ATTEMPT}-${RANDOM}"; then
+              ACTUAL_VERSION=$(node -e "let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{try{process.stdout.write(String(JSON.parse(s).version||''))}catch{}})" < "$VERSION_FILE")
+            fi
             READY=true
             if [ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]; then
               READY=false
@@ -1035,13 +1055,7 @@ jobs:
               # Confirm origin propagation without priming a canonical negative
               # cache entry while the deployment is still incomplete.
               for ASSET in "${PROBE_ASSETS[@]}"; do
-                REMAINING=$((DEADLINE - SECONDS))
-                if [ "$REMAINING" -le 0 ]; then
-                  READY=false
-                  break
-                fi
-                MAX_TIME=$((REMAINING < 15 ? REMAINING : 15))
-                if ! curl "${CURL_ARGS[@]}" --max-time "$MAX_TIME" -o /dev/null "${E2E_BASE_URL}/assets/${ASSET}?deploy_probe=${ATTEMPT}-${RANDOM}"; then
+                if ! probe_cloudflare_url /dev/null "${E2E_BASE_URL}/assets/${ASSET}?deploy_probe=${ATTEMPT}-${RANDOM}"; then
                   READY=false
                   break
                 fi
@@ -1051,13 +1065,7 @@ jobs:
               # Vite imports use the exact query-less URL. This must also be
               # healthy so a stale edge-cached 404 cannot slip past the gate.
               for ASSET in "${PROBE_ASSETS[@]}"; do
-                REMAINING=$((DEADLINE - SECONDS))
-                if [ "$REMAINING" -le 0 ]; then
-                  READY=false
-                  break
-                fi
-                MAX_TIME=$((REMAINING < 15 ? REMAINING : 15))
-                if ! curl "${CURL_ARGS[@]}" --max-time "$MAX_TIME" -o /dev/null "${E2E_BASE_URL}/assets/${ASSET}"; then
+                if ! probe_cloudflare_url /dev/null "${E2E_BASE_URL}/assets/${ASSET}"; then
                   READY=false
                   break
                 fi

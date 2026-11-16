@@ -56,6 +56,30 @@ export function collectHighestScores(snapshot: SessionScoresResponse | null | un
 
 // ── helpers ──
 
+function orderAssessmentEntries<Entry, Option>(
+  entries: Entry[], options: Option[] | undefined, entryId: (entry: Entry) => number,
+  optionId: (option: Option) => number,
+): Entry[] {
+  if (!options?.length || entries.length < 2) return entries;
+  const entriesById = new Map(entries.map(entry => [entryId(entry), entry]));
+  const ordered = options.flatMap(option => {
+    const id = optionId(option);
+    const entry = entriesById.get(id);
+    if (entry === undefined) return [];
+    entriesById.delete(id);
+    return [entry];
+  });
+  return [...ordered, ...entriesById.values()];
+}
+
+function orderScoreRow(row: SessionScoreRow, meta: SessionScoreMeta | null): SessionScoreRow {
+  return {
+    ...row,
+    exams: orderAssessmentEntries(row.exams ?? [], meta?.exams, exam => exam.exam_id, exam => exam.exam_id),
+    homeworks: orderAssessmentEntries(row.homeworks ?? [], meta?.homeworks, hw => hw.homework_id, hw => hw.homework_id),
+  };
+}
+
 function pct(score: number | null | undefined, max: number | null | undefined): string {
   if (score == null || max == null || max === 0) return "";
   return `${Math.round((score / max) * 100)}%`;
@@ -531,16 +555,17 @@ export function generateScoreReport(
   const passLabel = options.passLabel || "합격";
   const failLabel = options.failLabel || "불합격";
 
-  const examLines = renderExamLines(row, meta, passLabel, failLabel);
+  const orderedRow = orderScoreRow(row, meta);
+  const examLines = renderExamLines(orderedRow, meta, passLabel, failLabel);
   if (examLines.length > 0) lines.push(...examLines);
 
-  const hwLines = renderHomeworkLines(row, meta, passLabel, failLabel);
+  const hwLines = renderHomeworkLines(orderedRow, meta, passLabel, failLabel);
   if (hwLines.length > 0) {
     if (examLines.length > 0) lines.push("");
     lines.push(...hwLines);
   }
 
-  const stats = collectStats(row, meta);
+  const stats = collectStats(orderedRow, meta);
   stats.passLabel = passLabel;
   const summaryLines = renderSummaryLines(stats);
   if (summaryLines.length > 0) {
@@ -582,6 +607,7 @@ export function buildScoreVars(
   options: ScoreReportOptions = {},
 ): Record<string, string> {
   const vars: Record<string, string> = {};
+  const orderedRow = orderScoreRow(row, meta);
 
   // 기본 변수
   const studentName = row.student_name || "";
@@ -602,17 +628,19 @@ export function buildScoreVars(
   }
 
   // 시험 변수 (번호 기반, 실제 데이터로 덮어쓰기)
-  const exams = row.exams ?? [];
+  const exams = orderedRow.exams;
+  const examsById = new Map(exams.map(exam => [exam.exam_id, exam]));
+  const examMetaById = new Map(meta?.exams?.map(exam => [exam.exam_id, exam]));
   // A numbered slot identifies the same assessment for every recipient, including
   // students without an assignment. Per-student arrays may have different gaps/order.
   const examSlots = [
     ...(meta?.exams ?? []),
-    ...exams.filter(exam => !meta?.exams?.some(item => item.exam_id === exam.exam_id)),
+    ...exams.filter(exam => !examMetaById.has(exam.exam_id)),
   ];
   for (let i = 0; i < examSlots.length; i++) {
     const slot = examSlots[i];
-    const exam = exams.find(item => item.exam_id === slot.exam_id);
-    const metaExam = meta?.exams?.find(item => item.exam_id === slot.exam_id);
+    const exam = examsById.get(slot.exam_id);
+    const metaExam = examMetaById.get(slot.exam_id);
     const n = i + 1;
     const highestScore = options.highestScores?.examScores.get(slot.exam_id);
     if (n <= SCORE_TEMPLATE_SLOT_LIMIT && highestScore !== undefined) {
@@ -648,7 +676,9 @@ export function buildScoreVars(
   vars["과제총만점"] = row.homework_total?.selected_count ? String(row.homework_total.max_score) : "-";
 
   // 과제 변수 (번호 기반, 실제 데이터로 덮어쓰기)
-  const homeworks = row.homeworks ?? [];
+  const homeworks = orderedRow.homeworks;
+  const homeworksById = new Map(homeworks.map(hw => [hw.homework_id, hw]));
+  const homeworkMetaById = new Map(meta?.homeworks?.map(hw => [hw.homework_id, hw]));
   const videoHomework = displaysVideoHomework(row, options.showVideoHomeworkLabel);
   // 완료 여부는 서버의 교사 확인/자동 완료 상태를 따른다. 점수 입력·합격과는 별개다.
   const completedHomeworks = homeworks.filter(({ block }) => (
@@ -656,12 +686,12 @@ export function buildScoreVars(
   )).length;
   const homeworkSlots = [
     ...(meta?.homeworks ?? []),
-    ...homeworks.filter(hw => !meta?.homeworks?.some(item => item.homework_id === hw.homework_id)),
+    ...homeworks.filter(hw => !homeworkMetaById.has(hw.homework_id)),
   ];
   for (let i = 0; i < homeworkSlots.length; i++) {
     const slot = homeworkSlots[i];
-    const hw = homeworks.find(item => item.homework_id === slot.homework_id);
-    const metaHw = meta?.homeworks?.find(item => item.homework_id === slot.homework_id);
+    const hw = homeworksById.get(slot.homework_id);
+    const metaHw = homeworkMetaById.get(slot.homework_id);
     const n = i + 1;
     const highestScore = options.highestScores?.homeworkScores.get(slot.homework_id);
     if (n <= SCORE_TEMPLATE_SLOT_LIMIT && metaHw?.grading_mode === "SCORE" && highestScore !== undefined) {
@@ -716,7 +746,7 @@ export function buildScoreVars(
     const lines: string[] = [];
     for (let i = 0; i < homeworks.length; i++) {
       const hw = homeworks[i];
-      const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
+      const metaHw = homeworkMetaById.get(hw.homework_id);
       const max = hw.block.max_score ?? metaHw?.max_score ?? 0;
       const completion = metaHw?.grading_mode === "COMPLETION";
       const scoreStr = hw.block.score != null
@@ -732,7 +762,7 @@ export function buildScoreVars(
 
   // #{전체요약} — 시험+과제 통합 요약 블록
   {
-    const stats = collectStats(row, meta);
+    const stats = collectStats(orderedRow, meta);
     stats.passLabel = passLabel;
     const lines: string[] = [];
     if (stats.examTotal > 0) {
@@ -754,7 +784,7 @@ export function buildScoreVars(
   }
 
   // 시험성적 블록 (기존 buildScoreDetail과 동일)
-  vars["시험성적"] = buildScoreDetail(row, meta, options);
+  vars["시험성적"] = renderScoreDetail(orderedRow, meta, options);
 
   // 알림톡 봉투 변수 — 전체 본문에서는 성적 상세로 치환 (#{선생님메모}는 Solapi 래퍼 변수)
   vars["선생님메모"] = vars["시험성적"];
@@ -771,8 +801,10 @@ export function substituteScoreVars(
   meta: SessionScoreMeta | null,
   options: ScoreReportOptions = {},
 ): string {
-  const vars = buildScoreVars(row, meta, options);
+  return substituteScoreValues(templateBody, buildScoreVars(row, meta, options));
+}
 
+export function substituteScoreValues(templateBody: string, vars: Readonly<Record<string, string>>): string {
   // 치환 수행
   let result = templateBody.replace(/#\{([^}]+)\}/g, (match, varName) => {
     // Sending time and actual class facts are authoritative server values.
@@ -799,10 +831,13 @@ export function buildScoreDetail(
   meta: SessionScoreMeta | null,
   options?: ScoreReportOptions,
 ): string {
+  return renderScoreDetail(orderScoreRow(row, meta), meta, options);
+}
+
+function renderScoreDetail(row: SessionScoreRow, meta: SessionScoreMeta | null, options?: ScoreReportOptions): string {
   const lines: string[] = ["성적 상세표", "━━━━━━━━━━━━"];
   const passLabel = options?.passLabel || "합격";
   const failLabel = options?.failLabel || "불합격";
-
   const examLines = renderScoreDetailExamLines(row, meta, passLabel, failLabel);
   if (examLines.length > 0) lines.push(...examLines);
 
