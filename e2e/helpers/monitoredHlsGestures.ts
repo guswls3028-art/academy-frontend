@@ -1,6 +1,8 @@
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
 import { syntheticLongVideoAsset } from "../../scripts/run-development-release-canary.mjs";
+import { withVideoControlInputTrace } from "./videoControlInputTrace";
+import { leaveStudentPlayer, verifyClassPlaybackActivity } from "./videoStabilityProbe";
 
 type GestureRateAuditWindow = Window & { __qaGestureRateWrites: number[] };
 
@@ -81,6 +83,21 @@ async function openMonitoredHlsPlayer({ page, speedLocked, base, viewport, insta
   const writes = () => page.evaluate(() => (window as GestureRateAuditWindow).__qaGestureRateWrites);
   const clearWrites = () => page.evaluate(() => { (window as GestureRateAuditWindow).__qaGestureRateWrites = []; });
   return { video, state, writes, clearWrites };
+}
+
+export async function verifyResumedClassActivity(scenario: GestureScenario) {
+  const { page } = scenario;
+  const { video, state } = await openMonitoredHlsPlayer(scenario);
+  await page.getByRole("button", { name: "일시정지", exact: true }).click();
+  await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.paused)).toBe(true);
+  await verifyClassPlaybackActivity(page, "synthetic-gesture-token", 2);
+  expect(state.grants).toBe(1);
+  expect(state.active).toBe(true);
+  expect(state.events.filter(event => event.type.startsWith("FULLSCREEN_")).map(event => event.type))
+    .toEqual(["FULLSCREEN_ENTER", "FULLSCREEN_EXIT"]);
+  expect(state.receipts).toBeGreaterThanOrEqual(2);
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await leaveStudentPlayer(page, { videoId: 562, enrollmentId: 1304, sessionId: 394, token: "synthetic-gesture-token" });
 }
 
 export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {
@@ -447,7 +464,8 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
     const read = () => target.evaluate((node, fraction) => {
       const rect = node.getBoundingClientRect();
       const x = rect.left + Math.max(1, rect.width * fraction), y = rect.top + rect.height / 2;
-      return { x, y, ownsTarget: node.contains(document.elementFromPoint(x, y)),
+      return { x, y, position: { x: x - rect.left - node.clientLeft, y: y - rect.top - node.clientTop },
+        ownsTarget: node.contains(document.elementFromPoint(x, y)),
         controlsHidden: node.closest(".svpPlayerWrap")!.classList.contains("svpPlayerWrap--controlsHidden") };
     }, fraction);
     const before = await read();
@@ -467,7 +485,9 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
     await expect(controls).toHaveCSS("opacity", "1");
     await expect(target).toBeEnabled();
     const point = await controlPoint(target, fraction);
-    await page.mouse.click(point.x, point.y);
+    // Keep the same action point while checking stability and event ownership
+    // at dispatch time, rather than sending a raw click to an earlier position.
+    await target.click({ position: point.position });
   };
   for (const width of scenario.viewport?.width === 1366 ? [1100, 1366] : [390]) {
     const height = scenario.viewport?.height ?? 844;
@@ -485,17 +505,19 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
       }
       // The fixture permits free seek. Use real range input, then restore near start.
       const duration = await video.evaluate((node: HTMLVideoElement) => node.duration);
-      await clickControl(progressSlider, 0.75);
-      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeGreaterThan(duration * 0.6);
-      // currentTime changes before seek completion and the controlled thumb renders.
-      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.seeking)).toBe(false);
-      await expect.poll(async () => Number(await progressSlider.inputValue())).toBeGreaterThan(duration * 0.6);
-      await assertPaused(phase === "paused");
-      await clickControl(progressSlider, 0);
-      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeLessThan(duration * 0.05);
-      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.seeking)).toBe(false);
-      await expect.poll(async () => Number(await progressSlider.inputValue())).toBeLessThan(duration * 0.05);
-      await assertPaused(phase === "paused");
+      await withVideoControlInputTrace(page, info, `progress-seek-${width}-${phase}`, async () => {
+        await clickControl(progressSlider, 0.75);
+        await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeGreaterThan(duration * 0.6);
+        // currentTime changes before seek completion and the controlled thumb renders.
+        await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.seeking)).toBe(false);
+        await expect.poll(async () => Number(await progressSlider.inputValue())).toBeGreaterThan(duration * 0.6);
+        await assertPaused(phase === "paused");
+        await clickControl(progressSlider, 0);
+        await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeLessThan(duration * 0.05);
+        await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.seeking)).toBe(false);
+        await expect.poll(async () => Number(await progressSlider.inputValue())).toBeLessThan(duration * 0.05);
+        await assertPaused(phase === "paused");
+      });
     }
     await page.locator(".svpBigPlay").click();
     await assertPaused(false);

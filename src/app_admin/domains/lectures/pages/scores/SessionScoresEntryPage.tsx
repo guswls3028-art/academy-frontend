@@ -74,25 +74,38 @@ function isScoreAlimtalkAttendance(row: SessionScoreRow, includeVideo: boolean):
     || (includeVideo && row.attendance_status === "ONLINE");
 }
 
-function getScoreAlimtalkBlockReason(rows: SessionScoreRow[], afterSave: boolean, includeVideo: boolean): string | null {
+type ScoreAlimtalkIssue = {
+  message: string;
+  unenteredEnrollmentIds?: number[];
+};
+
+function getScoreAlimtalkIssue(rows: SessionScoreRow[], afterSave: boolean, includeVideo: boolean): ScoreAlimtalkIssue | null {
   if (rows.length === 0) {
     const applicableAttendance = includeVideo ? "출석·지각·영상" : "출석·지각";
-    return `선택한 학생 중 ${applicableAttendance}으로 기록된 학생이 없습니다. 출결을 확인해 주세요.`;
+    return { message: `선택한 학생 중 ${applicableAttendance}으로 기록된 학생이 없습니다. 출결을 확인해 주세요.` };
   }
   if (rows.some((row) => row.exams.some((exam) => exam.block.grading_status === "subjective_pending"))) {
-    return "최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.";
+    return { message: "최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요." };
   }
   const provisionalCount = rows.reduce(
     (count, row) => count + row.exams.filter((exam) => exam.block.is_provisional).length, 0,
   );
   if (provisionalCount > 0) {
-    return `채점을 확인 중인 시험이 ${provisionalCount}건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.`;
+    return { message: `채점을 확인 중인 시험이 ${provisionalCount}건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.` };
   }
-  const unenteredCount = rows.reduce((count, row) => count + collectUnenteredScoreItems(row).length, 0);
-  if (unenteredCount === 0) return null;
-  return afterSave
-    ? `최신 성적에 입력되지 않은 시험·과제가 ${unenteredCount}건 있습니다. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 다시 시도해 주세요.`
-    : `점수가 입력되지 않은 시험·과제가 ${unenteredCount}건 있습니다. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 발송해 주세요.`;
+  const unenteredRows = rows.flatMap((row) => {
+    const count = collectUnenteredScoreItems(row).length;
+    return count > 0 ? [{ row, count }] : [];
+  });
+  if (unenteredRows.length === 0) return null;
+  const unenteredCount = unenteredRows.reduce((total, { count }) => total + count, 0);
+  const affectedNames = unenteredRows.slice(0, 3).map(({ row, count }) => `${row.student_name} ${count}건`).join(", ");
+  const remainingNames = unenteredRows.length > 3 ? ` 외 ${unenteredRows.length - 3}명` : "";
+  const prefix = afterSave ? "최신 성적에 입력되지 않은 시험·과제가" : "점수가 입력되지 않은 시험·과제가";
+  return {
+    message: `${prefix} ${unenteredCount}건 있습니다. ${affectedNames}${remainingNames}. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 다시 시도해 주세요.`,
+    unenteredEnrollmentIds: unenteredRows.map(({ row }) => row.enrollment_id),
+  };
 }
 
 function getStoredSummaryColumnMode(
@@ -174,7 +187,7 @@ export default function SessionScoresEntryPage({
   const [isPreparingScoreAlimtalk, setIsPreparingScoreAlimtalk] = useState(false);
   const [scoreAlimtalkError, setScoreAlimtalkError] = useState<string | null>(null);
   const scoreAlimtalkRequestRef = useRef<symbol | null>(null);
-  const changeScoreSelection = useCallback((ids: number[], reason?: "roster") => {
+  const changeScoreSelection = useCallback((ids: number[] | ((current: number[]) => number[]), reason?: "roster") => {
     setSelectedEnrollmentIds(ids);
     // A fresh roster can prune ineligible rows during preparation. Keep checking the clicked selection.
     if (reason === "roster") return;
@@ -838,9 +851,9 @@ export default function SessionScoresEntryPage({
         setScoreAlimtalkError(refreshError);
         return;
       }
-      const initialIssue = getScoreAlimtalkBlockReason(selectAttendees(initial.data), false, includeVideoInScoreAlimtalk);
+      const initialIssue = getScoreAlimtalkIssue(selectAttendees(initial.data), false, includeVideoInScoreAlimtalk);
       if (initialIssue && selectVideoStudents(initial.data).length === 0) {
-        setScoreAlimtalkError(initialIssue);
+        setScoreAlimtalkError(initialIssue.message);
         return;
       }
       if (!await saveScoresNow() || !isCurrentRequest()) return;
@@ -853,9 +866,9 @@ export default function SessionScoresEntryPage({
       }
       const selectedRows = selectAttendees(latest.data);
       const videoRows = selectVideoStudents(latest.data);
-      const issue = getScoreAlimtalkBlockReason(selectedRows, true, includeVideoInScoreAlimtalk);
+      const issue = getScoreAlimtalkIssue(selectedRows, true, includeVideoInScoreAlimtalk);
       if (issue && videoRows.length === 0) {
-        setScoreAlimtalkError(issue);
+        setScoreAlimtalkError(issue.message);
         return;
       }
       const ids = selectedRows.map((row) => row.student_id);
@@ -868,12 +881,19 @@ export default function SessionScoresEntryPage({
       }
       const excludedCount = selectedIds.size - selectedRows.length - videoRows.length;
       if (issue) {
+        const unenteredIds = new Set(issue.unenteredEnrollmentIds);
+        const canExcludeUnentered = unenteredIds.size > 0 && selectedRows.some((row) => !unenteredIds.has(row.enrollment_id));
         openSendMessageModal({
           sessionId: numericSessionId,
           recipientLabel: `과제 안내 — 영상 ${videoHomeworkStudentIds.length}명${excludedCount ? ` · ${excludedCount}명 제외` : ""}`,
           blockCategory: "assignment",
           videoHomeworkStudentIds,
-          scoreUnavailableReason: selectedRows.length > 0 ? issue : undefined,
+          scoreUnavailableReason: selectedRows.length > 0 ? {
+            message: issue.message,
+            onExcludeUnentered: canExcludeUnentered
+              ? () => changeScoreSelection((ids) => ids.filter((id) => !unenteredIds.has(id)))
+              : undefined,
+          } : undefined,
         });
         return;
       }
@@ -1022,9 +1042,27 @@ export default function SessionScoresEntryPage({
     "manual",
   );
   const openPendingSubjectiveGradingRef = useRef(openPendingSubjectiveGrading);
+  const openExamGradingRef = useRef(openExamGrading);
   useEffect(() => {
     openPendingSubjectiveGradingRef.current = openPendingSubjectiveGrading;
+    openExamGradingRef.current = openExamGrading;
   });
+
+  useEffect(() => {
+    if (!searchParams.has("omrReviewExamId") || isLoading || isError || recoveryBlocked) return;
+    const examId = Number(searchParams.get("omrReviewExamId"));
+    const exam = omrExamOptions.find((option) => option.exam_id === examId);
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.delete("omrReviewExamId");
+      return next;
+    }, { replace: true });
+    if (exam) {
+      void openExamGradingRef.current(exam.exam_id, exam.title, resolveExamGradingMode(exam), exam.manual_grading_method ?? "score", "omr");
+    } else {
+      feedback.info("이 차시에서 해당 시험의 OMR 검토를 열 수 없습니다.");
+    }
+  }, [isError, isLoading, omrExamOptions, recoveryBlocked, searchParams, setSearchParams]);
 
   useEffect(() => {
     const examId = Number(searchParams.get("gradingExamId"));

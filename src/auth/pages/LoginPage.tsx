@@ -24,6 +24,7 @@ import { fetchLandingHasPublished } from "@/landing/api";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import SignupModal from "./SignupModal";
 import AccountRecoveryModal from "./AccountRecoveryModal";
+import TenantRequiredPage from "./TenantRequiredPage";
 import "@/auth/themes/tchul.css";
 import "@/auth/themes/limglish.css";
 import "@/auth/themes/hakwonplus.css";
@@ -69,7 +70,7 @@ export default function LoginPage() {
   useDocumentTitle();
   useFavicon();
 
-  const { program, isLoading } = useProgram();
+  const { program, isLoading, error: programError } = useProgram();
   const { tenantCode: paramCode } = useParams<{ tenantCode?: string }>();
   const tenantCode = useTenantCode(program?.tenantCode);
 
@@ -106,6 +107,11 @@ export default function LoginPage() {
 
   // program 로딩 중이면 아무것도 렌더하지 않음 (기본값→실제값 플래시 방지)
   if (isLoading) return null;
+
+  // 연결 복구는 학원 정보에 사용한 로그인 주소에서 다시 시작한다.
+  if (programError && !program) {
+    return <TenantRequiredPage retryCurrentPage />;
+  }
 
   // program 로딩 완료 후 없으면 에러 페이지
   if (!program) {

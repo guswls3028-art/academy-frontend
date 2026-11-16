@@ -1,24 +1,19 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
+const PROGRAM_ROUTE = "**/api/v1/core/program/**";
+const GODMIN_PROGRAM = {
+  tenantCode: "godmin",
+  display_name: "신과함께",
+  ui_config: {
+    login_title: "신과함께",
+    logo_url: "/tenants/godmin/logo.png",
+  },
+  feature_flags: {},
+  is_active: true,
+};
 
-async function openGodminLogin(page: Page) {
-  await page.route("**/api/v1/core/program/**", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        tenantCode: "godmin",
-        display_name: "신과함께",
-        ui_config: {
-          login_title: "신과함께",
-          logo_url: "/tenants/godmin/logo.png",
-        },
-        feature_flags: {},
-        is_active: true,
-      }),
-    });
-  });
+async function mockLandingStatus(page: Page) {
   await page.route("**/api/v1/core/landing/has-published/**", async (route) => {
     await route.fulfill({
       status: 200,
@@ -26,10 +21,58 @@ async function openGodminLogin(page: Page) {
       body: JSON.stringify({ has_published: false }),
     });
   });
+}
+
+async function openGodminLogin(page: Page) {
+  await page.route(PROGRAM_ROUTE, (route) => route.fulfill({ json: GODMIN_PROGRAM }));
+  await mockLandingStatus(page);
 
   await page.goto(`${BASE}/login/godmin`, { waitUntil: "commit", timeout: 45_000 });
   await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible({ timeout: 30_000 });
 }
+
+test("Godmin 390px 로그인은 연결 복구 후 같은 주소에서 로그인 폼을 다시 표시한다", async ({ page }) => {
+  const loginUrl = `${BASE}/login/godmin?entry=mobile`;
+  let connected = false;
+  const tenantHeaders: Array<string | undefined> = [];
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route(PROGRAM_ROUTE, async (route) => {
+    if (route.request().method() === "GET") {
+      tenantHeaders.push(route.request().headers()["x-tenant-code"]);
+    }
+    if (connected) {
+      await route.fulfill({ json: GODMIN_PROGRAM });
+    } else {
+      await route.fulfill({ status: 503, json: { detail: "Temporarily unavailable" } });
+    }
+  });
+  await mockLandingStatus(page);
+
+  const error = page.getByRole("heading", { name: "서버에 연결할 수 없습니다" });
+  const retry = page.getByRole("button", { name: "다시 시도" });
+  const form = page.getByRole("form", { name: "로그인 폼" });
+  await page.goto(loginUrl, { waitUntil: "commit" });
+  await expect(error).toBeVisible({ timeout: 15_000 });
+  await expect(page).toHaveURL(loginUrl);
+
+  await Promise.all([
+    page.waitForResponse((response) => response.url().includes("/api/v1/core/program/") && response.status() === 503),
+    retry.click(),
+  ]);
+  await expect(error).toBeVisible({ timeout: 15_000 });
+  await expect(retry).toBeEnabled();
+  await expect(form).toHaveCount(0);
+  await expect(page).toHaveURL(loginUrl);
+
+  connected = true;
+  await retry.click();
+  await expect(form).toBeVisible({ timeout: 15_000 });
+  await form.getByRole("button", { name: "로그인", exact: true }).click({ trial: true });
+  await expect(page).toHaveURL(loginUrl);
+  expect(tenantHeaders.length).toBeGreaterThanOrEqual(3);
+  expect(new Set(tenantHeaders)).toEqual(new Set(["godmin"]));
+});
 
 test("Godmin 데스크톱 로그인은 점 없이 분할 레이아웃과 포커스 피드백을 유지한다", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1366, height: 768 });

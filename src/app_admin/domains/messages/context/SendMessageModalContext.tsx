@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import type { TemplateCategory } from "../constants/templateBlocks";
+import type { SendMessageModalProps } from "../components/SendMessageModal";
 import { AdminModal, ModalBody, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 
 const SendMessageModal = lazy(() => import("../components/SendMessageModal"));
@@ -22,7 +23,7 @@ export type OpenSendMessageOptions = {
   studentIds?: number[];
   recipientLabel?: string;
   videoHomeworkStudentIds?: number[];
-  scoreUnavailableReason?: string;
+  scoreUnavailableReason?: SendMessageModalProps["scoreUnavailableReason"];
   /** 삽입 블록 카테고리. 미지정 시 "default" (모든 블록) */
   blockCategory?: TemplateCategory;
   /** 본문 사전 입력 (성적 발송 등) */
@@ -68,7 +69,7 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
   const [studentIds, setStudentIds] = useState<number[]>([]);
   const [recipientLabel, setRecipientLabel] = useState<string | undefined>();
   const [videoHomeworkStudentIds, setVideoHomeworkStudentIds] = useState<number[] | undefined>();
-  const [scoreUnavailableReason, setScoreUnavailableReason] = useState<string | undefined>();
+  const [scoreUnavailableReason, setScoreUnavailableReason] = useState<OpenSendMessageOptions["scoreUnavailableReason"]>();
   const [blockCategory, setBlockCategory] = useState<TemplateCategory | undefined>();
   const [initialBody, setInitialBody] = useState<string | undefined>();
   const [initialTemplateId, setInitialTemplateId] = useState<number | null | undefined>();

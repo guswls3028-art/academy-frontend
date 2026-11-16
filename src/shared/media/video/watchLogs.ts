@@ -1,10 +1,18 @@
 import api from "@/shared/api/axios";
+import type { ReviewWatchSummary } from "./reviewWatchSummary";
 
 export interface WatchStudent {
   student_id: number;
   student_name: string;
   used_ms: number;
-  started_at: string;
+  started_at: string | null;
+  limit_ms?: number | null;
+  remaining_ms?: number | null;
+  exhausted?: boolean;
+  revision?: string;
+  applicable?: boolean;
+  can_adjust?: boolean;
+  review_watch_summary?: ReviewWatchSummary;
 }
 
 export interface WatchReport {

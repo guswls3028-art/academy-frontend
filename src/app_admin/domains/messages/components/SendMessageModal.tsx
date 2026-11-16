@@ -14,13 +14,13 @@
 //   - 카테고리 필터 + "전체 보기" 토글로 다른 카테고리 양식 섞임 방지
 //   - 명시적으로 저장한 같은 카테고리의 사용자 기본 문구만 초기화에 사용한다.
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, useId } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { Input } from "antd";
 import { isAxiosError } from "axios";
 import { Check, AlertCircle, AlertTriangle, Tag, Shield, CalendarClock } from "lucide-react";
-import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
+import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Badge, Button, ICON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -87,7 +87,7 @@ export type SendMessageModalProps = {
   initialStudentIds?: number[];
   recipientLabel?: string;
   videoHomeworkStudentIds?: number[];
-  scoreUnavailableReason?: string;
+  scoreUnavailableReason?: { message: string; onExcludeUnentered?: () => void };
   blockCategory?: TemplateCategory;
   initialBody?: string;
   initialTemplateId?: number | null;
@@ -604,19 +604,20 @@ export default function SendMessageModal({
     setVideoHomeworkSummaryError(null);
     // A teacher can check assignments while the score draft is still empty.
     if (!open || !includeVideoHomework || frontendReady || sending || videoHomeworkAttempt || !sendTargetKey || scheduleError) return;
-    let cancelled = false;
+    const controller = new AbortController();
+    const { signal } = controller;
     setVideoHomeworkSummaryLoading(true);
-    void preflightSendMessage(videoHomeworkPayload(sendTargetKey.startsWith("parent") ? "parent" : "student"))
+    void preflightSendMessage(videoHomeworkPayload(sendTargetKey.startsWith("parent") ? "parent" : "student"), signal)
       .then((result) => {
-        if (cancelled) return;
+        if (signal.aborted) return;
         if (!result.video_makeup_homework_preview) throw new Error("과제 배정 정보를 받지 못했습니다.");
         setVideoHomeworkSummary(result.video_makeup_homework_preview);
       })
       .catch((error: unknown) => {
-        if (!cancelled) setVideoHomeworkSummaryError(extractApiError(error, "과제 배정을 확인하지 못했습니다."));
+        if (!signal.aborted) setVideoHomeworkSummaryError(extractApiError(error, "과제 배정을 확인하지 못했습니다."));
       })
-      .finally(() => { if (!cancelled) setVideoHomeworkSummaryLoading(false); });
-    return () => { cancelled = true; };
+      .finally(() => { if (!signal.aborted) setVideoHomeworkSummaryLoading(false); });
+    return () => controller.abort();
   }, [frontendReady, includeVideoHomework, open, preflightRetry, scheduleError, sendTargetKey, sending, videoHomeworkAttempt, videoHomeworkPayload]);
 
   useEffect(() => {
@@ -628,7 +629,8 @@ export default function SendMessageModal({
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
+    const { signal } = controller;
     setPreflightLoading(true);
     setPreflightResults([]);
     setPreflightError(null);
@@ -636,23 +638,23 @@ export default function SendMessageModal({
     const timer = window.setTimeout(async () => {
       try {
         const results = await Promise.all(
-          reviewedPayloads.map(preflightSendMessage),
+          reviewedPayloads.map((payload) => preflightSendMessage(payload, signal)),
         );
-        if (cancelled) return;
+        if (signal.aborted) return;
         setPreflightResults(results);
         setPreflightResultKey(preflightKey);
       } catch (error: unknown) {
-        if (cancelled) return;
+        if (signal.aborted) return;
         setPreflightResults([]);
         setPreflightResultKey("");
         setPreflightError(extractApiError(error, "발송 가능 여부를 확인하지 못했습니다."));
       } finally {
-        if (!cancelled) setPreflightLoading(false);
+        if (!signal.aborted) setPreflightLoading(false);
       }
     }, 350);
 
     return () => {
-      cancelled = true;
+      controller.abort();
       window.clearTimeout(timer);
     };
   }, [frontendReady, open, preflightKey, preflightRetry, reviewedPayloads, reviewPendingSend, sending, videoHomeworkAttempt]);
@@ -726,8 +728,17 @@ export default function SendMessageModal({
     confirmGroupRecipients.find((recipient) => recipient.studentId === confirmPreviewStudentId)
     ?? confirmGroupRecipients[0]
     ?? null;
+  const confirmHomeworkTitles = confirmVideoHomework
+    ? videoHomeworkPreview?.recipients.find((recipient) => recipient.student_id === confirmPreviewRecipient?.studentId)?.homework_titles
+    : undefined;
+  const confirmTemplate = confirmGroupResults.find((result) => result.template.ok)?.template;
+  const pendingReviewIssue = reviewPendingSend
+    ? preflightError || preflightBlockers[0]?.detail || preflightBlockers[0]?.title
+    : null;
 
   const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmFullMessage, setConfirmFullMessage] = useState(false);
+  const confirmMessageId = useId();
   const confirmDialogRef = useRef<HTMLDivElement>(null);
   const confirmReturnFocusRef = useRef<HTMLElement | null>(null);
 
@@ -1167,6 +1178,7 @@ export default function SendMessageModal({
     setInspectedVideoHomework(startsWithVideoHomework);
     setConfirmPreviewStudentId(null);
     setConfirmRecipientsExpanded(false);
+    setConfirmFullMessage(false);
     setShowConfirm(true);
   };
 
@@ -1340,7 +1352,10 @@ export default function SendMessageModal({
 
   return (
     <>
-    <AdminModal open={open} onClose={() => void requestClose()} closeDisabled={sending || savingTemplate} width={1080} onEnterConfirm={requestSend} className="send-message-modal" noMinimize>
+    <AdminModal open={open} onClose={() => {
+      if (showConfirm) setShowConfirm(false);
+      else void requestClose();
+    }} closeDisabled={sending || savingTemplate} width={videoHomeworkOnly ? MODAL_WIDTH.form : 1080} onEnterConfirm={requestSend} className="send-message-modal" noMinimize>
       <ModalHeader
         noIcon
         title={
@@ -1373,8 +1388,21 @@ export default function SendMessageModal({
               )}
               <div className="send-modal__recipient-name">{labelName}</div>
               {scoreUnavailableReason && (
-                <div className="send-modal__hint send-modal__hint--warn">
-                  수업결과는 발송할 수 없습니다. {scoreUnavailableReason}
+                <div className="send-modal__score-unavailable">
+                  <strong>수업결과는 발송할 수 없습니다.</strong>
+                  <p>{scoreUnavailableReason.message}</p>
+                  {scoreUnavailableReason.onExcludeUnentered && (
+                    <Button
+                      intent="secondary"
+                      size="sm"
+                      onClick={() => {
+                        scoreUnavailableReason.onExcludeUnentered?.();
+                        onClose();
+                      }}
+                    >
+                      미입력 학생 선택 해제
+                    </Button>
+                  )}
                 </div>
               )}
 
@@ -1891,6 +1919,7 @@ export default function SendMessageModal({
           <section className="send-modal__schedule-note" role="status" aria-label="이번 발송 확인">
             <strong>이번 발송을 확인해 주세요</strong>
             <span>{sendAttemptError}</span>
+            {pendingReviewIssue && <span>{pendingReviewIssue}</span>}
             {sendAttempt.draftKey !== preflightKey && (
               <span>내용이나 대상이 바뀌었습니다. 새 발송 전에 이전 결과를 확인해 주세요.</span>
             )}
@@ -1904,6 +1933,11 @@ export default function SendMessageModal({
               {!reviewPendingSend && <Button intent="primary" size="sm" disabled={!canRetryAttempt || savingTemplate} onClick={() => void handleSend(true)}>
                 같은 요청으로 재시도
               </Button>}
+              {pendingReviewIssue && (
+                <Button intent="primary" size="sm" onClick={() => setPreflightRetry((retry) => retry + 1)}>
+                  과제 안내 다시 확인
+                </Button>
+              )}
             </div>
           </section>
         )}
@@ -1916,6 +1950,7 @@ export default function SendMessageModal({
             ref={confirmDialogRef}
             className="send-modal__confirm-card"
             data-video-homework={sendsVideoHomework}
+            data-video-preview={confirmVideoHomework}
             role="dialog"
             aria-modal="true"
             aria-labelledby="send-modal-confirm-title"
@@ -1966,16 +2001,32 @@ export default function SendMessageModal({
             )}
 
             <div className="send-modal__confirm-layout">
-              <section className="send-modal__confirm-kakao">
+              <section className="send-modal__confirm-kakao" data-full-message={confirmVideoHomework && confirmFullMessage}>
                 <div className="send-modal__confirm-previewing">
                   <span>지금 보는 학생</span>
                   <strong>{confirmPreviewRecipient?.studentName ?? "선택 학생"}</strong>
                 </div>
-                <KakaoAlimtalkPreview
-                  channelLabel={confirmVideoHomework ? getAlimtalkTemplateLabel(getAlimtalkTemplateTypeFromCategory("assignment")) : activeAlimtalkLabel}
-                >
-                  {confirmPreviewRecipient?.fullMessageBody || "미리볼 문구가 없습니다."}
-                </KakaoAlimtalkPreview>
+                {confirmHomeworkTitles && confirmHomeworkTitles.length > 0 && (
+                  <div className="send-modal__confirm-homework">
+                    <div className="send-modal__confirm-homework-heading">
+                      <strong>배정 과제</strong>
+                      <Button intent="ghost" size="sm" aria-controls={confirmMessageId} aria-expanded={confirmFullMessage} onClick={() => setConfirmFullMessage((value) => !value)}>
+                        {confirmFullMessage ? "문구 접기" : "전체 문구 보기"}
+                      </Button>
+                    </div>
+                    <ul aria-label="배정 과제">
+                      {confirmHomeworkTitles.map((title, index) => <li key={index}>{title}</li>)}
+                    </ul>
+                  </div>
+                )}
+                <div id={confirmMessageId}>
+                  <KakaoAlimtalkPreview
+                    key={confirmPreviewRecipient?.studentId}
+                    channelLabel={confirmTemplate?.template_type ? getAlimtalkTemplateLabel(confirmTemplate.template_type) : activeAlimtalkLabel}
+                  >
+                    {confirmPreviewRecipient?.fullMessageBody || "미리볼 문구가 없습니다."}
+                  </KakaoAlimtalkPreview>
+                </div>
               </section>
 
               <section className="send-modal__confirm-details">
@@ -2022,10 +2073,8 @@ export default function SendMessageModal({
                       <span>발송 대상 학생</span>
                       <strong>{confirmGroupRecipients.length}명</strong>
                     </div>
-                    <p>
-                      학생 선택은 미리보기만 바꾸며, 발송 대상은 그대로 유지됩니다.
-                      {confirmExcludedCount > 0 ? ` 전화번호가 없는 ${confirmExcludedCount}명은 제외됩니다.` : ""}
-                    </p>
+                    {confirmGroupRecipients.length > 1 && <p>학생 선택은 미리보기만 바꿉니다.</p>}
+                    {confirmExcludedCount > 0 && <p>전화번호가 없는 ${confirmExcludedCount}명은 제외됩니다.</p>}
                   </div>
 
                   {confirmGroupRecipients.length > 1 ? (
