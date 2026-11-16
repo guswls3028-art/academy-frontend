@@ -6,22 +6,28 @@
 .assessment-totals-selection-actions { display: flex; gap: 2px; }
 .assessment-totals-selection-actions .ds-button { min-height: 36px; }
 .assessment-totals-options { display: grid; gap: 6px; }
-.assessment-totals-option { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 64px; cursor: pointer; border: 1px solid var(--color-border-divider); border-radius: 8px; padding: 10px 12px; transition: background-color 140ms, border-color 140ms; }
+.assessment-totals-option { display: flex; gap: 6px; align-items: center; min-height: 64px; border: 1px solid var(--color-border-divider); border-radius: 8px; padding: 8px; transition: background-color 140ms, border-color 140ms; }
 .assessment-totals-option:hover { border-color: var(--color-brand-primary); }
 .assessment-totals-option[data-selected="true"] { background: color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-bg-surface)); border-color: color-mix(in srgb, var(--color-brand-primary) 32%, var(--color-border-divider)); }
 .assessment-totals-option:focus-within { outline: 2px solid var(--color-brand-primary); outline-offset: 2px; }
-.assessment-totals-option input { width: 20px; height: 20px; margin: 0; accent-color: var(--color-brand-primary); cursor: inherit; }
+.assessment-totals-option.assessment-totals-option--drop { border-color: var(--color-brand-primary); background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-bg-surface)); }
+.assessment-totals-drag-handle { display: inline-flex; align-items: center; justify-content: center; width: 24px; min-height: 36px; flex-shrink: 0; color: var(--color-text-muted); cursor: grab; }
+.assessment-totals-drag-handle:active { cursor: grabbing; }
+.assessment-totals-option-label { display: flex; flex: 1; gap: 8px; align-items: center; min-width: 0; cursor: pointer; }
+.assessment-totals-option-label input { width: 20px; height: 20px; margin: 0; flex-shrink: 0; accent-color: var(--color-brand-primary); cursor: inherit; }
 .assessment-totals-option-copy { display: grid; gap: 3px; min-width: 0; word-break: keep-all; overflow-wrap: anywhere; }
+.assessment-totals-option-completion { flex: 1; }
 .assessment-totals-option-copy strong { font-size: 14px; font-weight: 600; }
 .assessment-totals-option-copy small { color: var(--color-text-muted); font-size: 12px; }
-.assessment-totals-option-state { color: var(--color-text-muted); font-size: 12px; font-weight: 600; }
-.assessment-totals-option[data-selected="true"] .assessment-totals-option-state { color: var(--color-brand-primary); }
+.assessment-totals-move-actions { display: flex; flex-shrink: 0; }
 .assessment-totals-group:disabled .assessment-totals-option { opacity: .6; cursor: wait; }
 .assessment-totals-empty { margin: 8px 0; font-size: 13px; line-height: 1.6; color: var(--color-text-muted); }
 .assessment-totals-error { color: var(--color-danger); font-size: 13px; }
 .assessment-total-value { display: flex; flex-direction: column; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; }
 .assessment-total-value small { color: var(--color-text-muted); font-size: 11px; white-space: nowrap; }
-.assessment-total-heading { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px; width: 100%; min-height: 52px; padding: 6px 2px; border: 0; border-radius: 6px; background: transparent; color: var(--color-text-primary); cursor: pointer; transition: background-color 140ms; }
+.assessment-total-heading-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0 2px; }
+.assessment-total-heading-actions .assessment-total-hide { flex: none; }
+.assessment-total-heading { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px; min-height: 52px; padding: 6px 4px; border: 0; border-radius: 6px; background: transparent; color: var(--color-text-primary); cursor: pointer; transition: background-color 140ms; }
 .assessment-total-heading strong { font-size: 12px; font-weight: 700; }
 .assessment-total-heading > span { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 3px 6px; color: var(--color-text-muted); font-size: 11px; font-weight: 400; }
 .assessment-total-heading-edit { color: var(--color-brand-primary); text-decoration: underline; text-underline-offset: 3px; }
@@ -30,7 +36,14 @@
 @media (max-width: 520px) {
   .assessment-totals-selection-actions .ds-button { min-height: 44px; }
 }
+@media (pointer: coarse) {
+  .assessment-totals-drag-handle { display: none; }
+  .assessment-totals-move-actions .ds-button { min-width: 44px; min-height: 44px; }
+}
+@media (max-width: 520px), (pointer: coarse) {
+  .assessment-total-heading-actions .assessment-total-hide { min-width: 44px; min-height: 44px; }
+}
 @media (max-width: 700px) {
   .assessment-totals-groups { grid-template-columns: minmax(0, 1fr); }
 }
-@media (prefers-reduced-motion: reduce) { .assessment-totals-option { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .assessment-totals-option, .assessment-total-heading { transition: none; } }
