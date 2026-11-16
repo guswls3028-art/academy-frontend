@@ -69,6 +69,7 @@ export type VideoMetaLite = {
 };
 
 export type PlaybackBootstrap = {
+  review_watch_summary?: import("@/shared/media/video/reviewWatchSummary").ReviewWatchSummary | null;
   review_watch?: import("../../api/reviewWatch.api").ReviewWatch | null;
   event_protocol_version?: 1 | 2;
   token: string;

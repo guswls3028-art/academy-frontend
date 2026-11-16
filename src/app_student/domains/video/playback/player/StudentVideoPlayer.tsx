@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReviewWatch } from "./useReviewWatch";
 import { usePlayerFullscreen } from "./usePlayerFullscreen";
+import ReviewWatchSummaryPanel from "@/shared/media/video/ReviewWatchSummaryPanel";
 
 import "./player.css";
 
@@ -40,6 +41,7 @@ import type { VideoMetaLite, PlaybackBootstrap, LeaveProgressPayload } from "./p
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { isYouTubeSource } from "@/shared/media/video/youtube";
 import { requestVideoForwardSkip } from "../../api/video.api";
+import type { ReviewWatchSummary } from "@/shared/media/video/reviewWatchSummary";
 
 export type { VideoMetaLite, PlaybackBootstrap, LeaveProgressPayload } from "./playerState";
 
@@ -49,6 +51,7 @@ type Props = {
   enrollmentId: number | null;
   initialPosition?: number;
   onFatal?: (reason: string) => void;
+  onReviewSummary?: (summary: ReviewWatchSummary) => void;
   onEnded?: () => void;
   onLeaveProgress?: (data: LeaveProgressPayload) => void;
 };
@@ -61,6 +64,7 @@ export default function StudentVideoPlayer({
   enrollmentId,
   initialPosition,
   onFatal,
+  onReviewSummary,
   onEnded,
   onLeaveProgress,
 }: Props) {
@@ -128,10 +132,11 @@ export default function StudentVideoPlayer({
   onLeaveProgressRef.current = onLeaveProgress;
 
   const { ready, playing, buffering, duration, current, volume, muted, rate, toast, qualities, currentQuality, reconnecting } = ctrlState;
-  const { remaining: reviewRemaining, reconnecting: reviewReconnecting, settleMediaFailure } = useReviewWatch(video.id, enrollmentId ?? null, bootstrap.review_watch, playing && !buffering, current, (reason) => {
+  const { remaining: reviewRemaining, summary: reviewSummary, reconnecting: reviewReconnecting, settleMediaFailure } = useReviewWatch(video.id, enrollmentId ?? null, bootstrap.review_watch, playing && !buffering, current, (reason) => {
     controllerRef.current?.pause();
     onFatalRef.current?.(reason);
-  });
+  }, onReviewSummary);
+  const watchSummary = reviewSummary ?? bootstrap.review_watch_summary;
 
   useEffect(() => {
     currentRef.current = current;
@@ -539,7 +544,7 @@ export default function StudentVideoPlayer({
 
   return (
     <div className={`svpRoot ${theater ? "svpTheater" : ""}`}>
-      {reviewRemaining !== null && <p className="svpReviewRemaining">남은 복습시간 {Math.floor(Math.ceil(reviewRemaining / 1000) / 60)}분 {Math.ceil(reviewRemaining / 1000) % 60}초</p>}
+      {watchSummary ? <ReviewWatchSummaryPanel summary={watchSummary} remainingMs={bootstrap.review_watch ? reviewRemaining : undefined} /> : reviewRemaining !== null && <p className="svpReviewRemaining">남은 복습시간 {Math.floor(Math.ceil(reviewRemaining / 1000) / 60)}분 {Math.ceil(reviewRemaining / 1000) % 60}초</p>}
       {reviewReconnecting && <p role="status" className="svpReviewRemaining">시청 기록 연결을 복구하는 중입니다.</p>}
       <div className="svpLayout">
         <div className="svpPlayerCol">
