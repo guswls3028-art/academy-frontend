@@ -248,7 +248,7 @@ for (const width of [390, 1366]) {
     await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
     const results = page.getByRole("region", { name: "시험 학생별 결과", exact: true });
-    const priority = page.getByRole("region", { name: "보충 우선 문항", exact: true });
+    const priority = page.getByRole("region", { name: "문항별 정답률", exact: true });
     try {
       await expect(results).toContainText("김학생");
       await expect(priority).toContainText("문항 통계를 불러오는 중");
@@ -1811,6 +1811,30 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       });
       return;
     }
+    if (path === `/results/admin/exams/${EXAM_ID}/analysis-insights/`) {
+      const count = options.resultRows?.length ?? 0;
+      await json({
+        recommended_cutoff: null,
+        below_recommended_count: null,
+        scored_count: count,
+        score_summary: {
+          average: 80,
+          median: 80,
+          top_ten_average: 80,
+          highest: 80,
+          std_dev: 0,
+          std_rate: 0,
+          unscored_count: 0,
+          pass_criterion_count: count,
+          pass_count: count,
+          remediated_count: 0,
+          distribution_counts: [0, 0, 0, count, 0],
+        },
+        trend_threshold_pp: 10,
+        trends: [],
+      });
+      return;
+    }
     if (path === `/results/admin/exams/${EXAM_ID}/questions/`) {
       await json([]);
       return;
@@ -3191,6 +3215,49 @@ test.describe("문항별 직접 채점", () => {
     await expect(cells.nth(0)).toHaveAccessibleName("김학생 1번 O");
     await expect(cells.nth(1)).toHaveAccessibleName("김학생 2번 오답노트");
   });
+
+  for (const width of [390, 1366]) {
+    test(`성적 탭의 시험 성적 분석이 ${width}px에서 현재 강의의 리포트로 바로 이동한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await installApi(page, {
+        resultRows: [{
+          enrollment_id: ENROLLMENT_ID, student_name: "김학생", result_status: "DONE",
+          rank: 1, ranking_score: 80, final_score: 80, cohort_size: 1,
+        }],
+      });
+
+      await gotoAndSettle(
+        page,
+        `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+        { timeout: 30_000 },
+      );
+      const shortcut = page.getByRole("button", { name: "시험 성적 분석", exact: true });
+      await expect(shortcut).toBeEnabled({ timeout: 60_000 });
+      const [analysis] = await Promise.all([
+        page.waitForResponse((response) => {
+          const url = new URL(response.url());
+          return url.pathname.endsWith(`/exams/${EXAM_ID}/analysis-insights/`)
+            && url.searchParams.get("lecture_id") === String(LECTURE_ID);
+        }, { timeout: 25_000 }),
+        shortcut.click(),
+      ]);
+      expect(analysis.ok()).toBe(true);
+      await expect(page.locator("[data-manual-grade-cell]").first()).toBeVisible();
+      const report = page.getByRole("region", { name: "시험 성적 분석", exact: true });
+      await expect(report).toBeFocused();
+      await expect(report.getByRole("heading", { name: "시험 성적 분석" })).toBeInViewport();
+      await expect(report).toContainText("80.0점");
+      await expect(page.getByRole("dialog", { name: "분석할 시험 선택" })).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await testInfo.attach("성적 탭에서 연 시험 분석", {
+        body: await page.screenshot({ animations: "disabled" }),
+        contentType: "image/png",
+      });
+      await page.goBack();
+      await expect(page.getByRole("button", { name: "시험 성적 분석", exact: true })).toBeVisible();
+    });
+  }
 
   test("선택형 시험명은 직접 채점표 대신 OMR 검토를 연다", async ({ page }) => {
     await installApi(page, {

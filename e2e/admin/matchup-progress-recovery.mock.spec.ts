@@ -14,6 +14,8 @@ for (const { width, status, partial } of [
   test(`${width}px: 매치업 ${status} 자동 조회 중단·상태 재확인·원본 유지`, async ({ page }, testInfo) => {
     test.skip(!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(base), "Local mocked API only");
     let recovered = false;
+    let deliverTerminalProgress!: () => void;
+    const terminalProgress = new Promise<void>((resolve) => { deliverTerminalProgress = resolve; });
     let progressReads = 0;
     let documentReads = 0;
     let mutations = 0;
@@ -43,6 +45,7 @@ for (const { width, status, partial } of [
       }
       if (path === `/jobs/${jobId}/progress/`) {
         progressReads++;
+        if (status === 404 && recovered) await terminalProgress;
         return recovered
           ? route.fulfill({ json: { job_id: jobId, job_type: "matchup_analysis", status: "DONE", progress: null } })
           : route.fulfill({ status: typeof status === "number" ? status : 200,
@@ -84,7 +87,12 @@ for (const { width, status, partial } of [
     await page.screenshot({ path: testInfo.outputPath("unavailable.png"), fullPage: true });
     recovered = true;
     await notice.getByRole("button", { name: "상태 다시 확인" }).click();
-    await expect(notice).toHaveCount(0);
+    try {
+      // The document reaches done before the progress request can report DONE.
+      await expect(notice).toHaveCount(0);
+    } finally {
+      deliverTerminalProgress();
+    }
     await expect(page.getByTestId("matchup-problem-card-protected")).toHaveCount(1);
     expect(documentReads).toBeGreaterThan(readsBeforeIdle);
     expect(mutations, mutationPaths.join("\n")).toBe(0);
