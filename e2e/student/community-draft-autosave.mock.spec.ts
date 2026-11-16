@@ -771,6 +771,80 @@ test.describe("학생 커뮤니티 durable draft", () => {
   });
 
   for (const width of [1366, 390]) {
+    for (const parent of [false, true]) {
+      test(`${width}px: 영상과 질문 작성은 같은 학생의 강의 조회를 재사용한다 (${parent ? "학부모" : "학생"})`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 844 });
+        const harness = await installStudentApi(page, { parent });
+        const starts: Array<string | undefined> = [];
+        const firstCourse = "하늘의 영상 강의";
+        const secondCourse = "바다의 영상 강의";
+        let releaseSecond!: () => void;
+        const secondPending = new Promise<void>((resolve) => { releaseSecond = resolve; });
+        await page.route("**/api/v1/student/video/me/", async (route) => {
+          if (route.request().method() !== "GET") return route.fallback();
+          const child = route.request().headers()["x-student-id"];
+          starts.push(child);
+          if (child === "13") await secondPending;
+          return route.fulfill({
+            json: {
+              lectures: [{
+                id: child === "13" ? 72 : 71,
+                title: child === "13" ? secondCourse : firstCourse,
+                video_count: 1,
+                sessions: [],
+              }],
+            },
+          });
+        });
+
+        const menu = page.getByRole("navigation", { name: "하단 메뉴", exact: true });
+        const childTab = (name: string) => page.getByRole("tablist", { name: "자녀 선택" })
+          .getByRole("tab", { name, exact: true });
+        const courses = page.getByRole("combobox", { name: "강의 (선택)", exact: true });
+        const openQuestion = async () => {
+          await menu.getByRole("link", { name: "커뮤니티", exact: true }).click();
+          await page.getByRole("button", { name: "질문하기", exact: true }).click();
+          await expect(courses).toBeVisible();
+        };
+
+        try {
+          await page.goto(`${BASE}/student/video`, { waitUntil: "domcontentloaded" });
+          if (parent) {
+            await expect(page.getByRole("heading", { name: "확인할 자녀를 선택해 주세요" })).toBeVisible();
+            expect(starts).toEqual([]);
+            await childTab("김하늘").click();
+            await menu.getByRole("link", { name: "영상", exact: true }).click();
+          }
+          await expect(page.getByText(firstCourse, { exact: true })).toBeVisible();
+          const documentStart = await page.evaluate(() => performance.timeOrigin);
+          await openQuestion();
+          await expect(courses.getByRole("option", { name: firstCourse, exact: true })).toHaveCount(1);
+          await courses.selectOption(firstCourse);
+          expect(starts).toStrictEqual([parent ? "12" : undefined]);
+
+          if (parent) {
+            await childTab("김바다").click();
+            await expect(childTab("김바다")).toHaveAttribute("aria-selected", "true");
+            await openQuestion();
+            await expect.poll(() => starts).toEqual(["12", "13"]);
+            await expect(courses.getByRole("option", { name: firstCourse, exact: true })).toHaveCount(0);
+            await expect(courses).toBeDisabled();
+            releaseSecond();
+            await expect(courses.getByRole("option", { name: secondCourse, exact: true })).toHaveCount(1);
+            await expect(courses).toHaveValue("");
+            await menu.getByRole("link", { name: "영상", exact: true }).click();
+            await expect(page.getByText(secondCourse, { exact: true })).toBeVisible();
+            await expect(page.getByText(firstCourse, { exact: true })).toHaveCount(0);
+            expect(starts).toEqual(["12", "13"]);
+          }
+          expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStart);
+          expect(harness.writeHeaders).toEqual([]);
+        } finally {
+          releaseSecond();
+        }
+      });
+    }
+
     test(`${width}px: 학부모는 선택 자녀로 질문·상담을 작성하고 자녀별 초안과 reload 결과를 격리한다`, async ({ page, browserName }) => {
       await page.setViewportSize({ width, height: 844 });
       if (browserName === "chromium") {
