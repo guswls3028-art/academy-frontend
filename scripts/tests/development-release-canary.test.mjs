@@ -1217,7 +1217,8 @@ function runtimeEvidenceFixture(untilInitialWriteOnly, diagnosticOnly = false, d
   const forbidden = () => { externalCalls++; assert.fail("runtime evidence test attempted external work"); };
   const deps = {
     diagnosticOnly, diagnosticScope,
-    selectedSpecs: diagnosticScope === "excel-learning-homework" ? targetedDiagnosticSpecs : null,
+    selectedSpecs: diagnosticScope === "excel-learning-homework" ? targetedDiagnosticSpecs
+      : diagnosticScope === "video-multipart-storage" ? [runner.VIDEO_MULTIPART_STORAGE_SPEC] : null,
     assert, createFixedQaRunner: runner.createFixedQaRunner, evidence: { preflightStage: "complete", passed: false },
     manifest: { releaseImageTag: "unit-release", images: { "academy-api": { digest: "unit-digest" } } },
     revision: "b".repeat(40), instanceId: "unit-instance", tenant: "qa-unit-primary", crossTenant: "qa-unit-cross",
@@ -1241,6 +1242,7 @@ function runtimeEvidenceFixture(untilInitialWriteOnly, diagnosticOnly = false, d
       postCleanupInspectObservation = values.postCleanupInspectObservation;
       crossPostCleanupInspectObservation = values.crossPostCleanupInspectObservation;
       realUseObservation = values.realUseObservation; videoRuntimeObservation = values.videoRuntimeObservation;
+      Object.assign(multipartStorage, values.multipartStorage);
       failures.push(...(values.failures || []));
       ${terminalBody}
     }
@@ -1248,6 +1250,30 @@ function runtimeEvidenceFixture(untilInitialWriteOnly, diagnosticOnly = false, d
   const execute = new Function(...Object.keys(deps), `"use strict"; return async () => {\n${source.slice(start, end)}\n${tail}\n};`)(...Object.values(deps));
   return { execute, snapshots, portChecks, signals, externalCalls: () => externalCalls };
 }
+
+test("actual runtime finalization requires both zero-residue receipts for the non-promotable multipart diagnostic", async () => {
+  for (const missingPostCleanup of [false, true]) {
+    const fixture = runtimeEvidenceFixture(true, true, "video-multipart-storage");
+    const runtime = await fixture.execute();
+    const empty = { session_id: 12, objects: 0, uploads: 0 };
+    const finalize = () => runtime.finalize({
+      counts: { expected: 1, unexpected: 0, flaky: 0, skipped: 0 },
+      postCleanupInspectObservation: { proven: true },
+      multipartStorage: {
+        setup: { ...empty, lecture_id: 4 },
+        browser: { uploadedPartCount: 2, expectedBytes: 105906176 },
+        inspect: { session_id: 12, objects: 1, uploads: 0, content_length: 105906176, batch_submitted: false },
+        cleanup: empty,
+        postCleanup: missingPostCleanup ? null : empty,
+      },
+    });
+    if (missingPostCleanup) assert.throws(finalize, /Development release gate failed/);
+    else assert.doesNotThrow(finalize);
+    assert.equal(fixture.snapshots.at(-1).terminalOutcome, missingPostCleanup ? "qa_failed" : "diagnostic_passed");
+    assert.equal(fixture.snapshots.at(-1).passed, false);
+    assert.equal(fixture.externalCalls(), 0);
+  }
+});
 
 test("diagnostic full-suite mode accepts only the exact opt-in on workflow_dispatch", () => {
   assert.equal(typeof runner.readDiagnosticFullSuiteMode, "function");

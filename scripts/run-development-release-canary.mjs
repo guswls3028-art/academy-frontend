@@ -1458,7 +1458,6 @@ export async function run() {
   ], persistEvidence, process.env.GITHUB_SHA, process.env);
   const diagnosticOnly = evidence.diagnosticOnly;
   const diagnosticScope = evidence.diagnosticScope;
-  const multipartOnly = diagnosticScope === "video-multipart-storage";
   const selectedSpecs = evidence.selectedSpecs;
   evidence.binarySafePortTransport = portTransport.manifest;
   const ownerParameters = (ownerTenant, ownerCapability, syntheticLongVideo) => ({
@@ -1466,6 +1465,7 @@ export async function run() {
     ReleaseId: [manifest.releaseImageTag], ApiDigest: [manifest.images["academy-api"].digest],
     SyntheticLongVideo: [syntheticLongVideo ? "true" : "false"],
   });
+  const multipartOnly = diagnosticScope === "video-multipart-storage";
   const common = {
     ...ownerParameters(tenant, capability, !multipartOnly),
     ...(multipartOnly ? { SyntheticMultipartVideo: ["true"] } : {}),
