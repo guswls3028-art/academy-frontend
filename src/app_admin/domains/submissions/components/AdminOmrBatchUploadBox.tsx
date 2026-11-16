@@ -48,9 +48,10 @@ type UploadErrorPayload = {
 };
 
 const MAX_FILES = 100;
+const ACCEPTED_FILES = "image/*,application/pdf,.jpg,.jpeg,.png,.tif,.tiff,.heic,.heif,.pdf";
 
 function isOmrImage(file: File): boolean {
-  return file.type.startsWith("image/") || isHeicPhoto(file.name, file.type);
+  return file.type.startsWith("image/") || /\.(?:jpe?g|png|tiff?|hei[cf])$/i.test(file.name);
 }
 
 function rotateValue(
@@ -64,7 +65,7 @@ async function rotatedImageFile(
   file: File,
   rotation: UploadItem["rotation"],
 ): Promise<File> {
-  if (rotation === 0 || !file.type.startsWith("image/")) return file;
+  if (rotation === 0 || !isOmrImage(file)) return file;
   const bitmap = await createImageBitmap(file);
   try {
     const quarterTurn = rotation === 90 || rotation === 270;
@@ -76,7 +77,9 @@ async function rotatedImageFile(
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.rotate((rotation * Math.PI) / 180);
     ctx.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
-    const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
+    const genericType = !file.type || file.type === "application/octet-stream";
+    const isPng = file.type === "image/png" || (genericType && /\.png$/i.test(file.name));
+    const outputType = isPng ? "image/png" : "image/jpeg";
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(
         (value) => value ? resolve(value) : reject(new Error("회전 이미지 생성에 실패했습니다.")),
@@ -521,7 +524,7 @@ export default function AdminOmrBatchUploadBox({
         <FileUploadZone
           titleLabel="스캔본·촬영 사진 선택"
           multiple
-          accept="image/*,.heic,.heif,application/pdf"
+          accept={ACCEPTED_FILES}
           hintText="JPG·PNG·TIFF·HEIC/HEIF·1페이지 PDF · 최대 100장 · 파일당 10MB"
           disabled={busy || loadingResume || resumeUploadBlocked}
           onFilesSelect={onPickFiles}

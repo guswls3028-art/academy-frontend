@@ -818,6 +818,31 @@ test.describe("OMR durable batch progress", () => {
     expect(multipartFieldValues(body, "item_ordinals")).toEqual(["1", "2"]);
   });
 
+  test("형식을 보내지 않는 스캐너의 PNG·PDF를 선택하고 PNG를 회전한다", async ({ page }) => {
+    const api = await installDashboardApi(page, { uploadFlow: true });
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+    await openOmrUpload(page);
+    const dialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "base64",
+    );
+    await dialog.locator('input[type="file"]').setInputFiles([
+      { name: "scanner.png", mimeType: "application/octet-stream", buffer: png },
+      { name: "scan.pdf", mimeType: "application/octet-stream", buffer: Buffer.from("%PDF-1.4\n") },
+    ]);
+    const scanner = dialog.getByRole("listitem").filter({ hasText: "scanner.png" });
+    await scanner.getByRole("button", { name: "오른쪽 회전" }).click();
+    await expect(scanner).toContainText("업로드 회전 90°");
+    await dialog.getByRole("button", { name: "등록 시작" }).click();
+    await expect(dialog.getByText("접수 확인 2장", { exact: false })).toBeVisible();
+    const upload = api.uploadState();
+    expect(upload).toMatchObject({ initializePosts: 1, uploadPosts: 1 });
+    expect(upload.uploadBodies[0]).toMatch(/filename="scanner\.png"\r\nContent-Type: image\/png/i);
+    expect(upload.uploadBodies[0]).toContain('filename="scan.pdf"');
+    expect(multipartFieldValues(upload.uploadBodies[0], "item_ordinals")).toEqual(["1", "2"]);
+  });
+
   for (const width of [1366, 390]) {
     test(`${width}px HEIC 사진을 미리 보고 회전한 JPEG로 접수한다`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
