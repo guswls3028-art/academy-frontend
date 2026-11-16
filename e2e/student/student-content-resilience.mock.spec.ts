@@ -1552,10 +1552,14 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
   });
 
   for (const width of [390, 1366]) {
-    for (const parentDashboard of [false, true]) {
-      test(`홈 일부 조회는 실패한 요청만 다시 시도한다 (${width}px ${parentDashboard ? "학부모" : "학생"})`, async ({ page }, testInfo) => {
+    for (const { parentDashboard, agedNotificationCache, label } of [
+      { parentDashboard: false, agedNotificationCache: false, label: "학생" },
+      { parentDashboard: true, agedNotificationCache: false, label: "학부모" },
+      { parentDashboard: true, agedNotificationCache: true, label: "학부모 31초 뒤" },
+    ]) {
+      test(`홈 일부 조회는 실패한 요청만 다시 시도한다 (${width}px ${label})`, async ({ page }, testInfo) => {
         await page.setViewportSize({ width, height: 900 });
-        await installStudentApi(page, { parentDashboard });
+        await installStudentApi(page, { parentDashboard, examId: agedNotificationCache ? 77 : undefined });
         const paths = [
           "/api/v1/student/dashboard/", "/api/v1/student/sessions/me/", "/api/v1/student/grades/",
           "/api/v1/student/exams/", "/api/v1/clinic/participants/",
@@ -1597,10 +1601,18 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
           const failedReads = counselSelections.length;
           expect(failedReads).toBeGreaterThan(0);
           const documentStart = await page.evaluate(() => performance.timeOrigin);
+          const healthyLearningContent = agedNotificationCache ? await learning.innerText() : null;
+          if (agedNotificationCache) {
+            // Age dependency cache entries past 30s without advancing timers or reloading the document.
+            await page.evaluate(() => {
+              const now = Date.now.bind(Date);
+              Date.now = () => now() + 31_000;
+            });
+          }
           allowCounsel = true;
-          if (parentDashboard) await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+          if (parentDashboard && !agedNotificationCache) await page.evaluate(() => window.dispatchEvent(new Event("offline")));
           await failure.getByRole("button", { name: "다시 시도", exact: true }).click();
-          if (parentDashboard) {
+          if (parentDashboard && !agedNotificationCache) {
             const waiting = page.getByRole("status").filter({ hasText: "연결되면 일부 정보를 다시 확인해요." });
             await expect(waiting.getByRole("button", { name: "연결 대기 중" })).toBeDisabled();
             await expect(learning).toBeVisible();
@@ -1614,6 +1626,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
           await expect(retryButton).toBeDisabled();
           expect(await retryButton.locator(".ds-button__label").evaluate((label) => label.scrollWidth - label.clientWidth)).toBeLessThanOrEqual(1);
           await expect(learning).toBeVisible();
+          if (healthyLearningContent !== null) expect(await learning.innerText()).toBe(healthyLearningContent);
           if (parentDashboard) {
             const summary = page.getByRole("region", { name: "우리 아이 요약" });
             await expect(summary.getByText("오늘 일정", { exact: true }).locator("..")).toContainText("0개");
@@ -1625,7 +1638,11 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
           releaseCounsel();
           await expect(failure).toHaveCount(0);
           await expect(retrying).toHaveCount(0);
-          await expect(page.getByRole("link", { name: "알림, 1개", exact: true })).toBeVisible();
+          await expect(page.getByRole("link", { name: agedNotificationCache ? "알림, 2개" : "알림, 1개", exact: true })).toBeVisible();
+          if (healthyLearningContent !== null) {
+            expect(await learning.innerText()).toBe(healthyLearningContent);
+            expect(await page.evaluate(() => performance.timeOrigin)).toBe(documentStart);
+          }
           expect(Object.fromEntries(healthyReads)).toEqual(Object.fromEntries([...paths, "qna"].map((path) => [path, 1])));
           if (parentDashboard) expect(counselSelections).toEqual(Array<string>(failedReads + 1).fill("11"));
           expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
