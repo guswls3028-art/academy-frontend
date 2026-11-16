@@ -609,12 +609,15 @@ Ubuntu 미러 전체가 runner에서 해석되지 않으면 apt 설치 실패에
 공식 main 배포는 먼저 `backend-readiness`에서 backend의 진행 중인 main release run과
 successful manifest·active development host를 읽는다. 진행 중인 release만 최대
 45분 동안 30초 간격으로 기다린다. 최신 run이 취소됐어도 이전 active run을 확인한다.
-잘못된 host identity/IAM, 읽기 오류, 종료된
-release와 manifest/host 불일치는 즉시 실패한다. 대기는 별도 job과 임시 인증으로
+완료된 release는 성공 결과와 manifest의 source SHA, run ID, attempt 및 active host가
+일치해야 한다. 성공한 V1 실행이 runtime 후보 조립, 격리 개발 검증, 배포 검증을 모두
+건너뛴 경우에만 해당 attempt의 공식 job 기록과 이전 manifest를 발행한 성공 attempt를
+별도로 확인하고 기존 host를 사용한다. 잘못된 host identity/IAM, 실패·취소된 release,
+읽기 오류와 검증 불일치는 즉시 실패한다. 대기는 별도 job과 임시 인증으로
 수행해 real-use의 100분 job/인증 예산을 소모하지 않는다. 준비 완료 뒤 기존 QA가
 최신 immutable backend revision, IAM, SSM 문서, host를 다시 검사하므로 대기 중
 성공한 관측으로 이후 검증을 생략하지 않는다. 관측은 PII 없는
-`backend-readiness-evidence`에 남긴다. 대기 이후 새 release가 시작되어 다시
+`backend-readiness-evidence`에 남긴다. 실패 시 고정된 단계·오류 코드와 해당되는 HTTP 상태만 추가한다. 대기 이후 새 release가 시작되어 다시
 불일치하면 기존 preflight가 실패하며 QA나 운영 승격을 강행하지 않는다.
 
 `scripts/run-development-release-canary.mjs`는 공식 main CI/OIDC에서만 실행된다.
