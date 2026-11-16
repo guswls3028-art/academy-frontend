@@ -391,10 +391,11 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
   const wrap = page.locator(".svpPlayerWrap");
   const guide = page.getByRole("dialog", { name: "학생·학부모 가이드북", exact: true });
   const audit = () => page.evaluate(() => (window as FullscreenAuditWindow).__qaFullscreenInputs);
-  const revealControls = async () => {
+  const revealControls = async (clockPaused = false) => {
     if (await wrap.evaluate(node => node.classList.contains("svpPlayerWrap--controlsHidden"))) {
       const box = (await page.locator(".svpGestureLayer").boundingBox())!;
       await page.touchscreen.tap(box.x + box.width * 0.15, box.y + box.height / 2);
+      if (clockPaused) await page.clock.runFor(351);
       await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
     }
   };
@@ -481,14 +482,52 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
     return point;
   };
   const clickControl = async (target: Locator, fraction = 0.5) => {
-    await revealControls();
-    await expect(controls).toHaveCSS("opacity", "1");
-    await expect(target).toBeEnabled();
-    const point = await controlPoint(target, fraction);
-    // Keep the same action point while checking stability and event ownership
-    // at dispatch time, rather than sending a raw click to an earlier position.
-    await target.click({ position: point.position });
+    // Keep the visibility policy's idle timer from expiring between the
+    // hit-target proof and the real pointer input this helper is exercising.
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
+    try {
+      await revealControls(true);
+      await expect(controls).toHaveCSS("opacity", "1");
+      await expect(target).toBeEnabled();
+      const point = await controlPoint(target, fraction);
+      await target.click({ position: point.position });
+    } finally {
+      await page.clock.resume();
+    }
   };
+  await withVideoControlInputTrace(page, info, "range-active-auto-hide", async () => {
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
+    try {
+      await assertPaused(false);
+      await revealControls(true);
+      const point = await controlPoint(progressSlider);
+      await page.mouse.move(point.x, point.y);
+      await page.clock.runFor(3_001);
+      await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
+
+      const stage = (await page.locator(".svpGestureLayer").boundingBox())!;
+      await page.mouse.move(stage.x + stage.width / 2, stage.y + stage.height / 2);
+      const beforeProgressSlider = wrap.locator(".svpTopBar button").last();
+      await beforeProgressSlider.focus();
+      await page.keyboard.press("Tab");
+      await expect(progressSlider).toBeFocused();
+      await page.clock.runFor(3_001);
+      await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
+
+      await page.keyboard.press("ArrowRight");
+      await progressSlider.blur();
+      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.seeking)).toBe(false);
+      await page.clock.runFor(3_001);
+      await expect(wrap).toHaveClass(/svpPlayerWrap--controlsHidden/);
+      await beforeProgressSlider.focus();
+      await page.keyboard.press("Tab");
+      await expect(progressSlider).toBeFocused();
+      await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
+      await progressSlider.blur();
+    } finally {
+      await page.clock.resume();
+    }
+  });
   for (const width of scenario.viewport?.width === 1366 ? [1100, 1366] : [390]) {
     const height = scenario.viewport?.height ?? 844;
     await page.setViewportSize({ width, height });
@@ -622,7 +661,7 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
       }
       for (const input of ["touch", "mouse", "Enter", "Space"] as const) {
         const activate = async () => {
-          await revealControls();
+          await revealControls(input === "touch");
           if (input === "touch") await button.tap();
           else if (input === "mouse") await clickControl(button);
           else {
