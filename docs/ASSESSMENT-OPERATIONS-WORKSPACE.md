@@ -280,9 +280,10 @@ Enter 저장 동작은 유지한다.
 최신 설정을 불러와 다시 편집한다. 저장된 순서는 새로 여는 수업결과
 알림톡의 번호형 변수, 목록, 상세 본문에도 쓰인다. 발송에는 확인한 미리보기의
 내용을 사용한다. [서버 합산 설정 계약](https://github.com/guswls3028-art/academy-backend/blob/main/apps/domains/results/views/session_total_config_view.py)
+알림톡 준비 코드는 발송 화면을 열 때 불러온다. 불러오기에 실패하면 새로고침 후 다시 열 수 있다.
 
 `assessment-feedback.mock.spec.ts`에서 PC/390px 숨기기·복원·재접속, 순서 이동과 저장 실패 복구를,
-`score-alimtalk-order.mock.spec.ts`에서 변경된 순서와 미리보기·발송 요청 일치를 검증한다.
+`score-alimtalk-order.mock.spec.ts`에서 변경된 순서와 미리보기·발송 요청 일치, 작성 화면 로딩 실패 복구를 검증한다.
 `student-parent-assessment-realuse.spec.ts`에서 격리 차시의 순서 저장과 학부모 총점 조회를 확인한다.
 
 표시 옵션은 설정을 바꾸어도 다시 접을 수 있다. 첫 안내의 **시험·성적표 사용 순서**는 공식 가이드의

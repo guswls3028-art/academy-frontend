@@ -127,6 +127,23 @@ for (const width of [1366, 390]) {
   });
 }
 
+test("@alimtalk-order 작성 화면 로딩 실패에서 새로고침으로 복구한다", async ({ page }) => {
+  const harness = await setup(page, false, false);
+  const preparationModule = /\/sessionScoreAlimtalk[.-][^/]+$/;
+  await page.route(preparationModule, (route) => route.fulfill({
+    contentType: "application/javascript",
+    body: 'throw new Error("synthetic module load error");',
+  }));
+  const modal = await harness.open();
+  await expect(page.getByText("수업결과 알림톡 화면을 불러오지 못했습니다. 새로고침한 뒤 다시 시도해 주세요.")).toBeVisible();
+  await expect(modal).toHaveCount(0);
+  expect(harness.sends).toEqual([]);
+
+  await page.unroute(preparationModule);
+  await page.reload();
+  await expect(await harness.open()).toBeVisible();
+});
+
 test("@alimtalk-order 합산 설정의 순서가 미리보기와 실제 발송 요청에 그대로 적용된다", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 });
   const harness = await setup(page, false, false);
