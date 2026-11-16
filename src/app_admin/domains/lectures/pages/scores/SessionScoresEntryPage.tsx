@@ -16,7 +16,6 @@ import { AlertCircle, ChevronDown, ClipboardCheck, FileText, HeartPulse, LayoutG
 import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/public/SessionScoresPanel";
-import { buildScoreCsv } from "@admin/domains/scores/public/scoreCsvGenerator";
 import { useScoreEditDraft } from "@admin/domains/scores/public/useScoreEditDraft";
 import { isScoreEditStaleError, type ScoreActiveCell } from "@admin/domains/scores/public/scoreDraft";
 import { patchHomeworkQuick, type SaveDrawerHomeworkScore } from "@admin/domains/scores/public/patchHomeworkQuick";
@@ -1184,9 +1183,13 @@ export default function SessionScoresEntryPage({
                   await refetch();
                   return;
                 }
-                const blob = new Blob([buildScoreCsv(freshData.meta, selected)], { type: "text/csv;charset=utf-8" });
-                const { downloadBlob } = await import("@/shared/utils/safeDownload");
-                downloadBlob(blob, `성적_${selected.length}명.csv`);
+                try {
+                  const { downloadScoreCsv } = await import("@admin/domains/scores/public/scoreCsvGenerator");
+                  downloadScoreCsv(freshData.meta, selected);
+                } catch {
+                  feedback.error("성적 파일을 만들지 못했습니다. 새로고침한 뒤 다시 다운로드해 주세요.");
+                  return;
+                }
                 feedback.success(`엑셀 다운로드됨 (${selected.length}명)`);
               }}
               disabled={selectedEnrollmentIds.length === 0 || recoveryBlocked}

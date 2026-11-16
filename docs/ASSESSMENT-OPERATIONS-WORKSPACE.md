@@ -281,6 +281,8 @@ Enter 저장 동작은 유지한다.
 알림톡의 번호형 변수, 목록, 상세 본문에도 쓰인다. 발송에는 확인한 미리보기의
 내용을 사용한다. [서버 합산 설정 계약](https://github.com/guswls3028-art/academy-backend/blob/main/apps/domains/results/views/session_total_config_view.py)
 알림톡 준비 코드는 발송 화면을 열 때 불러온다. 불러오기에 실패하면 새로고침 후 다시 열 수 있다.
+성적 CSV 생성 코드는 **엑셀 다운로드**에서 최신 성적과 선택 대상을 확인한 뒤 불러온다.
+파일을 만들지 못하면 새로고침 후 다시 내려받을 수 있다.
 
 `assessment-feedback.mock.spec.ts`에서 PC/390px 숨기기·복원·재접속, 순서 이동과 저장 실패 복구를,
 `score-alimtalk-order.mock.spec.ts`에서 변경된 순서와 미리보기·발송 요청 일치, 작성 화면 로딩 실패 복구를 검증한다.
