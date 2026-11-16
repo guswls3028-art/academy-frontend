@@ -7,7 +7,7 @@
  * 학생/관리자 projection까지 확인한다.
  */
 import { test, expect } from "../fixtures/strictTest";
-import type { APIRequestContext, Locator, Page, Response } from "@playwright/test";
+import type { APIRequestContext, Locator, Page, Request, Response } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { PDFDocument, rgb } from "pdf-lib";
 import { setTimeout as delay } from "node:timers/promises";
@@ -1458,39 +1458,111 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const startUpload = uploadDialog.getByRole("button", { name: "등록 시작", exact: true });
     await expect(startUpload).toBeEnabled();
 
-    const initializeResponsePromise = page.waitForResponse(
-      (resp) => resp.request().method() === "POST"
-        && new URL(resp.url()).pathname === `/api/v1/submissions/submissions/exams/${created.examId}/omr/batches/`,
-      { timeout: 90_000 },
-    ).then((response) => {
-      expect(response.status(), "OMR batch initialization must succeed before file admission").toBe(201);
-      return response;
-    });
-    const uploadResponsePromise = page.waitForResponse(
-      (resp) =>
-        resp.request().method() === "POST" &&
-        resp.url().includes(`/submissions/submissions/exams/${created.examId}/omr/batch/`),
-      { timeout: 90_000 },
-    );
-    const responses = Promise.all([initializeResponsePromise, uploadResponsePromise]);
-    // Attach both response waits before clicking: batch initialization is a real
-    // prerequisite, not evidence that the subsequent file upload succeeded.
-    const [, [initializeResponse, uploadResponse]] = await Promise.all([
-      startUpload.click(),
-      responses,
-    ]);
-    expect(initializeResponse.status()).toBe(201);
-    expect(uploadResponse.status()).toBe(201);
-    const uploadBody = await uploadResponse.json() as {
+    const initializePath = `/submissions/submissions/exams/${created.examId}/omr/batches/`;
+    const uploadPath = `/api/v1/submissions/submissions/exams/${created.examId}/omr/batch/`;
+    type BatchItem = { id: string; ordinal: number; submission_id: number | null; status: string };
+    type WorkboxBatch = { id: string; exam_id: number; session_id: number | null; items: BatchItem[] };
+    type UploadReceipt = {
+      id: string;
       submission_ids?: number[];
-      items?: { ordinal: number; submission_id: number | null; status: string }[];
+      items?: BatchItem[];
     };
-    created.submissionIds = (uploadBody.submission_ids ?? []).map((id) => Number(id));
-    expect(created.submissionIds.length).toBe(1);
+    const workboxPath = "/submissions/submissions/omr/batches/";
+    const scopedBatches = async () => (await expectApi<WorkboxBatch[]>(request, "GET", workboxPath, adminTokens.access))
+      .filter((batch) => batch.exam_id === created.examId && batch.session_id === created.sessionId);
+    const isPost = (req: Request, pathname: string) => {
+      const url = new URL(req.url());
+      return req.method() === "POST" && url.pathname === pathname && !url.search;
+    };
+    const waitForInitialize = () => page.waitForResponse(
+      (response) => isPost(response.request(), `/api/v1${initializePath}`), { timeout: 90_000 },
+    );
+    await test.step("등록 시작 응답이 끊겨도 같은 접수 작업으로 다시 시도한다", async () => {
+      // The release route checks and forwards the real request. Drop the
+      // first 201 in the page's XHR after its headers reach the browser.
+      const ackLoss = await page.evaluateHandle((pathname) => {
+        const originalOpen = XMLHttpRequest.prototype.open;
+        let armed = true;
+        const state = {
+          losses: 0,
+          restore() {
+            armed = false;
+            if (XMLHttpRequest.prototype.open === interceptOpen) XMLHttpRequest.prototype.open = originalOpen;
+          },
+        };
+        const interceptOpen = function (
+          this: XMLHttpRequest, method: string, target: string | URL,
+          ...options: [async?: boolean, username?: string | null, password?: string | null]
+        ) {
+          Reflect.apply(originalOpen, this, [method, target, ...options]);
+          const url = new URL(target, window.location.href);
+          if (method.toUpperCase() !== "POST" || url.pathname !== pathname || url.search) return;
+          this.addEventListener("readystatechange", () => {
+            if (!armed || this.readyState !== XMLHttpRequest.HEADERS_RECEIVED || this.status !== 201) return;
+            state.losses++;
+            state.restore();
+            this.abort();
+          });
+        };
+        XMLHttpRequest.prototype.open = interceptOpen;
+        return state;
+      }, `/api/v1${initializePath}`);
 
+      let multipartPosts = 0;
+      const countMultipartPost = (req: Request) => { if (isPost(req, uploadPath)) multipartPosts++; };
+      page.on("request", countMultipartPost);
+      try {
+        const [firstResponse] = await Promise.all([waitForInitialize(), startUpload.click()]);
+        expect(firstResponse.status()).toBe(201);
+        const input = firstResponse.request().postDataJSON() as Record<string, unknown>;
+        expect(input).toMatchObject({
+          client_request_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+          session_id: created.sessionId,
+          total_count: 1,
+        });
+        await expect(uploadDialog.getByText(
+          "등록 작업 응답을 확인하지 못했습니다. 선택한 파일로 등록 시작을 다시 눌러 주세요.", { exact: true },
+        )).toBeVisible();
+        expect(await ackLoss.evaluate((state) => state.losses)).toBe(1);
+        await expect(uploadDialog.getByText(`omr-realuse-${TS}.pdf`)).toBeVisible();
+        await expect(startUpload).toBeEnabled();
+        expect(multipartPosts).toBe(0);
+
+        const pending = await scopedBatches();
+        expect(pending).toHaveLength(1);
+        const original = pending[0];
+        expect(original.items).toEqual([
+          expect.objectContaining({ id: expect.any(String), ordinal: 1, submission_id: null, status: "pending_admission" }),
+        ]);
+
+        const [replayResponse, uploadResponse] = await Promise.all([
+          waitForInitialize(),
+          page.waitForResponse((response) => isPost(response.request(), uploadPath), { timeout: 90_000 }),
+          startUpload.click(),
+        ]);
+        expect(replayResponse.status()).toBe(201);
+        expect(replayResponse.request().postDataJSON()).toEqual(input);
+        expect(await replayResponse.json()).toMatchObject({
+          id: original.id,
+          items: [{ id: original.items[0].id, ordinal: 1, submission_id: null }],
+        });
+        expect(uploadResponse.status()).toBe(201);
+        const receipt = await uploadResponse.json() as UploadReceipt;
+        created.submissionIds = (receipt.submission_ids ?? []).map(Number);
+        expect(created.submissionIds).toHaveLength(1);
+        expect(receipt).toMatchObject({ id: original.id, items: [
+          { id: original.items[0].id, ordinal: 1, submission_id: created.submissionIds[0] },
+        ] });
+        await expectApi(request, "POST", initializePath, adminTokens.access, { ...input, total_count: 2 }, [409]);
+        expect((await scopedBatches()).map((batch) => batch.id)).toEqual([original.id]);
+        expect(multipartPosts).toBe(1);
+      } finally {
+        page.off("request", countMultipartPost);
+        await ackLoss.evaluate((state) => state.restore());
+        await ackLoss.dispose();
+      }
+    });
     const submissionId = created.submissionIds[0];
-    expect(uploadBody.items).toHaveLength(1);
-    expect(uploadBody.items?.[0]).toMatchObject({ ordinal: 1, submission_id: submissionId });
     // The durable receipt counts admitted files separately from grading.
     await expect(uploadDialog.getByText("접수 확인 1장")).toBeVisible({ timeout: 20_000 });
     const ledger = uploadDialog.getByLabel("답안지별 접수 내역");

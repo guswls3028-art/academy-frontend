@@ -22,7 +22,7 @@ import {
   studentVideoUnavailableLabel,
 } from "../utils/videoAccess";
 import { sortStudentVideos } from "../utils/videoSort";
-import { studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
+import { STUDENT_VIDEO_CATALOG_STALE_MS, studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
 import { getStudentCurrentVideoStorageKey } from "../utils/videoPlaybackStorage";
 import ReviewWatchSummaryPanel from "@/shared/media/video/ReviewWatchSummaryPanel";
 import { getStudentSupportSessionInfo } from "@/shared/auth/supportPreviewSession";
@@ -232,6 +232,7 @@ export default function SessionDetailPage() {
   const { data: videoCatalog, isError: isCatalogError, refetch: refetchCatalog } = useQuery({
     queryKey: studentVideoQueryKeys.me(queryScope),
     queryFn: fetchVideoMe,
+    staleTime: STUDENT_VIDEO_CATALOG_STALE_MS,
     enabled: !!sessionIdNum && !routeState.isPublic,
     retry: false,
   });
