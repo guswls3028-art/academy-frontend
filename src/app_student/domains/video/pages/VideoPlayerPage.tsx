@@ -5,6 +5,7 @@ import { useLocation, useNavigate, useParams } from "react-router";
 
 import EmptyState from "../../../layout/EmptyState";
 import VideoPlaybackError from "../components/VideoPlaybackError";
+import { getStudentSupportSessionInfo } from "@/shared/auth/supportPreviewSession";
 import { useVideoResume } from "../hooks/useVideoResume";
 import {
   checkStudentVideoAccess,
@@ -32,6 +33,7 @@ import VideoCommentSection from "../components/VideoCommentSection";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import { IconChevronRight, IconPlay } from "@student/shared/ui/icons/Icons";
 import { isYouTubeSource } from "@/shared/media/video/youtube";
+import type { ReviewWatchSummary } from "@/shared/media/video/reviewWatchSummary";
 import {
   canPlayStudentVideo,
   isStudentVideoBlocked,
@@ -153,10 +155,12 @@ export default function VideoPlayerPage() {
     safeParseInt(q.get("enrollment_id")) ??
     safeParseInt(params.enrollmentId);
   const enrollmentId = rawEnrollmentId != null && Number.isFinite(rawEnrollmentId) ? rawEnrollmentId : null;
+  const supportSessionId = getStudentSupportSessionInfo()?.sessionId;
   const playbackStorageScope = useMemo(() => ({
     userId: user?.id,
     enrollmentId,
-  }), [enrollmentId, user?.id]);
+    supportSessionId,
+  }), [enrollmentId, user?.id, supportSessionId]);
   const currentVideoStorageKey = getStudentCurrentVideoStorageKey(playbackStorageScope);
 
   /* ─── Playback 데이터 (React Query) ─── */
@@ -249,6 +253,7 @@ export default function VideoPlayerPage() {
     const accessMode = (playbackData.policy?.access_mode || "FREE_REVIEW") as "FREE_REVIEW" | "PROCTORED_CLASS";
     const b: PlaybackBootstrap = {
       review_watch: playbackData.review_watch,
+      review_watch_summary: playbackData.review_watch_summary ?? vd.review_watch_summary,
       token: playbackData.playback_token || `student-${videoId}-${Date.now()}`,
       session_id: playbackData.playback_session_id || null,
       expires_at: playbackData.playback_expires_at || null,
@@ -321,6 +326,16 @@ export default function VideoPlayerPage() {
 
   /* ─── 이어보기 위치 계산 ─── */
   const playbackData = playbackQuery.data;
+  const reviewStream = playbackData?.review_watch?.stream;
+  const onReviewSummary = useCallback((summary: ReviewWatchSummary) => {
+    if (!reviewStream) return;
+    queryClient.setQueryData<StudentVideoPlayback>(
+      studentVideoQueryKeys.playback(queryScope, videoId, enrollmentId),
+      current => current?.review_watch?.stream === reviewStream
+        ? { ...current, review_watch_summary: summary }
+        : current,
+    );
+  }, [queryClient, queryScope, videoId, enrollmentId, reviewStream]);
   const { initialPosition, onLeaveProgress, playbackIdentity } = useVideoResume({
     userId: user?.id, queryScope, videoId, enrollmentId, effectiveEnrollmentId,
     sessionId, isDirectAccess, playbackData, serverPosition: video?.last_position ?? 0,
@@ -713,6 +728,7 @@ export default function VideoPlayerPage() {
         </div>
       ) : (loadError || fatalError) ? (
         <VideoPlaybackError message={fatalError || loadError} error={playbackQuery.error}
+          summary={playbackData?.review_watch_summary ?? playbackData?.video.review_watch_summary}
           onRetry={() => { void retryPlayback(); }} onBack={() => nav(videoListUrl)} />
       ) : video && boot ? (
         <>
@@ -725,6 +741,7 @@ export default function VideoPlayerPage() {
               enrollmentId={effectiveEnrollmentId != null ? Number(effectiveEnrollmentId) : null}
               initialPosition={initialPosition}
               onFatal={onFatal}
+              onReviewSummary={onReviewSummary}
               onEnded={onPlaybackEnded}
               onLeaveProgress={onLeaveProgress}
             />
