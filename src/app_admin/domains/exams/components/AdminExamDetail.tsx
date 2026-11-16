@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useLocation, useSearchParams } from "react-router";
 import { useAdminExam } from "../hooks/useAdminExam";
 import type { ExamTabKey } from "../types";
 
 import ExamTabs from "./common/ExamTabs";
 import ExamHeader from "./common/ExamHeader";
 import { Button, EmptyState } from "@/shared/ui/ds";
+import { EXAM_ANALYSIS_ANCHOR } from "@/shared/lib/assessmentQueryParams";
+import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams";
 import { useAssessmentEditGuard } from "@/shared/ui/assessment/AssessmentEditGuard";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 
@@ -29,6 +31,9 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const [searchParams] = useSearchParams();
   const linkedTab = searchParams.get("examTab");
+  const { hash } = useLocation();
+  const { lectureId } = useLectureSessionParams();
+  const focusAnalysis = linkedTab === "results" && hash.slice(1) === EXAM_ANALYSIS_ANCHOR;
   const [tab, setTab] = useState<ExamTabKey>(linkedTab === "results" ? "results" : "setup");
 
   useEffect(() => {
@@ -128,6 +133,8 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
           examId={examId}
           sessionId={sessionId ?? undefined}
           wrongCompletionOnly={wrongCompletionOnly}
+          focusAnalysis={focusAnalysis}
+          initialLectureId={focusAnalysis ? lectureId : undefined}
           onOpenSetup={() => changeTab("setup")}
         />
       )}
