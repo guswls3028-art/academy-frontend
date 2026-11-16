@@ -6159,6 +6159,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/lectures/lectures/{id}/schedule-settings/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description 일반 강의 필드는 생략할 수 있지만 schedule_mode와 schedule_defaults는 모두 필요합니다. */
+        patch: operations["lectures_lectures_schedule_settings_partial_update"];
+        trace?: never;
+    };
     "/api/v1/lectures/lectures/instructor-options/": {
         parameters: {
             query?: never;
@@ -6190,6 +6207,22 @@ export interface paths {
         put?: never;
         /** @description Persist one active/past lecture scope as an exact tenant-local order. */
         post: operations["lectures_lectures_reorder_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/lectures/lectures/with-schedule-settings/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["lectures_lectures_with_schedule_settings_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6395,6 +6428,22 @@ export interface paths {
         get: operations["lectures_sessions_schedules_retrieve"];
         put: operations["lectures_sessions_schedules_update"];
         post: operations["lectures_sessions_schedules_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/lectures/sessions/with-schedules/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["lectures_sessions_with_schedules_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -13093,6 +13142,7 @@ export interface components {
             /** @default  */
             school: string;
             session_id?: number | null;
+            session_label: string;
             session_title: string;
             source_id?: number | null;
             source_scope?: string | null;
@@ -15249,6 +15299,14 @@ export interface components {
             /** @description 강의 시간 (예: 토 12:00 ~ 13:00) */
             lecture_time?: string;
             name: string;
+            schedule_defaults?: components["schemas"]["LectureScheduleDefault"][];
+            /**
+             * @description 새 차시의 기본 수업일 구성
+             *
+             *     * `SINGLE` - 한 날짜
+             *     * `SPLIT` - 여러 날짜
+             */
+            schedule_mode?: components["schemas"]["ScheduleModeEnum"];
             /** Format: date */
             start_date?: string | null;
             subject: string;
@@ -15362,6 +15420,45 @@ export interface components {
             /** @description 강의 시간 (예: 토 12:00 ~ 13:00) */
             lecture_time?: string;
             name: string;
+            schedule_defaults?: components["schemas"]["LectureScheduleDefaultRequest"][];
+            /**
+             * @description 새 차시의 기본 수업일 구성
+             *
+             *     * `SINGLE` - 한 날짜
+             *     * `SPLIT` - 여러 날짜
+             */
+            schedule_mode?: components["schemas"]["ScheduleModeEnum"];
+            /** Format: date */
+            start_date?: string | null;
+            subject: string;
+            title: string;
+        };
+        LectureScheduleDefault: {
+            label: string;
+            /** @description ISO 요일 (1=월요일, 7=일요일) */
+            weekday: number;
+        };
+        LectureScheduleDefaultRequest: {
+            label: string;
+            /** @description ISO 요일 (1=월요일, 7=일요일) */
+            weekday: number;
+        };
+        LectureScheduleSettingsRequest: {
+            /** @description 강의딱지 2글자 (미입력 시 제목 앞 2자 사용) */
+            chip_label?: string;
+            /** @description 아이콘/라벨 색상 */
+            color?: string;
+            description?: string;
+            /** Format: date */
+            end_date?: string | null;
+            is_active?: boolean;
+            /** @description 시스템용 강의 (전체공개영상 컨테이너 등). 강의 목록·성적 등에서 자동 제외. */
+            is_system?: boolean;
+            /** @description 강의 시간 (예: 토 12:00 ~ 13:00) */
+            lecture_time?: string;
+            name: string;
+            schedule_defaults: components["schemas"]["LectureScheduleDefaultRequest"][];
+            schedule_mode: components["schemas"]["ScheduleModeEnum"];
             /** Format: date */
             start_date?: string | null;
             subject: string;
@@ -15483,6 +15580,22 @@ export interface components {
             title?: string;
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        LectureSessionCreateRequest: {
+            /** Format: uuid */
+            create_request_id: string;
+            /** Format: date */
+            date?: string | null;
+            initial_schedules: components["schemas"]["SessionCreateScheduleInputRequest"][];
+            insert_after_order?: number | null;
+            lecture: number;
+            order?: number | null;
+            regular_order?: number | null;
+            /** @description 반별 차시 (section_mode=true). null이면 반 무관 공통 차시. */
+            section?: number | null;
+            /** @default REGULAR */
+            session_type: components["schemas"]["SessionTypeEnum"];
+            title?: string;
         };
         LectureSessionRequest: {
             /** Format: date */
@@ -17177,6 +17290,35 @@ export interface components {
             /** @description 강의 시간 (예: 토 12:00 ~ 13:00) */
             lecture_time?: string;
             name?: string;
+            schedule_defaults?: components["schemas"]["LectureScheduleDefaultRequest"][];
+            /**
+             * @description 새 차시의 기본 수업일 구성
+             *
+             *     * `SINGLE` - 한 날짜
+             *     * `SPLIT` - 여러 날짜
+             */
+            schedule_mode?: components["schemas"]["ScheduleModeEnum"];
+            /** Format: date */
+            start_date?: string | null;
+            subject?: string;
+            title?: string;
+        };
+        PatchedLectureScheduleSettingsRequest: {
+            /** @description 강의딱지 2글자 (미입력 시 제목 앞 2자 사용) */
+            chip_label?: string;
+            /** @description 아이콘/라벨 색상 */
+            color?: string;
+            description?: string;
+            /** Format: date */
+            end_date?: string | null;
+            is_active?: boolean;
+            /** @description 시스템용 강의 (전체공개영상 컨테이너 등). 강의 목록·성적 등에서 자동 제외. */
+            is_system?: boolean;
+            /** @description 강의 시간 (예: 토 12:00 ~ 13:00) */
+            lecture_time?: string;
+            name?: string;
+            schedule_defaults?: components["schemas"]["LectureScheduleDefaultRequest"][];
+            schedule_mode?: components["schemas"]["ScheduleModeEnum"];
             /** Format: date */
             start_date?: string | null;
             subject?: string;
@@ -18911,6 +19053,12 @@ export interface components {
             /** Format: time */
             start_time?: string | null;
         };
+        /**
+         * @description * `SINGLE` - 한 날짜
+         *     * `SPLIT` - 여러 날짜
+         * @enum {string}
+         */
+        ScheduleModeEnum: "SINGLE" | "SPLIT";
         ScheduleRosterEntry: {
             enrollment_id: number;
             student_name: string;
@@ -19455,6 +19603,15 @@ export interface components {
          * @enum {string}
          */
         SessionAttendanceStatus: "UNSET" | "PRESENT" | "LATE" | "ONLINE" | "SUPPLEMENT" | "EARLY_LEAVE" | "ABSENT" | "RUNAWAY" | "MATERIAL" | "INACTIVE" | "SECESSION";
+        SessionCreateScheduleInputRequest: {
+            /** Format: date */
+            date: string;
+            /** Format: time */
+            end_time?: string | null;
+            label: string;
+            /** Format: time */
+            start_time?: string | null;
+        };
         SessionEnrollment: {
             /** Format: date-time */
             readonly created_at: string;
@@ -31150,6 +31307,33 @@ export interface operations {
             };
         };
     };
+    lectures_lectures_schedule_settings_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedLectureScheduleSettingsRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedLectureScheduleSettingsRequest"];
+                "multipart/form-data": components["schemas"]["PatchedLectureScheduleSettingsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lecture"];
+                };
+            };
+        };
+    };
     lectures_lectures_instructor_options_retrieve: {
         parameters: {
             query?: never;
@@ -31185,6 +31369,31 @@ export interface operations {
         };
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lecture"];
+                };
+            };
+        };
+    };
+    lectures_lectures_with_schedule_settings_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LectureScheduleSettingsRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureScheduleSettingsRequest"];
+                "multipart/form-data": components["schemas"]["LectureScheduleSettingsRequest"];
+            };
+        };
+        responses: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -31759,6 +31968,38 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SessionScheduleState"];
                 };
+            };
+        };
+    };
+    lectures_sessions_with_schedules_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LectureSessionCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureSessionCreateRequest"];
+                "multipart/form-data": components["schemas"]["LectureSessionCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LectureSession"];
+                };
+            };
+            /** @description 같은 생성 요청 ID에 이미 다른 입력이 저장되었습니다. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

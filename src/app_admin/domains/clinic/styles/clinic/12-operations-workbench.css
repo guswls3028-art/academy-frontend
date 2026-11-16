@@ -427,12 +427,33 @@
 
 .clinic-ops__student-row .clinic-ops__card-reasons {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 12px;
+  max-height: none;
+  overflow: visible;
+}
+
+.clinic-ops__task-group + .clinic-ops__task-group {
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.clinic-ops__task-group-label {
+  margin-bottom: 6px;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.clinic-ops__task-grid {
+  display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 220px));
   grid-auto-rows: 1fr;
   align-items: stretch;
   gap: 8px;
-  max-height: none;
-  overflow: visible;
 }
 
 .clinic-ops__task-chip {
@@ -768,9 +789,9 @@
 
 .clinic-workbench__item-tab {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  gap: 7px;
+  gap: 3px 6px;
   width: 100%;
   min-height: 42px;
   padding: 6px 11px 6px 7px;
@@ -786,25 +807,24 @@
 }
 
 .clinic-workbench__item-tab > span {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  flex: 0 0 auto;
-  place-items: center;
-  border-radius: 7px;
-  background: var(--color-bg-surface-soft);
-  color: var(--color-text-muted);
-  font-size: 10px;
+  grid-column: 1;
+  grid-row: 1;
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .clinic-workbench__item-tab > strong {
-  min-width: 0;
+  grid-column: 1;
+  grid-row: 2;
   font-size: 12px;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 
 .clinic-workbench__item-tab > em {
+  grid-column: 2;
+  grid-row: 1 / span 2;
   padding: 2px 5px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--color-success) 13%, transparent);
@@ -819,11 +839,6 @@
   background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-bg-surface));
   color: var(--color-brand-primary);
   box-shadow: 0 5px 14px color-mix(in srgb, var(--color-brand-primary) 9%, transparent);
-}
-
-.clinic-workbench__item-tab--active > span {
-  background: var(--color-brand-primary);
-  color: var(--color-brand-primary-contrast);
 }
 
 .clinic-workbench__active-panel {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
-import { backendReadiness, readBackendRun, waitForBackend } from "../wait-development-backend.mjs";
+import { backendReadiness, readBackendRun, sanitizedReadinessFailure, waitForBackend } from "../wait-development-backend.mjs";
 
 function snapshot({ running = false, promoted = true } = {}) {
   const revision = "a".repeat(40);
@@ -66,6 +66,48 @@ test("drift and terminal failure are never retried as ordinary release progress"
     await assert.rejects(waitForBackend({ readSnapshot: async () => value, persist: () => {},
       sleep: async () => assert.fail("invalid baseline must fail immediately") }));
   }
+});
+
+test("matching old host and manifest do not admit a different terminal release", () => {
+  for (const changes of [
+    { conclusion: "failure" }, { conclusion: "cancelled" },
+    { head_sha: "e".repeat(40) }, { id: 124 }, { run_attempt: 2 },
+  ]) {
+    const value = snapshot();
+    value.releaseRun = { ...value.releaseRun, ...changes };
+    assert.throws(() => backendReadiness(value),
+      changes.conclusion ? /release_run: unsuccessful/ : /noop_jobs: runtime_not_skipped/);
+  }
+});
+
+test("only verified skipped runtime jobs admit an existing successfully promoted release", () => {
+  const value = snapshot();
+  value.manifestRun = value.releaseRun;
+  value.releaseRun = { ...value.releaseRun, id: 124, head_sha: "c".repeat(40) };
+  value.noopJobs = [
+    "Assemble and scan release candidate",
+    "Verify candidate on persistent isolated development runtime",
+    "Verify deployment",
+  ].map(name => ({ name, run_id: 124, run_attempt: 1, head_sha: value.releaseRun.head_sha, status: "completed", conclusion: "skipped" }));
+  assert.equal(backendReadiness(value), "ready");
+  assert.throws(() => backendReadiness({ ...value, noopJobs: value.noopJobs.slice(1) }), /noop_jobs/);
+  for (const field of [{ run_id: 123 }, { run_attempt: 2 }, { head_sha: "d".repeat(40) }, { conclusion: "success" }]) {
+    const noopJobs = value.noopJobs.map((job, index) => index === 2 ? { ...job, ...field } : job);
+    assert.throws(() => backendReadiness({ ...value, noopJobs }), /noop_jobs/);
+  }
+  for (const field of [{ id: 122 }, { run_attempt: 2 }, { head_sha: "d".repeat(40) }, { conclusion: "failure" }]) {
+    assert.throws(() => backendReadiness({ ...value, manifestRun: { ...value.manifestRun, ...field } }), /manifest_origin/);
+  }
+});
+
+test("failure receipt exposes typed stage and code only", () => {
+  const invalid = snapshot({ promoted: false });
+  assert.throws(() => backendReadiness(invalid), error => {
+    assert.deepEqual(sanitizedReadinessFailure(error), { phase: "host_verification", code: "manifest_mismatch" });
+    return true;
+  });
+  assert.deepEqual(sanitizedReadinessFailure(new Error("synthetic private detail")),
+    { phase: "readiness", code: "unexpected" });
 });
 
 test("waiting is bounded and metadata read failures are not swallowed", async () => {

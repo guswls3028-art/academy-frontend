@@ -929,6 +929,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     created.family = await createQaFamily(request, admin.access, "homework", 1);
     const student = created.family.students[0];
     await seedHomework(request, admin.access, created.family);
+    await seedSameTitleLecture(request);
     await verifyAssessmentTitle(page, request, admin, {
       kind: "homework", id: created.homeworkId!, title: homeworkTitle,
       lectureId: created.lectureId!, sessionId: created.sessionId!,
@@ -946,9 +947,65 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 });
     const todo = page.locator("[data-guide='dash-todo']");
     await expect(todo.getByText(homeworkTitle, { exact: true })).toBeVisible();
-    await gotoAndSettle(page, `${QA_BASE}/student/submit/assignment`, { timeout: 30_000 });
+    const scopedSubmission = `${QA_BASE}/student/submit/assignment?sessionId=${created.sessionId}&homeworkId=${created.homeworkId}`;
+    const otherTitle = `QA 동명 강좌 과제 ${runStamp}`;
+    const otherDraftName = `qa-unsubmitted-other-session-${runStamp}.png`;
+    const uploadPath = (homeworkId: number) => `/api/v1/submissions/submissions/homework/${homeworkId}/media/`;
+    const targetList = page.locator("[data-guide='submit-target']");
+    const otherTarget = targetList.getByRole("button").filter({ has: page.getByText(otherTitle, { exact: true }) });
+    const submissionSummary = page.locator('[class*="submitSummary"]');
+    const allTargets = page.getByRole("link", { name: "전체 제출 대상 보기" });
+    const uploadRequests: string[] = [];
+    const observeUpload = (entry: import("@playwright/test").Request) => {
+      const pathname = new URL(entry.url()).pathname;
+      if (entry.method() === "POST" && pathname.startsWith("/api/v1/submissions/submissions/homework/") && pathname.endsWith("/media/")) {
+        uploadRequests.push(pathname);
+      }
+    };
+    page.on("request", observeUpload);
+    await gotoAndSettle(page, scopedSubmission, { timeout: 30_000 });
     await expect(page.getByRole("heading", { name: "과제 제출" })).toBeVisible();
-    await page.getByText(homeworkTitle, { exact: true }).click();
+    await expect(submissionSummary).toContainText(homeworkTitle);
+    const submitDocument = await page.evaluate(() => performance.timeOrigin);
+    await allTargets.click();
+    await expect(otherTarget).toHaveCount(1);
+    await otherTarget.click();
+    await expect(submissionSummary).toContainText(otherTitle);
+    const picker = page.locator("input[type='file']").first();
+    await expect(picker).toBeEnabled();
+    await picker.setInputFiles({
+      name: otherDraftName,
+      mimeType: "image/png",
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    });
+    await expect(page.getByText(otherDraftName, { exact: true })).toBeVisible();
+    await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(scopedSubmission);
+    expect(await page.evaluate(() => performance.timeOrigin)).toBe(submitDocument);
+    await expect(otherTarget).toHaveCount(0);
+    await expect(page.getByText(otherDraftName, { exact: true })).toHaveCount(0);
+    await expect(submissionSummary).toContainText(homeworkTitle);
+    expect(uploadRequests).toEqual([]);
+
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await allTargets.click();
+    await otherTarget.click();
+    await expect(submissionSummary).toContainText(otherTitle);
+    await expect(page.getByText(otherDraftName, { exact: true })).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(scopedSubmission);
+    expect(await page.evaluate(() => performance.timeOrigin)).toBe(submitDocument);
+    await expect(otherTarget).toHaveCount(0);
+    await expect(page.getByText(otherDraftName, { exact: true })).toHaveCount(0);
+    await expect(submissionSummary).toContainText(homeworkTitle);
+    expect(uploadRequests).toEqual([]);
+    await assertNoHorizontalOverflow(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+
     await applyHomeworkPreviewCsp(page);
     await page.locator("input[type='file']").first().setInputFiles({
       name: uploadName,
@@ -991,8 +1048,32 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
         has: staffPage.getByText(student.name, { exact: true }),
       });
       await expect(fileRow).toHaveCount(0);
+      const originalUpload = page.waitForResponse((response) =>
+        response.request().method() === "POST" && new URL(response.url()).pathname === uploadPath(created.homeworkId!),
+      );
       await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
+      expect((await originalUpload).status()).toBe(201);
       await expect(page.getByText("선택한 파일을 모두 제출했습니다.")).toBeVisible({ timeout: 45_000 });
+      const [submittedMedia, otherMedia] = await Promise.all([
+        expectApi<{ files: Array<{ original_filename: string; status: string }> }>(
+          request, "GET", `/submissions/submissions/homework/${created.homeworkId}/media/?enrollment_id=${created.enrollmentId}`,
+          studentTokens.access,
+        ),
+        expectApi<{ files: unknown[] }>(
+          request, "GET", `/submissions/submissions/homework/${created.duplicateHomeworkId}/media/?enrollment_id=${created.duplicateEnrollmentId}`,
+          studentTokens.access,
+        ),
+      ]);
+      expect(submittedMedia.files).toEqual([expect.objectContaining({ original_filename: uploadName, status: "uploaded" })]);
+      expect(otherMedia.files).toEqual([]);
+      await allTargets.click();
+      await otherTarget.click();
+      await expect(page.getByText(otherDraftName, { exact: true })).toBeVisible();
+      await page.goBack();
+      await expect(page).toHaveURL(scopedSubmission);
+      await expect(submissionSummary).toContainText(homeworkTitle);
+      expect(uploadRequests).toEqual([uploadPath(created.homeworkId!)]);
+      page.off("request", observeUpload);
       await expect(page.locator("[data-guide='submit-target'] button").filter({
         has: page.getByText(homeworkTitle, { exact: true }),
       })).toBeVisible();
@@ -1263,7 +1344,6 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await assertNoHorizontalOverflow(page);
 
     await gradeHomework(page, request, staffUsername, student.password, staffTokens.access, student.name);
-    await seedSameTitleLecture(request);
     await waitForHomeworkSummary(request, parentTokens.access, (row) => row.score === 92, student.id);
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     await showAllHomeworkGrades(page);

@@ -2,6 +2,81 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { harness, settle } from './helpers/playback-lifecycle-harness.mjs';
 
+test('native HLS seeking notifications cannot postpone recovery while the playhead is stuck', async () => {
+  const h = harness();
+  const errors = [];
+  const loaded = [];
+  const playUrl = 'https://unit.invalid/master.m3u8';
+  const controller = h.controller('hls', 'student-fixture', {
+    playUrl, policy: { monitoring_enabled: false, allow_seek: true },
+    onFatal: (error) => errors.push(error),
+  });
+  const el = Object.assign(new EventTarget(), {
+    currentTime: 45, duration: 600, readyState: 4, HAVE_FUTURE_DATA: 3,
+    paused: true, seeking: false, playbackRate: 1, volume: 0.5, muted: false, error: null,
+    canPlayType: () => 'probably',
+    async play() { this.paused = false; this.dispatchEvent(new Event('play')); },
+    pause() { this.paused = true; },
+    getAttribute() { return this.src ?? null; },
+    removeAttribute() { this.src = null; },
+    load() { loaded.push(this.src); },
+  });
+  await controller.attach(el);
+  el.dispatchEvent(new Event('loadedmetadata'));
+  await el.play();
+  h.sampleIntervals(1_000);
+  for (let sample = 1; sample <= 11; sample++) {
+    h.advance(1_000);
+    el.seeking = true;
+    el.currentTime = sample % 2 ? 45.25 : 45;
+    el.dispatchEvent(new Event('seeking'));
+    el.seeking = false;
+    h.sampleIntervals(1_000);
+  }
+  assert.deepEqual(loaded, [playUrl], 'seeking and playhead jitter still allow one source reload');
+  assert.deepEqual(errors, []);
+  el.seeking = false;
+  el.dispatchEvent(new Event('loadedmetadata'));
+  h.sampleIntervals(1_000);
+  el.currentTime = 46;
+  el.dispatchEvent(new Event('timeupdate'));
+  h.advance(1_000);
+  h.sampleIntervals(1_000);
+  assert.equal(el.paused, false);
+  assert.equal(controller.getState().reconnecting, false);
+  controller.dispose();
+});
+
+test('a native seeking notification at the allowed position does not seek again', async () => {
+  const h = harness();
+  const controller = h.controller('hls', 'student-fixture', {
+    playUrl: 'https://unit.invalid/master.m3u8',
+    policy: { monitoring_enabled: false, allow_seek: false, seek: { mode: 'blocked' } },
+  });
+  let position = 43;
+  const seeks = [];
+  const el = Object.assign(new EventTarget(), {
+    duration: 600, paused: true, playbackRate: 1, error: null,
+    canPlayType: () => 'probably', pause() {},
+    getAttribute() { return this.src ?? null; },
+    removeAttribute() { this.src = null; },
+    load() {},
+  });
+  Object.defineProperty(el, 'currentTime', {
+    get: () => position,
+    set: (value) => { seeks.push(value); position = value; },
+  });
+  await controller.attach(el);
+  el.dispatchEvent(new Event('timeupdate'));
+  el.dispatchEvent(new Event('seeking'));
+  assert.deepEqual(seeks, []);
+  position = 55;
+  el.dispatchEvent(new Event('seeking'));
+  el.dispatchEvent(new Event('seeking'));
+  assert.deepEqual(seeks, [43], 'the disallowed jump is still corrected once');
+  controller.dispose();
+});
+
 test('native HLS restores playback after a network error and saves the resumed position', async () => {
   const h = harness();
   const saved = [];

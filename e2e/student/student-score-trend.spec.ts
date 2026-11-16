@@ -635,6 +635,64 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
     });
   }
 
+  for (const viewer of ["student", "parent"] as const) {
+    for (const width of [390, 1366]) {
+      test(`${viewer} ${width}px: 시험 분석은 채점 중인 제출과 실제 0점을 구분한다`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        const submittedExam: MyExamGradeSummary = {
+          ...unscoredExam, title: "서술형 채점 대기", achievement: null, meta_status: null,
+          grading_status: "subjective_pending", is_provisional: true, submitted_at: "2026-07-08T18:00:00+09:00",
+        };
+        const gradeSummary = { exams: [submittedExam], homeworks: [] };
+        const headers = await installApi(page, viewer, { studentPoints: [], wrongCompletionOnly: false, gradeSummary });
+        await page.goto(`${BASE}/student/exams`, { waitUntil: "domcontentloaded" });
+        if (viewer === "parent") {
+          await expect(page.getByRole("heading", { name: "확인할 자녀를 선택해 주세요" })).toBeVisible();
+          await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김첫째" }).click();
+          await expect(page).toHaveURL(/\/student\/dashboard/);
+          await page.goto(`${BASE}/student/exams`, { waitUntil: "domcontentloaded" });
+        }
+
+        await page.getByRole("tab", { name: "결과 분석", exact: true }).click();
+        const summary = page.getByRole("region", { name: "시험 분석 요약" });
+        const submitted = summary.getByText("응시완료", { exact: true }).locator("..");
+        const passRate = summary.getByText("합격률", { exact: true }).locator("..");
+        await expect(summary.getByText("미채점", { exact: true })).toBeVisible();
+        await expect(passRate.getByText("미판정", { exact: true })).toBeVisible();
+        await expect(submitted.getByText("1건", { exact: true })).toBeVisible();
+        await expect(summary.getByText("0%", { exact: true })).toHaveCount(0);
+
+        gradeSummary.exams = [{
+          ...submittedExam, total_score: 0, is_pass: false, achievement: "FAIL",
+          grading_status: null, is_provisional: false,
+        }];
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(summary.getByText("0%", { exact: true })).toHaveCount(2);
+        await expect(passRate.getByText("0%", { exact: true })).toHaveClass(/valueDanger/);
+        await expect(submitted.getByText("1건", { exact: true })).toBeVisible();
+        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+        if (viewer === "parent") expect([...new Set(headers)]).toEqual(["11"]);
+      });
+    }
+  }
+
+  test("시험 분석은 오답 완료 모드에서 교사의 오답 완료 판정을 사용한다", async ({ page }) => {
+    await installApi(page, "student", {
+      studentPoints: [],
+      gradeSummary: {
+        exams: [{
+          ...unscoredExam, total_score: 30, achievement: "FAIL", meta_status: null,
+          is_pass: false, correction_status: "COMPLETED",
+        }],
+      },
+    });
+    await page.goto(`${BASE}/student/exams`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "결과 분석", exact: true }).click();
+    const summary = page.getByRole("region", { name: "시험 분석 요약" });
+    await expect(summary.getByText("오답 완료율", { exact: true }).locator("..").getByText("100%", { exact: true })).toBeVisible();
+    await expect(summary.getByText("합격률", { exact: true })).toHaveCount(0);
+  });
+
   test("실제 0점과 불합격은 시험과 과제에서 0% 실패 상태로 표시한다", async ({ page }) => {
     await installApi(page, "student", {
       studentPoints: [],

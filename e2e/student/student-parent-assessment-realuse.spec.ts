@@ -901,10 +901,27 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
       await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
       await verify(original.exam_order, original.exam_ids);
       await verifyParentTotal(60, 100, 1);
+      await page.getByRole("button", { name: "시험 총점 숨기기", exact: true }).click();
+      await expect(page.locator('th[data-col-type="exam-summary"]')).toHaveCount(0);
+      await page.reload();
+      await verify(original.exam_order, original.exam_ids);
+      await expect(page.locator('th[data-col-type="exam-summary"]')).toHaveCount(0);
+      await page.getByRole("button", { name: /표시 옵션/ }).click();
+      await page.getByRole("group", { name: "총점 열 표시", exact: true })
+        .getByRole("button", { name: "시험 총점", exact: true }).click();
       // Moving the excluded exam changes presentation only, including after reload.
+      const totals = await openTotals();
       if (width === 1366) {
-        await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }));
-      } else await page.getByRole("button", { name: `${manualExamTitle} 이전 순서로 이동`, exact: true }).click();
+        await expect.poll(() => totals.evaluate(node =>
+          Math.abs(node.getBoundingClientRect().width - node.clientWidth),
+        )).toBeLessThan(1);
+        const rows = totals.getByRole("group", { name: /시험 총점/ }).locator(".assessment-totals-option");
+        const moved = rows.filter({ has: page.getByRole("checkbox", { name: `${manualExamTitle} 합산에 포함`, exact: true }) });
+        const target = rows.filter({ has: page.getByRole("checkbox", { name: `${examTitle} 합산에 포함`, exact: true }) });
+        await moved.locator(".assessment-totals-drag-handle").dragTo(target);
+      } else await totals.getByRole("button", { name: `${manualExamTitle} 위로 이동`, exact: true }).click();
+      await expect(totals.getByRole("checkbox", { name: `${manualExamTitle} 합산에 포함`, exact: true })).not.toBeChecked();
+      await save(totals);
       const reversed = [created.manualExamId!, created.examId!];
       await verify(reversed, original.exam_ids);
       await page.reload();

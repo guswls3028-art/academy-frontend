@@ -1047,7 +1047,7 @@ async function freezePlayhead(page: Page) {
 }
 
 for (const width of [1366, 390]) {
-  test(`silent HLS stall reconnects at the same position at ${width}px`, async ({ page }, info) => {
+  test(`silent HLS stall with repeated seeking reconnects at the same position at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 840 });
     await page.clock.install();
     const hls = await installStalledHls(page);
@@ -1066,15 +1066,23 @@ for (const width of [1366, 390]) {
       await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.paused)).toBe(false);
       await video.evaluate((el: HTMLVideoElement) => { el.playbackRate = 1.5; el.muted = true; });
       const stalledAt = await freezePlayhead(page);
-      await page.clock.fastForward(3_000);
-      await expect(reconnecting).toHaveCount(0);
-      await page.clock.fastForward(10_500);
+      await video.evaluate((el) => {
+        Object.defineProperty(el, "seeking", { configurable: true, get: () => true });
+      });
+      for (let second = 0; second < 12; second++) {
+        await video.dispatchEvent("seeking");
+        await page.clock.runFor(1_000);
+        if (second === 2) await expect(reconnecting).toHaveCount(0);
+      }
       await expect(reconnecting).toBeVisible();
       await expect.poll(hls.manifests).toBe(2);
       expect(hls.grants()).toBe(1);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: info.outputPath(`hls-reconnecting-${width}.png`) });
-      await video.evaluate((el) => { Reflect.deleteProperty(el, "currentTime"); });
+      await video.evaluate((el) => {
+        Reflect.deleteProperty(el, "seeking");
+        Reflect.deleteProperty(el, "currentTime");
+      });
       hls.releaseReload();
       await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(stalledAt + 0.2);
       await expect(reconnecting).toHaveCount(0);

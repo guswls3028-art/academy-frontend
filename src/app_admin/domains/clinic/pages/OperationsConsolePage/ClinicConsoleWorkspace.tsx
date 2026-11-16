@@ -204,9 +204,26 @@ function getTargetDisplayTitle(target: ClinicTarget): string {
 }
 
 function getTargetContext(target: ClinicTarget): string {
-  const context = [target.lecture_title?.trim(), target.session_title?.trim()]
-    .filter((value, index, values): value is string => !!value && values.indexOf(value) === index);
-  return context.join(" · ");
+  const sessionLabel = target.session_label?.trim();
+  const lectureTitle = target.lecture_title?.trim();
+  if (sessionLabel) return [sessionLabel, lectureTitle].filter(Boolean).join(" · ");
+  return target.session_title?.trim()
+    || [lectureTitle, "차시 정보 없음"].filter(Boolean).join(" · ");
+}
+
+function groupTargetsBySession(targets: ClinicTarget[]) {
+  const groups = new Map<number | string, { label: string; targets: ClinicTarget[] }>();
+  for (const target of targets) {
+    const label = getTargetContext(target);
+    const key = isPositiveClinicIdentifier(target.session_id) ? target.session_id : label;
+    const group = groups.get(key);
+    if (group) {
+      group.targets.push(target);
+    } else {
+      groups.set(key, { label, targets: [target] });
+    }
+  }
+  return groups;
 }
 
 function isMissingHomeworkTarget(target: ClinicTarget): boolean {
@@ -2223,7 +2240,7 @@ export default function ClinicConsoleWorkspace({
                         오늘 {plannedCount} / 미완료 {unresolvedTargets.length}
                       </span>
                     )}
-                    <div className="clinic-ops__card-reasons" role="list" aria-label={`${p.student_name} 미완료 항목`}>
+                    <div className="clinic-ops__card-reasons" role="group" aria-label={`${p.student_name} 미완료 항목`}>
                       {clinicTargetsLoading ? (
                         <span className="clinic-ops__reason-tag clinic-ops__reason-tag--self" role="status">
                           과제 확인 중
@@ -2233,54 +2250,61 @@ export default function ClinicConsoleWorkspace({
                           과제 조회 실패
                         </span>
                       ) : unresolvedTargets.length > 0 ? (
-                        unresolvedTargets.map((t) => {
-                          const targetParticipant = participantForTarget(group.participants, t);
-                          const targetIsPlanned = isPositiveClinicIdentifier(t.clinic_link_id) && plannedIds.has(t.clinic_link_id);
-                          return (
-                          <button
-                            type="button"
-                            key={clinicTargetKey(t)}
-                            className={`clinic-ops__reason-tag clinic-ops__task-chip ${
-                              t.clinic_reason === "homework"
-                                ? "clinic-ops__reason-tag--homework"
-                                : t.clinic_reason === "both"
-                                ? "clinic-ops__reason-tag--both"
-                                : "clinic-ops__reason-tag--exam"
-                            } ${targetIsPlanned ? "clinic-ops__task-chip--planned" : ""}`}
-                            aria-pressed={targetIsPlanned}
-                            aria-label={`${p.student_name} ${t.clinic_reason === "homework" ? "과제" : "시험"} ${getTargetDisplayTitle(t)} ${getTargetContext(t)} ${formatScoreDetail(t)}`}
-                            title={`${getTargetDisplayTitle(t)} · ${getTargetContext(t)} · ${formatScoreDetail(t)}`}
-                            onClick={(event) => openDrawer(
-                              targetParticipant?.id ?? p.id,
-                              clinicTargetKey(t),
-                              event.currentTarget,
-                              targetParticipant != null,
-                            )}
-                          >
-                            {t.clinic_reason === "homework" ? (
-                              <BookOpen size={14} aria-hidden />
-                            ) : (
-                              <FileQuestion size={14} aria-hidden />
-                            )}
-                            <span className="clinic-ops__task-kind">
-                              {t.clinic_reason === "homework" ? "과제" : t.clinic_reason === "both" ? "시험·과제" : "시험"}
-                            </span>
-                            {getCycleLabel(t.cycle_no) && (
-                              <span className="clinic-ops__cycle-badge-inline">
-                                {getCycleLabel(t.cycle_no)}
-                              </span>
-                            )}
-                            {t.source_title || t.session_title ? (
-                              <>
-                                <span className="clinic-ops__reason-title">{t.source_title || t.session_title}</span>
-                                <span className="clinic-ops__reason-detail">{formatScoreDetail(t)}</span>
-                              </>
-                            ) : (
-                              formatScoreDetail(t)
-                            )}
-                          </button>
-                          );
-                        })
+                        Array.from(groupTargetsBySession(unresolvedTargets), ([key, sessionGroup]) => (
+                          <div key={key} className="clinic-ops__task-group" role="group" aria-label={sessionGroup.label}>
+                            <div className="clinic-ops__task-group-label">{sessionGroup.label}</div>
+                            <div className="clinic-ops__task-grid">
+                              {sessionGroup.targets.map((t) => {
+                                const targetParticipant = participantForTarget(group.participants, t);
+                                const targetIsPlanned = isPositiveClinicIdentifier(t.clinic_link_id) && plannedIds.has(t.clinic_link_id);
+                                return (
+                                  <button
+                                    type="button"
+                                    key={clinicTargetKey(t)}
+                                    className={`clinic-ops__reason-tag clinic-ops__task-chip ${
+                                      t.clinic_reason === "homework"
+                                        ? "clinic-ops__reason-tag--homework"
+                                        : t.clinic_reason === "both"
+                                        ? "clinic-ops__reason-tag--both"
+                                        : "clinic-ops__reason-tag--exam"
+                                    } ${targetIsPlanned ? "clinic-ops__task-chip--planned" : ""}`}
+                                    aria-pressed={targetIsPlanned}
+                                    aria-label={`${p.student_name} ${t.clinic_reason === "homework" ? "과제" : "시험"} ${getTargetDisplayTitle(t)} ${getTargetContext(t)} ${formatScoreDetail(t)}`}
+                                    title={`${getTargetDisplayTitle(t)} · ${getTargetContext(t)} · ${formatScoreDetail(t)}`}
+                                    onClick={(event) => openDrawer(
+                                      targetParticipant?.id ?? p.id,
+                                      clinicTargetKey(t),
+                                      event.currentTarget,
+                                      targetParticipant != null,
+                                    )}
+                                  >
+                                    {t.clinic_reason === "homework" ? (
+                                      <BookOpen size={14} aria-hidden />
+                                    ) : (
+                                      <FileQuestion size={14} aria-hidden />
+                                    )}
+                                    <span className="clinic-ops__task-kind">
+                                      {t.clinic_reason === "homework" ? "과제" : t.clinic_reason === "both" ? "시험·과제" : "시험"}
+                                    </span>
+                                    {getCycleLabel(t.cycle_no) && (
+                                      <span className="clinic-ops__cycle-badge-inline">
+                                        {getCycleLabel(t.cycle_no)}
+                                      </span>
+                                    )}
+                                    {t.source_title || t.session_title ? (
+                                      <>
+                                        <span className="clinic-ops__reason-title">{t.source_title || t.session_title}</span>
+                                        <span className="clinic-ops__reason-detail">{formatScoreDetail(t)}</span>
+                                      </>
+                                    ) : (
+                                      formatScoreDetail(t)
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))
                       ) : (
                         <span className="clinic-ops__reason-tag clinic-ops__reason-tag--self">
                           자율 학습 참여
@@ -2565,7 +2589,7 @@ export default function ClinicConsoleWorkspace({
 
               {!clinicTargetsLoading && !clinicTargetsError && drawerUnresolvedTargets.length > 0 && (
                 <div className="clinic-workbench__item-switcher" role="tablist" aria-label="미완료 항목 전환">
-                  {drawerUnresolvedTargets.map((target, index) => {
+                  {drawerUnresolvedTargets.map((target) => {
                     const targetKey = clinicTargetKey(target);
                     const planned = !drawerContextRequired &&
                       isPositiveClinicIdentifier(target.clinic_link_id) &&
@@ -2581,8 +2605,8 @@ export default function ClinicConsoleWorkspace({
                           setDrawerActiveTargetKey(targetKey);
                         }}
                       >
-                        <span>{index + 1}</span>
-                        <strong>{target.source_title || target.session_title || formatReasonLabel(target.clinic_reason)}</strong>
+                        <span>{getTargetContext(target)}</span>
+                        <strong>{formatReasonLabel(target.clinic_reason)} · {getTargetDisplayTitle(target)}</strong>
                         {planned && <em>오늘</em>}
                       </button>
                     );

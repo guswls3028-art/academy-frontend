@@ -12,11 +12,10 @@
 import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ChevronDown, ClipboardCheck, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
+import { AlertCircle, ChartColumn, ChevronDown, ClipboardCheck, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/public/SessionScoresPanel";
-import { buildScoreCsv } from "@admin/domains/scores/public/scoreCsvGenerator";
 import { useScoreEditDraft } from "@admin/domains/scores/public/useScoreEditDraft";
 import { isScoreEditStaleError, type ScoreActiveCell } from "@admin/domains/scores/public/scoreDraft";
 import { patchHomeworkQuick, type SaveDrawerHomeworkScore } from "@admin/domains/scores/public/patchHomeworkQuick";
@@ -28,13 +27,14 @@ import {
   type SessionScoresResponse,
   type SessionScoresExamReviewFilter,
   type SessionScoresSummaryColumnMode,
+  type ScoreTotalColumnKind,
 } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { Button, EmptyState, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { DomainListToolbar, getStoredTableOption, setStoredTableOption } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
-import { substituteScoreVars, buildScoreVars, buildScoreDetail, collectHighestScores, collectUnenteredScoreItems, usesVideoHomeworkLabelInScoreAlimtalk } from "@/shared/scoring/scoreReport";
+import { collectHighestScores, usesVideoHomeworkLabelInScoreAlimtalk } from "@/shared/scoring/scoreReport";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
@@ -74,40 +74,6 @@ function isScoreAlimtalkAttendance(row: SessionScoreRow, includeVideo: boolean):
     || (includeVideo && row.attendance_status === "ONLINE");
 }
 
-type ScoreAlimtalkIssue = {
-  message: string;
-  unenteredEnrollmentIds?: number[];
-};
-
-function getScoreAlimtalkIssue(rows: SessionScoreRow[], afterSave: boolean, includeVideo: boolean): ScoreAlimtalkIssue | null {
-  if (rows.length === 0) {
-    const applicableAttendance = includeVideo ? "출석·지각·영상" : "출석·지각";
-    return { message: `선택한 학생 중 ${applicableAttendance}으로 기록된 학생이 없습니다. 출결을 확인해 주세요.` };
-  }
-  if (rows.some((row) => row.exams.some((exam) => exam.block.grading_status === "subjective_pending"))) {
-    return { message: "최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요." };
-  }
-  const provisionalCount = rows.reduce(
-    (count, row) => count + row.exams.filter((exam) => exam.block.is_provisional).length, 0,
-  );
-  if (provisionalCount > 0) {
-    return { message: `채점을 확인 중인 시험이 ${provisionalCount}건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.` };
-  }
-  const unenteredRows = rows.flatMap((row) => {
-    const count = collectUnenteredScoreItems(row).length;
-    return count > 0 ? [{ row, count }] : [];
-  });
-  if (unenteredRows.length === 0) return null;
-  const unenteredCount = unenteredRows.reduce((total, { count }) => total + count, 0);
-  const affectedNames = unenteredRows.slice(0, 3).map(({ row, count }) => `${row.student_name} ${count}건`).join(", ");
-  const remainingNames = unenteredRows.length > 3 ? ` 외 ${unenteredRows.length - 3}명` : "";
-  const prefix = afterSave ? "최신 성적에 입력되지 않은 시험·과제가" : "점수가 입력되지 않은 시험·과제가";
-  return {
-    message: `${prefix} ${unenteredCount}건 있습니다. ${affectedNames}${remainingNames}. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 다시 시도해 주세요.`,
-    unenteredEnrollmentIds: unenteredRows.map(({ row }) => row.enrollment_id),
-  };
-}
-
 function getStoredSummaryColumnMode(
   storageKey: string | null,
   legacyStorageKey: string | null,
@@ -118,6 +84,13 @@ function getStoredSummaryColumnMode(
   const mode = stored ?? legacyStored;
   if (mode === "exam_wrong" || mode === "verdict") return mode;
   return fallback;
+}
+
+function readHiddenTotalColumns(storageKey: string | null) {
+  return {
+    exam: !!storageKey && getStoredTableOption(storageKey, "exam") === "hidden",
+    homework: !!storageKey && getStoredTableOption(storageKey, "homework") === "hidden",
+  };
 }
 
 function isCompletelyBlankScoreSheet(data: SessionScoresResponse | undefined): boolean {
@@ -212,6 +185,16 @@ export default function SessionScoresEntryPage({
   const [viewFilter, setViewFilter] = useState<"all" | "exam" | "homework">("all");
   /** 점수 표시 형식: raw(원점수만) | fraction(50/100) */
   const [scoreFormat, setScoreFormat] = useState<"raw" | "fraction">("fraction");
+  const totalColumnStorageKey = getTenantUserLocalKey("scores:total-columns", user?.id);
+  const [totalColumnPrefs, setTotalColumnPrefs] = useState(() => ({
+    key: totalColumnStorageKey,
+    hidden: readHiddenTotalColumns(totalColumnStorageKey),
+  }));
+  // A change of tenant or staff account must read its own preferences immediately.
+  if (totalColumnPrefs.key !== totalColumnStorageKey) {
+    setTotalColumnPrefs({ key: totalColumnStorageKey, hidden: readHiddenTotalColumns(totalColumnStorageKey) });
+  }
+  const hiddenTotalColumns = totalColumnPrefs.hidden;
   const summaryColumnStorageKey = getTenantUserLocalKey("scores:summary-column", user?.id);
   const legacySummaryColumnStorageKey = user?.id ? `scores:summary-column:u${user.id}` : null;
   const [summaryColumnMode, setSummaryColumnMode] = useState<SessionScoresSummaryColumnMode>(
@@ -225,11 +208,14 @@ export default function SessionScoresEntryPage({
   /** 읽기 모드 표시 옵션 펼침 — 첫 사용자에게 압도감 없도록 default collapsed.
       비-default 값일 때는 자동 펼침 (학원장이 자기 설정을 즉시 인식). */
   const [viewOptionsExpanded, setViewOptionsExpanded] = useState(false);
+  const viewOptionsButtonRef = useRef<HTMLButtonElement>(null);
   const hasNonDefaultViewOptions =
     viewFilter !== "all"
     || scoreDisplayMode !== "total"
     || scoreFormat !== "fraction"
-    || summaryColumnMode !== defaultSummaryColumnMode;
+    || summaryColumnMode !== defaultSummaryColumnMode
+    || hiddenTotalColumns.exam
+    || hiddenTotalColumns.homework;
   const { openSendMessageModal } = useSendMessageModal();
   const panelRef = useRef<SessionScoresPanelHandle>(null);
   const scoreGridRef = useRef<HTMLDivElement>(null);
@@ -289,6 +275,19 @@ export default function SessionScoresEntryPage({
     if (!summaryColumnStorageKey) return;
     setStoredTableOption(summaryColumnStorageKey, "mode", mode);
   }, [summaryColumnStorageKey]);
+
+  const setTotalColumnHidden = useCallback((kind: ScoreTotalColumnKind, hidden: boolean) => {
+    setTotalColumnPrefs((current) => ({ ...current, hidden: { ...current.hidden, [kind]: hidden } }));
+    if (totalColumnStorageKey) {
+      setStoredTableOption(totalColumnStorageKey, kind, hidden ? "hidden" : "visible");
+    }
+  }, [totalColumnStorageKey]);
+
+  const hideTotalColumn = useCallback((kind: ScoreTotalColumnKind) => {
+    setTotalColumnHidden(kind, true);
+    setViewOptionsExpanded(true);
+    viewOptionsButtonRef.current?.focus({ preventScroll: true });
+  }, [setTotalColumnHidden]);
 
   /** 강의 정보 (PDF 제목용) */
   const { data: lectureData } = useQuery({
@@ -851,13 +850,20 @@ export default function SessionScoresEntryPage({
     const refreshError = "최신 출결과 성적을 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.";
 
     try {
-      const initial = await refetch();
+      const [preparation, initial] = await Promise.all([
+        import("./sessionScoreAlimtalk").catch(() => null),
+        refetch(),
+      ]);
       if (!isCurrentRequest()) return;
+      if (preparation == null) {
+        setScoreAlimtalkError("수업결과 알림톡 화면을 불러오지 못했습니다. 새로고침한 뒤 다시 시도해 주세요.");
+        return;
+      }
       if (initial.isError || !initial.data) {
         setScoreAlimtalkError(refreshError);
         return;
       }
-      const initialIssue = getScoreAlimtalkIssue(selectAttendees(initial.data), false, includeVideoInScoreAlimtalk);
+      const initialIssue = preparation.getScoreAlimtalkIssue(selectAttendees(initial.data), false, includeVideoInScoreAlimtalk);
       if (initialIssue && selectVideoStudents(initial.data).length === 0) {
         setScoreAlimtalkError(initialIssue.message);
         return;
@@ -872,7 +878,7 @@ export default function SessionScoresEntryPage({
       }
       const selectedRows = selectAttendees(latest.data);
       const videoRows = selectVideoStudents(latest.data);
-      const issue = getScoreAlimtalkIssue(selectedRows, true, includeVideoInScoreAlimtalk);
+      const issue = preparation.getScoreAlimtalkIssue(selectedRows, true, includeVideoInScoreAlimtalk);
       if (issue && videoRows.length === 0) {
         setScoreAlimtalkError(issue.message);
         return;
@@ -918,34 +924,12 @@ export default function SessionScoresEntryPage({
         return null;
       });
       if (!isCurrentRequest()) return;
-      const reportOptions = {
+      const { firstScoreVars, recomputePerStudentVars } = preparation.prepareScoreAlimtalkVariables(selectedRows, meta, {
         lectureName,
         sessionTitle,
         highestScores: collectHighestScores(cohortData),
         showVideoHomeworkLabel: includeVideoInScoreAlimtalk,
-      };
-
-      const scoreDetail = buildScoreDetail(selectedRows[0], meta, reportOptions);
-
-      // SSOT (2026-05-14): 학생별 변수 재계산 callback.
-      // 학원장이 modal textarea에서 본문 수정 시 modal이 currentBody 기반으로 이 callback 호출 →
-      // 각 학생별 substituteScoreVars 결과 (_body_subst) 가 학원장 수정본 반영.
-      // 직전 결함: 모달 열기 전 사전 계산된 _body_subst 만 보내면 학원장 수정이 silently discard.
-      const recomputePerStudentVars = (currentBody: string): Record<number, Record<string, string>> => {
-        const result: Record<number, Record<string, string>> = {};
-        for (const sRow of selectedRows) {
-          if (sRow.student_id == null) continue;
-          const scoreVars = buildScoreVars(sRow, meta, reportOptions);
-          result[sRow.student_id] = {
-            ...scoreVars,
-            _body_subst: substituteScoreVars(currentBody, sRow, meta, reportOptions),
-          };
-        }
-        return result;
-      };
-      const firstScoreVars = selectedRows[0]
-        ? buildScoreVars(selectedRows[0], meta, reportOptions)
-        : {};
+      });
 
       openSendMessageModal({
         sessionId: numericSessionId,
@@ -953,7 +937,7 @@ export default function SessionScoresEntryPage({
         videoHomeworkStudentIds,
         recipientLabel: `수업결과 발송 — ${includeVideoInScoreAlimtalk ? "출석·지각·영상" : "출석·지각"} ${activeStudentIds.length}명${excludedCount ? ` · ${excludedCount}명 제외` : ""}`,
         blockCategory: "grades",
-        alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail, ...firstScoreVars },
+        alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, ...firstScoreVars },
         recomputePerStudentVars,
       });
     } finally {
@@ -967,7 +951,9 @@ export default function SessionScoresEntryPage({
   /* 2026-05-13 회귀 fix: hasExamsOrHomeworks 가 selectionBar 안에서 참조되는데
      이전엔 line 581 (selectionBar 아래) 에서 선언 → TDZ ReferenceError 발생, 페이지 crash.
      selectionBar 보다 위로 이동. */
-  const hasExamsOrHomeworks = (data?.meta?.exams?.length ?? 0) > 0 || (data?.meta?.homeworks?.length ?? 0) > 0;
+  const hasExamTotal = (data?.meta?.exams?.length ?? 0) > 0;
+  const hasHomeworkTotal = data?.meta?.homeworks?.some((item) => item.grading_mode !== "COMPLETION") ?? false;
+  const hasExamsOrHomeworks = hasExamTotal || (data?.meta?.homeworks?.length ?? 0) > 0;
   const examOptions = useMemo(() => data?.meta?.exams ?? [], [data?.meta?.exams]);
   const omrExamOptions = useMemo(
     () => examOptions.filter((exam) => resolveExamGradingMode(exam) !== "written"),
@@ -1217,9 +1203,13 @@ export default function SessionScoresEntryPage({
                   await refetch();
                   return;
                 }
-                const blob = new Blob([buildScoreCsv(freshData.meta, selected)], { type: "text/csv;charset=utf-8" });
-                const { downloadBlob } = await import("@/shared/utils/safeDownload");
-                downloadBlob(blob, `성적_${selected.length}명.csv`);
+                try {
+                  const { downloadScoreCsv } = await import("@admin/domains/scores/public/scoreCsvGenerator");
+                  downloadScoreCsv(freshData.meta, selected);
+                } catch {
+                  feedback.error("성적 파일을 만들지 못했습니다. 새로고침한 뒤 다시 다운로드해 주세요.");
+                  return;
+                }
                 feedback.success(`엑셀 다운로드됨 (${selected.length}명)`);
               }}
               disabled={selectedEnrollmentIds.length === 0 || recoveryBlocked}
@@ -1248,6 +1238,7 @@ export default function SessionScoresEntryPage({
           <>
             <button
               type="button"
+              ref={viewOptionsButtonRef}
               onClick={() => setViewOptionsExpanded((v) => !v)}
               className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] px-2 py-1 rounded hover:bg-[var(--color-bg-surface-hover)]"
               aria-expanded={viewOptionsExpanded}
@@ -1317,7 +1308,7 @@ export default function SessionScoresEntryPage({
               <ul>
                 <li>학생 행을 누르면 개별 성적 상세를 볼 수 있습니다.</li>
                 <li>시험명을 눌러 채점·OMR·시험 설정·삭제를, 과제명을 눌러 과제 수정·삭제를 선택할 수 있습니다.</li>
-                <li>시험·과제 머리글을 끌어 표시 순서를 바꿀 수 있습니다.</li>
+                <li>머리글이나 합산 설정에서 시험·과제 순서를 바꿀 수 있습니다. 숨긴 총점 열은 표시 옵션에서 다시 켤 수 있습니다.</li>
                 <li>회색 <strong>-</strong>는 해당 시험·과제에 아직 배정되지 않은 상태입니다.</li>
               </ul>
             )}
@@ -1348,6 +1339,15 @@ export default function SessionScoresEntryPage({
               <div className="scores-display-segment" role="group" aria-label="시험 점수 표시 방식">
                 <button type="button" onClick={() => setScoreDisplayMode("total")} className="scores-display-segment__btn" aria-pressed={scoreDisplayMode === "total"}>합산</button>
                 <button type="button" onClick={() => setScoreDisplayMode("breakdown")} className="scores-display-segment__btn" aria-pressed={scoreDisplayMode === "breakdown"}>객관식 + 주관식</button>
+              </div>
+            </div>
+          )}
+          {(hasExamTotal || hasHomeworkTotal) && (
+            <div className="scores-view-filter-section">
+              <span className="scores-view-filter-label">총점 열</span>
+              <div className="scores-display-segment" role="group" aria-label="총점 열 표시">
+                {hasExamTotal && <button type="button" className="scores-display-segment__btn" aria-pressed={!hiddenTotalColumns.exam} onClick={() => setTotalColumnHidden("exam", !hiddenTotalColumns.exam)}>시험 총점</button>}
+                {hasHomeworkTotal && <button type="button" className="scores-display-segment__btn" aria-pressed={!hiddenTotalColumns.homework} onClick={() => setTotalColumnHidden("homework", !hiddenTotalColumns.homework)}>과제 총점</button>}
               </div>
             </div>
           )}
@@ -1519,7 +1519,11 @@ export default function SessionScoresEntryPage({
   const outputActions = (
     <div className="scores-output-actions" role="group" aria-label="성적표 출력과 관리">
       {examOptions.length > 0 && (
-        <Suspense fallback={<Button type="button" intent="secondary" size="sm" disabled>시험 성적 분석</Button>}>
+        <Suspense fallback={(
+          <Button type="button" intent="secondary" size="sm" leftIcon={<ChartColumn size={ICON_FOR_BUTTON.sm} />} disabled aria-busy="true">
+            시험 성적 분석
+          </Button>
+        )}>
           <SessionExamAnalysisAction
             exams={examOptions}
             lectureId={numericLectureId}
@@ -1976,6 +1980,8 @@ export default function SessionScoresEntryPage({
             scoreFormat={scoreFormat}
             viewFilter={viewFilter}
             summaryColumnMode={summaryColumnMode}
+            hiddenTotalColumns={hiddenTotalColumns}
+            onHideTotalColumn={hideTotalColumn}
             examReviewFilter={examReviewFilter}
             selectedEnrollmentIds={selectedEnrollmentIds}
             onSelectionChange={changeScoreSelection}
