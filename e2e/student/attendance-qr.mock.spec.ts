@@ -63,7 +63,7 @@ async function installApi(page: Page, initialRole = "student", kind = "class") {
     });
     if (path === "/clinic/participants/") return json(state.checkedIn ? [{ id: 41, student: 11, session: 51, session_title: "오늘 클리닉", session_date: "2026-10-31", session_start_time: "13:00:00", session_location: "301호", status: "attended", checked_in_at: state.checkedIn, checked_out_at: state.checkedOut, created_at: state.checkedIn, can_self_cancel: false }] : []);
     if (path === "/clinic/settings/") return json({ capabilities: { booking_policy: { read: true, write: true }, student_operations: { read: true, write: true } } });
-    if (path === "/clinic/idcard/") return json({ current_targets: [], current_result: "SUCCESS" });
+    if (path === "/clinic/idcard/") return json({ current_targets: [], current_result: "SUCCESS", passcard_state: "PASSED" });
     if (path.startsWith("/clinic/sessions")) return json([]);
     return json({ results: [], count: 0, next: null, notices: [], today_sessions: [], badges: {} });
   });

@@ -50,6 +50,7 @@ type MockState = {
   availability?: Record<number, Record<string, unknown>>;
   availabilityReady?: Promise<void>;
   bookingResponse?: () => Promise<{ detail: string } | null>;
+  canSubmitHomeworkFiles?: boolean;
   changeBookingConflict?: boolean;
   cancelNotificationFailed?: number;
   clinicPagination?: {
@@ -65,6 +66,7 @@ type IdcardMockControl = {
   responseReady?: Promise<void>;
   noEnrollment?: "forbidden" | "legacy";
   studentHeaders?: Array<string | undefined>;
+  verdictPatch?: { current_result?: unknown; passcard_state?: unknown };
 };
 
 type ProgramMockOptions = {
@@ -426,6 +428,7 @@ async function installApi(
         server_datetime: `${dateAfter(0)}T09:30:00+09:00`,
         current_result: result,
         passcard_state: passcardState,
+        ...idcardControl?.verdictPatch,
         can_leave: passcardState !== "CLINIC_REQUIRED",
         booking_status: bookingStatus,
         booking_status_label: currentBooking?.status_label ?? (bookingStatus === "required" ? "예약 필요" : "예약 없음"),
@@ -478,6 +481,7 @@ async function installApi(
             source_id: 290,
             source_title: "5주차 오답 과제",
             source_scope: "등차수열",
+            can_submit_homework_files: state.canSubmitHomeworkFiles,
             created_at: "2026-08-20T09:00:00+09:00",
           },
           {
@@ -677,6 +681,39 @@ test.describe("학생 클리닉 예약 UX", () => {
     await error.getByRole("button", { name: "다시 시도" }).click();
     await expect(page.getByTestId("clinic-passcard")).toBeVisible();
   });
+
+  for (const { role, width } of [{ role: "student", width: 390 }, { role: "parent", width: 1366 }] as const) {
+    test(`${role}: 패스카드와 대상 요약은 잘못된 판정을 숨기고 다시 확인한다`, async ({ page }) => {
+      test.setTimeout(60_000);
+      const control: IdcardMockControl = { result: "SUCCESS" };
+      await page.setViewportSize({ width, height: 850 });
+      await seed(page, { role });
+      await installApi(page, createState(), "SUCCESS", control, { role });
+      await page.goto(`${BASE}/student/idcard`, { waitUntil: "domcontentloaded" });
+      const passcard = page.getByTestId("clinic-passcard");
+      await expect(passcard.getByRole("heading", { name: "합격자" })).toBeVisible();
+
+      control.verdictPatch = { passcard_state: "UNRECOGNIZED" };
+      const error = page.getByRole("alert").filter({ hasText: "패스카드를 불러오지 못했습니다." });
+      await expect(error).toBeVisible();
+      await expect(passcard).toHaveCount(0);
+      control.verdictPatch = undefined;
+      await error.getByRole("button", { name: "다시 시도" }).click();
+      await expect(passcard.getByRole("heading", { name: "합격자" })).toBeVisible();
+
+      await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+      const summary = page.getByRole("region", { name: "내 클리닉 대상 현황" });
+      const noTargets = summary.getByRole("heading", { name: "현재 보강이 필요한 항목이 없어요" });
+      await expect(noTargets).toBeVisible();
+      control.verdictPatch = { current_result: undefined };
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(summary.getByRole("heading", { name: "보강 항목을 불러오지 못했어요" })).toBeVisible();
+      await expect(noTargets).toHaveCount(0);
+      control.verdictPatch = undefined;
+      await summary.getByRole("button", { name: "다시 불러오기" }).click();
+      await expect(noTargets).toBeVisible();
+    });
+  }
 
   for (const role of ["student", "parent"] as const) {
     for (const width of [390, 1366]) {
@@ -993,6 +1030,36 @@ test.describe("학생 클리닉 예약 UX", () => {
       .toHaveAttribute("href", "/student/submit/assignment?sessionId=62&homeworkId=290");
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   });
+
+  for (const { role, width } of [{ role: "student", width: 390 }, { role: "parent", width: 1366 }] as const) {
+    test(`${role}: 재개한 과제의 제출 권한을 따르고 열려 있는 과제의 정확한 제출 화면으로 이동한다`, async ({ page }) => {
+      const state = createState();
+      const idcard: IdcardMockControl = { result: "SUCCESS" };
+      await page.setViewportSize({ width, height: 850 });
+      await seed(page, { role });
+      await installApi(page, state, "SUCCESS", idcard, { role });
+      await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+
+      const targets = page.getByTestId("clinic-target-item");
+      const homework = targets.filter({ hasText: "5주차 오답 과제" });
+      await expect(page.getByRole("grid", { name: "클리닉 월간 일정" })).toBeVisible();
+      await expect(homework).toHaveCount(0);
+
+      idcard.result = "FAIL";
+      state.canSubmitHomeworkFiles = false;
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(homework).toContainText("과제 보강");
+      await expect(homework.getByRole("link", { name: "과제 온라인 제출" })).toHaveCount(0);
+      await expect(targets.first().getByRole("link", { name: "시험 확인·제출" })).toBeVisible();
+
+      state.canSubmitHomeworkFiles = true;
+      await page.reload({ waitUntil: "domcontentloaded" });
+      const submit = homework.getByRole("link", { name: "과제 온라인 제출" });
+      await expect(submit).toHaveAttribute("href", "/student/submit/assignment?sessionId=62&homeworkId=290");
+      await submit.click();
+      await expect(page).toHaveURL(/\/student\/submit\/assignment\?sessionId=62&homeworkId=290$/);
+    });
+  }
 
   test("승인 대기 예약을 다른 날짜로 원자적으로 변경한다", async ({ page }) => {
     const state = createState();
