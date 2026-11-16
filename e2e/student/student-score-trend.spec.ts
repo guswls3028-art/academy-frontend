@@ -1135,6 +1135,45 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
   });
 
   for (const width of [1366, 390]) {
+    test(`@assessment-feedback ${width}px 학부모 코멘트 요청이 성적 응답을 기다리지 않는다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await installApi(page, "parent");
+      await page.addInitScript(() => localStorage.setItem("parent_selected_student_id_ymath_2", "11"));
+
+      let releaseGrades!: () => void;
+      const gradesGate = new Promise<void>(resolve => { releaseGrades = resolve; });
+      const gradeRequests: string[] = [];
+      const commentRequests: string[] = [];
+      await page.route("**/api/v1/student/grades/", async route => {
+        gradeRequests.push(route.request().headers()["x-student-id"] ?? "missing");
+        await gradesGate;
+        await route.fallback();
+      });
+      await page.route("**/api/v1/results/parent/assessment-comments/", async route => {
+        commentRequests.push(route.request().headers()["x-student-id"] ?? "missing");
+        await route.fulfill({ json: { items: [{
+          session_id: 9999, assessment_kind: "exam", assessment_id: 9999,
+          assessment_title: "점수 입력 전 평가", session_title: "예정 차시",
+          text: "성적 응답이 늦어도 미리 받은 코멘트입니다.",
+          version: 1, updated_at: "2026-10-19T09:00:00Z",
+        }] } });
+      });
+
+      const summaryComment = page.getByRole("region", { name: "성적 입력 전 학부모 코멘트" });
+      try {
+        await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+        await expect.poll(() => gradeRequests).toEqual(["11"]);
+        await expect.poll(() => commentRequests).toEqual(["11"]);
+        await expect(summaryComment).toHaveCount(0);
+      } finally {
+        releaseGrades();
+      }
+      await expect(summaryComment).toContainText("성적 응답이 늦어도 미리 받은 코멘트입니다.");
+      await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
+      await expect(page.getByTestId("student-score-trend")).toBeVisible();
+      expect(commentRequests).toEqual(["11"]);
+    });
+
     for (const viewer of ["parent", "student"] as const) {
       test(`@assessment-feedback ${width}px ${viewer} 평가별 코멘트와 자녀 범위`, async ({ page }, testInfo) => {
         await page.setViewportSize({ width, height: 900 });
