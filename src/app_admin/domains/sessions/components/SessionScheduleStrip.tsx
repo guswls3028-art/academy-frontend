@@ -48,9 +48,10 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
     } finally { navigating.current = false; setPreparing(false); }
   };
 
-  const openManager = (add = false, dayId = scope) => {
+  const openManager = (add = false, dayId?: string) => {
     void prepare(() => {
-      setEditDayId(add ? null : dayId);
+      const selectedDayId = dayId ?? new URLSearchParams(window.location.search).get('schedule');
+      setEditDayId(add ? null : selectedDayId);
       if (add) setAddRequest(request => request + 1);
       setOpen(true);
     });

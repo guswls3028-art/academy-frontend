@@ -10,14 +10,14 @@
  */
 
 import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ChartColumn, ChevronDown, ClipboardCheck, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/public/SessionScoresPanel";
 import { useScoreEditDraft } from "@admin/domains/scores/public/useScoreEditDraft";
-import { isScoreEditStaleError, type ScoreActiveCell } from "@admin/domains/scores/public/scoreDraft";
+import { isScoreEditStaleError, type PendingChange, type ScoreActiveCell } from "@admin/domains/scores/public/scoreDraft";
 import { patchHomeworkQuick, type SaveDrawerHomeworkScore } from "@admin/domains/scores/public/patchHomeworkQuick";
 import { runWithScoreEditLease, trackScoreDraftWrite } from "@/shared/scoring/scoreEditLease";
 import {
@@ -35,6 +35,7 @@ import { DomainListToolbar, getStoredTableOption, setStoredTableOption } from "@
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { collectHighestScores, usesVideoHomeworkLabelInScoreAlimtalk } from "@/shared/scoring/scoreReport";
+import { getHomeworkStatus, homeworkStatusLabel } from "@/shared/scoring/homeworkStatus";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
@@ -68,6 +69,16 @@ type SessionScoresEntryPageProps = {
   onOpenCreateExam?: () => void;
   onOpenCreateHomework?: () => void;
 };
+
+function describeDraftChange(change: PendingChange) {
+  if (change.type === "homework") {
+    const status = getHomeworkStatus({ score: change.score, metaStatus: change.metaStatus });
+    return `과제 ${status === "SCORED" ? `${change.score}점` : homeworkStatusLabel(status)}`;
+  }
+  if (change.type === "examTotal" && change.metaStatus === "NOT_SUBMITTED") return "미응시";
+  const part = { examTotal: "총점", examObjective: "객관식", examSubjective: "주관식" }[change.type];
+  return `${part} ${change.score}점`;
+}
 
 function isScoreAlimtalkAttendance(row: SessionScoreRow, includeVideo: boolean): boolean {
   return row.attendance_status === "PRESENT" || row.attendance_status === "LATE"
@@ -142,6 +153,7 @@ export default function SessionScoresEntryPage({
 }: SessionScoresEntryPageProps = {}) {
   const { sessionId: sessionIdParam, lectureId: lectureIdParam } = useParams<{ lectureId: string; sessionId: string }>();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const schedule = useSessionScheduleScope();
   const numericSessionId = Number(sessionIdParam);
@@ -435,6 +447,8 @@ export default function SessionScoresEntryPage({
     checkForRecovery: sessionIdForDraft > 0,
     activeCell: activeScoreCell,
   });
+  const [deferredDraftSessionId, setDeferredDraftSessionId] = useState<number | null>(null);
+  const showDraftRecoveryDialog = draft.hasDraftToRestore && deferredDraftSessionId !== numericSessionId;
   const {
     beginEditing: beginScoreEditing,
     saveNow: saveScoreDraftNow,
@@ -496,11 +510,13 @@ export default function SessionScoresEntryPage({
   }, [draft.editStaleConflict, runTrackedTask, saveScoreDraftNow]);
 
   useEffect(() => {
-    if (!draft.hasDraftToRestore) return;
+    if (!showDraftRecoveryDialog) return;
     recoveryPreviousFocusRef.current = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null;
-    recoveryRestoreButtonRef.current?.focus();
+    const restoreButton = recoveryRestoreButtonRef.current;
+    if (restoreButton && !restoreButton.disabled) restoreButton.focus();
+    else recoveryDialogRef.current?.focus();
 
     const keepFocusInsideDialog = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -537,7 +553,7 @@ export default function SessionScoresEntryPage({
       const previous = recoveryPreviousFocusRef.current;
       if (previous?.isConnected) previous.focus();
     };
-  }, [draft.hasDraftToRestore]);
+  }, [showDraftRecoveryDialog]);
 
   const changeScoreHistory = useCallback((redo: boolean, notifyEmpty = false) => {
     if (!isEditMode || scoreGridRef.current?.inert || panelRef.current?.hasUncommittedActiveCell?.()) return false;
@@ -599,6 +615,54 @@ export default function SessionScoresEntryPage({
     queryFn: () => fetchSessionScores(numericSessionId, schedule),
     enabled: Number.isFinite(numericSessionId) && numericSessionId > 0,
   });
+  const draftReviewItems = useMemo(() => {
+    if (!draft.hasDraftToRestore) return [];
+    const rowsByEnrollment = new Map(data?.rows.map((row) => [row.enrollment_id, row]));
+    return draft.restoreChanges.map((change) => {
+      const row = rowsByEnrollment.get(change.enrollmentId);
+      const assessment = change.type === "homework"
+        ? row?.homeworks.find((homework) => homework.homework_id === change.homeworkId)
+        : row?.exams.find((exam) => exam.exam_id === change.examId);
+      return { row, assessment, change };
+    });
+  }, [data?.rows, draft.hasDraftToRestore, draft.restoreChanges]);
+  const draftHasMissingRows = draftReviewItems.some(({ row }) => !row);
+  const draftHasMissingTargets = draftReviewItems.some(({ assessment }) => !assessment);
+  const draftNeedsFullRoster = schedule !== undefined && (isError || (!isLoading && draftHasMissingRows));
+  const draftNeedsScoreRetry = !draftNeedsFullRoster && !isLoading && (isError || draftHasMissingTargets);
+  const draftNeedsVisibleRows = !isLoading && !isError && !draftHasMissingTargets && draftReviewItems.some(({ row }) => row && (
+    !matchesSessionScoreStudentSearch(row.student_name ?? "", searchInput)
+    || (summaryColumnMode === "exam_wrong" && !matchesSessionRowExamReviewFilter(row, examReviewFilter))
+  ));
+  // A browser history transition can precede the React score query commit.
+  const isDraftReviewCurrent = () => window.location.pathname === pathname
+    && (new URLSearchParams(window.location.search).get("schedule") ?? undefined) === schedule;
+  const restoreReviewedDraft = async () => {
+    if (!isDraftReviewCurrent() || !showDraftRecoveryDialog || draft.isDiscardingDraft || draft.isStartingEdit) return;
+    if (draftNeedsFullRoster || draftNeedsVisibleRows) {
+      setSearchInput("");
+      setExamReviewFilter("all");
+      setViewFilter("all");
+      if (draftNeedsFullRoster) {
+        setSearchParams((previous) => {
+          const next = new URLSearchParams(previous);
+          next.delete("schedule");
+          return next;
+        });
+      }
+      return;
+    }
+    if (draftNeedsScoreRetry) {
+      await refetch();
+      return;
+    }
+    if (!data || isLoading || isError || draftHasMissingTargets) return;
+    if (!await draft.restoreDraft(isDraftReviewCurrent)) {
+      feedback.info("성적표를 불러온 뒤 다시 복원해 주세요.");
+      return;
+    }
+    setIsEditMode(true);
+  };
   const reviewLatestScores = async () => {
     setIsSaving(true);
     try {
@@ -1710,6 +1774,10 @@ export default function SessionScoresEntryPage({
                   </>
                 ) : draft.isRecoveryCheckPending ? (
                   <span>이전 입력 확인 중…</span>
+                ) : draft.hasDraftToRestore && !showDraftRecoveryDialog ? (
+                  <button type="button" className="underline text-[var(--color-brand-primary)]" onClick={() => setDeferredDraftSessionId(null)}>
+                    보존된 임시저장 확인
+                  </button>
                 ) : (
                   <span className="scores-lock-status">
                     <LockKeyhole size={13} aria-hidden />
@@ -1775,7 +1843,7 @@ export default function SessionScoresEntryPage({
         </div>}
       />
 
-      {draft.hasDraftToRestore && (
+      {showDraftRecoveryDialog && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
           role="dialog"
@@ -1794,45 +1862,68 @@ export default function SessionScoresEntryPage({
                 : "이전에 임시저장된 편집 내용이 있습니다. 복원할까요?"}
             </h2>
             <p id="draft-restore-description-entry" className="text-sm text-[var(--color-text-muted)] mb-4">
-              {draft.editStaleConflict
-                ? "서버 성적이 변경되었습니다. 복원하면 보존된 입력을 최신 성적표에 다시 적용해 저장합니다. 버리면 최신 성적을 유지합니다."
-                : "복원하면 이전 편집 내용이 테이블에 다시 적용됩니다. 버리면 현재 서버 데이터만 표시됩니다."}
+              {draftNeedsFullRoster
+                ? "임시저장에 이 반의 성적표에서 확인할 수 없는 학생이 있습니다. 전체 성적에서 대상 학생을 확인해 주세요."
+                : draftNeedsScoreRetry
+                  ? "현재 성적표에서 임시저장된 학생이나 평가를 확인할 수 없습니다. 임시저장은 보존됩니다. 성적표를 다시 불러오거나 나중에 확인해 주세요."
+                  : draft.editStaleConflict
+                    ? "서버 성적이 변경되었습니다. 복원하면 보존된 입력을 최신 성적표에 다시 적용해 저장합니다. 버리면 최신 성적을 유지합니다."
+                    : "복원하면 이전 편집 내용이 테이블에 다시 적용됩니다. 버리면 현재 서버 데이터만 표시됩니다."}
             </p>
+            {!isLoading && !isError && !draftHasMissingTargets && draftReviewItems.length > 0 && (
+              <ul aria-label="복원할 성적 변경" className="mb-4 max-h-32 space-y-1 overflow-y-auto break-words text-sm text-[var(--color-text-primary)]">
+                {draftReviewItems.map(({ row, assessment, change }) => (
+                  <li key={`${change.enrollmentId}-${change.type}-${change.type === "homework" ? change.homeworkId : change.examId}`}>
+                    {row?.student_name} · {assessment?.title} · {describeDraftChange(change)}
+                  </li>
+                ))}
+              </ul>
+            )}
             {draft.draftError && (
               <p className="text-sm text-[var(--color-error)] mb-3" role="alert">
                 {draft.draftError}
               </p>
             )}
-            <div className="flex gap-2 justify-end">
-              <button
+            <div className="flex flex-wrap gap-2 justify-end">
+              {draftNeedsScoreRetry && (
+                <button
+                  type="button"
+                  onClick={() => setDeferredDraftSessionId(numericSessionId)}
+                  className="h-9 px-4 rounded text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-soft)]"
+                >
+                  나중에 확인
+                </button>
+              )}
+              {!draftNeedsFullRoster && !draftNeedsVisibleRows && <button
                 type="button"
-                disabled={draft.isDiscardingDraft || draft.isStartingEdit}
+                disabled={isLoading || draft.isDiscardingDraft || draft.isStartingEdit}
                 onClick={async () => {
+                  if (!isDraftReviewCurrent()) return;
                   const discarded = await draft.discardDraft();
                   if (!discarded) feedback.error("임시저장을 버리지 못했습니다. 다시 시도해 주세요.");
                 }}
                 className="h-9 px-4 rounded text-sm font-medium border border-[var(--color-border-divider)] bg-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-soft)]"
               >
                 {draft.isDiscardingDraft ? "버리는 중…" : "버리기"}
-              </button>
+              </button>}
               <button
                 type="button"
                 ref={recoveryRestoreButtonRef}
-                disabled={isLoading || isError || draft.isDiscardingDraft || draft.isStartingEdit}
-                onClick={async () => {
-                  if (!await draft.restoreDraft()) {
-                    feedback.info("성적표를 불러온 뒤 다시 복원해 주세요.");
-                    return;
-                  }
-                  setIsEditMode(true);
-                }}
+                disabled={isLoading || (draftNeedsScoreRetry && isFetching) || draft.isDiscardingDraft || draft.isStartingEdit}
+                onClick={() => void restoreReviewedDraft()}
                 className="h-9 px-4 rounded text-sm font-medium bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)] hover:bg-[var(--color-brand-primary-hover)]"
               >
                 {draft.isStartingEdit
                   ? "복원 준비 중…"
                   : isLoading
                     ? "성적표 불러오는 중…"
-                    : "복원 후 수정"}
+                    : draftNeedsFullRoster
+                      ? "전체 성적에서 초안 확인"
+                      : draftNeedsScoreRetry
+                        ? "성적표 다시 불러오기"
+                        : draftNeedsVisibleRows
+                          ? "대상 학생 표시"
+                          : "복원 후 수정"}
               </button>
             </div>
           </div>

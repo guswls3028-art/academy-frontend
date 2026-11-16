@@ -197,6 +197,7 @@ export async function verifySessionSchedules(
     await expect(page.getByRole('checkbox', { name: `${primary.name} 선택`, exact: true })).toBeVisible();
     await expect(page.getByRole('checkbox', { name: `${peer.name} 선택`, exact: true })).toHaveCount(0);
     await strip.getByRole('button', { name: /^목요일반/ }).click();
+    await expect(page).toHaveURL(new RegExp(`scores\\?schedule=${thu.id}$`));
     await expect(page.getByRole('checkbox', { name: `${peer.name} 선택`, exact: true })).toBeVisible();
     await expect(page.getByRole('checkbox', { name: `${primary.name} 선택`, exact: true })).toHaveCount(0);
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -226,7 +227,9 @@ export async function verifySessionSchedules(
     phase = 'assessment-schedule-transfer';
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('tab', { name: '출결', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`attendance\\?schedule=${thu.id}$`));
     await strip.getByRole('button', { name: /^수요일반/ }).click();
+    await expect(page).toHaveURL(new RegExp(`attendance\\?schedule=${wed.id}$`));
     await strip.getByRole('button', { name: '학생 수업일 변경', exact: true }).click();
     const transfer = page.getByRole('dialog', { name: '학생 수업일 변경', exact: true });
     await expect(transfer.getByLabel('옮길 수업일')).toHaveValue(String(wed.id));

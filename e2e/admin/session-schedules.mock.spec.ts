@@ -36,6 +36,7 @@ function fixture(configured = false) {
     copies: [] as { version: string; source_session: number }[],
     bulk: [] as { session: number; schedule?: string }[],
     presentEnrollmentIds: new Set<number>(),
+    scoresByEnrollment: new Map<number, number>(),
     reads: [] as { kind: string; scope: string | null }[],
     failSave: 0, failRead: false, failSessionList: false, failScores: false, failAttendance: false, attendanceFilled: 0,
     loseCreateResponse: false, loseTransferResponse: false,
@@ -140,7 +141,7 @@ async function install(page: Page, state: ReturnType<typeof fixture>) {
     if (endpoint === '/results/admin/sessions/9902/scores/') {
       state.reads.push({ kind: 'scores', scope });
       if (state.failScores) return json({ detail: '성적 조회 실패' }, 400);
-      return json({ meta: { session_title: '2차시', lecture_title: '요일별 수업', lecture_id: 9901, exams: [{ exam_id: 81, title: '공통 시험', max_score: 100, pass_score: 60, objective_max_score: 100, subjective_max_score: 0 }], homeworks: [] }, rows: students.map(s => ({ ...s, student_id: s.enrollment_id + 200, exams: [{ exam_id: 81, title: '공통 시험', block: { score: 80, max_score: 100, passed: true, objective_score: 80, subjective_score: 0, is_locked: false, meta: {} } }], homeworks: [], updated_at: '2026-11-04T00:00:00Z' })) });
+      return json({ meta: { session_title: '2차시', lecture_title: '요일별 수업', lecture_id: 9901, exams: [{ exam_id: 81, title: '공통 시험', max_score: 100, pass_score: 60, objective_max_score: 100, subjective_max_score: 0 }], homeworks: [] }, rows: students.map(s => ({ ...s, student_id: s.enrollment_id + 200, exams: [{ exam_id: 81, title: '공통 시험', block: { score: state.scoresByEnrollment.get(s.enrollment_id) ?? 80, max_score: 100, passed: true, objective_score: 80, subjective_score: 0, is_locked: false, meta: {} } }], homeworks: [], updated_at: '2026-11-04T00:00:00Z' })) });
     }
     if (endpoint === '/results/admin/sessions/9900/scores/') {
       return json({ meta: { session_title: '1차시', lecture_title: '요일별 수업', lecture_id: 9901, exams: [], homeworks: [] }, rows: [] });
@@ -516,6 +517,129 @@ for (const width of [390, 1366]) test(`성적 초안을 읽는 중에도 수업�
   }
 });
 
+for (const width of [390, 1366]) test(`다른 반의 성적 초안은 전체 성적을 확인한 뒤에만 복원한다 ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
+  const state = fixture(true); await install(page, state);
+  const resultsPath = '/api/v1/results/admin';
+  const draftPath = `${resultsPath}/sessions/9902/score-draft/`;
+  let changes = [
+    { type: 'examTotal', examId: 81, enrollmentId: 31, score: 63, maxScore: 100 },
+    { type: 'examTotal', examId: 81, enrollmentId: 32, score: 74, maxScore: 100 },
+  ];
+  const expectedChanges = [...changes];
+  let releaseDraft!: () => void;
+  const draftGate = new Promise<void>(resolve => { releaseDraft = resolve; });
+  let releaseRestore!: () => void;
+  const restoreGate = new Promise<void>(resolve => { releaseRestore = resolve; });
+  let holdRestore = true;
+  const writes: { method: string; path: string; scope: string | null }[] = [];
+  page.on('request', request => {
+    const { pathname } = new URL(request.url());
+    if (pathname.startsWith(resultsPath) && ['PUT', 'POST', 'PATCH'].includes(request.method())) {
+      writes.push({ method: request.method(), path: pathname, scope: new URL(page.url()).searchParams.get('schedule') });
+    }
+  });
+  await page.route(url => url.pathname === draftPath, async route => {
+    if (route.request().method() === 'PUT') {
+      expect(route.request().postDataJSON().changes).toEqual(expectedChanges);
+      if (holdRestore) {
+        holdRestore = false;
+        await restoreGate;
+      }
+    } else {
+      await draftGate;
+    }
+    await route.fulfill({ json: { changes, active_editors: [] } });
+  });
+  await page.route(url => url.pathname === `${draftPath}commit/`, async route => {
+    changes = [];
+    await route.fulfill({ status: 204 });
+  });
+  await page.route('**/results/admin/exams/81/enrollments/*/score/', async route => {
+    const enrollmentId = Number(new URL(route.request().url()).pathname.split('/').at(-3));
+    const { score } = route.request().postDataJSON();
+    state.scoresByEnrollment.set(enrollmentId, score);
+    await route.fulfill({ json: { score } });
+  });
+
+  try {
+    await page.goto(`${BASE}${path}/scores?schedule=71`, { waitUntil: 'domcontentloaded' });
+    const wed = page.getByRole('checkbox', { name: '김수연 선택', exact: true });
+    const thu = page.getByRole('checkbox', { name: '이목현 선택', exact: true });
+    await expect(wed).toBeVisible();
+    await page.getByRole('region', { name: '수업일 선택', exact: true }).getByRole('button', { name: /^목요일반/ }).click();
+    await expect(page).toHaveURL(/scores\?schedule=72$/);
+    await expect(thu).toBeVisible();
+    await expect(wed).toHaveCount(0);
+    releaseDraft();
+
+    const review = page.getByRole('dialog', { name: /임시저장된 변경 2건/ });
+    const values = review.getByRole('list', { name: '복원할 성적 변경' });
+    const restore = review.getByRole('button', { name: '복원 후 수정', exact: true });
+    await expect(review).toBeVisible();
+    expect(writes).toEqual([]);
+    await expect(restore).toHaveCount(0);
+    await review.getByRole('button', { name: '전체 성적에서 초안 확인', exact: true }).click();
+    await expect(page).toHaveURL(/scores$/);
+    await expect(wed).toBeVisible();
+    await expect(thu).toBeVisible();
+    await expect(restore).toBeEnabled();
+    await expect(values.getByRole('listitem')).toHaveText(['김수연 · 공통 시험 · 총점 63점', '이목현 · 공통 시험 · 총점 74점']);
+    expect(writes).toEqual([]);
+
+    const restoreSent = page.waitForRequest(request => new URL(request.url()).pathname === draftPath && request.method() === 'PUT');
+    await restore.click();
+    await restoreSent;
+    await page.goBack();
+    await expect(page).toHaveURL(/scores\?schedule=72$/);
+    await expect(wed).toHaveCount(0);
+    releaseRestore();
+    const reviewAll = review.getByRole('button', { name: '전체 성적에서 초안 확인', exact: true });
+    await expect(reviewAll).toBeEnabled();
+    expect(writes).toEqual([{ method: 'PUT', path: draftPath, scope: null }]);
+    expect(changes).toEqual(expectedChanges);
+    await reviewAll.click();
+    await expect(page).toHaveURL(/scores$/);
+    await expect(values.getByRole('listitem')).toHaveCount(2);
+    await restore.click();
+    await expect.poll(() => [...state.scoresByEnrollment].sort(([a], [b]) => a - b)).toEqual([[31, 63], [32, 74]]);
+    await expect.poll(() => changes).toEqual([]);
+    expect(writes.every(write => write.scope === null)).toBe(true);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('button', { name: /^김수연 선택 .*63\/100/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^이목현 선택 .*74\/100/ })).toBeVisible();
+  } finally {
+    releaseDraft();
+    releaseRestore();
+  }
+});
+
+test('성적표에서 사라진 평가의 초안은 계속 보존하고 재확인할 수 있다', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  const state = fixture(true); await install(page, state);
+  const changedAssessment = { type: 'examTotal', examId: 99, enrollmentId: 31, score: 63, maxScore: 100 };
+  const draftPath = '/api/v1/results/admin/sessions/9902/score-draft/';
+  const writes: string[] = [];
+  page.on('request', request => {
+    if (new URL(request.url()).pathname.startsWith('/api/v1/results/admin/') && ['PUT', 'POST', 'PATCH'].includes(request.method())) {
+      writes.push(request.method());
+    }
+  });
+  await page.route(url => url.pathname === draftPath, route => route.fulfill({ json: { changes: [changedAssessment], active_editors: [] } }));
+  await page.goto(`${BASE}${path}/scores`, { waitUntil: 'domcontentloaded' });
+  const review = page.getByRole('dialog', { name: /임시저장된 변경 1건/ });
+  await expect(review.getByRole('button', { name: '성적표 다시 불러오기' })).toBeEnabled();
+  await expect(review.getByRole('button', { name: '복원 후 수정' })).toHaveCount(0);
+  await review.getByRole('button', { name: '성적표 다시 불러오기' }).click();
+  await expect.poll(() => state.reads.filter(read => read.kind === 'scores' && read.scope === null).length).toBeGreaterThanOrEqual(2);
+  await review.getByRole('button', { name: '나중에 확인' }).click();
+  await expect(review).toBeHidden();
+  await expect(page.getByRole('checkbox', { name: '김수연 선택', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '보존된 임시저장 확인' }).click();
+  await expect(review.getByRole('button', { name: '성적표 다시 불러오기' })).toBeVisible();
+  expect(writes).toEqual([]);
+});
+
 for (const width of [390, 1366]) test(`수업일 전환 저장 대기 중 다른 탭으로 이동하면 되돌아가지 않는다 ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 });
   const state = fixture(true); await install(page, state);
@@ -712,6 +836,21 @@ test('차시 목록을 불러오지 못해도 현재 차시의 수업일을 관�
   const card = page.getByRole('region', { name: '2차시 차시 카드', exact: true });
   await card.getByRole('button', { name: /^목요일반/ }).click();
   await expect(page).toHaveURL(/schedule=72/);
+  await card.getByRole('button', { name: '수업일 관리', exact: true }).click();
+  const modal = page.getByRole('dialog', { name: '수업일 관리', exact: true });
+  await expect(modal.getByLabel('수업일 2 이름', { exact: true })).toHaveValue('목요일반');
+});
+
+test('수업일 선택 직후 관리 창을 열면 방금 고른 반을 표시한다', async ({ page }) => {
+  const state = fixture(true);
+  state.failSessionList = true;
+  await install(page, state);
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.goto(`${BASE}${path}/attendance?schedule=71`, { waitUntil: 'domcontentloaded' });
+  const card = page.getByRole('region', { name: '2차시 차시 카드', exact: true });
+  await expect(card.getByRole('button', { name: /^수요일반/ })).toHaveAttribute('aria-pressed', 'true');
+  // The URL changes before the visible card commits its new selection.
+  await page.evaluate((url) => window.history.replaceState(window.history.state, '', url), `${path}/attendance?schedule=72`);
   await card.getByRole('button', { name: '수업일 관리', exact: true }).click();
   const modal = page.getByRole('dialog', { name: '수업일 관리', exact: true });
   await expect(modal.getByLabel('수업일 2 이름', { exact: true })).toHaveValue('목요일반');
