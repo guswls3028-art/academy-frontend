@@ -30,6 +30,7 @@ test('native HLS seeking notifications cannot postpone recovery while the playhe
     el.seeking = true;
     el.currentTime = sample % 2 ? 45.25 : 45;
     el.dispatchEvent(new Event('seeking'));
+    el.seeking = false;
     h.sampleIntervals(1_000);
   }
   assert.deepEqual(loaded, [playUrl], 'seeking and playhead jitter still allow one source reload');

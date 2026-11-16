@@ -9,7 +9,7 @@ import type Hls from "hls.js";
 import { clamp, getEpochSec } from "../design/utils";
 import { resolveStudentVideoPlayUrl } from "../playbackUrl";
 import { PlaybackSessionEnd } from "./playbackSessionEnd";
-import { PlaybackStallWatch } from "./playbackStallWatch";
+import { PlaybackStallWatch, readStallPlayhead } from "./playbackStallWatch";
 import { NativePlaybackRecovery } from "./nativePlaybackRecovery";
 import { createStudentHls } from "./studentHlsEngine";
 import { capturePlaybackSource, progressFromPlayhead, restorePlaybackSource, type PlaybackSourceSnapshot } from "./playbackMediaSettings";
@@ -636,10 +636,7 @@ export class StudentHlsController {
       return;
     }
 
-    const canNative =
-      el.canPlayType("application/vnd.apple.mpegurl") || el.canPlayType("application/x-mpegURL");
-
-    if (canNative) {
+    if (el.canPlayType("application/vnd.apple.mpegurl") || el.canPlayType("application/x-mpegURL")) {
       if (this.opts.reviewStream) this.setState({ ready: true });
       else this.nativeRecovery.setSource(el, url);
       this.bindVideoEvents();
@@ -735,12 +732,8 @@ export class StudentHlsController {
     const speedLocked = this.policy.playback_rate?.ui_control === false || maxRate <= 1.0001;
 
     this.stallWatch = new PlaybackStallWatch(() => {
-      if (this.disposed || document.hidden || this.playbackEnd.started || el.ended || el.error) return null;
-      if (this.nativeRecovery.active) return null;
-      if (this.pendingSourceResume?.wasPlaying) {
-        return { position: this.pendingSourceResume.position, seeking: true };
-      }
-      return el.paused || el.playbackRate <= 0 ? null : { position: el.currentTime, seeking: el.seeking };
+      if (this.disposed || document.hidden || this.playbackEnd.started || this.nativeRecovery.active) return null;
+      return readStallPlayhead(el, this.pendingSourceResume);
     }, (exhausted) => this.recoverStall(exhausted), () => {
       this.reconnectAttempts = 0;
       this.setState({ buffering: false, reconnecting: false });
@@ -850,6 +843,7 @@ export class StudentHlsController {
 
     const onSeeking = () => {
       if (this.disposed) return;
+      this.stallWatch?.observeSeek();
       const target = Number(el.currentTime || 0);
       if (this.automaticSeekTarget !== null) {
         const automaticTarget = this.automaticSeekTarget;
