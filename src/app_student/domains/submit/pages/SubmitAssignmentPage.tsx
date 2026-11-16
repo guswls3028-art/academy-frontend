@@ -1,7 +1,7 @@
 /** 과제 제출 — 사진·동영상 여러 개를 파일별로 안전하게 제출한다. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router";
+import { Link, useLocation, useSearchParams } from "react-router";
 
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
@@ -30,7 +30,7 @@ const DEFAULT_LIMITS = {
   max_total_size_bytes: 500 * 1024 * 1024,
 };
 
-type SelectedTarget = { type: "homework"; id: number; title: string; enrollmentId: number; sessionId: number | null };
+type SelectedTarget = { type: "homework"; id: number; title: string; enrollmentId: number; sessionId: number | null; locationKey: string };
 
 function positiveId(value: string | null): number | null {
   const parsed = Number(value);
@@ -99,13 +99,19 @@ export default function SubmitAssignmentPage() {
   const { user } = useAuthContext();
   const recordsStudentActivity = user?.tenantRole === "student";
   const [searchParams] = useSearchParams();
+  const { key: locationKey } = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const runTrackedTask = useTrackedTask();
   const requestedSessionId = positiveId(searchParams.get("sessionId"));
   const requestedHomeworkId = positiveId(searchParams.get("homeworkId"));
   const [selection, setSelected] = useState<SelectedTarget | null>(null);
-  const selectionOutsideSession = selection != null && requestedSessionId != null && selection.sessionId !== requestedSessionId;
-  const selected = selectionOutsideSession ? null : selection;
+  // A new exact-link entry restores its target. A deliberate choice within
+  // the same history entry may select another homework from that session.
+  const selectionOutsideRoute = selection != null && (
+    (requestedSessionId != null && selection.sessionId !== requestedSessionId)
+    || (requestedHomeworkId != null && selection.id !== requestedHomeworkId && selection.locationKey !== locationKey)
+  );
+  const selected = selectionOutsideRoute ? null : selection;
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
   const { files: pendingFiles, setFiles: setPendingFiles, awaitRestoredFiles, draftStatus } = useHomeworkDraft(selected, user?.id);
@@ -321,14 +327,14 @@ export default function SubmitAssignmentPage() {
   });
   const resetUpload = uploadMut.reset;
   useEffect(() => {
-    if (!selectionOutsideSession) return;
+    if (!selectionOutsideRoute) return;
     uploadController.current?.abort();
     setSelected(null);
     setError(null);
     setReviewLocked(false);
     setPreviewFile(null);
     resetUpload();
-  }, [selectionOutsideSession, resetUpload]);
+  }, [selectionOutsideRoute, resetUpload]);
 
   const removeMut = useMutation({
     mutationFn: async (file: HomeworkMediaFile) => {
@@ -433,6 +439,7 @@ export default function SubmitAssignmentPage() {
       title: homework.title,
       enrollmentId: homework.enrollment_id,
       sessionId: positiveId(String(homework.session_id ?? "")),
+      locationKey,
     };
     const changed = selected?.id !== next.id || selected?.enrollmentId !== next.enrollmentId;
     setSelected(next);
@@ -459,6 +466,7 @@ export default function SubmitAssignmentPage() {
       title: requestedHomework.title,
       enrollmentId: requestedHomework.enrollment_id,
       sessionId: positiveId(String(requestedHomework.session_id ?? "")),
+      locationKey,
     });
     if (recordsStudentActivity) {
       void studentApi.post(
@@ -466,7 +474,7 @@ export default function SubmitAssignmentPage() {
         { homework_id: requestedHomework.homework_id },
       ).catch(() => undefined);
     }
-  }, [recordsStudentActivity, requestedHomeworkId, selected, unfinishedHomeworks]);
+  }, [locationKey, recordsStudentActivity, requestedHomeworkId, selected, unfinishedHomeworks]);
   const retryableCount = pendingFiles.filter((file) => file.status === "queued" || file.status === "failed").length;
   const refreshReviewStatus = async () => {
     if (!selected) return;
@@ -499,8 +507,8 @@ export default function SubmitAssignmentPage() {
   return (
     <StudentPageShell title="과제 제출" description="풀이 사진과 동영상을 제출하고 선생님 확인 결과를 학습 현황에서 확인하세요." descriptionMode="help" onBack={() => window.history.back()}>
       <div className={`stu-section stu-section--nested ${styles.section}`}>
-        {!selectionOutsideSession && (uploadMut.isError || error) && <div role="alert" className={styles.errorMessage}>{error || apiErrorMessage(uploadMut.error)}</div>}
-        {!selectionOutsideSession && reviewLocked && <div className={styles.scopeNotice}>
+        {!selectionOutsideRoute && (uploadMut.isError || error) && <div role="alert" className={styles.errorMessage}>{error || apiErrorMessage(uploadMut.error)}</div>}
+        {!selectionOutsideRoute && reviewLocked && <div className={styles.scopeNotice}>
           <span>아래 임시 보관 상태를 확인해 주세요.</span>
           <button type="button" className="stu-btn stu-btn--secondary" disabled={gradesQ.isFetching} onClick={() => void refreshReviewStatus()}>제출 가능 상태 다시 확인</button>
         </div>}
@@ -510,7 +518,7 @@ export default function SubmitAssignmentPage() {
             <Link to="/student/submit/assignment" className={styles.scopeLink}>전체 제출 대상 보기</Link>
           </div>
         )}
-        {!selectionOutsideSession && uploadMut.isSuccess && uploadMut.data?.failed.length === 0 && !uploadMut.data.paused && uploadMut.data.reviewLocked !== true && (
+        {!selectionOutsideRoute && uploadMut.isSuccess && uploadMut.data?.failed.length === 0 && !uploadMut.data.paused && uploadMut.data.reviewLocked !== true && (
           <div className={styles.successMessage}><span><span>선택한 파일을 모두 제출했습니다.</span> 확인 결과는 학습 현황에서 확인하세요.</span><Link to="/student/grades" className={styles.successLink}>학습 현황<IconChevronRight className={styles.successLinkIcon} aria-hidden="true" /></Link></div>
         )}
 

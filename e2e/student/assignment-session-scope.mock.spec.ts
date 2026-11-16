@@ -285,50 +285,55 @@ test("클리닉 링크는 해당 차시의 정확한 과제를 바로 선택한�
 });
 
 for (const width of [390, 1366]) {
-  test(`${width}px 전체 제출에서 돌아오면 다른 차시 파일은 보관하고 요청한 차시만 제출한다`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 });
-    const api = await installApi(page);
-    const scoped = `${BASE}/student/submit/assignment?sessionId=${SESSION_ID}&homeworkId=501`;
-    await page.goto(scoped, { waitUntil: "domcontentloaded" });
+  for (const otherSession of [true, false]) {
+    test(`${width}px 전체 제출에서 돌아오면 ${otherSession ? "다른" : "같은"} 차시의 다른 과제 파일을 보관하고 링크 과제만 제출한다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const api = await installApi(page);
+      const scoped = `${BASE}/student/submit/assignment?sessionId=${SESSION_ID}&homeworkId=501`;
+      await page.goto(scoped, { waitUntil: "domcontentloaded" });
 
-    const summary = page.locator('[class*="submitSummary"]');
-    const picker = page.locator('input[type="file"]');
-    const saved = page.getByText(/이 기기에 임시 보관했습니다/);
-    const bTitle = page.getByRole("button", { name: /다른 차시 과제/ });
-    const expand = page.getByRole("link", { name: "전체 제출 대상 보기" });
-    const origin = await page.evaluate(() => performance.timeOrigin);
-    await expect(summary).toContainText("현재 차시 필수 과제");
-    await expand.click();
-    await bTitle.click();
-    await expect(summary).toContainText("다른 차시 과제");
-    await expect(picker).toBeEnabled();
-    await picker.setInputFiles({
-      name: "other-session.jpg",
-      mimeType: "image/jpeg",
-      buffer: Buffer.from("synthetic-other-session"),
+      const summary = page.locator('[class*="submitSummary"]');
+      const picker = page.locator('input[type="file"]');
+      const saved = page.getByText(/이 기기에 임시 보관했습니다/);
+      const bTitle = otherSession ? "다른 차시 과제" : "현재 차시 추가 과제";
+      const otherTarget = page.getByRole("button", { name: new RegExp(bTitle) });
+      const expand = page.getByRole("link", { name: "전체 제출 대상 보기" });
+      const origin = await page.evaluate(() => performance.timeOrigin);
+      await expect(summary).toContainText("현재 차시 필수 과제");
+      await expand.click();
+      await otherTarget.click();
+      await expect(summary).toContainText(bTitle);
+      await expect(picker).toBeEnabled();
+      await picker.setInputFiles({
+        name: "other-session.jpg",
+        mimeType: "image/jpeg",
+        buffer: Buffer.from("synthetic-other-session"),
+      });
+      await expect(saved).toBeVisible();
+
+      await page.goBack();
+      await expect(page).toHaveURL(scoped);
+      expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+      if (otherSession) await expect(otherTarget).toHaveCount(0);
+      else await expect(otherTarget).toHaveAttribute("data-selected", "false");
+      await expect(page.getByText("other-session.jpg", { exact: true })).toHaveCount(0);
+      await expect(summary).toContainText("현재 차시 필수 과제");
+      expect(api.submissionTargets).toEqual([]);
+
+      await expect(picker).toBeEnabled();
+      await picker.setInputFiles({ name: "in-session.jpg", mimeType: "image/jpeg", buffer: Buffer.from("in-session") });
+      await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
+      await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+      expect(api.submissionTargets).toEqual(["501"]);
+
+      if (otherSession) await expand.click();
+      await otherTarget.click();
+      await expect(summary).toContainText(bTitle);
+      await expect(page.getByText("other-session.jpg", { exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "파일 1개 제출하기" })).toBeEnabled();
+      expect(api.submissionTargets).toEqual(["501"]);
     });
-    await expect(saved).toBeVisible();
-
-    await page.goBack();
-    await expect(page).toHaveURL(scoped);
-    expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
-    await expect(bTitle).toHaveCount(0);
-    await expect(page.getByText("other-session.jpg", { exact: true })).toHaveCount(0);
-    await expect(summary).toContainText("현재 차시 필수 과제");
-    expect(api.submissionTargets).toEqual([]);
-
-    await expect(picker).toBeEnabled();
-    await picker.setInputFiles({ name: "in-session.jpg", mimeType: "image/jpeg", buffer: Buffer.from("in-session") });
-    await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
-    await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
-    expect(api.submissionTargets).toEqual(["501"]);
-
-    await expand.click();
-    await bTitle.click();
-    await expect(summary).toContainText("다른 차시 과제");
-    await expect(page.getByText("other-session.jpg", { exact: true })).toBeVisible();
-    expect(api.submissionTargets).toEqual(["501"]);
-  });
+  }
 }
 
 for (const device of [
