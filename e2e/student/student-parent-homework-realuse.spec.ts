@@ -978,6 +978,22 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await expect(page.getByText(otherDraftName, { exact: true })).toHaveCount(0);
     await expect(submissionSummary).toContainText(homeworkTitle);
     expect(uploadRequests).toEqual([]);
+
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await allTargets.click();
+    await otherTarget.click();
+    await expect(submissionSummary).toContainText(otherTitle);
+    await expect(page.getByText(otherDraftName, { exact: true })).toBeVisible();
+    await page.goBack();
+    await expect(page).toHaveURL(scopedSubmission);
+    expect(await page.evaluate(() => performance.timeOrigin)).toBe(submitDocument);
+    await expect(otherTarget).toHaveCount(0);
+    await expect(page.getByText(otherDraftName, { exact: true })).toHaveCount(0);
+    await expect(submissionSummary).toContainText(homeworkTitle);
+    expect(uploadRequests).toEqual([]);
+    await assertNoHorizontalOverflow(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+
     await applyHomeworkPreviewCsp(page);
     await page.locator("input[type='file']").first().setInputFiles({
       name: uploadName,
