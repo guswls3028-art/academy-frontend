@@ -338,18 +338,19 @@ async function verifyHomeworkFeedback(
         const resultTable = staffPage.getByRole("table");
         const resultRow = resultTable.getByRole("row").filter({ hasText: studentName });
         const completionMark = width === 1366 ? "O" : "X";
+        const completionCell = resultRow.getByRole("cell", { name: completionMark, exact: true });
         await expect(resultTable.getByRole("columnheader", { name: "O/X", exact: true })).toBeVisible();
-        await expect(resultRow.locator("td").nth(2)).toHaveText(completionMark);
+        await expect(completionCell).toBeVisible();
         await expect(staffPage.getByText("점수 분포 (%)", { exact: true })).toHaveCount(0);
-        await resultRow.locator("td").nth(2).click();
-        const detail = staffPage.getByRole("complementary", { name: "선택 학생 상세", exact: true });
+        await resultRow.getByRole("button", { name: `${studentName} 결과 상세`, exact: true }).click();
+        const detail = staffPage.getByRole("dialog", { name: `${studentName} 과제 결과`, exact: true });
         await expect(detail.getByText(completionMark, { exact: true })).toBeVisible();
         await detail.scrollIntoViewIfNeeded();
         await assertNoHorizontalOverflow(staffPage);
         await staffPage.screenshot({ path: test.info().outputPath(`real-homework-result-${width}.png`), animations: "disabled" });
         await staffPage.reload();
         await staffPage.getByRole("tab", { name: "결과", exact: true }).click();
-        await expect(resultRow.locator("td").nth(2)).toHaveText(completionMark);
+        await expect(completionCell).toBeVisible();
         checkpoint.phase = "feedback-restore-order";
         await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
         // Restore exact order via the same excluded-area UI before existing comment checks.
