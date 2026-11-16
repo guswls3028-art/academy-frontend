@@ -148,7 +148,7 @@ export default function GradesStatsTab({
               <StatCard label="시험 수" value={`${examStats.count}건`} />
               {examStats.avgRank != null
                 ? <StatCard label="평균 등수" value={`${examStats.avgRank}등`} />
-                : <StatCard label="응시완료" value={`${exams.filter((e) => e.total_score != null).length}건`} />
+                : <StatCard label="응시완료" value={`${examStats.submittedCount}건`} />
               }
             </StatGrid>
           </div>
