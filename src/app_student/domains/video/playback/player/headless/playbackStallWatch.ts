@@ -8,7 +8,7 @@ export class PlaybackStallWatch {
   private restarted = false;
 
   constructor(
-    private readonly readPosition: () => number | null,
+    private readonly readPlayhead: () => { position: number; seeking: boolean } | null,
     private readonly onStall: (exhausted: boolean) => void,
     private readonly onRecovery: () => void,
   ) {}
@@ -32,14 +32,16 @@ export class PlaybackStallWatch {
   }
 
   private check = () => {
-    const position = this.readPosition();
-    if (position === null) {
+    const playhead = this.readPlayhead();
+    if (!playhead) {
       this.checkpoint = null;
       return;
     }
+    const { position, seeking } = playhead;
     const now = performance.now();
     const previous = this.checkpoint;
-    if (!previous || Math.abs(position - previous.position) >= PROGRESS_SECONDS) {
+    // Native HLS can repeatedly seek while retrying segments without advancing playback.
+    if (!previous || (!seeking && Math.abs(position - previous.position) >= PROGRESS_SECONDS)) {
       this.checkpoint = { position, at: now };
       if (previous && position > previous.position && this.restarted) {
         this.restarted = false;
@@ -52,7 +54,7 @@ export class PlaybackStallWatch {
     if (exhausted) this.stop();
     else {
       this.restarted = true;
-      this.checkpoint = { position, at: now };
+      this.checkpoint = { position: previous.position, at: now };
     }
     this.onStall(exhausted);
   };

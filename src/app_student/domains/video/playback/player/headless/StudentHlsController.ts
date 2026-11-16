@@ -180,6 +180,7 @@ export class StudentHlsController {
         this.hls?.startLoad(position);
         if (this.pendingSourceResume.wasPlaying) this.playPreparedMedia(generation);
       } else if (seekTo !== undefined && this.el) {
+        this.stallWatch?.resetSample();
         this.el.currentTime = position;
         this.hasProgressActivity = true;
         if (!this.el.paused) this.hls?.startLoad(position);
@@ -223,6 +224,7 @@ export class StudentHlsController {
       return;
     }
     try {
+      this.stallWatch?.resetSample();
       this.el.currentTime = safe;
     } catch {
       ignoreBestEffortError();
@@ -236,6 +238,7 @@ export class StudentHlsController {
     this.maxWatchedRef = Math.max(this.maxWatchedRef, target);
     this.lastTimeRef = target;
     try {
+      this.stallWatch?.resetSample();
       this.automaticSeekTarget = target;
       this.el.currentTime = target;
       this.hasProgressActivity = true;
@@ -734,8 +737,10 @@ export class StudentHlsController {
     this.stallWatch = new PlaybackStallWatch(() => {
       if (this.disposed || document.hidden || this.playbackEnd.started || el.ended || el.error) return null;
       if (this.nativeRecovery.active) return null;
-      if (this.pendingSourceResume?.wasPlaying) return this.pendingSourceResume.position;
-      return el.paused || el.playbackRate <= 0 ? null : el.currentTime;
+      if (this.pendingSourceResume?.wasPlaying) {
+        return { position: this.pendingSourceResume.position, seeking: true };
+      }
+      return el.paused || el.playbackRate <= 0 ? null : { position: el.currentTime, seeking: el.seeking };
     }, (exhausted) => this.recoverStall(exhausted), () => {
       this.reconnectAttempts = 0;
       this.setState({ buffering: false, reconnecting: false });
@@ -845,7 +850,6 @@ export class StudentHlsController {
 
     const onSeeking = () => {
       if (this.disposed) return;
-      this.stallWatch?.resetSample();
       const target = Number(el.currentTime || 0);
       if (this.automaticSeekTarget !== null) {
         const automaticTarget = this.automaticSeekTarget;
@@ -869,6 +873,7 @@ export class StudentHlsController {
       const isForwardBeyond = target > allowedMax + 0.001;
 
       if (!allowSeek || seekMode === "blocked") {
+        if (target === maxWatched) return;
         try {
           this.automaticSeekTarget = maxWatched;
           el.currentTime = maxWatched;
