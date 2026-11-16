@@ -4,6 +4,7 @@ import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { updateVideoProgress, type StudentSessionVideosResponse, type StudentVideoPlayback } from "../api/video.api";
 import { studentVideoQueryKeys } from "../queryKeys";
 import { getVideoResumePosition, storeVideoPosition } from "../utils/videoPlaybackStorage";
+import { getStudentSupportSessionInfo } from "@/shared/auth/supportPreviewSession";
 
 type ProgressPayload = Parameters<typeof updateVideoProgress>[1];
 
@@ -22,6 +23,7 @@ export function useVideoResume({
   serverPosition: number;
 }) {
   const queryClient = useQueryClient();
+  const supportSessionId = getStudentSupportSessionInfo()?.sessionId;
   const progressOwner = JSON.stringify([getTenantCodeForApiRequest(), queryScope]);
   const progressOwnerRef = useRef(progressOwner);
   progressOwnerRef.current = progressOwner;
@@ -29,7 +31,8 @@ export function useVideoResume({
   const resumeStorageScope = useMemo(() => ({
     userId,
     enrollmentId: effectiveEnrollmentId,
-  }), [effectiveEnrollmentId, userId]);
+    supportSessionId,
+  }), [effectiveEnrollmentId, userId, supportSessionId]);
   const legacyRetryPosition = useRef<{ key: string; position: number } | null>(null);
   const playbackIdentity = JSON.stringify([queryScope, videoId, effectiveEnrollmentId]);
   const initialPosition = getVideoResumePosition(
@@ -88,7 +91,9 @@ export function useVideoResume({
   const onLeaveProgress = useCallback(
     (data: ProgressPayload) => {
       if (!videoId || data.last_position == null || progressOwnerRef.current !== progressOwner) return;
-      if (isDirectAccess) {
+      if (playbackData?.support_preview) {
+        storeVideoPosition(videoId, data.last_position, resumeStorageScope, null);
+      } else if (isDirectAccess) {
         storeVideoPosition(videoId, data.last_position, resumeStorageScope);
       } else if (effectiveEnrollmentId) {
         const key = studentVideoQueryKeys.playback(queryScope, videoId, enrollmentId);
@@ -101,7 +106,7 @@ export function useVideoResume({
         } });
       }
     },
-    [effectiveEnrollmentId, enrollmentId, isDirectAccess, playbackIdentity, progressOwner, queryClient, queryScope, resumeStorageScope, saveProgress, sessionId, videoId]
+    [effectiveEnrollmentId, enrollmentId, isDirectAccess, playbackData?.support_preview, playbackIdentity, progressOwner, queryClient, queryScope, resumeStorageScope, saveProgress, sessionId, videoId]
   );
 
   return { initialPosition, onLeaveProgress, playbackIdentity };

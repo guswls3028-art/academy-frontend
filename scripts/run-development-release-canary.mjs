@@ -1176,7 +1176,7 @@ export function artifactFingerprint(directory) {
   return sha(canonical(entries.sort(([a], [b]) => a.localeCompare(b))));
 }
 
-function serveArtifact(directory, playbackBoundary, accountBoundary) {
+export function serveArtifact(directory, playbackBoundary, accountBoundary) {
   const playbackProxy = createPlaybackEndProxy(playbackBoundary);
   const accountProbe = createAccountProbeHandler(accountBoundary);
   const types = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json",
