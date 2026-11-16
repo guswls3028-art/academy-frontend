@@ -1,9 +1,10 @@
-import type { APIRequestContext, Locator, Page, TestInfo } from '@playwright/test';
+import type { APIRequestContext, BrowserContext, Locator, Page, TestInfo } from '@playwright/test';
 import type { SessionSchedules } from '../../src/shared/api/contracts/sessionSchedules';
 import type { LectureScheduleSettings } from '../../src/app_admin/domains/lectures/lectureScheduleSettings';
 import { expect } from '../fixtures/strictTest';
 import { acknowledgeInitialAccountPromptsIfVisible } from './firstLoginGuide';
 import { api, assertQaStudentParentRuntime, assertNoHorizontalOverflow, expectApi, installQaStudentParentBoundary, QA_BASE, seedBrowserAuth, type QaFamily, type QaTokens } from './qaStudentParentScenario';
+import { emitReleaseTestFailure, type AssessmentScheduleFailurePhase } from './releaseApiBoundary';
 import { attachStrictBrowserGuards } from './strictBrowser';
 import { gotoAndSettle } from './wait';
 
@@ -14,7 +15,9 @@ async function assign(modal: Locator, name: string) {
   await modal.getByRole('button', { name: '선택 학생 배정', exact: true }).click();
 }
 
-async function verifyInitialSchedules(page: Page, request: APIRequestContext, admin: QaTokens, lectureId: number, sessionId: number, info: TestInfo) {
+type ScheduleCleanup = (primaryFailed: boolean, ...steps: Array<() => Promise<unknown>>) => Promise<void>;
+
+async function verifyInitialSchedules(page: Page, request: APIRequestContext, admin: QaTokens, lectureId: number, sessionId: number, info: TestInfo, cleanup: ScheduleCleanup) {
   const endpoint = '/lectures/sessions/';
   const createEndpoint = `${endpoint}with-schedules/`;
   const lectureEndpoint = `/lectures/lectures/${lectureId}/`;
@@ -25,6 +28,7 @@ async function verifyInitialSchedules(page: Page, request: APIRequestContext, ad
   const original = await expectApi<LectureScheduleSettings>(request, 'GET', lectureEndpoint, admin.access);
   const defaults = [{ label: '첫째 반', weekday: 3 }, { label: '둘째 반', weekday: 4 }, { label: '셋째 반', weekday: 5 }];
   let settingsSubmitted = false;
+  let primaryFailed = false;
   try {
     await gotoAndSettle(page, lectureUrl);
     const settings = page.getByRole('button', { name: '강의 설정', exact: true });
@@ -72,21 +76,24 @@ async function verifyInitialSchedules(page: Page, request: APIRequestContext, ad
     await expect(modal).toBeHidden();
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('region', { name: new RegExp(`${title}.*차시 카드`) })).toHaveCount(1);
+  } catch (error) {
+    primaryFailed = true;
+    throw error;
   } finally {
-    try {
+    await cleanup(primaryFailed, async () => {
       const sessions = await expectApi<{ results: SessionRow[] } | SessionRow[]>(request, 'GET', listing, admin.access);
       for (const row of Array.isArray(sessions) ? sessions : sessions.results) {
         if (row.lecture !== lectureId || (row.title !== title && !row.title.startsWith(`${title} (`))) continue;
         await expectApi(request, 'DELETE', `${endpoint}${row.id}/`, admin.access, undefined, [204]);
         expect((await api(request, 'GET', `${endpoint}${row.id}/`, admin.access)).status).toBe(404);
       }
-    } finally {
+    }, async () => {
       if (settingsSubmitted) {
         const previous = { schedule_mode: original.schedule_mode, schedule_defaults: original.schedule_defaults };
         await expectApi(request, 'PATCH', `${lectureEndpoint}schedule-settings/`, admin.access, previous, [200]);
         expect(await expectApi<LectureScheduleSettings>(request, 'GET', lectureEndpoint, admin.access)).toMatchObject(previous);
       }
-    }
+    });
   }
   await gotoAndSettle(page, `${lectureUrl}/sessions/${sessionId}/attendance`);
 }
@@ -96,44 +103,65 @@ export async function verifySessionSchedules(
   parentPage: Page, request: APIRequestContext, admin: QaTokens, student: QaTokens,
   family: QaFamily, scope: { lectureId: number; sessionId: number; enrollmentIds: number[] }, testInfo: TestInfo,
 ) {
-  assertQaStudentParentRuntime();
-  expect(family.students.length).toBeGreaterThanOrEqual(2);
-  const endpoint = `/lectures/sessions/${scope.sessionId}/schedules/`;
-  const initial = await expectApi<SessionSchedules>(request, 'GET', endpoint, admin.access);
-  expect(initial.schedules, 'Only the newly created, unconfigured synthetic session is owned here').toEqual([]);
-  const base = await expectApi<{ date: string }>(request, 'GET', `/lectures/sessions/${scope.sessionId}/`, admin.access);
-  const month = base.date.slice(0, 7);
-  const first = new Date(`${month}-01T12:00:00Z`);
-  const wedDay = 1 + ((3 - first.getUTCDay() + 7) % 7);
-  const wedDate = `${month}-${String(wedDay).padStart(2, '0')}`;
-  const thuDate = `${month}-${String(wedDay + 1).padStart(2, '0')}`;
-  const [primary, peer] = family.students;
-  const primaryId = initial.roster.find(s => s.student_name === primary.name)?.enrollment_id;
-  const peerId = initial.roster.find(s => s.student_name === peer.name)?.enrollment_id;
-  expect(scope.enrollmentIds).toContain(primaryId);
-  expect(scope.enrollmentIds).toContain(peerId);
-  expect(primaryId).not.toBe(peerId);
-  const attendancePath = `/lectures/attendance/?session=${scope.sessionId}&page_size=500`;
-  type AttendanceSnapshot = { results: { id: number; enrollment_id: number; status: string }[] };
-  const attendanceBefore = await expectApi<AttendanceSnapshot>(request, 'GET', attendancePath, admin.access);
-  const scoresPath = `/results/admin/sessions/${scope.sessionId}/scores/`;
-  const scoresBefore = await expectApi<{ rows: unknown[] }>(request, 'GET', scoresPath, admin.access);
-  const browser = parentPage.context().browser()!;
-  const adminContext = await browser.newContext({ viewport: { width: 1366, height: 900 } });
-  const studentContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
-  const page = await adminContext.newPage();
-  const studentPage = await studentContext.newPage();
-  const boundary = await installQaStudentParentBoundary(page, request);
-  const studentBoundary = await installQaStudentParentBoundary(studentPage, request);
-  const guards = attachStrictBrowserGuards(page);
-  const studentGuards = attachStrictBrowserGuards(studentPage);
-  const route = `${QA_BASE}/workspace/lectures/${scope.lectureId}/sessions/${scope.sessionId}`;
+  let phase: AssessmentScheduleFailurePhase = 'assessment-schedule-setup-roster';
+  let primaryFailed = false;
+  let adminContext: BrowserContext | undefined;
+  let studentContext: BrowserContext | undefined;
+  let schedulesMayHaveChanged = false;
+  const cleanupErrors: unknown[] = [];
+  const cleanup: ScheduleCleanup = async (failed, ...steps) => {
+    const firstErrorIndex = cleanupErrors.length;
+    for (const step of steps) {
+      try {
+        await step();
+      } catch (error) {
+        cleanupErrors.push(error);
+        emitReleaseTestFailure(error, 'assessment-schedule-cleanup');
+      }
+    }
+    if (!failed && cleanupErrors.length > firstErrorIndex) throw cleanupErrors[firstErrorIndex];
+  };
+
   try {
+    assertQaStudentParentRuntime();
+    expect(family.students.length).toBeGreaterThanOrEqual(2);
+    const endpoint = `/lectures/sessions/${scope.sessionId}/schedules/`;
+    const initial = await expectApi<SessionSchedules>(request, 'GET', endpoint, admin.access);
+    expect(initial.schedules, 'Only the newly created, unconfigured synthetic session is owned here').toEqual([]);
+    const base = await expectApi<{ date: string }>(request, 'GET', `/lectures/sessions/${scope.sessionId}/`, admin.access);
+    const month = base.date.slice(0, 7);
+    const first = new Date(`${month}-01T12:00:00Z`);
+    const wedDay = 1 + ((3 - first.getUTCDay() + 7) % 7);
+    const wedDate = `${month}-${String(wedDay).padStart(2, '0')}`;
+    const thuDate = `${month}-${String(wedDay + 1).padStart(2, '0')}`;
+    const [primary, peer] = family.students;
+    const primaryId = initial.roster.find(s => s.student_name === primary.name)?.enrollment_id;
+    const peerId = initial.roster.find(s => s.student_name === peer.name)?.enrollment_id;
+    expect(scope.enrollmentIds).toContain(primaryId);
+    expect(scope.enrollmentIds).toContain(peerId);
+    expect(primaryId).not.toBe(peerId);
+    const attendancePath = `/lectures/attendance/?session=${scope.sessionId}&page_size=500`;
+    type AttendanceSnapshot = { results: { id: number; enrollment_id: number; status: string }[] };
+    const attendanceBefore = await expectApi<AttendanceSnapshot>(request, 'GET', attendancePath, admin.access);
+    const scoresPath = `/results/admin/sessions/${scope.sessionId}/scores/`;
+    const scoresBefore = await expectApi<{ rows: unknown[] }>(request, 'GET', scoresPath, admin.access);
+    const browser = parentPage.context().browser()!;
+    adminContext = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+    studentContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    const page = await adminContext.newPage();
+    const studentPage = await studentContext.newPage();
+    const boundary = await installQaStudentParentBoundary(page, request);
+    const studentBoundary = await installQaStudentParentBoundary(studentPage, request);
+    const guards = attachStrictBrowserGuards(page);
+    const studentGuards = attachStrictBrowserGuards(studentPage);
+    const route = `${QA_BASE}/workspace/lectures/${scope.lectureId}/sessions/${scope.sessionId}`;
     await seedBrowserAuth(page, admin);
     await seedBrowserAuth(studentPage, student);
     await gotoAndSettle(page, `${route}/attendance`);
     await acknowledgeInitialAccountPromptsIfVisible(page);
-    await verifyInitialSchedules(page, request, admin, scope.lectureId, scope.sessionId, testInfo);
+    phase = 'assessment-schedule-initial-create';
+    await verifyInitialSchedules(page, request, admin, scope.lectureId, scope.sessionId, testInfo, cleanup);
+    phase = 'assessment-schedule-admin-attendance';
     await page.getByRole('region', { name: '수업일 선택', exact: true }).getByRole('button', { name: '수업일 추가', exact: true }).click();
     const modal = page.getByRole('dialog', { name: '수업일 관리', exact: true });
     for (const [index, label, day, studentName] of [[1, '수요일반', wedDay, primary.name], [2, '목요일반', wedDay + 1, peer.name]] as const) {
@@ -147,6 +175,7 @@ export async function verifySessionSchedules(
     await testInfo.attach('session-schedules-admin-populated-1366.png', {
       body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
     });
+    schedulesMayHaveChanged = true;
     const saveResponse = page.waitForResponse(r => r.request().method() === 'PUT' && new URL(r.url()).pathname === `/api/v1${endpoint}`);
     await modal.getByRole('button', { name: '저장', exact: true }).click();
     expect((await saveResponse).status()).toBe(200);
@@ -162,6 +191,7 @@ export async function verifySessionSchedules(
     await expect(page.getByText(`${wedDate} · 수요일반`, { exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: `${primary.name} 학생 상세 열기`, exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: `${peer.name} 학생 상세 열기`, exact: true })).toHaveCount(0);
+    phase = 'assessment-schedule-admin-scores';
     await page.getByRole('tab', { name: '성적', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`scores\\?schedule=${wed.id}$`));
     await expect(page.getByRole('checkbox', { name: `${primary.name} 선택`, exact: true })).toBeVisible();
@@ -180,6 +210,7 @@ export async function verifySessionSchedules(
     await testInfo.attach('session-schedules-admin-scores-reloaded-1366.png', {
       body: await page.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
     });
+    phase = 'assessment-schedule-student-projection';
     await gotoAndSettle(studentPage, `${QA_BASE}/student/sessions/${scope.sessionId}`);
     await acknowledgeInitialAccountPromptsIfVisible(studentPage);
     await expect(studentPage.getByText(/수요일반 · 날짜:/)).toBeVisible();
@@ -192,6 +223,7 @@ export async function verifySessionSchedules(
       body: await studentPage.screenshot({ fullPage: true, animations: 'disabled' }), contentType: 'image/png',
     });
 
+    phase = 'assessment-schedule-transfer';
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('tab', { name: '출결', exact: true }).click();
     await strip.getByRole('button', { name: /^수요일반/ }).click();
@@ -213,6 +245,7 @@ export async function verifySessionSchedules(
     await page.getByRole('tab', { name: '성적', exact: true }).click();
     await strip.getByRole('button', { name: /^목요일반/ }).click();
 
+    phase = 'assessment-schedule-conflict-removal';
     // Another authorized editor mutates this same synthetic configuration; the UI must retain its draft on 409.
     await page.getByRole('button', { name: '수업일 관리', exact: true }).click();
     await modal.getByRole('region', { name: '수업일 목록', exact: true }).getByRole('button', { name: /^수요일반/ }).click();
@@ -254,12 +287,18 @@ export async function verifySessionSchedules(
     expect((await expectApi<{ rows: unknown[] }>(request, 'GET', scoresPath, admin.access)).rows).toEqual(scoresBefore.rows);
     await testInfo.attach('session-schedules-real-api', { body: JSON.stringify({ sessionId: scope.sessionId, wedDate, thuDate, restoredOriginalDate: base.date, attendanceRecordsPreserved: true, scoreRowsPreserved: true }), contentType: 'application/json' });
     boundary.assertClean(); studentBoundary.assertClean(); guards.assertZeroDefects(); studentGuards.assertZeroDefects();
+  } catch (error) {
+    primaryFailed = true;
+    if (!cleanupErrors.includes(error)) emitReleaseTestFailure(error, phase);
+    throw error;
   } finally {
-    // Restore even on assertion failure, using a fresh concurrency token; outer fixture owns session/family cleanup.
-    try {
+    // Use a fresh concurrency token. The outer fixture owns session/family cleanup.
+    await cleanup(primaryFailed, async () => {
+      if (!schedulesMayHaveChanged) return;
+      const endpoint = `/lectures/sessions/${scope.sessionId}/schedules/`;
       const latest = await expectApi<SessionSchedules>(request, 'GET', endpoint, admin.access);
       if (latest.schedules.length) await expectApi(request, 'PUT', endpoint, admin.access, { version: latest.version, schedules: [] });
       expect((await expectApi<SessionSchedules>(request, 'GET', endpoint, admin.access)).schedules).toEqual([]);
-    } finally { await adminContext.close(); await studentContext.close(); }
+    }, async () => studentContext?.close(), async () => adminContext?.close());
   }
 }

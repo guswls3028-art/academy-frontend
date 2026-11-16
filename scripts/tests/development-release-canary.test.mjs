@@ -544,6 +544,34 @@ test("assessment copy failure observations keep only reviewed phases and source"
   assert.equal(wrongSpec.rejectedFailureObservationCount, 2);
 });
 
+test("assessment schedule failures preserve sanitized source and closed phases for the owning spec", () => {
+  const phases = ["setup-roster", "initial-create", "admin-attendance", "admin-scores", "student-projection",
+    "transfer", "conflict-removal", "cleanup"].map(phase => `assessment-schedule-${phase}`);
+  const outputs = [];
+  for (const phase of phases) {
+    policyModule.emitReleaseTestFailure(new Error("expect(received) private-user secret-token"), phase, value => outputs.push(value));
+  }
+  const valid = outputs[0].releaseTestFailure;
+  outputs.push({ releaseTestFailure: { ...valid, phase: "assessment-schedule-private-user" } },
+    { releaseTestFailure: { ...valid, detail: "secret-token" } });
+  const report = contextReport(outputs, "student-parent-assessment-realuse.spec.ts");
+  report.suites[0].specs[0].tests[0].results[0].errors = [{
+    message: "expect(received) private-user secret-token",
+    location: { file: "C:/private/verifySessionSchedules.ts", line: 125, column: 5 },
+  }];
+  const observed = observeReleaseTestResult(JSON.stringify(report));
+  assert.deepEqual(observed.testFailureObservations.map(item => item.phase), phases);
+  assert.equal(observed.rejectedFailureObservationCount, 2);
+  assert.deepEqual(observed.failureLocations, [{
+    specFile: "student-parent-assessment-realuse.spec.ts", sourceFile: "verifySessionSchedules.ts", line: 125, column: 5,
+  }]);
+  assert.doesNotMatch(JSON.stringify(observed), /C:\/private|private-user|secret-token/);
+
+  const wrongSpec = observeReleaseTestResult(JSON.stringify(contextReport(outputs, "notice-roundtrip.spec.ts")));
+  assert.deepEqual(wrongSpec.testFailureObservations, []);
+  assert.equal(wrongSpec.rejectedFailureObservationCount, outputs.length);
+});
+
 test("assessment copy and template retry cleanup removes owned rows and verifies absence", async () => {
   const source = readFileSync(new URL("../../e2e/student/student-parent-assessment-realuse.spec.ts", import.meta.url), "utf8");
   const body = stripTypeScriptTypes(source.slice(source.indexOf("async function cleanup("), source.indexOf("async function seedAssessment(")));
