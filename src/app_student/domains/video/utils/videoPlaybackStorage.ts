@@ -10,17 +10,22 @@ const POSITION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 type PlaybackStorageScope = {
   userId: string | number | null | undefined;
   enrollmentId: number | null;
+  supportSessionId?: string | null;
 };
 
 function enrollmentScope(enrollmentId: number | null): string {
   return enrollmentId == null ? "self" : String(enrollmentId);
 }
 
+function viewingScope(scope: PlaybackStorageScope): string {
+  return `${scope.supportSessionId ? `support:${scope.supportSessionId}:` : ""}enrollment:${enrollmentScope(scope.enrollmentId)}`;
+}
+
 export function getStudentCurrentVideoStorageKey(
   scope: PlaybackStorageScope,
 ): string | null {
   return getTenantUserLocalKey(
-    `student-current-video:enrollment:${enrollmentScope(scope.enrollmentId)}`,
+    `student-current-video:${viewingScope(scope)}`,
     scope.userId,
   );
 }
@@ -31,7 +36,7 @@ function getVideoPositionStorageKey(
 ): string | null {
   if (!videoId) return null;
   return getTenantUserLocalKey(
-    `student-video-position:${videoId}:enrollment:${enrollmentScope(scope.enrollmentId)}`,
+    `student-video-position:${videoId}:${viewingScope(scope)}`,
     scope.userId,
   );
 }

@@ -28,7 +28,7 @@ type AuditEvent = { type?: unknown };
 type AuditBatch = { batch_id: string; events: AuditEvent[] };
 type AuditBody = { token?: unknown; events?: AuditEvent[]; batch?: AuditBatch; batches?: AuditBatch[] };
 
-async function verifiedAuditEvents(response: Response): Promise<AuditEvent[]> {
+async function verifiedAuditEvents(response: Response, requireActive = false): Promise<AuditEvent[]> {
   const pathname = new URL(response.url()).pathname;
   const final = END_PATHS.includes(pathname);
   expect(response.status(), "playback-audit:response-status").toBe(final ? 200 : 201);
@@ -43,7 +43,8 @@ async function verifiedAuditEvents(response: Response): Promise<AuditEvent[]> {
   const batches = final ? body.batches : body.batch ? [body.batch] : undefined;
   expect(Array.isArray(batches), "playback-audit:exact-batches").toBe(true);
   expect(data.protocol_version).toBe(2);
-  expect(final ? data.session_status === "ENDED" : ["ACTIVE", "ENDED"].includes(data.session_status)).toBe(true);
+  expect(final ? data.session_status === "ENDED" : requireActive
+    ? data.session_status === "ACTIVE" : ["ACTIVE", "ENDED"].includes(data.session_status)).toBe(true);
   const acks = data.acknowledgements as Array<{ batch_id: string; event_count: number; duplicate: boolean }>;
   expect(Array.isArray(acks)).toBe(true);
   expect(acks).toHaveLength(batches!.length);
@@ -108,7 +109,8 @@ async function revealPlaybackControls(page: Page): Promise<void> {
 }
 
 /** Ordinary UI actions; verify each current-session audit batch is fully stored. */
-export async function exerciseFullscreenAudit(page: Page, expectedToken: unknown): Promise<void> {
+export async function exerciseFullscreenAudit(page: Page, expectedToken: unknown,
+  options: { requireActive?: boolean; timeout?: number } = {}): Promise<void> {
   expect(typeof expectedToken === "string" && expectedToken.length > 0, "playback-audit:current-token").toBe(true);
   for (const entering of [true, false]) {
     const eventType = entering ? "FULLSCREEN_ENTER" : "FULLSCREEN_EXIT";
@@ -116,8 +118,9 @@ export async function exerciseFullscreenAudit(page: Page, expectedToken: unknown
     const responsePromise = page.waitForResponse((response) => {
       if (response.request().method() !== "POST" || !EVENT_PATHS.includes(new URL(response.url()).pathname)) return false;
       const body = response.request().postDataJSON() as AuditBody;
-      return (body.batch?.events ?? body.events)?.some((event) => event.type === eventType) === true;
-    });
+      return body.token === expectedToken
+        && (body.batch?.events ?? body.events)?.some((event) => event.type === eventType) === true;
+    }, { timeout: options.timeout });
     const [response] = await Promise.all([
       responsePromise,
       page.getByRole("button", { name: entering ? "전체화면" : "전체화면 종료", exact: true })
@@ -125,7 +128,7 @@ export async function exerciseFullscreenAudit(page: Page, expectedToken: unknown
     ]);
     const body = response.request().postDataJSON() as AuditBody;
     expect(body.token === expectedToken, "playback-audit:session-token-match").toBe(true);
-    await verifiedAuditEvents(response);
+    await verifiedAuditEvents(response, options.requireActive);
     const events = body.batch?.events ?? body.events;
     expect(Array.isArray(events) && events.length > 0, "playback-audit:events-shape").toBe(true);
     expect(events!.every((event) => ["FULLSCREEN_ENTER", "FULLSCREEN_EXIT", "FOCUS_LOST", "FOCUS_GAINED",

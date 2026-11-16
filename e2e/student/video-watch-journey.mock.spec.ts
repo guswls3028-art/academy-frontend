@@ -1,4 +1,4 @@
-import { verifyFullscreenControls, verifyMonitoredHlsGestures } from "../helpers/monitoredHlsGestures";
+import { verifyFullscreenControls, verifyMonitoredHlsGestures, verifyResumedClassActivity } from "../helpers/monitoredHlsGestures";
 import type { VideoCommentItem } from "../../src/app_student/domains/video/api/video.api";
 import type { Page } from "@playwright/test";
 import { syntheticLongVideoAsset } from "../../scripts/run-development-release-canary.mjs";
@@ -301,7 +301,7 @@ async function installWatchScenario(page: Page, completed = false) {
   await installStudentYoutubeScenario(page);
   const state = { reviewRemaining: null as number | null, prepared: false, prepareRetry: false, playingSignal: false,
     commentsFail: false, playlistFail: false, likeFail: false, liked: false,
-    losePlayingAck: false, lostSequence: 0, recoveredSequence: 0,
+    losePlayingAck: false, lostSequence: 0, recoveredSequence: 0, includeSummary: false, supportPreview: false,
     comments: [{ id: 701, content: "수업에서 이해한 개념을 다시 확인했습니다.", author_type: "student",
       author_name: "합성 학생", author_photo_url: null, is_edited: false, is_deleted: false,
       is_mine: true, created_at: "2026-10-01T03:00:00Z", reply_count: 0, replies: [] }] as VideoCommentItem[],
@@ -318,6 +318,10 @@ async function installWatchScenario(page: Page, completed = false) {
     const url = new URL(request.url());
     const path = url.pathname.replace(/^\/api\/v1/, "");
     const json = (body: unknown, status = 200) => route.fulfill({ json: body, status });
+    const reviewSummary = state.includeSummary && state.reviewRemaining !== null ? {
+      review_watch_summary: { enabled: true, applicable: true, used_ms: 14000 - state.reviewRemaining,
+        limit_ms: 14000, remaining_ms: state.reviewRemaining, exhausted: state.reviewRemaining === 0, revision: "review-limit" },
+    } : {};
     // The mounted student shell needs a profile id and valid empty lists to
     // finish notification loading; a generic {} schedules a retry across reload.
     if (request.method() === "GET") {
@@ -349,18 +353,20 @@ async function installWatchScenario(page: Page, completed = false) {
         if (!state.playingSignal) state.recoveredSequence = request.postDataJSON().sequence;
         state.playingSignal = true;
       }
-      return json({ stream: "test-review", used_ms: 14000 - state.reviewRemaining, remaining_ms: state.reviewRemaining });
+      return json({ stream: "test-review", used_ms: 14000 - state.reviewRemaining, remaining_ms: state.reviewRemaining, ...reviewSummary });
     }
     const playback = path.match(/^\/student\/video\/videos\/(562|563)\/playback\/$/);
     if (playback) {
       if (url.searchParams.get("access_check") === "1") return json({
         ok: true, access_mode: "FREE_REVIEW", monitoring_enabled: false, policy_version: 1,
       });
-      if (state.reviewRemaining === 0) return json({ detail: "이 영상의 복습 시청시간을 모두 사용했습니다." }, 403);
+      if (state.reviewRemaining === 0) return json({ detail: "이 영상의 복습 시청시간을 모두 사용했습니다.", ...reviewSummary }, 403);
       const video = videos.find((item) => item.id === Number(playback[1]))!;
       const hosted = state.reviewRemaining !== null;
       return json({ video: { ...video, ...(hosted ? { source_type: "s3", youtube_video_id: null } : {}), is_liked: state.liked, like_count: state.liked ? 1 : 0,
         comment_count: state.comments.length, view_count: 12 },
+        ...reviewSummary,
+        ...(state.supportPreview ? { support_preview: true, progress_revision: null } : {}),
         review_watch: state.reviewRemaining === null ? null : { stream: "test-review", used_ms: 0, remaining_ms: state.reviewRemaining },
         play_url: hosted ? "/api/v1/media/review-stream/11111111-1111-4111-8111-111111111111/master.m3u8?tenant=godmin" : `https://www.youtube.com/embed/${YOUTUBE_QA_VIDEO_ID}`,
         playback_token: `synthetic-watch-${video.id}`, playback_session_id: null,
@@ -397,6 +403,105 @@ async function installWatchScenario(page: Page, completed = false) {
   return { state, youtube, vendorRequests, videos };
 }
 
+test("support preview resume positions stay separate from the student and other support sessions", async ({ page }) => {
+  await installWatchScenario(page);
+  await page.goto(`${BASE}/student/video/sessions/394?enrollment=1304`);
+  await expect(page.getByRole("link").filter({ hasText: FIRST_TITLE })).toBeVisible();
+  const positions = await page.evaluate(async () => {
+    const storage = await import("/src/app_student/domains/video/utils/videoPlaybackStorage.ts");
+    const student = { userId: 1772, enrollmentId: 1304 };
+    const preview = { ...student, supportSessionId: "support-a" };
+    const secondPreview = { ...student, supportSessionId: "support-b" };
+    storage.storeVideoPosition(562, 10, student, "revision-a");
+    storage.storeVideoPosition(562, 45, preview, "revision-a");
+    storage.storeVideoPosition(562, 80, secondPreview, "revision-a");
+    return {
+      student: storage.getVideoResumePosition(562, student, 0, "revision-a", false),
+      preview: storage.getVideoResumePosition(562, preview, 0, "revision-a", false),
+      secondPreview: storage.getVideoResumePosition(562, secondPreview, 0, "revision-a", false),
+      resetStudent: storage.getVideoResumePosition(562, student, 0, "reset-revision", false),
+      currentKeys: [student, preview, secondPreview].map(scope => storage.getStudentCurrentVideoStorageKey(scope)),
+    };
+  });
+  expect(positions).toMatchObject({ student: 10, preview: 45, secondPreview: 80, resetStudent: 0 });
+  expect(new Set(positions.currentKeys).size).toBe(3);
+});
+
+test("support playback keeps preview position locally without posting student progress", async ({ page }) => {
+  const { state, youtube } = await installWatchScenario(page);
+  state.supportPreview = true;
+  await page.addInitScript(() => {
+    const access = `e30.${btoa(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "limglish", user_id: 1772 }))}.sig`;
+    sessionStorage.setItem("hplus_student_support_mode", "active");
+    sessionStorage.setItem("hplus_student_support_access", access);
+    sessionStorage.setItem("hplus_student_support_info", JSON.stringify({ studentId: 1772, studentName: "합성 학생", sessionId: "preview-only", expiresAt: new Date(Date.now() + 900000).toISOString() }));
+  });
+  await openWatch(page);
+  await expect(page.getByText(/진도·시청시간에 미반영/)).toBeVisible();
+  await expect.poll(async () => (await youtube.snapshot()).players.some(player => player.ready)).toBe(true);
+  await youtube.play();
+  await expect.poll(async () => (await youtube.snapshot()).players.at(-1)?.current ?? 0).toBeGreaterThan(1);
+  await page.evaluate(() => {
+    const previous = Object.getOwnPropertyDescriptor(document, "hidden");
+    Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+    document.dispatchEvent(new Event("visibilitychange"));
+    if (previous) Object.defineProperty(document, "hidden", previous);
+    else Reflect.deleteProperty(document, "hidden");
+  });
+  await expect.poll(() => page.evaluate(() => Object.keys(localStorage).some(key => key.includes("student-video-position:562:support:preview-only:")))).toBe(true);
+  await page.reload();
+  await expect(page.getByRole("heading", { name: FIRST_TITLE })).toBeVisible();
+  expect(state.progress).toHaveLength(0);
+});
+
+for (const width of [1366, 390]) {
+  test(`video allowance is visible before playback and browsing creates no grants at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { videos } = await installWatchScenario(page);
+    let grants = 0;
+    page.on("request", request => { if (request.method() === "POST" && /\/videos\/\d+\/playback\/$/.test(new URL(request.url()).pathname)) grants++; });
+    await page.route("**/api/v1/student/video/sessions/394/videos/**", route => route.fulfill({ json: { items: videos.map(video => ({ ...video,
+      review_watch_summary: { enabled: true, applicable: true, used_ms: 60000, limit_ms: 840000, remaining_ms: 780000, exhausted: false, revision: "initial" },
+    })) } }));
+    await page.goto(`${BASE}/student/video/sessions/394?enrollment=1304`);
+    const first = page.getByRole("link").filter({ hasText: FIRST_TITLE });
+    await expect(first).toBeVisible();
+    await expect(first).toContainText("13분 0초 남음");
+    await expect(first.getByRole("progressbar", { name: "복습 시청시간 사용량" })).toHaveAttribute("max", "840000");
+    await first.hover();
+    await first.focus();
+    await first.dispatchEvent("touchstart");
+    // Allow React/query work from the pointer handlers to settle without issuing a grant.
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    expect(grants).toBe(0);
+    await page.screenshot({ path: `test-results/video-allowance-list-${width}.png`, fullPage: true });
+    await first.click();
+    await expect(page.locator(".svpRoot")).toBeVisible();
+    expect(grants).toBe(1);
+  });
+
+  test(`exhausted review displays usage and recovers after teacher allowance at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    if (width === 390) await page.addInitScript(() => localStorage.setItem("hakwonplus:student-theme-mode", "dark"));
+    await installWatchScenario(page);
+    let extended = false;
+    await page.route("**/api/v1/student/video/videos/562/playback/**", route => {
+      if (route.request().method() !== "POST" || extended) return route.fallback();
+      return route.fulfill({ status: 403, json: { code: "review_limit_exhausted", detail: "이 영상의 복습 시청시간을 모두 사용했습니다.",
+        review_watch_summary: { enabled: true, applicable: true, used_ms: 840000, limit_ms: 840000, remaining_ms: 0, exhausted: true, revision: "exhausted" },
+      } });
+    });
+    await page.goto(`${BASE}/student/video/play?video=562&enrollment=1304&session=394`);
+    await expect(page.getByRole("heading", { name: "복습 시청시간을 모두 사용했어요" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "복습 시청시간", exact: true })).toContainText("사용 14분 0초 / 허용 14분 0초");
+    await page.screenshot({ path: `test-results/video-allowance-exhausted-${width}.png`, fullPage: true });
+    extended = true;
+    await page.getByRole("button", { name: "한도 변경 확인", exact: true }).click();
+    await expect(page.locator(".svpRoot")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "복습 시청시간을 모두 사용했어요" })).toHaveCount(0);
+  });
+}
+
 for (const width of [1366, 390]) {
   test(`review allowance stops playback and remains exhausted after reload at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 840 });
@@ -404,6 +509,7 @@ for (const width of [1366, 390]) {
     state.reviewRemaining = 14000;
     state.prepareRetry = true;
     state.losePlayingAck = true;
+    state.includeSummary = width === 390;
     await page.route("**/review-media/**", async route => {
       const browserUrl = new URL(route.request().url());
       const fixtureRequest = new Request(`https://godmin.kr${browserUrl.pathname}${browserUrl.search}`);
@@ -423,7 +529,7 @@ for (const width of [1366, 390]) {
       return route.fulfill({ status: response.status, headers: Object.fromEntries(response.headers), body: Buffer.from(await response.arrayBuffer()) });
     });
     await openWatch(page);
-    await expect(page.getByText("남은 복습시간 0분 14초")).toBeVisible();
+    await expect(page.getByText(state.includeSummary ? "0분 14초 남음" : "남은 복습시간 0분 14초")).toBeVisible();
     await page.locator("button.svpBigPlay").click();
     await expect.poll(() => page.locator("video").evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(0);
     expect(state.prepared).toBe(true);
@@ -433,12 +539,39 @@ for (const width of [1366, 390]) {
     state.reviewRemaining = 0;
     const exhausted = page.getByText("이 영상의 복습 시청시간을 모두 사용했습니다.");
     await expect(exhausted).toBeVisible();
+    if (state.includeSummary) {
+      const summary = page.getByRole("region", { name: "복습 시청시간", exact: true });
+      await expect(summary).toContainText("사용 0분 14초 / 허용 0분 14초");
+      await expect(summary).toContainText("남은 시간 없음");
+      await expect(summary.getByRole("progressbar")).toHaveAttribute("value", "14000");
+    }
     await page.reload();
     await expect(exhausted).toBeVisible();
     await expect(page.getByRole("button", { name: "다시 시도", exact: true })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "뒤로가기" })).toBeVisible();
   });
 }
+
+test("local allowance expiry requests confirmation instead of claiming a stale balance is exhausted", async ({ page }) => {
+  const { state } = await installWatchScenario(page);
+  state.reviewRemaining = 1000; state.includeSummary = true;
+  await page.route("**/review-media/**", route => {
+    const file = new URL(route.request().url()).pathname.split("/").pop();
+    const asset = syntheticLongVideoAsset(`/__qa__/video-long/${file}`);
+    return route.fulfill({ body: asset.body, contentType: asset.contentType });
+  });
+  await openWatch(page);
+  await page.locator("button.svpBigPlay").click();
+  await expect.poll(() => state.playingSignal).toBe(true);
+  await expect(page.getByText("남은 복습시간을 다시 확인해 주세요.")).toBeVisible();
+  await expect(page.getByText("복습 시청시간을 모두 사용했어요")).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "복습 시청시간", exact: true })).toHaveCount(0);
+  state.reviewRemaining = 14000;
+  await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(page.getByText("0분 14초 남음")).toBeVisible();
+  await page.locator("button.svpBigPlay").click();
+  await expect.poll(() => page.locator("video").evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(0);
+});
 
 for (const exhausted of [true, false]) {
   test(`review media denial shows the confirmed ${exhausted ? "exhausted" : "recoverable"} state`, async ({ page }) => {
@@ -750,6 +883,10 @@ for (const speedLocked of [true, false]) {
 test.describe("student fullscreen activation", () => {
   test.use({ hasTouch: true });
   for (const width of [390, 1366]) {
+    test(`resumed class proves active v2 session and saved route exit at ${width}px`, async ({ page }, info) => {
+      await verifyResumedClassActivity({ page, info, speedLocked: true, base: BASE,
+        viewport: { width, height: width === 390 ? 844 : 900 }, installScenario: installWatchScenario, openPlayer: openWatch });
+    });
     test(`fullscreen controls complete trusted touch once and preserve cancel, guide and keyboard journeys at ${width}px`, async ({ page }, info) => {
       await verifyFullscreenControls({ page, info, speedLocked: true, base: BASE,
         viewport: { width, height: width === 390 ? 844 : 900 }, installScenario: installWatchScenario, openPlayer: openWatch });
@@ -767,7 +904,9 @@ async function installStalledHls(page: Page) {
   const reloadAllowed = new Promise<void>((resolve) => { releaseReload = resolve; });
   await page.route("**/__qa__/video-long/**", async (route) => {
     const pathname = new URL(route.request().url()).pathname;
-    if (pathname.endsWith("/master.m3u8") && ++manifests === 2) await reloadAllowed;
+    // Hold every reconnect, including an alternate engine or transport retry,
+    // until the scenario explicitly allows media to load again.
+    if (pathname.endsWith("/master.m3u8") && ++manifests >= 2) await reloadAllowed;
     const asset = syntheticLongVideoAsset(pathname);
     await route.fulfill({ body: asset.body, contentType: asset.contentType });
   });
@@ -959,19 +1098,19 @@ test("silent HLS stall offers a position-preserving retry if reconnect does not 
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(42);
     const initiallyNative = !(await video.getAttribute("src"))?.startsWith("blob:");
     await video.evaluate((el: HTMLVideoElement) => { el.currentTime = 83; });
-    await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(83);
+    await expect.poll(() => video.evaluate((el: HTMLVideoElement) => !el.seeking && el.currentTime > 83)).toBe(true);
     const stalledAt = await freezePlayhead(page);
-    await page.clock.fastForward(2_000);
-    await page.clock.fastForward(10_500);
+    // The watchdog samples once per second before measuring ten stalled seconds.
+    // runFor fires those samples; fastForward represents suspension and skips them.
+    await page.clock.runFor(11_000);
     await expect.poll(hls.manifests).toBe(2);
-    await page.clock.fastForward(10_500);
+    await page.clock.runFor(11_000);
     const retry = page.getByRole("button", { name: "다시 시도", exact: true });
     if (initiallyNative) {
       // Supported native playback gets one bounded alternate-engine attempt.
       await expect.poll(async () => await retry.count() > 0 || (await video.getAttribute("src"))?.startsWith("blob:")).toBe(true);
       if (await retry.count() === 0) {
-        await page.clock.fastForward(2_000);
-        await page.clock.fastForward(10_500);
+        await page.clock.runFor(11_000);
       }
     }
     await expect(retry).toBeVisible();
