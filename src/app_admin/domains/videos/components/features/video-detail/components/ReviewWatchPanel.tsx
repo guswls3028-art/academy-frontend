@@ -42,19 +42,20 @@ export default function ReviewWatchPanel({ videoId }: { videoId: number }) {
     },
   });
   const data = report.data;
-  if (report.isError) return <section className="review-watch"><p role="alert">복습 시청 기록을 불러오지 못했습니다.</p><Button onClick={() => void report.refetch()}>다시 불러오기</Button></section>;
+  if (report.isError && !data) return <section className="review-watch"><p role="alert">복습 시청 기록을 불러오지 못했습니다.</p><Button onClick={() => void report.refetch()}>다시 불러오기</Button></section>;
   if (!data) return <p role="status">복습 시청 기록을 불러오는 중…</p>;
   const reached = data.students.filter(row => data.threshold_ms > 0 && row.used_ms >= data.threshold_ms);
   const newLength = originalDurationSeconds(lengthDraft ?? "");
   return <section className="review-watch">
+    {report.isError && <div role="alert"><p>최신 기록을 불러오지 못했습니다. 입력은 유지됩니다.</p><Button onClick={() => void report.refetch()}>최신 기록 다시 불러오기</Button></div>}
     <div className="review-watch__head"><div>
       <h3>복습 시청시간</h3>
-      <p>{data.duration ? `학생 한 명당 원본의 1.4배 · ${duration(data.threshold_ms)}` : "영상 길이가 확인되면 한도를 설정할 수 있습니다."}</p>
+      <p>{data.duration ? `기본 한도는 원본의 1.4배 · ${duration(data.threshold_ms)}이며 학생별 조정값이 우선합니다.` : "영상 길이가 확인되면 한도를 설정할 수 있습니다."}</p>
     </div><Button size="sm" aria-pressed={data.enabled} disabled={(!data.enabled && !data.duration) || toggle.isPending}
       onClick={() => { toggle.reset(); setExpectedAt(data.updated_at); setLengthDraft(null); setPendingLimit(!data.enabled); }}>{data.enabled ? "시간 제한 켜짐" : "시간 제한 꺼짐"}</Button></div>
     {pendingLimit !== null && pendingLimit !== data.enabled && <div className="review-watch__confirm" role="group" aria-label="복습 시청시간 변경 확인">
       <p>{pendingLimit
-        ? `제한을 켜면 학생당 ${duration(data.threshold_ms)}까지 복습할 수 있습니다. 이미 기준에 도달한 학생 ${reached.length}명은 다시 열 수 없습니다.`
+        ? `기본 한도는 학생당 ${duration(data.threshold_ms)}이며 기본 기준에 도달한 학생은 ${reached.length}명입니다. 별도 조정한 한도는 유지되며, 각 학생의 실제 한도를 소진하면 재생이 중단됩니다.`
         : "제한을 끄면 한도에 도달한 학생도 다시 볼 수 있습니다. 누적 재생시간은 계속 기록됩니다."}</p>
       <Button size="sm" disabled={toggle.isPending} onClick={() => toggle.mutate({ review_watch_limit_enabled: pendingLimit })}>{toggle.isPending ? "저장 중…" : pendingLimit ? "제한 켜기" : "제한 끄기"}</Button>
       <Button size="sm" disabled={toggle.isPending} onClick={() => { setPendingLimit(null); toggle.reset(); }}>취소</Button>
@@ -64,7 +65,7 @@ export default function ReviewWatchPanel({ videoId }: { videoId: number }) {
       setLengthDraft(data.duration ? `${Math.floor(data.duration / 60)}:${String(data.duration % 60).padStart(2, "0")}` : "");
     }}>YouTube 원본 길이 수정</Button> : <div className="review-watch__confirm" role="group" aria-label="YouTube 원본 길이 수정">
       <label>원본 길이 (분 또는 분:초) <input value={lengthDraft} onChange={event => setLengthDraft(event.target.value)} /></label>
-      <p>{newLength ? `변경 후 복습 기준 ${reviewLimitLabel(newLength)} · 현재 기록으로 기준 도달 ${data.students.filter(row => row.used_ms >= newLength * 1400).length}명` : "예: 60 또는 60:30"}</p>
+      <p>{newLength ? `변경 후 기본 복습 기준 ${reviewLimitLabel(newLength)} · 현재 기록으로 기본 기준 도달 ${data.students.filter(row => row.used_ms >= newLength * 1400).length}명 · 별도 조정한 학생 한도는 유지됩니다.` : "예: 60 또는 60:30"}</p>
       <Button size="sm" disabled={!newLength || newLength === data.duration || toggle.isPending} onClick={() => { if (newLength) toggle.mutate({ duration: newLength }); }}>원본 길이 저장</Button>
       <Button size="sm" disabled={toggle.isPending} onClick={() => { setLengthDraft(null); toggle.reset(); }}>취소</Button>
     </div>)}

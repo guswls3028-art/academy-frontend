@@ -1,4 +1,5 @@
 import api from "@student/shared/api/student.api";
+import type { ReviewWatchSummary } from "@/shared/media/video/reviewWatchSummary";
 
 export const REVIEW_EXHAUSTED = "이 영상의 복습 시청시간을 모두 사용했습니다.";
 
@@ -7,7 +8,7 @@ export function isReviewLimitExhausted(message: string | null, error: unknown) {
     (error as { response?: { data?: { code?: string } } } | null)?.response?.data?.code === "review_limit_exhausted";
 }
 
-export type ReviewWatch = { stream: string; used_ms: number; remaining_ms: number | null };
+export type ReviewWatch = { stream: string; used_ms: number; remaining_ms: number | null; review_watch_summary?: ReviewWatchSummary };
 
 export async function prepareReviewPlayback(videoId: number, enrollmentId: number | null, stream: string, position: number) {
   const { data } = await api.post<ReviewWatch & { retry_after_ms?: number }>(`/student/video/videos/${videoId}/review-watch/`, {

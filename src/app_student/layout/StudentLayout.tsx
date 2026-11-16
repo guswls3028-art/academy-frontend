@@ -284,7 +284,7 @@ function StudentLayoutInner() {
             <div>
               <strong>교직원 대리보기</strong>
               <span>
-                {supportInfo.studentName} 화면 · 로그인 기록과 분리
+                {supportInfo.studentName} 화면 · 진도·시청시간에 미반영
                 {supportRemainingSeconds != null
                   ? ` · ${String(Math.floor(supportRemainingSeconds / 60)).padStart(2, "0")}:${String(supportRemainingSeconds % 60).padStart(2, "0")} 남음`
                   : ""}
