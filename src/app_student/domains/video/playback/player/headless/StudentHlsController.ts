@@ -636,34 +636,26 @@ export class StudentHlsController {
       return;
     }
 
-    if (el.canPlayType("application/vnd.apple.mpegurl") || el.canPlayType("application/x-mpegURL")) {
-      if (this.opts.reviewStream) this.setState({ ready: true });
-      else this.nativeRecovery.setSource(el, url);
-      this.bindVideoEvents();
-      this.startIntervals();
-      this.startDocListeners();
-      return;
-    }
-
-    try {
-      const mod = await import("hls.js");
-      if (this.disposed || this.el !== el) return;
-      const Hls = mod.default;
-
-      if (Hls && Hls.isSupported()) {
-        this.attachHls(Hls, el, url);
-      } else if (!this.opts.reviewStream) {
-        this.nativeRecovery.setSource(el, url);
-      } else {
-        this.setState({ ready: true });
+    const canNative = el.canPlayType("application/vnd.apple.mpegurl") || el.canPlayType("application/x-mpegURL");
+    let attachedHls = false;
+    if (!canNative) {
+      try {
+        const { default: Hls } = await import("hls.js");
+        if (this.disposed || this.el !== el) return;
+        if (Hls?.isSupported()) {
+          this.attachHls(Hls, el, url);
+          attachedHls = true;
+        }
+      } catch {
+        ignoreBestEffortError();
       }
-    } catch {
       if (this.disposed || this.el !== el) return;
+    }
+    if (!attachedHls) {
       if (this.opts.reviewStream) this.setState({ ready: true });
       else this.nativeRecovery.setSource(el, url);
     }
 
-    if (this.disposed || this.el !== el) return;
     this.bindVideoEvents();
     this.startIntervals();
     this.startDocListeners();
