@@ -1,9 +1,12 @@
 import { useSearchParams } from 'react-router';
 import { createContext, useContext, useEffect, type MutableRefObject } from 'react';
 
-export const SessionScheduleNavigationContext = createContext<MutableRefObject<(() => Promise<boolean>) | undefined> | null>(null);
+export type SessionScheduleAction = 'view' | 'manage';
+export type SessionScheduleGuard = (action: SessionScheduleAction) => Promise<boolean>;
 
-export function useBeforeScheduleChange(guard: () => Promise<boolean>) {
+export const SessionScheduleNavigationContext = createContext<MutableRefObject<SessionScheduleGuard | undefined> | null>(null);
+
+export function useBeforeScheduleChange(guard: SessionScheduleGuard) {
   const ref = useContext(SessionScheduleNavigationContext);
   useEffect(() => {
     if (!ref) return;

@@ -741,7 +741,17 @@ export function emitPublicVideoNotDemonstrated(viewport: number, phase: PublicVi
     outcome: "not-demonstrated", phase, reason, playback } });
 }
 
-export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | "public-video-primary" | "context-check" | "assessment-copy" | "assessment-copy-cleanup",
+export type AssessmentScheduleFailurePhase =
+  | "assessment-schedule-setup-roster"
+  | "assessment-schedule-initial-create"
+  | "assessment-schedule-admin-attendance"
+  | "assessment-schedule-admin-scores"
+  | "assessment-schedule-student-projection"
+  | "assessment-schedule-transfer"
+  | "assessment-schedule-conflict-removal"
+  | "assessment-schedule-cleanup";
+
+export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | "public-video-primary" | "context-check" | "assessment-copy" | "assessment-copy-cleanup" | AssessmentScheduleFailurePhase,
   emit: (value: unknown) => void = (value) => console.log(JSON.stringify(value)), journeyStage?: PublicVideoJourneyStage, playback?: unknown) {
   const message = error instanceof Error ? error.message.split(/\r?\n/, 1)[0] : "";
   const kind = /Release API boundary failed:/.test(message) ? "boundary"

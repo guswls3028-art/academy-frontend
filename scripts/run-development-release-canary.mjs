@@ -116,11 +116,24 @@ const OMR_DELETE_BLOCKER_LABELS = new Set([
 const SAFE_FAILURE_SOURCE_FILES = new Set([
   ...Object.keys(FLOW_COUNTS),
   "firstLoginGuide.ts", "qaStudentParentScenario.ts", "releaseApiBoundary.ts", "strictBrowser.ts", "wait.ts",
-  "verifyAssessmentCopy.ts",
+  "verifyAssessmentCopy.ts", "verifySessionSchedules.ts",
   "verifyOnlineWrittenSubmission.ts",
   "qrAttendanceRealuse.ts", "qrCameraInput.ts",
   "excelEnrollmentRealuse.ts", "excelAssessmentRealuse.ts", "excelImport.ts",
   "attendanceExcelRealuse.ts", "homeworkCriteriaRealuse.ts", "verifyScoreCorrectionWhileEditing.ts", "verifyMixedHomeworkScoreEdit.ts",
+]);
+const assessmentScheduleSpec = "student-parent-assessment-realuse.spec.ts";
+const isSafeFailureSource = (source, spec) => SAFE_FAILURE_SOURCE_FILES.has(source)
+  && (source !== "verifySessionSchedules.ts" || spec === assessmentScheduleSpec);
+const ASSESSMENT_SCHEDULE_FAILURE_PHASES = new Set([
+  "assessment-schedule-setup-roster",
+  "assessment-schedule-initial-create",
+  "assessment-schedule-admin-attendance",
+  "assessment-schedule-admin-scores",
+  "assessment-schedule-student-projection",
+  "assessment-schedule-transfer",
+  "assessment-schedule-conflict-removal",
+  "assessment-schedule-cleanup",
 ]);
 const FLOW_FAILURE_KINDS = new Set(["boundary", "assertion", "locator-timeout", "transport", "other"]);
 const LEARNING_FAILURE_PHASES = new Set([
@@ -593,7 +606,7 @@ export function observeReleaseTestResult(stdout) {
     const source = path.basename(String(error?.location?.file || ""));
     const line = error?.location?.line;
     const column = error?.location?.column;
-    if (!Object.hasOwn(FLOW_COUNTS, specFile) || !SAFE_FAILURE_SOURCE_FILES.has(source)
+    if (!Object.hasOwn(FLOW_COUNTS, specFile) || !isSafeFailureSource(source, specFile)
       || !Number.isInteger(line) || line < 1 || line > 100_000
       || !Number.isInteger(column) || column < 1 || column > 10_000) return;
     const key = `${specFile}:${source}:${line}:${column}`;
@@ -658,7 +671,7 @@ export function observeReleaseTestResult(stdout) {
                 : /locator\.[a-z]+:.*(?:Timeout|timeout)/.test(firstLine) ? "locator-timeout" : "other";
               const source = path.basename(String(error?.location?.file || ""));
               addFailureObservation("reportedTestErrors", { specFile: file, resultOrdinal, errorOrdinal: index + 1,
-                sourceFile: SAFE_FAILURE_SOURCE_FILES.has(source) ? source : null, kind,
+                sourceFile: isSafeFailureSource(source, file) ? source : null, kind,
                 expectedStatus: null, receivedStatus: statuses.length === 1 ? statuses[0].status : null });
             }
           }
@@ -742,15 +755,16 @@ export function observeReleaseTestResult(stdout) {
                 } else if (name === "releaseTestFailure") {
                   destination = "testFailureObservations";
                   const publicVideoPrimary = value.phase === "public-video-primary";
+                  const schedulePhase = ASSESSMENT_SCHEDULE_FAILURE_PHASES.has(value.phase);
                   const hasPlayback = Object.hasOwn(value, "playback");
                   valid &&= exactKeys(value, ["schema", "phase", "kind", "expectedStatus", "receivedStatus", ...(publicVideoPrimary ? ["journeyStage"] : []), ...(hasPlayback ? ["playback"] : [])])
                     && value.schema === "release-test-failure/v1"
-                    && ["video-primary", "public-video-primary", "context-check", "assessment-copy", "assessment-copy-cleanup"].includes(value.phase)
+                    && (schedulePhase || ["video-primary", "public-video-primary", "context-check", "assessment-copy", "assessment-copy-cleanup"].includes(value.phase))
                     && (value.phase !== "video-primary" || file === "video-playback-renewal.realuse.spec.ts")
                     && (!publicVideoPrimary || (file === "public-video-realuse.spec.ts"
                       && ["publisher-login", "showcase-edit", "video-register", "video-publish", "public-catalog", "public-detail", "player-ready", "player-playing", "player-paused", "video-edit", "video-hide", "video-delete", "video-reregister"].includes(value.journeyStage)))
                     && (!hasPlayback || (publicVideoPrimary && ["player-playing", "player-paused"].includes(value.journeyStage) && validPublicVideoPlayback(value.playback)))
-                    && (!value.phase.startsWith("assessment-copy") || file === "student-parent-assessment-realuse.spec.ts")
+                    && (!(schedulePhase || value.phase.startsWith("assessment-copy")) || file === assessmentScheduleSpec)
                     && ["boundary", "assertion", "locator-timeout", "transport", "other"].includes(value.kind)
                     && value.expectedStatus === null && value.receivedStatus === null;
                 } else if (name === "omrCleanupStatus") {
