@@ -6,7 +6,7 @@ import { isScoreEditLockedError } from "../api/scoreDraft";
 type Props = {
   editor: ScoreActiveEditor;
   onClaim?: (cell: ScoreActiveCell) => Promise<boolean>;
-  onClaimed: () => void;
+  onClaimed: (cell: ScoreActiveCell) => void;
 };
 
 export default function ScoreCellCollaborator({ editor, onClaim, onClaimed }: Props) {
@@ -30,7 +30,7 @@ export default function ScoreCellCollaborator({ editor, onClaim, onClaimed }: Pr
             setPending(true);
             setError(null);
             try {
-              if (await onClaim(editor.active_cell)) window.requestAnimationFrame(onClaimed);
+              if (await onClaim(editor.active_cell)) onClaimed(editor.active_cell);
             } catch (error) {
               setError(isScoreEditLockedError(error)
                 ? "다른 화면에 저장하지 않은 입력이 있거나 다른 직원이 입력 중입니다. 그 화면에서 저장한 뒤 다시 시도해 주세요."

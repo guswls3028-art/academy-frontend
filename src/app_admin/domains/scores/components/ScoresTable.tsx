@@ -439,6 +439,7 @@ type Props = {
   )) | null;
   activeEditors?: ScoreActiveEditor[];
   onClaimOwnCell?: (cell: ScoreActiveCell) => Promise<boolean>;
+  onFocusClaimedCell: (cell: ScoreActiveCell) => void;
   onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number, questionIdOrSub?: number | "total" | "objective" | "subjective") => void;
   onSelectRow: (row: SessionScoreRow) => void;
 
@@ -489,6 +490,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   selectedCell = null,
   activeEditors = [],
   onClaimOwnCell,
+  onFocusClaimedCell,
   onSelectCell,
   onSelectRow,
   onReorderColumnSwap,
@@ -616,14 +618,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     }
     return collaborators;
   }, [activeEditors]);
-  const renderCollaborator = (
-    editor: ScoreActiveEditor,
-    row: SessionScoreRow,
-    type: "exam" | "homework",
-    id: number,
-    sub?: number | "total" | "objective" | "subjective",
-  ) => <ScoreCellCollaborator editor={editor} onClaim={isEditMode ? onClaimOwnCell : undefined}
-    onClaimed={() => onSelectCell(row, type, id, sub)} />;
+  const renderCollaborator = (editor: ScoreActiveEditor) => (
+    <ScoreCellCollaborator editor={editor} onClaim={isEditMode ? onClaimOwnCell : undefined}
+      onClaimed={onFocusClaimedCell} />
+  );
 
   const applyChangeToDom = useCallback((change: PendingChange) => {
     const setCellText = (el: HTMLElement | null | undefined, value: string) => {
@@ -1754,7 +1752,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               }}
                             >
                               {collaborator ? (
-                                renderCollaborator(collaborator, row, "exam", ex.exam_id, "total")
+                                renderCollaborator(collaborator)
                               ) : canEdit ? (
                                 <span
                                   ref={(el) => {
@@ -1975,7 +1973,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, "objective"); }}
                             >
                               {collaborator ? (
-                                renderCollaborator(collaborator, row, "exam", ex.exam_id, "objective")
+                                renderCollaborator(collaborator)
                               ) : canEdit ? (
                                 <span
                                   ref={(el) => {
@@ -2108,7 +2106,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, "subjective"); }}
                             >
                               {collaborator ? (
-                                renderCollaborator(collaborator, row, "exam", ex.exam_id, "subjective")
+                                renderCollaborator(collaborator)
                               ) : canEdit ? (
                                 <span
                                   ref={(el) => {
@@ -2237,7 +2235,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 문항을 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, col.questionId); }}
                             >
                               {collaborator ? (
-                                renderCollaborator(collaborator, row, "exam", ex.exam_id, col.questionId)
+                                renderCollaborator(collaborator)
                               ) : canEdit ? (
                                 <ScoreInputCell
                                   sessionId={sessionId}
@@ -2366,7 +2364,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       >
                         <span className="inline-flex w-full items-center gap-2 flex-wrap">
                           {collaborator && (
-                            renderCollaborator(collaborator, row, "homework", hw.homework_id)
+                            renderCollaborator(collaborator)
                           )}
                           {hw.grading_mode === "COMPLETION" ? (
                             canEditScore ? (
