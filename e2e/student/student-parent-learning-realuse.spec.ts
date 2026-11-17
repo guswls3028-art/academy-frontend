@@ -26,6 +26,7 @@ import {
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
+import { acknowledgeFirstLoginGuideIfVisible } from "../helpers/firstLoginGuide";
 import { gotoAndSettle } from "../helpers/wait";
 import { emitLearningFlowFailure, verifyAttendanceExcel, type LearningFlowPhase } from "../helpers/attendanceExcelRealuse";
 import { verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
@@ -151,6 +152,7 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
   // The saved lecture must become visible without asking the teacher to clear it.
   await enrollmentPage.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(enrollmentPage, `${QA_BASE}/workspace/mobile/classes?tab=past&q=qa-no-match-${runStamp}`, { timeout: 30_000 });
+  await acknowledgeFirstLoginGuideIfVisible(enrollmentPage);
   await enrollmentPage.getByRole("button", { name: "강의 추가", exact: true }).click();
   await enrollmentPage.getByLabel("강의명 *", { exact: true }).fill(`${lectureTitle} 수정 전`);
   await enrollmentPage.getByLabel("강사 *", { exact: true }).fill("QA학습");
@@ -667,6 +669,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await expect(page.getByText("55% 진행", { exact: true }).first()).toBeVisible();
     await page.getByText(videoTitle, { exact: true }).click();
     await expect(page.getByRole("heading", { name: videoTitle })).toBeVisible();
+    await expect(page.locator("[data-youtube-sdk-fixture]")).toBeVisible();
     await expect.poll(async () => (await youtube.snapshot()).players.some((player) => (
       player.ready
       && !player.destroyed
@@ -676,7 +679,6 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await expect(page.getByText("재생 화면을 준비하고 있어요…", { exact: true })).toBeHidden();
     // Unrestricted YouTube playback keeps the provider's native controls; the
     // Academy play button is reserved for monitored/budgeted-seek sessions.
-    await expect(page.locator("[data-youtube-sdk-fixture]")).toBeVisible();
     await expect(page.getByRole("button", { name: "재생", exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "YouTube 재생", exact: true }).click();
     await expect.poll(async () => (await youtube.snapshot()).players.some((player) => (
