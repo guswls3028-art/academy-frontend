@@ -3,12 +3,13 @@
  * 학생 앱 라우터 — 모바일 전용, 5탭(홈|영상|일정|알림|커뮤니티)
  */
 import { Suspense } from "react";
+import type { ComponentType } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import { Navigate, Route, Routes, useParams } from "react-router";
 import StudentLayout from "@student/layout/StudentLayout";
 import styles from "./StudentRouter.module.css";
 
-const DashboardPage = lazy(() => import("@student/domains/dashboard/pages/DashboardPage"));
+const LazyDashboardPage = lazy(() => import("@student/domains/dashboard/pages/DashboardPage"));
 const StudentMenuPage = lazy(() => import("@student/layout/StudentMenuPage"));
 const VideoHomePage = lazy(() => import("@student/domains/video/pages/VideoHomePage"));
 const CourseDetailPage = lazy(() => import("@student/domains/video/pages/CourseDetailPage"));
@@ -74,7 +75,8 @@ function StudentRouteFallback() {
   );
 }
 
-export default function StudentRouter() {
+export default function StudentRouter({ loadedDashboard }: { loadedDashboard?: ComponentType } = {}) {
+  const DashboardPage = loadedDashboard ?? LazyDashboardPage;
   return (
     <Suspense fallback={<StudentRouteFallback />}>
     <Routes>
