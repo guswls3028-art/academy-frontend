@@ -155,6 +155,7 @@ export function BackButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
+      aria-label="뒤로 가기"
       className={styles.backButton}
     >
       <ChevronLeft size={ICON.md} />

@@ -87,7 +87,7 @@ export type SessionScoresPanelHandle = {
   /** 자동 저장용: 현재 pending 스냅샷 */
   getPendingSnapshot: () => import("../api/scoreDraft").PendingChange[];
   /** 드래프트 복원 시 호출 */
-  applyDraftPatch: (changes: import("../api/scoreDraft").PendingChange[]) => void;
+  applyDraftPatch: (changes: import("../api/scoreDraft").PendingChange[]) => boolean;
   commitActiveCell: () => boolean;
   undoLastChange: () => boolean;
   redoLastChange: () => boolean;
@@ -217,7 +217,12 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     flushPendingChanges: () => tableRef.current?.flushPendingChanges?.()
       ?? Promise.resolve({ savedCount: 0, projectionPendingCount: 0 }),
     getPendingSnapshot: () => tableRef.current?.getPendingSnapshot?.() ?? [],
-    applyDraftPatch: (changes) => tableRef.current?.applyDraftPatch?.(changes),
+    applyDraftPatch: (changes) => {
+      const table = tableRef.current;
+      if (!table) return false;
+      table.applyDraftPatch(changes);
+      return true;
+    },
     commitActiveCell: () => tableRef.current?.commitActiveCell?.() ?? true,
     undoLastChange: () => tableRef.current?.undoLastChange?.() ?? false,
     redoLastChange: () => tableRef.current?.redoLastChange?.() ?? false,

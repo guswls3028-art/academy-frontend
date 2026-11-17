@@ -10,7 +10,7 @@
  */
 
 import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ChartColumn, ChevronDown, ClipboardCheck, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -127,6 +127,7 @@ function resolveExamGradingMode(
 // Keep the OMR upload workspace (batch ledger, file preparation and upload UI)
 // outside the score-entry module. Both exports share the same lazy chunk.
 const SessionOmrUploadAction = lazy(() => import("./SessionOmrUploadAction"));
+const SessionScoreDraftRecoveryDialog = lazy(() => import("./SessionScoreDraftRecoveryDialog"));
 const SessionExamAnalysisAction = lazy(() => import("./SessionExamAnalysisAction"));
 const SessionOmrUploadModal = lazy(() => import("./SessionOmrUploadAction").then(module => ({ default: module.SessionOmrUploadModal })));
 const ScorePrintPreviewModal = lazy(() => import("@admin/domains/scores/public/ScorePrintPreviewModal"));
@@ -142,6 +143,7 @@ export default function SessionScoresEntryPage({
 }: SessionScoresEntryPageProps = {}) {
   const { sessionId: sessionIdParam, lectureId: lectureIdParam } = useParams<{ lectureId: string; sessionId: string }>();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const schedule = useSessionScheduleScope();
   const numericSessionId = Number(sessionIdParam);
@@ -248,9 +250,6 @@ export default function SessionScoresEntryPage({
   const openedGradingDeepLinkRef = useRef<number | null>(null);
   const manualGradingRef = useRef<ManualExamGradingGridHandle>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
-  const recoveryRestoreButtonRef = useRef<HTMLButtonElement>(null);
-  const recoveryDialogRef = useRef<HTMLDivElement>(null);
-  const recoveryPreviousFocusRef = useRef<HTMLElement | null>(null);
   const isEditModeRef = useRef(false);
   const autoEditAttemptedSessionsRef = useRef(new Set<number>());
   const [autoEditSettledSessions, setAutoEditSettledSessions] = useState<ReadonlySet<number>>(new Set());
@@ -435,6 +434,8 @@ export default function SessionScoresEntryPage({
     checkForRecovery: sessionIdForDraft > 0,
     activeCell: activeScoreCell,
   });
+  const [deferredDraftSessionId, setDeferredDraftSessionId] = useState<number | null>(null);
+  const showDraftRecoveryDialog = draft.hasDraftToRestore && deferredDraftSessionId !== numericSessionId;
   const {
     beginEditing: beginScoreEditing,
     saveNow: saveScoreDraftNow,
@@ -494,50 +495,6 @@ export default function SessionScoresEntryPage({
       setIsSaving(false);
     }
   }, [draft.editStaleConflict, runTrackedTask, saveScoreDraftNow]);
-
-  useEffect(() => {
-    if (!draft.hasDraftToRestore) return;
-    recoveryPreviousFocusRef.current = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null;
-    recoveryRestoreButtonRef.current?.focus();
-
-    const keepFocusInsideDialog = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        feedback.info("임시저장을 복원하거나 버리기를 선택해 주세요.");
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const dialog = recoveryDialogRef.current;
-      if (!dialog) return;
-      const focusable = Array.from(
-        dialog.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      );
-      if (focusable.length === 0) {
-        event.preventDefault();
-        dialog.focus();
-        return;
-      }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", keepFocusInsideDialog);
-    return () => {
-      document.removeEventListener("keydown", keepFocusInsideDialog);
-      const previous = recoveryPreviousFocusRef.current;
-      if (previous?.isConnected) previous.focus();
-    };
-  }, [draft.hasDraftToRestore]);
 
   const changeScoreHistory = useCallback((redo: boolean, notifyEmpty = false) => {
     if (!isEditMode || scoreGridRef.current?.inert || panelRef.current?.hasUncommittedActiveCell?.()) return false;
@@ -599,6 +556,58 @@ export default function SessionScoresEntryPage({
     queryFn: () => fetchSessionScores(numericSessionId, schedule),
     enabled: Number.isFinite(numericSessionId) && numericSessionId > 0,
   });
+  const draftReviewItems = useMemo(() => {
+    if (!draft.hasDraftToRestore) return [];
+    const rowsByEnrollment = new Map(data?.rows.map((row) => [row.enrollment_id, row]));
+    return draft.restoreChanges.map((change) => {
+      const row = rowsByEnrollment.get(change.enrollmentId);
+      const assessment = change.type === "homework"
+        ? row?.homeworks.find((homework) => homework.homework_id === change.homeworkId)
+        : row?.exams.find((exam) => exam.exam_id === change.examId);
+      return { row, assessment, change };
+    });
+  }, [data?.rows, draft.hasDraftToRestore, draft.restoreChanges]);
+  const draftHasMissingRows = draftReviewItems.some(({ row }) => !row);
+  const draftHasMissingTargets = draftReviewItems.some(({ assessment }) => !assessment);
+  const draftNeedsFullRoster = schedule !== undefined && (isError || (!isLoading && draftHasMissingRows));
+  const draftNeedsScoreRetry = !draftNeedsFullRoster && !isLoading && (isError || draftHasMissingTargets);
+  const draftNeedsVisibleRows = !isLoading && !isError && !draftHasMissingTargets && draftReviewItems.some(({ row }) => row && (
+    !matchesSessionScoreStudentSearch(row.student_name ?? "", searchInput)
+    || (summaryColumnMode === "exam_wrong" && !matchesSessionRowExamReviewFilter(row, examReviewFilter))
+  ));
+  // A browser history transition can precede the React score query commit.
+  const isDraftReviewCurrent = () => window.location.pathname === pathname
+    && (new URLSearchParams(window.location.search).get("schedule") ?? undefined) === schedule;
+  const restoreReviewedDraft = async () => {
+    if (!isDraftReviewCurrent() || !showDraftRecoveryDialog || draft.isDiscardingDraft || draft.isStartingEdit) return;
+    if (draftNeedsFullRoster || draftNeedsVisibleRows) {
+      setSearchInput("");
+      setExamReviewFilter("all");
+      setViewFilter("all");
+      if (draftNeedsFullRoster) {
+        setSearchParams((previous) => {
+          const next = new URLSearchParams(previous);
+          next.delete("schedule");
+          return next;
+        });
+      }
+      return;
+    }
+    if (draftNeedsScoreRetry) {
+      await refetch();
+      return;
+    }
+    if (!data || isLoading || isError || draftHasMissingTargets) return;
+    if (!await draft.restoreDraft(isDraftReviewCurrent)) {
+      feedback.info("성적표를 불러온 뒤 다시 복원해 주세요.");
+      return;
+    }
+    setIsEditMode(true);
+  };
+  const discardReviewedDraft = async () => {
+    if (!isDraftReviewCurrent()) return;
+    if (!await draft.discardDraft()) feedback.error("임시저장을 버리지 못했습니다. 다시 시도해 주세요.");
+  };
   const reviewLatestScores = async () => {
     setIsSaving(true);
     try {
@@ -795,8 +804,12 @@ export default function SessionScoresEntryPage({
       setIsSaving(false);
     }
   };
-  useBeforeScheduleChange(async () => {
-    if (isSaving || draft.isStartingEdit || recoveryBlocked) {
+  useBeforeScheduleChange(async (action) => {
+    const canViewWhileCheckingDraft = action === "view" && !isEditMode && !draft.hasPendingChanges
+      && draft.draftStatus !== "saving" && draft.draftStatus !== "error";
+    const recoveryBlocksChange = draft.recoveryCheckFailed || draft.editLockConflict || draft.hasDraftToRestore
+      || (draft.isRecoveryCheckPending && !canViewWhileCheckingDraft);
+    if (isSaving || draft.isStartingEdit || recoveryBlocksChange) {
       feedback.info("진행 중인 저장이나 복구를 마친 뒤 다시 시도해 주세요.");
       return false;
     }
@@ -1708,6 +1721,10 @@ export default function SessionScoresEntryPage({
                   </>
                 ) : draft.isRecoveryCheckPending ? (
                   <span>이전 입력 확인 중…</span>
+                ) : draft.hasDraftToRestore && !showDraftRecoveryDialog ? (
+                  <button type="button" className="underline text-[var(--color-brand-primary)]" onClick={() => setDeferredDraftSessionId(null)}>
+                    보존된 임시저장 확인
+                  </button>
                 ) : (
                   <span className="scores-lock-status">
                     <LockKeyhole size={13} aria-hidden />
@@ -1773,68 +1790,25 @@ export default function SessionScoresEntryPage({
         </div>}
       />
 
-      {draft.hasDraftToRestore && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="draft-restore-title-entry"
-          aria-describedby="draft-restore-description-entry"
-        >
-          <div
-            ref={recoveryDialogRef}
-            tabIndex={-1}
-            className="bg-[var(--color-bg-surface)] rounded-lg shadow-lg p-6 max-w-md mx-4 border border-[var(--color-border-divider)]"
-          >
-            <h2 id="draft-restore-title-entry" className="text-base font-semibold text-[var(--color-text-primary)] mb-2">
-              {draft.restoreChangeCount > 0
-                ? `임시저장된 변경 ${draft.restoreChangeCount}건이 있습니다. 복원할까요?`
-                : "이전에 임시저장된 편집 내용이 있습니다. 복원할까요?"}
-            </h2>
-            <p id="draft-restore-description-entry" className="text-sm text-[var(--color-text-muted)] mb-4">
-              {draft.editStaleConflict
-                ? "서버 성적이 변경되었습니다. 복원하면 보존된 입력을 최신 성적표에 다시 적용해 저장합니다. 버리면 최신 성적을 유지합니다."
-                : "복원하면 이전 편집 내용이 테이블에 다시 적용됩니다. 버리면 현재 서버 데이터만 표시됩니다."}
-            </p>
-            {draft.draftError && (
-              <p className="text-sm text-[var(--color-error)] mb-3" role="alert">
-                {draft.draftError}
-              </p>
-            )}
-            <div className="flex gap-2 justify-end">
-              <button
-                type="button"
-                disabled={draft.isDiscardingDraft || draft.isStartingEdit}
-                onClick={async () => {
-                  const discarded = await draft.discardDraft();
-                  if (!discarded) feedback.error("임시저장을 버리지 못했습니다. 다시 시도해 주세요.");
-                }}
-                className="h-9 px-4 rounded text-sm font-medium border border-[var(--color-border-divider)] bg-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-soft)]"
-              >
-                {draft.isDiscardingDraft ? "버리는 중…" : "버리기"}
-              </button>
-              <button
-                type="button"
-                ref={recoveryRestoreButtonRef}
-                disabled={isLoading || isError || draft.isDiscardingDraft || draft.isStartingEdit}
-                onClick={async () => {
-                  if (!await draft.restoreDraft()) {
-                    feedback.info("성적표를 불러온 뒤 다시 복원해 주세요.");
-                    return;
-                  }
-                  setIsEditMode(true);
-                }}
-                className="h-9 px-4 rounded text-sm font-medium bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)] hover:bg-[var(--color-brand-primary-hover)]"
-              >
-                {draft.isStartingEdit
-                  ? "복원 준비 중…"
-                  : isLoading
-                    ? "성적표 불러오는 중…"
-                    : "복원 후 수정"}
-              </button>
-            </div>
-          </div>
-        </div>
+      {showDraftRecoveryDialog && (
+        <Suspense fallback={null}>
+          <SessionScoreDraftRecoveryDialog
+            items={draftReviewItems}
+            changeCount={draft.restoreChangeCount}
+            error={draft.draftError}
+            isStale={draft.editStaleConflict}
+            isLoading={isLoading}
+            isFetching={isFetching}
+            isStarting={draft.isStartingEdit}
+            isDiscarding={draft.isDiscardingDraft}
+            needsFullRoster={draftNeedsFullRoster}
+            needsScoreRetry={draftNeedsScoreRetry}
+            needsVisibleRows={draftNeedsVisibleRows}
+            onPrimary={() => void restoreReviewedDraft()}
+            onDiscard={() => void discardReviewedDraft()}
+            onDefer={() => setDeferredDraftSessionId(numericSessionId)}
+          />
+        </Suspense>
       )}
 
       {/* 표 보기와 입력 옵션은 선택 작업과 구분한다. */}

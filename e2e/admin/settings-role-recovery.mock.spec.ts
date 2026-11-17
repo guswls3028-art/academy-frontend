@@ -57,6 +57,34 @@ async function setup(page: Page, role: string, superuser: boolean, failure?: "te
   return { state, tenant: () => tenant, legal: () => legal };
 }
 
+for (const width of [390, 1366]) {
+  test(`교사 학원 정보의 직접 진입과 메뉴 진입에서 뒤로 가기를 이어간다 ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { state } = await setup(page, "owner", false);
+    const settings = `${BASE}/workspace/mobile/settings/organization`;
+    const heading = page.getByRole("heading", { name: "학원 정보", exact: true });
+    const back = page.locator('main button[class*="backButton"]');
+
+    await page.route(url => url.pathname === "/qa-empty-prior", route => route.fulfill({ contentType: "text/html", body: "<!doctype html><title>QA</title>" }));
+    const priorPath = width === 390 ? "/workspace/mobile/notifications" : "/qa-empty-prior";
+    await page.goto(`${BASE}${priorPath}`, { waitUntil: "domcontentloaded" });
+    await page.goto(settings, { waitUntil: "domcontentloaded" });
+    await expect(heading).toBeVisible();
+    await back.click();
+    await expect(page).toHaveURL(/\/workspace\/mobile\/menu\?group=account$/);
+    await expect(page.getByRole("heading", { name: "관리자 전용", exact: true })).toBeVisible();
+
+    await page.goto(`${BASE}/workspace/mobile/menu`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "학원 정보", exact: true }).click();
+    await expect(heading).toBeVisible();
+    await expect(back).toHaveAccessibleName("뒤로 가기");
+    await back.click();
+    await expect(page).toHaveURL(/\/workspace\/mobile\/menu$/);
+    await expect(page.getByRole("heading", { name: "전체 메뉴", exact: true })).toBeVisible();
+    expect(state.patches).toBe(0);
+  });
+}
+
 for (const width of [1366, 390]) {
   test(`동시 학원 편집 충돌에서 최신 목록 확인 후 저장·재조회 ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
