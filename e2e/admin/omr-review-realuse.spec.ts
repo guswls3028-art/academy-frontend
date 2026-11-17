@@ -357,20 +357,24 @@ async function chooseExamHeaderAction(
   await menu.getByRole("menuitem", { name: new RegExp(`^${action}`) }).click();
 }
 
-async function openOmrReviewFromWorkbox(page: Page, needsIdentification = false) {
+async function openOmrReviewFromWorkbox(
+  page: Page,
+  mixedAdmission?: { total: number; needsIdentification: number; failed: number },
+) {
   const trigger = page.getByRole("button", { name: /^작업박스/ });
   if (await trigger.getAttribute("aria-expanded") === "false") {
     await trigger.click();
   }
   const panel = page.locator(".alarm-panel--workbox-style");
   const batches = panel.locator(".async-status-bar__item").filter({
-    has: page.getByText("OMR 1장", { exact: true }),
+    has: page.getByText(`OMR ${mixedAdmission?.total ?? 1}장`, { exact: true }),
   });
-  // All batches in this serial fixture belong to the same exam. When choosing
-  // the replacement, wait for the server to report the unresolved batch.
-  const batch = needsIdentification
-    ? batches.filter({ has: page.getByText("식별 필요 1", { exact: true }) })
+  const batch = mixedAdmission
+    ? batches
+        .filter({ has: page.getByText(`식별 필요 ${mixedAdmission.needsIdentification}`, { exact: true }) })
+        .filter({ has: page.getByText(`실패 ${mixedAdmission.failed}`, { exact: true }) })
     : batches.first();
+  if (mixedAdmission) await expect(batch).toHaveCount(1, { timeout: 30_000 });
   await batch.getByRole("button", { name: "OMR 검토", exact: true }).click({ timeout: 30_000 });
   const scoresPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`;
   await expect(page).toHaveURL((url) => url.pathname === scoresPath);
@@ -2120,17 +2124,21 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       status: "needs_identification", identifier: "matched_duplicate",
     });
 
-    const replacementDetailResponse = page.waitForResponse((response) => matchesApiResponse(
-      response, "GET", `/submissions/submissions/${replacementId}/manual-edit/`,
-    ), { timeout: 30_000 });
-    const replacementReview = await openOmrReviewFromWorkbox(page, true);
-    await replacementReview.locator(".orw-list-row").filter({ hasText: "미식별 학생" }).click();
-    await replacementReview.getByRole("tab", { name: "원본", exact: true }).click();
-    await expectDecodedOmrScan(replacementReview);
-    const editTab = replacementReview.getByRole("tab", { name: "확인", exact: true });
-    await editTab.click();
-    await expect(editTab).toHaveAttribute("aria-selected", "true");
-    const detailResponse = await replacementDetailResponse;
+    const [detailResponse, replacementReview] = await Promise.all([
+      page.waitForResponse((response) => matchesApiResponse(
+        response, "GET", `/submissions/submissions/${replacementId}/manual-edit/`,
+      ), { timeout: 30_000 }),
+      (async () => {
+        const review = await openOmrReviewFromWorkbox(page, { total: 2, needsIdentification: 1, failed: 1 });
+        await review.locator(".orw-list-row").filter({ hasText: "미식별 학생" }).click();
+        await review.getByRole("tab", { name: "원본", exact: true }).click();
+        await expectDecodedOmrScan(review);
+        const editTab = review.getByRole("tab", { name: "확인", exact: true });
+        await editTab.click();
+        await expect(editTab).toHaveAttribute("aria-selected", "true");
+        return review;
+      })(),
+    ]);
     expect(detailResponse.status()).toBe(200);
     const replacementDetail = await detailResponse.json() as {
       submission_id: number; enrollment_id: number | null; submission_status: string;
