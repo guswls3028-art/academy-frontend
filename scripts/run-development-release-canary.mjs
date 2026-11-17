@@ -54,17 +54,20 @@ export const EXCEL_LEARNING_HOMEWORK_SPECS = Object.freeze([
   "student/student-parent-learning-realuse.spec.ts",
   "student/student-parent-homework-realuse.spec.ts",
 ]);
+export const VIDEO_MULTIPART_STORAGE_SPEC = "admin/video-multipart-storage-realuse.spec.ts";
+const VIDEO_MULTIPART_BYTES = 105906176;
+const VIDEO_MULTIPART_CASES = Object.freeze({ [path.basename(VIDEO_MULTIPART_STORAGE_SPEC)]: 1 });
 
 function observeDiagnosticScope(env) {
   const scope = env.ACADEMY_RELEASE_DIAGNOSTIC_SCOPE;
   if (scope === undefined || scope === "full-suite") return "full-suite";
-  return scope === "excel-learning-homework" ? scope : null;
+  return ["excel-learning-homework", "video-multipart-storage"].includes(scope) ? scope : null;
 }
 
 export function readDiagnosticScope(env = process.env) {
   const scope = observeDiagnosticScope(env);
   if (scope === null) throw new Error("Invalid development diagnostic scope");
-  if (scope === "excel-learning-homework" && !readDiagnosticFullSuiteMode(env)) {
+  if (scope !== "full-suite" && !readDiagnosticFullSuiteMode(env)) {
     throw new Error("Targeted development diagnostics require diagnostic mode");
   }
   return scope;
@@ -230,7 +233,8 @@ function initialPreflightEvidence(frontendSha, diagnosticOnly, diagnosticScope) 
     frontendSha: /^[a-f0-9]{40}$/.test(frontendSha || "") ? frontendSha : null,
     diagnosticOnly,
     diagnosticScope,
-    selectedSpecs: diagnosticScope === "excel-learning-homework" ? [...EXCEL_LEARNING_HOMEWORK_SPECS] : null,
+    selectedSpecs: diagnosticScope === "excel-learning-homework" ? [...EXCEL_LEARNING_HOMEWORK_SPECS]
+      : diagnosticScope === "video-multipart-storage" ? [VIDEO_MULTIPART_STORAGE_SPEC] : null,
     backendGovernanceSha: null, backendReleaseId: null, apiDigest: null, instanceId: null,
     tenantCode: null, artifactSha256: null, cases: null, documentSha256: {}, cleanup: null,
     crossTenantCleanup: null,
@@ -1042,6 +1046,57 @@ export function assertReleaseSummary(report, expected = FLOW_COUNTS) {
   return counts;
 }
 
+export function assertMultipartBrowserReport(report) {
+  const counts = assertReleaseSummary(report, VIDEO_MULTIPART_CASES);
+  const attachments = [];
+  const visit = (suite) => {
+    for (const spec of suite.specs || []) {
+      const file = String(spec.file || suite.file).replaceAll("\\", "/");
+      assert.ok(file === VIDEO_MULTIPART_STORAGE_SPEC || file.endsWith("/" + VIDEO_MULTIPART_STORAGE_SPEC));
+      const [test] = spec.tests;
+      assert.equal(test.projectName, "chromium");
+      attachments.push(...(test.results[0].attachments || []).filter((item) => item.name === "multipart-storage-browser"));
+    }
+    for (const child of suite.suites || []) visit(child);
+  };
+  visit(report);
+  assert.equal(attachments.length, 1, "Expected one multipart browser receipt");
+  const [{ body, contentType }] = attachments;
+  assert.equal(contentType, "application/json");
+  assert.ok(typeof body === "string" && body.length <= 2048, "Invalid multipart browser receipt encoding");
+  const value = JSON.parse(Buffer.from(body, "base64").toString("utf8"));
+  assert.deepEqual(Object.keys(value).sort(), ["ackLossCount", "completionStatus", "expectedBytes", "persistedStatus", "samePartRetried", "schema", "successfulPutCount", "uploadedPartCount"]);
+  assert.equal(value.schema, "development-video-multipart-browser/v2");
+  assert.equal(value.ackLossCount, 1);
+  assert.equal(value.samePartRetried, true);
+  assert.equal(value.successfulPutCount, 3);
+  assert.equal(value.uploadedPartCount, 2);
+  assert.equal(value.expectedBytes, VIDEO_MULTIPART_BYTES);
+  assert.ok([200, 503].includes(value.completionStatus));
+  assert.equal(value.persistedStatus, value.completionStatus === 200 ? "UPLOADED" : "FAILED");
+  return { counts, browser: value };
+}
+
+export function assertMultipartSetup(payload) {
+  const scope = payload?.synthetic_multipart_video;
+  assert.equal(payload?.status, "YMATH_REALUSE_SCENARIO_READY");
+  assert.equal(payload?.r2_scope_proven, true);
+  assert.ok(Number.isSafeInteger(scope?.session_id) && scope.session_id > 0, "Missing sealed multipart session");
+  assert.ok(Number.isSafeInteger(scope?.lecture_id) && scope.lecture_id > 0, "Missing sealed multipart lecture");
+  assert.deepEqual(scope, { session_id: scope.session_id, lecture_id: scope.lecture_id, objects: 0, uploads: 0 });
+  return scope;
+}
+
+export function assertMultipartReadback(payload, scope, browser) {
+  assert.ok(scope, "Missing multipart session seal");
+  const expected = browser ? {
+    session_id: scope.session_id, objects: 1, uploads: 0, content_length: VIDEO_MULTIPART_BYTES,
+    batch_submitted: false, status: browser.persistedStatus,
+  } : { session_id: scope.session_id, objects: 0, uploads: 0 };
+  assert.deepEqual(payload?.synthetic_multipart_video, expected, "Multipart readback did not match the sealed scenario");
+  return expected;
+}
+
 export function assertCleanup(payload, tenantCode, tenantId) {
   assert.equal(payload.tenant_code, tenantCode, "Wrong cleanup tenant");
   assert.equal(payload.tenant_id, tenantId, "Wrong cleanup tenant id");
@@ -1192,13 +1247,14 @@ export function artifactFingerprint(directory) {
 
 export function serveArtifact(directory, playbackBoundary, accountBoundary) {
   const playbackProxy = createPlaybackEndProxy(playbackBoundary);
-  const accountProbe = createAccountProbeHandler(accountBoundary);
+  const accountProbe = accountBoundary && createAccountProbeHandler(accountBoundary);
   const types = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json",
     ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".webp": "image/webp",
     ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".mp4": "video/mp4", ".vtt": "text/vtt; charset=utf-8" };
   const server = http.createServer((request, response) => {
     if (request.url?.startsWith("/__qa__/account-registration")) {
-      void accountProbe(request, response);
+      if (accountProbe) void accountProbe(request, response);
+      else response.writeHead(404).end();
       return;
     }
     if (request.url?.startsWith(PLAYBACK_END_PROXY_PATH) || request.url?.startsWith(PLAYBACK_V2_END_PROXY_PATH) || request.url?.startsWith(SCORE_EXIT_PROXY_PATH)) {
@@ -1426,7 +1482,11 @@ export async function run() {
     ReleaseId: [manifest.releaseImageTag], ApiDigest: [manifest.images["academy-api"].digest],
     SyntheticLongVideo: [syntheticLongVideo ? "true" : "false"],
   });
-  const common = ownerParameters(tenant, capability, true);
+  const multipartOnly = diagnosticScope === "video-multipart-storage";
+  const common = {
+    ...ownerParameters(tenant, capability, !multipartOnly),
+    ...(multipartOnly ? { SyntheticMultipartVideo: ["true"] } : {}),
+  };
   const crossCommon = ownerParameters(crossTenant, crossCapability, false);
   const sessions = new Set();
   const processes = [];
@@ -1496,6 +1556,7 @@ export async function run() {
   let realUseProcessObservation;
   let apiTunnelProcessObservation;
   let videoRuntimeObservation;
+  const multipartStorage = { setup: null, browser: null, inspect: null, cleanup: null, postCleanup: null };
   let scenario;
   let tests;
   let interrupted = false;
@@ -1525,6 +1586,7 @@ export async function run() {
       apiTunnelProcessObservation: apiTunnelProcessObservation || null,
       videoRuntimeObservation: videoRuntimeObservation || null,
       postPlaybackInspectObservation,
+      ...(multipartOnly ? { multipartStorage } : {}),
       terminalOutcome, diagnosticOnly, diagnosticScope, selectedSpecs, passed: passed && !diagnosticOnly, failures: errors });
     persistEvidence(evidence);
     return evidence;
@@ -1546,14 +1608,18 @@ export async function run() {
     scenario = await operation("Setup");
     assert.ok(Number.isSafeInteger(scenario.tenant_id) && scenario.tenant_id > 0, "Setup tenant_id must be a positive integer");
     assert.equal(scenarioTenantId, scenario.tenant_id, "Setup tenant id capture drift");
-    const crossInspected = await crossOperation("Inspect");
-    assert.equal(crossInspected.status, "DEVELOPMENT_QA_IDENTITY_PASS");
-    assert.deepEqual(crossInspected.remaining, { tenants: 0, users: 0 }, "Never reuse the cross-tenant QA tenant");
-    crossSetupAttempted = true;
-    const crossScenario = await crossOperation("Setup");
-    assert.ok(Number.isSafeInteger(crossScenario.tenant_id) && crossScenario.tenant_id > 0, "Cross Setup tenant_id must be a positive integer");
-    assert.equal(crossScenarioTenantId, crossScenario.tenant_id, "Cross Setup tenant id capture drift");
-    const longVideo = assertLongVideoSetup(scenario);
+    if (multipartOnly) {
+      multipartStorage.setup = assertMultipartSetup(scenario);
+    } else {
+      const crossInspected = await crossOperation("Inspect");
+      assert.equal(crossInspected.status, "DEVELOPMENT_QA_IDENTITY_PASS");
+      assert.deepEqual(crossInspected.remaining, { tenants: 0, users: 0 }, "Never reuse the cross-tenant QA tenant");
+      crossSetupAttempted = true;
+      const crossScenario = await crossOperation("Setup");
+      assert.ok(Number.isSafeInteger(crossScenario.tenant_id) && crossScenario.tenant_id > 0, "Cross Setup tenant_id must be a positive integer");
+      assert.equal(crossScenarioTenantId, crossScenario.tenant_id, "Cross Setup tenant id capture drift");
+    }
+    const longVideo = multipartOnly ? null : assertLongVideoSetup(scenario);
     const tunnel = session(PORT_DOCUMENT);
     void tunnel.done.then((result) => {
       apiTunnelProcessObservation = observeOwnedProcessResult(result);
@@ -1563,9 +1629,9 @@ export async function run() {
     const accountCapability = crypto.randomBytes(32).toString("hex");
     const accountScope = sha(JSON.stringify([tenant, scenario.tenant_id, manifest.releaseImageTag, manifest.images["academy-api"].digest]));
     server = await serveArtifact(path.join(bundle, "dist"), {
-      apiOrigin: API_ORIGIN, webOrigin: WEB_ORIGIN, tenantCodes: [tenant, crossTenant],
+      apiOrigin: API_ORIGIN, webOrigin: WEB_ORIGIN, tenantCodes: multipartOnly ? [tenant] : [tenant, crossTenant],
       onFailure: (code) => failures.push(`development native playback proxy failed [${code}]`),
-    }, {
+    }, multipartOnly ? undefined : {
       capability: accountCapability, tenantId: scenario.tenant_id, scope: accountScope,
       onFailure: (code) => failures.push(`development account probe failed [${code}]`),
       execute: async (input) => {
@@ -1585,13 +1651,15 @@ export async function run() {
       env: { ...process.env, E2E_BASE_URL: WEB_ORIGIN, E2E_API_URL: API_ORIGIN, API_BASE_URL: API_ORIGIN,
         E2E_RELEASE_API_MODE: "development", E2E_ALLOW_PRODUCTION_WRITES: "0", E2E_STRICT: "strict",
         E2E_STUDENT_PARENT_REALUSE: "1", E2E_ALLOW_REAL_ALIMTALK: "0",
-        E2E_ACCOUNT_PROBE_CAPABILITY: accountCapability,
+        E2E_ACCOUNT_PROBE_CAPABILITY: multipartOnly ? "" : accountCapability,
         E2E_TENANT_CODE: tenant, E2E_ADMIN_USER: "ymath-qa-teacher", E2E_STUDENT_USER: "ymath-qa-student-01",
-        E2E_CROSS_TENANT_CODE: crossTenant,
+        E2E_CROSS_TENANT_CODE: multipartOnly ? "" : crossTenant,
         E2E_STUDENT2_USER: "ymath-qa-student-02", E2E_LONG_VIDEO_TENANT_ID: String(scenario.tenant_id),
         E2E_OMR_R2_TENANT_ID: String(scenario.tenant_id),
-        E2E_LONG_VIDEO_ID: String(scenario.synthetic_long_video.video_id),
-        E2E_LONG_VIDEO_HLS_PATH: longVideo.hls_path,
+        E2E_LONG_VIDEO_ID: longVideo ? String(longVideo.video_id) : "",
+        E2E_LONG_VIDEO_HLS_PATH: longVideo?.hls_path || "",
+        E2E_VIDEO_MULTIPART_SESSION_ID: multipartOnly ? String(multipartStorage.setup.session_id) : undefined,
+        E2E_VIDEO_MULTIPART_LECTURE_ID: multipartOnly ? String(multipartStorage.setup.lecture_id) : undefined,
         E2E_ADMIN_PASS: secret.Parameter.Value, E2E_STUDENT_PASS: secret.Parameter.Value,
         E2E_STUDENT2_PASS: secret.Parameter.Value },
     }, REAL_USE_SUITE_TIMEOUT_MS);
@@ -1602,13 +1670,28 @@ export async function run() {
     realUseProcessObservation = observeOwnedProcessResult(result);
     realUseObservation = observeReleaseTestResult(result.stdout);
     assert.equal(result.code, 0, "Required development real-use failed (raw credential-bearing report is not published)");
-    counts = assertReleaseSummary(JSON.parse(result.stdout));
-    assertPublicVideoAvailability(realUseObservation);
-    assertClinicInteractionTimings(realUseObservation);
-    assert.ok(realUseObservation.longVideo, "Long-video browser evidence missing or invalid");
-    await server.closePlaybackProxy();
-    await operation("Inspect", scenario.tenant_id, "post-playback", longVideo.video_id);
-    videoRuntimeObservation = assertPostPlaybackInspect(postPlaybackInspectObservation);
+    if (multipartOnly) {
+      const receipt = assertMultipartBrowserReport(JSON.parse(result.stdout));
+      counts = receipt.counts;
+      multipartStorage.browser = receipt.browser;
+      await server.closePlaybackProxy();
+      const inspectedMultipart = await operation("Inspect", scenario.tenant_id, "post-multipart");
+      assert.equal(inspectedMultipart.status, "DEVELOPMENT_QA_IDENTITY_PASS");
+      assert.equal(inspectedMultipart.tenant_code, tenant);
+      assert.equal(inspectedMultipart.tenant_id, scenario.tenant_id);
+      assert.equal(inspectedMultipart.release_id, manifest.releaseImageTag);
+      assert.equal(inspectedMultipart.digest, manifest.images["academy-api"].digest);
+      assert.equal(inspectedMultipart.r2_scope_proven, true);
+      multipartStorage.inspect = assertMultipartReadback(inspectedMultipart, multipartStorage.setup, receipt.browser);
+    } else {
+      counts = assertReleaseSummary(JSON.parse(result.stdout));
+      assertPublicVideoAvailability(realUseObservation);
+      assertClinicInteractionTimings(realUseObservation);
+      assert.ok(realUseObservation.longVideo, "Long-video browser evidence missing or invalid");
+      await server.closePlaybackProxy();
+      await operation("Inspect", scenario.tenant_id, "post-playback", longVideo.video_id);
+      videoRuntimeObservation = assertPostPlaybackInspect(postPlaybackInspectObservation);
+    }
   } catch { primaryFailed = true; failures.push("development identity/setup/real-use failed"); }
   finally {
     finalizing = true;
@@ -1623,10 +1706,12 @@ export async function run() {
         try {
           cleanup = await operation("Cleanup", scenarioTenantId);
           assertCleanup(cleanup, tenant, scenarioTenantId);
+          if (multipartOnly) multipartStorage.cleanup = assertMultipartReadback(cleanup, multipartStorage.setup);
         } catch { failures.push("development cleanup failed or zero residue not proven"); }
         try {
           const postCleanup = await operation("Inspect", scenarioTenantId, "post-cleanup");
           postCleanupInspectObservation = assertPostCleanupInspect(postCleanup, tenant, scenarioTenantId, manifest);
+          if (multipartOnly) multipartStorage.postCleanup = assertMultipartReadback(postCleanup, multipartStorage.setup);
         } catch { failures.push("development post-cleanup Inspect failed or runtime residue not proven zero"); }
       }
     }
@@ -1679,12 +1764,15 @@ export async function run() {
     if (interrupted && !failures.some((failure) => failure.includes("interrupted"))) failures.push("development run interrupted; promotion forbidden");
     process.off("SIGINT", interrupt);
     process.off("SIGTERM", interrupt);
-    if (diagnosticOnly) failures.push("diagnostic full suite is non-promotable; normal release gate remains required");
+    const diagnosticPassed = multipartOnly && diagnosticOnly && failures.length === 0 && Boolean(counts)
+      && Boolean(postCleanupInspectObservation) && Object.values(multipartStorage).every(Boolean);
+    if (diagnosticOnly && !diagnosticPassed) failures.push("diagnostic full suite is non-promotable; normal release gate remains required");
     const passed = !diagnosticOnly && failures.length === 0 && Boolean(counts) && Boolean(cleanup)
       && Boolean(postCleanupInspectObservation) && Boolean(realUseObservation?.longVideo)
       && Boolean(videoRuntimeObservation) && Boolean(crossTenantCleanup)
       && Boolean(crossPostCleanupInspectObservation);
-    const resultEvidence = writeEvidence(passed, failures, passed ? "passed" : "qa_failed");
+    const resultEvidence = writeEvidence(passed, failures, diagnosticPassed ? "diagnostic_passed" : passed ? "passed" : "qa_failed");
+    if (diagnosticPassed) return;
     assert.equal(resultEvidence.passed, true, "Development release gate failed; see PII-free evidence");
   }
 }
