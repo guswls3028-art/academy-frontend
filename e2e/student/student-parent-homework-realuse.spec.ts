@@ -934,9 +934,12 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await loginThroughUi(page, student.ps_number, student.password);
     await gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 });
     const todo = page.locator("[data-guide='dash-todo']");
-    await expect(todo.getByText(homeworkTitle, { exact: true })).toBeVisible();
-    const scopedSubmission = `${QA_BASE}/student/submit/assignment?sessionId=${created.sessionId}&homeworkId=${created.homeworkId}`;
     const otherTitle = `QA 동명 강좌 과제 ${runStamp}`;
+    const pendingHomework = todo.getByRole("link", { name: /^과제 제출 필요 2건/ });
+    await expect(pendingHomework).toBeVisible();
+    await expect(pendingHomework).toContainText(homeworkTitle);
+    await expect(pendingHomework).toContainText(otherTitle);
+    const scopedSubmission = `${QA_BASE}/student/submit/assignment?sessionId=${created.sessionId}&homeworkId=${created.homeworkId}`;
     const otherDraftName = `qa-unsubmitted-other-session-${runStamp}.png`;
     const uploadPath = (homeworkId: number) => `/api/v1/submissions/submissions/homework/${homeworkId}/media/`;
     const targetList = page.locator("[data-guide='submit-target']");
@@ -1078,9 +1081,14 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
         (row) => row.submission_state === "awaiting_review" && row.score === null,
       );
       await gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 });
-      await expect(todo.getByText(homeworkTitle, { exact: true })).toHaveCount(0);
+      const remainingHomework = todo.getByRole("link", { name: /^과제 제출 필요 1건/ });
+      await expect(remainingHomework).toBeVisible();
+      await expect(remainingHomework).toContainText(otherTitle);
+      await expect(remainingHomework).not.toContainText(homeworkTitle);
       await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(todo.getByText(homeworkTitle, { exact: true })).toHaveCount(0);
+      await expect(remainingHomework).toBeVisible();
+      await expect(remainingHomework).toContainText(otherTitle);
+      await expect(remainingHomework).not.toContainText(homeworkTitle);
       await assertNoHorizontalOverflow(page);
       // Keep the assistant detail open: discovery must not depend on navigation
       // or manual reload after the student's successful submission.
