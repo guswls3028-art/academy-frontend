@@ -2,15 +2,17 @@
 /**
  * OMR 업로드/검토/재채점 실사용 canary.
  *
- * production-shaped development API로 격리 강의/차시/학생/혼합형 시험/OMR PDF를
+ * production-shaped development API로 격리 강의/차시/학생/혼합형 시험/OMR 스캔을
  * 만들고, 실제 업로드·AI worker·검토·서술형 수기 채점·재접속을 통과한 뒤
  * 학생/관리자 projection까지 확인한다.
  */
 import { test, expect } from "../fixtures/strictTest";
 import type { APIRequestContext, Locator, Page, Request, Response } from "@playwright/test";
 import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import { PDFDocument, rgb } from "pdf-lib";
 import { setTimeout as delay } from "node:timers/promises";
+import type { OmrUploadBatchSummary } from "../../src/shared/api/contracts/submissions";
 import { getApiBaseUrl, getBaseUrl, loginTokenViaRequest } from "../helpers/auth";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
 import { emitOmrCleanupStatus, safeLectureSessionDeleteBlocker } from "../helpers/releaseApiBoundary";
@@ -527,6 +529,28 @@ async function markThirtyQuestionOmrPdf(
   }
 
   return Buffer.from(await pdf.save());
+}
+
+async function renderOmrScanImage(markedPdf: Buffer): Promise<Buffer> {
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const standardFontDataUrl = createRequire(import.meta.url).resolve("pdfjs-dist/package.json")
+    .replaceAll("\\", "/").replace(/package\.json$/, "standard_fonts/");
+  const task = getDocument({ data: new Uint8Array(markedPdf), useSystemFonts: false, standardFontDataUrl });
+  try {
+    const document = await task.promise;
+    expect(document.numPages).toBe(1);
+    const page = await document.getPage(1);
+    const viewport = page.getViewport({ scale: 300 / 72 });
+    const surface = document.canvasFactory.create(Math.ceil(viewport.width), Math.ceil(viewport.height));
+    try {
+      await page.render({ canvas: surface.canvas, canvasContext: surface.context, viewport }).promise;
+      return surface.canvas.toBuffer("image/png");
+    } finally {
+      document.canvasFactory.destroy(surface);
+    }
+  } finally {
+    await task.destroy();
+  }
 }
 
 async function waitForOmrAnswers(
@@ -2038,8 +2062,8 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("link").filter({ hasText: EXAM_TITLE })).toContainText("서술형 1번");
 
-    // A changed PDF creates a new immutable scan event, then the teacher explicitly
-    // accepts it for the same sitting. Both scans remain tracked for cleanup.
+    // Send the changed scan as an image alongside a damaged camera file. Only the
+    // readable scan enters the worker, and both ordinals remain visible in the batch.
     const answers = [...EXPECTED_ANSWERS];
     answers[0] = "2";
     const replacementBubbles = await essayBubblesFromPreview(page, previewHtml, [
@@ -2048,24 +2072,37 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const markedPdf = await markThirtyQuestionOmrPdf(
       await downloadOmrPdf(request, adminAccess, created.examId!), answers, CONTROLLED_PHONE.slice(-8), replacementBubbles,
     );
+    const scanImage = await renderOmrScanImage(markedPdf);
     await loginBrowserAsRealUser(page,
       `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
       { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
     await page.getByRole("button", { name: "OMR 스캔 등록" }).click();
     const uploadDialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
-    await uploadDialog.locator(".admin-omr-upload input[type='file']").setInputFiles({
-      name: `omr-rescan-${TS}.pdf`, mimeType: "application/pdf", buffer: markedPdf,
-    });
+    await uploadDialog.locator(".admin-omr-upload input[type='file']").setInputFiles([
+      { name: `omr-rescan-${TS}.png`, mimeType: "image/png", buffer: scanImage },
+      { name: `omr-damaged-${TS}.jpg`, mimeType: "image/jpeg", buffer: Buffer.from("invalid image bytes") },
+    ]);
     const uploaded = page.waitForResponse((response) => response.request().method() === "POST"
       && response.url().includes(`/submissions/submissions/exams/${created.examId}/omr/batch/`),
     { timeout: 90_000 });
     await uploadDialog.getByRole("button", { name: "등록 시작", exact: true }).click();
     const uploadResponse = await uploaded;
     expect(uploadResponse.status()).toBe(201);
-    const uploadBody = await uploadResponse.json() as { submission_ids?: number[] };
+    const uploadBody = await uploadResponse.json() as OmrUploadBatchSummary & { submission_ids: number[] };
     expect(uploadBody.submission_ids).toHaveLength(1);
-    const replacementId = Number(uploadBody.submission_ids![0]);
+    const replacementId = uploadBody.submission_ids[0];
     created.submissionIds.push(replacementId);
+    expect(uploadBody.items?.find((item) => item.ordinal === 1)).toMatchObject({
+      admission_status: "received", submission_id: replacementId,
+    });
+    const batch = await expectApi<OmrUploadBatchSummary>(
+      request, "GET", `/submissions/submissions/omr/batches/${uploadBody.id}/`, adminAccess,
+    );
+    expect(batch.admission_failed_ordinals).toEqual([2]);
+    expect(batch.items?.find((item) => item.ordinal === 2)).toMatchObject({
+      admission_status: "failed", failure_code: "invalid_file_content", submission_id: null,
+    });
+    await expect(uploadDialog.getByRole("button", { name: "미접수 파일 다시 접수", exact: true })).toBeVisible();
     await uploadDialog.getByRole("button", { name: "닫기", exact: true }).click();
     const scan = await waitForOmrAnswers(request, adminAccess, replacementId, 30);
     expect(scan.answers.sort((a: any, b: any) => Number(a.question_no) - Number(b.question_no))[0].answer).toBe("2");
