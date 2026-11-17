@@ -943,6 +943,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     const otherDraftName = `qa-unsubmitted-other-session-${runStamp}.png`;
     const uploadPath = (homeworkId: number) => `/api/v1/submissions/submissions/homework/${homeworkId}/media/`;
     const targetList = page.locator("[data-guide='submit-target']");
+    const initialTarget = targetList.getByRole("button").filter({ has: page.getByText(homeworkTitle, { exact: true }) });
     const otherTarget = targetList.getByRole("button").filter({ has: page.getByText(otherTitle, { exact: true }) });
     const submissionSummary = page.locator('[class*="submitSummary"]');
     const allTargets = page.getByRole("link", { name: "전체 제출 대상 보기" });
@@ -1065,12 +1066,10 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await expect(submissionSummary).toContainText(homeworkTitle);
       expect(uploadRequests).toEqual([uploadPath(created.homeworkId!)]);
       page.off("request", observeUpload);
-      await expect(page.locator("[data-guide='submit-target'] button").filter({
-        has: page.getByText(homeworkTitle, { exact: true }),
-      })).toBeVisible();
+      await expect(initialTarget).toBeVisible();
       await assertNoHorizontalOverflow(page);
       await page.reload({ waitUntil: "domcontentloaded" });
-      await page.getByText(homeworkTitle, { exact: true }).click();
+      await initialTarget.click();
       await applyHomeworkPreviewCsp(page);
       await page.getByRole("region", { name: "이미 제출한 파일" }).getByRole("button", { name: "미리보기", exact: true }).click();
       await expect.poll(() => page.getByRole("img", { name: `${uploadName} 제출 파일` })
