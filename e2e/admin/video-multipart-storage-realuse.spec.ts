@@ -27,8 +27,15 @@ async function makeMultipartFixture(path: string): Promise<void> {
   freeBox.write("free", 4, "ascii");
   const file = await open(path, "wx");
   try {
-    await file.writeFile(Buffer.concat([syntheticVideo, freeBox]));
-    await file.truncate(sourceSize);
+    // Printable padding avoids Chrome escaping every zero in Playwright's intercepted request JSON.
+    const padding = Buffer.alloc(1024 * 1024, 0x41);
+    await file.writeFile((async function* () {
+      yield syntheticVideo;
+      yield freeBox;
+      for (let left = freeBoxSize - freeBox.length; left > 0; left -= padding.length) {
+        yield padding.subarray(0, Math.min(left, padding.length));
+      }
+    })());
   } finally {
     await file.close();
   }

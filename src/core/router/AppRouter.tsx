@@ -14,12 +14,17 @@ import {
   WORKSPACE_PATHS,
 } from "./workspaceRoutes";
 
-const StudentRouter = lazy(() => {
-  // Start the entry page and its router together on a cold home visit.
-  if (/^\/student(?:\/dashboard)?\/?$/i.test(window.location.pathname)) {
-    void import("@student/domains/dashboard/pages/DashboardPage").catch(() => undefined);
-  }
-  return import("@student/app/StudentRouter");
+const StudentRouter = lazy(async () => {
+  const routerModule = import("@student/app/StudentRouter");
+  if (!/^\/student(?:\/dashboard)?\/?$/i.test(window.location.pathname)) return routerModule;
+
+  // Resolve both cold home imports in one boundary so the ready home doesn't suspend again.
+  const [{ default: Router }, { default: Dashboard }] = await Promise.all([
+    routerModule,
+    import("@student/domains/dashboard/pages/DashboardPage"),
+  ]);
+  if (!Router || !Dashboard) throw new Error("LAZY_DEFAULT_UNDEFINED");
+  return { default: function StudentHomeRouter() { return <Router loadedDashboard={Dashboard} />; } };
 });
 const MobileWorkspaceRouter = lazy(() => import("@teacher/app/TeacherRouter"));
 import AuthRouter from "./AuthRouter";
