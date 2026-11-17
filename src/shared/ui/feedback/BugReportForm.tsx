@@ -99,8 +99,8 @@ export default function BugReportForm({ route, sentryEventId, onClose, onReload,
       </div>
       {error && <p role="alert">{error}</p>}
       <div className="error-recovery__actions">
-        <button type="submit" data-primary disabled={submitting || !description.trim()}>
-          <span role="status">{submitting ? "보내는 중…" : "제보 보내기"}</span>
+        <button type="submit" data-primary aria-busy={submitting} disabled={submitting || !description.trim()}>
+          {submitting ? "보내는 중…" : "제보 보내기"}
         </button>
         <button type="button" onClick={onClose} disabled={submitting}>닫기</button>
       </div>
