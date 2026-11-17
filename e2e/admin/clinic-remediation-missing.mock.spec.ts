@@ -598,7 +598,116 @@ test("미응시를 판정 대기로 구분하고 사유를 남겨 면제한 뒤 
   await expect(targetDialog.getByText("(이름 없음)", { exact: true })).toHaveCount(0);
 });
 
-test("유효한 클리닉 링크가 있어도 미응시 시험은 면제만 허용한다", async ({ page }) => {
+for (const width of [390, 1366]) {
+  test(`운영 콘솔에서 미응시 시험 점수를 저장하고 다시 확인한다 ${width}px`, async ({ page }, info) => {
+    await seed(page);
+    const { today, tomorrow } = currentClinicCountDates();
+    const routeData = createClinicCountFreshnessRouteData(today, tomorrow);
+    const [exam, homework] = remediationWorkbenchTargets;
+    const linked = width === 1366;
+    const score = linked ? 0 : 85.5;
+    const missing = {
+      ...exam,
+      reason: "missing",
+      meta_status: "NOT_SUBMITTED",
+      exam_score: null,
+      clinic_link_id: linked ? exam.clinic_link_id : null,
+      attempt_history: [],
+    };
+    const draftPath = "/results/admin/sessions/710/score-draft/";
+    const scorePath = "/results/admin/exams/810/enrollments/910/score/";
+    const writes: string[] = [];
+    let lockBusy = true;
+    let saved = false;
+    let editorClient: string | undefined;
+
+    await page.route("**/api/v1/**", async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const path = url.pathname.replace(/^\/api\/v1/, "");
+      const method = request.method();
+      const json = (body: unknown, status = 200) => route.fulfill({ status, json: body });
+
+      if (method === "OPTIONS") return route.fulfill({ status: 204 });
+      if (method !== "GET") writes.push(`${method} ${path}`);
+      if (path === draftPath && method === "PUT") {
+        if (lockBusy) return json({ detail: "같은 성적 셀을 다른 조교가 수정 중입니다.", code: "SCORE_EDIT_LOCKED" }, 409);
+        editorClient = request.headers()["x-score-editor-client"];
+        expect(editorClient).toBeTruthy();
+        expect(request.postDataJSON()).toMatchObject({
+          changes: [{ type: "examTotal", examId: 810, enrollmentId: 910, score, maxScore: 100 }],
+          take_over_same_user: false,
+        });
+        return json({ changes: [] });
+      }
+      if (path === scorePath && method === "PATCH") {
+        expect(request.headers()["x-score-session-id"]).toBe("710");
+        expect(request.headers()["x-score-editor-client"]).toBe(editorClient);
+        expect(request.postDataJSON()).toEqual({ score, max_score: 100 });
+        saved = true;
+        return json({ saved: true, total_score: score, progress: { dispatched: true } });
+      }
+      if (path === `${draftPath}commit/` && method === "POST") {
+        expect(request.headers()["x-score-editor-client"]).toBe(editorClient);
+        expect(request.postDataJSON()).toEqual({ release_lease: true });
+        return json({});
+      }
+      if (path === "/results/admin/clinic-targets/") {
+        if (!saved) return json([missing, homework]);
+        return json(linked ? [{ ...exam, exam_score: score }, homework] : [homework]);
+      }
+      if (path === "/clinic/participants/") {
+        const body = routeData.response(path, method, url.search) as { results: Array<Record<string, unknown>> };
+        return json({
+          count: 1, next: null, previous: null,
+          results: body.results.map((row) => ({ ...row, student: 310, student_name: "작업대 학생", enrollment_id: 910 })),
+        });
+      }
+      if (path === "/messaging/auto-send/") return json([]);
+      return json(routeData.response(path, method, url.search));
+    });
+
+    await page.setViewportSize({ width, height: 844 });
+    await gotoAndSettle(page, `${BASE}/workspace/clinic/operations`, { timeout: 45_000 });
+    const examCard = page.getByRole("button", { name: /작업대 학생 시험 기체 법칙 단원평가/ });
+    await examCard.click();
+    const drawer = page.getByRole("dialog", { name: "작업대 학생 클리닉 워크벤치", exact: true });
+    const input = drawer.getByRole("spinbutton", { name: "시험 점수" });
+    const save = drawer.getByRole("button", { name: "점수 저장", exact: true });
+    await expect(drawer.getByText("시험 미응시", { exact: true })).toBeVisible();
+    await expect(drawer.getByRole("button", { name: "면제", exact: true })).toBeVisible();
+    await expect(save).toBeDisabled();
+    await input.fill("101");
+    await save.click();
+    expect(writes).toEqual([]);
+    await input.fill(String(score));
+    await input.press("Enter");
+    await expect(page.getByText("같은 성적 셀을 다른 조교가 수정 중입니다.", { exact: true })).toBeVisible();
+    await expect(input).toHaveValue(String(score));
+    await expect(save).toBeEnabled();
+    await input.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: info.outputPath(`missing-exam-score-${width}.png`) });
+
+    lockBusy = false;
+    await save.click();
+    await expect(page.getByText("시험 점수를 저장했습니다.", { exact: true })).toBeVisible();
+    await expect(drawer.getByText("시험 미응시", { exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    if (linked) {
+      await examCard.click();
+      await expect(drawer.getByText("0점", { exact: true })).toBeVisible();
+    } else {
+      await expect(examCard).toHaveCount(0);
+      await expect(page.getByRole("button", { name: /작업대 학생 .*평형의 이동 복습/ })).toBeVisible();
+    }
+    expect(writes).toEqual([
+      `PUT ${draftPath}`, `PUT ${draftPath}`, `PATCH ${scorePath}`, `POST ${draftPath}commit/`,
+    ]);
+  });
+}
+
+test("미통과 정리에서 유효한 링크가 있는 미응시는 면제를 지원한다", async ({ page }) => {
   await seed(page);
 
   await page.route("**/api/v1/**", async (route: Route) => {
