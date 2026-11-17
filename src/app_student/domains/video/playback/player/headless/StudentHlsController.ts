@@ -658,10 +658,12 @@ export class StudentHlsController {
         this.setState({ ready: true });
       }
     } catch {
+      if (this.disposed || this.el !== el) return;
       if (this.opts.reviewStream) this.setState({ ready: true });
       else this.nativeRecovery.setSource(el, url);
     }
 
+    if (this.disposed || this.el !== el) return;
     this.bindVideoEvents();
     this.startIntervals();
     this.startDocListeners();
@@ -926,7 +928,7 @@ export class StudentHlsController {
         this.dispose();
         this.opts.onFatal?.(message);
       });
-      if (errorCode === 3 && this.nativeEngineRecovery === "idle") {
+      if ((errorCode === 3 || errorCode === 4) && this.nativeEngineRecovery === "idle") {
         void this.recoverNativePlayback().then((recovered) => {
           if (!recovered && !this.disposed) failNative();
         });
