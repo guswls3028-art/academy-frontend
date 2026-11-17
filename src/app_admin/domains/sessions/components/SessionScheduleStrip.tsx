@@ -5,7 +5,7 @@ import { ArrowRightLeft, CalendarDays, Pencil, Plus } from 'lucide-react';
 import { Button } from '@/shared/ui/ds';
 import { SESSION_SCHEDULE_DAY_LIMIT, sessionSchedulesKey, type SessionSchedule, type SessionSchedules } from '@/shared/api/contracts/sessionSchedules';
 import { feedback } from '@/shared/ui/feedback/feedback';
-import { SessionScheduleNavigationContext } from '@/shared/hooks/useSessionScheduleScope';
+import { SessionScheduleNavigationContext, type SessionScheduleAction, type SessionScheduleGuard } from '@/shared/hooks/useSessionScheduleScope';
 import { SessionScheduleControlsContext } from './sessionScheduleControlsContext';
 import SessionScheduleManager from './SessionScheduleManager';
 import SessionScheduleTransfer from './SessionScheduleTransfer';
@@ -24,7 +24,7 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
   const [editDayId, setEditDayId] = useState<string | null>(null);
   const [addRequest, setAddRequest] = useState(0);
   const [preparing, setPreparing] = useState(false);
-  const beforeChange = useRef<(() => Promise<boolean>) | undefined>(undefined);
+  const beforeChange = useRef<SessionScheduleGuard | undefined>(undefined);
   const navigating = useRef(false);
   const qc = useQueryClient();
   const data = query.data;
@@ -38,20 +38,20 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
     navigate(location, { replace: true, state: nextState });
   }, [location, navigate]);
 
-  const prepare = async (onReady: () => void) => {
-    const pathname = location.pathname;
+  const prepare = async (onReady: () => void, action: SessionScheduleAction = 'manage', pathname = location.pathname) => {
     if (navigating.current || window.location.pathname !== pathname) return;
     navigating.current = true;
     setPreparing(true);
     try {
-      const ready = await beforeChange.current?.() ?? true;
+      const ready = await beforeChange.current?.(action) ?? true;
       if (ready && window.location.pathname === pathname) onReady();
     } finally { navigating.current = false; setPreparing(false); }
   };
 
-  const openManager = (add = false, dayId = scope) => {
+  const openManager = (add = false, dayId?: string) => {
     void prepare(() => {
-      setEditDayId(add ? null : dayId);
+      const selectedDayId = dayId ?? new URLSearchParams(window.location.search).get('schedule');
+      setEditDayId(add ? null : selectedDayId);
       if (add) setAddRequest(request => request + 1);
       setOpen(true);
     });
@@ -59,13 +59,16 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
 
   const choose = async (value: string | null) => {
     const pathname = window.location.pathname;
-    if (pathname !== location.pathname || value === new URLSearchParams(window.location.search).get('schedule')) return;
+    const sessionPath = `/workspace/lectures/${lectureId}/sessions/${sessionId}/`;
+    const sameSessionTab = pathname.startsWith(sessionPath) && location.pathname.startsWith(sessionPath);
+    if (pathname !== location.pathname && !sameSessionTab) return;
+    if (value === new URLSearchParams(window.location.search).get('schedule')) return;
     await prepare(() => {
-      // Read the current URL after the score save guard completes.
+      // A tab's URL can commit before its content does. Keep the click on that tab.
       const next = new URLSearchParams(window.location.search);
       if (value === null) next.delete('schedule'); else next.set('schedule', value);
-      setParams(next);
-    });
+      navigate({ pathname, search: next.toString(), hash: window.location.hash });
+    }, 'view', pathname);
   };
 
   const saved = (value: SessionSchedules, destination?: SessionSchedule) => {

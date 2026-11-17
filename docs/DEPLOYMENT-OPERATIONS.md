@@ -1057,6 +1057,11 @@ exact artifact identity와 cleanup0을 요구한다. `public-video-1366.png`,
 출결 참조가 정리된 후 삭제한다. 차시 GET 404와 최종 tenant/user/R2/process
 cleanup 0 조건을 유지하며 운영의 출결/차시 삭제 보호 규칙을 완화하지 않는다.
 
+수업일 검증도 같은 평가 spec에서 검토된 `verifySessionSchedules.ts` 파일명·행·열과
+고정 단계만 남긴다. 단계는 초기 명단, 기본 일정·차시 생성, 관리자 출결·성적 범위,
+학생 날짜, 수업일 이동, 충돌·삭제, 정리다. 정리 실패는 별도로 기록하며,
+앞선 오류가 있으면 그 오류를 그대로 유지한다. 정리 실패 자체도 검증 실패다.
+
 OMR cleanup의 실제 실패 지점은 remove/verify-absent/archive-action/verify-archive
 단계와 기존 expected HTTP status 목록, received status만 기록한다(응답 없는 전송
 실패는 null). cross-tenant probe는 실제 받은 status와 `errorCode:null`만 기록하고

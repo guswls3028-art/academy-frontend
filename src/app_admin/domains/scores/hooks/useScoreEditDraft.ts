@@ -461,7 +461,8 @@ export function useScoreEditDraft({
     return true;
   }, [localDraftKey, panelRef]);
 
-  const restoreDraft = useCallback(async (): Promise<boolean> => {
+  const restoreDraft = useCallback(async (isReviewCurrent: () => boolean): Promise<boolean> => {
+    if (!isReviewCurrent()) return false;
     presencePausedRef.current = false;
     invalidatePresenceReads();
     const panel = panelRef.current;
@@ -474,12 +475,13 @@ export function useScoreEditDraft({
         activeCell: activeCellRef.current,
         takeOverSameUser: true,
       });
+      if (!isReviewCurrent() || panel !== panelRef.current) return false;
       setActiveEditors(data.active_editors);
       setEditLockConflict(false);
       setEditStaleConflict(false);
-      needsDraftCommitRef.current = restoreChanges.length > 0;
       if (restoreChanges.length > 0) {
-        panel?.applyDraftPatch?.(restoreChanges);
+        if (!panel?.applyDraftPatch(restoreChanges)) return false;
+        needsDraftCommitRef.current = true;
         setHasPendingChanges(true);
         setDraftStatus("dirty");
       }
@@ -644,6 +646,7 @@ export function useScoreEditDraft({
     isStartingEdit,
     retryRecoveryCheck,
     stageStaleRecovery,
+    restoreChanges: restoreChanges as readonly PendingChange[],
     restoreChangeCount,
     isDiscardingDraft,
     restoreDraft,
