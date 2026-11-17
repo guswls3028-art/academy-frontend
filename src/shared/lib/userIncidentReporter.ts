@@ -57,7 +57,7 @@ function reserveAutoReport(
 }
 
 export async function submitUserIncident(payload: UserIncidentPayload): Promise<void> {
-  await api.post(
+  const { data, status } = await api.post<{ incident_id: number }>(
     "/core/problem-reports/",
     {
       source: payload.source,
@@ -69,6 +69,9 @@ export async function submitUserIncident(payload: UserIncidentPayload): Promise<
     },
     { timeout: 10_000 },
   );
+  if (status !== 201 || !Number.isSafeInteger(data?.incident_id) || data.incident_id < 1) {
+    throw new Error("Invalid incident receipt");
+  }
 }
 
 export function reportClientException(

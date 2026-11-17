@@ -101,6 +101,7 @@ async function installStudentApi(page: Page, role: "student" | "parent" = "stude
   await page.addInitScript(() => localStorage.setItem("tenant_code", "godmin"));
   const access = `e30.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url")}.test`;
   const loginBodies: unknown[] = [];
+  const reportBodies: unknown[] = [];
   const studentScopes: string[] = [];
   const analyticsBodies: Array<{ events?: Array<{ event_id: string; event_type: string; view_id?: string }> }> = [];
   const notice = { id: 801, post_type: "notice", title: NOTICE_TITLE,
@@ -141,6 +142,10 @@ async function installStudentApi(page: Page, role: "student" | "parent" = "stude
       analyticsBodies.push(request.postDataJSON());
       return json({ accepted: true });
     }
+    if (path === "/core/problem-reports/" && request.method() === "POST") {
+      reportBodies.push(request.postDataJSON());
+      return json({ incident_id: 1 }, 201);
+    }
     if (path === "/student/dashboard/") return json({ notices: [notice], today_sessions: [], badges: {} });
     if (path === "/student/sessions/me/" || path === "/clinic/participants/" || path === "/community/posts/") return json([]);
     if (path === "/student/exams/") return json({ items: [] });
@@ -160,7 +165,7 @@ async function installStudentApi(page: Page, role: "student" | "parent" = "stude
     if (path === "/media/videos/public-session/") return json(null);
     return json({});
   });
-  return { loginBodies, analyticsBodies, access, studentScopes };
+  return { loginBodies, reportBodies, analyticsBodies, access, studentScopes };
 }
 
 async function login(page: Page, role: "student" | "parent" = "student") {
@@ -201,6 +206,32 @@ async function expectNoOverflow(page: Page) {
 
 test.use({ serviceWorkers: "block" });
 
+test.describe("legacy entry recovery", () => {
+  // The unavailable entry asset is intentional in this scenario.
+  test.use({ strictBrowserAutoAssert: false });
+
+  test("390px legacy fallback remains usable before the application starts", async ({ page }) => {
+    const appOrigin = new URL(BASE).origin;
+    await page.route("**/*", (route) => new URL(route.request().url()).origin === appOrigin
+      ? route.continue()
+      : route.abort());
+    await installLegacyRuntime(page, { ...profiles[0], width: 390 });
+    await installStudentApi(page);
+    await page.addInitScript(() => sessionStorage.setItem("hplus:entry_asset_reload_ts", String(Date.now())));
+    const legacyEntry = /\/assets\/index-legacy-[^/]+\.js(?:\?.*)?$/;
+    await page.route(legacyEntry, (route) => route.abort());
+
+    await page.goto(`${BASE}/login/godmin`, { waitUntil: "domcontentloaded" });
+    const fallback = page.getByRole("heading", { name: "화면을 불러오지 못했어요" });
+    await expect(fallback).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.unroute(legacyEntry);
+    await page.getByRole("button", { name: "다시 불러오기" }).click();
+    await expect(page.getByRole("button", { name: "로그인", exact: true })).toBeVisible();
+    await expect(fallback).toHaveCount(0);
+  });
+});
+
 for (const profile of profiles) {
   test(`${profile.name}: production legacy chunks support login, notice navigation and persisted reload`, async ({ page }) => {
     const { scriptRequests: scripts, stylesheetResponses } = await installLegacyRuntime(page, profile);
@@ -239,13 +270,14 @@ for (const profile of profiles) {
     })).toBe(api.access);
 
     // Static stylesheet conversion does not cover Ant Design's runtime styles.
-    // Open and edit the existing dialog, then cancel without submitting a report.
+    // Open the existing dialog and verify its shared report form on the legacy bundle.
     await page.getByRole("button", { name: "프로필 메뉴" }).click();
     await page.getByRole("button", { name: "문제 신고", exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: "문제 신고" });
+    const dialog = page.getByRole("dialog", { name: "버그 제보" });
     await expect(dialog).toBeVisible();
-    await dialog.getByRole("textbox").fill("구형 브라우저 입력 점검");
-    await expect(dialog.getByRole("textbox")).toHaveValue("구형 브라우저 입력 점검");
+    const description = dialog.getByRole("textbox", { name: "어떤 문제가 있었나요?" });
+    await description.fill("구형 브라우저 입력 점검");
+    await expect(description).toHaveValue("구형 브라우저 입력 점검");
     const modalStyles = await page.locator("style[data-css-hash]").allTextContents();
     const modalCss = modalStyles.filter((css) => css.includes(".ant-modal")).join("\n");
     expect(modalCss).not.toBe("");
@@ -257,6 +289,16 @@ for (const profile of profiles) {
     expect(mask?.width).toBe(profile.width);
     expect(mask?.height).toBe(profile.height);
     await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
+    expect(api.reportBodies).toEqual([]);
+    await page.getByRole("button", { name: "프로필 메뉴" }).click();
+    await page.getByRole("button", { name: "문제 신고", exact: true }).click();
+    await expect(description).toHaveValue("");
+    await description.fill("구형 브라우저 입력 점검");
+    await dialog.getByRole("button", { name: "제보 보내기" }).click();
+    await expect(dialog.getByRole("heading", { name: "버그 제보가 접수됐어요" })).toBeVisible();
+    expect(api.reportBodies).toEqual([expect.objectContaining({ source: "manual", message: "구형 브라우저 입력 점검" })]);
+    await dialog.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(dialog).not.toBeVisible();
 
     await expect.poll(() => api.analyticsBodies.length).toBeGreaterThan(0);

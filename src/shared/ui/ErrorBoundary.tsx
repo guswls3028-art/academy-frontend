@@ -5,7 +5,7 @@ import { hardReloadWithCacheBust } from "@/shared/utils/hardReload";
 import { isChunkLoadError } from "@/shared/utils/chunkLoadError";
 import { sanitizeObservabilityPath } from "@/shared/lib/sentryContext";
 import { reportClientException } from "@/shared/lib/userIncidentReporter";
-import styles from "./ErrorBoundary.module.css";
+import ErrorRecoveryScreen from "./ErrorRecoveryScreen";
 
 interface Props {
   children: ReactNode;
@@ -13,9 +13,8 @@ interface Props {
 
 interface State {
   hasError: boolean;
-  recurred: boolean;
   recovering: boolean;
-  errorMessage: string;
+  sentryEventId?: string;
 }
 
 /**
@@ -76,11 +75,11 @@ function scheduleChunkRecovery(): boolean {
 export default class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, recurred: false, recovering: false, errorMessage: "" };
+    this.state = { hasError: false, recovering: false };
   }
 
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, recurred: false, recovering: false, errorMessage: error?.message || "" };
+  static getDerivedStateFromError(): State {
+    return { hasError: true, recovering: false };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
@@ -107,9 +106,6 @@ export default class ErrorBoundary extends Component<Props, State> {
       info.componentStack,
     );
 
-    // 쿨다운 이내에 재발생 — 자동 복구 실패. 사용자에게 원본 정보 노출.
-    this.setState({ recurred: true });
-
     const eventId = Sentry.captureException(error, {
       tags: { recurred: "true", chunk: String(isChunk) },
       contexts: {
@@ -117,6 +113,7 @@ export default class ErrorBoundary extends Component<Props, State> {
         app: { url, tenantCode: tenantCode || "unknown" },
       },
     });
+    this.setState({ sentryEventId: eventId });
     reportClientException(error.name || "ReactError", {
       route: url,
       sentryEventId: eventId,
@@ -126,31 +123,13 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      const { recurred, recovering, errorMessage } = this.state;
       return (
-        <div className={styles.root}>
-          <p className={styles.message}>
-            {recovering
-              ? "새 버전을 반영 중입니다. 잠시 후 자동으로 다시 불러옵니다."
-              : "오류가 발생했습니다. 페이지를 새로고침해 주세요."}
-          </p>
-          {recurred && (
-            <p className={styles.hint}>
-              문제가 계속되면 관리자에게 문의해 주세요.
-            </p>
-          )}
-          <button
-            onClick={() => hardReloadWithCacheBust({ key: "manual_reload_ts", cooldownMs: 0 })}
-            className={styles.button}
-          >
-            새로고침
-          </button>
-          {recurred && errorMessage && (
-            <code className={styles.errorCode}>
-              {errorMessage}
-            </code>
-          )}
-        </div>
+        <ErrorRecoveryScreen
+          recovering={this.state.recovering}
+          route={window.location.pathname}
+          sentryEventId={this.state.sentryEventId}
+          onReload={() => hardReloadWithCacheBust({ key: "manual_reload_ts", cooldownMs: 0 })}
+        />
       );
     }
     return this.props.children;

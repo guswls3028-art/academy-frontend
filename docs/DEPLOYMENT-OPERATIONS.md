@@ -164,8 +164,9 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
 배포 교체 중 이전 앱 셸이 새 lazy JavaScript 또는 CSS asset을 가리키지 못하면
 `vite:preloadError`, window error/rejection, React ErrorBoundary가 같은
 `isChunkLoadError` 분류를 사용해 제한된 cache-bust reload를 수행한다.
-`Unable to preload CSS`도 배포 자산 경합으로 분류하며, 반복 상한 뒤에는 사용자에게
-일반화된 새로고침 안내만 남긴다. route-critical CSS는 외부 Google Fonts 같은
+`Unable to preload CSS`도 배포 자산 경합으로 분류하며, 반복 상한 뒤에는 공통 오류
+카드에서 다시 불러오기와 [버그 제보](DEV-INBOX-GUIDE.md#화면-오류에서-바로-제보)를 제공한다.
+route-critical CSS는 외부 Google Fonts 같은
 CSP 차단 의존성을 두지 않는다.
 
 운영 build에서는 `ErrorBoundary`가 이 복구를 직접 소유한다. 개발자용
