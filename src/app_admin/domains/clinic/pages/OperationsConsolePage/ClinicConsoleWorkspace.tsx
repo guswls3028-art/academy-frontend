@@ -59,7 +59,7 @@ import {
 } from "../../api/clinicParticipants.api";
 import { fetchClinicAvailability, fetchClinicSessions } from "../../api/clinicSessions.api";
 import { ClinicActualTimePicker } from "@/shared/ui/clinic/ClinicActualTimePicker";
-import type { ClinicTarget } from "../../api/clinicTargets";
+import { fetchClinicTargets, type ClinicTarget } from "../../api/clinicTargets";
 import { getCutlineLabel } from "../BookingsPage/remediationFormatters";
 import { useClinicTargets } from "../../hooks/useClinicTargets";
 import { useResolveClinicLink } from "../../hooks/useResolveClinicLink";
@@ -70,6 +70,9 @@ import {
   submitClinicRetake,
 } from "../../api/clinicLinks.api";
 import { fetchAdminExam, updateAdminExam } from "@admin/domains/exams/api/adminExam";
+import { patchExamTotalScoreQuick } from "@admin/domains/scores/public/patchExamTotalQuick";
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
+import { runWithScoreEditLease } from "@/shared/scoring/scoreEditLease";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useAutoSendConfig } from "@admin/domains/messages/hooks/useAutoSendConfig";
@@ -80,6 +83,7 @@ import ClinicStaffBookingTimeModal from "../../components/ClinicStaffBookingTime
 import ClinicBulkReminderDialog from "../../components/ClinicBulkReminderDialog";
 import { Button } from "@/shared/ui/ds";
 import ClinicManualHomeworkCompleteDialog from "../../components/ClinicManualHomeworkCompleteDialog";
+import ClinicMissingExamScoreForm from "../../components/ClinicMissingExamScoreForm";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { hhmmText } from "@/shared/ui/time/timeFormat";
 import { clinicQueryKeys } from "../../queryKeys";
@@ -88,6 +92,7 @@ import {
   canWaiveMissingExamWithoutLink,
   clinicTargetKey,
   completeManualHomework,
+  isExplicitMissingExam,
   isMissingExamTarget,
   isPositiveClinicIdentifier,
   requiresManualHomeworkCompletion,
@@ -443,6 +448,8 @@ export default function ClinicConsoleWorkspace({
   const [completeTarget, setCompleteTarget] = useState<ClinicTarget | null>(null);
   const [waiveTarget, setWaiveTarget] = useState<ClinicTarget | null>(null);
   const [waivingTargetKey, setWaivingTargetKey] = useState<string | null>(null);
+  const [savingMissingExamKey, setSavingMissingExamKey] = useState<string | null>(null);
+  const savingMissingExamRef = useRef(false);
 
   const {
     configs: autoSendConfigs,
@@ -1248,7 +1255,55 @@ export default function ClinicConsoleWorkspace({
     }
   }
 
+  async function handleMissingExamScore(target: ClinicTarget, score: number) {
+    if (!isExplicitMissingExam(target) || savingMissingExamRef.current || waivingTargetKey) return;
+
+    const { session_id: sessionId, exam_id: examId, enrollment_id: enrollmentId, max_score: maxScore } = target;
+    const targetKey = clinicTargetKey(target);
+    savingMissingExamRef.current = true;
+    setSavingMissingExamKey(targetKey);
+    const outcome = { saved: false, progressPending: false };
+    try {
+      await runWithScoreEditLease(sessionId, async () => {
+        const currentTargets = await fetchClinicTargets();
+        const stillMissing = currentTargets.some((current) =>
+          isExplicitMissingExam(current) &&
+          current.session_id === sessionId &&
+          current.exam_id === examId &&
+          current.enrollment_id === enrollmentId &&
+          clinicTargetKey(current) === targetKey,
+        );
+        if (!stillMissing) {
+          void clinicTargetsQuery.refetch();
+          throw new Error("시험 상태가 바뀌었습니다. 새로 불러온 항목을 확인해 주세요.");
+        }
+        const result = await patchExamTotalScoreQuick({ sessionId, examId, enrollmentId, score, maxScore });
+        if (result?.saved !== true) throw new Error("점수 저장을 확인하지 못했습니다.");
+        outcome.saved = true;
+        outcome.progressPending = result.progress?.dispatched === false;
+      }, { changes: [{ type: "examTotal", examId, enrollmentId, score, maxScore: maxScore ?? null }] });
+    } catch (error) {
+      if (!outcome.saved) {
+        feedback.error(extractApiError(error, "점수를 저장하지 못했습니다. 다시 시도해 주세요."));
+      }
+    } finally {
+      if (outcome.saved) {
+        const refreshed = await clinicTargetsQuery.refetch();
+        void qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
+        void qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+        if (outcome.progressPending || refreshed.isError) {
+          feedback.warning("점수는 저장했습니다. 클리닉 상태는 목록을 다시 불러와 확인해 주세요.");
+        } else {
+          feedback.success("시험 점수를 저장했습니다.");
+        }
+      }
+      savingMissingExamRef.current = false;
+      setSavingMissingExamKey(null);
+    }
+  }
+
   async function handleMissingExamWaive(target: ClinicTarget, memo: string) {
+    if (savingMissingExamRef.current) return;
     const targetKey = clinicTargetKey(target);
     const linkId = isPositiveClinicIdentifier(target.clinic_link_id)
       ? target.clinic_link_id
@@ -2720,7 +2775,7 @@ export default function ClinicConsoleWorkspace({
                             {activeDrawerTargetIsPlanned ? "오늘 할 일로 선택됨" : "오늘은 이 항목 처리"}
                           </button>
                         ) : (
-                          <span className="clinic-ops__drawer-empty">면제 전에는 오늘 할 일로 지정할 수 없습니다.</span>
+                          <span className="clinic-ops__drawer-empty">아직 오늘 할 일로 지정할 수 없는 항목입니다.</span>
                         )}
 
                         {/* Exam score */}
@@ -2787,6 +2842,15 @@ export default function ClinicConsoleWorkspace({
                               </div>
                             </div>
                           )}
+
+                        {isExplicitMissingExam(t) && (
+                          <ClinicMissingExamScoreForm
+                            maxScore={t.max_score}
+                            saving={savingMissingExamKey === clinicTargetKey(t)}
+                            disabled={savingMissingExamKey != null || waivingTargetKey != null}
+                            onSave={(score) => handleMissingExamScore(t, score)}
+                          />
+                        )}
 
                         {!t.resolved_at && clinicLinkId != null && !isMissingExamTarget(t) && (
                           <div className="clinic-workbench__score-entry">
@@ -2895,7 +2959,7 @@ export default function ClinicConsoleWorkspace({
                               <button
                                 type="button"
                                 className="clinic-ops__remediation-btn clinic-ops__remediation-btn--waive"
-                                disabled={waivingTargetKey === clinicTargetKey(t)}
+                                disabled={waivingTargetKey === clinicTargetKey(t) || savingMissingExamKey != null}
                                 onClick={() => setWaiveTarget(t)}
                               >
                                 <Ban size={16} aria-hidden />
