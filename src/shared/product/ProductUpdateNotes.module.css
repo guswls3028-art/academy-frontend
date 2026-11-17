@@ -1,4 +1,3 @@
-.trigger,
 .close {
   display: inline-flex;
   align-items: center;
@@ -8,37 +7,10 @@
   cursor: pointer;
 }
 
-.trigger {
-  position: relative;
-  flex: 0 0 auto;
-  min-width: 44px;
-  min-height: 44px;
-  gap: 6px;
-  padding: 0 10px;
-  border: 1px solid var(--tc-border, var(--color-border, currentColor));
-  border-radius: 10px;
-  background: transparent;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.unread {
-  position: absolute;
-  inset-block-start: 5px;
-  inset-inline-end: 5px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--color-primary, #4f46e5);
-}
-
-.trigger:hover,
 .close:hover {
   background: color-mix(in srgb, currentColor 8%, transparent);
 }
 
-.trigger:focus-visible,
 .close:focus-visible,
 .dialogBody:focus-visible,
 .previous summary:focus-visible {
@@ -176,12 +148,6 @@
 @keyframes reveal {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-@media (max-width: 600px) {
-  .triggerLabel {
-    display: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

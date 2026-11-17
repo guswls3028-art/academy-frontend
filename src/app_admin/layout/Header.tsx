@@ -46,7 +46,7 @@ import CommonLogoIcon from "@/auth/assets/CommonLogoIcon";
 import { useTheme } from "@/shared/contexts/ThemeContext";
 import { getThemeMeta } from "@/shared/theme/themes";
 import { GuideBookLauncher, getGuideBookPreset } from "@/shared/ui/guide";
-import { ProductUpdateLauncher } from "@/shared/product/ProductUpdateLauncher";
+import { useProductUpdateAwareness } from "@/shared/product/useProductUpdateAwareness";
 
 const NoticeOverlay = lazy(() => import("@admin/domains/notice/overlays/NoticeOverlay"));
 const ADMIN_GUIDE_BOOK = getGuideBookPreset("admin");
@@ -146,6 +146,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
   const meQ = useQuery({ queryKey: accountQueryKeys.me, queryFn: fetchMe });
   const me = meQ.data;
   const { clearAuth, user } = useAuth();
+  const productUpdate = useProductUpdateAwareness(user?.id);
 
   const [openNotice, setOpenNotice] = useState(false);
   const [alarmDropdownOpen, setAlarmDropdownOpen] = useState(false);
@@ -544,7 +545,6 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
               />
           </ProfileDropdown>
 
-          <ProductUpdateLauncher userId={user?.id} />
           <GuideBookLauncher
             preset={ADMIN_GUIDE_BOOK}
             tone="admin"
@@ -552,6 +552,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
             iconSize={ICON_FOR_BUTTON.lg}
             ariaLabel="가이드북"
             onNavigate={nav}
+            productUpdate={productUpdate}
             supportAction={{
               label: "문제 신고",
               onClick: () => document.dispatchEvent(new Event("ui:bugreport:open")),
