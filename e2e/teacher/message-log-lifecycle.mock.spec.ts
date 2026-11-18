@@ -170,7 +170,10 @@ for (const role of ["teacher", "staff"] as const) for (const width of [1366, 390
     await expect(page.getByRole("link", { name: "010-0000-0003", exact: true })).toHaveCount(1);
     await expect(page.getByText("DO_NOT_DISPLAY_PRIVATE_BODY", { exact: true })).toHaveCount(0);
     await expect(page.getByText("DO_NOT_DISPLAY_PROVIDER_ID", { exact: true })).toHaveCount(0);
-    await page.screenshot({ path: testInfo.outputPath("message-log-lifecycle.png"), fullPage: true });
+    await testInfo.attach(`message-log-lifecycle-${role}-${width}`, {
+      body: await page.screenshot({ path: testInfo.outputPath("message-log-lifecycle.png"), fullPage: true, animations: "disabled" }),
+      contentType: "image/png",
+    });
     for (const [status, label] of [["provider_accepted", "공급사 접수"], ["failed", "최종 전달 실패"], ["unavailable", "최종 상태 확인 불가"]] as const) {
       observed.finalStatus = status;
       const before = observed.detail;
