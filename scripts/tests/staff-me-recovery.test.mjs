@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { harness, token, settle } from './helpers/playback-lifecycle-harness.mjs';
 
-const required = { is_owner: true, is_payroll_manager: true, owner_setup_required: true };
-const ready = { is_owner: true, is_payroll_manager: true, owner_setup_required: false, staff_id: 101 };
+const required = { is_authenticated: true, is_superuser: false, is_staff: true,
+  is_owner: true, is_payroll_manager: true, owner_setup_required: true };
+const ready = { ...required, owner_setup_required: false, staff_id: 101 };
 const fetcher = h => h.load('src/shared/staff/api.ts').fetchStaffMe;
 function barrier() {
   let release;
@@ -101,6 +102,29 @@ test('a session switch queued immediately before POST prevents its dispatch', as
   assert.equal(writes(h).length, 0);
 });
 
+test('completed identity read cannot be delivered after a queued tenant switch', async () => {
+  const h = harness({ respond: () => ({ status: 200, body: ready }) });
+  const originalGet = h.api.get.bind(h.api);
+  h.api.get = (...args) => originalGet(...args).then(response => {
+    h.setTenant('another-tenant');
+    return response;
+  });
+  await assert.rejects(fetcher(h)(), error => error.code === 'ERR_CANCELED');
+  assert.equal(writes(h).length, 0);
+});
+
+test('completed owner setup cannot be delivered after a queued tenant switch', async () => {
+  const h = harness({ respond: record => ({ status: 200,
+    body: record.body === null ? required : ready }) });
+  const originalPost = h.api.post.bind(h.api);
+  h.api.post = (...args) => originalPost(...args).then(response => {
+    queueMicrotask(() => queueMicrotask(() => h.setTenant('another-tenant')));
+    return response;
+  });
+  await assert.rejects(fetcher(h)(), error => error.code === 'ERR_CANCELED');
+  assert.equal(writes(h).length, 1);
+});
+
 test('late setup response cannot become another account identity', async () => {
   const posted = barrier(), finish = barrier();
   const h = harness({ respond: async record => {
@@ -127,6 +151,20 @@ test('malformed setup success preserves known permissions and never claims ready
   assert.equal(row.staff_id, undefined);
 });
 
+for (const missingField of ['is_payroll_manager', 'owner_setup_required', 'is_staff']) {
+  test(`setup missing ${missingField} cannot erase successful identity permissions`, async () => {
+    const malformed = { ...ready };
+    delete malformed[missingField];
+    const h = harness({ respond: record => ({ status: 200,
+      body: record.body === null ? required : malformed }) });
+    const row = await fetcher(h)();
+    assert.equal(row.ownerSetupError, 'retry');
+    assert.equal(row.is_payroll_manager, true);
+    assert.equal(row.owner_setup_required, true);
+    assert.equal(row.staff_id, undefined);
+  });
+}
+
 test('ambiguous stored staff preserves payroll access and reports the conflict', async () => {
   const h = harness({ respond: record => ({ status: record.body === null ? 200 : 409,
     body: record.body === null ? required : { detail: 'synthetic ambiguous staff' } }) });
@@ -148,10 +186,13 @@ for (const change of [
   { url: '/staffs/me/', method: 'post', skipAuth: true },
 ]) {
   test(`staff continuation stays limited to authenticated me GET/POST: ${JSON.stringify(change)}`, async () => {
-    const h = harness();
-    await assert.rejects(h.api.request({ ...change,
-      staffIdentityScope: h.exports.captureStaffIdentityScope() }), error => error.code === 'ERR_CANCELED');
-    assert.equal(h.requests.length, 0);
+    const h = harness({ respond: () => ({ status: 200, body: required }) });
+    h.api.interceptors.request.use(config => {
+      if (config.method === 'post') Object.assign(config, change);
+      return config;
+    });
+    await assert.rejects(fetcher(h)(), error => error.code === 'ERR_CANCELED');
+    assert.equal(writes(h).length, 0);
   });
 }
 

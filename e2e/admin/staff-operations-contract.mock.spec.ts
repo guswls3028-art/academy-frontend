@@ -3075,14 +3075,14 @@ test.describe("직원 운영 계약", () => {
 
 test.describe("원장 직원 정보 자동 복구", () => {
   for (const width of [1366, 390]) {
-    for (const initiallyInvalid of [false, true]) {
-      test(`누락 정보 연결·저장·재진입${initiallyInvalid ? " 실패 복구" : ""} ${width}px`, async ({ page }) => {
+    for (const initiallyInvalid of [false, "staff_id", "permission"] as const) {
+      test(`누락 정보 연결·저장·재진입${initiallyInvalid ? ` ${initiallyInvalid} 실패 복구` : ""} ${width}px`, async ({ page }) => {
         await page.setViewportSize({ width, height: 900 });
         await seedAuth(page);
         await installWorkspaceReadApiStubs(page);
         await mockStaffApi(page);
         let prepared = false;
-        let invalid = initiallyInvalid;
+        let invalid: false | "staff_id" | "permission" = initiallyInvalid;
         let setupPosts = 0;
         await page.route("**/api/v1/staffs/me/", async route => {
           const request = route.request();
@@ -3100,7 +3100,8 @@ test.describe("원장 직원 정보 자동 복구", () => {
           if (request.method() !== "POST") return route.fallback();
           expect(request.postDataJSON()).toEqual({});
           setupPosts++;
-          if (invalid) return route.fulfill({ json: { ...snapshot, owner_setup_required: false } });
+          if (invalid) return route.fulfill({ json: { ...snapshot, owner_setup_required: false,
+            ...(invalid === "permission" ? { staff_id: 1, is_payroll_manager: undefined } : {}) } });
           prepared = true;
           return route.fulfill({ json: { ...snapshot, owner_setup_required: false,
             staff_id: 1, default_work_type_id: 21 } });
