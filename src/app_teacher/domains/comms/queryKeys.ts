@@ -2,6 +2,7 @@
 import { teacherMessageAutoSendQueryKey, teacherMessageTemplatesQueryKey } from "@/shared/notifications/messageTemplateQueryKey";
 
 export const teacherCommsQueryKeys = {
+  withViewerScope: (key: readonly unknown[], viewerScope: readonly unknown[]) => [...key, ...viewerScope] as const,
   posts: ["teacher-comms"] as const,
   postsList: (tab: string, searchQuery: string) => ["teacher-comms", tab, searchQuery] as const,
   registrationRequests: ["teacher-registration-requests"] as const,

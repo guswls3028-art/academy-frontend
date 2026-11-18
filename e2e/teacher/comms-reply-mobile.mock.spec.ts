@@ -561,21 +561,39 @@ test.describe("선생님 가입 정책과 대기 업무 경계", () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
-  test("자가 가입 사용 학원은 대시보드 CTA에서 실제 처리 탭으로 이동한다", async ({ page }) => {
-    await page.setViewportSize({ width: 1366, height: 900 });
-    await installRegistrationPolicyMocks(page, { registrationStatus: 200 });
+  for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 }]) {
+    test(`자가 가입 사용 학원은 대시보드에서 전체 연락처를 확인한다 (${viewport.width}px)`, async ({ page }, testInfo) => {
+      await page.setViewportSize(viewport);
+      await installRegistrationPolicyMocks(page, { registrationStatus: 200 });
 
-    await page.goto(`${BASE}/workspace/mobile`, { waitUntil: "load", timeout: 20_000 });
-    await expect(page.getByRole("heading", { name: "가입 신청 학생 1건" })).toBeVisible();
-    await page.getByRole("button", { name: "처리 필요 처리하러 가기" }).click();
+      await page.goto(`${BASE}/workspace/mobile`, { waitUntil: "load", timeout: 20_000 });
+      await expect(page.getByRole("heading", { name: "가입 신청 학생 1건" })).toBeVisible();
+      await page.getByRole("button", { name: "처리 필요 처리하러 가기" }).click();
 
-    await expect(page).toHaveURL(/\/workspace\/mobile\/comms\?tab=requests$/);
-    await expect(page.getByText("과거 가입 요청", { exact: true })).toBeVisible();
-    await page.getByText("과거 가입 요청", { exact: true }).click();
-    await expect(page.getByRole("button", { name: "승인", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "거절", exact: true })).toBeVisible();
-    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  });
+      await expect(page).toHaveURL(/\/workspace\/mobile\/comms\?tab=requests$/);
+      await page.getByText("과거 가입 요청", { exact: true }).click();
+      const detail = page.getByRole("dialog", { name: "등록요청 상세" });
+      await detail.getByRole("button", { name: "승인", exact: true }).click({ trial: true });
+      await detail.getByRole("button", { name: "거절", exact: true }).click({ trial: true });
+      await expect(detail.getByText("연락처", { exact: true })).toBeInViewport({ ratio: 1 });
+      await expect(detail.getByText("학부모 연락처", { exact: true })).toBeInViewport({ ratio: 1 });
+      await expect(detail.getByText("010-0000-0001", { exact: true })).toBeInViewport({ ratio: 1 });
+      await expect(detail.getByText("010-0000-0002", { exact: true })).toBeInViewport({ ratio: 1 });
+      await expect(detail.getByRole("link", { name: "010-0000-0001", exact: true })).toHaveAttribute("href", "tel:01000000001");
+      await expect(detail.getByRole("link", { name: "010-0000-0002", exact: true })).toHaveAttribute("href", "tel:01000000002");
+      await expect.poll(() => detail.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath(`registration-full-contacts-${viewport.width}.png`), animations: "disabled" });
+      await page.evaluate(() => {
+        const key = "academy:auth-active-generation:v1";
+        const oldValue = localStorage.getItem(key);
+        localStorage.setItem(key, "qa-registration-other-account");
+        window.dispatchEvent(new StorageEvent("storage", { key, oldValue, newValue: "qa-registration-other-account" }));
+      });
+      await expect(page).toHaveURL(/\/login(?:\/|\?|$)/);
+      await expect(page.getByText(/010-0000-0001|010-0000-0002/)).toHaveCount(0);
+    });
+  }
 
   test("가입 신청 설정은 조회 성공 전 변경할 수 없고 재시도 뒤에만 열린다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });

@@ -21,6 +21,7 @@ const logs = [
     status: "sent",
     amount_deducted: "0.00",
     recipient_summary: "최정원 0109****",
+    current_recipient_phone: "01000000003",
     template_summary: "가입 안내(학생)",
     notification_type: "registration_approved_student",
     message_mode: "alimtalk",
@@ -41,6 +42,7 @@ const logs = [
     status: "ambiguous",
     amount_deducted: "0.00",
     recipient_summary: "김민서 0108****",
+    current_recipient_phone: "01000000004",
     template_summary: "클리닉 예약 안내",
     notification_type: "clinic_reservation_created",
     message_mode: "alimtalk",
@@ -278,6 +280,7 @@ test.describe("알림톡 발송 기록 UX", () => {
     await page.getByRole("button", { name: /최정원/ }).click();
     const dialog = page.getByRole("dialog").last();
     await expect(dialog.getByText("알림톡 발송 기록", { exact: true })).toBeVisible();
+    await expect(dialog.getByRole("link", { name: "010-0000-0003", exact: true })).toHaveAttribute("href", "tel:01000000003");
     await expect(dialog.getByRole("region", { name: "카카오 알림톡 미리보기" })).toBeVisible();
     await expect(dialog.getByText("우리 학원 알림톡", { exact: true })).toBeVisible();
     await expect(dialog.getByText(/보안을 위해 본문을 저장하지 않았습니다/)).toBeVisible();
@@ -312,6 +315,7 @@ test.describe("알림톡 발송 기록 UX", () => {
     await page.getByRole("button", { name: /김민서/ }).click();
     const dialog = page.getByRole("dialog").last();
     await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("link", { name: "010-0000-0004", exact: true })).toHaveAttribute("href", "tel:01000000004");
     const box = await dialog.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.x).toBeGreaterThanOrEqual(-1);
