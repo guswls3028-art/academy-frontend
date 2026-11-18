@@ -1,5 +1,6 @@
 import { expect, test } from "../fixtures/strictTest";
 import type { Page } from "@playwright/test";
+import { syntheticLongVideoAsset } from "../../scripts/run-development-release-canary.mjs";
 import { guardUnmockedYouTubeRequests, installYouTubeSdkFixture } from "../helpers/youtubeSdkFixture";
 import {
   assertYoutubeReadyPlayPause, installStudentYoutubeScenario, openStudentYoutubeScenario,
@@ -25,6 +26,16 @@ function fakeJwt(): string {
     user_id: 1772,
   })).toString("base64url");
   return `e30.${payload}.sig`;
+}
+
+async function useHlsJsPlayback(page: Page): Promise<void> {
+  // HTTP status assertions use the Hls.js transport. Native recovery is tested separately.
+  await page.addInitScript(() => {
+    const canPlayType = HTMLMediaElement.prototype.canPlayType;
+    HTMLMediaElement.prototype.canPlayType = function (type) {
+      return /mpegurl/i.test(type) ? "" : canPlayType.call(this, type);
+    };
+  });
 }
 
 async function cycleDocumentVisibility(page: Page): Promise<void> {
@@ -126,6 +137,7 @@ test.describe("student video CDN service errors", () => {
   });
 
   test("CDN 403을 학생 인터넷 문제로 안내하지 않고 새 재생 URL을 요청한다", async ({ page }) => {
+    await useHlsJsPlayback(page);
     const video = {
       id: 562,
       session_id: 394,
@@ -160,6 +172,10 @@ test.describe("student video CDN service errors", () => {
         contentType: "text/plain",
         body: "invalid signature",
       });
+    });
+    await page.route("**/__qa__/video-long/**", (route) => {
+      const asset = syntheticLongVideoAsset(new URL(route.request().url()).pathname);
+      return route.fulfill({ body: asset.body, contentType: asset.contentType });
     });
 
     await page.route("**/api/v1/**", async (route) => {
@@ -200,8 +216,13 @@ test.describe("student video CDN service errors", () => {
         expect(route.request().method()).toBe("POST");
         playbackRequests += 1;
         return json({
-          video,
-          play_url: "https://cdn.hakwonplus.com/e2e/master.m3u8?exp=1&sig=invalid&kid=v1&uid=1772",
+          video: { ...video, last_position: 42 },
+          play_url: playbackRequests === 1
+            ? "https://cdn.hakwonplus.com/e2e/master.m3u8?exp=1&sig=invalid&kid=v1&uid=1772"
+            : `${BASE}/__qa__/video-long/master.m3u8`,
+          playback_token: `synthetic-cdn-retry-token-${playbackRequests}`,
+          playback_session_id: null,
+          playback_expires_at: Math.floor(Date.now() / 1000) + 600,
           policy_version: 1,
           policy: {
             access_mode: "FREE_REVIEW",
@@ -226,7 +247,7 @@ test.describe("student video CDN service errors", () => {
     );
 
     await expect(page.getByRole("heading", { name: "재생을 시작할 수 없어요" })).toBeVisible();
-    await expect(page.getByText("영상 서비스에서 재생 파일을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.")).toBeVisible();
+    await expect(page.getByText("영상 서비스 인증에 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.")).toBeVisible();
     await expect(page.getByText(/인터넷.*확인|새로고침/)).toHaveCount(0);
 
     const storageState = await page.evaluate(() => ({
@@ -239,7 +260,17 @@ test.describe("student video CDN service errors", () => {
     expect(storageState.otherUser).toBe("777");
 
     await page.getByRole("button", { name: "다시 시도" }).click();
-    await expect.poll(() => playbackRequests).toBeGreaterThanOrEqual(2);
+    await expect.poll(() => playbackRequests).toBe(2);
+    await expect(page.getByRole("heading", { name: video.title })).toBeVisible();
+    const player = page.locator("video");
+    await expect.poll(() => player.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThanOrEqual(42);
+    const resumedAt = await player.evaluate((el: HTMLVideoElement) => el.currentTime);
+    expect(resumedAt).toBeLessThan(43);
+    await page.locator("button.svpBigPlay").click();
+    await expect.poll(() => player.evaluate((el: HTMLVideoElement) => el.paused)).toBe(false);
+    await expect.poll(() => player.evaluate((el: HTMLVideoElement) => el.currentTime))
+      .toBeGreaterThan(resumedAt + 1);
+    expect(playbackRequests).toBe(2);
   });
 
   test("열린 무료복습 영상도 강의 종료 access check 403에서 즉시 닫는다", async ({ page }) => {
@@ -1135,6 +1166,7 @@ test.describe("student video access races on desktop", () => {
   });
 
   test("지연된 A 수동 재시도 성공은 B CDN 403 종료 상태를 해제하지 않는다", async ({ page }) => {
+    await useHlsJsPlayback(page);
     let aPlaybackRequests = 0;
     let aAccessChecks = 0;
     let bPlaybackRequests = 0;
@@ -1298,7 +1330,7 @@ test.describe("student video access races on desktop", () => {
       window.history.pushState({}, "", "/student/video/play?video=563&enrollment=1304&session=394");
       window.dispatchEvent(new PopStateEvent("popstate", { state: window.history.state }));
     });
-    await expect(page.getByText("영상 서비스에서 재생 파일을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.")).toBeVisible();
+    await expect(page.getByText("영상 서비스 인증에 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.")).toBeVisible();
     await expect(page.getByText("수동 재시도 중 권한 종료 영상 B")).toHaveCount(0);
     await expect.poll(() => bCdnRequests).toBe(1);
     const deniedRequestCounts = { bPlaybackRequests, bAccessChecks, bCdnRequests };
@@ -1307,7 +1339,7 @@ test.describe("student video access races on desktop", () => {
     await Promise.all([aPlaybackRetryResponse, aAccessRetryResponse]);
     await page.evaluate(() => new Promise<void>((resolve) => window.setTimeout(resolve, 500)));
 
-    await expect(page.getByText("영상 서비스에서 재생 파일을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.")).toBeVisible();
+    await expect(page.getByText("영상 서비스 인증에 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.")).toBeVisible();
     await expect(page.getByText("수동 재시도 중 권한 종료 영상 B")).toHaveCount(0);
     expect({ bPlaybackRequests, bAccessChecks, bCdnRequests }).toEqual(deniedRequestCounts);
   });
@@ -1514,6 +1546,7 @@ test.describe("student video access races on desktop", () => {
   });
 
   test("재시도 playback v2가 access v2보다 먼저 와도 한 번에 복구한다", async ({ page }) => {
+    await useHlsJsPlayback(page);
     const unexpectedYouTubeRequests = await guardUnmockedYouTubeRequests(page);
     const youtube = await installYouTubeSdkFixture(page);
     let playbackRequests = 0;
@@ -1660,7 +1693,7 @@ test.describe("student video access races on desktop", () => {
       `${BASE}/student/video/play?video=562&enrollment=1304&session=394`,
       { waitUntil: "domcontentloaded", timeout: 30_000 },
     );
-    await expect(page.getByText("영상 서비스에서 재생 파일을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.")).toBeVisible();
+    await expect(page.getByText("영상 서비스 인증에 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.")).toBeVisible();
     await expect.poll(() => ({ playbackRequests, accessChecks, expiredCdnRequests })).toEqual({
       playbackRequests: 1,
       accessChecks: 1,

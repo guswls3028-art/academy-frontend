@@ -130,6 +130,29 @@ test('native HLS restores playback after a network error and saves the resumed p
   assert.equal(saved.at(-1)?.last_position, 124);
 });
 
+test('a late HLS import failure cannot reinitialize a disposed player', async () => {
+  const h = harness();
+  const controller = h.controller('hls', 'student-fixture', {
+    playUrl: 'https://unit.invalid/master.m3u8', policy: { monitoring_enabled: false },
+  });
+  const el = Object.assign(new EventTarget(), {
+    src: null, currentTime: 0, duration: NaN, canPlayType: () => '',
+    pause() {}, load() {},
+    getAttribute() { return this.src; },
+    removeAttribute() { this.src = null; },
+  });
+
+  // The harness rejects its unmocked hls.js import on the next microtask.
+  const attaching = controller.attach(el);
+  controller.dispose();
+  await attaching;
+
+  assert.equal(el.src, null);
+  assert.equal(controller.videoListeners.length, 0);
+  assert.equal(controller.docCleanups.length, 0);
+  assert.equal(controller.intervals.length, 0);
+});
+
 test('a native source error that clears media metadata does not erase the saved playhead', async () => {
   const h = harness();
   const saved = [];
@@ -152,6 +175,7 @@ test('a native source error that clears media metadata does not erase the saved 
   el.dispatchEvent(new Event('timeupdate'));
   Object.assign(el, { currentTime: 0, duration: NaN, error: { code: 4 } });
   el.dispatchEvent(new Event('error'));
+  await settle();
   assert.equal(errors.length, 1);
   controller.dispose();
   assert.equal(saved.at(-1)?.last_position, 123);
