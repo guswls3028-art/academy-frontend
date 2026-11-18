@@ -2,6 +2,7 @@
 // Submission API contract
 
 import api, { createAuthSessionBoundConfig } from "@/shared/api/axios";
+import type { components } from "@/shared/api/generated/schema";
 import { readAuthTokenEnvelopeSafely } from "@/shared/auth/tokenSession";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 
@@ -343,7 +344,7 @@ export async function retrySubmissionApi(submissionId: number): Promise<unknown>
 }
 
 export async function manualEditSubmissionApi(
-  input: SubmissionManualEditInput & { allowDuplicate?: boolean },
+  input: SubmissionManualEditInput & { allowDuplicate?: boolean; sessionId?: number },
 ): Promise<SubmissionManualEditResult> {
   const sid = Number(input.submissionId);
   if (!Number.isFinite(sid) || sid <= 0) {
@@ -361,6 +362,7 @@ export async function manualEditSubmissionApi(
     identifier: input.identifier ?? null,
     answers,
     note: String(input.note || "manual_edit"),
+    ...(input.sessionId === undefined ? {} : { session_id: input.sessionId }),
     ...(input.expectedEditRevision === undefined ? {} : { expected_edit_revision: input.expectedEditRevision }),
     ...(input.resumeAbsence === true ? { resume_absence: true } : {}),
   };
@@ -436,6 +438,7 @@ export async function initializeOmrUploadBatchApi(input: {
   examId: number;
   totalCount: number;
   sessionId?: number | null;
+  clientRequestId: string;
 }): Promise<OmrUploadBatchSummary> {
   const examId = Number(input.examId);
   const totalCount = Number(input.totalCount);
@@ -443,13 +446,12 @@ export async function initializeOmrUploadBatchApi(input: {
   if (!Number.isInteger(totalCount) || totalCount < 1 || totalCount > 100) {
     throw new Error("totalCount must be between 1 and 100");
   }
-  const res = await api.post(
-    `/submissions/submissions/exams/${examId}/omr/batches/`,
-    {
-      total_count: totalCount,
-      ...(input.sessionId != null ? { session_id: Number(input.sessionId) } : {}),
-    },
-  );
+  const payload: components["schemas"]["OmrUploadBatchInitializeRequestRequest"] = {
+    total_count: totalCount,
+    client_request_id: input.clientRequestId,
+    ...(input.sessionId != null ? { session_id: Number(input.sessionId) } : {}),
+  };
+  const res = await api.post(`/submissions/submissions/exams/${examId}/omr/batches/`, payload);
   return res.data as OmrUploadBatchSummary;
 }
 

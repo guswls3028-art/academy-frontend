@@ -1,14 +1,16 @@
 // PATH: src/app_admin/domains/lectures/layout/LectureLayout.tsx
 import { Outlet, useParams, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
-import { Trophy, Users } from "lucide-react";
+import { lazy, Suspense, useMemo, useState } from "react";
+import { Settings, Trophy, Users } from "lucide-react";
 import api from "@/shared/api/axios";
 import { DomainLayout } from "@/shared/ui/layout";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import SessionBlock from "@admin/domains/sessions/components/SessionBlock";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { adminLectureQueryKeys } from "./queryKeys";
+
+const LectureCreateModal = lazy(() => import("./components/LectureCreateModal"));
 
 function safeStr(v: unknown) {
   return typeof v === "string" ? v : v == null ? "" : String(v);
@@ -20,6 +22,7 @@ export default function LectureLayout() {
   const { sectionMode } = useSectionMode();
   const lectureIdNum = Number(lectureId);
   const hasValidLectureId = Number.isFinite(lectureIdNum);
+  const [settingsLectureId, setSettingsLectureId] = useState<number | null>(null);
 
   const lectureQ = useQuery({
     queryKey: adminLectureQueryKeys.lecture(hasValidLectureId ? lectureIdNum : null),
@@ -70,6 +73,11 @@ export default function LectureLayout() {
           반 편성
         </Button>
       )}
+      {lecture && lecture.is_active !== false && (
+        <Button intent="secondary" size="sm" onClick={() => setSettingsLectureId(lectureIdNum)} leftIcon={<Settings size={14} aria-hidden />}>
+          강의 설정
+        </Button>
+      )}
     </>
   );
 
@@ -108,6 +116,11 @@ export default function LectureLayout() {
     <DomainLayout title={title} description={desc} breadcrumbs={breadcrumbs} headerActions={headerActions}>
       <SessionBlock lectureId={lectureIdNum} />
       <Outlet />
+      {settingsLectureId === lectureIdNum && (
+        <Suspense fallback={null}>
+          <LectureCreateModal isOpen lectureId={lectureIdNum} onClose={() => setSettingsLectureId(null)} />
+        </Suspense>
+      )}
     </DomainLayout>
   );
 }

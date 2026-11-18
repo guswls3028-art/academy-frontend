@@ -1,1 +1,1 @@
-export { buildScoreCsv } from "../utils/scoreCsvGenerator";
+export { buildScoreCsv, downloadScoreCsv } from "../utils/scoreCsvGenerator";

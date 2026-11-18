@@ -22,7 +22,7 @@ type Evidence = {
   mutationPaths: string[];
 };
 
-async function installApp(page: Page): Promise<Evidence> {
+async function installApp(page: Page, hlsUrl?: string): Promise<Evidence> {
   const evidence: Evidence = {
     studentSearches: 0,
     grantBodies: [],
@@ -72,6 +72,7 @@ async function installApp(page: Page): Promise<Evidence> {
           title: "2학기 중간고사 해설",
           status: "READY",
           source_type: "file",
+          hls_url: hlsUrl,
           duration: 600,
           created_at: "2026-08-29T20:00:00+09:00",
           view_count: 0,
@@ -205,6 +206,37 @@ async function expectRevokeCtaLayout(page: Page, direct: Locator): Promise<void>
 
 test.use({ serviceWorkers: "block" });
 test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
+
+test("영상 상세를 닫으면 브라우저 기본 미리보기의 소스를 해제한다", async ({ page }) => {
+  const hlsUrl = `${BASE.replace(/\/$/, "")}/e2e/admin-preview/master.m3u8`;
+  await installApp(page, hlsUrl);
+  await page.addInitScript(() => {
+    const canPlayType = HTMLMediaElement.prototype.canPlayType;
+    HTMLMediaElement.prototype.canPlayType = function (type) {
+      return type === "application/vnd.apple.mpegurl" ? "probably" : canPlayType.call(this, type);
+    };
+  });
+  await page.route(hlsUrl, (route) => route.fulfill({
+    contentType: "application/vnd.apple.mpegurl",
+    body: "#EXTM3U\n#EXT-X-TARGETDURATION:4\n#EXT-X-ENDLIST\n",
+  }));
+
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await gotoAndSettle(page, `${BASE}/workspace/videos/tree?videoId=901&lectureId=701&sessionId=801`);
+    const dialog = page.getByRole("dialog", { name: "영상 상세" });
+    const video = dialog.locator("video");
+    await expect(video).toBeVisible();
+    await expect(video).toHaveAttribute("src", hlsUrl);
+    const original = await video.elementHandle();
+    await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect.poll(() => original?.evaluate((element) => ({
+      src: element.getAttribute("src"),
+      paused: element.paused,
+    }))).toEqual({ src: null, paused: true });
+  }
+});
 
 test("검토 확인창은 취소에 시작하고 Escape와 취소 후 진입 버튼으로 복귀한다", async ({ page }) => {
   const evidence = await installApp(page);

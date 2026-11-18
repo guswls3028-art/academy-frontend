@@ -248,7 +248,7 @@ for (const width of [390, 1366]) {
     await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
     const results = page.getByRole("region", { name: "시험 학생별 결과", exact: true });
-    const priority = page.getByRole("region", { name: "보충 우선 문항", exact: true });
+    const priority = page.getByRole("region", { name: "문항별 정답률", exact: true });
     try {
       await expect(results).toContainText("김학생");
       await expect(priority).toContainText("문항 통계를 불러오는 중");
@@ -424,7 +424,7 @@ for (const width of [390, 1366]) {
       });
       const openResults = async () => {
         await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
-        await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+        await page.getByRole("tab", { name: "채점·결과", exact: true }).click({ timeout: 45_000 });
       };
       await openResults();
       const scope = page.getByRole("group", { name: "성적 조회 강의 필터" });
@@ -433,6 +433,7 @@ for (const width of [390, 1366]) {
       const statistics = page.locator("details").filter({ has: page.locator("summary", { hasText: "전체 문항 통계 보기" }) });
       await expect(statistics).toContainText("0.0점");
       if (source === "오프라인 답안") {
+        await page.locator("summary").filter({ hasText: "답안 없는 시험 대상자" }).click();
         await page.getByRole("button", { name: "김학생 · 답안 입력" }).click();
         const editor = page.getByRole("region", { name: "김학생 오프라인 답안 입력" });
         await expect(editor.getByRole("button", { name: "채점 미리보기" })).toBeEnabled();
@@ -510,13 +511,19 @@ for (const width of [390, 1366]) {
     }] }));
     const openResults = async () => {
       await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
-      await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+      await page.getByRole("tab", { name: "채점·결과", exact: true }).click({ timeout: 45_000 });
     };
     await openResults();
     const entry = page.getByRole("region", { name: "주관식·서술형 채점 안내" });
-    await expect(entry).toContainText("합계 점수만 입력하면 문항별 정답률은 계산되지 않습니다.");
+    const gradingGuide = entry.locator("summary").filter({ hasText: "채점 안내" });
+    const explanation = entry.getByText("문항별 점수를 입력하면 정답률을 계산합니다.", { exact: false });
+    await expect(gradingGuide).toBeVisible();
+    await expect(explanation).toBeHidden();
+    await gradingGuide.click();
+    await expect(explanation).toBeVisible();
+    await gradingGuide.click();
     if (initialMode === "choice") {
-      await expect(entry).toContainText("서술형 1문항이 있지만 현재 OMR 자동 채점만 켜져 있습니다.");
+      await expect(entry).toContainText("서술형 1문항 · 채점 설정 필요");
       await entry.getByRole("button", { name: "서술형 채점 켜고 입력하기" }).click();
       if (conflictOnSetup) {
         await expect(entry.getByRole("alert")).toContainText("다른 화면에서 설정이 바뀌었습니다.");
@@ -615,6 +622,10 @@ async function openGradingWithExcel(page: Page, method: "score" | "correctness")
   const grid = page.locator("[data-manual-grading-workspace]");
   const row = grid.locator("tbody tr").filter({ hasText: "김학생" });
   const excel = page.getByRole("region", { name: "엑셀로 채점 결과 넣기", exact: true });
+  const toggle = page.locator("summary").filter({ hasText: "엑셀로 채점 결과 넣기" });
+  await expect(toggle).toBeVisible({ timeout: 45_000 });
+  await expect(excel).toBeHidden();
+  await toggle.click();
   await excel.locator('input[type="file"]').setInputFiles({
     name: "문항별채점.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     buffer: Buffer.from("synthetic backend-owned result import fixture"),
@@ -651,6 +662,7 @@ for (const width of [390, 1366]) {
     await expect(firstScore).toHaveValue("0");
     await expect(row.getByRole("spinbutton", { name: /60점 만점 점수/ })).toHaveValue("60");
     await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(grid).toBeVisible({ timeout: 45_000 });
     await expect(firstScore).toHaveValue("0");
     await expect(row.getByRole("spinbutton", { name: /60점 만점 점수/ })).toHaveValue("60");
     expect(apiState.excelApplyStates).toHaveLength(1);
@@ -977,7 +989,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     );
     const created = {
       expectedVersion: null,
-      isNotSubmitted: false,
+      isNotSubmitted: options.resultRows?.some((row) => row.enrollment_id === enrollmentId && row.result_status === "NOT_SUBMITTED") ?? false,
       cells,
     };
     persistedRows.set(enrollmentId, created);
@@ -1194,7 +1206,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
       return;
     }
     if (path === `/submissions/submissions/exams/${EXAM_ID}/candidates/` && method === "GET") {
-      await json([{
+      const candidates = [{
         enrollment_id: ENROLLMENT_ID,
         student_name: "박서연",
         student_phone_last4: "3333",
@@ -1203,7 +1215,8 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         lecture_color: "#2563eb",
         lecture_chip_label: "수2",
         already_matched: false,
-      }]);
+      }];
+      await json(url.searchParams.has("session_id") ? { session_id: SESSION_ID, candidates } : candidates);
       return;
     }
     if (path === "/submissions/submissions/omr/batches/" && method === "GET") {
@@ -1795,6 +1808,30 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         next: null,
         previous: null,
         results: options.resultRows ?? [],
+      });
+      return;
+    }
+    if (path === `/results/admin/exams/${EXAM_ID}/analysis-insights/`) {
+      const count = options.resultRows?.length ?? 0;
+      await json({
+        recommended_cutoff: null,
+        below_recommended_count: null,
+        scored_count: count,
+        score_summary: {
+          average: 80,
+          median: 80,
+          top_ten_average: 80,
+          highest: 80,
+          std_dev: 0,
+          std_rate: 0,
+          unscored_count: 0,
+          pass_criterion_count: count,
+          pass_count: count,
+          remediated_count: 0,
+          distribution_counts: [0, 0, 0, count, 0],
+        },
+        trend_threshold_pp: 10,
+        trends: [],
       });
       return;
     }
@@ -2695,13 +2732,16 @@ test.describe("문항별 직접 채점", () => {
       { waitUntil: "domcontentloaded" },
     );
 
-    await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({ timeout: 45_000 });
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
     await expect(page.getByRole("heading", { name: "정오 직접입력", exact: true })).toBeVisible();
 
-    const excelImport = page.locator('section[aria-labelledby="exam-result-excel-title"]');
-    await expect(excelImport).toContainText("기존 엑셀 양식의 숫자 0도 오답노트로 읽습니다.");
+    const excelToggle = page.locator("summary").filter({ hasText: "엑셀로 채점 결과 넣기" });
+    await excelToggle.click();
+    const excelImport = page.getByRole("region", { name: "엑셀로 채점 결과 넣기", exact: true });
+    await expect(excelImport.getByText(/오답노트·노트·복습 또는 기존 숫자 0/)).toBeVisible();
     await expect(excelImport).not.toContainText("Ymath");
+    await excelToggle.click();
 
     await page.getByRole("button", { name: "배점 빠른 입력", exact: true }).click();
     const weightList = page.getByRole("textbox", { name: "문항 배점 빠른 입력" });
@@ -2814,13 +2854,30 @@ test.describe("문항별 직접 채점", () => {
   test("OMR 없는 학생의 답안을 미리 채점한 뒤 한 번에 확정한다", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1100, height: 800 });
     const apiState = await installApi(page, { gradingMode: "choice", editable: false, resultRows: [] });
+    let attendanceStatus = "ONLINE";
+    let rosterReads = 0;
+    await page.route("**/lectures/attendance/?**", (route) => {
+      const params = new URL(route.request().url()).searchParams;
+      if (params.get("ordering") !== "name") return route.fallback();
+      expect(params.get("session")).toBe(String(SESSION_ID));
+      rosterReads += 1;
+      return route.fulfill({ json: {
+        count: 1, next: null, results: [{ id: 1, enrollment_id: ENROLLMENT_ID, status: attendanceStatus }],
+      } });
+    });
     await gotoAndSettle(page,
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
       { timeout: 60_000 });
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
 
     const missing = page.getByRole("region", { name: "답안 없는 시험 대상자" });
-    await expect(missing).toContainText("1명");
+    const missingToggle = page.locator("summary").filter({ hasText: "답안 없는 시험 대상자" });
+    await expect(missingToggle).toContainText("1명");
+    await expect(missing).toBeHidden();
+    expect(rosterReads).toBe(0);
+    await missingToggle.click();
+    await expect(missing).toContainText("출결 영상");
+    await expect(missing).toContainText("답안 미등록");
     await missing.getByRole("button", { name: "김학생 · 답안 입력" }).click();
     const editor = page.getByRole("region", { name: "김학생 오프라인 답안 입력" });
     await expect(editor).toBeVisible();
@@ -2834,10 +2891,13 @@ test.describe("문항별 직접 채점", () => {
     await editor.screenshot({ path: testInfo.outputPath("offline-answer-desktop.png") });
 
     await page.setViewportSize({ width: 390, height: 844 });
+    attendanceStatus = "INACTIVE";
     await gotoAndSettle(page,
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
       { timeout: 60_000 });
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await missingToggle.click();
+    await expect(missing).toContainText("출결 부재");
     await missing.getByRole("button", { name: "김학생 · 답안 입력" }).click();
     expect((await editor.boundingBox())?.width).toBeGreaterThanOrEqual(380);
     expect((await editor.getByRole("heading", { name: "김학생 · 오프라인 답안 입력" }).boundingBox())?.y).toBeGreaterThanOrEqual(56);
@@ -2853,7 +2913,7 @@ test.describe("문항별 직접 채점", () => {
     await expect.poll(() => apiState.offlineAnswerWrites.filter((write) => write.apply).length).toBe(1);
     expect(apiState.offlineAnswerWrites.find((write) => write.apply)?.preview_token).toBe("offline-preview-v1");
     await expect(page.getByRole("region", { name: "시험 학생별 결과" })).toContainText("김학생");
-    await expect(missing).toContainText("0명");
+    await expect(missingToggle).toContainText("0명");
   });
 
   test("결시로 기록된 학생도 늦은 오프라인 답안을 입력할 수 있다", async ({ page }) => {
@@ -2861,12 +2921,19 @@ test.describe("문항별 직접 채점", () => {
       enrollment_id: ENROLLMENT_ID, student_name: "김학생", result_status: "NOT_SUBMITTED",
       meta_status: "NOT_SUBMITTED", final_score: null, ranking_score: null,
     }] });
+    await page.route("**/lectures/attendance/?**", (route) => route.fulfill({ json: {
+      count: 0, next: null, results: [],
+    } }));
     await gotoAndSettle(page,
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
       { timeout: 60_000 });
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
     const missing = page.getByRole("region", { name: "답안 없는 시험 대상자" });
-    await expect(missing).toContainText("1명");
+    const missingToggle = page.locator("summary").filter({ hasText: "답안 없는 시험 대상자" });
+    await expect(missingToggle).toContainText("1명");
+    await missingToggle.click();
+    await expect(missing).toContainText("결시 처리");
+    await expect(missing).toContainText("이 차시 출결 기록 없음");
     await missing.getByRole("button", { name: "김학생 · 답안 입력" }).click();
     await expect(page.getByRole("region", { name: "김학생 오프라인 답안 입력" })).toBeVisible();
   });
@@ -2927,11 +2994,19 @@ test.describe("문항별 직접 채점", () => {
         },
       ],
     });
+    await page.route(`**/results/admin/exams/${EXAM_ID}/enrollments/${ENROLLMENT_ID}/`, (route) => route.fulfill({ json: {
+      enrollment_id: ENROLLMENT_ID, total_score: 20, max_score: 100, attempt_id: 1,
+      items: [{
+        question_id: QUESTION_IDS[0], question_number: 1, answer: "4",
+        score: 20, max_score: 40, is_correct: false,
+      }],
+    } }));
     await gotoAndSettle(
       page,
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
       { timeout: 60_000 },
     );
+    await page.setViewportSize({ width: 1600, height: 900 });
     await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
 
     const resultRegion = page.getByRole("region", { name: "시험 학생별 결과" });
@@ -2942,7 +3017,18 @@ test.describe("문항별 직접 채점", () => {
     await expect(resultRows.nth(0)).toContainText("최종 19");
     await expect(resultRows.nth(0)).toContainText("완료");
     await expect(resultRows.nth(1)).toContainText("이도규");
-    await resultRegion.screenshot({ path: testInfo.outputPath("results-desktop-1100.png") });
+    const table = resultRegion.getByRole("table");
+    expect((await table.boundingBox())!.width).toBeGreaterThan((await resultRegion.boundingBox())!.width * 0.95);
+    const answerButton = resultRegion.getByRole("button", { name: "심하윤 답안 상세" });
+    await answerButton.press("Enter");
+    const answer = page.getByRole("dialog", { name: "심하윤 답안 상세" });
+    await expect(answer.getByRole("tab", { name: "답안지" })).toBeVisible();
+    expect((await answer.boundingBox())!.height).toBeLessThan(620);
+    await answer.screenshot({ path: testInfo.outputPath("answer-detail-desktop.png") });
+    await page.keyboard.press("Escape");
+    await expect(answer).toBeHidden();
+    await expect(answerButton).toBeFocused();
+    await resultRegion.screenshot({ path: testInfo.outputPath("results-desktop-1600.png") });
 
     await resultRegion.getByRole("combobox", { name: "시험 결과 정렬" }).selectOption("final_score");
     await expect(resultRows.nth(0)).toContainText("이도규");
@@ -2979,6 +3065,15 @@ test.describe("문항별 직접 채점", () => {
     await expect.poll(() => resultRegion.evaluate(
       (element) => element.scrollWidth <= element.clientWidth,
     )).toBe(true);
+    await mobileResultRows.nth(0).click();
+    await expect(answer).toBeInViewport();
+    await expect(answer.getByRole("tab", { name: "답안지" })).toBeVisible();
+    const mobileAnswer = (await answer.boundingBox())!;
+    expect(mobileAnswer.x).toBeGreaterThanOrEqual(0);
+    expect(mobileAnswer.x + mobileAnswer.width).toBeLessThanOrEqual(390);
+    await answer.screenshot({ path: testInfo.outputPath("answer-detail-390.png") });
+    await page.keyboard.press("Escape");
+    await expect(mobileResultRows.nth(0)).toBeFocused();
     await resultRegion.screenshot({ path: testInfo.outputPath("results-mobile-390.png") });
     await page.screenshot({ path: testInfo.outputPath("results-mobile-page-390.png"), fullPage: true });
   });
@@ -3121,6 +3216,49 @@ test.describe("문항별 직접 채점", () => {
     await expect(cells.nth(1)).toHaveAccessibleName("김학생 2번 오답노트");
   });
 
+  for (const width of [390, 1366]) {
+    test(`성적 탭의 시험 성적 분석이 ${width}px에서 현재 강의의 리포트로 바로 이동한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await installApi(page, {
+        resultRows: [{
+          enrollment_id: ENROLLMENT_ID, student_name: "김학생", result_status: "DONE",
+          rank: 1, ranking_score: 80, final_score: 80, cohort_size: 1,
+        }],
+      });
+
+      await gotoAndSettle(
+        page,
+        `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+        { timeout: 30_000 },
+      );
+      const shortcut = page.getByRole("button", { name: "시험 성적 분석", exact: true });
+      await expect(shortcut).toBeEnabled({ timeout: 60_000 });
+      const [analysis] = await Promise.all([
+        page.waitForResponse((response) => {
+          const url = new URL(response.url());
+          return url.pathname.endsWith(`/exams/${EXAM_ID}/analysis-insights/`)
+            && url.searchParams.get("lecture_id") === String(LECTURE_ID);
+        }, { timeout: 25_000 }),
+        shortcut.click(),
+      ]);
+      expect(analysis.ok()).toBe(true);
+      await expect(page.locator("[data-manual-grade-cell]").first()).toBeVisible();
+      const report = page.getByRole("region", { name: "시험 성적 분석", exact: true });
+      await expect(report).toBeFocused();
+      await expect(report.getByRole("heading", { name: "시험 성적 분석" })).toBeInViewport();
+      await expect(report).toContainText("80.0점");
+      await expect(page.getByRole("dialog", { name: "분석할 시험 선택" })).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await testInfo.attach("성적 탭에서 연 시험 분석", {
+        body: await page.screenshot({ animations: "disabled" }),
+        contentType: "image/png",
+      });
+      await page.goBack();
+      await expect(page.getByRole("button", { name: "시험 성적 분석", exact: true })).toBeVisible();
+    });
+  }
+
   test("선택형 시험명은 직접 채점표 대신 OMR 검토를 연다", async ({ page }) => {
     await installApi(page, {
       gradingMode: "choice",
@@ -3146,7 +3284,7 @@ test.describe("문항별 직접 채점", () => {
     const uploadDialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
     await expect(uploadDialog).toBeVisible();
     await expect(uploadDialog.getByText("7월 진단평가", { exact: true })).toBeVisible();
-    await expect(uploadDialog.getByText("스캔 파일 선택", { exact: true })).toBeVisible();
+    await expect(uploadDialog.getByText("스캔본·촬영 사진 선택", { exact: true })).toBeVisible();
     // The visible appear-start frame precedes the frame that creates the animation.
     await expect.poll(() => uploadDialog.evaluate((dialog) =>
       (dialog.closest(".admin-modal") ?? dialog).getAnimations().filter((animation) =>
@@ -3525,7 +3663,7 @@ test.describe("문항별 직접 채점", () => {
 
     const picker = page.getByRole("dialog", { name: "학생 선택" });
     await expect(picker).toBeVisible();
-    await picker.getByPlaceholder("학생 이름 또는 전화번호 뒤 4자리").fill("박서연");
+    await picker.getByRole("textbox", { name: "학생 검색" }).fill("박서연");
     await picker.getByRole("button", { name: /박서연/ }).click();
     await expect(omrDialog.getByText("박서연", { exact: true })).toBeVisible();
 
@@ -4131,10 +4269,21 @@ test.describe("문항별 직접 채점", () => {
     test(`시험 작업 메뉴가 열리는 중에도 클릭 위치를 유지한다 ${width}px`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 900 });
       await installApi(page, { manualGradingMethod: "score" });
+      let releaseAnalysisModule!: () => void;
+      const analysisModuleReady = new Promise<void>((resolve) => { releaseAnalysisModule = resolve; });
+      page.once("close", releaseAnalysisModule);
+      await page.route("**/SessionExamAnalysisAction.tsx*", async (route) => {
+        await analysisModuleReady;
+        await route.continue();
+      });
       await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "domcontentloaded" });
       // Hold the real entrance motion at its first frame, then finish it between
       // pointer down/up. A scaling popup used to move the action out of the click.
       const motionHold = await page.addStyleTag({ content: ".ant-popover { animation-play-state: paused !important; }" });
+      const analysis = page.getByRole("button", { name: "시험 성적 분석", exact: true });
+      await expect(analysis).toBeDisabled();
+      const analysisWidth = () => analysis.evaluate((button) => button.getBoundingClientRect().width);
+      const loadingAnalysisWidth = await analysisWidth();
       const trigger = page.getByRole("button", { name: "7월 진단평가 작업 선택" });
       await expect(trigger).toBeVisible();
       await trigger.click();
@@ -4149,6 +4298,8 @@ test.describe("문항별 직접 채점", () => {
       expect(before).not.toBeNull();
       await page.mouse.move(before!.x + before!.width / 2, before!.y + before!.height / 2);
       await page.mouse.down();
+      releaseAnalysisModule();
+      await expect(analysis).toBeEnabled();
       await menu.evaluate(async (element) => {
         for (const animation of element.closest(".ant-popover")!.getAnimations()) animation.finish();
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -4156,6 +4307,7 @@ test.describe("문항별 직접 채점", () => {
       const after = await action.boundingBox();
       await page.mouse.up();
       expect(after).not.toBeNull();
+      expect(Math.abs(await analysisWidth() - loadingAnalysisWidth)).toBeLessThan(1);
       expect(Math.abs(after!.x - before!.x)).toBeLessThan(1);
       expect(Math.abs(after!.y - before!.y)).toBeLessThan(1);
       expect(Math.abs(after!.width - before!.width)).toBeLessThan(1);

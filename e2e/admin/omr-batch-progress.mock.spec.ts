@@ -1,6 +1,7 @@
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
+import { applyHomeworkPreviewCsp, homeworkHeic } from "../helpers/homeworkHeicFixture";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
@@ -35,14 +36,15 @@ function batchSummary(options: {
   claimed?: boolean;
   admissionFailure?: boolean;
   subjectivePending?: boolean;
+  legacy?: boolean;
 } = {}) {
   const terminal = options.terminal ?? false;
   const admissionFailure = terminal && (options.admissionFailure ?? false);
   return {
     id: BATCH_ID,
     exam_id: EXAM_ID,
-    session_id: SESSION_ID,
-    lecture_id: LECTURE_ID,
+    session_id: options.legacy ? null : SESSION_ID,
+    lecture_id: options.legacy ? null : LECTURE_ID,
     total_count: 22,
     counts: terminal
       ? {
@@ -88,13 +90,14 @@ function batchSummary(options: {
   };
 }
 
-function admissionSummary(state: "pending" | "received") {
+function admissionSummary(state: "pending" | "received", totalCount = 22) {
   const pending = state === "pending";
   return {
     ...batchSummary(),
+    total_count: totalCount,
     counts: {
-      pending_admission: pending ? 22 : 0,
-      received: pending ? 0 : 22,
+      pending_admission: pending ? totalCount : 0,
+      received: pending ? 0 : totalCount,
       duplicate: 0,
       processing: 0,
       completed: 0,
@@ -102,8 +105,8 @@ function admissionSummary(state: "pending" | "received") {
       failed: 0,
       superseded: 0,
     },
-    pending_admission_ordinals: pending ? Array.from({ length: 22 }, (_, index) => index + 1) : [],
-    items: Array.from({ length: 22 }, (_, index) => ({
+    pending_admission_ordinals: pending ? Array.from({ length: totalCount }, (_, index) => index + 1) : [],
+    items: Array.from({ length: totalCount }, (_, index) => ({
       id: `${BATCH_ID}:${index + 1}`,
       ordinal: index + 1,
       admission_status: state,
@@ -147,7 +150,9 @@ async function installDashboardApi(
     holdListResponse?: boolean;
     listDelayMs?: number;
     uploadFlow?: boolean;
+    reviewFlow?: boolean;
     holdUploadResponse?: boolean;
+    failFirstInitializeAfterCreation?: boolean;
     failFirstUploadAfterPartialAdmission?: boolean;
     admissionFailure?: boolean;
     resumeOrdinals?: number[];
@@ -161,12 +166,15 @@ async function installDashboardApi(
   await installTenantOneInitScript(page);
 
   const scoresFlow = options.uploadFlow
+    || options.reviewFlow
     || options.admissionFailure
     || options.resumeOrdinals !== undefined
     || options.detailExamId !== undefined
     || options.failDetail;
   let terminal = false;
   let claimed = false;
+  let uploadBatchTotal = 22;
+  let uploadBatchReceived = false;
   let listGets = 0;
   let listResponses = 0;
   let detailGets = 0;
@@ -176,6 +184,8 @@ async function installDashboardApi(
   let hideBatches = false;
   let initializedUploads = false;
   let initializePosts = 0;
+  const initializeRequestIds: Array<string | undefined> = [];
+  const initializedRequestIds = new Set<string>();
   let uploadPosts = 0;
   let uploadResponses = 0;
   const uploadBodies: string[] = [];
@@ -251,8 +261,17 @@ async function installDashboardApi(
       && request.method() === "POST"
     ) {
       initializedUploads = true;
+      const payload = request.postDataJSON() as { total_count: number; client_request_id?: string };
+      uploadBatchTotal = payload.total_count;
+      uploadBatchReceived = false;
       initializePosts += 1;
-      await safeJson(route, admissionSummary("pending"), 201);
+      initializeRequestIds.push(payload.client_request_id);
+      initializedRequestIds.add(payload.client_request_id ?? `legacy-${initializePosts}`);
+      if (options.failFirstInitializeAfterCreation && initializePosts === 1) {
+        await safeJson(route, { detail: "synthetic initialization response timeout" }, 504);
+        return;
+      }
+      await safeJson(route, admissionSummary("pending", uploadBatchTotal), 201);
       return;
     }
     if (
@@ -269,12 +288,14 @@ async function installDashboardApi(
         return;
       }
       partialUpload = false;
+      uploadBatchReceived = true;
       const createdCount = uploadBody.match(/name="files"/g)?.length ?? 0;
       if (options.holdUploadResponse && uploadPosts === 1) await uploadResponseGate;
       await safeJson(route, {
-        ...admissionSummary("received"),
+        ...admissionSummary("received", uploadBatchTotal),
         created_count: createdCount,
-        submission_ids: Array.from({ length: createdCount }, (_, index) => 2001 + index),
+        submission_ids: multipartFieldValues(uploadBody, "item_ordinals")
+          .map((ordinal) => 2000 + Number(ordinal)),
       }, 201);
       uploadResponses += 1;
       return;
@@ -292,7 +313,7 @@ async function installDashboardApi(
         return;
       }
       const batch = options.uploadFlow && initializedUploads
-        ? partialUpload ? partialAdmissionSummary() : admissionSummary(uploadPosts > 0 ? "received" : "pending")
+        ? partialUpload ? partialAdmissionSummary() : admissionSummary(uploadBatchReceived ? "received" : "pending", uploadBatchTotal)
         : options.batch ?? batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure, subjectivePending: options.subjectivePending });
       const response = options.empty || hideBatches ? [] : [batch];
       if (options.holdListResponse && listGets === 1) await listResponseGate;
@@ -319,7 +340,7 @@ async function installDashboardApi(
         : options.uploadFlow
           ? partialUpload
             ? partialAdmissionSummary()
-            : admissionSummary(uploadPosts > 0 ? "received" : "pending")
+            : admissionSummary(uploadBatchReceived ? "received" : "pending", uploadBatchTotal)
           : options.batch ?? batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure, subjectivePending: options.subjectivePending });
       await safeJson(route, batch);
       return;
@@ -440,6 +461,8 @@ async function installDashboardApi(
     releaseUploadResponse: () => { releaseUploadResponse?.(); },
     uploadState: () => ({
       initializePosts,
+      initializeRequestIds: [...initializeRequestIds],
+      initializedBatchCount: initializedRequestIds.size,
       uploadPosts,
       uploadResponses,
       uploadBodies: [...uploadBodies],
@@ -558,6 +581,7 @@ test.describe("OMR durable batch progress", () => {
       await page.setViewportSize({ width, height: 900 });
       const initial = batchSummary();
       const api = await installDashboardApi(page, {
+        reviewFlow: true,
         batch: {
           ...initial,
           total_count: 20,
@@ -588,12 +612,22 @@ test.describe("OMR durable batch progress", () => {
       expect(api.retryBodies()).toEqual([]);
       const task = page.locator(".async-status-bar__item").filter({ hasText: "OMR 20장" });
       await task.getByRole("button", { name: "OMR 검토" }).click();
-      await expect(page).toHaveURL(new RegExp(`/workspace/mobile/exams/${EXAM_ID}/omr`));
+      await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores$`));
+      await expect(page.getByRole("dialog", { name: "OMR 검토" })).toBeVisible();
     });
   }
 
+  test("차시 없는 이전 OMR 등록은 기존 스캔 화면을 열 수 있다", async ({ page }) => {
+    await installDashboardApi(page, { batch: batchSummary({ legacy: true }) });
+    await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
+
+    const task = await openWorkbox(page);
+    await task.getByRole("button", { name: "OMR 검토" }).click();
+    await expect(page).toHaveURL(new RegExp(`/workspace/mobile/exams/${EXAM_ID}/omr$`));
+  });
+
   test("GET 복구는 읽기 전용이고 terminal 최초 관찰만 1회 claim한다", async ({ page }) => {
-    const api = await installDashboardApi(page);
+    const api = await installDashboardApi(page, { reviewFlow: true });
     await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
 
     let task = await openWorkbox(page);
@@ -624,8 +658,9 @@ test.describe("OMR durable batch progress", () => {
 
     await task.getByRole("button", { name: "OMR 검토" }).click();
     await expect(page).toHaveURL(
-      new RegExp(`/workspace/mobile/exams/${EXAM_ID}/omr`),
+      new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores$`),
     );
+    await expect(page.getByRole("dialog", { name: "OMR 검토" })).toBeVisible();
   });
 
   test("OMR 처리가 끝나도 서술형 채점 대기를 표시하고 해당 차시로 연결한다", async ({ page }) => {
@@ -735,7 +770,7 @@ test.describe("OMR durable batch progress", () => {
       })),
     );
     await dialog.getByRole("button", { name: "등록 시작" }).click();
-    await expect(dialog.getByText("22건을 접수했습니다", { exact: false })).toBeVisible();
+    await expect(dialog.getByText("접수 확인 22장", { exact: false })).toBeVisible();
 
     const { uploadPosts, uploadBodies } = api.uploadState();
     expect(uploadPosts).toBe(1);
@@ -782,6 +817,112 @@ test.describe("OMR durable batch progress", () => {
     expect(body.indexOf("second.png")).toBeLessThan(body.indexOf("first.png"));
     expect(multipartFieldValues(body, "item_ordinals")).toEqual(["1", "2"]);
   });
+
+  test("형식을 보내지 않는 스캐너의 PNG·PDF를 선택하고 PNG를 회전한다", async ({ page }) => {
+    const api = await installDashboardApi(page, { uploadFlow: true });
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+    await openOmrUpload(page);
+    const dialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "base64",
+    );
+    await dialog.locator('input[type="file"]').setInputFiles([
+      { name: "scanner.png", mimeType: "application/octet-stream", buffer: png },
+      { name: "scan.pdf", mimeType: "application/octet-stream", buffer: Buffer.from("%PDF-1.4\n") },
+    ]);
+    const scanner = dialog.getByRole("listitem").filter({ hasText: "scanner.png" });
+    await scanner.getByRole("button", { name: "오른쪽 회전" }).click();
+    await expect(scanner).toContainText("업로드 회전 90°");
+    await dialog.getByRole("button", { name: "등록 시작" }).click();
+    await expect(dialog.getByText("접수 확인 2장", { exact: false })).toBeVisible();
+    const upload = api.uploadState();
+    expect(upload).toMatchObject({ initializePosts: 1, uploadPosts: 1 });
+    expect(upload.uploadBodies[0]).toMatch(/filename="scanner\.png"\r\nContent-Type: image\/png/i);
+    expect(upload.uploadBodies[0]).toContain('filename="scan.pdf"');
+    expect(multipartFieldValues(upload.uploadBodies[0], "item_ordinals")).toEqual(["1", "2"]);
+  });
+
+  for (const width of [1366, 390]) {
+    test(`${width}px HEIC 사진을 미리 보고 회전한 JPEG로 접수한다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const api = await installDashboardApi(page, { uploadFlow: true });
+      await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await openOmrUpload(page);
+      await applyHomeworkPreviewCsp(page);
+      const dialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
+      const input = dialog.locator('input[type="file"]');
+      await expect(input).toHaveAttribute("accept", /\.heic/);
+      await input.setInputFiles({ name: "phone.heic", mimeType: "", buffer: homeworkHeic });
+      const row = dialog.getByRole("listitem").filter({ hasText: "phone.heic" });
+      await row.scrollIntoViewIfNeeded();
+      const preview = row.locator("img");
+      await expect.poll(async () => (await preview.count()) > 0
+        && await preview.evaluate((image) => (image as HTMLImageElement).naturalWidth > 0)).toBe(true);
+      await row.getByRole("button", { name: "오른쪽 회전" }).click();
+      await expect(row).toContainText("업로드 회전 90°");
+
+      const capturedFiles = await page.evaluateHandle(() => {
+        const files: File[] = [];
+        const original = XMLHttpRequest.prototype.send;
+        XMLHttpRequest.prototype.send = function (body) {
+          if (body instanceof FormData && body.has("item_ordinals")) {
+            const file = body.get("files");
+            if (file instanceof File) files.push(file);
+            XMLHttpRequest.prototype.send = original;
+          }
+          return original.call(this, body);
+        };
+        return files;
+      });
+      await dialog.getByRole("button", { name: "등록 시작" }).click();
+      await expect(dialog.getByText("접수 확인 1장", { exact: false })).toBeVisible();
+      const encoded = await capturedFiles.evaluate(async ([file]) => {
+        if (!file) throw new Error("No image was sent in the OMR multipart request");
+        const image = await createImageBitmap(file);
+        const result = { filename: file.name, mimeType: file.type, size: file.size, dimensions: [image.width, image.height] };
+        image.close();
+        return result;
+      });
+      await capturedFiles.dispose();
+      expect(encoded).toMatchObject({ filename: "phone.jpg", mimeType: "image/jpeg", dimensions: [360, 640] });
+      expect(encoded.size).toBeGreaterThan(0);
+      const upload = api.uploadState();
+      expect(upload).toMatchObject({ initializePosts: 1, uploadPosts: 1 });
+      expect(upload.uploadBodies[0]).toContain('filename="phone.jpg"');
+    });
+
+    test(`${width}px OMR 등록 시작 응답이 끊겨도 기존 작업에 두 장을 접수한다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const api = await installDashboardApi(page, { uploadFlow: true, failFirstInitializeAfterCreation: true });
+      await page.goto(
+        `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
+        { waitUntil: "domcontentloaded" },
+      );
+      await openOmrUpload(page);
+      const dialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
+      await dialog.locator('input[type="file"]').setInputFiles(
+        ["retry-a.jpg", "retry-b.jpg"].map((name) => ({
+          name, mimeType: "image/jpeg", buffer: Buffer.from(name),
+        })),
+      );
+      const start = dialog.getByRole("button", { name: "등록 시작" });
+      await start.click();
+      await expect(dialog.getByText("등록 작업 응답을 확인하지 못했습니다", { exact: false })).toBeVisible();
+      await expect(dialog.locator(".admin-omr-upload__file")).toHaveCount(2);
+      expect(api.uploadState()).toMatchObject({ initializePosts: 1, initializedBatchCount: 1, uploadPosts: 0 });
+
+      await start.click();
+      await expect(dialog.getByText("접수 확인 2장", { exact: false })).toBeVisible();
+      const upload = api.uploadState();
+      const requestId = upload.initializeRequestIds[0];
+      expect(requestId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+      expect(upload.initializeRequestIds).toEqual([requestId, requestId]);
+      expect(upload).toMatchObject({ initializePosts: 2, initializedBatchCount: 1, uploadPosts: 1 });
+      expect(multipartFieldValues(upload.uploadBodies[0], "batch_id")).toEqual([BATCH_ID]);
+      expect(multipartFieldValues(upload.uploadBodies[0], "item_ordinals")).toEqual(["1", "2"]);
+    });
+  }
 
   for (const width of [1366, 390]) {
   test(`${width}px 중단된 접수 응답은 서버 ordinal을 복구해 22번만 명시 재선택한다`, async ({ page }) => {
@@ -840,7 +981,7 @@ test.describe("OMR durable batch progress", () => {
       buffer: Buffer.from("partial-22-retry"),
     });
     await dialog.getByRole("button", { name: "미접수 파일 다시 접수" }).click();
-    await expect(dialog.getByText("1건을 접수했습니다", { exact: false })).toBeVisible();
+    await expect(dialog.getByText("접수 확인 22장", { exact: false })).toBeVisible();
 
     const { uploadPosts, uploadBodies } = api.uploadState();
     expect(uploadPosts).toBe(2);
@@ -923,7 +1064,83 @@ test.describe("OMR durable batch progress", () => {
     expect(ordinals.every((value) => Number.isFinite(Number(value)))).toBe(true);
   });
 
-  test("완료한 일반 선택을 비운 뒤 새 선택은 새 batch와 유효 ordinal로 시작한다", async ({ page }) => {
+  test("손상된 HEIC 재선택 중에는 기존 작업을 조회 완료로 바꾸지 않는다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const api = await installDashboardApi(page, { resumeOrdinals: [21, 22] });
+    const dialog = await openResumeOmrUpload(page);
+    const input = dialog.locator('input[type="file"]');
+    await expect(input).toBeEnabled();
+    await input.setInputFiles([
+      { name: "broken.heic", mimeType: "image/heic", buffer: Buffer.from("damaged HEIC") },
+      { name: "kept.heic", mimeType: "image/heic", buffer: homeworkHeic },
+    ]);
+    const resume = dialog.getByRole("button", { name: "미접수 파일 다시 접수" });
+    await resume.click();
+    await expect(dialog.getByText(/1개 사진을 읽거나 회전하지 못했습니다/)).toBeVisible();
+    expect(api.uploadState()).toMatchObject({ initializePosts: 0, uploadPosts: 0 });
+    const broken = dialog.getByRole("listitem").filter({ hasText: "broken.heic" });
+    await expect(broken).toContainText("실패");
+    await expect(dialog.getByRole("listitem").filter({ hasText: "kept.heic" })).toContainText("22번 답안지");
+    await broken.getByRole("button", { name: "삭제" }).click();
+    await input.setInputFiles({ name: "replacement.heif", mimeType: "application/octet-stream", buffer: homeworkHeic });
+    await resume.click();
+    await expect.poll(() => api.uploadState().uploadPosts).toBe(1);
+    const body = api.uploadState().uploadBodies[0];
+    expect(body).toContain('filename="replacement.jpg"');
+    expect(body).toContain('filename="kept.jpg"');
+    expect(multipartFieldValues(body, "item_ordinals")).toEqual(["22", "21"]);
+    expect(api.uploadState().initializePosts).toBe(0);
+  });
+
+  for (const width of [1366, 390]) {
+    test(`${width}px 재접수에서 전체 파일을 다시 골라도 미접수 파일과 순서를 고쳐 보낸다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const api = await installDashboardApi(page, { resumeOrdinals: [21, 22] });
+      const dialog = await openResumeOmrUpload(page);
+      const input = dialog.locator('input[type="file"]');
+      await expect(input).toBeEnabled();
+      await input.setInputFiles([
+        "received-first.pdf", "received-second.pdf", "remaining-22.pdf", "remaining-21.pdf",
+      ].map((name) => ({ name, mimeType: "application/pdf", buffer: Buffer.from(name) })));
+
+      const rows = dialog.getByRole("list", { name: "선택한 OMR 파일" }).getByRole("listitem");
+      const retry = dialog.getByRole("button", { name: "미접수 파일 다시 접수" });
+      await expect(rows).toHaveCount(4);
+      await expect(dialog.getByText(/미접수 2장만 남도록 이미 접수된 파일을 선택에서 빼고/)).toBeVisible();
+      await expect(retry).toBeDisabled();
+      expect(api.uploadState().uploadPosts).toBe(0);
+
+      for (const name of ["received-first.pdf", "received-second.pdf"]) {
+        await rows.filter({ hasText: name }).getByRole("button", { name: "선택에서 빼기" }).click();
+      }
+      await expect(rows.nth(0)).toContainText("remaining-22.pdf");
+      await expect(rows.nth(0)).toContainText("21번 답안지");
+      const move = rows.filter({ hasText: "remaining-21.pdf" }).getByRole("button", { name: "위로 이동" });
+      await move.press("Enter");
+      await expect(move).toBeFocused();
+      await expect(move).toBeDisabled();
+      const moveDown = rows.filter({ hasText: "remaining-21.pdf" }).getByRole("button", { name: "아래로 이동" });
+      await moveDown.press("Enter");
+      await expect(moveDown).toBeFocused();
+      await expect(moveDown).toBeDisabled();
+      await move.press("Enter");
+      await expect(rows.nth(0)).toContainText("remaining-21.pdf");
+      await expect(rows.nth(0)).toContainText("21번 답안지");
+      await expect(rows.nth(1)).toContainText("remaining-22.pdf");
+      await expect(rows.nth(1)).toContainText("22번 답안지");
+      await expect(retry).toBeEnabled();
+      await retry.click();
+
+      await expect.poll(() => api.uploadState().uploadPosts).toBe(1);
+      const body = api.uploadState().uploadBodies[0];
+      expect(multipartFieldValues(body, "item_ordinals")).toEqual(["21", "22"]);
+      expect([...body.matchAll(/filename="([^"]+)"/g)].map((match) => match[1]))
+        .toEqual(["remaining-21.pdf", "remaining-22.pdf"]);
+      expect(api.uploadState().initializePosts).toBe(0);
+    });
+  }
+
+  test("접수 완료 후 새 선택은 바로 새 batch와 유효 ordinal로 시작한다", async ({ page }) => {
     const api = await installDashboardApi(page, { uploadFlow: true });
     await page.goto(
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
@@ -938,8 +1155,7 @@ test.describe("OMR durable batch progress", () => {
       buffer: Buffer.from("first-batch"),
     });
     await dialog.getByRole("button", { name: "등록 시작" }).click();
-    await expect(dialog.getByText("1건을 접수했습니다", { exact: false })).toBeVisible();
-    await dialog.getByRole("button", { name: "비우기" }).click();
+    await expect(dialog.getByText("접수 확인 1장", { exact: false })).toBeVisible();
     await input.setInputFiles({
       name: "second-batch.jpg",
       mimeType: "image/jpeg",
@@ -950,6 +1166,8 @@ test.describe("OMR durable batch progress", () => {
     await expect.poll(() => api.uploadState().uploadPosts).toBe(2);
     const uploadState = api.uploadState();
     expect(uploadState.initializePosts).toBe(2);
+    expect(uploadState.initializedBatchCount).toBe(2);
+    expect(uploadState.initializeRequestIds.every(Boolean)).toBe(true);
     expect(multipartFieldValues(uploadState.uploadBodies[1], "item_ordinals")).toEqual(["1"]);
     expect(uploadState.uploadBodies[1]).not.toContain("NaN");
   });

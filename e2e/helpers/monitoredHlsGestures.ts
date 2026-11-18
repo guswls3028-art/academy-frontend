@@ -1,6 +1,8 @@
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
 import { syntheticLongVideoAsset } from "../../scripts/run-development-release-canary.mjs";
+import { withVideoControlInputTrace } from "./videoControlInputTrace";
+import { leaveStudentPlayer, verifyClassPlaybackActivity } from "./videoStabilityProbe";
 
 type GestureRateAuditWindow = Window & { __qaGestureRateWrites: number[] };
 
@@ -81,6 +83,21 @@ async function openMonitoredHlsPlayer({ page, speedLocked, base, viewport, insta
   const writes = () => page.evaluate(() => (window as GestureRateAuditWindow).__qaGestureRateWrites);
   const clearWrites = () => page.evaluate(() => { (window as GestureRateAuditWindow).__qaGestureRateWrites = []; });
   return { video, state, writes, clearWrites };
+}
+
+export async function verifyResumedClassActivity(scenario: GestureScenario) {
+  const { page } = scenario;
+  const { video, state } = await openMonitoredHlsPlayer(scenario);
+  await page.getByRole("button", { name: "일시정지", exact: true }).click();
+  await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.paused)).toBe(true);
+  await verifyClassPlaybackActivity(page, "synthetic-gesture-token", 2);
+  expect(state.grants).toBe(1);
+  expect(state.active).toBe(true);
+  expect(state.events.filter(event => event.type.startsWith("FULLSCREEN_")).map(event => event.type))
+    .toEqual(["FULLSCREEN_ENTER", "FULLSCREEN_EXIT"]);
+  expect(state.receipts).toBeGreaterThanOrEqual(2);
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await leaveStudentPlayer(page, { videoId: 562, enrollmentId: 1304, sessionId: 394, token: "synthetic-gesture-token" });
 }
 
 export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {
@@ -374,10 +391,11 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
   const wrap = page.locator(".svpPlayerWrap");
   const guide = page.getByRole("dialog", { name: "학생·학부모 가이드북", exact: true });
   const audit = () => page.evaluate(() => (window as FullscreenAuditWindow).__qaFullscreenInputs);
-  const revealControls = async () => {
+  const revealControls = async (clockPaused = false) => {
     if (await wrap.evaluate(node => node.classList.contains("svpPlayerWrap--controlsHidden"))) {
       const box = (await page.locator(".svpGestureLayer").boundingBox())!;
       await page.touchscreen.tap(box.x + box.width * 0.15, box.y + box.height / 2);
+      if (clockPaused) await page.clock.runFor(351);
       await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
     }
   };
@@ -447,7 +465,8 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
     const read = () => target.evaluate((node, fraction) => {
       const rect = node.getBoundingClientRect();
       const x = rect.left + Math.max(1, rect.width * fraction), y = rect.top + rect.height / 2;
-      return { x, y, ownsTarget: node.contains(document.elementFromPoint(x, y)),
+      return { x, y, position: { x: x - rect.left - node.clientLeft, y: y - rect.top - node.clientTop },
+        ownsTarget: node.contains(document.elementFromPoint(x, y)),
         controlsHidden: node.closest(".svpPlayerWrap")!.classList.contains("svpPlayerWrap--controlsHidden") };
     }, fraction);
     const before = await read();
@@ -463,12 +482,52 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
     return point;
   };
   const clickControl = async (target: Locator, fraction = 0.5) => {
-    await revealControls();
-    await expect(controls).toHaveCSS("opacity", "1");
-    await expect(target).toBeEnabled();
-    const point = await controlPoint(target, fraction);
-    await page.mouse.click(point.x, point.y);
+    // Keep the visibility policy's idle timer from expiring between the
+    // hit-target proof and the real pointer input this helper is exercising.
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
+    try {
+      await revealControls(true);
+      await expect(controls).toHaveCSS("opacity", "1");
+      await expect(target).toBeEnabled();
+      const point = await controlPoint(target, fraction);
+      await target.click({ position: point.position });
+    } finally {
+      await page.clock.resume();
+    }
   };
+  await withVideoControlInputTrace(page, info, "range-active-auto-hide", async () => {
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1_000));
+    try {
+      await assertPaused(false);
+      await revealControls(true);
+      const point = await controlPoint(progressSlider);
+      await page.mouse.move(point.x, point.y);
+      await page.clock.runFor(3_001);
+      await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
+
+      const stage = (await page.locator(".svpGestureLayer").boundingBox())!;
+      await page.mouse.move(stage.x + stage.width / 2, stage.y + stage.height / 2);
+      const beforeProgressSlider = wrap.locator(".svpTopBar button").last();
+      await beforeProgressSlider.focus();
+      await page.keyboard.press("Tab");
+      await expect(progressSlider).toBeFocused();
+      await page.clock.runFor(3_001);
+      await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
+
+      await page.keyboard.press("ArrowRight");
+      await progressSlider.blur();
+      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.seeking)).toBe(false);
+      await page.clock.runFor(3_001);
+      await expect(wrap).toHaveClass(/svpPlayerWrap--controlsHidden/);
+      await beforeProgressSlider.focus();
+      await page.keyboard.press("Tab");
+      await expect(progressSlider).toBeFocused();
+      await expect(wrap).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
+      await progressSlider.blur();
+    } finally {
+      await page.clock.resume();
+    }
+  });
   for (const width of scenario.viewport?.width === 1366 ? [1100, 1366] : [390]) {
     const height = scenario.viewport?.height ?? 844;
     await page.setViewportSize({ width, height });
@@ -485,17 +544,19 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
       }
       // The fixture permits free seek. Use real range input, then restore near start.
       const duration = await video.evaluate((node: HTMLVideoElement) => node.duration);
-      await clickControl(progressSlider, 0.75);
-      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeGreaterThan(duration * 0.6);
-      // currentTime changes before seek completion and the controlled thumb renders.
-      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.seeking)).toBe(false);
-      await expect.poll(async () => Number(await progressSlider.inputValue())).toBeGreaterThan(duration * 0.6);
-      await assertPaused(phase === "paused");
-      await clickControl(progressSlider, 0);
-      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeLessThan(duration * 0.05);
-      await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.seeking)).toBe(false);
-      await expect.poll(async () => Number(await progressSlider.inputValue())).toBeLessThan(duration * 0.05);
-      await assertPaused(phase === "paused");
+      await withVideoControlInputTrace(page, info, `progress-seek-${width}-${phase}`, async () => {
+        await clickControl(progressSlider, 0.75);
+        await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeGreaterThan(duration * 0.6);
+        // currentTime changes before seek completion and the controlled thumb renders.
+        await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.seeking)).toBe(false);
+        await expect.poll(async () => Number(await progressSlider.inputValue())).toBeGreaterThan(duration * 0.6);
+        await assertPaused(phase === "paused");
+        await clickControl(progressSlider, 0);
+        await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.currentTime)).toBeLessThan(duration * 0.05);
+        await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.seeking)).toBe(false);
+        await expect.poll(async () => Number(await progressSlider.inputValue())).toBeLessThan(duration * 0.05);
+        await assertPaused(phase === "paused");
+      });
     }
     await page.locator(".svpBigPlay").click();
     await assertPaused(false);
@@ -600,7 +661,7 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
       }
       for (const input of ["touch", "mouse", "Enter", "Space"] as const) {
         const activate = async () => {
-          await revealControls();
+          await revealControls(input === "touch");
           if (input === "touch") await button.tap();
           else if (input === "mouse") await clickControl(button);
           else {

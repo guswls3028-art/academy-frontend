@@ -508,6 +508,18 @@ export default function MatchupPage() {
     enabled: !!selectedDocId && (selectedDoc?.status === "done" || selectedDoc?.status === "processing"),
   });
 
+  const selectedDocStatus = selectedDoc?.status;
+  const previouslyProcessingDoc = useRef<number | null>(null);
+  useEffect(() => {
+    const processingDocId = previouslyProcessingDoc.current;
+    previouslyProcessingDoc.current = selectedDocStatus === "processing" ? selectedDocId : null;
+    if (processingDocId == null || processingDocId !== selectedDocId || selectedDocStatus !== "done") return;
+
+    // The document can finish before its progress response can refresh the cards.
+    const query = { queryKey: storageQueryKeys.matchupProblems(processingDocId), exact: true };
+    void qc.cancelQueries(query).then(() => qc.invalidateQueries(query));
+  }, [qc, selectedDocId, selectedDocStatus]);
+
   // 카드 그리드는 항상 문항 번호 오름차순 — 백엔드 응답 순서 의존하지 않음.
   // 동일 번호 중복 시(merge_suspect 등) id로 안정 정렬.
   const problems = useMemo(

@@ -212,6 +212,21 @@
   line-height: 1.45;
 }
 
+.retryBanner {
+  flex-wrap: wrap;
+  border-color: var(--stu-border);
+  background: var(--stu-surface-1);
+}
+
+.retryMessage {
+  flex: 1 1 180px;
+}
+
+.retryBanner .retryButton {
+  flex-shrink: 0;
+  padding-inline: 12px;
+}
+
 .countdownCard {
   position: relative;
   z-index: 1;

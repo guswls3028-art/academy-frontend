@@ -2,6 +2,7 @@
 // 알림톡 잔액 · 충전 · 카카오 연동 · 발송 로그 (Backend 연동 대비)
 
 import api, { createAuthSessionBoundConfig } from "@/shared/api/axios";
+import type { AlimtalkTemplateType } from "@/shared/messaging/alimtalkEnvelope";
 
 const PREFIX = "/messaging";
 
@@ -245,7 +246,7 @@ export interface SendPreflightResponse {
     solapi_status: string;
     detail: string;
     uses_unified_template: boolean;
-    template_type: string;
+    template_type: AlimtalkTemplateType | "";
   };
   preview_recipients: Array<{
     student_id: number;
@@ -506,8 +507,11 @@ export async function sendMessage(payload: SendMessagePayload): Promise<SendMess
   return res.data;
 }
 
-export async function preflightSendMessage(payload: SendMessagePayload): Promise<SendPreflightResponse> {
-  const res = await api.post<SendPreflightResponse>(`${PREFIX}/send/preflight/`, payload);
+export async function preflightSendMessage(
+  payload: SendMessagePayload,
+  signal?: AbortSignal,
+): Promise<SendPreflightResponse> {
+  const res = await api.post<SendPreflightResponse>(`${PREFIX}/send/preflight/`, payload, { signal });
   return res.data;
 }
 

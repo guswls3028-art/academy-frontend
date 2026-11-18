@@ -8,6 +8,188 @@ const title = "중간고사 수학 복습 · 긴 영상 제목의 줄바꿈 확�
 const studentName = "누적시간확인학생긴이름";
 
 type MockState = { reportFailure: boolean; activityFailure: boolean; durationMissing?: boolean };
+
+async function installAllowance(page: Page) {
+  await install(page);
+  const state = { limit: 5_040_000, used: 5_040_000, revision: "allowance-1", fail: false, reportFail: false, canAdjust: true, writes: [] as Record<string, unknown>[] };
+  await page.route("**/api/v1/media/videos/901/review-watch/**", async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (route.request().method() === "OPTIONS") return route.fallback();
+    if (path.endsWith("/report/") && state.reportFail) return route.fulfill({ status: 503, json: { detail: "합성 기록 갱신 실패" } });
+    if (path.endsWith("/report/")) return route.fulfill({ json: { enabled: true, duration: 3600, threshold_ms: 5_040_000,
+      students: [{ student_id: 501, student_name: studentName, used_ms: state.used, started_at: state.used ? "2026-11-01T00:00:00Z" : null, applicable: state.canAdjust, can_adjust: state.canAdjust,
+        limit_ms: state.limit, remaining_ms: Math.max(0, state.limit - state.used), exhausted: state.used >= state.limit, revision: state.revision }],
+    } });
+    if (path.endsWith("/students/501/allowance/") && route.request().method() === "PATCH") {
+      const body = route.request().postDataJSON(); state.writes.push(body);
+      const summary = () => ({ enabled: true, applicable: true, limit_ms: state.limit, used_ms: state.used,
+        remaining_ms: Math.max(0, state.limit - state.used), exhausted: state.used >= state.limit, revision: state.revision });
+      if (state.fail) return route.fulfill({ status: 503, json: { detail: "합성 저장 실패" } });
+      if (!state.canAdjust) return route.fulfill({ status: 404, json: { code: "video_student_unavailable" } });
+      if (body.expected_revision !== state.revision) return route.fulfill({ status: 409, json: summary() });
+      state.limit = body.limit_ms ?? 5_040_000;
+      state.revision = `${state.revision}-next`;
+      return route.fulfill({ json: summary() });
+    }
+    return route.fallback();
+  });
+  return state;
+}
+
+for (const width of [1366, 390]) {
+  test(`open allowance draft follows changed playback permission and recovers at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = await installAllowance(page);
+    await page.goto(`${BASE}${width === 390 ? "/workspace/mobile" : "/workspace"}/videos/901/logs/501`);
+    const editor = page.getByRole("region", { name: "학생 복습 한도 조정" });
+    await editor.getByRole("button", { name: "복습 한도 조정", exact: true }).click();
+    await editor.getByLabel("총 허용시간 (분 또는 분:초)").fill("101:30");
+    state.canAdjust = false;
+    await editor.getByRole("button", { name: "한도 저장", exact: true }).click();
+    await expect(editor.getByRole("alert")).toContainText("현재 수강·시청 권한을 확인");
+    const history = page.getByRole("region", { name: "복습 시청기록", exact: true });
+    await expect(history).toContainText("현재 시청 권한 확인이 필요합니다");
+    await expect(history).toContainText("기존 사용 1시간 24분");
+    await expect(page.getByRole("region", { name: "복습 시청시간", exact: true })).toHaveCount(0);
+    await expect(editor.getByLabel("총 허용시간 (분 또는 분:초)")).toHaveValue("101:30");
+    await expect(editor.getByRole("button", { name: "한도 저장", exact: true })).toBeDisabled();
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    await page.screenshot({ path: `test-results/teacher-video-permission-${width}.png`, fullPage: true });
+    expect(state.writes).toHaveLength(1); expect(state.limit).toBe(5_040_000);
+    await editor.getByRole("button", { name: "취소", exact: true }).click();
+    await expect(editor.getByRole("button", { name: "복습 한도 조정", exact: true })).toHaveCount(0);
+    state.canAdjust = true;
+    await page.getByRole("button", { name: "새로고침", exact: true }).click();
+    await editor.getByRole("button", { name: "복습 한도 조정", exact: true }).click();
+    await editor.getByRole("button", { name: "+10분", exact: true }).click();
+    await editor.getByRole("button", { name: "한도 저장", exact: true }).click();
+    await expect(editor.getByRole("status")).toBeVisible();
+    expect(state.limit).toBe(5_640_000); expect(state.used).toBe(5_040_000);
+    await page.reload();
+    await expect(page.getByRole("region", { name: "복습 시청시간", exact: true })).toContainText("10분 0초 남음");
+    await expect(history).toHaveCount(0);
+  });
+
+  test(`teacher adjusts review allowance with saved usage preserved and retry at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = await installAllowance(page);
+    await page.goto(`${BASE}${width === 390 ? "/workspace/mobile" : "/workspace"}/videos/901/logs/501`);
+    const editor = page.getByRole("region", { name: "학생 복습 한도 조정" });
+    await editor.getByRole("button", { name: "복습 한도 조정", exact: true }).click();
+    await editor.getByRole("button", { name: "+10분", exact: true }).click();
+    await expect(editor).toContainText("남음 10분 0초");
+    state.fail = true;
+    await editor.getByRole("button", { name: "한도 저장", exact: true }).click();
+    await expect(editor.getByRole("alert")).toContainText("저장 결과를 확인하지 못했습니다");
+    await expect(editor.getByLabel("총 허용시간 (분 또는 분:초)")).toHaveValue("94:00");
+    state.fail = false;
+    await editor.getByRole("button", { name: "한도 저장", exact: true }).click();
+    await expect(editor.getByRole("status")).toContainText("복습 한도를 저장했습니다");
+    expect(state.writes).toEqual([{ limit_ms: 5_640_000, expected_revision: "allowance-1" }, { limit_ms: 5_640_000, expected_revision: "allowance-1" }]);
+    expect(state.used).toBe(5_040_000);
+    await page.reload();
+    await expect(page.getByRole("region", { name: "복습 시청시간", exact: true })).toContainText("10분 0초 남음");
+    await page.screenshot({ path: `test-results/teacher-video-allowance-${width}.png`, fullPage: true });
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    await editor.getByRole("button", { name: "복습 한도 조정", exact: true }).click();
+    await editor.getByLabel("총 허용시간 (분 또는 분:초)").fill("0");
+    await expect(editor).toContainText("추가 복습 재생이 중단됩니다");
+    await editor.getByRole("button", { name: "한도 저장", exact: true }).click();
+    await expect(editor.getByRole("status")).toBeVisible();
+    expect(state.limit).toBe(0); expect(state.used).toBe(5_040_000);
+    await editor.getByRole("button", { name: "복습 한도 조정", exact: true }).click();
+    await editor.getByRole("button", { name: "기본 1.4배 적용", exact: true }).click();
+    await editor.getByRole("button", { name: "한도 저장", exact: true }).click();
+    await expect(editor.getByRole("status")).toBeVisible();
+    expect(state.writes.at(-1)?.limit_ms).toBeNull(); expect(state.limit).toBe(5_040_000);
+  });
+}
+
+test("teacher review allowance rejects stale edits and resumes with the current revision", async ({ page }) => {
+  const state = await installAllowance(page);
+  await page.goto(`${BASE}/workspace/videos/901/logs/501`);
+  const editor = page.getByRole("region", { name: "학생 복습 한도 조정" });
+  await editor.getByRole("button", { name: "복습 한도 조정", exact: true }).click();
+  await editor.getByRole("button", { name: "+30분", exact: true }).click();
+  state.limit = 6_000_000; state.revision = "another-teacher";
+  await editor.getByRole("button", { name: "한도 저장", exact: true }).click();
+  await expect(editor.getByRole("alert")).toContainText("다른 선생님");
+  await expect(editor.getByRole("button", { name: "한도 저장", exact: true })).toBeDisabled();
+  expect(state.limit).toBe(6_000_000);
+  await editor.getByRole("button", { name: "현재 한도로 다시 편집", exact: true }).click();
+  await expect(editor.getByLabel("총 허용시간 (분 또는 분:초)")).toHaveValue("100:00");
+  await editor.getByRole("button", { name: "+10분", exact: true }).click();
+  await editor.getByRole("button", { name: "한도 저장", exact: true }).click();
+  await expect(editor.getByRole("status")).toBeVisible();
+  expect(state.writes.at(-1)).toEqual({ limit_ms: 6_600_000, expected_revision: "another-teacher" });
+});
+
+test("unused students remain visible and exhausted filter uses the current allowance", async ({ page }) => {
+  const state = await installAllowance(page);
+  state.used = 0;
+  await page.goto(`${BASE}/workspace/videos/901/logs`);
+  const row = page.getByRole("link").filter({ hasText: studentName });
+  await expect(row).toBeVisible();
+  await page.getByLabel("시간 소진 학생만").check();
+  await expect(row).toHaveCount(0);
+  state.limit = 0;
+  await page.reload();
+  await expect(page.getByLabel("시간 소진 학생만")).toBeChecked();
+  await expect(row).toContainText("시간 소진");
+  await row.click();
+  const editor = page.getByRole("region", { name: "학생 복습 한도 조정" });
+  await editor.getByRole("button", { name: "복습 한도 조정", exact: true }).click();
+  await editor.getByRole("button", { name: "+10분", exact: true }).click();
+  await editor.getByRole("button", { name: "한도 저장", exact: true }).click();
+  await expect(editor.getByRole("status")).toBeVisible();
+  expect(state.used).toBe(0);
+  await page.getByRole("link", { name: "← 학생 목록으로" }).click();
+  await expect(row).toHaveCount(0);
+  await page.getByLabel("시간 소진 학생만").uncheck();
+  await row.click();
+  state.canAdjust = false;
+  await page.reload();
+  await expect(editor.getByRole("button", { name: "복습 한도 조정", exact: true })).toHaveCount(0);
+  await expect(editor).toContainText("현재 수강·시청 권한을 확인");
+});
+
+test("allowance edits survive failed save and failed background report refresh", async ({ page }) => {
+  const state = await installAllowance(page);
+  await page.goto(`${BASE}/workspace/videos/901/logs/501`);
+  const editor = page.getByRole("region", { name: "학생 복습 한도 조정" });
+  await editor.getByRole("button", { name: "복습 한도 조정", exact: true }).click();
+  await editor.getByLabel("총 허용시간 (분 또는 분:초)").fill("101:30");
+  state.fail = true; state.reportFail = true;
+  await editor.getByRole("button", { name: "한도 저장", exact: true }).click();
+  await expect(page.getByText("최신 기록을 불러오지 못했습니다. 마지막으로 확인한 기록과 입력을 유지하고 있습니다.")).toBeVisible();
+  await expect(editor.getByLabel("총 허용시간 (분 또는 분:초)")).toHaveValue("101:30");
+  await expect(editor.getByRole("alert")).toContainText("저장 결과를 확인하지 못했습니다");
+  state.fail = false; state.reportFail = false;
+  await editor.getByRole("button", { name: "한도 저장", exact: true }).click();
+  await expect(editor.getByRole("status")).toBeVisible();
+  await expect(page.getByRole("region", { name: "복습 시청시간", exact: true })).toContainText("17분 30초 남음");
+  await page.reload();
+  await expect(page.getByRole("region", { name: "복습 시청시간", exact: true })).toContainText("17분 30초 남음");
+  expect(state.used).toBe(5_040_000);
+});
+
+test("quick additions preserve exact server milliseconds and successful save survives report failure", async ({ page }) => {
+  const state = await installAllowance(page);
+  state.limit = 841400; state.used = 0;
+  await page.goto(`${BASE}/workspace/videos/901/logs/501`);
+  const editor = page.getByRole("region", { name: "학생 복습 한도 조정" });
+  await editor.getByRole("button", { name: "복습 한도 조정", exact: true }).click();
+  await editor.getByRole("button", { name: "+10분", exact: true }).click();
+  state.reportFail = true;
+  await editor.getByRole("button", { name: "한도 저장", exact: true }).click();
+  await expect(editor.getByRole("status")).toBeVisible();
+  expect(state.writes[0]?.limit_ms).toBe(1441400);
+  await expect(page.getByRole("region", { name: "복습 시청시간", exact: true })).toContainText("사용 0분 0초 / 허용 24분 1초");
+  state.reportFail = false;
+  await page.getByRole("button", { name: "최신 기록 다시 불러오기" }).click();
+  await expect(page.getByText("최신 기록을 불러오지 못했습니다.", { exact: false })).toHaveCount(0);
+});
+
 async function install(page: Page, state: MockState = { reportFailure: false, activityFailure: false }) {
   await installTenantOneInitScript(page);
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");

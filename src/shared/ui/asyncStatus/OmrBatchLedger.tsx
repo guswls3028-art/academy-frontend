@@ -12,9 +12,10 @@ const STATUS_LABELS: Record<OmrUploadBatchItemStatus, string> = {
   superseded: "보관",
 };
 
-export default function OmrBatchLedger({ batch, fileNames }: {
+export default function OmrBatchLedger({ batch, fileNames, inline = false }: {
   batch: OmrUploadBatchSummary;
   fileNames?: Readonly<Record<number, string>>;
+  inline?: boolean;
 }) {
   if (!batch.items?.length) return null;
   return (
@@ -25,12 +26,12 @@ export default function OmrBatchLedger({ batch, fileNames }: {
       onKeyDown={(event) => event.stopPropagation()}
     >
       <summary>답안지별 접수 내역 · {batch.total_count}장</summary>
-      <ol className={styles.items}>
+      <ol className={inline ? `${styles.items} ${styles.inlineItems}` : styles.items}>
         {batch.items.map((item) => (
           <li key={item.id} data-status={item.status}>
             <span className={styles.ordinal}>
               {item.ordinal}번 답안지
-              {fileNames?.[item.ordinal] && <span className={styles.fileName}>{fileNames[item.ordinal]}</span>}
+              {fileNames?.[item.ordinal] && <span className={styles.fileName}>선택 파일 · {fileNames[item.ordinal]}</span>}
             </span>
             <span className={styles.state}>
               {batch.subjective_pending_ordinals?.includes(item.ordinal)

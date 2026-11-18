@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReviewWatch } from "./useReviewWatch";
 import { usePlayerFullscreen } from "./usePlayerFullscreen";
+import ReviewWatchSummaryPanel from "@/shared/media/video/ReviewWatchSummaryPanel";
 
 import "./player.css";
 
@@ -40,6 +41,7 @@ import type { VideoMetaLite, PlaybackBootstrap, LeaveProgressPayload } from "./p
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { isYouTubeSource } from "@/shared/media/video/youtube";
 import { requestVideoForwardSkip } from "../../api/video.api";
+import type { ReviewWatchSummary } from "@/shared/media/video/reviewWatchSummary";
 
 export type { VideoMetaLite, PlaybackBootstrap, LeaveProgressPayload } from "./playerState";
 
@@ -49,6 +51,7 @@ type Props = {
   enrollmentId: number | null;
   initialPosition?: number;
   onFatal?: (reason: string) => void;
+  onReviewSummary?: (summary: ReviewWatchSummary) => void;
   onEnded?: () => void;
   onLeaveProgress?: (data: LeaveProgressPayload) => void;
 };
@@ -61,6 +64,7 @@ export default function StudentVideoPlayer({
   enrollmentId,
   initialPosition,
   onFatal,
+  onReviewSummary,
   onEnded,
   onLeaveProgress,
 }: Props) {
@@ -93,6 +97,8 @@ export default function StudentVideoPlayer({
   const [ctrlState, setCtrlState] = useState<ControllerState>(initialControllerState);
   const [theater, setTheater] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [controlsHovered, setControlsHovered] = useState(false);
+  const [rangeKeyboardFocused, setRangeKeyboardFocused] = useState(false);
   const { isFullscreen, requestFullscreen } = usePlayerFullscreen(wrapElRef, videoElRef, controllerRef, setShowControls);
   const policySkipBudget = useMemo<ForwardSkipBudgetState>(() => ({
     enabled: policy.seek?.enabled === true,
@@ -128,10 +134,11 @@ export default function StudentVideoPlayer({
   onLeaveProgressRef.current = onLeaveProgress;
 
   const { ready, playing, buffering, duration, current, volume, muted, rate, toast, qualities, currentQuality, reconnecting } = ctrlState;
-  const { remaining: reviewRemaining, reconnecting: reviewReconnecting, settleMediaFailure } = useReviewWatch(video.id, enrollmentId ?? null, bootstrap.review_watch, playing && !buffering, current, (reason) => {
+  const { remaining: reviewRemaining, summary: reviewSummary, reconnecting: reviewReconnecting, settleMediaFailure } = useReviewWatch(video.id, enrollmentId ?? null, bootstrap.review_watch, playing && !buffering, current, (reason) => {
     controllerRef.current?.pause();
     onFatalRef.current?.(reason);
-  });
+  }, onReviewSummary);
+  const watchSummary = reviewSummary ?? bootstrap.review_watch_summary;
 
   useEffect(() => {
     currentRef.current = current;
@@ -252,7 +259,7 @@ export default function StudentVideoPlayer({
       clearTimeout(hideControlsTimerRef.current);
       hideControlsTimerRef.current = null;
     }
-    if (playing && !buffering && showControls) {
+    if (playing && !buffering && showControls && !controlsHovered && !rangeKeyboardFocused) {
       hideControlsTimerRef.current = window.setTimeout(() => {
         hideControlsTimerRef.current = null;
         setShowControls(false);
@@ -261,7 +268,13 @@ export default function StudentVideoPlayer({
     return () => {
       if (hideControlsTimerRef.current) clearTimeout(hideControlsTimerRef.current);
     };
-  }, [playing, buffering, showControls, isFullscreen]);
+  }, [playing, buffering, showControls, controlsHovered, rangeKeyboardFocused, isFullscreen]);
+
+  const exposeKeyboardRange = (target: EventTarget) => {
+    if (!(target instanceof HTMLInputElement) || target.type !== "range") return;
+    setRangeKeyboardFocused(true);
+    setShowControls(true);
+  };
 
   const togglePlay = useCallback(() => {
     const ctrl = controllerRef.current;
@@ -539,7 +552,7 @@ export default function StudentVideoPlayer({
 
   return (
     <div className={`svpRoot ${theater ? "svpTheater" : ""}`}>
-      {reviewRemaining !== null && <p className="svpReviewRemaining">남은 복습시간 {Math.floor(Math.ceil(reviewRemaining / 1000) / 60)}분 {Math.ceil(reviewRemaining / 1000) % 60}초</p>}
+      {watchSummary ? <ReviewWatchSummaryPanel summary={watchSummary} remainingMs={bootstrap.review_watch ? reviewRemaining : undefined} /> : reviewRemaining !== null && <p className="svpReviewRemaining">남은 복습시간 {Math.floor(Math.ceil(reviewRemaining / 1000) / 60)}분 {Math.ceil(reviewRemaining / 1000) % 60}초</p>}
       {reviewReconnecting && <p role="status" className="svpReviewRemaining">시청 기록 연결을 복구하는 중입니다.</p>}
       <div className="svpLayout">
         <div className="svpPlayerCol">
@@ -671,7 +684,23 @@ export default function StudentVideoPlayer({
             </div>
 
             {usesCustomControls && (
-              <div className="svpControls">
+              <div
+                className="svpControls"
+                onPointerEnter={(event) => {
+                  if (event.pointerType === "mouse") setControlsHovered(true);
+                }}
+                onPointerLeave={(event) => {
+                  if (event.pointerType === "mouse") setControlsHovered(false);
+                }}
+                onPointerDownCapture={() => setRangeKeyboardFocused(false)}
+                onFocusCapture={(event) => {
+                  if (window.CSS?.supports("selector(:focus-visible)") && event.target.matches(":focus-visible")) {
+                    exposeKeyboardRange(event.target);
+                  }
+                }}
+                onKeyDownCapture={(event) => exposeKeyboardRange(event.target)}
+                onBlurCapture={() => setRangeKeyboardFocused(false)}
+              >
                 <div className="svpProgressRow">
                   <RangeSlider
                     value={current}

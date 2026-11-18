@@ -18,7 +18,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import QrScanLink from "@student/shared/ui/attendance/QrScanLink";
-import { Badge } from "@/shared/ui/ds";
+import { Badge, Button } from "@/shared/ui/ds";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 import { useStudentDashboard } from "../hooks/useStudentDashboard";
 import type { StudentDashboardResponse } from "../api/dashboard.api";
@@ -218,6 +218,21 @@ export default function DashboardPage() {
   const todoDataError = dashError || gradesQ.isError || examsQ.isError || countsError;
   const todoDataPending = (dashLoading || gradesQ.isPending || examsQ.isPending || countsLoading) && !todoDataError;
   const isParent = user?.tenantRole === "parent";
+  const [retrying, setRetrying] = useState(false);
+  const queries = [dashboardQ, sessionsQ, gradesQ, examsQ, notificationCountsQ];
+  const waitingForConnection = retrying && queries.some((query) => query.isPaused);
+  const retryLabel = waitingForConnection ? "연결 대기 중" : retrying ? "다시 확인 중" : "다시 시도";
+
+  async function retryFailedQueries() {
+    setRetrying(true);
+    try {
+      await Promise.all(queries.filter((query) => query.isError).map((query) =>
+        query.refetch({ cancelRefetch: false }),
+      ));
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   const now = useLearningClock();
   const today = learningDate(now);
@@ -331,7 +346,7 @@ export default function DashboardPage() {
     );
   }
 
-  /* 둘 다 실패 — 전체 다시 시도. 한쪽만 실패면 가능한 섹션 노출. */
+  /* 둘 다 실패하면 복구 동작을 제공하고 한쪽만 실패하면 가능한 섹션을 노출한다. */
   if (dashError && sessionsError) {
     return (
       <div style={{ padding: "var(--stu-space-8) var(--stu-space-4)", textAlign: "center" }}>
@@ -340,7 +355,8 @@ export default function DashboardPage() {
         </div>
         <button
           type="button"
-          onClick={() => window.location.reload()}
+          disabled={retrying}
+          onClick={() => void retryFailedQueries()}
           style={{
             padding: "10px 20px",
             borderRadius: "var(--stu-radius-md)",
@@ -352,7 +368,7 @@ export default function DashboardPage() {
             cursor: "pointer",
           }}
         >
-          다시 시도
+          {retryLabel}
         </button>
       </div>
     );
@@ -363,13 +379,18 @@ export default function DashboardPage() {
   const learningStatus = (
     <LearningStatusCard gradesQ={gradesQ} sessionsQ={sessionsQ} now={now} wrongCompletionOnly={wrongCompletionOnly} />
   );
-  const partialFailureBanner = todoDataError || sessionsError ? (
-    <div className={styles.heroDone} role="alert">
-      <div>
-        <div className={styles.heroDoneTitle}>일부 정보를 확인하지 못했어요</div>
-        <div className={styles.heroDoneText}>할 일이나 일정이 0건이라고 확정하지 않았습니다.</div>
+  const partialFailureBanner = todoDataError || sessionsError || retrying ? (
+    <div className={`${styles.heroDone} ${styles.retryBanner}`} role={retrying ? "status" : "alert"}>
+      <div className={styles.retryMessage}>
+        <div className={styles.heroDoneTitle}>
+          {waitingForConnection ? "연결되면 일부 정보를 다시 확인해요."
+            : retrying ? "일부 정보를 다시 확인하고 있어요" : "일부 정보를 확인하지 못했어요"}
+        </div>
+        <div className={styles.heroDoneText}>확인이 필요한 항목만 다시 불러와요.</div>
       </div>
-      <button type="button" onClick={() => window.location.reload()}>다시 시도</button>
+      <Button className={styles.retryButton} disabled={retrying} onClick={() => void retryFailedQueries()}>
+        {retryLabel}
+      </Button>
     </div>
   ) : null;
 
@@ -394,6 +415,8 @@ export default function DashboardPage() {
         notificationCounts={notificationCounts}
         countsLoading={countsLoading}
         countsError={countsError}
+        scheduleStatus={dashError ? "error" : dashLoading ? "pending" : "ready"}
+        supportStatus={gradesQ.isError ? "error" : gradesQ.isPending ? "pending" : "ready"}
         summaryPending={todoDataPending || sessionsLoading}
         summaryError={todoDataError || sessionsError}
         todoCount={todoCount}
@@ -663,6 +686,8 @@ type ParentUpcomingExam = {
   d: number | null;
 };
 
+type ParentMetricStatus = "pending" | "error" | "ready";
+
 type ParentDashboardViewProps = {
   childName: string;
   todaySessions: StudentSession[];
@@ -675,6 +700,8 @@ type ParentDashboardViewProps = {
   notificationCounts: NotificationCounts | undefined;
   countsLoading: boolean;
   countsError: boolean;
+  scheduleStatus: ParentMetricStatus;
+  supportStatus: ParentMetricStatus;
   summaryPending: boolean;
   summaryError: boolean;
   todoCount: number;
@@ -700,6 +727,8 @@ function ParentDashboardView({
   notificationCounts,
   countsLoading,
   countsError,
+  scheduleStatus,
+  supportStatus,
   summaryPending,
   summaryError,
   todoCount,
@@ -743,23 +772,23 @@ function ParentDashboardView({
         <div className={styles.parentSummaryGrid}>
           <ParentMetric
             label="선생님 답변"
-            value={countsLoading || countsError ? null : replyCount}
-            unit={countsLoading || countsError ? "" : "건"}
-            placeholder={countsError ? "확인 필요" : countsLoading ? "확인 중" : undefined}
+            value={replyCount}
+            unit="건"
+            status={countsError ? "error" : countsLoading ? "pending" : "ready"}
             tone={replyCount > 0 ? "primary" : "neutral"}
           />
           <ParentMetric
             label="오늘 일정"
-            value={summaryPending || summaryError ? null : todaySessions.length}
-            unit={summaryPending || summaryError ? "" : "개"}
-            placeholder={summaryError ? "확인 필요" : summaryPending ? "확인 중" : undefined}
+            value={todaySessions.length}
+            unit="개"
+            status={scheduleStatus}
             tone={todaySessions.length > 0 ? "primary" : "neutral"}
           />
           <ParentMetric
             label="보충 필요"
-            value={summaryPending || summaryError ? null : supportCount}
-            unit={summaryPending || summaryError ? "" : "건"}
-            placeholder={summaryError ? "확인 필요" : summaryPending ? "확인 중" : undefined}
+            value={supportCount}
+            unit="건"
+            status={supportStatus}
             tone={supportCount > 0 ? "warn" : "neutral"}
           />
         </div>
@@ -910,20 +939,19 @@ function ParentMetric({
   label,
   value,
   unit,
-  placeholder,
+  status,
   tone,
 }: {
   label: string;
-  value: number | null;
+  value: number;
   unit: string;
-  placeholder?: string;
+  status: ParentMetricStatus;
   tone: "primary" | "warn" | "neutral";
 }) {
   return (
     <div className={styles.parentMetric} data-tone={tone}>
       <div className={styles.parentMetricValue}>
-        {value == null ? placeholder : value}
-        {value != null && <span>{unit}</span>}
+        {status === "error" ? "확인 필요" : status === "pending" ? "확인 중" : <>{value}<span>{unit}</span></>}
       </div>
       <div className={styles.parentMetricLabel}>{label}</div>
     </div>
@@ -957,9 +985,7 @@ function LearningStatusCard({
 
   const homework = calculateHomeworkStats(grades?.homeworks ?? []);
   const hwCount = homework?.total ?? 0;
-  const hwRate = homework == null ? null : wrongCompletionOnly
-    ? Math.round((homework.passed / homework.total) * 100)
-    : homework.passRate;
+  const hwRate = (wrongCompletionOnly ? homework?.completionRate : homework?.passRate) ?? null;
 
   /* 시험 합격률 (점수 평균 대신 합격/총합 비율) */
   const examJudgments = grades?.exams.map((exam) => getExamPassStatus(exam, wrongCompletionOnly)) ?? [];

@@ -146,6 +146,9 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
    route-critical lazy asset이 연속 3회 일치한 뒤 login, tenant availability,
    조회-only session-assessment canary를 실행한다. notice/QnA/clinic 쓰기는 개발
    job에서만 실행한다. 후보마다 실제 IAM/격리 검증과 cleanup0을 통과해야 한다.
+   운영 전파 검사 중 TLS 연결 또는 데이터 수신 오류(curl 35/56)는 300초 전체
+   한도 안에서 같은 URL을 한 번 재시도한다. 재시도는 최대 5초이며 HTTP 오류,
+   잘못된 revision 또는 남은 시간 소진 시 해당 회차를 실패로 기록한다.
    진입 자산을 빼면 새
    HTML만 먼저 전파되어 `index-*.js`가 404인 순간을 안정화 완료로 오인할 수 있다.
 7. deploy job 내부 검증 실패는 같은 승인 job에서 즉시 baseline으로 rollback한다.
@@ -609,12 +612,15 @@ Ubuntu 미러 전체가 runner에서 해석되지 않으면 apt 설치 실패에
 공식 main 배포는 먼저 `backend-readiness`에서 backend의 진행 중인 main release run과
 successful manifest·active development host를 읽는다. 진행 중인 release만 최대
 45분 동안 30초 간격으로 기다린다. 최신 run이 취소됐어도 이전 active run을 확인한다.
-잘못된 host identity/IAM, 읽기 오류, 종료된
-release와 manifest/host 불일치는 즉시 실패한다. 대기는 별도 job과 임시 인증으로
+완료된 release는 성공 결과와 manifest의 source SHA, run ID, attempt 및 active host가
+일치해야 한다. 성공한 V1 실행이 runtime 후보 조립, 격리 개발 검증, 배포 검증을 모두
+건너뛴 경우에만 해당 attempt의 공식 job 기록과 이전 manifest를 발행한 성공 attempt를
+별도로 확인하고 기존 host를 사용한다. 잘못된 host identity/IAM, 실패·취소된 release,
+읽기 오류와 검증 불일치는 즉시 실패한다. 대기는 별도 job과 임시 인증으로
 수행해 real-use의 100분 job/인증 예산을 소모하지 않는다. 준비 완료 뒤 기존 QA가
 최신 immutable backend revision, IAM, SSM 문서, host를 다시 검사하므로 대기 중
 성공한 관측으로 이후 검증을 생략하지 않는다. 관측은 PII 없는
-`backend-readiness-evidence`에 남긴다. 대기 이후 새 release가 시작되어 다시
+`backend-readiness-evidence`에 남긴다. 실패 시 고정된 단계·오류 코드와 해당되는 HTTP 상태만 추가한다. 대기 이후 새 release가 시작되어 다시
 불일치하면 기존 preflight가 실패하며 QA나 운영 승격을 강행하지 않는다.
 
 `scripts/run-development-release-canary.mjs`는 공식 main CI/OIDC에서만 실행된다.
@@ -685,6 +691,7 @@ path/query 형태는 즉시 거부하고, exact 형태여도 응답 URL이나 HL
 브라우저의 CORS `OPTIONS` preflight는 공통 요청 경계에서 origin·path·query와
 전송 대상을 이미 검증하므로 제품 payload 응답 증거에서는 제외한다. 실패한
 preflight는 일반 request 오류 집계에 남는다.
+
 장시간 재생이 완료 전에 실패하면 artifact에는 사용자·URL·토큰·원문 오류 대신
 desktop/mobile별 마지막 통과 단계와 제한된 재생 상태만 고정 allowlist 값으로 남긴다.
 재생 상태는 각 화면의 video mount 여부, 정수 초의 현재 위치·길이·벽시계·최근 저장 위치,
@@ -727,6 +734,21 @@ scoped state에만 기존 영상 1개, 접근/PROCTORED 접근/진도 각 2개, 
 프로세스에는 85분을 허용한다. 100분 개발 카나리 job 안에서 결과 JSON 생성과 exact
 Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 85분을 넘기면 기존처럼 실패
 폐쇄하고 cleanup 0이 증명되기 전에는 운영 승격하지 않는다.
+
+별도 `SyntheticMultipartVideo=true` 진단은 같은 개발 artifact와 고정 SSM Setup이
+반환한 정확한 테넌트·강의·차시에서 실행한다. 관리자 영상 추가 화면에서 합성
+101 MiB MP4를 선택하고 API가 이 영상과 upload ID에 대해 반환한 정확한 주소로
+두 파트를 전송한다. 요청 경계는 개발 R2 bucket·raw key·서명 query를 검증하고
+CORS와 ETag의 실제 응답을 확인한다. R2 요청에는 Origin과 필요한 전송 헤더만
+사용한다. 응답 리다이렉트는 요청 경계에서 거부한다. 첫 번째 파트의 실제
+성공 응답은 브라우저 업로드 코드에서 한 번만 유실시킨다. 브라우저가 같은 객체와
+upload ID의 첫 파트 주소를 다시 발급받아 보내고, 두 번째 파트는 한 번만
+보냈는지 확인한다. 완료 요청에는 마지막으로 받은 두 ETag가 있어야 한다.
+검증 결과에는 주소나 ETag 없이 성공 PUT 3회, 응답 유실 1회와 재시도 일치 여부만 기록한다.
+
+브라우저 완료와 새로고침 후 영상 상태, 서버의 조립 크기, 일반 Batch 미제출,
+완료 객체와 미완료 업로드 정리 0을 함께 확인한다. 일반 영상 인코딩이 꺼진 개발
+환경에서 저장소까지 검증한다. 운영 승격에는 별도의 기본 42건 카나리 통과가 필요하다.
 
 고정 NonInteractiveCommands 세션의 Inspect/Setup/Cleanup과 합성 등록 계정용 AccountProbe만 사용하고 임의 shell 입력,
 기존 qa tenant 재사용/reset, 광역 command stdout 조회는 허용하지 않는다. Setup이 실패해도
@@ -1050,6 +1072,11 @@ exact artifact identity와 cleanup0을 요구한다. `public-video-1366.png`,
 생성 즉시 부모 시나리오에 등록하고, 부모가 소유한 강의 수강 등록을 제거해
 출결 참조가 정리된 후 삭제한다. 차시 GET 404와 최종 tenant/user/R2/process
 cleanup 0 조건을 유지하며 운영의 출결/차시 삭제 보호 규칙을 완화하지 않는다.
+
+수업일 검증도 같은 평가 spec에서 검토된 `verifySessionSchedules.ts` 파일명·행·열과
+고정 단계만 남긴다. 단계는 초기 명단, 기본 일정·차시 생성, 관리자 출결·성적 범위,
+학생 날짜, 수업일 이동, 충돌·삭제, 정리다. 정리 실패는 별도로 기록하며,
+앞선 오류가 있으면 그 오류를 그대로 유지한다. 정리 실패 자체도 검증 실패다.
 
 OMR cleanup의 실제 실패 지점은 remove/verify-absent/archive-action/verify-archive
 단계와 기존 expected HTTP status 목록, received status만 기록한다(응답 없는 전송

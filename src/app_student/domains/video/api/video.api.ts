@@ -1,5 +1,6 @@
 import api from "@student/shared/api/student.api";
 import type { ReviewWatch } from "./reviewWatch.api";
+import type { ReviewWatchSummary } from "@/shared/media/video/reviewWatchSummary";
 import type { AccessMode, VideoSourceType } from "@/shared/api/contracts/videos";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import { formatSessionLabel, type SessionOrderLike } from "@/shared/product/sessions/sessionOrdering";
@@ -86,6 +87,7 @@ export async function fetchVideoMe(): Promise<StudentVideoMeResponse> {
 }
 
 export type StudentVideoListItem = {
+  review_watch_summary?: ReviewWatchSummary | null;
   id: number;
   session_id: number | null;
   enrollment_id?: number | null;
@@ -126,6 +128,8 @@ function normalizeStudentVideoItem(video: StudentVideoListItem): StudentVideoLis
 
 
 export type StudentVideoPlayback = {
+  support_preview?: boolean;
+  review_watch_summary?: ReviewWatchSummary | null;
   review_watch?: ReviewWatch | null;
   progress_revision?: string | null;
   video: StudentVideoListItem;

@@ -20,7 +20,7 @@ const homework = (overrides = {}) => ({
 
 test("teacher completion without a score counts as completed, not as a numeric zero", () => {
   assert.deepEqual(calculateHomeworkStats([homework({ teacher_resolved: true })]), {
-    passed: 1, failed: 0, graded: 1, total: 1, avgPct: null, passRate: 100,
+    passed: 1, failed: 0, graded: 1, total: 1, avgPct: null, passRate: 100, completionRate: 100,
   });
 });
 
@@ -36,13 +36,13 @@ test("teacher-completed unscored homework does not dilute scored homework averag
 
 test("homework preserves scored zero and an explicit failure", () => {
   assert.deepEqual(calculateHomeworkStats([homework({ score: 0, passed: false, achievement: "FAIL" })]), {
-    passed: 0, failed: 1, graded: 1, total: 1, avgPct: 0, passRate: 0,
+    passed: 0, failed: 1, graded: 1, total: 1, avgPct: 0, passRate: 0, completionRate: 0,
   });
 });
 
 test("unscored and unjudged homework has no average, failure or pass rate", () => {
   assert.deepEqual(calculateHomeworkStats([homework()]), {
-    passed: 0, failed: 0, graded: 0, total: 1, avgPct: null, passRate: null,
+    passed: 0, failed: 0, graded: 0, total: 1, avgPct: null, passRate: null, completionRate: 0,
   });
   const scored = calculateHomeworkStats([homework({ score: 0 })]);
   assert.equal(scored.avgPct, 0);
@@ -63,7 +63,7 @@ test("missing or nonpositive maxima do not become zero-percent homework", () => 
 test("all unsubmitted exams retain unknown metrics in both display modes", () => {
   for (const wrongCompletionOnly of [false, true]) {
     assert.deepEqual(calculateExamStats([exam({ achievement: "NOT_SUBMITTED", meta_status: "NOT_SUBMITTED" })], wrongCompletionOnly), {
-      avgPct: null, passRate: null, count: 1, avgRank: null,
+      avgPct: null, passRate: null, count: 1, avgRank: null, submittedCount: 0,
     });
   }
 });
@@ -72,6 +72,19 @@ test("a scored zero and failed judgment remain numeric zero metrics", () => {
   const stats = calculateExamStats([exam({ total_score: 0, is_pass: false, achievement: "FAIL" })], false);
   assert.equal(stats.avgPct, 0);
   assert.equal(stats.passRate, 0);
+  assert.equal(stats.submittedCount, 1);
+});
+
+test("submitted exams awaiting grading count without adding a score or judgment", () => {
+  const submittedAt = "2026-07-08T18:00:00+09:00";
+  const stats = calculateExamStats([
+    exam({ exam_id: 1, grading_status: "subjective_pending", is_provisional: true }),
+    exam({ exam_id: 2, is_provisional: true, submitted_at: submittedAt }),
+    exam({ exam_id: 3, submission_pending: true }),
+    exam({ exam_id: 4, meta_status: "NOT_SUBMITTED", submitted_at: submittedAt }),
+    exam({ exam_id: 5, is_provisional: true }),
+  ], false);
+  assert.deepEqual(stats, { avgPct: null, passRate: null, count: 5, avgRank: null, submittedCount: 3 });
 });
 
 test("score and pass judgment have independent denominators", () => {

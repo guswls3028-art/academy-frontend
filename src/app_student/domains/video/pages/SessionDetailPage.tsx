@@ -4,8 +4,8 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { useParams, useSearchParams, Link, useLocation } from "react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchVideoMe, fetchStudentSessionVideos, fetchStudentVideoPlayback, type StudentVideoListItem } from "../api/video.api";
+import { useQuery } from "@tanstack/react-query";
+import { fetchVideoMe, fetchStudentSessionVideos, type StudentVideoListItem } from "../api/video.api";
 import EmptyState from "@student/layout/EmptyState";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { IconChevronRight, IconPlay } from "@student/shared/ui/icons/Icons";
@@ -22,11 +22,19 @@ import {
   studentVideoUnavailableLabel,
 } from "../utils/videoAccess";
 import { sortStudentVideos } from "../utils/videoSort";
-import { studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
+import { STUDENT_VIDEO_CATALOG_STALE_MS, studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
 import { getStudentCurrentVideoStorageKey } from "../utils/videoPlaybackStorage";
+import ReviewWatchSummaryPanel from "@/shared/media/video/ReviewWatchSummaryPanel";
+import { getStudentSupportSessionInfo } from "@/shared/auth/supportPreviewSession";
 
 function progressWidthStyle(value: number): CSSProperties {
   return { "--video-progress": `${Math.min(Math.max(value, 0), 100)}%` } as CSSProperties;
+}
+
+function preloadPlayer() {
+  // Preparing a screen must not issue a playback grant, replace an active
+  // stream or write a student's viewing history before they open the video.
+  void import("./VideoPlayerPage").catch(() => undefined);
 }
 
 // 재생 목록 아이템 컴포넌트
@@ -69,13 +77,11 @@ function VideoListItem({
   enrollmentId,
   sessionId,
   isCurrent = false,
-  onPrefetch,
 }: {
   video: StudentVideoListItem;
   enrollmentId?: number | null;
   sessionId?: number | null;
   isCurrent?: boolean;
-  onPrefetch?: (videoId: number) => void;
 }) {
   const videoStatus = video.status ?? "READY";
   const isPlayable = canPlayStudentVideo(video);
@@ -141,6 +147,7 @@ function VideoListItem({
             <IconChevronRight className="video-card__cta-icon" aria-hidden="true" />
           </div>
         )}
+        <ReviewWatchSummaryPanel summary={video.review_watch_summary} compact />
       </div>
     </>
   );
@@ -157,10 +164,9 @@ function VideoListItem({
     <Link
       to={href!}
       className={`video-card${isCurrent ? " video-card--active" : ""}`}
-      onTouchStart={() => { if (isPlayable && onPrefetch) onPrefetch(video.id); }}
-      onMouseEnter={() => {
-        if (onPrefetch) onPrefetch(video.id);
-      }}
+      onTouchStart={preloadPlayer}
+      onMouseEnter={preloadPlayer}
+      onFocus={preloadPlayer}
     >
       {content}
     </Link>
@@ -171,7 +177,6 @@ export default function SessionDetailPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const qc = useQueryClient();
   const { user } = useAuthContext();
   const queryScope = studentVideoQueryScope(user);
   const routeState = (location.state || {}) as {
@@ -186,14 +191,9 @@ export default function SessionDetailPage() {
   const currentVideoStorageKey = getStudentCurrentVideoStorageKey({
     userId: user?.id,
     enrollmentId,
+    supportSessionId: getStudentSupportSessionInfo()?.sessionId,
   });
 
-  // Preload hls.js and player chunk for faster video playback start
-  useEffect(() => {
-    import("hls.js").catch(() => {});
-    import("./VideoPlayerPage").catch(() => {});
-  }, []);
-  
   // 현재 재생 중인 영상 ID (localStorage에서 가져오기 - VideoPlayerPage에서 설정)
   // useMemo 대신 useState + useEffect 사용하여 Hook 순서 일관성 유지
   const [currentVideoId, setCurrentVideoId] = useState<number | null>(null);
@@ -232,6 +232,7 @@ export default function SessionDetailPage() {
   const { data: videoCatalog, isError: isCatalogError, refetch: refetchCatalog } = useQuery({
     queryKey: studentVideoQueryKeys.me(queryScope),
     queryFn: fetchVideoMe,
+    staleTime: STUDENT_VIDEO_CATALOG_STALE_MS,
     enabled: !!sessionIdNum && !routeState.isPublic,
     retry: false,
   });
@@ -355,13 +356,6 @@ export default function SessionDetailPage() {
                   enrollmentId={enrollmentId}
                   sessionId={sessionIdNum}
                   isCurrent={isCurrent}
-                  onPrefetch={(vid) => {
-                    qc.prefetchQuery({
-                      queryKey: studentVideoQueryKeys.playback(queryScope, vid, enrollmentId),
-                      queryFn: () => fetchStudentVideoPlayback(vid, enrollmentId ?? undefined),
-                      staleTime: 60_000,
-                    });
-                  }}
                 />
               );
             })}

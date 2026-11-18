@@ -80,6 +80,7 @@ type Props = {
   onApplied?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   showUnavailableState?: boolean;
+  autoFocusFirstCell?: boolean;
 };
 
 export type ManualExamGradingGridHandle = {
@@ -196,6 +197,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
   onDirtyChange,
   focusEnrollmentId,
   showUnavailableState = false,
+  autoFocusFirstCell = true,
 }, forwardedRef) {
   const queryClient = useQueryClient();
   const excelApplying = useIsMutating({ mutationKey: adminResultsQueryKeys.examResultImport(examId) }) > 0;
@@ -1136,6 +1138,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
 
   useEffect(() => {
     if (
+      !autoFocusFirstCell ||
       autoFocusedExamRef.current === examId ||
       !data?.has_manual_questions ||
       busy ||
@@ -1166,7 +1169,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       autoFocusedExamRef.current = examId;
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [busy, data?.has_manual_questions, draftRows, examId, focusEnrollmentId, shortcutSettingsOpen]);
+  }, [autoFocusFirstCell, busy, data?.has_manual_questions, draftRows, examId, focusEnrollmentId, shortcutSettingsOpen]);
 
   if (sheetQuery.isLoading) {
     return (

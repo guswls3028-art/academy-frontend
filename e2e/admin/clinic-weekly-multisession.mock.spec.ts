@@ -3110,7 +3110,8 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   await expect(examWorkbench.locator(".clinic-workbench__active-panel")).toContainText("8주차 산화수 확인 시험");
   await expect(examWorkbench.getByRole("button", { name: "수동 통과" })).toHaveCount(0);
   await expect(examWorkbench.getByRole("button", { name: "제출 확인·완료", exact: true })).toHaveCount(0);
-  await expect(examWorkbench.getByRole("spinbutton")).toHaveCount(0);
+  await expect(examWorkbench.getByRole("spinbutton", { name: "시험 점수" })).toHaveValue("");
+  await expect(examWorkbench.getByRole("button", { name: "점수 저장", exact: true })).toBeDisabled();
   await expect(examWorkbench.getByRole("button", { name: "면제" })).toBeVisible();
   await expect(examWorkbench.getByRole("button", { name: "다음 차수 이월" })).toHaveCount(0);
   await examWorkbench.getByRole("button", { name: "면제" }).click();
@@ -3242,8 +3243,10 @@ test("긴 미완료 목록은 학생 행을 자르지 않고 전체 작업대로
       enrollment_id: 1051,
       student_id: 551,
       student_name: "긴목록 학생",
-      session_title: `화학특강 ${index + 1}차시`,
-      source_title: `${index + 1}번째 매우 긴 산화 환원과 화학 평형 확인 과제`,
+      session_title: index < 2 ? "화학특강 - 산화와 환원 (A반)" : index < 4 ? "화학특강 - 2차시" : "물리특강 - 2차시",
+      session_label: index < 2 ? "1차시 · 산화와 환원 (A반)" : "2차시",
+      lecture_title: index < 4 ? "화학특강" : "물리특강",
+      source_title: index % 2 === 0 ? "본문" : `${index + 1}번째 매우 긴 산화 환원과 화학 평형 확인 시험`,
       reason: "score",
       clinic_reason: index % 2 === 0 ? "homework" : "exam",
       homework_score: index % 2 === 0 ? 2 : null,
@@ -3253,7 +3256,7 @@ test("긴 미완료 목록은 학생 행을 자르지 않고 전체 작업대로
       clinic_link_id: 9151 + index,
       source_type: index % 2 === 0 ? "homework" : "exam",
       source_id: 5151 + index,
-      session_id: 701,
+      session_id: 710 + Math.floor(index / 2),
       max_score: 100,
       created_at: `2026-08-22T04:0${index}:00Z`,
     })),
@@ -3268,6 +3271,14 @@ test("긴 미완료 목록은 학생 행을 자르지 않고 전체 작업대로
 
   const card = page.locator(".clinic-ops__card").filter({ hasText: "긴목록 학생" });
   await expect(card.locator(".clinic-ops__task-chip")).toHaveCount(6);
+  const groups = card.getByRole("group", { name: "긴목록 학생 미완료 항목" });
+  const firstLesson = "1차시 · 산화와 환원 (A반) · 화학특강";
+  const secondLesson = "2차시 · 화학특강";
+  for (const lesson of [firstLesson, secondLesson, "2차시 · 물리특강"]) {
+    const lessonGroup = groups.getByRole("group", { name: lesson, exact: true });
+    await expect(lessonGroup.getByText(lesson, { exact: true })).toBeVisible();
+    await expect(lessonGroup.getByRole("button")).toHaveCount(2);
+  }
   await expect(card).not.toContainText("+2");
   await card.scrollIntoViewIfNeeded();
   await page.screenshot({ path: "test-results/admin-clinic-long-queue-1366.png", fullPage: false });
@@ -3278,11 +3289,16 @@ test("긴 미완료 목록은 학생 행을 자르지 않고 전체 작업대로
     ),
   ).toBe(true);
 
-  await card.getByRole("button", { name: /긴목록 학생.*2번째 매우 긴/ }).click();
+  const firstHomework = groups.getByRole("group", { name: firstLesson, exact: true })
+    .getByRole("button", { name: /과제 본문/ });
+  await firstHomework.click();
   const workbench = page.getByRole("dialog", { name: "긴목록 학생 클리닉 워크벤치" });
-  await expect(workbench.locator(".clinic-workbench__active-panel")).toContainText(
-    "2번째 매우 긴 산화 환원과 화학 평형 확인 과제",
-  );
+  const activeTask = workbench.locator(".clinic-workbench__active-panel");
+  await expect(activeTask).toContainText(firstLesson);
+  const secondHomework = workbench.getByRole("tab", { name: /^2차시 · 화학특강.*본문/ });
+  await secondHomework.click();
+  await expect(secondHomework).toHaveAttribute("aria-selected", "true");
+  await expect(activeTask).toContainText(secondLesson);
   expect(
     await workbench.locator(".clinic-workbench__item-switcher").evaluate(
       (element) => element.scrollWidth <= element.clientWidth,
@@ -3298,13 +3314,15 @@ test("긴 미완료 목록은 학생 행을 자르지 않고 전체 작업대로
   await page.reload({ waitUntil: "domcontentloaded", timeout: 45_000 });
   await expect(card).toBeVisible({ timeout: 45_000 });
   await expect(card.locator(".clinic-ops__task-chip")).toHaveCount(6);
+  await expect(firstHomework).toBeVisible();
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   await card.scrollIntoViewIfNeeded();
   await expect(card.getByRole("button", { name: "긴목록 학생 학생 작업대 열기" })).toBeVisible();
   await page.screenshot({ path: "test-results/admin-clinic-long-queue-390.png", fullPage: false });
-  await card.getByRole("button", { name: "긴목록 학생 학생 작업대 열기" }).click();
+  await firstHomework.click();
   await expect(workbench).toBeVisible();
+  await expect(activeTask).toContainText(firstLesson);
 });
 
 test("학생별 1·2·3·4·5개 할 일은 고정 폭 카드와 모바일 한 열로 모두 보인다", async ({ page }) => {

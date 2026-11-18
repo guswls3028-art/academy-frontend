@@ -5,7 +5,7 @@ import { createRequire, stripTypeScriptTypes } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import http from "node:http";
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { EventEmitter } from "node:events";
@@ -544,6 +544,34 @@ test("assessment copy failure observations keep only reviewed phases and source"
   assert.equal(wrongSpec.rejectedFailureObservationCount, 2);
 });
 
+test("assessment schedule failures preserve sanitized source and closed phases for the owning spec", () => {
+  const phases = ["setup-roster", "initial-create", "admin-attendance", "admin-scores", "student-projection",
+    "transfer", "conflict-removal", "cleanup"].map(phase => `assessment-schedule-${phase}`);
+  const outputs = [];
+  for (const phase of phases) {
+    policyModule.emitReleaseTestFailure(new Error("expect(received) private-user secret-token"), phase, value => outputs.push(value));
+  }
+  const valid = outputs[0].releaseTestFailure;
+  outputs.push({ releaseTestFailure: { ...valid, phase: "assessment-schedule-private-user" } },
+    { releaseTestFailure: { ...valid, detail: "secret-token" } });
+  const report = contextReport(outputs, "student-parent-assessment-realuse.spec.ts");
+  report.suites[0].specs[0].tests[0].results[0].errors = [{
+    message: "expect(received) private-user secret-token",
+    location: { file: "C:/private/verifySessionSchedules.ts", line: 125, column: 5 },
+  }];
+  const observed = observeReleaseTestResult(JSON.stringify(report));
+  assert.deepEqual(observed.testFailureObservations.map(item => item.phase), phases);
+  assert.equal(observed.rejectedFailureObservationCount, 2);
+  assert.deepEqual(observed.failureLocations, [{
+    specFile: "student-parent-assessment-realuse.spec.ts", sourceFile: "verifySessionSchedules.ts", line: 125, column: 5,
+  }]);
+  assert.doesNotMatch(JSON.stringify(observed), /C:\/private|private-user|secret-token/);
+
+  const wrongSpec = observeReleaseTestResult(JSON.stringify(contextReport(outputs, "notice-roundtrip.spec.ts")));
+  assert.deepEqual(wrongSpec.testFailureObservations, []);
+  assert.equal(wrongSpec.rejectedFailureObservationCount, outputs.length);
+});
+
 test("assessment copy and template retry cleanup removes owned rows and verifies absence", async () => {
   const source = readFileSync(new URL("../../e2e/student/student-parent-assessment-realuse.spec.ts", import.meta.url), "utf8");
   const body = stripTypeScriptTypes(source.slice(source.indexOf("async function cleanup("), source.indexOf("async function seedAssessment(")));
@@ -922,13 +950,61 @@ test("student-parent cleanup seals hard-delete storage cleanup before reporting 
   assert.match(source, /return deletion;/);
 });
 
+test("multipart diagnostic is dispatch-only and requires matching browser and sealed storage receipts", () => {
+  const scope = "video-multipart-storage";
+  const env = { ACADEMY_RELEASE_DIAGNOSTIC_SCOPE: scope, ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: "1" };
+  assert.throws(() => runner.readDiagnosticScope({ ...env, GITHUB_EVENT_NAME: "push" }));
+  assert.throws(() => runner.readDiagnosticScope({ ...env, GITHUB_EVENT_NAME: "workflow_dispatch", ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE: "0" }));
+  assert.equal(runner.readDiagnosticScope({ ...env, GITHUB_EVENT_NAME: "workflow_dispatch" }), scope);
+  assert.equal(developmentRealUseCases[runner.VIDEO_MULTIPART_STORAGE_SPEC], undefined);
+  const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
+  assert.match(source, /E2E_VIDEO_MULTIPART_SESSION_ID: multipartOnly \? String\(multipartStorage\.setup\.session_id\) : undefined/);
+  assert.match(source, /E2E_VIDEO_MULTIPART_LECTURE_ID: multipartOnly \? String\(multipartStorage\.setup\.lecture_id\) : undefined/);
+  const file = runner.VIDEO_MULTIPART_STORAGE_SPEC;
+  const payload = {
+    status: "YMATH_REALUSE_SCENARIO_READY", r2_scope_proven: true,
+    synthetic_multipart_video: { session_id: 12, lecture_id: 4, objects: 0, uploads: 0 },
+  };
+  const sealed = runner.assertMultipartSetup(payload);
+  assert.throws(() => runner.assertMultipartSetup({ ...payload, synthetic_multipart_video: { ...sealed, uploads: 1 } }));
+  const browser = {
+    schema: "development-video-multipart-browser/v2", uploadedPartCount: 2, expectedBytes: 105906176,
+    ackLossCount: 1, samePartRetried: true, successfulPutCount: 3,
+    completionStatus: 503, persistedStatus: "FAILED",
+  };
+  const report = (body, projectName = "chromium") => ({
+    errors: [], stats: { expected: 1, unexpected: 0, flaky: 0, skipped: 0 },
+    suites: [{ specs: [{ file, tests: [{
+      expectedStatus: "passed", status: "expected", projectName, results: [{
+        status: "passed", attachments: [{ name: "multipart-storage-browser", contentType: "application/json",
+          body: Buffer.from(JSON.stringify(body)).toString("base64") }],
+      }],
+    }] }] }],
+  });
+  assert.deepEqual(runner.assertMultipartBrowserReport(report(browser)).browser, browser);
+  assert.throws(() => runner.assertMultipartBrowserReport(report({ ...browser, persistedStatus: "UPLOADED" })));
+  for (const mismatch of [{ ackLossCount: 0 }, { samePartRetried: false }, { successfulPutCount: 2 }, { unexpected: true }]) {
+    assert.throws(() => runner.assertMultipartBrowserReport(report({ ...browser, ...mismatch })));
+  }
+  assert.throws(() => runner.assertMultipartBrowserReport(report(browser, "webkit")));
+  const stored = { session_id: 12, objects: 1, uploads: 0, content_length: 105906176, batch_submitted: false, status: "FAILED" };
+  assert.deepEqual(runner.assertMultipartReadback({ synthetic_multipart_video: stored }, sealed, browser), stored);
+  for (const mismatch of [{ uploads: 1 }, { session_id: 13 }, { content_length: 105906175 }, { batch_submitted: true }]) {
+    assert.throws(() => runner.assertMultipartReadback({ synthetic_multipart_video: { ...stored, ...mismatch } }, sealed, browser));
+  }
+  assert.throws(() => runner.assertMultipartReadback({ synthetic_multipart_video: stored }, sealed));
+  const empty = { session_id: 12, objects: 0, uploads: 0 };
+  assert.deepEqual(runner.assertMultipartReadback({ synthetic_multipart_video: empty }, sealed), empty);
+});
+
 test("development canary seals required-student two-slot self-cancellation and mock delivery", () => {
   const specName = "student-clinic-required-cancel-realuse.spec.ts";
   const spec = readFileSync(new URL(`../../e2e/student/${specName}`, import.meta.url), "utf8");
   const config = readFileSync(new URL("../../playwright.development-release.config.ts", import.meta.url), "utf8");
   const runnerSource = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
 
-  assert.match(config, /testMatch: diagnosticScope === "excel-learning-homework" \? \[\.\.\.EXCEL_LEARNING_HOMEWORK_SPECS\] : Object\.keys\(developmentRealUseCases\)/);
+  assert.match(config, /testMatch: diagnosticScope === "video-multipart-storage" \? \[VIDEO_MULTIPART_STORAGE_SPEC\]/);
+  assert.match(config, /: diagnosticScope === "excel-learning-homework" \? \[\.\.\.EXCEL_LEARNING_HOMEWORK_SPECS\] : Object\.keys\(developmentRealUseCases\)/);
   assert.match(runnerSource, /Object\.entries\(developmentRealUseCases\)/);
   assert.equal(developmentRealUseCases[`student/${specName}`], 1);
   for (const required of [
@@ -1172,7 +1248,8 @@ function runtimeEvidenceFixture(untilInitialWriteOnly, diagnosticOnly = false, d
   const forbidden = () => { externalCalls++; assert.fail("runtime evidence test attempted external work"); };
   const deps = {
     diagnosticOnly, diagnosticScope,
-    selectedSpecs: diagnosticScope === "excel-learning-homework" ? targetedDiagnosticSpecs : null,
+    selectedSpecs: diagnosticScope === "excel-learning-homework" ? targetedDiagnosticSpecs
+      : diagnosticScope === "video-multipart-storage" ? [runner.VIDEO_MULTIPART_STORAGE_SPEC] : null,
     assert, createFixedQaRunner: runner.createFixedQaRunner, evidence: { preflightStage: "complete", passed: false },
     manifest: { releaseImageTag: "unit-release", images: { "academy-api": { digest: "unit-digest" } } },
     revision: "b".repeat(40), instanceId: "unit-instance", tenant: "qa-unit-primary", crossTenant: "qa-unit-cross",
@@ -1196,6 +1273,7 @@ function runtimeEvidenceFixture(untilInitialWriteOnly, diagnosticOnly = false, d
       postCleanupInspectObservation = values.postCleanupInspectObservation;
       crossPostCleanupInspectObservation = values.crossPostCleanupInspectObservation;
       realUseObservation = values.realUseObservation; videoRuntimeObservation = values.videoRuntimeObservation;
+      Object.assign(multipartStorage, values.multipartStorage);
       failures.push(...(values.failures || []));
       ${terminalBody}
     }
@@ -1203,6 +1281,30 @@ function runtimeEvidenceFixture(untilInitialWriteOnly, diagnosticOnly = false, d
   const execute = new Function(...Object.keys(deps), `"use strict"; return async () => {\n${source.slice(start, end)}\n${tail}\n};`)(...Object.values(deps));
   return { execute, snapshots, portChecks, signals, externalCalls: () => externalCalls };
 }
+
+test("actual runtime finalization requires both zero-residue receipts for the non-promotable multipart diagnostic", async () => {
+  for (const missingPostCleanup of [false, true]) {
+    const fixture = runtimeEvidenceFixture(true, true, "video-multipart-storage");
+    const runtime = await fixture.execute();
+    const empty = { session_id: 12, objects: 0, uploads: 0 };
+    const finalize = () => runtime.finalize({
+      counts: { expected: 1, unexpected: 0, flaky: 0, skipped: 0 },
+      postCleanupInspectObservation: { proven: true },
+      multipartStorage: {
+        setup: { ...empty, lecture_id: 4 },
+        browser: { uploadedPartCount: 2, expectedBytes: 105906176, ackLossCount: 1, samePartRetried: true, successfulPutCount: 3 },
+        inspect: { session_id: 12, objects: 1, uploads: 0, content_length: 105906176, batch_submitted: false },
+        cleanup: empty,
+        postCleanup: missingPostCleanup ? null : empty,
+      },
+    });
+    if (missingPostCleanup) assert.throws(finalize, /Development release gate failed/);
+    else assert.doesNotThrow(finalize);
+    assert.equal(fixture.snapshots.at(-1).terminalOutcome, missingPostCleanup ? "qa_failed" : "diagnostic_passed");
+    assert.equal(fixture.snapshots.at(-1).passed, false);
+    assert.equal(fixture.externalCalls(), 0);
+  }
+});
 
 test("diagnostic full-suite mode accepts only the exact opt-in on workflow_dispatch", () => {
   assert.equal(typeof runner.readDiagnosticFullSuiteMode, "function");
@@ -2792,7 +2894,8 @@ test("official runner opts into two-student long-video setup without publishing 
   assert.match(runnerSource, /SyntheticLongVideo: \[syntheticLongVideo \? "true" : "false"\]/);
   assert.match(runnerSource, /scenario = await operation\("Setup"\)/);
   assert.match(runnerSource, /E2E_STUDENT2_USER: "ymath-qa-student-02"/);
-  assert.match(runnerSource, /E2E_LONG_VIDEO_ID: String\(scenario\.synthetic_long_video\.video_id\)/);
+  assert.match(runnerSource, /const longVideo = multipartOnly \? null : assertLongVideoSetup\(scenario\)/);
+  assert.match(runnerSource, /E2E_LONG_VIDEO_ID: longVideo \? String\(longVideo\.video_id\) : ""/);
   assert.match(runnerSource, /E2E_LONG_VIDEO_TENANT_ID: String\(scenario\.tenant_id\)/);
   assert.equal(developmentRealUseCases["student/video-playback-renewal.realuse.spec.ts"], 1);
   assert.match(configSource, /timeout: 17 \* 60_000/);
@@ -2886,6 +2989,8 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
   const sessionPosterUrl = `${mediaOrigin}${posterPath}?v=${version}&exp=${expiresAt + 1}&sig=${"b".repeat(43)}&kid=v1`;
   const delayedSessionPosterUrl = `${mediaOrigin}${posterPath}?v=${version}&exp=${expiresAt + 2}&sig=${"c".repeat(43)}&kid=v1`;
   const clockSkewPosterUrl = `${mediaOrigin}${posterPath}?v=${version}&exp=${Math.floor(Date.now() / 1_000) + 21_630}&sig=${"d".repeat(43)}&kid=v1`;
+  const supportExpiry = Math.floor(Date.now() / 1_000) + 600;
+  const supportPosterUrl = `${mediaOrigin}${posterPath}?v=${version}&exp=${supportExpiry}&sig=${"e".repeat(43)}&kid=v1`;
   let browser;
   try {
     browser = await chromium.launch();
@@ -2908,7 +3013,8 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
     const state = {
       responseChain: Promise.resolve(),
       allowedMasterUrls: new Set([masterUrl]),
-      allowedPosterUrls: new Set([posterUrl, sessionPosterUrl, clockSkewPosterUrl]),
+      allowedPosterUrls: new Set([posterUrl, sessionPosterUrl, clockSkewPosterUrl, supportPosterUrl]),
+      supportPosterExpiries: new Map([[supportPosterUrl, supportExpiry]]),
       posterLoads: 0,
     };
     await installSyntheticVideoPosterBridge(context, state, 7, 77);
@@ -2944,7 +3050,13 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
       image.onerror = () => resolve(false);
       image.src = url;
     }), clockSkewPosterUrl), true);
-    assert.equal(state.posterLoads, 4);
+    assert.equal(await page.evaluate((url) => new Promise((resolve) => {
+      const image = new Image();
+      image.onload = () => resolve(true);
+      image.onerror = () => resolve(false);
+      image.src = url;
+    }), supportPosterUrl), true);
+    assert.equal(state.posterLoads, 5);
     assert.doesNotThrow(() => guard.assertClean());
     await context.close();
 
@@ -2964,8 +3076,13 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
       { url: `${mediaOrigin}${posterPath}?v=1e3&exp=${expiresAt}&sig=${signature}&kid=v1`, kind: "poster" },
       { url: `${mediaOrigin}${posterPath}?v=0${version}&exp=${expiresAt}&sig=${signature}&kid=v1`, kind: "poster" },
       { url: masterUrl.replace("&uid=11", ""), kind: "hls" },
+      { url: supportPosterUrl, kind: "poster" },
+      { url: supportPosterUrl, kind: "poster", supportExpiry: supportExpiry + 1 },
+      { url: supportPosterUrl, kind: "poster", supportExpiry, responseDerived: false },
+      { url: supportPosterUrl.replace(mediaOrigin, "https://foreign.fixture.invalid"), kind: "poster", supportExpiry },
+      { url: supportPosterUrl.replace(`exp=${supportExpiry}`, `exp=${version - 1}`), kind: "poster", supportExpiry: version - 1 },
     ];
-    for (const { url: candidate, kind, responseDerived = true } of rejected) {
+    for (const { url: candidate, kind, responseDerived = true, supportExpiry: boundExpiry } of rejected) {
       const rejectedContext = await browser.newContext();
       const rejectedGuard = await installReleaseContextGuard(rejectedContext, {
         mode: "development", webOrigin, apiOrigin: "http://127.0.0.1:1", tenantCode: "qa-ymath-realuse-unit",
@@ -2974,6 +3091,7 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
         responseChain: Promise.resolve(),
         allowedMasterUrls: new Set([masterUrl]),
         allowedPosterUrls: new Set(responseDerived ? [candidate] : [posterUrl]),
+        supportPosterExpiries: new Map(boundExpiry === undefined ? [] : [[candidate, boundExpiry]]),
         posterLoads: 0,
       };
       await rejectedContext.route("**/qa-fixtures/video-long/**", async (route) => {
@@ -3002,6 +3120,72 @@ test("real Chromium bridges only exact response-derived posters and HLS origin",
   } finally {
     await browser?.close();
     await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("review poster fixture requires a class-bound origin and exact response", { timeout: 30_000 }, async () => {
+  const source = readFileSync(new URL("../../e2e/helpers/videoStabilityProbe.ts", import.meta.url), "utf8");
+  const start = source.indexOf("async function mediaBridge(");
+  const end = source.indexOf("\nexport async function runVideoStabilityProbe", start);
+  assert.ok(start >= 0 && end > start);
+  const mediaBridge = new Function("expect", "installSyntheticVideoPosterBridge",
+    `${stripTypeScriptTypes(source.slice(start, end))}; return mediaBridge;`)(expect, installSyntheticVideoPosterBridge);
+  const server = http.createServer((request, response) => {
+    const media = request.url === "/__qa__/video-long/master.m3u8";
+    response.writeHead(200, { "content-type": media ? "application/vnd.apple.mpegurl" : "text/html" });
+    response.end(media ? "#EXTM3U\n#EXT-X-ENDLIST\n" : "<!doctype html><main>review fixture</main>");
+  });
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  const webOrigin = `http://127.0.0.1:${server.address().port}`;
+  const expiresAt = Math.floor(Date.now() / 1_000) + 1_500;
+  const signature = "a".repeat(43);
+  const mediaOrigin = "https://media.fixture.invalid";
+  const master = `${mediaOrigin}/qa-fixtures/video-long/master.m3u8?exp=${expiresAt}&kid=v1&sig=${signature}&uid=11`;
+  const posterPath = `/tenants/7/video/hls/77/thumbnail.jpg?v=1&exp=${expiresAt}&kid=v1&sig=${signature}`;
+  const reviewPath = "/api/v1/media/review-stream/11111111-1111-4111-8111-111111111111/master.m3u8";
+  let browser;
+  try {
+    browser = await chromium.launch();
+    for (const scenario of [
+      { bound: false, origin: mediaOrigin, admitted: false },
+      { bound: true, origin: mediaOrigin, admitted: true },
+      { bound: true, origin: "https://foreign.fixture.invalid", admitted: false },
+    ]) {
+      const context = await browser.newContext();
+      const guard = await installReleaseContextGuard(context, {
+        mode: "development", webOrigin, apiOrigin: "http://127.0.0.1:1", tenantCode: "qa-ymath-realuse-unit",
+      });
+      const bridge = await mediaBridge(context, webOrigin, webOrigin, 7, 77, scenario.bound ? master : undefined);
+      const poster = scenario.origin + posterPath;
+      await context.route("**/api/v1/student/video/videos/77/playback/", route => route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({ play_url: reviewPath, video: { id: 77, thumbnail_url: poster } }),
+      }));
+      const page = await context.newPage();
+      await page.goto(webOrigin);
+      await page.evaluate(async () => {
+        const response = await fetch("/api/v1/student/video/videos/77/playback/", { method: "POST" });
+        await response.json();
+      });
+      assert.equal(await page.evaluate(url => new Promise(resolve => {
+        const image = new Image();
+        image.onload = () => resolve(true);
+        image.onerror = () => resolve(false);
+        image.src = url;
+      }), poster), scenario.admitted);
+      if (scenario.admitted) {
+        assert.equal(await page.evaluate(async url => (await fetch(url)).text(),
+          reviewPath.replace("/api/v1/media/review-stream/", "/review-media/")), "#EXTM3U\n#EXT-X-ENDLIST\n");
+        await bridge.verify();
+        assert.doesNotThrow(() => guard.assertClean());
+      } else {
+        assert.throws(() => guard.assertClean(), /Release request rejected \[origin\]/);
+      }
+      await context.close();
+    }
+  } finally {
+    await browser?.close();
+    await new Promise(resolve => server.close(resolve));
   }
 });
 

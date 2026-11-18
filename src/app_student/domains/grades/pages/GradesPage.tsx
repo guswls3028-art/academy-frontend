@@ -39,6 +39,7 @@ export default function GradesPage() {
   };
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const { data, isLoading, isError, refetch } = useMyGradesSummary();
+  const summaryReady = !isLoading && !isError;
   const reportLayout = data?.report_layout ?? defaultStudentGradeReportLayout();
   const hasVisibleAnalytics = reportLayout.sections.some(
     (section) => section.visible && STUDENT_GRADE_REPORT_ANALYTICS_SECTION_IDS.includes(section.id),
@@ -87,14 +88,18 @@ export default function GradesPage() {
         />
       )}
 
-      {!isLoading && !isError && tab === "home" && (
-        <ParentAssessmentComments exams={exams} homeworks={homeworks}>
-          <SessionAssessmentTotals items={data?.session_totals ?? []} />
-          <GradesHomeTab exams={exams} homeworks={homeworks} labels={labels} />
+      {tab === "home" && (
+        <ParentAssessmentComments exams={exams} homeworks={homeworks} summaryReady={summaryReady}>
+          {summaryReady && (
+            <>
+              <SessionAssessmentTotals items={data?.session_totals ?? []} />
+              <GradesHomeTab exams={exams} homeworks={homeworks} labels={labels} />
+            </>
+          )}
         </ParentAssessmentComments>
       )}
 
-      {!isLoading && !isError && tab === "stats" && (
+      {summaryReady && tab === "stats" && (
         <Suspense fallback={<div role="status" aria-label="추이 분석을 불러오는 중"><Skeletons /></div>}>
           <GradesStatsTab
             exams={exams}

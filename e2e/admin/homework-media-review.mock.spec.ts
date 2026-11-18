@@ -26,6 +26,9 @@ function fakeJwt(): string {
 type ReviewMockOptions = {
   resultMode?: "SCORE" | "COMPLETION";
   resultScores?: Array<number | null>;
+  resultTitles?: { lecture: string; session: string; homework: string };
+  resultNames?: string[];
+  workbook?: boolean;
   olderSubmission?: boolean;
   reviewImagesOnly?: boolean;
   reviewPdf?: boolean;
@@ -60,7 +63,7 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
   const session = {
     id: SESSION_ID,
     lecture: LECTURE_ID,
-    title: "3차시",
+    title: options.resultTitles?.session ?? "3차시",
     display_label: "3차시",
     order: 3,
     regular_order: 3,
@@ -73,7 +76,7 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
     session: SESSION_ID,
     session_id: SESSION_ID,
     homework_type: "regular",
-    title: "도형 풀이 인증",
+    title: options.resultTitles?.homework ?? "도형 풀이 인증",
     grading_mode: options.resultMode ?? "SCORE",
     max_score: options.resultMode === "COMPLETION" ? 1 : 100,
     cutline_mode: "PERCENT",
@@ -83,6 +86,7 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
     effective_cutline_value: options.resultMode === "COMPLETION" ? 1 : 80,
     effective_round_unit_percent: 5,
     uses_session_cutline_default: false,
+    source_status: options.workbook ? "ready" : "none",
     meta: {},
     created_at: "2026-08-23T00:00:00Z",
     updated_at: "2026-08-23T00:00:00Z",
@@ -105,9 +109,9 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
       return json({ ok: true });
     }
     if (path === `/lectures/lectures/${LECTURE_ID}/`) {
-      return json({ id: LECTURE_ID, title: "고1 수학", name: "김선생", subject: "수학", is_active: true });
+      return json({ id: LECTURE_ID, title: options.resultTitles?.lecture ?? "고1 수학", name: "김선생", subject: "수학", is_active: true });
     }
-    if (path === "/lectures/lectures/") return json([{ id: LECTURE_ID, title: "고1 수학", is_active: true }]);
+    if (path === "/lectures/lectures/") return json([{ id: LECTURE_ID, title: options.resultTitles?.lecture ?? "고1 수학", is_active: true }]);
     if (path === "/lectures/sessions/") return json([session]);
     if (path === `/lectures/sessions/${SESSION_ID}/`) return json(session);
     if (path === `/lectures/sessions/${SESSION_ID}/schedules/` && request.method() === "GET") {
@@ -122,7 +126,8 @@ async function installApi(page: Page, submissionStatus = "submitted", newAssista
     if (path === "/homework/assignments/") return json({ items: [] });
     if (path === `/results/admin/sessions/${SESSION_ID}/scores/`) {
       if (options.resultMode) return json({ meta: { exams: [], homeworks: [] }, rows: (options.resultScores ?? []).map((score, index) => ({
-        enrollment_id: 9902 + index, student_id: 9950 + index, student_name: `결과학생${index + 1}`,
+        enrollment_id: 9902 + index, student_id: 9950 + index, student_name: options.resultNames?.[index] ?? `결과학생${index + 1}`,
+        lecture_title: options.resultTitles?.lecture,
         homeworks: [{ homework_id: HOMEWORK_ID, block: { score, max_score: options.resultMode === "COMPLETION" ? 1 : 100,
           passed: score == null ? null : score >= (options.resultMode === "COMPLETION" ? 1 : 80),
           clinic_required: score != null && score < (options.resultMode === "COMPLETION" ? 1 : 80),
@@ -571,7 +576,7 @@ test("신규 조교가 계정 안내 확인 후 모바일 과제 파일을 열�
   await page.screenshot({ path: testInfo.outputPath("mobile-homework-preview-1366.png"), fullPage: true, animations: "disabled" });
 });
 
-for (const width of [1366, 390]) {
+for (const width of [1366, 1100, 390]) {
   test(`@homework-results ${width}px 통과형 결과는 OX·미입력·미제출로 구분하고 상세를 화면 안에서 확인한다`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     await installApi(page, "submitted", false, { resultMode: "COMPLETION", resultScores: [1, 0, null, null] });
@@ -581,7 +586,13 @@ for (const width of [1366, 390]) {
     await expect(table.getByRole("columnheader", { name: "O/X", exact: true })).toBeVisible();
     await expect(page.getByText("점수 분포 (%)", { exact: true })).toHaveCount(0);
     await expect(page.getByText(/최소 1점/)).toHaveCount(0);
-    await expect(page.getByText("미입력 1명 · 미제출 처리 1명 · 판정 입력 2명", { exact: true })).toBeVisible();
+    const statistics = page.getByText("과제 통계", { exact: true });
+    const inputCounts = page.getByText("미입력 1명 · 미제출 처리 1명 · 판정 입력 2명", { exact: true });
+    await expect(inputCounts).toBeHidden();
+    await statistics.click();
+    await expect(inputCounts).toBeVisible();
+    await statistics.click();
+    await expect(inputCounts).toBeHidden();
     for (const [index, value] of ["O", "X", "미입력", "미제출"].entries()) {
       const row = table.getByRole("row").filter({ hasText: `결과학생${index + 1}` });
       await expect(row.locator("td").nth(2)).toHaveText(value);
@@ -591,17 +602,22 @@ for (const width of [1366, 390]) {
     await expect(table.locator("tbody tr")).toContainText("결과학생2");
     await page.getByRole("combobox", { name: "과제 결과 상태 필터" }).selectOption("all");
     const second = table.getByRole("row").filter({ hasText: "결과학생2" });
-    await second.locator("td").nth(2).click();
-    const detail = page.getByRole("complementary", { name: "선택 학생 상세", exact: true });
+    const detailButton = second.getByRole("button", { name: "결과학생2 결과 상세", exact: true });
+    const detail = page.getByRole("dialog", { name: "결과학생2 과제 결과", exact: true });
+    await expect(detail).toBeHidden();
+    await detailButton.focus();
+    await detailButton.press("Enter");
     await expect(detail.getByText("X", { exact: true })).toBeVisible();
-    await detail.scrollIntoViewIfNeeded();
+    await expect(detail).toBeInViewport();
     const bounds = await detail.boundingBox();
     expect(bounds).not.toBeNull();
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-    await table.evaluate(node => { if (node.parentElement) node.parentElement.scrollLeft = 0; });
     await page.screenshot({ path: testInfo.outputPath(`completion-detail-${width}.png`), animations: "disabled" });
+    await page.keyboard.press("Escape");
+    await expect(detail).toBeHidden();
+    await expect(detailButton).toBeFocused();
     await page.reload({ waitUntil: "domcontentloaded" });
     await waitForRenderSettled(page, { timeout: 20_000 });
     await page.getByRole("tab", { name: "결과", exact: true }).click();
@@ -609,17 +625,53 @@ for (const width of [1366, 390]) {
   });
 }
 
+test("@homework-results 390px 과제 상세를 열어도 화면에 가로 스크롤이 생기지 않는다", async ({ page }, testInfo) => {
+  const resultTitles = {
+    lecture: "QA 과제 projection 1794772800000",
+    session: "QA 과제 1차시 1794772800000",
+    homework: "QA 준비물 통과형 1794772800000",
+  };
+  const resultNames = ["QA homework 자녀 1", "QA homework-preview 자녀 1"];
+  await page.setViewportSize({ width: 390, height: 900 });
+  await installApi(page, "submitted", false, { resultMode: "COMPLETION", resultScores: [0, 1], resultTitles, resultNames });
+  await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/assignments?homeworkId=${HOMEWORK_ID}`);
+  await expect(page.getByRole("heading", { name: resultTitles.homework, exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "결과", exact: true }).click();
+  const student = resultNames[0];
+  const detailButton = page.getByRole("button", { name: `${student} 결과 상세`, exact: true });
+  const detail = page.getByRole("dialog", { name: `${student} 과제 결과`, exact: true });
+  const readOverflow = () => page.evaluate(() => {
+    const { scrollWidth, clientWidth } = document.documentElement;
+    return scrollWidth - clientWidth;
+  });
+  await expect(page.getByRole("columnheader", { name: "결과 상세", exact: true })).toBeVisible();
+  expect(await readOverflow()).toBeLessThanOrEqual(1);
+  await detailButton.click();
+  await expect(detail.getByText("X", { exact: true })).toBeVisible();
+  await detail.scrollIntoViewIfNeeded();
+  await expect(detail).toBeInViewport();
+  expect(await readOverflow()).toBeLessThanOrEqual(1);
+  await page.screenshot({ path: testInfo.outputPath("homework-long-name-detail-390.png"), animations: "disabled" });
+  await page.keyboard.press("Escape");
+  await expect(detail).toBeHidden();
+  await expect(detailButton).toBeFocused();
+  expect(await readOverflow()).toBeLessThanOrEqual(1);
+});
+
 test("@homework-results 점수형 소수점 경계는 분포에서 누락되지 않고 기존 점수를 유지한다", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 900 });
   await installApi(page, "submitted", false, { resultMode: "SCORE", resultScores: [0, 20, 20.5, 40, 40.5, 60, 60.5, 80, 80.5, 100] });
   await openSubmissionReview(page);
   await page.getByRole("tab", { name: "결과", exact: true }).click();
-  await expect(page.getByText("점수 분포 (%)", { exact: true })).toBeVisible();
+  const distributionTitle = page.getByText("점수 분포 (%)", { exact: true });
+  await expect(distributionTitle).toBeHidden();
+  await page.getByText("과제 통계", { exact: true }).click();
+  await expect(distributionTitle).toBeVisible();
   for (const label of ["0-20", "20초과-40", "40초과-60", "60초과-80", "80초과-100"]) {
     await expect(page.getByTitle(`${label}: 2명`, { exact: true })).toBeVisible();
   }
   await expect(page.getByRole("table").getByRole("row").filter({ hasText: "결과학생3" }).locator("td").nth(2)).toHaveText("20.5 / 100");
-  const distribution = page.getByText("점수 분포 (%)", { exact: true }).locator("..");
+  const distribution = distributionTitle.locator("..");
   await distribution.scrollIntoViewIfNeeded();
   expect(await distribution.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
@@ -637,7 +689,57 @@ test("@homework-results 전원 미입력은 제출률100% 대신 실제 입력 �
   await installApi(page, "submitted", false, { resultMode: "SCORE", resultScores: [null, null, null] });
   await openSubmissionReview(page);
   await page.getByRole("tab", { name: "결과", exact: true }).click();
+  await page.getByText("과제 통계", { exact: true }).click();
   await expect(page.getByText("미입력 3명 · 미제출 처리 0명 · 채점 입력 0명", { exact: true })).toBeVisible();
   await expect(page.getByText(/제출률/)).toHaveCount(0);
   await expect(page.getByRole("table").locator("tbody tr")).toHaveCount(3);
+});
+
+test("@homework-results 워크북 채점표를 열고 저장한 표시를 다시 확인한다", async ({ page }) => {
+  await installApi(page, "submitted", false, { resultMode: "SCORE", resultScores: [90], workbook: true });
+  let readCount = 0;
+  let savedMarks = {};
+  await page.route(`**/homeworks/${HOMEWORK_ID}/question-grading/`, async (route) => {
+    const request = route.request();
+    if (request.method() === "PATCH") {
+      const payload = request.postDataJSON();
+      expect(payload).toEqual({ updates: [{
+        enrollment_id: 9902, question_number: 1, is_correct: false, include_in_wrong_note: true,
+      }] });
+      savedMarks = { "1": { is_correct: false, include_in_wrong_note: true } };
+    } else {
+      readCount += 1;
+    }
+    await route.fulfill({ json: {
+      homework_id: HOMEWORK_ID,
+      source_exam_id: 44,
+      source_status: "ready",
+      questions: [{ id: 1, number: 1, image_key: "" }],
+      rows: [{ enrollment_id: 9902, student_id: 9950, student_name: "결과학생1", score_id: 431, marks: savedMarks }],
+    } });
+  });
+  await openSubmissionReview(page);
+  await page.getByRole("tab", { name: "결과", exact: true }).click();
+  const ledger = page.locator("summary").filter({ hasText: "워크북 문항 채점표" });
+  const mark = page.getByRole("combobox", { name: "결과학생1 1번 채점", exact: true });
+  await expect(ledger).toBeVisible();
+  await expect(mark).toHaveCount(0);
+  expect(readCount).toBe(0);
+  await ledger.click();
+  await expect(mark).toHaveValue("unset");
+  expect(readCount).toBe(1);
+  await mark.selectOption("wrong");
+  await expect(mark).toHaveValue("wrong");
+  await ledger.click();
+  await expect(mark).toBeHidden();
+  await ledger.click();
+  await expect(mark).toHaveValue("wrong");
+  expect(readCount).toBe(1);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await waitForRenderSettled(page, { timeout: 20_000 });
+  await page.getByRole("tab", { name: "결과", exact: true }).click();
+  await expect(mark).toHaveCount(0);
+  await ledger.click();
+  await expect(mark).toHaveValue("wrong");
+  expect(readCount).toBe(2);
 });

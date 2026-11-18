@@ -38,6 +38,11 @@ export type ScoreActiveCell = { enrollmentId: number } & (
   | { type: "exam"; examId: number; sub: "item"; questionId: number }
 );
 
+export function activeScoreCellKey(cell: ScoreActiveCell): string {
+  if (cell.type === "homework") return `homework:${cell.enrollmentId}:${cell.homeworkId}`;
+  return `exam:${cell.enrollmentId}:${cell.examId}:${cell.sub}:${cell.sub === "item" ? cell.questionId : ""}`;
+}
+
 export type ScoreActiveEditor = {
   client_id: string;
   editor_user_id: number;

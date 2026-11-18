@@ -40,8 +40,8 @@ function AcademyModeSection() {
 
   const badges: { label: string; value: string; tone: ModeBadgeTone }[] = [
     {
-      label: "반 편성",
-      value: sectionMode ? "A/B반 운영" : "기본 (반 없음)",
+      label: "개별 차시·클리닉 반 편성",
+      value: sectionMode ? "사용" : "미사용",
       tone: sectionMode ? "primary" : "muted",
     },
     {

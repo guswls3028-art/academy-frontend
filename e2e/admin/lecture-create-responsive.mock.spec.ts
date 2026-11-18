@@ -55,7 +55,7 @@ async function seedLocalAdmin(page: Page): Promise<Array<Record<string, unknown>
     });
 
     if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204 });
-    if (path === "/lectures/lectures/" && route.request().method() === "POST") {
+    if (["/lectures/lectures/", "/lectures/lectures/with-schedule-settings/"].includes(path) && route.request().method() === "POST") {
       createdLectures.push(route.request().postDataJSON() as Record<string, unknown>);
       return json({ id: 901, ...createdLectures[createdLectures.length - 1] });
     }
@@ -214,6 +214,14 @@ test.describe("강의 생성 반응형 회귀", () => {
         await timePopover.getByLabel("분 단위 직접 입력").fill("17:00");
         await timePopover.getByRole("button", { name: "적용", exact: true }).click();
 
+        const mode = modal.getByLabel("수업 운영 방식");
+        await expect(mode).toHaveValue("SINGLE");
+        const split = width === 390 && theme === "modern-white";
+        if (split) {
+          await mode.selectOption("SPLIT");
+          await modal.getByLabel("1번째 반 기본 요일").selectOption("3");
+          await modal.getByLabel("2번째 반 기본 요일").selectOption("4");
+        }
         await modal.getByRole("button", { name: "등록", exact: true }).click();
         const confirmation = page.getByRole("alertdialog", { name: "강의 생성 최종 확인" });
         await expectReadableControl(confirmation.getByRole("button", { name: "확인하고 만들기" }));
@@ -230,6 +238,9 @@ test.describe("강의 생성 반응형 회귀", () => {
           .getByRole("button", { name: "확인하고 만들기" })
           .click();
         await expect.poll(() => createdLectures.length).toBe(1);
+        if (split) expect(createdLectures[0]).toMatchObject({
+          schedule_mode: "SPLIT", schedule_defaults: [{ label: "A반", weekday: 3 }, { label: "B반", weekday: 4 }],
+        });
       });
     }
   }

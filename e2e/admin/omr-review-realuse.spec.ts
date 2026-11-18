@@ -2,15 +2,17 @@
 /**
  * OMR 업로드/검토/재채점 실사용 canary.
  *
- * production-shaped development API로 격리 강의/차시/학생/혼합형 시험/OMR PDF를
+ * production-shaped development API로 격리 강의/차시/학생/혼합형 시험/OMR 스캔을
  * 만들고, 실제 업로드·AI worker·검토·서술형 수기 채점·재접속을 통과한 뒤
  * 학생/관리자 projection까지 확인한다.
  */
 import { test, expect } from "../fixtures/strictTest";
-import type { APIRequestContext, Page, Response } from "@playwright/test";
+import type { APIRequestContext, Locator, Page, Request, Response } from "@playwright/test";
 import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import { PDFDocument, rgb } from "pdf-lib";
 import { setTimeout as delay } from "node:timers/promises";
+import type { OmrUploadBatchSummary } from "../../src/shared/api/contracts/submissions";
 import { getApiBaseUrl, getBaseUrl, loginTokenViaRequest } from "../helpers/auth";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
 import { emitOmrCleanupStatus, safeLectureSessionDeleteBlocker } from "../helpers/releaseApiBoundary";
@@ -355,6 +357,41 @@ async function chooseExamHeaderAction(
   await menu.getByRole("menuitem", { name: new RegExp(`^${action}`) }).click();
 }
 
+async function openOmrReviewFromWorkbox(
+  page: Page,
+  mixedAdmission?: { total: number; needsIdentification: number; failed: number },
+) {
+  const trigger = page.getByRole("button", { name: /^작업박스/ });
+  if (await trigger.getAttribute("aria-expanded") === "false") {
+    await trigger.click();
+  }
+  const panel = page.locator(".alarm-panel--workbox-style");
+  const batches = panel.locator(".async-status-bar__item").filter({
+    has: page.getByText(`OMR ${mixedAdmission?.total ?? 1}장`, { exact: true }),
+  });
+  const batch = mixedAdmission
+    ? batches
+        .filter({ has: page.getByText(`식별 필요 ${mixedAdmission.needsIdentification}`, { exact: true }) })
+        .filter({ has: page.getByText(`실패 ${mixedAdmission.failed}`, { exact: true }) })
+    : batches.first();
+  if (mixedAdmission) await expect(batch).toHaveCount(1, { timeout: 30_000 });
+  await batch.getByRole("button", { name: "OMR 검토", exact: true }).click({ timeout: 30_000 });
+  const scoresPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`;
+  await expect(page).toHaveURL((url) => url.pathname === scoresPath);
+  const review = page.getByRole("dialog", { name: "OMR 검토", exact: true });
+  await expect(review).toBeVisible({ timeout: 30_000 });
+  await expect(review).toContainText(EXAM_TITLE);
+  return review;
+}
+
+async function expectDecodedOmrScan(review: Locator) {
+  const scanImage = review.getByRole("img", { name: "OMR 스캔 원본", exact: true });
+  await expect(scanImage).toBeVisible({ timeout: 30_000 });
+  await expect.poll(() => scanImage.evaluate((element: HTMLImageElement) => (
+    element.complete && element.naturalWidth > 0 && element.naturalHeight > 0
+  )), { timeout: 30_000 }).toBe(true);
+}
+
 const omrPrintOptions = {
   exam_title: EXAM_TITLE,
   lecture_name: LECTURE_TITLE,
@@ -496,6 +533,28 @@ async function markThirtyQuestionOmrPdf(
   }
 
   return Buffer.from(await pdf.save());
+}
+
+async function renderOmrScanImage(markedPdf: Buffer): Promise<Buffer> {
+  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const standardFontDataUrl = createRequire(import.meta.url).resolve("pdfjs-dist/package.json")
+    .replaceAll("\\", "/").replace(/package\.json$/, "standard_fonts/");
+  const task = getDocument({ data: new Uint8Array(markedPdf), useSystemFonts: false, standardFontDataUrl });
+  try {
+    const document = await task.promise;
+    expect(document.numPages).toBe(1);
+    const page = await document.getPage(1);
+    const viewport = page.getViewport({ scale: 300 / 72 });
+    const surface = document.canvasFactory.create(Math.ceil(viewport.width), Math.ceil(viewport.height));
+    try {
+      await page.render({ canvas: surface.canvas, canvasContext: surface.context, viewport }).promise;
+      return surface.canvas.toBuffer("image/png");
+    } finally {
+      document.canvasFactory.destroy(surface);
+    }
+  } finally {
+    await task.destroy();
+  }
 }
 
 async function waitForOmrAnswers(
@@ -1415,7 +1474,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeEnabled();
     await page.getByRole("button", { name: "OMR 스캔 등록" }).click();
     const uploadDialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
-    await expect(uploadDialog.locator(".admin-omr-upload").getByText("스캔 파일 선택")).toBeVisible({ timeout: 10_000 });
+    await expect(uploadDialog.locator(".admin-omr-upload").getByText("스캔본·촬영 사진 선택")).toBeVisible({ timeout: 10_000 });
 
     await uploadDialog.locator(".admin-omr-upload input[type='file']").setInputFiles({
       name: `omr-realuse-${TS}.pdf`,
@@ -1427,42 +1486,113 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const startUpload = uploadDialog.getByRole("button", { name: "등록 시작", exact: true });
     await expect(startUpload).toBeEnabled();
 
-    const initializeResponsePromise = page.waitForResponse(
-      (resp) => resp.request().method() === "POST"
-        && new URL(resp.url()).pathname === `/api/v1/submissions/submissions/exams/${created.examId}/omr/batches/`,
-      { timeout: 90_000 },
-    ).then((response) => {
-      expect(response.status(), "OMR batch initialization must succeed before file admission").toBe(201);
-      return response;
-    });
-    const uploadResponsePromise = page.waitForResponse(
-      (resp) =>
-        resp.request().method() === "POST" &&
-        resp.url().includes(`/submissions/submissions/exams/${created.examId}/omr/batch/`),
-      { timeout: 90_000 },
-    );
-    const responses = Promise.all([initializeResponsePromise, uploadResponsePromise]);
-    // Attach both response waits before clicking: batch initialization is a real
-    // prerequisite, not evidence that the subsequent file upload succeeded.
-    const [, [initializeResponse, uploadResponse]] = await Promise.all([
-      startUpload.click(),
-      responses,
-    ]);
-    expect(initializeResponse.status()).toBe(201);
-    expect(uploadResponse.status()).toBe(201);
-    const uploadBody = await uploadResponse.json() as {
+    const initializePath = `/submissions/submissions/exams/${created.examId}/omr/batches/`;
+    const uploadPath = `/api/v1/submissions/submissions/exams/${created.examId}/omr/batch/`;
+    type BatchItem = { id: string; ordinal: number; submission_id: number | null; status: string };
+    type WorkboxBatch = { id: string; exam_id: number; session_id: number | null; items: BatchItem[] };
+    type UploadReceipt = {
+      id: string;
       submission_ids?: number[];
-      items?: { ordinal: number; submission_id: number | null; status: string }[];
+      items?: BatchItem[];
     };
-    created.submissionIds = (uploadBody.submission_ids ?? []).map((id) => Number(id));
-    expect(created.submissionIds.length).toBe(1);
+    const workboxPath = "/submissions/submissions/omr/batches/";
+    const scopedBatches = async () => (await expectApi<WorkboxBatch[]>(request, "GET", workboxPath, adminTokens.access))
+      .filter((batch) => batch.exam_id === created.examId && batch.session_id === created.sessionId);
+    const isPost = (req: Request, pathname: string) => {
+      const url = new URL(req.url());
+      return req.method() === "POST" && url.pathname === pathname && !url.search;
+    };
+    const waitForInitialize = () => page.waitForResponse(
+      (response) => isPost(response.request(), `/api/v1${initializePath}`), { timeout: 90_000 },
+    );
+    await test.step("등록 시작 응답이 끊겨도 같은 접수 작업으로 다시 시도한다", async () => {
+      // The release route checks and forwards the real request. Drop the
+      // first 201 in the page's XHR after its headers reach the browser.
+      const ackLoss = await page.evaluateHandle((pathname) => {
+        const originalOpen = XMLHttpRequest.prototype.open;
+        let armed = true;
+        const state = {
+          losses: 0,
+          restore() {
+            armed = false;
+            if (XMLHttpRequest.prototype.open === interceptOpen) XMLHttpRequest.prototype.open = originalOpen;
+          },
+        };
+        const interceptOpen = function (
+          this: XMLHttpRequest, method: string, target: string | URL,
+          ...options: [async?: boolean, username?: string | null, password?: string | null]
+        ) {
+          Reflect.apply(originalOpen, this, [method, target, ...options]);
+          const url = new URL(target, window.location.href);
+          if (method.toUpperCase() !== "POST" || url.pathname !== pathname || url.search) return;
+          this.addEventListener("readystatechange", () => {
+            if (!armed || this.readyState !== XMLHttpRequest.HEADERS_RECEIVED || this.status !== 201) return;
+            state.losses++;
+            state.restore();
+            this.abort();
+          });
+        };
+        XMLHttpRequest.prototype.open = interceptOpen;
+        return state;
+      }, `/api/v1${initializePath}`);
 
+      let multipartPosts = 0;
+      const countMultipartPost = (req: Request) => { if (isPost(req, uploadPath)) multipartPosts++; };
+      page.on("request", countMultipartPost);
+      try {
+        const [firstResponse] = await Promise.all([waitForInitialize(), startUpload.click()]);
+        expect(firstResponse.status()).toBe(201);
+        const input = firstResponse.request().postDataJSON() as Record<string, unknown>;
+        expect(input).toMatchObject({
+          client_request_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+          session_id: created.sessionId,
+          total_count: 1,
+        });
+        await expect(uploadDialog.getByText(
+          "등록 작업 응답을 확인하지 못했습니다. 선택한 파일로 등록 시작을 다시 눌러 주세요.", { exact: true },
+        )).toBeVisible();
+        expect(await ackLoss.evaluate((state) => state.losses)).toBe(1);
+        await expect(uploadDialog.getByText(`omr-realuse-${TS}.pdf`)).toBeVisible();
+        await expect(startUpload).toBeEnabled();
+        expect(multipartPosts).toBe(0);
+
+        const pending = await scopedBatches();
+        expect(pending).toHaveLength(1);
+        const original = pending[0];
+        expect(original.items).toEqual([
+          expect.objectContaining({ id: expect.any(String), ordinal: 1, submission_id: null, status: "pending_admission" }),
+        ]);
+
+        const [replayResponse, uploadResponse] = await Promise.all([
+          waitForInitialize(),
+          page.waitForResponse((response) => isPost(response.request(), uploadPath), { timeout: 90_000 }),
+          startUpload.click(),
+        ]);
+        expect(replayResponse.status()).toBe(201);
+        expect(replayResponse.request().postDataJSON()).toEqual(input);
+        expect(await replayResponse.json()).toMatchObject({
+          id: original.id,
+          items: [{ id: original.items[0].id, ordinal: 1, submission_id: null }],
+        });
+        expect(uploadResponse.status()).toBe(201);
+        const receipt = await uploadResponse.json() as UploadReceipt;
+        created.submissionIds = (receipt.submission_ids ?? []).map(Number);
+        expect(created.submissionIds).toHaveLength(1);
+        expect(receipt).toMatchObject({ id: original.id, items: [
+          { id: original.items[0].id, ordinal: 1, submission_id: created.submissionIds[0] },
+        ] });
+        await expectApi(request, "POST", initializePath, adminTokens.access, { ...input, total_count: 2 }, [409]);
+        expect((await scopedBatches()).map((batch) => batch.id)).toEqual([original.id]);
+        expect(multipartPosts).toBe(1);
+      } finally {
+        page.off("request", countMultipartPost);
+        await ackLoss.evaluate((state) => state.restore());
+        await ackLoss.dispose();
+      }
+    });
     const submissionId = created.submissionIds[0];
-    expect(uploadBody.items).toHaveLength(1);
-    expect(uploadBody.items?.[0]).toMatchObject({ ordinal: 1, submission_id: submissionId });
-    // AdminOmrBatchUploadBox.tsx's post-upload notice (single file, no
-    // duplicates/failures): `${created_count}건을 접수했습니다. ...`.
-    await expect(page.getByText("1건을 접수했습니다. AI 처리 상태는 작업박스에서 계속 확인할 수 있습니다.")).toBeVisible({ timeout: 20_000 });
+    // The durable receipt counts admitted files separately from grading.
+    await expect(uploadDialog.getByText("접수 확인 1장")).toBeVisible({ timeout: 20_000 });
     const ledger = uploadDialog.getByLabel("답안지별 접수 내역");
     await ledger.locator("summary").click();
     await expect(ledger.getByRole("listitem")).toHaveCount(1);
@@ -1496,21 +1626,21 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const reviewEntry = page.locator(".omr-entry");
     await expect(reviewEntry.locator(".omr-entry__title")).toContainText("OMR 검토", { timeout: 30_000 });
     await reviewEntry.getByRole("button", { name: /처리하기|OMR 다시 보기/ }).click();
-    await expect(page.getByRole("dialog", { name: "OMR 검토" })).toBeVisible({ timeout: 20_000 });
+    const examReview = page.getByRole("dialog", { name: "OMR 검토", exact: true });
+    await expect(examReview).toBeVisible({ timeout: 20_000 });
+    await examReview.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(examReview).toBeHidden();
+    const workboxReview = await openOmrReviewFromWorkbox(page);
     // Objective answers are reviewed here. Teacher score marks are reviewed in the grading grid.
-    await expect(page.locator(".orw-q-row")).toHaveCount(objectiveQuestionIds.length, { timeout: 30_000 });
-    const scanImage = page.getByRole("img", { name: "OMR 스캔 원본", exact: true });
-    await expect(scanImage).toBeVisible();
-    await expect.poll(() => scanImage.evaluate((element: HTMLImageElement) => (
-      element.complete && element.naturalWidth > 0 && element.naturalHeight > 0
-    )), { timeout: 30_000 }).toBe(true);
+    await expect(workboxReview.locator(".orw-q-row")).toHaveCount(objectiveQuestionIds.length, { timeout: 30_000 });
+    await expectDecodedOmrScan(workboxReview);
     await page.screenshot({ path: `e2e/screenshots/omr-review-realuse-scan-${TS}.png`, fullPage: true });
 
     const pickButton = page.getByRole("button", { name: "학생 검색·연결" });
     if (await pickButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
       await pickButton.click();
       const studentPicker = page.getByRole("dialog", { name: "학생 선택" });
-      await studentPicker.getByPlaceholder("학생 이름 또는 전화번호 뒤 4자리").fill(STUDENT_NAME);
+      await studentPicker.getByRole("textbox", { name: "학생 검색" }).fill(STUDENT_NAME);
       await expect(studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }))
         .toBeVisible({ timeout: 15_000 });
       await studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
@@ -1936,8 +2066,8 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("link").filter({ hasText: EXAM_TITLE })).toContainText("서술형 1번");
 
-    // A changed PDF creates a new immutable scan event, then the teacher explicitly
-    // accepts it for the same sitting. Both scans remain tracked for cleanup.
+    // Send the changed scan as an image alongside a damaged camera file. Only the
+    // readable scan enters the worker, and both ordinals remain visible in the batch.
     const answers = [...EXPECTED_ANSWERS];
     answers[0] = "2";
     const replacementBubbles = await essayBubblesFromPreview(page, previewHtml, [
@@ -1946,24 +2076,37 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const markedPdf = await markThirtyQuestionOmrPdf(
       await downloadOmrPdf(request, adminAccess, created.examId!), answers, CONTROLLED_PHONE.slice(-8), replacementBubbles,
     );
+    const scanImage = await renderOmrScanImage(markedPdf);
     await loginBrowserAsRealUser(page,
       `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
       { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
     await page.getByRole("button", { name: "OMR 스캔 등록" }).click();
     const uploadDialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
-    await uploadDialog.locator(".admin-omr-upload input[type='file']").setInputFiles({
-      name: `omr-rescan-${TS}.pdf`, mimeType: "application/pdf", buffer: markedPdf,
-    });
+    await uploadDialog.locator(".admin-omr-upload input[type='file']").setInputFiles([
+      { name: `omr-rescan-${TS}.png`, mimeType: "image/png", buffer: scanImage },
+      { name: `omr-damaged-${TS}.jpg`, mimeType: "image/jpeg", buffer: Buffer.from("invalid image bytes") },
+    ]);
     const uploaded = page.waitForResponse((response) => response.request().method() === "POST"
       && response.url().includes(`/submissions/submissions/exams/${created.examId}/omr/batch/`),
     { timeout: 90_000 });
     await uploadDialog.getByRole("button", { name: "등록 시작", exact: true }).click();
     const uploadResponse = await uploaded;
     expect(uploadResponse.status()).toBe(201);
-    const uploadBody = await uploadResponse.json() as { submission_ids?: number[] };
+    const uploadBody = await uploadResponse.json() as OmrUploadBatchSummary & { submission_ids: number[] };
     expect(uploadBody.submission_ids).toHaveLength(1);
-    const replacementId = Number(uploadBody.submission_ids![0]);
+    const replacementId = uploadBody.submission_ids[0];
     created.submissionIds.push(replacementId);
+    expect(uploadBody.items?.find((item) => item.ordinal === 1)).toMatchObject({
+      admission_status: "received", submission_id: replacementId,
+    });
+    const batch = await expectApi<OmrUploadBatchSummary>(
+      request, "GET", `/submissions/submissions/omr/batches/${uploadBody.id}/`, adminAccess,
+    );
+    expect(batch.admission_failed_ordinals).toEqual([2]);
+    expect(batch.items?.find((item) => item.ordinal === 2)).toMatchObject({
+      admission_status: "failed", failure_code: "invalid_file_content", submission_id: null,
+    });
+    await expect(uploadDialog.getByRole("button", { name: "미접수 파일 다시 접수", exact: true })).toBeVisible();
     await uploadDialog.getByRole("button", { name: "닫기", exact: true }).click();
     const scan = await waitForOmrAnswers(request, adminAccess, replacementId, 30);
     expect(scan.answers.sort((a: any, b: any) => Number(a.question_no) - Number(b.question_no))[0].answer).toBe("2");
@@ -1981,21 +2124,21 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       status: "needs_identification", identifier: "matched_duplicate",
     });
 
-    const replacementDetailResponse = page.waitForResponse((response) => matchesApiResponse(
-      response, "GET", `/submissions/submissions/${replacementId}/manual-edit/`,
-    ), { timeout: 30_000 });
-    await gotoAndSettle(page,
-      `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}&reviewOmr=1&reviewSubmissionId=${replacementId}`,
-      { timeout: 45_000 });
-    await page.getByRole("tab", { name: "채점·결과" }).click();
-    const replacementReview = page.getByRole("dialog", { name: "OMR 검토" });
-    await expect(replacementReview).toBeVisible({ timeout: 30_000 });
-    // This journey retains the student's 390px viewport. Open the mobile edit
-    // pane just as a teacher does; the initial list pane hides its controls.
-    const editTab = replacementReview.getByRole("tab", { name: "확인", exact: true });
-    await editTab.click();
-    await expect(editTab).toHaveAttribute("aria-selected", "true");
-    const detailResponse = await replacementDetailResponse;
+    const [detailResponse, replacementReview] = await Promise.all([
+      page.waitForResponse((response) => matchesApiResponse(
+        response, "GET", `/submissions/submissions/${replacementId}/manual-edit/`,
+      ), { timeout: 30_000 }),
+      (async () => {
+        const review = await openOmrReviewFromWorkbox(page, { total: 2, needsIdentification: 1, failed: 1 });
+        await review.locator(".orw-list-row").filter({ hasText: "미식별 학생" }).click();
+        await review.getByRole("tab", { name: "원본", exact: true }).click();
+        await expectDecodedOmrScan(review);
+        const editTab = review.getByRole("tab", { name: "확인", exact: true });
+        await editTab.click();
+        await expect(editTab).toHaveAttribute("aria-selected", "true");
+        return review;
+      })(),
+    ]);
     expect(detailResponse.status()).toBe(200);
     const replacementDetail = await detailResponse.json() as {
       submission_id: number; enrollment_id: number | null; submission_status: string;
@@ -2022,7 +2165,19 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(picker).toBeVisible();
     await picker.click();
     const studentPicker = page.getByRole("dialog", { name: "학생 선택" });
-    await studentPicker.getByPlaceholder("학생 이름 또는 전화번호 뒤 4자리").fill(STUDENT_NAME);
+    const phoneSuffix = CONTROLLED_PHONE.slice(-4);
+    const candidates = page.waitForResponse((response) => {
+      if (!matchesApiResponse(response, "GET", `/submissions/submissions/exams/${created.examId}/candidates/`)) return false;
+      const params = new URL(response.url()).searchParams;
+      return params.get("session_id") === String(created.sessionId) && params.get("q") === phoneSuffix;
+    });
+    await studentPicker.getByRole("textbox", { name: "학생 검색" }).fill(phoneSuffix);
+    const candidateResponse = await candidates;
+    expect(candidateResponse.status()).toBe(200);
+    expect(await candidateResponse.json()).toMatchObject({
+      session_id: created.sessionId,
+      candidates: [expect.objectContaining({ enrollment_id: created.enrollmentId })],
+    });
     await studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
     await expect(studentPicker).toBeHidden();
     await expect(replacementReview.locator(".orw-identifier__picked")).toContainText(STUDENT_NAME);
@@ -2051,9 +2206,13 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       `/results/admin/exams/${created.examId}/enrollments/${created.enrollmentId}/`, adminAccess);
     expect(current.submission_id).toBe(replacementId);
     expect(current.total_score).toBe(EXPECTED_SCORE - 1);
-    await gotoAndSettle(page,
-      `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
-      { timeout: 30_000 });
+    const reopened = await openOmrReviewFromWorkbox(page);
+    const savedRow = reopened.locator(".orw-list-row")
+      .filter({ has: page.getByText(STUDENT_NAME, { exact: true }) })
+      .filter({ has: page.getByText(`${EXPECTED_SCORE - 1}점`, { exact: true }) });
+    await expect(savedRow).toBeVisible();
+    await reopened.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(reopened).toBeHidden();
     await chooseExamHeaderAction(page, "문항별 점수 입력");
     const gradingDialog = page.getByRole("dialog").filter({ hasText: `${EXAM_TITLE} 혼합 채점` });
     await expect(gradingDialog.getByRole("spinbutton", {

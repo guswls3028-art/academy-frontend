@@ -77,10 +77,11 @@ export async function assertYoutubeReadyPlayPause(page: Page) {
   await page.getByRole("button", { name: "재생", exact: true }).click();
   await expect(page.getByRole("button", { name: "일시정지", exact: true })).toBeVisible({ timeout: 30_000 });
   await expect.poll(async () => clockSeconds(await page.locator(".svpTimeCur").textContent()), { timeout: 30_000 }).toBeGreaterThan(initial + 1);
-  // Playback auto-hides controls after 3s. Reveal them with the real side-tap
-  // interaction before clicking pause; never force a click through the gesture layer.
+  const gestureLayer = page.locator(".svpGestureLayer");
+  // Move off the footer so the idle timer can run after the play click.
+  await gestureLayer.hover({ position: { x: 24, y: 24 } });
   await expect(page.locator(".svpPlayerWrap")).toHaveClass(/svpPlayerWrap--controlsHidden/);
-  await page.locator(".svpGestureLayer").click({ position: { x: 24, y: 24 } });
+  await gestureLayer.click({ position: { x: 24, y: 24 } });
   await expect(page.locator(".svpPlayerWrap")).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
   await page.getByRole("button", { name: "일시정지", exact: true }).click();
   await expect(page.getByRole("button", { name: "재생", exact: true })).toBeVisible();

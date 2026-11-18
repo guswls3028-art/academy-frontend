@@ -10,14 +10,14 @@
  */
 
 import { useMemo, useRef, useEffect, Fragment, useCallback, forwardRef, useImperativeHandle, useState } from "react";
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, EyeOff } from "lucide-react";
 
-import type { SessionScoreRow, SessionScoreMeta, SessionScoresSummaryColumnMode } from "../api/sessionScores";
+import type { SessionScoreRow, SessionScoreMeta, SessionScoresSummaryColumnMode, ScoreTotalColumnKind } from "../api/sessionScores";
 import { Dropdown } from "antd";
 import { parseHomeworkMetaStatus, type HomeworkMetaStatus } from "@/shared/scoring/homeworkStatus";
-import { isScoreEditStaleError, type PendingChange, type ScoreActiveCell, type ScoreActiveEditor } from "../api/scoreDraft";
+import { activeScoreCellKey, isScoreEditStaleError, type PendingChange, type ScoreActiveCell, type ScoreActiveEditor } from "../api/scoreDraft";
 import { scoresQueryKeys } from "../api/queryKeys";
 import {
   getHomeworkScoreCellConflict,
@@ -26,10 +26,6 @@ import {
 } from "../api/patchHomeworkQuick";
 import AssessmentTotalValue from "./AssessmentTotalValue";
 import "./AssessmentTotalsModal.css";
-
-function insertTotal(cells: ReactNode[], index: number, total: ReactNode): ReactNode[] {
-  return [...cells.slice(0, index), total, ...cells.slice(index)];
-}
 
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import { patchExamObjectiveScoreQuick } from "../api/patchExamObjectiveQuick";
@@ -48,7 +44,7 @@ import ScoreCellCollaborator from "./ScoreCellCollaborator";
 import ExamHeaderActionMenu, { type ExamHeaderAction } from "./ExamHeaderActionMenu";
 import HomeworkHeaderActionMenu from "./HomeworkHeaderActionMenu";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { Badge, Button, type BadgeTone } from "@/shared/ui/ds";
+import { Badge, Button, ICON_FOR_BUTTON, type BadgeTone } from "@/shared/ui/ds";
 import { DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
 import ScoreAttendanceCell from "./ScoreAttendanceCell";
@@ -278,11 +274,6 @@ function pendingKeyForChange(p: PendingChange): string {
   return `homework:${p.enrollmentId}:${p.homeworkId}`;
 }
 
-function activeScoreCellKey(cell: ScoreActiveEditor["active_cell"]): string {
-  if (cell.type === "homework") return `homework:${cell.enrollmentId}:${cell.homeworkId}`;
-  return `exam:${cell.enrollmentId}:${cell.examId}:${cell.sub}:${cell.sub === "item" ? cell.questionId : ""}`;
-}
-
 function samePendingChange(a: PendingChange, b: PendingChange): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
@@ -432,6 +423,8 @@ type Props = {
   viewFilter?: "all" | "exam" | "homework";
   /** 마지막 요약 열: 전체 상태 판정 | 시험 오답 확인 상태 */
   summaryColumnMode?: SessionScoresSummaryColumnMode;
+  hiddenTotalColumns: Readonly<Record<ScoreTotalColumnKind, boolean>>;
+  onHideTotalColumn: (kind: ScoreTotalColumnKind) => void;
 
   selectedEnrollmentId: number | null;
   selectedCell?: ({ enrollmentId: number } & (
@@ -441,12 +434,14 @@ type Props = {
   )) | null;
   activeEditors?: ScoreActiveEditor[];
   onClaimOwnCell?: (cell: ScoreActiveCell) => Promise<boolean>;
+  onFocusClaimedCell: (cell: ScoreActiveCell) => void;
   onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number, questionIdOrSub?: number | "total" | "objective" | "subjective") => void;
   onSelectRow: (row: SessionScoreRow) => void;
 
   /** 키보드 셀 이동 — Tab/Enter/Arrow 시 패널에서 다음 셀로 이동 */
   onRequestMoveNext?: () => boolean;
   onRequestMovePrev?: () => boolean;
+  onRequestMoveWithinRow?: (backward: boolean, from: HTMLElement) => void;
   onRequestMoveDown?: () => void;
   onRequestMoveUp?: () => void;
   /** 셀 변경이 pending에 등록되는 즉시 자동 저장 시작 */
@@ -485,10 +480,13 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   scoreFormat = "raw",
   viewFilter = "all",
   summaryColumnMode = "verdict",
+  hiddenTotalColumns,
+  onHideTotalColumn,
   selectedEnrollmentId,
   selectedCell = null,
   activeEditors = [],
   onClaimOwnCell,
+  onFocusClaimedCell,
   onSelectCell,
   onSelectRow,
   onReorderColumnSwap,
@@ -497,6 +495,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   deleteAssessmentLocked = false,
   onRequestMoveNext,
   onRequestMovePrev,
+  onRequestMoveWithinRow,
   onRequestMoveDown,
   onRequestMoveUp,
   onPendingChange,
@@ -616,14 +615,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     }
     return collaborators;
   }, [activeEditors]);
-  const renderCollaborator = (
-    editor: ScoreActiveEditor,
-    row: SessionScoreRow,
-    type: "exam" | "homework",
-    id: number,
-    sub?: number | "total" | "objective" | "subjective",
-  ) => <ScoreCellCollaborator editor={editor} onClaim={isEditMode ? onClaimOwnCell : undefined}
-    onClaimed={() => onSelectCell(row, type, id, sub)} />;
+  const renderCollaborator = (editor: ScoreActiveEditor) => (
+    <ScoreCellCollaborator editor={editor} onClaim={isEditMode ? onClaimOwnCell : undefined}
+      onClaimed={onFocusClaimedCell} />
+  );
 
   const applyChangeToDom = useCallback((change: PendingChange) => {
     const setCellText = (el: HTMLElement | null | undefined, value: string) => {
@@ -941,12 +936,24 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     () => (viewFilter === "exam" ? [] : [...(meta?.homeworks ?? [])]),
     [viewFilter, meta?.homeworks],
   );
-  const includedExamIds = useMemo(() => examOptions.filter((item) => meta?.total_config?.exam_ids.includes(item.exam_id) ?? true).map((item) => item.exam_id), [examOptions, meta?.total_config]);
-  const includedHomeworkCount = homeworkOptions.filter((item) => item.grading_mode !== "COMPLETION" && (meta?.total_config?.homework_ids.includes(item.homework_id) ?? true)).length;
-  const totalHeader = (kind: "exam" | "homework", count: number) => <th key={`${kind}-total`} scope="col" rowSpan={2} data-col-type={`${kind}-summary`} data-summary-start="" className="text-center font-medium">
-    <button type="button" onClick={onOpenTotals} className="assessment-total-heading" aria-label={`${kind === "exam" ? "시험" : "과제"} 총점 합산 설정`}><strong>{kind === "exam" ? "시험" : "과제"} 총점</strong><span>{count ? `${count}개 합산` : "합산 없음"}<span className="assessment-total-heading-edit">설정</span></span></button>
-  </th>;
-  const totalCell = (kind: "exam" | "homework", row: SessionScoreRow) => <td key={`${kind}-total`} data-col-type={`${kind}-summary`} data-summary="" className="text-center align-middle"><AssessmentTotalValue total={kind === "exam" ? row.exam_total : row.homework_total} /></td>;
+  const numericHomeworkCount = homeworkOptions.filter((item) => item.grading_mode !== "COMPLETION").length;
+  const showExamTotal = !hiddenTotalColumns.exam && examOptions.length > 0;
+  const showHomeworkTotal = !hiddenTotalColumns.homework && numericHomeworkCount > 0;
+  const totalHeader = (kind: ScoreTotalColumnKind, count: number) => {
+    const title = kind === "exam" ? "시험 총점" : "과제 총점";
+    return <th scope="col" rowSpan={2} data-col-type={`${kind}-summary`} data-summary-start="" className="text-center font-medium">
+      <div className="assessment-total-heading-actions">
+        <button type="button" onClick={onOpenTotals} className="assessment-total-heading" aria-label={`${title} 합산 설정`}>
+          <strong>{title}</strong>
+          <span>{count ? `${count}개 합산` : "합산 없음"}<span className="assessment-total-heading-edit">설정</span></span>
+        </button>
+        <Button type="button" size="sm" intent="ghost" iconOnly className="assessment-total-hide"
+          leftIcon={<EyeOff size={ICON_FOR_BUTTON.sm} />} aria-label={`${title} 숨기기`}
+          title={`${title} 숨기기`} onClick={() => onHideTotalColumn(kind)} />
+      </div>
+    </th>;
+  };
+  const totalCell = (kind: ScoreTotalColumnKind, row: SessionScoreRow) => <td data-col-type={`${kind}-summary`} data-summary="" className="text-center align-middle"><AssessmentTotalValue total={kind === "exam" ? row.exam_total : row.homework_total} /></td>;
   const examOrderIds = useMemo(
     () => examOptions.map((exam) => exam.exam_id),
     [examOptions],
@@ -1071,7 +1078,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       if (cell.type === "exam") {
         if (cell.sub === "item" && cell.questionId != null) {
           const el = examItemInputRefs.current[`${cell.enrollmentId}-${cell.examId}-${cell.questionId}`];
-          if (!el) return false;
+          if (!el || el.disabled) return false;
           el.focus();
           return true;
         }
@@ -1145,24 +1152,23 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
         }
       }
     });
-    if (examOptions.length) {
-      const boundary = list.filter((column) => column.type === "exam" && includedExamIds.includes(column.examId)).length + 2;
-      list.splice(boundary, 0, { type: "exam_summary", sub: "score", key: "exam_summary_score", width: 112, editable: false });
+    if (showExamTotal) {
+      list.push({ type: "exam_summary", sub: "score", key: "exam_summary_score", width: 112, editable: false });
     }
     homeworkOptions.forEach((h) => {
       list.push(
         { type: "homework", homeworkId: h.homework_id, title: h.title, sub: "score", key: `hw_${h.homework_id}_score`, width: h.grading_mode === "COMPLETION" ? 144 : COL_SCORE, editable: isEditMode && homeworkEdit },
       );
     });
-    if (homeworkOptions.some((item) => item.grading_mode !== "COMPLETION")) {
-      list.splice(list.length - homeworkOptions.length + includedHomeworkCount, 0, { type: "homework_summary", sub: "score", key: "homework_summary_score", width: 112, editable: false });
+    if (showHomeworkTotal) {
+      list.push({ type: "homework_summary", sub: "score", key: "homework_summary_score", width: 112, editable: false });
     }
     // P1-2 (2026-05-13): clinic_reason 컬럼 제거 — 판정 셀 안에 사유를 함께 표시.
     list.push(
       { type: "clinic_target", key: "clinic_target", width: COL_CLINIC_TARGET, editable: false }
     );
     return list;
-  }, [examOptions, homeworkOptions, includedExamIds, includedHomeworkCount, isEditMode, scoreDisplayMode, examEditTotal, examEditObjective, examEditSubjective, homeworkEdit]);
+  }, [examOptions, homeworkOptions, showExamTotal, showHomeworkTotal, isEditMode, scoreDisplayMode, examEditTotal, examEditObjective, examEditSubjective, homeworkEdit]);
 
   /** Pre-computed O(1) lookup — replaces columns.filter() in the per-row render hot path */
   const examColsMap = useMemo((): Record<number, Extract<ScoreColumnDef, { type: "exam" }>[]> => {
@@ -1316,7 +1322,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           >
             출석
           </ResizableTh>
-          {insertTotal(examOptions.map((ex, exIdx) => {
+          {examOptions.map((ex, exIdx) => {
             const examColsList = examColsMap[ex.exam_id] ?? [];
             const colSpan = examColsList.length || 1;
             /* 단일 sub(합산)만 있을 때는 sub-row를 비우고 시험 헤더에 rowSpan=2 부여.
@@ -1429,8 +1435,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 {headerInner}
               </th>
             );
-          }), examOptions.length, examOptions.length ? totalHeader("exam", includedExamIds.length) : null)}
-          {insertTotal(homeworkOptions.map((hw, idx) => (
+          })}
+          {showExamTotal && totalHeader("exam", meta?.total_config?.exam_ids.length ?? examOptions.length)}
+          {homeworkOptions.map((hw, idx) => (
             <ResizableTh
               key={`head-hw-${hw.homework_id}`}
               columnKey={`hw_${hw.homework_id}_score`}
@@ -1496,7 +1503,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 />
               </span>
             </ResizableTh>
-          )), homeworkOptions.length, homeworkOptions.some((item) => item.grading_mode !== "COMPLETION") ? totalHeader("homework", includedHomeworkCount) : null)}
+          ))}
+          {showHomeworkTotal && totalHeader("homework", meta?.total_config?.homework_ids.length ?? numericHomeworkCount)}
           {/* 사용자 표시 옵션에 따라 종합 판정 또는 테스트 오답 확인 현황을 같은 마지막 열에 표시한다. */}
           <ResizableTh
             columnKey="clinic_target"
@@ -1640,7 +1648,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                 </td>
 
                 {/* 시험: 컬럼 정의에 따라 합산/객관식/주관식/문항별/합불 */}
-                {insertTotal(examOptions.map((ex, exIdx) => {
+                {examOptions.map((ex, exIdx) => {
                   const entry = row.exams?.find((e) => e.exam_id === ex.exam_id) ?? null;
                   const block = entry?.block;
                   const questions = (ex as { questions?: { question_id: number; number: number; max_score: number }[] }).questions ?? [];
@@ -1741,7 +1749,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               }}
                             >
                               {collaborator ? (
-                                renderCollaborator(collaborator, row, "exam", ex.exam_id, "total")
+                                renderCollaborator(collaborator)
                               ) : canEdit ? (
                                 <span
                                   ref={(el) => {
@@ -1888,7 +1896,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                           );
                                         }
                                       }
-                                      onRequestMoveDown?.();
+                                      onRequestMoveWithinRow?.(e.shiftKey, e.currentTarget);
                                     } else if (e.key === "Tab") {
                                       e.preventDefault(); e.stopPropagation();
                                       if (e.shiftKey) onRequestMovePrev?.();
@@ -1962,7 +1970,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, "objective"); }}
                             >
                               {collaborator ? (
-                                renderCollaborator(collaborator, row, "exam", ex.exam_id, "objective")
+                                renderCollaborator(collaborator)
                               ) : canEdit ? (
                                 <span
                                   ref={(el) => {
@@ -2044,7 +2052,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                         if (parsed == null) feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다.");
                                         return;
                                       }
-                                      onRequestMoveDown?.();
+                                      onRequestMoveWithinRow?.(e.shiftKey, e.currentTarget);
                                     } else if (e.key === "Tab") {
                                       e.preventDefault(); e.stopPropagation();
                                       if (e.shiftKey) onRequestMovePrev?.();
@@ -2095,7 +2103,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, "subjective"); }}
                             >
                               {collaborator ? (
-                                renderCollaborator(collaborator, row, "exam", ex.exam_id, "subjective")
+                                renderCollaborator(collaborator)
                               ) : canEdit ? (
                                 <span
                                   ref={(el) => {
@@ -2177,7 +2185,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                         if (parsed == null) feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다.");
                                         return;
                                       }
-                                      onRequestMoveDown?.();
+                                      onRequestMoveWithinRow?.(e.shiftKey, e.currentTarget);
                                     } else if (e.key === "Tab") {
                                       e.preventDefault(); e.stopPropagation();
                                       if (e.shiftKey) onRequestMovePrev?.();
@@ -2224,7 +2232,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 문항을 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, col.questionId); }}
                             >
                               {collaborator ? (
-                                renderCollaborator(collaborator, row, "exam", ex.exam_id, col.questionId)
+                                renderCollaborator(collaborator)
                               ) : canEdit ? (
                                 <ScoreInputCell
                                   sessionId={sessionId}
@@ -2238,6 +2246,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   inputRef={(el) => { examItemInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-${col.questionId}`] = el; }}
                                   onMovePrev={onRequestMovePrev}
                                   onMoveNext={onRequestMoveNext}
+                                  onEnter={onRequestMoveWithinRow}
                                 />
                               ) : (
                                 value != null ? (
@@ -2254,10 +2263,11 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       })}
                     </Fragment>
                   );
-                }), examOptions.length, examOptions.length ? totalCell("exam", row) : null)}
+                })}
+                {showExamTotal && totalCell("exam", row)}
 
                 {/* 과제: 점수(점수만) | 합불 — canEditScore이면 block 없어도 입력 셀 표시 */}
-                {insertTotal(homeworkOptions.map((hw, hwBodyIdx) => {
+                {homeworkOptions.map((hw, hwBodyIdx) => {
                   const entry =
                     row.homeworks?.find(
                       (h) => h.homework_id === hw.homework_id
@@ -2352,7 +2362,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       >
                         <span className="inline-flex w-full items-center gap-2 flex-wrap">
                           {collaborator && (
-                            renderCollaborator(collaborator, row, "homework", hw.homework_id)
+                            renderCollaborator(collaborator)
                           )}
                           {hw.grading_mode === "COMPLETION" ? (
                             canEditScore ? (
@@ -2366,7 +2376,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 className="ds-scores-completion-control"
                                 role="group"
                                 aria-label={`${row.student_name} · ${hw.title} 완료 상태`}
-                                title="O·1 통과 / X·0 미통과 / Delete 초기화 / Enter 다음 학생 / Tab 다음 칸"
+                                title="O·1 통과 / X·0 미통과 / Delete 초기화 / Enter 같은 학생의 다음 칸"
                                 onClick={(event) => event.stopPropagation()}
                                 onFocus={() => {
                                   freezeObservedHomeworkVersion(scoreCellKey);
@@ -2394,8 +2404,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   }
                                   event.preventDefault();
                                   if (event.key === "Enter") {
-                                    if (event.shiftKey) { onRequestMoveUp?.(); return; }
-                                    onRequestMoveDown?.();
+                                    onRequestMoveWithinRow?.(event.shiftKey, event.currentTarget);
                                   } else if (event.key === "ArrowDown") onRequestMoveDown?.();
                                   else if (event.key === "ArrowUp") onRequestMoveUp?.();
                                 }}
@@ -2517,30 +2526,30 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 el.focus();
                                 selectAllScoreCell(el);
                               }}
-                              onBlur={async (event) => {
+                              onBlur={(event) => {
                                 if (cancelledBlurRef.current === event.currentTarget) {
                                   cancelledBlurRef.current = null;
                                   return;
                                 }
-                                const key = `${row.enrollment_id}-${hw.homework_id}`;
                                 const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                const el = homeworkInputRefs.current[key];
-                                if (!el) return;
+                                const el = event.currentTarget;
                                 const raw = el.innerText.trim();
                                 const wasLiveChange = liveHistoryKeyRef.current === cellKey;
-                                liveHistoryKeyRef.current = null;
                                 const serverValue: PendingChange = isNotSubmitted
                                   ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
                                   : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null };
-                                if (raw === "미제출") {
-                                  if (wasLiveChange) return;
-                                  stagePendingChange(
+                                if (raw === "/" || raw === "미제출") {
+                                  el.innerText = "미제출";
+                                  const stage = wasLiveChange ? stageLivePendingChange : stagePendingChange;
+                                  stage(
                                     cellKey,
                                     { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" },
                                     serverValue,
                                   );
+                                  liveHistoryKeyRef.current = null;
                                   return;
                                 }
+                                liveHistoryKeyRef.current = null;
                                 if (raw === "") {
                                   if (wasLiveChange) return;
                                   stagePendingChange(
@@ -2580,50 +2589,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 }
                                 if (e.key === "Tab") {
                                   e.preventDefault(); e.stopPropagation();
-                                  if (raw === "/" || raw === "미제출") {
-                                    if (el) el.innerText = "미제출";
-                                    const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                    stagePendingChange(
-                                      cellKey,
-                                      { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" },
-                                      isNotSubmitted
-                                        ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
-                                        : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null },
-                                    );
-                                  }
                                   if (e.shiftKey) onRequestMovePrev?.();
                                   else onRequestMoveNext?.();
                                   return;
                                 }
                                 if (e.key === "Enter") {
                                   e.preventDefault(); e.stopPropagation();
-                                  if (e.shiftKey) {
-                                    onRequestMoveUp?.();
-                                    return;
-                                  }
-                                  if (raw === "/") {
-                                    if (el) el.innerText = "미제출";
-                                    const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                    stagePendingChange(
-                                      cellKey,
-                                      { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" },
-                                      isNotSubmitted
-                                        ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
-                                        : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null },
-                                    );
-                                    onRequestMoveDown?.();
-                                    return;
-                                  }
-                                  if (raw === "미제출") {
-                                    const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                    stagePendingChange(
-                                      cellKey,
-                                      { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" },
-                                      isNotSubmitted
-                                        ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
-                                        : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null },
-                                    );
-                                    onRequestMoveDown?.();
+                                  if (raw === "/" || raw === "미제출") {
+                                    onRequestMoveWithinRow?.(e.shiftKey, e.currentTarget);
                                     return;
                                   }
                                   const parsed = parseScoreInput(raw, hw.max_score);
@@ -2646,7 +2619,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                         : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null },
                                     );
                                   }
-                                  onRequestMoveDown?.();
+                                  onRequestMoveWithinRow?.(e.shiftKey, e.currentTarget);
                                   return;
                                 }
                                 if (e.key === "Delete" || e.key === "Backspace") {
@@ -2740,7 +2713,8 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       )}
                     </Fragment>
                   );
-                }), homeworkOptions.length, homeworkOptions.some((item) => item.grading_mode !== "COMPLETION") ? totalCell("homework", row) : null)}
+                })}
+                {showHomeworkTotal && totalCell("homework", row)}
 
                 {/* 마지막 열은 표시 옵션에 따라 종합 판정과 시험 오답 확인 요약을 교체한다. */}
                 <td

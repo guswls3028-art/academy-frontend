@@ -40,7 +40,10 @@ export function isMissingExamTarget(target: ClinicTarget): boolean {
   return target.reason === "missing" && target.source_type === "exam";
 }
 
-export function canWaiveMissingExamWithoutLink(target: ClinicTarget): boolean {
+export function isExplicitMissingExam(target: ClinicTarget): target is ClinicTarget & {
+  session_id: number;
+  exam_id: number;
+} {
   return (
     !target.resolved_at &&
     isMissingExamTarget(target) &&
@@ -52,6 +55,8 @@ export function canWaiveMissingExamWithoutLink(target: ClinicTarget): boolean {
     target.exam_id === target.source_id
   );
 }
+
+export const canWaiveMissingExamWithoutLink = isExplicitMissingExam;
 
 export function canWaiveMissingExam(target: ClinicTarget): boolean {
   return (

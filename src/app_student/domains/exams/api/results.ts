@@ -1,6 +1,7 @@
 // PATH: src/app_student/domains/exams/api/results.ts
 
 import api from "@student/shared/api/student.api";
+import type { Achievement } from "@/shared/scoring/achievement";
 
 export type AnswerVisibility = "hidden" | "after_closed" | "always";
 
@@ -23,10 +24,11 @@ type PublishedExamResult = {
   student_results_published?: true;
   exam_id: number;
   attempt_id: number;
-  total_score: number;
+  total_score: number | null;
   max_score: number;
   is_pass: boolean | null;           // 1차 응시 기준 합격 여부
   final_pass?: boolean | null;        // 1차 합격 OR 클리닉 통과 → 최종 합격
+  achievement?: Achievement | null;  // 서버의 최종 성취 판정
   remediated?: boolean;               // 클리닉 재시험 통과로 해소됨
   clinic_retake?: ClinicRetakeInfo | null;  // 클리닉 재시험 상세
   clinic_required?: boolean;          // 현재 미해소 클리닉 대상 여부

@@ -14,6 +14,7 @@ async function installApi(page: Page, options: {
   passScore?: number;
   resultStatus?: "NOT_SUBMITTED" | "PROCESSING" | "PARTIAL" | "DONE" | "FAILED";
   remediated?: boolean;
+  confirmedFirstScore?: number;
   sharedExam?: boolean;
 }) {
   let exportCalls = 0;
@@ -160,6 +161,54 @@ async function installApi(page: Page, options: {
       await json(route, options.hasResults ? rows : []);
       return;
     }
+    if (path === "/results/admin/exams/77/analysis-insights/") {
+      const lectureId = new URL(request.url()).searchParams.get("lecture_id");
+      const trends = options.sharedExam
+        ? [
+          { id: 901, name: "A학생", lecture: "A학교 강의", lectureId: "101", rate: 65, prior: 45, signal: "up" },
+          { id: 902, name: "B학생", lecture: "B학교 강의", lectureId: "202", rate: 65, prior: 85, signal: "down" },
+        ]
+        : [{ id: 901, name: "김학생", lecture: "공통수학2 정규반", lectureId: "101", rate: 60, prior: 45, signal: "up" }];
+      const scopedTrends = trends.filter((trend) => lectureId == null || trend.lectureId === lectureId);
+      const score = options.confirmedFirstScore ?? (options.sharedExam ? 65 : 60);
+      const count = options.hasResults && (resultStatus === "DONE" || options.confirmedFirstScore != null)
+        ? scopedTrends.length : 0;
+      const criteria = options.sharedExam ? count : passScore > 0 ? count : 0;
+      const passes = options.sharedExam ? Number(count > 0 && lectureId !== "202") : Number(criteria > 0 && score >= passScore);
+      await json(route, {
+        recommended_cutoff: count ? Math.round(score / 5) * 5 : null,
+        below_recommended_count: count ? Number(score < Math.round(score / 5) * 5) * count : null,
+        scored_count: count,
+        score_summary: {
+          average: count ? score : null,
+          median: count ? score : null,
+          top_ten_average: count ? score : null,
+          highest: count ? score : null,
+          std_dev: count ? 0 : null,
+          std_rate: count ? 0 : null,
+          unscored_count: options.hasResults ? scopedTrends.length - count : 0,
+          pass_criterion_count: criteria,
+          pass_count: passes,
+          remediated_count: options.remediated && count ? 1 : 0,
+          distribution_counts: [20, 40, 60, 80, 100].map((limit) =>
+            score > limit - 20 && score <= limit ? count : 0),
+        },
+        trend_threshold_pp: 10,
+        trends: scopedTrends.slice(0, count).map((trend) => ({
+          enrollment_id: trend.id,
+          student_name: trend.name,
+          lecture_title: trend.lecture,
+          current_rate: score,
+          previous_session_rate: trend.prior,
+          cumulative_rate: trend.prior,
+          prior_exam_count: 2,
+          previous_delta_pp: score - trend.prior,
+          cumulative_delta_pp: score - trend.prior,
+          signal: trend.signal,
+        })),
+      });
+      return;
+    }
     if (path === "/results/admin/exams/77/questions/") {
       await json(route, options.hasResults ? [{
         question_id: 1001,
@@ -266,20 +315,24 @@ test("provider 없는 미지정 정책은 비 Ymath 합격 표시를 유지한�
   await expect(table.getByText("오답 미완료", { exact: true })).toHaveCount(0);
 });
 
-test("수업 브리핑을 한눈에 확인하고 전문 분석 리포트를 내려받는다", async ({ page }, testInfo) => {
+test("시험 성적 지표와 학생별 변화를 확인하고 분석 리포트를 내려받는다", async ({ page }, testInfo) => {
   const calls = await installApi(page, { hasResults: true });
   await gotoAndSettle(page, `${BASE}/e2e-exam-results-export-harness.html`, {
     timeout: 60_000,
   });
 
-  await expect(page.getByRole("heading", { name: "이번 수업에서 바로 결정할 것" })).toBeVisible();
-  await expect(page.getByText("표본 확인 후 판단", { exact: true })).toBeVisible();
-  await expect(page.getByText("컷 판단 보류", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "점수 분포" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "보충 우선 문항" })).toBeVisible();
-  await expect(
-    page.getByLabel("보충 우선 문항").getByText("공통 개념 재설명", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "시험 성적 분석" })).toBeVisible();
+  await expect(page.getByText("수업 방향", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("추천 합격 컷", { exact: true })).toBeVisible();
+  const distribution = page.getByRole("list", { name: "득점률 구간별 인원" });
+  await expect(distribution.getByText("0명", { exact: true })).toHaveCount(4);
+  await expect(distribution.getByText("1명", { exact: true })).toHaveCount(1);
+  await expect(page.getByRole("heading", { name: "문항별 정답률" })).toBeVisible();
+  await expect(page.getByText("1명 중 0명 정답", { exact: true })).toBeVisible();
+  const trends = page.getByRole("region", { name: "학생별 성적 변화" });
+  await trends.getByText("칭찬 참고", { exact: false }).click();
+  await expect(trends.getByText("김학생", { exact: true })).toBeVisible();
+  await expect(trends.getByText("45.0% (+15.0%p)", { exact: true })).toHaveCount(2);
 
   await page.setViewportSize({ width: 1280, height: 900 });
   const passSummary = page.getByText("합격 1 · 미달 0 · 기준 적용 1명 · 보충 완료 0", { exact: true });
@@ -295,9 +348,9 @@ test("수업 브리핑을 한눈에 확인하고 전문 분석 리포트를 내�
   expect(passSummaryLayout.whiteSpace).toBe("normal");
   expect(passSummaryLayout.scrollWidth).toBeLessThanOrEqual(passSummaryLayout.clientWidth + 1);
 
-  const desktopScreenshot = testInfo.outputPath("exam-teaching-brief-1280.png");
+  const desktopScreenshot = testInfo.outputPath("exam-score-analysis-1280.png");
   await page.screenshot({ path: desktopScreenshot, fullPage: true });
-  await testInfo.attach("exam-teaching-brief-1280", {
+  await testInfo.attach("exam-score-analysis-1280", {
     path: desktopScreenshot,
     contentType: "image/png",
   });
@@ -310,18 +363,57 @@ test("수업 브리핑을 한눈에 확인하고 전문 분석 리포트를 내�
   expect(calls.analysisExportCalls).toBe(1);
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("heading", { name: "이번 수업에서 바로 결정할 것" }).scrollIntoViewIfNeeded();
-  const shell = page.getByRole("heading", { name: "이번 수업에서 바로 결정할 것" }).locator("xpath=ancestor::section");
+  await page.getByRole("heading", { name: "시험 성적 분석" }).scrollIntoViewIfNeeded();
+  const shell = page.getByRole("heading", { name: "시험 성적 분석" }).locator("xpath=ancestor::section");
   const box = await shell.boundingBox();
   expect(box).not.toBeNull();
   expect(box!.x).toBeGreaterThanOrEqual(0);
   expect(box!.x + box!.width).toBeLessThanOrEqual(390);
-  const mobileScreenshot = testInfo.outputPath("exam-teaching-brief-390.png");
+  const hasChartOverflow = await distribution.evaluate((list) =>
+    Array.from(list.children).some((item) => item.scrollWidth > item.clientWidth + 1),
+  );
+  expect(hasChartOverflow).toBe(false);
+  const chartHeading = await page.getByRole("heading", { name: "점수 분포" }).boundingBox();
+  expect(chartHeading?.height).toBeLessThan(30);
+  await expect(trends.getByText("이전 누적 평균 (2회)", { exact: true })).toBeVisible();
+  const mobileScreenshot = testInfo.outputPath("exam-score-analysis-390.png");
   await page.screenshot({ path: mobileScreenshot, fullPage: true });
-  await testInfo.attach("exam-teaching-brief-390", {
+  await testInfo.attach("exam-score-analysis-390", {
     path: mobileScreenshot,
     contentType: "image/png",
   });
+});
+
+test("성적 분석에 실패해도 문항 통계와 다운로드를 계속 사용할 수 있다", async ({ page }) => {
+  await installApi(page, { hasResults: true });
+  let fail = true;
+  await page.route("**/results/admin/exams/77/analysis-insights/", async (route) => {
+    if (fail) return json(route, { detail: "temporarily unavailable" }, 503);
+    await route.fallback();
+  });
+  await gotoAndSettle(page, `${BASE}/e2e-exam-results-export-harness.html`);
+  const report = page.getByRole("region", { name: "시험 성적 분석" });
+  await expect(report.getByText("시험 성적 분석을 불러오지 못했습니다.")).toBeVisible();
+  await expect(report.getByRole("heading", { name: "문항별 정답률" })).toBeVisible();
+  await expect(report.getByRole("button", { name: "학생별 틀린 문항 (엑셀)" })).toBeEnabled();
+  await expect(report.getByRole("button", { name: "수업 분석 리포트 (엑셀)" })).toBeEnabled();
+  fail = false;
+  await report.getByRole("button", { name: "다시 시도", exact: true }).press("Enter");
+  await expect(report.getByText("칭찬 참고", { exact: false })).toBeVisible();
+});
+
+test("대표 재시험이 채점 중이어도 확정된 1차 점수로 시험 분석을 표시한다", async ({ page }) => {
+  await installApi(page, { hasResults: true, resultStatus: "PARTIAL", confirmedFirstScore: 73 });
+  await gotoAndSettle(page, `${BASE}/e2e-exam-results-export-harness.html`);
+  const report = page.getByRole("region", { name: "시험 성적 분석" });
+  await expect(report.getByText("중앙값 73.0점", { exact: true })).toBeVisible();
+  await expect(report.getByText("75점", { exact: true })).toBeVisible();
+  const band = report.getByRole("listitem").filter({ hasText: ">60–80%" });
+  await expect(band.getByText("1명", { exact: true })).toBeVisible();
+  await expect(report.getByRole("button", { name: "수업 분석 리포트 (엑셀)" })).toBeEnabled();
+  await report.getByText("칭찬 참고", { exact: false }).click();
+  await expect(report.getByText("73.0%", { exact: true })).toBeVisible();
+  await expect(report.getByText("45.0% (+28.0%p)", { exact: true })).toHaveCount(2);
 });
 
 test("저장된 채점 결과가 없으면 오답 엑셀 버튼과 이유를 함께 비활성화한다", async ({ page }) => {
@@ -342,9 +434,7 @@ test("합격 기준 미설정 결과를 합격으로 오인하지 않는다", as
     timeout: 60_000,
   });
 
-  await expect(page.getByText("합격 기준 설정 필요", { exact: true })).toBeVisible();
   await expect(page.getByText("기준 미설정", { exact: true })).toBeVisible();
-  await expect(page.getByText("컷 미설정", { exact: true })).toBeVisible();
   await expect(page.getByText(/합격 1 · 미달 0/)).toHaveCount(0);
 });
 
@@ -386,6 +476,11 @@ test("공유 시험은 전체와 강의별 성적을 각 강의 커트라인으�
   await expect(studentResults.getByText("B학생", { exact: true }).last()).toBeVisible();
   await expect(studentResults.getByText("A학생", { exact: true })).toHaveCount(0);
   await expect(page.getByText("합격 0 · 미달 1 · 기준 적용 1명 · 보충 완료 0", { exact: true })).toBeVisible();
+  const scopedTrends = page.getByRole("region", { name: "학생별 성적 변화" });
+  await expect(scopedTrends.getByText("칭찬 참고 0명", { exact: true })).toBeVisible();
+  await scopedTrends.getByText("상담 참고", { exact: false }).click();
+  await expect(scopedTrends.getByText("B학생", { exact: true })).toBeVisible();
+  await expect(scopedTrends.getByText("A학생", { exact: true })).toHaveCount(0);
 
   await page.setViewportSize({ width: 390, height: 844 });
   const scopePanel = page.getByRole("heading", { name: "어느 강의 성적을 볼까요?" }).locator("xpath=ancestor::section");

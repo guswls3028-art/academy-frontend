@@ -76,7 +76,7 @@ test("closed diagnostics require explicit manual inputs and never enable product
   assert.match(scopeInput, /^        type: choice$/m);
   assert.match(scopeInput, /^        default: full-suite$/m);
   assert.deepEqual([...scopeInput.matchAll(/^          - (.+)$/gm)].map(match => match[1]),
-    ["full-suite", "excel-learning-homework"]);
+    ["full-suite", "excel-learning-homework", "video-multipart-storage"]);
   const scopeFlag = workflow.match(/ACADEMY_RELEASE_DIAGNOSTIC_SCOPE: \$\{\{([^\n]+)\}\}/)?.[1];
   assert.ok(scopeFlag);
   assert.equal(workflow.match(/ACADEMY_RELEASE_DIAGNOSTIC_SCOPE:/g)?.length, 1);
@@ -88,7 +88,7 @@ test("closed diagnostics require explicit manual inputs and never enable product
   const evaluate = (value, context) => runInNewContext(`(${value})`, context, { timeout: 1000 });
   for (const event of ["push", "workflow_dispatch", "pull_request"]) {
     for (const requested of [undefined, false, true]) {
-      for (const scope of [undefined, "full-suite", "excel-learning-homework", "private-token", ""]) {
+      for (const scope of [undefined, "full-suite", "excel-learning-homework", "video-multipart-storage", "private-token", ""]) {
         for (const result of ["success", "failure", "skipped"]) {
           const context = { github: { event_name: event, ref: "refs/heads/main" },
             inputs: { diagnostic_full_suite: requested, diagnostic_scope: scope },
