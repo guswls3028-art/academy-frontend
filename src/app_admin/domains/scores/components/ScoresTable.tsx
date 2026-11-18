@@ -17,7 +17,7 @@ import { ChevronLeft, ChevronRight, EyeOff } from "lucide-react";
 import type { SessionScoreRow, SessionScoreMeta, SessionScoresSummaryColumnMode, ScoreTotalColumnKind } from "../api/sessionScores";
 import { Dropdown } from "antd";
 import { parseHomeworkMetaStatus, type HomeworkMetaStatus } from "@/shared/scoring/homeworkStatus";
-import { isScoreEditStaleError, type PendingChange, type ScoreActiveCell, type ScoreActiveEditor } from "../api/scoreDraft";
+import { activeScoreCellKey, isScoreEditStaleError, type PendingChange, type ScoreActiveCell, type ScoreActiveEditor } from "../api/scoreDraft";
 import { scoresQueryKeys } from "../api/queryKeys";
 import {
   getHomeworkScoreCellConflict,
@@ -274,11 +274,6 @@ function pendingKeyForChange(p: PendingChange): string {
   return `homework:${p.enrollmentId}:${p.homeworkId}`;
 }
 
-function activeScoreCellKey(cell: ScoreActiveEditor["active_cell"]): string {
-  if (cell.type === "homework") return `homework:${cell.enrollmentId}:${cell.homeworkId}`;
-  return `exam:${cell.enrollmentId}:${cell.examId}:${cell.sub}:${cell.sub === "item" ? cell.questionId : ""}`;
-}
-
 function samePendingChange(a: PendingChange, b: PendingChange): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
@@ -439,12 +434,14 @@ type Props = {
   )) | null;
   activeEditors?: ScoreActiveEditor[];
   onClaimOwnCell?: (cell: ScoreActiveCell) => Promise<boolean>;
+  onFocusClaimedCell: (cell: ScoreActiveCell) => void;
   onSelectCell: (row: SessionScoreRow, type: "exam" | "homework", id: number, questionIdOrSub?: number | "total" | "objective" | "subjective") => void;
   onSelectRow: (row: SessionScoreRow) => void;
 
   /** 키보드 셀 이동 — Tab/Enter/Arrow 시 패널에서 다음 셀로 이동 */
   onRequestMoveNext?: () => boolean;
   onRequestMovePrev?: () => boolean;
+  onRequestMoveWithinRow?: (backward: boolean, from: HTMLElement) => void;
   onRequestMoveDown?: () => void;
   onRequestMoveUp?: () => void;
   /** 셀 변경이 pending에 등록되는 즉시 자동 저장 시작 */
@@ -489,6 +486,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   selectedCell = null,
   activeEditors = [],
   onClaimOwnCell,
+  onFocusClaimedCell,
   onSelectCell,
   onSelectRow,
   onReorderColumnSwap,
@@ -497,6 +495,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
   deleteAssessmentLocked = false,
   onRequestMoveNext,
   onRequestMovePrev,
+  onRequestMoveWithinRow,
   onRequestMoveDown,
   onRequestMoveUp,
   onPendingChange,
@@ -616,14 +615,10 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     }
     return collaborators;
   }, [activeEditors]);
-  const renderCollaborator = (
-    editor: ScoreActiveEditor,
-    row: SessionScoreRow,
-    type: "exam" | "homework",
-    id: number,
-    sub?: number | "total" | "objective" | "subjective",
-  ) => <ScoreCellCollaborator editor={editor} onClaim={isEditMode ? onClaimOwnCell : undefined}
-    onClaimed={() => onSelectCell(row, type, id, sub)} />;
+  const renderCollaborator = (editor: ScoreActiveEditor) => (
+    <ScoreCellCollaborator editor={editor} onClaim={isEditMode ? onClaimOwnCell : undefined}
+      onClaimed={onFocusClaimedCell} />
+  );
 
   const applyChangeToDom = useCallback((change: PendingChange) => {
     const setCellText = (el: HTMLElement | null | undefined, value: string) => {
@@ -1083,7 +1078,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       if (cell.type === "exam") {
         if (cell.sub === "item" && cell.questionId != null) {
           const el = examItemInputRefs.current[`${cell.enrollmentId}-${cell.examId}-${cell.questionId}`];
-          if (!el) return false;
+          if (!el || el.disabled) return false;
           el.focus();
           return true;
         }
@@ -1754,7 +1749,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               }}
                             >
                               {collaborator ? (
-                                renderCollaborator(collaborator, row, "exam", ex.exam_id, "total")
+                                renderCollaborator(collaborator)
                               ) : canEdit ? (
                                 <span
                                   ref={(el) => {
@@ -1901,7 +1896,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                           );
                                         }
                                       }
-                                      onRequestMoveDown?.();
+                                      onRequestMoveWithinRow?.(e.shiftKey, e.currentTarget);
                                     } else if (e.key === "Tab") {
                                       e.preventDefault(); e.stopPropagation();
                                       if (e.shiftKey) onRequestMovePrev?.();
@@ -1975,7 +1970,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, "objective"); }}
                             >
                               {collaborator ? (
-                                renderCollaborator(collaborator, row, "exam", ex.exam_id, "objective")
+                                renderCollaborator(collaborator)
                               ) : canEdit ? (
                                 <span
                                   ref={(el) => {
@@ -2057,7 +2052,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                         if (parsed == null) feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다.");
                                         return;
                                       }
-                                      onRequestMoveDown?.();
+                                      onRequestMoveWithinRow?.(e.shiftKey, e.currentTarget);
                                     } else if (e.key === "Tab") {
                                       e.preventDefault(); e.stopPropagation();
                                       if (e.shiftKey) onRequestMovePrev?.();
@@ -2108,7 +2103,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 점수를 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, "subjective"); }}
                             >
                               {collaborator ? (
-                                renderCollaborator(collaborator, row, "exam", ex.exam_id, "subjective")
+                                renderCollaborator(collaborator)
                               ) : canEdit ? (
                                 <span
                                   ref={(el) => {
@@ -2190,7 +2185,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                         if (parsed == null) feedback.error(raw ? "점수는 숫자 또는 %로 입력해 주세요." : "빈칸은 저장할 수 없습니다.");
                                         return;
                                       }
-                                      onRequestMoveDown?.();
+                                      onRequestMoveWithinRow?.(e.shiftKey, e.currentTarget);
                                     } else if (e.key === "Tab") {
                                       e.preventDefault(); e.stopPropagation();
                                       if (e.shiftKey) onRequestMovePrev?.();
@@ -2237,7 +2232,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               onClick={(e) => { if (isEditMode) e.stopPropagation(); if (collaborator) feedback.info(`${collaborator.editor_name}님이 이 시험 문항을 입력 중입니다.`); else onSelectCell(row, "exam", ex.exam_id, col.questionId); }}
                             >
                               {collaborator ? (
-                                renderCollaborator(collaborator, row, "exam", ex.exam_id, col.questionId)
+                                renderCollaborator(collaborator)
                               ) : canEdit ? (
                                 <ScoreInputCell
                                   sessionId={sessionId}
@@ -2251,6 +2246,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   inputRef={(el) => { examItemInputRefs.current[`${row.enrollment_id}-${ex.exam_id}-${col.questionId}`] = el; }}
                                   onMovePrev={onRequestMovePrev}
                                   onMoveNext={onRequestMoveNext}
+                                  onEnter={onRequestMoveWithinRow}
                                 />
                               ) : (
                                 value != null ? (
@@ -2366,7 +2362,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       >
                         <span className="inline-flex w-full items-center gap-2 flex-wrap">
                           {collaborator && (
-                            renderCollaborator(collaborator, row, "homework", hw.homework_id)
+                            renderCollaborator(collaborator)
                           )}
                           {hw.grading_mode === "COMPLETION" ? (
                             canEditScore ? (
@@ -2380,7 +2376,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 className="ds-scores-completion-control"
                                 role="group"
                                 aria-label={`${row.student_name} · ${hw.title} 완료 상태`}
-                                title="O·1 통과 / X·0 미통과 / Delete 초기화 / Enter 다음 학생 / Tab 다음 칸"
+                                title="O·1 통과 / X·0 미통과 / Delete 초기화 / Enter 같은 학생의 다음 칸"
                                 onClick={(event) => event.stopPropagation()}
                                 onFocus={() => {
                                   freezeObservedHomeworkVersion(scoreCellKey);
@@ -2408,8 +2404,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                   }
                                   event.preventDefault();
                                   if (event.key === "Enter") {
-                                    if (event.shiftKey) { onRequestMoveUp?.(); return; }
-                                    onRequestMoveDown?.();
+                                    onRequestMoveWithinRow?.(event.shiftKey, event.currentTarget);
                                   } else if (event.key === "ArrowDown") onRequestMoveDown?.();
                                   else if (event.key === "ArrowUp") onRequestMoveUp?.();
                                 }}
@@ -2531,30 +2526,30 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 el.focus();
                                 selectAllScoreCell(el);
                               }}
-                              onBlur={async (event) => {
+                              onBlur={(event) => {
                                 if (cancelledBlurRef.current === event.currentTarget) {
                                   cancelledBlurRef.current = null;
                                   return;
                                 }
-                                const key = `${row.enrollment_id}-${hw.homework_id}`;
                                 const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                const el = homeworkInputRefs.current[key];
-                                if (!el) return;
+                                const el = event.currentTarget;
                                 const raw = el.innerText.trim();
                                 const wasLiveChange = liveHistoryKeyRef.current === cellKey;
-                                liveHistoryKeyRef.current = null;
                                 const serverValue: PendingChange = isNotSubmitted
                                   ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
                                   : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null };
-                                if (raw === "미제출") {
-                                  if (wasLiveChange) return;
-                                  stagePendingChange(
+                                if (raw === "/" || raw === "미제출") {
+                                  el.innerText = "미제출";
+                                  const stage = wasLiveChange ? stageLivePendingChange : stagePendingChange;
+                                  stage(
                                     cellKey,
                                     { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" },
                                     serverValue,
                                   );
+                                  liveHistoryKeyRef.current = null;
                                   return;
                                 }
+                                liveHistoryKeyRef.current = null;
                                 if (raw === "") {
                                   if (wasLiveChange) return;
                                   stagePendingChange(
@@ -2594,50 +2589,14 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 }
                                 if (e.key === "Tab") {
                                   e.preventDefault(); e.stopPropagation();
-                                  if (raw === "/" || raw === "미제출") {
-                                    if (el) el.innerText = "미제출";
-                                    const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                    stagePendingChange(
-                                      cellKey,
-                                      { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" },
-                                      isNotSubmitted
-                                        ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
-                                        : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null },
-                                    );
-                                  }
                                   if (e.shiftKey) onRequestMovePrev?.();
                                   else onRequestMoveNext?.();
                                   return;
                                 }
                                 if (e.key === "Enter") {
                                   e.preventDefault(); e.stopPropagation();
-                                  if (e.shiftKey) {
-                                    onRequestMoveUp?.();
-                                    return;
-                                  }
-                                  if (raw === "/") {
-                                    if (el) el.innerText = "미제출";
-                                    const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                    stagePendingChange(
-                                      cellKey,
-                                      { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" },
-                                      isNotSubmitted
-                                        ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
-                                        : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null },
-                                    );
-                                    onRequestMoveDown?.();
-                                    return;
-                                  }
-                                  if (raw === "미제출") {
-                                    const cellKey = `homework:${row.enrollment_id}:${hw.homework_id}`;
-                                    stagePendingChange(
-                                      cellKey,
-                                      { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" },
-                                      isNotSubmitted
-                                        ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
-                                        : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null },
-                                    );
-                                    onRequestMoveDown?.();
+                                  if (raw === "/" || raw === "미제출") {
+                                    onRequestMoveWithinRow?.(e.shiftKey, e.currentTarget);
                                     return;
                                   }
                                   const parsed = parseScoreInput(raw, hw.max_score);
@@ -2660,7 +2619,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                         : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null },
                                     );
                                   }
-                                  onRequestMoveDown?.();
+                                  onRequestMoveWithinRow?.(e.shiftKey, e.currentTarget);
                                   return;
                                 }
                                 if (e.key === "Delete" || e.key === "Backspace") {

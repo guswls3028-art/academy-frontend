@@ -3110,7 +3110,8 @@ test("클리닉 운영은 최근 할 일과 등원·지각·하원·재촉·결�
   await expect(examWorkbench.locator(".clinic-workbench__active-panel")).toContainText("8주차 산화수 확인 시험");
   await expect(examWorkbench.getByRole("button", { name: "수동 통과" })).toHaveCount(0);
   await expect(examWorkbench.getByRole("button", { name: "제출 확인·완료", exact: true })).toHaveCount(0);
-  await expect(examWorkbench.getByRole("spinbutton")).toHaveCount(0);
+  await expect(examWorkbench.getByRole("spinbutton", { name: "시험 점수" })).toHaveValue("");
+  await expect(examWorkbench.getByRole("button", { name: "점수 저장", exact: true })).toBeDisabled();
   await expect(examWorkbench.getByRole("button", { name: "면제" })).toBeVisible();
   await expect(examWorkbench.getByRole("button", { name: "다음 차수 이월" })).toHaveCount(0);
   await examWorkbench.getByRole("button", { name: "면제" }).click();

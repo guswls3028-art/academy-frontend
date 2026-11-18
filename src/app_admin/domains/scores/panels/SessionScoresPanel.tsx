@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/scores/panels/SessionScoresPanel.tsx
 // 성적 테이블 — 엑셀형 키보드 이동 (Tab/화살표), 자동 저장과 실행 취소
 
-import { lazy, Suspense, useEffect, useMemo, useState, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -30,7 +30,7 @@ import {
   matchesSessionRowExamReviewFilter,
   matchesSessionScoreStudentSearch,
 } from "@/shared/scoring/sessionScoreRows";
-import type { ScoreActiveCell, ScoreActiveEditor } from "../api/scoreDraft";
+import { activeScoreCellKey, type ScoreActiveCell, type ScoreActiveEditor } from "../api/scoreDraft";
 
 const StudentScoresDrawer = lazy(() => import("../components/StudentScoresDrawer"));
 const AssessmentTotalsModal = lazy(() => import("../components/AssessmentTotalsModal"));
@@ -301,6 +301,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
 
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | null>(null);
   const [selectedColIndex, setSelectedColIndex] = useState<number>(0); // editable columns index
+  const [focusRequest, setFocusRequest] = useState<{ cell: ScoreActiveCell; sessionId: number; schedule?: string } | null>(null);
   const prevEditModeRef = useRef(false);
 
   const examCols = meta?.exams ?? EMPTY_EXAM_COLS;
@@ -329,12 +330,21 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     return Math.max(0, Math.min(i, editableCols.length - 1));
   }, [editableCols.length]);
 
-  const ensureSelection = useCallback(() => {
+  const ensureSelection = useCallback((from: Element | null = document.activeElement) => {
     if (!rows.length || editableCols.length === 0) return { r: 0, c: 0, ok: false as const };
+    // Keyboard focus can enter a cell before the table has selected it.
+    // Resolve movement from that cell without publishing an edit lease on focus.
+    const key = from?.closest<HTMLTableCellElement>("td[data-score-cell]")?.dataset.scoreCell;
+    if (key) {
+      const enrollmentId = Number(key.split(":")[1]);
+      const r = rows.findIndex((row) => row.enrollment_id === enrollmentId);
+      const c = editableCols.findIndex((col) => activeScoreCellKey({ ...col, enrollmentId }) === key);
+      if (r >= 0 && c >= 0) return { r, c, ok: true as const };
+    }
     const r = Math.max(0, Math.min(rowIndex, rows.length - 1));
     const c = clampCol(selectedColIndex);
     return { r, c, ok: true as const };
-  }, [rows.length, editableCols.length, rowIndex, clampCol, selectedColIndex]);
+  }, [rows, editableCols, rowIndex, clampCol, selectedColIndex]);
 
   const focusAt = useCallback((r: number, c: number): boolean => {
     if (r < 0 || r >= rows.length || c < 0 || c >= editableCols.length) return false;
@@ -351,6 +361,24 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     setSelectedColIndex(c);
     return true;
   }, [rows, editableCols]);
+
+  useLayoutEffect(() => {
+    if (!focusRequest) return;
+    if (!isEditMode || focusRequest.sessionId !== sessionId || focusRequest.schedule !== schedule) {
+      setFocusRequest(null);
+      return;
+    }
+    const { cell } = focusRequest;
+    const claimedRow = rows.findIndex((row) => row.enrollment_id === cell.enrollmentId);
+    const claimedColumn = editableCols.findIndex((column) => {
+      if (cell.type === "homework") return column.type === "homework" && column.homeworkId === cell.homeworkId;
+      return column.type === "exam" && column.examId === cell.examId && column.sub === cell.sub
+        && (column.sub !== "item" || column.questionId === cell.questionId);
+    });
+    // A successful lease transfer can resolve before React replaces the old
+    // collaborator with an input. Retry when the editor list commits again.
+    if (claimedRow < 0 || claimedColumn < 0 || focusAt(claimedRow, claimedColumn)) setFocusRequest(null);
+  }, [activeEditors, editableCols, focusAt, focusRequest, isEditMode, rows, schedule, sessionId]);
 
   const focusLinear = useCallback((r: number, c: number, direction: 1 | -1) => {
     const columnCount = editableCols.length;
@@ -385,7 +413,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     return false;
   }, [editableCols.length, rows.length, focusAt]);
 
-  const handleGridKeyDown = (e: React.KeyboardEvent) => {
+  const handleGridKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!isEditMode) return;
     const cur = ensureSelection();
     if (!cur.ok) return;
@@ -393,7 +421,13 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     const key = e.key;
     const isTab = key === "Tab";
 
-    if (key === "ArrowDown" || key === "Enter") {
+    if (key === "Enter") {
+      if (e.target !== e.currentTarget) return;
+      e.preventDefault();
+      onRequestMoveWithinRow(e.shiftKey, e.currentTarget);
+      return;
+    }
+    if (key === "ArrowDown") {
       e.preventDefault();
       focusVertical(cur.r, cur.c, 1);
       return;
@@ -430,6 +464,17 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     if (!moved) tableRef.current?.commitActiveCell();
     return moved;
   }, [ensureSelection, focusLinear]);
+
+  const onRequestMoveWithinRow = useCallback((backward: boolean, from: HTMLElement) => {
+    const cur = ensureSelection(from);
+    if (!cur.ok) return;
+    const direction = backward ? -1 : 1;
+    for (let c = cur.c + direction; c >= 0 && c < editableCols.length; c += direction) {
+      if (focusAt(cur.r, c)) return;
+    }
+    // Commit at the row boundary and leave keyboard navigation on this student.
+    if (tableRef.current?.commitActiveCell()) focusAt(cur.r, cur.c);
+  }, [editableCols.length, ensureSelection, focusAt]);
 
   const onRequestMoveDown = useCallback(() => {
     const cur = ensureSelection();
@@ -563,8 +608,10 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           selectedCell={selectedCell}
           activeEditors={activeEditors}
           onClaimOwnCell={onClaimOwnCell}
+          onFocusClaimedCell={(cell) => setFocusRequest({ cell, sessionId, schedule })}
           onRequestMoveNext={onRequestMoveNext}
           onRequestMovePrev={onRequestMovePrev}
+          onRequestMoveWithinRow={onRequestMoveWithinRow}
           onRequestMoveDown={onRequestMoveDown}
           onRequestMoveUp={onRequestMoveUp}
           onPendingChange={onPendingChange}

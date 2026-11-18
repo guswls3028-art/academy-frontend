@@ -22,7 +22,7 @@ import { GuideBookLauncher, getGuideBookPreset } from "@/shared/ui/guide";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Menu, Bell, BellRing, Search } from "@teacher/shared/ui/Icons";
 import CompactStaffClockButton from "@/features/staff-clock/CompactStaffClockButton";
-import { ProductUpdateLauncher } from "@/shared/product/ProductUpdateLauncher";
+import { useProductUpdateAwareness } from "@/shared/product/useProductUpdateAwareness";
 import useAuth from "@/auth/hooks/useAuth";
 interface Props {
   onMenuClick: () => void;
@@ -40,6 +40,7 @@ export default function TeacherTopBar({
   const navigate = useNavigate();
   const { program } = useProgram();
   const { user } = useAuth();
+  const productUpdate = useProductUpdateAwareness(user?.id);
   const { counts, failures, isLoading, isError } = useTeacherPendingCounts();
   const tenantName = program?.display_name?.trim() || "";
   const tenantResult = resolveTenantCode();
@@ -203,8 +204,8 @@ export default function TeacherTopBar({
           iconSize={ICON.lg}
           ariaLabel="가이드북"
           onNavigate={navigate}
+          productUpdate={productUpdate}
         />
-        <ProductUpdateLauncher userId={user?.id} />
         <button
           onClick={() => navigate("/workspace/mobile/notifications")}
           aria-label={notificationAriaLabel}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ArrowRight, BookOpen, HelpCircle, X } from "lucide-react";
+import { ProductUpdateDialog } from "@/shared/product/ProductUpdateDialog";
 import type { GuideBookPreset, GuideBookScope } from "./GuideBookPresets";
 import "./GuideBookLauncher.css";
 
@@ -12,6 +13,7 @@ type Props = {
   buttonClassName?: string;
   buttonStyle?: CSSProperties;
   iconSize?: number;
+  productUpdate?: { isUnread: boolean; markRead: () => void };
   supportAction?: {
     label: string;
     onClick: () => void;
@@ -27,9 +29,11 @@ export function GuideBookLauncher({
   buttonClassName = "",
   buttonStyle,
   iconSize = 20,
+  productUpdate,
   supportAction,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [showPatchNotes, setShowPatchNotes] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const titleId = useMemo(() => `guidebook-title-${tone}`, [tone]);
@@ -111,6 +115,26 @@ export function GuideBookLauncher({
           </header>
 
           <div className="guidebook-popup__body">
+            {productUpdate && (
+              <button
+                type="button"
+                className="guidebook-popup__item guidebook-popup__update"
+                data-clickable="true"
+                aria-haspopup="dialog"
+                aria-label={productUpdate.isUnread ? "패치노트 보기, 새 글" : undefined}
+                onClick={() => {
+                  setOpen(false);
+                  setShowPatchNotes(true);
+                  productUpdate.markRead();
+                }}
+              >
+                <strong>패치노트 보기</strong>
+                <em aria-hidden>
+                  {productUpdate.isUnread && <span className="guidebook-popup__unread" />}
+                  <ArrowRight size={13} strokeWidth={2.5} />
+                </em>
+              </button>
+            )}
             {preset.sections.map((section) => (
               <section key={section.title} className="guidebook-popup__section">
                 <h3>{section.title}</h3>
@@ -159,6 +183,14 @@ export function GuideBookLauncher({
             ) : null}
           </footer>
         </section>
+      )}
+      {showPatchNotes && (
+        <ProductUpdateDialog
+          onClose={() => {
+            setShowPatchNotes(false);
+            triggerRef.current?.focus();
+          }}
+        />
       )}
     </div>
   );

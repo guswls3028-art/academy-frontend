@@ -692,6 +692,7 @@ path/query 형태는 즉시 거부하고, exact 형태여도 응답 URL이나 HL
 브라우저의 CORS `OPTIONS` preflight는 공통 요청 경계에서 origin·path·query와
 전송 대상을 이미 검증하므로 제품 payload 응답 증거에서는 제외한다. 실패한
 preflight는 일반 request 오류 집계에 남는다.
+
 장시간 재생이 완료 전에 실패하면 artifact에는 사용자·URL·토큰·원문 오류 대신
 desktop/mobile별 마지막 통과 단계와 제한된 재생 상태만 고정 allowlist 값으로 남긴다.
 재생 상태는 각 화면의 video mount 여부, 정수 초의 현재 위치·길이·벽시계·최근 저장 위치,
@@ -734,6 +735,21 @@ scoped state에만 기존 영상 1개, 접근/PROCTORED 접근/진도 각 2개, 
 프로세스에는 85분을 허용한다. 100분 개발 카나리 job 안에서 결과 JSON 생성과 exact
 Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 85분을 넘기면 기존처럼 실패
 폐쇄하고 cleanup 0이 증명되기 전에는 운영 승격하지 않는다.
+
+별도 `SyntheticMultipartVideo=true` 진단은 같은 개발 artifact와 고정 SSM Setup이
+반환한 정확한 테넌트·강의·차시에서 실행한다. 관리자 영상 추가 화면에서 합성
+101 MiB MP4를 선택하고 API가 이 영상과 upload ID에 대해 반환한 정확한 주소로
+두 파트를 전송한다. 요청 경계는 개발 R2 bucket·raw key·서명 query를 검증하고
+CORS와 ETag의 실제 응답을 확인한다. R2 요청에는 Origin과 필요한 전송 헤더만
+사용한다. 응답 리다이렉트는 요청 경계에서 거부한다. 첫 번째 파트의 실제
+성공 응답은 브라우저 업로드 코드에서 한 번만 유실시킨다. 브라우저가 같은 객체와
+upload ID의 첫 파트 주소를 다시 발급받아 보내고, 두 번째 파트는 한 번만
+보냈는지 확인한다. 완료 요청에는 마지막으로 받은 두 ETag가 있어야 한다.
+검증 결과에는 주소나 ETag 없이 성공 PUT 3회, 응답 유실 1회와 재시도 일치 여부만 기록한다.
+
+브라우저 완료와 새로고침 후 영상 상태, 서버의 조립 크기, 일반 Batch 미제출,
+완료 객체와 미완료 업로드 정리 0을 함께 확인한다. 일반 영상 인코딩이 꺼진 개발
+환경에서 저장소까지 검증한다. 운영 승격에는 별도의 기본 42건 카나리 통과가 필요하다.
 
 고정 NonInteractiveCommands 세션의 Inspect/Setup/Cleanup과 합성 등록 계정용 AccountProbe만 사용하고 임의 shell 입력,
 기존 qa tenant 재사용/reset, 광역 command stdout 조회는 허용하지 않는다. Setup이 실패해도

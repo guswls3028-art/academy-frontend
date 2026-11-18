@@ -19,6 +19,9 @@ import { asyncStatusStore } from "@/shared/ui/asyncStatus/asyncStatusStore";
 import { useAsyncStatus } from "@/shared/ui/asyncStatus/useAsyncStatus";
 import OmrBatchLedger from "@/shared/ui/asyncStatus/OmrBatchLedger";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import PhotoPreview from "@/shared/ui/media/PhotoPreview";
+import { prepareHomeworkHeicPreview } from "@/shared/ui/media/homeworkHeicPreview";
+import { isHeicPhoto } from "@/shared/ui/media/photoType";
 import FileUploadZone from "@/shared/ui/upload/FileUploadZone";
 import { createRandomUuid } from "@/shared/utils/randomUuid";
 import { getRejectionMessage } from "@admin/domains/submissions/contracts/aiJobContract";
@@ -45,6 +48,11 @@ type UploadErrorPayload = {
 };
 
 const MAX_FILES = 100;
+const ACCEPTED_FILES = "image/*,application/pdf,.jpg,.jpeg,.png,.tif,.tiff,.heic,.heif,.pdf";
+
+function isOmrImage(file: File): boolean {
+  return file.type.startsWith("image/") || /\.(?:jpe?g|png|tiff?|hei[cf])$/i.test(file.name);
+}
 
 function rotateValue(
   current: UploadItem["rotation"],
@@ -57,7 +65,7 @@ async function rotatedImageFile(
   file: File,
   rotation: UploadItem["rotation"],
 ): Promise<File> {
-  if (rotation === 0 || !file.type.startsWith("image/")) return file;
+  if (rotation === 0 || !isOmrImage(file)) return file;
   const bitmap = await createImageBitmap(file);
   try {
     const quarterTurn = rotation === 90 || rotation === 270;
@@ -69,7 +77,9 @@ async function rotatedImageFile(
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.rotate((rotation * Math.PI) / 180);
     ctx.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
-    const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
+    const genericType = !file.type || file.type === "application/octet-stream";
+    const isPng = file.type === "image/png" || (genericType && /\.png$/i.test(file.name));
+    const outputType = isPng ? "image/png" : "image/jpeg";
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(
         (value) => value ? resolve(value) : reject(new Error("회전 이미지 생성에 실패했습니다.")),
@@ -83,10 +93,23 @@ async function rotatedImageFile(
   }
 }
 
+async function prepareUploadFile(item: UploadItem, signal: AbortSignal): Promise<File> {
+  const { file, rotation } = item;
+  if (!isHeicPhoto(file.name, file.type)) return rotatedImageFile(file, rotation);
+  const jpeg = await prepareHomeworkHeicPreview(file, signal);
+  const filename = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+  const converted = new File([jpeg], filename, { type: "image/jpeg", lastModified: file.lastModified });
+  return rotatedImageFile(converted, rotation);
+}
+
 function UploadPreview({ item }: { item: UploadItem }) {
   const [src, setSrc] = useState<string | null>(null);
+  const [visible, setVisible] = useState(false);
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const frame = useRef<HTMLSpanElement>(null);
+  const heic = isHeicPhoto(item.file.name, item.file.type);
   useEffect(() => {
-    if (!item.file.type.startsWith("image/")) {
+    if (!isOmrImage(item.file)) {
       setSrc(null);
       return;
     }
@@ -94,18 +117,38 @@ function UploadPreview({ item }: { item: UploadItem }) {
     setSrc(next);
     return () => URL.revokeObjectURL(next);
   }, [item.file]);
-  if (!src) return <UploadCloud size={ICON.sm} className="admin-omr-upload__file-icon" />;
-  return (
-    <span className="admin-omr-upload__preview" aria-hidden="true">
-      <img
+  useEffect(() => {
+    if (!heic || !src || !frame.current || visible) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) setVisible(true);
+    });
+    observer.observe(frame.current);
+    return () => observer.disconnect();
+  }, [heic, src, visible]);
+  const icon = <UploadCloud size={ICON.sm} className="admin-omr-upload__file-icon" />;
+  if (!src) return icon;
+  const className = `admin-omr-upload__preview-image admin-omr-upload__preview-image--rotation-${item.rotation}`;
+  let preview = icon;
+  if (!heic) preview = <img src={src} alt="" loading="lazy" decoding="async" className={className} />;
+  else if (visible && !previewFailed) {
+    preview = (
+      <PhotoPreview
         src={src}
+        blob={item.file}
+        filename={item.file.name}
+        mimeType={item.file.type}
+        className={className}
         alt=""
-        loading="lazy"
-        decoding="async"
-        className={`admin-omr-upload__preview-image admin-omr-upload__preview-image--rotation-${item.rotation}`}
+        thumbnail
+        onError={() => setPreviewFailed(true)}
       />
-    </span>
-  );
+    );
+  }
+  return <span ref={frame} className="admin-omr-upload__preview" aria-hidden="true">{preview}</span>;
 }
 
 function humanizeBytes(bytes: number) {
@@ -177,12 +220,14 @@ export default function AdminOmrBatchUploadBox({
   const [resumeOrdinals, setResumeOrdinals] = useState<number[]>([]);
   const [validatedResumeBatchId, setValidatedResumeBatchId] = useState<string | null>(null);
   const mountedRef = useRef(false);
+  const preparationRef = useRef<AbortController | null>(null);
   const nextFileId = useRef(0);
   const initializationRef = useRef<{ scope: string; id: string } | null>(null);
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      preparationRef.current?.abort();
     };
   }, []);
   const isCurrentSession = useCallback((tenant: string, generation: number) => (
@@ -318,14 +363,14 @@ export default function AdminOmrBatchUploadBox({
   const rotateOne = (idx: number, delta: 90 | 270) => {
     if (busy) return;
     setItems((previous) => previous.map((item, itemIndex) => (
-      itemIndex === idx && item.file.type.startsWith("image/")
+      itemIndex === idx && isOmrImage(item.file)
         ? { ...item, rotation: rotateValue(item.rotation, delta) }
         : item
     )));
   };
 
   const upload = async () => {
-    if (busy) return;
+    if (busy || preparationRef.current) return;
     if (!Number.isFinite(examId) || examId <= 0) {
       setNotice("시험 정보를 찾을 수 없습니다.");
       return;
@@ -378,15 +423,27 @@ export default function AdminOmrBatchUploadBox({
       setBatchId(fileRetryOrdinals.length > 0 ? batch.id : null);
       if (fileRetryOrdinals.length < batch.total_count) onUploaded?.();
     };
+    const preparation = new AbortController();
+    preparationRef.current = preparation;
     setBusy(true);
     setNotice(null);
     try {
-      // Client-side rotation must succeed before reserving a durable server
-      // batch. A corrupt image then stays in the editable list instead of
-      // creating a pending batch that forces the teacher to reselect files.
-      const preparedFiles = await Promise.all(
-        uploadItems.map((item) => rotatedImageFile(item.file, item.rotation)),
+      // Prepare the whole selection before creating or changing a server batch.
+      const prepared = await Promise.allSettled(
+        uploadItems.map((item) => prepareUploadFile(item, preparation.signal)),
       );
+      if (!isActive()) return;
+      const preparedFiles: File[] = [];
+      const failed = new Set<number>();
+      prepared.forEach((result, index) => {
+        if (result.status === "fulfilled") preparedFiles.push(result.value);
+        else failed.add(uploadItems[index].id);
+      });
+      if (failed.size > 0) {
+        setItems((previous) => previous.map((item) => ({ ...item, status: failed.has(item.id) ? "fail" : "ready" })));
+        setNotice(`${failed.size}개 사진을 읽거나 회전하지 못했습니다. 실패로 표시된 파일을 제거하고 다시 선택해 주세요.`);
+        return;
+      }
       if (!activeBatchId) {
         const scope = JSON.stringify([tenant, generation, examId, sessionId ?? null, uploadItems.length]);
         if (initializationRef.current?.scope !== scope) {
@@ -453,6 +510,7 @@ export default function AdminOmrBatchUploadBox({
           : message);
       }
     } finally {
+      preparationRef.current = null;
       if (isActive()) setBusy(false);
     }
   };
@@ -466,8 +524,8 @@ export default function AdminOmrBatchUploadBox({
         <FileUploadZone
           titleLabel="스캔본·촬영 사진 선택"
           multiple
-          accept="image/*,application/pdf"
-          hintText="JPG·PNG·TIFF·1페이지 PDF · 최대 100장 · 파일당 10MB"
+          accept={ACCEPTED_FILES}
+          hintText="JPG·PNG·TIFF·HEIC/HEIF·1페이지 PDF · 최대 100장 · 파일당 10MB"
           disabled={busy || loadingResume || resumeUploadBlocked}
           onFilesSelect={onPickFiles}
           onInvalidFile={setNotice}
@@ -560,10 +618,10 @@ export default function AdminOmrBatchUploadBox({
                     type="button"
                     intent="ghost"
                     size="sm"
-                    disabled={busy || !it.file.type.startsWith("image/")}
+                    disabled={busy || !isOmrImage(it.file)}
                     onClick={() => rotateOne(idx, 270)}
                     aria-label="왼쪽 회전"
-                    title={it.file.type.startsWith("image/") ? "왼쪽 90°" : "PDF는 업로드 후 검토 화면에서 회전해 주세요."}
+                    title={isOmrImage(it.file) ? "왼쪽 90°" : "PDF는 업로드 후 검토 화면에서 회전해 주세요."}
                   >
                     <RotateCcw size={ICON_FOR_BUTTON.sm} />
                   </Button>
@@ -571,10 +629,10 @@ export default function AdminOmrBatchUploadBox({
                     type="button"
                     intent="ghost"
                     size="sm"
-                    disabled={busy || !it.file.type.startsWith("image/")}
+                    disabled={busy || !isOmrImage(it.file)}
                     onClick={() => rotateOne(idx, 90)}
                     aria-label="오른쪽 회전"
-                    title={it.file.type.startsWith("image/") ? "오른쪽 90°" : "PDF는 업로드 후 검토 화면에서 회전해 주세요."}
+                    title={isOmrImage(it.file) ? "오른쪽 90°" : "PDF는 업로드 후 검토 화면에서 회전해 주세요."}
                   >
                     <RotateCw size={ICON_FOR_BUTTON.sm} />
                   </Button>

@@ -1,6 +1,6 @@
 /** Parent selected-child QnA/counsel writes in the isolated qa-* development runtime. */
 import { expect, test } from "../fixtures/strictTest";
-import type { TestInfo } from "@playwright/test";
+import type { Page, TestInfo } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import {
   api,
@@ -30,6 +30,81 @@ import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLogin
 
 test.setTimeout(300_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
+
+async function verifyParentMenuReads(page: Page, studentId: number) {
+  const openMenuLink = async (label: string) => {
+    await page.getByRole("button", { name: "메뉴 열기", exact: true }).click();
+    await page.getByRole("dialog", { name: "메뉴", exact: true })
+      .getByRole("link", { name: label, exact: true }).click();
+  };
+  const readAfterReload = async (path: string) => {
+    const [response] = await Promise.all([
+      page.waitForResponse((result) => result.request().method() === "GET"
+        && new URL(result.url()).pathname === path),
+      reloadStudentApp(page),
+    ]);
+    expect(response.status()).toBe(200);
+    expect(await response.request().headerValue("x-student-id")).toBe(String(studentId));
+  };
+
+  // The fixed QA scenario supplies no notices, board posts or materials.
+  // Verify each authorized empty result without creating public/shared content.
+  await openMenuLink("공지사항");
+  await expect(page).toHaveURL(/\/student\/notices$/);
+  await readAfterReload("/api/v1/community/posts/notices/");
+  await expect(page.getByText("등록된 공지가 없습니다.", { exact: true })).toBeVisible();
+  const noticeTabs = page.getByRole("group", { name: "공지 종류" });
+  for (const [tab, message] of [
+    ["강의공지", "강의 공지가 없습니다."],
+    ["차시공지", "차시 공지가 없습니다."],
+  ]) {
+    const button = noticeTabs.getByRole("button", { name: tab, exact: true });
+    await button.click();
+    await expect(button).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText(message, { exact: true })).toBeVisible();
+  }
+  for (const [label, tab, message] of [
+    ["게시판", "board", "등록된 게시물이 없습니다"],
+    ["자료실", "materials", "등록된 자료가 없습니다"],
+  ]) {
+    await openMenuLink(label);
+    await expect(page).toHaveURL(new RegExp(`/student/community\\?tab=${tab}$`));
+    await readAfterReload(`/api/v1/community/posts/${tab}/`);
+    await expect(page.getByRole("group", { name: "커뮤니티 메뉴" })
+      .getByRole("button", { name: label, exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText(message, { exact: true })).toBeVisible();
+  }
+
+  await openMenuLink("설정");
+  await expect(page).toHaveURL(/\/student\/settings$/);
+  const selectedMode = page.getByRole("button", { name: /^(라이트|다크|시스템)$/, pressed: true });
+  await expect(selectedMode).toHaveCount(1);
+  const originalMode = (await selectedMode.innerText()).trim();
+  const alternative = page.getByRole("button", { name: originalMode === "다크" ? "라이트" : "다크", exact: true });
+  await alternative.click();
+  await expect(alternative).toHaveAttribute("aria-pressed", "true");
+  await reloadStudentApp(page);
+  await expect(alternative).toHaveAttribute("aria-pressed", "true");
+  const restore = page.getByRole("button", { name: originalMode, exact: true });
+  await restore.click();
+  await expect(restore).toHaveAttribute("aria-pressed", "true");
+
+  await openMenuLink("사용 가이드");
+  await expect(page).toHaveURL(/\/student\/guide$/);
+  await page.getByRole("group", { name: "가이드 분류" })
+    .getByRole("button", { name: "시작·수업", exact: true }).click();
+  await page.getByRole("searchbox", { name: "어떤 작업이 필요한가요?" }).fill("수업 일정");
+  const guideTitle = "수업 일정과 출결 확인";
+  await page.getByRole("navigation", { name: "주요 기능 이용 순서" })
+    .getByRole("button", { name: new RegExp(guideTitle) }).click();
+  const guideHeading = page.getByRole("heading", { name: guideTitle, exact: true });
+  await expect(guideHeading).toBeVisible();
+  await page.getByRole("link", { name: `${guideTitle} 화면 열기` }).click();
+  await expect(page).toHaveURL(/\/student\/sessions$/);
+  await page.goBack();
+  await expect(guideHeading).toBeVisible();
+  await assertNoHorizontalOverflow(page);
+}
 
 let family: QaFamily | null = null;
 let adminAccess = "";
@@ -201,6 +276,10 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     await selectParentStudentThroughUi(page, primary);
     await gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 });
     await assertNoHorizontalOverflow(page);
+    await test.step("390px 학부모 메뉴 조회, 화면 모드 복구, 가이드 이동", async () => {
+      await verifyParentMenuReads(page, primary.id);
+    });
+    await gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 });
     await page.getByRole("region", { name: "학부모 주요 확인" })
       .getByRole("link", { name: /^질문하기/ }).click();
     await page.getByPlaceholder("질문 제목").fill(qnaTitle);
@@ -324,6 +403,9 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     await page.getByRole("button", { name: "상담", exact: true }).click();
     await expect(page.getByText(counselTitle, { exact: true })).toBeVisible();
     await assertNoHorizontalOverflow(page);
+    await test.step("1366px 학부모 메뉴 조회, 화면 모드 복구, 가이드 이동", async () => {
+      await verifyParentMenuReads(page, primary.id);
+    });
     await logoutStudentApp(page);
     await loginThroughUi(page, primary.ps_number, primary.password);
     await gotoAndSettle(page, `${QA_BASE}/student/community`);

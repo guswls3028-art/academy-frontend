@@ -7,9 +7,12 @@ export type ReleaseBoundary = {
   webOrigin: string;
   tenantCode: string;
   omrR2TenantId?: number;
+  videoMultipartSessionId?: number;
 };
 
 const DEVELOPMENT_OMR_R2_ORIGIN = "https://af4f2937d73db240e99864b8518265c5.r2.cloudflarestorage.com";
+const MULTIPART_QA_NAME = "qa-native-multipart.mp4";
+const MAX_MULTIPART_QA_PART_BYTES = 100 * 1024 * 1024;
 const XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const PPTX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
@@ -254,6 +257,68 @@ function hasExactHostSignature(target: URL, maxExpires: number): boolean {
   return credential?.[2] === date.slice(0, 8) && /^[1-9][0-9]*$/.test(expires) && Number(expires) <= maxExpires;
 }
 
+function matchesQaVideoPart(rawUrl: string, fileKey: string, uploadId: string, partNumber: string): boolean {
+  if (!URL.canParse(rawUrl)) return false;
+  const target = new URL(rawUrl);
+  if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
+    || rawUrl !== target.origin + target.pathname + target.search
+    || target.pathname !== "/academy-development-artifacts/" + fileKey
+    || target.searchParams.getAll("uploadId").length !== 1 || target.searchParams.get("uploadId") !== uploadId
+    || target.searchParams.getAll("partNumber").length !== 1 || target.searchParams.get("partNumber") !== partNumber) return false;
+  target.searchParams.delete("uploadId");
+  target.searchParams.delete("partNumber");
+  return hasExactHostSignature(target, 3600);
+}
+
+function developmentVideoMultipartScope(tenantId: number, sessionId: number) {
+  const prefix = "tenants/" + tenantId + "/video/raw/" + sessionId + "/";
+  const partUrls = new Set<string>();
+  let video: { id: number; fileKey: string } | undefined;
+  let uploadId: string | undefined;
+
+  return {
+    allowsPart: (url: string) => partUrls.has(url),
+    observe(path: string, status: number, request: unknown, response: unknown) {
+      if (!isRecord(request) || !isRecord(response)) return;
+      if (!video && path === "/api/v1/media/videos/upload/init/" && status === 201
+        && request.session === sessionId && request.filename === MULTIPART_QA_NAME && request.content_type === "video/mp4"
+        && isRecord(response.video) && typeof response.video.id === "number"
+        && Number.isSafeInteger(response.video.id) && response.video.id > 0
+        && typeof response.file_key === "string" && response.file_key.startsWith(prefix)
+        && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.mp4$/.test(response.file_key.slice(prefix.length))) {
+        video = { id: response.video.id, fileKey: response.file_key };
+        return;
+      }
+      if (!video) return;
+      const base = "/api/v1/media/videos/" + video.id + "/upload/multipart/";
+      if (path === base + "init/" && status === 200 && request.content_type === "video/mp4"
+        && response.video_id === video.id && response.file_key === video.fileKey
+        && typeof response.upload_id === "string" && /^[A-Za-z0-9._~+/=-]{1,512}$/.test(response.upload_id)) {
+        uploadId = response.upload_id;
+        partUrls.clear();
+        return;
+      }
+      if (!uploadId || request.upload_id !== uploadId) return;
+      if ((path === base + "abort/" && status === 200)
+        || (path === base + "complete/" && status >= 200 && status < 300)) {
+        uploadId = undefined;
+        partUrls.clear();
+        return;
+      }
+      const parts = request.part_numbers;
+      if (path !== base + "presign/" || status !== 200 || !isRecord(response.urls)
+        || !Array.isArray(parts) || parts.length === 0 || parts.length > 10
+        || parts.some(part => !Number.isSafeInteger(part) || part < 1 || part > 10)
+        || new Set(parts).size !== parts.length || Object.keys(response.urls).length !== parts.length) return;
+      for (const part of parts) {
+        const key = String(part);
+        const rawUrl = response.urls[key];
+        if (typeof rawUrl === "string" && matchesQaVideoPart(rawUrl, video.fileKey, uploadId, key)) partUrls.add(rawUrl);
+      }
+    },
+  };
+}
+
 function isExactDevelopmentHomeworkImage(boundary: ReleaseBoundary, rawUrl: string, mediaId: string, contentType: string): boolean {
   const extension = ({ "image/png": "png", "image/heic": "heic", "image/heif": "heif" } as Record<string, string>)[contentType];
   if (!extension) return false;
@@ -479,8 +544,14 @@ export function releaseBoundaryFromEnv(env: Record<string, string | undefined>):
   const omrTenant = env.E2E_OMR_R2_TENANT_ID;
   if (omrTenant !== undefined && (mode !== "development" || !/^[1-9][0-9]*$/.test(omrTenant)
     || !Number.isSafeInteger(Number(omrTenant)))) throw new Error("Invalid development OMR tenant scope");
+  const videoSession = env.E2E_VIDEO_MULTIPART_SESSION_ID;
+  if (videoSession !== undefined && (mode !== "development" || api.origin !== "http://127.0.0.1:18000"
+    || omrTenant === undefined || !/^[1-9][0-9]*$/.test(videoSession) || !Number.isSafeInteger(Number(videoSession)))) {
+    throw new Error("Invalid development multipart video session scope");
+  }
   return { mode, apiOrigin: api.origin, webOrigin: web.origin, tenantCode,
-    ...(omrTenant === undefined ? {} : { omrR2TenantId: Number(omrTenant) }) };
+    ...(omrTenant === undefined ? {} : { omrR2TenantId: Number(omrTenant) }),
+    ...(videoSession === undefined ? {} : { videoMultipartSessionId: Number(videoSession) }) };
 }
 
 export function assertReleaseRequestSafe(
@@ -1179,12 +1250,15 @@ export async function installReleaseContextGuard(
   if (installed) {
     if (installed.boundary.mode !== boundary.mode || installed.boundary.apiOrigin !== boundary.apiOrigin
       || installed.boundary.webOrigin !== boundary.webOrigin || installed.boundary.tenantCode !== boundary.tenantCode
-      || installed.boundary.omrR2TenantId !== boundary.omrR2TenantId) {
+      || installed.boundary.omrR2TenantId !== boundary.omrR2TenantId
+      || installed.boundary.videoMultipartSessionId !== boundary.videoMultipartSessionId) {
       throw new Error("Release context boundary mismatch");
     }
     return installed.ready;
   }
   boundary = { ...boundary };
+  const videoMultipart = boundary.mode === "development" && boundary.omrR2TenantId && boundary.videoMultipartSessionId
+    ? developmentVideoMultipartScope(boundary.omrR2TenantId, boundary.videoMultipartSessionId) : null;
 
   const observations = { attempted: 0, accepted: 0 };
   const authentication = { attempted: 0, accepted: 0 };
@@ -1310,6 +1384,50 @@ export async function installReleaseContextGuard(
     try {
       const upstream = developmentUpstream(boundary, request.url());
       const target = new URL(upstream);
+      if (videoMultipart?.allowsPart(upstream)) {
+        const method = request.method();
+        const source = await request.allHeaders();
+        const preflight = method === "OPTIONS" && source["access-control-request-method"] === "PUT";
+        const body = method === "PUT" ? request.postDataBuffer() : null;
+        const requestedHeaders = source["access-control-request-headers"]?.trim().toLowerCase();
+        const appHeaders = ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key", "x-csrftoken"];
+        const contentType = source["content-type"];
+        if (source.origin !== boundary.webOrigin || appHeaders.some(name => source[name])
+          || (preflight ? requestedHeaders && requestedHeaders !== "content-type"
+            : !body?.length || body.length > MAX_MULTIPART_QA_PART_BYTES || request.resourceType() !== "xhr"
+              || (contentType !== undefined && !["application/octet-stream", "video/mp4"].includes(contentType)))) {
+          await reject("multipart-part-scope");
+          return;
+        }
+        const headers: Record<string, string> = { origin: boundary.webOrigin };
+        if (preflight) {
+          headers["access-control-request-method"] = "PUT";
+          if (requestedHeaders) headers["access-control-request-headers"] = requestedHeaders;
+        } else if (contentType) {
+          headers["content-type"] = contentType;
+        }
+        // Do not inherit the browser context's cookies or any API headers.
+        const response = await fetch(upstream, { method, headers, body: preflight ? undefined : new Uint8Array(body!),
+          redirect: "manual", signal: AbortSignal.timeout(120_000) });
+        await response.body?.cancel();
+        const allowOrigin = response.headers.get("access-control-allow-origin") ?? "";
+        const exposeHeaders = response.headers.get("access-control-expose-headers") ?? "";
+        const allowMethods = response.headers.get("access-control-allow-methods") ?? "";
+        const allowHeaders = response.headers.get("access-control-allow-headers") ?? "";
+        const etag = response.headers.get("etag") ?? "";
+        const canReadEtag = exposeHeaders.toLowerCase().split(/\s*,\s*/)
+          .some(header => header === "etag" || header === "*");
+        if (!response.ok || !["*", boundary.webOrigin].includes(allowOrigin)
+          || (preflight ? !allowMethods.toUpperCase().split(/\s*,\s*/).includes("PUT")
+            : !canReadEtag || !/^(?:[0-9a-f]{32}|"[0-9a-f]{32}")$/i.test(etag))) {
+          await reject("multipart-part-response");
+          return;
+        }
+        await route.fulfill({ status: response.status, headers: { "access-control-allow-origin": allowOrigin,
+          ...(preflight ? { "access-control-allow-methods": allowMethods, "access-control-allow-headers": allowHeaders }
+            : { "access-control-expose-headers": exposeHeaders, etag }) } });
+        return;
+      }
       // Public-player handling only applies outside the existing app/API
       // transports; their diagnostics and retry policy remain untouched.
       if (boundary.mode === "development" && target.origin !== boundary.apiOrigin && target.origin !== boundary.webOrigin) {
@@ -1722,6 +1840,12 @@ export async function installReleaseContextGuard(
           || response.headers()["access-control-allow-origin"] !== boundary.webOrigin
           || response.headers()["access-control-allow-credentials"] !== "true") {
           throw new Error("Real API CORS boundary mismatch");
+        }
+        if (videoMultipart && request.method() === "POST" && !target.search
+          && /^\/api\/v1\/media\/videos\/(?:upload\/init|[1-9][0-9]*\/upload\/multipart\/(?:init|presign|complete|abort))\/$/.test(target.pathname)
+          && /^Bearer \S+$/.test(headers.authorization ?? "")
+          && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json") {
+          videoMultipart.observe(target.pathname, response.status(), data, await response.json());
         }
         if (boundary.mode === "readonly" && request.method() === "GET" && !target.search
           && target.pathname === "/api/v1/student/video/me/" && response.status() === 200
