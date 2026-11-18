@@ -50,6 +50,131 @@ test("an older active release cannot be hidden by a newer cancelled run", async 
   await assert.rejects(readBackendRun(async () => ({ total_count: 101, workflow_runs: [] })), /incomplete/);
 });
 
+test("inconsistent listing retries every group without hiding another active release", async () => {
+  let rounds = 0;
+  let hostReads = 0;
+  let latestReads = 0;
+  let time = 0;
+  const groups = [];
+  const sleeps = [];
+  const evidence = [];
+  const value = await waitForBackend({
+    readSnapshot: async () => {
+      const round = ++rounds;
+      const releaseRun = await readBackendRun(async url => {
+        const status = new URL(url).searchParams.get("status");
+        if (!status) {
+          latestReads++;
+          assert.equal(round, 3);
+          return { workflow_runs: [snapshot().releaseRun] };
+        }
+        groups.push({ round, status });
+        if (round === 1 && status === "queued") return { total_count: 1, workflow_runs: [] };
+        const active = round <= 2 && status === "in_progress";
+        return { total_count: active ? 1 : 0,
+          workflow_runs: active ? [snapshot({ running: true }).releaseRun] : [] };
+      });
+      hostReads++;
+      return { ...snapshot(), releaseRun };
+    },
+    persist: value => evidence.push(value),
+    now: () => time,
+    sleep: async ms => { sleeps.push(ms); time += ms; },
+    timeoutMs: 10_000,
+    intervalMs: 10,
+  });
+  assert.equal(value.releaseRun.status, "completed");
+  assert.equal(hostReads, 2);
+  assert.equal(latestReads, 1);
+  assert.deepEqual(sleeps, [1000, 10]);
+  assert.equal(evidence[0].state, "checking");
+  assert.equal(evidence[0].listingRetries, 1);
+  assert.equal(evidence.at(-1).state, "ready");
+  assert.equal(evidence.at(-1).listingRetries, 1);
+  for (const round of [1, 2, 3]) {
+    assert.equal(groups.filter(group => group.round === round).length, 5);
+  }
+});
+
+test("persistent coherent-shaped mismatch exhausts two retries without reading latest or hosts", async () => {
+  let reads = 0;
+  let time = 0;
+  const sleeps = [];
+  const evidence = [];
+  await assert.rejects(waitForBackend({
+    readSnapshot: async () => {
+      reads++;
+      await readBackendRun(async url => {
+        const status = new URL(url).searchParams.get("status");
+        assert.ok(status, "partial listings cannot fall back to latest");
+        return { total_count: status === "queued" ? 1 : 0, workflow_runs: [] };
+      });
+      assert.fail("partial listing cannot reach host discovery");
+    },
+    persist: value => evidence.push(value),
+    now: () => time,
+    sleep: async ms => { sleeps.push(ms); time += ms; },
+    timeoutMs: 10_000,
+  }), error => {
+    assert.deepEqual(sanitizedReadinessFailure(error), { phase: "active_run_listing", code: "inconsistent" });
+    return true;
+  });
+  assert.equal(reads, 3);
+  assert.deepEqual(sleeps, [1000, 2000]);
+  assert.deepEqual(evidence.map(value => value.listingRetries), [1, 2]);
+  assert(evidence.every(value => value.state === "checking"));
+});
+
+test("malformed or overflowing listings and HTTP failures never use inconsistency retries", async () => {
+  for (const group of [
+    null, {}, { total_count: -1, workflow_runs: [] }, { total_count: 0.5, workflow_runs: [] },
+    { total_count: "0", workflow_runs: [] }, { total_count: Number.MAX_SAFE_INTEGER + 1, workflow_runs: [] },
+    { total_count: 0, workflow_runs: {} }, { total_count: 101, workflow_runs: [] },
+    { total_count: 101, workflow_runs: Array.from({ length: 101 }, () => ({})) },
+  ]) {
+    let reads = 0;
+    await assert.rejects(waitForBackend({
+      readSnapshot: async () => {
+        reads++;
+        const releaseRun = await readBackendRun(async () => group);
+        return { ...snapshot(), releaseRun };
+      },
+      persist: () => {},
+      sleep: async () => assert.fail("invalid listing must fail immediately"),
+    }), error => {
+      assert.notEqual(sanitizedReadinessFailure(error).code, "inconsistent");
+      return true;
+    });
+    assert.equal(reads, 1);
+  }
+  const unavailable = new Error("synthetic HTTP 503");
+  await assert.rejects(waitForBackend({
+    readSnapshot: async () => readBackendRun(async () => { throw unavailable; }),
+    persist: () => {},
+    sleep: async () => assert.fail("unclassified HTTP failure must fail immediately"),
+  }), error => error === unavailable);
+});
+
+test("inconsistency backoff cannot extend the original deadline", async () => {
+  let time = 0;
+  let reads = 0;
+  const sleeps = [];
+  await assert.rejects(waitForBackend({
+    readSnapshot: async () => {
+      reads++;
+      const releaseRun = await readBackendRun(async () => ({ total_count: 1, workflow_runs: [] }));
+      return { ...snapshot(), releaseRun };
+    },
+    persist: () => {},
+    now: () => time,
+    sleep: async ms => { sleeps.push(ms); time += ms; },
+    timeoutMs: 1500,
+  }));
+  assert.ok(time <= 1500);
+  assert.ok(reads <= 3);
+  assert.deepEqual(sleeps, [1000, 500]);
+});
+
 test("drift and terminal failure are never retried as ordinary release progress", async () => {
   const failed = snapshot({ promoted: false });
   failed.releaseRun.conclusion = "failure";
