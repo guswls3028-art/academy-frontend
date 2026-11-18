@@ -59,7 +59,7 @@ function reserveAutoReport(
 export async function submitUserIncident(payload: UserIncidentPayload): Promise<void> {
   const config: ApiRequestConfig = {
     timeout: 10_000,
-    preservePageOnAuthFailure: payload.source === "manual",
+    preservePageOnAuthFailure: true,
   };
   const { data, status } = await api.post<{ incident_id: number }>(
     "/core/problem-reports/",
