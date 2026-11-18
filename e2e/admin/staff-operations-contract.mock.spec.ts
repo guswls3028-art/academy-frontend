@@ -3081,6 +3081,11 @@ test.describe("원장 직원 정보 자동 복구", () => {
         await seedAuth(page);
         await installWorkspaceReadApiStubs(page);
         await mockStaffApi(page);
+        await page.route("**/api/v1/core/me/", route => route.fulfill({ json: {
+          id: 12, username: "t1_owner", name: "원장 계정", phone: null,
+          is_staff: true, is_superuser: false, tenantRole: "owner", linkedStudents: null,
+          must_change_password: false,
+        } }));
         let prepared = false;
         let invalid: false | "staff_id" | "permission" = initiallyInvalid;
         let setupPosts = 0;
@@ -3116,7 +3121,10 @@ test.describe("원장 직원 정보 자동 복구", () => {
           }
           await expect(page.getByRole("heading", { name: "직원 관리", exact: true })).toBeVisible();
           await expect(page.getByText("박원장", { exact: true }).first()).toBeVisible();
-          await page.screenshot({ path: test.info().outputPath(`owner-setup-error-${width}.png`), fullPage: true });
+          await test.info().attach(`owner-setup-error-${width}`, {
+            body: await page.screenshot({ path: test.info().outputPath(`owner-setup-error-${width}.png`),
+              fullPage: true, animations: "disabled" }), contentType: "image/png",
+          });
           invalid = false;
           await warning.getByRole("button", { name: "연결 다시 확인", exact: true }).click();
           await expect(warning).toHaveCount(0);
@@ -3131,7 +3139,10 @@ test.describe("원장 직원 정보 자동 복구", () => {
         await expect(page.getByText("박원장", { exact: true }).first()).toBeVisible();
         expect(setupPosts).toBe(postsAfterSetup);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-        await page.screenshot({ path: test.info().outputPath(`owner-setup-recovered-${width}-${initiallyInvalid}.png`), fullPage: true });
+        await test.info().attach(`owner-setup-recovered-${width}-${initiallyInvalid}`, {
+          body: await page.screenshot({ path: test.info().outputPath(`owner-setup-recovered-${width}-${initiallyInvalid}.png`),
+            fullPage: true, animations: "disabled" }), contentType: "image/png",
+        });
       });
     }
   }
