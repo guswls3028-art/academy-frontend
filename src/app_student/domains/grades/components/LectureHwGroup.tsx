@@ -80,6 +80,11 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                   />}
                 </div>
               </div>
+              {h.practice_inspection && <section className={styles.practiceInspection} aria-label="과제 검사 결과">
+                <strong>과제 검사 결과</strong>
+                {h.practice_inspection.solved != null && <span>{h.practice_inspection.solved}/{h.practice_inspection.total}문제 풀이</span>}
+                {h.practice_inspection.feedback && <p>{h.practice_inspection.feedback}</p>}
+              </section>}
               <ParentAssessmentComment kind="homework" assessmentId={h.homework_id} sessionId={h.session_id} />
               {gradingMode === "SCORE" && maxScore != null && (
                 <progress

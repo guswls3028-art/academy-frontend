@@ -421,7 +421,7 @@ test.describe.serial("[E2E] 학생 성적 리포트 실사용 검증", () => {
     expect(primaryResult.answers_visible).toBe(false);
 
     await expect(page.getByTestId("score-analysis-card")).toContainText("핵심 분석");
-    await expect(page.getByTestId("score-analysis-card")).toContainText("정답률");
+    await expect(page.getByText(/^정답 \d+ \/ \d+문항$/)).toBeVisible();
     await expect(page.getByTestId("score-analysis-card")).toContainText("오답");
     await expect(page.getByTestId("wrong-number-chip")).toHaveText(["2", "5"]);
     await expect(page.getByText("정답 내용은 비공개입니다. 틀린 번호와 내 답만 확인할 수 있습니다.")).toBeVisible();
