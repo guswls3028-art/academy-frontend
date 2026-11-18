@@ -3,6 +3,7 @@
  * student/parent projections. The clinic scenario seeds an explicit exam absence.
  * The fixed QA operator has admin authority; this does not prove a teacher-only role.
  */
+import { writeFile } from "node:fs/promises";
 import { expect, test } from "../fixtures/strictTest";
 import type { APIRequestContext, Page, Response, TestInfo } from "@playwright/test";
 import type { SessionScoresResponse } from "../../src/shared/api/contracts/sessionScores";
@@ -14,7 +15,7 @@ import {
   createQaFamily, expectApi, installQaStudentParentBoundary, loginAdmin,
   loginThroughUi, QA_ADMIN_PASSWORD, QA_ADMIN_USER, QA_API, QA_BASE, QA_TENANT,
   reloadStudentApp, selectParentStudentThroughUi, STUDENT_PARENT_REALUSE_ENABLED,
-  type QaFamily, type QaStudent,
+  type QaFamily, type QaFamilyCleanupObservation, type QaStudent,
 } from "../helpers/qaStudentParentScenario";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
 
@@ -135,6 +136,7 @@ async function seedFixture(request: APIRequestContext): Promise<void> {
 async function cleanupFixture(request: APIRequestContext, testInfo: TestInfo): Promise<void> {
   if (!owned.adminAccess) return;
   const failures: string[] = [];
+  const familyCleanupObservations: QaFamilyCleanupObservation[] = [];
   if (owned.clinicSessionId) {
     const path = `/clinic/sessions/${owned.clinicSessionId}/`;
     try {
@@ -193,7 +195,10 @@ async function cleanupFixture(request: APIRequestContext, testInfo: TestInfo): P
       if (![200, 202, 204, 404].includes(result.status)) failures.push(`DELETE ${path}: ${result.status}`);
     } catch { failures.push(`DELETE ${path}: transport failed`); }
   }
-  try { await cleanupQaFamily(request, owned.adminAccess, owned.family); }
+  try {
+    await cleanupQaFamily(request, owned.adminAccess, owned.family,
+      (event) => familyCleanupObservations.push(event));
+  }
   catch { failures.push("exact synthetic family cleanup failed"); }
   for (const path of paths) {
     try {
@@ -211,9 +216,13 @@ async function cleanupFixture(request: APIRequestContext, testInfo: TestInfo): P
       else if (residue.status !== 404) failures.push(`final exam ${exam.id}: unexpected residue ${residue.status}`);
     } catch { failures.push(`final exam ${exam.id}: residue not verified`); }
   }
+  const cleanupEvidencePath = testInfo.outputPath("teacher-score-fixture-cleanup.json");
+  await writeFile(cleanupEvidencePath, JSON.stringify({
+    archivedExamIds, retainedExamIds, outerTenantCleanupRequired: true,
+    tenantUserZeroProvenByThisSpec: false, failures, familyCleanupObservations,
+  }));
   await testInfo.attach("teacher-score-fixture-cleanup", {
-    body: JSON.stringify({ archivedExamIds, retainedExamIds, outerTenantCleanupRequired: true,
-      tenantUserZeroProvenByThisSpec: false, failures }),
+    path: cleanupEvidencePath,
     contentType: "application/json",
   });
   expect(failures, "fixture cleanup is separate from outer tenant/user/token/activity/R2 cleanup").toEqual([]);

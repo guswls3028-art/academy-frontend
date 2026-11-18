@@ -498,6 +498,7 @@ jobs:
             test-results/**/public-video-390.png
             test-results/**/board-layout-*.json
             test-results/**/board-layout-*.png
+            test-results/**/teacher-score-fixture-cleanup.json
             test-results/development-release-progress.json
           retention-days: 14
           if-no-files-found: error
