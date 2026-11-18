@@ -265,6 +265,7 @@ test.describe("student video CDN service errors", () => {
     const player = page.locator("video");
     await expect.poll(() => player.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThanOrEqual(42);
     const resumedAt = await player.evaluate((el: HTMLVideoElement) => el.currentTime);
+    expect(resumedAt).toBeGreaterThanOrEqual(42);
     expect(resumedAt).toBeLessThan(43);
     await page.locator("button.svpBigPlay").click();
     await expect.poll(() => player.evaluate((el: HTMLVideoElement) => el.paused)).toBe(false);
