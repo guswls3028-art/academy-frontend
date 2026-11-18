@@ -47,7 +47,10 @@ export function harness(options = {}) {
     '@/shared/api/parentStudentSelection': { getParentStudentId: () => parentId },
     '@/shared/ui/asyncStatus/asyncStatusStore': { asyncStatusStore: { trackRequest: () => 'unit-request', completeTask() {} } },
     '@/shared/tenant': { getTenantCodeForApiRequest: () => tenant },
-    '@/shared/lib/sentryContext': { captureApiError: () => counts.apiError++ },
+    '@/shared/lib/sentryContext': {
+      captureApiError: () => counts.apiError++,
+      sanitizeObservabilityPath: (value) => new URL(value, 'https://unit.invalid').pathname,
+    },
     '@/shared/utils/safeSessionStorage': { getSessionItem: () => null, removeSessionItem() {}, setSessionItem() {} },
     '@/shared/auth/tokenSession': {
       AuthTokenStorageError: class AuthTokenStorageError extends Error {},

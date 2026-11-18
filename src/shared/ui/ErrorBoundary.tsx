@@ -118,6 +118,7 @@ export default class ErrorBoundary extends Component<Props, State> {
       route: url,
       sentryEventId: eventId,
       confirmedPersistent: true,
+      preservePageOnAuthFailure: true,
     });
   }
 

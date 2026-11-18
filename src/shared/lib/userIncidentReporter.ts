@@ -11,6 +11,7 @@ type UserIncidentPayload = {
   errorName?: string;
   sentryEventId?: string;
   screenSize?: string;
+  preservePageOnAuthFailure?: boolean;
 };
 
 function autoReportKey(route: string, errorName: string): string {
@@ -59,7 +60,7 @@ function reserveAutoReport(
 export async function submitUserIncident(payload: UserIncidentPayload): Promise<void> {
   const config: ApiRequestConfig = {
     timeout: 10_000,
-    preservePageOnAuthFailure: true,
+    preservePageOnAuthFailure: payload.source === "manual" || payload.preservePageOnAuthFailure === true,
   };
   const { data, status } = await api.post<{ incident_id: number }>(
     "/core/problem-reports/",
@@ -84,6 +85,7 @@ export function reportClientException(
     route?: string;
     sentryEventId?: string;
     confirmedPersistent?: boolean;
+    preservePageOnAuthFailure?: boolean;
   } = {},
 ): void {
   const route = sanitizeObservabilityPath(
@@ -103,6 +105,7 @@ export function reportClientException(
     route,
     errorName: safeErrorName,
     sentryEventId: options.sentryEventId,
+    preservePageOnAuthFailure: options.preservePageOnAuthFailure,
     screenSize:
       typeof window !== "undefined"
         ? `${window.innerWidth}x${window.innerHeight}`
