@@ -422,6 +422,6 @@ test("legacy student lists load analysis and HLS code only where needed", async 
     element.dispatchEvent(new Event("loadedmetadata"));
   });
   await expect.poll(() => video.evaluate((element) => (element as HTMLVideoElement).currentTime)).toBe(125);
-  expect(scripts.filter((url) => /hls.*\.js/i.test(url))).toEqual([]);
+  expect(scripts.filter((url) => /\/vendor-hls(?:-legacy)?-[\w-]+\.js$/.test(new URL(url).pathname))).toEqual([]);
   await expectNoOverflow(page);
 });

@@ -224,6 +224,18 @@
   outline-offset: 2px;
 }
 
+.guidebook-popup__update {
+  min-height: 44px;
+  margin-bottom: 12px;
+}
+
+.guidebook-popup__unread {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--guidebook-accent);
+}
+
 .guidebook-popup__item[data-clickable="true"] {
   cursor: pointer;
 }

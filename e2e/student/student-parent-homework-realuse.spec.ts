@@ -837,7 +837,8 @@ async function gradeHomework(
         const finishEditing = staffPage.getByRole("button", { name: "점수 입력 마침", exact: true });
         const drawer = staffPage.getByRole("complementary", { name: `${studentName} 학생 상세` });
         const homeworkCard = drawer.getByRole("button", { name: new RegExp(`^${homeworkTitle}`) });
-        let saveButton = finishEditing;
+        const scoreInput = cell.getByRole("textbox");
+        let commitScore = () => scoreInput.press("Enter");
         if (width === 390) {
           // Finish the blank sheet's automatic bulk mode to exercise the single-student lease.
           await expect(cell.getByRole("textbox")).toBeVisible();
@@ -848,22 +849,33 @@ async function gradeHomework(
           await drawer.getByRole("button", { name: "점수 입력", exact: true }).click();
           const editor = drawer.getByRole("form", { name: `${homeworkTitle} 점수 입력` });
           await editor.getByRole("spinbutton", { name: "과제 점수" }).fill(String(value));
-          saveButton = editor.getByRole("button", { name: "저장", exact: true });
+          commitScore = () => editor.getByRole("button", { name: "저장", exact: true }).click();
         } else {
           await expect(cell).toContainText(String(previousScore));
           await staffPage.getByRole("button", { name: "수정", exact: true }).click();
-          await expect(cell.getByRole("textbox")).toBeVisible();
-          await cell.getByRole("textbox").fill(String(value));
+          await expect(scoreInput).toBeVisible();
+          await scoreInput.fill("/");
+          const marked = staffPage.waitForResponse((response) => (
+            response.request().method() === "PATCH"
+            && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
+          ));
+          await options.click();
+          const markedResponse = await marked;
+          expect(markedResponse.status()).toBe(200);
+          expect(await markedResponse.json()).toMatchObject({ score: null, meta: { status: "NOT_SUBMITTED" } });
+          await expect(scoreInput).toHaveText("미제출");
+          await scoreInput.fill(String(value));
         }
         gradingPhase = "save";
         const saved = staffPage.waitForResponse((response) => (
           response.request().method() === "PATCH"
           && new URL(response.url()).pathname === "/api/v1/homework/scores/quick/"
         ));
-        await saveButton.click();
+        await commitScore();
         const response = await saved;
         expect(response.status()).toBe(200);
         expect(await response.json()).toMatchObject({ score: value, passed: true });
+        if (width !== 390) await finishEditing.click();
         await expect(staffPage.getByRole("button", { name: "수정", exact: true })).toBeVisible();
         if (width === 390) {
           await expect(homeworkCard).toContainText(String(value));
@@ -934,12 +946,16 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await loginThroughUi(page, student.ps_number, student.password);
     await gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 });
     const todo = page.locator("[data-guide='dash-todo']");
-    await expect(todo.getByText(homeworkTitle, { exact: true })).toBeVisible();
-    const scopedSubmission = `${QA_BASE}/student/submit/assignment?sessionId=${created.sessionId}&homeworkId=${created.homeworkId}`;
     const otherTitle = `QA 동명 강좌 과제 ${runStamp}`;
+    const pendingHomework = todo.getByRole("link", { name: /^과제 제출 필요 2건/ });
+    await expect(pendingHomework).toBeVisible();
+    await expect(pendingHomework).toContainText(homeworkTitle);
+    await expect(pendingHomework).toContainText(otherTitle);
+    const scopedSubmission = `${QA_BASE}/student/submit/assignment?sessionId=${created.sessionId}&homeworkId=${created.homeworkId}`;
     const otherDraftName = `qa-unsubmitted-other-session-${runStamp}.png`;
     const uploadPath = (homeworkId: number) => `/api/v1/submissions/submissions/homework/${homeworkId}/media/`;
     const targetList = page.locator("[data-guide='submit-target']");
+    const initialTarget = targetList.getByRole("button").filter({ has: page.getByText(homeworkTitle, { exact: true }) });
     const otherTarget = targetList.getByRole("button").filter({ has: page.getByText(otherTitle, { exact: true }) });
     const submissionSummary = page.locator('[class*="submitSummary"]');
     const allTargets = page.getByRole("link", { name: "전체 제출 대상 보기" });
@@ -1062,12 +1078,10 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await expect(submissionSummary).toContainText(homeworkTitle);
       expect(uploadRequests).toEqual([uploadPath(created.homeworkId!)]);
       page.off("request", observeUpload);
-      await expect(page.locator("[data-guide='submit-target'] button").filter({
-        has: page.getByText(homeworkTitle, { exact: true }),
-      })).toBeVisible();
+      await expect(initialTarget).toBeVisible();
       await assertNoHorizontalOverflow(page);
       await page.reload({ waitUntil: "domcontentloaded" });
-      await page.getByText(homeworkTitle, { exact: true }).click();
+      await initialTarget.click();
       await applyHomeworkPreviewCsp(page);
       await page.getByRole("region", { name: "이미 제출한 파일" }).getByRole("button", { name: "미리보기", exact: true }).click();
       await expect.poll(() => page.getByRole("img", { name: `${uploadName} 제출 파일` })
@@ -1078,9 +1092,14 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
         (row) => row.submission_state === "awaiting_review" && row.score === null,
       );
       await gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 });
-      await expect(todo.getByText(homeworkTitle, { exact: true })).toHaveCount(0);
+      const remainingHomework = todo.getByRole("link", { name: /^과제 제출 필요 1건/ });
+      await expect(remainingHomework).toBeVisible();
+      await expect(remainingHomework).toContainText(otherTitle);
+      await expect(remainingHomework).not.toContainText(homeworkTitle);
       await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(todo.getByText(homeworkTitle, { exact: true })).toHaveCount(0);
+      await expect(remainingHomework).toBeVisible();
+      await expect(remainingHomework).toContainText(otherTitle);
+      await expect(remainingHomework).not.toContainText(homeworkTitle);
       await assertNoHorizontalOverflow(page);
       // Keep the assistant detail open: discovery must not depend on navigation
       // or manual reload after the student's successful submission.
