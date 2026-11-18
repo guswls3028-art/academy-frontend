@@ -72,6 +72,7 @@ test.describe("production bundle error recovery", () => {
     { width: 1366, signedIn: true, failure: "invalid-receipt" },
     { width: 390, signedIn: true, failure: "expired-on-submit" },
     { width: 1366, signedIn: true, failure: "expired-before-submit" },
+    { width: 390, signedIn: true, failure: "response-lost" },
   ]) {
     test(`root error fallback ${failure} at ${width}px`, async ({ page }) => {
       const token = `e30.${Buffer.from(JSON.stringify({
@@ -79,6 +80,7 @@ test.describe("production bundle error recovery", () => {
       })).toString("base64url")}.test`;
       const reportText = "화면을 열 때 같은 문제가 반복됩니다.";
       const manualReports: Array<{ body: unknown; authorization: string; tenantCode: string }> = [];
+      const persistedReceipts: number[] = [];
       let refreshRequests = 0;
       let releaseSubmission = () => {};
       const submissionGate = new Promise<void>((resolve) => { releaseSubmission = resolve; });
@@ -127,13 +129,15 @@ test.describe("production bundle error recovery", () => {
           if (body.source === "frontend_exception") return json({ incident_id: 1 }, 201);
           manualReports.push({ body, authorization: request.headers().authorization || "", tenantCode: request.headers()["x-tenant-code"] || "" });
           if (failure.startsWith("expired-")) return json({ detail: "만료된 세션입니다." }, 401);
+          if (failure === "response-lost") persistedReceipts.push(manualReports.length + 1);
           if (manualReports.length === 1) {
             await submissionGate;
+            if (failure === "response-lost") return route.abort();
             return failure === "invalid-receipt"
               ? json({ incident_id: "2" }, 201)
               : json({ detail: "접수 실패" }, 503);
           }
-          return json({ incident_id: 2 }, 201);
+          return json({ incident_id: failure === "response-lost" ? 3 : 2 }, 201);
         }
         return json({});
       });
@@ -190,12 +194,15 @@ test.describe("production bundle error recovery", () => {
         } finally {
           releaseSubmission();
         }
-        await expect(page.getByRole("alert").filter({ hasText: "제보를 보내지 못했어요" })).toBeVisible();
+        await expect(page.getByRole("alert").filter({ hasText: "접수 결과를 확인하지 못했어요" })).toBeVisible();
+        await expect(page.getByRole("alert")).toContainText("이미 접수됐을 수 있어");
+        if (failure === "response-lost") expect(persistedReceipts).toEqual([2]);
         await expect(page.getByRole("heading", { name: "버그 제보가 접수됐어요" })).toHaveCount(0);
         await expect(description).toHaveValue(reportText);
         await submit.click();
         await expect(page.getByRole("heading", { name: "버그 제보가 접수됐어요" })).toBeFocused();
         expect(manualReports).toHaveLength(2);
+        if (failure === "response-lost") expect(persistedReceipts).toEqual([2, 3]);
         for (const report of manualReports) {
           expect(report).toMatchObject({
             body: { source: "manual", message: reportText, route: "/promo", screen_size: `${width}x850` },

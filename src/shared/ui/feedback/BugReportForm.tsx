@@ -18,7 +18,8 @@ function failureMessage(error: unknown) {
   if (status === 401) return LOGIN_REQUIRED;
   if (status === 403) return "제보 권한이 없어요. 로그인한 학원을 확인해 주세요.";
   if (status === 429) return "잠시 기다렸다 다시 보내 주세요.";
-  return "제보를 보내지 못했어요. 다시 시도해 주세요.";
+  if (status && status < 500) return "제보를 보내지 못했어요. 다시 시도해 주세요.";
+  return "접수 결과를 확인하지 못했어요. 이미 접수됐을 수 있어 다시 보내면 중복될 수 있어요.";
 }
 
 export default function BugReportForm({ route, sentryEventId, onClose, onReload, onSubmittingChange }: Props) {
