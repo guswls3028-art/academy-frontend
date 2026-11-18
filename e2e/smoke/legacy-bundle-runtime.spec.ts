@@ -168,9 +168,19 @@ async function installStudentApi(page: Page, role: "student" | "parent" = "stude
   return { loginBodies, reportBodies, analyticsBodies, access, studentScopes };
 }
 
+async function waitForLegacyStyles(page: Page) {
+  await expect.poll(() => page.locator('link[rel="stylesheet"][href*="/assets/"]').evaluateAll((links) => (
+    links.length > 0 && links.every((link) => {
+      const stylesheet = link as HTMLLinkElement;
+      return stylesheet.href.endsWith("-legacy.css") && stylesheet.sheet !== null;
+    })
+  ))).toBe(true);
+}
+
 async function login(page: Page, role: "student" | "parent" = "student") {
   await page.goto(`${BASE}/login/godmin`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible({ timeout: 45_000 });
+  await waitForLegacyStyles(page);
   const submitStyle = await page.getByTestId("login-submit").evaluate((element) => {
     const style = getComputedStyle(element);
     const rect = element.getBoundingClientRect();
@@ -316,9 +326,7 @@ for (const profile of profiles) {
     expect(stylesheets.every((url) => url.endsWith("-legacy.css"))).toBe(true);
     expect(stylesheetResponses.length).toBeGreaterThan(0);
     expect(stylesheetResponses.every((response) => response.status === 200)).toBe(true);
-    await expect.poll(() => page.locator('link[rel="stylesheet"][href*="/assets/"]').evaluateAll((links) => (
-      links.every((link) => (link as HTMLLinkElement).sheet !== null)
-    ))).toBe(true);
+    await waitForLegacyStyles(page);
     await expectNoOverflow(page);
     await expect(page.locator("html")).toHaveAttribute("data-student-app", "true");
     await expect(page.locator("html")).toHaveCSS("overflow", "hidden");
