@@ -57,6 +57,10 @@ function reserveAutoReport(
 }
 
 export async function submitUserIncident(payload: UserIncidentPayload): Promise<void> {
+  const config: ApiRequestConfig = {
+    timeout: 10_000,
+    preservePageOnAuthFailure: payload.source === "manual",
+  };
   const { data, status } = await api.post<{ incident_id: number }>(
     "/core/problem-reports/",
     {
@@ -67,10 +71,7 @@ export async function submitUserIncident(payload: UserIncidentPayload): Promise<
       sentry_event_id: (payload.sentryEventId || "").slice(0, 64),
       screen_size: (payload.screenSize || "").slice(0, 16),
     },
-    {
-      timeout: 10_000,
-      preservePageOnAuthFailure: payload.source === "manual",
-    } satisfies ApiRequestConfig,
+    config,
   );
   if (status !== 201 || !Number.isSafeInteger(data?.incident_id) || data.incident_id < 1) {
     throw new Error("Invalid incident receipt");
