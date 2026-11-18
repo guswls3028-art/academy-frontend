@@ -167,3 +167,32 @@ test('reused access remains tenant-bound while its replay is queued', async () =
   assert.equal(h.requests.length, 1);
   assert.equal(h.counts.clear, 0);
 });
+
+for (const support of [false, true]) {
+  for (const preservePage of [false, true]) {
+    test(`terminal 401 expires ${support ? "support" : "regular"} authentication with preservePage=${preservePage}`, async () => {
+      const h = harness({
+        support,
+        refresh: () => { throw new Error("Refresh rejected"); },
+        respond: () => ({ status: 401, body: {} }),
+      });
+      await assert.rejects(
+        h.api.post('/core/problem-reports/', { message: 'draft' }, {
+          preservePageOnAuthFailure: preservePage,
+        }),
+        error => error.response?.status === 401,
+      );
+      if (support) {
+        assert.equal(h.counts.supportEnd, 1);
+        assert.equal(h.counts.clear, 0);
+      } else {
+        assert.equal(h.envelope(), null);
+        assert.equal(h.counts.clear, 1);
+      }
+      assert.equal(
+        h.window.location.href,
+        preservePage ? '' : support ? '/support-preview-ended' : '/login',
+      );
+    });
+  }
+}

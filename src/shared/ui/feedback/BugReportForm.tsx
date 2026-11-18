@@ -3,7 +3,7 @@ import { isAxiosError } from "axios";
 import { getAccessToken } from "@/shared/api/axios";
 import { submitUserIncident } from "@/shared/lib/userIncidentReporter";
 
-const LOGIN_REQUIRED = "로그인이 필요해요. 다시 로그인해 주세요.";
+const LOGIN_REQUIRED = "로그인이 필요해요. 작성한 내용을 복사한 뒤 다시 로그인해 주세요.";
 
 type Props = {
   route: string;

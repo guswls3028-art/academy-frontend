@@ -1,4 +1,4 @@
-import api from "@/shared/api/axios";
+import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { sanitizeObservabilityPath } from "@/shared/lib/sentryContext";
 
 const AUTO_REPORT_DEDUP_MS = 15 * 60_000;
@@ -67,7 +67,10 @@ export async function submitUserIncident(payload: UserIncidentPayload): Promise<
       sentry_event_id: (payload.sentryEventId || "").slice(0, 64),
       screen_size: (payload.screenSize || "").slice(0, 16),
     },
-    { timeout: 10_000 },
+    {
+      timeout: 10_000,
+      preservePageOnAuthFailure: payload.source === "manual",
+    } satisfies ApiRequestConfig,
   );
   if (status !== 201 || !Number.isSafeInteger(data?.incident_id) || data.incident_id < 1) {
     throw new Error("Invalid incident receipt");

@@ -62,20 +62,26 @@ test("production bundle boots the public promo route without runtime defects", a
 });
 
 test.describe("production bundle error recovery", () => {
-  // The browser is expected to observe the deliberately broken module and 503.
+  // These scenarios deliberately trigger module, authentication and submission failures.
   test.use({ serviceWorkers: "block", strictBrowserAutoAssert: false });
 
-  for (const { width, signedIn } of [
-    { width: 1366, signedIn: true },
-    { width: 390, signedIn: true },
-    { width: 390, signedIn: false },
+  for (const { width, signedIn, failure } of [
+    { width: 1366, signedIn: true, failure: "unavailable" },
+    { width: 390, signedIn: true, failure: "unavailable" },
+    { width: 390, signedIn: false, failure: "signed-out" },
+    { width: 1366, signedIn: true, failure: "invalid-receipt" },
+    { width: 390, signedIn: true, failure: "expired-on-submit" },
+    { width: 1366, signedIn: true, failure: "expired-before-submit" },
   ]) {
-    test(`root error fallback ${signedIn ? "accepts a report" : "explains sign-in"} at ${width}px`, async ({ page }) => {
+    test(`root error fallback ${failure} at ${width}px`, async ({ page }) => {
       const token = `e30.${Buffer.from(JSON.stringify({
         exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "hakwonplus", user_id: 12,
       })).toString("base64url")}.test`;
       const reportText = "화면을 열 때 같은 문제가 반복됩니다.";
       const manualReports: Array<{ body: unknown; authorization: string; tenantCode: string }> = [];
+      let refreshRequests = 0;
+      let releaseSubmission = () => {};
+      const submissionGate = new Promise<void>((resolve) => { releaseSubmission = resolve; });
       const appOrigin = new URL(BASE).origin;
       await page.setViewportSize({ width, height: 850 });
       await page.addInitScript(({ access }) => {
@@ -95,7 +101,7 @@ test.describe("production bundle error recovery", () => {
       await page.route("**/*", (route) => new URL(route.request().url()).origin === appOrigin
         ? route.continue()
         : route.abort());
-      await page.route("**/api/v1/**", (route) => {
+      await page.route("**/api/v1/**", async (route) => {
         const request = route.request();
         const headers = {
           "access-control-allow-origin": appOrigin,
@@ -106,6 +112,10 @@ test.describe("production bundle error recovery", () => {
         const json = (body: unknown, status = 200) => route.fulfill({ json: body, status, headers });
         if (request.method() === "OPTIONS") return route.fulfill({ status: 204, headers });
         const path = new URL(request.url()).pathname;
+        if (path === "/api/v1/token/refresh/") {
+          refreshRequests += 1;
+          return json({ detail: "만료된 세션입니다." }, 401);
+        }
         if (path === "/api/v1/core/program/") {
           return json({ tenantCode: "hakwonplus", display_name: "학원플러스", is_active: true, ui_config: {}, feature_flags: {} });
         }
@@ -116,7 +126,14 @@ test.describe("production bundle error recovery", () => {
           const body = request.postDataJSON();
           if (body.source === "frontend_exception") return json({ incident_id: 1 }, 201);
           manualReports.push({ body, authorization: request.headers().authorization || "", tenantCode: request.headers()["x-tenant-code"] || "" });
-          return manualReports.length === 1 ? json({ detail: "접수 실패" }, 503) : json({ incident_id: 2 }, 201);
+          if (failure.startsWith("expired-")) return json({ detail: "만료된 세션입니다." }, 401);
+          if (manualReports.length === 1) {
+            await submissionGate;
+            return failure === "invalid-receipt"
+              ? json({ incident_id: "2" }, 201)
+              : json({ detail: "접수 실패" }, 503);
+          }
+          return json({ incident_id: 2 }, 201);
         }
         return json({});
       });
@@ -136,9 +153,42 @@ test.describe("production bundle error recovery", () => {
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       await expect(submit).toBeDisabled();
       await description.fill(reportText);
+      if (failure === "expired-before-submit") {
+        const expiredToken = `e30.${Buffer.from(JSON.stringify({
+          exp: Math.floor(Date.now() / 1000) - 60, tenant_code: "hakwonplus", user_id: 12,
+        })).toString("base64url")}.test`;
+        await page.evaluate((access) => {
+          const key = `academy:auth-tokens:v1:${localStorage.getItem("academy:auth-active-generation:v1")}`;
+          const session = JSON.parse(localStorage.getItem(key) || "null");
+          localStorage.setItem(key, JSON.stringify({ ...session, access }));
+        }, expiredToken);
+      }
       await submit.click();
-      if (signedIn) {
+      if (failure.startsWith("expired-")) {
+        await expect(page.getByRole("alert").filter({ hasText: "로그인이 필요해요" })).toBeVisible();
+        await expect(description).toHaveValue(reportText);
+        await expect(page).toHaveURL(`${BASE}/promo?diagnostic=private#section`);
+        expect(refreshRequests).toBe(1);
+        expect(manualReports).toHaveLength(failure === "expired-on-submit" ? 1 : 0);
+        expect(await page.evaluate(() => localStorage.getItem("academy:auth-active-generation:v1"))).toBeNull();
+        await submit.click();
+        await expect(description).toHaveValue(reportText);
+        expect(refreshRequests).toBe(1);
+        expect(manualReports).toHaveLength(failure === "expired-on-submit" ? 1 : 0);
+        await page.getByRole("button", { name: "닫기", exact: true }).click();
+      } else if (signedIn) {
+        try {
+          await expect.poll(() => manualReports.length).toBe(1);
+          await expect(description).toHaveAttribute("readonly", "");
+          await expect(page.getByRole("button", { name: "보내는 중…" })).toBeDisabled();
+          // Native repeated submit events also pass through the synchronous guard.
+          await description.locator("..").dispatchEvent("submit");
+          expect(manualReports).toHaveLength(1);
+        } finally {
+          releaseSubmission();
+        }
         await expect(page.getByRole("alert").filter({ hasText: "제보를 보내지 못했어요" })).toBeVisible();
+        await expect(page.getByRole("heading", { name: "버그 제보가 접수됐어요" })).toHaveCount(0);
         await expect(description).toHaveValue(reportText);
         await submit.click();
         await expect(page.getByRole("heading", { name: "버그 제보가 접수됐어요" })).toBeFocused();

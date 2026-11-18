@@ -88,7 +88,7 @@ export function harness(options = {}) {
         if (specifier.startsWith('.')) return load(path.relative(root, path.resolve(path.dirname(file), `${specifier}.ts`)));
         throw new Error(`Unmocked import: ${specifier}`);
       },
-      window, document, console, atob, URL, TextEncoder, AbortController, Date: TestDate, crypto: webcrypto,
+      window, document, console, atob, URL, TextEncoder, AbortController, Event, Date: TestDate, crypto: webcrypto,
       performance: { now: () => clockOffset },
       setInterval: (callback, delay) => {
         intervalCallbacks.set(++timerOrdinal, { callback, delay });
