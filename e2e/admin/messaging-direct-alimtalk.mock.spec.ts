@@ -549,7 +549,18 @@ for (const width of [1366, 390]) {
     await recovery.scrollIntoViewIfNeeded();
     await expectNoHorizontalOverflow(page);
     await page.screenshot({ path: testInfo.outputPath(`request-retry-${width}.png`), fullPage: true });
+    const retriedStudent = page.waitForResponse((response) => {
+      const request = response.request();
+      if (request.method() !== "POST" || new URL(response.url()).pathname !== "/api/v1/messaging/send/") return false;
+      const payload = request.postDataJSON() as MockSend;
+      return payload.send_to === "student" && payload.client_request_id === requestId;
+    });
     await recovery.getByRole("button", { name: "같은 요청으로 재시도" }).click();
+    const acknowledged = await retriedStudent;
+    expect(acknowledged.status()).toBe(200);
+    expect(await acknowledged.json()).toMatchObject({ request_id: requestId, accepted_count: 1 });
+    // The recovery panel already has the result button; success closes the composer.
+    await expect(page.getByRole("textbox", { name: "안내문", exact: true })).toBeHidden();
     await expect(page.getByRole("button", { name: "이번 발송 결과 보기", exact: true })).toBeVisible();
     expect(state.sends.every((send) => send.client_request_id === requestId)).toBe(true);
     expect(state.receipts.size).toBe(1);
