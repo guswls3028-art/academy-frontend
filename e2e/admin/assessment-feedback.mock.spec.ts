@@ -940,7 +940,7 @@ for (const width of [1366, 390]) {
     await page.getByRole("button", { name: "첫 과제 과제 검사", exact: true }).click();
     const panel = page.getByRole("dialog", { name: "과제 검사", exact: true });
     const solved = panel.getByLabel("풀어 온 문제 수", { exact: true });
-    const feedback = panel.getByLabel("학생·학부모용 코멘트", { exact: true });
+    const feedback = panel.getByRole("textbox", { name: "학생·학부모용 코멘트", exact: true });
     await expect(solved).toHaveValue("2");
     await solved.fill("12");
     await feedback.fill("다음 시간에는 남은 세 문제를 확인해요.");
