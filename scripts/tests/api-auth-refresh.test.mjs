@@ -211,8 +211,7 @@ for (const { name, source, preservePageOnAuthFailure, redirect } of [
     await assert.rejects(submitUserIncident({
       source, message: 'Report draft', route: '/workspace/students?private=discard',
       errorName: source === 'frontend_exception' ? 'TypeError' : undefined,
-      ...(preservePageOnAuthFailure === undefined ? {} : { preservePageOnAuthFailure }),
-    }), error => error.response?.status === 401);
+    }, preservePageOnAuthFailure), error => error.response?.status === 401);
     assert.equal(h.envelope(), null);
     assert.equal(h.counts.clear, 1);
     assert.equal(h.counts.refresh, 1);

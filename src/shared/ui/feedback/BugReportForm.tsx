@@ -55,7 +55,6 @@ export default function BugReportForm({ route, sentryEventId, onClose, onReload,
         message,
         route,
         sentryEventId,
-        screenSize: `${window.innerWidth}x${window.innerHeight}`,
       });
       setSubmitted(true);
     } catch (cause) {

@@ -10,8 +10,6 @@ type UserIncidentPayload = {
   route: string;
   errorName?: string;
   sentryEventId?: string;
-  screenSize?: string;
-  preservePageOnAuthFailure?: boolean;
 };
 
 function autoReportKey(route: string, errorName: string): string {
@@ -57,10 +55,13 @@ function reserveAutoReport(
   return key;
 }
 
-export async function submitUserIncident(payload: UserIncidentPayload): Promise<void> {
+export async function submitUserIncident(
+  payload: UserIncidentPayload,
+  preservePage = payload.source === "manual",
+): Promise<void> {
   const config: ApiRequestConfig = {
     timeout: 10_000,
-    preservePageOnAuthFailure: payload.source === "manual" || payload.preservePageOnAuthFailure === true,
+    preservePageOnAuthFailure: preservePage,
   };
   const { data, status } = await api.post<{ incident_id: number }>(
     "/core/problem-reports/",
@@ -70,7 +71,7 @@ export async function submitUserIncident(payload: UserIncidentPayload): Promise<
       route: sanitizeObservabilityPath(payload.route),
       error_name: (payload.errorName || "").slice(0, 100),
       sentry_event_id: (payload.sentryEventId || "").slice(0, 64),
-      screen_size: (payload.screenSize || "").slice(0, 16),
+      screen_size: typeof window === "undefined" ? "" : `${window.innerWidth}x${window.innerHeight}`.slice(0, 16),
     },
     config,
   );
@@ -105,12 +106,7 @@ export function reportClientException(
     route,
     errorName: safeErrorName,
     sentryEventId: options.sentryEventId,
-    preservePageOnAuthFailure: options.preservePageOnAuthFailure,
-    screenSize:
-      typeof window !== "undefined"
-        ? `${window.innerWidth}x${window.innerHeight}`
-        : undefined,
-  }).catch(() => {
+  }, options.preservePageOnAuthFailure).catch(() => {
     try {
       sessionStorage.setItem(
         reservationKey,
