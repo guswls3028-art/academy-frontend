@@ -56,10 +56,12 @@ export type PlaybackEventScope = {
   generation: string | null;
   supportSessionId: string | null;
 };
+export type StaffIdentityScope = Omit<PlaybackEventScope, "studentId">;
 export type ApiRequestConfig = AxiosRequestConfig & {
   skipAuth?: boolean;
   playbackUnload?: true;
   playbackEventScope?: PlaybackEventScope;
+  staffIdentityScope?: StaffIdentityScope;
 };
 
 export function capturePlaybackEventScope(): PlaybackEventScope {
@@ -77,7 +79,17 @@ export function isPlaybackEventScopeCurrent(scope: PlaybackEventScope): boolean 
     && current.supportSessionId === scope.supportSessionId;
 }
 
+export function captureStaffIdentityScope(): StaffIdentityScope {
+  const { tenantCode, generation, supportSessionId } = capturePlaybackEventScope();
+  return { tenantCode, generation, supportSessionId };
+}
+
+export function isStaffIdentityScopeCurrent(scope: StaffIdentityScope): boolean {
+  return isPlaybackEventScopeCurrent({ ...scope, studentId: null });
+}
+
 function isResponseAuthCurrent(config: RetryConfig): boolean {
+  if (config.staffIdentityScope) return isStaffIdentityScopeCurrent(config.staffIdentityScope);
   if (config.playbackEventScope) return isPlaybackEventScopeCurrent(config.playbackEventScope);
   return config._authGeneration === undefined
     || config._authGeneration === (readAuthTokenEnvelopeSafely()?.generation ?? null);
@@ -497,6 +509,16 @@ api.interceptors.request.use(async (config) => {
       retryCfg._authGeneration = retryCfg.playbackEventScope.generation;
     }
   }
+  if (retryCfg.staffIdentityScope) {
+    if (retryCfg.playbackEventScope || !["get", "post"].includes(String(cfg.method).toLowerCase())
+      || cfg.url !== "/staffs/me/" || cfg.params != null || cfg.baseURL !== `${API_BASE}/api/v1`
+      || shouldSkipAuth(cfg.url, cfg) || !isStaffIdentityScopeCurrent(retryCfg.staffIdentityScope)) {
+      throw new axios.CanceledError("직원 정보를 조회하는 계정이 변경되었습니다.");
+    }
+    if (retryCfg.staffIdentityScope.generation !== null) {
+      retryCfg._authGeneration = retryCfg.staffIdentityScope.generation;
+    }
+  }
 
   // Attach Authorization if access exists (JWT)
   // skipAuth: true → 로그인 전 /core/program/ 등 AllowAny 엔드포인트용 (만료 토큰 시 401 방지)
@@ -555,6 +577,9 @@ api.interceptors.request.use(async (config) => {
   if (retryCfg._expectedTenant !== undefined && (!tenantCode || retryCfg._expectedTenant !== tenantCode)) {
     throw new axios.CanceledError("학원이 변경되었습니다. 파일을 다시 선택해주세요.");
   }
+  if (retryCfg.staffIdentityScope && !isStaffIdentityScopeCurrent(retryCfg.staffIdentityScope)) {
+    throw new axios.CanceledError("직원 정보를 조회하는 계정이 변경되었습니다.");
+  }
   // An already-started old-child save may finish with its captured child header,
   // but must never inherit a later account, tenant or support-preview session.
   if (retryCfg.playbackEventScope) {
@@ -570,7 +595,7 @@ api.interceptors.request.use(async (config) => {
   }
 
   const selectedStudentId = getParentSelectedStudentIdForHeader();
-  if (!retryCfg.playbackEventScope && selectedStudentId && !hasRequestHeader(cfg, "X-Student-Id")) {
+  if (!retryCfg.playbackEventScope && !retryCfg.staffIdentityScope && selectedStudentId && !hasRequestHeader(cfg, "X-Student-Id")) {
     setRequestHeader(cfg, "X-Student-Id", selectedStudentId);
   }
 
