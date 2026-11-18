@@ -85,7 +85,16 @@ test("오래된 자료·조회 실패를 0건으로 바꾸지 않고 새로고�
   control.status = 200; control.body = snapshot();
   await page.getByRole("button", { name: "다시 불러오기", exact: true }).click();
   await expect(page.getByText("현황 연결됨", { exact: true })).toBeVisible();
+  control.body.source_errors = ["claude"];
+  await page.getByRole("button", { name: "새로고침", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "Claude 기록 수집이 불완전합니다" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /플랫폼 안정화.*Codex/ })).toBeVisible();
   control.body.nodes = [];
+  control.body.source_errors = ["codex", "claude"];
+  await page.getByRole("button", { name: "새로고침", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "세션 기록을 확인할 수 없습니다" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "세션 현황 요약" })).toHaveCount(0);
+  control.body.source_errors = [];
   await page.getByRole("button", { name: "새로고침", exact: true }).click();
   await expect(page.getByRole("heading", { name: "표시할 세션이 없습니다" })).toBeVisible();
   control.body.source_status = "unavailable"; control.body.collected_at = null;

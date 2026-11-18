@@ -89,6 +89,7 @@ export default function AgentSessionsPage() {
     || now - Date.parse(data.collected_at) > data.stale_after_seconds * 1000);
   const filtering = provider !== "all" || state !== "all" || !!search.trim();
   const rootsCount = graph.nodes.filter(node => !node.parent_id).length;
+  const noReadableSources = !!data?.source_errors.length && graph.nodes.length === 0;
   const errorStatus = (query.error as { response?: { status?: number } } | null)?.response?.status;
   function toggle(id: string, open: boolean) {
     setExpanded(old => { const next = new Set(old); if (open) next.add(id); else next.delete(id); return next; });
@@ -129,20 +130,20 @@ export default function AgentSessionsPage() {
     </header>
     <div className={`${s.connection} ${stale || query.isError ? s.disconnected : ""}`} role="status"><span className={s.connectionDot} /><strong>{query.isPending ? "작업 현황 연결 중" : data?.source_status === "unavailable" ? "수집된 현황이 없습니다" : stale || query.isError ? "최신 현황 연결 끊김" : "현황 연결됨"}</strong><span>{data?.collected_at ? `마지막 수집 ${timeLabel(data.collected_at, now)}` : "개발 PC의 수집 상태를 확인해 주세요."}</span>{!stale && !query.isError && data?.collected_at && <span className={s.autoRefresh}>30초마다 갱신</span>}</div>
     {query.isError && <div className={s.notice} role="alert">현황을 불러오지 못했습니다. {data ? "아래는 마지막으로 수집한 기록입니다." : "잠시 후 다시 불러와 주세요."}<button type="button" onClick={() => void query.refetch()}>다시 불러오기</button></div>}
-    {!!data?.source_errors.length && <div className={s.notice} role="alert">{data.source_errors.map(source => PROVIDERS[source]).join(" · ")} 기록을 읽지 못했습니다. 해당 제공자의 수는 전체 현황을 나타내지 않습니다.</div>}
-    {data && data.source_status !== "unavailable" && <>
+    {!!data?.source_errors.length && <div className={s.notice} role="alert">{data.source_errors.map(source => PROVIDERS[source]).join(" · ")} 기록 수집이 불완전합니다. 표시된 수는 전체 현황과 다를 수 있습니다.</div>}
+    {data && data.source_status !== "unavailable" && !noReadableSources && <>
       <section className={s.summary} aria-label="세션 현황 요약"><div className={s.total}><span>세션</span><strong>{rootsCount}</strong><small>하위 에이전트 <b>{graph.nodes.length - rootsCount}</b></small></div>{(Object.entries(STATES) as [AgentState, typeof STATES[AgentState]][]).map(([key, value]) => <button type="button" key={key} className={`${s.summaryState} ${state === key ? s.summaryActive : ""}`} onClick={() => { setState(state === key ? "all" : key); setLimit(20); }} aria-pressed={state === key}><span>{value.label}</span><strong>{graph.nodes.filter(node => node.status === key).length}</strong></button>)}</section>
       <p className={s.scopeNote}>상태별 수는 세션과 하위 에이전트를 포함합니다. ‘응답 완료’는 마지막 응답의 종료이며, 업무나 배포의 성공 판정은 아닙니다.</p>
     </>}
     <div className={s.workspace}>
       <section className={s.board} aria-labelledby="session-tree-title">
-        <div className={s.boardHeader}><div><h2 id="session-tree-title">세션 조직도</h2><span>{visibleRoots.length}개 세션 묶음</span></div><button type="button" className={s.textButton} onClick={() => { setExpanded(new Set()); setCollapsed(new Set(graph.nodes.map(node => node.id))); }}>모두 접기</button></div>
+        <div className={s.boardHeader}><div><h2 id="session-tree-title">세션 조직도</h2><span>{noReadableSources ? "수집 확인 필요" : `${visibleRoots.length}개 세션 묶음`}</span></div><button type="button" className={s.textButton} onClick={() => { setExpanded(new Set()); setCollapsed(new Set(graph.nodes.map(node => node.id))); }}>모두 접기</button></div>
         <div className={s.filters}>
           <label className={s.search}><Search size={ICON.sm} /><input aria-label="세션·담당 역할 검색" placeholder="세션·담당 역할 검색" value={search} onChange={event => { setSearch(event.target.value); setLimit(20); }} /></label>
           <select aria-label="AI 제공자" value={provider} onChange={event => { setProvider(event.target.value); setLimit(20); }}><option value="all">전체 AI</option><option value="codex">Codex</option><option value="claude">Claude</option></select>
           <select aria-label="작업 상태" value={state} onChange={event => { setState(event.target.value); setLimit(20); }}><option value="all">전체 상태</option>{Object.entries(STATES).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select>
         </div>
-        {query.isPending ? <div className={s.empty} role="status">세션 현황을 불러오고 있습니다.</div> : !data ? <div className={s.empty}><p>아직 현황을 표시할 수 없습니다.</p></div> : !visibleRoots.length ? <div className={s.empty}><GitBranch size={ICON.xl} /><h3>{filtering ? "일치하는 세션이 없습니다" : data.source_status === "unavailable" ? "개발 PC 연결을 기다리고 있습니다" : "표시할 세션이 없습니다"}</h3><p>{filtering ? "검색어나 필터를 바꿔 확인해 주세요." : "새 상태가 수집되면 이곳에 표시됩니다."}</p>{filtering && <button type="button" className={s.button} onClick={() => { setSearch(""); setProvider("all"); setState("all"); }}>필터 초기화</button>}</div> : <ol className={s.tree}>{visibleRoots.slice(0, limit).map(node => renderNode(node))}</ol>}
+        {query.isPending ? <div className={s.empty} role="status">세션 현황을 불러오고 있습니다.</div> : !data ? <div className={s.empty}><p>아직 현황을 표시할 수 없습니다.</p></div> : !visibleRoots.length ? <div className={s.empty}><GitBranch size={ICON.xl} /><h3>{noReadableSources ? "세션 기록을 확인할 수 없습니다" : filtering ? "일치하는 세션이 없습니다" : data.source_status === "unavailable" ? "개발 PC 연결을 기다리고 있습니다" : "표시할 세션이 없습니다"}</h3><p>{noReadableSources ? "수집 상태를 확인한 뒤 새로고침해 주세요." : filtering ? "검색어나 필터를 바꿔 확인해 주세요." : "새 상태가 수집되면 이곳에 표시됩니다."}</p>{filtering && <button type="button" className={s.button} onClick={() => { setSearch(""); setProvider("all"); setState("all"); }}>필터 초기화</button>}</div> : <ol className={s.tree}>{visibleRoots.slice(0, limit).map(node => renderNode(node))}</ol>}
         {visibleRoots.length > limit && <button type="button" className={s.more} onClick={() => setLimit(value => value + 20)}>세션 20개 더 보기</button>}
         <footer className={s.boardFooter}>최근 Codex 세션 최대 100개와 Academy의 Claude 기록을 표시합니다.{data?.truncated && " 표시 한도에 도달해 일부 오래된 에이전트는 생략되었습니다."}</footer>
       </section>
