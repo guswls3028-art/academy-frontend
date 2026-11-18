@@ -128,7 +128,11 @@ export default class ErrorBoundary extends Component<Props, State> {
           recovering={this.state.recovering}
           route={window.location.pathname}
           sentryEventId={this.state.sentryEventId}
-          onReload={() => hardReloadWithCacheBust({ key: "manual_reload_ts", cooldownMs: 0 })}
+          onReload={() => {
+            if (!hardReloadWithCacheBust({ key: "manual_reload_ts", cooldownMs: 0 })) {
+              window.location.reload();
+            }
+          }}
         />
       );
     }
