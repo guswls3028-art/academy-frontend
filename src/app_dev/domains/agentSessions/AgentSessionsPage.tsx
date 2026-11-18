@@ -7,6 +7,7 @@ import { Badge, ICON, type BadgeTone } from "@/shared/ui/ds";
 import { canViewAgentSessions } from "./access";
 import { getAgentSessions, type AgentNode, type AgentState } from "./api";
 import layout from "@dev/layout/DevLayout.module.css";
+import { devQueryKeys } from "@dev/shared/queryKeys";
 import s from "./AgentSessionsPage.module.css";
 
 const STATES: Record<AgentState, { label: string; tone: BadgeTone; order: number }> = {
@@ -43,7 +44,7 @@ export default function AgentSessionsPage() {
   const [limit, setLimit] = useState(20);
   const detailRef = useRef<HTMLElement>(null);
   const query = useQuery({
-    queryKey: ["dev-agent-sessions", user?.id, program?.tenantCode],
+    queryKey: devQueryKeys.agentSessions(user?.id, program?.tenantCode),
     queryFn: ({ signal }) => getAgentSessions(signal),
     enabled: allowed, refetchInterval: 30_000, refetchIntervalInBackground: false, retry: false,
   });
