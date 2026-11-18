@@ -128,11 +128,13 @@ async function installApi(page: Page, verifyQueries: string[]) {
           {
             id: 101, sent_at: "2026-09-01T09:58:00+09:00", success: true, status: "sent",
             recipient_summary: "학생 1명", template_summary: "클리닉 예약 안내",
+            current_recipient_phone: "01000000003",
             provider_evidence: true, provider_delivery_status: "provider_accepted",
           },
           {
             id: 102, sent_at: "2026-09-01T09:56:00+09:00", success: true, status: "sent",
             recipient_summary: "학부모 1명", template_summary: "클리닉 변경 안내",
+            current_recipient_phone: "01000000004",
             provider_evidence: true, provider_delivery_status: "delivered",
             provider_delivery_checked_at: "2026-09-01T09:57:00+09:00",
           },
@@ -166,6 +168,7 @@ async function installApi(page: Page, verifyQueries: string[]) {
       return json({
         id: 101, sent_at: "2026-09-01T09:58:00+09:00", success: true, status: "sent",
         recipient_summary: "학생 1명", template_summary: "클리닉 예약 안내",
+        current_recipient_phone: "01000000003",
         provider_evidence: true, provider_delivery_status: "delivered", provider_status_code: "4000",
         provider_delivery_checked_at: "2026-09-01T10:01:00+09:00",
         provider_delivery_updated_at: "2026-09-01T09:59:00+09:00",
@@ -175,7 +178,7 @@ async function installApi(page: Page, verifyQueries: string[]) {
   });
 }
 
-test("클리닉 알림 설정은 예약부터 최종 전달까지 상태를 구분하고 공급사 결과만 읽기 확인한다", async ({ page }) => {
+test("클리닉 알림 설정은 예약부터 최종 전달까지 상태를 구분하고 공급사 결과만 읽기 확인한다", async ({ page }, testInfo) => {
   const verifyQueries: string[] = [];
   await seed(page);
   await installApi(page, verifyQueries);
@@ -192,6 +195,12 @@ test("클리닉 알림 설정은 예약부터 최종 전달까지 상태를 구�
   await expect(page.getByText("클리닉 하원", { exact: true })).toBeVisible();
   await expect(page.getByRole("switch", { name: "클리닉 하원 자동 발송" })).toBeChecked();
   await expect(page.getByText(/SMS|LMS/)).toHaveCount(0);
+  await expect(panel).toContainText("현재 연락처: 010-0000-0003");
+  await expect(panel).toContainText("현재 연락처: 010-0000-0004");
+  await expect.poll(() => panel.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  await testInfo.attach("clinic-current-contacts-1366", {
+    body: await panel.screenshot({ animations: "disabled" }), contentType: "image/png",
+  });
 
   const reminderCard = page.locator('[data-channel-active="true"]').filter({ hasText: "클리닉 시작 N분 전" });
   await reminderCard.getByRole("button", { name: /^문구 수정/ }).click();
@@ -213,6 +222,12 @@ test("클리닉 알림 설정은 예약부터 최종 전달까지 상태를 구�
 
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expect(panel).toContainText("현재 연락처: 010-0000-0003");
+  await expect(panel).toContainText("현재 연락처: 010-0000-0004");
+  await expect.poll(() => panel.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+  await testInfo.attach("clinic-current-contacts-390", {
+    body: await panel.screenshot({ animations: "disabled" }), contentType: "image/png",
+  });
   await page.emulateMedia({ reducedMotion: "reduce" });
   expect(await panel.evaluate((element) => getComputedStyle(element).transitionDuration)).toBe("0s");
 });

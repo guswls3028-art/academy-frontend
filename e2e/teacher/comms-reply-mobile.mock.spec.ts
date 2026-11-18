@@ -583,7 +583,10 @@ test.describe("선생님 가입 정책과 대기 업무 경계", () => {
       await expect(detail.getByRole("link", { name: "010-0000-0002", exact: true })).toHaveAttribute("href", "tel:01000000002");
       await expect.poll(() => detail.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-      await page.screenshot({ path: testInfo.outputPath(`registration-full-contacts-${viewport.width}.png`), animations: "disabled" });
+      await testInfo.attach(`registration-full-contacts-${viewport.width}`, {
+        body: await page.screenshot({ path: testInfo.outputPath(`registration-full-contacts-${viewport.width}.png`), animations: "disabled" }),
+        contentType: "image/png",
+      });
       await page.evaluate(() => {
         const key = "academy:auth-active-generation:v1";
         const oldValue = localStorage.getItem(key);
