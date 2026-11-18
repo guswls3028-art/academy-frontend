@@ -127,12 +127,12 @@ export default function ClinicMessageHistoryPanel() {
 
 function ScopedMessageHistory({ viewerScope }: { viewerScope: readonly unknown[] }) {
   const logsQ = useQuery({
-    queryKey: [...clinicMessageHistoryQueryKeys.logs, ...viewerScope],
+    queryKey: clinicMessageHistoryQueryKeys.withViewerScope(clinicMessageHistoryQueryKeys.logs, viewerScope),
     queryFn: () => fetchNotificationLog({ scope: "clinic", page_size: 20 }),
     staleTime: 30_000,
   });
   const scheduledQ = useQuery({
-    queryKey: [...clinicMessageHistoryQueryKeys.scheduled, ...viewerScope],
+    queryKey: clinicMessageHistoryQueryKeys.withViewerScope(clinicMessageHistoryQueryKeys.scheduled, viewerScope),
     queryFn: () => fetchScheduledNotifications({ scope: "clinic", page_size: 20 }),
     staleTime: 30_000,
   });
