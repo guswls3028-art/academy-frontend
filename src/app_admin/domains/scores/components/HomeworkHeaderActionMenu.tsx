@@ -16,9 +16,9 @@ import { scoresQueryKeys } from "../api/queryKeys";
 import MenuAction from "./AssessmentHeaderMenuAction";
 import styles from "./ExamHeaderActionMenu.module.css";
 
-import inspectionStyles from "./HomeworkInspectionPanel.module.css";
+import inspectionStyles from "@/shared/ui/assessment/HomeworkInspectionPanel.module.css";
 
-const HomeworkInspectionPanel = lazy(() => import("./HomeworkInspectionPanel"));
+const HomeworkInspectionPanel = lazy(() => import("@/shared/ui/assessment/HomeworkInspectionPanel"));
 const ParentAssessmentCommentsPanel = lazy(() => import("./ParentAssessmentCommentsPanel"));
 
 type Props = {

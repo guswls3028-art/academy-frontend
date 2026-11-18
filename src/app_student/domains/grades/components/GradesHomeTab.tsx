@@ -116,7 +116,17 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
   const [examReview, setExamReview] = useState<ExamReviewFilter>("all");
   const [homeworkSort, setHomeworkSort] = useState<HomeworkSortMode>("session_desc");
   const inspectionCount = homeworks.filter(item => item.practice_inspection).length;
-  const [homeworkStatus, setHomeworkStatus] = useState<HomeworkStatusFilter>("todo");
+  const filter = searchParams.get("homework_status");
+  const homeworkStatus: HomeworkStatusFilter = filter === "all" || filter === "done" || filter === "inspection" ? filter : "todo";
+  const setHomeworkStatus = (status: HomeworkStatusFilter) => {
+    setSearchParams(current => {
+      const next = new URLSearchParams(current);
+      next.set("view", "homework");
+      if (status === "todo") next.delete("homework_status");
+      else next.set("homework_status", status);
+      return next;
+    }, { replace: true });
+  };
   const [homeworkSessionScope, setHomeworkSessionScope] = useState<HomeworkSessionScope>("all");
 
   const examReviewCounts = useMemo(() => ({
@@ -196,7 +206,7 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
       </div>
 
       {subTab === "exams" && inspectionCount > 0 && (
-        <button type="button" className="stu-cta-link" onClick={() => { setSubTab("homework"); setHomeworkStatus("inspection"); setHomeworkSessionScope("all"); }}>
+        <button type="button" className="stu-cta-link" onClick={() => { setHomeworkStatus("inspection"); setHomeworkSessionScope("all"); }}>
           과제 검사 결과 {inspectionCount}건 보기
         </button>
       )}

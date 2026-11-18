@@ -1052,6 +1052,18 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await acknowledgeInitialAccountPromptsIfVisible(staffPage);
       const acknowledgedIdentity = await expectApi<{ first_login_guide_required: boolean }>(request, "GET", "/core/me/", staffTokens.access);
       expect(acknowledgedIdentity.first_login_guide_required).toBe(false);
+      await staffPage.getByRole("button", { name: "과제 검사", exact: true }).click();
+      const mobileInspection = staffPage.getByRole("dialog", { name: "과제 검사", exact: true });
+      await mobileInspection.getByLabel("학생 선택").selectOption(String(created.enrollmentId));
+      await mobileInspection.getByLabel("학생·학부모용 코멘트").fill("예제 풀이를 가져왔어요.");
+      await mobileInspection.getByRole("button", { name: /^저장(하고 다음 학생)?$/ }).click();
+      await expect(mobileInspection.getByRole("status").filter({ hasText: "검사 결과를 저장했습니다." })).toBeVisible();
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await staffPage.getByRole("button", { name: "과제 검사", exact: true }).click();
+      await mobileInspection.getByLabel("학생 선택").selectOption(String(created.enrollmentId));
+      await expect(mobileInspection.getByLabel("학생·학부모용 코멘트")).toHaveValue("예제 풀이를 가져왔어요.");
+      await assertNoHorizontalOverflow(staffPage);
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
       const fileRow = staffPage.locator('[class*="fileRow"]').filter({ hasText: uploadName });
       const submissionRow = staffPage.locator('[class*="row"]').filter({
         has: staffPage.getByText(student.name, { exact: true }),
@@ -1394,6 +1406,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await expect(page.getByText(parentHomeworkComment, { exact: false })).toHaveCount(0);
     await gotoAndSettle(page, `${QA_BASE}/student/grades`);
     await page.getByRole("button", { name: /과제 검사 결과 .*건 보기/ }).click();
+    await reloadStudentApp(page);
     await expect(page.getByRole("region", { name: "과제 검사 결과", exact: true })).toContainText(inspectionFeedback);
     await expect(page.getByRole("region", { name: "과제 검사 결과", exact: true })).toContainText("12/15문제 풀이");
     await showAllHomeworkGrades(page);
