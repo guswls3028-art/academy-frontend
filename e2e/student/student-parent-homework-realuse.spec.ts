@@ -1389,6 +1389,9 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await showAllHomeworkGrades(page);
     await expect(page.getByText(homeworkTitle).first()).toBeVisible();
     await expect(page.locator('aside[aria-label="학부모 코멘트"]')).toContainText(parentHomeworkComment);
+    await gotoAndSettle(page, `${QA_BASE}/student`);
+    await page.getByRole("link", { name: /과제 검사 결과 .*건 보기/ }).click();
+    await expect(page.getByRole("region", { name: "과제 검사 결과", exact: true })).toContainText(inspectionFeedback);
 
     await logoutStudentApp(page);
     await loginThroughUi(page, student.ps_number, student.password);

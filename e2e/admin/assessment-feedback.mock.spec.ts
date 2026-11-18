@@ -913,3 +913,58 @@ for (const width of [1366, 390]) {
     await expect(page.getByRole("dialog", { name: "작성 중인 코멘트" })).toHaveCount(0);
   });
 }
+
+for (const width of [1366, 390]) {
+  test(`@homework-inspection-recovery ${width}px 검사 저장 뒤 명단 조회 실패를 복구하고 저장된 값을 확인한다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { unexpectedMutations } = await openCompositionScores(page);
+    const path = "/api/v1/results/admin/sessions/9002/homework/9151/inspection/";
+    let row = { enrollment_id: 9201, student_name: "모바일순서학생", solved: 2, total: 15, feedback: "이전 코멘트", version: 3 };
+    const writes: unknown[] = [];
+    let failRead = false;
+    await page.route(`**${path}`, async route => {
+      const request = route.request();
+      if (request.method() === "POST") {
+        const body = request.postDataJSON();
+        writes.push(body);
+        const change = body.rows[0];
+        row = { ...row, solved: change.solved, total: change.total, feedback: change.feedback, version: row.version + 1 };
+        failRead = true;
+        return route.fulfill({ json: { changed: 1 } });
+      }
+      if (request.method() !== "GET") return route.fallback();
+      if (failRead) return route.fulfill({ status: 503, json: { detail: "검사 명단을 잠시 조회할 수 없습니다." } });
+      return route.fulfill({ json: { items: [row] } });
+    });
+
+    await page.getByRole("button", { name: "첫 과제 과제 검사", exact: true }).click();
+    const panel = page.getByRole("dialog", { name: "과제 검사", exact: true });
+    const solved = panel.getByLabel("풀어 온 문제 수", { exact: true });
+    const feedback = panel.getByLabel("학생·학부모용 코멘트", { exact: true });
+    await expect(solved).toHaveValue("2");
+    await solved.fill("12");
+    await feedback.fill("다음 시간에는 남은 세 문제를 확인해요.");
+    await panel.screenshot({ path: testInfo.outputPath(`inspection-entry-${width}.png`), animations: "disabled" });
+    const readbackFailed = page.waitForResponse(response => new URL(response.url()).pathname === path
+      && response.request().method() === "GET" && response.status() === 503);
+    await panel.getByRole("button", { name: "저장", exact: true }).click();
+    await readbackFailed;
+    await expect(panel.getByRole("status")).toContainText("검사 결과를 저장했습니다.");
+    const retry = panel.getByRole("button", { name: "최신 명단 다시 불러오기", exact: true });
+    await expect(retry).toBeEnabled();
+    await expect(solved).toHaveCount(0);
+    await expect(panel.getByRole("button", { name: "저장", exact: true })).toHaveCount(0);
+    failRead = false;
+    await retry.click();
+    await expect(solved).toHaveValue("12");
+    await expect(feedback).toHaveValue("다음 시간에는 남은 세 문제를 확인해요.");
+    await expect(panel.getByRole("button", { name: "저장", exact: true })).toBeDisabled();
+    await panel.screenshot({ path: testInfo.outputPath(`inspection-saved-${width}.png`), animations: "disabled" });
+    expect(writes).toEqual([{ rows: [{ enrollment_id: 9201, version: 3, solved: 12, total: 15, feedback: "다음 시간에는 남은 세 문제를 확인해요." }] }]);
+
+    await panel.getByRole("button", { name: "엑셀 일괄 입력", exact: true }).click();
+    await expect(panel.getByLabel("작성한 엑셀 파일")).toBeVisible();
+    await panel.screenshot({ path: testInfo.outputPath(`inspection-workbook-${width}.png`), animations: "disabled" });
+    expect(unexpectedMutations).toEqual([]);
+  });
+}

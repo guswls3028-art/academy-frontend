@@ -984,6 +984,7 @@ function LearningStatusCard({
   }, [sessions, cutoff, today]);
 
   const homework = calculateHomeworkStats(grades?.homeworks ?? []);
+  const inspectionCount = grades?.homeworks.filter(row => row.practice_inspection).length ?? 0;
   const hwCount = homework?.total ?? 0;
   const hwRate = (wrongCompletionOnly ? homework?.completionRate : homework?.passRate) ?? null;
 
@@ -1030,6 +1031,11 @@ function LearningStatusCard({
           value={gradesError || gradesPending ? null : examRate} unit="%"
           placeholder={placeholder(gradesError, gradesPending, (grades?.exams.length ?? 0) > 0 ? "결과 대기" : "기록 없음")} tone={tone(examRate)} />
       </div>
+      {!gradesError && !gradesPending && inspectionCount > 0 && (
+        <Link className="stu-cta-link" to="/student/grades?view=homework&homework_status=inspection">
+          과제 검사 결과 {inspectionCount}건 보기
+        </Link>
+      )}
       {hasError ? (
         <div className={styles.learningFeedback} role="alert">
           <span>{gradesError && sessionsError ? "학습 현황을" : gradesError ? "성적을" : "일정을"} 불러오지 못했어요.</span>
