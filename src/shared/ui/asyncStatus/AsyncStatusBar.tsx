@@ -24,6 +24,7 @@ import { asyncStatusStore, type AsyncTask, type AsyncTaskStatus } from "./asyncS
 import { workboxTenantMismatch } from "./workboxTelemetry";
 import StudentImportResultDialog from "./StudentImportResultDialog";
 import OmrBatchLedger from "./OmrBatchLedger";
+import { omrGradingAttentionCount } from "./omrGradingAttention";
 import {
   invalidateExcelProgressCaches,
   invalidateExcelSuccessCaches,
@@ -133,7 +134,12 @@ function getRemainingLabel(task: AsyncTask, nowMs: number): string | null {
   return `약 ${Math.round(remainingSec / 60)}분 남음`;
 }
 
-function StatusIcon({ status }: { status: AsyncTaskStatus }) {
+function StatusIcon({ status, attention = false }: { status: AsyncTaskStatus; attention?: boolean }) {
+  if (attention) return (
+    <svg className="async-status-bar__item-icon async-status-bar__item-icon--attention" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <path d="M12 3 2 21h20L12 3Z" /><path d="M12 9v5m0 3v1" />
+    </svg>
+  );
   if (status === "pending")
     return (
       <svg className="async-status-bar__item-icon async-status-bar__item-icon--pending" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -188,6 +194,8 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   const workbox = useWorkbox();
   const queryClient = useQueryClient();
   const TypeIcon = task.meta?.jobType ? JOB_TYPE_ICONS[task.meta.jobType] : null;
+  const gradingAttentionCount = omrGradingAttentionCount(task.omrBatch);
+  const gradingAttention = task.status === "success" && gradingAttentionCount > 0;
   const remainingLabel = getRemainingLabel(task, now);
   const omrRequiresFile =
     task.meta?.jobType === "omr_batch"
@@ -441,16 +449,16 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
       aria-busy={navigating || undefined}
     >
       <div className="async-status-bar__item-row">
-        <StatusIcon status={task.status} />
+        <StatusIcon status={task.status} attention={gradingAttention} />
         <div className="async-status-bar__item-body">
           <div className="async-status-bar__item-top">
             {STATUS_BADGE[task.status] && (
               <Badge
                 variant="solid"
-                tone={task.status === "success" ? "success" : "danger"}
+                tone={gradingAttention ? "warning" : task.status === "success" ? "success" : "danger"}
                 className="async-status-bar__status-badge"
               >
-                {STATUS_BADGE[task.status]}
+                {gradingAttention ? "검토 필요" : STATUS_BADGE[task.status]}
               </Badge>
             )}
             {TypeIcon && (
@@ -493,6 +501,9 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
               )}
               {task.omrBatch.counts.completed > 0 && (
                 <span>OMR 처리 완료 {task.omrBatch.counts.completed}</span>
+              )}
+              {gradingAttentionCount > 0 && (
+                <span className="async-status-bar__omr-count--attention">채점 확인 필요 {gradingAttentionCount}</span>
               )}
               {(task.omrBatch.grading_counts?.subjective_pending ?? 0) > 0 && (
                 <span className="async-status-bar__omr-count--attention">
@@ -696,8 +707,10 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
 /** 헤더 알림과 동일한 드롭다운에서 쓸 진행 상황 패널 내용 (알림과 같은 위치·애니메이션) */
 export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
   const tasks = useAsyncStatus();
+  const selectionGeneration = asyncStatusStore.getSessionGeneration();
   const currentTenantKey = getTenantCodeForApiRequest() ?? "";
   const displayTasks = tasks.filter((t) => (t.tenantScope ?? "") === currentTenantKey);
+  const completedTasks = displayTasks.filter((task) => task.status !== "pending" && !omrGradingAttentionCount(task.omrBatch));
   const pendingCount = displayTasks.filter((t) => t.status === "pending").length;
 
   useEffect(() => {
@@ -828,7 +841,11 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             className="async-status-bar__header-btn"
-            onClick={() => asyncStatusStore.clearCompleted()}
+            onClick={() => {
+              if (!isCurrentSession(currentTenantKey, selectionGeneration)) return;
+              completedTasks.forEach((task) => asyncStatusStore.removeTask(task.id));
+            }}
+            disabled={completedTasks.length === 0}
             title="완료된 항목 지우기"
             aria-label="완료된 항목 지우기"
           >
@@ -948,6 +965,7 @@ export default function AsyncStatusBar({
   });
 
   const errorCount = displayTasks.filter((t) => t.status === "error").length;
+  const attentionCount = displayTasks.filter((t) => t.status === "success" && omrGradingAttentionCount(t.omrBatch) > 0).length;
   const resultTask = [...displayTasks]
     .filter(
       (task) =>
@@ -964,7 +982,7 @@ export default function AsyncStatusBar({
         ? `진행 중 ${displayTasks.length}건`
         : errorCount > 0
           ? `실패 ${errorCount}건`
-          : `${displayTasks.length}건 완료`;
+          : attentionCount > 0 ? `확인 필요 ${attentionCount}건` : `${displayTasks.length}건 완료`;
 
   if (hideWhenEmpty && displayTasks.length === 0) {
     return null;
