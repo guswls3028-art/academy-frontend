@@ -178,3 +178,12 @@ manifest, theme/background 색, 정적 에셋 존재를 함께 확인한다. 로
 `e2e/landing-header-width.mock.spec.ts`가 세 역할의 desktop/390px 상세 진입→reload→
 전체 메뉴→공개 게시판 이동, 버튼 경계와 전체 이름 접근을 검증한다. 실제 격리 검증은
 `e2e/admin/board-attachments-realuse.spec.ts`의 화면별 JSON/PNG를 함께 확인한다.
+
+### 다원수학 로그인과 업무 화면
+
+다원수학은 `demo.hakwonplus.com` 또는 로컬의 `/login/dawon`에서 같은 테넌트 정의를 사용한다.
+로그인 화면은 흰 바탕과 주황색 제출 버튼을 사용한다. 개인 표시 설정이 없는 관리자·교사에게는
+`branding.defaultWorkspaceAccent`가 기본 강조색으로 적용된다. 데스크톱 업무 화면과 모바일
+업무 화면은 같은 색상 토큰을 사용하며, 버튼과 선택 메뉴의 명도는 공용 대비 계산을 따른다.
+이미 저장된 개인 테마·강조색과 이전 테마 키가 우선한다. 표시 설정에서 기본값으로 되돌리면
+다원 기본 강조색을 복원한다. 학생·학부모 학습 화면은 해당 역할의 테마 정책을 따른다.

@@ -1,0 +1,50 @@
+[data-app="auth"][data-tenant="dawon"] {
+  --auth-bg: #fbfaf8;
+  --auth-surface: #fff;
+  --auth-text: #261c15;
+  --auth-text-muted: #695e55;
+  --auth-border: #ded6cf;
+  --auth-border-hover: #a09184;
+  --auth-accent: #a1460d;
+  --auth-focus: rgb(169 72 9 / 22%);
+  --auth-gradient: #a7470c;
+}
+
+[data-app="auth"][data-tenant="dawon"] [data-auth-part="card"] {
+  position: relative;
+  max-width: 27rem;
+  padding: clamp(1.5rem, 5vw, 3rem);
+  border-top: 4px solid #e46a1f;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgb(63 44 27 / 7%);
+}
+
+[data-app="auth"][data-tenant="dawon"] [data-auth-part="brand-artwork"] {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-bottom: 2rem;
+  text-align: left;
+}
+
+[data-app="auth"][data-tenant="dawon"] [data-auth-part="brand-artwork"] > svg {
+  flex: 0 0 auto;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: 0;
+  color: #b34a0b;
+}
+
+[data-app="auth"][data-tenant="dawon"] [data-auth-part="brand-artwork"] > div,
+[data-app="auth"][data-tenant="dawon"] h1 {
+  margin: 0;
+}
+
+[data-app="auth"][data-tenant="dawon"] h1 {
+  letter-spacing: -.04em;
+  font-size: clamp(1.65rem, 4vw, 2rem);
+}
+
+[data-app="auth"][data-tenant="dawon"] button[type="submit"] {
+  width: 100%;
+}

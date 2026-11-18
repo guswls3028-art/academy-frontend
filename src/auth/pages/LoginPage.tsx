@@ -33,6 +33,7 @@ import "@/auth/themes/sswe.css";
 import "@/auth/themes/dnb.css";
 import "@/auth/themes/movementhui.css";
 import "@/auth/themes/godmin.css";
+import "@/auth/themes/dawon.css";
 import "@/auth/themes/clean-decorations.css";
 import styles from "./LoginPage.module.css";
 import {
