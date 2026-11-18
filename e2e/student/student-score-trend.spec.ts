@@ -435,6 +435,39 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
   test.skip(!isLocalBase(BASE), "Local route-mock visual contract spec.");
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
 
+  test("공개 풀이 기록과 과제 점수·온라인 제출 상태를 구분한다", async ({ page }) => {
+    const inspection: MyHomeworkGradeSummary = {
+      ...unscoredHomework, lecture_id: 501, title: "현장 풀이 기록", grading_mode: "SCORE",
+      achievement: "NOT_SUBMITTED", passed: false, submission_state: "needs_submission",
+      practice_inspection: { solved: 3, total: 5, feedback: "두 문제를 더 확인해요." },
+    };
+    const rows: MyHomeworkGradeSummary[] = [
+      inspection,
+      { ...inspection, homework_id: 903, title: "통과형 제출물", grading_mode: "COMPLETION",
+        submission_state: "awaiting_review", achievement: null, passed: null },
+      { ...inspection, homework_id: 904, title: "영상 보강 풀이", inspection_status: "VIDEO_MAKEUP" },
+      { ...inspection, homework_id: 905, title: "채점된 풀이", score: 0, achievement: "FAIL" },
+    ];
+    await installApi(page, "student", { studentPoints: [], gradeSummary: { exams: [], homeworks: rows } });
+    await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: /과제 검사 결과 4건 보기/ }).click();
+    const card = (title: string) => page.locator(".stu-panel[data-session-type]").filter({
+      has: page.getByText(title, { exact: true }),
+    });
+    const practice = card("현장 풀이 기록");
+    await expect(practice.getByRole("region", { name: "과제 검사 결과" })).toContainText("3/5문제 풀이");
+    await expect(practice).toContainText("점수 미입력");
+    await expect(practice).toContainText("온라인 제출 필요");
+    await expect(practice).not.toContainText("미제출");
+    await expect(practice.getByRole("progressbar")).toHaveCount(0);
+    await expect(card("통과형 제출물")).toContainText("통과 판정 미입력");
+    await expect(card("통과형 제출물")).toContainText("온라인 제출물 확인 대기");
+    await expect(card("영상 보강 풀이")).toContainText("영상 보강 검사 대기");
+    await expect(card("영상 보강 풀이")).not.toContainText("온라인 제출 필요");
+    await expect(card("채점된 풀이")).toContainText("0/100");
+    await expect(card("채점된 풀이").getByRole("progressbar")).toHaveAttribute("value", "0");
+  });
+
   for (const viewer of ["student", "parent"] as const) {
     for (const width of [1366, 390]) {
       test(`@grade-provisional ${viewer} ${width}px 미확정 시험은 미응시가 아니며 완료 후 점수·평균을 복구한다`, async ({ page }, testInfo) => {
