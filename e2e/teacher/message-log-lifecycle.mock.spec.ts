@@ -26,7 +26,7 @@ async function scenario(page: Page, role: "teacher" | "staff", paginated = false
     provider_delivery_status: status === "sent" ? "provider_accepted" : "unavailable",
     body_visibility: "restricted", message_body: "", failure_reason: status === "failed" ? "발송을 완료하지 못했습니다." : "",
   }));
-  const observed = { list: 0, detail: 0, mutations: 0, detailFailure: false, listFailure: false, pages: [] as number[], failureReason: "",
+  const observed = { list: 0, detail: 0, detailFinished: 0, mutations: 0, detailFailure: false, listFailure: false, pages: [] as number[], failureReason: "",
     finalStatus: "delivered" as "delivered" | "failed" | "provider_accepted" | "unavailable", hold: null as null | (() => void) };
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -57,7 +57,12 @@ async function scenario(page: Page, role: "teacher" | "staff", paginated = false
       expect(request.headers()["x-tenant-code"]).toBe("hakwonplus");
       if (observed.detailFailure) return route.fulfill({ status: 403, json: { detail: "상태 확인 권한을 확인할 수 없습니다." } });
       await new Promise<void>((resolve) => { observed.hold = resolve; });
-      return route.fulfill({ json: { ...logs[2], provider_delivery_status: observed.finalStatus, provider_status_code: observed.finalStatus === "failed" ? "3058" : observed.finalStatus === "delivered" ? "4000" : "", provider_delivery_checked_at: "2026-09-13T01:01:00+09:00", provider_delivery_failure_reason: observed.failureReason, message_body: "DO_NOT_DISPLAY_PRIVATE_BODY", provider_message_id: "DO_NOT_DISPLAY_PROVIDER_ID" } });
+      try {
+        await route.fulfill({ json: { ...logs[2], provider_delivery_status: observed.finalStatus, provider_status_code: observed.finalStatus === "failed" ? "3058" : observed.finalStatus === "delivered" ? "4000" : "", provider_delivery_checked_at: "2026-09-13T01:01:00+09:00", provider_delivery_failure_reason: observed.failureReason, message_body: "DO_NOT_DISPLAY_PRIVATE_BODY", provider_message_id: "DO_NOT_DISPLAY_PROVIDER_ID" } });
+      } finally {
+        observed.detailFinished++;
+      }
+      return;
     }
     return route.fulfill({ json: { count: 0, results: [] } });
   });
@@ -124,6 +129,7 @@ for (const role of ["teacher", "staff"] as const) for (const width of [1366, 390
     });
     await expect(page).toHaveURL(/\/login(?:\/|\?|$)/);
     observed.hold!();
+    await expect.poll(() => observed.detailFinished).toBe(1);
     await expect(page.getByText(/010-0000-0003|합성학생/)).toHaveCount(0);
     expect(observed.mutations).toBe(0);
   });

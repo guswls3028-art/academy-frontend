@@ -539,11 +539,12 @@ async function verifyEditableScoreMessage(page: Page, request: APIRequestContext
       const scheduled = await scheduledResponse;
       await checkResponseScope(scheduled, 200);
       expect(await scheduled.json()).toMatchObject({ scheduled: 1, enqueued: 0 });
-      const pending = await expectApi<{ count: number; results: Array<{ id: number; target_id: string; trigger: string }> }>(
+      const pending = await expectApi<{ count: number; results: Array<{ id: number; target_id: string; trigger: string; recipient_summary: string }> }>(
         request, "GET", "/messaging/scheduled/?status=pending&page_size=100", owned.adminAccess);
       const mine = pending.results.filter(item => String(item.target_id) === String(student.id) && item.trigger === "manual_send");
       owned.scheduledMessageIds.push(...mine.map(item => item.id));
       expect(mine).toHaveLength(1);
+      expect(mine[0].recipient_summary).toContain(student.parent_phone);
       await gotoAndSettle(page, `${QA_BASE}/workspace/message/log`);
       const scheduledPanel = page.getByRole("region", { name: "예약 발송", exact: true });
       await expect(scheduledPanel.getByRole("button", { name: "예약 새로고침", exact: true })).toBeEnabled();
@@ -554,6 +555,7 @@ async function verifyEditableScoreMessage(page: Page, request: APIRequestContext
         await checkResponseScope(await nextPage, 200);
       }
       await expect(row).toContainText(student.name);
+      await expect(row).toContainText(student.parent_phone);
       await row.getByRole("button", { name: "예약 취소", exact: true }).click();
       const cancelDialog = page.getByRole("alertdialog", { name: "예약 발송 취소", exact: true });
       await expect(cancelDialog).toContainText(student.name);
