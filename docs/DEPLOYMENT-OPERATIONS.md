@@ -164,8 +164,9 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
 배포 교체 중 이전 앱 셸이 새 lazy JavaScript 또는 CSS asset을 가리키지 못하면
 `vite:preloadError`, window error/rejection, React ErrorBoundary가 같은
 `isChunkLoadError` 분류를 사용해 제한된 cache-bust reload를 수행한다.
-`Unable to preload CSS`도 배포 자산 경합으로 분류하며, 반복 상한 뒤에는 사용자에게
-일반화된 새로고침 안내만 남긴다. route-critical CSS는 외부 Google Fonts 같은
+`Unable to preload CSS`도 배포 자산 경합으로 분류하며, 반복 상한 뒤에는 공통 오류
+카드에서 다시 불러오기와 [버그 제보](DEV-INBOX-GUIDE.md#화면-오류에서-바로-제보)를 제공한다.
+route-critical CSS는 외부 Google Fonts 같은
 CSP 차단 의존성을 두지 않는다.
 
 운영 build에서는 `ErrorBoundary`가 이 복구를 직접 소유한다. 개발자용
@@ -616,7 +617,12 @@ successful manifest·active development host를 읽는다. 진행 중인 release
 일치해야 한다. 성공한 V1 실행이 runtime 후보 조립, 격리 개발 검증, 배포 검증을 모두
 건너뛴 경우에만 해당 attempt의 공식 job 기록과 이전 manifest를 발행한 성공 attempt를
 별도로 확인하고 기존 host를 사용한다. 잘못된 host identity/IAM, 실패·취소된 release,
-읽기 오류와 검증 불일치는 즉시 실패한다. 대기는 별도 job과 임시 인증으로
+읽기 오류와 버전·manifest 검증 불일치는 즉시 실패한다.
+응답 형식이 유효한 active 실행 목록에서 건수와 실제 항목 수만 다르면
+전체 active 상태 목록을 1초·2초 후 최대 두 번 다시 조회한다. 그동안 최신 실행을
+대신 선택하거나 개발 QA를 시작하지 않는다. 목록 재조회도 기존 45분 제한을 따르며,
+불일치가 계속되거나 응답 형식·권한·버전·manifest·host 검증이 잘못되면 실패한다.
+재조회 횟수와 고정 오류 코드는 동일한 관측 증거에 남긴다. 대기는 별도 job과 임시 인증으로
 수행해 real-use의 100분 job/인증 예산을 소모하지 않는다. 준비 완료 뒤 기존 QA가
 최신 immutable backend revision, IAM, SSM 문서, host를 다시 검사하므로 대기 중
 성공한 관측으로 이후 검증을 생략하지 않는다. 관측은 PII 없는

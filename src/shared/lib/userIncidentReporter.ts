@@ -1,4 +1,4 @@
-import api from "@/shared/api/axios";
+import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { sanitizeObservabilityPath } from "@/shared/lib/sentryContext";
 
 const AUTO_REPORT_DEDUP_MS = 15 * 60_000;
@@ -10,7 +10,6 @@ type UserIncidentPayload = {
   route: string;
   errorName?: string;
   sentryEventId?: string;
-  screenSize?: string;
 };
 
 function autoReportKey(route: string, errorName: string): string {
@@ -56,8 +55,15 @@ function reserveAutoReport(
   return key;
 }
 
-export async function submitUserIncident(payload: UserIncidentPayload): Promise<void> {
-  await api.post(
+export async function submitUserIncident(
+  payload: UserIncidentPayload,
+  preservePage = payload.source === "manual",
+): Promise<void> {
+  const config: ApiRequestConfig = {
+    timeout: 10_000,
+    preservePageOnAuthFailure: preservePage,
+  };
+  const { data, status } = await api.post<{ incident_id: number }>(
     "/core/problem-reports/",
     {
       source: payload.source,
@@ -65,10 +71,13 @@ export async function submitUserIncident(payload: UserIncidentPayload): Promise<
       route: sanitizeObservabilityPath(payload.route),
       error_name: (payload.errorName || "").slice(0, 100),
       sentry_event_id: (payload.sentryEventId || "").slice(0, 64),
-      screen_size: (payload.screenSize || "").slice(0, 16),
+      screen_size: typeof window === "undefined" ? "" : `${window.innerWidth}x${window.innerHeight}`.slice(0, 16),
     },
-    { timeout: 10_000 },
+    config,
   );
+  if (status !== 201 || !Number.isSafeInteger(data?.incident_id) || data.incident_id < 1) {
+    throw new Error("Invalid incident receipt");
+  }
 }
 
 export function reportClientException(
@@ -77,6 +86,7 @@ export function reportClientException(
     route?: string;
     sentryEventId?: string;
     confirmedPersistent?: boolean;
+    preservePageOnAuthFailure?: boolean;
   } = {},
 ): void {
   const route = sanitizeObservabilityPath(
@@ -96,11 +106,7 @@ export function reportClientException(
     route,
     errorName: safeErrorName,
     sentryEventId: options.sentryEventId,
-    screenSize:
-      typeof window !== "undefined"
-        ? `${window.innerWidth}x${window.innerHeight}`
-        : undefined,
-  }).catch(() => {
+  }, options.preservePageOnAuthFailure).catch(() => {
     try {
       sessionStorage.setItem(
         reservationKey,

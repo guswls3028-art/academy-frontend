@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import axios from 'axios';
-import { harness, token } from './helpers/playback-lifecycle-harness.mjs';
+import { harness, settle, token } from './helpers/playback-lifecycle-harness.mjs';
 
 function barrier() {
   let release;
@@ -167,3 +167,77 @@ test('reused access remains tenant-bound while its replay is queued', async () =
   assert.equal(h.requests.length, 1);
   assert.equal(h.counts.clear, 0);
 });
+
+for (const support of [false, true]) {
+  for (const preservePage of [false, true]) {
+    test(`terminal 401 expires ${support ? "support" : "regular"} authentication with preservePage=${preservePage}`, async () => {
+      const h = harness({
+        support,
+        refresh: () => { throw new Error("Refresh rejected"); },
+        respond: () => ({ status: 401, body: {} }),
+      });
+      await assert.rejects(
+        h.api.post('/core/problem-reports/', { message: 'draft' }, {
+          preservePageOnAuthFailure: preservePage,
+        }),
+        error => error.response?.status === 401,
+      );
+      if (support) {
+        assert.equal(h.counts.supportEnd, 1);
+        assert.equal(h.counts.clear, 0);
+      } else {
+        assert.equal(h.envelope(), null);
+        assert.equal(h.counts.clear, 1);
+      }
+      assert.equal(
+        h.window.location.href,
+        preservePage ? '' : support ? '/support-preview-ended' : '/login',
+      );
+    });
+  }
+}
+
+for (const { name, source, preservePageOnAuthFailure, redirect } of [
+  { name: 'global automatic report', source: 'frontend_exception', redirect: '/login' },
+  { name: 'boundary automatic report', source: 'frontend_exception', preservePageOnAuthFailure: true, redirect: '' },
+  { name: 'manual report', source: 'manual', redirect: '' },
+]) {
+  test(`${name} wrapper applies its terminal authentication recovery policy`, async () => {
+    const h = harness({
+      refresh: () => { throw new Error('Refresh rejected'); },
+      respond: () => ({ status: 401, body: {} }),
+    });
+    const { submitUserIncident } = h.load('src/shared/lib/userIncidentReporter.ts');
+    await assert.rejects(submitUserIncident({
+      source, message: 'Report draft', route: '/workspace/students?private=discard',
+      errorName: source === 'frontend_exception' ? 'TypeError' : undefined,
+    }, preservePageOnAuthFailure), error => error.response?.status === 401);
+    assert.equal(h.envelope(), null);
+    assert.equal(h.counts.clear, 1);
+    assert.equal(h.counts.refresh, 1);
+    assert.equal(h.window.location.href, redirect);
+    assert.equal(h.requests.length, 1);
+    assert.equal(h.requests[0].path, '/api/v1/core/problem-reports/');
+    assert.equal(h.requests[0].body.source, source);
+    assert.equal(h.requests[0].body.route, '/workspace/students');
+  });
+}
+
+for (const preservePageOnAuthFailure of [undefined, true]) {
+  test(`automatic exception reporter forwards recovery context=${preservePageOnAuthFailure === true}`, async () => {
+    const h = harness({
+      refresh: () => { throw new Error('Refresh rejected'); },
+      respond: () => ({ status: 401, body: {} }),
+    });
+    const { reportClientException } = h.load('src/shared/lib/userIncidentReporter.ts');
+    reportClientException('TypeError', {
+      route: '/workspace', confirmedPersistent: true,
+      ...(preservePageOnAuthFailure === undefined ? {} : { preservePageOnAuthFailure }),
+    });
+    await settle();
+    assert.equal(h.envelope(), null);
+    assert.equal(h.counts.clear, 1);
+    assert.equal(h.requests.length, 1);
+    assert.equal(h.window.location.href, preservePageOnAuthFailure ? '' : '/login');
+  });
+}
