@@ -170,7 +170,10 @@ test.describe("production bundle error recovery", () => {
         await expect(page).toHaveURL(`${BASE}/promo?diagnostic=private#section`);
         expect(refreshRequests).toBe(1);
         expect(manualReports).toHaveLength(failure === "expired-on-submit" ? 1 : 0);
-        expect(await page.evaluate(() => localStorage.getItem("academy:auth-active-generation:v1"))).toBeNull();
+        expect(await page.evaluate(() => {
+          const generation = localStorage.getItem("academy:auth-active-generation:v1");
+          return localStorage.getItem(`academy:auth-tokens:v1:${generation}`);
+        })).toBeNull();
         await submit.click();
         await expect(description).toHaveValue(reportText);
         expect(refreshRequests).toBe(1);
