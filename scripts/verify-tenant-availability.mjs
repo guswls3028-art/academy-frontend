@@ -1,4 +1,5 @@
 import { chromium } from "@playwright/test";
+import { observePromoImages } from "./promo-image-availability.mjs";
 
 const DEFAULT_URLS = [
   "https://hakwonplus.com/promo",
@@ -7,6 +8,7 @@ const DEFAULT_URLS = [
   "https://ymath.co.kr/login",
   "https://sswe.co.kr/login",
   "https://dnbacademy.co.kr/login",
+  "https://xn--oj4bo6fugp3an0c.com/login",
 ];
 
 const viewports = [
@@ -51,14 +53,18 @@ async function checkUrl(browser, rawUrl, viewport, attempt) {
   const page = await context.newPage();
   const issues = [];
 
+  const promo = observePromoImages(page, targetUrl);
+
   page.on("requestfailed", (request) => {
     if (request.resourceType() !== "document" && !isSameOrigin(request.url(), targetOrigin)) return;
 
-    issues.push({
+    const issue = {
       type: "requestfailed",
       url: request.url(),
       failure: request.failure()?.errorText || "",
-    });
+    };
+    issues.push(issue);
+    promo.recordFailure(request, issue);
   });
   page.on("response", (response) => {
     if (!isSameOrigin(response.url(), targetOrigin) || response.status() < 500) return;
@@ -81,6 +87,7 @@ async function checkUrl(browser, rawUrl, viewport, attempt) {
   const bodyText = await page.locator("body").innerText({ timeout: 5_000 }).catch(() => "");
   const text = summarizeText(bodyText);
   const maintenance = isMaintenance({ url: finalUrl, text: bodyText });
+  await promo.verify(finalUrl, issues);
   const ok = !navigationError && status > 0 && status < 500 && !maintenance && issues.length === 0 && text.length > 0;
 
   await context.close();
