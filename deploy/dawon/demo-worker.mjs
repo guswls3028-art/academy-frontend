@@ -16,6 +16,15 @@ const workspaceStyle = `<style>
 section[aria-label$="차시 카드"]:has(> .session-block) {
   display:inline-flex; align-items:center; gap:2px; flex:0 0 auto;
 }
+section[aria-label$="차시 카드"]:has(> .session-block):has(> section[aria-label="수업일 선택"]) {
+  display:grid;grid-template-columns:minmax(0,1fr) 44px;row-gap:0;
+}
+section[aria-label$="차시 카드"]:has(> section[aria-label="수업일 선택"]) > .session-block {
+  min-width:0;
+}
+section[aria-label$="차시 카드"] > section[aria-label="수업일 선택"] {
+  grid-column:1/-1;min-width:0;
+}
 section[aria-label$="차시 카드"] > div:has(> .session-block__gear) {
   position:static; flex:0 0 auto;
 }
