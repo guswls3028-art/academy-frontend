@@ -22,8 +22,8 @@ const TENANT_APP_ICON_BY_HOST: Record<string, string> = {
   "www.movementhui.com": "/tenants/movementhui/apple-touch-icon.png",
   "godmin.kr": "/tenants/godmin/apple-touch-icon.png",
   "www.godmin.kr": "/tenants/godmin/apple-touch-icon.png",
-  "xn--2e0bx88a3ha28m85ax5c.com": "/tenants/jeongseongwon-lab/apple-touch-icon.png",
-  "www.xn--2e0bx88a3ha28m85ax5c.com": "/tenants/jeongseongwon-lab/apple-touch-icon.png",
+  "xn--oj4bo6fugp3an0c.com": "/tenants/jeongseongwon-lab/apple-touch-icon.png",
+  "www.xn--oj4bo6fugp3an0c.com": "/tenants/jeongseongwon-lab/apple-touch-icon.png",
 };
 
 const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim();
