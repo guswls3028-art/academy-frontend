@@ -1,6 +1,7 @@
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/today/pages/TodayPage.tsx
 // 오늘 홈 — 우선순위 업무 + 오늘 수업 + 빠른 처리
+import DashboardAttendanceQr from "@/shared/ui/attendance/DashboardAttendanceQr";
 import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -186,6 +187,7 @@ export default function TodayPage() {
   if (sessionsQ.isError) {
     return (
       <div className={styles.page}>
+        <DashboardAttendanceQr />
         <EmptyState
           scope="panel"
           tone="error"
@@ -233,6 +235,7 @@ export default function TodayPage() {
         </div>
       </section>
 
+      <DashboardAttendanceQr />
       <div className={styles.kpiGrid}>
         <KpiCard
           label="오늘 업무"

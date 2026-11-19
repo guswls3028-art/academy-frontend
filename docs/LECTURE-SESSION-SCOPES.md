@@ -7,6 +7,10 @@
 `보기 방식` 필터가 `전체 보기`와 `정규·보강 나눠 보기`를 전환한다. 나눠 보기의
 `정규 수업`과 `보강` 탭은 해당 유형의 수업 수를 함께 보여 준다.
 
+차시 목록은 짧은 카드로 표시되며 긴 차시명은 두 줄까지 표시한다.
+차시 상세의 수업일 영역에서 `+`(수업일 추가)를 누르면 새 수업일 입력이 열리고,
+`수업일 관리`에서 기존 수업일과 명단을 수정할 수 있다.
+
 데이터와 권한 규칙은
 [backend/docs/domain/lecture-sessions.md](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/lecture-sessions.md)가
 소유한다.

@@ -18,6 +18,12 @@ async function openHelpAndAssert(
   const dialog = page.getByRole("dialog", { name: dialogName });
   await expect(dialog).toBeVisible({ timeout: 5_000 });
   await expect(dialog).toContainText(expectedText);
+  const bounds = await dialog.boundingBox();
+  const viewport = page.viewportSize();
+  expect(bounds).not.toBeNull();
+  if (bounds && viewport) {
+    expect(bounds.width).toBeGreaterThanOrEqual(Math.min(260, viewport.width - 24));
+  }
 
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden({ timeout: 3_000 });
