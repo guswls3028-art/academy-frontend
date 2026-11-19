@@ -72,6 +72,7 @@ docs/*
 !docs/TEACHER-OPS-ASSISTANT.md
 !docs/SURVEYS.md
 !docs/README.md
+!docs/AGENT-SESSIONS.md
 !docs/LECTURE-STUDENT-ENROLLMENT.md
 !docs/LECTURE-RANKINGS.md
 !docs/guide-media-provenance.json

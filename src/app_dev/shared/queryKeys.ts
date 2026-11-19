@@ -9,4 +9,6 @@ export const devQueryKeys = {
   inboxItems: (filters: unknown) => ["dev-platform-inbox", filters] as const,
   productAnalytics: (filters: unknown) =>
     ["dev", "product-analytics", filters] as const,
+  agentSessions: (userId: number | undefined, tenantCode: string | undefined) =>
+    ["dev-agent-sessions", userId, tenantCode] as const,
 };

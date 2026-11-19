@@ -40,6 +40,7 @@ export default function StaffLayout() {
     data: staffMe,
     isLoading,
     isError,
+    isFetching,
     refetch,
   } = useQuery({ queryKey: staffQueryKeys.me, queryFn: fetchStaffMe });
   const payroll = isPayrollRoute(location.pathname);
@@ -73,6 +74,16 @@ export default function StaffLayout() {
       className="staff-domain-layout"
     >
       <div className="staff-area">
+        {staffMe.ownerSetupError && (
+          <section className="staff-owner-setup-feedback" role="alert">
+            <p>{staffMe.ownerSetupError === "conflict"
+              ? "기존 직원 연결 정보가 겹칩니다. 직원 명부를 확인한 뒤 다시 확인해 주세요."
+              : "직원 정보 연결 결과를 확인하지 못했습니다. 다시 확인해 주세요."}</p>
+            <Button intent="secondary" loading={isFetching} onClick={() => void refetch()}>
+              연결 다시 확인
+            </Button>
+          </section>
+        )}
         {payroll ? <StaffWorkspace /> : <Outlet />}
       </div>
     </DomainLayout>

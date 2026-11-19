@@ -8,6 +8,33 @@
   font-family: var(--app-font-sans, var(--font-sans, "Pretendard", system-ui, -apple-system, sans-serif));
 }
 
+.staff-owner-setup-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border-divider);
+  border-left: 3px solid var(--color-warning);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  animation: staff-owner-feedback-enter 140ms ease-out;
+}
+
+.staff-owner-setup-feedback p { flex: 1 1 240px; margin: 0; }
+
+@keyframes staff-owner-feedback-enter {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .staff-owner-setup-feedback { animation: none; }
+}
+
 .staff-area .staff-workspace-grid {
   display: grid;
   grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
