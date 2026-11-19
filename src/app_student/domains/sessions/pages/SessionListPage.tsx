@@ -578,6 +578,7 @@ function SessionList({
           <Link
             key={s.id}
             to={linkTo}
+            draggable={isPast && onHide ? false : undefined}
             className={`stu-panel stu-panel--pressable stu-panel--accent ${panelVariant} ${styles.sessionCard}`}
             data-past={isPast ? "true" : undefined}
           >

@@ -769,9 +769,11 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     });
     let rejectHide!: () => void;
     const hideResponse = new Promise<void>((resolve) => { rejectHide = resolve; });
+    const hidePosts: number[] = [];
     await page.route("**/api/v1/student/sessions/hide/", async (route) => {
       const { id } = route.request().postDataJSON() as { id: number };
       expect([recent.id, other.id]).toContain(id);
+      hidePosts.push(id);
       if (id === other.id) {
         hidden.add(id);
         return route.fulfill({ json: { hidden_ids: [id] } });
@@ -802,6 +804,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       await hideRow(recent.id);
       await hideRow(other.id);
       await expect.poll(() => hidden.has(other.id)).toBe(true);
+      expect(hidePosts).toEqual([recent.id, other.id]);
       await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
       await expect(schedule).toContainText("0회");
       await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
