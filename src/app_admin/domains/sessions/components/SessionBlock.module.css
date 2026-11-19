@@ -512,3 +512,12 @@
   border-radius: var(--radius-md, 8px) 0 0 var(--radius-md, 8px);
   padding-block: 4px;
 }
+.workflowHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.workflowHeader h2 { margin: 0; font-size: 16px; }
+.workflowHeader button { min-height: 44px; }

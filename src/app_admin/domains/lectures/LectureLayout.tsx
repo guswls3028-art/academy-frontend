@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/lectures/layout/LectureLayout.tsx
 import { Outlet, useParams, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Settings, Trophy, Users } from "lucide-react";
 import api from "@/shared/api/axios";
 import { DomainLayout } from "@/shared/ui/layout";
@@ -9,6 +9,8 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import SessionBlock from "@admin/domains/sessions/components/SessionBlock";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { adminLectureQueryKeys } from "./queryKeys";
+import { useDawonLecture } from "@/shared/product/dawon/useDawonLecture";
+import { resolveTenantCodeString } from "@/shared/tenant";
 
 const LectureCreateModal = lazy(() => import("./components/LectureCreateModal"));
 
@@ -31,6 +33,8 @@ export default function LectureLayout() {
   });
   const lecture = lectureQ.data;
   const isLoading = lectureQ.isLoading;
+  const isDawon = resolveTenantCodeString() === "dawon";
+  const { data: group } = useDawonLecture(hasValidLectureId ? lectureIdNum : null);
 
   const title = isLoading ? "강의 불러오는 중…" : safeStr(lecture?.title) || "강의";
   const desc = isLoading
@@ -45,13 +49,11 @@ export default function LectureLayout() {
         .filter(Boolean)
         .join(" · ") || "수강생";
 
-  const breadcrumbs = useMemo(
-    () => [
-      { label: "강의", to: "/workspace/lectures" },
-      { label: title },
-    ],
-    [title]
-  );
+  const breadcrumbs = [
+    { label: isDawon ? "반별 강의" : "강의", to: "/workspace/lectures" },
+    ...(group?.group_id ? [{ label: group.name, to: `/workspace/lectures?class=${group.group_id}` }] : []),
+    { label: title },
+  ];
 
   const headerActions = (
     <>
@@ -114,7 +116,7 @@ export default function LectureLayout() {
 
   return (
     <DomainLayout title={title} description={desc} breadcrumbs={breadcrumbs} headerActions={headerActions}>
-      <SessionBlock lectureId={lectureIdNum} />
+      <SessionBlock lectureId={lectureIdNum} workflowEntry={isDawon} autoAssignRegular={Boolean(group?.group_id)} />
       <Outlet />
       {settingsLectureId === lectureIdNum && (
         <Suspense fallback={null}>

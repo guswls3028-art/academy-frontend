@@ -6,6 +6,7 @@
  * current lecture, exam, submission, QnA, clinic, and messaging signals.
  */
 import { DawonLearningAlertsLink } from "@/shared/product/dawon/DawonTeacherAlerts";
+import { resolveTenantCodeString } from "@/shared/tenant";
 import DashboardAttendanceQr from "@/shared/ui/attendance/DashboardAttendanceQr";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { useNavigate } from "react-router";
@@ -35,9 +36,11 @@ import {
   UpcomingArrivalCard,
 } from "../components/ArrivalOperationsBoard";
 import styles from "./DashboardPage.module.css";
+import DawonTeachingBoard from "../components/DawonTeachingBoard";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const isDawon = resolveTenantCodeString() === "dawon";
   const operationalNotifications = useOperationalNotificationCounts();
 
   const {
@@ -124,8 +127,8 @@ export default function DashboardPage() {
       description="학원 운영 현황을 한눈에 확인하세요."
     >
       <div className={styles.dashboard}>
+        {isDawon ? <DawonTeachingBoard /> : <DashboardAttendanceQr />}
         <DawonLearningAlertsLink />
-      <DashboardAttendanceQr />
         <ArrivalOperationsBoard
           data={arrivalQuery.data}
           loading={arrivalQuery.isLoading}

@@ -24,16 +24,22 @@ export interface TodaySession {
 }
 
 /** Resolve each actual class date before choosing a Today shortcut. */
-export function todaySessionEntries(sessions: TodaySession[], date: string) {
+export function todaySessionEntries(
+  sessions: TodaySession[],
+  date: string,
+  sessionRoute = (lectureId: number, sessionId: number) => `/workspace/mobile/classes/${lectureId}/sessions/${sessionId}`,
+) {
   return sessions.flatMap(session => {
-    const route = `/workspace/mobile/classes/${session.lecture}/sessions/${session.id}`;
+    const route = sessionRoute(session.lecture, session.id);
     const title = session.lecture_title || session.title;
+    const sessionTitle = title === session.title ? "" : session.title;
     if (!session.schedule_dates?.length) {
-      return [{ startTime: session.start_time ?? null, label: title, route }];
+      return [{ startTime: session.start_time ?? null, label: title, sessionTitle, route }];
     }
     return session.schedule_dates.filter(schedule => schedule.date === date).map(schedule => ({
       startTime: schedule.start_time ?? null,
       label: `${title} · ${schedule.label}`,
+      sessionTitle,
       route: `${route}?schedule=${schedule.id}`,
     }));
   });

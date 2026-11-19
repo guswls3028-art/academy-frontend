@@ -232,3 +232,17 @@
   .groupList a { padding:10px; gap:8px; }
   .groupList .groupCounts { grid-auto-flow:row; gap:0; }
 }
+.createdCourse {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+}
+
+.createdCourse p { margin: 0; overflow-wrap: anywhere; }
+.createdCourse a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }

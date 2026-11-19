@@ -1,18 +1,12 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { feedback } from "@/shared/ui/feedback";
 import styles from "./ClassGroupsPage.module.css";
-
-type Reference = {
-  group_id: number | null;
-  name: string;
-  top_reference_percent: number | null;
-  can_edit_top_reference: boolean;
-};
+import { dawonLectureEndpoint, dawonLectureKey, useDawonLecture, type DawonLecture } from "./useDawonLecture";
 
 export default function DawonTopReferenceButton({ lectureId, onSaved }: {
   lectureId: number; onSaved?: () => void;
@@ -20,19 +14,13 @@ export default function DawonTopReferenceButton({ lectureId, onSaved }: {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
   const client = useQueryClient();
-  const endpoint = `/students/class-groups/for-lecture/${lectureId}/`;
-  const key = ["dawon", "score-reference", lectureId];
-  const result = useQuery({
-    queryKey: key,
-    enabled: open,
-    queryFn: async ({ signal }) => (await api.get<Reference>(endpoint, { signal })).data,
-  });
+  const result = useDawonLecture(lectureId, open);
   const value = draft ?? String(result.data?.top_reference_percent ?? "");
   const valid = /^\d{1,3}$/.test(value) && +value >= 1 && +value <= 100;
   const save = useMutation({
-    mutationFn: async () => (await api.patch<Reference>(endpoint, { top_reference_percent: Number(value) })).data,
+    mutationFn: async () => (await api.patch<DawonLecture>(dawonLectureEndpoint(lectureId), { top_reference_percent: Number(value) })).data,
     onSuccess: (saved) => {
-      client.setQueryData(key, saved);
+      client.setQueryData(dawonLectureKey(lectureId), saved);
       setOpen(false);
       onSaved?.();
       feedback.success(`이 강의의 비교 기준을 상위 ${saved.top_reference_percent}% 평균으로 저장했습니다.`);

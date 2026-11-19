@@ -115,6 +115,7 @@ function GroupDetail({ id, root, lectureRoot, lectureEntry, assignOnOpen, afterI
   const client = useQueryClient();
   const [mode, setMode] = useState<"add" | "remove" | "lecture" | null>(assignOnOpen ? "add" : null);
   const [notice, setNotice] = useState("");
+  const [createdCourse, setCreatedCourse] = useState<Lecture | null>(null);
   const [period, setPeriod] = useState<Period>("vacation");
   const [school, setSchool] = useState("");
   const detailKey = [...groupsKey, id];
@@ -140,6 +141,7 @@ function GroupDetail({ id, root, lectureRoot, lectureEntry, assignOnOpen, afterI
   };
   const openEditor = (next: typeof mode) => {
     setNotice("");
+    setCreatedCourse(null);
     setPeriod("vacation");
     setSchool("");
     setMode(next);
@@ -161,18 +163,22 @@ function GroupDetail({ id, root, lectureRoot, lectureEntry, assignOnOpen, afterI
       </header>
       {!members.length && <p>학생을 배정하면 수업을 개설할 수 있습니다.</p>}
       {notice && <p role="status" className={styles.notice}>{notice}</p>}
+      {createdCourse && <div className={styles.createdCourse}>
+        <p role="status"><strong>{createdCourse.title}</strong> 개설 완료 · 수강생 {createdCourse.student_count}명 등록</p>
+        <Link className={styles.primary} to={`${lectureRoot}/${createdCourse.id}`}>수업 운영 열기 <ChevronRight size={16} aria-hidden /></Link>
+      </div>}
       {mode === "lecture" && <Suspense fallback={<p role="status">강의 개설 창을 불러오는 중입니다.</p>}>
         <LectureCreateModal isOpen onClose={stopEditing} classGroup={{
           name: group.name,
           ready: enrollmentCount > 0,
           count: enrollmentCount,
           create: async (payload) => {
-            await api.post<Lecture>(`${endpoint}${id}/lectures/`, { ...payload, period, school });
-            await Promise.all([
+            const { data } = await api.post<Lecture>(`${endpoint}${id}/lectures/`, { ...payload, period, school });
+            setCreatedCourse(data);
+            void Promise.all([
               client.invalidateQueries({ queryKey: groupsKey }),
               client.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectures }),
             ]);
-            setNotice("수업을 개설했습니다.");
           },
           field: <div className={styles.form}>
             <label>수업 구분 <select value={period} onChange={(event) => {

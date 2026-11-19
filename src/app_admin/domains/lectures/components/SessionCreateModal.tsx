@@ -47,6 +47,8 @@ interface Props {
   /** 정규/보강 범위에서 연 경우 해당 유형을 미리 선택한다. */
   initialSessionType?: SessionType;
   onClose: () => void;
+  onCreated?: (sessionId: number) => void;
+  autoAssignRegular?: boolean;
 }
 
 /** lecture_time에서 시간 부분만 추출 (예: "매주 토요일 12:30~14:30" → "12:30~14:30") */
@@ -87,6 +89,8 @@ export default function SessionCreateModal({
   sectionLabel,
   initialSessionType,
   onClose,
+  onCreated,
+  autoAssignRegular = false,
 }: Props) {
   const confirm = useConfirm();
   const qc = useQueryClient();
@@ -289,7 +293,9 @@ export default function SessionCreateModal({
           ...(initialDays ? initialDays.map(day => ({ label: day.label, value: day.date })) : [{ label: "날짜", value: effectiveDate }]),
           { label: "시간", value: timeStr || "강의 기본 시간" },
         ],
-        note: "수강생 배정은 차시를 추가한 뒤 출결 화면에서 할 수 있습니다.",
+        note: autoAssignRegular && sessionType === "regular" && sectionId == null
+          ? "현재 강의 수강생이 이 차시에도 자동 배정됩니다."
+          : "수강생 배정은 차시를 추가한 뒤 출결 화면에서 할 수 있습니다.",
       },
       confirmText: "확인하고 추가",
       cancelText: "다시 확인",
@@ -311,10 +317,11 @@ export default function SessionCreateModal({
     requestInFlight.current = true;
     setBusy(true);
     try {
-      await createSession(...request);
+      const session = await createSession(...request);
       void qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionsForLecture(lectureId) });
       feedback.success("차시가 추가되었습니다.");
       onClose();
+      onCreated?.(session.id);
     } catch (e: unknown) {
       const status = isAxiosError(e) ? e.response?.status : undefined;
       setPending(request[5]?.initialSchedule && (status == null || status === 408 || status >= 500) ? request : null);

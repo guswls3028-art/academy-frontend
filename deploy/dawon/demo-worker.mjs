@@ -1,3 +1,4 @@
+import { installDawonSessions } from './dawon-learner-sessions.mjs';
 import learnerDemo from './baseline-worker.mjs';
 import { insertDemoSwitcher, demoSwitcherScript } from './dawon-demo-header.mjs';
 
@@ -67,7 +68,7 @@ const loginNav = `<nav id="dawon-preview-roles" aria-label="다원수학 데모 
 const learnerBridgePath = '/dawon-learner-navigation.js';
 
 function installLearnerBridge() {
-  const isNative = path => /^\/student\/(?:exams(?:\/|$)|attendance(?:\/|$)|submit\/school-report(?:\/|$))/.test(path);
+  const isNative = path => /^\/student\/(?:video\/(?:sessions\/[1-9]\d*\/?$|play\/?$)|exams(?:\/|$)|attendance(?:\/|$)|submit\/school-report(?:\/|$))/.test(path);
   const generic = {
     dashboard:'home', home:'home', videos:'video', video:'video', calendar:'schedule', schedule:'schedule',
     notifications:'alerts', community:'questions', qna:'questions', grades:'exam', homework:'homework',
@@ -179,6 +180,7 @@ function installLearnerBridge() {
 }
 
 const navigation = `
+(${installDawonSessions.toString()})();
 const gradePanel = document.querySelector('#panel-grades .detail-sheet');
 if (gradePanel) {
   const saved = document.createElement('details');
@@ -334,7 +336,8 @@ export async function handle(request, env, fetcher = fetch, context) {
     if (pathname.startsWith('/api/v1/')) return await handleApi(request, url, env, fetcher);
     const isConsoleLogin = pathname === '/login/dawon' ||
       (pathname === '/login' && /(?:^|;\s*)dawon_console=1(?:;|$)/.test(request.headers.get('cookie') ?? ''));
-    const isNative = isConsoleLogin || /^\/(?:workspace|student\/(?:attendance|exams|submit\/school-report))(?:\/|$)/.test(pathname) || ['/terms', '/privacy'].includes(pathname)
+    const isLearnerVideo = /^\/student\/video\/(?:sessions\/[1-9]\d*|play)\/?$/.test(pathname);
+    const isNative = isConsoleLogin || isLearnerVideo || /^\/(?:workspace|student\/(?:attendance|exams|submit\/school-report))(?:\/|$)/.test(pathname) || ['/terms', '/privacy'].includes(pathname)
       || nativeFiles.has(pathname) || nativeAssetDirectories.some(prefix => pathname.startsWith(prefix));
     if (isNative) {
       if (!['GET', 'HEAD'].includes(request.method)) return secureResponse(null, 405);
@@ -346,7 +349,8 @@ export async function handle(request, env, fetcher = fetch, context) {
         const cached = await edge.match(cacheKey);
         if (cached) return cached;
       }
-      let upstream = await forward(url, request, env, fetcher);
+      const upstreamUrl = isLearnerVideo ? new URL('/login/dawon', url) : url;
+      let upstream = await forward(upstreamUrl, request, env, fetcher);
       for (const previous of ['dawon-review-20261119-orange-r9', 'dawon-review-20261119-orange-r8', 'dawon-review-20261119-orange-r7', 'dawon-review-20261119-orange-r4', 'dawon-review-20261119-orange-r3']) {
         if (upstream.status !== 404 || !pathname.startsWith('/assets/')) break;
         await upstream.body?.cancel();

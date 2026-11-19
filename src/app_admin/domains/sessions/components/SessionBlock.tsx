@@ -34,6 +34,8 @@ interface Props {
   lectureId: number;
   /** 현재 세션 ID (SessionLayout일 때 활성 표시용) */
   currentSessionId?: number;
+  workflowEntry?: boolean;
+  autoAssignRegular?: boolean;
 }
 
 type SessionItem = {
@@ -295,7 +297,9 @@ function SessionGearMenu({
   );
 }
 
-export default function SessionBlock({ lectureId, currentSessionId }: Props) {
+export default function SessionBlock({
+  lectureId, currentSessionId, workflowEntry = false, autoAssignRegular = false,
+}: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
@@ -343,7 +347,8 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
     qc.invalidateQueries({ queryKey: adminSessionQueryKeys.lectureSessions(lectureId) });
     qc.invalidateQueries({ queryKey: adminSessionQueryKeys.lectureSections(lectureId) });
     qc.invalidateQueries({ queryKey: adminSessionQueryKeys.session });
-  }, [qc, lectureId]);
+    if (workflowEntry) qc.invalidateQueries({ queryKey: ["today-sessions"] });
+  }, [qc, lectureId, workflowEntry]);
 
   const handleClose = () => {
     setCreateForSection(null);
@@ -355,6 +360,8 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   const scopeControls = useContext(SessionScheduleControlsContext);
   const showCompactCard = scopeControls != null && currentSessionId != null;
   const firstSessionObject = formatFirstSessionObject(createSessionType);
+  const addSession = () => setCreateForSection({ id: null, label: null, sessionType: createSessionType });
+  const created = (id: number) => navigate(`/workspace/lectures/${lectureId}/sessions/${id}/attendance`);
 
   const openSchedules = (target: string) => {
     const openTarget = () => navigate(target, { state: { openSessionSchedule: true } });
@@ -511,6 +518,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
               sectionLabel={createForSection?.label}
               initialSessionType={createForSection?.sessionType}
               onClose={handleClose}
+              onCreated={workflowEntry ? created : undefined}
             />
           </Suspense>
         )}
@@ -521,6 +529,12 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
   // --- 렌더: 기존 (section_mode OFF) ---
   return (
     <>
+      {workflowEntry && <div className={styles.workflowHeader}>
+        <h2>차시 운영</h2>
+        {!isLoading && !isError && <button type="button" className="ds-btn ds-btn--primary" onClick={addSession}>
+          <Plus size={16} aria-hidden /> {rawSessions.length ? "차시 추가" : "첫 차시 추가"}
+        </button>}
+      </div>}
       <SessionViewControls
         viewMode={viewMode}
         onViewModeChange={setViewMode}
@@ -544,7 +558,7 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
               <SessionCard key={session.id} session={session} lectureId={lectureId} currentSessionId={currentSessionId}
                 navigate={navigate} target={getSessionTargetPath(session.id)} invalidate={invalidate} openSchedules={openSchedules} />
             ))}
-            {sessions.length === 0 ? (
+            {workflowEntry ? (sessions.length === 0 && <p className={styles.loadingText}>등록된 차시가 없습니다.</p>) : sessions.length === 0 ? (
               <button
                 type="button"
                 className={styles.scopeEmptyButton}
@@ -578,6 +592,8 @@ export default function SessionBlock({ lectureId, currentSessionId }: Props) {
             sectionLabel={createForSection?.label}
             initialSessionType={createForSection?.sessionType}
             onClose={handleClose}
+            onCreated={workflowEntry ? created : undefined}
+            autoAssignRegular={autoAssignRegular}
           />
         </Suspense>
       )}

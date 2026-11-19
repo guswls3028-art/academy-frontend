@@ -156,11 +156,12 @@ export default function LoginPage() {
   const isDawonDemo = tenantCode === "dawon";
   const learnerPath = getSessionItem("session_return_path") ?? "";
   const reportPath = "/student/submit/school-report";
-  const fromLearnerPage = /^\/student\/(attendance|exams|submit\/school-report)(?:[/?#]|$)/.test(learnerPath);
+  const videoEntry = /^\/student\/video\/sessions\/[1-9]\d*\/?$/.test(learnerPath);
+  const fromLearnerPage = videoEntry || /^\/student\/(attendance|exams|submit\/school-report)(?:[/?#]|$)/.test(learnerPath);
   const previewSearch = new URLSearchParams(location.search);
   const learnerEntry = fromLearnerPage || previewSearch.get("demo") === "student";
   const reportEntry = previewSearch.get("view") === "school-report" || learnerPath.split(/[?#]/)[0] === reportPath;
-  const qrEntry = learnerEntry && !reportEntry && !(previewSearch.get("view") === "exams" || learnerPath.startsWith("/student/exams"));
+  const qrEntry = learnerEntry && !videoEntry && !reportEntry && !(previewSearch.get("view") === "exams" || learnerPath.startsWith("/student/exams"));
 
   async function onDemoEntry() {
     if (pending) return;
@@ -238,7 +239,7 @@ export default function LoginPage() {
             {isDawonDemo && (
               <div className={styles.demoEntry}>
                 <button type="button" className={styles.btnPrimary} onClick={() => void onDemoEntry()} disabled={pending}>
-                  {qrEntry ? "학생 데모로 QR 출석" : reportEntry ? "학생 데모로 학교 성적 입력" : learnerEntry ? "학생 데모로 시험 결과 보기" : "데모 계정으로 시작"}
+                  {videoEntry ? "학생 데모로 수업 영상 보기" : qrEntry ? "학생 데모로 QR 출석" : reportEntry ? "학생 데모로 학교 성적 입력" : learnerEntry ? "학생 데모로 시험 결과 보기" : "데모 계정으로 시작"}
                 </button>
                 <span>{learnerEntry ? "예시 학생으로 체험합니다." : "선생님 업무는 PC에서 보기를 권장합니다."}</span>
               </div>

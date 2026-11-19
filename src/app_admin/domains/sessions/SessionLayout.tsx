@@ -15,12 +15,14 @@ import SessionAttendanceSummary from "./components/SessionAttendanceSummary";
 import summaryStyles from "./components/SessionAttendanceSummary.module.css";
 import SessionScheduleStrip from "./components/SessionScheduleStrip";
 import { CompactSessionScheduleCard } from "./components/SessionScheduleControls";
+import { useDawonLecture } from "@/shared/product/dawon/useDawonLecture";
 
 export default function SessionLayout() {
   const { lectureId, sessionId } = useLectureSessionParams();
   const { sectionMode } = useSectionMode();
   const location = useLocation();
   const scheduleScope = new URLSearchParams(location.search).get("schedule");
+  const { data: group } = useDawonLecture(lectureId);
   const { data: session, isLoading, isError, refetch } = useQuery({
     queryKey: adminSessionQueryKeys.sessionDetail(sessionId),
     queryFn: async () =>
@@ -79,6 +81,7 @@ export default function SessionLayout() {
 
   const parentCrumbs = [
     { label: "강의 목록", to: "/workspace/lectures" },
+    ...(group?.group_id ? [{ label: group.name, to: `/workspace/lectures?class=${group.group_id}` }] : []),
     ...(lectureId ? [{ label: lecture?.title ?? lecture?.name ?? "강의 상세", to: `/workspace/lectures/${lectureId}` }] : []),
   ];
   if (!lectureId || !sessionId || isError || isLoading || !session) {
@@ -117,6 +120,7 @@ export default function SessionLayout() {
   const isVideoDetail = location.pathname.startsWith(`${base}/videos/`);
   const breadcrumbs = [
     { label: "강의", to: "/workspace/lectures" },
+    ...(group?.group_id ? [{ label: group.name, to: `/workspace/lectures?class=${group.group_id}` }] : []),
     { label: lectureTitle, to: `/workspace/lectures/${lectureId}` },
     { label: sessionHeading },
   ];
