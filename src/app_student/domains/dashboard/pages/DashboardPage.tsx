@@ -22,7 +22,7 @@ import { Badge, Button } from "@/shared/ui/ds";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 import { useStudentDashboard } from "../hooks/useStudentDashboard";
 import type { StudentDashboardResponse } from "../api/dashboard.api";
-import { useMySessions } from "@student/domains/sessions/hooks/useStudentSessions";
+import { useHomeSessions } from "@student/domains/sessions/hooks/useStudentSessions";
 import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
 import { getExamPassStatus } from "@student/domains/grades/public/examPassStatus";
@@ -200,14 +200,14 @@ export default function DashboardPage() {
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const feesEnabled = useFeesEnabled();
   const dashboardQ = useStudentDashboard();
-  const sessionsQ = useMySessions();
+  const sessionsQ = useHomeSessions();
   const gradesQ = useMyGradesSummary({ reuseFreshData: true });
   const examsQ = useStudentExams({ include_upcoming: true });
   const notificationCountsQ = useNotificationCounts();
   const dashboard = dashboardQ.data;
   const dashLoading = dashboardQ.isPending;
   const dashError = dashboardQ.isError;
-  const sessions = sessionsQ.data;
+  const sessions = sessionsQ.data?.items;
   const sessionsLoading = sessionsQ.isPending;
   const sessionsError = sessionsQ.isError;
   const grades = gradesQ.data;
@@ -240,13 +240,15 @@ export default function DashboardPage() {
   const { refetch: refetchGrades } = gradesQ;
   const { refetch: refetchDashboard } = dashboardQ;
   const { refetch: refetchExams } = examsQ;
+  const { refetch: refetchSessions } = sessionsQ;
   useEffect(() => {
     if (previousDay.current === today) return;
     previousDay.current = today;
     void refetchGrades();
     void refetchDashboard();
     void refetchExams();
-  }, [today, refetchGrades, refetchDashboard, refetchExams]);
+    void refetchSessions();
+  }, [today, refetchGrades, refetchDashboard, refetchExams, refetchSessions]);
   const todaySessions = useMemo<StudentSession[]>(() => {
     const dashboardSessions = dashboard?.today_sessions;
     if (dashboardSessions) {
@@ -969,12 +971,12 @@ function LearningStatusCard({
   wrongCompletionOnly,
 }: {
   gradesQ: ReturnType<typeof useMyGradesSummary>;
-  sessionsQ: ReturnType<typeof useMySessions>;
+  sessionsQ: ReturnType<typeof useHomeSessions>;
   now: number;
   wrongCompletionOnly: boolean;
 }) {
   const grades = gradesQ.data;
-  const sessions = sessionsQ.data;
+  const sessions = sessionsQ.data?.items;
   const today = learningDate(now);
   const cutoff = learningDate(now - 27 * 24 * 60 * 60 * 1000);
   /* 오늘을 포함한 한국 날짜 28일. 수업 목록에는 클리닉도 포함된다. */
@@ -1000,7 +1002,7 @@ function LearningStatusCard({
   const sessionsPending = sessionsQ.isPending;
   const hasError = gradesError || sessionsError;
   const hasPending = gradesPending || sessionsPending;
-  const hasData = (sessions?.length ?? 0) > 0 || hwCount > 0 || (grades?.exams.length ?? 0) > 0;
+  const hasData = sessionsQ.data?.hasAnySessions || hwCount > 0 || (grades?.exams.length ?? 0) > 0;
   const retrying = (gradesError && gradesQ.isFetching) || (sessionsError && sessionsQ.isFetching);
   const placeholder = (error: boolean, pending: boolean, empty: string) => error ? "확인 필요" : pending ? "확인 중" : empty;
 
