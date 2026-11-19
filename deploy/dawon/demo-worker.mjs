@@ -1,4 +1,5 @@
 import learnerDemo from './baseline-worker.mjs';
+import { insertDemoSwitcher, demoSwitcherScript } from './dawon-demo-header.mjs';
 
 const productionHost = 'demo.hakwonplus.com';
 const originHost = 'https://dawon-review-origin.hakwonplus.com';
@@ -50,6 +51,119 @@ const loginNav = `<nav id="dawon-preview-roles" aria-label="다원수학 데모 
 #dawon-preview-roles a[aria-current]{background:#fff1e7;color:#a7470c}
 #dawon-preview-scope{margin:0;padding:8px 16px;background:#fbfaf8;color:#695e55;text-align:center;font:12px/1.5 system-ui,sans-serif}
 </style>`;
+
+const learnerBridgePath = '/dawon-learner-navigation.js';
+
+function installLearnerBridge() {
+  const isNative = path => /^\/student\/(?:exams(?:\/|$)|attendance(?:\/|$)|submit\/school-report(?:\/|$))/.test(path);
+  const generic = {
+    dashboard:'home', home:'home', videos:'video', video:'video', calendar:'schedule', schedule:'schedule',
+    notifications:'alerts', community:'questions', qna:'questions', grades:'exam', homework:'homework',
+    clinic:'clinic', submit:'grades', inventory:'tools', notices:'notices', profile:'profile', settings:'settings',
+    menu:'home', lectures:'curriculum', courses:'curriculum', idcard:'attendance'
+  };
+  const guardian = () => sessionStorage.getItem('dawon-room-role') === 'guardian';
+  const home = () => guardian() ? '/guardian' : '/student';
+  const destination = topic => topic === 'home' ? home() : topic === 'profile' ? '/profile' : '/learn/' + topic;
+  function genericDestination(raw) {
+    if (!raw || !isNative(location.pathname)) return null;
+    const url = new URL(raw, location.href);
+    if (url.origin !== location.origin || !/^\/student(?:\/|$)/.test(url.pathname) || isNative(url.pathname)) return null;
+    return destination(generic[url.pathname.split('/')[2]] || 'home');
+  }
+  const paths = {
+    home:'M3 11 12 3l9 8M5 10v11h5v-7h4v7h5V10',
+    video:'M3 5h18v14H3z M10 9l5 3-5 3z',
+    schedule:'M3 6h18v15H3z M7 3v6 M17 3v6 M3 11h18',
+    alerts:'M5 17h14l-2-4V9a5 5 0 0 0-10 0v4z M10 20h4',
+    questions:'M3 4h18v13H9l-5 4v-4H3z M7 9h10 M7 12h6'
+  };
+  function addLinks(nav, drawer) {
+    if (!nav || nav.querySelector(':scope > [data-dawon-links]')) return;
+    const group = document.createElement('div');
+    group.dataset.dawonLinks = drawer ? 'drawer' : 'footer';
+    const routes = [['home','홈'],['video','영상'],['schedule','일정'],['alerts','알림'],['questions',guardian() ? '상담하기' : '질문하기']];
+    if (drawer) {
+      routes.push(['attendance','출결 현황'],['exam','테스트 결과']);
+      if (!guardian()) routes.push(['grades','학교 성적']);
+    }
+    for (const [topic, label] of routes) {
+      const a = document.createElement('a');
+      a.href = destination(topic);
+      if (!drawer) {
+        const icon = document.createElementNS('http://www.w3.org/2000/svg','svg');
+        icon.setAttribute('viewBox','0 0 24 24'); icon.setAttribute('aria-hidden','true');
+        const line = document.createElementNS(icon.namespaceURI,'path');
+        line.setAttribute('d',paths[topic]); icon.append(line); a.append(icon);
+      }
+      a.append(document.createTextNode(label)); group.append(a);
+    }
+    nav.append(group);
+  }
+  const css = document.createElement('style');
+  css.textContent = `
+    html[data-dawon-native-learner] .student-layout,html[data-dawon-native-learner] [data-app="student"] {
+      --stu-primary:#a64511;--stu-primary-contrast:#fff;--stu-primary-soft:#fff1e5;--stu-gradient:linear-gradient(125deg,#a74513,#bc591c);
+      --stu-tabbar-bg:#fff;--stu-on-gradient:#fff;--stu-accent:#ac4c17;
+    }
+    html[data-dawon-native-learner] .student-layout__header {top:var(--dawon-demo-bar-height,0px);}
+    html[data-dawon-native-learner] nav:has(> [data-dawon-links]) > :not([data-dawon-links]) {display:none!important}
+    html[data-dawon-native-learner] [data-dawon-links="footer"] {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));max-width:760px;margin:auto;background:#fff}
+    html[data-dawon-native-learner] [data-dawon-links] a {color:#593f2f;text-decoration:none;font-weight:650;}
+    html[data-dawon-native-learner] [data-dawon-links="footer"] a {min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px}
+    html[data-dawon-native-learner] [data-dawon-links] a:hover,html[data-dawon-native-learner] [data-dawon-links] a:focus-visible {background:#fff1e5;color:#943f10;outline:2px solid #a54816;outline-offset:-2px}
+    html[data-dawon-native-learner] [data-dawon-links] svg {width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+    html[data-dawon-native-learner] [data-dawon-links="drawer"] {display:grid;gap:2px;}
+    html[data-dawon-native-learner] [data-dawon-links="drawer"] a {display:flex;align-items:center;padding:0 14px;min-height:44px;border-radius:8px;}
+    html[data-dawon-native-learner] [data-testid="stu-topbar-notif-bell"] > :not(svg) {display:none}
+  `;
+  document.head.append(css);
+  function sync() {
+    const active = isNative(location.pathname);
+    document.documentElement.toggleAttribute('data-dawon-native-learner',active);
+    if (!active) return;
+    addLinks(document.querySelector('[data-analytics-placement="student.bottom-tab"]'), false);
+    addLinks(document.querySelector('[data-analytics-placement="student.drawer"]'), true);
+    const bell = document.querySelector('[data-testid="stu-topbar-notif-bell"]');
+    if (bell) bell.setAttribute('aria-label','알림');
+    for (const a of document.querySelectorAll('a[href^="/student"]')) {
+      const target = genericDestination(a.getAttribute('href'));
+      if (target && a.pathname !== target && !a.closest('[data-dawon-links],#dawon-demo-switcher')) {
+        a.href = target;
+        a.dataset.dawonLegacyDestination = target;
+      }
+    }
+  }
+  // Native links are React Router links. A full same-origin navigation loads the real learner room.
+  document.addEventListener('click', event => {
+    if (!isNative(location.pathname) || !(event.target instanceof Element)) return;
+    const el = event.target.closest('[data-dawon-legacy-destination],[data-testid="stu-topbar-notif-bell"],a[href]');
+    if (!el || el.closest('#dawon-demo-switcher')) return;
+    const dest = el.matches('[data-testid="stu-topbar-notif-bell"]') ? '/learn/alerts' :
+      el.dataset.dawonLegacyDestination || genericDestination(el.getAttribute('href'));
+    if (!dest || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault(); event.stopImmediatePropagation(); location.assign(dest);
+  }, true);
+  // Account-menu buttons use imperative navigation rather than links.
+  for (const key of ['pushState','replaceState']) {
+    const original = history[key];
+    history[key] = function(state,title,url) {
+      const dest = genericDestination(url);
+      if (dest) { location.assign(dest); return; }
+      const result = original.apply(this,arguments);
+      queueMicrotask(sync);
+      return result;
+    };
+  }
+  let scheduled = false;
+  new MutationObserver(() => {
+    if (scheduled) return;
+    scheduled = true;
+    requestAnimationFrame(() => { scheduled=false; sync(); });
+  }).observe(document.body,{childList:true,subtree:true});
+  window.addEventListener('popstate',sync);
+  sync();
+}
 
 const navigation = `
 const gradePanel = document.querySelector('#panel-grades .detail-sheet');
@@ -183,7 +297,9 @@ export async function handle(request, env, fetcher = fetch, context) {
   if (pathname === '/sw.js' || pathname === '/teacher-sw.js') {
     return secureResponse("self.addEventListener('install',e=>e.waitUntil(self.skipWaiting()));self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));", 200, 'text/javascript; charset=utf-8');
   }
+  if (pathname === '/dawon-demo-role.js') return secureResponse(demoSwitcherScript, 200, 'text/javascript; charset=utf-8');
   if (pathname === '/dawon-module-probe.mjs') return secureResponse('if (!import.meta.resolve) throw Error("import.meta.resolve not supported");', 200, 'text/javascript; charset=utf-8');
+  if (pathname === learnerBridgePath) return secureResponse('(' + installLearnerBridge.toString() + ')();', 200, 'application/javascript; charset=utf-8');
   if (pathname === linkedNavPath) return secureResponse(navigation, 200, 'application/javascript; charset=utf-8');
   if (pathname === '/version.json') {
     return secureResponse(JSON.stringify({
@@ -250,11 +366,11 @@ export async function handle(request, env, fetcher = fetch, context) {
           for (const stale of ['content-encoding', 'content-length', 'etag']) headers.delete(stale);
           const original = await upstream.text();
           const branded = original.replace(modernProbe, '/dawon-module-probe.mjs')
-            .replace('</head>', brandStyle(env.ADMIN_VERSION) + reloadScript(env.ADMIN_VERSION) + '</head>');
+            .replace('</head>', brandStyle(env.ADMIN_VERSION) + reloadScript(env.ADMIN_VERSION) + '<script defer src="' + learnerBridgePath + '"></script></head>');
           const html = isConsoleLogin
             ? branded.replace(/<body[^>]*>/, start => start + loginNav)
             : isWorkspacePage ? branded.replace('</head>', workspaceStyle + '</head>') : branded;
-          return new Response(html, {status: upstream.status, headers});
+          return new Response(insertDemoSwitcher(html, url, true), {status: upstream.status, headers});
         }
       }
       return new Response(upstream.body, {status: upstream.status, headers});
@@ -267,7 +383,7 @@ export async function handle(request, env, fetcher = fetch, context) {
     headers.set('cache-control', 'no-store');
     headers.append('set-cookie', consoleCookieExpired);
     const html = (await response.text()).replace('</head>', `${brandStyle(env.ADMIN_VERSION)}${reloadScript(env.ADMIN_VERSION)}<script src="${linkedNavPath}" defer></script></head>`);
-    return new Response(html, {status: response.status, headers});
+    return new Response(insertDemoSwitcher(html, url, false), {status: response.status, headers});
   } catch {
     return secureResponse('{"detail":"다원 데모를 잠시 후 다시 열어 주세요."}', 503);
   }
