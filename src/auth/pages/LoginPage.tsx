@@ -143,6 +143,7 @@ export default function LoginPage() {
 
   // data-tenant: 테넌트 코드 그대로 사용 (themes/*.css selector 매칭)
   const themeAttr = tenantCode ?? "tchul";
+  const isHakwonplus = themeAttr === "hakwonplus";
   const hasBrandedScene = BRANDED_LOGIN_SCENES.has(themeAttr);
 
   async function onSubmit(e: React.FormEvent) {
@@ -174,7 +175,7 @@ export default function LoginPage() {
 
   return (
     <div data-app="auth" data-tenant={themeAttr} className={styles.root}>
-      {hasBrandedScene && (
+      {hasBrandedScene && !isHakwonplus && (
         <div className={styles.ambient} data-auth-part="ambient" aria-hidden="true">
           <span />
           <span />
@@ -185,11 +186,11 @@ export default function LoginPage() {
         <section className={styles.brandStage} data-auth-part="brand-stage">
           <div className={styles.brandArtwork} data-auth-part="brand-artwork">
             {logoUrl ? (
-              <img src={logoUrl} alt={title} className={styles.logo} />
+              <img src={logoUrl} alt={isHakwonplus ? "" : title} className={styles.logo} />
             ) : (
               <CommonLogoIcon height={64} className={styles.logo} />
             )}
-            <div className={styles.typography}>
+            <div className={isHakwonplus ? styles.srOnly : styles.typography}>
               <h1 className={styles.title}>{title}</h1>
             </div>
           </div>
@@ -198,16 +199,18 @@ export default function LoginPage() {
           {hasBrandedScene && (
             <div className={styles.loginIntro} data-auth-part="login-intro">
               <h2>로그인</h2>
-              <p>아이디와 비밀번호를 입력해주세요.</p>
+              {!isHakwonplus && <p>아이디와 비밀번호를 입력해주세요.</p>}
             </div>
           )}
           <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
-            <label htmlFor="login-username" className={styles.srOnly}>아이디 또는 학부모 휴대폰 번호</label>
+            <label htmlFor="login-username" className={isHakwonplus ? styles.fieldLabel : styles.srOnly}>
+              아이디 또는 학부모 휴대폰 번호
+            </label>
             <input
               id="login-username"
               ref={usernameRef}
               className={styles.input}
-              placeholder="아이디 또는 학부모 휴대폰 번호"
+              placeholder={isHakwonplus ? undefined : "아이디 또는 학부모 휴대폰 번호"}
               name="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -217,13 +220,13 @@ export default function LoginPage() {
               spellCheck={false}
               data-testid="login-username"
             />
-            <label htmlFor="login-password" className={styles.srOnly}>비밀번호</label>
+            <label htmlFor="login-password" className={isHakwonplus ? styles.fieldLabel : styles.srOnly}>비밀번호</label>
             <div className={styles.passwordWrap}>
               <input
                 id="login-password"
                 className={styles.input}
                 type={showPassword ? "text" : "password"}
-                placeholder="비밀번호"
+                placeholder={isHakwonplus ? undefined : "비밀번호"}
                 name="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -260,7 +263,7 @@ export default function LoginPage() {
             <button type="submit" className={styles.btnPrimary} disabled={pending} data-testid="login-submit">
               {pending ? "로그인 중..." : "로그인"}
             </button>
-            <div className={styles.links}>
+            <div className={styles.links} data-auth-part="account-links">
               {(hasLanding || tenantCode === "godmin") && (
                 <Link to="/landing" className={styles.link}>
                   홈페이지

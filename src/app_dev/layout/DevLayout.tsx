@@ -1,3 +1,4 @@
+import { hakwonplus } from "@/shared/tenant/tenants/hakwonplus";
 import { useState, type ComponentType } from "react";
 import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import {
@@ -105,7 +106,7 @@ export default function DevLayout() {
     <div className={s.shell}>
       <aside className={s.sidebar} aria-label="개발자 콘솔 주 메뉴">
         <div className={s.sidebarBrand}>
-          <div className={s.brandMark} aria-hidden>H+</div>
+          <img className={s.brandMark} src={hakwonplus.branding.headerLogoUrl} alt="" />
           <div className={s.brandCopy}>
             <strong>Academy Control</strong>
             <span>Platform operations</span>
@@ -161,7 +162,7 @@ export default function DevLayout() {
 
       <header className={s.mobileTopBar}>
         <div className={s.mobileTopLeft}>
-          <div className={s.brandMark} aria-hidden>H+</div>
+          <img className={s.brandMark} src={hakwonplus.branding.headerLogoUrl} alt="" />
           <div className={s.mobileTitle}>
             <strong>{currentItem.label}</strong>
             <span>Academy Control</span>
