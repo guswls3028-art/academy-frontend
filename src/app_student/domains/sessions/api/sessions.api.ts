@@ -22,11 +22,6 @@ export type StudentHomeSessions = {
   hasAnySessions: boolean;
 };
 
-type StudentSessionListResponse = StudentSession[] | {
-  items?: StudentSession[];
-  has_any_sessions?: boolean;
-};
-
 function normalizeStudentSession(session: StudentSession): StudentSession {
   const title = richHtmlToPlainText(session.title);
   return {
@@ -39,23 +34,23 @@ function normalizeStudentSession(session: StudentSession): StudentSession {
   };
 }
 
-function normalizeStudentSessionList(data: StudentSessionListResponse): StudentSession[] {
+async function fetchSessionList(scope?: "home"): Promise<StudentHomeSessions> {
+  const { data } = await api.get<StudentSession[] | { items?: StudentSession[]; has_any_sessions?: boolean }>(
+    "/student/sessions/me/",
+    scope ? { params: { scope } } : undefined,
+  );
   const items = Array.isArray(data) ? data : data?.items;
-  return Array.isArray(items) ? items.map(normalizeStudentSession) : [];
+  const sessions = Array.isArray(items) ? items.map(normalizeStudentSession) : [];
+  const hasAnySessions = sessions.length > 0 || (!Array.isArray(data) && data?.has_any_sessions === true);
+  return { items: sessions, hasAnySessions };
 }
 
 export async function fetchMySessions(): Promise<StudentSession[]> {
-  const { data } = await api.get<StudentSessionListResponse>("/student/sessions/me/");
-  return normalizeStudentSessionList(data);
+  return (await fetchSessionList()).items;
 }
 
-export async function fetchHomeSessions(): Promise<StudentHomeSessions> {
-  const { data } = await api.get<StudentSessionListResponse>("/student/sessions/me/", {
-    params: { scope: "home" },
-  });
-  const items = normalizeStudentSessionList(data);
-  const hasAnySessions = items.length > 0 || (!Array.isArray(data) && data?.has_any_sessions === true);
-  return { items, hasAnySessions };
+export function fetchHomeSessions(): Promise<StudentHomeSessions> {
+  return fetchSessionList("home");
 }
 
 export async function fetchSessionDetail(sessionId: number): Promise<StudentSession> {
