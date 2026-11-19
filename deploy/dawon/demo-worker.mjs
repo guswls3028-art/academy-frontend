@@ -26,6 +26,15 @@ const workspaceStyle = `<style>
 [data-dawon-staff] nav[aria-label="업무 메뉴"] a[aria-current="page"] {
   background:#fff1e5;color:#843a0e;font-weight:700;
 }
+[data-dawon-staff="teacher"] .domain-layout:has(nav[aria-label="반 업무"]) > .domain-layout__header {
+  padding:10px 16px;background:transparent;border:0;
+}
+[data-dawon-staff="teacher"] .domain-layout:has(nav[aria-label="반 업무"]) > .domain-layout__header .domain-layout__title {
+  font-size:14px;line-height:1.4;color:#514b47;
+}
+[data-dawon-staff="teacher"] .domain-layout:has(nav[aria-label="반 업무"]) > .domain-layout__header .domain-header__tabs-wrap {
+  display:none;
+}
 [data-dawon-staff="admin"] .domain-header__tabs-wrap {display:none}
 [data-dawon-staff="admin"] section[aria-label="반 운영 현황"] article {background:#fff}
 [data-dawon-staff="admin"] section[aria-label="반 운영 현황"] article li {
