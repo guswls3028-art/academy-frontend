@@ -35,7 +35,10 @@ export function useBoardList(scope: BoardScope, category: Category, page = 1, pa
     enabled: Boolean(scope[1] && scope[2]),
     queryFn: async ({ signal }) => {
       const { data } = await api.get<PostPage>(endpoint, { params: { category, page, page_size: pageSize }, signal });
-      if (!Array.isArray(data?.results) || !Number.isInteger(data.count)) throw new Error("게시글 목록을 확인할 수 없습니다.");
+      if (!Array.isArray(data?.results) || !Number.isInteger(data.count) || !data.results.every(row =>
+        row?.category === category && Number.isSafeInteger(row.id) && typeof row.title === "string"
+        && typeof row.created_at === "string" && Number.isFinite(Date.parse(row.created_at))
+      )) throw new Error("게시글 목록을 확인할 수 없습니다.");
       return data;
     },
     staleTime: 30_000,
@@ -81,5 +84,6 @@ const dateFormat = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "Asia/Seoul", year: "numeric", month: "numeric", day: "numeric",
 });
 export function boardDate(value: string) {
-  return dateFormat.format(new Date(value));
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? dateFormat.format(time) : "작성일 확인 불가";
 }

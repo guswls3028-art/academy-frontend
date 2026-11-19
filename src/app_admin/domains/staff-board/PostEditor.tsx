@@ -37,8 +37,16 @@ export default function PostEditor({ category, post, onClose, onSaved }: {
       <ModalHeader title={post ? "글 수정" : `${boardLabels[category]} 글쓰기`} description="같은 학원의 강사와 조교 등 직원에게 보입니다." noIcon />
       <ModalBody>
         <form id={formId} className={styles.form} onSubmit={submit}>
-          <label>제목<input required maxLength={200} value={title} onChange={e => setTitle(e.target.value)} disabled={save.isPending} autoFocus /></label>
-          <label>내용<textarea required maxLength={20000} rows={7} value={body} onChange={e => setBody(e.target.value)} disabled={save.isPending} /></label>
+          <div>
+            <label htmlFor={formId + "-title"}>제목</label>
+            <input id={formId + "-title"} required maxLength={200} value={title}
+              onChange={e => setTitle(e.target.value)} disabled={save.isPending} autoFocus />
+          </div>
+          <div>
+            <label htmlFor={formId + "-body"}>내용</label>
+            <textarea id={formId + "-body"} required maxLength={20000} rows={7} value={body}
+              onChange={e => setBody(e.target.value)} disabled={save.isPending} />
+          </div>
           {category === "resource" && !post && (
             <label>첨부파일 <small>선택 · 최대 10 MB</small>
               <input type="file" onChange={e => setFile(e.target.files?.[0] ?? null)} disabled={save.isPending} />

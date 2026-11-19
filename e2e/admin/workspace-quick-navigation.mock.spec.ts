@@ -116,7 +116,8 @@ test.describe("업무 화면 기능 검색", () => {
       const url = new URL(route.request().url());
       if (url.pathname.endsWith("/47/")) return route.fulfill({ json: notice });
       const results = published && url.searchParams.get("category") === "notice" ? [notice] : [];
-      return route.fulfill({ json: ready ? { count: results.length, next: null, previous: null, results } : {} });
+      return route.fulfill({ json: ready ? { count: results.length, next: null, previous: null, results }
+        : { count: 1, results: [{ ...notice, created_at: null }] } });
     });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${BASE}/workspace/dashboard`);

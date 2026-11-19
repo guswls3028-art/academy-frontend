@@ -43,7 +43,7 @@
 .back { justify-self: start; }
 .article, .replies { padding: clamp(16px, 2.2vw, 28px); }
 .article header { padding-bottom: 16px; border-bottom: 1px solid var(--color-border-divider); }
-.article h2 { margin: 0 0 10px; font-size: clamp(18px, 2vw, 24px); line-height: 1.45; overflow-wrap: anywhere; }
+.article h2 { margin: 0 0 10px; font-size: clamp(18px, 2vw, 24px); line-height: 1.45; word-break: keep-all; overflow-wrap: anywhere; }
 .content { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
 .attachment button { max-width: 100%; height: auto; text-align: left; white-space: normal; overflow-wrap: anywhere; }
 .replies ul { margin: 8px 0 14px; }
@@ -78,6 +78,10 @@
 @media (max-width: 600px) {
   .noticePanel { padding: 8px 14px; }
   .noticeList a, .noticeHeader a { min-height: 44px; }
+  .noticeList a span {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    white-space: normal; word-break: keep-all; overflow-wrap: anywhere;
+  }
   .rows a { align-items: flex-start; flex-direction: column; gap: 5px; padding: 14px 16px; }
   .rows .meta { max-width: 100%; text-align: left; }
   .sheetHeader { padding: 14px 16px; }
