@@ -782,7 +782,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
     const card = page.getByRole("region", { name: "학습 현황", exact: true });
     const schedule = card.getByRole("link", { name: /수업·클리닉/ });
-    const pastTab = page.getByRole("button", { name: /지난 일정/ });
+    const pastTab = page.getByRole("button", { name: /^지난 일정(?: \d+)?$/ });
     const row = (id: number) => page.locator(`a[href="/student/sessions/${id}"]`);
     const hideRow = async (id: number) => {
       await row(id).scrollIntoViewIfNeeded();
