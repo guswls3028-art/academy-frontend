@@ -11,6 +11,9 @@ export const dawon: TenantDef = {
   branding: {
     loginTitle: "다원수학",
     windowTitle: "다원수학",
+    logoUrl: "/dawon-brand.svg",
+    headerLogoUrl: "/dawon-brand.svg",
+    faviconUrl: "/dawon-brand.svg",
     defaultWorkspaceAccent: accent,
     headerPalette: {
       surface: "#ffffff",
@@ -20,5 +23,6 @@ export const dawon: TenantDef = {
     },
   },
   dedicatedLoginPage: false,
-  hasCustomLogo: false,
+  hasCustomLogo: true,
+  studentSelfRegistrationEnabled: false,
 };

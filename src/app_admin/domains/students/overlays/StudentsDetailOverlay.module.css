@@ -2,8 +2,7 @@
   padding: 24px;
 }
 
-.modalBackdrop,
-.modalWrap {
+.viewportCover {
   left: 0;
 }
 

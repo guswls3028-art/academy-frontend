@@ -24,6 +24,7 @@ const SessionDetailPage = lazy(() => import("@teacher/domains/lectures/pages/Ses
 const SwipeAttendancePage = lazy(() => import("@teacher/domains/attendance/pages/SwipeAttendancePage"));
 const MobileScoreEntryPage = lazy(() => import("@teacher/domains/scores/pages/MobileScoreEntryPage"));
 const StudentListPage = lazy(() => import("@teacher/domains/students/pages/StudentListPage"));
+const ClassGroupsPage = lazy(() => import("@/shared/product/dawon/ClassGroupsPage"));
 const StudentDetailPage = lazy(() => import("@teacher/domains/students/pages/StudentDetailPage"));
 const CommunicationPage = lazy(() => import("@teacher/domains/comms/pages/CommunicationPage"));
 const MessageLogPage = lazy(() => import("@teacher/domains/comms/pages/MessageLogPage"));
@@ -122,6 +123,7 @@ export default function TeacherRouter() {
 
           {/* 학생 */}
           <Route path="students" element={<StudentListPage />} />
+          <Route path="students/class-groups" element={<ClassGroupsPage />} />
           <Route path="students/:studentId" element={<StudentDetailPage />} />
 
           {/* 소통 */}

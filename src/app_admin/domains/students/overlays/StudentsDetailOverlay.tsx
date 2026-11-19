@@ -767,8 +767,8 @@ function StudentDetailShell({
 
   return (
     <>
-      <div className={`ds-overlay-backdrop${elevated ? ` ${styles.modalBackdrop}` : ""}`} onClick={onClose} aria-hidden />
-      <div className={`ds-overlay-wrap${elevated ? ` ${styles.modalWrap}` : ""}`}>
+      <div className={`ds-overlay-backdrop ${styles.viewportCover}${elevated ? ` ${styles.modalBackdrop}` : ""}`} onClick={onClose} aria-hidden />
+      <div className={`ds-overlay-wrap ${styles.viewportCover}${elevated ? ` ${styles.modalWrap}` : ""}`}>
         <div
           ref={panelRef}
           className={"ds-overlay-panel ds-overlay-panel--student-detail " + profileStyles.detailPanel}

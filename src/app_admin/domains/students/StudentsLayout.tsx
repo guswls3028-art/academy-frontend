@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/students/StudentsLayout.tsx
 import { Outlet } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
+import { resolveTenantCodeString } from "@/shared/tenant";
 
 const STUDENTS_TABS = [
   { key: "home", label: "홈", path: "/workspace/students/home" },
@@ -10,11 +11,14 @@ const STUDENTS_TABS = [
 ];
 
 export default function StudentsLayout() {
+  const tabs = resolveTenantCodeString() === "dawon"
+    ? [STUDENTS_TABS[0], { key: "class-groups", label: "반 편성", path: "/workspace/students/class-groups" }, ...STUDENTS_TABS.slice(1)]
+    : STUDENTS_TABS;
   return (
     <DomainLayout
       title="학생 관리"
       description="학생 추가 · 학교 성적 · 상담"
-      tabs={STUDENTS_TABS}
+      tabs={tabs}
     >
       <Outlet />
     </DomainLayout>

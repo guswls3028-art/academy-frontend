@@ -3,10 +3,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import ExcelRowIssues from "@/shared/ui/excel/ExcelRowIssues";
-import { FiCheckCircle, FiInfo, FiMessageSquare, FiSmartphone, FiUsers } from "react-icons/fi";
+import { FiCheckCircle, FiFileText, FiInfo, FiMessageSquare, FiSmartphone, FiUsers } from "react-icons/fi";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
-import { SessionBlockView } from "@/shared/ui/session-block";
 import { PhoneInput010Blocks } from "@/shared/ui/PhoneInput010Blocks";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
 import {
@@ -555,27 +554,17 @@ export default function StudentCreateModal({
           <div className="modal-scroll-body grid gap-6 w-full max-w-full box-border">
             <div>
               <div className="modal-section-label mb-3">등록 방식</div>
-              <div className="grid grid-cols-2 gap-5">
-                <SessionBlockView
-                  variant="n1"
-                  compact={false}
-                  selected={false}
-                  showCheck={false}
-                  title="1명만 등록"
-                  desc="학생 한 명 수동 등록"
-                  onClick={() => setMode("single")}
-                  ariaLabel="1명만 등록"
-                />
-                <SessionBlockView
-                  variant="supplement"
-                  compact={false}
-                  selected={false}
-                  showCheck={false}
-                  title="엑셀 업로드"
-                  desc="엑셀 파일로 학생 일괄 등록"
-                  onClick={() => setMode("excel")}
-                  ariaLabel="엑셀 업로드"
-                />
+              <div className={styles.registrationMethods}>
+                <button type="button" className={styles.registrationMethod} aria-label="1명만 등록" aria-describedby="student-create-single-hint" onClick={() => setMode("single")}>
+                  <FiUsers aria-hidden="true" />
+                  <strong>1명만 등록</strong>
+                  <span id="student-create-single-hint">학생 한 명 수동 등록</span>
+                </button>
+                <button type="button" className={styles.registrationMethod} aria-label="엑셀 업로드" aria-describedby="student-create-excel-hint" onClick={() => setMode("excel")}>
+                  <FiFileText aria-hidden="true" />
+                  <strong>엑셀 업로드</strong>
+                  <span id="student-create-excel-hint">엑셀 파일로 학생 일괄 등록</span>
+                </button>
               </div>
             </div>
           </div>

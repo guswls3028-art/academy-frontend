@@ -1,20 +1,20 @@
 [data-app="auth"][data-tenant="dawon"] {
-  --auth-bg: #fbfaf8;
-  --auth-surface: #fff;
-  --auth-text: #261c15;
+  --auth-bg: var(--dawon-canvas, #fbfaf8);
+  --auth-surface: var(--dawon-paper, #fff);
+  --auth-text: var(--dawon-ink, #261c15);
   --auth-text-muted: #695e55;
   --auth-border: #ded6cf;
   --auth-border-hover: #a09184;
   --auth-accent: #a1460d;
   --auth-focus: rgb(169 72 9 / 22%);
-  --auth-gradient: #a7470c;
+  --auth-gradient: var(--dawon-action, #a7470c);
 }
 
 [data-app="auth"][data-tenant="dawon"] [data-auth-part="card"] {
   position: relative;
   max-width: 27rem;
   padding: clamp(1.5rem, 5vw, 3rem);
-  border-top: 4px solid #e46a1f;
+  border-top: 4px solid var(--dawon-accent, #e46a1f);
   border-radius: 10px;
   box-shadow: 0 12px 40px rgb(63 44 27 / 7%);
 }
@@ -27,7 +27,7 @@
   text-align: left;
 }
 
-[data-app="auth"][data-tenant="dawon"] [data-auth-part="brand-artwork"] > svg {
+[data-app="auth"][data-tenant="dawon"] [data-auth-part="brand-artwork"] > :is(svg, img) {
   flex: 0 0 auto;
   width: 2.75rem;
   height: 2.75rem;

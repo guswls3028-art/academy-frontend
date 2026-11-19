@@ -24,6 +24,7 @@ const WorkspaceSectionPage = lazy(() => import("@admin/layout/WorkspaceSectionPa
 
 /* ================= Lazy: Students ================= */
 const StudentsLayout = lazy(() => import("@admin/domains/students/StudentsLayout"));
+const ClassGroupsPage = lazy(() => import("@/shared/product/dawon/ClassGroupsPage"));
 const SurveysPage = lazy(() => import("@admin/domains/surveys/SurveysPage"));
 const SurveyEditorPage = lazy(() => import("@admin/domains/surveys/SurveysPage").then((module) => ({ default: module.SurveyEditorPage })));
 const SurveyDetailPage = lazy(() => import("@admin/domains/surveys/SurveysPage").then((module) => ({ default: module.SurveyDetailPage })));
@@ -180,6 +181,7 @@ export default function AdminRouter() {
         <Route path="students" element={renderLazyRoute(StudentsLayout)}>
           <Route index element={<Navigate to="home" replace />} />
           <Route path="home" element={renderLazyRoute(StudentsHomePage)} />
+          <Route path="class-groups" element={renderLazyRoute(ClassGroupsPage)} />
           <Route path="surveys" element={renderLazyRoute(SurveysPage)} />
           <Route path="surveys/new" element={renderLazyRoute(SurveyEditorPage)} />
           <Route path="surveys/:surveyId" element={renderLazyRoute(SurveyDetailPage)} />

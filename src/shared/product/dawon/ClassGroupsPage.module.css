@@ -1,0 +1,102 @@
+.page {
+  display: grid;
+  gap: 16px;
+  max-inline-size: 960px;
+  margin-inline: auto;
+  color: var(--color-text-primary);
+}
+
+.detail {
+  display: grid;
+  gap: 16px;
+  min-inline-size: 0;
+}
+
+.heading, .sectionHeader, .actions, .search {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.heading, .sectionHeader {
+  justify-content: space-between;
+}
+
+.page h2, .page h3, .page p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.page h2 { font-size: 1.375rem; }
+.page h3 { font-size: 1rem; }
+.page p, .page h3 span { color: var(--color-text-secondary); }
+.heading p, .rows p { margin-block-start: 4px; }
+.actions { justify-content: end; }
+
+.panel, .form, .groupList a {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  padding: 16px;
+  min-inline-size: 0;
+}
+
+.form, .form label {
+  display: grid;
+  gap: 8px;
+  min-inline-size: 0;
+}
+
+.form { gap: 14px; }
+.form label { font-weight: 600; }
+.dates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 10px;
+}
+
+.page button, .page input:not([type="checkbox"]), .page select, .operate {
+  min-block-size: 44px;
+  min-inline-size: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+}
+
+.page button, .operate { font-weight: 650; }
+.page button:not(:disabled) { cursor: pointer; }
+.page button:disabled { opacity: .55; }
+.page button.primary {
+  background: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary-contrast);
+}
+
+.page :is(button, a, input, select):focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+}
+
+.search { margin-block-start: 14px; }
+.search input { flex: 1 1 12rem; }
+.rows, .groupList { margin: 0; padding: 0; list-style: none; }
+.groupList { display: grid; gap: 8px; }
+.groupList a, .rows > li { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.groupList a { color: inherit; text-decoration: none; }
+.groupList a:hover { border-color: var(--color-brand-primary); }
+.groupList a div { display: grid; gap: 4px; min-inline-size: 0; overflow-wrap: anywhere; }
+.groupList span, .rows span { color: var(--color-text-secondary); font-size: .875rem; overflow-wrap: anywhere; }
+.rows > li { min-block-size: 48px; padding-block: 8px; border-block-end: 1px solid var(--color-border-divider); }
+.rows > li:last-child { border-block-end: 0; }
+.rows > li > div { min-inline-size: 0; overflow-wrap: anywhere; }
+.pick { display: flex; align-items: center; gap: 8px; min-block-size: 44px; overflow-wrap: anywhere; }
+.pick input { flex: 0 0 auto; accent-color: var(--color-brand-primary); }
+.operate { display: inline-flex; align-items: center; flex-shrink: 0; text-decoration: none; }
+.back, .rows a:not(.operate) { color: var(--color-brand-primary); font-weight: 650; }
+.page .notice, .page .error { border-radius: 8px; padding: 10px; }
+.page .notice { color: var(--color-success-text); background: var(--color-bg-success-subtle); }
+.page .error { color: var(--color-error-text); background: var(--color-bg-error-subtle); }

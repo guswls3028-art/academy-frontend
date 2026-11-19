@@ -1,0 +1,23 @@
+:root {
+  --dawon-canvas: #fbfaf8;
+  --dawon-paper: #fff;
+  --dawon-ink: #261c15;
+  --dawon-accent: #e46a1f;
+  --dawon-action: #a7470c;
+  --dawon-border: #eee6df;
+}
+
+.learning-room .breadcrumbs a:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.learning-room .breadcrumbs a:first-child::before {
+  content: "";
+  flex: 0 0 22px;
+  inline-size: 22px;
+  block-size: 22px;
+  background: url("/dawon-brand.svg") center / contain no-repeat;
+}

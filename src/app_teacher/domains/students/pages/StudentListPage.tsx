@@ -3,7 +3,8 @@
 // 학생 목록 — 강의딱지 + 전화번호 + 검색 + 필터 + 대량 선택 모드
 import { useEffect, useState, useRef } from "react";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
+import { resolveTenantCodeString } from "@/shared/tenant";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
@@ -166,6 +167,13 @@ export default function StudentListPage() {
 
   return (
     <div className="flex flex-col gap-3">
+      {!selectMode && resolveTenantCodeString() === "dawon" && (
+        <Link to="/workspace/mobile/students/class-groups"
+          className="self-start inline-flex min-h-11 items-center rounded-lg border px-3 text-sm font-semibold"
+          style={{ color: "var(--tc-primary)", borderColor: "var(--tc-border)", background: "var(--tc-surface)" }}>
+          반 편성
+        </Link>
+      )}
       {/* Header */}
       {!selectMode ? (
         <div className="flex items-center justify-between gap-2">
