@@ -74,7 +74,7 @@ export type TenantHeaderCssVars = Record<
   | "--tenant-header-foreground"
   | "--tenant-header-accent",
   string
->;
+> & { "--tenant-header-edge"?: string };
 
 /** 공용 역할별 헤더가 같은 방식으로 소비하는 테넌트 브랜드 표면 변수. */
 export function getTenantHeaderCssVars(
@@ -85,6 +85,7 @@ export function getTenantHeaderCssVars(
   return {
     "--tenant-header-surface": palette.surface,
     "--tenant-header-surface-soft": palette.surfaceSoft,
+    ...(palette.solidEdge ? { "--tenant-header-edge": palette.surfaceSoft } : {}),
     "--tenant-header-foreground": palette.foreground,
     "--tenant-header-accent": palette.accent,
   };

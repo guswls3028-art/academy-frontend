@@ -97,6 +97,12 @@ export default defineConfig(({ mode }) => {
         codeSplitting: {
           groups: [
             {
+              // The entry and lazy role screens share this cacheable branding registry.
+              name: "tenant-branding",
+              test: /[\\/]src[\\/]shared[\\/]tenant[\\/]tenants[\\/]/,
+              priority: 50,
+            },
+            {
               name: "vendor-core",
               test: (id) => {
                 const normalized = id.replace(/\\/g, "/");

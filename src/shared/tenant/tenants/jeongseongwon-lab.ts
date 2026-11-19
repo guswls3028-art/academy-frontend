@@ -22,6 +22,7 @@ export const jeongseongwonLab: TenantDef = {
     headerPalette: {
       surface: "#1a2f4e",
       surfaceSoft: "#273c5b",
+      solidEdge: true,
       foreground: "#ffffff",
       accent: "#d0def0",
     },

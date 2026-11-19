@@ -25,6 +25,8 @@ export type TenantBranding = {
   headerPalette?: {
     surface: string;
     surfaceSoft: string;
+    /** 헤더 끝까지 불투명한 바탕이 필요한 워드마크에 사용한다. */
+    solidEdge?: boolean;
     foreground: string;
     accent: string;
   };
