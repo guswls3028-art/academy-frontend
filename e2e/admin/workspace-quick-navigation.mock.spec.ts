@@ -107,9 +107,16 @@ test.describe("업무 화면 기능 검색", () => {
 
   test("교직원 게시판 조회 실패를 복구하고 작성 오류 뒤에도 입력을 유지한다", async ({ page }) => {
     let ready = false;
+    let published = false;
+    const notice = { id: 47, category: "notice", title: "금요일 강사·조교 회의 및 수업 인수인계 안내",
+      body: "마지막 수업이 끝난 뒤 교무실에서 만나요.", created_at: "2026-11-18T09:00:00Z", author_name: "김선생",
+      attachment_name: "", reply_count: 0, can_edit: true, replies: [] };
     await page.route("**/api/v1/staffs/board/posts/**", async route => {
       if (route.request().method() === "POST") return route.fulfill({ status: 400, json: { title: ["제목을 확인해 주세요."] } });
-      return route.fulfill({ json: ready ? { count: 0, next: null, previous: null, results: [] } : {} });
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith("/47/")) return route.fulfill({ json: notice });
+      const results = published && url.searchParams.get("category") === "notice" ? [notice] : [];
+      return route.fulfill({ json: ready ? { count: results.length, next: null, previous: null, results } : {} });
     });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${BASE}/workspace/dashboard`);
@@ -118,7 +125,20 @@ test.describe("업무 화면 기능 검색", () => {
     ready = true;
     await panel.getByRole("button", { name: "다시 시도" }).click();
     await expect(panel).toContainText("아직 등록된 내부 공지가 없습니다.");
-    await panel.getByRole("link", { name: "전체 보기" }).click();
+    published = true;
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.reload();
+      await expect(panel.getByRole("link", { name: new RegExp(notice.title) })).toBeVisible();
+      await page.screenshot({ path: test.info().outputPath(`board-dashboard-${width}.png`) });
+    }
+    await panel.getByRole("link", { name: new RegExp(notice.title) }).click();
+    await expect(page.getByRole("heading", { name: notice.title })).toBeVisible();
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+      await page.screenshot({ path: test.info().outputPath(`board-detail-${width}.png`) });
+    }
     await page.getByRole("tab", { name: "자유게시글" }).click();
     await page.getByRole("button", { name: "글쓰기" }).click();
     const editor = page.getByRole("dialog");
