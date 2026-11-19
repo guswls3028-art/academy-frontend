@@ -44,6 +44,8 @@ type PublishedExamResult = {
   rank?: number | null;
   percentile?: number | null;
   cohort_size?: number | null;
+  cohort_highest?: number | null;
+  cohort_top_decile_avg?: number | null;
   cohort_avg?: number | null;
   analysis?: ExamResultAnalysis;
   correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;

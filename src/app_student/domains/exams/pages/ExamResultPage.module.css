@@ -55,7 +55,7 @@
 }
 
 .scoreText {
-  font-size: 16px;
+  font-size: clamp(28px, 7vw, 40px);
   font-weight: 800;
 }
 
@@ -176,22 +176,6 @@
   font-weight: 700;
 }
 
-.gaugeProgress {
-  transition: stroke-dashoffset 0.6s ease;
-}
-
-.gaugeValue {
-  fill: var(--stu-text);
-  font-size: 24px;
-  font-weight: 900;
-}
-
-.gaugeUnit {
-  fill: var(--stu-text-muted);
-  font-size: 11px;
-  font-weight: 600;
-}
-
 .cardPanel {
   padding: var(--stu-space-5);
   background: var(--stu-surface-soft);
@@ -202,27 +186,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--stu-space-4);
-}
-
-.analysisHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--stu-space-3);
-}
-
-.analysisHeader .sectionTitle {
-  margin-bottom: 0;
-}
-
-.analysisRate {
-  flex-shrink: 0;
-  padding: 3px 8px;
-  color: var(--stu-primary);
-  font-size: 12px;
-  font-weight: 800;
-  background: var(--stu-tint-primary);
-  border-radius: 999px;
 }
 
 .analysisGrid {
@@ -255,9 +218,6 @@
   color: var(--stu-danger-text);
 }
 
-.analysisCell[data-positive="true"] strong {
-  color: var(--stu-success-text);
-}
 
 .analysisLabel {
   color: var(--stu-text-muted);
@@ -345,41 +305,6 @@
   color: var(--stu-success-text);
   background: var(--stu-success-bg);
   border-color: var(--stu-success);
-}
-
-.comparisonHeader {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: var(--stu-space-2);
-  font-size: 12px;
-}
-
-.diffValue {
-  color: var(--stu-danger-text);
-  font-weight: 700;
-}
-
-.diffValue[data-positive="true"] {
-  color: var(--stu-success-text);
-}
-
-.comparisonChart {
-  display: block;
-  width: 100%;
-  height: 8px;
-  overflow: hidden;
-  border-radius: 4px;
-}
-
-.comparisonFill {
-  transition: width 0.4s ease;
-}
-
-.axisRow {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 2px;
-  font-size: 11px;
 }
 
 .ratioHeader {
@@ -489,10 +414,6 @@
 }
 
 @media (max-width: 430px) {
-  .analysisGrid {
-    grid-template-columns: 1fr;
-  }
-
   .wrongNumberBlock {
     flex-direction: column;
     gap: var(--stu-space-2);
