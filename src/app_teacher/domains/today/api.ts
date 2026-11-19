@@ -51,9 +51,9 @@ export function todaySessionEntries(
  * include_progress=1: 출결 입력 진척(attendance_filled / attendance_total) 포함.
  * 모바일 "오늘" 카드에서만 사용 — 다른 리스트 페이지 응답은 변경 없음.
  */
-export async function fetchTodaySessions(date: string): Promise<TodaySession[]> {
+export async function fetchTodaySessions(date: string, classGroupId?: number): Promise<TodaySession[]> {
   const res = await api.get("/lectures/sessions/", {
-    params: { date, page_size: 50, include_progress: 1 },
+    params: { date, include_progress: 1, class_group: classGroupId },
   });
   const raw = res.data;
   return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];

@@ -13,7 +13,7 @@ import styles from "./DawonTeachingBoard.module.css";
 
 type TeachingClass = {
   id: number; name: string; members: number; courses: number[];
-  recent: {id: number; lecture_id: number; title: string; date: string} | null;
+  recent: {id: number; lecture_id: number; title: string; date: string; schedule_id: number | null} | null;
 };
 
 function MyTeachingBoard() {
@@ -27,7 +27,7 @@ function MyTeachingBoard() {
   const groups = classes.data ?? [];
   const group = groups.find(item => item.id === selectedId) ?? groups[0];
   const schedule = useQuery({
-    queryKey: teacherTodayQueryKeys.sessions(date), queryFn: () => fetchTodaySessions(date), enabled: !!group, staleTime: 30_000,
+    queryKey: [...teacherTodayQueryKeys.sessions(date), group?.id], queryFn: () => fetchTodaySessions(date, group?.id), enabled: !!group, staleTime: 30_000,
   });
   const attendance = (lectureId: number, sessionId: number) => `/workspace/lectures/${lectureId}/sessions/${sessionId}/attendance`;
   const entries = todaySessionEntries((schedule.data ?? []).filter(s => group?.courses.includes(s.lecture)), date, attendance)
@@ -55,7 +55,7 @@ function MyTeachingBoard() {
           <span className={styles.attendance}>출결 열기 <ArrowRight size={15} aria-hidden /></span>
         </Link></li>)}</ul> : <p className={styles.noLesson}>이날 예정된 수업이 없습니다.</p>}
       {recent && !schedule.isPending && !schedule.isError && !entries.length &&
-        <Link className={styles.recent} to={attendance(recent.lecture_id,recent.id)}><span><small>최근 수업 · {shortDateWeekday(recent.date)}</small><strong>{recent.title}</strong></span><span>수업 열기 <ArrowRight size={15} aria-hidden /></span></Link>}
+        <Link className={styles.recent} to={{pathname: attendance(recent.lecture_id, recent.id), search: recent.schedule_id ? "?schedule=" + recent.schedule_id : ""}}><span><small>최근 수업 · {shortDateWeekday(recent.date)}</small><strong>{recent.title}</strong></span><span>수업 열기 <ArrowRight size={15} aria-hidden /></span></Link>}
       <div className={styles.qr}><DashboardAttendanceQr lectureIds={group.courses} /></div>
     </section>
   </section>;
