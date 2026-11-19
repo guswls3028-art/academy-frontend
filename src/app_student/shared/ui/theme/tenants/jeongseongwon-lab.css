@@ -1,0 +1,21 @@
+[data-student-theme="jeongseongwon-lab"] {
+  --stu-primary: #315983;
+  --stu-primary-hover: #284a71;
+  --stu-primary-contrast: #ffffff;
+  --stu-gradient: linear-gradient(125deg, #1a2f4e, #315983);
+  --stu-focus: rgb(49 89 131 / 30%);
+  --stu-brand-1: #1a2f4e;
+  --stu-brand-2: #315983;
+  --stu-brand-3: #efcf83;
+  --stu-icon-1: #315983;
+  --stu-icon-2: #80601e;
+  --stu-tab-indicator: linear-gradient(90deg, #315983, #a77b28);
+}
+
+[data-app="student"][data-student-dark="true"][data-student-theme="jeongseongwon-lab"] {
+  --stu-primary: #a5c5ec;
+  --stu-primary-hover: #c4daf5;
+  --stu-icon-1: #a5c5ec;
+  --stu-icon-2: #efcf83;
+  --stu-tab-indicator: linear-gradient(90deg, #a5c5ec, #efcf83);
+}

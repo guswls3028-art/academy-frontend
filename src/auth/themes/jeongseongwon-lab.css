@@ -1,0 +1,25 @@
+[data-app="auth"][data-tenant="jeongseongwon-lab"] {
+  --auth-accent: #315983;
+  --auth-bg: #edf2f8;
+  --auth-surface: #fcfdff;
+  --auth-border: #cfd9e5;
+  --auth-text: #1a2f4e;
+  --auth-text-muted: #495e78;
+  --auth-focus: rgb(49 89 131 / 24%);
+  --auth-gradient: linear-gradient(125deg, #1a2f4e, #315983);
+  --auth-gradient-hover: linear-gradient(125deg, #142641, #284a71);
+}
+
+[data-app="auth"][data-tenant="jeongseongwon-lab"] [data-auth-part="brand-artwork"] img {
+  width: min(100%, 220px);
+  height: auto;
+}
+
+[data-app="auth"][data-tenant="jeongseongwon-lab"] [data-auth-part="brand-artwork"] h1 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

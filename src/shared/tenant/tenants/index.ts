@@ -12,6 +12,7 @@ import { sswe } from "./sswe";
 import { dnb } from "./dnb";
 import { movementhui } from "./movementhui";
 import { godmin } from "./godmin";
+import { jeongseongwonLab } from "./jeongseongwon-lab";
 import { local } from "./local";
 
 export type { TenantId, TenantBranding, TenantDef };
@@ -25,6 +26,7 @@ export const TENANTS: readonly TenantDef[] = [
   dnb,
   movementhui,
   godmin,
+  jeongseongwonLab,
   local,
 ] as const;
 

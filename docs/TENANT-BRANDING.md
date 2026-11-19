@@ -164,6 +164,16 @@ manifest, theme/background 색, 정적 에셋 존재를 함께 확인한다. 로
 390×844에서 DOM·가로 overflow·폼/푸터 겹침을 확인하고, 내부 헤더는 관리자·선생·
 학생·학부모의 라이트·다크 조합을 따른다.
 
+## 8. 정성원연구소
+
+`정성원연구소.com`과 `www.정성원연구소.com`의 Punycode 호스트는 ID `12`,
+코드 `jeongseongwon-lab`으로 같은 로그인과 메타데이터를 제공한다. 초기에는 학원명
+워드마크와 한글 첫 글자의 정사각형 아이콘을 사용한다. 로그인·공용 헤더·학생앱·성적표와
+PWA에 네이비 기반 팔레트를 적용하며, 역할별 화면과 권한은 공통 흐름을 따른다.
+
+집중 기능 검증 및 체험 기간은 백엔드의
+`docs/operations/tenants/jeongseongwon-lab.md`에서 관리한다.
+
 ## 공통 공개 랜딩 상단의 긴 학원명
 
 `src/landing/templates/shared.tsx`의 `LandingNavBar`를 사용하는 공개 페이지와

@@ -33,6 +33,7 @@ import "@/auth/themes/sswe.css";
 import "@/auth/themes/dnb.css";
 import "@/auth/themes/movementhui.css";
 import "@/auth/themes/godmin.css";
+import "@/auth/themes/jeongseongwon-lab.css";
 import "@/auth/themes/clean-decorations.css";
 import styles from "./LoginPage.module.css";
 import {
@@ -185,7 +186,7 @@ export default function LoginPage() {
         <section className={styles.brandStage} data-auth-part="brand-stage">
           <div className={styles.brandArtwork} data-auth-part="brand-artwork">
             {logoUrl ? (
-              <img src={logoUrl} alt={title} className={styles.logo} />
+              <img src={logoUrl} alt="" className={styles.logo} />
             ) : (
               <CommonLogoIcon height={64} className={styles.logo} />
             )}
