@@ -1352,10 +1352,11 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
 
       let releaseGrades!: () => void;
       const gradesGate = new Promise<void>(resolve => { releaseGrades = resolve; });
-      const gradeRequests: string[] = [];
+      const gradeRequests: { child: string; scope: string | null }[] = [];
       const commentRequests: string[] = [];
-      await page.route("**/api/v1/student/grades/", async route => {
-        gradeRequests.push(route.request().headers()["x-student-id"] ?? "missing");
+      await page.route((url) => url.pathname === "/api/v1/student/grades/", async route => {
+        gradeRequests.push({ child: route.request().headers()["x-student-id"] ?? "missing",
+          scope: new URL(route.request().url()).searchParams.get("scope") });
         await gradesGate;
         await route.fallback();
       });
@@ -1372,13 +1373,14 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
       const summaryComment = page.getByRole("region", { name: "성적 입력 전 학부모 코멘트" });
       try {
         await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
-        await expect.poll(() => gradeRequests).toEqual(["11"]);
+        await expect.poll(() => gradeRequests).toEqual([{ child: "11", scope: null }]);
         await expect.poll(() => commentRequests).toEqual(["11"]);
         await expect(summaryComment).toHaveCount(0);
       } finally {
         releaseGrades();
       }
       await expect(summaryComment).toContainText("성적 응답이 늦어도 미리 받은 코멘트입니다.");
+      expect(gradeRequests).toEqual([{ child: "11", scope: null }]);
       await page.goto(`${BASE}/student/grades?tab=stats`, { waitUntil: "domcontentloaded" });
       await expect(page.getByTestId("student-score-trend")).toBeVisible();
       expect(commentRequests).toEqual(["11"]);

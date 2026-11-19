@@ -1,5 +1,7 @@
 // PATH: src/app_student/shared/api/queryKeys.ts
 
+const gradesSummary = ["student", "grades", "summary"] as const;
+
 export const studentQueryKeys = {
   me: ["student", "me"] as const,
   notificationCounts: ["student", "notifications", "counts"] as const,
@@ -9,7 +11,8 @@ export const studentQueryKeys = {
   notificationQuestions: ["student", "qna", "questions", "notifications"] as const,
   counselRequests: ["student", "counsel", "requests"] as const,
   notificationCounsel: ["student", "counsel", "requests", "notifications"] as const,
-  gradesSummary: ["student", "grades", "summary"] as const,
+  gradesSummary,
+  gradeRows: [...gradesSummary, "rows"] as const,
   gradesAnalytics: ["student", "grades", "analytics"] as const,
   gradesRoot: ["student", "grades"] as const,
   homeworkMedia: (homeworkId?: number, enrollmentId?: number) =>

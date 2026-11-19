@@ -4,12 +4,14 @@
  * - 캐시된 프로필은 재사용하되, cache miss 조회 실패는 알림 쿼리 자체의 retry/error로 종료
  */
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMatch } from "react-router";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { fetchNotificationCounts, NOTIFICATION_COUNTS_REFRESH_INTERVAL_MS } from "../api/notifications.api";
 
 export function useNotificationCounts() {
   const queryClient = useQueryClient();
+  const fullGradeBoard = useMatch("/student/grades") !== null;
   return useQuery({
     queryKey: studentQueryKeys.notificationCounts,
     queryFn: async ({ signal }) => {
@@ -27,7 +29,7 @@ export function useNotificationCounts() {
       if (profile?.id == null) {
         throw new Error("Student profile id is required for notification counts.");
       }
-      return fetchNotificationCounts({ profileId: profile.id, queryClient, recovering });
+      return fetchNotificationCounts({ profileId: profile.id, queryClient, recovering, fullGradeBoard });
     },
     refetchInterval: NOTIFICATION_COUNTS_REFRESH_INTERVAL_MS,
     refetchOnWindowFocus: false,

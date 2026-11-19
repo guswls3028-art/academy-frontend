@@ -14,13 +14,13 @@ import {
 import EmptyState from "@student/layout/EmptyState";
 import { StatCard, StatGrid } from "@student/shared/ui/components/StatCard";
 import ProgressRing from "@student/shared/ui/components/ProgressRing";
-import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
+import { useMyGradeRows } from "@student/domains/grades/hooks/useMyGradesSummary";
 import { calculateExamStats } from "@student/domains/grades/utils/gradeStats";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 import styles from "./ExamStatsTab.module.css";
 
 export default function ExamStatsTab() {
-  const gradesQ = useMyGradesSummary();
+  const gradesQ = useMyGradeRows();
   const data = gradesQ.data;
   const isLoading = gradesQ.isLoading;
   const sourceExams = data?.exams;
