@@ -17,6 +17,16 @@ export type StudentSession = SessionOrderLike & {
   start_time?: string | null;
 };
 
+export type StudentHomeSessions = {
+  items: StudentSession[];
+  hasAnySessions: boolean;
+};
+
+type StudentSessionListResponse = StudentSession[] | {
+  items?: StudentSession[];
+  has_any_sessions?: boolean;
+};
+
 function normalizeStudentSession(session: StudentSession): StudentSession {
   const title = richHtmlToPlainText(session.title);
   return {
@@ -29,12 +39,23 @@ function normalizeStudentSession(session: StudentSession): StudentSession {
   };
 }
 
+function normalizeStudentSessionList(data: StudentSessionListResponse): StudentSession[] {
+  const items = Array.isArray(data) ? data : data?.items;
+  return Array.isArray(items) ? items.map(normalizeStudentSession) : [];
+}
+
 export async function fetchMySessions(): Promise<StudentSession[]> {
-  const res = await api.get<StudentSession[] | { items?: StudentSession[] }>("/student/sessions/me/");
-  const data = res.data;
-  if (Array.isArray(data)) return data.map(normalizeStudentSession);
-  if (data && Array.isArray(data.items)) return data.items.map(normalizeStudentSession);
-  return [];
+  const { data } = await api.get<StudentSessionListResponse>("/student/sessions/me/");
+  return normalizeStudentSessionList(data);
+}
+
+export async function fetchHomeSessions(): Promise<StudentHomeSessions> {
+  const { data } = await api.get<StudentSessionListResponse>("/student/sessions/me/", {
+    params: { scope: "home" },
+  });
+  const items = normalizeStudentSessionList(data);
+  const hasAnySessions = items.length > 0 || (!Array.isArray(data) && data?.has_any_sessions === true);
+  return { items, hasAnySessions };
 }
 
 export async function fetchSessionDetail(sessionId: number): Promise<StudentSession> {

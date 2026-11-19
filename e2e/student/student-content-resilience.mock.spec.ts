@@ -4,6 +4,7 @@ import { assertReleaseRequestSafe } from "../helpers/releaseApiBoundary";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 const IS_LOCAL_BASE = /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE);
+const matchesSessionsApi = (url: URL) => url.pathname === "/api/v1/student/sessions/me/";
 
 function fakeJwt(): string {
   const payload = Buffer.from(JSON.stringify({
@@ -706,17 +707,26 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
           await gradesReady;
           await route.fulfill({ json: grades });
         });
-        await page.route("**/api/v1/student/sessions/me/", (route) => route.fulfill({ json: [
+        const schedule = [
           { id: 21, title: "기간 밖 수업", date: "2026-09-23" },
           { id: 22, title: "기간 첫날 수업", date: "2026-09-24" },
           { id: 23, title: "오늘 클리닉", date: "2026-10-21", type: "clinic" },
           { id: 24, title: "내일 수업", date: "2026-10-22" },
-        ] }));
+        ];
+        const scopes: (string | null)[] = [];
+        await page.route(matchesSessionsApi, (route) => {
+          const scope = new URL(route.request().url()).searchParams.get("scope");
+          scopes.push(scope);
+          return route.fulfill({ json: scope === "home"
+            ? { items: schedule.slice(1), has_any_sessions: true }
+            : schedule });
+        });
         await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 120_000 });
         const card = page.getByRole("region", { name: "학습 현황", exact: true });
         const sessions = card.getByRole("link", { name: /수업·클리닉/ });
         const exams = card.getByRole("link", { name: /시험 합격/ });
         await expect(sessions).toContainText("2회");
+        expect(scopes).toEqual(["home"]);
         await expect(exams).toContainText("확인 중");
         await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
         releaseGrades();
@@ -729,6 +739,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         await card.screenshot({ path: screenshotPath });
         await testInfo.attach("learning-status", { path: screenshotPath, contentType: "image/png" });
         await verifyStudentLearningSummary(page, BASE);
+        expect(scopes).toContain(null);
         await page.reload();
         await expect(exams).toContainText("100%");
         await expect(sessions).toContainText("2회");
@@ -740,6 +751,49 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     }
   }
 
+  test("일정 숨기기 실패는 이미 열린 홈의 일정 건수도 복구한다", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.clock.setFixedTime(new Date("2026-10-21T09:00:00+09:00"));
+    await installStudentApi(page);
+    const recent = { id: 21, title: "최근 수업", date: "2026-10-20" };
+    const older = { id: 22, title: "이전 수업", date: "2026-09-12" };
+    await page.route(matchesSessionsApi, (route) => route.fulfill({
+      json: new URL(route.request().url()).searchParams.get("scope") === "home"
+        ? { items: [recent], has_any_sessions: true }
+        : [older, recent],
+    }));
+    let rejectHide!: () => void;
+    const hideResponse = new Promise<void>((resolve) => { rejectHide = resolve; });
+    await page.route("**/api/v1/student/sessions/hide/", async (route) => {
+      await hideResponse;
+      await route.fulfill({ status: 400, json: { detail: "일정 숨기기를 다시 시도해주세요." } });
+    });
+    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+    const card = page.getByRole("region", { name: "학습 현황", exact: true });
+    const schedule = card.getByRole("link", { name: /수업·클리닉/ });
+    try {
+      await expect(schedule).toContainText("1회");
+      await schedule.click();
+      await page.getByRole("button", { name: /지난 일정/ }).click();
+      const recentRow = page.locator('a[href="/student/sessions/21"]');
+      await recentRow.scrollIntoViewIfNeeded();
+      const bounds = await recentRow.boundingBox();
+      if (!bounds) throw new Error("Recent session row has no layout");
+      const y = bounds.y + bounds.height / 2;
+      await page.mouse.move(bounds.x + bounds.width * 0.8, y);
+      await page.mouse.down();
+      await page.mouse.move(bounds.x + bounds.width * 0.2, y, { steps: 8 });
+      await page.mouse.up();
+      await expect(recentRow).toHaveCount(0);
+      await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
+      await expect(schedule).toContainText("0회");
+      await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
+    } finally {
+      rejectHide();
+    }
+    await expect(schedule).toContainText("1회");
+  });
+
   for (const source of ["grades", "sessions"] as const) {
     test(`학습 현황은 ${source} 실패를 0으로 숨기지 않고 재시도로 복구한다`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width: 390, height: 844 });
@@ -750,7 +804,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       page.on("request", (request) => {
         if (new URL(request.url()).pathname.endsWith("/core/me/")) meReads += 1;
       });
-      await page.route(source === "grades" ? "**/api/v1/student/grades/" : "**/api/v1/student/sessions/me/", (route) => {
+      await page.route(source === "grades" ? "**/api/v1/student/grades/" : matchesSessionsApi, (route) => {
         dataReads += 1;
         return route.fulfill(failed
           ? { status: 400, json: { detail: "temporary read failure" } }
@@ -854,9 +908,10 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       await page.setViewportSize({ width: parentDashboard ? 390 : 1366, height: 900 });
       await page.clock.setFixedTime(new Date("2026-10-21T00:10:00+09:00"));
       await installStudentApi(page, { parentDashboard });
-      await page.route("**/api/v1/student/sessions/me/", (route) => route.fulfill({ json: [
-        { id: 21, title: "기간 밖 수업", date },
-      ] }));
+      await page.route(matchesSessionsApi, (route) => route.fulfill({ json: {
+        items: date === "2026-10-22" ? [{ id: 21, title: "기간 밖 수업", date }] : [],
+        has_any_sessions: true,
+      } }));
       await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
       const card = page.getByRole("region", { name: "학습 현황", exact: true });
       await expect(card.getByRole("link", { name: /수업·클리닉/ })).toContainText("0회");
@@ -900,7 +955,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       tenantRole: "parent", linkedStudents: [{ id: 11, name: "학생 11" }, { id: 12, name: "학생 12" }],
     } }));
     const selectedReads: string[] = [];
-    await page.route("**/api/v1/student/sessions/me/", (route) => route.fulfill({ json:
+    await page.route(matchesSessionsApi, (route) => route.fulfill({ json:
       route.request().headers()["x-student-id"] === "11"
         ? [{ id: 21, title: "첫째만의 수업", date: "2026-10-21" }] : [],
     }));

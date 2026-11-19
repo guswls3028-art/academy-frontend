@@ -15,7 +15,7 @@ import {
   hideMySession,
   unhideMySession,
 } from "@student/domains/sessions/api/sessions.api";
-import type { StudentSession } from "@student/domains/sessions/api/sessions.api";
+import type { StudentHomeSessions, StudentSession } from "@student/domains/sessions/api/sessions.api";
 import { studentSessionQueryKeys } from "../queryKeys";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
@@ -76,15 +76,32 @@ export default function SessionListPage() {
   const hideMutation = useMutation({
     mutationFn: hideMySession,
     onMutate: async (id: number) => {
-      await qc.cancelQueries({ queryKey: studentSessionQueryKeys.root });
-      const prev = qc.getQueryData<StudentSession[]>(studentSessionQueryKeys.root);
-      qc.setQueryData<StudentSession[]>(studentSessionQueryKeys.root, (cur) =>
-        (cur ?? []).filter((s) => s.id !== id),
-      );
-      return { prev };
+      const { root, home } = studentSessionQueryKeys;
+      await qc.cancelQueries({ queryKey: root });
+      const cache = qc.getQueryCache();
+      const listQuery = cache.find({ queryKey: root, exact: true });
+      const homeQuery = cache.find({ queryKey: home, exact: true });
+      const previous = qc.getQueryData<StudentSession[]>(root);
+      const previousHome = qc.getQueryData<StudentHomeSessions>(home);
+      const remaining = (previous ?? []).filter((session) => session.id !== id);
+      qc.setQueryData(root, remaining);
+      if (previousHome) {
+        qc.setQueryData<StudentHomeSessions>(home, {
+          items: previousHome.items.filter((session) => session.id !== id),
+          hasAnySessions: previous ? remaining.length > 0 : previousHome.hasAnySessions,
+        });
+      }
+      return { listQuery, homeQuery, previous, previousHome };
     },
     onError: (error: AxiosError<ApiErrorBody>, _id, ctx) => {
-      if (ctx?.prev) qc.setQueryData(studentSessionQueryKeys.root, ctx.prev);
+      const { root, home } = studentSessionQueryKeys;
+      const cache = qc.getQueryCache();
+      if (ctx?.previous && cache.find({ queryKey: root, exact: true }) === ctx.listQuery) {
+        qc.setQueryData(root, ctx.previous);
+      }
+      if (ctx?.previousHome && cache.find({ queryKey: home, exact: true }) === ctx.homeQuery) {
+        qc.setQueryData(home, ctx.previousHome);
+      }
       studentToast.error(
         error?.response?.data?.detail ||
           error?.response?.data?.message ||
