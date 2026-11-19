@@ -19,14 +19,17 @@ type NativeRecoveryFixture = {
 };
 declare global { interface Window { __nativeRecoveryFixture: NativeRecoveryFixture } }
 
-async function openNativeRecoveryFixture(page: Page, options: { review?: boolean; unsupported?: boolean; disposeImmediately?: boolean; stall?: boolean; knownDuration?: boolean; autoplayBlocked?: boolean } = {}) {
+async function openNativeRecoveryFixture(page: Page, options: { review?: boolean; unsupported?: boolean; disposeImmediately?: boolean; stall?: boolean; knownDuration?: boolean; autoplayBlocked?: boolean; sourceError?: boolean; deniedStatus?: number } = {}) {
   let segments = 0;
+  let alternateManifests = 0;
   await page.route("**/__qa__/native-recovery", (route) => route.fulfill({
     contentType: "text/html", body: '<!doctype html><html><body><video muted playsinline controls></video></body></html>',
   }));
   await page.route("**/__qa__/video-long/**", (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith(".m4s")) segments++;
+    if (path.endsWith("master.m3u8") && ["xhr", "fetch"].includes(route.request().resourceType())) alternateManifests++;
+    if (options.deniedStatus) return route.fulfill({ status: options.deniedStatus, body: "Synthetic media denial" });
     const asset = syntheticLongVideoAsset(path);
     return route.fulfill({ body: asset.body, contentType: asset.contentType });
   });
@@ -41,7 +44,7 @@ async function openNativeRecoveryFixture(page: Page, options: { review?: boolean
     }
     const { StudentHlsController } = await import("/src/app_student/domains/video/playback/player/headless/StudentHlsController.ts");
     const video = document.querySelector("video")!;
-    // Inject a native decoder failure; the replacement MSE pipeline below is real.
+    // Inject a native media failure; the replacement MSE pipeline below is real.
     const canPlayType = video.canPlayType.bind(video);
     video.canPlayType = (type) => type.includes("mpegurl") || type.includes("mpegURL") ? "probably" : canPlayType(type);
     const fatals: string[] = [];
@@ -92,22 +95,27 @@ async function openNativeRecoveryFixture(page: Page, options: { review?: boolean
       video.dispatchEvent(new Event("play"));
     } else {
       if (!options.review) void video.play().catch(() => {});
-      Object.defineProperty(video, "error", { configurable: true, get: () => ({ code: 3, message: "Synthetic native decoder failure" }) });
+      Object.defineProperty(video, "error", { configurable: true, get: () => options.sourceError
+        ? { code: 4, message: "" }
+        : { code: 3, message: "Synthetic native decoder failure" } });
       video.dispatchEvent(new Event("error"));
       delete (video as unknown as { error?: unknown }).error;
     }
     if (options.disposeImmediately) controller.dispose();
   }, { base: BASE, options, token: `e30.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "limglish", user_id: 1772 })).toString("base64url")}.sig` });
-  return { segments: () => segments };
+  return { segments: () => segments, alternateManifests: () => alternateManifests };
 }
 
 test.describe("native HLS engine recovery", () => {
   test.skip(!["127.0.0.1", "localhost"].includes(new URL(BASE).hostname), "Local synthetic media only");
   test.use({ serviceWorkers: "block" });
-  for (const width of [390, 1366]) {
-    test(`native decode failure resumes real MSE playback at ${width}px`, async ({ page }) => {
+  for (const { failure, width } of [
+    { failure: "decode", width: 390 }, { failure: "decode", width: 1366 },
+    { failure: "source", width: 390 }, { failure: "source", width: 1366 },
+  ]) {
+    test(`native ${failure} failure resumes real MSE playback at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 844 });
-      await openNativeRecoveryFixture(page);
+      await openNativeRecoveryFixture(page, { sourceError: failure === "source" });
       const video = page.locator("video");
       await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime), { timeout: 20_000 }).toBeGreaterThan(43);
       const state = await page.evaluate(() => {
@@ -138,7 +146,7 @@ test.describe("native HLS engine recovery", () => {
           ? { stream: "synthetic-review-stream", remaining_ms: 100_000, used_ms: 0 }
           : { detail: "수강 권한이 종료되었습니다." } });
       });
-      const fixture = await openNativeRecoveryFixture(page, { review: true });
+      const fixture = await openNativeRecoveryFixture(page, { review: true, sourceError: true });
       await expect.poll(() => page.locator("video").getAttribute("src")).toMatch(/^blob:/);
       expect(fixture.segments()).toBe(0);
       await page.evaluate(() => window.__nativeRecoveryFixture.controller.play());
@@ -247,12 +255,24 @@ test.describe("native HLS engine recovery", () => {
     await page.evaluate(() => window.__nativeRecoveryFixture.controller.dispose());
   });
   test("unsupported alternate engine retains visible fatal recovery", async ({ page }) => {
-    await openNativeRecoveryFixture(page, { unsupported: true });
-    await expect.poll(() => page.evaluate(() => window.__nativeRecoveryFixture.fatals)).toEqual(["비디오 디코딩 오류가 발생했습니다."]);
+    await openNativeRecoveryFixture(page, { unsupported: true, sourceError: true });
+    await expect.poll(() => page.evaluate(() => window.__nativeRecoveryFixture.fatals)).toEqual(["영상 서비스에서 재생 파일을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."]);
     expect(await page.locator("video").getAttribute("src")).toBeNull();
   });
+  for (const status of [401, 403, 404]) {
+    test(`native source recovery preserves the terminal HTTP ${status} failure`, async ({ page }) => {
+      const fixture = await openNativeRecoveryFixture(page, { sourceError: true, deniedStatus: status });
+      const expected = status === 404 ? "비디오 파일을 찾을 수 없습니다."
+        : "영상 서비스 인증에 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+      await expect.poll(() => page.evaluate(() => window.__nativeRecoveryFixture.fatals)).toEqual([expected]);
+      expect(fixture.segments()).toBe(0);
+      expect(fixture.alternateManifests()).toBe(1);
+      await page.evaluate(() => window.__nativeRecoveryFixture.controller.dispose());
+      expect(await page.locator("video").getAttribute("src")).toBeNull();
+    });
+  }
   for (const width of [390, 1366]) {
-    test(`paused native recovery exposes a working primary play button at ${width}px`, async ({ page }) => {
+    test(`paused native source recovery exposes a working primary play button at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 844 });
       await page.addInitScript(() => {
         const canPlayType = HTMLMediaElement.prototype.canPlayType;
@@ -272,7 +292,7 @@ test.describe("native HLS engine recovery", () => {
       await openWatch(page);
       const video = page.locator("video.svpVideo");
       await video.evaluate((element: HTMLVideoElement) => {
-        Object.defineProperty(element, "error", { configurable: true, get: () => ({ code: 3, message: "Synthetic native decode failure" }) });
+        Object.defineProperty(element, "error", { configurable: true, get: () => ({ code: 4, message: "" }) });
         element.dispatchEvent(new Event("error"));
         Reflect.deleteProperty(element, "error");
       });
@@ -582,7 +602,10 @@ for (const exhausted of [true, false]) {
       return route.fulfill({ status: 403 });
     });
     // Some engines load the manifest on attach, while native playback can wait for a gesture.
-    const denied = page.waitForResponse(response => response.url().includes("/review-media/") && response.status() === 403);
+    const denied = page.waitForResponse(
+      response => response.url().includes("/review-media/") && response.status() === 403,
+      { timeout: 30_000 },
+    );
     // Native engines can reach the expected denial before the normal player title renders.
     await page.goto(`${BASE}/student/video/play?video=562&enrollment=1304&session=394`);
     await Promise.race([denied, page.locator("button.svpBigPlay").click()]);

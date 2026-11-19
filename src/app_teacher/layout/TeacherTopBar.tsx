@@ -112,7 +112,7 @@ export default function TeacherTopBar({
           data-tenant-header-brand={headerBrandStyle ? "" : undefined}
           style={{
             background: headerBrandStyle
-              ? "linear-gradient(90deg, var(--tenant-header-surface) 0, var(--tenant-header-surface) 42px, var(--tenant-header-surface-soft) 70%, transparent 100%)"
+              ? "linear-gradient(90deg, var(--tenant-header-surface) 0, var(--tenant-header-surface) 42px, var(--tenant-header-surface-soft) 70%, var(--tenant-header-edge, transparent) 100%)"
               : "none",
             border: "none",
             padding: headerBrandStyle ? "5px 20px 5px 5px" : "8px 4px",

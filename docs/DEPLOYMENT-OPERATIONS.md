@@ -82,6 +82,11 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
    파일별 필수 개수는 같은 파일의 `developmentRealUseCases`가 소유하며,
    Playwright 대상·실행 결과 검증·진행 기록 allowlist가 이를 함께 사용한다.
    현재 23개 파일·42건이며 앱 업무 흐름, 재시도 금지와 수업 영상 재생 시간은 유지한다.
+   교사·학부모 시나리오의 fixture 정리 결과는 `teacher-score-fixture-cleanup.json`으로
+   따로 보존한다. 고정 작업명·소유 대상 ID·HTTP 상태·보관 여부와 가족 정리 단계별
+   요청/응답 여부·학생 순번·삭제 수·저장소 정리 대기/실패 수만 기록하고 원문 응답·
+   인증정보·개인정보·전체 trace/report는 업로드하지 않는다. 이 자료는 fixture 실패를
+   진단하기 위한 것이며 별도 tenant/user/runtime cleanup0이나 42건 성공을 대신하지 않는다.
    공개 YouTube의 정확한 봇 확인 응답은 아래 `publicVideoAvailability` 계약에 따라
    외부 가용성 결과로 따로 기록한다. 해당 관측만으로 다른 기능의 배포를 막지 않는다.
    기본 실행은 첫 실패 후 `maxFailures=1`로 나머지 시나리오를 중단하고 exact cleanup을 수행한다.
@@ -151,6 +156,7 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
    잘못된 revision 또는 남은 시간 소진 시 해당 회차를 실패로 기록한다.
    진입 자산을 빼면 새
    HTML만 먼저 전파되어 `index-*.js`가 404인 순간을 안정화 완료로 오인할 수 있다.
+운영 테넌트 화면 검사는 모바일과 데스크톱에서 같은 출처의 요청 실패도 수집한다. 학원플러스 홍보 첫 화면의 출결·학생 운영 예시 PNG 두 개는 브라우저가 같은 이미지 요청을 두 번 시작하고 하나를 취소할 수 있다. 이 경우에만 취소된 GET과 별개의 같은 URL 요청이 200으로 완료되고 최종 화면에서 같은 이미지가 실제 크기로 디코딩됐는지 대조한다. 증거가 빠지거나 문서·API·인증·다른 자산 요청이 실패하면 검사를 실패 처리한다.
 7. deploy job 내부 검증 실패는 같은 승인 job에서 즉시 baseline으로 rollback한다.
    후속 E2E 실패는 별도 `production-rollback` environment가 승인 대기 없이
    baseline으로 보상하고 실제 version 복귀를 확인한다.
@@ -164,8 +170,9 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
 배포 교체 중 이전 앱 셸이 새 lazy JavaScript 또는 CSS asset을 가리키지 못하면
 `vite:preloadError`, window error/rejection, React ErrorBoundary가 같은
 `isChunkLoadError` 분류를 사용해 제한된 cache-bust reload를 수행한다.
-`Unable to preload CSS`도 배포 자산 경합으로 분류하며, 반복 상한 뒤에는 사용자에게
-일반화된 새로고침 안내만 남긴다. route-critical CSS는 외부 Google Fonts 같은
+`Unable to preload CSS`도 배포 자산 경합으로 분류하며, 반복 상한 뒤에는 공통 오류
+카드에서 다시 불러오기와 [버그 제보](DEV-INBOX-GUIDE.md#화면-오류에서-바로-제보)를 제공한다.
+route-critical CSS는 외부 Google Fonts 같은
 CSP 차단 의존성을 두지 않는다.
 
 운영 build에서는 `ErrorBoundary`가 이 복구를 직접 소유한다. 개발자용
@@ -616,7 +623,12 @@ successful manifest·active development host를 읽는다. 진행 중인 release
 일치해야 한다. 성공한 V1 실행이 runtime 후보 조립, 격리 개발 검증, 배포 검증을 모두
 건너뛴 경우에만 해당 attempt의 공식 job 기록과 이전 manifest를 발행한 성공 attempt를
 별도로 확인하고 기존 host를 사용한다. 잘못된 host identity/IAM, 실패·취소된 release,
-읽기 오류와 검증 불일치는 즉시 실패한다. 대기는 별도 job과 임시 인증으로
+읽기 오류와 버전·manifest 검증 불일치는 즉시 실패한다.
+응답 형식이 유효한 active 실행 목록에서 건수와 실제 항목 수만 다르면
+전체 active 상태 목록을 1초·2초 후 최대 두 번 다시 조회한다. 그동안 최신 실행을
+대신 선택하거나 개발 QA를 시작하지 않는다. 목록 재조회도 기존 45분 제한을 따르며,
+불일치가 계속되거나 응답 형식·권한·버전·manifest·host 검증이 잘못되면 실패한다.
+재조회 횟수와 고정 오류 코드는 동일한 관측 증거에 남긴다. 대기는 별도 job과 임시 인증으로
 수행해 real-use의 100분 job/인증 예산을 소모하지 않는다. 준비 완료 뒤 기존 QA가
 최신 immutable backend revision, IAM, SSM 문서, host를 다시 검사하므로 대기 중
 성공한 관측으로 이후 검증을 생략하지 않는다. 관측은 PII 없는

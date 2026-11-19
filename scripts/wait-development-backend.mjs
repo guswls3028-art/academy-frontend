@@ -98,15 +98,29 @@ export async function waitForBackend({ readSnapshot, persist, now = Date.now,
   timeoutMs = 45 * 60_000, intervalMs = 30_000 }) {
   const started = now();
   let attempts = 0;
+  let listingRetries = 0;
   let previousState;
   while (true) {
     attempts++;
-    const snapshot = await readSnapshot();
+    let snapshot;
+    try { snapshot = await readSnapshot(); }
+    catch (error) {
+      if (!(error instanceof ReadinessFailure) || error.receipt.phase !== "active_run_listing"
+        || error.receipt.code !== "inconsistent" || listingRetries >= 2) throw error;
+      const elapsedMs = now() - started;
+      checked("wait_deadline", "deadline", () => assert.ok(elapsedMs < timeoutMs));
+      listingRetries++;
+      persist({ schemaVersion: 1, state: "checking", attempts, elapsedMs, listingRetries,
+        failure: error.receipt });
+      await sleep(Math.min(listingRetries * 1_000, timeoutMs - elapsedMs));
+      continue;
+    }
     const state = backendReadiness(snapshot);
     const elapsedMs = now() - started;
     persist({ schemaVersion: 1, state, attempts, elapsedMs, backendRevision: snapshot.revision,
       backendReleaseId: snapshot.manifest.releaseImageTag, runId: snapshot.releaseRun.id,
-      runAttempt: snapshot.releaseRun.run_attempt, instanceCount: snapshot.instances.length });
+      runAttempt: snapshot.releaseRun.run_attempt, instanceCount: snapshot.instances.length,
+      ...(listingRetries ? { listingRetries } : {}) });
     checked("wait_deadline", "deadline", () => assert.ok(elapsedMs <= timeoutMs));
     if (state === "ready") return snapshot;
     checked("wait_deadline", "deadline", () => assert.ok(elapsedMs < timeoutMs));
@@ -132,7 +146,17 @@ export async function readBackendRun(fetchJson) {
   // release lock. Query active states rather than inferring idleness from it.
   const groups = await Promise.all([...ACTIVE_STATUSES].map((status) =>
     fetchJson(`${API}/actions/workflows/v1-build-and-push-latest.yml/runs?branch=main&status=${status}&per_page=100`, "active_run_listing")));
+  checked("active_run_listing", "shape", () => {
+    for (const group of groups) {
+      assert.ok(Number.isSafeInteger(group?.total_count) && group.total_count >= 0);
+      assert.ok(Array.isArray(group.workflow_runs) && group.workflow_runs.length <= 100);
+    }
+  });
   checked("active_run_listing", "incomplete", () => {
+    for (const group of groups) assert.ok(group.total_count <= 100);
+  });
+  // A GitHub run can finish between the listing count and its returned rows.
+  checked("active_run_listing", "inconsistent", () => {
     for (const group of groups) assert.equal(group.total_count, group.workflow_runs.length);
   });
   const active = groups.flatMap((group) => group.workflow_runs);

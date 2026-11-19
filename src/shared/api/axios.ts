@@ -44,8 +44,6 @@ type RetryConfig = ApiRequestConfig & {
   _retry?: boolean;
   _asyncId?: string;
   _transientRetryCount?: number;
-  _authGeneration?: string | null;
-  _expectedTenant?: string;
   _documentGeneration?: number;
 };
 
@@ -58,8 +56,13 @@ export type PlaybackEventScope = {
 };
 export type ApiRequestConfig = AxiosRequestConfig & {
   skipAuth?: boolean;
+  /** Keep a report draft visible after expiring its rejected authentication. */
+  preservePageOnAuthFailure?: boolean;
   playbackUnload?: true;
   playbackEventScope?: PlaybackEventScope;
+  /** Captured continuation identity; refresh rotation keeps the generation. */
+  _authGeneration?: string | null;
+  _expectedTenant?: string;
 };
 
 export function capturePlaybackEventScope(): PlaybackEventScope {
@@ -232,13 +235,13 @@ function getExpiredSessionLoginPath(): string {
   }
 }
 
-function endExpiredSession(expectedGeneration?: string | null) {
+function endExpiredSession(expectedGeneration?: string | null, preservePage = false) {
   const supportWindow = isStudentSupportWindow();
   if (!supportWindow && isSessionEnding) return;
   const loginPath = getExpiredSessionLoginPath();
   clearTokens(expectedGeneration);
   if (supportWindow) {
-    window.location.href = "/support-preview-ended";
+    if (!preservePage) window.location.href = "/support-preview-ended";
     return;
   }
 
@@ -249,6 +252,7 @@ function endExpiredSession(expectedGeneration?: string | null) {
     setSessionItem("session_expired", "1");
   } catch { /* ignore */ }
   saveReturnPath();
+  if (preservePage) return;
   window.location.href = loginPath;
 }
 
@@ -530,6 +534,12 @@ api.interceptors.request.use(async (config) => {
         const auth = unloading
           ? { ...current!, sessionChanged: false, reusedRotation: false }
           : await ensureFreshToken();
+        if (current && !auth && retryCfg.preservePageOnAuthFailure) {
+          retryCfg._retry = true;
+          throw new AxiosError("Authentication expired", AxiosError.ERR_BAD_REQUEST, cfg, undefined, {
+            data: null, status: 401, statusText: "Unauthorized", headers: {}, config: cfg,
+          });
+        }
         if (auth?.sessionChanged || (auth && auth.generation !== retryCfg._authGeneration)) {
           throw new axios.CanceledError("Authentication session changed.");
         }
@@ -761,7 +771,7 @@ api.interceptors.response.use(
     // 대리보기는 관리자 localStorage 세션과 분리된 일회성 access-only 창이다.
     // 관리자 refresh envelope를 재사용하지 않고 전용 세션만 종료한다.
     if (status === 401 && isStudentSupportWindow() && !shouldSkipAuth(original.url, original)) {
-      endExpiredSession();
+      endExpiredSession(undefined, original.preservePageOnAuthFailure);
       completeAsyncError();
       throw err;
     }
@@ -817,7 +827,7 @@ api.interceptors.response.use(
           original._authGeneration === undefined
           || original._authGeneration === readAuthTokenEnvelopeSafely()?.generation
         ) {
-          endExpiredSession(original._authGeneration);
+          endExpiredSession(original._authGeneration, original.preservePageOnAuthFailure);
         }
         completeAsyncError();
         throw err;
@@ -840,7 +850,7 @@ api.interceptors.response.use(
         original._authGeneration === undefined
         || original._authGeneration === readAuthTokenEnvelopeSafely()?.generation
       ) {
-        endExpiredSession(original._authGeneration);
+        endExpiredSession(original._authGeneration, original.preservePageOnAuthFailure);
       }
       completeAsyncError();
       throw err;

@@ -105,7 +105,9 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
         {query.isPending ? <span className={styles.note} role="status">불러오는 중…</span> : (
           <div className={styles.stripActions}>
             <Button intent="ghost" size="sm" onClick={() => openManager()} disabled={!data || query.isError}>수업일 관리</Button>
-            {!hasDays && data && !query.isError && <Button intent="ghost" size="sm" className={styles.quickAdd} leftIcon={<Plus size={15} aria-hidden />} onClick={() => openManager(true)}>수업일 추가</Button>}
+            {data && !query.isError && data.schedules.length < SESSION_SCHEDULE_DAY_LIMIT && (
+              <Button intent="ghost" size="sm" iconOnly aria-label="수업일 추가" title="수업일 추가" leftIcon={<Plus size={17} aria-hidden />} onClick={() => openManager(true)} />
+            )}
           </div>
         )}
       </div>
@@ -127,9 +129,8 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
         </div>}
         {!query.isPending && unknown && <p className={styles.error} role="alert">선택한 수업일을 찾을 수 없습니다. 수업일을 다시 선택해 주세요.</p>}
         {shared && data.schedules.length > 0 && <p className={styles.note}>시험·과제·영상·공지는 모든 수업일에 공유됩니다.</p>}
-        {hasDays && <div className={styles.stripActions}>
-          {data.schedules.length < SESSION_SCHEDULE_DAY_LIMIT && <Button intent="ghost" size="sm" leftIcon={<Plus size={15} aria-hidden />} onClick={() => openManager(true)}>수업일 추가</Button>}
-          {canTransfer && <Button intent="secondary" size="sm" leftIcon={<ArrowRightLeft size={15} aria-hidden />} onClick={() => void prepare(() => setTransferOpen(true))}>학생 수업일 변경</Button>}
+        {hasDays && canTransfer && <div className={styles.stripActions}>
+          <Button intent="secondary" size="sm" leftIcon={<ArrowRightLeft size={15} aria-hidden />} onClick={() => void prepare(() => setTransferOpen(true))}>학생 수업일 변경</Button>
         </div>}
       </>}
     </section>

@@ -41,14 +41,6 @@
   margin-inline-start: auto;
 }
 
-:global([data-inline='true']) > .strip[data-empty='true'] .quickAdd {
-  padding-inline: 6px;
-}
-
-:global([data-inline='true']) > .strip[data-empty='true'] .quickAdd > :global(.ds-button__left) {
-  display: none;
-}
-
 .dayChoices {
   display: grid;
   gap: 3px;
