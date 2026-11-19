@@ -8,12 +8,14 @@ import styles from "./AttendanceQrManager.module.css";
 
 const Manager = lazy(() => import("./AttendanceQrManager").then(module => ({ default: module.QrManagerDialog })));
 
+const activeLecturesKey = ["attendance-qr", "active-lectures"] as const;
+
 export default function DashboardAttendanceQr() {
   const [open, setOpen] = useState(false);
   const [lectureId, setLectureId] = useState<number | null>(null);
   const [showCode, setShowCode] = useState(false);
   const lectures = useQuery({
-    queryKey: ["attendance-qr", "active-lectures"],
+    queryKey: activeLecturesKey,
     queryFn: () => fetchLectures({ is_active: true }),
     enabled: open,
   });
