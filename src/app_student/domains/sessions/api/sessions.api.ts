@@ -1,6 +1,7 @@
 // PATH: src/app_student/domains/sessions/api/sessions.ts
 
 import api from "@student/shared/api/student.api";
+import sharedApi, { type ApiRequestConfig } from "@/shared/api/axios";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import { formatSessionLabel, type SessionOrderLike } from "@/shared/product/sessions/sessionOrdering";
 
@@ -17,6 +18,11 @@ export type StudentSession = SessionOrderLike & {
   start_time?: string | null;
 };
 
+export type StudentHomeSessions = {
+  items: StudentSession[];
+  hasAnySessions: boolean;
+};
+
 function normalizeStudentSession(session: StudentSession): StudentSession {
   const title = richHtmlToPlainText(session.title);
   return {
@@ -29,12 +35,23 @@ function normalizeStudentSession(session: StudentSession): StudentSession {
   };
 }
 
+async function fetchSessionList(scope?: "home"): Promise<StudentHomeSessions> {
+  const { data } = await api.get<StudentSession[] | { items?: StudentSession[]; has_any_sessions?: boolean }>(
+    "/student/sessions/me/",
+    scope ? { params: { scope } } : undefined,
+  );
+  const items = Array.isArray(data) ? data : data?.items;
+  const sessions = Array.isArray(items) ? items.map(normalizeStudentSession) : [];
+  const hasAnySessions = sessions.length > 0 || (!Array.isArray(data) && data?.has_any_sessions === true);
+  return { items: sessions, hasAnySessions };
+}
+
 export async function fetchMySessions(): Promise<StudentSession[]> {
-  const res = await api.get<StudentSession[] | { items?: StudentSession[] }>("/student/sessions/me/");
-  const data = res.data;
-  if (Array.isArray(data)) return data.map(normalizeStudentSession);
-  if (data && Array.isArray(data.items)) return data.items.map(normalizeStudentSession);
-  return [];
+  return (await fetchSessionList()).items;
+}
+
+export function fetchHomeSessions(): Promise<StudentHomeSessions> {
+  return fetchSessionList("home");
 }
 
 export async function fetchSessionDetail(sessionId: number): Promise<StudentSession> {
@@ -47,12 +64,12 @@ export async function clearMyPastSessions(): Promise<{ hidden_before: string }> 
   return res.data;
 }
 
-export async function hideMySession(id: number): Promise<{ hidden_ids: number[] }> {
-  const res = await api.post<{ hidden_ids: number[] }>("/student/sessions/hide/", { id });
+export async function hideMySession(id: number, config: ApiRequestConfig): Promise<{ hidden_ids: number[] }> {
+  const res = await sharedApi.post<{ hidden_ids: number[] }>("/student/sessions/hide/", { id }, config);
   return res.data;
 }
 
-export async function unhideMySession(id: number): Promise<{ hidden_ids: number[] }> {
-  const res = await api.post<{ hidden_ids: number[] }>("/student/sessions/unhide/", { id });
+export async function unhideMySession(id: number, config: ApiRequestConfig): Promise<{ hidden_ids: number[] }> {
+  const res = await sharedApi.post<{ hidden_ids: number[] }>("/student/sessions/unhide/", { id }, config);
   return res.data;
 }
