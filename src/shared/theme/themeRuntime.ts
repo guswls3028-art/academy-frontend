@@ -1,6 +1,7 @@
 import { DEFAULT_ACCENT, isThemeKey, type ThemeKey } from "./themes";
 import { accentVariables, normalizeAccent } from "./accent";
 import { getLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
+import { getTenantDefByHostname } from "@/shared/tenant/tenants";
 export const APPEARANCE_STORAGE_KEY = "hakwonplus:appearance";
 const LEGACY_STORAGE_KEY = "hakwonplus:theme";
 export type Appearance = { version: 1; theme: ThemeKey; accent: string };
@@ -22,6 +23,11 @@ const LEGACY: Record<string, [ThemeKey, string]> = {
   "samsung-admin": ["modern-white", "#0057d9"],
   "purple-insight": ["modern-white", "#7c3aed"],
 };
+export function getDefaultAccent(): string {
+  const tenant = typeof window === "undefined" ? undefined : getTenantDefByHostname(window.location.hostname);
+  return tenant?.branding.workspaceAccent ?? DEFAULT_ACCENT;
+}
+
 export function loadAppearance(): Appearance {
   const raw = getLocalItem(APPEARANCE_STORAGE_KEY);
   try {
@@ -33,7 +39,7 @@ export function loadAppearance(): Appearance {
     }
   } catch { /* A damaged preference must never prevent entering the app. */ }
   const old = getLocalItem(LEGACY_STORAGE_KEY);
-  const [theme, accent] = (old && Object.prototype.hasOwnProperty.call(LEGACY, old) && LEGACY[old]) || [isThemeKey(old) ? old : "modern-white", DEFAULT_ACCENT];
+  const [theme, accent] = (old && Object.prototype.hasOwnProperty.call(LEGACY, old) && LEGACY[old]) || [isThemeKey(old) ? old : "modern-white", getDefaultAccent()];
   return { version: 1, theme, accent };
 }
 export function applyAppearance(appearance: Appearance): AppearanceResult {

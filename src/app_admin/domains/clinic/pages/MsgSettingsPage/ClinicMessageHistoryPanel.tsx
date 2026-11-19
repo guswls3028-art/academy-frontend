@@ -13,6 +13,9 @@ import {
 } from "@admin/domains/messages/public/clinicMessageHistory";
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { feedback } from "@/shared/ui/feedback/feedback";
+import useAuth from "@/auth/hooks/useAuth";
+import { resolveTenantCodeString } from "@/shared/tenant";
+import { formatPhone } from "@/shared/utils/formatPhone";
 import styles from "./ClinicMessageHistoryPanel.module.css";
 
 type HistoryState =
@@ -108,7 +111,7 @@ function logRow(item: NotificationLogItem): HistoryRow {
     state,
     label: STATE_LABELS[state],
     title: item.template_summary || item.notification_type || "클리닉 알림톡",
-    recipient: item.recipient_summary || item.target_name || "수신자 정보 제한",
+    recipient: [item.recipient_summary || item.target_name || "수신자 정보 제한", item.current_recipient_phone ? `현재 연락처: ${formatPhone(item.current_recipient_phone)}` : ""].filter(Boolean).join(" · "),
     timestamp: item.provider_delivery_updated_at || item.sent_at,
     detail,
     canVerify: state === "provider_accepted" && Boolean(item.provider_evidence),
@@ -116,13 +119,20 @@ function logRow(item: NotificationLogItem): HistoryRow {
 }
 
 export default function ClinicMessageHistoryPanel() {
+  const { user } = useAuth();
+  const viewerScope = [resolveTenantCodeString(), user?.id, user?.tenantRole];
+  if (!user) return null;
+  return <ScopedMessageHistory key={JSON.stringify(viewerScope)} viewerScope={viewerScope} />;
+}
+
+function ScopedMessageHistory({ viewerScope }: { viewerScope: readonly unknown[] }) {
   const logsQ = useQuery({
-    queryKey: clinicMessageHistoryQueryKeys.logs,
+    queryKey: clinicMessageHistoryQueryKeys.withViewerScope(clinicMessageHistoryQueryKeys.logs, viewerScope),
     queryFn: () => fetchNotificationLog({ scope: "clinic", page_size: 20 }),
     staleTime: 30_000,
   });
   const scheduledQ = useQuery({
-    queryKey: clinicMessageHistoryQueryKeys.scheduled,
+    queryKey: clinicMessageHistoryQueryKeys.withViewerScope(clinicMessageHistoryQueryKeys.scheduled, viewerScope),
     queryFn: () => fetchScheduledNotifications({ scope: "clinic", page_size: 20 }),
     staleTime: 30_000,
   });

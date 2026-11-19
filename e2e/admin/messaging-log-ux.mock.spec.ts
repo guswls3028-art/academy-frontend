@@ -21,6 +21,7 @@ const logs = [
     status: "sent",
     amount_deducted: "0.00",
     recipient_summary: "최정원 0109****",
+    current_recipient_phone: "01000000003",
     template_summary: "가입 안내(학생)",
     notification_type: "registration_approved_student",
     message_mode: "alimtalk",
@@ -41,6 +42,7 @@ const logs = [
     status: "ambiguous",
     amount_deducted: "0.00",
     recipient_summary: "김민서 0108****",
+    current_recipient_phone: "01000000004",
     template_summary: "클리닉 예약 안내",
     notification_type: "clinic_reservation_created",
     message_mode: "alimtalk",
@@ -260,7 +262,7 @@ for (const width of [1366, 390]) {
 }
 
 test.describe("알림톡 발송 기록 UX", () => {
-  test("provider lifecycle를 실패로 뭉개지 않고 보안 본문을 설명한다", async ({ page }) => {
+  test("provider lifecycle를 실패로 뭉개지 않고 보안 본문을 설명한다", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1366, height: 900 });
     const { detailRequests } = await installMessagingLogApp(page);
     await openLog(page);
@@ -275,9 +277,14 @@ test.describe("알림톡 발송 기록 UX", () => {
     await expect(logRegion.getByText("재시도 대기", { exact: true })).toBeVisible();
     await expect(page.getByText("성공", { exact: true })).toHaveCount(0);
 
+    const currentContact = page.getByText("현재 연락처: 010-0000-0003", { exact: true });
+    await expect(currentContact).toBeVisible();
+    expect(await currentContact.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
     await page.getByRole("button", { name: /최정원/ }).click();
     const dialog = page.getByRole("dialog").last();
     await expect(dialog.getByText("알림톡 발송 기록", { exact: true })).toBeVisible();
+    await expect(dialog.getByRole("link", { name: "010-0000-0003", exact: true })).toHaveAttribute("href", "tel:01000000003");
+    await page.screenshot({ path: testInfo.outputPath("admin-current-contact-1366.png") });
     await expect(dialog.getByRole("region", { name: "카카오 알림톡 미리보기" })).toBeVisible();
     await expect(dialog.getByText("우리 학원 알림톡", { exact: true })).toBeVisible();
     await expect(dialog.getByText(/보안을 위해 본문을 저장하지 않았습니다/)).toBeVisible();
@@ -302,16 +309,20 @@ test.describe("알림톡 발송 기록 UX", () => {
     expect(providerVerifyRequests).toEqual([902]);
   });
 
-  test("390px에서 로그와 상세가 가로로 잘리지 않는다", async ({ page }) => {
+  test("390px에서 로그와 상세가 가로로 잘리지 않는다", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await installMessagingLogApp(page);
     await openLog(page);
 
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
     await expect(page.getByRole("button", { name: /김민서/ })).toBeVisible();
+    const currentContact = page.getByText("현재 연락처: 010-0000-0004", { exact: true });
+    expect(await currentContact.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
     await page.getByRole("button", { name: /김민서/ }).click();
     const dialog = page.getByRole("dialog").last();
     await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("link", { name: "010-0000-0004", exact: true })).toHaveAttribute("href", "tel:01000000004");
+    await page.screenshot({ path: testInfo.outputPath("admin-current-contact-390.png") });
     const box = await dialog.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.x).toBeGreaterThanOrEqual(-1);
