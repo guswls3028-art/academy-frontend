@@ -3,10 +3,12 @@
 
 import { useMemo, useState, useCallback, type CSSProperties, type DragEvent, type KeyboardEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 
 import api from "@/shared/api/axios";
+import ClassGroupsPage from "@/shared/product/dawon/ClassGroupsPage";
+import { resolveTenantCodeString } from "@/shared/tenant";
 import { EmptyState, Button, ICON } from "@/shared/ui/ds";
 import { DomainListToolbar, DomainTable, ResizableTh, useTableColumnPrefs } from "@/shared/ui/domain";
 import type { TableColumnDef } from "@/shared/ui/domain";
@@ -162,6 +164,13 @@ function LectureSortableTh({
 }
 
 export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
+  const [params] = useSearchParams();
+  const dawon = resolveTenantCodeString() === "dawon";
+  if (dawon && tab !== "past" && params.get("view") !== "all") return <ClassGroupsPage lectureEntry />;
+  return <LecturesTable tab={tab} />;
+}
+
+function LecturesTable({ tab = "active" }: LecturesPageProps) {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [q, setQ] = useState("");
@@ -363,11 +372,13 @@ export default function LecturesPage({ tab = "active" }: LecturesPageProps) {
               className="ds-input max-w-[360px]"
             />
           }
-          primaryAction={
+          primaryAction={resolveTenantCodeString() === "dawon" ? (
+            <Link className="ds-btn" to="/workspace/lectures">반별 강의</Link>
+          ) : (
             <Button data-guide="lectures-add-btn" intent="primary" onClick={() => setShowModal(true)}>
               강의 추가
             </Button>
-          }
+          )}
           belowSlot={
             <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-[var(--color-text-muted)]" aria-live="polite">
               <span>

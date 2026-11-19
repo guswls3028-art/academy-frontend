@@ -1,8 +1,9 @@
 import { useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { QRCode } from "antd";
-import { Printer, ScanLine } from "lucide-react";
-import api from "@/shared/api/axios";
+import { Download, Printer, ScanLine } from "lucide-react";
+import api, { getAccessToken } from "@/shared/api/axios";
+import { resolveTenantCodeString } from "@/shared/tenant";
 import { qrUrl, type QrKind, type QrPoint } from "@/shared/api/contracts/attendanceQr";
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
@@ -13,6 +14,17 @@ import styles from "./AttendanceQrManager.module.css";
 type Props = { kind: QrKind; lectureId?: number };
 const endpoint = "/lectures/attendance-qr/";
 
+function isDawonTeacherPreview() {
+  if (resolveTenantCodeString() !== "dawon") return false;
+  const payload = getAccessToken()?.split(".")[1];
+  if (!payload) return false;
+  try {
+    return JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))).dawon_demo_role === "teacher";
+  } catch {
+    return false;
+  }
+}
+
 export default function AttendanceQrManager({ kind, lectureId }: Props) {
   const [open, setOpen] = useState(false);
   return <>
@@ -21,8 +33,9 @@ export default function AttendanceQrManager({ kind, lectureId }: Props) {
   </>;
 }
 
-function QrManagerDialog({ kind, lectureId, onClose }: Props & { onClose: () => void }) {
+export function QrManagerDialog({ kind, lectureId, lectureTitle, onClose }: Props & { lectureTitle?: string; onClose: () => void }) {
   const locationId = useId();
+  const canManagePoints = !isDawonTeacherPreview();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
   const poster = useRef<HTMLDivElement>(null);
@@ -53,6 +66,23 @@ function QrManagerDialog({ kind, lectureId, onClose }: Props & { onClose: () => 
     },
     onError: (err) => setError(extractApiError(err, "QR을 저장하지 못했습니다. 입력을 확인하고 다시 시도해 주세요.")),
   });
+
+  const download = () => {
+    const svg = poster.current?.querySelector("svg")?.cloneNode(true) as SVGSVGElement | undefined;
+    if (!svg || !selected?.active) return;
+    svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    svg.setAttribute("width", "1024");
+    svg.setAttribute("height", "1024");
+    svg.removeAttribute("style");
+    const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: "image/svg+xml" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${lectureTitle || selected.label}-출석-QR.svg`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
 
   const print = () => {
     if (!poster.current || !selected?.active) return;
@@ -99,16 +129,20 @@ function QrManagerDialog({ kind, lectureId, onClose }: Props & { onClose: () => 
         {selected ? <>
           <div ref={poster} className={styles.poster} aria-label="출결 QR 인쇄 미리보기">
             <h2>{selected.label}</h2>
+            {lectureTitle && <p>{lectureTitle}</p>}
             <p>{kind === "clinic" ? (selected.location || "전체 클리닉 장소") : "오늘 수업 출석"}</p>
-            {selected.active ? <QRCode type="svg" value={qrUrl(selected.token)} size={240} bordered={false} level="M" /> : <p>사용이 중지된 QR입니다.</p>}
+            {selected.active ? <QRCode type="svg" value={qrUrl(selected.token)} size={240} marginSize={4} color="#000000" bgColor="#ffffff" bordered={false} level="M" /> : <p>사용이 중지된 QR입니다.</p>}
             <p>학생앱 로그인 → QR 출석 → 카메라 스캔</p>
             <p>{kind === "clinic" ? "들어올 때 등원 · 나갈 때 하원" : "출석 완료 화면을 확인하고 입실해 주세요."}</p>
             <small>학생 본인 계정으로 이용해 주세요.</small>
           </div>
           <div className={styles.actions}>
             <Button intent="primary" disabled={!selected.active || mutation.isPending} leftIcon={<Printer size={ICON_FOR_BUTTON.md} />} onClick={print}>QR 인쇄·PDF 저장</Button>
+            <Button disabled={!selected.active || mutation.isPending} leftIcon={<Download size={ICON_FOR_BUTTON.md} />} onClick={download}>QR 다운로드 (SVG)</Button>
+            {canManagePoints && <>
             <Button disabled={mutation.isPending} onClick={() => { void changePoint("rotate"); }}>새 QR로 교체</Button>
             <Button disabled={mutation.isPending} onClick={() => { void changePoint("toggle"); }}>{selected.active ? "사용 중지" : "다시 사용"}</Button>
+            </>}
           </div>
         </> : <p>QR을 발급한 뒤 출력해 교실 문에 붙여 주세요.</p>}
         <details open={!selected} className={styles.create}><summary>새 출결 QR 만들기</summary>

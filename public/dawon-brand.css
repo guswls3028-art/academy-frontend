@@ -21,3 +21,55 @@
   block-size: 22px;
   background: url("/dawon-brand.svg") center / contain no-repeat;
 }
+
+/* Calendar geometry is independent of the current date and its events. */
+#schedule-view .cal-grid {
+  --dawon-day-height: 5.75rem;
+  grid-auto-rows: var(--dawon-day-height);
+  grid-template-rows: auto;
+}
+#schedule-view .cal-day {
+  display: grid;
+  grid-template-rows: 1.2rem .875rem minmax(0, 1fr);
+  justify-items: center;
+  align-items: start;
+  align-content: start;
+  min-block-size: 0;
+  min-inline-size: 0;
+  padding: 5px 1px;
+  gap: 1px;
+}
+#schedule-view .cal-day b { grid-row: 1; line-height: 1.2rem; }
+#schedule-view .cal-day small { grid-row: 2; line-height: .875rem; white-space: nowrap; }
+#schedule-view .cal-tags {
+  grid-row: 3;
+  max-inline-size: 100%;
+  align-content: start;
+  row-gap: 1px;
+}
+#schedule-view .cal-tag { font-size: .6875rem; line-height: 1.1; }
+#schedule-view .cal-switch a {
+  min-block-size: 44px;
+  min-inline-size: 62px;
+  padding-block: 0;
+  white-space: nowrap;
+}
+#schedule-view .cal-nav a {
+  inline-size: 44px;
+  block-size: 44px;
+  flex: 0 0 44px;
+}
+#schedule-view .cal-links :is(button, a),
+.learning-room .qr-actions :is(button, .qr-upload),
+.learning-room .route-view .route-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 44px;
+}
+.learning-room .route-view .route-action { gap: 6px; }
+@media (max-width: 520px) {
+  #schedule-view .cal-grid { --dawon-day-height: 6rem; }
+  #schedule-view .cal-tags { display: grid; grid-template-columns: minmax(0, 1fr); }
+  #schedule-view .cal-tag { padding-inline: 2px; }
+}

@@ -27,7 +27,7 @@ const StudentRouter = lazy(async () => {
   return { default: function StudentHomeRouter() { return <Router loadedDashboard={Dashboard} />; } };
 });
 const MobileWorkspaceRouter = lazy(() => import("@teacher/app/TeacherRouter"));
-import AuthRouter from "./AuthRouter";
+
 
 import TenantRequiredPage from "@/auth/pages/TenantRequiredPage";
 import MaintenancePage from "@admin/domains/maintenance/pages/MaintenancePage";
@@ -46,6 +46,7 @@ import {
   isPrimaryAppHost,
 } from "@/shared/constants/origins";
 
+const AuthRouter = lazy(() => import("./AuthRouter"));
 const FullWorkspaceRouter = lazy(() => import("@admin/app/AdminRouter"));
 const DevAppRouter = lazy(() => import("@dev/app/DevAppRouter"));
 const PromoRouter = lazy(() => import("@promo/app/PromoRouter"));
@@ -173,7 +174,7 @@ export default function AppRouter() {
   return (
     <ProductAnalyticsProvider>
       <Routes>
-      <Route path="/login/*" element={<AuthRouter />} />
+      <Route path="/login/*" element={<Suspense fallback={<RouteFallback fullPage />}><AuthRouter /></Suspense>} />
       <Route path="/terms" element={<TermsPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/support-preview-ended" element={<SupportPreviewEndedPage />} />

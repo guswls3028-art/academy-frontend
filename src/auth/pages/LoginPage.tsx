@@ -1,8 +1,8 @@
 // 통합 로그인 페이지 — 테넌트별 테마는 data-tenant + themes/*.css 로 적용
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, useParams, Navigate, Link } from "react-router";
+import { useLocation, useNavigate, useParams, Navigate, Link } from "react-router";
 import { Eye, EyeOff } from "lucide-react";
-import { login } from "@/auth/api/auth.api";
+import { enterDawonDemo, login } from "@/auth/api/auth.api";
 import type { AccountRecoveryMode } from "@/auth/api/recovery.api";
 import useAuth from "@/auth/hooks/useAuth";
 import { consumeReturnPath } from "@/shared/api/axios";
@@ -42,6 +42,10 @@ import {
 } from "@/features/staff-clock/promptSession";
 
 const BRANDED_LOGIN_SCENES = new Set(["hakwonplus", "movementhui", "godmin"]);
+
+function isDawonDemoSearch(tenantCode: string | null, search: string) {
+  return tenantCode === "dawon" && new URLSearchParams(search).get("demo") === "student" ? "?demo=student" : "";
+}
 
 /**
  * 테넌트 코드 결정 우선순위: hostname > URL param > storage/env > program
@@ -90,6 +94,7 @@ export default function LoginPage() {
   const usernameRef = useRef<HTMLInputElement>(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { refreshMe } = useAuth();
 
   // 진입 시 username에 자동 포커스
@@ -136,7 +141,7 @@ export default function LoginPage() {
     hostname.endsWith(".pages.dev") ||
     hostname.endsWith(".trycloudflare.com");
   if (paramCode && fromHost.ok && !isLocalOrPreview) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={{ pathname: "/login", search: isDawonDemoSearch(tenantCode, location.search) }} replace />;
   }
 
   const title = program?.ui_config?.login_title || branding?.loginTitle || "로그인";
@@ -145,6 +150,25 @@ export default function LoginPage() {
   // data-tenant: 테넌트 코드 그대로 사용 (themes/*.css selector 매칭)
   const themeAttr = tenantCode ?? "tchul";
   const hasBrandedScene = BRANDED_LOGIN_SCENES.has(themeAttr);
+  const isDawonDemo = tenantCode === "dawon";
+  const fromScan = getSessionItem("session_return_path")?.startsWith("/student/attendance/scan") ?? false;
+  const qrEntry = fromScan || new URLSearchParams(location.search).get("demo") === "student";
+
+  async function onDemoEntry() {
+    if (pending) return;
+    setPending(true);
+    setError("");
+    try {
+      await enterDawonDemo(qrEntry ? "student" : "teacher");
+      await refreshMe();
+      removeSessionItem("session_expired");
+      const returnPath = consumeReturnPath();
+      navigate(qrEntry ? (fromScan && returnPath ? returnPath : "/student/attendance/scan") : "/", { replace: true });
+    } catch {
+      setError("체험 계정에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      setPending(false);
+    }
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -203,6 +227,14 @@ export default function LoginPage() {
             </div>
           )}
           <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
+            {isDawonDemo && (
+              <div className={styles.demoEntry}>
+                <button type="button" className={styles.btnPrimary} onClick={() => void onDemoEntry()} disabled={pending}>
+                  {qrEntry ? "학생 데모로 QR 출석" : "데모 계정으로 시작"}
+                </button>
+                <span>{qrEntry ? "예시 학생으로 QR 출석을 체험합니다." : "선생님 업무는 PC에서 보기를 권장합니다."}</span>
+              </div>
+            )}
             <label htmlFor="login-username" className={styles.srOnly}>아이디 또는 학부모 휴대폰 번호</label>
             <input
               id="login-username"

@@ -34,7 +34,7 @@
 .heading p, .rows p { margin-block-start: 4px; }
 .actions { justify-content: end; }
 
-.panel, .form, .groupList a {
+.panel, .groupList a {
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border-divider);
   border-radius: 12px;
@@ -50,13 +50,40 @@
 
 .form { gap: 14px; }
 .form label { font-weight: 600; }
+.form p { margin: 0; color: var(--color-text-secondary); }
+.typeOptions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+  border: 0;
+}
+.typeOptions legend { margin-block-end: 8px; font-weight: 600; }
+.typeOptions label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  min-inline-size: 0;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.typeOptions label:has(input:checked) {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-primary-bg);
+}
+.typeOptions input { margin-block-start: 3px; accent-color: var(--color-brand-primary); }
+.typeOptions small { display: block; color: var(--color-text-secondary); font-weight: 400; overflow-wrap: anywhere; }
 .dates {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
   gap: 10px;
 }
 
-.page button, .page input:not([type="checkbox"]), .page select, .operate {
+.page button, .search input, .form input:not([type="radio"]), .form select, .operate {
   min-block-size: 44px;
   min-inline-size: 0;
   padding: 8px 12px;
@@ -66,6 +93,7 @@
   color: var(--color-text-primary);
   font: inherit;
 }
+.form input:not([type="radio"]), .form select { inline-size: 100%; font-size: 1rem; }
 
 .page button, .operate { font-weight: 650; }
 .page button:not(:disabled) { cursor: pointer; }
@@ -76,7 +104,7 @@
   color: var(--color-brand-primary-contrast);
 }
 
-.page :is(button, a, input, select):focus-visible {
+:is(.page, .form) :is(button, a, input, select):focus-visible {
   outline: 2px solid var(--color-brand-primary);
   outline-offset: 2px;
 }
@@ -89,14 +117,65 @@
 .groupList a { color: inherit; text-decoration: none; }
 .groupList a:hover { border-color: var(--color-brand-primary); }
 .groupList a div { display: grid; gap: 4px; min-inline-size: 0; overflow-wrap: anywhere; }
+.groupList .groupCounts { flex: 0 0 auto; text-align: end; }
+.groupCounts strong { color: var(--color-text-primary); }
 .groupList span, .rows span { color: var(--color-text-secondary); font-size: .875rem; overflow-wrap: anywhere; }
+.page .kind {
+  display: inline-block;
+  margin-block-start: 4px;
+  padding: 3px 8px;
+  inline-size: fit-content;
+  border-radius: 6px;
+  background: var(--color-brand-primary-bg);
+  color: var(--color-brand-primary);
+  font-size: .8125rem;
+}
 .rows > li { min-block-size: 48px; padding-block: 8px; border-block-end: 1px solid var(--color-border-divider); }
 .rows > li:last-child { border-block-end: 0; }
 .rows > li > div { min-inline-size: 0; overflow-wrap: anywhere; }
+.period { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: .8125rem; }
+.period time { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .pick { display: flex; align-items: center; gap: 8px; min-block-size: 44px; overflow-wrap: anywhere; }
 .pick input { flex: 0 0 auto; accent-color: var(--color-brand-primary); }
 .operate { display: inline-flex; align-items: center; flex-shrink: 0; text-decoration: none; }
 .back, .rows a:not(.operate) { color: var(--color-brand-primary); font-weight: 650; }
-.page .notice, .page .error { border-radius: 8px; padding: 10px; }
+.page .notice, .page .error, .form .error { border-radius: 8px; padding: 10px; }
 .page .notice { color: var(--color-success-text); background: var(--color-bg-success-subtle); }
-.page .error { color: var(--color-error-text); background: var(--color-bg-error-subtle); }
+.page .error, .form .error { color: var(--color-error-text); background: var(--color-bg-error-subtle); }
+
+@media (max-width: 400px) {
+  .dates { grid-template-columns: minmax(0, 1fr); }
+}
+
+.rosterEditor {
+  display: grid;
+  gap: 12px;
+  min-inline-size: 0;
+}
+.rosterEditor > p { margin: 0; }
+.rosterEditor > input {
+  min-block-size: 44px;
+  inline-size: 100%;
+  padding-inline: 12px;
+  border: 1px solid var(--color-border-default);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-size: 1rem;
+}
+.rosterTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rosterTabs button { min-block-size: 44px; }
+.chosen, .rosterEditor .error {
+  padding: 10px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.chosen summary { cursor: pointer; font-weight: 650; }
+.chosen ul { display: grid; gap: 6px; padding: 0; list-style: none; }
+.chosen li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rosterEditor .error { color: var(--color-error-text); background: var(--color-bg-error-subtle); }

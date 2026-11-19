@@ -17,6 +17,7 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import LectureFormSheet from "../components/LectureFormSheet";
 import SessionFormSheet from "../components/SessionFormSheet";
+import { DawonLectureEnrollment, DawonLectureGroupPending, useDawonLectureGroup } from "@/shared/product/dawon/DawonLectureEnrollment";
 import EnrollStudentSheet from "../components/EnrollStudentSheet";
 import SectionManageSheet from "../components/SectionManageSheet";
 import { formatSessionLabel, getRegularOrder, isSupplementSession } from "@/shared/product/sessions/sessionOrdering";
@@ -45,6 +46,7 @@ export default function LectureDetailPage() {
   const [sessionFormOpen, setSessionFormOpen] = useState(false);
   const [editSession, setEditSession] = useState<any>(null);
   const [enrollOpen, setEnrollOpen] = useState(false);
+  const classGroup = useDawonLectureGroup(lid, enrollOpen);
   const [sectionOpen, setSectionOpen] = useState(false);
 
   const deleteLectureMut = useMutation({
@@ -389,8 +391,16 @@ export default function LectureDetailPage() {
       {/* Sheets */}
       {lecture && <LectureFormSheet open={editOpen} onClose={() => setEditOpen(false)} editData={lecture} />}
       <SessionFormSheet open={sessionFormOpen} onClose={() => setSessionFormOpen(false)} lectureId={lid} editData={editSession} />
-      <EnrollStudentSheet open={enrollOpen} onClose={() => setEnrollOpen(false)} lectureId={lid}
-        enrolledStudentIds={(enrollments ?? []).map((e: any) => e.student_id ?? e.student?.id).filter(Boolean)} />
+      {enrollOpen && (classGroup.isDawon && !classGroup.query.data
+        ? <DawonLectureGroupPending error={classGroup.query.isError} retry={() => void classGroup.query.refetch()} onClose={() => setEnrollOpen(false)} />
+        : classGroup.query.data?.group_id
+          ? <DawonLectureEnrollment lectureId={lid} group={classGroup.query.data} onClose={() => setEnrollOpen(false)} onSaved={() => {
+              void refetchEnrollments();
+              void qc.invalidateQueries({ queryKey: ["dawon-roster"] });
+              void qc.invalidateQueries({ queryKey: ["dawon", "class-groups"] });
+            }} />
+          : <EnrollStudentSheet open onClose={() => setEnrollOpen(false)} lectureId={lid}
+              enrolledStudentIds={(enrollments ?? []).map((e: any) => e.student_id ?? e.student?.id).filter(Boolean)} />)}
       <SectionManageSheet open={sectionOpen} onClose={() => setSectionOpen(false)} lectureId={lid} />
     </div>
   );

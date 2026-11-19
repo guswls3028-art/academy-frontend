@@ -40,6 +40,19 @@
 }
 
 .brandMessage,
+.demoEntry {
+  display: grid;
+  gap: 6px;
+  margin-block-end: 6px;
+}
+
+.demoEntry span {
+  font-size: .8125rem;
+  line-height: 1.5;
+  color: var(--auth-text-muted);
+  text-align: center;
+}
+
 .loginIntro {
   text-align: left;
 }

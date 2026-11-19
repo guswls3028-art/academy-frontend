@@ -1,9 +1,11 @@
 import { surveyQueryKeys } from "@/shared/api/surveyQueryKeys";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Badge } from "@/shared/ui/ds";
+import { Badge, Button } from "@/shared/ui/ds";
 import { createSurveyRequestKey, downloadSurveyCsv, surveysApi, surveyError, SURVEY_KIND_LABEL, SURVEY_STATUS_LABEL, type Survey, type SurveyDraft, type SurveyKind, type SurveyQuestion, type SurveyQuestionType, type SurveyScoreDefaults } from "@/shared/api/surveys";
+import { resolveTenantCodeString } from "@/shared/tenant";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import SurveyResponseContent from "@/shared/ui/surveys/SurveyResponseContent";
 import { surveyDate } from "@/shared/api/surveys";
 import SurveyAttachmentDownloads from "./SurveyAttachmentDownloads";
@@ -25,13 +27,20 @@ function Pager({ offset, count, change, size = 30 }: { offset: number; count: nu
 function useSearch(value: string) { const [search, setSearch] = useState(value); useEffect(() => { const timer = setTimeout(() => setSearch(value), 300); return () => clearTimeout(timer); }, [value]); return search; }
 
 export default function SurveysPage() {
+  const [creating, setCreating] = useState<SurveyKind | null>(null);
+  const isDawon = resolveTenantCodeString() === "dawon";
+
   const [status, setStatus] = useState(""); const [offset, setOffset] = useState(0); const [text, setText] = useState("");
   const search = useSearch(text);
   const query = useQuery({ queryKey: surveyQueryKeys.list(status, search, offset), queryFn: () => surveysApi.list({ status, search, offset }) });
   return <main className={styles.page}>
-    <header className={styles.header}><div><h1>설문과 성적 취합</h1><p className={styles.muted}>학생에게 묻고, 받은 답을 학생 기록과 함께 확인하세요.</p></div><Link className={`${styles.linkButton} ${styles.primary}`} to={`${ROOT}/new`}>설문 만들기</Link></header>
+    <header className={styles.header}><div><h1>설문과 성적 취합</h1><p className={styles.muted}>학생에게 묻고, 받은 답을 학생 기록과 함께 확인하세요.</p></div>{isDawon ? <div className={styles.actions}>
+      <Button intent="secondary" onClick={() => setCreating("school_score")}>성적취합 만들기</Button>
+      <Button intent="primary" onClick={() => setCreating("general")}>설문 만들기</Button>
+    </div> : <Link className={`${styles.linkButton} ${styles.primary}`} to={`${ROOT}/new`}>설문 만들기</Link>}</header>
+    {creating && <SurveyEditor key={creating} initialKind={creating} onClose={() => setCreating(null)} />}
     <div className={styles.toolbar}><div className={styles.tabs} aria-label="설문 상태">{[["", "전체"], ["open", "응답 중"], ["draft", "작성 중"], ["closed", "마감"]].map(([value, label]) => <button type="button" key={value} aria-pressed={status === value} onClick={() => { setStatus(value); setOffset(0); }}>{label}</button>)}</div><input className={styles.search} aria-label="설문 제목 검색" placeholder="설문 제목 검색" value={text} onChange={(event) => { setText(event.target.value); setOffset(0); }} /></div>
-    {query.isPending ? <p role="status">설문을 불러오는 중…</p> : query.isError ? <ErrorBox error={query.error} retry={() => { void query.refetch(); }} /> : !query.data.results.length ? <div className={styles.empty}><h2>{search || status ? "조건에 맞는 설문이 없습니다" : "첫 설문을 만들어 보세요"}</h2><p className={styles.muted}>학교 성적, 시험 범위, 보강 가능 시간 등을 한곳에서 모을 수 있습니다.</p><Link className={styles.linkButton} to={`${ROOT}/new`}>설문 만들기</Link></div> : <div className={styles.list}>{query.data.results.map((survey) => <Link key={survey.id} to={`${ROOT}/${survey.id}`} className={styles.row}><div><strong className={styles.rowTitle}>{survey.title}</strong><div className={styles.rowMeta}><Badge tone={survey.status === "open" ? "success" : "muted"}>{SURVEY_STATUS_LABEL[survey.status]}</Badge><span>{SURVEY_KIND_LABEL[survey.kind]}</span><span>{surveyDate(survey.closes_at)}</span></div></div><div className={styles.progress}><strong>{survey.response_count}/{survey.target_count ?? 0}</strong><span>응답</span></div></Link>)}</div>}
+    {query.isPending ? <p role="status">설문을 불러오는 중…</p> : query.isError ? <ErrorBox error={query.error} retry={() => { void query.refetch(); }} /> : !query.data.results.length ? <div className={styles.empty}><h2>{search || status ? "조건에 맞는 설문이 없습니다" : "첫 설문을 만들어 보세요"}</h2><p className={styles.muted}>학교 성적, 시험 범위, 보강 가능 시간 등을 한곳에서 모을 수 있습니다.</p>{isDawon ? <Button onClick={() => setCreating("general")}>설문 만들기</Button> : <Link className={styles.linkButton} to={`${ROOT}/new`}>설문 만들기</Link>}</div> : <div className={styles.list}>{query.data.results.map((survey) => <Link key={survey.id} to={`${ROOT}/${survey.id}`} className={styles.row}><div><strong className={styles.rowTitle}>{survey.title}</strong><div className={styles.rowMeta}><Badge tone={survey.status === "open" ? "success" : "muted"}>{SURVEY_STATUS_LABEL[survey.status]}</Badge><span>{SURVEY_KIND_LABEL[survey.kind]}</span><span>{surveyDate(survey.closes_at)}</span></div></div><div className={styles.progress}><strong>{survey.response_count}/{survey.target_count ?? 0}</strong><span>응답</span></div></Link>)}</div>}
     {query.data && <Pager offset={offset} count={query.data.count} change={setOffset} />}
   </main>;
 }
@@ -45,10 +54,11 @@ export function SurveyEditorPage() {
   return <SurveyEditor key={id} initial={query.data} />;
 }
 
-function SurveyEditor({ initial }: { initial?: Survey }) {
+function SurveyEditor({ initial, initialKind = "general", onClose }: { initial?: Survey; initialKind?: SurveyKind; onClose?: () => void }) {
+  const formId = useId();
   const navigate = useNavigate(); const qc = useQueryClient();
   const creationKey = useRef(createSurveyRequestKey());
-  const [draft, setDraft] = useState<SurveyDraft>(() => initial ?? blankDraft()); const [version, setVersion] = useState(initial?.version ?? 0);
+  const [draft, setDraft] = useState<SurveyDraft>(() => initial ?? (initialKind === "school_score" ? { ...blankDraft(), kind: initialKind, questions: [], allow_attachments: true } : blankDraft())); const [version, setVersion] = useState(initial?.version ?? 0);
   const [dirty, setDirty] = useState(false); const [selection, setSelection] = useState<Record<number, string>>(() => Object.fromEntries((initial?.selected_students ?? []).map((student) => [student.id, student.name]))); const [studentText, setStudentText] = useState("");
   const search = useSearch(studentText); const [localError, setLocalError] = useState("");
   const frozen = Boolean(initial?.published_at); const formRef = useRef<HTMLFormElement>(null);
@@ -67,8 +77,7 @@ function SurveyEditor({ initial }: { initial?: Survey }) {
     if (value === undefined || value === "") delete defaults[key]; else defaults[key] = value;
     change("score_defaults", defaults);
   };
-  return <main className={styles.page}><header className={styles.header}><div><Link to={ROOT} className={styles.muted}>설문 목록</Link><h1>{initial ? "설문 수정" : "설문 만들기"}</h1><p className={styles.muted}>먼저 저장하고, 대상과 질문을 확인한 뒤 응답을 시작합니다.</p></div></header>
-    <form ref={formRef} onSubmit={submit} className={styles.form}>
+  const form = <form id={formId} ref={formRef} onSubmit={submit} className={styles.form}>
       <section className={styles.section}><h2>무엇을 모을까요?</h2><div className={styles.choices}>{(Object.entries(SURVEY_KIND_LABEL) as [SurveyKind, string][]).map(([kind, label]) => <label key={kind} className={styles.check}><input type="radio" name="survey-kind" checked={draft.kind === kind} disabled={frozen} onChange={() => { change("kind", kind); if (kind === "school_score") { change("allow_attachments", true); change("questions", []); } else if (!draft.questions.length) change("questions", [newQuestion()]); }} />{label}</label>)}</div>
         {draft.kind === "memo" && <p className={styles.notice}>응답은 학생 상세의 ‘설문으로 받은 정보’에 자동으로 모입니다. 선생님이 작성한 공통 메모는 유지됩니다.</p>}
         <label className={styles.field}>설문 제목<input autoFocus required maxLength={120} value={draft.title} onChange={(event) => change("title", event.target.value)} placeholder="예: 2학기 중간고사 성적 취합" /></label>
@@ -91,8 +100,23 @@ function SurveyEditor({ initial }: { initial?: Survey }) {
       </section>
       <details className={styles.advanced}><summary>응답 기간·정원·첨부 설정</summary><div className={styles.columns}><label className={styles.field}>응답 시작<input type="datetime-local" value={dateInput(draft.opens_at)} onChange={(event) => change("opens_at", event.target.value ? new Date(event.target.value).toISOString() : null)} /></label><label className={styles.field}>응답 마감<input type="datetime-local" value={dateInput(draft.closes_at)} onChange={(event) => change("closes_at", event.target.value ? new Date(event.target.value).toISOString() : null)} /></label></div><label className={styles.field}>최대 응답 인원<input type="number" min={1} max={10000} value={draft.response_limit ?? ""} onChange={(event) => change("response_limit", event.target.value ? Number(event.target.value) : null)} placeholder="제한 없음" /><small className={styles.muted}>보강처럼 정원이 있는 신청에 사용하세요. 이미 응답한 학생은 정원이 차도 기간 내 수정할 수 있습니다.</small></label><label className={styles.check}><input type="checkbox" checked={draft.allow_attachments || draft.kind === "school_score"} disabled={frozen || draft.kind === "school_score"} onChange={(event) => change("allow_attachments", event.target.checked)} />사진·PDF 첨부 받기</label></details>
       {(localError || save.isError) && <ErrorBox error={localError ? new Error(localError) : save.error} />}{save.isError && initial && <button type="button" className={styles.button} onClick={() => { void restore(); }}>저장된 최신 설문 불러오기</button>}
-      <footer className={styles.footer}><span className={styles.muted}>{dirty ? "아직 저장하지 않은 변경이 있습니다." : "학생에게 보이기 전에 내용을 확인할 수 있습니다."}</span><button type="submit" className={`${styles.button} ${styles.primary}`} disabled={save.isPending}>{save.isPending ? "저장 중…" : "설문 저장"}</button></footer>
-    </form>
+      {!onClose && <footer className={styles.footer}><span className={styles.muted}>{dirty ? "아직 저장하지 않은 변경이 있습니다." : "학생에게 보이기 전에 내용을 확인할 수 있습니다."}</span><button type="submit" className={`${styles.button} ${styles.primary}`} disabled={save.isPending}>{save.isPending ? "저장 중…" : "설문 저장"}</button></footer>}
+    </form>;
+  if (onClose) {
+    const cancel = () => {
+      if (!save.isPending && (!dirty || window.confirm("저장하지 않은 내용을 버릴까요?"))) onClose();
+    };
+    return <AdminModal open onClose={cancel} width={760} trapFocus noMinimize closeDisabled={save.isPending}>
+      <ModalHeader title={draft.kind === "school_score" ? "성적취합 만들기" : "설문 만들기"} />
+      <ModalBody>{form}</ModalBody>
+      <ModalFooter right={<>
+        <Button onClick={cancel} disabled={save.isPending}>취소</Button>
+        <Button intent="primary" type="submit" form={formId} loading={save.isPending}>설문 저장</Button>
+      </>} />
+    </AdminModal>;
+  }
+  return <main className={styles.page}><header className={styles.header}><div><Link to={ROOT} className={styles.muted}>설문 목록</Link><h1>{initial ? "설문 수정" : "설문 만들기"}</h1><p className={styles.muted}>먼저 저장하고, 대상과 질문을 확인한 뒤 응답을 시작합니다.</p></div></header>
+    {form}
   </main>;
 }
 

@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/lectures/layout/LecturesLayout.tsx
 import { Outlet } from "react-router";
+import { resolveTenantCodeString } from "@/shared/tenant";
 import { DomainLayout } from "@/shared/ui/layout";
 
 const LECTURES_TABS = [
@@ -12,7 +13,7 @@ export default function LecturesLayout() {
     <DomainLayout
       title="강의 관리"
       description="강의 목록 · 지난 강의 · 수강생 · 출결 · 리포트"
-      tabs={LECTURES_TABS}
+      tabs={resolveTenantCodeString() === "dawon" ? [{ ...LECTURES_TABS[0], label: "반별 강의" }, LECTURES_TABS[1]] : LECTURES_TABS}
     >
       <Outlet />
     </DomainLayout>

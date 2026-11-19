@@ -8,6 +8,7 @@ import { useLocation, useNavigate, useParams } from "react-router";
 import { compareKoreanText } from "@/shared/utils/dataOrdering";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
+import { DawonLectureEnrollment, DawonLectureGroupPending, useDawonLectureGroup } from "@/shared/product/dawon/DawonLectureEnrollment";
 import { fetchLectureEnrollments } from "@/shared/api/contracts/enrollments";
 import type { AttendanceMatrixStudent } from "@/shared/api/contracts/attendance";
 
@@ -87,6 +88,7 @@ export default function LectureStudentsPage() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [showLectureEnroll, setShowLectureEnroll] = useState(false);
+  const classGroup = useDawonLectureGroup(lectureIdNum, showLectureEnroll);
 
   const [showEnrollExcelModal, setShowEnrollExcelModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -489,13 +491,22 @@ export default function LectureStudentsPage() {
         </div>
       </div>
 
-      <LectureEnrollStudentModal
-        lectureId={lectureIdNum}
-        open={showLectureEnroll}
-        onClose={() => setShowLectureEnroll(false)}
-        onChooseExcelUpload={() => setShowEnrollExcelModal(true)}
-      />
-
+      {showLectureEnroll && (classGroup.isDawon && !classGroup.query.data
+        ? <DawonLectureGroupPending error={classGroup.query.isError} retry={() => void classGroup.query.refetch()} onClose={() => setShowLectureEnroll(false)} />
+        : classGroup.query.data?.group_id
+          ? <DawonLectureEnrollment lectureId={lectureIdNum} group={classGroup.query.data} onClose={() => setShowLectureEnroll(false)} onSaved={() => {
+              void classGroup.query.refetch();
+              void qc.invalidateQueries({ queryKey: ["dawon-roster"] });
+              void qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectureEnrollments(lectureIdNum) });
+              void qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureIdNum) });
+              void qc.invalidateQueries({ queryKey: ["dawon", "class-groups"] });
+            }} />
+          : <LectureEnrollStudentModal
+              lectureId={lectureIdNum}
+              open
+              onClose={() => setShowLectureEnroll(false)}
+              onChooseExcelUpload={() => setShowEnrollExcelModal(true)}
+            />)}
 
       <LectureEnrollExcelModal
         lectureId={lectureIdNum}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { Popover } from "antd";
@@ -61,6 +61,13 @@ interface Props {
   usedColors?: string[];
   /** 있으면 수정 모드: 해당 강의 로드 후 같은 폼으로 수정 */
   lectureId?: number;
+  classGroup?: {
+    name: string;
+    field: ReactNode;
+    count: number;
+    ready: boolean;
+    create: (payload: CreateLecturePayload) => Promise<unknown>;
+  };
 }
 
 interface CreateLecturePayload extends Partial<LectureScheduleSettings> {
@@ -80,7 +87,7 @@ export default function LectureCreateModal(props: Props) {
   return <LectureForm key={props.lectureId ?? "create"} {...props} />;
 }
 
-function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
+function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const isEditMode = lectureId != null;
@@ -92,7 +99,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
 
   const [title, setTitle] = useState("");
   const [name, setName] = useState("");
-  const [subject, setSubject] = useState("");
+  const [subject, setSubject] = useState(classGroup ? "수학" : "");
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -109,7 +116,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
   const [addSubjectInput, setAddSubjectInput] = useState("");
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
-  const modalTitle = useMemo(() => (isEditMode ? "강의 수정" : "강의 추가"), [isEditMode]);
+  const modalTitle = classGroup ? "수업 개설" : isEditMode ? "강의 수정" : "강의 추가";
 
   const instructorQ = useQuery({
     queryKey: adminLectureQueryKeys.lectureInstructorOptions,
@@ -175,6 +182,8 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
     mutationFn: async (payload: CreateLecturePayload) => {
       if (isEditMode && lectureId != null) {
         await updateLecture(lectureId, payload);
+      } else if (classGroup) {
+        await classGroup.create(payload);
       } else {
         await createLecture({ ...payload, is_active: true });
       }
@@ -213,6 +222,10 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
 
   async function submit() {
     if (!formReady || saveInFlightRef.current || isPending || confirmationInFlightRef.current) return;
+    if (classGroup && !classGroup.ready) {
+      setApiError("수업 구분과 대상 학생을 확인해 주세요.");
+      return;
+    }
     setApiError("");
     setHasAttemptedSubmit(true);
     const err = validateRequiredFields([
@@ -220,6 +233,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
       { value: name, label: "담당 강사" },
       { value: subject, label: "과목" },
       { value: startDate, label: "시작일" },
+      ...(classGroup ? [{ value: endDate, label: "종료일" }] : []),
       { value: lectureTime, label: "강의 시간", message: "강의 시작·종료 시간을 선택해 주세요." },
     ]);
     if (err) {
@@ -271,7 +285,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
             ...(scheduleMode === "SPLIT" ? [{ label: "반별 일정", value: defaults.map(row => `${row.label} (${lectureWeekdays[row.weekday - 1]})`).join(" · ") }] : []),
             { label: "목록 표기", value: payload.chip_label || "강의" },
           ],
-          note: "강의 기본정보만 만듭니다. 차시와 수강생은 자동으로 등록되지 않습니다.",
+          note: classGroup ? `현재 이 수업의 대상 학생 ${classGroup.count}명이 자동으로 수강 등록됩니다.` : "강의 기본정보만 만듭니다. 차시와 수강생은 자동으로 등록되지 않습니다.",
         },
         confirmText: "확인하고 만들기",
         cancelText: "다시 확인",
@@ -472,7 +486,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
 
   return (
     <AdminModal open={true} onClose={onClose} closeDisabled={isPending} type="action" width={760} className="lecture-create-modal" onEnterConfirm={!isPending && formReady ? submit : undefined}>
-      <ModalHeader type="action" title={modalTitle} />
+      <ModalHeader type="action" title={modalTitle} description={classGroup?.name} />
 
       <ModalBody>
         {apiError && (
@@ -503,6 +517,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
           </div>
         ) : (
         <div className="modal-scroll-body modal-scroll-body--compact lecture-create-modal-form">
+          {classGroup?.field}
           {/* 딱지 영역 */}
           <div className="lecture-create-chip-layout">
             <div className="lecture-create-chip-preview">
@@ -683,12 +698,12 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
                   />
                 </div>
                 <div className="modal-form-group modal-form-group--neutral">
-                  <label className="lecture-field-label" htmlFor="lecture-end-date">종료일 <span>선택</span></label>
+                  <label className="lecture-field-label" htmlFor="lecture-end-date">종료일 <span>{classGroup ? "필수" : "선택"}</span></label>
                   <DatePicker
                     id="lecture-end-date"
                     value={endDate}
                     onChange={setEndDate}
-                    placeholder="종료일 (선택)"
+                    placeholder={classGroup ? "종료일 (필수)" : "종료일 (선택)"}
                     minDate={startDate || undefined}
                     disabled={isPending}
                   />

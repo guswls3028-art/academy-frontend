@@ -1,8 +1,10 @@
 // PATH: src/app_teacher/domains/lectures/pages/LectureListPage.tsx
 // 강의 목록 — 활성/과거 탭 + 딱지 + 강사 + 시간
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
+import ClassGroupsPage from "@/shared/product/dawon/ClassGroupsPage";
+import { resolveTenantCodeString } from "@/shared/tenant";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { ChevronRight, Plus } from "@teacher/shared/ui/Icons";
@@ -18,6 +20,13 @@ import styles from "./LectureListPage.module.css";
 type Tab = "active" | "past";
 
 export default function LectureListPage() {
+  const [params] = useSearchParams();
+  const dawon = resolveTenantCodeString() === "dawon";
+  if (dawon && params.get("view") !== "all") return <ClassGroupsPage lectureEntry />;
+  return <NativeLectureList />;
+}
+
+function NativeLectureList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab: Tab = searchParams.get("tab") === "past" ? "past" : "active";
@@ -64,9 +73,9 @@ export default function LectureListPage() {
     <div className={styles.page}>
       <div className={styles.header}>
         <SectionTitle>강의 관리</SectionTitle>
-        <button onClick={() => setCreateOpen(true)} className={styles.createButton} type="button">
-          <Plus size={ICON.xs} /> 강의 추가
-        </button>
+        {resolveTenantCodeString() === "dawon"
+          ? <Link className={styles.createButton} to="/workspace/mobile/classes">반별 강의</Link>
+          : <button onClick={() => setCreateOpen(true)} className={styles.createButton} type="button"><Plus size={ICON.xs} /> 강의 추가</button>}
       </div>
 
       <TabBar
@@ -149,8 +158,8 @@ export default function LectureListPage() {
           title={tab === "active" ? "강의가 없습니다" : "지난 강의가 없습니다"}
           description={tab === "active" ? "강의를 만들면 차시, 출결, 성적 입력이 같은 흐름으로 연결됩니다." : "종료된 강의가 이곳에 모입니다."}
           actions={tab === "active" ? (
-            <EmptyActionButton onClick={() => setCreateOpen(true)}>
-              강의 추가
+            <EmptyActionButton onClick={() => resolveTenantCodeString() === "dawon" ? navigate("/workspace/mobile/classes") : setCreateOpen(true)}>
+              {resolveTenantCodeString() === "dawon" ? "반별 강의" : "강의 추가"}
             </EmptyActionButton>
           ) : (
             <EmptyActionButton variant="secondary" onClick={() => setTab("active")}>
