@@ -42,37 +42,12 @@ import {
 
 const BRANDED_LOGIN_SCENES = new Set(["hakwonplus", "movementhui", "godmin"]);
 
-/**
- * 테넌트 코드 결정 우선순위: hostname > URL param > storage/env > program
- * - hostname 결정 가능 시: 백엔드가 host 기반 SSOT로 인증하므로 화면 브랜딩도 host와 맞춰야 일관성 유지
- *   (param이 host와 다르면 충돌. 충돌 처리는 컴포넌트 본문에서 정규 경로로 리다이렉트)
- * - hostname 결정 불가(localhost / 프리뷰)인 경우에만 URL param 사용
- */
-function useTenantCode(programTenantCode: string | undefined): string | null {
-  const { tenantCode: paramCode } = useParams<{ tenantCode?: string }>();
-  const hostname = window.location.hostname.trim().toLowerCase();
-  const isLocalOrPreview =
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname.endsWith(".pages.dev") ||
-    hostname.endsWith(".trycloudflare.com");
-  if (isLocalOrPreview && paramCode) return paramCode;
-
-  const fromHost = getTenantCodeFromHostname();
-  if (fromHost.ok) return fromHost.code;
-  if (paramCode) return paramCode;
-  const resolved = resolveTenantCode();
-  if (resolved.ok) return resolved.code;
-  return programTenantCode ?? null;
-}
-
 export default function LoginPage() {
   useDocumentTitle();
   useFavicon();
 
   const { program, isLoading, error: programError } = useProgram();
   const { tenantCode: paramCode } = useParams<{ tenantCode?: string }>();
-  const tenantCode = useTenantCode(program?.tenantCode);
 
   // ── hooks는 조건부 return 전에 모두 호출 (Rules of Hooks) ──
   const [username, setUsername] = useState("");
@@ -118,13 +93,6 @@ export default function LoginPage() {
     return <Navigate to="/error/tenant-required" replace />;
   }
 
-  // 테넌트 1/9999도 /login 페이지 정상 사용 (프로모 리다이렉트 제거)
-  const tenantId = tenantCode ? getTenantIdFromCode(tenantCode) : null;
-  const branding = tenantId ? getTenantBranding(tenantId) : null;
-  const studentSelfRegistrationEnabled = tenantId
-    ? getTenantDefById(tenantId)?.studentSelfRegistrationEnabled !== false
-    : true;
-
   // 테넌트 도메인 접속 시 /login/code → /login 리다이렉트.
   // 같은 테넌트면 URL을 깔끔하게, 다른 테넌트면 host 기준으로 강제 정규화 (브랜딩-인증 불일치 방지).
   const fromHost = getTenantCodeFromHostname();
@@ -138,12 +106,27 @@ export default function LoginPage() {
     return <Navigate to="/login" replace />;
   }
 
+  // On a canonical host the path was normalized above. A local preview may select its tenant by path.
+  let tenantCode = paramCode || (fromHost.ok ? fromHost.code : null);
+  if (!tenantCode) {
+    const resolved = resolveTenantCode();
+    tenantCode = resolved.ok ? resolved.code : program.tenantCode ?? null;
+  }
+
+  // 테넌트 1/9999도 /login 페이지 정상 사용 (프로모 리다이렉트 제거)
+  const tenantId = tenantCode ? getTenantIdFromCode(tenantCode) : null;
+  const branding = tenantId ? getTenantBranding(tenantId) : null;
+  const studentSelfRegistrationEnabled = tenantId
+    ? getTenantDefById(tenantId)?.studentSelfRegistrationEnabled !== false
+    : true;
+
   const title = program?.ui_config?.login_title || branding?.loginTitle || "로그인";
   const logoUrl = program?.ui_config?.logo_url || branding?.logoUrl;
 
   // data-tenant: 테넌트 코드 그대로 사용 (themes/*.css selector 매칭)
   const themeAttr = tenantCode ?? "tchul";
   const isHakwonplus = themeAttr === "hakwonplus";
+  const fieldLabelClass = isHakwonplus ? styles.fieldLabel : styles.srOnly;
   const hasBrandedScene = BRANDED_LOGIN_SCENES.has(themeAttr);
 
   async function onSubmit(e: React.FormEvent) {
@@ -203,7 +186,7 @@ export default function LoginPage() {
             </div>
           )}
           <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
-            <label htmlFor="login-username" className={isHakwonplus ? styles.fieldLabel : styles.srOnly}>
+            <label htmlFor="login-username" className={fieldLabelClass}>
               아이디 또는 학부모 휴대폰 번호
             </label>
             <input
@@ -220,7 +203,7 @@ export default function LoginPage() {
               spellCheck={false}
               data-testid="login-username"
             />
-            <label htmlFor="login-password" className={isHakwonplus ? styles.fieldLabel : styles.srOnly}>비밀번호</label>
+            <label htmlFor="login-password" className={fieldLabelClass}>비밀번호</label>
             <div className={styles.passwordWrap}>
               <input
                 id="login-password"
