@@ -844,17 +844,21 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     test(`학습 현황은 ${source} 실패를 0으로 숨기지 않고 재시도로 복구한다`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width: 390, height: 844 });
       await installStudentApi(page, { parentDashboard: true });
-      let failed = true;
+      let retryArmed = false;
+      let recovered = false;
       let dataReads = 0;
       let meReads = 0;
       page.on("request", (request) => {
         if (new URL(request.url()).pathname.endsWith("/core/me/")) meReads += 1;
       });
-      await page.route(source === "grades" ? "**/api/v1/student/grades/" : matchesSessionsApi, (route) => {
+      await page.route(source === "grades" ? "**/api/v1/student/grades/" : matchesSessionsApi, async (route) => {
         dataReads += 1;
-        return route.fulfill(failed
-          ? { status: 400, json: { detail: "temporary read failure" } }
-          : { json: source === "grades" ? emptyGrades() : [] });
+        if (retryArmed && !recovered) {
+          recovered = await page.evaluate(() => document.documentElement.dataset.qaLearningStatusRetry === "true");
+        }
+        return route.fulfill(recovered
+          ? { json: source === "grades" ? emptyGrades() : [] }
+          : { status: 400, json: { detail: "temporary read failure" } });
       });
       await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
       const card = page.getByRole("region", { name: "학습 현황", exact: true });
@@ -868,10 +872,22 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       await testInfo.attach("learning-status-error", { path: screenshotPath, contentType: "image/png" });
       const beforeRetry = dataReads;
       const beforeMe = meReads;
-      failed = false;
+      // The notification hook can independently refetch grades. Only the
+      // trusted click on this card should recover the mock response.
+      await page.evaluate(() => {
+        document.addEventListener("click", (event) => {
+          if (!(event.target instanceof Element) || !event.isTrusted) return;
+          const button = event.target.closest('section[aria-label="학습 현황"] button');
+          if (button?.textContent?.trim() === "다시 시도") {
+            document.documentElement.dataset.qaLearningStatusRetry = "true";
+          }
+        }, { capture: true });
+      });
+      retryArmed = true;
       await card.getByRole("button", { name: "다시 시도", exact: true }).click();
       await expect(card.getByRole("alert")).toHaveCount(0);
       await expect(card.getByText("아직 학습 기록이 없어요")).toBeVisible();
+      expect(recovered).toBe(true);
       // Notification counts independently read grades too; only document reload is forbidden.
       expect(dataReads).toBeGreaterThan(beforeRetry);
       expect(meReads).toBe(beforeMe);
