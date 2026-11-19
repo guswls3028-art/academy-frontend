@@ -12,6 +12,18 @@ const formerTeacherRoutes = /^\/learn\/(?:teacher(?:[-/]|$)|grade-collection(?:\
 const consoleCookie = 'dawon_console=1; Path=/; SameSite=Lax; HttpOnly; Secure';
 const consoleCookieExpired = 'dawon_console=; Path=/; SameSite=Lax; HttpOnly; Secure; Max-Age=0';
 const workspaceStyle = `<style>
+section[aria-label$="차시 카드"]:has(> .session-block) {
+  display:inline-flex; align-items:center; gap:2px; flex:0 0 auto;
+}
+section[aria-label$="차시 카드"] > div:has(> .session-block__gear) {
+  position:static; flex:0 0 auto;
+}
+section[aria-label$="차시 카드"] .session-block__gear {
+  width:44px; height:44px; opacity:1; border-radius:8px;
+}
+section[aria-label$="차시 카드"] .session-block__gear:focus-visible {
+  outline:2px solid currentColor; outline-offset:-2px;
+}
 .ds-overlay-backdrop:has(+ .ds-overlay-wrap .ds-overlay-panel--student-detail),
 .ds-overlay-wrap:has(.ds-overlay-panel--student-detail) {
   left:0;
@@ -106,7 +118,8 @@ function installLearnerBridge() {
       --stu-primary:#a64511;--stu-primary-contrast:#fff;--stu-primary-soft:#fff1e5;--stu-gradient:linear-gradient(125deg,#a74513,#bc591c);
       --stu-tabbar-bg:#fff;--stu-on-gradient:#fff;--stu-accent:#ac4c17;
     }
-    html[data-dawon-native-learner] .student-layout__header {top:var(--dawon-demo-bar-height,0px);}
+    html[data-dawon-native-learner] .student-layout {height:calc(100dvh - var(--dawon-demo-bar-height,0px));min-height:0;}
+    html[data-dawon-native-learner] body .student-layout__header {top:0;}
     html[data-dawon-native-learner] nav:has(> [data-dawon-links]) > :not([data-dawon-links]) {display:none!important}
     html[data-dawon-native-learner] [data-dawon-links="footer"] {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));max-width:760px;margin:auto;background:#fff}
     html[data-dawon-native-learner] [data-dawon-links] a {color:#593f2f;text-decoration:none;font-weight:650;}
@@ -306,7 +319,8 @@ export async function handle(request, env, fetcher = fetch, context) {
       name: 'dawon-learning-room',
       revision: legacyRevision,
       version: env.ADMIN_VERSION,
-      teacherVersion: env.ADMIN_VERSION,
+      teacherVersion: env.UI_VERSION || env.ADMIN_VERSION,
+      bundleVersion: env.ADMIN_VERSION,
       roles: ['teacher', 'student', 'guardian'],
       productionApi: false,
     }), 200);
@@ -366,10 +380,9 @@ export async function handle(request, env, fetcher = fetch, context) {
           for (const stale of ['content-encoding', 'content-length', 'etag']) headers.delete(stale);
           const original = await upstream.text();
           const branded = original.replace(modernProbe, '/dawon-module-probe.mjs')
-            .replace('</head>', brandStyle(env.ADMIN_VERSION) + reloadScript(env.ADMIN_VERSION) + '<script defer src="' + learnerBridgePath + '"></script></head>');
-          const html = isConsoleLogin
-            ? branded.replace(/<body[^>]*>/, start => start + loginNav)
-            : isWorkspacePage ? branded.replace('</head>', workspaceStyle + '</head>') : branded;
+            .replace('</head>', brandStyle(env.ADMIN_VERSION) + reloadScript(env.UI_VERSION || env.ADMIN_VERSION) + '<script defer src="' + learnerBridgePath + '"></script></head>');
+          const shell = isConsoleLogin || isWorkspacePage ? branded.replace('</head>', workspaceStyle + '</head>') : branded;
+          const html = isConsoleLogin ? shell.replace(/<body[^>]*>/, start => start + loginNav) : shell;
           return new Response(insertDemoSwitcher(html, url, true), {status: upstream.status, headers});
         }
       }
@@ -382,7 +395,7 @@ export async function handle(request, env, fetcher = fetch, context) {
     for (const stale of ['content-encoding', 'content-length', 'etag']) headers.delete(stale);
     headers.set('cache-control', 'no-store');
     headers.append('set-cookie', consoleCookieExpired);
-    const html = (await response.text()).replace('</head>', `${brandStyle(env.ADMIN_VERSION)}${reloadScript(env.ADMIN_VERSION)}<script src="${linkedNavPath}" defer></script></head>`);
+    const html = (await response.text()).replace('</head>', `${brandStyle(env.ADMIN_VERSION)}${reloadScript(env.UI_VERSION || env.ADMIN_VERSION)}<script src="${linkedNavPath}" defer></script></head>`);
     return new Response(insertDemoSwitcher(html, url, false), {status: response.status, headers});
   } catch {
     return secureResponse('{"detail":"다원 데모를 잠시 후 다시 열어 주세요."}', 503);
