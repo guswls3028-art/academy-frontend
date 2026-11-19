@@ -10,6 +10,12 @@ const menus = [
   ["grades", "학교 성적", "clipboard"],
 ];
 
+const drawerGroups = [
+  ['학원 생활', ['notices', 'attendance', 'clinic']],
+  ['수업과 과제', ['video', 'curriculum', 'homework']],
+  ['평가와 문의', ['exam', 'grades', 'questions']],
+];
+
 const paths = {
   home: "M3 11 12 3l9 8M5 10v11h5v-7h4v7h5V10",
   menu: "M4 6h16M4 12h16M4 18h16",
@@ -36,7 +42,7 @@ const style = [
   'h1,h2,p{margin:0}a{color:inherit;text-decoration:none}button{font:inherit}a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--dw-accent);outline-offset:3px}.dw-icon,svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}',
   '.dw-wrap{width:min(calc(100% - 48px),var(--dw-width));margin:0 auto}.dw-header{position:relative;z-index:2;min-height:57px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 24px;background:#fff;border-bottom:1px solid var(--dw-line)}',
   '.dw-brand,.dw-headerActions{display:flex;align-items:center;gap:12px}.dw-brand>a{font-weight:650;color:var(--dw-muted)}.dw-brand strong{font-weight:760}.dw-headerActions a{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:14px;font-weight:700;color:var(--dw-accent)}',
-  '.dw-drawer summary{list-style:none;display:grid;place-items:center;width:44px;height:44px;cursor:pointer;border-radius:8px;color:var(--dw-muted)}.dw-drawer summary::-webkit-details-marker{display:none}.dw-drawer nav{position:absolute;top:calc(100% + 6px);left:12px;width:230px;max-height:calc(100dvh - 175px);overflow:auto;display:grid;background:#fff;padding:8px;border:1px solid var(--dw-line);border-radius:10px;box-shadow:0 8px 24px #29201a26}.dw-drawer nav a{padding:8px 12px;min-height:44px}.dw-drawer nav a:hover{background:#fff0e6}',
+  '.dw-drawer summary{list-style:none;display:grid;place-items:center;width:44px;height:44px;cursor:pointer;border-radius:8px;color:var(--dw-muted)}.dw-drawer summary::-webkit-details-marker{display:none}.dw-drawer nav{position:absolute;top:calc(100% + 6px);left:12px;width:230px;max-height:calc(100dvh - 175px);overflow:auto;display:grid;background:#fff;padding:8px;border:1px solid var(--dw-line);border-radius:10px;box-shadow:0 8px 24px #29201a26}.dw-drawer section{display:grid}.dw-drawer section+section{border-top:1px solid var(--dw-line);margin-top:4px}.dw-drawer h2{font-size:13px;color:var(--dw-muted);padding:8px 12px 2px;margin:0}.dw-drawer [aria-current=page]{color:var(--dw-accent);background:#fff0e6;font-weight:700}.dw-drawer nav a{padding:8px 12px;min-height:44px}.dw-drawer nav a:hover{background:#fff0e6}',
   '.dw-hero{background:var(--dw-orange);color:#fff;padding:40px 0 42px}.dw-hero .dw-wrap{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px}.dw-hero h1{font-size:clamp(29px,4.4vw,52px);line-height:1.16;letter-spacing:-.045em;font-weight:760}.dw-hero p{font-size:clamp(17px,2.1vw,25px);font-weight:650;line-height:1.4}',
   '.dw-content{padding-block:24px 30px}.dw-homeMenu ul{list-style:none;display:grid;gap:12px;margin:0;padding:0}.dw-rowLink,.dw-spotlight{display:flex;align-items:center;gap:14px;min-height:62px;border:1px solid var(--dw-line);border-radius:10px;padding:11px 16px;background:#fff;font-size:clamp(16px,2vw,21px);font-weight:720;box-shadow:0 2px 4px #31251d10}.dw-rowLink:hover,.dw-spotlight:hover{border-color:#d69c77;background:#fffaf6}.dw-rowLink>svg:first-child{color:#5d6c65}.dw-rowLink>svg:last-child,.dw-spotlight>svg{margin-left:auto;color:#747d86;width:18px;height:18px}.dw-spotlight{min-height:52px;margin-bottom:20px;background:#f0efed;box-shadow:none;font-size:15px}.dw-spotlight strong{font-size:13px;color:var(--dw-accent)}.dw-footnote{margin-top:24px;color:var(--dw-muted);font-size:13px}',
   '.dw-bottom{position:fixed;inset:auto 0 0;z-index:3;background:#fff;border-top:1px solid var(--dw-line);padding-bottom:env(safe-area-inset-bottom,0px)}.dw-bottom .dw-wrap{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.dw-bottom a{min-height:var(--dw-footer);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--dw-muted);font-size:13px;font-weight:650}.dw-bottom [aria-current=page]{color:var(--dw-accent)}.dw-bottom a:hover{background:#fff5ee}',
@@ -74,7 +80,12 @@ export function renderDawonLearner(url) {
   const homeUrl = learnerHref('home', role);
   const menuLinks = visibleMenus.map(([key, label, image]) => '<li><a class="dw-rowLink" href="' +
     learnerHref(key,role) + '" id="tile-' + key + '">' + icon(image) + '<span>' + label + '</span>' + icon('right') + '</a></li>').join('');
-  const drawerLinks = visibleMenus.map(([key,label]) => '<a href="' + learnerHref(key,role) + '">' + label + '</a>').join('');
+  const drawerLinks = drawerGroups.map(([heading, keys]) => {
+    const links = keys.map(key => visibleMenus.find(menu => menu[0] === key)).filter(Boolean)
+      .map(([key,label]) => '<a href="' + learnerHref(key,role) + '"' +
+        (topic === key ? ' aria-current="page"' : '') + '>' + label + '</a>').join('');
+    return '<section><h2>' + heading + '</h2>' + links + '</section>';
+  }).join('');
   const actions = guardian ? '/login/dawon?demo=guardian&amp;view=counsel' : '/learn/questions?action=ask&amp;detail=question';
   const tabs = [
     ['home', '홈', 'home', homeUrl],
@@ -88,7 +99,7 @@ export function renderDawonLearner(url) {
     (guardian ? '자녀 학습 · 수학Ⅱ' : '수학Ⅱ (윤지용 선생님)') + '</p></div></section>' : '';
   const header = '<header class="dw-header"><div class="dw-brand"><details class="dw-drawer"><summary aria-label="학습 메뉴 열기">' + icon('menu') +
     '</summary><nav aria-label="학습 메뉴">' + drawerLinks + '</nav></details><a href="' + homeUrl +
-    '">다원수학</a><span aria-hidden="true">/</span><strong>학습 홈</strong></div><div class="dw-headerActions">' +
+    '">다원수학</a><span aria-hidden="true">/</span><strong>' + escapeHtml(title) + '</strong></div><div class="dw-headerActions">' +
     (!guardian ? '<a href="/login/dawon?demo=student" aria-label="QR 출석">' + icon('qr') + '<span>QR 출석</span></a>' : '') + '</div></header>';
   const content = home ? '<a class="dw-spotlight" href="' + learnerHref('notices',role) +
       '"><strong>공지</strong><span id="dw-latest-notice">공지사항 확인</span>' + icon('right') +
@@ -154,8 +165,20 @@ function mountLearner() {
     if (guardian) query.set('preview','guardian');
     query.set('view',nextMode);
     query.set('date',date);
-    if (nextMode === 'day') query.set('period',mode === 'month' ? 'month' : period);
+    if (nextMode === 'day') {
+      query.set('period',mode);
+      query.set('originDate',key);
+    }
     return '/learn/' + topic + '?' + query.toString();
+  }
+
+  if (view && mode === 'day' && topic !== 'alerts') {
+    const back = document.getElementById('dw-back');
+    const fromAlerts = params.get('from') === 'alerts';
+    const originDate = params.get('originDate');
+    back.href = fromAlerts ? '/learn/alerts' + (guardian ? '?preview=guardian' : '') :
+      dateUrl(period,originDate && normalize(originDate) === originDate ? originDate : key);
+    back.setAttribute('aria-label',fromAlerts ? '알림으로' : (period === 'month' ? '월간 달력으로' : '주간 달력으로'));
   }
 
   function status(label) {
@@ -292,15 +315,12 @@ function mountLearner() {
       ].sort((left,right) => right.date.localeCompare(left.date));
       renderList(alerts.map(record => ({
         ...record, path:'/learn/' + record.menu + '?' +
-          new URLSearchParams({ ...(guardian ? {preview:'guardian'} : {}), view:'day', date:record.date }),
+          new URLSearchParams({ ...(guardian ? {preview:'guardian'} : {}), view:'day', date:record.date, from:'alerts' }),
       })), '새 알림이 없습니다.');
       return;
     }
     const records = recordsFor(payload);
     if (mode === 'day') {
-      const back = document.getElementById('dw-back');
-      back.href = dateUrl(period,key);
-      back.setAttribute('aria-label','달력으로');
       view.append(element('h2',format(key,{year:'numeric',month:'long',day:'numeric',weekday:'long'}),'dw-detailDate'));
       renderList(records.filter(record => record.date === key),'이 날짜에 등록된 기록이 없습니다.');
       if (topic !== 'exam' || records.some(record => record.date === key)) dayActions();

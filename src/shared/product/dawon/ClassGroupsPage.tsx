@@ -1,5 +1,5 @@
 import { lazy, Suspense, useId, useState } from "react";
-import { Link, Navigate, useLocation, useSearchParams } from "react-router";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
@@ -111,7 +111,7 @@ function CourseList({ group, lectureRoot }: { group: Detail; lectureRoot: string
   </section>;
 }
 
-function GroupDetail({ id, root, lectureRoot, lectureEntry, assignOnOpen, afterInitialAssignment }: { id: number; root: string; lectureRoot: string; lectureEntry: boolean; assignOnOpen: boolean; afterInitialAssignment: () => void }) {
+function GroupDetail({ id, root, lectureRoot, rosterRoot, lectureEntry, assignOnOpen, afterInitialAssignment }: { id: number; root: string; lectureRoot: string; rosterRoot: string; lectureEntry: boolean; assignOnOpen: boolean; afterInitialAssignment: () => void }) {
   const client = useQueryClient();
   const [mode, setMode] = useState<"add" | "remove" | "lecture" | null>(assignOnOpen ? "add" : null);
   const [notice, setNotice] = useState("");
@@ -159,9 +159,15 @@ function GroupDetail({ id, root, lectureRoot, lectureEntry, assignOnOpen, afterI
     <div className={styles.detail}>
       <header className={styles.heading}>
         <div><Link to={root} className={styles.back}>반 목록</Link><h2>{group.name}</h2><span className={styles.kind}>{groupType(group)}</span></div>
-        <button className={styles.primary} onClick={() => openEditor("lecture")} disabled={!eligibleMembers.length}>수업 개설</button>
+        {lectureEntry
+          ? <button className={styles.primary} onClick={() => openEditor("lecture")} disabled={!eligibleMembers.length}>수업 개설</button>
+          : <button className={styles.primary} onClick={() => openEditor("add")}>반 인원 배정</button>}
       </header>
-      {!members.length && <p>학생을 배정하면 수업을 개설할 수 있습니다.</p>}
+      <nav className={styles.groupNav} aria-label="반 업무">
+        <Link to={`${lectureRoot}?class=${id}`} aria-current={lectureEntry ? "page" : undefined}>강의 목록</Link>
+        <Link to={`${rosterRoot}?class=${id}`} aria-current={!lectureEntry ? "page" : undefined}>반 명단</Link>
+      </nav>
+      {lectureEntry && !eligibleMembers.length && <p>수업을 개설하려면 <Link to={`${rosterRoot}?class=${id}`}>반 명단</Link>에서 수강 가능한 학생을 배정하세요.</p>}
       {notice && <p role="status" className={styles.notice}>{notice}</p>}
       {createdCourse && <div className={styles.createdCourse}>
         <p role="status"><strong>{createdCourse.title}</strong> 개설 완료 · 수강생 {createdCourse.student_count}명 등록</p>
@@ -195,11 +201,10 @@ function GroupDetail({ id, root, lectureRoot, lectureEntry, assignOnOpen, afterI
         }} />
       </Suspense>}
       {lectureEntry && <CourseList group={group} lectureRoot={lectureRoot} />}
-      <section className={styles.panel}>
+      {!lectureEntry && <section className={styles.panel} aria-label="반 명단">
         <div className={styles.sectionHeader}>
           <h3>반 명단 <span>{members.length}명</span></h3>
           <div className={styles.actions}>
-            <button onClick={() => openEditor("add")}>반 인원 배정</button>
             {members.length > 0 && <button onClick={() => openEditor("remove")}>명단에서 제외</button>}
           </div>
         </div>
@@ -219,8 +224,7 @@ function GroupDetail({ id, root, lectureRoot, lectureEntry, assignOnOpen, afterI
           onSave={saveMembers}
           onClose={stopEditing}
         />}
-      </section>
-      {!lectureEntry && <CourseList group={group} lectureRoot={lectureRoot} />}
+      </section>}
     </div>
   );
 }
@@ -228,13 +232,15 @@ function GroupDetail({ id, root, lectureRoot, lectureEntry, assignOnOpen, afterI
 export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry?: boolean }) {
   const mobile = useLocation().pathname.startsWith("/workspace/mobile/");
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
   const client = useQueryClient();
   const isDawon = resolveTenantCodeString() === "dawon";
   const rawId = params.get("class");
   const id = rawId && /^\d+$/.test(rawId) ? Number(rawId) : null;
   const lectureRoot = mobile ? "/workspace/mobile/classes" : "/workspace/lectures";
-  const root = lectureEntry ? lectureRoot : mobile ? "/workspace/mobile/students/class-groups" : "/workspace/students/class-groups";
+  const rosterRoot = mobile ? "/workspace/mobile/students/class-groups" : "/workspace/students/class-groups";
+  const root = lectureEntry ? lectureRoot : rosterRoot;
   const groups = useQuery({
     queryKey: groupsKey,
     enabled: isDawon && !id,
@@ -242,11 +248,12 @@ export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry
     queryFn: async ({ signal }) => (await api.get<Group[]>(endpoint, { signal })).data,
   });
   if (!isDawon) return <Navigate to={mobile ? "/workspace/mobile/students" : "/workspace/students/home"} replace />;
-  if (id) return <div className={styles.page}><GroupDetail key={id} id={id} lectureEntry={lectureEntry} root={root} lectureRoot={lectureRoot} assignOnOpen={params.get("assign") === "1"} afterInitialAssignment={() => setParams({ class: String(id) }, { replace: true })} /></div>;
+  if (id && lectureEntry && params.get("assign") === "1") return <Navigate to={`${rosterRoot}?class=${id}&assign=1`} replace />;
+  if (id) return <div className={styles.page}><GroupDetail key={`${root}-${id}`} id={id} rosterRoot={rosterRoot} lectureEntry={lectureEntry} root={root} lectureRoot={lectureRoot} assignOnOpen={params.get("assign") === "1"} afterInitialAssignment={() => setParams({ class: String(id) }, { replace: true })} /></div>;
   return (
     <div className={styles.page}>
       <header className={styles.heading}>
-        <div><h2>{lectureEntry ? "반별 강의" : "반 편성"}</h2><p>반을 선택해 수업을 개설하고 운영합니다.</p></div>
+        <div><h2>{lectureEntry ? "반별 강의" : "반 편성"}</h2></div>
         <div className={styles.actions}>
           {lectureEntry && <Link to={`${lectureRoot}?view=all`} className={styles.operate}>전체 강의 목록</Link>}
           <button className={styles.primary} onClick={() => setCreating(true)}>반 만들기</button>
@@ -255,7 +262,7 @@ export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry
       {creating && <GroupForm onCancel={() => setCreating(false)} onCreated={(createdId) => {
         setCreating(false);
         void client.invalidateQueries({ queryKey: groupsKey });
-        setParams({ class: String(createdId), assign: "1" });
+        navigate(`${rosterRoot}?class=${createdId}&assign=1`);
       }} />}
       {groups.isPending && <p role="status">반 목록을 불러오는 중입니다.</p>}
       {groups.isError && <div className={styles.panel}>{failure(groups.error)}<button onClick={() => void groups.refetch()}>다시 시도</button></div>}

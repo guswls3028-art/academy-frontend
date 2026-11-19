@@ -246,3 +246,23 @@
 
 .createdCourse p { margin: 0; overflow-wrap: anywhere; }
 .createdCourse a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
+
+.groupNav {
+  display: flex;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-border-divider);
+}
+.groupNav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: 12px;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  text-decoration: none;
+}
+.groupNav a[aria-current="page"] {
+  color: var(--color-brand-primary);
+  border-color: currentColor;
+}

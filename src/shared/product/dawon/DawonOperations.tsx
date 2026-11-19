@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "react-router";
+import { useLocation, useSearchParams } from "react-router";
 import api from "@/shared/api/axios";
 import DomainLayout from "@/shared/ui/domain/DomainLayout";
 import { Button } from "@/shared/ui/ds";
@@ -27,27 +27,33 @@ const tabs = [
 const endpoint = "/students/demo-operations/";
 const queryKey = ["dawon", "admin", "operations"] as const;
 
-function CourseDetails({course}: {course: Course}) {
-  const sections = ["수업 차시", "시험 결과", "과제 현황"] as const;
-  const [section, setSection] = useState<typeof sections[number]>("수업 차시");
+const sections = [
+  { key: "lessons", label: "수업 차시" },
+  { key: "exams", label: "시험 결과" },
+  { key: "homework", label: "과제 현황" },
+] as const;
+
+function CourseDetails({course, open, section, onToggle, onSection}: {
+  course: Course; open: boolean; section: string; onToggle: () => void; onSection: (key: string) => void;
+}) {
   const lessonNames = new Map(course.sessions.map(lesson => [lesson.id, lesson.title || `${lesson.order}차시`]));
-  return <details name="dawon-active-course" className={styles.course}>
-    <summary><strong>{course.title}</strong><span>{course.instructor ? `담당 ${course.instructor}` : "담당 미지정"} · {course.is_active ? "운영 중" : "종료"} · 수강생 {course.students}명 · 차시 {course.lessons}개</span></summary>
+  return <details open={open} name="dawon-active-course" className={styles.course}>
+    <summary onClick={event => {event.preventDefault(); onToggle();}}><strong>{course.title}</strong><span>{course.instructor ? `담당 ${course.instructor}` : "담당 미지정"} · {course.is_active ? "운영 중" : "종료"} · 수강생 {course.students}명 · 차시 {course.lessons}개</span></summary>
     <div className={styles.detailBody}>
       <div role="group" aria-label="강의 상세 항목" className={styles.sectionPicker}>
-        {sections.map(label => <button type="button" key={label} aria-pressed={section === label} onClick={() => setSection(label)}>{label}</button>)}
+        {sections.map(item => <button type="button" key={item.key} aria-pressed={section === item.key} onClick={() => onSection(item.key)}>{item.label}</button>)}
       </div>
-      {section === "수업 차시" && <>
+      {section === "lessons" && <>
       {course.sessions.length ? <ul>{course.sessions.map(lesson => <li key={lesson.id}>
         <strong>{lessonNames.get(lesson.id)}</strong><span>{lesson.date || "일정 미정"}</span>
       </li>)}</ul> : <p>등록된 차시가 없습니다.</p>}
       </>}
-      {section === "시험 결과" && <>
+      {section === "exams" && <>
       {course.exams.length ? <ul>{course.exams.map(exam => <li key={exam.id}>
         <strong>{exam.title}</strong><span>{exam.average === null ? "채점 대기" : `채점 ${exam.graded}건 · 평균 ${Number(exam.average.toFixed(1))}점`}</span>
       </li>)}</ul> : <p>연결된 시험이 없습니다.</p>}
       </>}
-      {section === "과제 현황" && <>
+      {section === "homework" && <>
       {course.homework.length ? <ul>{course.homework.map(item => <li key={item.id}>
         <strong>{item.title}</strong><span>{lessonNames.get(item.session_id)} · {{DRAFT: "초안", OPEN: "진행 중", CLOSED: "마감"}[item.status]}</span>
         <small className={styles.progress}>{item.progress.assigned ? `대상 ${item.progress.assigned}명 · 제출 ${item.progress.submitted}명 · 미제출 ${item.progress.missing}명 · 채점 ${item.progress.graded}명${item.progress.deferred ? ` · 검사 보류 ${item.progress.deferred}명` : ""}` : "배정된 수강생이 없습니다."}</small>
@@ -70,30 +76,48 @@ export default function DawonOperations() {
       setPosition(null);
     },
   });
-  const [groupKey, setGroupKey] = useState("");
+  const [params, setParams] = useSearchParams();
+  const groupKey = params.get("group");
+  const section = sections.find(item => item.key === params.get("section"))?.key ?? "lessons";
+  function selectCourse(group: string, course?: number, detail?: string) {
+    const next = new URLSearchParams(params);
+    next.set("group", group);
+    if (course === undefined) next.delete("course");
+    else next.set("course", String(course));
+    if (!detail || detail === "lessons") next.delete("section");
+    else next.set("section", detail);
+    setParams(next, {replace: true, preventScrollReset: true});
+  }
+  const [examFilter, setExamFilter] = useState("all");
   const data = query.data;
   const groups = data?.groups ?? [];
   const group = groups.find(item => String(item.id) === groupKey) ?? groups[0];
-  return <DomainLayout title="관리자앱" tabs={tabs} breadcrumbs={[]}>
+  const exams = data?.exams ?? [];
+  const filteredExams = exams.filter(exam => examFilter === "all" ||
+    (examFilter === "pending" ? exam.average === null : exam.average !== null));
+  return <DomainLayout title={tab.label} breadcrumbs={[]}>
     {query.isPending ? <p role="status">운영 현황을 불러오는 중입니다.</p> :
       query.isError || !data ? <p role="alert">운영 현황을 불러오지 못했습니다. <Button onClick={() => void query.refetch()}>다시 시도</Button></p> :
       <section className={styles.section} aria-label={tab.label}>
         {tab.key === "dashboard" && <>
-          <h2>반 운영 현황</h2>
           {group && <><label className={styles.groupPicker}>반 선택
-            <select aria-label="반 선택" value={String(group.id)} onChange={e => setGroupKey(e.target.value)}>
+            <select aria-label="반 선택" value={String(group.id)} onChange={e => selectCourse(e.target.value)}>
               {groups.map(item => <option key={String(item.id)} value={String(item.id)}>{item.name}</option>)}
             </select>
           </label><article className={styles.group} key={group.id ?? "ungrouped"}>
-            <h3>{group.name}</h3>
+            <h2>{group.name}</h2>
             <p>{group.members !== null && `반 학생 ${group.members}명 · `}강의 {group.courses.length}개</p>
-            {group.courses.map(course => <CourseDetails key={course.id} course={course} />)}
+            {group.courses.map(course => {
+              const open = params.get("course") === String(course.id);
+              return <CourseDetails key={course.id} course={course} open={open} section={open ? section : "lessons"}
+                onToggle={() => selectCourse(String(group.id), open ? undefined : course.id)}
+                onSection={detail => selectCourse(String(group.id), course.id, detail)} />;
+            })}
             {!group.courses.length && <p>연결된 강의가 없습니다.</p>}
           </article></>}
           {!data.groups.length && <p>등록된 반이 없습니다.</p>}
         </>}
         {tab.key === "staff" && <>
-          <h2>직원 관리</h2>
           {data.employee ? <form onSubmit={e => {e.preventDefault(); if (position) mutation.mutate(position);}}>
             <strong>{data.employee.name}</strong>
             <label>직위 <select value={position ?? data.employee.position} onChange={e => {setPosition(e.target.value as Position); mutation.reset();}}>
@@ -105,10 +129,14 @@ export default function DawonOperations() {
           </form> : <p>등록된 체험 직원이 없습니다.</p>}
         </>}
         {tab.key === "results" && <>
-          <h2>시험별 채점 현황</h2>
-          <ul>{data.exams.map(row => <li key={row.id}><strong>{row.title}</strong>
+          {exams.length > 0 && <label className={styles.resultPicker}>채점 상태
+            <select value={examFilter} onChange={event => setExamFilter(event.target.value)}>
+              <option value="all">전체 시험</option><option value="pending">채점 대기</option><option value="graded">결과 있음</option>
+            </select>
+          </label>}
+          <ul>{filteredExams.map(row => <li key={row.id}><strong>{row.title}</strong>
             <span>{row.average == null ? "채점 대기" : `채점 ${row.graded}건 · 평균 ${Number(row.average.toFixed(1))}점`}</span></li>)}</ul>
-          {!data.exams.length && <p>등록된 시험 결과가 없습니다.</p>}
+          {!filteredExams.length && <p>{exams.length ? "이 상태의 시험이 없습니다." : "등록된 시험 결과가 없습니다."}</p>}
         </>}
       </section>}
   </DomainLayout>;

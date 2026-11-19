@@ -1,5 +1,4 @@
 .section { padding: clamp(12px, 3vw, 28px); color: var(--color-text-primary); }
-.section h2 { margin: 0 0 16px; font-size: 18px; }
 .section ul { margin: 0; padding: 0; list-style: none; }
 .section li, .section form { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 14px 0; border-top: 1px solid var(--color-border-divider); }
 .section li { justify-content: space-between; }
@@ -7,7 +6,7 @@
 .section select { min-height: 44px; padding: 4px 12px; border: 1px solid var(--color-border-divider); border-radius: 8px; color: inherit; background: var(--color-bg-surface); }
 
 .group { border: 1px solid var(--color-border-divider); border-radius: 12px; padding: 14px 16px; margin: 12px 0; }
-.group h3 { font-size: 16px; margin: 0; }
+.group h2 { font-size: 16px; margin: 0; }
 .group p { margin: 4px 0 10px; color: var(--color-text-secondary); font-size: 13px; }
 .course { border-top: 1px solid var(--color-border-divider); }
 .course summary { cursor: pointer; padding: 14px 4px; min-height: 44px; overflow-wrap: anywhere; }
@@ -20,8 +19,9 @@
   .course[open] .detailBody { animation: revealCourse 140ms ease-out; }
   @keyframes revealCourse { from { opacity: 0; transform: translateY(-3px); } }
 }
-.groupPicker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.groupPicker select { max-width: 100%; }
+.groupPicker, .resultPicker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.resultPicker { margin-bottom: 14px; }
+.groupPicker select, .resultPicker select { max-width: 100%; }
 .progress { width: 100%; color: var(--color-text-secondary); }
 
 .sectionPicker { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 12px; }

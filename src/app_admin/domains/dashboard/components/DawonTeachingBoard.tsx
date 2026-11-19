@@ -1,6 +1,6 @@
 import { ArrowRight, CalendarDays } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { fetchTodaySessions, todaySessionEntries } from "@teacher/domains/today/api";
 import { teacherTodayQueryKeys } from "@teacher/domains/today/queryKeys";
@@ -18,8 +18,18 @@ type TeachingClass = {
 
 function MyTeachingBoard() {
   const today = todayLocalISO();
-  const [date, setDate] = useState(today);
-  const [selectedId, setSelectedId] = useState<number>();
+  const [params, setParams] = useSearchParams();
+  const requestedDate = params.get("date") || "";
+  const parsedDate = Date.parse(requestedDate);
+  const date = Number.isFinite(parsedDate) && new Date(parsedDate).toISOString().slice(0, 10) === requestedDate
+    ? requestedDate : today;
+  const selectedId = Number(params.get("group"));
+  function select(key: "date" | "group", value: string) {
+    const next = new URLSearchParams(params);
+    if (key === "date" && (!value || value === today)) next.delete(key);
+    else next.set(key, value);
+    setParams(next, {replace: true, preventScrollReset: true});
+  }
   const classes = useQuery({
     queryKey: ["dawon", "assigned-teaching-classes"], refetchOnMount: "always",
     queryFn: async ({signal}) => (await api.get<TeachingClass[]>("/students/class-groups/teaching/", {signal})).data,
@@ -39,14 +49,14 @@ function MyTeachingBoard() {
   return <section className={styles.classBoard} aria-labelledby="dawon-class-title">
     <header className={styles.classHead}><div><span className={styles.context}>담당 반</span>
       <h1 id="dawon-class-title">{group.name}</h1><p>학생 {group.members}명</p></div>
-      {groups.length > 1 && <label className={styles.switchClass}>담당 반 선택<select aria-label="담당 반 선택" value={group.id} onChange={e => setSelectedId(Number(e.target.value))}>
+      {groups.length > 1 && <label className={styles.switchClass}>담당 반 선택<select aria-label="담당 반 선택" value={group.id} onChange={e => select("group", e.target.value)}>
         {groups.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
       <Link className={styles.action} to={`/workspace/lectures?class=${group.id}`}>반 수업 관리 <ArrowRight size={16} aria-hidden /></Link>
     </header>
     <section className={styles.sessionPanel} aria-labelledby="dawon-teaching-heading">
       <header className={styles.panelHead}><h2 id="dawon-teaching-heading">{date === today ? "오늘 수업" : "선택한 날의 수업"}</h2>
-        <div className={styles.dateControls}><input type="date" aria-label="수업 날짜" value={date} onChange={e => setDate(e.target.value || today)} />
-        {date !== today && <Button onClick={() => setDate(today)}>오늘</Button>}</div></header>
+        <div className={styles.dateControls}><input type="date" aria-label="수업 날짜" value={date} onChange={e => select("date", e.target.value)} />
+        {date !== today && <Button onClick={() => select("date", today)}>오늘</Button>}</div></header>
       {schedule.isPending ? <p role="status">수업 일정을 불러오는 중입니다.</p> :
         schedule.isError ? <p role="alert">수업 일정을 불러오지 못했습니다. <Button onClick={() => void schedule.refetch()}>다시 시도</Button></p> :
         entries.length ? <ul className={styles.list}>{entries.map(entry => <li key={entry.route}><Link className={styles.row} to={entry.route}>
