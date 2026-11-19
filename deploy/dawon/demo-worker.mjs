@@ -40,7 +40,7 @@ const workspaceStyle = `<style>
 }
 @media(max-width:600px) {
   [data-dawon-staff="admin"] section[aria-label="반 운영 현황"] article li {align-items:flex-start;flex-direction:column}
-  [data-dawon-staff="admin"] nav[aria-label="업무 메뉴"] a {flex:1;justify-content:center;padding-inline:8px}
+
   [data-dawon-staff="teacher"] [aria-labelledby="dawon-teaching-heading"] > header a.ds-btn,
   [data-dawon-staff="teacher"] [aria-labelledby="dawon-teaching-heading"] > header > div:last-child > div > button {min-height:44px;font-size:13px;padding-inline:9px}
   [data-dawon-staff="teacher"] [aria-labelledby="dawon-teaching-heading"] a[href$="/attendance"] > span:last-child {padding-inline:6px}

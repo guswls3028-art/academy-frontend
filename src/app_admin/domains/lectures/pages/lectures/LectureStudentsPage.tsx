@@ -8,7 +8,8 @@ import { useLocation, useNavigate, useParams } from "react-router";
 import { compareKoreanText } from "@/shared/utils/dataOrdering";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
-import { DawonLectureEnrollment, DawonLectureGroupPending, useDawonLectureGroup } from "@/shared/product/dawon/DawonLectureEnrollment";
+import { DawonLectureEnrollment, DawonLectureGroupPending } from "@/shared/product/dawon/DawonLectureEnrollment";
+import { useDawonLectureGroup } from "@/shared/product/dawon/useDawonLectureGroup";
 import { fetchLectureEnrollments } from "@/shared/api/contracts/enrollments";
 import type { AttendanceMatrixStudent } from "@/shared/api/contracts/attendance";
 

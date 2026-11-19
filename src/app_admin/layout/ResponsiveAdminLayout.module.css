@@ -66,3 +66,21 @@
 
 .previewHeading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 20px; min-height: 48px; }
 .previewHeading a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; }
+
+.layout[data-dawon-staff] .sidebar {
+  overflow-y: auto;
+  position: static;
+  height: auto;
+  background: var(--color-bg-surface);
+  border-right: 1px solid var(--color-border-divider);
+}
+@media (min-width:1024px) {
+  .layout[data-dawon-staff] { grid-template-columns: 216px minmax(0,1fr); }
+}
+.menuButton {
+  display: inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 10px;
+  font:inherit; font-size:14px; font-weight:650; color:inherit;
+  border:1px solid var(--color-border-divider); border-radius:8px; background:white;
+}
+.previewHeading strong { flex:1; }
+@media(max-width:600px) { .previewHeading { gap:8px; padding:0 12px; } }

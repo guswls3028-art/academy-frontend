@@ -1,23 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
-import { resolveTenantCodeString } from "@/shared/tenant";
 import { feedback } from "@/shared/ui/feedback";
 import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import ClassRosterModal from "./ClassRosterModal";
 
-type LectureGroup = { group_id: number | null; name: string; school: string };
+import type { LectureGroup } from "./useDawonLectureGroup";
 const root = "/students/class-groups/";
-
-export function useDawonLectureGroup(lectureId: number, enabled: boolean) {
-  const isDawon = resolveTenantCodeString() === "dawon";
-  const query = useQuery({
-    queryKey: ["dawon", "lecture-group", lectureId],
-    enabled: isDawon && enabled && Number.isInteger(lectureId) && lectureId > 0,
-    queryFn: async ({ signal }) => (await api.get<LectureGroup>(`${root}for-lecture/${lectureId}/`, { signal })).data,
-  });
-  return { isDawon, query };
-}
 
 export function DawonLectureEnrollment({
   lectureId, group, onClose, onSaved,

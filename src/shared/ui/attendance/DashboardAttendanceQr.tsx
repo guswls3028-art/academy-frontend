@@ -10,7 +10,7 @@ const Manager = lazy(() => import("./AttendanceQrManager").then(module => ({ def
 
 const activeLecturesKey = ["attendance-qr", "active-lectures"] as const;
 
-export default function DashboardAttendanceQr() {
+export default function DashboardAttendanceQr({lectureIds}: {lectureIds?: number[]} = {}) {
   const [open, setOpen] = useState(false);
   const [lectureId, setLectureId] = useState<number | null>(null);
   const [showCode, setShowCode] = useState(false);
@@ -19,7 +19,7 @@ export default function DashboardAttendanceQr() {
     queryFn: () => fetchLectures({ is_active: true }),
     enabled: open,
   });
-  const options = lectures.data?.filter(row => row.is_active && !row.is_system) ?? [];
+  const options = lectures.data?.filter(row => row.is_active && !row.is_system && (!lectureIds || lectureIds.includes(row.id))) ?? [];
   const selected = options.find(row => row.id === lectureId) ?? (options.length === 1 ? options[0] : undefined);
   return <div>
     <Button leftIcon={<ScanLine size={ICON_FOR_BUTTON.md} />} onClick={() => { setShowCode(false); setOpen(true); }}>수업 출석 QR</Button>

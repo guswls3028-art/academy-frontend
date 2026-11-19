@@ -9,3 +9,21 @@
 .group { border: 1px solid var(--color-border-divider); border-radius: 12px; padding: 14px 16px; margin: 12px 0; }
 .group h3 { font-size: 16px; margin: 0; }
 .group p { margin: 4px 0 10px; color: var(--color-text-secondary); font-size: 13px; }
+.course { border-top: 1px solid var(--color-border-divider); }
+.course summary { cursor: pointer; padding: 14px 4px; min-height: 44px; overflow-wrap: anywhere; }
+.course summary span { display: block; margin: 4px 0 0 18px; color: var(--color-text-secondary); font-size: 13px; }
+.course summary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.detailBody { padding: 0 10px 14px; overflow-wrap: anywhere; }
+.detailBody h4 { margin: 14px 0 4px; }
+.detailBody li { padding: 8px 0; gap: 4px 12px; }
+@media (prefers-reduced-motion: no-preference) {
+  .course[open] .detailBody { animation: revealCourse 140ms ease-out; }
+  @keyframes revealCourse { from { opacity: 0; transform: translateY(-3px); } }
+}
+.groupPicker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.groupPicker select { max-width: 100%; }
+.progress { width: 100%; color: var(--color-text-secondary); }
+
+.sectionPicker { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 12px; }
+.sectionPicker button { min-height: 44px; padding: 6px 12px; border: 1px solid var(--color-border-divider); border-radius: 8px; color: inherit; background: var(--color-bg-surface); cursor: pointer; }
+.sectionPicker button[aria-pressed="true"] { font-weight: 700; border-color: currentColor; }
