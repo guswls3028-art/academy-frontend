@@ -178,6 +178,11 @@ export async function handle(request, env, fetcher = fetch, context) {
   if (pathname === '/teacher' || formerTeacherRoutes.test(pathname) || url.searchParams.get('preview') === 'teacher') {
     return Response.redirect(url.origin + '/login/dawon', 302);
   }
+  // The public demo shares a browser across roles. Fetch pages and records online
+  // so a previously viewed user's cached shell or response cannot take precedence.
+  if (pathname === '/sw.js' || pathname === '/teacher-sw.js') {
+    return secureResponse("self.addEventListener('install',e=>e.waitUntil(self.skipWaiting()));self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));", 200, 'text/javascript; charset=utf-8');
+  }
   if (pathname === '/dawon-module-probe.mjs') return secureResponse('if (!import.meta.resolve) throw Error("import.meta.resolve not supported");', 200, 'text/javascript; charset=utf-8');
   if (pathname === linkedNavPath) return secureResponse(navigation, 200, 'application/javascript; charset=utf-8');
   if (pathname === '/version.json') {
