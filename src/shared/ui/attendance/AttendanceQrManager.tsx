@@ -21,7 +21,14 @@ export default function AttendanceQrManager({ kind, lectureId }: Props) {
   </>;
 }
 
-export function QrManagerDialog({ kind, lectureId, lectureTitle, onClose }: Props & { lectureTitle?: string; onClose: () => void }) {
+type DialogProps = Props & {
+  lectureTitle?: string;
+  session?: { id: number; label: string; detail: string };
+  onBack?: () => void;
+  onClose: () => void;
+};
+
+export function QrManagerDialog({ kind, lectureId, lectureTitle, session, onBack, onClose }: DialogProps) {
   const locationId = useId();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
@@ -35,7 +42,8 @@ export function QrManagerDialog({ kind, lectureId, lectureTitle, onClose }: Prop
     queryKey,
     queryFn: async () => (await api.get<QrPoint[]>(endpoint, { params: { kind, lecture_id: lectureId } })).data,
   });
-  const selected = points.data?.find((point) => point.id === selectedId) ?? points.data?.[0];
+  const selected = session ? points.data?.find(point => point.active)
+    : points.data?.find(point => point.id === selectedId) ?? points.data?.[0];
   const mutation = useMutation({
     mutationFn: async ({ mode, point }: { mode: "create" | "rotate" | "toggle"; point?: QrPoint }) => {
       if (mode === "create") return (await api.post<QrPoint>(endpoint, {
@@ -64,7 +72,7 @@ export function QrManagerDialog({ kind, lectureId, lectureTitle, onClose }: Prop
     const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: "image/svg+xml" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${lectureTitle || selected.label}-출석-QR.svg`;
+    link.download = [lectureTitle || selected.label, session?.label, "출석-QR.svg"].filter(Boolean).join("-");
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -107,30 +115,35 @@ export function QrManagerDialog({ kind, lectureId, lectureTitle, onClose }: Prop
   };
 
   return <AdminModal open onClose={onClose} width={680} noMinimize trapFocus closeDisabled={mutation.isPending}>
-    <ModalHeader title="출결 QR 출력" description={kind === "clinic" ? "확정된 클리닉 예약의 등원·하원을 학생이 직접 기록합니다." : "이 강의의 당일 등록 차시에 학생이 직접 출석합니다."} />
+    <ModalHeader title={session ? "차시 출석 QR" : "출결 QR 출력"} noIcon={Boolean(session)}
+      description={session ? undefined : kind === "clinic" ? "확정된 클리닉 예약의 등원·하원을 학생이 직접 기록합니다." : "이 강의의 당일 등록 차시에 학생이 직접 출석합니다."} />
     <ModalBody><div className={styles.content}>
       {points.isPending ? <p role="status">QR을 불러오는 중…</p> : points.isError ? <div role="alert"><p>QR 목록을 불러오지 못했습니다.</p><Button onClick={() => { void points.refetch(); }}>다시 불러오기</Button></div> : <>
-        {Boolean(points.data?.length) && <label className={styles.field}>발급한 QR<select value={selected?.id ?? ""} onChange={(event) => setSelectedId(Number(event.target.value))}>
+        {!session && Boolean(points.data?.length) && <label className={styles.field}>발급한 QR<select value={selected?.id ?? ""} onChange={(event) => setSelectedId(Number(event.target.value))}>
           {points.data?.map((point) => <option key={point.id} value={point.id}>{point.label}{point.location ? ` · ${point.location}` : ""}{!point.active ? " (사용 중지)" : ""}</option>)}
         </select></label>}
         {selected ? <>
           <div ref={poster} className={styles.poster} aria-label="출결 QR 인쇄 미리보기">
-            <h2>{selected.label}</h2>
-            {lectureTitle && <p>{lectureTitle}</p>}
-            <p>{kind === "clinic" ? (selected.location || "전체 클리닉 장소") : "오늘 수업 출석"}</p>
-            {selected.active ? <QRCode type="svg" value={qrUrl(selected.token)} size={240} marginSize={4} color="#000000" bgColor="#ffffff" bordered={false} level="M" /> : <p>사용이 중지된 QR입니다.</p>}
+            {session && <p>{lectureTitle}</p>}
+            <h2>{session?.label || selected.label}</h2>
+            {!session && lectureTitle && <p>{lectureTitle}</p>}
+            <p>{session?.detail ?? (kind === "clinic" ? (selected.location || "전체 클리닉 장소") : "오늘 수업 출석")}</p>
+            {selected.active ? <QRCode type="svg" value={qrUrl(selected.token, session?.id)} size={240} marginSize={4} color="#000000" bgColor="#ffffff" bordered={false} level="M" /> : <p>사용이 중지된 QR입니다.</p>}
             <p>학생앱 로그인 → QR 출석 → 카메라 스캔</p>
-            <p>{kind === "clinic" ? "들어올 때 등원 · 나갈 때 하원" : "출석 완료 화면을 확인하고 입실해 주세요."}</p>
-            <small>학생 본인 계정으로 이용해 주세요.</small>
+            {!session && <p>{kind === "clinic" ? "들어올 때 등원 · 나갈 때 하원" : "출석 완료 화면을 확인하고 입실해 주세요."}</p>}
+            <small>{session ? "이 차시에 등록된 학생이 본인의 수업일에 출석할 수 있습니다." : "학생 본인 계정으로 이용해 주세요."}</small>
           </div>
           <div className={styles.actions}>
             <Button intent="primary" disabled={!selected.active || mutation.isPending} leftIcon={<Printer size={ICON_FOR_BUTTON.md} />} onClick={print}>QR 인쇄·PDF 저장</Button>
             <Button disabled={!selected.active || mutation.isPending} leftIcon={<Download size={ICON_FOR_BUTTON.md} />} onClick={download}>QR 다운로드 (SVG)</Button>
-            <Button disabled={mutation.isPending} onClick={() => { void changePoint("rotate"); }}>새 QR로 교체</Button>
-            <Button disabled={mutation.isPending} onClick={() => { void changePoint("toggle"); }}>{selected.active ? "사용 중지" : "다시 사용"}</Button>
+            {!session && <><Button disabled={mutation.isPending} onClick={() => { void changePoint("rotate"); }}>새 QR로 교체</Button>
+            <Button disabled={mutation.isPending} onClick={() => { void changePoint("toggle"); }}>{selected.active ? "사용 중지" : "다시 사용"}</Button></>}
           </div>
-        </> : <p>QR을 발급한 뒤 출력해 교실 문에 붙여 주세요.</p>}
-        <details open={!selected} className={styles.create}><summary>새 출결 QR 만들기</summary>
+        </> : session ? <div className={styles.emptyPoster}>
+          <p>{lectureTitle}</p><h2>{session.label}</h2><p>{session.detail}</p>
+          <Button intent="primary" loading={mutation.isPending} onClick={() => mutation.mutate({ mode: "create" })}>출석 QR 만들기</Button>
+        </div> : <p>QR을 발급한 뒤 출력해 교실 문에 붙여 주세요.</p>}
+        {!session && <><details open={!selected} className={styles.create}><summary>새 출결 QR 만들기</summary>
           <form onSubmit={(event) => { event.preventDefault(); setError(""); mutation.mutate({ mode: "create" }); }}>
             <label className={styles.field}>인쇄할 이름<input required maxLength={100} value={label} onChange={(event) => setLabel(event.target.value)} placeholder="예: 301호 수업 출석" /></label>
             {kind === "clinic" && <div className={styles.field}>
@@ -141,10 +154,11 @@ export function QrManagerDialog({ kind, lectureId, lectureTitle, onClose }: Prop
             <Button type="submit" intent="primary" loading={mutation.isPending} disabled={!label.trim()}>QR 발급</Button>
           </form>
         </details>
-        <p className={styles.note}>이 QR은 매일 다시 출력할 필요가 없습니다. 수업은 당일 차시 등록, 클리닉은 확정 예약과 이용 시간을 확인합니다. 교사가 입력한 출결과 학습 완료는 덮어쓰지 않습니다. 인쇄된 QR은 공유될 수 있으므로 실제 현장 확인이 필요한 경우 출결표와 함께 확인해 주세요.</p>
+        <p className={styles.note}>이 QR은 매일 다시 출력할 필요가 없습니다. 수업은 당일 차시 등록, 클리닉은 확정 예약과 이용 시간을 확인합니다. 교사가 입력한 출결과 학습 완료는 덮어쓰지 않습니다. 인쇄된 QR은 공유될 수 있으므로 실제 현장 확인이 필요한 경우 출결표와 함께 확인해 주세요.</p></>}
       </>}
       {error && <p role="alert" className={styles.error}>{error}</p>}
     </div></ModalBody>
-    <ModalFooter right={<Button disabled={mutation.isPending} onClick={onClose}>닫기</Button>} />
+    <ModalFooter left={onBack && <Button disabled={mutation.isPending} onClick={onBack}>차시 다시 선택</Button>}
+      right={<Button disabled={mutation.isPending} onClick={onClose}>닫기</Button>} />
   </AdminModal>;
 }
