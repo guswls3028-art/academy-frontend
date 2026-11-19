@@ -5,10 +5,10 @@ import { ArrowLeft, Download, FileText, MessageCircle, Paperclip, Pencil } from 
 import { Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { DomainLayout } from "@/shared/ui/layout";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
-import { addReply, boardDate, boardLabels, boardRoot, boardTabs, downloadAttachment,
-  useBoardList, useBoardPost, useBoardScope, type BoardScope, type Category, type Post, type PostRow } from "./api";
+import { addReply, boardDate, boardKeys, boardLabels, boardRoot, boardTabs, downloadAttachment,
+  useBoardList, useBoardPost, useBoardScope, type BoardScope, type Category, type Post, type PostRow } from "@/shared/staff/board/api";
 import PostEditor from "./PostEditor";
-import styles from "./StaffBoard.module.css";
+import styles from "@/shared/staff/board/StaffBoard.module.css";
 
 export default function StaffBoardPage() {
   const { category, postId } = useParams();
@@ -82,7 +82,7 @@ function PostDetail({ scope, category, id, onEdit }: {
   const reply = useMutation({
     mutationFn: () => addReply(id, text.trim()),
     onSuccess: (created) => {
-      cache.setQueryData<Post>([...scope, "detail", id], current => !current || current.replies.some(r => r.id === created.id)
+      cache.setQueryData<Post>(boardKeys.detail(scope, id), current => !current || current.replies.some(r => r.id === created.id)
         ? current : { ...current, replies: [...current.replies, created], reply_count: current.reply_count + 1 });
       void cache.invalidateQueries({ queryKey: scope });
       setText("");

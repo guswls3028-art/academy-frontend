@@ -3,8 +3,8 @@ import { useMutation } from "@tanstack/react-query";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
-import { boardLabels, savePost, type Category, type Post, type PostRow } from "./api";
-import styles from "./StaffBoard.module.css";
+import { boardLabels, savePost, type Category, type Post, type PostRow } from "@/shared/staff/board/api";
+import styles from "@/shared/staff/board/StaffBoard.module.css";
 
 export default function PostEditor({ category, post, onClose, onSaved }: {
   category: Category; post?: Post; onClose: () => void; onSaved: (row: PostRow) => void;

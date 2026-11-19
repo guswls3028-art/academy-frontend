@@ -23,9 +23,15 @@ export function useBoardScope() {
 }
 export type BoardScope = ReturnType<typeof useBoardScope>;
 
+export const boardKeys = {
+  list: (scope: BoardScope, category: Category, page: number, pageSize: number) =>
+    [...scope, "list", category, page, pageSize] as const,
+  detail: (scope: BoardScope, id: number) => [...scope, "detail", id] as const,
+};
+
 export function useBoardList(scope: BoardScope, category: Category, page = 1, pageSize = 20, refreshInterval?: number) {
   return useQuery({
-    queryKey: [...scope, "list", category, page, pageSize],
+    queryKey: boardKeys.list(scope, category, page, pageSize),
     enabled: Boolean(scope[1] && scope[2]),
     queryFn: async ({ signal }) => {
       const { data } = await api.get<PostPage>(endpoint, { params: { category, page, page_size: pageSize }, signal });
@@ -39,7 +45,7 @@ export function useBoardList(scope: BoardScope, category: Category, page = 1, pa
 
 export function useBoardPost(scope: BoardScope, id: number) {
   return useQuery({
-    queryKey: [...scope, "detail", id],
+    queryKey: boardKeys.detail(scope, id),
     enabled: Boolean(scope[1] && scope[2]),
     queryFn: async ({ signal }) => {
       const { data } = await api.get<Post>(`${endpoint}${id}/`, { signal });

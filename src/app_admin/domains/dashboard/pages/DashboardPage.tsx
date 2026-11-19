@@ -6,7 +6,7 @@
  * current lecture, exam, submission, QnA, clinic, and messaging signals.
  */
 import DashboardAttendanceQr from "@/shared/ui/attendance/DashboardAttendanceQr";
-import StaffNoticePanel from "@admin/domains/staff-board/StaffNoticePanel";
+import StaffNoticePanel from "@/shared/staff/board/StaffNoticePanel";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
