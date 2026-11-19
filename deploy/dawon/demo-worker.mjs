@@ -351,8 +351,9 @@ export async function handle(request, env, fetcher = fetch, context) {
       }
       const upstreamUrl = isLearnerVideo ? new URL('/login/dawon', url) : url;
       let upstream = await forward(upstreamUrl, request, env, fetcher);
-      for (const previous of ['dawon-review-20261119-orange-r9', 'dawon-review-20261119-orange-r8', 'dawon-review-20261119-orange-r7', 'dawon-review-20261119-orange-r4', 'dawon-review-20261119-orange-r3']) {
+      for (const previous of ['r11', 'r10', 'r9', 'r8', 'r7', 'r4', 'r3'].map(suffix => 'dawon-review-20261119-orange-' + suffix)) {
         if (upstream.status !== 404 || !pathname.startsWith('/assets/')) break;
+        if (previous === env.ADMIN_VERSION) continue;
         await upstream.body?.cancel();
         upstream = await forward(url, request, { ...env, ADMIN_VERSION: previous }, fetcher);
       }

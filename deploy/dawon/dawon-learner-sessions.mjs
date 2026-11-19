@@ -29,11 +29,11 @@ export function installDawonSessions() {
   const styles = document.createElement('style');
   styles.textContent = `
     #schedule-view,.dw-projection>:not(.dw-lessons),#panel-video>:not(.dw-lessons),#panel-home .student-heading {display:none!important}
-    .dw-lessons{padding:16px;max-width:760px;margin:0 auto;color:#372719;background:#fff;box-sizing:border-box}
+    .learning-room .dw-lessons{width:min(100%,760px);padding:16px;max-width:760px;margin:0 auto;color:#372719;background:#fff;box-sizing:border-box}
     .dw-lessons[hidden]{display:none!important}.dw-lessons *{box-sizing:border-box}
     .dw-lessons h2,.dw-lessons h3,.dw-lessons p{margin:0 0 8px;overflow-wrap:anywhere}
     .dw-lessons h2{font-size:1.28rem}.dw-lessons h3{font-size:1.04rem}
-    .dw-lessons ul{padding-inline-start:21px}.dw-lessons p{color:#705c50}
+    .dw-lessons ul{margin:4px 0;padding-inline-start:18px}.dw-lessons p{color:#705c50}
     .dw-lessons a,.dw-lessons button{color:#92400d;font:inherit}
     .dw-lessons a:focus-visible,.dw-lessons button:focus-visible{outline:3px solid #a64916;outline-offset:1px}
     .dw-controls{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0}
@@ -44,6 +44,14 @@ export function installDawonSessions() {
     .dw-days a{height:54px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #e6d9cd;border-radius:8px;text-decoration:none}
     .dw-days small{font-size:10px;display:block}.dw-card{padding:12px 0;border-top:1px solid #eadfd4}
     .dw-card a,.dw-home a{display:inline-block;padding:8px 0}.dw-home{border-radius:12px;margin:0 0 12px}
+    .dw-day-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+    .learning-room .dw-day-details .dw-card{display:block;min-width:0;margin:0;padding:12px;border:1px solid #eadfd4;border-radius:10px}
+    .dw-day-details .dw-row{padding:8px 0;border-top:1px solid #f0e8e1;overflow-wrap:anywhere}
+    .dw-day-details .dw-row strong{display:block;font-size:14px;line-height:1.4}
+    .dw-day-details .dw-row p{margin:4px 0 0;font-size:13px;line-height:1.45}
+    .dw-day-details .dw-row ul{margin:4px 0 0;padding:0;list-style:none;font-size:13px}
+    .dw-day-details .dw-row li{padding:0;margin:0;line-height:1.45}
+    @media(max-width:620px){.dw-day-details{grid-template-columns:minmax(0,1fr)}.learning-room .dw-lessons{padding:12px}}
   `;
   document.head.append(styles);
   const el = (tag, text, cls) => {
@@ -84,6 +92,7 @@ export function installDawonSessions() {
   const examLabel = e => e.title + (e.score == null ? ' · 결과 대기' : ' · ' + e.score + (e.max == null ? '점' : ' / ' + e.max + '점'));
   const homeworkLabel = h => h.title + ' · ' + ({needs_submission:'제출 필요',awaiting_review:'확인 중',reviewed:'확인 완료'}[h.state] || '배정됨');
   function details(dayRows) {
+    const grid = el('div', null, 'dw-day-details');
     const categories = [
       ['출결 현황', r => [r.attendance || '출결 미입력'], '등록된 출결이 없어요.'],
       ['수업 영상·자료', r => r.videos, '공개된 수업 영상·자료가 없어요.'],
@@ -95,14 +104,17 @@ export function installDawonSessions() {
       group.append(el('h3', title));
       if (!dayRows.length) group.append(el('p', empty));
       for (const row of dayRows) {
-        group.append(el('strong', row.lecture + ' · ' + row.title));
-        list(group, values(row), empty);
+        const lesson = el('div', null, 'dw-row');
+        lesson.append(el('strong', row.lecture + ' · ' + row.title));
+        list(lesson, values(row), empty);
         if (title === '수업 영상·자료' && row.videos.length && !guardian()) {
-          group.append(link('수업 영상 보기', '/student/video/sessions/' + row.id));
+          lesson.append(link('수업 영상 보기', '/student/video/sessions/' + row.id));
         }
+        group.append(lesson);
       }
-      calendar.append(group);
+      grid.append(group);
     }
+    calendar.append(grid);
   }
   function paintCalendar() {
     const params = new URLSearchParams(location.search);
