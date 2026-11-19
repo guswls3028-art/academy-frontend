@@ -32,6 +32,7 @@ export const routeMockSpecs = [
   "e2e/helpers/api-auth-session.mock.spec.ts",
   "e2e/visual/strict-browser-recovered-cors.mock.spec.ts",
   "e2e/admin/workspace-quick-navigation.mock.spec.ts",
+  "e2e/admin/dashboard-attendance-qr.mock.spec.ts",
   "e2e/admin/dev-console-enterprise.mock.spec.ts",
   "e2e/admin/agent-sessions.mock.spec.ts",
   "e2e/admin/dev-console-owner-safety.mock.spec.ts",
