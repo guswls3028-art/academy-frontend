@@ -18,12 +18,77 @@ const workspaceStyle = `<style>
   padding:0 11px;min-height:44px;border:1px solid #dcd3cc;border-radius:8px;
   color:#48362a;background:#fff;text-decoration:none;font-weight:650;
 }
-[aria-labelledby="dawon-teaching-heading"] > header a[href="/workspace/lectures"] {
-  color:#fff;background:#a94a10;border-color:#a94a10;
+[data-dawon-staff] > header > div:has(a[href^="/login/dawon?demo="]) {
+  min-height:54px;gap:12px;padding-inline:clamp(14px,2.5vw,28px);
+  border-bottom:1px solid #ede5df;color:#362920;background:#fff;
+}
+[data-dawon-staff] > header a[href^="/login/dawon?demo="] {padding:8px;white-space:nowrap}
+[data-dawon-staff] nav[aria-label="업무 메뉴"] a[aria-current="page"] {
+  background:#fff1e5;color:#843a0e;font-weight:700;
+}
+[data-dawon-staff="admin"] .domain-header__tabs-wrap {display:none}
+[data-dawon-staff="admin"] section[aria-label="반 운영 현황"] article {background:#fff}
+[data-dawon-staff="admin"] section[aria-label="반 운영 현황"] article li {
+  gap:4px 16px;padding-block:12px;
+}
+[data-dawon-staff="admin"] section[aria-label="반 운영 현황"] article li span {font-size:13px}
+[data-dawon-staff="teacher"] [aria-labelledby="dawon-teaching-heading"] > header > div:last-child > div > button {
+  min-height:44px;padding-inline:14px;color:#fff;background:#a94a10;border-color:#a94a10;
+}
+[data-dawon-staff="teacher"] [aria-labelledby="dawon-teaching-heading"] a[href$="/attendance"] > span:last-child {
+  color:#863c10;background:#fff2e7;min-height:36px;padding-inline:9px;border-radius:8px;white-space:nowrap;
+}
+@media(max-width:600px) {
+  [data-dawon-staff="admin"] section[aria-label="반 운영 현황"] article li {align-items:flex-start;flex-direction:column}
+  [data-dawon-staff="admin"] nav[aria-label="업무 메뉴"] a {flex:1;justify-content:center;padding-inline:8px}
+  [data-dawon-staff="teacher"] [aria-labelledby="dawon-teaching-heading"] > header a.ds-btn,
+  [data-dawon-staff="teacher"] [aria-labelledby="dawon-teaching-heading"] > header > div:last-child > div > button {min-height:44px;font-size:13px;padding-inline:9px}
+  [data-dawon-staff="teacher"] [aria-labelledby="dawon-teaching-heading"] a[href$="/attendance"] > span:last-child {padding-inline:6px}
 }
 [aria-labelledby="dawon-teaching-heading"] > header a.ds-btn:hover {filter:brightness(.95)}
 [aria-labelledby="dawon-teaching-heading"] > header a.ds-btn:focus-visible {
   outline:2px solid #9b430c;outline-offset:2px;
+}
+body:has([data-dawon-staff]) {
+  --dawon-modal-gutter:20px;--dawon-control-radius:8px;--dawon-card-radius:12px;
+}
+body:has([data-dawon-staff]) .admin-modal :is(.ant-modal-content,.ant-modal-container),
+body:has([data-dawon-staff]) .ds-overlay-panel--student-detail {
+  border-radius:var(--dawon-card-radius);overflow:hidden;
+}
+body:has([data-dawon-staff]) .admin-modal .ant-modal-container {padding:0}
+body:has([data-dawon-staff]) .admin-modal :is(.modal-header,.modal-body,.modal-footer) {
+  padding-inline:var(--dawon-modal-gutter);
+}
+body:has([data-dawon-staff]) .admin-modal .modal-header__row {gap:10px;min-width:0}
+body:has([data-dawon-staff]) .admin-modal:has(.ant-modal-close) .modal-header__row {padding-inline-end:52px}
+body:has([data-dawon-staff]) .admin-modal:has(.modal-minimize-btn) .modal-header__row {padding-inline-end:104px}
+body:has([data-dawon-staff]) .admin-modal .modal-header__title {
+  font-size:16px;line-height:1.4;overflow-wrap:anywhere;
+}
+body:has([data-dawon-staff]) .admin-modal .modal-header__description {
+  color:#605850;font-size:13px;line-height:1.5;overflow-wrap:anywhere;
+}
+body:has([data-dawon-staff]) .admin-modal .modal-footer__actions {min-width:0;gap:8px;justify-content:flex-end}
+body:has([data-dawon-staff]) .admin-modal .modal-footer__actions button,
+body:has([data-dawon-staff]) .admin-modal :is(.ant-modal-close,.modal-minimize-btn) {
+  border-radius:var(--dawon-control-radius);
+}
+body:has([data-dawon-staff]) .admin-modal :is(.ant-modal-close,.modal-minimize-btn) {
+  top:14px;width:44px;height:44px;
+}
+body:has([data-dawon-staff]) .admin-modal .ant-modal-close {inset-inline-end:var(--dawon-modal-gutter)}
+body:has([data-dawon-staff]) .admin-modal .modal-minimize-btn {inset-inline-end:calc(var(--dawon-modal-gutter) + 52px)}
+body:has([data-dawon-staff]) .admin-modal .modal-footer__actions button {min-height:44px}
+body:has([data-dawon-staff]) .saved-list-field-popover-list {padding:4px}
+body:has([data-dawon-staff]) .saved-list-field-popover-item-row {border-radius:8px}
+body:has([data-dawon-staff]) .saved-list-field-popover-item {min-height:44px;line-height:1.45}
+[data-dawon-staff="admin"] section[aria-label="직원 관리"] form button {min-height:44px}
+[data-dawon-staff="admin"] section[aria-label="시험 결과"] li {gap:6px 16px;padding-block:12px}
+@media(max-width:600px) {
+  body:has([data-dawon-staff]) {--dawon-modal-gutter:14px}
+  body:has([data-dawon-staff]) .admin-modal .modal-footer {gap:8px}
+  body:has([data-dawon-staff]) .admin-modal .modal-footer__actions {margin-inline-start:auto}
 }
 section[aria-label$="차시 카드"]:has(> .session-block) {
   display:inline-flex; align-items:center; gap:2px; flex:0 0 auto;
@@ -76,13 +141,8 @@ section[aria-label$="차시 카드"] .session-block__gear:focus-visible {
 </style>`;
 const nativePolicy = "default-src 'self'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
 
-const loginNav = `<nav id="dawon-preview-roles" aria-label="다원수학 데모 화면">
-<a href="/login/dawon" aria-current="page">선생님</a><a href="/student">학생</a><a href="/guardian">학부모</a>
-</nav><p id="dawon-preview-scope">체험 화면에서는 예시 데이터만 사용해 주세요.</p>
+const loginNav = `<p id="dawon-preview-scope">체험 화면에서는 예시 데이터만 사용해 주세요.</p>
 <style>
-#dawon-preview-roles{display:flex;justify-content:center;gap:8px;padding:10px 12px;background:#fff;border-bottom:1px solid #eee6df;font:600 14px/1.3 system-ui,sans-serif}
-#dawon-preview-roles a{padding:8px 12px;border-radius:6px;color:#53473e;text-decoration:none}
-#dawon-preview-roles a[aria-current]{background:#fff1e7;color:#a7470c}
 #dawon-preview-scope{margin:0;padding:8px 16px;background:#fbfaf8;color:#695e55;text-align:center;font:12px/1.5 system-ui,sans-serif}
 </style>`;
 

@@ -1,20 +1,24 @@
 // Only the dedicated public review Worker imports this module.
 const apps = [
-  ["teacher", "선생앱", "/login/dawon?demo=teacher"],
-  ["student", "학생앱", "/?preview=student"],
-  ["guardian", "학부모앱", "/?preview=guardian"],
-  ["admin", "관리자앱", "/login/dawon?demo=admin"],
+  ["teacher", "선생님용", "/login/dawon?demo=teacher"],
+  ["admin", "관리자", "/login/dawon?demo=admin"],
+  ["student", "학생", "/?preview=student"],
+  ["guardian", "학부모", "/?preview=guardian"],
 ];
 
 const style = `<style id="dawon-demo-switcher-style">
 :root{--dawon-demo-bar-height:calc(44px + env(safe-area-inset-top,0px));scroll-padding-top:var(--dawon-demo-bar-height)}
 body{padding-block-start:var(--dawon-demo-bar-height)!important}
-#dawon-demo-switcher{position:fixed;inset:0 0 auto;z-index:100001;box-sizing:border-box;height:var(--dawon-demo-bar-height);padding:env(safe-area-inset-top,0px) 12px 0;display:flex;justify-content:center;align-items:stretch;background:#fffcfa;border-bottom:1px solid #e6ded8;font:600 14px/1.2 system-ui,sans-serif;color:#5b5049}
-#dawon-demo-switcher a{position:relative;display:flex;align-items:center;justify-content:center;min-width:0;width:96px;padding:0 8px;text-decoration:none;color:inherit;box-sizing:border-box;white-space:nowrap}
-#dawon-demo-switcher a[aria-current=page]{color:#9b430c;font-weight:750}
-#dawon-demo-switcher a[aria-current=page]::after{position:absolute;content:"";height:3px;bottom:0;left:17%;right:17%;border-radius:3px 3px 0 0;background:#d25a12}
-#dawon-demo-switcher a:hover{background:#fff0e4}
+#dawon-demo-switcher{position:fixed;inset:0 0 auto;z-index:100001;height:var(--dawon-demo-bar-height);box-sizing:border-box;padding:env(safe-area-inset-top,0px) 12px 0;display:flex;align-items:stretch;justify-content:center;background:#fffcfa;border-bottom:1px solid #e6ded8;font:650 14px/1.2 system-ui,sans-serif;color:#514940}
+.dawon-demo-roles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:min(100%,424px)}
+#dawon-demo-switcher a{position:relative;display:grid;place-items:center;min-width:0;padding:0 4px;color:inherit;text-decoration:none;white-space:nowrap}
+#dawon-demo-switcher a[data-demo-app=student]{border-inline-start:1px solid #efe6df}
+#dawon-demo-switcher a[aria-current=page]{color:#873b0e;background:#fff1e6;font-weight:750}
+#dawon-demo-switcher a[aria-current=page]::after{position:absolute;content:"";height:3px;bottom:0;inset-inline:20%;border-radius:3px 3px 0 0;background:#d25a12}
+#dawon-demo-switcher a:hover{background:#fff4ed}
 #dawon-demo-switcher a:focus-visible{outline:2px solid #a6460b;outline-offset:-3px}
+body:has(.admin-modal-wrap:not([style*="display: none"]) .admin-modal[role="dialog"],.ds-overlay-panel[role="dialog"]) #dawon-demo-switcher{z-index:10}
+
 body .role-preview, #dawon-preview-roles{display:none!important}
 body [data-app=admin]{height:calc(100dvh - var(--dawon-demo-bar-height));min-height:calc(100dvh - var(--dawon-demo-bar-height))}
 body [data-app=admin] [data-analytics-placement="admin.sidebar"]{max-height:calc(100dvh - var(--panel-header) - var(--dawon-demo-bar-height))}
@@ -32,7 +36,7 @@ export function insertDemoSwitcher(html, url, native) {
   const links = apps.map(([key, name, href]) =>
     `<a href="${href}" data-demo-app="${key}"${key === role ? ' aria-current="page"' : ''}>${name}</a>`).join("");
   return html.replace("</head>", style + '<script src="/dawon-demo-role.js" defer></script></head>')
-    .replace(/<body\b[^>]*>/i, tag => tag + `<nav id="dawon-demo-switcher" aria-label="데모 앱 전환" data-shell="${native ? "native" : "learner"}">${links}</nav>`);
+    .replace(/<body\b[^>]*>/i, tag => tag + `<nav id="dawon-demo-switcher" aria-label="데모 앱 전환" data-shell="${native ? "native" : "learner"}"><div class="dawon-demo-roles">${links}</div></nav>`);
 }
 
 function mountDemoSwitcher() {
@@ -61,9 +65,31 @@ function mountDemoSwitcher() {
       else link.removeAttribute("aria-current");
     }
   }
+  function markStaffShell() {
+    const header = document.querySelector('[data-app="admin"] > div > header');
+    const login = header?.querySelector('a[href^="/login/dawon?demo="]');
+    const role = login && new URL(login.href).searchParams.get("demo");
+    if (role !== "teacher" && role !== "admin") return;
+    header.parentElement.dataset.dawonStaff = role;
+    const heading = login.parentElement.querySelector(':scope > strong');
+    const label = role === "teacher" ? "다원수학 선생님용" : "다원수학 학원용 · 관리자 모드";
+    if (heading && heading.textContent !== label) heading.textContent = label;
+  }
+
   const sync = () => { markRole(); };
   markRole();
   new MutationObserver(sync).observe(document.body, {attributes:true,attributeFilter:["data-role"]});
+  if (nav.dataset.shell === "native") {
+    let frame;
+    const app = document.querySelector('#root');
+    if (app) {
+      new MutationObserver(() => {
+        if (frame) return;
+        frame = requestAnimationFrame(() => { frame = undefined; markStaffShell(); });
+      }).observe(app,{childList:true,subtree:true});
+      markStaffShell();
+    }
+  }
   window.addEventListener("popstate",sync);
   for (const method of ["pushState", "replaceState"]) {
     const original=history[method];
