@@ -40,7 +40,7 @@
       color-mix(in srgb, var(--tenant-header-surface) 94%, white) 0,
       color-mix(in srgb, var(--tenant-header-surface) 94%, white) 42px,
       color-mix(in srgb, var(--tenant-header-surface-soft) 94%, white) 70%,
-      transparent 100%
+      var(--tenant-header-edge, transparent) 100%
     ) !important;
 }
 

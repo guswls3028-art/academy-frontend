@@ -84,6 +84,7 @@ const STUDENT_THEME_BY_TENANT: Readonly<Record<string, string>> = {
   dnb: "dnb",
   movementhui: "movementhui",
   godmin: "godmin",
+  "jeongseongwon-lab": "jeongseongwon-lab",
   "9999": "common",
   common: "common",
 };

@@ -7,6 +7,13 @@
 
 import { WORKSPACE_PATHS } from "../src/core/router/workspaceRoutes";
 import { GODMIN_PUBLIC_SITE } from "../src/shared/tenant/tenants/godmin";
+import {
+  JEONGSEONGWON_LAB_ASSETS,
+  JEONGSEONGWON_LAB_DESCRIPTION,
+  JEONGSEONGWON_LAB_DOMAIN,
+  JEONGSEONGWON_LAB_NAME,
+  jeongseongwonLab,
+} from "../src/shared/tenant/tenants/jeongseongwon-lab";
 
 interface Env {
   ASSETS: Fetcher;
@@ -248,6 +255,8 @@ const TENANT_SEO: Record<string, TenantSeo> = {
   "www.movementhui.com": { domain: "movementhui.com",   entryPath: "/login/movementhui" },
   "godmin.kr":          { domain: "godmin.kr",          entryPath: "/landing" },
   "www.godmin.kr":      { domain: "godmin.kr",          entryPath: "/landing" },
+  [JEONGSEONGWON_LAB_DOMAIN]: { domain: JEONGSEONGWON_LAB_DOMAIN, entryPath: jeongseongwonLab.loginPath },
+  [`www.${JEONGSEONGWON_LAB_DOMAIN}`]: { domain: JEONGSEONGWON_LAB_DOMAIN, entryPath: jeongseongwonLab.loginPath },
 };
 
 /** 네이버 Search Advisor HTML 파일 인증용 매핑 (도메인 → 인증 파일명) */
@@ -346,6 +355,8 @@ const FALLBACK_META: Record<string, TenantMeta> = {
   "www.movementhui.com": { title: "이동휘원소 과학연구소", description: "이동휘원소 과학연구소 학습 플랫폼 – 학생·학부모·선생님 로그인", favicon: "/tenants/movementhui/favicon.png", image: "/tenants/movementhui/og-image.png", imageWidth: 500, imageHeight: 500 },
   "godmin.kr":          { title: "신민T 통합과학 | 신과함께", description: "대치동 통합과학 강사 신민T의 수업 철학과 학습 관리, 수강생·학부모 전용 학습 플랫폼.", favicon: "/tenants/godmin/favicon.png", image: "/tenants/godmin/og-image.png", imageWidth: 1200, imageHeight: 630 },
   "www.godmin.kr":      { title: "신민T 통합과학 | 신과함께", description: "대치동 통합과학 강사 신민T의 수업 철학과 학습 관리, 수강생·학부모 전용 학습 플랫폼.", favicon: "/tenants/godmin/favicon.png", image: "/tenants/godmin/og-image.png", imageWidth: 1200, imageHeight: 630 },
+  [JEONGSEONGWON_LAB_DOMAIN]: { title: JEONGSEONGWON_LAB_NAME, description: JEONGSEONGWON_LAB_DESCRIPTION, favicon: `${JEONGSEONGWON_LAB_ASSETS}/favicon.png`, image: `${JEONGSEONGWON_LAB_ASSETS}/og-image.png`, imageWidth: 1200, imageHeight: 630 },
+  [`www.${JEONGSEONGWON_LAB_DOMAIN}`]: { title: JEONGSEONGWON_LAB_NAME, description: JEONGSEONGWON_LAB_DESCRIPTION, favicon: `${JEONGSEONGWON_LAB_ASSETS}/favicon.png`, image: `${JEONGSEONGWON_LAB_ASSETS}/og-image.png`, imageWidth: 1200, imageHeight: 630 },
 };
 
 const FALLBACK_TEACHER_PWA: Record<string, TenantPwaMeta> = {
@@ -365,6 +376,8 @@ const FALLBACK_TEACHER_PWA: Record<string, TenantPwaMeta> = {
   "www.movementhui.com": { title: "이동휘원소", icon: "/tenants/movementhui/pwa-192.png", icon512: "/tenants/movementhui/pwa-512.png", themeColor: "#1a253b", backgroundColor: "#1a253b" },
   "godmin.kr":          { title: "신과함께", icon: "/tenants/godmin/pwa-192.png", icon512: "/tenants/godmin/pwa-512.png", themeColor: "#147a62", backgroundColor: "#e4f7ef" },
   "www.godmin.kr":      { title: "신과함께", icon: "/tenants/godmin/pwa-192.png", icon512: "/tenants/godmin/pwa-512.png", themeColor: "#147a62", backgroundColor: "#e4f7ef" },
+  [JEONGSEONGWON_LAB_DOMAIN]: { title: JEONGSEONGWON_LAB_NAME, icon: `${JEONGSEONGWON_LAB_ASSETS}/pwa-192.png`, icon512: `${JEONGSEONGWON_LAB_ASSETS}/pwa-512.png`, themeColor: "#1a2f4e", backgroundColor: "#edf2f8" },
+  [`www.${JEONGSEONGWON_LAB_DOMAIN}`]: { title: JEONGSEONGWON_LAB_NAME, icon: `${JEONGSEONGWON_LAB_ASSETS}/pwa-192.png`, icon512: `${JEONGSEONGWON_LAB_ASSETS}/pwa-512.png`, themeColor: "#1a2f4e", backgroundColor: "#edf2f8" },
 };
 
 function iconContentType(icon: string): string {

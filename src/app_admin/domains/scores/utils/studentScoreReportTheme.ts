@@ -32,6 +32,7 @@ const TENANT_PALETTES: Record<string, ReportPalette> = {
   dnb: { primary: "#612e8d", accent: "#f3eb40", tint: "#fbfae3" },
   movementhui: { primary: "#1a253b", accent: "#ffdb5a", tint: "#fffdf2" },
   godmin: { primary: "#24483d", accent: "#35c7a0", tint: "#e4f7ef" },
+  "jeongseongwon-lab": { primary: "#1a2f4e", accent: "#d0def0", tint: "#f2f4f7" },
   "9999": DEFAULT_PALETTE,
 };
 
