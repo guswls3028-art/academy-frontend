@@ -1,0 +1,4 @@
+.nav { display: flex; flex-direction: column; gap: 4px; padding: 16px 10px; }
+.nav a { display: flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 8px; text-decoration: none; color: var(--color-text-primary); white-space: nowrap; }
+.nav a:hover, .nav a[aria-current="page"] { background: var(--color-bg-surface-hover); color: var(--color-brand-primary); }
+@media (max-width: 1023px) { .nav { flex-direction: row; overflow-x: auto; padding: 2px 8px; } }

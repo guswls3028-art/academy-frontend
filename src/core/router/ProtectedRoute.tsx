@@ -1,5 +1,6 @@
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app/router/ProtectedRoute.tsx
+import { dawonStaffPreviewRole, isDawonTeachingPath } from "@/shared/product/dawon/staffPreview";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { saveReturnPath } from "@/shared/api/axios";
@@ -141,6 +142,12 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
     }
 
     return loginRedirect;
+  }
+
+  const previewRole = program.tenantCode === "dawon" ? dawonStaffPreviewRole() : null;
+  if (previewRole && (location.pathname.startsWith("/workspace/mobile") ||
+      (previewRole === "teacher" && location.pathname.startsWith("/workspace") && !isDawonTeachingPath(location.pathname)))) {
+    return <Navigate to="/workspace/dashboard" replace />;
   }
 
   const passwordRecommendationAuthSession = readPasswordRecommendationAuthSession(user.id);

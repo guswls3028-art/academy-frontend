@@ -47,6 +47,7 @@ const BRANDED_LOGIN_SCENES = new Set(["hakwonplus", "movementhui", "godmin"]);
 function isDawonDemoSearch(tenantCode: string | null, search: string) {
   const params = new URLSearchParams(search);
   if (tenantCode !== "dawon") return "";
+  if (["admin", "teacher"].includes(params.get("demo") ?? "")) return `?demo=${params.get("demo")}`;
   if (params.get("demo") === "guardian") return "?demo=guardian&view=counsel";
   if (params.get("demo") !== "student") return "";
   const view = params.get("view");
@@ -163,7 +164,9 @@ export default function LoginPage() {
   const learnerPath = getSessionItem("session_return_path") ?? "";
   const reportPath = "/student/submit/school-report";
   const previewSearch = new URLSearchParams(location.search);
-  const clinicEntry = previewSearch.get("view") === "clinic" || /^\/student\/clinic(?:[/?#]|$)/.test(learnerPath);
+  const adminEntry = previewSearch.get("demo") === "admin";
+  const staffEntry = adminEntry || previewSearch.get("demo") === "teacher";
+  const clinicEntry = !staffEntry && (previewSearch.get("view") === "clinic" || /^\/student\/clinic(?:[/?#]|$)/.test(learnerPath));
   const guardianEntry = previewSearch.get("demo") === "guardian" || (!previewSearch.has("demo") && learnerPath.startsWith("/student/community?tab=counsel"));
   const explicitVideo = previewSearch.get("session") ?? "";
   const videoPath = previewSearch.get("view") === "video" && /^[1-9]\d{0,9}$/.test(explicitVideo)
@@ -171,7 +174,7 @@ export default function LoginPage() {
   const nativeVideoEntry = /^\/student\/video\/sessions\/[1-9]\d*\/?$/.test(learnerPath);
   const videoEntry = Boolean(videoPath) || nativeVideoEntry;
   const fromLearnerPage = nativeVideoEntry || /^\/student\/(attendance|clinic|exams|submit\/school-report)(?:[/?#]|$)/.test(learnerPath);
-  const learnerEntry = fromLearnerPage || previewSearch.get("demo") === "student";
+  const learnerEntry = !staffEntry && (fromLearnerPage || previewSearch.get("demo") === "student");
   const reportEntry = previewSearch.get("view") === "school-report" || learnerPath.split(/[?#]/)[0] === reportPath;
   const qrEntry = learnerEntry && !clinicEntry && !videoEntry && !reportEntry && !(previewSearch.get("view") === "exams" || learnerPath.startsWith("/student/exams"));
 
@@ -180,14 +183,21 @@ export default function LoginPage() {
     setPending(true);
     setError("");
     try {
-      const role = guardianEntry ? "guardian" : learnerEntry ? "student" : "teacher";
+      const role = adminEntry ? "admin" : guardianEntry ? "guardian" : learnerEntry ? "student" : "teacher";
       await enterDawonDemo(role);
       await refreshMe();
-      if (role !== "teacher") setSessionItem("dawon-room-role", role);
+      if (role === "admin" || role === "teacher") {
+        setSessionItem("dawon-workspace-role", role);
+        removeSessionItem("dawon-room-role");
+      } else {
+        setSessionItem("dawon-room-role", role);
+        removeSessionItem("dawon-workspace-role");
+      }
       removeSessionItem("session_expired");
       const returnPath = consumeReturnPath();
       let destination = "/";
-      if (videoPath) destination = videoPath;
+      if (role === "admin" || role === "teacher") destination = "/workspace/dashboard";
+      else if (videoPath) destination = videoPath;
       else if (guardianEntry) destination = "/student/community?tab=counsel";
       else if (learnerEntry) {
         if (clinicEntry) destination = "/student/clinic";
@@ -262,9 +272,9 @@ export default function LoginPage() {
             {isDawonDemo && (
               <div className={styles.demoEntry}>
                 <button type="button" className={styles.btnPrimary} onClick={() => void onDemoEntry()} disabled={pending}>
-                  {guardianEntry ? "학부모 데모로 상담 신청" : clinicEntry ? "학생 데모로 클리닉 신청" : videoEntry ? "학생 데모로 수업 영상 보기" : qrEntry ? "학생 데모로 QR 출석" : reportEntry ? "학생 데모로 학교 성적 입력" : learnerEntry ? "학생 데모로 시험 결과 보기" : "데모 계정으로 시작"}
+                  {adminEntry ? "관리자 데모 로그인" : staffEntry ? "선생님 데모 로그인" : guardianEntry ? "학부모 데모로 상담 신청" : clinicEntry ? "학생 데모로 클리닉 신청" : videoEntry ? "학생 데모로 수업 영상 보기" : qrEntry ? "학생 데모로 QR 출석" : reportEntry ? "학생 데모로 학교 성적 입력" : learnerEntry ? "학생 데모로 시험 결과 보기" : "데모 계정으로 시작"}
                 </button>
-                <span>{learnerEntry ? "예시 학생으로 체험합니다." : "선생님 업무는 PC에서 보기를 권장합니다."}</span>
+                <span>{adminEntry ? "예시 학원의 반 운영, 직원, 시험 결과를 관리합니다." : learnerEntry ? "예시 학생으로 체험합니다." : "선생님 업무는 PC에서 보기를 권장합니다."}</span>
               </div>
             )}
             <label htmlFor="login-username" className={styles.srOnly}>아이디 또는 학부모 휴대폰 번호</label>

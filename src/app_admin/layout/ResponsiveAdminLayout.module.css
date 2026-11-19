@@ -63,3 +63,6 @@
     padding-bottom: calc(56px + env(safe-area-inset-bottom, 0) + var(--space-4));
   }
 }
+
+.previewHeading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 20px; min-height: 48px; }
+.previewHeading a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; }

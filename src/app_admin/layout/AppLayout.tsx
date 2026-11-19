@@ -4,6 +4,7 @@ import { useLocation } from "react-router";
 import { ConfigProvider, App } from "antd";
 import { AdminLayoutProvider } from "./AdminLayoutContext";
 import { TeacherViewProvider } from "./TeacherViewContext";
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 import { WorkboxProvider } from "@/shared/ui/layout/WorkboxContext";
 import { FeedbackBridge } from "@/shared/ui/feedback";
 import { ProgramProvider } from "@/shared/program";
@@ -89,6 +90,17 @@ function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
   );
 }
 
+function PreviewLayoutContent({overlay}: {overlay?: ReactNode}) {
+  return (
+    <AdminLayoutProvider>
+      <WorkboxProvider>
+        <Suspense fallback={null}><ResponsiveAdminLayout onOpenQuickNavigation={() => {}} /></Suspense>
+        {overlay}
+      </WorkboxProvider>
+    </AdminLayoutProvider>
+  );
+}
+
 export default function AppLayout({ overlay }: { overlay?: ReactNode }) {
   return (
     <TeacherViewProvider>
@@ -148,7 +160,7 @@ export default function AppLayout({ overlay }: { overlay?: ReactNode }) {
             <GuideTourProvider>
             <ClinicHighlightProvider>
             <SendMessageModalProvider>
-              <AppLayoutContent overlay={overlay} />
+              {dawonStaffPreviewRole() ? <PreviewLayoutContent overlay={overlay} /> : <AppLayoutContent overlay={overlay} />}
               <GuideTourOverlay />
             </SendMessageModalProvider>
             </ClinicHighlightProvider>

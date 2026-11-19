@@ -3,7 +3,9 @@
  */
 import { useLayoutEffect, useRef } from "react";
 import { WORKSPACE_SECTIONS } from "@/core/navigation/workspaceSections";
-import { Outlet, useLocation } from "react-router";
+import { DawonStaffNavigation } from "@/shared/product/dawon/DawonStaffNavigation";
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
+import { Link, Outlet, useLocation } from "react-router";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import AdminNavDrawer from "./AdminNavDrawer";
@@ -24,14 +26,19 @@ export default function ResponsiveAdminLayout({ onOpenQuickNavigation }: { onOpe
     previousPath.current = location.pathname;
   }, [location.pathname]);
   const isMobile = useIsMobile();
+  const previewRole = dawonStaffPreviewRole();
   return (
     <div data-app="admin" className={styles.root}>
       <div className={styles.layout}>
         <header className={styles.header}>
-          <Header onOpenQuickNavigation={onOpenQuickNavigation} />
+          {previewRole ? <>
+            <div className={styles.previewHeading}><strong>{previewRole === "admin" ? "다원수학 관리자앱" : "다원수학 선생님앱"}</strong>
+              <Link to={`/login/dawon?demo=${previewRole}`}>로그인 화면</Link></div>
+            {isMobile && <DawonStaffNavigation role={previewRole} />}
+          </> : <Header onOpenQuickNavigation={onOpenQuickNavigation} />}
         </header>
         <aside className={`sidebar ${styles.sidebar}`}>
-          {!isMobile && <Sidebar />}
+          {!isMobile && (previewRole ? <DawonStaffNavigation role={previewRole} /> : <Sidebar />)}
         </aside>
         <main ref={mainRef} className={styles.main}>
           <div className={styles.content}>
@@ -39,8 +46,8 @@ export default function ResponsiveAdminLayout({ onOpenQuickNavigation }: { onOpe
           </div>
         </main>
       </div>
-      {isMobile && <AdminNavDrawer onOpenQuickNavigation={onOpenQuickNavigation} />}
-      {isMobile && <TeacherBottomBar />}
+      {isMobile && !previewRole && <AdminNavDrawer onOpenQuickNavigation={onOpenQuickNavigation} />}
+      {isMobile && !previewRole && <TeacherBottomBar />}
       <AsyncStatusBar />
     </div>
   );

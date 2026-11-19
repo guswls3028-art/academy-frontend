@@ -124,7 +124,7 @@ export const logout = () => {
   window.location.href = "/";
 };
 
-export async function enterDawonDemo(role: "teacher" | "student" | "guardian") {
+export async function enterDawonDemo(role: "admin" | "teacher" | "student" | "guardian") {
   const { data } = await api.post<LoginResponse>("/students/demo-session/", { role });
   if (!data?.access || !data.refresh) throw new Error("체험 세션을 시작하지 못했습니다.");
   await publishLoginTokenEnvelope(data.access, data.refresh);

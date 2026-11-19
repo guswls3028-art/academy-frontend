@@ -1,4 +1,4 @@
-import { installDawonSessions } from './dawon-learner-sessions.mjs';
+import { dawonLearnerScript, renderDawonLearner } from './dawon-learner-sessions.mjs';
 import learnerDemo from './baseline-worker.mjs';
 import { insertDemoSwitcher, demoSwitcherScript } from './dawon-demo-header.mjs';
 
@@ -91,7 +91,7 @@ const learnerBridgePath = '/dawon-learner-navigation.js';
 function installLearnerBridge() {
   const isNative = path => /^\/student\/(?:video\/(?:sessions\/[1-9]\d*\/?$|play\/?$)|clinic(?:\/|$)|community(?:\/|$)|exams(?:\/|$)|attendance(?:\/|$)|submit\/school-report(?:\/|$))/.test(path);
   const generic = {
-    dashboard:'home', home:'home', videos:'video', video:'video', calendar:'schedule', schedule:'schedule',
+    dashboard:'home', home:'home', videos:'video', video:'video', calendar:'home', schedule:'home',
     notifications:'alerts', community:'questions', qna:'questions', grades:'exam', homework:'homework',
     clinic:'clinic', submit:'grades', inventory:'tools', notices:'notices', profile:'profile', settings:'settings',
     menu:'home', lectures:'curriculum', courses:'curriculum', idcard:'attendance'
@@ -101,9 +101,7 @@ function installLearnerBridge() {
   const destination = topic => {
     if (topic === 'home') return home();
     if (topic === 'profile') return '/profile';
-    if (topic === 'questions' && guardian()) return '/student/community?tab=counsel';
-    if (topic === 'clinic' && !guardian()) return '/student/clinic';
-    return '/learn/' + topic;
+    return '/learn/' + topic + (guardian() ? '?preview=guardian' : '');
   };
   function genericDestination(raw) {
     if (!raw || !isNative(location.pathname)) return null;
@@ -114,7 +112,6 @@ function installLearnerBridge() {
   const paths = {
     home:'M3 11 12 3l9 8M5 10v11h5v-7h4v7h5V10',
     video:'M3 5h18v14H3z M10 9l5 3-5 3z',
-    schedule:'M3 6h18v15H3z M7 3v6 M17 3v6 M3 11h18',
     alerts:'M5 17h14l-2-4V9a5 5 0 0 0-10 0v4z M10 20h4',
     questions:'M3 4h18v13H9l-5 4v-4H3z M7 9h10 M7 12h6'
   };
@@ -122,14 +119,16 @@ function installLearnerBridge() {
     if (!nav || nav.querySelector(':scope > [data-dawon-links]')) return;
     const group = document.createElement('div');
     group.dataset.dawonLinks = drawer ? 'drawer' : 'footer';
-    const routes = [['home','홈'],['video','영상'],['schedule','일정'],['alerts','알림'],['questions',guardian() ? '상담하기' : '질문하기']];
+    const routes = [['home','홈'],['video','영상'],['alerts','알림'],['questions',guardian() ? '상담하기' : '질문하기']];
     if (drawer) {
-      routes.push(['attendance','출결 현황'],['exam','테스트 결과']);
+      routes.push(['notices','공지사항'],['attendance','출결 현황'],['exam','테스트 결과'],['homework','과제 현황'],
+        ['curriculum','수업 진도'],['clinic','클리닉'],['questions',guardian() ? '상담 내역' : '질문 내역']);
       if (!guardian()) routes.push(['grades','학교 성적']);
     }
     for (const [topic, label] of routes) {
       const a = document.createElement('a');
-      a.href = destination(topic);
+      a.href = topic === 'questions' && !drawer ? guardian() ? '/student/community?tab=counsel' :
+        '/learn/questions?action=ask&detail=question' : destination(topic);
       if (!drawer) {
         const icon = document.createElementNS('http://www.w3.org/2000/svg','svg');
         icon.setAttribute('viewBox','0 0 24 24'); icon.setAttribute('aria-hidden','true');
@@ -149,7 +148,7 @@ function installLearnerBridge() {
     html[data-dawon-native-learner] .student-layout {height:calc(100dvh - var(--dawon-demo-bar-height,0px));min-height:0;}
     html[data-dawon-native-learner] body .student-layout__header {top:0;}
     html[data-dawon-native-learner] nav:has(> [data-dawon-links]) > :not([data-dawon-links]) {display:none!important}
-    html[data-dawon-native-learner] [data-dawon-links="footer"] {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));max-width:760px;margin:auto;background:#fff}
+    html[data-dawon-native-learner] [data-dawon-links="footer"] {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));max-width:760px;margin:auto;background:#fff}
     html[data-dawon-native-learner] [data-dawon-links] a {color:#593f2f;text-decoration:none;font-weight:650;}
     html[data-dawon-native-learner] [data-dawon-links="footer"] a {min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px}
     html[data-dawon-native-learner] [data-dawon-links] a:hover,html[data-dawon-native-learner] [data-dawon-links] a:focus-visible {background:#fff1e5;color:#943f10;outline:2px solid #a54816;outline-offset:-2px}
@@ -180,7 +179,7 @@ function installLearnerBridge() {
     if (!isNative(location.pathname) || !(event.target instanceof Element)) return;
     const el = event.target.closest('[data-dawon-legacy-destination],[data-testid="stu-topbar-notif-bell"],a[href]');
     if (!el || el.closest('#dawon-demo-switcher')) return;
-    const dest = el.matches('[data-testid="stu-topbar-notif-bell"]') ? '/learn/alerts' :
+    const dest = el.matches('[data-testid="stu-topbar-notif-bell"]') ? destination('alerts') :
       el.dataset.dawonLegacyDestination || genericDestination(el.getAttribute('href'));
     if (!dest || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     event.preventDefault(); event.stopImmediatePropagation(); location.assign(dest);
@@ -207,72 +206,24 @@ function installLearnerBridge() {
 }
 
 const navigation = `
-(${installDawonSessions.toString()})();
-const gradePanel = document.querySelector('#panel-grades .detail-sheet');
-if (gradePanel) {
-  const saved = document.createElement('details');
-  const label = document.createElement('summary');
-  label.textContent = '이 기기에 저장된 이전 데모 성적';
-  saved.append(label);
-  const heading = gradePanel.querySelector('h1,h2');
-  const previous = Array.from(gradePanel.children).filter(node => node !== heading && !(heading && node.contains(heading)));
-  if (previous.length) saved.append(...previous);
-  const link = document.createElement('a');
-  link.className = 'route-action dawon-native-exams';
-  link.href = '/login/dawon?demo=student&view=school-report';
-  link.textContent = '학교 성적 입력·조회';
-  if (heading) heading.after(link); else gradePanel.prepend(link);
-  gradePanel.append(saved);
-}
-const examPanel = document.querySelector('#panel-exam #exam');
-if (examPanel) {
-  const exams = document.createElement('a');
-  exams.href = '/login/dawon?demo=student&view=exams';
-  exams.className = 'route-action dawon-native-exams';
-  exams.textContent = '등록된 수업의 시험 결과 보기';
-  examPanel.append(exams);
-}
-try {
-  if (sessionStorage.getItem('dawon-room-role') === 'teacher') {
-    sessionStorage.removeItem('dawon-room-role');
-    window.location.replace('/teacher');
-  }
-} catch {}
-function openNativeIntake() {
-  const role = document.body.dataset.role;
-  if (location.pathname === '/learn/clinic' && role === 'student') {
-    location.replace('/login/dawon?demo=student&view=clinic');
-  } else if (location.pathname === '/learn/questions' && role === 'guardian') {
-    location.replace('/login/dawon?demo=guardian&view=counsel');
-  }
-}
-if (location.pathname === '/learn/clinic' || location.pathname === '/learn/questions') {
-  new MutationObserver(openNativeIntake).observe(document.body, {attributes:true, attributeFilter:['data-role']});
-  openNativeIntake();
-}
 document.addEventListener('click', (event) => {
   if (!(event.target instanceof Element)) return;
-  if (document.body.dataset.role === 'student' && event.target.closest('[data-route="qr"]')) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    window.location.assign('/login/dawon?demo=student');
-    return;
+  const target = event.target.closest('[data-route="qr"],[data-preview-role="teacher"],[data-signin="teacher"]');
+  let destination = target ? target.matches('[data-route="qr"]') ? '/login/dawon?demo=student' : '/login/dawon?demo=teacher' : null;
+  if (!destination && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+    const route = event.target.closest('a[data-route]');
+    const topic = route?.dataset.route;
+    const guardian = document.body.dataset.role === 'guardian';
+    const suffix = guardian ? '?preview=guardian' : '';
+    if (topic === 'home' || topic === 'schedule') destination = '/' + suffix;
+    else if (['notices','attendance','video','exam','homework','curriculum','clinic','grades','alerts'].includes(topic)) {
+      destination = '/learn/' + topic + suffix;
+    }
   }
-  const role = document.body.dataset.role;
-  const learnerDestination = role === 'student' && event.target.closest('[data-route="clinic"]')
-    ? '/login/dawon?demo=student&view=clinic'
-    : role === 'guardian' && event.target.closest('[data-route="questions"]')
-      ? '/login/dawon?demo=guardian&view=counsel' : null;
-  if (learnerDestination) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    window.location.assign(learnerDestination);
-    return;
-  }
-  if (!event.target.closest('[data-preview-role="teacher"],[data-signin="teacher"]')) return;
+  if (!destination) return;
   event.preventDefault();
   event.stopImmediatePropagation();
-  window.location.assign('/teacher');
+  location.assign(destination);
 }, true);`;
 
 const reloadScript = (release) => `<script defer src="/dawon-release.js?v=${encodeURIComponent(release)}" data-release="${release}"></script>`;
@@ -355,7 +306,13 @@ export async function handle(request, env, fetcher = fetch, context) {
   if (url.hostname !== productionHost) return secureResponse(null, 404);
 
   if (pathname === '/teacher' || formerTeacherRoutes.test(pathname) || url.searchParams.get('preview') === 'teacher') {
-    return Response.redirect(url.origin + '/login/dawon', 302);
+    return Response.redirect(url.origin + '/login/dawon?demo=teacher', 302);
+  }
+  if (pathname === '/admin' || url.searchParams.get('preview') === 'admin') {
+    return Response.redirect(url.origin + '/login/dawon?demo=admin', 302);
+  }
+  if (pathname === '/learn/schedule' || (pathname === '/learn/grades' && url.searchParams.get('preview') === 'guardian')) {
+    return Response.redirect(url.origin + (url.searchParams.get('preview') === 'guardian' ? '/?preview=guardian' : '/'), 302);
   }
   // The public demo shares a browser across roles. Fetch pages and records online
   // so a previously viewed user's cached shell or response cannot take precedence.
@@ -365,6 +322,7 @@ export async function handle(request, env, fetcher = fetch, context) {
   if (pathname === '/dawon-demo-role.js') return secureResponse(demoSwitcherScript, 200, 'text/javascript; charset=utf-8');
   if (pathname === '/dawon-module-probe.mjs') return secureResponse('if (!import.meta.resolve) throw Error("import.meta.resolve not supported");', 200, 'text/javascript; charset=utf-8');
   if (pathname === learnerBridgePath) return secureResponse('(' + installLearnerBridge.toString() + ')();', 200, 'application/javascript; charset=utf-8');
+  if (pathname === '/dawon-learner-app.js') return secureResponse(dawonLearnerScript, 200, 'application/javascript; charset=utf-8');
   if (pathname === linkedNavPath) return secureResponse(navigation, 200, 'application/javascript; charset=utf-8');
   if (pathname === '/version.json') {
     return secureResponse(JSON.stringify({
@@ -373,7 +331,7 @@ export async function handle(request, env, fetcher = fetch, context) {
       version: env.ADMIN_VERSION,
       teacherVersion: env.UI_VERSION || env.ADMIN_VERSION,
       bundleVersion: env.ADMIN_VERSION,
-      roles: ['teacher', 'student', 'guardian'],
+      roles: ['teacher', 'student', 'guardian', 'admin'],
       productionApi: false,
     }), 200);
   }
@@ -384,6 +342,18 @@ export async function handle(request, env, fetcher = fetch, context) {
       return forward(new URL('/dawon-brand.svg', url), request, env, fetcher);
     }
     if (pathname.startsWith('/api/v1/')) return await handleApi(request, url, env, fetcher);
+    const isLearnerDocument = ['/', '/student', '/guardian'].includes(pathname) ||
+      (/^\/learn\/[a-z]+$/.test(pathname) && !(pathname === '/learn/questions' && ['ask','list'].includes(url.searchParams.get('action'))));
+    if (isLearnerDocument && ['GET','HEAD'].includes(request.method)) {
+      const page = renderDawonLearner(url);
+      if (page) {
+        const html = page.replace('</head>', reloadScript(env.UI_VERSION || env.ADMIN_VERSION) + '</head>');
+        return new Response(request.method === 'HEAD' ? null : insertDemoSwitcher(html, url, false), {
+          headers: {'content-type':'text/html; charset=utf-8','cache-control':'no-store','content-security-policy':nativePolicy,
+            'set-cookie':consoleCookieExpired,'x-content-type-options':'nosniff'},
+        });
+      }
+    }
     const isConsoleLogin = pathname === '/login/dawon' ||
       (pathname === '/login' && /(?:^|;\s*)dawon_console=1(?:;|$)/.test(request.headers.get('cookie') ?? ''));
     const isLearnerVideo = /^\/student\/video\/(?:sessions\/[1-9]\d*|play)\/?$/.test(pathname);
@@ -402,7 +372,7 @@ export async function handle(request, env, fetcher = fetch, context) {
       }
       const upstreamUrl = isLearnerVideo || isLearnerIntake ? new URL('/login/dawon', url) : url;
       let upstream = await forward(upstreamUrl, request, env, fetcher);
-      for (const previous of ['r12', 'r11', 'r10', 'r9', 'r8', 'r7', 'r4', 'r3'].map(suffix => 'dawon-review-20261119-orange-' + suffix)) {
+      for (const previous of ['r14', 'r12', 'r11', 'r10', 'r9', 'r8', 'r7', 'r4', 'r3'].map(suffix => 'dawon-review-20261119-orange-' + suffix)) {
         if (upstream.status !== 404 || !pathname.startsWith('/assets/')) break;
         if (previous === env.ADMIN_VERSION) continue;
         await upstream.body?.cancel();
@@ -450,12 +420,18 @@ export async function handle(request, env, fetcher = fetch, context) {
     }
 
     const response = await learnerDemo.fetch(request);
+    if (pathname === '/school.js' && request.method === 'GET' && response.ok) {
+      const text = await response.text();
+      const dated = text.replace('id:crypto.randomUUID(),title,body,type,author:demoRole',
+        'id:crypto.randomUUID(),createdAt:new Date().toISOString(),title,body,type,author:demoRole');
+      return secureResponse(dated, 200, 'application/javascript; charset=utf-8');
+    }
     if (request.method !== 'GET' || !response.headers.get('content-type')?.startsWith('text/html')) return response;
     const headers = new Headers(response.headers);
     for (const stale of ['content-encoding', 'content-length', 'etag']) headers.delete(stale);
     headers.set('cache-control', 'no-store');
     headers.append('set-cookie', consoleCookieExpired);
-    const html = (await response.text()).replace('</head>', `${brandStyle(env.ADMIN_VERSION)}${reloadScript(env.UI_VERSION || env.ADMIN_VERSION)}<script src="${linkedNavPath}" defer></script></head>`);
+    const html = (await response.text()).replace('</head>', `${brandStyle(env.ADMIN_VERSION)}<style>.bottomnav [data-route=schedule],.bottomnav #tab-schedule{display:none!important}.bottomnav{grid-template-columns:repeat(4,minmax(0,1fr))!important}</style>${reloadScript(env.UI_VERSION || env.ADMIN_VERSION)}<script src="${linkedNavPath}" defer></script></head>`);
     return new Response(insertDemoSwitcher(html, url, false), {status: response.status, headers});
   } catch {
     return secureResponse('{"detail":"다원 데모를 잠시 후 다시 열어 주세요."}', 503);

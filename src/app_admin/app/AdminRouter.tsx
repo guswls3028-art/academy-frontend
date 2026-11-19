@@ -2,6 +2,7 @@
 // 선생앱(관리자) 라우터 — 라우트별 lazy 로딩으로 첫 진입·탭 전환 시 청크 분리
 
 import { Suspense, type ComponentType } from "react";
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 import ProductUpdatePage from "@/shared/product/ProductUpdateNotes";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import {
@@ -19,6 +20,8 @@ import RouteFallback from "@/core/router/RouteFallback";
 import { renderLazyRoute } from "@/core/router/renderLazyRoute";
 
 /* ================= Lazy: Dashboard ================= */
+const DawonOperations = lazy(() => import("@/shared/product/dawon/DawonOperations"));
+const DawonTeachingBoard = lazy(() => import("@admin/domains/dashboard/components/DawonTeachingBoard"));
 const DashboardPage = lazy(() => import("@admin/domains/dashboard/pages/DashboardPage"));
 const WorkspaceSectionPage = lazy(() => import("@admin/layout/WorkspaceSectionPage"));
 
@@ -146,6 +149,7 @@ function QnaReadRedirect() {
 
 export default function AdminRouter() {
   const location = useLocation();
+  const previewRole = dawonStaffPreviewRole();
   const navigate = useNavigate();
   const locationState = location.state as {
     backgroundLocation?: Location;
@@ -171,11 +175,19 @@ export default function AdminRouter() {
       </Suspense>
     ) : undefined;
 
+  if (previewRole === "admin") return (
+    <Routes>
+      <Route element={<AppLayout />}>
+        {["dashboard", "staff", "results"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonOperations)} />)}
+        <Route path="*" element={<Navigate to="/workspace/dashboard" replace />} />
+      </Route>
+    </Routes>
+  );
   return (
     <Routes location={backgroundLocation ?? location}>
       <Route element={<AppLayout overlay={studentDetailOverlay ?? staffDetailOverlay} />}>
         <Route index element={<Navigate to="dashboard" replace />} />
-        <Route path="dashboard" element={renderLazyRoute(DashboardPage)} />
+        <Route path="dashboard" element={renderLazyRoute(previewRole === "teacher" ? DawonTeachingBoard : DashboardPage)} />
         <Route path="teacher-alerts" element={renderLazyRoute(DawonTeacherAlertsPage)} />
         <Route path="learning" element={renderLazyRoute(WorkspaceSectionPage)} />
         <Route path="management" element={renderLazyRoute(WorkspaceSectionPage)} />

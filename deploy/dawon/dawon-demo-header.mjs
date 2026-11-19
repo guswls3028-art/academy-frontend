@@ -1,8 +1,9 @@
 // Only the dedicated public review Worker imports this module.
 const apps = [
-  ["teacher", "선생앱", "/login/dawon?tour=teacher"],
+  ["teacher", "선생앱", "/login/dawon?demo=teacher"],
   ["student", "학생앱", "/?preview=student"],
   ["guardian", "학부모앱", "/?preview=guardian"],
+  ["admin", "관리자앱", "/login/dawon?demo=admin"],
 ];
 
 const style = `<style id="dawon-demo-switcher-style">
@@ -26,7 +27,7 @@ body:has([data-app=auth]) #dawon-preview-scope{display:block}
 
 export function insertDemoSwitcher(html, url, native) {
   const path = url.pathname;
-  const role = path === "/guardian" || url.searchParams.get("preview") === "guardian" || url.searchParams.get("demo") === "guardian" ? "guardian" :
+  const role = url.searchParams.get("demo") === "admin" || path.startsWith("/workspace/dawon-operations") ? "admin" : path === "/guardian" || url.searchParams.get("preview") === "guardian" || url.searchParams.get("demo") === "guardian" ? "guardian" :
     native && !path.startsWith("/student/") && url.searchParams.get("demo") !== "student" ? "teacher" : "student";
   const links = apps.map(([key, name, href]) =>
     `<a href="${href}" data-demo-app="${key}"${key === role ? ' aria-current="page"' : ''}>${name}</a>`).join("");
@@ -39,13 +40,15 @@ function mountDemoSwitcher() {
   if (!nav) return;
   const roleLinks = Array.from(nav.querySelectorAll("a[data-demo-app]"));
   const edits = new Set();
-  const autoKey = "dawon:open-teacher-demo";
   function currentRole() {
     if (nav.dataset.shell === "learner") return document.body.dataset.role === "guardian" || location.pathname === "/guardian" ? "guardian" : "student";
     const demoRole = new URLSearchParams(location.search).get("demo");
-    if (demoRole === "guardian") return "guardian";
-    if (demoRole === "student") return "student";
-    if (!location.pathname.startsWith("/student/")) return "teacher";
+    if (["admin","teacher","guardian","student"].includes(demoRole)) return demoRole;
+    if (!location.pathname.startsWith("/student/")) {
+      if (location.pathname.startsWith("/workspace/dawon-operations")) return "admin";
+      try { if (sessionStorage.getItem("dawon-workspace-role") === "admin") return "admin"; } catch {}
+      return "teacher";
+    }
     try {
       if (sessionStorage.getItem("dawon-room-role") === "guardian") return "guardian";
     } catch {}
@@ -76,34 +79,15 @@ function mountDemoSwitcher() {
     if(!link || event.button!==0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const editing=[...edits].some(field=>field.isConnected && field.getClientRects().length);
     if(editing && !window.confirm("작성 중인 내용을 두고 앱을 전환할까요?")) { event.preventDefault(); return; }
-    const next=link.dataset.demoApp;
+    const next = link.dataset.demoApp;
     try {
-      sessionStorage.removeItem(autoKey);
-      if(next==="teacher"){
-        // The application's own demo action issues and installs the scoped staff session.
+      if (next === "teacher" || next === "admin") {
         sessionStorage.removeItem("session_return_path");
-        sessionStorage.setItem(autoKey,String(Date.now()));
+        sessionStorage.removeItem("dawon:open-teacher-demo");
       } else {
         sessionStorage.setItem("dawon-room-role",next);
       }
     } catch {}
   });
-  if (new URLSearchParams(location.search).get("tour")==="teacher") {
-    try {sessionStorage.setItem(autoKey,String(Date.now()));sessionStorage.removeItem("session_return_path");} catch {}
-  }
-  let opened=0;
-  try { opened=Number(sessionStorage.getItem(autoKey)||0); } catch {}
-  if(nav.dataset.shell !== "native" || !location.pathname.startsWith("/login") || !opened || Date.now()-opened>60000) return;
-  const observer=new MutationObserver(start);
-  function start() {
-    const button=Array.from(document.querySelectorAll('[data-app=auth] button')).find(e=>e.textContent.trim()==="데모 계정으로 시작" && !e.disabled);
-    if(!button)return;
-    observer.disconnect();
-    try{sessionStorage.removeItem(autoKey);}catch{}
-    button.click();
-  }
-  observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:["disabled"]});
-  start();
-  window.setTimeout(()=>observer.disconnect(),60000);
 }
 export const demoSwitcherScript = "(" + mountDemoSwitcher.toString() + ")();";
