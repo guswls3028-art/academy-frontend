@@ -1,25 +1,192 @@
 [data-app="auth"][data-tenant="jeongseongwon-lab"] {
-  --auth-accent: #315983;
-  --auth-bg: #edf2f8;
-  --auth-surface: #fcfdff;
-  --auth-border: #cfd9e5;
-  --auth-text: #1a2f4e;
-  --auth-text-muted: #495e78;
-  --auth-focus: rgb(49 89 131 / 24%);
-  --auth-gradient: linear-gradient(125deg, #1a2f4e, #315983);
-  --auth-gradient-hover: linear-gradient(125deg, #142641, #284a71);
+  --jsw-ink: #142841;
+  --auth-text: #172536;
+  --auth-text-muted: #515e6e;
+  --auth-accent: #29496a;
+  --auth-bg: #f1f3f5;
+  --auth-surface: #fff;
+  --auth-border: #afb9c4;
+  --auth-border-hover: #61758d;
+  --auth-focus: rgb(41 73 106 / 18%);
+  --auth-gradient: var(--jsw-ink);
+  --auth-gradient-hover: #253f60;
+  flex-direction: column;
+  padding: clamp(1rem, 4vw, 4rem);
 }
 
-[data-app="auth"][data-tenant="jeongseongwon-lab"] [data-auth-part="brand-artwork"] img {
-  width: min(100%, 220px);
+[data-tenant="jeongseongwon-lab"] [data-auth-part="card"] {
+  display: grid;
+  grid-template-columns: 1fr 1.04fr;
+  max-width: 57rem;
+  margin: auto 0 0;
+  padding: 0;
+  border: 1px solid #d6dce2;
+  border-radius: 12px;
+  box-shadow: 0 16px 48px -28px rgb(16 32 51 / 32%);
+  overflow: hidden;
+}
+
+[data-tenant="jeongseongwon-lab"] [data-auth-part="brand-stage"] {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  padding: 3.25rem 2.25rem;
+  overflow: hidden;
+  background: var(--jsw-ink);
+  color: #fff;
+}
+
+/* Two folded corners echo the angular ends of the supplied monogram. */
+[data-tenant="jeongseongwon-lab"] [data-auth-part="brand-stage"]::before,
+[data-tenant="jeongseongwon-lab"] [data-auth-part="brand-stage"]::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 65%;
+  aspect-ratio: 1;
+  background: #1b314c;
+  transform: rotate(45deg);
+}
+
+[data-tenant="jeongseongwon-lab"] [data-auth-part="brand-stage"]::before {
+  inset: -35% auto auto -22%;
+}
+
+[data-tenant="jeongseongwon-lab"] [data-auth-part="brand-stage"]::after {
+  inset: auto -35% -26% auto;
+  background: #203650;
+}
+
+[data-tenant="jeongseongwon-lab"] [data-auth-part="brand-artwork"] {
+  width: 100%;
+}
+
+[data-tenant="jeongseongwon-lab"] [data-auth-part="brand-artwork"] img {
+  width: min(100%, 19rem);
   height: auto;
+  margin: 0 auto;
 }
 
-[data-app="auth"][data-tenant="jeongseongwon-lab"] [data-auth-part="brand-artwork"] h1 {
+[data-tenant="jeongseongwon-lab"] [data-auth-part="brand-artwork"] img[src$="/tenants/jeongseongwon-lab/logo.png"] {
+  filter: brightness(0) invert(1);
+}
+
+[data-tenant="jeongseongwon-lab"] [data-auth-part="brand-artwork"] h1 {
+  margin: 0;
+  color: #fff;
+}
+
+[data-tenant="jeongseongwon-lab"] [data-auth-part="brand-artwork"] > div {
+  margin: 0;
+}
+
+[data-tenant="jeongseongwon-lab"] [data-auth-part="brand-artwork"] img + div {
   position: absolute;
   width: 1px;
   height: 1px;
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+[data-tenant="jeongseongwon-lab"] [data-auth-part="domain"] {
+  position: absolute;
+  bottom: 1.75rem;
+  left: 2rem;
+  color: #c6d2df;
+  font-size: 0.8125rem;
+}
+
+[data-tenant="jeongseongwon-lab"] [data-auth-part="login-panel"] {
+  padding: clamp(2rem, 4.5vw, 4rem) clamp(1.5rem, 3.7vw, 3.25rem);
+  text-align: left;
+}
+
+[data-tenant="jeongseongwon-lab"] [data-auth-part="login-intro"] h2 {
+  margin: 0 0 2rem;
+  font-size: 1.75rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+[data-tenant="jeongseongwon-lab"] [data-auth-part="login-panel"] label {
+  position: static;
+  display: block;
+  width: auto;
+  height: auto;
+  margin: 0 0 0.4rem;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  font-weight: 600;
+  font-size: 0.8125rem;
+}
+
+[data-tenant="jeongseongwon-lab"] [data-auth-part="login-panel"] input,
+[data-tenant="jeongseongwon-lab"] [data-testid="login-submit"] {
+  min-height: 3rem;
+  border-radius: 6px;
+}
+
+[data-tenant="jeongseongwon-lab"] [data-auth-part="login-panel"] input {
+  font-size: 1rem;
+}
+
+[data-tenant="jeongseongwon-lab"] [data-auth-part="login-panel"] input::placeholder {
+  opacity: 0;
+}
+
+[data-tenant="jeongseongwon-lab"] [data-auth-part="login-panel"] input + button {
+  transform: translateY(-50%);
+}
+
+[data-tenant="jeongseongwon-lab"] [data-testid="login-submit"]:hover:enabled {
+  background: var(--auth-gradient-hover);
+}
+
+[data-app="auth"][data-tenant="jeongseongwon-lab"] > footer {
+  position: static;
+  margin-bottom: auto;
+  padding: 1rem 0 0;
+}
+
+@media (max-width: 700px) {
+  [data-tenant="jeongseongwon-lab"] [data-auth-part="card"] {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 27rem;
+  }
+
+  [data-tenant="jeongseongwon-lab"] [data-auth-part="brand-stage"] {
+    padding: 2.5rem 1.5rem 3.25rem;
+  }
+
+  [data-tenant="jeongseongwon-lab"] [data-auth-part="brand-artwork"] img {
+    width: min(100%, 14rem);
+  }
+
+  [data-tenant="jeongseongwon-lab"] [data-auth-part="domain"] {
+    inset: auto 0 1rem;
+    text-align: center;
+  }
+
+  [data-tenant="jeongseongwon-lab"] [data-auth-part="login-panel"] {
+    padding: 1.75rem 1.5rem 1.25rem;
+  }
+
+  [data-tenant="jeongseongwon-lab"] [data-auth-part="login-intro"] h2 {
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-tenant="jeongseongwon-lab"] [data-auth-part="brand-artwork"] img {
+    animation: jsw-print-in 420ms ease-out;
+  }
+}
+
+@keyframes jsw-print-in {
+  from { opacity: 0.35; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
 }

@@ -22,7 +22,7 @@ export const jeongseongwonLab: TenantDef = {
       surface: "#1a2f4e",
       surfaceSoft: "#273c5b",
       foreground: "#ffffff",
-      accent: "#efcf83",
+      accent: "#d0def0",
     },
     ogDescription: JEONGSEONGWON_LAB_DESCRIPTION,
     ogImageUrl: `${JEONGSEONGWON_LAB_ASSETS}/og-image.png`,

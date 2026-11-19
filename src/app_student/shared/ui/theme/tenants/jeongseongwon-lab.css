@@ -1,21 +1,29 @@
 [data-student-theme="jeongseongwon-lab"] {
-  --stu-primary: #315983;
-  --stu-primary-hover: #284a71;
+  --stu-bg: #f6f7f9;
+  --stu-surface: #ffffff;
+  --stu-surface-soft: #eef1f5;
+  --stu-surface-0: var(--stu-bg);
+  --stu-surface-1: var(--stu-surface);
+  --stu-surface-2: var(--stu-surface-soft);
+  --stu-text: #171b22;
+  --stu-text-muted: #475466;
+  --stu-text-subtle: #596778;
+  --stu-primary: #1a2f4e;
+  --stu-primary-hover: #101f35;
   --stu-primary-contrast: #ffffff;
-  --stu-gradient: linear-gradient(125deg, #1a2f4e, #315983);
-  --stu-focus: rgb(49 89 131 / 30%);
+  --stu-gradient: linear-gradient(125deg, #142237, #2c405d);
+  --stu-focus: rgb(26 47 78 / 30%);
   --stu-brand-1: #1a2f4e;
-  --stu-brand-2: #315983;
-  --stu-brand-3: #efcf83;
-  --stu-icon-1: #315983;
-  --stu-icon-2: #80601e;
-  --stu-tab-indicator: linear-gradient(90deg, #315983, #a77b28);
+  --stu-brand-2: #2c405d;
+  --stu-brand-3: #171b22;
+  --stu-icon-1: #1a2f4e;
+  --stu-icon-2: #475466;
+  --stu-tab-indicator: var(--stu-primary);
 }
 
 [data-app="student"][data-student-dark="true"][data-student-theme="jeongseongwon-lab"] {
-  --stu-primary: #a5c5ec;
-  --stu-primary-hover: #c4daf5;
-  --stu-icon-1: #a5c5ec;
-  --stu-icon-2: #efcf83;
-  --stu-tab-indicator: linear-gradient(90deg, #a5c5ec, #efcf83);
+  --stu-primary: #d0def0;
+  --stu-primary-hover: #e5edf8;
+  --stu-icon-1: #d0def0;
+  --stu-icon-2: #adbbce;
 }

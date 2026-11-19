@@ -145,6 +145,7 @@ export default function LoginPage() {
   // data-tenant: 테넌트 코드 그대로 사용 (themes/*.css selector 매칭)
   const themeAttr = tenantCode ?? "tchul";
   const hasBrandedScene = BRANDED_LOGIN_SCENES.has(themeAttr);
+  const isJeongseongwon = themeAttr === "jeongseongwon-lab";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -194,12 +195,13 @@ export default function LoginPage() {
               <h1 className={styles.title}>{title}</h1>
             </div>
           </div>
+          {isJeongseongwon && <span data-auth-part="domain">{branding?.loginSubtitle}</span>}
         </section>
         <section className={styles.loginPanel} data-auth-part="login-panel">
-          {hasBrandedScene && (
+          {(hasBrandedScene || isJeongseongwon) && (
             <div className={styles.loginIntro} data-auth-part="login-intro">
               <h2>로그인</h2>
-              <p>아이디와 비밀번호를 입력해주세요.</p>
+              {hasBrandedScene && <p>아이디와 비밀번호를 입력해주세요.</p>}
             </div>
           )}
           <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
