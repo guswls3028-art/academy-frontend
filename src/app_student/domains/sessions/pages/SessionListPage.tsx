@@ -48,6 +48,20 @@ function getTabItems(): { key: ScheduleTab; label: string }[] {
   return items;
 }
 
+function restoreHiddenSession(
+  current: StudentSession[],
+  previous: StudentSession[],
+  sessionId: number,
+): StudentSession[] {
+  const index = previous.findIndex((session) => session.id === sessionId);
+  if (index < 0 || current.some((session) => session.id === sessionId)) return current;
+  const followingIds = new Set(previous.slice(index + 1).map((session) => session.id));
+  const nextIndex = current.findIndex((session) => followingIds.has(session.id));
+  const restored = [...current];
+  restored.splice(nextIndex < 0 ? restored.length : nextIndex, 0, previous[index]);
+  return restored;
+}
+
 export default function SessionListPage() {
   const [tab, setTab] = useState<ScheduleTab>("calendar");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -93,14 +107,22 @@ export default function SessionListPage() {
       }
       return { listQuery, homeQuery, previous, previousHome };
     },
-    onError: (error: AxiosError<ApiErrorBody>, _id, ctx) => {
+    onError: (error: AxiosError<ApiErrorBody>, id, ctx) => {
       const { root, home } = studentSessionQueryKeys;
       const cache = qc.getQueryCache();
-      if (ctx?.previous && cache.find({ queryKey: root, exact: true }) === ctx.listQuery) {
-        qc.setQueryData(root, ctx.previous);
+      const previous = ctx?.previous;
+      const previousHome = ctx?.previousHome;
+      if (previous && cache.find({ queryKey: root, exact: true }) === ctx?.listQuery) {
+        qc.setQueryData<StudentSession[]>(root, (current) =>
+          current && restoreHiddenSession(current, previous, id),
+        );
       }
-      if (ctx?.previousHome && cache.find({ queryKey: home, exact: true }) === ctx.homeQuery) {
-        qc.setQueryData(home, ctx.previousHome);
+      if (previousHome && cache.find({ queryKey: home, exact: true }) === ctx?.homeQuery) {
+        const wasVisible = previous?.some((session) => session.id === id) ?? false;
+        qc.setQueryData<StudentHomeSessions>(home, (current) => current && ({
+          items: restoreHiddenSession(current.items, previousHome.items, id),
+          hasAnySessions: current.hasAnySessions || wasVisible,
+        }));
       }
       studentToast.error(
         error?.response?.data?.detail ||

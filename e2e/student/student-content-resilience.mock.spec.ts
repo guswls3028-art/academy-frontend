@@ -751,40 +751,57 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     }
   }
 
-  test("일정 숨기기 실패는 이미 열린 홈의 일정 건수도 복구한다", async ({ page }) => {
+  test("일정 숨기기는 실패한 항목만 홈과 목록에 복구한다", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.clock.setFixedTime(new Date("2026-10-21T09:00:00+09:00"));
     await installStudentApi(page);
     const recent = { id: 21, title: "최근 수업", date: "2026-10-20" };
+    const other = { id: 23, title: "다른 최근 수업", date: "2026-10-19" };
     const older = { id: 22, title: "이전 수업", date: "2026-09-12" };
-    await page.route(matchesSessionsApi, (route) => route.fulfill({
-      json: new URL(route.request().url()).searchParams.get("scope") === "home"
-        ? { items: [recent], has_any_sessions: true }
-        : [older, recent],
-    }));
+    const hidden = new Set<number>();
+    await page.route(matchesSessionsApi, (route) => {
+      const showing = [other, recent].filter((session) => !hidden.has(session.id));
+      return route.fulfill({
+        json: new URL(route.request().url()).searchParams.get("scope") === "home"
+          ? { items: showing, has_any_sessions: true }
+          : [older, ...showing],
+      });
+    });
     let rejectHide!: () => void;
     const hideResponse = new Promise<void>((resolve) => { rejectHide = resolve; });
     await page.route("**/api/v1/student/sessions/hide/", async (route) => {
+      const { id } = route.request().postDataJSON() as { id: number };
+      expect([recent.id, other.id]).toContain(id);
+      if (id === other.id) {
+        hidden.add(id);
+        return route.fulfill({ json: { hidden_ids: [id] } });
+      }
       await hideResponse;
       await route.fulfill({ status: 400, json: { detail: "일정 숨기기를 다시 시도해주세요." } });
     });
     await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
     const card = page.getByRole("region", { name: "학습 현황", exact: true });
     const schedule = card.getByRole("link", { name: /수업·클리닉/ });
-    try {
-      await expect(schedule).toContainText("1회");
-      await schedule.click();
-      await page.getByRole("button", { name: /지난 일정/ }).click();
-      const recentRow = page.locator('a[href="/student/sessions/21"]');
-      await recentRow.scrollIntoViewIfNeeded();
-      const bounds = await recentRow.boundingBox();
+    const pastTab = page.getByRole("button", { name: /지난 일정/ });
+    const row = (id: number) => page.locator(`a[href="/student/sessions/${id}"]`);
+    const hideRow = async (id: number) => {
+      await row(id).scrollIntoViewIfNeeded();
+      const bounds = await row(id).boundingBox();
       if (!bounds) throw new Error("Recent session row has no layout");
       const y = bounds.y + bounds.height / 2;
       await page.mouse.move(bounds.x + bounds.width * 0.8, y);
       await page.mouse.down();
       await page.mouse.move(bounds.x + bounds.width * 0.2, y, { steps: 8 });
       await page.mouse.up();
-      await expect(recentRow).toHaveCount(0);
+      await expect(row(id)).toHaveCount(0);
+    };
+    try {
+      await expect(schedule).toContainText("2회");
+      await schedule.click();
+      await pastTab.click();
+      await hideRow(recent.id);
+      await hideRow(other.id);
+      await expect.poll(() => hidden.has(other.id)).toBe(true);
       await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
       await expect(schedule).toContainText("0회");
       await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
@@ -792,6 +809,10 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       rejectHide();
     }
     await expect(schedule).toContainText("1회");
+    await schedule.click();
+    await pastTab.click();
+    await expect(row(recent.id)).toBeVisible();
+    await expect(row(other.id)).toHaveCount(0);
   });
 
   for (const source of ["grades", "sessions"] as const) {
