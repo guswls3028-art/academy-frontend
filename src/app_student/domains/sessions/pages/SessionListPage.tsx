@@ -15,7 +15,7 @@ import {
   hideMySession,
   unhideMySession,
 } from "@student/domains/sessions/api/sessions.api";
-import type { StudentSession } from "@student/domains/sessions/api/sessions.api";
+import type { StudentHomeSessions, StudentSession } from "@student/domains/sessions/api/sessions.api";
 import { studentSessionQueryKeys } from "../queryKeys";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
@@ -48,6 +48,20 @@ function getTabItems(): { key: ScheduleTab; label: string }[] {
   return items;
 }
 
+function restoreHiddenSession(
+  current: StudentSession[],
+  previous: StudentSession[],
+  sessionId: number,
+): StudentSession[] {
+  const index = previous.findIndex((session) => session.id === sessionId);
+  if (index < 0 || current.some((session) => session.id === sessionId)) return current;
+  const followingIds = new Set(previous.slice(index + 1).map((session) => session.id));
+  const nextIndex = current.findIndex((session) => followingIds.has(session.id));
+  const restored = [...current];
+  restored.splice(nextIndex < 0 ? restored.length : nextIndex, 0, previous[index]);
+  return restored;
+}
+
 export default function SessionListPage() {
   const [tab, setTab] = useState<ScheduleTab>("calendar");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -76,21 +90,46 @@ export default function SessionListPage() {
   const hideMutation = useMutation({
     mutationFn: hideMySession,
     onMutate: async (id: number) => {
-      await qc.cancelQueries({ queryKey: studentSessionQueryKeys.root });
-      const prev = qc.getQueryData<StudentSession[]>(studentSessionQueryKeys.root);
-      qc.setQueryData<StudentSession[]>(studentSessionQueryKeys.root, (cur) =>
-        (cur ?? []).filter((s) => s.id !== id),
-      );
-      return { prev };
+      const { root, home } = studentSessionQueryKeys;
+      await qc.cancelQueries({ queryKey: root });
+      const cache = qc.getQueryCache();
+      const listQuery = cache.find({ queryKey: root, exact: true });
+      const homeQuery = cache.find({ queryKey: home, exact: true });
+      const previous = qc.getQueryData<StudentSession[]>(root);
+      const previousHome = qc.getQueryData<StudentHomeSessions>(home);
+      const remaining = (previous ?? []).filter((session) => session.id !== id);
+      qc.setQueryData(root, remaining);
+      if (previousHome) {
+        qc.setQueryData<StudentHomeSessions>(home, {
+          items: previousHome.items.filter((session) => session.id !== id),
+          hasAnySessions: previous ? remaining.length > 0 : previousHome.hasAnySessions,
+        });
+      }
+      return { listQuery, homeQuery, previous, previousHome };
     },
-    onError: (error: AxiosError<ApiErrorBody>, _id, ctx) => {
-      if (ctx?.prev) qc.setQueryData(studentSessionQueryKeys.root, ctx.prev);
+    onError: (error: AxiosError<ApiErrorBody>, id, ctx) => {
+      const { root, home } = studentSessionQueryKeys;
+      const cache = qc.getQueryCache();
+      const previous = ctx?.previous;
+      const previousHome = ctx?.previousHome;
+      if (previous && cache.find({ queryKey: root, exact: true }) === ctx?.listQuery) {
+        qc.setQueryData<StudentSession[]>(root, (current) =>
+          current && restoreHiddenSession(current, previous, id),
+        );
+      }
+      if (previousHome && cache.find({ queryKey: home, exact: true }) === ctx?.homeQuery) {
+        const wasVisible = previous?.some((session) => session.id === id) ?? false;
+        qc.setQueryData<StudentHomeSessions>(home, (current) => current && ({
+          items: restoreHiddenSession(current.items, previousHome.items, id),
+          hasAnySessions: current.hasAnySessions || wasVisible,
+        }));
+      }
       studentToast.error(
         error?.response?.data?.detail ||
           error?.response?.data?.message ||
           "숨기기에 실패했어요. 잠시 후 다시 시도해주세요.",
       );
-      setUndoTarget(null);
+      setUndoTarget((target) => target?.id === id ? null : target);
     },
   });
 
@@ -539,6 +578,7 @@ function SessionList({
           <Link
             key={s.id}
             to={linkTo}
+            draggable={isPast && onHide ? false : undefined}
             className={`stu-panel stu-panel--pressable stu-panel--accent ${panelVariant} ${styles.sessionCard}`}
             data-past={isPast ? "true" : undefined}
           >
