@@ -26,7 +26,7 @@ body:has([data-app=auth]) #dawon-preview-scope{display:block}
 
 export function insertDemoSwitcher(html, url, native) {
   const path = url.pathname;
-  const role = path === "/guardian" || url.searchParams.get("preview") === "guardian" ? "guardian" :
+  const role = path === "/guardian" || url.searchParams.get("preview") === "guardian" || url.searchParams.get("demo") === "guardian" ? "guardian" :
     native && !path.startsWith("/student/") && url.searchParams.get("demo") !== "student" ? "teacher" : "student";
   const links = apps.map(([key, name, href]) =>
     `<a href="${href}" data-demo-app="${key}"${key === role ? ' aria-current="page"' : ''}>${name}</a>`).join("");
@@ -42,7 +42,14 @@ function mountDemoSwitcher() {
   const autoKey = "dawon:open-teacher-demo";
   function currentRole() {
     if (nav.dataset.shell === "learner") return document.body.dataset.role === "guardian" || location.pathname === "/guardian" ? "guardian" : "student";
-    return location.pathname.startsWith("/student/") || new URLSearchParams(location.search).get("demo") === "student" ? "student" : "teacher";
+    const demoRole = new URLSearchParams(location.search).get("demo");
+    if (demoRole === "guardian") return "guardian";
+    if (demoRole === "student") return "student";
+    if (!location.pathname.startsWith("/student/")) return "teacher";
+    try {
+      if (sessionStorage.getItem("dawon-room-role") === "guardian") return "guardian";
+    } catch {}
+    return "student";
   }
   function markRole() {
     const role = currentRole();

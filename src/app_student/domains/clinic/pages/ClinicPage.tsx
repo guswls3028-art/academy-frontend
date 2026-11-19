@@ -62,6 +62,7 @@ export default function ClinicPage() {
   const [selectionNotice, setSelectionNotice] = useState<string | null>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [changingBookingId, setChangingBookingId] = useState<number | null>(null);
+  const isSharedDemo = window.location.hostname === "demo.hakwonplus.com";
   const [memo, setMemo] = useState("");
   const [preferredStart, setPreferredStart] = useState("");
   const [preferredEnd, setPreferredEnd] = useState("");
@@ -77,6 +78,8 @@ export default function ClinicPage() {
     refetch: refetchRequests,
   } = useQuery({
     queryKey: studentClinicQueryKeys.bookings,
+    ...(isSharedDemo ? { refetchOnWindowFocus: "always" as const } : {}),
+    refetchInterval: window.location.hostname === "demo.hakwonplus.com" ? 5000 : false,
     queryFn: ({ signal }) => fetchMyClinicBookingRequests({ signal }),
   });
 
@@ -87,6 +90,7 @@ export default function ClinicPage() {
     refetch: refetchSessions,
   } = useQuery({
     queryKey: studentClinicQueryKeys.availableSessionsOnDate(today),
+    ...(isSharedDemo ? { refetchOnWindowFocus: "always" as const } : {}),
     queryFn: ({ signal }) => fetchAvailableClinicSessions({
       signal,
       date_from: now.subtract(1, "day").format("YYYY-MM-DD"),
@@ -291,7 +295,9 @@ export default function ClinicPage() {
     onSuccess: (data, id) => {
       setSavedBookingNotice(null);
       if (changingBookingId === id) setChangingBookingId(null);
-      if ((data.notification?.failed ?? 0) > 0) {
+      if (isSharedDemo && !data.notification) {
+        studentToast.success("예약 취소가 저장되었습니다.");
+      } else if ((data.notification?.failed ?? 0) > 0) {
         studentToast.info("예약 취소가 저장되었습니다. 안내 알림톡은 자동 재시도 대기 중입니다.");
       } else {
         studentToast.success("예약 취소가 저장되었습니다. 학생·학부모 안내 알림톡도 접수되었습니다.");
@@ -381,7 +387,7 @@ export default function ClinicPage() {
     beginMutation();
     bookingMutation.mutate({
       session_ids: selectedSessions.map((session) => session.id),
-      student_request_memo: memo.trim() || undefined,
+      student_request_memo: isSharedDemo ? undefined : memo.trim() || undefined,
       preferred_start_time: selectedSession?.booking_mode !== "time_range" && selectedSession?.allow_time_preference ? preferredStart || undefined : undefined,
       preferred_end_time: selectedSession?.booking_mode !== "time_range" && selectedSession?.allow_time_preference ? preferredEnd || undefined : undefined,
       booking_start_time: selectedSession?.booking_mode === "time_range" ? bookingStart : undefined,
@@ -421,7 +427,7 @@ export default function ClinicPage() {
     changeMutation.mutate({
       oldId: changingBooking.id,
       newSessionId: selectedSessionId,
-      studentRequestMemo: memo.trim() || undefined,
+      studentRequestMemo: isSharedDemo ? undefined : memo.trim() || undefined,
       preferredStartTime: selectedSession?.booking_mode !== "time_range" && selectedSession?.allow_time_preference ? preferredStart || undefined : undefined,
       preferredEndTime: selectedSession?.booking_mode !== "time_range" && selectedSession?.allow_time_preference ? preferredEnd || undefined : undefined,
       bookingStartTime: selectedSession?.booking_mode === "time_range" ? bookingStart : undefined,
@@ -523,6 +529,7 @@ export default function ClinicPage() {
 
   return (
     <StudentPageShell title="클리닉">
+      {isSharedDemo && <p className="stu-muted">공용 예시 학생으로 신청합니다. 예약 일정과 승인 결과는 다른 체험자도 볼 수 있습니다.</p>}
       <ClinicAttendanceHistory requests={myRequests} />
       <div data-guide="clinic-list" className={styles.pageStack}>
         <div className={styles.tabBar} role="tablist" aria-label="클리닉 메뉴">
@@ -852,6 +859,7 @@ export default function ClinicPage() {
                           <ClinicMultiSlotSelectionPanel
                             selectedSessions={selectedSessions}
                             selectedSession={selectedSession}
+                            showMemo={!isSharedDemo}
                             memo={memo}
                             preferredStart={preferredStart}
                             preferredEnd={preferredEnd}
@@ -909,7 +917,7 @@ export default function ClinicPage() {
                               {preferredRangeText(request)}
                             </span>
                           )}
-                          {request.student_request_memo && (
+                          {!isSharedDemo && request.student_request_memo && (
                             <span className={styles.bookingRequestNote}>요청 · {request.student_request_memo}</span>
                           )}
                           <span className={styles.pendingStatus}>승인 대기</span>
@@ -951,7 +959,7 @@ export default function ClinicPage() {
                               {preferredRangeText(request)}
                             </span>
                           )}
-                          {request.student_request_memo && (
+                          {!isSharedDemo && request.student_request_memo && (
                             <span className={styles.bookingRequestNote}>요청 · {request.student_request_memo}</span>
                           )}
                           <span className={styles.approvedStatus}>예약 확정</span>

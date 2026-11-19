@@ -108,7 +108,7 @@ export function installDawonSessions() {
         lesson.append(el('strong', row.lecture + ' · ' + row.title));
         list(lesson, values(row), empty);
         if (title === '수업 영상·자료' && row.videos.length && !guardian()) {
-          lesson.append(link('수업 영상 보기', '/student/video/sessions/' + row.id));
+          lesson.append(link('수업 영상 보기', '/login/dawon?demo=student&view=video&session=' + row.id));
         }
         group.append(lesson);
       }
@@ -217,7 +217,7 @@ export function installDawonSessions() {
       const card=el('section',null,'dw-card');
       card.append(el('h3',row.title),el('p',row.lecture + (row.date ? ' · '+row.date : '')));
       list(card,row.videos,'');
-      if (!guardian()) card.append(link('수업 영상 보기','/student/video/sessions/'+row.id));
+      if (!guardian()) card.append(link('수업 영상 보기','/login/dawon?demo=student&view=video&session='+row.id));
       library.append(card);
     }
   }

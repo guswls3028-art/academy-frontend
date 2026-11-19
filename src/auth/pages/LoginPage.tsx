@@ -9,6 +9,7 @@ import { consumeReturnPath } from "@/shared/api/axios";
 import {
   getSessionItem,
   removeSessionItem,
+  setSessionItem,
 } from "@/shared/utils/safeSessionStorage";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { useProgram } from "@/shared/program";
@@ -45,9 +46,14 @@ const BRANDED_LOGIN_SCENES = new Set(["hakwonplus", "movementhui", "godmin"]);
 
 function isDawonDemoSearch(tenantCode: string | null, search: string) {
   const params = new URLSearchParams(search);
-  if (tenantCode !== "dawon" || params.get("demo") !== "student") return "";
+  if (tenantCode !== "dawon") return "";
+  if (params.get("demo") === "guardian") return "?demo=guardian&view=counsel";
+  if (params.get("demo") !== "student") return "";
   const view = params.get("view");
-  return view === "exams" || view === "school-report" ? `?demo=student&view=${view}` : "?demo=student";
+  const session = params.get("session") ?? "";
+  if (view === "video" && /^[1-9]\d{0,9}$/.test(session)) return `?demo=student&view=video&session=${session}`;
+  return view === "exams" || view === "school-report" || view === "clinic"
+    ? `?demo=student&view=${view}` : "?demo=student";
 }
 
 /**
@@ -156,23 +162,40 @@ export default function LoginPage() {
   const isDawonDemo = tenantCode === "dawon";
   const learnerPath = getSessionItem("session_return_path") ?? "";
   const reportPath = "/student/submit/school-report";
-  const videoEntry = /^\/student\/video\/sessions\/[1-9]\d*\/?$/.test(learnerPath);
-  const fromLearnerPage = videoEntry || /^\/student\/(attendance|exams|submit\/school-report)(?:[/?#]|$)/.test(learnerPath);
   const previewSearch = new URLSearchParams(location.search);
+  const clinicEntry = previewSearch.get("view") === "clinic" || /^\/student\/clinic(?:[/?#]|$)/.test(learnerPath);
+  const guardianEntry = previewSearch.get("demo") === "guardian" || (!previewSearch.has("demo") && learnerPath.startsWith("/student/community?tab=counsel"));
+  const explicitVideo = previewSearch.get("session") ?? "";
+  const videoPath = previewSearch.get("view") === "video" && /^[1-9]\d{0,9}$/.test(explicitVideo)
+    ? `/student/video/sessions/${explicitVideo}` : "";
+  const nativeVideoEntry = /^\/student\/video\/sessions\/[1-9]\d*\/?$/.test(learnerPath);
+  const videoEntry = Boolean(videoPath) || nativeVideoEntry;
+  const fromLearnerPage = nativeVideoEntry || /^\/student\/(attendance|clinic|exams|submit\/school-report)(?:[/?#]|$)/.test(learnerPath);
   const learnerEntry = fromLearnerPage || previewSearch.get("demo") === "student";
   const reportEntry = previewSearch.get("view") === "school-report" || learnerPath.split(/[?#]/)[0] === reportPath;
-  const qrEntry = learnerEntry && !videoEntry && !reportEntry && !(previewSearch.get("view") === "exams" || learnerPath.startsWith("/student/exams"));
+  const qrEntry = learnerEntry && !clinicEntry && !videoEntry && !reportEntry && !(previewSearch.get("view") === "exams" || learnerPath.startsWith("/student/exams"));
 
   async function onDemoEntry() {
     if (pending) return;
     setPending(true);
     setError("");
     try {
-      await enterDawonDemo(learnerEntry ? "student" : "teacher");
+      const role = guardianEntry ? "guardian" : learnerEntry ? "student" : "teacher";
+      await enterDawonDemo(role);
       await refreshMe();
+      if (role !== "teacher") setSessionItem("dawon-room-role", role);
       removeSessionItem("session_expired");
       const returnPath = consumeReturnPath();
-      navigate(learnerEntry ? (fromLearnerPage && returnPath ? returnPath : qrEntry ? "/student/attendance/scan" : reportEntry ? reportPath : "/student/exams") : "/", { replace: true });
+      let destination = "/";
+      if (videoPath) destination = videoPath;
+      else if (guardianEntry) destination = "/student/community?tab=counsel";
+      else if (learnerEntry) {
+        if (clinicEntry) destination = "/student/clinic";
+        else if (!previewSearch.has("view") && fromLearnerPage && returnPath) destination = returnPath;
+        else if (qrEntry) destination = "/student/attendance/scan";
+        else destination = reportEntry ? reportPath : "/student/exams";
+      }
+      navigate(destination, { replace: true });
     } catch {
       setError("체험 계정에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.");
       setPending(false);
@@ -239,7 +262,7 @@ export default function LoginPage() {
             {isDawonDemo && (
               <div className={styles.demoEntry}>
                 <button type="button" className={styles.btnPrimary} onClick={() => void onDemoEntry()} disabled={pending}>
-                  {videoEntry ? "학생 데모로 수업 영상 보기" : qrEntry ? "학생 데모로 QR 출석" : reportEntry ? "학생 데모로 학교 성적 입력" : learnerEntry ? "학생 데모로 시험 결과 보기" : "데모 계정으로 시작"}
+                  {guardianEntry ? "학부모 데모로 상담 신청" : clinicEntry ? "학생 데모로 클리닉 신청" : videoEntry ? "학생 데모로 수업 영상 보기" : qrEntry ? "학생 데모로 QR 출석" : reportEntry ? "학생 데모로 학교 성적 입력" : learnerEntry ? "학생 데모로 시험 결과 보기" : "데모 계정으로 시작"}
                 </button>
                 <span>{learnerEntry ? "예시 학생으로 체험합니다." : "선생님 업무는 PC에서 보기를 권장합니다."}</span>
               </div>

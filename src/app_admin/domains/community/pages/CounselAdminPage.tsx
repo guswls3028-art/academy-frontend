@@ -250,6 +250,12 @@ function CounselCard({
 }
 
 /* ── Thread View ── */
+const demoAnswers = [
+  { topic: "오답 복습 방법", content: "틀린 이유를 한 줄로 적고, 다음 날 같은 문제를 풀이 없이 다시 풀어 보세요." },
+  { topic: "시험 전 학습 계획", content: "첫 이틀은 개념을 복습하고, 이후에는 유형별 문제와 오답을 번갈아 풀어 보세요." },
+  { topic: "수업 진도 확인", content: "이번 주에는 일차방정식을 배웠습니다. 다음 수업에는 오답 노트와 교재를 준비해 주세요." },
+];
+
 function CounselThreadView({
   postId,
   allPosts,
@@ -466,7 +472,7 @@ function CounselThreadView({
 
         {(post.replies_count ?? 0) === 0 && (
           <div className="qna-inbox__answer-cta">
-            <p>아래 입력란에서 상담 답변을 작성해 주세요.</p>
+            <p>{window.location.hostname === "demo.hakwonplus.com" ? "예시 답변을 선택해 학부모에게 답해 주세요." : "아래 입력란에서 상담 답변을 작성해 주세요."}</p>
           </div>
         )}
 
@@ -477,6 +483,7 @@ function CounselThreadView({
         <PostThreadView
           postId={postId}
           mode="answer"
+          answerChoices={window.location.hostname === "demo.hakwonplus.com" ? demoAnswers : undefined}
           allowReply={!post.created_by_deleted}
           invalidateKeys={[["community-counsel-posts"], ["admin", "notification-counts"]]}
           placeholder="학생에게 상담 답변을 작성하세요…"

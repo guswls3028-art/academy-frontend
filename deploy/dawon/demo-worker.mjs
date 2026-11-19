@@ -89,7 +89,7 @@ const loginNav = `<nav id="dawon-preview-roles" aria-label="다원수학 데모 
 const learnerBridgePath = '/dawon-learner-navigation.js';
 
 function installLearnerBridge() {
-  const isNative = path => /^\/student\/(?:video\/(?:sessions\/[1-9]\d*\/?$|play\/?$)|exams(?:\/|$)|attendance(?:\/|$)|submit\/school-report(?:\/|$))/.test(path);
+  const isNative = path => /^\/student\/(?:video\/(?:sessions\/[1-9]\d*\/?$|play\/?$)|clinic(?:\/|$)|community(?:\/|$)|exams(?:\/|$)|attendance(?:\/|$)|submit\/school-report(?:\/|$))/.test(path);
   const generic = {
     dashboard:'home', home:'home', videos:'video', video:'video', calendar:'schedule', schedule:'schedule',
     notifications:'alerts', community:'questions', qna:'questions', grades:'exam', homework:'homework',
@@ -98,7 +98,13 @@ function installLearnerBridge() {
   };
   const guardian = () => sessionStorage.getItem('dawon-room-role') === 'guardian';
   const home = () => guardian() ? '/guardian' : '/student';
-  const destination = topic => topic === 'home' ? home() : topic === 'profile' ? '/profile' : '/learn/' + topic;
+  const destination = topic => {
+    if (topic === 'home') return home();
+    if (topic === 'profile') return '/profile';
+    if (topic === 'questions' && guardian()) return '/student/community?tab=counsel';
+    if (topic === 'clinic' && !guardian()) return '/student/clinic';
+    return '/learn/' + topic;
+  };
   function genericDestination(raw) {
     if (!raw || !isNative(location.pathname)) return null;
     const url = new URL(raw, location.href);
@@ -232,12 +238,35 @@ try {
     window.location.replace('/teacher');
   }
 } catch {}
+function openNativeIntake() {
+  const role = document.body.dataset.role;
+  if (location.pathname === '/learn/clinic' && role === 'student') {
+    location.replace('/login/dawon?demo=student&view=clinic');
+  } else if (location.pathname === '/learn/questions' && role === 'guardian') {
+    location.replace('/login/dawon?demo=guardian&view=counsel');
+  }
+}
+if (location.pathname === '/learn/clinic' || location.pathname === '/learn/questions') {
+  new MutationObserver(openNativeIntake).observe(document.body, {attributes:true, attributeFilter:['data-role']});
+  openNativeIntake();
+}
 document.addEventListener('click', (event) => {
   if (!(event.target instanceof Element)) return;
   if (document.body.dataset.role === 'student' && event.target.closest('[data-route="qr"]')) {
     event.preventDefault();
     event.stopImmediatePropagation();
     window.location.assign('/login/dawon?demo=student');
+    return;
+  }
+  const role = document.body.dataset.role;
+  const learnerDestination = role === 'student' && event.target.closest('[data-route="clinic"]')
+    ? '/login/dawon?demo=student&view=clinic'
+    : role === 'guardian' && event.target.closest('[data-route="questions"]')
+      ? '/login/dawon?demo=guardian&view=counsel' : null;
+  if (learnerDestination) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    window.location.assign(learnerDestination);
     return;
   }
   if (!event.target.closest('[data-preview-role="teacher"],[data-signin="teacher"]')) return;
@@ -273,7 +302,7 @@ function scopesAreValid(entries) {
 
 function forward(url, request, env, fetcher, body = null) {
   const headers = new Headers({'x-dawon-review-origin': env.ORIGIN_KEY, 'x-dawon-asset-version': env.ADMIN_VERSION});
-  for (const header of ['authorization', 'content-type', 'accept', 'user-agent', 'if-none-match', 'if-modified-since', 'range', 'idempotency-key']) {
+  for (const header of ['authorization', 'content-type', 'accept', 'user-agent', 'if-none-match', 'if-modified-since', 'range', 'idempotency-key', 'x-student-id']) {
     const value = request.headers.get(header);
     if (value) headers.set(header, value);
   }
@@ -358,7 +387,8 @@ export async function handle(request, env, fetcher = fetch, context) {
     const isConsoleLogin = pathname === '/login/dawon' ||
       (pathname === '/login' && /(?:^|;\s*)dawon_console=1(?:;|$)/.test(request.headers.get('cookie') ?? ''));
     const isLearnerVideo = /^\/student\/video\/(?:sessions\/[1-9]\d*|play)\/?$/.test(pathname);
-    const isNative = isConsoleLogin || isLearnerVideo || /^\/(?:workspace|student\/(?:attendance|exams|submit\/school-report))(?:\/|$)/.test(pathname) || ['/terms', '/privacy'].includes(pathname)
+    const isLearnerIntake = /^\/student\/(?:clinic|community)\/?$/.test(pathname);
+    const isNative = isConsoleLogin || isLearnerVideo || isLearnerIntake || /^\/(?:workspace|student\/(?:attendance|exams|submit\/school-report))(?:\/|$)/.test(pathname) || ['/terms', '/privacy'].includes(pathname)
       || nativeFiles.has(pathname) || nativeAssetDirectories.some(prefix => pathname.startsWith(prefix));
     if (isNative) {
       if (!['GET', 'HEAD'].includes(request.method)) return secureResponse(null, 405);
@@ -370,15 +400,19 @@ export async function handle(request, env, fetcher = fetch, context) {
         const cached = await edge.match(cacheKey);
         if (cached) return cached;
       }
-      const upstreamUrl = isLearnerVideo ? new URL('/login/dawon', url) : url;
+      const upstreamUrl = isLearnerVideo || isLearnerIntake ? new URL('/login/dawon', url) : url;
       let upstream = await forward(upstreamUrl, request, env, fetcher);
-      for (const previous of ['r11', 'r10', 'r9', 'r8', 'r7', 'r4', 'r3'].map(suffix => 'dawon-review-20261119-orange-' + suffix)) {
+      for (const previous of ['r12', 'r11', 'r10', 'r9', 'r8', 'r7', 'r4', 'r3'].map(suffix => 'dawon-review-20261119-orange-' + suffix)) {
         if (upstream.status !== 404 || !pathname.startsWith('/assets/')) break;
         if (previous === env.ADMIN_VERSION) continue;
         await upstream.body?.cancel();
         upstream = await forward(url, request, { ...env, ADMIN_VERSION: previous }, fetcher);
       }
       const headers = new Headers(upstream.headers);
+      if (upstream.ok && pathname.startsWith('/assets/dawon-lesson-r13/')) {
+        if (pathname.endsWith('.m3u8')) headers.set('content-type', 'application/vnd.apple.mpegurl');
+        if (pathname.endsWith('.ts')) headers.set('content-type', 'video/mp2t');
+      }
       // Vite includes a second capability probe in each modern entry chunk.
       // Serve the equivalent same-origin module under the existing script policy.
       if (request.method === 'GET' && upstream.ok && /^\/assets\/(?:index|polyfills)-[A-Za-z0-9_-]+\.js$/.test(pathname) && !pathname.includes('-legacy-')) {

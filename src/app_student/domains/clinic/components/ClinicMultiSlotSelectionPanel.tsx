@@ -9,6 +9,7 @@ import type { RefObject } from "react";
 type Props = {
   selectedSessions: ClinicSession[];
   selectedSession: ClinicSession | null;
+  showMemo?: boolean;
   memo: string;
   preferredStart: string;
   preferredEnd: string;
@@ -80,6 +81,7 @@ function selectedTimeSummary(selectedSessions: Pick<ClinicSession, "start_time" 
 export default function ClinicMultiSlotSelectionPanel({
   selectedSessions,
   selectedSession,
+  showMemo = true,
   memo,
   preferredStart,
   preferredEnd,
@@ -178,7 +180,7 @@ export default function ClinicMultiSlotSelectionPanel({
           </div>
         </fieldset>
       )}
-      <label className={styles.memoField}>
+      {showMemo && <label className={styles.memoField}>
         <span>학원에 전할 내용 <small>(선택)</small></span>
         <textarea
           aria-label="학원에 전할 내용 (선택)"
@@ -188,7 +190,7 @@ export default function ClinicMultiSlotSelectionPanel({
           className="stu-textarea"
           rows={2}
         />
-      </label>
+      </label>}
       <button
         type="button"
         className={`stu-btn stu-btn--primary ${styles.selectionSubmit}`}

@@ -52,6 +52,7 @@ interface PostThreadViewProps {
   /** 답변 등록 가능 여부 (예: 삭제된 학생 글) */
   allowReply?: boolean;
   enableReplyPhotos?: boolean;
+  answerChoices?: ReadonlyArray<{ topic: string; content: string }>;
   /** 등록 후 추가 invalidation */
   invalidateKeys?: readonly (readonly unknown[])[];
   /** 답변 미존재 안내 (없으면 기본값) */
@@ -71,6 +72,7 @@ export default function PostThreadView({
   mode = "comment",
   allowReply = true,
   enableReplyPhotos = false,
+  answerChoices,
   invalidateKeys = [],
   emptyText,
   placeholder,
@@ -102,6 +104,7 @@ export default function PostThreadView({
           postId={postId}
           mode={mode}
           allowReply={allowReply}
+          answerChoices={answerChoices}
           enableReplyPhotos={enableReplyPhotos}
           invalidateKeys={invalidateKeys}
           placeholder={placeholder}
@@ -297,6 +300,7 @@ function ThreadComposer({
   postId,
   mode,
   allowReply,
+  answerChoices,
   enableReplyPhotos,
   invalidateKeys,
   placeholder,
@@ -305,6 +309,7 @@ function ThreadComposer({
   postId: number;
   mode: ThreadMode;
   allowReply: boolean;
+  answerChoices?: PostThreadViewProps["answerChoices"];
   enableReplyPhotos: boolean;
   invalidateKeys: readonly (readonly unknown[])[];
   placeholder?: string;
@@ -348,7 +353,18 @@ function ThreadComposer({
   return (
     <div className="qna-inbox__composer">
       <div className="qna-inbox__composer-inner">
-        {mode === "answer" ? (
+        {answerChoices ? (
+          <div className="qna-inbox__composer-editor">
+            <label>
+              예시 답변
+              <select value={content} disabled={createMut.isPending} onChange={(event) => setContent(event.target.value)}>
+                <option value="">답변을 선택해 주세요</option>
+                {answerChoices.map((item) => <option key={item.topic} value={item.content}>{item.topic}</option>)}
+              </select>
+            </label>
+            {content && <p>{content}</p>}
+          </div>
+        ) : mode === "answer" ? (
           <div className="qna-inbox__composer-editor">
             <RichTextEditor
               value={content}
@@ -388,7 +404,7 @@ function ThreadComposer({
         <div className="qna-inbox__composer-footer">
           {mode === "answer" ? (
             <span className="qna-inbox__composer-hint">
-              {enableReplyPhotos ? "사진 선택 또는 Ctrl+V로 붙여넣기" : "텍스트 · 링크 · 서식 지원"}
+              {answerChoices ? "공용 예시 계정의 답변은 다른 체험자에게도 표시됩니다." : enableReplyPhotos ? "사진 선택 또는 Ctrl+V로 붙여넣기" : "텍스트 · 링크 · 서식 지원"}
             </span>
           ) : (
             <span className="qna-inbox__composer-hint">

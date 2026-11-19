@@ -12,6 +12,7 @@
 		dawon-review-20261119-orange-r9 /srv/frontend/_review-revisions/dawon-review-20261119-orange-r9 review-api-r9:8000
 		dawon-review-20261119-orange-r10 /srv/frontend/_review-revisions/dawon-review-20261119-orange-r10 review-api-r10:8000
 		dawon-review-20261119-orange-r11 /srv/frontend/_review-revisions/dawon-review-20261119-orange-r11 review-api-r11:8000
+		dawon-review-20261119-orange-r14 /srv/frontend/_review-revisions/dawon-review-20261119-orange-r14 review-api-r14:8000
 		dawon-review-20261119-orange-r12 /srv/frontend/_review-revisions/dawon-review-20261119-orange-r12 review-api-r12:8000
 		default /srv/frontend review-api:8000
 	}

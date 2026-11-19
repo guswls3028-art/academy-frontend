@@ -102,6 +102,8 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
   const preserveStudentLink = location.pathname === "/student/attendance/scan"
     || (program.tenantCode === "dawon" && /^\/student\/exams(?:\/|$)/.test(location.pathname))
     || (program.tenantCode === "dawon" && /^\/student\/video\/sessions\/[1-9]\d*\/?$/.test(location.pathname))
+    || (program.tenantCode === "dawon" && (location.pathname === "/student/clinic" ||
+      (location.pathname === "/student/community" && new URLSearchParams(location.search).get("tab") === "counsel")))
     || location.pathname === studentSchoolReportPath
     || /^\/student\/surveys(?:\/[1-9]\d*)?\/?$/.test(location.pathname);
   const loginRedirect = preserveStudentLink

@@ -1085,6 +1085,16 @@ function BoardDetail({ id, onBack }: { id: number; onBack: () => void }) {
 // ═══════════════════════════════════════════
 // Counsel Tab (상담 신청)
 // ═══════════════════════════════════════════
+const isDawonCounselPreview = () => window.location.hostname === "demo.hakwonplus.com";
+
+const demoCounselRequests = [
+  { title: "오답 복습 방법", content: "예시 학생이 틀린 문제를 다시 풀 때 어떤 순서로 복습하면 좋을까요?" },
+  { title: "시험 전 학습 계획", content: "예시 학생이 다음 시험까지 일주일 동안 실천할 학습 계획을 알려 주세요." },
+  { title: "수업 진도 확인", content: "예시 학생이 이번 주에 배운 내용과 다음 수업 준비물을 알고 싶습니다." },
+];
+const sharedCounselNotice = "공용 예시 계정입니다. 선택한 상담 내용과 선생님 답변은 다른 체험자도 볼 수 있습니다.";
+
+
 function CounselTab({
   onForm,
   onDetail,
@@ -1108,6 +1118,7 @@ function CounselTab({
   } = useQuery({
     queryKey: studentCommunityQueryKeys.counselRequests,
     queryFn: () => fetchMyCounselRequests(profile!.id),
+    refetchInterval: isDawonCounselPreview() ? 5000 : false,
     enabled: profile?.id != null,
   });
 
@@ -1130,6 +1141,7 @@ function CounselTab({
 
   return (
     <div className="community-stack">
+      {isDawonCounselPreview() && <p className="stu-muted">{sharedCounselNotice}</p>}
       <button
         type="button"
         className="stu-btn stu-btn--primary community-primary-action"
@@ -1172,6 +1184,7 @@ function CounselDetail({ id, cached, onBack }: { id: number; cached?: PostEntity
   const { data: fetched, isLoading, isError, refetch } = useQuery({
     queryKey: studentCommunityQueryKeys.counselRequest(id),
     queryFn: () => fetchPostDetail(id),
+    refetchInterval: isDawonCounselPreview() ? 5000 : false,
     initialData: cached,
   });
   const request = fetched ?? cached;
@@ -1202,6 +1215,7 @@ function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack
   const markSeen = useMarkNotificationsSeen();
   const { data: replies = [], isLoading, isError, refetch } = useQuery<Answer[]>({
     queryKey: studentCommunityQueryKeys.counselReplies(request.id),
+    refetchInterval: isDawonCounselPreview() ? 5000 : false,
     queryFn: () => fetchReplies(request.id),
     enabled: answered,
   });
@@ -1275,11 +1289,12 @@ function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack
 function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => void }) {
   const qc = useQueryClient();
   const { user } = useAuth();
+  const isDemo = isDawonCounselPreview();
   const profileQ = useQuery({ queryKey: studentCommunityQueryKeys.me, queryFn: fetchMyProfile });
   const profile = profileQ.data;
   const [draftChildId] = useState(getParentStudentId);
   const draftStorageKeyRef = useRef<string | null>(null);
-  if (draftStorageKeyRef.current == null && profile) {
+  if (!isDemo && draftStorageKeyRef.current == null && profile) {
     draftStorageKeyRef.current = communityDraftStorageKey("counsel", user?.id, Boolean(profile.isParentReadOnly), draftChildId);
   }
   const [title, setTitle] = useState("");
@@ -1337,6 +1352,11 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
       if (!profile?.id) throw new Error("로그인 정보를 불러오는 중입니다.");
       if (getParentStudentId() !== draftChildId) {
         throw new Error("자녀 선택이 변경되었습니다. 원래 자녀의 작성 화면에서 다시 제출해 주세요.");
+      }
+      if (isDemo) {
+        const choice = demoCounselRequests.find((item) => item.title === title);
+        if (!choice) throw new Error("상담 예시를 선택해 주세요.");
+        return submitCounselRequest(choice.title, choice.content, profile.id);
       }
       let pending = pendingUploadRef.current;
       const post = pending ? { id: pending.postId } : await submitCounselRequest(title.trim(), content.trim(), profile.id, categoryLabel || null);
@@ -1406,6 +1426,37 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
           description="작성 권한을 확인한 뒤 상담을 신청할 수 있습니다."
           onRetry={() => void profileQ.refetch()}
         />
+      </StudentPageShell>
+    );
+  }
+
+  if (isDemo) {
+    const choice = demoCounselRequests.find((item) => item.title === title);
+    return (
+      <StudentPageShell title="상담 신청" onBack={onBack}>
+        <div className="stu-section stu-section--nested community-form-card">
+          <p>{sharedCounselNotice}</p>
+          <label className="community-field">
+            <span className="community-label">상담 예시</span>
+            <select className="stu-input community-input-full" value={title} disabled={mutation.isPending}
+              onChange={(event) => setTitle(event.target.value)}>
+              <option value="">상담 내용을 선택해 주세요</option>
+              {demoCounselRequests.map((item) => <option key={item.title}>{item.title}</option>)}
+            </select>
+          </label>
+          {choice && <p>{choice.content}</p>}
+          {errorMsg && <p role="alert">{errorMsg}</p>}
+          <button type="button" className="stu-btn stu-btn--primary community-submit"
+            disabled={!profile?.id || !choice || mutation.isPending}
+            onClick={() => {
+              if (submittingRef.current) return;
+              submittingRef.current = true;
+              submittedChildRef.current = getParentStudentId();
+              mutation.mutate();
+            }}>
+            {mutation.isPending ? "신청 중…" : "상담 신청하기"}
+          </button>
+        </div>
       </StudentPageShell>
     );
   }
