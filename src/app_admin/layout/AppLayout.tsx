@@ -1,5 +1,5 @@
 // PATH: src/app_admin/layout/AppLayout.tsx
-import { lazy, Suspense, useCallback, useMemo, useState, type ReactNode } from "react";
+import { Fragment, lazy, Suspense, useCallback, useMemo, useState, type ReactNode } from "react";
 import { useLocation } from "react-router";
 import { ConfigProvider, App } from "antd";
 import { AdminLayoutProvider } from "./AdminLayoutContext";
@@ -102,6 +102,8 @@ function PreviewLayoutContent({overlay}: {overlay?: ReactNode}) {
 }
 
 export default function AppLayout({ overlay }: { overlay?: ReactNode }) {
+  const previewRole = dawonStaffPreviewRole();
+  const ClinicHighlights = previewRole === "admin" ? Fragment : ClinicHighlightProvider;
   return (
     <TeacherViewProvider>
       <ProgramProvider>
@@ -158,12 +160,12 @@ export default function AppLayout({ overlay }: { overlay?: ReactNode }) {
             <App>
             <FeedbackBridge />
             <GuideTourProvider>
-            <ClinicHighlightProvider>
+            <ClinicHighlights>
             <SendMessageModalProvider>
-              {dawonStaffPreviewRole() ? <PreviewLayoutContent overlay={overlay} /> : <AppLayoutContent overlay={overlay} />}
+              {previewRole ? <PreviewLayoutContent overlay={overlay} /> : <AppLayoutContent overlay={overlay} />}
               <GuideTourOverlay />
             </SendMessageModalProvider>
-            </ClinicHighlightProvider>
+            </ClinicHighlights>
             </GuideTourProvider>
             </App>
           </ConfigProvider>
