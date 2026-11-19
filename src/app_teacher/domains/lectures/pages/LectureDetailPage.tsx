@@ -1,3 +1,4 @@
+import { dawonQueryKeys } from "@/shared/product/dawon/queryKeys";
 /* eslint-disable no-restricted-syntax, @typescript-eslint/no-explicit-any */
 // PATH: src/app_teacher/domains/lectures/pages/LectureDetailPage.tsx
 // 강의 상세 — 탭 구조: 차시 목록 + 수강생 목록 + CRUD
@@ -397,8 +398,8 @@ export default function LectureDetailPage() {
         : classGroup.query.data?.group_id
           ? <DawonLectureEnrollment lectureId={lid} group={classGroup.query.data} onClose={() => setEnrollOpen(false)} onSaved={() => {
               void refetchEnrollments();
-              void qc.invalidateQueries({ queryKey: ["dawon-roster"] });
-              void qc.invalidateQueries({ queryKey: ["dawon", "class-groups"] });
+              void qc.invalidateQueries({ queryKey: dawonQueryKeys.roster });
+              void qc.invalidateQueries({ queryKey: dawonQueryKeys.groups });
             }} />
           : <EnrollStudentSheet open onClose={() => setEnrollOpen(false)} lectureId={lid}
               enrolledStudentIds={(enrollments ?? []).map((e: any) => e.student_id ?? e.student?.id).filter(Boolean)} />)}

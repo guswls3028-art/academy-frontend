@@ -1,9 +1,10 @@
+import { dawonQueryKeys } from "@/shared/product/dawon/queryKeys";
 import { ArrowRight, CalendarDays } from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { fetchTodaySessions, todaySessionEntries } from "@teacher/domains/today/api";
-import { teacherTodayQueryKeys } from "@teacher/domains/today/queryKeys";
+import { teacherTodayQueryKeys } from "@/shared/api/queryKeys/sessionSchedules";
 import { shortDateWeekday, todayLocalISO } from "@/shared/utils/localDate";
 import { Button } from "@/shared/ui/ds";
 import DashboardAttendanceQr from "@/shared/ui/attendance/DashboardAttendanceQr";
@@ -31,13 +32,13 @@ function MyTeachingBoard() {
     setParams(next, {replace: true, preventScrollReset: true});
   }
   const classes = useQuery({
-    queryKey: ["dawon", "assigned-teaching-classes"], refetchOnMount: "always",
+    queryKey: dawonQueryKeys.teachingClasses, refetchOnMount: "always",
     queryFn: async ({signal}) => (await api.get<TeachingClass[]>("/students/class-groups/teaching/", {signal})).data,
   });
   const groups = classes.data ?? [];
   const group = groups.find(item => item.id === selectedId) ?? groups[0];
   const schedule = useQuery({
-    queryKey: [...teacherTodayQueryKeys.sessions(date), group?.id], queryFn: () => fetchTodaySessions(date, group?.id), enabled: !!group, staleTime: 30_000,
+    queryKey: teacherTodayQueryKeys.classSessions(date, group?.id), queryFn: () => fetchTodaySessions(date, group?.id), enabled: !!group, staleTime: 30_000,
   });
   const attendance = (lectureId: number, sessionId: number) => `/workspace/lectures/${lectureId}/sessions/${sessionId}/attendance`;
   const entries = todaySessionEntries((schedule.data ?? []).filter(s => group?.courses.includes(s.lecture)), date, attendance)

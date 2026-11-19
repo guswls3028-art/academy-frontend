@@ -1,3 +1,4 @@
+import { teacherTodayQueryKeys } from "@/shared/api/queryKeys/sessionSchedules";
 // PATH: src/app_admin/domains/sessions/components/SessionBlock.tsx
 // 차시 = 세션. 강의 홈 / 차시 상세에서 공용. 반 편성 모드일 때는 반별 row로 그룹.
 
@@ -347,7 +348,7 @@ export default function SessionBlock({
     qc.invalidateQueries({ queryKey: adminSessionQueryKeys.lectureSessions(lectureId) });
     qc.invalidateQueries({ queryKey: adminSessionQueryKeys.lectureSections(lectureId) });
     qc.invalidateQueries({ queryKey: adminSessionQueryKeys.session });
-    if (workflowEntry) qc.invalidateQueries({ queryKey: ["today-sessions"] });
+    if (workflowEntry) qc.invalidateQueries({ queryKey: teacherTodayQueryKeys.all });
   }, [qc, lectureId, workflowEntry]);
 
   const handleClose = () => {

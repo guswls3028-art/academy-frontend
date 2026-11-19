@@ -1,3 +1,4 @@
+import { dawonQueryKeys } from "./queryKeys";
 import { lazy, Suspense, useId, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,7 +16,6 @@ import styles from "./ClassGroupsPage.module.css";
 const LectureCreateModal = lazy(() => import("@admin/domains/lectures/components/LectureCreateModal"));
 
 const endpoint = "/students/class-groups/";
-const groupsKey = ["dawon", "class-groups"];
 const tracks = ["1%", "HYPER", "SKY"] as const;
 const periods = { vacation: "방학", midterm: "내신 · 중간", final: "내신 · 기말" };
 
@@ -118,7 +118,7 @@ function GroupDetail({ id, root, lectureRoot, rosterRoot, lectureEntry, assignOn
   const [createdCourse, setCreatedCourse] = useState<Lecture | null>(null);
   const [period, setPeriod] = useState<Period>("vacation");
   const [school, setSchool] = useState("");
-  const detailKey = [...groupsKey, id];
+  const detailKey = dawonQueryKeys.group(id);
   const detail = useQuery({
     queryKey: detailKey,
     staleTime: 30_000,
@@ -134,8 +134,8 @@ function GroupDetail({ id, root, lectureRoot, rosterRoot, lectureEntry, assignOn
       remove: mode === "remove" ? ids : [],
     });
     client.setQueryData(detailKey, data);
-    void client.invalidateQueries({ queryKey: groupsKey, exact: true });
-    void client.invalidateQueries({ queryKey: ["dawon-roster"] });
+    void client.invalidateQueries({ queryKey: dawonQueryKeys.groups, exact: true });
+    void client.invalidateQueries({ queryKey: dawonQueryKeys.roster });
     setNotice(mode === "add" ? `${ids.length}명을 배정했습니다.` : `${ids.length}명을 반 명단에서 제외했습니다.`);
     stopEditing();
   };
@@ -182,7 +182,7 @@ function GroupDetail({ id, root, lectureRoot, rosterRoot, lectureEntry, assignOn
             const { data } = await api.post<Lecture>(`${endpoint}${id}/lectures/`, { ...payload, period, school });
             setCreatedCourse(data);
             void Promise.all([
-              client.invalidateQueries({ queryKey: groupsKey }),
+              client.invalidateQueries({ queryKey: dawonQueryKeys.groups }),
               client.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectures }),
             ]);
           },
@@ -242,7 +242,7 @@ export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry
   const rosterRoot = mobile ? "/workspace/mobile/students/class-groups" : "/workspace/students/class-groups";
   const root = lectureEntry ? lectureRoot : rosterRoot;
   const groups = useQuery({
-    queryKey: groupsKey,
+    queryKey: dawonQueryKeys.groups,
     enabled: isDawon && !id,
     staleTime: 30_000,
     queryFn: async ({ signal }) => (await api.get<Group[]>(endpoint, { signal })).data,
@@ -261,7 +261,7 @@ export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry
       </header>
       {creating && <GroupForm onCancel={() => setCreating(false)} onCreated={(createdId) => {
         setCreating(false);
-        void client.invalidateQueries({ queryKey: groupsKey });
+        void client.invalidateQueries({ queryKey: dawonQueryKeys.groups });
         navigate(`${rosterRoot}?class=${createdId}&assign=1`);
       }} />}
       {groups.isPending && <p role="status">반 목록을 불러오는 중입니다.</p>}

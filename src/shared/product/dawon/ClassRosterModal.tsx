@@ -1,3 +1,4 @@
+import { dawonQueryKeys } from "./queryKeys";
 import { useEffect, useState } from "react";
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
@@ -49,7 +50,7 @@ export default function ClassRosterModal({
   }, [input]);
 
   const candidates = useQuery({
-    queryKey: ["dawon-roster", candidateUrl, search, offset],
+    queryKey: dawonQueryKeys.candidates(candidateUrl, search, offset),
     enabled: Boolean(candidateUrl),
     placeholderData: keepPreviousData,
     queryFn: async ({ signal }) => (await api.get<RosterStudent[]>(candidateUrl!, { params: { search, offset }, signal })).data,

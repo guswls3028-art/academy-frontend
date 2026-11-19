@@ -1,3 +1,4 @@
+import { dawonQueryKeys } from "./queryKeys";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useLocation } from "react-router";
@@ -36,12 +37,11 @@ type AlertFeed = {
 
 const maxThreshold = (rule: Rule) => rule === "absence_streak" || rule === "homework_missing" ? 30 : 100;
 const endpoint = "/students/teacher-alerts/";
-const queryRoot = ["dawon", "teacher-alerts"];
 const ruleKeys = Object.keys(definitions) as Rule[];
 
 function useAlerts(lecture: string, isDawon: boolean) {
   return useQuery({
-    queryKey: [...queryRoot, lecture],
+    queryKey: dawonQueryKeys.lectureAlerts(lecture),
     enabled: isDawon,
     queryFn: async ({ signal }) => (await api.get<AlertFeed>(endpoint, { signal, params: lecture ? { lecture_id: lecture } : {} })).data,
     staleTime: 30_000,
@@ -71,8 +71,8 @@ export default function DawonTeacherAlertsPage() {
   const saved = useMutation({
     mutationFn: async (rules: Settings) => (await api.patch<AlertFeed>(endpoint, { rules })).data,
     onSuccess: (result) => {
-      client.setQueryData([...queryRoot, ""], result);
-      void client.invalidateQueries({ queryKey: queryRoot });
+      client.setQueryData(dawonQueryKeys.lectureAlerts(""), result);
+      void client.invalidateQueries({ queryKey: dawonQueryKeys.alerts });
       setDraft(null);
     },
   });

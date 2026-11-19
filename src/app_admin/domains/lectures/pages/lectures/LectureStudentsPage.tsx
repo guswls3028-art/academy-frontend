@@ -1,3 +1,4 @@
+import { dawonQueryKeys } from "@/shared/product/dawon/queryKeys";
 // PATH: src/app_admin/domains/lectures/pages/lectures/LectureStudentsPage.tsx
 // 학생 테이블 = 세션 출결 테이블 UI/UX 카피: 강의 뱃지 + 체크박스, 이름, 학부모/학생 전화, N차…1차(역순) 1글자
 /* eslint-disable no-restricted-syntax, react-hooks/exhaustive-deps */
@@ -497,10 +498,10 @@ export default function LectureStudentsPage() {
         : classGroup.query.data?.group_id
           ? <DawonLectureEnrollment lectureId={lectureIdNum} group={classGroup.query.data} onClose={() => setShowLectureEnroll(false)} onSaved={() => {
               void classGroup.query.refetch();
-              void qc.invalidateQueries({ queryKey: ["dawon-roster"] });
+              void qc.invalidateQueries({ queryKey: dawonQueryKeys.roster });
               void qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectureEnrollments(lectureIdNum) });
               void qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureIdNum) });
-              void qc.invalidateQueries({ queryKey: ["dawon", "class-groups"] });
+              void qc.invalidateQueries({ queryKey: dawonQueryKeys.groups });
             }} />
           : <LectureEnrollStudentModal
               lectureId={lectureIdNum}
