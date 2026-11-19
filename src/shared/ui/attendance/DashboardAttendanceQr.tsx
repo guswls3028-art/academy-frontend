@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { ChevronRight, ScanLine } from "lucide-react";
 import { fetchLectures, fetchSessions, sortSessionsByDisplayOrder, type Lecture, type Session } from "@/shared/api/contracts/sessions";
+import { attendanceQueryKeys } from "@/shared/api/queryKeys/attendance";
 import { isSupplementSession } from "@/shared/product/sessions/sessionOrdering";
 import { sessionScheduleDateLabel } from "@/shared/product/sessions/sessionScheduleDisplay";
 import LectureChip from "@/shared/ui/chips/LectureChip";
@@ -27,11 +28,11 @@ function ClassPicker({ onClose }: { onClose: () => void }) {
   const [search, setSearch] = useState("");
   const stepHeading = useRef<HTMLHeadingElement>(null);
   const lectures = useQuery({
-    queryKey: ["attendance-qr", "active-lectures"],
+    queryKey: attendanceQueryKeys.qrActiveLectures,
     queryFn: () => fetchLectures({ is_active: true }),
   });
   const sessions = useQuery({
-    queryKey: ["attendance-qr", "lecture-sessions", lecture?.id],
+    queryKey: attendanceQueryKeys.qrLectureSessions(lecture?.id),
     queryFn: lecture ? () => fetchSessions(lecture.id) : skipToken,
   });
   useEffect(() => {
