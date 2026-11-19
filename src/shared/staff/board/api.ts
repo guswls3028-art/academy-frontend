@@ -3,6 +3,7 @@ import useAuth from "@/auth/hooks/useAuth";
 import api from "@/shared/api/axios";
 import type { components } from "@/shared/api/generated/schema";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import { downloadBlob } from "@/shared/utils/safeDownload";
 
 export const boardRoot = "/workspace/staff-board";
 export const boardLabels = { notice: "공지사항", resource: "자료실", free: "자유게시글" } as const;
@@ -58,26 +59,37 @@ export function useBoardPost(scope: BoardScope, id: number) {
   });
 }
 
-export async function savePost(category: Category, title: string, body: string, file: File | null, id?: number) {
+type PostDraft = { title: string; body: string; file: File | null };
+
+export async function savePost(category: Category, draft: PostDraft, key: string, id?: number) {
+  const { title, body, file } = draft;
   if (id) return (await api.patch<PostRow>(`${endpoint}${id}/`, { title, body })).data;
-  if (!file) return (await api.post<PostRow>(endpoint, { category, title, body })).data;
+  const headers = { "Idempotency-Key": key };
+  if (!file) return (await api.post<PostRow>(endpoint, { category, title, body }, { headers })).data;
   const data = new FormData();
   data.set("category", category);
   data.set("title", title);
   data.set("body", body);
   data.set("file", file);
-  return (await api.post<PostRow>(endpoint, data, { timeout: 120_000 })).data;
+  return (await api.post<PostRow>(endpoint, data, { headers, timeout: 120_000 })).data;
 }
 
-export async function addReply(id: number, body: string) {
-  return (await api.post<Reply>(`${endpoint}${id}/replies/`, { body })).data;
+export async function addReply(id: number, body: string, key: string) {
+  return (await api.post<Reply>(`${endpoint}${id}/replies/`, { body }, {
+    headers: { "Idempotency-Key": key },
+  })).data;
 }
 
-export async function downloadAttachment(id: number) {
-  const { data } = await api.get<components["schemas"]["StaffBoardDownload"]>(`${endpoint}${id}/download/`);
-  const url = new URL(data.url);
-  if (url.protocol !== "https:") throw new Error("다운로드 주소를 확인할 수 없습니다.");
-  window.location.assign(url.href);
+export async function downloadAttachment(id: number, filename: string) {
+  const { data } = await api.get<Blob>(`${endpoint}${id}/attachment/`, { responseType: "blob" });
+  if (data.type !== "application/octet-stream" || data.size === 0) {
+    throw new Error("첨부파일 응답을 확인할 수 없습니다.");
+  }
+  downloadBlob(data, filename);
+}
+
+export async function removeAttachment(id: number) {
+  await api.delete(`${endpoint}${id}/attachment/`);
 }
 
 const dateFormat = new Intl.DateTimeFormat("ko-KR", {

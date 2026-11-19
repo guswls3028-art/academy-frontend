@@ -1925,6 +1925,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/core/dev/agent-sessions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Read-only coding-session metadata for tenant 1's admin97. Impersonation and support previews are denied. */
+        get: operations["core_dev_agent_sessions_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/core/dev/audit/": {
         parameters: {
             query?: never;
@@ -9755,17 +9772,17 @@ export interface paths {
         patch: operations["staffs_board_posts_partial_update"];
         trace?: never;
     };
-    "/api/v1/staffs/board/posts/{id}/download/": {
+    "/api/v1/staffs/board/posts/{id}/attachment/": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get: operations["staffs_board_posts_download_retrieve"];
+        get: operations["staffs_board_posts_attachment_retrieve"];
         put?: never;
         post?: never;
-        delete?: never;
+        delete: operations["staffs_board_posts_attachment_destroy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -9845,7 +9862,7 @@ export interface paths {
         };
         get: operations["staffs_me_retrieve"];
         put?: never;
-        post?: never;
+        post: operations["staffs_me_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -19886,6 +19903,7 @@ export interface components {
             readonly author_name: string;
             body: string;
             readonly can_edit: boolean;
+            readonly can_remove_attachment: boolean;
             category: components["schemas"]["StaffBoardCategory"];
             /** Format: date-time */
             readonly created_at: string;
@@ -19895,15 +19913,15 @@ export interface components {
             readonly reply_count: number;
             title: string;
         };
-        StaffBoardDownload: {
-            /** Format: uri */
-            url: string;
+        StaffBoardError: {
+            detail: string;
         };
         StaffBoardPost: {
             readonly attachment_name: string;
             readonly author_name: string;
             body: string;
             readonly can_edit: boolean;
+            readonly can_remove_attachment: boolean;
             category: components["schemas"]["StaffBoardCategory"];
             /** Format: date-time */
             readonly created_at: string;
@@ -19933,6 +19951,7 @@ export interface components {
             readonly attachment_name: string;
             readonly author_name: string;
             readonly can_edit: boolean;
+            readonly can_remove_attachment: boolean;
             category: components["schemas"]["StaffBoardCategory"];
             /** Format: date-time */
             readonly created_at: string;
@@ -20036,6 +20055,29 @@ export interface components {
             readonly staff_work_types: components["schemas"]["StaffWorkType"][];
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        StaffMe: {
+            assigned_work_types?: components["schemas"]["StaffMeAssignedWorkType"][];
+            default_work_type_id?: number;
+            is_authenticated: boolean;
+            is_owner: boolean;
+            is_payroll_manager: boolean;
+            is_staff: boolean;
+            is_superuser: boolean;
+            owner_display_name: string | null;
+            owner_phone: string | null;
+            /** @description 대표의 기존 자동 연결 준비가 필요하면 true. 명시적인 POST /staffs/me/로 준비합니다. */
+            owner_setup_required: boolean;
+            staff_id?: number;
+        };
+        StaffMeAssignedWorkType: {
+            hourly_wage: number;
+            id: number;
+            name: string;
+        };
+        StaffMeError: {
+            code?: string;
+            detail: string;
         };
         StaffPayrollOverview: {
             /** Format: date */
@@ -24681,6 +24723,59 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    core_dev_agent_sessions_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: date-time */
+                        collected_at: string | null;
+                        nodes: {
+                            /** @enum {string} */
+                            evidence: "runtime" | "last_turn" | "closed" | "unknown";
+                            id: string;
+                            parent_id: string | null;
+                            /** @enum {string} */
+                            provider: "codex" | "claude";
+                            role: string;
+                            /** @enum {string} */
+                            status: "running" | "waiting" | "completed" | "interrupted" | "unknown";
+                            title: string;
+                            /** Format: date-time */
+                            updated_at: string | null;
+                        }[];
+                        /** @enum {integer} */
+                        schema: 1;
+                        source_errors: ("codex" | "claude")[];
+                        /** @enum {string} */
+                        source_status: "connected" | "stale" | "unavailable";
+                        stale_after_seconds: number;
+                        truncated: boolean;
+                    };
+                };
+            };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        detail: string;
+                    };
+                };
             };
         };
     };
@@ -37440,7 +37535,9 @@ export interface operations {
     staffs_board_posts_create: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -37452,12 +37549,28 @@ export interface operations {
             };
         };
         responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardPost"];
+                };
+            };
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["StaffBoardPost"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardError"];
                 };
             };
         };
@@ -37512,7 +37625,7 @@ export interface operations {
             };
         };
     };
-    staffs_board_posts_download_retrieve: {
+    staffs_board_posts_attachment_retrieve: {
         parameters: {
             query?: never;
             header?: never;
@@ -37526,18 +37639,58 @@ export interface operations {
         responses: {
             200: {
                 headers: {
+                    "Content-Disposition"?: string;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StaffBoardDownload"];
+                    "application/octet-stream": string;
                 };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardError"];
+                };
+            };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardError"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_attachment_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
     staffs_board_posts_replies_create: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
             path: {
                 /** @description staff board post을 식별하는 고유한 정수 값. */
                 id: number;
@@ -37552,12 +37705,28 @@ export interface operations {
             };
         };
         responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardReply"];
+                };
+            };
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["StaffBoardReply"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardError"];
                 };
             };
         };
@@ -37741,7 +37910,62 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StaffWrite"];
+                    "application/json": components["schemas"]["StaffMe"];
+                };
+            };
+        };
+    };
+    staffs_me_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMe"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMeError"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMeError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMeError"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMeError"];
                 };
             };
         };

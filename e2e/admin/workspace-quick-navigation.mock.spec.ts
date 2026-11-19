@@ -108,11 +108,15 @@ test.describe("업무 화면 기능 검색", () => {
   test("교직원 게시판 조회 실패를 복구하고 작성 오류 뒤에도 입력을 유지한다", async ({ page }) => {
     let ready = false;
     let published = false;
+    const submitKeys: Array<string | null> = [];
     const notice = { id: 47, category: "notice", title: "금요일 강사·조교 회의 및 수업 인수인계 안내",
       body: "마지막 수업이 끝난 뒤 교무실에서 만나요.", created_at: "2026-11-18T09:00:00Z", author_name: "김선생",
       attachment_name: "", reply_count: 0, can_edit: true, replies: [] };
     await page.route("**/api/v1/staffs/board/posts/**", async route => {
-      if (route.request().method() === "POST") return route.fulfill({ status: 400, json: { title: ["제목을 확인해 주세요."] } });
+      if (route.request().method() === "POST") {
+        submitKeys.push(await route.request().headerValue("idempotency-key"));
+        return route.fulfill({ status: 400, json: { title: ["제목을 확인해 주세요."] } });
+      }
       const url = new URL(route.request().url());
       if (url.pathname.endsWith("/47/")) return route.fulfill({ json: notice });
       const results = published && url.searchParams.get("category") === "notice" ? [notice] : [];
@@ -151,6 +155,38 @@ test.describe("업무 화면 기능 검색", () => {
     await editor.getByRole("button", { name: "취소", exact: true }).click();
     await editor.getByRole("button", { name: "계속 작성" }).click();
     await expect(editor.getByLabel("제목", { exact: true })).toHaveValue("강의실 변경");
+    await editor.getByRole("button", { name: "등록", exact: true }).click();
+    await expect.poll(() => submitKeys.length).toBe(2);
+    expect(submitKeys[0]).toMatch(/^[a-f0-9-]{36}$/);
+    expect(submitKeys[1]).toBe(submitKeys[0]);
+  });
+
+  test("교직원 자료 다운로드 실패 후 게시글에서 다시 받아 저장한다", async ({ page }) => {
+    let available = false;
+    const title = "인수인계 자료";
+    const filename = "handover.txt";
+    await page.route("**/api/v1/staffs/board/posts/48/**", async route => {
+      if (new URL(route.request().url()).pathname.endsWith("/attachment/")) {
+        return available
+          ? route.fulfill({ contentType: "application/octet-stream", body: "업무 인수인계" })
+          : route.fulfill({ status: 404, json: { detail: "첨부파일을 찾을 수 없습니다." } });
+      }
+      return route.fulfill({ json: { id: 48, category: "resource", title, body: "자료 확인",
+        attachment_name: filename, can_remove_attachment: true, can_edit: true, author_name: "김선생",
+        created_at: "2026-11-18T09:00:00Z", reply_count: 0, replies: [] } });
+    });
+    const url = `${BASE}/workspace/staff-board/resource/48`;
+    await page.goto(url);
+    const action = page.getByRole("button", { name: `${filename} 다운로드` });
+    await action.click();
+    await expect(page.getByRole("alert")).toContainText("파일을 받지 못했습니다.");
+    await expect(page).toHaveURL(url);
+    available = true;
+    const downloading = page.waitForEvent("download");
+    await action.click();
+    expect((await downloading).suggestedFilename()).toBe(filename);
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(page).toHaveURL(url);
   });
 
   for (const width of [1366, 390]) {

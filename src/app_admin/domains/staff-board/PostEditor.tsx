@@ -1,10 +1,11 @@
-import { useState, type FormEvent, useId } from "react";
+import { useState, type FormEvent, useId, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { boardLabels, savePost, type Category, type Post, type PostRow } from "@/shared/staff/board/api";
 import styles from "@/shared/staff/board/StaffBoard.module.css";
+import { createRandomUuid } from "@/shared/utils/randomUuid";
 
 export default function PostEditor({ category, post, onClose, onSaved }: {
   category: Category; post?: Post; onClose: () => void; onSaved: (row: PostRow) => void;
@@ -15,17 +16,24 @@ export default function PostEditor({ category, post, onClose, onSaved }: {
   const [file, setFile] = useState<File | null>(null);
   const [validation, setValidation] = useState("");
   const [discard, setDiscard] = useState(false);
+  const attempt = useRef<{ title: string; body: string; file: File | null; key: string } | null>(null);
   const save = useMutation({
-    mutationFn: () => savePost(category, title.trim(), body.trim(), file, post?.id),
+    mutationFn: (draft: NonNullable<typeof attempt.current>) => savePost(category, draft, draft.key, post?.id),
     onSuccess: onSaved,
   });
   function submit(event: FormEvent) {
     event.preventDefault();
     if (save.isPending) return;
-    if (!title.trim() || !body.trim()) { setValidation("제목과 내용을 입력해 주세요."); return; }
+    const draft = { title: title.trim(), body: body.trim(), file };
+    if (!draft.title || !draft.body) { setValidation("제목과 내용을 입력해 주세요."); return; }
     if (file && file.size > 10 * 1024 * 1024) { setValidation("10 MB 이하의 파일을 선택해 주세요."); return; }
     setValidation("");
-    save.mutate();
+    const previous = attempt.current;
+    const submission = previous?.title === draft.title && previous.body === draft.body && previous.file === draft.file
+      ? previous
+      : { ...draft, key: createRandomUuid() };
+    attempt.current = submission;
+    save.mutate(submission);
   }
   function close() {
     if (save.isPending) return;

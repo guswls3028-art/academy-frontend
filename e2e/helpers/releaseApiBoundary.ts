@@ -1,8 +1,6 @@
 import type { APIRequestContext, BrowserContext, Frame, Request } from "@playwright/test";
 import { createHash } from "node:crypto";
 
-export const staffBoardQaFile = { name: "qa-staff-board.txt", text: "Private staff board QA document.\n" } as const;
-
 export type ReleaseBoundary = {
   mode: "readonly" | "development";
   apiOrigin: string;
@@ -345,22 +343,6 @@ function isExactDevelopmentHomeworkVideo(boundary: ReleaseBoundary, rawUrl: stri
 }
 
 type CommunityImageType = "image/png" | "image/jpeg" | "image/webp" | "image/heic" | "image/gif";
-
-function isExactStaffBoardQaDownload(boundary: ReleaseBoundary, rawUrl: string): boolean {
-  if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId)
-    || Number(boundary.omrR2TenantId) < 1 || !URL.canParse(rawUrl)) return false;
-  const url = new URL(rawUrl);
-  const prefix = `/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/staff-board/`;
-  if (url.origin !== DEVELOPMENT_OMR_R2_ORIGIN || rawUrl !== url.origin + url.pathname + url.search
-    || !url.pathname.startsWith(prefix) || !/^[a-f0-9]{32}$/.test(url.pathname.slice(prefix.length))
-    || url.searchParams.getAll("response-content-type").length !== 1
-    || url.searchParams.get("response-content-type") !== "application/octet-stream"
-    || url.searchParams.getAll("response-content-disposition").length !== 1
-    || url.searchParams.get("response-content-disposition") !== inventoryDisposition(staffBoardQaFile.name)) return false;
-  url.searchParams.delete("response-content-type");
-  url.searchParams.delete("response-content-disposition");
-  return hasExactHostSignature(url, 120);
-}
 
 function isExactDevelopmentCommunityAttachment(
   boundary: ReleaseBoundary, rawUrl: string, postId: number, contentType: string, downloadName?: string, replyImage = false,
@@ -1304,7 +1286,6 @@ export async function installReleaseContextGuard(
   const surveyOriginalKeys = new Set<string>();
   const surveyDownloadUrls = new Map<string, string>();
   const communityAttachments = new Map<string, { contentType: string; originalName: string; sizeBytes?: number }>();
-  const staffBoardQaResources = new Set<number>();
   const registerCommunityPost = (post: unknown, expectedType?: "qna" | "notice") => {
     if (!isRecord(post) || !["qna", "notice", "board", "materials", "counsel"].includes(String(post.post_type)) || typeof post.post_type !== "string"
       || (expectedType !== undefined && post.post_type !== expectedType)
@@ -2092,20 +2073,6 @@ export async function installReleaseContextGuard(
         }
         const communityPost = /^\/api\/v1\/community\/posts\/([1-9][0-9]*)\/$/.exec(communityTarget.pathname);
         const communityListPath = communityTarget.pathname === "/api/v1/community/posts/";
-        const boardResource = /^\/api\/v1\/staffs\/board\/posts\/([1-9]\d*)\/(download\/)?$/.exec(communityTarget.pathname);
-        if (boundary.mode === "development" && boardResource && !communityTarget.search && request.method() === "GET"
-          && response.status() === 200 && /^Bearer \S+$/.test(headers.authorization ?? "")
-          && response.headers()["content-type"]?.split(";")[0].trim() === "application/json") {
-          const postId = Number(boardResource[1]);
-          const payload = await response.json();
-          if (!boardResource[2] && payload?.id === postId && payload.category === "resource"
-            && payload.attachment_name === staffBoardQaFile.name) staffBoardQaResources.add(postId);
-          if (boardResource[2] && staffBoardQaResources.has(postId) && typeof payload?.url === "string"
-            && isExactStaffBoardQaDownload(boundary, payload.url)) {
-            communityFileUrls.set(payload.url, { contentType: "application/octet-stream",
-              sizeBytes: Buffer.byteLength(staffBoardQaFile.text), disposition: inventoryDisposition(staffBoardQaFile.name) });
-          }
-        }
         const qnaList = communityListPath
           && communityTarget.searchParams.getAll("post_type").length === 1
           && communityTarget.searchParams.get("post_type") === "qna"

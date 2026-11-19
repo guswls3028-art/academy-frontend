@@ -1,14 +1,16 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Download, FileText, MessageCircle, Paperclip, Pencil } from "lucide-react";
 import { Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
+import { useConfirm } from "@/shared/ui/confirm";
 import { DomainLayout } from "@/shared/ui/layout";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
-import { addReply, boardDate, boardKeys, boardLabels, boardRoot, boardTabs, downloadAttachment,
+import { addReply, boardDate, boardKeys, boardLabels, boardRoot, boardTabs, downloadAttachment, removeAttachment,
   useBoardList, useBoardPost, useBoardScope, type BoardScope, type Category, type Post, type PostRow } from "@/shared/staff/board/api";
 import PostEditor from "./PostEditor";
 import styles from "@/shared/staff/board/StaffBoard.module.css";
+import { createRandomUuid } from "@/shared/utils/randomUuid";
 
 export default function StaffBoardPage() {
   const { category, postId } = useParams();
@@ -78,20 +80,48 @@ function PostDetail({ scope, category, id, onEdit }: {
   const [params] = useSearchParams();
   const cache = useQueryClient();
   const post = useBoardPost(scope, id);
+  const confirm = useConfirm();
   const [text, setText] = useState("");
+  const replyAttempt = useRef<{ body: string; key: string } | null>(null);
   const reply = useMutation({
-    mutationFn: () => addReply(id, text.trim()),
+    mutationFn: ({ body, key }: NonNullable<typeof replyAttempt.current>) => addReply(id, body, key),
     onSuccess: (created) => {
       cache.setQueryData<Post>(boardKeys.detail(scope, id), current => !current || current.replies.some(r => r.id === created.id)
         ? current : { ...current, replies: [...current.replies, created], reply_count: current.reply_count + 1 });
       void cache.invalidateQueries({ queryKey: scope });
+      replyAttempt.current = null;
       setText("");
     },
   });
-  const download = useMutation({ mutationFn: () => downloadAttachment(id) });
+  const download = useMutation({ mutationFn: (filename: string) => downloadAttachment(id, filename) });
+  const remove = useMutation({
+    mutationFn: () => removeAttachment(id),
+    onSuccess: () => {
+      cache.setQueryData<Post>(boardKeys.detail(scope, id), current => current && {
+        ...current, attachment_name: "", can_remove_attachment: false,
+      });
+      void cache.invalidateQueries({ queryKey: scope });
+    },
+  });
+
+  async function confirmAttachmentRemoval(filename: string) {
+    const accepted = await confirm({
+      title: "첨부파일 제거",
+      message: `${filename} 파일을 제거할까요? 게시글과 댓글은 그대로 남습니다.`,
+      confirmText: "첨부파일 제거",
+      danger: true,
+    });
+    if (accepted) remove.mutate();
+  }
+
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (text.trim() && !reply.isPending) reply.mutate();
+    const body = text.trim();
+    if (!body || reply.isPending) return;
+    const previous = replyAttempt.current;
+    const submission = previous?.body === body ? previous : { body, key: createRandomUuid() };
+    replyAttempt.current = submission;
+    reply.mutate(submission);
   }
   const data = post.data;
   const listUrl = `${boardRoot}/${category}${params.has("page") ? "?page=" + encodeURIComponent(params.get("page")!) : ""}`;
@@ -110,11 +140,20 @@ function PostDetail({ scope, category, id, onEdit }: {
               </header>
               <p className={styles.content}>{data.body}</p>
               {data.attachment_name && <div className={styles.attachment}>
-                <Button leftIcon={<Download size={ICON_FOR_BUTTON.md} />} loading={download.isPending} onClick={() => download.mutate()}>
-                  {data.attachment_name} 다운로드
-                </Button>
+                <div className={styles.attachmentActions}>
+                  <Button leftIcon={<Download size={ICON_FOR_BUTTON.md} />} loading={download.isPending}
+                    disabled={remove.isPending} onClick={() => download.mutate(data.attachment_name)}>
+                    {data.attachment_name} 다운로드
+                  </Button>
+                  {data.can_remove_attachment && (
+                    <Button intent="secondary" loading={remove.isPending} disabled={download.isPending}
+                      onClick={() => void confirmAttachmentRemoval(data.attachment_name)}>첨부파일 제거</Button>
+                  )}
+                </div>
                 {download.isError && <p role="alert" className={styles.error}>파일을 받지 못했습니다. 다운로드를 다시 눌러 주세요.</p>}
+                {remove.isError && <p role="alert" className={styles.error}>첨부파일을 제거하지 못했습니다. 다시 시도해 주세요.</p>}
               </div>}
+              {remove.isSuccess && !data.attachment_name && <p role="status">첨부파일을 제거했습니다.</p>}
             </article>
             <section className={styles.replies} aria-label="댓글"><h2>댓글 <span>{data.replies.length}</span></h2>
               <ul>{data.replies.map(item => <li key={item.id}>
