@@ -34,6 +34,7 @@ export const routeMockSpecs = [
   "e2e/admin/workspace-quick-navigation.mock.spec.ts",
   "e2e/admin/dashboard-attendance-qr.mock.spec.ts",
   "e2e/admin/dev-console-enterprise.mock.spec.ts",
+  "e2e/admin/agent-sessions.mock.spec.ts",
   "e2e/admin/dev-console-owner-safety.mock.spec.ts",
   "e2e/refactor/landing-router.spec.ts",
   "e2e/godmin-landing.mock.spec.ts",

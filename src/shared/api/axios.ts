@@ -44,8 +44,6 @@ type RetryConfig = ApiRequestConfig & {
   _retry?: boolean;
   _asyncId?: string;
   _transientRetryCount?: number;
-  _authGeneration?: string | null;
-  _expectedTenant?: string;
   _documentGeneration?: number;
 };
 
@@ -62,6 +60,9 @@ export type ApiRequestConfig = AxiosRequestConfig & {
   preservePageOnAuthFailure?: boolean;
   playbackUnload?: true;
   playbackEventScope?: PlaybackEventScope;
+  /** Captured continuation identity; refresh rotation keeps the generation. */
+  _authGeneration?: string | null;
+  _expectedTenant?: string;
 };
 
 export function capturePlaybackEventScope(): PlaybackEventScope {

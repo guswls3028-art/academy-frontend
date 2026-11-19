@@ -24,6 +24,7 @@ import { useProgram } from "@/shared/program";
 import { useAdminLayout } from "@admin/layout/useAdminLayout";
 import { useWorkbox } from "@/shared/ui/layout/useWorkbox";
 import { useAsyncStatus } from "@/shared/ui/asyncStatus/useAsyncStatus";
+import { omrGradingAttentionCount } from "@/shared/ui/asyncStatus/omrGradingAttention";
 import { WorkboxPanelContent } from "@/shared/ui/asyncStatus";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { accountQueryKeys } from "@/shared/api/queryKeys/account";
@@ -157,8 +158,9 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
   const displayTasks = tasks.filter((t) => (t.tenantScope ?? "") === currentTenantKey);
   const pendingCount = displayTasks.filter((t) => t.status === "pending").length;
   const errorCount = displayTasks.filter((t) => t.status === "error").length;
+  const attentionCount = displayTasks.filter((t) => t.status === "success" && omrGradingAttentionCount(t.omrBatch) > 0).length;
   const hasCompletedOnly = pendingCount === 0 && displayTasks.length > 0;
-  const hasOnlySuccessCompleted = hasCompletedOnly && errorCount === 0;
+  const hasOnlySuccessCompleted = hasCompletedOnly && errorCount === 0 && attentionCount === 0;
 
   // 자동 clearCompleted 제거: 사용자가 결과를 보기 전에 비워지지 않도록.
   // 명시적 "완료된 항목 지우기" 버튼(AsyncStatusBar.tsx)으로만 제거.
@@ -408,7 +410,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
                       ? "작업박스 닫기"
                       : errorCount > 0
                         ? `작업박스 (실패 ${errorCount}건)`
-                        : "작업박스 열기"
+                        : attentionCount > 0 ? `작업박스 (확인 필요 ${attentionCount}건)` : "작업박스 열기"
                   }
                   aria-expanded={workbox.workboxOpen}
                   aria-haspopup="menu"
@@ -417,12 +419,16 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
                       ? "작업박스 닫기"
                       : errorCount > 0
                         ? `작업박스 — 실패 ${errorCount}건`
-                        : "작업박스"
+                        : attentionCount > 0 ? `작업박스 — 확인 필요 ${attentionCount}건` : "작업박스"
                   }
                   leftIcon={
                     errorCount > 0 ? (
                       <AntBadge count={errorCount} size="small" offset={[-2, 2]}>
                         <InboxIcon size={ICON_FOR_BUTTON.lg} aria-hidden />
+                      </AntBadge>
+                    ) : attentionCount > 0 ? (
+                      <AntBadge count={attentionCount} color="var(--color-status-warning)" size="small" offset={[-2, 2]}>
+                        <AlertTriangle size={ICON_FOR_BUTTON.lg} aria-hidden />
                       </AntBadge>
                     ) : hasOnlySuccessCompleted ? (
                       <CheckIcon size={ICON_FOR_BUTTON.lg} aria-hidden />
