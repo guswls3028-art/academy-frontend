@@ -9723,6 +9723,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/staffs/board/posts/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["staffs_board_posts_list"];
+        put?: never;
+        post: operations["staffs_board_posts_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staffs/board/posts/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["staffs_board_posts_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["staffs_board_posts_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/staffs/board/posts/{id}/download/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["staffs_board_posts_download_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staffs/board/posts/{id}/replies/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["staffs_board_posts_replies_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/staffs/currently-working/": {
         parameters: {
             query?: never;
@@ -16668,6 +16732,21 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["Sheet"][];
         };
+        PaginatedStaffBoardSummaryList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["StaffBoardSummary"][];
+        };
         PaginatedStaffExpenseRecordList: {
             /** @example 123 */
             count: number;
@@ -17606,6 +17685,10 @@ export interface components {
             name?: string;
             /** Format: int64 */
             total_questions?: number;
+        };
+        PatchedStaffBoardEditRequest: {
+            body?: string;
+            title?: string;
         };
         PatchedStaffExpenseRecordRequest: {
             /** Format: int64 */
@@ -19791,6 +19874,73 @@ export interface components {
          * @enum {string}
          */
         SourceTypeEnum: "s3" | "youtube";
+        /**
+         * @description * `notice` - 공지사항
+         *     * `resource` - 자료실
+         *     * `free` - 자유게시글
+         * @enum {string}
+         */
+        StaffBoardCategory: "notice" | "resource" | "free";
+        StaffBoardDetail: {
+            readonly attachment_name: string;
+            readonly author_name: string;
+            body: string;
+            readonly can_edit: boolean;
+            category: components["schemas"]["StaffBoardCategory"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: number;
+            readonly replies: components["schemas"]["StaffBoardReply"][];
+            /** @default 0 */
+            readonly reply_count: number;
+            title: string;
+        };
+        StaffBoardDownload: {
+            /** Format: uri */
+            url: string;
+        };
+        StaffBoardPost: {
+            readonly attachment_name: string;
+            readonly author_name: string;
+            body: string;
+            readonly can_edit: boolean;
+            category: components["schemas"]["StaffBoardCategory"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: number;
+            /** @default 0 */
+            readonly reply_count: number;
+            title: string;
+        };
+        StaffBoardPostRequest: {
+            body: string;
+            category: components["schemas"]["StaffBoardCategory"];
+            /** Format: binary */
+            file?: string;
+            title: string;
+        };
+        StaffBoardReply: {
+            readonly author_name: string;
+            body: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: number;
+        };
+        StaffBoardReplyRequest: {
+            body: string;
+        };
+        StaffBoardSummary: {
+            readonly attachment_name: string;
+            readonly author_name: string;
+            readonly can_edit: boolean;
+            category: components["schemas"]["StaffBoardCategory"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: number;
+            /** @default 0 */
+            readonly reply_count: number;
+            title: string;
+        };
         StaffDetail: {
             readonly account_role: string;
             readonly can_manage_staff: boolean;
@@ -37258,6 +37408,156 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaffWorkRecord"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_list: {
+        parameters: {
+            query?: {
+                category?: "free" | "notice" | "resource";
+                /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
+                page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedStaffBoardSummaryList"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffBoardPostRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StaffBoardPostRequest"];
+                "multipart/form-data": components["schemas"]["StaffBoardPostRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardPost"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardDetail"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedStaffBoardEditRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedStaffBoardEditRequest"];
+                "multipart/form-data": components["schemas"]["PatchedStaffBoardEditRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardPost"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_download_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardDownload"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_replies_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffBoardReplyRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StaffBoardReplyRequest"];
+                "multipart/form-data": components["schemas"]["StaffBoardReplyRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardReply"];
                 };
             };
         };

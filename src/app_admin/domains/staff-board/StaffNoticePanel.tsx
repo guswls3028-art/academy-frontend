@@ -6,7 +6,7 @@ import styles from "./StaffBoard.module.css";
 
 export default function StaffNoticePanel() {
   const scope = useBoardScope();
-  const notices = useBoardList(scope, "notice", 1, 3);
+  const notices = useBoardList(scope, "notice", 1, 3, 60_000);
   const path = `${boardRoot}/notice`;
   return (
     <section className={styles.noticePanel} aria-label="학원 내부 공지">
