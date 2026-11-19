@@ -57,8 +57,8 @@ function NativeLectureList() {
     enabled: tab === "past",
   });
 
-  const activeLectures = activeQuery.data;
-  const pastLectures = pastQuery.data;
+  const activeLectures = activeQuery.data?.filter((lecture) => lecture.cycle_status !== "past");
+  const pastLectures = pastQuery.data && [...pastQuery.data, ...(activeQuery.data ?? []).filter((lecture) => lecture.cycle_status === "past")];
 
   const lectures = tab === "active" ? activeLectures : pastLectures;
   const selectedQuery = tab === "active" ? activeQuery : pastQuery;
@@ -120,7 +120,7 @@ function NativeLectureList() {
             const chipLabel = l.chip_label ?? l.chipLabel;
             const time = l.lecture_time ?? l.lectureTime;
             const dateRange = l.start_date && l.end_date ? `${l.start_date} ~ ${l.end_date}` : l.start_date;
-            const isActive = l.is_active ?? l.isActive ?? true;
+            const isActive = l.cycle_status !== "past" && (l.is_active ?? l.isActive ?? true);
 
             return (
               <button

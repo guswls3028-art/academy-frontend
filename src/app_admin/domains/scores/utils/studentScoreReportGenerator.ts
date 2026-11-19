@@ -870,51 +870,45 @@ function buildHistoryRows(rows: StudentExamGrade[]): string {
   }).join("");
 }
 
-function buildItemAnalysis(
-  row: SessionScoreRow,
-  meta: SessionScoreMeta,
-): { examTitle: string; rows: string; hasItems: boolean; itemCount: number } {
-  const exam = row.exams.find((entry) => (
-    !isReportExamPending(entry.block) && (entry.items?.length ?? 0) > 0
-  ));
-  const items = exam?.items ?? [];
-  if (!exam || items.length === 0) {
-    return {
-      examTitle: "",
-      rows: "",
-      hasItems: false,
-      itemCount: 0,
-    };
-  }
-  const questionNumbers = new Map(
-    (meta.exams.find((entry) => entry.exam_id === exam.exam_id)?.questions ?? [])
-      .map((question) => [question.question_id, question.number]),
-  );
-  const numberedItems = items
-    .map((item) => ({
-      item,
-      questionNumber: item.question_number ?? questionNumbers.get(item.question_id) ?? null,
-    }))
-    .sort((a, b) => (a.questionNumber ?? Number.MAX_SAFE_INTEGER) - (b.questionNumber ?? Number.MAX_SAFE_INTEGER))
-    .slice(0, 16);
-  return {
-    examTitle: exam.title,
-    hasItems: true,
-    itemCount: numberedItems.length,
-    rows: numberedItems.map(({ item, questionNumber }) => {
-      const ratio = item.max_score > 0 ? item.score / item.max_score : 0;
-      const result = ratio >= 1 ? "만점" : ratio > 0 ? "부분득점" : "0점";
-      const resultClass = ratio >= 1 ? "history-result--pass" : "history-result--warn";
-      return `
-        <tr>
-          <td data-label="문항">${questionNumber != null ? `${questionNumber}번` : "번호 미확인"}</td>
-          <td data-label="유형">${item.question_kind === "essay" ? "주관식" : "객관식"}</td>
-          <td class="num" data-label="득점"><strong>${formatNumber(item.score)}</strong> / ${formatNumber(item.max_score)}</td>
-          <td class="history-result ${resultClass}" data-label="결과">${result}</td>
-        </tr>
-      `;
-    }).join(""),
-  };
+const ITEMS_PER_REPORT_PAGE = 16;
+
+function buildItemPages(row: SessionScoreRow, meta: SessionScoreMeta, allQuestions: boolean) {
+  const exams = row.exams.filter((entry) =>
+    !isReportExamPending(entry.block) && (entry.items?.length ?? 0) > 0);
+  return (allQuestions ? exams : exams.slice(0, 1)).flatMap((exam) => {
+    const items = exam.items ?? [];
+    const questionNumbers = new Map(
+      (meta.exams.find((entry) => entry.exam_id === exam.exam_id)?.questions ?? [])
+        .map((question) => [question.question_id, question.number]),
+    );
+    const numberedItems = items
+      .map((item) => ({
+        item,
+        questionNumber: item.question_number ?? questionNumbers.get(item.question_id) ?? null,
+      }))
+      .sort((a, b) => (a.questionNumber ?? Number.MAX_SAFE_INTEGER) - (b.questionNumber ?? Number.MAX_SAFE_INTEGER));
+    const visibleItems = allQuestions ? numberedItems : numberedItems.slice(0, ITEMS_PER_REPORT_PAGE);
+    const pages = [];
+    for (let offset = 0; offset < visibleItems.length; offset += ITEMS_PER_REPORT_PAGE) {
+      const chunk = visibleItems.slice(offset, offset + ITEMS_PER_REPORT_PAGE);
+      const rows = chunk.map(({ item, questionNumber }) => {
+        const ratio = item.max_score > 0 ? item.score / item.max_score : 0;
+        const result = ratio >= 1 ? "만점" : ratio > 0 ? "부분득점" : "0점";
+        const resultClass = ratio >= 1 ? "history-result--pass" : "history-result--warn";
+        return `
+          <tr>
+            <td data-label="문항">${questionNumber != null ? `${questionNumber}번` : "번호 미확인"}</td>
+            <td data-label="유형">${item.question_kind === "essay" ? "주관식" : "객관식"}</td>
+            <td class="num" data-label="득점"><strong>${formatNumber(item.score)}</strong> / ${formatNumber(item.max_score)}</td>
+            <td class="history-result ${resultClass}" data-label="결과">${result}</td>
+          </tr>
+        `;
+      }).join("");
+      pages.push({ examTitle: exam.title, itemCount: chunk.length, rows,
+        label: allQuestions ? `${offset + 1}–${offset + chunk.length} / ${visibleItems.length}문항` : "최대 16문항" });
+    }
+    return pages;
+  });
 }
 
 function shouldSplitDetailedPage(
@@ -1002,14 +996,14 @@ function buildFooter(tenantName: string, date: string, page: number, total: numb
 function resolveDetailedLayout(params: StudentScoreReportParams) {
   const scoped = scopeGrades(params.grades, params.meta.lecture_id);
   const historyRows = selectHistoryRows(scoped.exams);
-  const itemAnalysis = buildItemAnalysis(params.row, params.meta);
-  const splitDetailPage = shouldSplitDetailedPage(historyRows, itemAnalysis.itemCount);
+  const itemPages = params.mode === "summary" ? [] : buildItemPages(params.row, params.meta, params.tenantCode === "dawon");
+  const splitDetailPage = itemPages.length > 1 || shouldSplitDetailedPage(historyRows, itemPages[0]?.itemCount ?? 0);
   return {
     scoped,
     historyRows,
-    itemAnalysis,
+    itemPages,
     splitDetailPage,
-    totalPages: splitDetailPage ? 3 : 2,
+    totalPages: splitDetailPage ? 2 + itemPages.length : 2,
   };
 }
 
@@ -1029,7 +1023,7 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
   });
   const { row, meta } = params;
   const detailedLayout = resolveDetailedLayout(params);
-  const { scoped, historyRows, itemAnalysis, splitDetailPage } = detailedLayout;
+  const { scoped, historyRows, itemPages, splitDetailPage } = detailedLayout;
   const totalPages = mode === "detailed" ? detailedLayout.totalPages : 1;
   const recentTrend = [...scoped.trend]
     .sort((a, b) => a.round_index - b.round_index)
@@ -1113,22 +1107,22 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
     </section>
   `;
 
-  const detailSection = `
-    <div class="section detail-grid${itemAnalysis.hasItems ? "" : " detail-grid--single"}">
-      ${itemAnalysis.hasItems ? `<div>
-        <div class="section-heading"><h2>현재 시험 문항별 득점</h2><span>${itemAnalysis.examTitle ? `${escapeHtml(itemAnalysis.examTitle)} · ` : ""}최대 16문항</span></div>
+  const detailSection = (itemAnalysis: (typeof itemPages)[number] | undefined, showCoaching: boolean) => `
+    <div class="section detail-grid${itemAnalysis && showCoaching ? "" : " detail-grid--single"}">
+      ${itemAnalysis ? `<div>
+        <div class="section-heading"><h2>현재 시험 문항별 득점</h2><span>${itemAnalysis.examTitle ? `${escapeHtml(itemAnalysis.examTitle)} · ` : ""}${itemAnalysis.label}</span></div>
         <table class="item-table">
           <thead><tr><th>문항</th><th>유형</th><th class="num">득점</th><th>결과</th></tr></thead>
           <tbody>${itemAnalysis.rows}</tbody>
         </table>
       </div>` : ""}
-      <div>
+      ${showCoaching ? `<div>
         <div class="section-heading"><h2>상담 체크포인트</h2><span>입력 데이터 자동 요약</span></div>
         <div class="coaching-box">
           <h3>다음 상담에서 확인해 보세요</h3>
           <ul>${coachingPoints.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}</ul>
         </div>
-      </div>
+      </div>` : ""}
     </div>
   `;
 
@@ -1146,21 +1140,21 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
           <tbody>${buildHistoryRows(historyRows)}</tbody>
         </table>
       </div>
-      ${splitDetailPage ? "" : detailSection}
+      ${splitDetailPage ? "" : detailSection(itemPages[0], true)}
       ${buildFooter(tenantName, date, 2, totalPages)}
     </section>
   ` : "";
 
-  const pageThree = mode === "detailed" && splitDetailPage ? `
-    <section class="student-report-page" data-page="3">
+  const itemDetailPages = mode === "detailed" && splitDetailPage ? itemPages.map((page, index) => `
+    <section class="student-report-page" data-page="${index + 3}">
       <div class="report-topline">
         ${buildBrandIdentity(tenantName, theme)}
         <span>${escapeHtml(row.student_name)} · 문항 분석과 상담</span>
       </div>
-      ${detailSection}
-      ${buildFooter(tenantName, date, 3, totalPages)}
+      ${detailSection(page, index === 0)}
+      ${buildFooter(tenantName, date, index + 3, totalPages)}
     </section>
-  ` : "";
+  `).join("") : "";
 
   return `<!doctype html>
 <html lang="ko" style="${buildThemeStyle(theme)}">
@@ -1170,7 +1164,7 @@ export function buildStudentScoreReportHtml(params: StudentScoreReportParams): s
     <title>${escapeHtml(row.student_name)} 개인 성적표</title>
     <style>${REPORT_STYLE}</style>
   </head>
-  <body>${pageOne}${pageTwo}${pageThree}</body>
+  <body>${pageOne}${pageTwo}${itemDetailPages}</body>
 </html>`;
 }
 

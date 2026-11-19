@@ -502,7 +502,7 @@
 .legacyBar:has(> .activeCard) { align-items: start; }
 
 .activeCard[data-inline='true'] {
-  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
 }
 

@@ -1,0 +1,7 @@
+.page { display:grid; gap:12px; min-width:0; }
+.page h2,.page h3,.page p { margin:0; }
+.filters { display:flex; flex-wrap:wrap; gap:12px; }
+.page label { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-width:0; }
+.page select { max-width:100%; min-height:44px; padding:6px 10px; font:inherit; }
+.cohort { padding:14px; border:1px solid var(--color-border-divider); border-radius:10px; overflow-wrap:anywhere; }
+.cohort ul { padding-inline-start:20px; }

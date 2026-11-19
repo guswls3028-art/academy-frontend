@@ -1,3 +1,4 @@
+import { resolveTenantCodeString } from "@/shared/tenant";
 import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useSearchParams } from "react-router";
@@ -31,8 +32,8 @@ export default function SchoolReportEntryPage() {
   if (user?.tenantRole === "parent") return <Navigate to="/student/submit" replace />;
   return (
     <StudentPageShell
-      title="학교 성적표 제출"
-      actions={<Link className="stu-btn stu-btn--secondary" to="/student/submit/score">파일로 제출</Link>}
+      title={resolveTenantCodeString() === "dawon" ? "학교 성적" : "학교 성적표 제출"}
+      actions={resolveTenantCodeString() === "dawon" ? <a className="stu-btn stu-btn--secondary" href="/student">학습 홈</a> : <Link className="stu-btn stu-btn--secondary" to="/student/submit/score">파일로 제출</Link>}
     >
       <SchoolReportEntry
         key={`${period.academic_year}-${period.semester}-${period.exam_round}`}

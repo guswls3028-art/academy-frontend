@@ -19,6 +19,7 @@ import {
   Check as CheckIcon,
   Search as SearchIcon,
 } from "lucide-react";
+import { DawonLearningAlertsLink } from "@/shared/product/dawon/DawonTeacherAlerts";
 import { useAdminNotificationCounts, type AdminNotificationItem } from "@admin/domains/admin-notifications";
 import { useProgram } from "@/shared/program";
 import { useAdminLayout } from "@admin/layout/useAdminLayout";
@@ -481,6 +482,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
                     </button>
                   </span>
                 </div>
+                <DawonLearningAlertsLink />
                 <div className="alarm-panel__list">
                   {hasNotificationFailures && adminNotificationItems.length === 0 ? (
                     <div className="alarm-panel__empty alarm-panel__empty--warning">

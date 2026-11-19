@@ -30,6 +30,7 @@ const CommunicationPage = lazy(() => import("@teacher/domains/comms/pages/Commun
 const MessageLogPage = lazy(() => import("@teacher/domains/comms/pages/MessageLogPage"));
 const MessageTemplatesPage = lazy(() => import("@teacher/domains/comms/pages/MessageTemplatesPage"));
 const MessagingSettingsPage = lazy(() => import("@teacher/domains/comms/pages/MessagingSettingsPage"));
+const DawonTeacherAlertsPage = lazy(() => import("@/shared/product/dawon/DawonTeacherAlerts"));
 const NotificationsPage = lazy(() => import("@teacher/domains/notifications/pages/NotificationsPage"));
 const ProfilePage = lazy(() => import("@teacher/domains/profile/pages/ProfilePage"));
 const TeacherSettingsPage = lazy(() => import("@teacher/domains/settings/pages/TeacherSettingsPage"));
@@ -132,6 +133,7 @@ export default function TeacherRouter() {
           <Route path="message-templates" element={<MessageTemplatesPage />} />
           <Route path="messaging-settings" element={<RoleGuard allow={["owner", "admin"]}><MessagingSettingsPage /></RoleGuard>} />
           <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="notifications/learning" element={<DawonTeacherAlertsPage />} />
 
           {/* 시험/과제 (Phase 3) */}
           <Route path="exams" element={<ExamListPage />} />

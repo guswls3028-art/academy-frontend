@@ -35,6 +35,7 @@ export default function SurveysPage() {
   const query = useQuery({ queryKey: surveyQueryKeys.list(status, search, offset), queryFn: () => surveysApi.list({ status, search, offset }) });
   return <main className={styles.page}>
     <header className={styles.header}><div><h1>설문과 성적 취합</h1><p className={styles.muted}>학생에게 묻고, 받은 답을 학생 기록과 함께 확인하세요.</p></div>{isDawon ? <div className={styles.actions}>
+      <Link className={styles.linkButton} to={ROOT + "/school-reports"}>학교별 제출 성적</Link>
       <Button intent="secondary" onClick={() => setCreating("school_score")}>성적취합 만들기</Button>
       <Button intent="primary" onClick={() => setCreating("general")}>설문 만들기</Button>
     </div> : <Link className={`${styles.linkButton} ${styles.primary}`} to={`${ROOT}/new`}>설문 만들기</Link>}</header>

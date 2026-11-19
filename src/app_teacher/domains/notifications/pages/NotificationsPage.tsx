@@ -4,6 +4,7 @@
 //
 // inline style 면제 — 알림 카드는 도메인별 컬러/뱃지 등 동적 token 사용.
 /* eslint-disable no-restricted-syntax */
+import { DawonLearningAlertsLink } from "@/shared/product/dawon/DawonTeacherAlerts";
 import { useNavigate } from "react-router";
 import type { ReactNode } from "react";
 import {
@@ -105,6 +106,7 @@ export default function NotificationsPage() {
         ) : null}
       </div>
 
+      <DawonLearningAlertsLink mobile />
       {/* SSOT 안내: 같은 데이터를 Today에서도 빠르게 확인 가능 */}
       {!isLoading && items.length > 0 && (
         <div className="text-[11px]" style={{ color: "var(--tc-text-muted)", padding: "0 var(--tc-space-1)" }}>

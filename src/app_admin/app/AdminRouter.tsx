@@ -24,7 +24,9 @@ const WorkspaceSectionPage = lazy(() => import("@admin/layout/WorkspaceSectionPa
 
 /* ================= Lazy: Students ================= */
 const StudentsLayout = lazy(() => import("@admin/domains/students/StudentsLayout"));
+const DawonTeacherAlertsPage = lazy(() => import("@/shared/product/dawon/DawonTeacherAlerts"));
 const ClassGroupsPage = lazy(() => import("@/shared/product/dawon/ClassGroupsPage"));
+const DawonSchoolReportCohorts = lazy(() => import("@/shared/product/dawon/DawonSchoolReportCohorts"));
 const SurveysPage = lazy(() => import("@admin/domains/surveys/SurveysPage"));
 const SurveyEditorPage = lazy(() => import("@admin/domains/surveys/SurveysPage").then((module) => ({ default: module.SurveyEditorPage })));
 const SurveyDetailPage = lazy(() => import("@admin/domains/surveys/SurveysPage").then((module) => ({ default: module.SurveyDetailPage })));
@@ -174,6 +176,7 @@ export default function AdminRouter() {
       <Route element={<AppLayout overlay={studentDetailOverlay ?? staffDetailOverlay} />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={renderLazyRoute(DashboardPage)} />
+        <Route path="teacher-alerts" element={renderLazyRoute(DawonTeacherAlertsPage)} />
         <Route path="learning" element={renderLazyRoute(WorkspaceSectionPage)} />
         <Route path="management" element={renderLazyRoute(WorkspaceSectionPage)} />
 
@@ -183,6 +186,7 @@ export default function AdminRouter() {
           <Route path="home" element={renderLazyRoute(StudentsHomePage)} />
           <Route path="class-groups" element={renderLazyRoute(ClassGroupsPage)} />
           <Route path="surveys" element={renderLazyRoute(SurveysPage)} />
+          <Route path="surveys/school-reports" element={renderLazyRoute(DawonSchoolReportCohorts)} />
           <Route path="surveys/new" element={renderLazyRoute(SurveyEditorPage)} />
           <Route path="surveys/:surveyId" element={renderLazyRoute(SurveyDetailPage)} />
           <Route path="surveys/:surveyId/edit" element={renderLazyRoute(SurveyEditorPage)} />

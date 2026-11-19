@@ -504,3 +504,16 @@
     animation: none;
   }
 }
+
+.referenceScore {
+  display: grid;
+  gap: .25rem;
+  justify-items: center;
+  text-align: center;
+}
+.referenceScore strong {
+  color: var(--stu-primary);
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  font-variant-numeric: tabular-nums;
+}
+.referenceScore span { color: var(--stu-text-muted); font-size: .875rem; }

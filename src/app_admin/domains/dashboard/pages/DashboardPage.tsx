@@ -5,6 +5,7 @@
  * Existing read contracts remain the SSOT. This page only reorganizes the
  * current lecture, exam, submission, QnA, clinic, and messaging signals.
  */
+import { DawonLearningAlertsLink } from "@/shared/product/dawon/DawonTeacherAlerts";
 import DashboardAttendanceQr from "@/shared/ui/attendance/DashboardAttendanceQr";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { useNavigate } from "react-router";
@@ -123,7 +124,8 @@ export default function DashboardPage() {
       description="학원 운영 현황을 한눈에 확인하세요."
     >
       <div className={styles.dashboard}>
-        <DashboardAttendanceQr />
+        <DawonLearningAlertsLink />
+      <DashboardAttendanceQr />
         <ArrivalOperationsBoard
           data={arrivalQuery.data}
           loading={arrivalQuery.isLoading}

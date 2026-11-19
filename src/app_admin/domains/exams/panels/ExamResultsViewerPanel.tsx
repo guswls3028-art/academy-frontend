@@ -6,6 +6,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useIsMutating, useMutation, useQuery } from "@tanstack/react-query";
 import { Download, FileSpreadsheet } from "lucide-react";
+import DawonTopReferenceButton from "@/shared/product/dawon/DawonTopReferenceButton";
+import { resolveTenantCodeString } from "@/shared/tenant";
 import { EXAM_ANALYSIS_ANCHOR } from "@/shared/lib/assessmentQueryParams";
 import api from "@/shared/api/axios";
 import type {
@@ -34,6 +36,14 @@ import ExamScoreTrends, { type ExamAnalysisInsights } from "./ExamScoreTrends";
 import SubjectiveGradingEntry from "./SubjectiveGradingEntry";
 
 const SCORE_BANDS = ["0–20%", ">20–40%", ">40–60%", ">60–80%", ">80–100%"] as const;
+
+type DawonAnalysis = ExamAnalysisInsights & {
+  score_summary: ExamAnalysisInsights["score_summary"] & {
+    top_reference_percent?: number | null;
+    top_reference_average?: number | null;
+    top_reference_count?: number;
+  };
+};
 
 type Props = {
   examId: number;
@@ -145,6 +155,8 @@ function ExamResultsViewerContent({
       || right.attempts - left.attempts || left.question_number - right.question_number)
     .map((question) => ({ ...question, accuracyPercent: question.accuracy * 100 })), [statsQ.data]);
   const assignments = assignmentsQ.data?.assignments ?? [];
+  const isDawon = resolveTenantCodeString() === "dawon";
+  const analysisLectureId = isDawon && selectedLectureId == null && assignments.length === 1 ? assignments[0].lecture_id : selectedLectureId;
   const selectedAssignment = assignments.find(
     (assignment) => assignment.lecture_id === selectedLectureId,
   );
@@ -157,10 +169,10 @@ function ExamResultsViewerContent({
   const scopeName = selectedAssignment?.lecture_title ?? "전체 강의";
   const cutoffLabel = mixedCutoffs ? "강의별 기준" : `${passScore}점`;
   const analysisQ = useQuery({
-    queryKey: adminExamsQueryKeys.examAnalysisInsights(examId, selectedLectureId),
+    queryKey: adminExamsQueryKeys.examAnalysisInsights(examId, analysisLectureId),
     queryFn: async () => {
-      const response = await api.get<ExamAnalysisInsights>(`/results/admin/exams/${examId}/analysis-insights/`, {
-        params: selectedLectureId == null ? undefined : { lecture_id: selectedLectureId },
+      const response = await api.get<DawonAnalysis>(`/results/admin/exams/${examId}/analysis-insights/`, {
+        params: analysisLectureId == null ? undefined : { lecture_id: analysisLectureId },
       });
       if (!Array.isArray(response.data?.trends)
         || !Array.isArray(response.data.score_summary?.distribution_counts)
@@ -313,6 +325,7 @@ function ExamResultsViewerContent({
             <p>확정된 1차 점수로 집계합니다.</p>
           </div>
           <div className={styles.reportActions}>
+            {isDawon && analysisLectureId != null && <DawonTopReferenceButton lectureId={analysisLectureId} onSaved={() => void analysisQ.refetch()} />}
             <Button
               type="button"
               intent="primary"
@@ -365,7 +378,9 @@ function ExamResultsViewerContent({
           <div className={styles.metricStrip} aria-label="시험 핵심 지표">
             <Metric label="응시" value={`${analysis.scored_count}명`} sub={summary.unscored_count > 0 ? `미응시·미채점 ${summary.unscored_count}명` : "전원 집계"} />
             <Metric label="평균" value={`${summary.average?.toFixed(1) ?? "—"}점`} sub={`중앙값 ${summary.median?.toFixed(1) ?? "—"}점`} />
-            <Metric label="상위 10%" value={`${summary.top_ten_average?.toFixed(1) ?? "—"}점`} sub={`최고 ${summary.highest?.toFixed(1) ?? "—"}점`} />
+            {summary.top_reference_percent != null
+              ? <Metric label={`상위 ${summary.top_reference_percent}% 평균`} value={summary.top_reference_average != null ? `${summary.top_reference_average.toFixed(1)}%` : "—"} sub={`만점 대비 성취율 · ${summary.top_reference_count ?? 0}명`} />
+              : <Metric label="상위 10%" value={`${summary.top_ten_average?.toFixed(1) ?? "—"}점`} sub={`최고 ${summary.highest?.toFixed(1) ?? "—"}점`} />}
             <Metric label="표준편차" value={summary.std_dev?.toFixed(1) ?? "—"} sub={`만점 대비 ${summary.std_rate?.toFixed(1) ?? "—"}%`} />
             <Metric
               label="추천 합격 컷"

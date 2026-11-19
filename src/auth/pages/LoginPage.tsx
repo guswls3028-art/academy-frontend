@@ -44,7 +44,10 @@ import {
 const BRANDED_LOGIN_SCENES = new Set(["hakwonplus", "movementhui", "godmin"]);
 
 function isDawonDemoSearch(tenantCode: string | null, search: string) {
-  return tenantCode === "dawon" && new URLSearchParams(search).get("demo") === "student" ? "?demo=student" : "";
+  const params = new URLSearchParams(search);
+  if (tenantCode !== "dawon" || params.get("demo") !== "student") return "";
+  const view = params.get("view");
+  return view === "exams" || view === "school-report" ? `?demo=student&view=${view}` : "?demo=student";
 }
 
 /**
@@ -151,19 +154,24 @@ export default function LoginPage() {
   const themeAttr = tenantCode ?? "tchul";
   const hasBrandedScene = BRANDED_LOGIN_SCENES.has(themeAttr);
   const isDawonDemo = tenantCode === "dawon";
-  const fromScan = getSessionItem("session_return_path")?.startsWith("/student/attendance/scan") ?? false;
-  const qrEntry = fromScan || new URLSearchParams(location.search).get("demo") === "student";
+  const learnerPath = getSessionItem("session_return_path") ?? "";
+  const reportPath = "/student/submit/school-report";
+  const fromLearnerPage = /^\/student\/(attendance|exams|submit\/school-report)(?:[/?#]|$)/.test(learnerPath);
+  const previewSearch = new URLSearchParams(location.search);
+  const learnerEntry = fromLearnerPage || previewSearch.get("demo") === "student";
+  const reportEntry = previewSearch.get("view") === "school-report" || learnerPath.split(/[?#]/)[0] === reportPath;
+  const qrEntry = learnerEntry && !reportEntry && !(previewSearch.get("view") === "exams" || learnerPath.startsWith("/student/exams"));
 
   async function onDemoEntry() {
     if (pending) return;
     setPending(true);
     setError("");
     try {
-      await enterDawonDemo(qrEntry ? "student" : "teacher");
+      await enterDawonDemo(learnerEntry ? "student" : "teacher");
       await refreshMe();
       removeSessionItem("session_expired");
       const returnPath = consumeReturnPath();
-      navigate(qrEntry ? (fromScan && returnPath ? returnPath : "/student/attendance/scan") : "/", { replace: true });
+      navigate(learnerEntry ? (fromLearnerPage && returnPath ? returnPath : qrEntry ? "/student/attendance/scan" : reportEntry ? reportPath : "/student/exams") : "/", { replace: true });
     } catch {
       setError("체험 계정에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요.");
       setPending(false);
@@ -230,9 +238,9 @@ export default function LoginPage() {
             {isDawonDemo && (
               <div className={styles.demoEntry}>
                 <button type="button" className={styles.btnPrimary} onClick={() => void onDemoEntry()} disabled={pending}>
-                  {qrEntry ? "학생 데모로 QR 출석" : "데모 계정으로 시작"}
+                  {qrEntry ? "학생 데모로 QR 출석" : reportEntry ? "학생 데모로 학교 성적 입력" : learnerEntry ? "학생 데모로 시험 결과 보기" : "데모 계정으로 시작"}
                 </button>
-                <span>{qrEntry ? "예시 학생으로 QR 출석을 체험합니다." : "선생님 업무는 PC에서 보기를 권장합니다."}</span>
+                <span>{learnerEntry ? "예시 학생으로 체험합니다." : "선생님 업무는 PC에서 보기를 권장합니다."}</span>
               </div>
             )}
             <label htmlFor="login-username" className={styles.srOnly}>아이디 또는 학부모 휴대폰 번호</label>

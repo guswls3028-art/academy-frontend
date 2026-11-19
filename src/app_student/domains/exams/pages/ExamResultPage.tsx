@@ -91,6 +91,7 @@ export default function ExamResultPage() {
   );
   const totalScore = r.total_score;
   const pct = totalScore != null && r.max_score > 0 ? clampPercent(Math.round((totalScore / r.max_score) * 100)) : 0;
+  const hasTopReference = r.top_reference_percent != null;
   const finalPass = deriveFinalPass(r);
   const achievement = deriveAchievement(r);
   const firstAttemptMissing = r.meta_status === "NOT_SUBMITTED" || achievement === "NOT_SUBMITTED";
@@ -130,7 +131,12 @@ export default function ExamResultPage() {
 
         {/* ── Score Gauge ── */}
         <div className={styles.scorePanel}>
-          {!firstAttemptMissing && totalScore != null && <ScoreGauge pct={pct} passed={finalPass} />}
+          {!firstAttemptMissing && totalScore != null && (hasTopReference
+            ? <div className={styles.referenceScore}>
+                <strong>{r.top_reference_ratio != null ? `${r.top_reference_ratio.toFixed(1)}%` : "—"}</strong>
+                <span>상위 {r.top_reference_percent}% 평균 대비</span>
+              </div>
+            : <ScoreGauge pct={pct} passed={finalPass} />)}
           <div className={styles.scoreText}>
             {firstAttemptMissing ? "원시험 미응시" : totalScore == null ? "원시험 점수 없음" : `${totalScore} / ${r.max_score}점`}
           </div>

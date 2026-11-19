@@ -100,6 +100,7 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
   }
 
   const preserveStudentLink = location.pathname === "/student/attendance/scan"
+    || (program.tenantCode === "dawon" && /^\/student\/exams(?:\/|$)/.test(location.pathname))
     || location.pathname === studentSchoolReportPath
     || /^\/student\/surveys(?:\/[1-9]\d*)?\/?$/.test(location.pathname);
   const loginRedirect = preserveStudentLink

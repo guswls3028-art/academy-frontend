@@ -45,6 +45,9 @@ type PublishedExamResult = {
   percentile?: number | null;
   cohort_size?: number | null;
   cohort_avg?: number | null;
+  top_reference_percent?: number | null;
+  top_reference_average?: number | null;
+  top_reference_ratio?: number | null;
   analysis?: ExamResultAnalysis;
   correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
 };

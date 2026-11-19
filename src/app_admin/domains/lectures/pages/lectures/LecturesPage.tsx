@@ -45,6 +45,7 @@ type LectureItem = {
   color?: string | null;
   chip_label?: string | null;
   is_active?: boolean;
+  cycle_status?: string | null;
   display_order: number;
   active_enrollment_count: number;
 };
@@ -88,6 +89,7 @@ function normalizeLectureItem(value: unknown, fallbackOrder: number): LectureIte
     lecture_time: toStringOrNull(value.lecture_time),
     color: toStringOrNull(value.color),
     chip_label: toStringOrNull(value.chip_label),
+    cycle_status: toStringOrNull(value.cycle_status),
     is_active: typeof value.is_active === "boolean" ? value.is_active : undefined,
     display_order: toNumber(value.display_order) ?? fallbackOrder,
     active_enrollment_count: Math.max(0, toNumber(value.active_enrollment_count) ?? 0),
@@ -114,9 +116,9 @@ function getLectureSortValue(lecture: LectureItem, key: LectureSortKey, toTime: 
   return lecture[key] ?? "";
 }
 
-/** 지난 강의 = is_active === false 인 경우만. 종료일 자동 이동 로직 없음. */
+/** 다원 반별 수업은 학교별 시험 주기에 맞춰 지난 강의로 옮긴다. */
 function isPastLecture(lec: LectureItem) {
-  return lec.is_active === false;
+  return lec.is_active === false || lec.cycle_status === "past";
 }
 
 /** 컴포넌트를 페이지 밖에 두어 리사이즈 중 부모 리렌더 시에도 ResizableTh가 언마운트되지 않도록 함 */
@@ -292,7 +294,8 @@ function LecturesTable({ tab = "active" }: LecturesPageProps) {
 
   const manualScopeList = tab === "active" ? activeLectures : pastLectures;
   const hasDisplayTransform = q.trim().length > 0 || sort.length > 0;
-  const canReorder = !hasDisplayTransform && !reorderMutation.isPending;
+  const calendarMovesCourses = data.some((lecture) => lecture.is_active !== false && lecture.cycle_status === "past");
+  const canReorder = !calendarMovesCourses && !hasDisplayTransform && !reorderMutation.isPending;
   const visibleEnrollmentCount = useMemo(
     () => list.reduce((sum, lecture) => sum + lecture.active_enrollment_count, 0),
     [list],
@@ -384,7 +387,9 @@ function LecturesTable({ tab = "active" }: LecturesPageProps) {
               <span>
                 {reorderMutation.isPending
                   ? "강의 순서를 저장하는 중입니다."
-                  : hasDisplayTransform
+                  : calendarMovesCourses
+                    ? "현재·지난 강의는 반의 수업 기간에 따라 분류됩니다."
+                    : hasDisplayTransform
                     ? "검색 또는 열 정렬 중에는 순서를 변경할 수 없습니다."
                     : "점 손잡이로 순서 변경 · 끌기, 누르기, 방향키"}
               </span>
@@ -592,7 +597,7 @@ function LecturesTable({ tab = "active" }: LecturesPageProps) {
                             : <span className="font-normal text-[var(--color-text-muted)]">미설정</span>}
                       </td>
                       <td onClick={(e) => e.stopPropagation()} className="lecture-actions-cell align-middle">
-                        <LectureActionsMenu lecture={lec} isPast={tab === "past"} onEdit={setEditLectureId} onChanged={(action) => {
+                        <LectureActionsMenu lecture={lec} isPast={lec.is_active === false} onEdit={setEditLectureId} onChanged={(action) => {
                           void qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectures });
                           void qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lecture(lec.id) });
                           invalidateLectureStatusCaches(qc);

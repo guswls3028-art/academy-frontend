@@ -30,6 +30,7 @@ export type TeacherLecture = {
   chipLabel?: string | null;
   is_active?: boolean;
   isActive?: boolean;
+  cycle_status?: "current" | "past" | "upcoming";
 };
 
 export type TeacherLectureEnrollment = {

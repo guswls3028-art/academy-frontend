@@ -179,3 +179,56 @@
 .chosen ul { display: grid; gap: 6px; padding: 0; list-style: none; }
 .chosen li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .rosterEditor .error { color: var(--color-error-text); background: var(--color-bg-error-subtle); }
+
+.page { width: 100%; max-inline-size: 1280px; }
+.groupList { gap: 0; border: 1px solid var(--color-border-divider); border-radius: 10px; overflow: hidden; }
+.groupList:empty { display:none; }
+.groupList a { border: 0; border-radius: 0; padding: 12px 16px; }
+.groupList li + li { border-top: 1px solid var(--color-border-divider); }
+.groupList a:hover { background: var(--color-bg-surface-hover); }
+.groupIcon { display:grid; place-items:center; width:36px; height:36px; border-radius:9px; background:var(--color-brand-primary-bg); }
+.groupList .groupIcon { color:var(--color-brand-primary); }
+.groupList .groupCounts { margin-inline-start:auto; grid-auto-flow:column; gap:16px; }
+.coursePanel { min-width:0; border:1px solid var(--color-border-divider); border-radius:10px; background:var(--color-bg-surface); }
+.courseHeading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; padding:12px 16px; }
+.courseTabs { display:flex; align-items:center; gap:2px; background:var(--color-bg-surface-soft); border-radius:8px; padding:3px; }
+.courseTabs button { min-height:36px; padding:4px 9px; border:0; background:transparent; color:var(--color-text-secondary); font-size:13px; white-space:nowrap; }
+.courseTabs button[aria-pressed="true"] { background:var(--color-bg-surface); box-shadow:0 1px 3px #0002; color:var(--color-brand-primary); }
+.courseTabs span { font-variant-numeric:tabular-nums; }
+.courseTable { width:100%; border-collapse:collapse; table-layout:auto; }
+.courseTable th { padding:8px 12px; background:var(--color-bg-surface-soft); color:var(--color-text-secondary); text-align:left; font-size:12px; }
+.courseTable td { padding:9px 12px; border-top:1px solid var(--color-border-divider); font-size:14px; }
+.courseTable tbody tr { position:relative; }
+.courseTable tbody tr:hover, .courseTable tbody tr:focus-within { background:var(--color-bg-surface-hover); }
+.courseLink { display:flex; align-items:center; gap:10px; color:inherit; text-decoration:none; min-height:42px; }
+.courseLink::after { content:""; position:absolute; inset:0; }
+.courseLink strong { display:block; overflow-wrap:anywhere; }
+.courseTable small { display:block; color:var(--color-text-secondary); font-size:12px; }
+.courseLink > span:last-child { min-width:0; }
+.courseTable td:last-child { width:28px; color:var(--color-text-secondary); }
+.mobileAudience { display:none; }
+.emptyCourse { padding:20px 16px; border-top:1px solid var(--color-border-divider); }
+.rosterSearch { display:grid; gap:0; align-content:start; min-width:0; }
+.rosterSearch input[type="search"] { width:100%; min-height:44px; border:1px solid var(--color-border-default); border-radius:8px; padding:8px 12px; margin-bottom:12px; }
+.rosterColumns, .rosterRows li { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-inline:12px; }
+.rosterColumns { color:var(--color-text-secondary); background:var(--color-bg-surface-soft); padding-block:7px; font-size:12px; }
+.rosterRows { list-style:none; margin:0; padding:0; max-height:min(42vh,350px); overflow:auto; }
+.rosterRows li { border-bottom:1px solid var(--color-border-divider); font-size:14px; min-height:44px; }
+.rosterRows li[data-selected="true"] { background:var(--color-brand-primary-bg); }
+.rosterRows li > span { color:var(--color-text-secondary); text-align:right; font-size:13px; }
+.chosen { min-width:0; align-self:start; padding:12px; background:var(--color-bg-surface-soft); }
+.chosen p { margin-top:8px; color:var(--color-text-secondary); font-size:13px; }
+.chosen ul { max-height:30vh; overflow:auto; }
+@media (min-width:740px) {
+  .rosterEditor:has(.rosterSearch) { grid-template-columns:minmax(0,1fr) minmax(165px,28%); }
+  .rosterEditor > :not(.rosterSearch, .chosen) { grid-column:1/-1; }
+}
+@media (max-width:640px) {
+  .courseTable th:nth-child(2), .courseTable td:nth-child(2), .courseTable th:nth-child(4), .courseTable td:nth-child(4) { display:none; }
+  .courseTable td { padding:8px; }
+  .courseTable td:nth-child(3) { white-space:nowrap; }
+  .courseTabs button { min-height:44px; }
+  .mobileAudience { display:inline; }
+  .groupList a { padding:10px; gap:8px; }
+  .groupList .groupCounts { grid-auto-flow:row; gap:0; }
+}

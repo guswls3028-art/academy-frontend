@@ -5,6 +5,9 @@ import api from "@/shared/api/axios";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { Button } from "@/shared/ui/ds";
+import LectureChip from "@/shared/ui/chips/LectureChip";
+import { teacherLectureQueryKeys } from "@/app_teacher/domains/lectures/queryKeys";
+import { ChevronRight, UsersRound } from "lucide-react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import ClassRosterModal, { type RosterStudent } from "./ClassRosterModal";
 import styles from "./ClassGroupsPage.module.css";
@@ -19,7 +22,7 @@ const periods = { vacation: "방학", midterm: "내신 · 중간", final: "내�
 type Kind = "union" | "school";
 type Period = keyof typeof periods;
 type Group = { id: number; name: string; kind: Kind; track: string; school: string; student_count: number; lecture_count: number };
-type Lecture = { id: number; title: string; period: Period; school: string; start_date: string; end_date: string; student_count: number };
+type Lecture = { id: number; title: string; period: Period; school: string; start_date: string; end_date: string; student_count: number; cycle_status: "upcoming" | "current" | "past"; color?: string; chip_label?: string; lecture_time?: string };
 type Detail = Group & { students: RosterStudent[]; lectures: Lecture[] };
 
 function groupType(group: Group) {
@@ -79,7 +82,36 @@ function GroupForm({ onCreated, onCancel }: { onCreated: (id: number) => void; o
   );
 }
 
-function GroupDetail({ id, root, lectureRoot, assignOnOpen, afterInitialAssignment }: { id: number; root: string; lectureRoot: string; assignOnOpen: boolean; afterInitialAssignment: () => void }) {
+function CourseList({ group, lectureRoot }: { group: Detail; lectureRoot: string }) {
+  const [past, setPast] = useState(false);
+  const pastCount = group.lectures.filter((course) => course.cycle_status === "past").length;
+  const visible = group.lectures.filter((course) => (course.cycle_status === "past") === past)
+    .sort((left, right) => (right.start_date || "").localeCompare(left.start_date || "") || right.id - left.id);
+  return <section className={styles.coursePanel} aria-label="강의 목록">
+    <div className={styles.courseHeading}><h3>강의 목록</h3>
+      <div className={styles.courseTabs} aria-label="강의 기간">
+        <button aria-pressed={!past} onClick={() => setPast(false)}>현재·예정 <span>{group.lectures.length - pastCount}</span></button>
+        <button aria-pressed={past} onClick={() => setPast(true)}>지난 강의 <span>{pastCount}</span></button>
+      </div>
+    </div>
+    {visible.length ? <table className={styles.courseTable}>
+      <thead><tr><th>강의 이름</th><th>대상</th><th>수강생</th><th>수업 기간</th><th aria-label="강의 열기" /></tr></thead>
+      <tbody>{visible.map((course) => {
+        const audience = course.school || (group.kind === "school" ? group.school : "연합반 전체");
+        return <tr key={course.id}><td>
+          <Link className={styles.courseLink} to={`${lectureRoot}/${course.id}`} aria-label={`${course.title} 운영`}>
+            <LectureChip size={32} lectureName={course.title} chipLabel={course.chip_label || (course.period === "vacation" ? "방학" : "내신")} color={course.color || "#AE531F"} />
+            <span><strong>{course.title}</strong><small>{course.cycle_status === "upcoming" ? "개강 예정 · " : ""}{periods[course.period]}<span className={styles.mobileAudience}> · {audience}</span></small></span>
+          </Link></td>
+          <td>{audience}</td><td>{course.student_count}명</td>
+          <td><time>{course.start_date}</time> ~ <time>{course.end_date}</time>{course.lecture_time && <small>{course.lecture_time}</small>}</td>
+          <td aria-hidden="true"><ChevronRight size={16} /></td></tr>;
+      })}</tbody>
+    </table> : <p className={styles.emptyCourse}>{past ? "지난 강의가 없습니다." : "현재 진행 중이거나 예정된 강의가 없습니다."}</p>}
+  </section>;
+}
+
+function GroupDetail({ id, root, lectureRoot, lectureEntry, assignOnOpen, afterInitialAssignment }: { id: number; root: string; lectureRoot: string; lectureEntry: boolean; assignOnOpen: boolean; afterInitialAssignment: () => void }) {
   const client = useQueryClient();
   const [mode, setMode] = useState<"add" | "remove" | "lecture" | null>(assignOnOpen ? "add" : null);
   const [notice, setNotice] = useState("");
@@ -88,6 +120,7 @@ function GroupDetail({ id, root, lectureRoot, assignOnOpen, afterInitialAssignme
   const detailKey = [...groupsKey, id];
   const detail = useQuery({
     queryKey: detailKey,
+    staleTime: 30_000,
     queryFn: async ({ signal }) => (await api.get<Detail>(`${endpoint}${id}/`, { signal })).data,
   });
   const stopEditing = () => {
@@ -100,7 +133,7 @@ function GroupDetail({ id, root, lectureRoot, assignOnOpen, afterInitialAssignme
       remove: mode === "remove" ? ids : [],
     });
     client.setQueryData(detailKey, data);
-    void client.invalidateQueries({ queryKey: groupsKey });
+    void client.invalidateQueries({ queryKey: groupsKey, exact: true });
     void client.invalidateQueries({ queryKey: ["dawon-roster"] });
     setNotice(mode === "add" ? `${ids.length}명을 배정했습니다.` : `${ids.length}명을 반 명단에서 제외했습니다.`);
     stopEditing();
@@ -135,7 +168,10 @@ function GroupDetail({ id, root, lectureRoot, assignOnOpen, afterInitialAssignme
           count: enrollmentCount,
           create: async (payload) => {
             await api.post<Lecture>(`${endpoint}${id}/lectures/`, { ...payload, period, school });
-            await client.invalidateQueries({ queryKey: groupsKey });
+            await Promise.all([
+              client.invalidateQueries({ queryKey: groupsKey }),
+              client.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectures }),
+            ]);
             setNotice("수업을 개설했습니다.");
           },
           field: <div className={styles.form}>
@@ -152,6 +188,7 @@ function GroupDetail({ id, root, lectureRoot, assignOnOpen, afterInitialAssignme
           </div>,
         }} />
       </Suspense>}
+      {lectureEntry && <CourseList group={group} lectureRoot={lectureRoot} />}
       <section className={styles.panel}>
         <div className={styles.sectionHeader}>
           <h3>반 명단 <span>{members.length}명</span></h3>
@@ -177,20 +214,7 @@ function GroupDetail({ id, root, lectureRoot, assignOnOpen, afterInitialAssignme
           onClose={stopEditing}
         />}
       </section>
-      <section className={styles.panel}>
-        <h3>개설 수업</h3>
-        {!group.lectures.length && <p>아직 개설한 수업이 없습니다.</p>}
-        <ul className={styles.rows}>
-          {group.lectures.map((course) => <li key={course.id}>
-            <div>
-              <Link to={`${lectureRoot}/${course.id}`}>{course.title}</Link>
-              <p>{periods[course.period]}{course.school && ` · ${course.school}`}</p>
-              <p className={styles.period}><time dateTime={course.start_date}>{course.start_date}</time><span>~</span><time dateTime={course.end_date}>{course.end_date}</time></p>
-            </div>
-            <Link to={`${lectureRoot}/${course.id}`} className={styles.operate} aria-label={`${course.title} 운영`}>수업 운영</Link>
-          </li>)}
-        </ul>
-      </section>
+      {!lectureEntry && <CourseList group={group} lectureRoot={lectureRoot} />}
     </div>
   );
 }
@@ -208,10 +232,11 @@ export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry
   const groups = useQuery({
     queryKey: groupsKey,
     enabled: isDawon && !id,
+    staleTime: 30_000,
     queryFn: async ({ signal }) => (await api.get<Group[]>(endpoint, { signal })).data,
   });
   if (!isDawon) return <Navigate to={mobile ? "/workspace/mobile/students" : "/workspace/students/home"} replace />;
-  if (id) return <div className={styles.page}><GroupDetail key={id} id={id} root={root} lectureRoot={lectureRoot} assignOnOpen={params.get("assign") === "1"} afterInitialAssignment={() => setParams({ class: String(id) }, { replace: true })} /></div>;
+  if (id) return <div className={styles.page}><GroupDetail key={id} id={id} lectureEntry={lectureEntry} root={root} lectureRoot={lectureRoot} assignOnOpen={params.get("assign") === "1"} afterInitialAssignment={() => setParams({ class: String(id) }, { replace: true })} /></div>;
   return (
     <div className={styles.page}>
       <header className={styles.heading}>
@@ -231,8 +256,9 @@ export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry
       {groups.data?.length === 0 && <p className={styles.panel}>아직 편성한 반이 없습니다.</p>}
       <ul className={styles.groupList}>
         {groups.data?.map((group) => <li key={group.id}><Link to={`${root}?class=${group.id}`}>
-          <div><strong>{group.name}</strong><span className={styles.kind}>{groupType(group)}</span></div>
-          <div className={styles.groupCounts}><span>학생 <strong>{group.student_count}명</strong></span><span>수업 <strong>{group.lecture_count ?? 0}개</strong></span></div>
+          <span className={styles.groupIcon} aria-hidden="true"><UsersRound size={19} /></span>
+          <div><strong>{group.name}</strong><span>{groupType(group)}</span></div>
+          <div className={styles.groupCounts}><span>학생 <strong>{group.student_count}명</strong></span><span>수업 <strong>{group.lecture_count ?? 0}개</strong></span></div><ChevronRight size={16} aria-hidden="true" />
         </Link></li>)}
       </ul>
     </div>

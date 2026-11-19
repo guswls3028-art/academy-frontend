@@ -105,15 +105,16 @@ export default function ClassRosterModal({
             <Button aria-pressed={tab === "search"} intent={tab === "search" ? "primary" : "secondary"} onClick={() => setTab("search")}>직접 검색</Button>
             <Button aria-pressed={tab === "excel"} intent={tab === "excel" ? "primary" : "secondary"} onClick={() => setTab("excel")}>엑셀로 선택</Button>
           </div>}
-          {tab === "search" ? <>
+          {tab === "search" ? <div className={styles.rosterSearch}>
             <input type="search" value={input} onChange={(event) => setInput(event.target.value)} aria-label="학생 검색" placeholder="이름 또는 학교로 검색" />
             {candidateUrl && candidates.isPending && <p role="status">학생 명단을 불러오는 중입니다.</p>}
             {candidateUrl && candidates.isError && <p role="alert">학생을 불러오지 못했습니다. <Button onClick={() => void candidates.refetch()}>다시 시도</Button></p>}
             {rows?.length === 0 && <p>선택할 수 있는 학생이 없습니다.</p>}
-            <ul className={styles.rows}>
-              {rows?.map((student) => <li key={student.id}>
+            <div className={styles.rosterColumns} aria-hidden="true"><span>학생 이름</span><span>학교 · 연락처 끝자리</span></div>
+            <ul className={styles.rosterRows}>
+              {rows?.map((student) => <li key={student.id} data-selected={selected.has(student.id)}>
                 <label className={styles.pick}>
-                  <input type="checkbox" checked={selected.has(student.id)} disabled={busy || candidates.isPlaceholderData} onChange={() => toggle(student)} />
+                  <input type="checkbox" checked={selected.has(student.id)} disabled={busy || candidates.isPlaceholderData || input.trim() !== search} onChange={() => toggle(student)} />
                   <strong>{student.name}</strong>
                 </label>
                 <span>{[student.school, digits(student.parent_phone || student.phone).slice(-4)].filter(Boolean).join(" · ")}</span>
@@ -123,7 +124,7 @@ export default function ClassRosterModal({
               <Button disabled={!offset || busy || candidates.isFetching} onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}>이전</Button>
               <Button disabled={(rows?.length ?? 0) < PAGE_SIZE || busy || candidates.isFetching} onClick={() => setOffset((value) => value + PAGE_SIZE)}>다음</Button>
             </div>}
-          </> : <>
+          </div> : <>
             <p>엑셀의 이름·전화번호를 기존 학생과 대조해 선택합니다. 명단을 검토하고 저장하세요.</p>
             <div className={styles.rosterTabs}><Button loading={template.isPending} onClick={() => template.mutate()}>엑셀 양식 다운로드</Button></div>
             <ExcelUploadZone onFileSelect={(file) => void importExcel.mutate(file)} disabled={busy} />
@@ -132,12 +133,13 @@ export default function ClassRosterModal({
               <ul>{fileIssues.map((issue, index) => <li key={index}>{issue}</li>)}</ul>
             </div>}
           </>}
-          {selected.size > 0 && <details className={styles.chosen}>
-            <summary>선택한 학생 {selected.size}명</summary>
+          <section className={styles.chosen} aria-label="선택 명단">
+            <strong>선택한 학생 {selected.size}명</strong>
+            {!selected.size && <p>학생을 선택하면 여기에 표시됩니다.</p>}
             <ul>{[...selected.values()].map((student) => <li key={student.id}>
               {student.name} <Button disabled={busy} aria-label={`${student.name} 선택 취소`} onClick={() => toggle(student)}>빼기</Button>
             </li>)}</ul>
-          </details>}
+          </section>
           {error && <p role="alert" className={styles.error}>{getApiErrorMessage(error, error instanceof Error ? error.message : "선택을 저장하지 못했습니다. 다시 시도해 주세요.")}</p>}
         </div>
       </ModalBody>
