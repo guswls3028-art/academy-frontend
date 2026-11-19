@@ -1,0 +1,67 @@
+{
+	admin off
+}
+
+{$ORIGIN_HOST} {
+	map {http.request.header.X-Dawon-Asset-Version} {dawon_frontend} {dawon_api} {
+		dawon-review-20261119-orange-r4 /srv/frontend/_review-revisions/dawon-review-20261119-orange-r4 review-api-r4:8000
+		dawon-review-20261119-orange-r5 /srv/frontend/_review-revisions/dawon-review-20261119-orange-r5 review-api-r5:8000
+		dawon-review-20261119-orange-r6 /srv/frontend/_review-revisions/dawon-review-20261119-orange-r6 review-api-r6:8000
+		dawon-review-20261119-orange-r7 /srv/frontend/_review-revisions/dawon-review-20261119-orange-r7 review-api-r7:8000
+		dawon-review-20261119-orange-r8 /srv/frontend/_review-revisions/dawon-review-20261119-orange-r8 review-api-r8:8000
+		dawon-review-20261119-orange-r9 /srv/frontend/_review-revisions/dawon-review-20261119-orange-r9 review-api-r9:8000
+		dawon-review-20261119-orange-r10 /srv/frontend/_review-revisions/dawon-review-20261119-orange-r10 review-api-r10:8000
+		default /srv/frontend review-api:8000
+	}
+	header {
+		-Server
+		Referrer-Policy no-referrer
+		X-Content-Type-Options nosniff
+		X-Robots-Tag "noindex, nofollow"
+	}
+	encode gzip
+
+	@authorized header X-Dawon-Review-Origin {$ORIGIN_KEY}
+	handle @authorized {
+		request_body {
+			max_size 20MB
+		}
+		@publicApi path /api/v1/*
+		handle @publicApi {
+			header Cache-Control "no-store"
+			reverse_proxy {dawon_api} {
+				header_up Host dawon.localhost
+				header_up X-Forwarded-Host dawon.localhost
+				header_up X-Tenant-Code dawon
+				header_up -X-Dawon-Review-Origin
+				header_up -X-Dawon-Asset-Version
+			}
+		}
+		handle /healthz {
+			header Cache-Control "no-store"
+			reverse_proxy {dawon_api} {
+				header_up Host dawon.localhost
+				header_up X-Forwarded-Host dawon.localhost
+				header_up -X-Dawon-Review-Origin
+			}
+		}
+		@static path /assets/* /tenants/* /feature-guides/* /guide-media/* /teacher-icons/* /licenses/* /dawon-brand.svg /dawon-brand.css /dawon-release.js /vite.svg /manifest.json /teacher-manifest.json /student-manifest.json /dev-manifest.json /omr-default-logo.svg /omr-sheet.html /version.json
+		handle @static {
+			root * {dawon_frontend}
+			file_server
+		}
+		@spa path /login/dawon /login/dawon/* /workspace /workspace/* /login /student/attendance /student/attendance/* /student/exams /student/exams/* /student/submit/school-report /terms /privacy
+		handle @spa {
+			root * {dawon_frontend}
+			rewrite * /index.html
+			header Cache-Control "no-store"
+			file_server
+		}
+		handle {
+			respond 404
+		}
+	}
+	handle {
+		respond 404
+	}
+}
