@@ -21,11 +21,30 @@ import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
 import { IconCalendar, IconClinic, IconChevronRight, IconTrash } from "@student/shared/ui/icons/Icons";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import {
+  capturePlaybackEventScope as captureScheduleScope,
+  createAuthSessionBoundConfig,
+  isPlaybackEventScopeCurrent as isRequestScopeCurrent,
+} from "@/shared/api/axios";
+import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import { useConfirm } from "@/shared/ui/confirm";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import styles from "./SessionListPage.module.css";
 
 type ApiErrorBody = { detail?: string; message?: string };
+type ScheduleScope = ReturnType<typeof captureScheduleScope>;
+type ScheduleHide = { id: number; scope: ScheduleScope };
+type ScheduleUndo = ScheduleHide & { title: string; hideSettled: Promise<void> };
+
+function isScheduleScopeCurrent(scope: ScheduleScope): boolean {
+  return isRequestScopeCurrent(scope) && getParentStudentId() === scope.studentId;
+}
+
+function scheduleWriteConfig(scope: ScheduleScope) {
+  return scope.generation && scope.tenantCode
+    ? createAuthSessionBoundConfig(scope.generation, undefined, scope.tenantCode)
+    : undefined;
+}
 
 function toDateKey(d: string | null | undefined): string | null {
   if (!d) return null;
@@ -68,7 +87,7 @@ export default function SessionListPage() {
   const { data: sessions = [], isLoading, isError, refetch } = useMySessions();
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const [undoTarget, setUndoTarget] = useState<{ id: number; title: string } | null>(null);
+  const [undoTarget, setUndoTarget] = useState<ScheduleUndo | null>(null);
   const undoTimerRef = useRef<number | null>(null);
 
   const clearPastMutation = useMutation({
@@ -88,10 +107,14 @@ export default function SessionListPage() {
   });
 
   const hideMutation = useMutation({
-    mutationFn: hideMySession,
-    onMutate: async (id: number) => {
+    mutationFn: async ({ id, scope }: ScheduleHide) => {
+      if (isScheduleScopeCurrent(scope)) await hideMySession(id, scheduleWriteConfig(scope));
+    },
+    onMutate: async ({ id, scope }) => {
+      if (!isScheduleScopeCurrent(scope)) return;
       const { root, home } = studentSessionQueryKeys;
       await qc.cancelQueries({ queryKey: root });
+      if (!isScheduleScopeCurrent(scope)) return;
       const cache = qc.getQueryCache();
       const listQuery = cache.find({ queryKey: root, exact: true });
       const homeQuery = cache.find({ queryKey: home, exact: true });
@@ -107,7 +130,8 @@ export default function SessionListPage() {
       }
       return { listQuery, homeQuery, previous, previousHome };
     },
-    onError: (error: AxiosError<ApiErrorBody>, id, ctx) => {
+    onError: (error: AxiosError<ApiErrorBody>, { id, scope }, ctx) => {
+      if (!isScheduleScopeCurrent(scope)) return;
       const { root, home } = studentSessionQueryKeys;
       const cache = qc.getQueryCache();
       const previous = ctx?.previous;
@@ -129,16 +153,21 @@ export default function SessionListPage() {
           error?.response?.data?.message ||
           "숨기기에 실패했어요. 잠시 후 다시 시도해주세요.",
       );
-      setUndoTarget((target) => target?.id === id ? null : target);
+      setUndoTarget((target) => target?.scope === scope ? null : target);
     },
   });
 
   const unhideMutation = useMutation({
-    mutationFn: unhideMySession,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: studentSessionQueryKeys.root });
+    mutationFn: async ({ id, scope, hideSettled }: ScheduleUndo) => {
+      await hideSettled;
+      if (!isScheduleScopeCurrent(scope)) return;
+      await unhideMySession(id, scheduleWriteConfig(scope));
+      if (isScheduleScopeCurrent(scope)) {
+        await qc.invalidateQueries({ queryKey: studentSessionQueryKeys.root });
+      }
     },
-    onError: (error: AxiosError<ApiErrorBody>) => {
+    onError: (error: AxiosError<ApiErrorBody>, { scope }) => {
+      if (!isScheduleScopeCurrent(scope)) return;
       studentToast.error(
         error?.response?.data?.detail ||
           error?.response?.data?.message ||
@@ -149,8 +178,9 @@ export default function SessionListPage() {
 
   const handleHide = useCallback(
     (s: StudentSession) => {
-      hideMutation.mutate(s.id);
-      setUndoTarget({ id: s.id, title: s.title });
+      const scope = captureScheduleScope();
+      const hideSettled = hideMutation.mutateAsync({ id: s.id, scope }).then(() => undefined, () => undefined);
+      setUndoTarget({ id: s.id, title: s.title, scope, hideSettled });
       if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
       undoTimerRef.current = window.setTimeout(() => setUndoTarget(null), 4500);
     },
@@ -159,7 +189,7 @@ export default function SessionListPage() {
 
   const handleUndo = useCallback(() => {
     if (!undoTarget) return;
-    unhideMutation.mutate(undoTarget.id);
+    unhideMutation.mutate(undoTarget);
     setUndoTarget(null);
     if (undoTimerRef.current) {
       window.clearTimeout(undoTimerRef.current);

@@ -751,8 +751,10 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     }
   }
 
-  for (const failureView of ["홈", "목록"] as const) {
-    test(`일정 숨기기는 ${failureView}에서 실패한 항목만 복구한다`, async ({ page }) => {
+  for (const mode of ["홈", "목록", "되돌리기"] as const) {
+    const undoEarly = mode === "되돌리기";
+    test(undoEarly ? "일정 되돌리기는 같은 항목의 늦은 숨김 이후 저장된다"
+      : `일정 숨기기는 ${mode}에서 실패한 항목만 복구한다`, async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.clock.setFixedTime(new Date("2026-10-21T09:00:00+09:00"));
       await installStudentApi(page);
@@ -768,8 +770,8 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
             : [older, ...showing],
         });
       });
-      let rejectHide!: () => void;
-      const hideResponse = new Promise<void>((resolve) => { rejectHide = resolve; });
+      let completeHide!: () => void;
+      const hideResponse = new Promise<void>((resolve) => { completeHide = resolve; });
       const hidePosts: number[] = [];
       const undoPosts: number[] = [];
       await page.route("**/api/v1/student/sessions/hide/", async (route) => {
@@ -781,6 +783,10 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
           return route.fulfill({ json: { hidden_ids: [id] } });
         }
         await hideResponse;
+        if (undoEarly) {
+          hidden.add(id);
+          return route.fulfill({ json: { hidden_ids: [...hidden] } });
+        }
         await route.fulfill({ status: 400, json: { detail: "일정 숨기기를 다시 시도해주세요." } });
       });
       await page.route("**/api/v1/student/sessions/unhide/", async (route) => {
@@ -810,18 +816,33 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         await schedule.click();
         await pastTab.click();
         await hideRow(recent.id);
+        if (undoEarly) await page.getByRole("button", { name: "되돌리기", exact: true }).click();
         await hideRow(other.id);
         await expect.poll(() => hidden.has(other.id)).toBe(true);
         expect(hidePosts).toEqual([recent.id, other.id]);
-        if (failureView === "홈") {
+        expect(undoPosts).toEqual([]);
+        if (mode === "홈") {
           await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
           await expect(schedule).toContainText("0회");
           await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
         }
       } finally {
-        rejectHide();
+        completeHide();
       }
-      if (failureView === "목록") {
+      if (undoEarly) {
+        await expect(row(recent.id)).toBeVisible();
+        await expect(row(other.id)).toHaveCount(0);
+        expect(undoPosts).toEqual([recent.id]);
+        await expect(page.getByText(`숨김 · ${other.title}`, { exact: true })).toBeVisible();
+        await page.reload();
+        await pastTab.click();
+        await expect(row(recent.id)).toBeVisible();
+        await expect(row(other.id)).toHaveCount(0);
+        await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
+        await expect(schedule).toContainText("1회");
+        return;
+      }
+      if (mode === "목록") {
         await expect(row(recent.id)).toBeVisible();
         await expect(row(other.id)).toHaveCount(0);
         await expect(page.getByText(`숨김 · ${other.title}`, { exact: true })).toBeVisible();
