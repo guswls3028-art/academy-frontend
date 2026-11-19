@@ -1,0 +1,15 @@
+[Unit]
+Description=Prepare the isolated Dawon Excel preview storage and queue
+Requires=docker.service
+After=docker.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c '/usr/bin/docker exec -i review-api python - < /opt/dawon-review/ensure-demo-excel.py'
+Restart=on-failure
+RestartSec=10
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
