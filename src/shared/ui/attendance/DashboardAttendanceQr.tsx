@@ -6,7 +6,7 @@ import { isSupplementSession } from "@/shared/product/sessions/sessionOrdering";
 import { sessionScheduleDateLabel } from "@/shared/product/sessions/sessionScheduleDisplay";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
-import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { AdminModal, ModalBody, ModalHeader } from "@/shared/ui/modal";
 import { formatSessionBlockLabel, SessionBlockView } from "@/shared/ui/session-block";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import styles from "./AttendanceQrManager.module.css";
@@ -68,6 +68,7 @@ function ClassPicker({ onClose }: { onClose: () => void }) {
         {lecture && <div className={styles.currentLecture}>
           <LectureChip lectureName={lectureName} chipLabel={lecture.chip_label} color={lecture.color ?? undefined} size={28} />
           <span>{lectureName}</span>
+          <Button intent="ghost" size="sm" onClick={() => setLecture(null)}>강의 다시 선택</Button>
         </div>}
         {list.isPending ? <p role="status">{lecture ? "차시" : "강의"}를 불러오는 중…</p>
           : list.isError ? <div role="alert"><p>{lecture ? "차시" : "강의"} 목록을 불러오지 못했습니다.</p>
@@ -93,7 +94,5 @@ function ClassPicker({ onClose }: { onClose: () => void }) {
           </>}
       </div>
     </ModalBody>
-    <ModalFooter left={lecture && <Button onClick={() => setLecture(null)}>강의 다시 선택</Button>}
-      right={<Button onClick={onClose}>닫기</Button>} />
   </AdminModal>;
 }

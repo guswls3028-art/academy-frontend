@@ -158,7 +158,8 @@ export function QrManagerDialog({ kind, lectureId, lectureTitle, session, onBack
       </>}
       {error && <p role="alert" className={styles.error}>{error}</p>}
     </div></ModalBody>
-    <ModalFooter left={onBack && <Button disabled={mutation.isPending} onClick={onBack}>차시 다시 선택</Button>}
-      right={<Button disabled={mutation.isPending} onClick={onClose}>닫기</Button>} />
+    <ModalFooter right={onBack
+      ? <Button disabled={mutation.isPending} onClick={onBack}>차시 다시 선택</Button>
+      : <Button disabled={mutation.isPending} onClick={onClose}>닫기</Button>} />
   </AdminModal>;
 }

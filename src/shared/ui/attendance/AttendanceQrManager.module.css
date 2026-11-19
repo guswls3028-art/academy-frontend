@@ -17,7 +17,8 @@
 .stepHeading { margin: 0; font-size: 18px; line-height: 1.4; }
 .currentLecture, .lectureRow { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .currentLecture { color: var(--color-text-secondary); font-size: 14px; }
-.currentLecture > span:last-child, .lectureRow > span:nth-child(2) { overflow-wrap: anywhere; }
+.currentLecture > span:nth-child(2), .lectureRow > span:nth-child(2) { overflow-wrap: anywhere; }
+.currentLecture > button { flex-shrink: 0; margin-left: auto; min-height: 44px; }
 .lectureRow, .search { width: 100%; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); color: var(--color-text-primary); font-size: 16px; }
 .lectureRow { min-height: 58px; cursor: pointer; text-align: left; font-weight: 650; transition: background 150ms, border-color 150ms; }
 .lectureRow > svg { flex-shrink: 0; margin-left: auto; color: var(--color-text-secondary); }
