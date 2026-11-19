@@ -31,7 +31,8 @@ import AuthRouter from "./AuthRouter";
 
 import TenantRequiredPage from "@/auth/pages/TenantRequiredPage";
 import MaintenancePage from "@admin/domains/maintenance/pages/MaintenancePage";
-import { TermsPage, PrivacyPage } from "@admin/domains/legal";
+import TermsPage from "@admin/domains/legal/pages/TermsPage";
+const PrivacyPage = lazy(() => import("@admin/domains/legal/pages/PrivacyPage"));
 import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 import { resolveTenantCode } from "@/shared/tenant";
@@ -175,7 +176,9 @@ export default function AppRouter() {
       <Routes>
       <Route path="/login/*" element={<AuthRouter />} />
       <Route path="/terms" element={<TermsPage />} />
-      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/privacy" element={
+        <Suspense fallback={<RouteFallback fullPage />}><PrivacyPage /></Suspense>
+      } />
       <Route path="/support-preview-ended" element={<SupportPreviewEndedPage />} />
       <Route element={<PromoGuard />}>
         <Route
