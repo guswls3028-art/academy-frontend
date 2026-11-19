@@ -13,6 +13,18 @@ const formerTeacherRoutes = /^\/learn\/(?:teacher(?:[-/]|$)|grade-collection(?:\
 const consoleCookie = 'dawon_console=1; Path=/; SameSite=Lax; HttpOnly; Secure';
 const consoleCookieExpired = 'dawon_console=; Path=/; SameSite=Lax; HttpOnly; Secure; Max-Age=0';
 const workspaceStyle = `<style>
+[aria-labelledby="dawon-teaching-heading"] > header a.ds-btn {
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:0 11px;min-height:44px;border:1px solid #dcd3cc;border-radius:8px;
+  color:#48362a;background:#fff;text-decoration:none;font-weight:650;
+}
+[aria-labelledby="dawon-teaching-heading"] > header a[href="/workspace/lectures"] {
+  color:#fff;background:#a94a10;border-color:#a94a10;
+}
+[aria-labelledby="dawon-teaching-heading"] > header a.ds-btn:hover {filter:brightness(.95)}
+[aria-labelledby="dawon-teaching-heading"] > header a.ds-btn:focus-visible {
+  outline:2px solid #9b430c;outline-offset:2px;
+}
 section[aria-label$="차시 카드"]:has(> .session-block) {
   display:inline-flex; align-items:center; gap:2px; flex:0 0 auto;
 }
