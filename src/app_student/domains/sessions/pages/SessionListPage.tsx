@@ -41,9 +41,10 @@ function isScheduleScopeCurrent(scope: ScheduleScope): boolean {
 }
 
 function scheduleWriteConfig(scope: ScheduleScope) {
-  return scope.generation && scope.tenantCode
-    ? createAuthSessionBoundConfig(scope.generation, undefined, scope.tenantCode)
-    : undefined;
+  const auth = scope.generation
+    ? createAuthSessionBoundConfig(scope.generation, undefined, scope.tenantCode ?? undefined)
+    : {};
+  return { ...auth, headers: { "X-Student-Id": scope.studentId === null ? false : String(scope.studentId) } };
 }
 
 function toDateKey(d: string | null | undefined): string | null {
@@ -108,7 +109,7 @@ export default function SessionListPage() {
 
   const hideMutation = useMutation({
     mutationFn: async ({ id, scope }: ScheduleHide) => {
-      if (isScheduleScopeCurrent(scope)) await hideMySession(id, scheduleWriteConfig(scope));
+      if (isRequestScopeCurrent(scope)) await hideMySession(id, scheduleWriteConfig(scope));
     },
     onMutate: async ({ id, scope }) => {
       if (!isScheduleScopeCurrent(scope)) return;
@@ -160,7 +161,7 @@ export default function SessionListPage() {
   const unhideMutation = useMutation({
     mutationFn: async ({ id, scope, hideSettled }: ScheduleUndo) => {
       await hideSettled;
-      if (!isScheduleScopeCurrent(scope)) return;
+      if (!isRequestScopeCurrent(scope)) return;
       await unhideMySession(id, scheduleWriteConfig(scope));
       if (isScheduleScopeCurrent(scope)) {
         await qc.invalidateQueries({ queryKey: studentSessionQueryKeys.root });
@@ -188,7 +189,7 @@ export default function SessionListPage() {
   );
 
   const handleUndo = useCallback(() => {
-    if (!undoTarget) return;
+    if (!undoTarget || !isScheduleScopeCurrent(undoTarget.scope)) return;
     unhideMutation.mutate(undoTarget);
     setUndoTarget(null);
     if (undoTimerRef.current) {

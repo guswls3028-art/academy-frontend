@@ -751,19 +751,30 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     }
   }
 
-  for (const mode of ["홈", "목록", "되돌리기"] as const) {
-    const undoEarly = mode === "되돌리기";
-    test(undoEarly ? "일정 되돌리기는 같은 항목의 늦은 숨김 이후 저장된다"
-      : `일정 숨기기는 ${mode}에서 실패한 항목만 복구한다`, async ({ page }) => {
+  for (const mode of ["홈", "목록", "되돌리기", "자녀 전환"] as const) {
+    const switchChild = mode === "자녀 전환";
+    const undoEarly = mode === "되돌리기" || switchChild;
+    const name = switchChild ? "자녀 전환 중 대기 중인 일정 되돌리기는 처음 선택한 자녀에게 적용된다"
+      : undoEarly ? "일정 되돌리기는 같은 항목의 늦은 숨김 이후 저장된다"
+        : `일정 숨기기는 ${mode}에서 실패한 항목만 복구한다`;
+    test(name, async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.clock.setFixedTime(new Date("2026-10-21T09:00:00+09:00"));
-      await installStudentApi(page);
+      await installStudentApi(page, { parentDashboard: switchChild });
+      if (switchChild) {
+        await page.route("**/api/v1/core/me/", (route) => route.fulfill({ json: {
+          id: 11, username: "parent-11", name: "보호자", is_staff: false, is_superuser: false,
+          tenantRole: "parent", linkedStudents: [{ id: 11, name: "학생 11" }, { id: 12, name: "학생 12" }],
+        } }));
+      }
       const recent = { id: 21, title: "최근 수업", date: "2026-10-20" };
       const other = { id: 23, title: "다른 최근 수업", date: "2026-10-19" };
       const older = { id: 22, title: "이전 수업", date: "2026-09-12" };
       const hidden = new Set<number>();
+      const siblingHidden = new Set([recent.id]);
       await page.route(matchesSessionsApi, (route) => {
-        const showing = [other, recent].filter((session) => !hidden.has(session.id));
+        const selectedHidden = route.request().headers()["x-student-id"] === "12" ? siblingHidden : hidden;
+        const showing = [other, recent].filter((session) => !selectedHidden.has(session.id));
         return route.fulfill({
           json: new URL(route.request().url()).searchParams.get("scope") === "home"
             ? { items: showing, has_any_sessions: true }
@@ -774,8 +785,10 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       const hideResponse = new Promise<void>((resolve) => { completeHide = resolve; });
       const hidePosts: number[] = [];
       const undoPosts: number[] = [];
+      const undoChildren: (string | undefined)[] = [];
       await page.route("**/api/v1/student/sessions/hide/", async (route) => {
         const { id } = route.request().postDataJSON() as { id: number };
+        if (switchChild) expect(route.request().headers()["x-student-id"]).toBe("11");
         expect([recent.id, other.id]).toContain(id);
         hidePosts.push(id);
         if (id === other.id) {
@@ -791,11 +804,16 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       });
       await page.route("**/api/v1/student/sessions/unhide/", async (route) => {
         const { id } = route.request().postDataJSON() as { id: number };
+        const studentId = route.request().headers()["x-student-id"];
+        const selectedHidden = studentId === "12" ? siblingHidden : hidden;
         undoPosts.push(id);
-        hidden.delete(id);
-        return route.fulfill({ json: { hidden_ids: [...hidden] } });
+        undoChildren.push(studentId);
+        selectedHidden.delete(id);
+        return route.fulfill({ json: { hidden_ids: [...selectedHidden] } });
       });
       await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      const selectChild = (id: number) => page.getByRole("tab", { name: `학생 ${id}`, exact: true });
+      if (switchChild) await selectChild(11).click();
       const card = page.getByRole("region", { name: "학습 현황", exact: true });
       const schedule = card.getByRole("link", { name: /수업·클리닉/ });
       const pastTab = page.getByRole("button", { name: /^지난 일정(?: \d+)?$/ });
@@ -817,9 +835,16 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         await pastTab.click();
         await hideRow(recent.id);
         if (undoEarly) await page.getByRole("button", { name: "되돌리기", exact: true }).click();
-        await hideRow(other.id);
-        await expect.poll(() => hidden.has(other.id)).toBe(true);
-        expect(hidePosts).toEqual([recent.id, other.id]);
+        if (switchChild) {
+          await expect.poll(() => hidePosts).toEqual([recent.id]);
+          await selectChild(12).click();
+          await expect(selectChild(12)).toHaveAttribute("aria-selected", "true");
+          await expect(schedule).toContainText("1회");
+        } else {
+          await hideRow(other.id);
+          await expect.poll(() => hidden.has(other.id)).toBe(true);
+          expect(hidePosts).toEqual([recent.id, other.id]);
+        }
         expect(undoPosts).toEqual([]);
         if (mode === "홈") {
           await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
@@ -828,6 +853,17 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         }
       } finally {
         completeHide();
+      }
+      if (switchChild) {
+        await expect.poll(() => undoChildren).toEqual(["11"]);
+        expect(undoPosts).toEqual([recent.id]);
+        await expect(schedule).toContainText("1회");
+        await selectChild(11).click();
+        await expect(schedule).toContainText("2회");
+        await page.reload();
+        await expect(selectChild(11)).toHaveAttribute("aria-selected", "true");
+        await expect(schedule).toContainText("2회");
+        return;
       }
       if (undoEarly) {
         await expect(row(recent.id)).toBeVisible();

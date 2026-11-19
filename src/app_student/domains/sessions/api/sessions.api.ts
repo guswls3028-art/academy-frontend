@@ -1,7 +1,7 @@
 // PATH: src/app_student/domains/sessions/api/sessions.ts
 
 import api from "@student/shared/api/student.api";
-import type { ApiRequestConfig } from "@/shared/api/axios";
+import sharedApi, { type ApiRequestConfig } from "@/shared/api/axios";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import { formatSessionLabel, type SessionOrderLike } from "@/shared/product/sessions/sessionOrdering";
 
@@ -64,12 +64,12 @@ export async function clearMyPastSessions(): Promise<{ hidden_before: string }> 
   return res.data;
 }
 
-export async function hideMySession(id: number, config?: ApiRequestConfig): Promise<{ hidden_ids: number[] }> {
-  const res = await api.post<{ hidden_ids: number[] }>("/student/sessions/hide/", { id }, config);
+export async function hideMySession(id: number, config: ApiRequestConfig): Promise<{ hidden_ids: number[] }> {
+  const res = await sharedApi.post<{ hidden_ids: number[] }>("/student/sessions/hide/", { id }, config);
   return res.data;
 }
 
-export async function unhideMySession(id: number, config?: ApiRequestConfig): Promise<{ hidden_ids: number[] }> {
-  const res = await api.post<{ hidden_ids: number[] }>("/student/sessions/unhide/", { id }, config);
+export async function unhideMySession(id: number, config: ApiRequestConfig): Promise<{ hidden_ids: number[] }> {
+  const res = await sharedApi.post<{ hidden_ids: number[] }>("/student/sessions/unhide/", { id }, config);
   return res.data;
 }
