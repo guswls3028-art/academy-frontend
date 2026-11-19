@@ -105,6 +105,33 @@ test.describe("업무 화면 기능 검색", () => {
     await installLocalAuthApiStubs(page);
   });
 
+  test("교직원 게시판 조회 실패를 복구하고 작성 오류 뒤에도 입력을 유지한다", async ({ page }) => {
+    let ready = false;
+    await page.route("**/api/v1/staffs/board/posts/**", async route => {
+      if (route.request().method() === "POST") return route.fulfill({ status: 400, json: { title: ["제목을 확인해 주세요."] } });
+      return route.fulfill({ json: ready ? { count: 0, next: null, previous: null, results: [] } : {} });
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/workspace/dashboard`);
+    const panel = page.getByRole("region", { name: "학원 내부 공지" });
+    await expect(panel.getByRole("alert")).toContainText("공지를 불러오지 못했습니다.");
+    ready = true;
+    await panel.getByRole("button", { name: "다시 시도" }).click();
+    await expect(panel).toContainText("아직 등록된 내부 공지가 없습니다.");
+    await panel.getByRole("link", { name: "전체 보기" }).click();
+    await page.getByRole("tab", { name: "자유게시글" }).click();
+    await page.getByRole("button", { name: "글쓰기" }).click();
+    const editor = page.getByRole("dialog");
+    await editor.getByLabel("제목", { exact: true }).fill("강의실 변경");
+    await editor.getByLabel("내용", { exact: true }).fill("다음 수업은 2강의실입니다.");
+    await editor.getByRole("button", { name: "등록", exact: true }).click();
+    await expect(editor.getByRole("alert")).toHaveText("제목을 확인해 주세요.");
+    await expect(editor.getByLabel("내용", { exact: true })).toHaveValue("다음 수업은 2강의실입니다.");
+    await editor.getByRole("button", { name: "취소", exact: true }).click();
+    await editor.getByRole("button", { name: "계속 작성" }).click();
+    await expect(editor.getByLabel("제목", { exact: true })).toHaveValue("강의실 변경");
+  });
+
   for (const width of [1366, 390]) {
     test(`사이드바에서 업무 분류를 접고 펼쳐 상세로 바로 이동한다 ${width}px`, async ({ page }, info) => {
       await page.setViewportSize({ width, height: 900 });

@@ -12,6 +12,7 @@
 | [개발 저장공간·CI 캐시 정책](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/concurrent-codex-sessions.md#session-output-lifecycle) | 원격 빌드 기본값, 작업별 임시 파일 수명주기, 종료된 PR 캐시 정리와 검증 기록 보존 |
 | [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) | 학생·교사·관리자 공통 토큰, 세 화면 스타일·강조색, 이관·저장·반응형 검증 |
 | [PUBLIC-RESOURCE-BOARD.md](PUBLIC-RESOURCE-BOARD.md) | godmin 공개 자료게시판·게시자·파일·오류 복구·PC/모바일 검증 |
+| [STAFF-BOARD.md](STAFF-BOARD.md) | 교직원 전용 공지·자료·자유게시글과 대시보드에서 공지를 읽는 흐름 |
 | [PUBLIC-VIDEOS.md](PUBLIC-VIDEOS.md) | 공개 YouTube 영상·히어로·두 게시자 스튜디오·초안/공개·오류 복구 |
 | [ROUTING.md](ROUTING.md) | 공개 URL 네이밍, 권한 분리, 기존 경로 호환 규칙 |
 | [PROMO-GUIDE-AND-SUPPORT.md](PROMO-GUIDE-AND-SUPPORT.md) | 공개 전체 사용 가이드, 개발자 시작 안내, 전화 부재 회신과 온라인 결제 예정 고지 |

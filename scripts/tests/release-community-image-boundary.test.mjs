@@ -73,6 +73,27 @@ async function exercise(options = {}) {
   return { guard, fetched, fulfilled, aborted };
 }
 
+test("private staff resource download binds the fixture to the tenant, post and short-lived URL", async () => {
+  const signed = new URL(url);
+  signed.pathname = "/academy-development-artifacts/tenants/352/staff-board/" + "a".repeat(32);
+  const disposition = 'attachment; filename="qa-staff-board.txt"';
+  signed.searchParams.set("response-content-disposition", disposition);
+  signed.searchParams.set("response-content-type", "application/octet-stream");
+  signed.searchParams.set("X-Amz-Expires", "120");
+  const settings = { apiPath: "/api/v1/staffs/board/posts/123/",
+    payload: { id: 123, category: "resource", attachment_name: "qa-staff-board.txt" },
+    download: true, downloadPath: "/api/v1/staffs/board/posts/123/download/",
+    downloadUrl: signed.href, resourceType: "document", contentType: "application/octet-stream",
+    disposition, body: Buffer.from("Private staff board QA document.\n") };
+  const result = await exercise(settings);
+  result.guard.assertClean();
+  assert.deepEqual(result.fulfilled[0].body, settings.body);
+  rejected(await exercise({ ...settings, register: false }));
+  rejected(await exercise({ ...settings, downloadPath: "/api/v1/staffs/board/posts/124/download/" }));
+  rejected(await exercise({ ...settings, downloadUrl: signed.href.replace("/352/", "/353/") }));
+  rejected(await exercise({ ...settings, downloadUrl: signed.href.replace("Expires=120", "Expires=121") }));
+});
+
 function rejected(result, fetches = 0) {
   assert.equal(result.fetched.length, fetches);
   assert.equal(result.fulfilled.length, 0);

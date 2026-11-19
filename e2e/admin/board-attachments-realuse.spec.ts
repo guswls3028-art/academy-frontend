@@ -5,6 +5,7 @@ import { api, assertQaStudentParentRuntime, expectApi, installQaStudentParentBou
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import type { Page } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
+import { verifyStaffBoard } from "../helpers/staffBoardRoundtrip";
 
 test.setTimeout(420_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -147,6 +148,9 @@ test.describe("[real-use] board attachment persistence", () => {
       await verifyImages(page, 1, ".public-photos__gallery img", "landing-community");
       const landingRead = await expectApi<{ attachments: unknown[] }>(request, "GET", `/community/posts/${landingId}/`, student.access);
       expect(landingRead.attachments).toHaveLength(1);
+      await test.step("교직원 전용 공지·자료·댓글과 대시보드 확인", async () => {
+        await verifyStaffBoard(page, request, admin.access, student.access);
+      });
     } finally {
       for (const id of owned) expect((await api(request, "DELETE", `/community/posts/${id}/`, admin.access)).status).toBe(204);
       guard.assertClean();
