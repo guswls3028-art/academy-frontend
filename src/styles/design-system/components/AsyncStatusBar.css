@@ -208,6 +208,10 @@
   color: var(--color-success, #22c55e);
 }
 
+.async-status-bar__item-icon--attention {
+  color: var(--color-status-warning, #b45309);
+}
+
 .async-status-bar__item-icon--error {
   color: var(--color-status-error, #ef4444);
 }

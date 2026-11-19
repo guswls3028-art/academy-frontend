@@ -82,6 +82,11 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
    파일별 필수 개수는 같은 파일의 `developmentRealUseCases`가 소유하며,
    Playwright 대상·실행 결과 검증·진행 기록 allowlist가 이를 함께 사용한다.
    현재 23개 파일·42건이며 앱 업무 흐름, 재시도 금지와 수업 영상 재생 시간은 유지한다.
+   교사·학부모 시나리오의 fixture 정리 결과는 `teacher-score-fixture-cleanup.json`으로
+   따로 보존한다. 고정 작업명·소유 대상 ID·HTTP 상태·보관 여부와 가족 정리 단계별
+   요청/응답 여부·학생 순번·삭제 수·저장소 정리 대기/실패 수만 기록하고 원문 응답·
+   인증정보·개인정보·전체 trace/report는 업로드하지 않는다. 이 자료는 fixture 실패를
+   진단하기 위한 것이며 별도 tenant/user/runtime cleanup0이나 42건 성공을 대신하지 않는다.
    공개 YouTube의 정확한 봇 확인 응답은 아래 `publicVideoAvailability` 계약에 따라
    외부 가용성 결과로 따로 기록한다. 해당 관측만으로 다른 기능의 배포를 막지 않는다.
    기본 실행은 첫 실패 후 `maxFailures=1`로 나머지 시나리오를 중단하고 exact cleanup을 수행한다.

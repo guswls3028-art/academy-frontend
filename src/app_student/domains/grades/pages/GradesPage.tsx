@@ -3,7 +3,7 @@
  * 홈: 시험 성적 / 과제 현황 목록
  * 통계: 점수 추이, 합격률, 과제 진행 분석
  */
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { useSearchParams } from "react-router";
 import DomainTabShell from "@student/shared/ui/pages/DomainTabShell";
 import EmptyState from "@student/layout/EmptyState";
@@ -19,7 +19,8 @@ import {
 } from "@/shared/api/contracts/studentGradeReportLayout";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 
-const GradesStatsTab = lazy(() => import("../components/GradesStatsTab"));
+const loadGradesStatsTab = () => import("../components/GradesStatsTab");
+const GradesStatsTab = lazy(loadGradesStatsTab);
 
 const TABS = [
   { key: "home", label: "요약" },
@@ -29,6 +30,11 @@ const TABS = [
 export default function GradesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get("tab") === "stats" ? "stats" : "home";
+  useEffect(() => {
+    // Load only code on explicit intent; summary/layout still gate data and rendering.
+    // A speculative failure must not replace the normal lazy-render error handling.
+    if (tab === "stats") void loadGradesStatsTab().catch(() => {});
+  }, [tab]);
   const setTab = (key: string) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);

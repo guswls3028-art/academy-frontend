@@ -21,11 +21,12 @@ async function scenario(page: Page, role: "teacher" | "staff", paginated = false
     id: index + 1, status, success: status === "sent" || status === "future_status",
     sent_at: "2026-09-13T01:00:00+09:00", amount_deducted: "0", message_mode: "alimtalk",
     template_summary: `합성 안내 ${index + 1}`, recipient_summary: "합성학생 010****0000",
+    current_recipient_phone: status === "sent" ? "01000000003" : "",
     provider_evidence: status === "sent", provider_message_reference: status === "sent" ? "•••• abc123" : "",
     provider_delivery_status: status === "sent" ? "provider_accepted" : "unavailable",
     body_visibility: "restricted", message_body: "", failure_reason: status === "failed" ? "발송을 완료하지 못했습니다." : "",
   }));
-  const observed = { list: 0, detail: 0, mutations: 0, detailFailure: false, listFailure: false, pages: [] as number[], failureReason: "",
+  const observed = { list: 0, detail: 0, detailFinished: 0, mutations: 0, detailFailure: false, listFailure: false, pages: [] as number[], failureReason: "",
     finalStatus: "delivered" as "delivered" | "failed" | "provider_accepted" | "unavailable", hold: null as null | (() => void) };
   await page.route("**/api/v1/**", async (route) => {
     const request = route.request();
@@ -56,7 +57,12 @@ async function scenario(page: Page, role: "teacher" | "staff", paginated = false
       expect(request.headers()["x-tenant-code"]).toBe("hakwonplus");
       if (observed.detailFailure) return route.fulfill({ status: 403, json: { detail: "상태 확인 권한을 확인할 수 없습니다." } });
       await new Promise<void>((resolve) => { observed.hold = resolve; });
-      return route.fulfill({ json: { ...logs[2], provider_delivery_status: observed.finalStatus, provider_status_code: observed.finalStatus === "failed" ? "3058" : observed.finalStatus === "delivered" ? "4000" : "", provider_delivery_checked_at: "2026-09-13T01:01:00+09:00", provider_delivery_failure_reason: observed.failureReason, message_body: "DO_NOT_DISPLAY_PRIVATE_BODY", provider_message_id: "DO_NOT_DISPLAY_PROVIDER_ID" } });
+      try {
+        await route.fulfill({ json: { ...logs[2], provider_delivery_status: observed.finalStatus, provider_status_code: observed.finalStatus === "failed" ? "3058" : observed.finalStatus === "delivered" ? "4000" : "", provider_delivery_checked_at: "2026-09-13T01:01:00+09:00", provider_delivery_failure_reason: observed.failureReason, message_body: "DO_NOT_DISPLAY_PRIVATE_BODY", provider_message_id: "DO_NOT_DISPLAY_PROVIDER_ID" } });
+      } finally {
+        observed.detailFinished++;
+      }
+      return;
     }
     return route.fulfill({ json: { count: 0, results: [] } });
   });
@@ -108,6 +114,26 @@ test.use({ serviceWorkers: "block" });
 test.skip(!LOCAL, "Local closed-proxy route mocks only.");
 
 for (const role of ["teacher", "staff"] as const) for (const width of [1366, 390]) {
+  test(`${role} ${width}: 계정 교체 뒤 늦은 응답이 이전 연락처를 되살리지 않는다`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const observed = await scenario(page, role);
+    await gotoAndSettle(page, `${BASE}/workspace/mobile/message-log`);
+    await expect(page.getByRole("link", { name: "010-0000-0003", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "최종 상태 확인", exact: true }).click();
+    await expect.poll(() => observed.hold !== null).toBe(true);
+    await page.evaluate(() => {
+      const key = "academy:auth-active-generation:v1";
+      const oldValue = localStorage.getItem(key);
+      localStorage.setItem(key, "qa-contact-other-account");
+      window.dispatchEvent(new StorageEvent("storage", { key, oldValue, newValue: "qa-contact-other-account" }));
+    });
+    await expect(page).toHaveURL(/\/login(?:\/|\?|$)/);
+    observed.hold!();
+    await expect.poll(() => observed.detailFinished).toBe(1);
+    await expect(page.getByText(/010-0000-0003|합성학생/)).toHaveCount(0);
+    expect(observed.mutations).toBe(0);
+  });
+
   test(`${role} ${width}: 발송 단계와 최종 전달 확인·실패 복구를 구분한다`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     const observed = await scenario(page, role);
@@ -139,10 +165,15 @@ for (const role of ["teacher", "staff"] as const) for (const width of [1366, 390
     observed.hold!();
     await expect(record.getByText("최종 전달 확인", { exact: true })).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await expect(page.getByText("합성학생 010****0000", { exact: true })).toHaveCount(0);
+    await expect(record.getByText("수신 기록: 합성학생 010****0000", { exact: true })).toBeVisible();
+    await expect(record.getByRole("link", { name: "010-0000-0003", exact: true })).toHaveAttribute("href", "tel:01000000003");
+    await expect(page.getByRole("link", { name: "010-0000-0003", exact: true })).toHaveCount(1);
     await expect(page.getByText("DO_NOT_DISPLAY_PRIVATE_BODY", { exact: true })).toHaveCount(0);
     await expect(page.getByText("DO_NOT_DISPLAY_PROVIDER_ID", { exact: true })).toHaveCount(0);
-    await page.screenshot({ path: testInfo.outputPath("message-log-lifecycle.png"), fullPage: true });
+    await testInfo.attach(`message-log-lifecycle-${role}-${width}`, {
+      body: await page.screenshot({ path: testInfo.outputPath("message-log-lifecycle.png"), fullPage: true, animations: "disabled" }),
+      contentType: "image/png",
+    });
     for (const [status, label] of [["provider_accepted", "공급사 접수"], ["failed", "최종 전달 실패"], ["unavailable", "최종 상태 확인 불가"]] as const) {
       observed.finalStatus = status;
       const before = observed.detail;
@@ -156,9 +187,12 @@ for (const role of ["teacher", "staff"] as const) for (const width of [1366, 390
     await page.getByRole("button", { name: "다시 불러오기", exact: true }).click();
     await expect(page.getByText("발송 내역을 불러오지 못했습니다", { exact: true })).toBeVisible();
     await expect(page.getByText("발송 내역이 없습니다", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "010-0000-0003", exact: true })).toHaveCount(0);
     observed.listFailure = false;
     await page.getByRole("button", { name: "다시 시도", exact: true }).click();
     await expect(record.getByText("접수 완료", { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(record.getByRole("link", { name: "010-0000-0003", exact: true })).toHaveAttribute("href", "tel:01000000003");
     expect(observed.mutations).toBe(0);
   });
 }
