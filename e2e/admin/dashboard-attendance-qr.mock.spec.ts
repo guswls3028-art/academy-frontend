@@ -43,14 +43,14 @@ for (const [width, path] of [[390, "/workspace/mobile"], [1366, "/workspace/dash
     const picker = page.getByRole("dialog", { name: "수업 출석 QR", exact: true });
     const lecture = picker.getByRole("button", { name: "예시 수업", exact: true });
     await expect(lecture.locator("[data-lecture-chip]")).toHaveText("수학");
-    await page.screenshot({ path: test.info().outputPath(`qr-lectures-${width}.png`) });
+    await test.info().attach(`qr-lectures-${width}`, { body: await page.screenshot(), contentType: "image/png" });
     await picker.getByRole("button", { name: "다른 수업", exact: true }).click();
     await expect(picker.getByText("이 강의에 등록된 차시가 없습니다.")).toBeVisible();
     await picker.getByRole("button", { name: "강의 다시 선택" }).click();
     await lecture.click();
     const supplement = picker.getByRole("button", { name: /함수 보강/ });
     await expect(supplement).toHaveClass(/session-block--supplement/);
-    await page.screenshot({ path: test.info().outputPath(`qr-sessions-${width}.png`) });
+    await test.info().attach(`qr-sessions-${width}`, { body: await page.screenshot(), contentType: "image/png" });
     await picker.getByRole("button", { name: /1차시/ }).click();
     await page.getByRole("button", { name: "차시 다시 선택" }).click();
     await supplement.focus();
@@ -61,7 +61,7 @@ for (const [width, path] of [[390, "/workspace/mobile"], [1366, "/workspace/dash
     await expect(svg).toBeVisible();
     await expect(poster).toContainText("함수 보강");
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-    await page.screenshot({ path: test.info().outputPath(`qr-scoped-poster-${width}.png`) });
+    await test.info().attach(`qr-scoped-poster-${width}`, { body: await page.screenshot(), contentType: "image/png" });
     const screenPaths = await svg.locator("path").evaluateAll(nodes => nodes.map(node => node.getAttribute("d")));
     expect(screenPaths.length).toBeGreaterThan(0);
     const pending = page.waitForEvent("download");
