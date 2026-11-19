@@ -18,6 +18,7 @@ export const jeongseongwonLab: TenantDef = {
     windowTitle: JEONGSEONGWON_LAB_NAME,
     faviconUrl: `${JEONGSEONGWON_LAB_ASSETS}/favicon.png`,
     headerLogoUrl: `${JEONGSEONGWON_LAB_ASSETS}/icon.png`,
+    workspaceAccent: "#1a2f4e",
     headerPalette: {
       surface: "#1a2f4e",
       surfaceSoft: "#273c5b",

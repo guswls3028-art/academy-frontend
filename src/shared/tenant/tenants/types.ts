@@ -16,6 +16,8 @@ export type TenantBranding = {
   logoDarkUrl?: string;
   /** 다크모드용 헤더 아이콘 URL (색반전, 투명 배경) */
   headerLogoDarkUrl?: string;
+  /** 첫 방문과 테마 초기화에 적용하는 업무 화면 강조색. */
+  workspaceAccent?: string;
   /**
    * 불투명 배경이 포함된 헤더 로고를 공용 상단바에 자연스럽게 잇는 브랜드 표면.
    * surface는 이미지 모서리 배경색과 맞추고, surfaceSoft는 헤더로 사라지는 중간색으로 쓴다.
