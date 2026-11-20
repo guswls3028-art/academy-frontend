@@ -296,6 +296,12 @@ export default function LoginPage() {
       />
 
       <footer className={styles.legalFooter}>
+        {isJeongseongwon && (
+          <>
+            <a href="https://hakwonplus.com/promo/guide?role=student" className={styles.legalLink}>사용 가이드</a>
+            <span className={styles.legalSep} aria-hidden="true">|</span>
+          </>
+        )}
         <Link to="/terms" className={styles.legalLink}>이용약관</Link>
         <span className={styles.legalSep}>|</span>
         <Link to="/privacy" className={styles.legalLink}>개인정보처리방침</Link>
