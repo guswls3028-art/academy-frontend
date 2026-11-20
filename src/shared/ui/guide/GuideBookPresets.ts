@@ -38,9 +38,26 @@ const GUIDE_BOOK_PRESETS: Record<GuideBookScope, GuideBookPreset> = {
           },
           {
             "title": "강의·차시·수강생",
-            "description": "수업 날짜와 학생 배정을 준비한 뒤 출결로 이어갑니다.",
+            "description": "첫 수업의 날짜와 수강생을 정하고 차시에서 출결을 확인합니다.",
             "path": "/workspace/guide?topic=create-lecture",
             "actionLabel": "수업 준비"
+          }
+        ]
+      },
+      {
+        "title": "수업 자료",
+        "items": [
+          {
+            "title": "수업 영상 업로드와 재생",
+            "description": "영상 처리 상태와 시청 권한을 확인한 뒤 재생합니다.",
+            "path": "/workspace/guide?topic=upload-video",
+            "actionLabel": "영상 안내"
+          },
+          {
+            "title": "AI 시험지 타이핑",
+            "description": "처리 상태를 확인하고 원본과 결과를 대조합니다.",
+            "path": "/workspace/guide?topic=tools",
+            "actionLabel": "AI 도구 안내"
           }
         ]
       },
