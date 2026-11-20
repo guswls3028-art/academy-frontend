@@ -8,6 +8,7 @@ export const WORKSPACE_PATHS = {
 } as const;
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
+const STAFF_BOARD_PATH = /^\/workspace\/mobile\/staff-board(?:\/(notice|resource|free)(?:\/([1-9]\d*))?)?$/;
 const COMMUNITY_TABS = ["notices", "qna", "counsel", "requests", "board", "materials"] as const;
 const STUDENT_RECORD_TABS = ["enrollments", "exams", "homework", "clinic", "questions", "activity", "info"] as const;
 type CommunityTab = (typeof COMMUNITY_TABS)[number];
@@ -35,12 +36,13 @@ function hasControlCharacter(value: string): boolean {
 }
 
 function parseRelativeMobileUrl(candidate: string): URL | null {
+  const isBoard = STAFF_BOARD_PATH.test(candidate.split("?", 1)[0]);
   if (
     !candidate.startsWith(`${WORKSPACE_PATHS.mobile}/`)
-    || candidate.length > 512
+    || candidate.length > (isBoard ? 2048 : 512)
     || candidate.startsWith("//")
     || candidate.includes("\\")
-    || candidate.includes("%")
+    || (isBoard ? /%(?![0-9a-f]{2})/i.test(candidate) : candidate.includes("%"))
     || candidate.includes("#")
     || hasControlCharacter(candidate)
   ) {
@@ -63,7 +65,7 @@ export function parseMobileWorkspaceReturnPath(candidate: string): string | null
   if (!parsed) return null;
   const { pathname, searchParams } = parsed;
 
-  const boardMatch = pathname.match(/^\/workspace\/mobile\/staff-board(?:\/(notice|resource|free)(?:\/([1-9]\d*))?)?$/);
+  const boardMatch = pathname.match(STAFF_BOARD_PATH);
   if (boardMatch) {
     const [, category, postId] = boardMatch;
     if (!category) return searchParams.size === 0 ? mobileBoardRoot : null;
