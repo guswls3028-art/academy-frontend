@@ -34,6 +34,12 @@ const workspaceStyle = `<style>
   [data-dawon-staff] [aria-label="반 학생 명단"] .ds-table.ds-table--flat tbody td {
     padding-top:1px !important;padding-bottom:1px !important;
   }
+  [data-dawon-staff="admin"] [aria-label="반별 운영 현황"] .ds-table tbody td {
+    padding-inline:9px;
+  }
+  [data-dawon-staff="admin"] [aria-label="반별 운영 현황"] .ds-table tbody td:nth-child(2) {
+    white-space:nowrap;
+  }
 }
 @media(max-width:600px) {
   [data-dawon-staff="admin"] section[aria-label="반 운영 현황"] article li {align-items:flex-start;flex-direction:column}
