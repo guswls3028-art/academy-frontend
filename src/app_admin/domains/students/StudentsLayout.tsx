@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/students/StudentsLayout.tsx
-import { Outlet } from "react-router";
+import { Outlet, useLocation } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 import { resolveTenantCodeString } from "@/shared/tenant";
 
 const STUDENTS_TABS = [
@@ -11,6 +12,8 @@ const STUDENTS_TABS = [
 ];
 
 export default function StudentsLayout() {
+  const {pathname} = useLocation();
+  if (dawonStaffPreviewRole() === "teacher" && ["/workspace/students/home", "/workspace/students/class-groups"].includes(pathname)) return <Outlet />;
   const tabs = resolveTenantCodeString() === "dawon"
     ? [STUDENTS_TABS[0], { key: "class-groups", label: "반 편성", path: "/workspace/students/class-groups" }, ...STUDENTS_TABS.slice(1)]
     : STUDENTS_TABS;

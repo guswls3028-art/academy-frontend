@@ -12,7 +12,7 @@ export type SchoolReportPeriod = Pick<SchoolReportRequest, "academic_year" | "ex
 export type SchoolReportStatus = SchoolReportSchemas["SchoolReportSubmissionStatus"];
 export type SchoolReportSubject = Pick<SchoolReportSchemas["SchoolReportSubjectRequest"], "subject" | "score" | "max_score">;
 export type SchoolReportScore = SchoolReportSchemas["SchoolReportScoreResponse"];
-export type SchoolReportRosterFilters = Pick<SchoolReportRosterQuery, "status" | "lecture_id"> & { search: string; page: number };
+export type SchoolReportRosterFilters = Pick<SchoolReportRosterQuery, "status" | "lecture_id"> & { search: string; page: number; class_group?: number };
 
 const endpoint = "/results/school-reports/";
 export const schoolReportKeys = {

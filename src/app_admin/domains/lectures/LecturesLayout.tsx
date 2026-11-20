@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/lectures/layout/LecturesLayout.tsx
-import { Outlet } from "react-router";
+import { Outlet, useLocation } from "react-router";
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { DomainLayout } from "@/shared/ui/layout";
 
@@ -9,6 +9,8 @@ const LECTURES_TABS = [
 ];
 
 export default function LecturesLayout() {
+  const {pathname, search} = useLocation();
+  if (resolveTenantCodeString() === "dawon" && pathname.endsWith("/lectures") && new URLSearchParams(search).get("view") !== "all") return <Outlet />;
   return (
     <DomainLayout
       title="강의 관리"

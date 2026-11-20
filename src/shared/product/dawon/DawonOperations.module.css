@@ -29,3 +29,19 @@
 .sectionPicker button[aria-pressed="true"] { font-weight: 700; border-color: currentColor; }
 
 .scoreTrend { display: block; inline-size: 100%; max-inline-size: 580px; color: var(--color-primary); }
+
+.field, .filterRow, .pagination {display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px;}
+.filterRow {margin-block-end:16px;}
+.field select {max-inline-size: min(100%, 20rem);}
+.pagination {justify-content:center; margin-block-start:16px;}
+.section {min-width:0; padding:clamp(12px,1.3vw,20px);}
+.section :global(.domain-list-toolbar) {margin-block-end:14px;}
+.actionLink {display:inline-flex; align-items:center; min-height:40px; padding:6px 14px; border-radius:8px; border:1px solid var(--color-border-divider); background:var(--color-bg-surface); font-weight:650;}
+.textAction {background:none; border:0; padding:4px 0; text-align:start; font:inherit; font-weight:650; color:var(--color-primary); cursor:pointer;}
+.textAction:hover,.actionLink:hover {text-decoration:underline;}
+.empty {padding:20px 8px; color:var(--color-text-secondary);}
+.record dl {display:grid; grid-template-columns:auto 1fr; gap:10px 20px;}
+.record dd {margin:0;}
+.record p,.record blockquote {white-space:pre-wrap; overflow-wrap:anywhere;}
+.sectionPicker button[aria-pressed="true"] {color:var(--color-primary); background:var(--color-bg-surface);}
+@media (max-width:640px) {.section {padding:8px 0;} .filterRow {align-items:flex-start;}}

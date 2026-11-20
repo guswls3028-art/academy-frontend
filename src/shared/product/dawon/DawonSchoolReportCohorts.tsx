@@ -26,13 +26,13 @@ function StudentScores({ id, period }: { id: number; period: SchoolReportPeriod 
     <SchoolReportScoreList scores={detail.data.scores} /></section>;
 }
 
-function Cohorts({ period }: { period: SchoolReportPeriod }) {
+export function Cohorts({ period, classGroup }: { period: SchoolReportPeriod; classGroup?: number }) {
   const [scope, setScope] = useState<Scope | null>(null);
   const [student, setStudent] = useState<number | null>(null);
   const report = useQuery({
-    queryKey: schoolReportKeys.dawonCohorts(period, scope),
+    queryKey: [...schoolReportKeys.dawonCohorts(period, scope), classGroup],
     queryFn: async ({ signal }) => (await api.get<Report>("/results/school-reports/", { signal, params: {
-      ...period, view: "cohorts", ...(scope ? { cohort_school: scope.school, cohort_grade: scope.grade ?? "" } : {}),
+      ...period, class_group: classGroup, view: "cohorts", ...(scope ? { cohort_school: scope.school, cohort_grade: scope.grade ?? "" } : {}),
     } })).data,
   });
   function changeScope(value: Scope | null) {

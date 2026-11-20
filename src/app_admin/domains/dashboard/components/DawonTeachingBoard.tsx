@@ -98,8 +98,7 @@ function AcademyTeachingBoard() {
           <time dateTime={date}>{shortDateWeekday(date)}</time>
         </div>
         <div className={styles.actions}>
-          <Link className="ds-btn" to="/workspace/students/class-groups">반 편성</Link>
-          <Link className="ds-btn" to="/workspace/lectures">반별 강의 <ArrowRight size={15} aria-hidden /></Link>
+          <Link className="ds-btn" to="/workspace/lectures">담당 강의 <ArrowRight size={15} aria-hidden /></Link>
           <Link className="ds-btn" to="/workspace/clinic/operations?panel=unresolved&focus=pending">클리닉 신청</Link>
           <Link className="ds-btn" to="/workspace/community/counsel">상담 신청</Link>
           <DashboardAttendanceQr />

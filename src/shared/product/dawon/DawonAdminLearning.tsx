@@ -12,7 +12,7 @@ import { AdminModal, ModalBody, ModalHeader, MODAL_WIDTH } from "@/shared/ui/mod
 
 const endpoint = "/students/demo-operations/";
 const panelKey = dawonQueryKeys.adminLearning;
-type Group = {id:number|null;name:string;courses:{id:number;title:string;exams:{id:number;title:string;average:number|null;graded:number}[]}[]};
+type Group = {id:number|null;name:string};
 type Alert = {group_name:string;group_id:number;student_id:number;student_name:string;lecture_id:number;lecture_title:string;rule:string;detail:string};
 type HistoryRow = {title:string;date:string|null;score:number|null;maximum:number|null;state:string;completion?:number|null;wrong?:number[];unfinished?:number[]};
 type History = {student:string;course:string;exams:HistoryRow[];homework:HistoryRow[];counsel:string[];
@@ -38,8 +38,7 @@ export function AdminAlerts({groups}: {groups:Group[]}) {
   const [params,setParams] = useSearchParams();
   const group = params.get("group") || "";
   const query = usePanel<{count:number;alerts:Alert[]}>(group ? {alerts:"1",group} : {alerts:"1"});
-  return <section aria-label="학습 경보"><Link to={address("/workspace/dashboard",{group})}>반 운영 현황으로</Link>
-    <h2>학습 경보</h2><label>반 범위 <select value={group} onChange={e => {
+  return <section aria-label="학습 경보"><label>반 범위 <select value={group} onChange={e => {
       const q = new URLSearchParams({panel:"alerts"}); if(e.target.value) q.set("group",e.target.value); setParams(q);}}>
       <option value="">전체 반</option>{groups.filter(g=>g.id!=null).map(g=><option key={g.id} value={String(g.id)}>{g.name}</option>)}</select></label>
     {query.isPending ? <p role="status">학습 경보를 확인하는 중입니다.</p> : query.isError ? <Failed retry={()=>void query.refetch()}/> :
@@ -72,6 +71,7 @@ export function AdminStudentReview() {
   const location=useLocation();
   const [params] = useSearchParams();
   const course = params.get("course") || "", student=params.get("student") || "", group=params.get("group");
+  const fromLearners=params.get("origin")==="learners";
   const fromRoster=params.get("origin")==="roster" && group && /^[1-9]\d*$/.test(group);
   const exam=params.get("exam"); const args={course,student};
   const q=usePanel<History>(args); const client=useQueryClient();
@@ -79,9 +79,9 @@ export function AdminStudentReview() {
   const [kind,setKind]=useState<"counsel"|"clinic"|null>(null);
   const saved=useMutation({mutationFn:(action:"clinic"|"counsel")=>api.patch(endpoint,{...args,followup:action,
     ...(action==="counsel"? {day:day||q.data?.today}:{session:Number(slot)})}),
-    onSuccess:async()=>{await client.invalidateQueries({queryKey:panelKey(args)});setKind(null);}});
+    onSuccess:async()=>{await client.invalidateQueries({queryKey:["dawon","admin","learning-review"]});setKind(null);}});
   const data=q.data;
-  return <section><Link state={fromRoster ? location.state : undefined} to={fromRoster ? address("/workspace/students/class-groups",{class:group}) : exam ? address("/workspace/results",{exam,course,group,...listContext(params)}):address("/workspace/dashboard",{panel:"alerts",group})}>{fromRoster ? "반 명단으로" : exam ? "시험 결과로" : "학습 경보로"}</Link>
+  return <section><Link state={fromRoster ? location.state : undefined} to={fromLearners ? address("/workspace/results/students",{group:params.get("scope"),q:params.get("q"),page:params.get("page")}) : fromRoster ? address("/workspace/students/class-groups",{class:group}) : exam ? address("/workspace/results",{exam,course,group,...listContext(params)}):address("/workspace/dashboard",{panel:"alerts",group})}>{fromLearners ? "학생별 목록으로" : fromRoster ? "반 명단으로" : exam ? "시험 결과로" : "학습 경보로"}</Link>
     {q.isPending?<p role="status">학생 기록을 확인하는 중입니다.</p>:q.isError||!data?<Failed retry={()=>void q.refetch()}/>:<>
       <h2>{data.student} · 학생 학습 기록</h2><p>{data.course}</p>
       <Trend rows={data.exams}/><HistoryTable title="시험 성적 추이" rows={data.exams}/><HistoryTable title="과제 이력" rows={data.homework}/>
@@ -132,5 +132,5 @@ export function AdminExamReview({course,exam,group}:{course:string;exam:string;g
 export function ExamLinks({course,exam,group,title}:{course:number;exam:number;group:number|null;title:string}) {
   const location=useLocation();
   const [params]=useSearchParams();
-  return <Link to={address("/workspace/results",{course,exam,group,...listContext(params),origin:location.pathname==="/workspace/dashboard"?"dashboard":undefined})}>{title}</Link>;
+  return <Link to={address("/workspace/results",{course,exam,group,...listContext(params),origin:location.pathname.startsWith("/workspace/lectures/") || location.pathname==="/workspace/dashboard" ? "dashboard" : undefined})}>{title}</Link>;
 }

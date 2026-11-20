@@ -1,11 +1,16 @@
 export type StaffRoom = "admin" | "teacher";
 
 const teacher = [
-  { label: "수업 운영", items: [["수업 대시보드", "dashboard"], ["반별 강의", "lectures"], ["반 편성", "students/class-groups"], ["학생 명단", "students/home"]] },
+  { label: "수업 운영", items: [["대시보드", "dashboard"], ["강의", "lectures"], ["학생", "students/home"]] },
   { label: "시험·성적", items: [["시험", "exams"], ["성적", "results"], ["성적취합", "students/surveys/school-reports"]] },
   { label: "클리닉·상담·알림", items: [["클리닉", "clinic/operations?panel=unresolved&focus=pending"], ["상담", "community/counsel"], ["학습 알림", "teacher-alerts"]] },
 ];
-const admin = [{ label: "학원 운영", items: [["반 운영 현황", "dashboard"], ["반 편성", "students/class-groups"], ["시험 결과", "results"], ["직원 관리", "staff"]] }];
+const admin = [
+  { label: "학원 운영", items: [["대시보드", "dashboard"], ["강의 관리", "lectures"], ["반 편성", "students/class-groups"]] },
+  { label: "시험·성적", items: [["시험 결과·통계", "results"], ["학교 성적 취합", "students/surveys/school-reports"]] },
+  { label: "학생 지원", items: [["클리닉", "clinic/operations"], ["상담", "community/counsel"]] },
+  { label: "직원 관리", items: [["직원·근태·급여", "staff"]] },
+];
 const settings = { label: "환경 설정", items: [["설정", "settings/profile"]] };
 
 export const staffMenus = { teacher: [...teacher, settings], admin: [...admin, settings] };
@@ -18,6 +23,6 @@ export const staffGuide = (role: StaffRoom) => ({
     {title: "직원 근태·급여", description: "담당 직원을 검색하고 조회할 월을 선택합니다.", path: "/workspace/staff"},
   ] : [
     {title: "수업 진행", description: "담당 반에서 강의와 차시를 선택해 출결·시험·과제를 기록합니다.", path: "/workspace/lectures"},
-    {title: "반 인원 배정", description: "반 명단에서 이름으로 찾거나 엑셀로 학생을 배정합니다.", path: "/workspace/students/class-groups"},
+    {title: "담당 학생", description: "반 명단에서 학생을 찾아 수강 정보를 확인합니다.", path: "/workspace/students/home"},
   ]}],
 });
