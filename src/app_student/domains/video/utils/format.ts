@@ -7,7 +7,8 @@
  * 초를 시간 형식으로 변환 (예: "1시간 30분", "45분")
  */
 export function formatDuration(sec: number | null | undefined): string {
-  if (sec == null || sec <= 0) return "0분";
+  if (sec == null || !Number.isFinite(sec) || sec <= 0) return "0분";
+  if (sec < 60) return sec < 1 ? "1초 미만" : `${Math.floor(sec)}초`;
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
   if (h > 0) return `${h}시간 ${m}분`;

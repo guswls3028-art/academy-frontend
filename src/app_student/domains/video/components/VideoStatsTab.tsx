@@ -12,13 +12,7 @@ import { fetchVideoStats } from "../api/video.api";
 import { studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
 import { useAuthContext } from "@/auth/context/AuthContext";
 
-function formatDurationHM(seconds: number): string {
-  if (seconds <= 0) return "0분";
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}시간 ${m}분`;
-  return `${m}분`;
-}
+import { formatDuration } from "../utils/format";
 
 function progressWidthStyle(value: number): CSSProperties {
   return { "--video-progress": `${Math.min(Math.max(value, 0), 100)}%` } as CSSProperties;
@@ -91,14 +85,14 @@ export default function VideoStatsTab() {
       <StatGrid>
         <StatCard label="영상" value={`${stats.total_videos}개`} />
         <StatCard label="완료" value={`${stats.completed_videos}개`} accent={stats.completed_videos > 0 ? "success" : undefined} />
-        <StatCard label="시청시간" value={formatDurationHM(stats.total_watch_duration)} />
+        <StatCard label="시청시간" value={formatDuration(stats.total_watch_duration)} />
       </StatGrid>
 
       <section className="video-stats-card">
         <div className="video-stats-card__head">
           <span>전체 진행</span>
           <span>
-            {formatDurationHM(stats.total_watch_duration)} / {formatDurationHM(stats.total_content_duration)}
+            {formatDuration(stats.total_watch_duration)} / {formatDuration(stats.total_content_duration)}
           </span>
         </div>
         <div className="video-stats-bar" aria-hidden="true">
