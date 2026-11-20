@@ -1,4 +1,5 @@
 import { dawonStaffPreviewRole } from "./staffPreview";
+import DomainLayout from "@/shared/ui/domain/DomainLayout";
 import { dawonQueryKeys } from "./queryKeys";
 import { lazy, Suspense, useId, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
@@ -11,7 +12,6 @@ import LectureChip from "@/shared/ui/chips/LectureChip";
 import { teacherLectureQueryKeys } from "@/app_teacher/domains/lectures/queryKeys";
 import DawonDirectoryTable, { type DirectorySort } from "./DawonDirectoryTable";
 import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
-import { ChevronRight } from "lucide-react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import ClassRosterModal, { type RosterStudent } from "./ClassRosterModal";
 import styles from "./ClassGroupsPage.module.css";
@@ -24,12 +24,12 @@ const periods = { vacation: "방학", midterm: "내신 · 중간", final: "내�
 
 type Kind = "union" | "school";
 type Period = keyof typeof periods;
-type Group = { id: number; name: string; kind: Kind; track: string; school: string; student_count: number; lecture_count: number };
+type Group = { instructor_name?:string; id: number; name: string; kind: Kind; track: string; school: string; student_count: number; lecture_count: number };
 type Lecture = { id: number; title: string; period: Period; school: string; start_date: string; end_date: string; student_count: number; cycle_status: "upcoming" | "current" | "past"; color?: string; chip_label?: string; lecture_time?: string };
 type Detail = Group & { assigned_teacher?: {id:number;name:string} | null; students: RosterStudent[]; lectures: Lecture[] };
 
 function groupType(group: Group) {
-  return group.kind === "union" ? `연합반 · ${group.track}` : `학교반 · ${group.school}`;
+  return group.kind === "union" ? `연합반 · ${group.track}` : "내신반";
 }
 
 function failure(error: unknown) {
@@ -99,7 +99,7 @@ function GroupForm({ admin, onCreated, onCancel }: { admin: boolean; onCreated: 
   );
 }
 
-function CourseList({ group, lectureRoot, admin }: { admin: boolean; group: Detail; lectureRoot: string }) {
+function CourseList({ group, lectureRoot, onEnroll }: { onEnroll: (course:Lecture)=>void; group: Detail; lectureRoot: string }) {
   const [past, setPast] = useState(false);
   const [query, setQuery] = useState("");
   const pastCount = group.lectures.filter((course) => course.cycle_status === "past").length;
@@ -113,17 +113,17 @@ function CourseList({ group, lectureRoot, admin }: { admin: boolean; group: Deta
         <button aria-pressed={past} onClick={() => setPast(true)}>지난 강의 <span>{pastCount}</span></button>
       </div>} />
     {visible.length ? <DomainTable scrollLabel="반별 강의" tableClassName={`ds-table--flat ${styles.courseTable}`}>
-      <thead><tr><th>강의 이름</th><th>대상</th><th>수강생</th><th>수업 기간</th><th aria-label="강의 열기" /></tr></thead>
+      <thead><tr><th>강의 이름</th><th>대상</th><th>수강생</th><th>수업 기간</th><th>수강 등록</th></tr></thead>
       <tbody>{visible.map((course) => {
         const audience = course.school || (group.kind === "school" ? group.school : "연합반 전체");
         return <tr key={course.id}><td>
-          <Link className={styles.courseLink} to={admin ? `/workspace/dashboard?group=${group.id}&course=${course.id}` : `${lectureRoot}/${course.id}`} aria-label={`${course.title} 운영`}>
+          <Link className={styles.courseLink} to={`${lectureRoot}/${course.id}?group=${group.id}`} aria-label={`${course.title} 운영`}>
             <LectureChip size={32} lectureName={course.title} chipLabel={course.chip_label || (course.period === "vacation" ? "방학" : "내신")} color={course.color || "#AE531F"} />
             <span><strong>{course.title}</strong><small>{course.cycle_status === "upcoming" ? "개강 예정 · " : ""}{periods[course.period]}<span className={styles.mobileAudience}> · {audience}</span></small></span>
           </Link></td>
           <td>{audience}</td><td>{course.student_count}명</td>
           <td><time>{course.start_date}</time> ~ <time>{course.end_date}</time>{course.lecture_time && <small>{course.lecture_time}</small>}</td>
-          <td aria-hidden="true"><ChevronRight size={16} /></td></tr>;
+          <td><Button onClick={()=>onEnroll(course)}>학생 추가</Button></td></tr>;
       })}</tbody>
     </DomainTable> : <p className={styles.emptyCourse}>{query.trim() ? "검색 조건에 맞는 강의가 없습니다." : past ? "지난 강의가 없습니다." : "현재 진행 중이거나 예정된 강의가 없습니다."}</p>}
   </section>;
@@ -139,7 +139,22 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
     typeof previous.sort.key === "string" && typeof previous.sort.ascending === "boolean"
     ? previous.sort : {key:"name", ascending:true});
   const rosterState = {roster: {group:id, query, sort}};
-  const [mode, setMode] = useState<"add" | "remove" | "lecture" | null>(assignOnOpen ? "add" : null);
+  const [mode, setMode] = useState<"add" | "remove" | "lecture" | null>(admin && assignOnOpen ? "add" : null);
+  const [lateCourse,setLateCourse] = useState<Lecture | null>(null);
+  const [editingTeacher,setEditingTeacher] = useState(false);
+  const [newTeacher,setNewTeacher] = useState("");
+  const instructors = useQuery({queryKey:dawonQueryKeys.assignableInstructors,enabled:admin && editingTeacher,
+    queryFn:async ({signal})=>(await api.get<{id:number;name:string}[]>(endpoint,{params:{view:"instructors"},signal})).data});
+  const reassign = useMutation({
+    mutationFn:async ()=>(await api.patch<Detail>(`${endpoint}${id}/`,{assigned_teacher_id:Number(newTeacher)})).data,
+    onSuccess:updated=>{
+      client.setQueryData(dawonQueryKeys.adminGroup(id),updated);
+      void client.invalidateQueries({queryKey:dawonQueryKeys.groups});
+      void client.invalidateQueries({queryKey:dawonQueryKeys.adminOperations});
+      void client.invalidateQueries({queryKey:dawonQueryKeys.teachingClasses});
+      setEditingTeacher(false);
+    },
+  });
   const [selectedStudent, setStudent] = useState<RosterStudent | null>(null);
   const [notice, setNotice] = useState("");
   const [createdCourse, setCreatedCourse] = useState<Lecture | null>(null);
@@ -185,24 +200,50 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
   const enrollmentCount = schoolScoped ? eligibleMembers.filter((student) => student.school === school).length : eligibleMembers.length;
 
   return (
-    <div className={styles.detail}>
-      <header className={styles.heading}>
-        <div><Link to={root} className={styles.back}>반 목록</Link><h2>{group.name}</h2><span className={styles.kind}>{groupType(group)}</span>{admin && <p>담당 강사 · {group.assigned_teacher?.name || "미지정"}</p>}</div>
-        {lectureEntry && !admin && <Button intent="primary" onClick={() => openEditor("lecture")} disabled={!eligibleMembers.length}>수업 개설</Button>}
-      </header>
+    <DomainLayout title={group.name} density="compact"
+      breadcrumbs={[{label:lectureEntry?"수업 관리":"학생 관리",to:root+"?view=list"}, {label:"반 목록",to:root+"?view=list"}]}
+      description={groupType(group)+" · 담당 강사 "+(group.assigned_teacher?.name || "미지정")} descriptionMode="visible"
+      headerActions={<div className={styles.actions}>
+        {admin && <Button onClick={()=>{
+          reassign.reset();setNewTeacher(String(group.assigned_teacher?.id ?? ""));setEditingTeacher(true);
+        }}>담당 변경</Button>}
+        {lectureEntry && <Button intent="primary" onClick={() => openEditor("lecture")} disabled={!eligibleMembers.length || !group.assigned_teacher}>수업 개설</Button>}
+      </div>}>
+      <div className={styles.detail}>
+      {editingTeacher && <AdminModal open noMinimize trapFocus width={MODAL_WIDTH.sm} onClose={()=>setEditingTeacher(false)} closeDisabled={reassign.isPending}>
+        <ModalHeader title="반 담당 강사 변경"/><ModalBody>
+          <label>담당 강사 <select value={newTeacher} onChange={event=>setNewTeacher(event.target.value)}>
+            <option value="">강사 선택</option>{instructors.data?.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
+          </select></label>
+          <p>현재·예정 강의와 새 수업에 적용합니다. 지난 강의와 별도 지정한 강의 담당자는 유지합니다.</p>
+          {instructors.isError && <Button onClick={()=>void instructors.refetch()}>강사 목록 다시 불러오기</Button>}
+          {reassign.isError && failure(reassign.error)}</ModalBody>
+        <ModalFooter right={<><Button onClick={()=>setEditingTeacher(false)} disabled={reassign.isPending}>취소</Button>
+          <Button intent="primary" disabled={!newTeacher || !instructors.data?.some(t=>String(t.id)===newTeacher) || reassign.isPending} onClick={()=>reassign.mutate()}>변경 저장</Button></>}/>
+      </AdminModal>}
+      {lateCourse && <ClassRosterModal title="수강생 추가" description={lateCourse.title}
+        candidateUrl={`${endpoint}${id}/lectures/${lateCourse.id}/late-students/`} submitLabel="수강 등록"
+        onClose={()=>setLateCourse(null)} onSave={async ids=>{
+          await api.post(`${endpoint}${id}/lectures/${lateCourse.id}/late-students/`,{student_ids:ids});
+          await client.invalidateQueries({queryKey:detailKey});
+          void client.invalidateQueries({queryKey:dawonQueryKeys.adminOperations});
+          setLateCourse(null);setNotice(`${ids.length}명을 수강 등록했습니다.`);
+        }}/>}
       <nav className={styles.groupNav} aria-label="반 업무">
-        <Link to={admin ? `${rosterRoot}?class=${id}&view=courses` : `${lectureRoot}?class=${id}`} aria-current={lectureEntry ? "page" : undefined}>강의 목록</Link>
+        <Link to={`${lectureRoot}?class=${id}`} aria-current={lectureEntry ? "page" : undefined}>강의 목록</Link>
         <Link to={`${rosterRoot}?class=${id}`} aria-current={!lectureEntry ? "page" : undefined}>반 명단</Link>
       </nav>
-      {lectureEntry && !admin && !eligibleMembers.length && <p>수업을 개설하려면 <Link to={`${rosterRoot}?class=${id}`}>반 명단</Link>에서 수강 가능한 학생을 배정하세요.</p>}
+      {lectureEntry && !eligibleMembers.length && <p>{admin ? "수업을 개설하려면 반 명단에 수강 가능한 학생을 먼저 배정하세요." : "이 반에 수강 가능한 학생이 없습니다."}</p>}
+      {lectureEntry && !group.assigned_teacher && <p>{admin ? "수업을 개설하려면 담당 강사를 먼저 지정하세요." : "반 담당 강사가 지정되면 수업을 개설할 수 있습니다."}</p>}
       {notice && <p role="status" className={styles.notice}>{notice}</p>}
       {createdCourse && <div className={styles.createdCourse}>
         <p role="status"><strong>{createdCourse.title}</strong> 개설 완료 · 수강생 {createdCourse.student_count}명 등록</p>
-        <Link className={styles.primary} to={`${lectureRoot}/${createdCourse.id}`}>수업 운영 열기 <ChevronRight size={16} aria-hidden /></Link>
+        <Link className={styles.primary} to={`${lectureRoot}/${createdCourse.id}?group=${id}`}>수업 운영 열기 <ChevronRight size={16} aria-hidden /></Link>
       </div>}
       {mode === "lecture" && <Suspense fallback={<p role="status">강의 개설 창을 불러오는 중입니다.</p>}>
         <LectureCreateModal isOpen onClose={stopEditing} classGroup={{
           name: group.name,
+          instructor:group.assigned_teacher?.name,
           ready: enrollmentCount > 0,
           count: enrollmentCount,
           create: async (payload) => {
@@ -211,6 +252,8 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
             void Promise.all([
               client.invalidateQueries({ queryKey: dawonQueryKeys.groups }),
               client.invalidateQueries({ queryKey: teacherLectureQueryKeys.lectures }),
+              client.invalidateQueries({ queryKey: dawonQueryKeys.adminOperations }),
+              client.invalidateQueries({ queryKey: dawonQueryKeys.teachingClasses }),
             ]);
           },
           field: <div className={styles.form}>
@@ -227,11 +270,11 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
           </div>,
         }} />
       </Suspense>}
-      {lectureEntry && <CourseList admin={admin} group={group} lectureRoot={lectureRoot} />}
+      {lectureEntry && <CourseList onEnroll={setLateCourse} group={group} lectureRoot={lectureRoot} />}
       {!lectureEntry && <section className={styles.detail} aria-label="반 명단">
         <DomainListToolbar totalLabel={`반 명단 ${query.trim() ? visibleMembers.length + " / " : ""}${members.length}명`}
           searchSlot={<ListSearch label="이름 · 학교 · 전화번호 검색" value={query} change={setQuery} />}
-          primaryAction={<div className={styles.actions}>
+          primaryAction={admin && <div className={styles.actions}>
             {members.length > 0 && <Button intent="secondary" onClick={() => openEditor("remove")}>명단에서 제외</Button>}
             <Button intent="primary" onClick={() => openEditor("add")}>반 인원 배정</Button>
           </div>} />
@@ -269,7 +312,7 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
         />}
       </section>}
     </div>
-  );
+    </DomainLayout>);
 }
 
 function matches(query: string, ...values: (string | undefined)[]) {
@@ -291,7 +334,7 @@ export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry
   const [creating, setCreating] = useState(false);
   const client = useQueryClient();
   const isDawon = resolveTenantCodeString() === "dawon";
-  const rawId = params.get("class");
+  const rawId = params.get("class") || (!admin ? params.get("group") : null);
   const id = rawId && /^\d+$/.test(rawId) ? Number(rawId) : null;
   const lectureRoot = mobile ? "/workspace/mobile/classes" : "/workspace/lectures";
   const rosterRoot = mobile ? "/workspace/mobile/students/class-groups" : "/workspace/students/class-groups";
@@ -303,17 +346,20 @@ export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry
     queryFn: async ({ signal }) => (await api.get<Group[]>(endpoint, { signal })).data,
   });
   if (!isDawon) return <Navigate to={mobile ? "/workspace/mobile/students" : "/workspace/students/home"} replace />;
-  if (id && lectureEntry && params.get("assign") === "1") return <Navigate to={`${rosterRoot}?class=${id}&assign=1`} replace />;
+  if (!id && !admin && params.get("view") !== "list" && groups.data?.length === 1)
+    return <Navigate to={`${root}?class=${groups.data[0].id}`} replace />;
+  if (admin && id && lectureEntry && params.get("assign") === "1") return <Navigate to={`${rosterRoot}?class=${id}&assign=1`} replace />;
   if (id) return <div className={styles.page}><GroupDetail admin={admin} key={`${root}-${id}`} id={id} rosterRoot={rosterRoot} lectureEntry={lectureEntry || (admin && params.get("view") === "courses")} root={root} lectureRoot={lectureRoot} assignOnOpen={params.get("assign") === "1"} afterInitialAssignment={() => setParams({ class: String(id) }, { replace: true })} /></div>;
   const all = groups.data ?? [];
-  const visible = all.filter((group) => matches(query, group.name, groupType(group), group.track, group.school));
+  const visible = all.filter((group) => matches(query, group.name, groupType(group), group.track, group.school, group.instructor_name));
   return (
+    <DomainLayout title={lectureEntry?"반별 강의":admin?"반 편성":"담당 반 명단"} density="compact">
     <div className={styles.page}>
       <DomainListToolbar totalLabel={`반 ${query.trim() ? visible.length + " / " : ""}${all.length}개`}
-        searchSlot={<ListSearch label="반 이름 · 학교 · 과정 검색" value={query} change={setQuery} />}
+        searchSlot={<ListSearch label="반 이름 · 학교 · 과정 · 담당 강사 검색" value={query} change={setQuery} />}
         primaryAction={<div className={styles.actions}>
-          {lectureEntry && <Link className="ds-btn" to={`${lectureRoot}?view=all`}>전체 강의 목록</Link>}
-          <Button intent="primary" onClick={() => setCreating(true)}>반 만들기</Button>
+
+          {admin && <Button intent="primary" onClick={() => setCreating(true)}>반 만들기</Button>}
         </div>} />
       {creating && <GroupForm admin={admin} onCancel={() => setCreating(false)} onCreated={(createdId) => {
         setCreating(false);
@@ -328,11 +374,12 @@ export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry
         columns={[
           {key: "name", label: "반 이름", defaultWidth: 215, value: group => group.name,
             render: group => <Link className={styles.rowLink} to={`${root}?class=${group.id}`}>{group.name}</Link>},
-          {key: "kind", label: "반 구분", defaultWidth: 125, value: group => group.kind === "union" ? "연합반" : "학교별 내신반"},
-          {key: "scope", label: "과정 · 학교", defaultWidth: 140, value: group => group.kind === "union" ? group.track : group.school},
+          {key: "kind", label: "반 구분", defaultWidth: 150, value: groupType},
+          {key:"instructor",label:"담당 강사",defaultWidth:150,value:group=>group.instructor_name || "미지정"},
+          {key: "school", label: "학교", defaultWidth: 140, value: group => group.school},
           {key: "members", label: "학생 수", defaultWidth: 78, value: group => group.student_count, render: group => group.student_count + "명"},
           {key: "courses", label: "강의 수", defaultWidth: 78, value: group => group.lecture_count, render: group => group.lecture_count + "개"},
         ]} />}
-    </div>
+    </div></DomainLayout>
   );
 }

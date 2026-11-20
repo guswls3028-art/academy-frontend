@@ -62,6 +62,7 @@ interface Props {
   /** 있으면 수정 모드: 해당 강의 로드 후 같은 폼으로 수정 */
   lectureId?: number;
   classGroup?: {
+    instructor?: string;
     name: string;
     field: ReactNode;
     count: number;
@@ -98,7 +99,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup }
   const [hydrated, setHydrated] = useState(false);
 
   const [title, setTitle] = useState("");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(classGroup?.instructor || "");
   const [subject, setSubject] = useState(classGroup ? "수학" : "");
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -121,7 +122,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup }
   const instructorQ = useQuery({
     queryKey: adminLectureQueryKeys.lectureInstructorOptions,
     queryFn: fetchLectureInstructorOptions,
-    enabled: isOpen,
+    enabled: isOpen && !classGroup?.instructor,
   });
   const instructorOptions = useMemo(() => instructorQ.data ?? [], [instructorQ.data]);
   const selectedInstructor = instructorOptions.find((option) => option.name === name)
@@ -130,7 +131,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup }
   const { data: staffMe } = useQuery({
     queryKey: staffWorkQueryKeys.identity,
     queryFn: fetchStaffMe,
-    enabled: isOpen,
+    enabled: isOpen && !classGroup?.instructor,
   });
   const isPayrollManager = !!staffMe?.is_payroll_manager;
 
@@ -143,9 +144,9 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup }
   });
   const existingLecture = existingLectureQ.data;
   const isLoadingLecture = existingLectureQ.isLoading;
-  const requiredDataError = (instructorQ.isError && !instructorQ.data)
+  const requiredDataError = (!classGroup?.instructor && instructorQ.isError && !instructorQ.data)
     || (isEditMode && existingLectureQ.isError && !hydrated);
-  const formReady = !requiredDataError && !instructorQ.isLoading && (!isEditMode || hydrated);
+  const formReady = !requiredDataError && (!instructorQ.isLoading || !!classGroup?.instructor) && (!isEditMode || hydrated);
 
   useEffect(() => {
     // A modal session owns its draft. Cache refreshes must never replace user input.
@@ -572,7 +573,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup }
               <div className="lecture-create-field-grid">
                 <div className="modal-form-group">
               <label className="lecture-field-label" htmlFor="lecture-instructor">담당 강사 <span>필수</span></label>
-              <Popover
+              {classGroup?.instructor ? <input id="lecture-instructor" className="ds-input" readOnly value={classGroup.instructor}/> : (<Popover
                 open={instructorPopoverOpen}
                 onOpenChange={(open) => {
                   setInstructorPopoverOpen(open);
@@ -611,7 +612,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup }
                     <span className="text-[var(--color-text-muted)]">담당 강사 (필수)</span>
                   )}
                 </button>
-                </Popover>
+                </Popover>)}
               </div>
               <div className="modal-form-group">
                 <label className="lecture-field-label" htmlFor="lecture-subject">과목 <span>필수</span></label>
