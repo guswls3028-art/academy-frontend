@@ -21,6 +21,7 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { useAdminHomework } from "../hooks/useAdminHomework";
 import HomeworkSetupPanel from "../panels/HomeworkSetupPanel";
 import HomeworkAssetsPanel from "../panels/HomeworkAssetsPanel";
+import HomeworkInspectionEntry from "@/shared/ui/assessment/HomeworkInspectionEntry";
 import HomeworkSubmissionsPanel from "../panels/HomeworkSubmissionsPanel";
 import HomeworkResultsPanel from "../panels/HomeworkResultsPanel";
 import { useAssessmentEditGuard } from "@/shared/ui/assessment/AssessmentEditGuard";
@@ -105,6 +106,10 @@ export default function AdminHomeworkDetail({
         onChange={changeTab}
         mode={mode}
       />
+
+      {mode === "operate" && data.homework_type !== "template" && data.session_id && (activeTab === "submissions" || activeTab === "results") ? (
+        <HomeworkInspectionEntry sessionId={data.session_id} homeworkId={homeworkId} title={data.title} />
+      ) : null}
 
       {/* design mode: 개별 탭 렌더링 */}
       {mode === "design" && activeTab === "setup" && (

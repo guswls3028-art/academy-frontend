@@ -15,7 +15,7 @@ type SubTab = "exams" | "homework";
 type SortMode = "lecture" | "recent";
 type ExamReviewFilter = "all" | "pending" | "resolved";
 type HomeworkSortMode = "session_desc" | "session_asc" | "recent";
-type HomeworkStatusFilter = "all" | "todo" | "done";
+type HomeworkStatusFilter = "all" | "todo" | "done" | "inspection";
 type HomeworkSessionScope = "all" | "REGULAR" | "SUPPLEMENT";
 
 /* ── Grouping helpers ── */
@@ -115,7 +115,21 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
   const [examSort, setExamSort] = useState<SortMode>("lecture");
   const [examReview, setExamReview] = useState<ExamReviewFilter>("all");
   const [homeworkSort, setHomeworkSort] = useState<HomeworkSortMode>("session_desc");
-  const [homeworkStatus, setHomeworkStatus] = useState<HomeworkStatusFilter>("todo");
+  const inspectionCount = homeworks.filter(item => item.practice_inspection).length;
+  const [sessionFilter, setSessionFilter] = useState<Exclude<HomeworkStatusFilter, "inspection">>("todo");
+  const showingInspections = searchParams.get("homework_status") === "inspection";
+  const homeworkStatus: HomeworkStatusFilter = showingInspections ? "inspection" : sessionFilter;
+  const setHomeworkStatus = (status: HomeworkStatusFilter) => {
+    if (status !== "inspection") setSessionFilter(status);
+    if (!showingInspections && status !== "inspection") return;
+    setSearchParams(current => {
+      const next = new URLSearchParams(current);
+      next.set("view", "homework");
+      if (status === "inspection") next.set("homework_status", "inspection");
+      else next.delete("homework_status");
+      return next;
+    }, { replace: true });
+  };
   const [homeworkSessionScope, setHomeworkSessionScope] = useState<HomeworkSessionScope>("all");
 
   const examReviewCounts = useMemo(() => ({
@@ -155,6 +169,7 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
   const visibleHomeworks = useMemo(() => {
     const filtered = homeworks.filter((homework) => {
       if (homeworkSessionScope !== "all" && homework.session_type !== homeworkSessionScope) return false;
+      if (homeworkStatus === "inspection") return Boolean(homework.practice_inspection);
       if (homeworkStatus === "done") return isHomeworkDone(homework);
       if (homeworkStatus === "todo") return !isHomeworkDone(homework);
       return true;
@@ -192,6 +207,12 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
         <ToggleBtn active={subTab === "homework"} onClick={() => setSubTab("homework")}
           label={`과제 현황${homeworks.length > 0 ? ` ${homeworks.length}` : ""}`} />
       </div>
+
+      {subTab === "exams" && inspectionCount > 0 && (
+        <button type="button" className="stu-cta-link" onClick={() => { setHomeworkStatus("inspection"); setHomeworkSessionScope("all"); }}>
+          과제 검사 결과 {inspectionCount}건 보기
+        </button>
+      )}
 
       {subTab === "exams" && (
         <div>
@@ -257,6 +278,7 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
                     <SortChip active={homeworkStatus === "all"} onClick={() => setHomeworkStatus("all")} label={`전체 ${homeworks.length}`} />
                     <SortChip active={homeworkStatus === "todo"} onClick={() => setHomeworkStatus("todo")} label={`확인 필요 ${homeworks.length - homeworkDoneCount}`} />
                     <SortChip active={homeworkStatus === "done"} onClick={() => setHomeworkStatus("done")} label={`완료 ${homeworkDoneCount}`} />
+                    {inspectionCount > 0 && <SortChip active={homeworkStatus === "inspection"} onClick={() => setHomeworkStatus("inspection")} label={`검사 결과 ${inspectionCount}`} />}
                   </div>
                 </div>
                 <div className={styles.controlRow}>

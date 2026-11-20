@@ -46,6 +46,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     title: "메인",
     items: [
       { to: `${ADMIN_NAV_BASE}/dashboard`, label: "대시보드", iconPath: "M3 11l9-7 9 7v9H3z", keywords: ["홈", "오늘 업무", "처리할 일"] },
+      { to: `${ADMIN_NAV_BASE}/staff-board`, label: "교직원 게시판", iconPath: "M4 4h16v13H9l-5 4zM8 8h8M8 12h5", keywords: ["학원 내부 공지", "직원", "강사", "조교", "자료실", "자유게시글", "협업"] },
       { to: `${ADMIN_NAV_BASE}/guide`, label: "가이드", iconPath: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8", keywords: ["도움말", "사용법", "매뉴얼"] },
       { to: `${ADMIN_NAV_BASE}/students`, label: "학생", iconPath: "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0", keywords: ["원생", "학생 등록", "명단", "학부모"] },
       { to: `${ADMIN_NAV_BASE}/lectures`, label: "강의", iconPath: "M4 4h16v12H4zM8 20h8", keywords: ["수업", "차시", "보강", "출결"] },
