@@ -141,8 +141,8 @@ export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {
     await clickCenter();
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(pausedAt);
   } else {
-    await page.locator(".svpPlaybackRateBtn").click();
-    await page.locator(".svpSpeedMenuItem").filter({ hasText: /^1\.5(?:0)?x$/ }).click();
+    await page.getByRole("button", { name: "재생 설정, 배속 1배" }).click();
+    await page.getByRole("button", { name: "1.5배속", exact: true }).click();
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.playbackRate)).toBe(1.5);
     await clearWrites();
   }
@@ -213,8 +213,8 @@ export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {
 async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, video: Locator) {
   const wrap = page.locator(".svpPlayerWrap");
   const controls = page.locator(".svpControls");
-  const speed = controls.locator(".svpPlaybackRateBtn");
-  const menu = page.locator(".svpSpeedMenu");
+  const speed = controls.getByRole("button", { name: /^재생 설정, 배속/ });
+  const menu = page.getByRole("dialog", { name: "재생 설정" });
   const originalMedia = await video.elementHandle();
   const observations: unknown[] = [];
   const revealControls = async () => {
@@ -247,7 +247,7 @@ async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, vide
   };
   const assertRate = async (rate: number) => {
     await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.playbackRate)).toBe(rate);
-    await expect(speed).toHaveText(rate % 1 === 0 ? `${rate}x` : `${rate.toFixed(2)}x`);
+    await expect(speed).toHaveText(`배속 ${rate}×`);
   };
   const openMenu = async (width: number, phase: string, native: boolean) => {
     await revealControls();
@@ -279,7 +279,7 @@ async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, vide
     }
   };
   const selectRate = async (rate: number) => {
-    await clickOwned(menu.locator(".svpSpeedMenuItem").filter({ has: page.getByText(`${rate}x`, { exact: true }) }));
+    await clickOwned(menu.getByRole("button", { name: `${rate}배속`, exact: true }));
     await expect(menu).toHaveCount(0);
     await assertRate(rate);
   };
@@ -288,7 +288,7 @@ async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, vide
     const point = await wrap.evaluate(node => {
       const r = node.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + 2;
       const hit = document.elementFromPoint(x, y);
-      return { x, y, safe: !!hit && node.contains(hit) && !hit.closest("button, input, a, .svpSpeedMenu, .svpGestureLayer") };
+      return { x, y, safe: !!hit && node.contains(hit) && !hit.closest("button, input, a, .svpSettingsPanel, .svpGestureLayer") };
     });
     expect(point.safe, "outside click uses the player header without activating another control").toBe(true);
     await expect(menu).toHaveCount(1);
@@ -298,8 +298,8 @@ async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, vide
   };
   const toggleWhileOpen = async (native: boolean) => {
     await expect(menu).toHaveCount(1);
-    await expect(speed).toBeFocused();
-    // The keyboard shortcut changes actual fullscreen without an outside pointer closing the menu first.
+    await expect(menu).toBeFocused();
+    // The focused panel preserves the player fullscreen shortcut.
     await page.keyboard.press("f");
     await expect.poll(() => wrap.evaluate((node, active) => active
       ? document.fullscreenElement === node : document.fullscreenElement === null, native)).toBe(true);
@@ -424,8 +424,14 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
     await revealControls();
     await expect(controls).toHaveCSS("opacity", "1");
     await expect(controls.locator(".svpVolume button")).toBeVisible();
-    await expect(controls.locator(".svpQualityBtn")).toBeVisible();
-    await expect(controls.locator(".svpQualityBtn")).toBeDisabled();
+    const settings = controls.getByRole("button", { name: "재생 설정, 배속 1배" });
+    await settings.click();
+    const panel = page.getByRole("dialog", { name: "재생 설정" });
+    await expect(panel.getByText("이 영상은 1배속으로 재생돼요.")).toBeVisible();
+    await expect(panel.getByText("자동", { exact: true })).toBeVisible();
+    await expect(panel.getByRole("button", { name: "2배속" })).toHaveCount(0);
+    await panel.getByRole("button", { name: "닫기" }).click();
+    await expect(settings).toBeFocused();
     const regions = await assertSeparatedRegions();
     expect(regions.media.width / regions.media.height).toBeCloseTo(16 / 9, 2);
     const targets = await wrap.evaluate(root => Array.from(root.querySelectorAll<HTMLButtonElement | HTMLInputElement>(".svpControls button, .svpControls input[type='range'], .svpBigPlay"))

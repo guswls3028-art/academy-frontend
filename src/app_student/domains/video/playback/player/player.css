@@ -494,9 +494,6 @@
   .svpFullscreenTopButton {
     display: grid;
   }
-  .svpControls .svpQualityBtn {
-    display: none;
-  }
   .svpTime {
     font-size: 11px;
   }

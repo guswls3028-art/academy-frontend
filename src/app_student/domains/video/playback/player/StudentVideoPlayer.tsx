@@ -18,9 +18,8 @@ import {
   KebabMenu,
   Pill,
   PlayerToast,
-  QualityButton,
+  PlaybackSettings,
   RangeSlider,
-  SpeedButton,
 } from "./design/ui";
 import {
   StudentHlsController,
@@ -120,6 +119,7 @@ export default function StudentVideoPlayer({
   const skipPendingRef = useRef(false);
 
   const gestureLayerRef = useRef<HTMLDivElement | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const hideControlsTimerRef = useRef<number | null>(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedRateRef = useRef<number | null>(null);
@@ -259,7 +259,7 @@ export default function StudentVideoPlayer({
       clearTimeout(hideControlsTimerRef.current);
       hideControlsTimerRef.current = null;
     }
-    if (playing && !buffering && showControls && !controlsHovered && !rangeKeyboardFocused) {
+    if (playing && !buffering && showControls && !controlsHovered && !rangeKeyboardFocused && !settingsOpen) {
       hideControlsTimerRef.current = window.setTimeout(() => {
         hideControlsTimerRef.current = null;
         setShowControls(false);
@@ -268,7 +268,7 @@ export default function StudentVideoPlayer({
     return () => {
       if (hideControlsTimerRef.current) clearTimeout(hideControlsTimerRef.current);
     };
-  }, [playing, buffering, showControls, controlsHovered, rangeKeyboardFocused, isFullscreen]);
+  }, [playing, buffering, showControls, controlsHovered, rangeKeyboardFocused, settingsOpen, isFullscreen]);
 
   const exposeKeyboardRange = (target: EventTarget) => {
     if (!(target instanceof HTMLInputElement) || target.type !== "range") return;
@@ -499,8 +499,8 @@ export default function StudentVideoPlayer({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      const nativeSpace = e.code === "Space" && target?.closest?.(".svpFullscreenTopButton, .svpFullscreenButton");
-      if (target?.matches?.("input, textarea") || target?.isContentEditable || nativeSpace) return;
+      const nativeSpace = e.code === "Space" && target?.closest?.(".svpFullscreenTopButton, .svpFullscreenButton, .svpPlaybackRateBtn, .svpSettingsPanel button");
+      if (target?.matches?.("input, textarea, select") || target?.isContentEditable || nativeSpace) return;
       if (e.code === "Space") {
         e.preventDefault();
         togglePlay();
@@ -742,18 +742,11 @@ export default function StudentVideoPlayer({
                     </div>
                   </div>
                   <div className="svpRightControls">
-                    {!isYoutube && (
-                      <QualityButton
-                        current={currentQuality}
-                        qualities={qualities}
-                        onSelect={(idx) => controllerRef.current?.setQuality(idx)}
-                      />
-                    )}
-                    <SpeedButton
-                      rate={rate}
-                      speeds={rateMenu}
-                      disabled={speedLocked}
-                      onSelect={setPlaybackRate}
+                    <PlaybackSettings
+                      rate={rate} speeds={rateMenu} speedLocked={speedLocked} onSpeed={setPlaybackRate}
+                      qualities={isYoutube ? undefined : qualities} currentQuality={currentQuality}
+                      onQuality={(idx) => controllerRef.current?.setQuality(idx)}
+                      open={settingsOpen} onOpenChange={setSettingsOpen}
                     />
                     <IconButton
                       className="svpFullscreenButton"

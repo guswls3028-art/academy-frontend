@@ -1,6 +1,7 @@
 // PATH: src/app_student/domains/video/playback/player/design/ui.tsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import { Settings } from "lucide-react";
 import { createPortal } from "react-dom";
 import { clamp, getActiveFullscreenElement } from "./utils";
 import "./ui.css";
@@ -141,10 +142,6 @@ export type MenuItem = {
   onClick: () => void;
 };
 
-function floatingMenuStyle(pos: { bottom: number; right: number }): CSSProperties {
-  return { bottom: pos.bottom, right: pos.right };
-}
-
 export function KebabMenu({
   label,
   items,
@@ -214,179 +211,111 @@ function floatingMenuRoot(button: HTMLButtonElement | null): Element {
   return fullscreen?.contains(button) ? fullscreen : document.body;
 }
 
-export function SpeedButton({
-  rate,
-  speeds,
-  disabled,
-  onSelect,
+type QualityOption = { index: number; label: string };
+
+export function PlaybackSettings({
+  rate, speeds, speedLocked, onSpeed, qualities, currentQuality, onQuality, open, onOpenChange,
 }: {
   rate: number;
   speeds: number[];
-  disabled?: boolean;
-  onSelect: (r: number) => void;
+  speedLocked: boolean;
+  onSpeed: (rate: number) => void;
+  qualities?: QualityOption[];
+  currentQuality: number;
+  onQuality: (index: number) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const btnRef = useRef<HTMLButtonElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const [pos, setPos] = useState<{ bottom: number; right: number } | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (btnRef.current?.contains(e.target as Node)) return;
-      if (menuRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    };
-    const eventType = typeof window.PointerEvent === "function" ? "pointerdown" : "mousedown";
-    const onFullscreenChange = () => setOpen(false);
-    window.addEventListener(eventType, onDown);
-    fullscreenChangeEvents.forEach(type => document.addEventListener(type, onFullscreenChange));
-    return () => {
-      window.removeEventListener(eventType, onDown);
-      fullscreenChangeEvents.forEach(type => document.removeEventListener(type, onFullscreenChange));
-    };
-  }, [open]);
-
-  const handleOpen = () => {
-    if (disabled) return;
-    if (open) { setOpen(false); return; }
-    if (btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect();
-      setPos({
-        bottom: window.innerHeight - r.top + 8,
-        right: window.innerWidth - r.right,
-      });
-    }
-    setOpen(true);
+  const button = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const panelId = useId();
+  const [position, setPosition] = useState<CSSProperties>({});
+  const close = () => {
+    onOpenChange(false);
+    button.current?.focus({ preventScroll: true });
   };
 
-  const label = rate % 1 === 0 ? `${rate}x` : `${rate.toFixed(2)}x`;
+  useLayoutEffect(() => {
+    if (!open || !button.current) return;
+    const place = () => {
+      const rect = button.current?.getBoundingClientRect();
+      if (!rect) return;
+      const gap = 8;
+      const above = rect.top - gap * 2;
+      const below = window.innerHeight - rect.bottom - gap * 2;
+      const width = Math.min(280, window.innerWidth - gap * 2);
+      const left = Math.max(gap, Math.min(rect.right - width, window.innerWidth - width - gap));
+      const placement = above >= Math.min(240, below)
+        ? { bottom: window.innerHeight - rect.top + gap, maxHeight: above }
+        : { top: rect.bottom + gap, maxHeight: below };
+      setPosition({ left, width, ...placement });
+    };
+    place();
+    panel.current?.focus({ preventScroll: true });
+    const dismiss = (event: Event) => {
+      const target = event.target as Node;
+      if (!button.current?.contains(target) && !panel.current?.contains(target)) onOpenChange(false);
+    };
+    const onFullscreen = () => onOpenChange(false);
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("focusin", dismiss);
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    fullscreenChangeEvents.forEach(type => document.addEventListener(type, onFullscreen));
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener("focusin", dismiss);
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+      fullscreenChangeEvents.forEach(type => document.removeEventListener(type, onFullscreen));
+    };
+  }, [open, onOpenChange]);
 
   return (
     <>
-      <button
-        ref={btnRef}
-        type="button"
-        className={`svpSpeedBtn svpPlaybackRateBtn${disabled ? " svpSpeedBtn--disabled" : ""}`}
-        onClick={handleOpen}
-        aria-label={disabled ? "배속 제한" : `배속 ${label}`}
-        title={disabled ? "배속 제한" : `배속 ${label}`}
-        disabled={!!disabled}
-      >
-        {label}
+      <button type="button" ref={button} className="svpPlaybackRateBtn"
+        aria-label={`재생 설정, 배속 ${rate}배`} aria-haspopup="dialog" aria-expanded={open}
+        aria-controls={open ? panelId : undefined} onClick={() => onOpenChange(!open)}>
+        <Settings size={20} aria-hidden="true" />
+        <span>배속 <b>{rate}×</b></span>
       </button>
-      {open && !disabled && pos && createPortal(
-        <div
-          ref={menuRef}
-          className="svpSpeedMenu"
-          style={floatingMenuStyle(pos)}
-        >
-          {speeds.filter((r) => r <= 3).map((r) => (
-            <button
-              key={r}
-              type="button"
-              className={`svpSpeedMenuItem${Math.abs(r - rate) < 0.001 ? " svpSpeedMenuItem--active" : ""}`}
-              onClick={() => { onSelect(r); setOpen(false); }}
-            >
-              <span>{r}x</span>
-              {Math.abs(r - rate) < 0.001 && <span className="svpSpeedCheck" aria-label="선택됨" />}
-            </button>
-          ))}
-        </div>,
-        floatingMenuRoot(btnRef.current),
-      )}
-    </>
-  );
-}
-
-export type QualityOption = {
-  index: number;
-  label: string;
-  height: number;
-};
-
-export function QualityButton({
-  current,
-  qualities,
-  onSelect,
-}: {
-  /** -1 = Auto */
-  current: number;
-  qualities: QualityOption[];
-  onSelect: (index: number) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const btnRef = useRef<HTMLButtonElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const [pos, setPos] = useState<{ bottom: number; right: number } | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (btnRef.current?.contains(e.target as Node)) return;
-      if (menuRef.current?.contains(e.target as Node)) return;
-      setOpen(false);
-    };
-    const eventType = typeof window.PointerEvent === "function" ? "pointerdown" : "mousedown";
-    const onFullscreenChange = () => setOpen(false);
-    window.addEventListener(eventType, onDown);
-    fullscreenChangeEvents.forEach(type => document.addEventListener(type, onFullscreenChange));
-    return () => {
-      window.removeEventListener(eventType, onDown);
-      fullscreenChangeEvents.forEach(type => document.removeEventListener(type, onFullscreenChange));
-    };
-  }, [open]);
-
-  const disabled = !qualities || qualities.length <= 1;
-  const currentLabel =
-    qualities.find((q) => q.index === current)?.label ||
-    (current === -1 ? "Auto" : "—");
-
-  const handleOpen = () => {
-    if (disabled) return;
-    if (open) { setOpen(false); return; }
-    if (btnRef.current) {
-      const r = btnRef.current.getBoundingClientRect();
-      setPos({
-        bottom: window.innerHeight - r.top + 8,
-        right: window.innerWidth - r.right,
-      });
-    }
-    setOpen(true);
-  };
-
-  return (
-    <>
-      <button
-        ref={btnRef}
-        type="button"
-        className={`svpSpeedBtn svpQualityBtn${disabled ? " svpSpeedBtn--disabled" : ""}`}
-        onClick={handleOpen}
-        aria-label={disabled ? "화질 선택 불가" : `화질 ${currentLabel}`}
-        title={disabled ? "화질 선택 불가" : `화질 ${currentLabel}`}
-        disabled={disabled}
-      >
-        {currentLabel}
-      </button>
-      {open && !disabled && pos && createPortal(
-        <div
-          ref={menuRef}
-          className="svpSpeedMenu"
-          style={floatingMenuStyle(pos)}
-        >
-          {qualities.map((q) => (
-            <button
-              key={q.index}
-              type="button"
-              className={`svpSpeedMenuItem${q.index === current ? " svpSpeedMenuItem--active" : ""}`}
-              onClick={() => { onSelect(q.index); setOpen(false); }}
-            >
-              <span>{q.label}</span>
-              {q.index === current && <span className="svpSpeedCheck" aria-label="선택됨" />}
-            </button>
-          ))}
-        </div>,
-        floatingMenuRoot(btnRef.current),
+      {open && createPortal(
+        <div ref={panel} id={panelId} className="svpSettingsPanel" role="dialog" aria-label="재생 설정"
+          style={position} tabIndex={-1}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
+              close();
+            }
+          }}>
+          <div className="svpSettingTitle">재생 속도</div>
+          {speedLocked ? <p className="svpSettingValue">이 영상은 1배속으로 재생돼요.</p> : (
+            <div className="svpSettingOptions" role="group" aria-label="재생 속도">
+              {speeds.filter(speed => speed <= 3).map(speed => (
+                <button type="button" key={speed} aria-label={`${speed}배속`}
+                  aria-pressed={Math.abs(speed - rate) < 0.001}
+                  onClick={() => { onSpeed(speed); close(); }}>
+                  {speed}×
+                </button>
+              ))}
+            </div>
+          )}
+          {qualities && (
+            <div className="svpQualitySetting">
+              <label htmlFor={`${panelId}-quality`}>화질</label>
+              {qualities.length <= 1 ? <span>{qualities[0]?.index >= 0 ? qualities[0].label : "자동"}</span> : (
+                <select id={`${panelId}-quality`} value={currentQuality}
+                  onChange={(event) => { onQuality(Number(event.target.value)); close(); }}>
+                  {qualities.map(quality => <option key={quality.index} value={quality.index}>
+                    {quality.index === -1 ? "자동" : quality.label}
+                  </option>)}
+                </select>
+              )}
+            </div>
+          )}
+          <button type="button" className="svpSettingsDone" onClick={close}>닫기</button>
+        </div>, floatingMenuRoot(button.current),
       )}
     </>
   );
