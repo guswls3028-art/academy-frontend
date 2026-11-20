@@ -27,3 +27,5 @@
 .sectionPicker { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 12px; }
 .sectionPicker button { min-height: 44px; padding: 6px 12px; border: 1px solid var(--color-border-divider); border-radius: 8px; color: inherit; background: var(--color-bg-surface); cursor: pointer; }
 .sectionPicker button[aria-pressed="true"] { font-weight: 700; border-color: currentColor; }
+
+.scoreTrend { display: block; inline-size: 100%; max-inline-size: 580px; color: var(--color-primary); }

@@ -1,3 +1,4 @@
+import styles from "./DawonOperations.module.css";
 import { dawonQueryKeys } from "./queryKeys";
 import { useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
@@ -54,7 +55,7 @@ function Trend({rows}: {rows:HistoryRow[]}) {
   if (!rows.some(row => row.score != null && row.maximum)) return null;
   const points = rows.map((row, i) => row.score != null && row.maximum && row.maximum > 0
     ? {x: 8 + i * 304 / Math.max(1,rows.length - 1), y: 88 - 80*Math.max(0,Math.min(1,row.score/row.maximum))} : null);
-  return <svg viewBox="0 0 320 96" style={{width:"100%",maxWidth:580}} role="img" aria-label="시간순 시험 득점률 추이. 회차별 점수는 아래 표에 표시됩니다.">
+  return <svg viewBox="0 0 320 96" className={styles.scoreTrend} role="img" aria-label="시간순 시험 득점률 추이. 회차별 점수는 아래 표에 표시됩니다.">
     {points.map((p,i) => {const previous=points[i-1]; return p && <g key={i}>
       {previous && <line x1={previous.x} y1={previous.y} x2={p.x} y2={p.y} stroke="currentColor" strokeWidth="2"/>}
       <circle cx={p.x} cy={p.y} r="3" fill="currentColor"><title>{rows[i].title} {rows[i].score} / {rows[i].maximum}</title></circle></g>;})}</svg>;
