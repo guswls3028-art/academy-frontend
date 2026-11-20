@@ -15,6 +15,7 @@ import {
 import { fetchVideoDetail, type VideoStatus } from "@/shared/api/contracts/videos";
 import { completedPptResult } from "@/shared/api/contracts/pptJob";
 import { isFailedAIJobStatus } from "@/shared/api/contracts/aiJob";
+import { omrGradingAttentionCount } from "./omrGradingAttention";
 
 const POLL_INTERVAL_INITIAL_MS = 5000;   // 5s for first 1 min
 const POLL_INTERVAL_MID_MS = 15000;      // 15s up to 10 min
@@ -131,6 +132,8 @@ function pollOmrBatch(taskId: string, batchId: string, tenantScope: string): voi
             feedback.warning("OMR 처리가 끝났습니다. 실패 항목을 확인해 주세요.");
           } else if (claim.batch.counts.needs_identification > 0) {
             feedback.warning("OMR 처리가 끝났습니다. 식별이 필요한 답안지가 있습니다.");
+          } else if (omrGradingAttentionCount(claim.batch) > 0) {
+            feedback.warning("OMR 처리는 끝났습니다. 채점 확인이 필요한 답안지가 있습니다.");
           } else if (claim.batch.grading_status === "subjective_pending") {
             feedback.info("OMR 객관식 처리가 끝났습니다. 차시 성적에서 서술형 점수를 입력해 주세요.");
           } else {

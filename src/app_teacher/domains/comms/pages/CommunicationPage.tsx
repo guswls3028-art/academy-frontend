@@ -3,6 +3,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
+import useAuth from "@/auth/hooks/useAuth";
+import { resolveTenantCodeString } from "@/shared/tenant";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { isSelfRegistrationDisabledError } from "@/shared/api/contracts/students";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
@@ -45,6 +47,8 @@ function resolveTab(value: string | null): Tab {
 }
 
 export default function CommunicationPage() {
+  const { user } = useAuth();
+  const viewerScope = [resolveTenantCodeString(), user?.id, user?.tenantRole];
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = resolveTab(searchParams.get("tab"));
   const [tab, setTab] = useState<Tab>(tabFromUrl);
@@ -104,9 +108,9 @@ export default function CommunicationPage() {
   }, [isPostTab, postsQ.isError, postsQ.isLoading, selectedPostId, setSearchParams, visiblePosts]);
 
   const requestsQ = useQuery({
-    queryKey: teacherCommsQueryKeys.registrationRequests,
+    queryKey: teacherCommsQueryKeys.withViewerScope(teacherCommsQueryKeys.registrationRequests, viewerScope),
     queryFn: () => fetchRegistrationRequests("pending"),
-    enabled: tab === "requests",
+    enabled: tab === "requests" && Boolean(user),
   });
   const reqData = requestsQ.data;
   const reqLoading = requestsQ.isLoading;
@@ -263,7 +267,7 @@ export default function CommunicationPage() {
           ) : requestsQ.isError ? (
             <EmptyState scope="panel" tone="error" title="등록요청을 불러오지 못했습니다" actions={<EmptyActionButton onClick={() => void requestsQ.refetch()}>다시 시도</EmptyActionButton>} />
           ) : reqData && reqData.results.length > 0 ? (
-            <RegistrationRequestList requests={reqData.results} />
+            <RegistrationRequestList key={JSON.stringify(viewerScope)} requests={reqData.results} />
           ) : (
             <EmptyState
               scope="panel"

@@ -37,6 +37,28 @@ export type QaFamilyCleanupResult = {
   };
 };
 
+export type QaFamilyCleanupObservation =
+  | {
+    operation: "soft_delete" | "permanent_delete";
+    phase: "request" | "response";
+    status: number | null;
+  }
+  | {
+    operation: "permanent_delete";
+    phase: "counts";
+    status: 200;
+    expectedCount: number;
+    deletedCount: number | null;
+    storagePending: number | null;
+    storageFailed: number | null;
+  }
+  | {
+    operation: "student_absence";
+    phase: "request" | "response";
+    status: number | null;
+    studentIndex: number;
+  };
+
 type QaFamilyOptions = {
   withStudentPhones?: boolean;
 };
@@ -122,8 +144,10 @@ export async function expectApi<T = unknown>(
   token: string,
   data?: Record<string, unknown>,
   statuses = [200, 201],
+  observeStatus?: (status: number) => void,
 ): Promise<T> {
   const result = await api<T>(request, method, path, token, data);
+  observeStatus?.(result.status);
   const body = result.body && typeof result.body === "object"
     ? result.body as Record<string, unknown>
     : {};
@@ -346,10 +370,14 @@ export async function cleanupQaFamily(
   request: APIRequestContext,
   adminAccess: string,
   family: QaFamily | null,
+  observe?: (event: QaFamilyCleanupObservation) => void,
 ): Promise<QaFamilyCleanupResult | null> {
   if (!family?.students.length) return null;
   const ids = family.students.map((student) => student.id);
-  await expectApi(request, "POST", "/students/bulk_delete/", adminAccess, { ids }, [200, 204]);
+  observe?.({ operation: "soft_delete", phase: "request", status: null });
+  await expectApi(request, "POST", "/students/bulk_delete/", adminAccess, { ids }, [200, 204],
+    (status) => observe?.({ operation: "soft_delete", phase: "response", status }));
+  observe?.({ operation: "permanent_delete", phase: "request", status: null });
   const deletion = await expectApi<QaFamilyCleanupResult>(
     request,
     "POST",
@@ -357,11 +385,23 @@ export async function cleanupQaFamily(
     adminAccess,
     { ids },
     [200],
+    (status) => observe?.({ operation: "permanent_delete", phase: "response", status }),
   );
+  const count = (value: unknown): number | null => (
+    typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null
+  );
+  observe?.({
+    operation: "permanent_delete", phase: "counts", status: 200,
+    expectedCount: ids.length, deletedCount: count(deletion?.deleted),
+    storagePending: count(deletion?.storage_cleanup?.pending),
+    storageFailed: count(deletion?.storage_cleanup?.failed),
+  });
   expect(deletion.deleted).toBe(ids.length);
   expect(deletion.storage_cleanup).toEqual({ pending: 0, failed: 0 });
-  for (const id of ids) {
+  for (const [studentIndex, id] of ids.entries()) {
+    observe?.({ operation: "student_absence", phase: "request", status: null, studentIndex });
     const residue = await api(request, "GET", `/students/${id}/`, adminAccess);
+    observe?.({ operation: "student_absence", phase: "response", status: residue.status, studentIndex });
     expect(residue.status, `student ${id} residue`).toBe(404);
   }
   return deletion;

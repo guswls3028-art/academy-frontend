@@ -406,6 +406,16 @@
   white-space: nowrap;
 }
 
+.currentContact {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  margin-top: 3px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .purposeCell {
   display: flex;
   min-width: 0;

@@ -33,6 +33,7 @@ import "@/auth/themes/sswe.css";
 import "@/auth/themes/dnb.css";
 import "@/auth/themes/movementhui.css";
 import "@/auth/themes/godmin.css";
+import "@/auth/themes/jeongseongwon-lab.css";
 import "@/auth/themes/clean-decorations.css";
 import styles from "./LoginPage.module.css";
 import {
@@ -128,6 +129,7 @@ export default function LoginPage() {
   const isHakwonplus = themeAttr === "hakwonplus";
   const fieldLabelClass = isHakwonplus ? styles.fieldLabel : styles.srOnly;
   const hasBrandedScene = BRANDED_LOGIN_SCENES.has(themeAttr);
+  const isJeongseongwon = themeAttr === "jeongseongwon-lab";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -169,7 +171,7 @@ export default function LoginPage() {
         <section className={styles.brandStage} data-auth-part="brand-stage">
           <div className={styles.brandArtwork} data-auth-part="brand-artwork">
             {logoUrl ? (
-              <img src={logoUrl} alt={isHakwonplus ? "" : title} className={styles.logo} />
+              <img src={logoUrl} alt="" className={styles.logo} />
             ) : (
               <CommonLogoIcon height={64} className={styles.logo} />
             )}
@@ -177,12 +179,13 @@ export default function LoginPage() {
               <h1 className={styles.title}>{title}</h1>
             </div>
           </div>
+          {isJeongseongwon && <span data-auth-part="domain">{branding?.loginSubtitle}</span>}
         </section>
         <section className={styles.loginPanel} data-auth-part="login-panel">
-          {hasBrandedScene && (
+          {(hasBrandedScene || isJeongseongwon) && (
             <div className={styles.loginIntro} data-auth-part="login-intro">
               <h2>로그인</h2>
-              {!isHakwonplus && <p>아이디와 비밀번호를 입력해주세요.</p>}
+              {hasBrandedScene && !isHakwonplus && <p>아이디와 비밀번호를 입력해주세요.</p>}
             </div>
           )}
           <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">

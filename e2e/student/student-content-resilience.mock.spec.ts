@@ -4,6 +4,7 @@ import { assertReleaseRequestSafe } from "../helpers/releaseApiBoundary";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 const IS_LOCAL_BASE = /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE);
+const matchesSessionsApi = (url: URL) => url.pathname === "/api/v1/student/sessions/me/";
 
 function fakeJwt(): string {
   const payload = Buffer.from(JSON.stringify({
@@ -706,17 +707,26 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
           await gradesReady;
           await route.fulfill({ json: grades });
         });
-        await page.route("**/api/v1/student/sessions/me/", (route) => route.fulfill({ json: [
+        const schedule = [
           { id: 21, title: "기간 밖 수업", date: "2026-09-23" },
           { id: 22, title: "기간 첫날 수업", date: "2026-09-24" },
           { id: 23, title: "오늘 클리닉", date: "2026-10-21", type: "clinic" },
           { id: 24, title: "내일 수업", date: "2026-10-22" },
-        ] }));
+        ];
+        const scopes: (string | null)[] = [];
+        await page.route(matchesSessionsApi, (route) => {
+          const scope = new URL(route.request().url()).searchParams.get("scope");
+          scopes.push(scope);
+          return route.fulfill({ json: scope === "home"
+            ? { items: schedule.slice(1), has_any_sessions: true }
+            : schedule });
+        });
         await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 120_000 });
         const card = page.getByRole("region", { name: "학습 현황", exact: true });
         const sessions = card.getByRole("link", { name: /수업·클리닉/ });
         const exams = card.getByRole("link", { name: /시험 합격/ });
         await expect(sessions).toContainText("2회");
+        expect(scopes).toEqual(["home"]);
         await expect(exams).toContainText("확인 중");
         await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
         releaseGrades();
@@ -729,6 +739,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         await card.screenshot({ path: screenshotPath });
         await testInfo.attach("learning-status", { path: screenshotPath, contentType: "image/png" });
         await verifyStudentLearningSummary(page, BASE);
+        expect(scopes).toContain(null);
         await page.reload();
         await expect(exams).toContainText("100%");
         await expect(sessions).toContainText("2회");
@@ -740,21 +751,171 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     }
   }
 
+  for (const mode of ["홈", "목록", "되돌리기", "자녀 전환"] as const) {
+    const switchChild = mode === "자녀 전환";
+    const undoEarly = mode === "되돌리기" || switchChild;
+    const name = switchChild ? "자녀 전환 중 대기 중인 일정 되돌리기는 처음 선택한 자녀에게 적용된다"
+      : undoEarly ? "일정 되돌리기는 같은 항목의 늦은 숨김 이후 저장된다"
+        : `일정 숨기기는 ${mode}에서 실패한 항목만 복구한다`;
+    test(name, async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.clock.setFixedTime(new Date("2026-10-21T09:00:00+09:00"));
+      await installStudentApi(page, { parentDashboard: switchChild });
+      if (switchChild) {
+        await page.route("**/api/v1/core/me/", (route) => route.fulfill({ json: {
+          id: 11, username: "parent-11", name: "보호자", is_staff: false, is_superuser: false,
+          tenantRole: "parent", linkedStudents: [{ id: 11, name: "학생 11" }, { id: 12, name: "학생 12" }],
+        } }));
+      }
+      const recent = { id: 21, title: "최근 수업", date: "2026-10-20" };
+      const other = { id: 23, title: "다른 최근 수업", date: "2026-10-19" };
+      const older = { id: 22, title: "이전 수업", date: "2026-09-12" };
+      const hidden = new Set<number>();
+      const siblingHidden = new Set([recent.id]);
+      await page.route(matchesSessionsApi, (route) => {
+        const selectedHidden = route.request().headers()["x-student-id"] === "12" ? siblingHidden : hidden;
+        const showing = [other, recent].filter((session) => !selectedHidden.has(session.id));
+        return route.fulfill({
+          json: new URL(route.request().url()).searchParams.get("scope") === "home"
+            ? { items: showing, has_any_sessions: true }
+            : [older, ...showing],
+        });
+      });
+      let completeHide!: () => void;
+      const hideResponse = new Promise<void>((resolve) => { completeHide = resolve; });
+      const hidePosts: number[] = [];
+      const undoPosts: number[] = [];
+      const undoChildren: (string | undefined)[] = [];
+      await page.route("**/api/v1/student/sessions/hide/", async (route) => {
+        const { id } = route.request().postDataJSON() as { id: number };
+        if (switchChild) expect(route.request().headers()["x-student-id"]).toBe("11");
+        expect([recent.id, other.id]).toContain(id);
+        hidePosts.push(id);
+        if (id === other.id) {
+          hidden.add(id);
+          return route.fulfill({ json: { hidden_ids: [id] } });
+        }
+        await hideResponse;
+        if (undoEarly) {
+          hidden.add(id);
+          return route.fulfill({ json: { hidden_ids: [...hidden] } });
+        }
+        await route.fulfill({ status: 400, json: { detail: "일정 숨기기를 다시 시도해주세요." } });
+      });
+      await page.route("**/api/v1/student/sessions/unhide/", async (route) => {
+        const { id } = route.request().postDataJSON() as { id: number };
+        const studentId = route.request().headers()["x-student-id"];
+        const selectedHidden = studentId === "12" ? siblingHidden : hidden;
+        undoPosts.push(id);
+        undoChildren.push(studentId);
+        selectedHidden.delete(id);
+        return route.fulfill({ json: { hidden_ids: [...selectedHidden] } });
+      });
+      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      const selectChild = (id: number) => page.getByRole("tab", { name: `학생 ${id}`, exact: true });
+      if (switchChild) await selectChild(11).click();
+      const card = page.getByRole("region", { name: "학습 현황", exact: true });
+      const schedule = card.getByRole("link", { name: /수업·클리닉/ });
+      const pastTab = page.getByRole("button", { name: /^지난 일정(?: \d+)?$/ });
+      const row = (id: number) => page.locator(`a[href="/student/sessions/${id}"]`);
+      const hideRow = async (id: number) => {
+        await row(id).scrollIntoViewIfNeeded();
+        const bounds = await row(id).boundingBox();
+        if (!bounds) throw new Error("Recent session row has no layout");
+        const y = bounds.y + bounds.height / 2;
+        await page.mouse.move(bounds.x + bounds.width * 0.8, y);
+        await page.mouse.down();
+        await page.mouse.move(bounds.x + bounds.width * 0.2, y, { steps: 8 });
+        await page.mouse.up();
+        await expect(row(id)).toHaveCount(0);
+      };
+      try {
+        await expect(schedule).toContainText("2회");
+        await schedule.click();
+        await pastTab.click();
+        await hideRow(recent.id);
+        if (undoEarly) await page.getByRole("button", { name: "되돌리기", exact: true }).click();
+        if (switchChild) {
+          await expect.poll(() => hidePosts).toEqual([recent.id]);
+          await selectChild(12).click();
+          await expect(selectChild(12)).toHaveAttribute("aria-selected", "true");
+          await expect(schedule).toContainText("1회");
+        } else {
+          await hideRow(other.id);
+          await expect.poll(() => hidden.has(other.id)).toBe(true);
+          expect(hidePosts).toEqual([recent.id, other.id]);
+        }
+        expect(undoPosts).toEqual([]);
+        if (mode === "홈") {
+          await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
+          await expect(schedule).toContainText("0회");
+          await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
+        }
+      } finally {
+        completeHide();
+      }
+      if (switchChild) {
+        await expect.poll(() => undoChildren).toEqual(["11"]);
+        expect(undoPosts).toEqual([recent.id]);
+        await expect(schedule).toContainText("1회");
+        await selectChild(11).click();
+        await expect(schedule).toContainText("2회");
+        await page.reload();
+        await expect(selectChild(11)).toHaveAttribute("aria-selected", "true");
+        await expect(schedule).toContainText("2회");
+        return;
+      }
+      if (undoEarly) {
+        await expect(row(recent.id)).toBeVisible();
+        await expect(row(other.id)).toHaveCount(0);
+        expect(undoPosts).toEqual([recent.id]);
+        await expect(page.getByText(`숨김 · ${other.title}`, { exact: true })).toBeVisible();
+        await page.reload();
+        await pastTab.click();
+        await expect(row(recent.id)).toBeVisible();
+        await expect(row(other.id)).toHaveCount(0);
+        await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
+        await expect(schedule).toContainText("1회");
+        return;
+      }
+      if (mode === "목록") {
+        await expect(row(recent.id)).toBeVisible();
+        await expect(row(other.id)).toHaveCount(0);
+        await expect(page.getByText(`숨김 · ${other.title}`, { exact: true })).toBeVisible();
+        await page.getByRole("button", { name: "되돌리기", exact: true }).click();
+        await expect(row(other.id)).toBeVisible();
+        expect(undoPosts).toEqual([other.id]);
+        await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
+        await expect(schedule).toContainText("2회");
+        return;
+      }
+      await expect(schedule).toContainText("1회");
+      await schedule.click();
+      await pastTab.click();
+      await expect(row(recent.id)).toBeVisible();
+      await expect(row(other.id)).toHaveCount(0);
+    });
+  }
+
   for (const source of ["grades", "sessions"] as const) {
     test(`학습 현황은 ${source} 실패를 0으로 숨기지 않고 재시도로 복구한다`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width: 390, height: 844 });
       await installStudentApi(page, { parentDashboard: true });
-      let failed = true;
+      let retryArmed = false;
+      let recovered = false;
       let dataReads = 0;
       let meReads = 0;
       page.on("request", (request) => {
         if (new URL(request.url()).pathname.endsWith("/core/me/")) meReads += 1;
       });
-      await page.route(source === "grades" ? "**/api/v1/student/grades/" : "**/api/v1/student/sessions/me/", (route) => {
+      await page.route(source === "grades" ? "**/api/v1/student/grades/" : matchesSessionsApi, async (route) => {
         dataReads += 1;
-        return route.fulfill(failed
-          ? { status: 400, json: { detail: "temporary read failure" } }
-          : { json: source === "grades" ? emptyGrades() : [] });
+        if (retryArmed && !recovered) {
+          recovered = await page.evaluate(() => document.documentElement.dataset.qaLearningStatusRetry === "true");
+        }
+        return route.fulfill(recovered
+          ? { json: source === "grades" ? emptyGrades() : [] }
+          : { status: 400, json: { detail: "temporary read failure" } });
       });
       await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
       const card = page.getByRole("region", { name: "학습 현황", exact: true });
@@ -768,10 +929,22 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       await testInfo.attach("learning-status-error", { path: screenshotPath, contentType: "image/png" });
       const beforeRetry = dataReads;
       const beforeMe = meReads;
-      failed = false;
+      // The notification hook can independently refetch grades. Only the
+      // trusted click on this card should recover the mock response.
+      await page.evaluate(() => {
+        document.addEventListener("click", (event) => {
+          if (!(event.target instanceof Element) || !event.isTrusted) return;
+          const button = event.target.closest('section[aria-label="학습 현황"] button');
+          if (button?.textContent?.trim() === "다시 시도") {
+            document.documentElement.dataset.qaLearningStatusRetry = "true";
+          }
+        }, { capture: true });
+      });
+      retryArmed = true;
       await card.getByRole("button", { name: "다시 시도", exact: true }).click();
       await expect(card.getByRole("alert")).toHaveCount(0);
       await expect(card.getByText("아직 학습 기록이 없어요")).toBeVisible();
+      expect(recovered).toBe(true);
       // Notification counts independently read grades too; only document reload is forbidden.
       expect(dataReads).toBeGreaterThan(beforeRetry);
       expect(meReads).toBe(beforeMe);
@@ -854,9 +1027,10 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       await page.setViewportSize({ width: parentDashboard ? 390 : 1366, height: 900 });
       await page.clock.setFixedTime(new Date("2026-10-21T00:10:00+09:00"));
       await installStudentApi(page, { parentDashboard });
-      await page.route("**/api/v1/student/sessions/me/", (route) => route.fulfill({ json: [
-        { id: 21, title: "기간 밖 수업", date },
-      ] }));
+      await page.route(matchesSessionsApi, (route) => route.fulfill({ json: {
+        items: date === "2026-10-22" ? [{ id: 21, title: "기간 밖 수업", date }] : [],
+        has_any_sessions: true,
+      } }));
       await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
       const card = page.getByRole("region", { name: "학습 현황", exact: true });
       await expect(card.getByRole("link", { name: /수업·클리닉/ })).toContainText("0회");
@@ -900,7 +1074,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       tenantRole: "parent", linkedStudents: [{ id: 11, name: "학생 11" }, { id: 12, name: "학생 12" }],
     } }));
     const selectedReads: string[] = [];
-    await page.route("**/api/v1/student/sessions/me/", (route) => route.fulfill({ json:
+    await page.route(matchesSessionsApi, (route) => route.fulfill({ json:
       route.request().headers()["x-student-id"] === "11"
         ? [{ id: 21, title: "첫째만의 수업", date: "2026-10-21" }] : [],
     }));

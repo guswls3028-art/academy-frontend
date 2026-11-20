@@ -1,5 +1,6 @@
 import type { OmrUploadBatchItemStatus, OmrUploadBatchSummary } from "@/shared/api/contracts/submissions";
 import styles from "./OmrBatchLedger.module.css";
+import { omrGradingAttentionCount } from "./omrGradingAttention";
 
 const STATUS_LABELS: Record<OmrUploadBatchItemStatus, string> = {
   pending_admission: "접수 대기",
@@ -25,7 +26,7 @@ export default function OmrBatchLedger({ batch, fileNames, inline = false }: {
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      <summary>답안지별 접수 내역 · {batch.total_count}장</summary>
+      <summary>답안지별 접수 내역 · {batch.total_count}장{omrGradingAttentionCount(batch) > 0 && " · 채점 확인 필요"}</summary>
       <ol className={inline ? `${styles.items} ${styles.inlineItems}` : styles.items}>
         {batch.items.map((item) => (
           <li key={item.id} data-status={item.status}>

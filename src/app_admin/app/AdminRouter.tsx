@@ -20,6 +20,7 @@ import { renderLazyRoute } from "@/core/router/renderLazyRoute";
 
 /* ================= Lazy: Dashboard ================= */
 const DashboardPage = lazy(() => import("@admin/domains/dashboard/pages/DashboardPage"));
+const StaffBoardPage = lazy(() => import("@admin/domains/staff-board/StaffBoardPage"));
 const WorkspaceSectionPage = lazy(() => import("@admin/layout/WorkspaceSectionPage"));
 
 /* ================= Lazy: Students ================= */
@@ -173,6 +174,7 @@ export default function AdminRouter() {
       <Route element={<AppLayout overlay={studentDetailOverlay ?? staffDetailOverlay} />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={renderLazyRoute(DashboardPage)} />
+        <Route path="staff-board/:category?/:postId?" element={renderLazyRoute(StaffBoardPage)} />
         <Route path="learning" element={renderLazyRoute(WorkspaceSectionPage)} />
         <Route path="management" element={renderLazyRoute(WorkspaceSectionPage)} />
 

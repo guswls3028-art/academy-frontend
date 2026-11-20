@@ -9,7 +9,7 @@
   --auth-text-muted: #505c70;
   --auth-focus: rgb(41 58 176 / 16%);
   --auth-error: #a21c35;
-  --auth-gradient: var(--auth-accent);
+  --auth-gradient: linear-gradient(110deg, var(--auth-accent), #3449b7);
   box-sizing: border-box;
   flex-direction: column;
   align-items: center;
@@ -86,6 +86,7 @@
 }
 
 [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-panel"] button[type="submit"] {
+  background: var(--auth-accent);
   min-height: 3.125rem;
   border-radius: 0.5rem;
   font-size: 1rem;

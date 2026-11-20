@@ -344,6 +344,8 @@ async function submitFirstStudentThroughUi(
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${QA_BASE}/student/exams/${examId}/result`, { timeout: 30_000 });
   await waitForRenderSettled(page, { timeout: 20_000 });
+  await expect(page.getByText("60 / 100점", { exact: true })).toBeVisible();
+  await expect(page.getByText("정답 3 / 5문항", { exact: true })).toBeVisible();
   await expect(page.getByTestId("wrong-number-chip")).toHaveText(["2번", "5번"]);
   await assertNoHorizontalOverflow(page);
   return submissionId;
@@ -412,6 +414,10 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
       total_score: 20,
       analysis: { wrong_count: 4 },
     });
+    const comparison = page.getByRole("group", { name: "시험 점수 비교" });
+    await expect(comparison).toContainText("전체 평균40점");
+    await expect(comparison).toContainText("상위 10% 평균60점");
+    await expect(comparison).toContainText("최고점60점");
     const teacherProjection = await expectApi<{
       user: number;
       target_type: string;
@@ -487,7 +493,10 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
           if (await settings.getAttribute("open") === null) await settingsSummary.click();
           await expect(staffPage.getByLabel("학생 등수 공개", { exact: true })).toBeChecked({ checked: showRank });
           await expect(staffPage.getByLabel("학생 응시 인원 공개", { exact: true })).toBeChecked({ checked: showCount });
-          const expected = { total_score: 60, rank: showRank ? 1 : null, cohort_size: showCount ? 2 : null };
+          const expected = {
+            total_score: 60, rank: showRank ? 1 : null, cohort_size: showCount ? 2 : null,
+            cohort_highest: showRank ? 60 : null, cohort_top_decile_avg: showRank ? 60 : null,
+          };
           const studentResult = await waitForResult(request, primaryTokens.access, created.examId!);
           const parentResult = await waitForResult(request, parentTokens.access, created.examId!, primary.id);
           expect(studentResult).toMatchObject(expected);

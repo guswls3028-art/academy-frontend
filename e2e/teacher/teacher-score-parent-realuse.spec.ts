@@ -3,6 +3,7 @@
  * student/parent projections. The clinic scenario seeds an explicit exam absence.
  * The fixed QA operator has admin authority; this does not prove a teacher-only role.
  */
+import { writeFile } from "node:fs/promises";
 import { expect, test } from "../fixtures/strictTest";
 import type { APIRequestContext, Page, Response, TestInfo } from "@playwright/test";
 import type { SessionScoresResponse } from "../../src/shared/api/contracts/sessionScores";
@@ -14,7 +15,7 @@ import {
   createQaFamily, expectApi, installQaStudentParentBoundary, loginAdmin,
   loginThroughUi, QA_ADMIN_PASSWORD, QA_ADMIN_USER, QA_API, QA_BASE, QA_TENANT,
   reloadStudentApp, selectParentStudentThroughUi, STUDENT_PARENT_REALUSE_ENABLED,
-  type QaFamily, type QaStudent,
+  type QaFamily, type QaFamilyCleanupObservation, type QaStudent,
 } from "../helpers/qaStudentParentScenario";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
 
@@ -135,6 +136,7 @@ async function seedFixture(request: APIRequestContext): Promise<void> {
 async function cleanupFixture(request: APIRequestContext, testInfo: TestInfo): Promise<void> {
   if (!owned.adminAccess) return;
   const failures: string[] = [];
+  const familyCleanupObservations: QaFamilyCleanupObservation[] = [];
   if (owned.clinicSessionId) {
     const path = `/clinic/sessions/${owned.clinicSessionId}/`;
     try {
@@ -193,7 +195,10 @@ async function cleanupFixture(request: APIRequestContext, testInfo: TestInfo): P
       if (![200, 202, 204, 404].includes(result.status)) failures.push(`DELETE ${path}: ${result.status}`);
     } catch { failures.push(`DELETE ${path}: transport failed`); }
   }
-  try { await cleanupQaFamily(request, owned.adminAccess, owned.family); }
+  try {
+    await cleanupQaFamily(request, owned.adminAccess, owned.family,
+      (event) => familyCleanupObservations.push(event));
+  }
   catch { failures.push("exact synthetic family cleanup failed"); }
   for (const path of paths) {
     try {
@@ -211,9 +216,13 @@ async function cleanupFixture(request: APIRequestContext, testInfo: TestInfo): P
       else if (residue.status !== 404) failures.push(`final exam ${exam.id}: unexpected residue ${residue.status}`);
     } catch { failures.push(`final exam ${exam.id}: residue not verified`); }
   }
+  const cleanupEvidencePath = testInfo.outputPath("teacher-score-fixture-cleanup.json");
+  await writeFile(cleanupEvidencePath, JSON.stringify({
+    archivedExamIds, retainedExamIds, outerTenantCleanupRequired: true,
+    tenantUserZeroProvenByThisSpec: false, failures, familyCleanupObservations,
+  }));
   await testInfo.attach("teacher-score-fixture-cleanup", {
-    body: JSON.stringify({ archivedExamIds, retainedExamIds, outerTenantCleanupRequired: true,
-      tenantUserZeroProvenByThisSpec: false, failures }),
+    path: cleanupEvidencePath,
     contentType: "application/json",
   });
   expect(failures, "fixture cleanup is separate from outer tenant/user/token/activity/R2 cleanup").toEqual([]);
@@ -539,11 +548,12 @@ async function verifyEditableScoreMessage(page: Page, request: APIRequestContext
       const scheduled = await scheduledResponse;
       await checkResponseScope(scheduled, 200);
       expect(await scheduled.json()).toMatchObject({ scheduled: 1, enqueued: 0 });
-      const pending = await expectApi<{ count: number; results: Array<{ id: number; target_id: string; trigger: string }> }>(
+      const pending = await expectApi<{ count: number; results: Array<{ id: number; target_id: string; trigger: string; recipient_summary: string }> }>(
         request, "GET", "/messaging/scheduled/?status=pending&page_size=100", owned.adminAccess);
       const mine = pending.results.filter(item => String(item.target_id) === String(student.id) && item.trigger === "manual_send");
       owned.scheduledMessageIds.push(...mine.map(item => item.id));
       expect(mine).toHaveLength(1);
+      expect(mine[0].recipient_summary).toContain(student.parent_phone);
       await gotoAndSettle(page, `${QA_BASE}/workspace/message/log`);
       const scheduledPanel = page.getByRole("region", { name: "예약 발송", exact: true });
       await expect(scheduledPanel.getByRole("button", { name: "예약 새로고침", exact: true })).toBeEnabled();
@@ -554,6 +564,7 @@ async function verifyEditableScoreMessage(page: Page, request: APIRequestContext
         await checkResponseScope(await nextPage, 200);
       }
       await expect(row).toContainText(student.name);
+      await expect(row).toContainText(student.parent_phone);
       await row.getByRole("button", { name: "예약 취소", exact: true }).click();
       const cancelDialog = page.getByRole("alertdialog", { name: "예약 발송 취소", exact: true });
       await expect(cancelDialog).toContainText(student.name);

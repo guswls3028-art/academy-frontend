@@ -328,6 +328,14 @@ for (const autoApprove of [false, true]) {
         await expect(dialog.getByText("신청이 완료되었습니다. 승인 후 로그인해 주세요.", { exact: true })).toHaveCount(0);
       } else {
         registrationId = (await response.json() as { id: number }).id;
+        await gotoAndSettle(page, `${QA_BASE}/workspace/mobile/comms?tab=requests`);
+        await page.getByText(row.name, { exact: true }).click();
+        const teacherDetail = page.getByRole("dialog", { name: "등록요청 상세" });
+        for (const phone of [row.phone, row.parentPhone]) {
+          const formatted = `${phone.slice(0, 3)}-${phone.slice(3, 7)}-${phone.slice(7)}`;
+          await expect(teacherDetail.getByText(formatted, { exact: true })).toBeVisible();
+        }
+        await assertNoHorizontalOverflow(page);
         // A later academy policy cannot rewrite the pending applicant's explicit choice.
         await expectApi(request, "PATCH", policyPath, admin, { parent_mode: "random" });
         await gotoAndSettle(page, `${QA_BASE}/workspace/students/requests`);
