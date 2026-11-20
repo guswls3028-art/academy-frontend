@@ -209,7 +209,7 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
       await gotoAndSettle(page, `${QA_BASE}/workspace/message/auto-send`);
       await page.getByRole("button", { name: "클리닉/상담", exact: true }).click();
       await expect(page.getByText(mobileBody, { exact: true })).toBeVisible();
-      const rendered = await expectApi<{ can_send: boolean; preview_recipients: Array<{ full_message_body: string }> }>(
+      const rendered = await expectApi<{ can_send: boolean; preview_recipients: Array<{ phone: string; full_message_body: string }> }>(
         request, "POST", "/messaging/send/preflight/", access, {
           template_id: editableTemplateId, student_ids: [student.id], send_to: "parent", message_mode: "alimtalk",
           block_category: "clinic", alimtalk_extra_vars: { 클리닉장소: "QA 강의실", 클리닉날짜: "2026-10-19", 클리닉시간: "18:00" },
@@ -217,6 +217,7 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
       );
       expect(rendered.can_send).toBe(true);
       expect(rendered.preview_recipients).toHaveLength(1);
+      expect(rendered.preview_recipients[0].phone).toBe(student.parent_phone);
       expect(rendered.preview_recipients[0].full_message_body).toContain(mobileBody);
       expect(rendered.preview_recipients[0].full_message_body).not.toContain("예전에 저장한 합성 안내문");
       await gotoAndSettle(page, `${QA_BASE}/workspace/students/home`);

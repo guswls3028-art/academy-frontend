@@ -14,7 +14,7 @@ import { formatPhone } from "@/shared/utils/formatPhone";
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { fetchMessageLog, fetchMessageLogDetail, type MessageLogItem } from "../api";
 import { teacherCommsQueryKeys } from "../queryKeys";
-import { canSendManualAlimtalk } from "../messagePermissions";
+import { canSendManualAlimtalk } from "@teacher/shared/messagePermissions";
 
 /** 비밀번호·로그인 정보 포함 본문은 staff 에게 본문 자체를 숨김. */
 function isSensitiveBody(body: string | null | undefined): boolean {

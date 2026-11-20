@@ -5,7 +5,7 @@ import { useEffect, useState, useRef } from "react";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { useLocation, useNavigate } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
-import { canSendManualAlimtalk } from "@teacher/domains/comms/messagePermissions";
+import { canSendManualAlimtalk } from "@teacher/shared/messagePermissions";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
