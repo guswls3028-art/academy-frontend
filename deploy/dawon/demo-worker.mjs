@@ -141,6 +141,143 @@ section[aria-label$="차시 카드"] .session-block__gear:focus-visible {
     white-space:nowrap;
   }
 }
+/* A sortable heading stays part of the table, including its keyboard focus. */
+[data-dawon-staff] .ds-table th[aria-sort] button[aria-label$=" 정렬"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 32px;
+  margin: 0;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 3px;
+  box-shadow: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1.3;
+  white-space: nowrap;
+  cursor: pointer;
+}
+[data-dawon-staff] .ds-table th[aria-sort] button[aria-label$=" 정렬"] svg {
+  width: 12px;
+  flex: none;
+}
+[data-dawon-staff] .ds-table th[aria-sort="none"] button svg {
+  color: var(--color-text-muted);
+}
+[data-dawon-staff] .ds-table th[aria-sort] button:is(:hover, :focus-visible) {
+  color: var(--color-brand-primary-active);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+[data-dawon-staff] .ds-table th[aria-sort] button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+[data-dawon-staff] .ds-table th.ds-resizable-th[aria-sort] {
+  padding-block: 2px;
+}
+[data-dawon-staff="teacher"] [aria-label="담당 반 목록"] .ds-table.ds-table--flat tbody td {
+  padding-block: 1px !important;
+}
+[data-dawon-staff="teacher"] [aria-label="담당 반 목록"] tbody td:first-child a {
+  min-height: 44px;
+}
+[data-dawon-staff="teacher"] [aria-label="담당 반 목록"] :is(th,td):last-child {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+[data-dawon-staff="admin"] .domain-list-toolbar :has(> label > input[type="date"]):has(> a) {
+  align-items: end;
+  margin-block-end: 0;
+}
+[data-dawon-staff="admin"] .domain-list-toolbar label:has(> input[type="date"]) {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  line-height: 1.4;
+}
+[data-dawon-staff="admin"] .domain-list-toolbar label:has(> input[type="date"]) + a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+@media (max-width: 600px) {
+  [data-dawon-staff] .domain-layout:has(:is([aria-label="반 업무"],[aria-label="차시 출결 명단"],[aria-label="반별 운영 현황"])) > .domain-layout__header {
+    padding: 8px 12px;
+  }
+  [data-dawon-staff] .domain-layout:has(:is([aria-label="반 업무"],[aria-label="차시 출결 명단"])) .domain-layout__header-row {
+    gap: 6px;
+    padding-block: 0;
+  }
+  [data-dawon-staff] .domain-layout:has(:is([aria-label="반 업무"],[aria-label="차시 출결 명단"])) nav[aria-label="상위 경로"] {
+    margin-bottom: 3px;
+  }
+  [data-dawon-staff] .domain-layout:has([aria-label="차시 출결 명단"]) .domain-layout__header {
+    padding-bottom: 0;
+  }
+  [data-dawon-staff] .domain-layout:has([aria-label="차시 출결 명단"]) .domain-header__tabs-wrap {
+    margin-top: 6px;
+  }
+  [data-dawon-staff] section[aria-label="반 명단"] .domain-list-toolbar > div:first-child > :empty {
+    display: none;
+  }
+  [data-dawon-staff="admin"] .domain-list-toolbar:has(input[aria-label="반 또는 담당 강사 검색"]) > div:first-child {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  [data-dawon-staff="admin"] .domain-list-toolbar:has(input[aria-label="반 또는 담당 강사 검색"]) > div:first-child > div {
+    padding: 0;
+    margin: 0;
+  }
+  [data-dawon-staff="teacher"] section[aria-label="반 명단"] .domain-list-toolbar:has(> div:first-child > :empty) {
+    display: flex;
+    flex-flow: row wrap;
+    align-items: center;
+    column-gap: 10px;
+  }
+  [data-dawon-staff="teacher"] section[aria-label="반 명단"] .domain-list-toolbar:has(> div:first-child > :empty) > div:has(input) {
+    flex: 1 1 190px;
+    min-width: 0;
+  }
+  [data-dawon-staff] :is([aria-label="반별 운영 현황"],[aria-label="반 학생 명단"]).ds-table-wrap {
+    margin-inline: 0;
+    padding-inline: 0;
+    max-width: 100%;
+    overscroll-behavior-x: contain;
+    scrollbar-color: var(--color-border-divider-strong) transparent;
+  }
+}
+
+/* On a narrow phone, or with a custom name-column width, allow the whole table to pan. */
+@media (min-width: 360px) and (max-width: 600px) {
+  [data-dawon-staff] :is([aria-label="반별 운영 현황"],[aria-label="반 학생 명단"]) {
+    --identity-width: 160px;
+  }
+  [data-dawon-staff] [aria-label="반별 운영 현황"] {
+    --identity-width: 155px;
+  }
+  [data-dawon-staff] :is([aria-label="반별 운영 현황"],[aria-label="반 학생 명단"]):has(th:first-child :is([aria-valuenow="155"],[aria-valuenow="160"])) {
+    scroll-padding-inline-start: var(--identity-width);
+  }
+  [data-dawon-staff] :is([aria-label="반별 운영 현황"],[aria-label="반 학생 명단"]) table:has(th:first-child :is([aria-valuenow="155"],[aria-valuenow="160"])) :is(th,td):first-child {
+    position: sticky;
+    inset-inline-start: 0;
+    z-index: 1;
+    background-color: var(--color-bg-surface);
+    box-shadow: inset -1px 0 var(--color-border-divider);
+  }
+  [data-dawon-staff] :is([aria-label="반별 운영 현황"],[aria-label="반 학생 명단"]) table thead th[scope="col"] {
+    background-color: var(--color-bg-surface-soft);
+  }
+  [data-dawon-staff] :is([aria-label="반별 운영 현황"],[aria-label="반 학생 명단"]) table:has(th:first-child :is([aria-valuenow="155"],[aria-valuenow="160"])) thead th:first-child {
+    z-index: 2;
+    background-color: var(--color-bg-surface-soft);
+  }
+}
 </style>`;
 const nativePolicy = "default-src 'self'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'";
 
