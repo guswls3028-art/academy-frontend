@@ -180,147 +180,118 @@
   font-weight: 900;
 }
 
-/* ═══════════════════════════════════════════════
-   Speed Button + Popover
-   ═══════════════════════════════════════════════ */
+/* Keep the timeline and transport controls in one quiet, high-contrast strip. */
+.svpControls .svpBtn {
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+}
 
-.svpRoot .svpSpeedBtn {
+.svpControls .svpProgressRow .svpRange {
+  accent-color: #ff4057;
+}
+
+.svpControls .svpPlaybackRateBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 38px;
-  min-width: 44px;
+  gap: 7px;
+  min-height: 44px;
   padding: 0 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.10);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 800;
+  color: white;
+  background: #ffffff1c;
+  border: 0;
+  border-radius: 999px;
   font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease;
   white-space: nowrap;
+  cursor: pointer;
 }
 
-.svpRoot .svpSpeedBtn:hover {
-  background: rgba(255, 255, 255, 0.18);
-  border-color: rgba(255, 255, 255, 0.28);
+.svpPlaybackRateBtn svg { flex: none; transition: transform 160ms ease; }
+.svpPlaybackRateBtn[aria-expanded="true"] svg { transform: rotate(28deg); }
+.svpControls .svpPlaybackRateBtn:hover,
+.svpControls .svpPlaybackRateBtn[aria-expanded="true"] { background: #ffffff24; }
+.svpControls button:focus-visible,
+.svpSettingsPanel :is(button, select):focus-visible {
+  outline: 2px solid white;
+  outline-offset: -3px;
 }
 
-.svpRoot .svpSpeedBtn:active {
-  background: rgba(255, 255, 255, 0.24);
-}
-
-.svpRoot .svpSpeedBtn--disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* 배속 드롭업 메뉴 (position: fixed — overflow:hidden 우회) */
-.svpSpeedMenu {
+.svpSettingsPanel {
   position: fixed;
   z-index: 9999;
-  min-width: 140px;
-  max-height: min(440px, 58vh);
-  overflow-y: auto;
-  padding: 8px 0;
+  box-sizing: border-box;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
+  border: 1px solid #ffffff24;
   border-radius: 14px;
-  background: rgba(12, 12, 15, 0.96);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.50), 0 0 0 1px rgba(0, 0, 0, 0.3);
-  display: flex;
-  flex-direction: column;
+  background: #202020;
+  color: #fff;
+  color-scheme: dark;
+  font-size: 14px;
+  line-height: 1.4;
+  box-shadow: 0 8px 28px #0006;
+  animation: svpSettingsIn 120ms ease-out;
 }
-
-/* 하단 꼬리 삼각형 */
-.svpSpeedMenu::after {
-  content: "";
-  position: absolute;
-  bottom: -6px;
-  right: 16px;
-  width: 12px;
-  height: 12px;
-  background: rgba(12, 12, 15, 0.96);
-  border-right: 1px solid rgba(255, 255, 255, 0.14);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-  transform: rotate(45deg);
+.svpSettingTitle { font-size: 15px; font-weight: 700; }
+.svpSettingValue { margin: 8px 0 0; color: #dedede; }
+.svpSettingOptions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 10px;
 }
-
-.svpSpeedMenu .svpSpeedMenuItem {
+.svpSettingOptions button, .svpSettingsDone, .svpQualitySetting select {
+  min-height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: #383838;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+}
+.svpSettingOptions button { font-variant-numeric: tabular-nums; }
+.svpSettingOptions button:hover, .svpSettingsDone:hover { background: #484848; }
+.svpSettingOptions button[aria-pressed="true"] {
+  background: #fff;
+  color: #171717;
+  font-weight: 750;
+}
+.svpSettingOptions button[aria-pressed="true"]:focus-visible { outline-color: #333; }
+.svpQualitySetting {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  padding: 11px 20px;
-  border: none;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid #ffffff26;
+}
+.svpQualitySetting span { color: #ddd; }
+.svpQualitySetting select { padding: 0 8px; }
+.svpSettingsDone {
+  display: block;
+  margin: 8px 0 -6px auto;
+  padding: 0 12px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 14px;
-  font-weight: 600;
-  font-family: inherit;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  transition: background 80ms ease, color 80ms ease;
-  text-align: left;
 }
-
-.svpSpeedMenu .svpSpeedMenuItem:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+@keyframes svpSettingsIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
-.svpSpeedMenu .svpSpeedMenuItem--active {
-  color: #fff;
-  font-weight: 800;
-}
-
-.svpSpeedCheck {
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  display: inline-grid;
-  place-items: center;
-  flex-shrink: 0;
-  background: rgba(100, 200, 255, 0.18);
-  border: 1px solid rgba(100, 200, 255, 0.46);
-}
-
-.svpSpeedCheck::before {
-  content: "";
-  width: 8px;
-  height: 4px;
-  border-left: 2px solid rgba(142, 218, 255, 0.96);
-  border-bottom: 2px solid rgba(142, 218, 255, 0.96);
-  transform: rotate(-45deg) translateY(-1px);
-}
-
-/* 터치 디바이스 */
-@media (hover: none) and (pointer: coarse) {
-  .svpRoot .svpSpeedBtn {
-    height: 42px;
-    min-width: 54px;
-    font-size: 14px;
-    padding: 0 14px;
-  }
-  .svpSpeedMenu .svpSpeedMenuItem {
-    padding: 15px 22px;
-    font-size: 16px;
-  }
-  .svpSpeedMenu {
-    min-width: 160px;
-    max-height: min(360px, 46vh);
-    padding: 10px 0;
-    border-radius: 16px;
-  }
+@media (prefers-reduced-motion: reduce) {
+  .svpPlaybackRateBtn svg { transition: none; }
+  .svpSettingsPanel { animation: none; }
 }
 
 @media (max-width: 640px) {
-  .svpSpeedMenu {
-    right: 12px !important;
-    bottom: 96px !important;
+  .svpRoot .svpControls .svpBtn {
+    width: 44px;
+    height: 44px;
   }
+  .svpControls :is(.svpControlRow, .svpLeftControls, .svpRightControls) { gap: 2px; }
 }
