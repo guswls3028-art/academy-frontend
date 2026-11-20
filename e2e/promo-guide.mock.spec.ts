@@ -192,6 +192,27 @@ test("Cloudflare guide videos preserve byte ranges and missing media never retur
     expect(await missing.text()).not.toContain("<html>");
   }
 });
+test("old guide links open the current edition while embedded recordings keep their byte ranges", async () => {
+  const previous = "https://hakwonplus.com/guide-media/admin-attendance-3fb37f672430";
+  const current = "https://hakwonplus.com/guide-media/admin-attendance-3b3138750a56";
+  const assets = { ASSETS: { fetch: async () => new Response("ftyp", {
+    status: 206, headers: { "Content-Type": "video/mp4", "Content-Range": "bytes 4-7/100" },
+  }) } };
+  const still = await onRequestGet({ request: new Request(previous + "/01.jpg"), env: assets } as never);
+  expect(still.headers.get("Location")).toBe(current + "/01.jpg");
+  const video = previous + "/walkthrough.mp4";
+  const bookmark = await onRequestGet({
+    request: new Request(video, { headers: { "Sec-Fetch-Mode": "navigate" } }), env: assets,
+  } as never);
+  expect(bookmark.status).toBe(307);
+  expect(bookmark.headers.get("Location")).toBe(current + "/walkthrough.mp4");
+  const playback = await onRequestGet({
+    request: new Request(video, { headers: { Range: "bytes=4-7" } }), env: assets,
+  } as never);
+  expect(playback.status).toBe(206);
+  expect(playback.headers.get("Content-Range")).toBe("bytes 4-7/100");
+});
+
 const GUIDES = [
   { role: "admin", label: "관리자·선생님", articles: ADMIN_WORKFLOWS },
   { role: "teacher", label: "직원·강사", articles: TEACHER_WORKFLOWS },

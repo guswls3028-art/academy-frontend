@@ -65,7 +65,7 @@ export default function AiGradingPage() {
           <aside className={styles.heroProofStack} aria-label="시험 운영 화면 미리보기">
             <figure className={styles.heroScreen}>
               <PromoEvidenceImage
-                src="/promo/admin-exams-authority-20260726.png"
+                src="/promo/admin-exams-authority-20260726.png?v=20261120"
                 alt="예시 시험 세 개의 채점 방식과 대상 수강생을 확인하는 관리자 시험 화면"
                 width={1440}
                 height={900}
@@ -159,7 +159,7 @@ export default function AiGradingPage() {
           <article className={`${styles.proofCard} ${styles.proofCardFeatured}`} id="exam-score">
             <div className={styles.proofVisual}>
               <PromoEvidenceImage
-                src="/promo/admin-scores-authority-20260726.png"
+                src="/promo/admin-scores-authority-20260726.png?v=20261120"
                 alt="예시 학생 세 명의 시험별 점수와 판정 결과를 확인하는 관리자 성적 화면"
                 width={1440}
                 height={900}

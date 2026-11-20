@@ -22,6 +22,21 @@ interface Env {
 const STATIC_EXT = /\.(js|mjs|css|png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|eot|map|json|xml|txt|webmanifest|mp4|vtt|pdf)(\?.*)?$/i;
 const STATIC_HTML_PATHS = new Set(["/omr-sheet", "/omr-sheet.html"]);
 
+// New reads of published guide links follow the current edition. Previously buffered video ranges keep their original bytes.
+const GUIDE_EDITION_ALIASES: Record<string, string> = {
+  "admin-attendance-3fb37f672430": "admin-attendance-3b3138750a56",
+  "create-exam-0c8d93f7042e": "create-exam-dd1f2b6c2eb4",
+  "create-homework-f034c57a9d0f": "create-homework-3b07152e6780",
+  "create-session-e6096e16cee5": "create-session-a64f320ff3cb",
+  "manual-grading-091af37c4429": "manual-grading-6155195f0ae1",
+  "register-student-32f65693ff08": "register-student-7a1b861476a0",
+  "send-alimtalk-f5520aa79a47": "send-alimtalk-a105f2492e29",
+  "student-assignment-35a80ffe8c70": "student-assignment-65858d8da971",
+  "teacher-attendance-146417c82f52": "teacher-attendance-48a19b956f87",
+  "upload-video-84172b6ffcba": "upload-video-04161af23c8f",
+  "admin-attendance-90f1db7540a8": "admin-attendance-3b3138750a56"
+};
+
 function createCspNonce(): string {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
@@ -770,6 +785,19 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
       status: 404,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
+  }
+
+  const oldGuide = /^\/guide-media\/([a-z0-9-]+-[a-f0-9]{12})\/(\d{2}\.jpg|walkthrough\.mp4|captions\.vtt)$/.exec(pathname);
+  if (oldGuide) {
+    const [, edition, filename] = oldGuide;
+    const current = GUIDE_EDITION_ALIASES[edition];
+    const directNavigation = context.request.headers.get("Sec-Fetch-Mode") === "navigate";
+    // Keep an existing player's video and captions on one immutable timeline, including byte-range resumes.
+    if (current && !context.request.headers.has("Range") && (filename.endsWith(".jpg") || directNavigation)) {
+      const target = new URL(context.request.url);
+      target.pathname = `/guide-media/${current}/${filename}`;
+      return Response.redirect(target.toString(), 307);
+    }
   }
 
   // 정적 파일은 그대로 ASSETS에 위임
