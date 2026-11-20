@@ -19,12 +19,20 @@
     if (!feedback || feedback.hidden || !feedback.textContent.endsWith("학교 성적을 저장했어요.")) return;
     for (const field of edited) if (form.contains(field)) edited.delete(field);
   });
+  function hasOpenDialog(root) {
+    return Array.from(root.querySelectorAll('dialog[open],[role="dialog"],[role="alertdialog"]')).some(dialog =>
+      !dialog.closest('[hidden],[inert],[aria-hidden="true"],dialog:not([open])') &&
+      dialog.getClientRects().length > 0 && getComputedStyle(dialog).visibility === "visible"
+    );
+  }
   function refreshWhenIdle() {
     if (!target || document.hidden) return;
     for (const field of edited) {
       if (!field.isConnected || !field.getClientRects().length) edited.delete(field);
     }
-    if (edited.size || document.querySelector('[role="dialog"],[role="alertdialog"],dialog[open],input[type="file"]:focus') ||
+    const counselHeader = document.querySelector('[data-dawon-counsel-part="header"]')?.shadowRoot;
+    if (edited.size || hasOpenDialog(document) || (counselHeader && hasOpenDialog(counselHeader)) ||
+        document.querySelector('input[type="file"]:focus') ||
         Array.from(document.querySelectorAll("audio,video")).some((media) => !media.paused && !media.ended)) return;
     try {
       const key = "dawon:refresh-attempt";
