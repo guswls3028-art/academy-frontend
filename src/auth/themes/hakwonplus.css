@@ -85,6 +85,11 @@
   font-size: 1rem;
 }
 
+[data-app="auth"][data-tenant="hakwonplus"] :is([data-auth-part="login-panel"], [class*="overlayCard"]) div[class*="error"] {
+  color: var(--auth-error);
+  background-color: #fef2f2;
+}
+
 [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-panel"] button[type="submit"] {
   background: var(--auth-accent);
   min-height: 3.125rem;
