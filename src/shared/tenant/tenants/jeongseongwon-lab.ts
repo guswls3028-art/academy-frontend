@@ -2,8 +2,8 @@ import type { TenantDef } from "./types";
 
 export const JEONGSEONGWON_LAB_DOMAIN = "xn--oj4bo6fugp3an0c.com";
 export const JEONGSEONGWON_LAB_ASSETS = "/tenants/jeongseongwon-lab";
-export const JEONGSEONGWON_LAB_NAME = "정성원연구소";
-export const JEONGSEONGWON_LAB_DESCRIPTION = "정성원연구소 수강생과 선생님을 위한 학습 공간";
+export const JEONGSEONGWON_LAB_NAME = "정성원영어";
+export const JEONGSEONGWON_LAB_DESCRIPTION = "정성원영어의 수업 일정, 과제와 성적을 확인하는 학습 공간입니다.";
 
 export const jeongseongwonLab: TenantDef = {
   id: 12,
