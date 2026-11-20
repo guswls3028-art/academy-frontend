@@ -7,6 +7,7 @@ import { Button } from "@/shared/ui/ds";
 import { DomainTable } from "@/shared/ui/domain";
 import type { TodaySession } from "@teacher/domains/today/api";
 import styles from "./ClassGroupsPage.module.css";
+import { dawonQueryKeys } from "./queryKeys";
 
 const ExamResults = lazy(() => import("@admin/domains/exams/panels/ExamResultsViewerPanel"));
 type Course = {id: number; title: string; cycle_status: "past" | "current" | "upcoming"};
@@ -17,7 +18,7 @@ export default function DawonClassRecords({groupId,courses,tab,lectureRoot}: Pro
   const requested = params.get("course");
   const course = requested ? courses.find(item=>String(item.id)===requested) : courses.find(item=>item.cycle_status==="current") ?? courses[0];
   const sessions = useQuery({
-    queryKey:["dawon","group-sessions",groupId,course?.id],
+    queryKey:dawonQueryKeys.courseSessions(groupId,course?.id),
     enabled:tab==="attendance" && !!course,
     queryFn:async ({signal})=>{
       const {data} = await api.get<TodaySession[]>("/lectures/sessions/",{signal,params:{lecture:course!.id,class_group:groupId}});
@@ -25,7 +26,7 @@ export default function DawonClassRecords({groupId,courses,tab,lectureRoot}: Pro
       return data;
     },
   });
-  const exams = useQuery({queryKey:["dawon","course-exams",groupId,course?.id],enabled:tab==="exams" && !!course,
+  const exams = useQuery({queryKey:dawonQueryKeys.courseExams(groupId,course?.id),enabled:tab==="exams" && !!course,
     queryFn:()=>fetchAssessmentExams({lecture_id:course!.id,exam_type:"regular"})});
   const requestedExam = params.get("exam");
   const exam = requestedExam ? exams.data?.find(item=>String(item.id)===requestedExam) : exams.data?.[0];

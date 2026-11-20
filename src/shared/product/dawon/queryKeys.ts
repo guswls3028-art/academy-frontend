@@ -17,6 +17,8 @@ export const dawonQueryKeys = {
   group: (id: number) => [...groups, id] as const,
   lectureGroup: (id: number) => ["dawon", "lecture-group", id] as const,
   teachingClasses: ["dawon", "assigned-teaching-classes"] as const,
+  courseSessions: (group: number, course?: number) => [...groups, group, "course-sessions", course] as const,
+  courseExams: (group: number, course?: number) => [...groups, group, "course-exams", course] as const,
   roster,
   candidates: (url: string | undefined, search: string, offset: number) =>
     [...roster, url, search, offset] as const,
