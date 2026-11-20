@@ -1,0 +1,31 @@
+.report { display: grid; gap: var(--stu-space-5); min-width: 0; overflow-wrap: anywhere; }
+.report > header, .report > section { min-width: 0; }
+.report h2, .report h3, .report p { margin: 0; }
+.report h2 { font-size: 1.42rem; }
+.report h3 { margin-bottom: .6rem; font-size: 1.08rem; }
+.report p { color: var(--stu-text-muted); line-height: 1.55; white-space: pre-line; }
+.report > header { border-bottom: 2px solid var(--stu-primary); padding-bottom: 1rem; }
+.scores { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; margin: .5rem 0 1rem; }
+.scores dt { color: var(--stu-text-muted); font-size: .82rem; }
+.scores dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tableWrap { max-width: 100%; overflow-x: auto; }
+.tableWrap:focus-visible { outline: 2px solid var(--stu-primary); outline-offset: -2px; }
+.tableWrap table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.tableWrap td, .tableWrap th { min-width: 3rem; padding: .55rem; text-align: left; border-bottom: 1px solid var(--stu-border); }
+.tableWrap thead { background: var(--stu-surface-soft); }
+.tableWrap tbody th { font-weight: 600; }
+@media (max-width: 480px) {
+  .tableWrap td, .tableWrap th { padding: .44rem .3rem; }
+}
+.chart { margin: .5rem 0 .8rem; padding: .6rem; border: 1px solid var(--stu-border); border-radius: var(--stu-radius); }
+.chart figcaption { font-size: .85rem; font-weight: 650; }
+.chart svg { display: block; width: min(100%, 500px); margin: 0 auto; }
+.chart text { fill: var(--stu-text-muted); font-size: 8px; }
+.gridLine { stroke: var(--stu-border); stroke-width: 1px; }
+.score { color: var(--stu-primary); }
+.average { color: var(--stu-text-secondary, #595f67); }
+.highest { color: #227563; }
+.legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; font-size: .8rem; }
+.legend span::before { display: inline-block; width: 14px; margin-right: 4px; vertical-align: middle; border-top: 2px solid currentColor; content: ""; }
+.legend .average::before { border-top-style: dashed; }
+.legend .highest::before { border-top-style: dotted; }

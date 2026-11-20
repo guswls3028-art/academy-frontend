@@ -1,5 +1,6 @@
 /** 시험 목록: 현재 응시 / 채점 대기 / 예정 / 결과 확인을 구분한다. */
 import { Link } from "react-router";
+import { resolveTenantCodeString } from "@/shared/tenant";
 import { Badge } from "@/shared/ui/ds";
 import EmptyState from "@student/layout/EmptyState";
 import { IconExam, IconChevronRight } from "@student/shared/ui/icons/Icons";
@@ -60,6 +61,10 @@ function ExamRow({ exam, state, now }: { exam: StudentExam; state: ExamState; no
   const variant = state === "urgent" ? "stu-panel--danger"
     : state === "available" ? "stu-panel--action" : "stu-panel--complete";
   const className = `stu-panel stu-panel--accent ${variant} ${styles.examRow}`;
+  const resultReady = resolveTenantCodeString() === "dawon" && state === "done" &&
+    exam.has_result === true && exam.student_results_published === true;
+  const destination = resultReady ? `/student/exams/${exam.id}/result?from=list` :
+    closed || exam.learning_todo_eligible === false ? "/student/grades" : `/student/exams/${exam.id}`;
   const content = (
     <>
       <div className={styles.iconWrap}><IconExam className={styles.examIcon} /></div>
@@ -79,7 +84,7 @@ function ExamRow({ exam, state, now }: { exam: StudentExam; state: ExamState; no
   // Planned exams expose their schedule, never a link to a not-yet-authorized exam detail.
   return upcoming ? <div className={className}>{content}</div> : (
     <Link
-      to={closed || exam.learning_todo_eligible === false ? "/student/grades" : `/student/exams/${exam.id}`}
+      to={destination}
       className={`${className} stu-panel--pressable`}
       data-urgency={state === "urgent" && Date.parse(exam.close_at!) - now <= 6 * 60 * 60 * 1000 ? "high" : undefined}
     >{content}</Link>

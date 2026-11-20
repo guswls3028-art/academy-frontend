@@ -20,7 +20,33 @@ export type ExamResultAnalysis = {
   wrong_question_numbers: number[];
 };
 
+type ReportScore = {
+  score: number | null;
+  maximum: number | null;
+  average: number | null;
+  highest: number | null;
+  percentile: number | null;
+};
+
+export type DawonExamReport = {
+  title: string;
+  kind: "level_pair" | "cycle" | "school_mock";
+  course_title: string;
+  lesson_title: string;
+  date: string | null;
+  scope: string;
+  sections: (ReportScore & {
+    exam_id: number; title: string; scope: string;
+    questions: {number: number; topic: string; correct: boolean | null; correct_rate: number | null}[];
+  })[];
+  trend: (ReportScore & {label: string})[];
+  homework: {title: string; completion: number | null; wrong: number[]; unfinished: number[]}[];
+  next_homework: string;
+  clinic: string;
+};
+
 type PublishedExamResult = {
+  dawon_report?: DawonExamReport | null;
   student_results_published?: true;
   exam_id: number;
   attempt_id: number;
@@ -75,8 +101,9 @@ export type MyExamResultItem = {
   meta?: Record<string, unknown>;
 };
 
-export async function fetchMyExamResult(examId: number): Promise<MyExamResult> {
+export async function fetchMyExamResult(examId: number, recordStudentOpen = true): Promise<MyExamResult> {
   const res = await api.get(`/student/results/me/exams/${examId}/`);
+  if (!recordStudentOpen) return res.data as MyExamResult;
   try {
     await api.post("/students/me/activity/exam-result-open/", { exam_id: examId });
   } catch {

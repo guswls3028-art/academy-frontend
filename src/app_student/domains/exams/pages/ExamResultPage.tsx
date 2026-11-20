@@ -3,21 +3,64 @@
  * 대표 Result + ResultItem(문항별) 렌더링
  * 서버 권한 기반 정답 노출 (answer_visibility)
  */
-import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
+import useAuth from "@/auth/hooks/useAuth";
+import { saveReturnPath } from "@/shared/api/axios";
+import { resolveTenantCodeString } from "@/shared/tenant";
 import { Badge } from "@/shared/ui/ds";
 import { useMyExamResult } from "@student/domains/exams/hooks/useMyExamResult";
 import { deriveAchievement, deriveFinalPass } from "@/shared/scoring/achievement";
 import { examQuestionLabel } from "@/shared/scoring/examQuestionNumber";
 import type { ExamResultAnalysis, MyExamResultItem } from "@student/domains/exams/api/results";
+import DawonExamReportView from "../components/DawonExamReportView";
 import GradeBadge from "@student/domains/grades/components/GradeBadge";
 import { useWrongCompletionDisplay, wrongCompletionLabel } from "@/shared/scoring/assessmentStatusDisplay";
 import styles from "./ExamResultPage.module.css";
 
+function dayReturnUrl(params: URLSearchParams) {
+  const validDate = (day: string | null): day is string => {
+    if (!day || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+    const parsed = new Date(day + "T00:00:00Z");
+    return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === day;
+  };
+  const date = params.get("date");
+  if (params.get("from") !== "day" || !validDate(date)) return null;
+  const query = new URLSearchParams({view: "day", date, period: params.get("period") === "month" ? "month" : "week"});
+  if (params.get("preview") === "guardian") query.set("preview", "guardian");
+  const originDate = params.get("originDate");
+  if (validDate(originDate)) query.set("originDate", originDate);
+  return "/learn/exam?" + query;
+}
+
+function ReportRoleLogin() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    saveReturnPath();
+    navigate("/login", {replace: true});
+  }, [navigate]);
+  return <p role="status">성적표 로그인으로 이동합니다.</p>;
+}
+
 export default function ExamResultPage() {
+  const { user } = useAuth();
+  const [params] = useSearchParams();
+  const isDawon = resolveTenantCodeString() === "dawon";
+  const parent = user?.tenantRole === "parent";
+  if (isDawon && params.get("from") === "day" && parent !== (params.get("preview") === "guardian")) {
+    return <ReportRoleLogin />;
+  }
+  return <ExamResultContent isDawon={isDawon} parent={parent} />;
+}
+
+function ExamResultContent({isDawon, parent}: {isDawon: boolean; parent: boolean}) {
   const { examId } = useParams();
+  const [params] = useSearchParams();
+  const day = isDawon ? dayReturnUrl(params) : null;
+  const resultBack = day ? <a href={day} className="stu-cta-link">날짜별 시험</a> :
+    <Link to="/student/exams" className="stu-cta-link">시험 목록</Link>;
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const safeId = Number(examId);
 
@@ -52,7 +95,7 @@ export default function ExamResultPage() {
 
   if (resultQ.isError || !resultQ.data) {
     return (
-      <StudentPageShell title="시험 결과">
+      <StudentPageShell title="시험 결과" actions={isDawon ? resultBack : undefined}>
         <EmptyState
           title="결과를 불러오지 못했어요."
           description="아직 채점 전이거나, 시험에 응시하지 않았을 수 있어요."
@@ -67,11 +110,7 @@ export default function ExamResultPage() {
     return (
       <StudentPageShell
         title="시험 결과"
-        actions={
-          <Link to="/student/exams" className="stu-cta-link">
-            시험 목록
-          </Link>
-        }
+        actions={resultBack}
       >
         <EmptyState
           title={r.grading_status === "subjective_pending" ? "서술형 채점 중입니다." : "성적 공개 전입니다."}
@@ -105,19 +144,18 @@ export default function ExamResultPage() {
       title="시험 결과"
       actions={
         <div className={styles.headerActions}>
-          <Link to="/student/grades" className="stu-cta-link">
-            성적
-          </Link>
-          <Link
+          {isDawon ? resultBack : <Link to="/student/grades" className="stu-cta-link">성적</Link>}
+          {!(isDawon && parent) && <Link
             to={`/student/exams/${safeId}`}
             className={styles.backLink}
           >
-            시험으로
-          </Link>
+            {isDawon ? "응시 정보" : "시험으로"}
+          </Link>}
         </div>
       }
     >
       <div className={styles.resultStack}>
+        {isDawon && r.dawon_report && <DawonExamReportView report={r.dawon_report} />}
         {/* ── 상태 배너: 미응시 > 임시 채점 (우선순위 1개만 노출) ── */}
         {achievement === "NOT_SUBMITTED" ? (
           <div className={styles.statusBanner} role="status">

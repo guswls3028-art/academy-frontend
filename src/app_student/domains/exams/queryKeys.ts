@@ -9,6 +9,8 @@ export const studentExamQueryKeys = {
   questions: (tenantCode: string, examId: number) =>
     ["student", "exams", "questions", tenantCode, examId] as const,
   result: (examId: number) => ["student", "exams", "result", examId] as const,
+  parentResult: (parentId: number, studentId: number | null, examId: number) =>
+    ["student", "exams", "result", examId, "parent", parentId, studentId] as const,
   resultItems: (examId: number) => ["student", "exams", "result", "items", examId] as const,
   gradesRoot: studentQueryKeys.gradesRoot,
   dashboard: studentQueryKeys.dashboard,

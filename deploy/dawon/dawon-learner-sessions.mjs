@@ -228,8 +228,16 @@ function mountLearner() {
         case 'curriculum': return [{...base, detail:row.lecture}];
         case 'video': return row.videos.map(title => ({...base, title, detail:row.lecture + ' · ' + row.title,
           ...(guardian ? {} : {path:'/login/dawon?demo=student&view=video&session=' + row.id, action:'수업 영상 보기'})}));
-        case 'exam': return row.exams.map(exam => ({...base,title:exam.title,detail:row.lecture + ' · ' +
-          (exam.score == null ? '결과 대기' : exam.score + (exam.max == null ? '점' : ' / ' + exam.max + '점'))}));
+        case 'exam': return row.exams.map(exam => {
+          const hasResult = exam.result_available === true && Number.isSafeInteger(exam.id) && exam.id > 0;
+          const origin = new URLSearchParams({from:'day', date:key, period});
+          if (guardian) origin.set('preview','guardian');
+          const originDate = params.get('originDate');
+          if (originDate && normalize(originDate) === originDate) origin.set('originDate',originDate);
+          return {...base,title:exam.title,detail:row.lecture + ' · ' +
+            (exam.score == null ? '결과 대기' : exam.score + (exam.max == null ? '점' : ' / ' + exam.max + '점')),
+            ...(hasResult ? {path:'/student/exams/' + exam.id + '/result?' + origin, action:'성적표 보기'} : {})};
+        });
         case 'homework': return row.homework.map(homework => ({...base,title:homework.title,detail:row.lecture + ' · ' + (homeworkStatus[homework.state] ?? '배정됨')}));
         default: return [];
       }
@@ -323,7 +331,7 @@ function mountLearner() {
     if (mode === 'day') {
       view.append(element('h2',format(key,{year:'numeric',month:'long',day:'numeric',weekday:'long'}),'dw-detailDate'));
       renderList(records.filter(record => record.date === key),'이 날짜에 등록된 기록이 없습니다.');
-      if (topic !== 'exam' || records.some(record => record.date === key)) dayActions();
+      if (topic !== 'exam' || records.some(record => record.date === key && !record.path)) dayActions();
     } else {
       renderCalendar(records);
       const undated = records.filter(record => !record.date);
