@@ -589,11 +589,16 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
 test.describe("개인 성적표", () => {
   for (const width of [1366, 390]) {
     test(`@assessment-report-provisional ${width}px 미확정 시험은 점수·평균·문항 분석으로 확정 표시하지 않는다`, async ({ page }, testInfo) => {
-      await page.setViewportSize({ width, height: 900 });
+      await page.setViewportSize({ width: 1366, height: 900 });
       await installApi(page, { provisionalExam: true });
       await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      const tools = page.getByRole("button", { name: "성적 도구", exact: true });
+      await expect(tools).toBeVisible();
+      await page.setViewportSize({ width, height: 900 });
       await revealScoreManagement(page);
-      await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
+      await tools.click();
+      const menu = page.getByRole("menu", { name: "성적 도구", exact: true });
+      await menu.getByRole("menuitem", { name: /^개인 성적표/ }).click();
       const frame = page.frameLocator('iframe[title="김서윤 개인 성적표 미리보기"]');
       const assessment = frame.locator(".assessment-row").filter({ has: frame.getByText("방정식 단원평가", { exact: true }) });
       await expect(assessment.locator(".status")).toHaveText("채점 확인 중");
