@@ -216,7 +216,7 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
           <label>담당 강사 <select value={newTeacher} onChange={event=>setNewTeacher(event.target.value)}>
             <option value="">강사 선택</option>{instructors.data?.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
           </select></label>
-          <p>현재·예정 강의와 새 수업에 적용합니다. 지난 강의와 별도 지정한 강의 담당자는 유지합니다.</p>
+          <p>현재·예정 강의와 새 수업에 적용합니다. 지난 강의 담당자는 유지합니다.</p>
           {instructors.isError && <Button onClick={()=>void instructors.refetch()}>강사 목록 다시 불러오기</Button>}
           {reassign.isError && failure(reassign.error)}</ModalBody>
         <ModalFooter right={<><Button onClick={()=>setEditingTeacher(false)} disabled={reassign.isPending}>취소</Button>
