@@ -26,7 +26,7 @@ type Kind = "union" | "school";
 type Period = keyof typeof periods;
 type Group = { id: number; name: string; kind: Kind; track: string; school: string; student_count: number; lecture_count: number };
 type Lecture = { id: number; title: string; period: Period; school: string; start_date: string; end_date: string; student_count: number; cycle_status: "upcoming" | "current" | "past"; color?: string; chip_label?: string; lecture_time?: string };
-type Detail = Group & { students: RosterStudent[]; lectures: Lecture[] };
+type Detail = Group & { assigned_teacher?: {id:number;name:string} | null; students: RosterStudent[]; lectures: Lecture[] };
 
 function groupType(group: Group) {
   return group.kind === "union" ? `연합반 · ${group.track}` : `학교반 · ${group.school}`;
@@ -181,7 +181,7 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
   return (
     <div className={styles.detail}>
       <header className={styles.heading}>
-        <div><Link to={root} className={styles.back}>반 목록</Link><h2>{group.name}</h2><span className={styles.kind}>{groupType(group)}</span></div>
+        <div><Link to={root} className={styles.back}>반 목록</Link><h2>{group.name}</h2><span className={styles.kind}>{groupType(group)}</span>{admin && <p>담당 강사 · {group.assigned_teacher?.name || "미지정"}</p>}</div>
         {lectureEntry && !admin && <Button intent="primary" onClick={() => openEditor("lecture")} disabled={!eligibleMembers.length}>수업 개설</Button>}
       </header>
       <nav className={styles.groupNav} aria-label="반 업무">
