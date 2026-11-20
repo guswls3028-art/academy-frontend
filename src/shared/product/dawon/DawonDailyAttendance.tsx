@@ -1,36 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
-import api from "@/shared/api/axios";
 import DomainLayout from "@/shared/ui/domain/DomainLayout";
 import { Button } from "@/shared/ui/ds";
 import DawonDirectoryTable from "./DawonDirectoryTable";
-import { dawonQueryKeys } from "./queryKeys";
+import { todayInSeoul, useDawonDailyAttendance } from "./useDawonDailyAttendance";
 import styles from "./DawonDailyAttendance.module.css";
 
-type Summary = {
-  id: number; name: string; lesson_count: number; total: number; marked: number;
-  unset: number; missing: number; absent: number;
-};
-type Lesson = {
-  id: number; title: string; order: number; course: string;
-  students: { enrollment: number; name: string; status: string | null }[];
-};
-type Attendance = {
-  groups: Summary[]; group_name: string | null; lessons: Lesson[]; status_labels: Record<string, string>;
-};
-export const todayInSeoul = () => new Intl.DateTimeFormat("sv-SE", {
-  timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
-}).format(new Date());
 const dashboard = "/workspace/dashboard";
-
-export function useDawonDailyAttendance(day: string, group: string | null) {
-  const request: Record<string, string> = {view: "attendance", date: day};
-  if (group !== null) request.group = group;
-  return useQuery({
-    queryKey: dawonQueryKeys.adminLearning(request),
-    queryFn: async ({signal}) => (await api.get<Attendance>("/students/demo-operations/", {params: request, signal})).data,
-  });
-}
 
 export default function DawonDailyAttendance() {
   const [params, setParams] = useSearchParams();
