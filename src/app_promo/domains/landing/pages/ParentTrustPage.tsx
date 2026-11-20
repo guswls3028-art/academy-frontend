@@ -55,7 +55,7 @@ const USE_CASES = [
     icon: Smartphone,
     title: "영상 복습 관리",
     body: "누가 영상을 안 봤는지, 어디까지 봤는지를 확인해 복습 안내와 상담 근거로 활용합니다.",
-    image: "/promo/student-video-player.webp",
+    image: "/promo/student-video-player.webp?v=20261120",
     alt: "학생전용앱 영상 플레이어 화면",
     imageWidth: 780,
     imageHeight: 1688,
@@ -64,7 +64,7 @@ const USE_CASES = [
     icon: MessageSquareText,
     title: "보강이 필요한 학생 안내",
     body: "시험 결과와 영상 이력을 보고 보강이 필요한 학생을 찾고, 내용을 확인한 뒤 알림톡으로 안내합니다.",
-    image: "/promo/admin-alimtalk-auto-send.png",
+    image: "/promo/admin-alimtalk-auto-send.png?v=20261120",
     alt: "관리자 알림톡 운영 화면",
     imageWidth: 1440,
     imageHeight: 820,
@@ -91,7 +91,7 @@ function HeroReportPreview() {
       </div>
       <figure className={styles.reportScreen}>
         <PromoEvidenceImage
-          src="/promo/admin-scores-authority-20260726.png"
+          src="/promo/admin-scores-authority-20260726.png?v=20261120"
           alt="예시 학생 세 명의 시험별 점수와 판정 결과를 확인하는 학원플러스 관리자 성적 화면"
           width={1440}
           height={900}

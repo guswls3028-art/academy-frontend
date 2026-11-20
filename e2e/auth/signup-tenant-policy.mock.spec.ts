@@ -18,6 +18,7 @@ for (const width of [390, 1366]) {
       return route.fulfill({ json: { username: { available: true } } });
     });
     await gotoAndSettle(page, `${BASE}/login/hakwonplus`);
+    await expect(page.locator('[data-auth-part="brand-artwork"] img')).toHaveAttribute("src", "/tenants/hakwonplus/logo.png?v=20261119");
     const trigger = page.getByRole("button", { name: "회원가입", exact: true });
     await trigger.click();
     const dialog = page.getByRole("dialog", { name: "학생 회원가입" });
@@ -84,7 +85,7 @@ async function stubLoginBootstrap(page: Page, tenantCode: string) {
       body: JSON.stringify({
         tenantCode,
         display_name: tenantCode,
-        ui_config: { login_title: tenantCode },
+        ui_config: { login_title: tenantCode, logo_url: tenantCode === "hakwonplus" ? "/tenants/hakwonplus/logo.png?v=20260727" : undefined },
         feature_flags: {},
         is_active: true,
       }),

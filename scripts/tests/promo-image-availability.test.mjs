@@ -5,7 +5,7 @@ import { observePromoImages } from "../promo-image-availability.mjs";
 
 const promo = "https://hakwonplus.com/promo";
 const admin = promo + "/admin-attendance-realuse-20260828.png";
-const student = promo + "/student-operations-realuse-20260828.png";
+const student = promo + "/student-operations-realuse-20260828.png?v=20261120";
 function fixture(target = promo) {
   const page = new EventEmitter();
   const undecodable = new Set();
