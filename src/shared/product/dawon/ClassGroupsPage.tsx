@@ -1,3 +1,4 @@
+import { ChevronRight } from "lucide-react";
 import { dawonStaffPreviewRole } from "./staffPreview";
 import DomainLayout from "@/shared/ui/domain/DomainLayout";
 import { dawonQueryKeys } from "./queryKeys";
@@ -201,7 +202,7 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
 
   return (
     <DomainLayout title={group.name} density="compact"
-      breadcrumbs={[{label:lectureEntry?"수업 관리":"학생 관리",to:root+"?view=list"}, {label:"반 목록",to:root+"?view=list"}]}
+      breadcrumbs={[{label:lectureEntry?"강의 관리":admin?"반 편성":"학생",to:root+"?view=list"}, {label:"반 목록",to:root+"?view=list"}]}
       description={groupType(group)+" · 담당 강사 "+(group.assigned_teacher?.name || "미지정")} descriptionMode="visible"
       headerActions={<div className={styles.actions}>
         {admin && <Button onClick={()=>{
