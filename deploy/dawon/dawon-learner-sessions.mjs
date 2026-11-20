@@ -68,6 +68,8 @@ const style = [
   .dw-day[aria-current=date]{color:#833607;background:#fff0e2;border-color:#c88250}.dw-day[data-last-viewed]{box-shadow:inset 0 0 0 2px #9d4a1c}
   .dw-day:hover{background:#f9eee6;border-color:#b77a55}.dw-marker{flex:none;display:inline-block;width:6px;height:6px;border-radius:50%;background:#a64b18}
   .dw-marker[hidden]{display:none}.dw-legend{margin:12px 0 0;color:var(--dw-muted);font-size:13px;display:flex;align-items:center;gap:7px}
+  .dw-markerPending{background:white;border:1.5px solid #806e61}.dw-attendanceState{font-size:14px;font-weight:700;color:var(--dw-accent)}
+  .dw-attendanceState[data-pending]{color:var(--dw-muted)}.dw-day[data-only-pending]:not([aria-current=date]){background:white}
   .dw-detailHead{padding-bottom:12px;border-bottom:1px solid var(--dw-line)}.dw-count{color:var(--dw-muted);font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
   .dw-dayList{list-style:none;padding:0;margin:0}.dw-record{position:relative;display:flex;align-items:center;justify-content:space-between;gap:6px 18px;flex-wrap:wrap;padding:14px 2px;overflow-wrap:anywhere}
   .dw-record+.dw-record{border-top:1px solid var(--dw-line)}.dw-recordText{min-width:0;flex:1 1 220px}
@@ -244,6 +246,11 @@ function mountLearner() {
       text.append(title);
       if (record.detail) text.append(element('span',record.detail));
       item.append(text);
+      if (record.attendanceState) {
+        const badge = element('span',record.attendanceState,'dw-attendanceState');
+        badge.toggleAttribute('data-pending',record.pending);
+        item.append(badge);
+      }
       if (record.path) {
         const action = link(record.action,record.path,'dw-recordAction');
         action.setAttribute('aria-describedby',title.id);
@@ -380,7 +387,11 @@ function mountLearner() {
     return (payload.sessions ?? []).flatMap(row => {
       const base = { date:row.date, title:row.title, lecture:row.lecture };
       switch (topic) {
-        case 'attendance': return [{...base, detail:row.lecture + ' · ' + (row.attendance || '출결 미입력')}];
+        case 'attendance': {
+          const state = row.attendance?.trim();
+          const pending = !state || state === '미입력';
+          return [{...base, detail:row.lecture, attendanceState:pending ? '입력 대기' : state, pending}];
+        }
         case 'curriculum': return [{...base, detail:row.lecture}];
         case 'video': return row.videos.map(title => ({...base, title, detail:row.lecture + ' · ' + row.title,
           ...(guardian ? {} : {path:'/login/dawon?demo=student&view=video&session=' + row.id, action:'수업 영상 보기'})}));
@@ -438,7 +449,7 @@ function mountLearner() {
     if (nearest) {
       const options = {month:'long',day:'numeric',weekday:'short'};
       if (nearest.slice(0,4) !== key.slice(0,4)) options.year = 'numeric';
-      empty.append(link('가장 가까운 기록 · ' + format(nearest,options),dateUrl('day',nearest),'dw-nearest'));
+      empty.append(link((topic === 'attendance' ? '가장 가까운 수업일' : '가장 가까운 기록') + ' · ' + format(nearest,options),dateUrl('day',nearest),'dw-nearest'));
     }
     view.append(empty);
   }
@@ -479,39 +490,51 @@ function mountLearner() {
     tools.append(link('오늘',dateUrl(mode,today),'dw-todayLink'),modes);
     heading.append(dates,tools);
     const byDate = new Map();
-    for (const row of records) if (row.date) byDate.set(row.date,(byDate.get(row.date) ?? 0) + 1);
+    const pendingByDate = new Map();
+    for (const row of records) {
+      if (!row.date) continue;
+      byDate.set(row.date,(byDate.get(row.date) ?? 0) + 1);
+      if (row.pending) pendingByDate.set(row.date,(pendingByDate.get(row.date) ?? 0) + 1);
+    }
     const grid = element('div',null,'dw-days');
     for (const day of ['일','월','화','수','목','금','토']) grid.append(element('span',day,'dw-weekday'));
     let visibleCount = 0;
     for (let index=0; index<count; index++) {
       const date = shift(start,index);
       const items = byDate.get(date) ?? 0;
+      const pending = pendingByDate.get(date) ?? 0;
+      const attendanceLabels = [items > pending && '출결 입력 ' + (items-pending) + '건',pending && '입력 대기 ' + pending + '건'].filter(Boolean);
       visibleCount += items;
       const cell = link(null,dateUrl('day',date),'dw-day');
       cell.id = 'dw-cal-' + date;
       cell.dataset.outside = String(monthly && date.slice(0,7) !== key.slice(0,7));
-      cell.toggleAttribute('data-records',items > 0);
+      cell.toggleAttribute('data-records',items > pending);
+      cell.toggleAttribute('data-only-pending',pending > 0 && pending === items);
       const isToday = date === today;
       const isLastViewed = date === params.get('selected');
       const noticeDate = topic === 'notices' && date === params.get('noticeDate');
       cell.toggleAttribute('data-last-viewed',isLastViewed || noticeDate);
       cell.setAttribute('aria-label',[format(date,{month:'long',day:'numeric',weekday:'long'}), isToday && '오늘',
-        isLastViewed && '마지막으로 본 날짜', noticeDate && '선택한 공지 날짜', items ? recordKind + ' ' + items + '건' : '기록 없음'].filter(Boolean).join(' · '));
+        isLastViewed && '마지막으로 본 날짜', noticeDate && '선택한 공지 날짜', items ? topic === 'attendance' ? attendanceLabels.join(' · ') : recordKind + ' ' + items + '건' : '기록 없음'].filter(Boolean).join(' · '));
       if (isToday) cell.setAttribute('aria-current','date');
       const label = element('span',String(Number(date.slice(8))),'dw-dayNumber');
       const hint = element('span',null,'dw-dayHint');
       hint.setAttribute('aria-hidden','true');
       if (isToday) hint.append('오늘');
       const mark = element('span',null,'dw-marker');
-      mark.hidden = !items;
+      mark.hidden = items === pending;
       hint.append(mark);
+      if (pending) hint.append(element('span',null,'dw-marker dw-markerPending'));
       cell.append(label,hint);
       grid.append(cell);
     }
     view.append(heading,grid);
     if (visibleCount) {
       const legend = element('p',null,'dw-legend');
-      legend.append(element('span',null,'dw-marker'),document.createTextNode(recordKind + ' 있음'));
+      if (topic === 'attendance') {
+        legend.append(element('span',null,'dw-marker'),document.createTextNode('출결 입력'),
+          element('span',null,'dw-marker dw-markerPending'),document.createTextNode('입력 대기'));
+      } else legend.append(element('span',null,'dw-marker'),document.createTextNode(recordKind + ' 있음'));
       view.append(legend);
     } else {
       showEmpty(records,monthly ? '이 달에는' : '이 주에는');
@@ -550,7 +573,10 @@ function mountLearner() {
       const dated = records.filter(record => record.date === key);
       const heading = element('header',null,'dw-detailHead');
       heading.append(element('h2',format(key,{year:'numeric',month:'long',day:'numeric',weekday:'long'}),'dw-detailDate'));
-      if (dated.length) heading.append(element('span',dated.length + '건','dw-count'));
+      if (dated.length) {
+        const count = topic === 'attendance' ? '출결 입력 ' + dated.filter(row=>!row.pending).length + '건 · 입력 대기 ' + dated.filter(row=>row.pending).length + '건' : dated.length + '건';
+        heading.append(element('span',count,'dw-count'));
+      }
       view.append(heading);
       if (dated.length) view.append(recordList(dated));
       else showEmpty(records,'이 날짜에는');
