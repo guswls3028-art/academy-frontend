@@ -209,3 +209,10 @@
     display: none;
   }
 }
+.directorDirectory { display: grid; gap: 8px; min-width: 0; }
+.directorDirectory > details { margin: 0; padding: 0 8px; border: 0; }
+.directorDirectory > details > summary { min-height: 32px; line-height: 32px; }
+.directorDirectory :global(.ds-table-wrap .ds-table.ds-table--flat) tbody td { padding-block: 3px; }
+@media (max-width: 640px) {
+  .directorDirectory :global(.domain-list-toolbar) > :first-child { flex-direction: row; align-items: center; justify-content: space-between; }
+}

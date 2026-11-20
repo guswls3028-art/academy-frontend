@@ -51,6 +51,7 @@ type Props = {
   wrongCompletionOnly?: boolean;
   focusAnalysis?: boolean;
   initialLectureId?: number;
+  fixedLectureId?: number;
   onOpenSetup?: () => void;
 };
 
@@ -77,9 +78,10 @@ export default function ExamResultsViewerPanel(props: Props) {
 }
 
 function ExamResultsViewerContent({
-  examId, sessionId, wrongCompletionOnly = false, focusAnalysis = false, initialLectureId, onOpenSetup,
+  examId, sessionId, wrongCompletionOnly = false, focusAnalysis = false, initialLectureId, fixedLectureId, onOpenSetup,
 }: Props) {
-  const [selectedLectureId, setSelectedLectureId] = useState<number | null>(initialLectureId ?? null);
+  const [chosenLectureId, setSelectedLectureId] = useState<number | null>(initialLectureId ?? null);
+  const selectedLectureId = fixedLectureId ?? chosenLectureId;
   const manualGridRef = useRef<ManualExamGradingGridHandle>(null);
   const editingRegionRef = useRef<HTMLDivElement>(null);
   const excelApplying = useIsMutating({ mutationKey: adminResultsQueryKeys.examResultImport(examId) }) > 0;
@@ -284,7 +286,7 @@ function ExamResultsViewerContent({
       <div ref={editingRegionRef} className={styles.workspace} inert={excelApplying} aria-busy={excelApplying}>
       {!focusAnalysis && gradingTools}
 
-      <section className={styles.scopePanel} aria-labelledby="exam-result-scope-title">
+      {fixedLectureId == null && <section className={styles.scopePanel} aria-labelledby="exam-result-scope-title">
         <div className={styles.scopeHeading}>
           <div>
             <span>RESULT SCOPE</span>
@@ -316,7 +318,7 @@ function ExamResultsViewerContent({
             </button>
           ))}
         </div>
-      </section>
+      </section>}
 
       <section id={EXAM_ANALYSIS_ANCHOR} ref={analysisRef} tabIndex={-1} className={`${styles.analysisShell} ${styles.jumpTarget}`} aria-labelledby="exam-analysis-title">
         <header className={styles.analysisHeader}>

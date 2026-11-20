@@ -135,8 +135,8 @@ export function renderDawonLearner(url, chromeOnly = false) {
   ];
   const footer = tabs.map(([key,label,image,href]) => '<a id="tab-' + key + '" href="' + href + '"' +
     (topic === key ? ' aria-current="page"' : '') + '>' + icon(image) + label + '</a>').join('');
-  const banner = home ? '<section class="dw-hero"><div class="dw-wrap"><h1>김하늘 학생</h1><p>' +
-    (guardian ? '자녀 학습 · 수학Ⅱ' : '수학Ⅱ (윤지용 선생님)') + '</p></div></section>' : '';
+  const banner = home ? '<section class="dw-hero"><div class="dw-wrap"><h1>김학생 2</h1><p>' +
+    (guardian ? '보호자 2 · 자녀 학습' : '김선생 1') + ' · 수학Ⅱ</p></div></section>' : '';
   const header = '<header class="dw-header"><div class="dw-brand"><details class="dw-drawer"><summary aria-label="학습 메뉴 열기">' + icon('menu') +
     '</summary><nav aria-label="학습 메뉴">' + drawerLinks + '</nav></details><a href="' + homeUrl +
     '">다원수학</a><span aria-hidden="true">/</span><strong>' + escapeHtml(title) + '</strong></div><div class="dw-headerActions">' +

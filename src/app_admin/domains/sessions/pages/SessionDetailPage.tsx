@@ -30,6 +30,7 @@ import { adminSessionQueryKeys } from "../queryKeys";
 import { readAssessmentItemId } from "@/shared/lib/assessmentQueryParams";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { CompactSessionScheduleCard } from "../components/SessionScheduleControls";
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 import { SessionScheduleControlsContext } from "../components/sessionScheduleControlsContext";
 import "./SessionDetailPage.css";
 
@@ -145,6 +146,7 @@ export default function SessionDetailPage() {
 
   const assessmentRemoteKind = SESSION_ASSESSMENT_REMOTE_KIND_BY_TAB[activeTab];
   const hasAttendanceChooser = activeTab === "attendance" && searchParams.get("view") === "sessions";
+  const compactAttendance = activeTab === "attendance" && dawonStaffPreviewRole() === "teacher" && !hasAttendanceChooser;
   const showSessionStrip =
     (activeTab === "attendance" && !isMobile && !hasAttendanceChooser) ||
     activeTab === "scores" ||
@@ -154,13 +156,16 @@ export default function SessionDetailPage() {
   return (
     <AssessmentEditGuardProvider>
       <Suspense fallback={<RouteFallback />}>
-      {showSessionStrip && (
+      {compactAttendance ? <details key={sId} open={controls?.blockedNotice ? true : undefined} className="dawon-session-picker">
+        <summary>차시 · 수업일 선택</summary>
+        <SessionBlock lectureId={lecId} currentSessionId={sId} />
+      </details> : showSessionStrip && (
         <div className="session-detail-session-strip">
           <SessionBlock lectureId={lecId} currentSessionId={sId} />
         </div>
       )}
 
-      {!showSessionStrip && (!hasAttendanceChooser || controls?.blockedNotice) && (
+      {!compactAttendance && !showSessionStrip && (!hasAttendanceChooser || controls?.blockedNotice) && (
         <div className="session-detail-session-strip">
           <CompactSessionScheduleCard />
         </div>

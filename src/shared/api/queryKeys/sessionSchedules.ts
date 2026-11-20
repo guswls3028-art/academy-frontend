@@ -3,7 +3,7 @@ const dailySessions = (date: string) => [...todaySessions, date] as const;
 export const teacherTodayQueryKeys = {
   all: todaySessions,
   sessions: dailySessions,
-  classSessions: (date: string, group: number | undefined) => [...dailySessions(date), group] as const,
+  classSessions: (date: string, group: number | "assigned" | undefined) => [...dailySessions(date), group] as const,
 };
 
 export const sessionSchedulesKey = (sessionId: number) => ['session-schedules', sessionId] as const;

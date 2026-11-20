@@ -1,12 +1,14 @@
-import { useState } from "react";
 import DomainListToolbar from "@/shared/ui/domain/DomainListToolbar";
 import DawonDirectoryTable from "./DawonDirectoryTable";
 import { resultTabs } from "./staffMenu";
 import { dawonQueryKeys } from "./queryKeys";
 import {AdminAlerts, AdminExamReview, AdminStudentReview, ExamLinks} from "./DawonAdminLearning";
 import DomainTable from "@/shared/ui/domain/DomainTable";
+import DawonDailyAttendance from "./DawonDailyAttendance";
+import {todayInSeoul, useDawonDailyAttendance} from "./useDawonDailyAttendance";
 import DawonStaffDirectory from "./DawonStaffDirectory";
 import { useQuery } from "@tanstack/react-query";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router";
 import api from "@/shared/api/axios";
 import DomainLayout from "@/shared/ui/domain/DomainLayout";
@@ -63,7 +65,23 @@ function CourseDetails({course, groupId, section, onSection}: {
 type GroupSummary = {id:number;name:string;kind:"union"|"school";track:string;school:string;instructor_name:string;student_count:number;lecture_count:number};
 
 function Dashboard() {
-  const [search,setSearch]=useState("");
+  const compact=useIsMobile();
+  const [params,setParams]=useSearchParams();
+  const day=params.get("date") ?? todayInSeoul();
+  const search=params.get("q") ?? "";
+  const daily=useDawonDailyAttendance(day,null);
+  const dailyGroups=new Map(daily.data?.groups.map(row=>[row.id,row]));
+  function updateFilter(key:string,value:string) {
+    const next=new URLSearchParams(params);
+    if (value) next.set(key,value); else next.delete(key);
+    setParams(next,{replace:key==="q",preventScrollReset:true});
+  }
+  const attendanceUrl=(group?:number)=>{
+    const next=new URLSearchParams({panel:"attendance",date:day});
+    if(search) next.set("q",search);
+    if(group!==undefined) next.set("group",String(group));
+    return "/workspace/dashboard?"+next;
+  };
   const groups=useQuery({queryKey:dawonQueryKeys.adminGroups,queryFn:async({signal})=>
     (await api.get<GroupSummary[]>("/students/class-groups/",{signal})).data});
   const alerts=useQuery({queryKey:dawonQueryKeys.adminLearning({alerts:"1"}),queryFn:async({signal})=>
@@ -71,22 +89,30 @@ function Dashboard() {
   const counts=new Map<number,number>();
   for (const item of alerts.data?.alerts ?? []) counts.set(item.group_id,(counts.get(item.group_id)??0)+1);
   const rows=(groups.data ?? []).filter(row=>[row.name,row.instructor_name,row.school,row.track].some(value=>value?.toLowerCase().includes(search.trim().toLowerCase())));
-  return <DomainLayout title="운영 대시보드" breadcrumbs={[]}>
+  return <DomainLayout title="반 운영 현황" density="compact" breadcrumbs={[]}>
     <div className={styles.section}>
-      <DomainListToolbar totalLabel={"반 "+rows.length+"개"} searchSlot={<input className="ds-input" type="search" aria-label="반 또는 담당 강사 검색" placeholder="반 이름 · 담당 강사 · 학교 검색" value={search} onChange={e=>setSearch(e.target.value)}/>}
+      <DomainListToolbar totalLabel={"반 "+rows.length+"개"} searchSlot={<input className="ds-input" type="search" aria-label="반 또는 담당 강사 검색" placeholder="반 이름 · 담당 강사 · 학교 검색" value={search} onChange={e=>updateFilter("q",e.target.value)}/>}
+        filterSlot={<div className={styles.filterRow}><label className={styles.field}>수업 날짜<input className="ds-input" type="date" value={day} onChange={e=>{if(e.target.value)updateFilter("date",e.target.value);}}/></label><Link to={attendanceUrl()}>전체 차시 출결</Link></div>}
         primaryAction={<Link className={styles.actionLink} to="/workspace/dashboard?panel=alerts">전체 반 학습 경보{alerts.data ? " "+alerts.data.alerts.length+"건" : ""}</Link>}/>
       {alerts.isError && <p role="alert">학습 경보를 확인하지 못했습니다. <Button onClick={()=>void alerts.refetch()}>다시 시도</Button></p>}
+      {daily.isError && <p role="alert">선택한 날짜의 출결을 불러오지 못했습니다. <Button onClick={()=>void daily.refetch()}>출결 다시 시도</Button></p>}
       {groups.isPending ? <p role="status">반 운영 현황을 불러오는 중입니다.</p> : groups.isError ?
         <p role="alert">반 목록을 불러오지 못했습니다. <Button onClick={()=>void groups.refetch()}>다시 시도</Button></p> :
         !rows.length ? <p className={styles.empty}>표시할 반이 없습니다. <Link to="/workspace/students/class-groups">반 편성 열기</Link></p> :
-        <DawonDirectoryTable id="dawon-admin-overview" label="반별 운영 현황" rows={rows} empty="표시할 반이 없습니다." columns={[
-          {key:"name",label:"반 이름",defaultWidth:200,value:r=>r.name,render:r=><Link to={"/workspace/lectures?class="+r.id}>{r.name}</Link>},
-          {key:"kind",label:"반 구분",defaultWidth:150,value:r=>r.kind==="union"?"연합반 · "+r.track:"내신반 · "+r.school},
+        <DawonDirectoryTable id={compact?"dawon-admin-overview-mobile":"dawon-admin-overview"} label="반별 운영 현황" rows={rows} empty="표시할 반이 없습니다." columns={[
+          {key:"name",label:compact?"반 · 담당 강사":"반 이름",defaultWidth:compact?155:200,value:r=>r.name,render:r=><>
+            <Link to={"/workspace/lectures?class="+r.id}>{r.name}</Link>{compact && <small className={styles.teacherName}>{r.instructor_name || "담당 미지정"}</small>}</>},
+          {key:"unmarked",label:"미입력 출결",defaultWidth:compact?91:110,value:r=>{const d=dailyGroups.get(r.id);return d?d.unset+d.missing:-1;},render:r=>{
+            if(!daily.data)return daily.isPending?"조회 중":"조회 실패";
+            const d=dailyGroups.get(r.id);
+            return d?<Link aria-label={r.name+" 미입력 출결 상세"} to={attendanceUrl(r.id)}>{d.unset+d.missing}건</Link>:"수업 없음";
+          }},
+          {key:"alerts",label:"학습 경보",defaultWidth:compact?85:95,value:r=>counts.get(r.id)??0,render:r=>alerts.data?
+            <Link aria-label={r.name+" 학습 경보"} to={"/workspace/dashboard?panel=alerts&group="+r.id}>{counts.get(r.id)??0}건</Link>:"—"},
           {key:"instructor",label:"담당 강사",defaultWidth:120,value:r=>r.instructor_name || "미지정"},
+          {key:"kind",label:"반 구분",defaultWidth:150,value:r=>r.kind==="union"?"연합반 · "+r.track:"내신반 · "+r.school},
           {key:"students",label:"학생",defaultWidth:75,value:r=>r.student_count,render:r=>r.student_count+"명"},
           {key:"lectures",label:"강의",defaultWidth:75,value:r=>r.lecture_count,render:r=>r.lecture_count+"개"},
-          {key:"alerts",label:"학습 경보",defaultWidth:95,value:r=>counts.get(r.id)??0,render:r=>alerts.data?
-            <Link aria-label={r.name+" 학습 경보"} to={"/workspace/dashboard?panel=alerts&group="+r.id}>{counts.get(r.id)??0}건</Link>:"—"}
         ]}/>}
     </div></DomainLayout>;
 }
@@ -98,6 +124,7 @@ export default function DawonOperations() {
   if (pathname==="/workspace/staff") return <DomainLayout title="직원 관리" breadcrumbs={[]}><div className={styles.section}><DawonStaffDirectory/></div></DomainLayout>;
   if (panel==="student") return <DomainLayout title="학생 학습 기록" density="compact" breadcrumbs={[]}><div className={styles.section}><AdminStudentReview key={params.toString()}/></div></DomainLayout>;
   if (pathname==="/workspace/dashboard" && panel==="alerts") return <AlertDirectory/>;
+  if (pathname==="/workspace/dashboard" && panel==="attendance") return <DawonDailyAttendance/>;
   if (pathname==="/workspace/dashboard") {
     const id=params.get("course"), group=params.get("group");
     if (id) return <Navigate replace to={"/workspace/lectures/"+id+"?"+params}/>;

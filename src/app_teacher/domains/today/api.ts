@@ -51,10 +51,13 @@ export function todaySessionEntries(
  * include_progress=1: 출결 입력 진척(attendance_filled / attendance_total) 포함.
  * 모바일 "오늘" 카드에서만 사용 — 다른 리스트 페이지 응답은 변경 없음.
  */
-export async function fetchTodaySessions(date: string, classGroupId?: number): Promise<TodaySession[]> {
+export async function fetchTodaySessions(date: string, classGroupId?: number | "assigned", signal?: AbortSignal): Promise<TodaySession[]> {
   const res = await api.get("/lectures/sessions/", {
     params: { date, include_progress: 1, class_group: classGroupId },
+    signal,
   });
   const raw = res.data;
-  return Array.isArray(raw?.results) ? raw.results : Array.isArray(raw) ? raw : [];
+  if (Array.isArray(raw?.results)) return raw.results;
+  if (Array.isArray(raw)) return raw;
+  throw new Error("수업 일정을 불러오지 못했습니다.");
 }

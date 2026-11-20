@@ -50,7 +50,13 @@
   .row { grid-template-columns: 56px minmax(0, 1fr) auto; gap: 8px; }
 }
 
-.classBoard { width:min(100%, 1000px); margin:0 auto; display:grid; gap:20px; color:var(--color-text-primary); }
+.classBoard { width:100%; display:grid; gap:14px; color:var(--color-text-primary); }
+.classBoard h1 { margin:0; font-size:22px; }
+.classBoard h2 { margin:0 0 6px; font-size:16px; }
+.classBoard .dateControls :is(input,select) { min-height:40px; max-width:100%; padding:4px 8px; border:1px solid var(--color-border-divider); background:var(--color-bg-surface); color:inherit; border-radius:6px; }
+.classBoard .tableLink { display:inline-flex; gap:5px; align-items:center; min-height:36px; color:inherit; font-weight:650; }
+.dayEmpty { display:flex; gap:8px 20px; flex-wrap:wrap; align-items:center; }
+.dayEmpty a { color:var(--color-brand-primary); }
 .classHead, .panelHead, .dateControls { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
 .classHead { justify-content:space-between; }
 .classHead h1 { margin:4px 0; font-size:clamp(22px,3vw,28px); line-height:1.35; }

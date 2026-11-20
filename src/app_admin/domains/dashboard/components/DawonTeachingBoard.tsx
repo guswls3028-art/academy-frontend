@@ -1,4 +1,5 @@
 import DawonStaffClock from "@/shared/product/dawon/DawonStaffClock";
+import { DomainTable } from "@/shared/ui/domain";
 import { dawonQueryKeys } from "@/shared/product/dawon/queryKeys";
 import { ArrowRight, CalendarDays } from "lucide-react";
 import { useState } from "react";
@@ -28,7 +29,7 @@ function MyTeachingBoard() {
   const selectedId = Number(params.get("group"));
   function select(key: "date" | "group", value: string) {
     const next = new URLSearchParams(params);
-    if (key === "date" && (!value || value === today)) next.delete(key);
+    if (!value || (key === "date" && value === today)) next.delete(key);
     else next.set(key, value);
     setParams(next, {replace: true, preventScrollReset: true});
   }
@@ -37,39 +38,50 @@ function MyTeachingBoard() {
     queryFn: async ({signal}) => (await api.get<TeachingClass[]>("/students/class-groups/teaching/", {signal})).data,
   });
   const groups = classes.data ?? [];
-  const group = groups.find(item => item.id === selectedId) ?? groups[0];
+  const group = groups.find(item => item.id === selectedId);
+  const scope = group?.id ?? "assigned";
   const schedule = useQuery({
-    queryKey: teacherTodayQueryKeys.classSessions(date, group?.id), queryFn: () => fetchTodaySessions(date, group?.id), enabled: !!group, staleTime: 30_000,
+    queryKey: teacherTodayQueryKeys.classSessions(date, scope),
+    queryFn: ({ signal }) => fetchTodaySessions(date, scope, signal),
+    enabled: classes.isSuccess && groups.length > 0 && (!selectedId || !!group),
+    staleTime: 30_000,
   });
-  const attendance = (lectureId: number, sessionId: number) => `/workspace/lectures/${lectureId}/sessions/${sessionId}/attendance`;
-  const entries = todaySessionEntries((schedule.data ?? []).filter(s => group?.courses.includes(s.lecture)), date, attendance)
-    .sort((a, b) => (a.startTime || "99:99").localeCompare(b.startTime || "99:99"));
+  const courseGroups = new Map(groups.flatMap(item => item.courses.map(id => [id, item] as const)));
+  const attendance = (lecture: number, session: number) => `/workspace/lectures/${lecture}/sessions/${session}/attendance`;
+  const entries = (schedule.data ?? []).flatMap(session => {
+    const owner = courseGroups.get(session.lecture);
+    if (!owner || (group && owner.id !== group.id)) return [];
+    return todaySessionEntries([session], date, attendance).map(entry => ({ ...entry, group: owner.name }));
+  }).sort((a, b) => (a.startTime || "99:99").localeCompare(b.startTime || "99:99") || a.group.localeCompare(b.group, "ko"));
+  const available = group ? [group] : groups;
+  const recent = available.map(item => item.recent).filter(item => item != null).sort((a,b) => b.date.localeCompare(a.date) || b.id-a.id)[0];
   if (classes.isPending) return <p role="status">담당 반을 불러오는 중입니다.</p>;
   if (classes.isError) return <p role="alert">담당 반을 불러오지 못했습니다. <Button onClick={() => void classes.refetch()}>다시 시도</Button></p>;
-  if (!group) return <section className={styles.board}><h1>담당 반</h1><p>담당 강의가 연결된 반이 없습니다.</p><Link className={styles.action} to="/workspace/lectures">반별 강의 열기</Link></section>;
-  const recent = group.recent;
-  return <section className={styles.classBoard} aria-labelledby="dawon-class-title">
-    <header className={styles.classHead}><div><span className={styles.context}>담당 반</span>
-      <h1 id="dawon-class-title">{group.name}</h1><p>{group.kind === "union" ? `연합반 · ${group.track}` : `학교별 내신반 · ${group.school}`} · 학생 {group.members}명</p></div>
-      {groups.length > 1 && <label className={styles.switchClass}>담당 반 선택<select aria-label="담당 반 선택" value={group.id} onChange={e => select("group", e.target.value)}>
-        {groups.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
-      <Link className={styles.action} to={`/workspace/lectures?class=${group.id}`}>반 수업 관리 <ArrowRight size={16} aria-hidden /></Link>
+  return <section className={styles.classBoard} aria-labelledby="dawon-teaching-heading">
+    <header className={styles.panelHead}>
+      <h1 id="dawon-teaching-heading">{date === today ? "오늘 수업" : "선택한 날의 수업"}</h1>
+      <div className={styles.dateControls}><input type="date" aria-label="수업 날짜" value={date} onChange={e => select("date", e.target.value)} />
+        {date !== today && <Button onClick={() => select("date", today)}>오늘</Button>}
+        {(groups.length > 1 || !!selectedId) && <select aria-label="담당 반 선택" value={group?.id ?? (selectedId || "")} onChange={e => select("group", e.target.value)}>
+          <option value="">담당 반 전체</option>{selectedId && !group ? <option value={selectedId}>선택한 반 확인 필요</option> : null}
+          {groups.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}
+      </div>
     </header>
-    <section className={styles.sessionPanel} aria-labelledby="dawon-teaching-heading">
-      <header className={styles.panelHead}><h2 id="dawon-teaching-heading">{date === today ? "오늘 수업" : "선택한 날의 수업"}</h2>
-        <div className={styles.dateControls}><input type="date" aria-label="수업 날짜" value={date} onChange={e => select("date", e.target.value)} />
-        {date !== today && <Button onClick={() => select("date", today)}>오늘</Button>}</div></header>
-      {schedule.isPending ? <p role="status">수업 일정을 불러오는 중입니다.</p> :
-        schedule.isError ? <p role="alert">수업 일정을 불러오지 못했습니다. <Button onClick={() => void schedule.refetch()}>다시 시도</Button></p> :
-        entries.length ? <ul className={styles.list}>{entries.map(entry => <li key={entry.route}><Link className={styles.row} to={entry.route}>
-          <span className={styles.time}>{entry.startTime?.slice(0,5) || "시간 미정"}</span>
-          <span className={styles.lesson}><strong>{entry.label}</strong>{entry.sessionTitle && <span>{entry.sessionTitle}</span>}</span>
-          <span className={styles.attendance}>출결 열기 <ArrowRight size={15} aria-hidden /></span>
-        </Link></li>)}</ul> : <p className={styles.noLesson}>이날 예정된 수업이 없습니다.</p>}
-      {recent && !schedule.isPending && !schedule.isError && !entries.length &&
-        <Link className={styles.recent} to={{pathname: attendance(recent.lecture_id, recent.id), search: recent.schedule_id ? "?schedule=" + recent.schedule_id : ""}}><span><small>최근 수업 · {shortDateWeekday(recent.date)}</small><strong>{recent.title}</strong></span><span>수업 열기 <ArrowRight size={15} aria-hidden /></span></Link>}
-      <div className={styles.qr}><DashboardAttendanceQr lectureIds={group.courses} /></div>
+    {!groups.length ? <p>배정된 반이 없습니다.</p> : selectedId && !group ? <p role="alert">현재 담당하는 반을 다시 선택해 주세요.</p> :
+      schedule.isPending ? <p role="status">수업 일정을 불러오는 중입니다.</p> :
+      schedule.isError ? <p role="alert">수업 일정을 불러오지 못했습니다. <Button onClick={() => void schedule.refetch()}>다시 시도</Button></p> :
+      entries.length ? <DomainTable scrollLabel="수업 시간표" tableClassName="ds-table--flat"><thead><tr><th>시간</th><th>반</th><th>수업 · 출결</th></tr></thead>
+        <tbody>{entries.map(entry => <tr key={entry.route}><td>{entry.startTime?.slice(0,5) || "미정"}</td><td>{entry.group}</td>
+          <td><Link className={styles.tableLink} to={entry.route}>{entry.label}{entry.sessionTitle && " · " + entry.sessionTitle}<ArrowRight size={14} aria-hidden /></Link></td></tr>)}</tbody></DomainTable>
+      : <div className={styles.dayEmpty}><span>이날 예정된 수업이 없습니다.</span>{recent &&
+        <Link to={{pathname:attendance(recent.lecture_id,recent.id),search:recent.schedule_id ? "?schedule="+recent.schedule_id : ""}}>
+          최근 수업 · {shortDateWeekday(recent.date)} · {recent.title} 열기</Link>}</div>}
+    <section aria-label="담당 반"><h2>담당 반</h2>
+      {!!available.length && <DomainTable scrollLabel="담당 반 목록" tableClassName="ds-table--flat"><thead><tr><th>반 이름</th><th>구분</th><th>인원</th></tr></thead>
+        <tbody>{available.map(item=><tr key={item.id}><td><Link className={styles.tableLink} to={`/workspace/lectures?class=${item.id}`}>{item.name}</Link></td>
+          <td>{item.kind === "union" ? item.track+" 연합반" : item.school+" 내신반"}</td><td>{item.members}명</td></tr>)}</tbody></DomainTable>}
     </section>
+    {available.length > 0 && <DashboardAttendanceQr lectureIds={available.flatMap(item=>item.courses)} />}
   </section>;
 }
 
