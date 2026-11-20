@@ -147,6 +147,61 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (failures.length) throw new Error(`student/parent learning cleanup failed:\n${failures.join("\n")}`);
 }
 
+async function verifyLectureMemo(page: Page, request: APIRequestContext, access: string, family: QaFamily) {
+  const [id, otherId] = created.enrollmentIds;
+  type Memo = { lecture_memo: string; lecture_memo_updated_at: string };
+  const read = (enrollmentId: number) => expectApi<Memo>(
+    request, "GET", `/enrollments/${enrollmentId}/`, access,
+  );
+  const readCommon = () => expectApi<{ memo: string }>(request, "GET", `/students/${family.students[0].id}/`, access);
+  const original = await read(id);
+  const other = await read(otherId);
+  const common = (await readCommon()).memo;
+  const editor = page.getByRole("dialog", { name: `${family.students[0].name} 강의 메모`, exact: true });
+  const openEditor = () => page.getByRole("button", { name: `${family.students[0].name} 강의 메모` }).click();
+  try {
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await openEditor();
+      const body = `QA ${width}px 강의 메모\n\n다음 수업에 자료를 준비합니다.`;
+      await editor.getByRole("textbox", { name: "강의 메모", exact: true }).fill(body);
+      const saved = page.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === `/api/v1/enrollments/${id}/lecture-memo/`);
+      await editor.getByRole("button", { name: "저장", exact: true }).click();
+      const response = await saved;
+      expect(response.status()).toBe(200);
+      const result = await response.json() as Memo;
+      await expect(editor).toBeHidden();
+      expect(result.lecture_memo).toBe(body);
+      expect(await read(id)).toMatchObject(result);
+      expect(await read(otherId)).toMatchObject({
+        lecture_memo: other.lecture_memo, lecture_memo_updated_at: other.lecture_memo_updated_at,
+      });
+      expect((await readCommon()).memo).toBe(common);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.locator(`[data-student-memos="${id}"]`)).toContainText(body);
+      await openEditor();
+      await expect(editor.getByRole("textbox", { name: "강의 메모", exact: true })).toHaveValue(body);
+      await assertNoHorizontalOverflow(page);
+      await editor.getByRole("button", { name: "닫기", exact: true }).click();
+    }
+  } finally {
+    const current = await read(id);
+    if (current.lecture_memo !== original.lecture_memo) {
+      const restored = await request.patch(`${QA_API}/api/v1/enrollments/${id}/lecture-memo/`, {
+        headers: {
+          Authorization: `Bearer ${access}`,
+          "X-Tenant-Code": QA_TENANT,
+          "X-Expected-Updated-At": current.lecture_memo_updated_at,
+        },
+        data: { lecture_memo: original.lecture_memo },
+      });
+      expect(restored.status()).toBe(200);
+      expect((await read(id)).lecture_memo).toBe(original.lecture_memo);
+    }
+  }
+}
+
 async function seedLearningGraph(request: APIRequestContext, adminAccess: string, family: QaFamily, enrollmentPage: Page, testInfo: TestInfo): Promise<void> {
   // Create through the teacher UI while an unrelated past-lecture search is active.
   // The saved lecture must become visible without asking the teacher to clear it.
@@ -343,6 +398,9 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
     await names.first().scrollIntoViewIfNeeded();
     await enrollmentPage.screenshot({ path: testInfo.outputPath(`attendance-letter-suffix-realuse-${width}.png`), fullPage: true });
   }
+
+  await test.step("강의 메모를 저장하고 다른 수강생과 격리한 뒤 다시 연다", () =>
+    verifyLectureMemo(enrollmentPage, request, adminAccess, family));
 
   const videoResponse = await expectApi<{ video: { id: number } }>(
     request,
@@ -565,6 +623,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     }
 
     const primaryTokens = await loginApi(request, primary.ps_number, primary.password);
+    expect((await api(request, "GET", `/enrollments/${created.enrollmentIds[0]}/`, primaryTokens.access)).status).toBe(403);
     await expectApi(request, "POST", `/student/video/videos/${created.videoId}/progress/`, primaryTokens.access, {
       progress: 20,
       last_position: 60,
@@ -614,6 +673,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await verifyStudentLearningSummary(page, QA_BASE);
     await page.setViewportSize({ width: 390, height: 844 });
     const parentTokens = await loginApi(request, created.family.parentPhone, created.family.parentPassword);
+    expect((await api(request, "GET", `/enrollments/${created.enrollmentIds[0]}/`, parentTokens.access)).status).toBe(403);
     const missingSelection = await request.get(
       `${QA_API}/api/v1/student/video/sessions/${created.sessionId}/videos/?enrollment=${created.enrollmentIds[0]}`,
       {

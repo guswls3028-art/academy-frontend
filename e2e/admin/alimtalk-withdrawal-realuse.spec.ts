@@ -128,8 +128,25 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
       await page.getByRole("button", { name: `QA editable ${family.students[0].id} 편집`, exact: true }).click();
       const mobileEditor = page.getByRole("dialog", { name: "문구 편집", exact: true });
       await expect(mobileEditor.getByRole("textbox", { name: "안내 문구", exact: true })).toHaveText(libraryBody);
+      const bodyInput = mobileEditor.getByRole("textbox", { name: "안내 문구", exact: true });
+      const draftLines = ["#{학생이름} 학생 안내입니다.", "", `${width}px에서 저장한 합성 문구입니다.`];
+      await bodyInput.fill(draftLines[0]);
+      await bodyInput.press("End");
+      await bodyInput.press("Enter");
+      await bodyInput.press("Enter");
+      await page.keyboard.insertText(draftLines[2]);
+      const savedDraft = page.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === `/api/v1/messaging/templates/${editableTemplateId}/`);
+      await mobileEditor.getByRole("button", { name: "수정", exact: true }).click();
+      expect((await savedDraft).status()).toBe(200);
+      await expect(mobileEditor).toBeHidden();
+      expect((await expectApi<{ body: string }>(request, "GET", `/messaging/templates/${editableTemplateId}/`, access)).body)
+        .toBe(draftLines.join("\n"));
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: `QA editable ${family.students[0].id} 편집`, exact: true }).click();
+      await expect(bodyInput.locator("p")).toHaveText(draftLines);
       const mobileBody = `${width}px 선생님 화면에서 저장한 최종 안내문입니다.`;
-      await mobileEditor.getByRole("textbox", { name: "안내 문구", exact: true }).fill(mobileBody);
+      await bodyInput.fill(mobileBody);
       await mobileEditor.getByRole("button", { name: "수정", exact: true }).click();
       await expect(mobileEditor).toBeHidden();
       expect((await expectApi<{ body: string }>(request, "GET", `/messaging/templates/${editableTemplateId}/`, access)).body).toBe(mobileBody);
