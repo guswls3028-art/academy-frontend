@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router";
+import { Link, Navigate, useMatch, useNavigate, useParams, useSearchParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Download, FileText, MessageCircle, Paperclip, Pencil, Search } from "lucide-react";
 import { Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
@@ -13,9 +13,10 @@ import PostEditor from "./PostEditor";
 import styles from "./StaffBoard.module.css";
 import { createRandomUuid } from "@/shared/utils/randomUuid";
 
-export default function StaffBoardPage({ compactWorkspace = false }: { compactWorkspace?: boolean }) {
+export default function StaffBoardPage() {
   const { category, postId } = useParams();
   const scope = useBoardScope();
+  const compactWorkspace = useMatch({ path: mobileBoardRoot, end: false });
   const root = compactWorkspace ? mobileBoardRoot : boardRoot;
   const categories = Object.keys(boardLabels) as Category[];
   if (!category || !categories.includes(category as Category)) return <Navigate replace to={`${root}/notice`} />;

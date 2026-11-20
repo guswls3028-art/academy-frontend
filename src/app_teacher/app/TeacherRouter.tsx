@@ -105,7 +105,7 @@ export default function TeacherRouter() {
       <Routes>
         <Route element={<TeacherLayout />}>
           <Route index element={<TodayPage />} />
-          <Route path="staff-board/:category?/:postId?" element={<StaffBoardPage compactWorkspace />} />
+          <Route path="staff-board/:category?/:postId?" element={<StaffBoardPage />} />
           <Route path="assistant" element={<OpsAssistantPage />} />
           <Route path="guide" element={<TeacherGuidePage />} />
           <Route path="menu" element={<TeacherMenuPage />} />
