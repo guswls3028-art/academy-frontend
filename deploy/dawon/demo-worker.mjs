@@ -147,6 +147,11 @@ function installLearnerBridge(counselChrome) {
     const top=document.querySelector('.student-layout__header .stu-topbar');
     const bottom=document.querySelector('[data-analytics-placement="student.bottom-tab"]');
     if(!top || !bottom)return false;
+    const hubBack=document.querySelector('.community-hub-back');
+    if(hubBack){
+      const heading=document.querySelector('.student-layout main h1');
+      if(heading?.textContent==='커뮤니티')heading.textContent='상담 내역';
+    }
     for(const [slot,anchor,html] of [['header',top,counselChrome.header],['footer',bottom,'<nav class="dw-bottom" aria-label="하단 메뉴"><div class="dw-wrap">'+counselChrome.footer+'</div></nav>']]){
       if(anchor.parentElement.querySelector('[data-dawon-counsel-part="'+slot+'"]'))continue;
       const host=document.createElement('div');host.dataset.dawonCounselPart=slot;
@@ -216,6 +221,8 @@ function installLearnerBridge(counselChrome) {
   }
   const css = document.createElement('style');
   css.textContent = `
+    html[data-dawon-counsel] .community-hub-back,
+    html[data-dawon-counsel] .community-hub-back ~ :not(.community-tab-panel){display:none!important}
     html[data-dawon-counsel] [data-dawon-counsel-part="header"] + .stu-topbar,
     html[data-dawon-counsel] [data-dawon-counsel-part="footer"] + .stu-tabbar {display:none!important}
     html[data-dawon-counsel] [data-dawon-counsel-part="footer"]{min-height:61px;}

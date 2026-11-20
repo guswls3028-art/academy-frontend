@@ -228,6 +228,7 @@ function mountLearner() {
     back.href = action === 'detail' ? href('list') : origin.has('date') ? '/learn/questions?' + origin : '/?preview=student';
     back.setAttribute('aria-label',action === 'detail' ? '질문 목록으로' : origin.has('date') ? '해당 날짜로' : '홈으로');
     view.replaceChildren();
+    view.append(status('질문 체험은 이 브라우저에만 저장됩니다. 선생님에게 전송되지 않으며, 기록에 표시된 답변은 예시입니다.'));
     const nav = element('nav',null,'dw-actions');nav.setAttribute('aria-label','질문 메뉴');
     for (const [key,label] of [['ask','질문하기'],['photo','사진으로 질문'],['list','질문 내역']]) {
       const node=link(label,href(key),'dw-action');
@@ -252,7 +253,7 @@ function mountLearner() {
       if(!q){view.append(status('이 질문을 찾을 수 없습니다.'));return;}
       view.append(element('h2',q.title),element('p',q.body,'dw-questionText'));
       if(photoUrl(q.image)){const img=element('img');img.src=q.image;img.alt=q.filename || '첨부한 문제 사진';img.className='dw-questionPhoto';view.append(img);}
-      view.append(element('h3',q.answer?'선생님 답변':'답변 대기'));
+      view.append(element('h3',q.answer?'예시 답변':'예시 답변 없음'));
       if(q.answer)view.append(element('p',q.answer,'dw-questionText'));
       return;
     }
