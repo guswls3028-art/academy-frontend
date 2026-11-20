@@ -18,22 +18,26 @@ type Lesson = {
 type Attendance = {
   groups: Summary[]; group_name: string | null; lessons: Lesson[]; status_labels: Record<string, string>;
 };
-const today = () => new Intl.DateTimeFormat("sv-SE", {
+export const todayInSeoul = () => new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
 }).format(new Date());
 const dashboard = "/workspace/dashboard";
 
-export default function DawonDailyAttendance() {
-  const [params, setParams] = useSearchParams();
-  const day = params.get("date") ?? today();
-  const group = params.get("group");
-  const search = params.get("q") ?? "";
+export function useDawonDailyAttendance(day: string, group: string | null) {
   const request: Record<string, string> = {view: "attendance", date: day};
   if (group !== null) request.group = group;
-  const query = useQuery({
+  return useQuery({
     queryKey: dawonQueryKeys.adminLearning(request),
     queryFn: async ({signal}) => (await api.get<Attendance>("/students/demo-operations/", {params: request, signal})).data,
   });
+}
+
+export default function DawonDailyAttendance() {
+  const [params, setParams] = useSearchParams();
+  const day = params.get("date") ?? todayInSeoul();
+  const group = params.get("group");
+  const search = params.get("q") ?? "";
+  const query = useDawonDailyAttendance(day, group);
   function selection(date: string, term: string, id?: number) {
     const next = new URLSearchParams({panel: "attendance", date});
     if (term) next.set("q", term);
@@ -53,7 +57,7 @@ export default function DawonDailyAttendance() {
           onChange={event => setParams(selection(day, event.target.value), {replace: true})}/></label>}
         <nav aria-label="운영 화면">
           {group !== null && <Link to={overview}>반별 출결 목록</Link>}
-          <Link to={dashboard + "?panel=operations"}>반 운영 현황</Link>
+          <Link to={dashboard + "?" + new URLSearchParams({date:day,q:search})}>반 운영 현황</Link>
           <Link to={dashboard + "?panel=alerts"}>학습 경보</Link>
         </nav>
       </div>

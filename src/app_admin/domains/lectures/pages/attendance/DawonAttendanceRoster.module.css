@@ -1,0 +1,13 @@
+.roster { container-type: inline-size; min-width: 0; }
+.roster .table { width: 100%; table-layout: fixed; }
+.roster .table :is(th,td) { padding: 3px 8px; vertical-align: middle; }
+.roster .table .check { width: 36px; text-align: center; }
+.roster .table .more { width: 48px; text-align: center; }
+.table button, .table select { min-height: 32px; }
+.table select { max-width: 100%; padding-inline: 7px; border: 1px solid var(--color-border-default); border-radius: 5px; color: var(--color-text-primary); background: var(--color-bg-surface); }
+.table .more button { display: inline-grid; width: 32px; place-items: center; }
+.name { overflow-wrap: anywhere; font-weight: 650; }
+.table small { display: block; color: var(--color-text-secondary); }
+.detail { display: grid; gap: 8px; padding: 8px; background: var(--color-bg-surface-soft); }
+@container (max-width: 650px) { .table .phone { display: none; } }
+@media (pointer: coarse) { .table :is(button,select), .table .more button { min-height: 44px; } }

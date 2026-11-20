@@ -16,6 +16,7 @@ import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import ClassRosterModal, { type RosterStudent } from "./ClassRosterModal";
 import styles from "./ClassGroupsPage.module.css";
+import DawonClassRecords from "./DawonClassRecords";
 
 const LectureCreateModal = lazy(() => import("@admin/domains/lectures/components/LectureCreateModal"));
 
@@ -133,6 +134,16 @@ function CourseList({ group, lectureRoot, onEnroll }: { onEnroll: (course:Lectur
 function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, assignOnOpen, afterInitialAssignment }: { admin: boolean; id: number; root: string; lectureRoot: string; rosterRoot: string; lectureEntry: boolean; assignOnOpen: boolean; afterInitialAssignment: () => void }) {
   const client = useQueryClient();
   const location = useLocation();
+  const requestedTab = new URLSearchParams(location.search).get("tab");
+  const teacher = dawonStaffPreviewRole() === "teacher";
+  const tab = teacher && (requestedTab === "attendance" || requestedTab === "exams" || requestedTab === "roster" || requestedTab === "courses")
+    ? requestedTab : lectureEntry ? "courses" : "roster";
+  const pane = (next: string) => {
+    const params = new URLSearchParams(location.search);
+    params.set("class", String(id));
+    params.set("tab", next);
+    return root + "?" + params;
+  };
   const navigate = useNavigate();
   const previous = admin && location.state?.roster?.group === id ? location.state.roster : undefined;
   const [query, setQuery] = useState<string>(() => typeof previous?.query === "string" ? previous.query : "");
@@ -202,13 +213,13 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
 
   return (
     <DomainLayout title={group.name} density="compact"
-      breadcrumbs={[{label:lectureEntry?"강의 관리":admin?"반 편성":"학생",to:root+"?view=list"}, {label:"반 목록",to:root+"?view=list"}]}
+      breadcrumbs={teacher ? [{label:"담당 반",to:root+"?view=list"}] : [{label:lectureEntry?"강의 관리":"반 편성",to:root+"?view=list"}, {label:"반 목록",to:root+"?view=list"}]}
       description={groupType(group)+" · 담당 강사 "+(group.assigned_teacher?.name || "미지정")} descriptionMode="visible"
       headerActions={<div className={styles.actions}>
         {admin && <Button onClick={()=>{
           reassign.reset();setNewTeacher(String(group.assigned_teacher?.id ?? ""));setEditingTeacher(true);
         }}>담당 변경</Button>}
-        {lectureEntry && <Button intent="primary" onClick={() => openEditor("lecture")} disabled={!eligibleMembers.length || !group.assigned_teacher}>수업 개설</Button>}
+        {tab === "courses" && <Button intent="primary" onClick={() => openEditor("lecture")} disabled={!eligibleMembers.length || !group.assigned_teacher}>수업 개설</Button>}
       </div>}>
       <div className={styles.detail}>
       {editingTeacher && <AdminModal open noMinimize trapFocus width={MODAL_WIDTH.sm} onClose={()=>setEditingTeacher(false)} closeDisabled={reassign.isPending}>
@@ -231,11 +242,13 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
           setLateCourse(null);setNotice(`${ids.length}명을 수강 등록했습니다.`);
         }}/>}
       <nav className={styles.groupNav} aria-label="반 업무">
-        <Link to={`${lectureRoot}?class=${id}`} aria-current={lectureEntry ? "page" : undefined}>강의 목록</Link>
-        <Link to={`${rosterRoot}?class=${id}`} aria-current={!lectureEntry ? "page" : undefined}>반 명단</Link>
+        <Link to={teacher ? pane("courses") : `${lectureRoot}?class=${id}`} aria-current={tab === "courses" ? "page" : undefined}>강의 목록</Link>
+        <Link to={teacher ? pane("roster") : `${rosterRoot}?class=${id}`} aria-current={tab === "roster" ? "page" : undefined}>반 명단</Link>
+        {teacher && <><Link to={pane("attendance")} aria-current={tab === "attendance" ? "page" : undefined}>출결</Link>
+          <Link to={pane("exams")} aria-current={tab === "exams" ? "page" : undefined}>시험 결과</Link></>}
       </nav>
-      {lectureEntry && !eligibleMembers.length && <p>{admin ? "수업을 개설하려면 반 명단에 수강 가능한 학생을 먼저 배정하세요." : "이 반에 수강 가능한 학생이 없습니다."}</p>}
-      {lectureEntry && !group.assigned_teacher && <p>{admin ? "수업을 개설하려면 담당 강사를 먼저 지정하세요." : "반 담당 강사가 지정되면 수업을 개설할 수 있습니다."}</p>}
+      {tab === "courses" && !eligibleMembers.length && <p>{admin ? "수업을 개설하려면 반 명단에 수강 가능한 학생을 먼저 배정하세요." : "이 반에 수강 가능한 학생이 없습니다."}</p>}
+      {tab === "courses" && !group.assigned_teacher && <p>{admin ? "수업을 개설하려면 담당 강사를 먼저 지정하세요." : "반 담당 강사가 지정되면 수업을 개설할 수 있습니다."}</p>}
       {notice && <p role="status" className={styles.notice}>{notice}</p>}
       {createdCourse && <div className={styles.createdCourse}>
         <p role="status"><strong>{createdCourse.title}</strong> 개설 완료 · 수강생 {createdCourse.student_count}명 등록</p>
@@ -271,8 +284,9 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
           </div>,
         }} />
       </Suspense>}
-      {lectureEntry && <CourseList onEnroll={setLateCourse} group={group} lectureRoot={lectureRoot} />}
-      {!lectureEntry && <section className={styles.detail} aria-label="반 명단">
+      {tab === "courses" && <CourseList onEnroll={setLateCourse} group={group} lectureRoot={lectureRoot} />}
+      {(tab === "attendance" || tab === "exams") && <DawonClassRecords groupId={id} courses={group.lectures} tab={tab} lectureRoot={lectureRoot}/>}
+      {tab === "roster" && <section className={styles.detail} aria-label="반 명단">
         <DomainListToolbar totalLabel={`반 명단 ${query.trim() ? visibleMembers.length + " / " : ""}${members.length}명`}
           searchSlot={<ListSearch label="이름 · 학교 · 전화번호 검색" value={query} change={setQuery} />}
           primaryAction={admin && <div className={styles.actions}>

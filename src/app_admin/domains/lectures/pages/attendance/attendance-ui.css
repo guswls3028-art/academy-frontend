@@ -191,6 +191,15 @@
   display: none;
 }
 
+.dawon-session-picker > summary {
+  width: fit-content;
+  min-height: 40px;
+  padding: 8px 2px;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
 @container (max-width: 640px) {
   .attendance-roster,
   .attendance-roster .ds-table--attendance {
