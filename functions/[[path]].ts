@@ -132,6 +132,11 @@ interface TenantMeta {
 const HAKWONPLUS_HOSTS = new Set(["hakwonplus.com", "www.hakwonplus.com"]);
 const DEV_CONSOLE_HOST = "dev.hakwonplus.com";
 const DEV_CONSOLE_ORIGIN = `https://${DEV_CONSOLE_HOST}`;
+const PLATFORM_ICON_ALIASES = new Map([
+  ["/favicon.ico", "/tenants/hakwonplus/favicon.png?v=20261119"],
+  ["/apple-touch-icon.png", "/tenants/hakwonplus/apple-touch-icon.png?v=20261119"],
+  ["/apple-touch-icon-precomposed.png", "/tenants/hakwonplus/apple-touch-icon.png?v=20261119"],
+]);
 
 const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
   "/promo": {
@@ -658,6 +663,18 @@ function injectMeta(
     );
   }
 
+  if (HAKWONPLUS_HOSTS.has(host) && (pathname === "/" || pathname === "/promo")) {
+    const organization = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: "학원플러스",
+      url: "https://hakwonplus.com",
+      logo: "https://hakwonplus.com/tenants/hakwonplus/pwa-512.png?v=20261119",
+    });
+    // Place the crawler data before the startup script so browser boot can reuse it.
+    html = html.replace("<head>", `<head>\n    <script type="application/ld+json" id="platform-organization">${organization}</script>`);
+  }
+
   if (HAKWONPLUS_HOSTS.has(host) && HAKWONPLUS_PROMO_ROUTES.has(pathname)) {
     const structuredData = JSON.stringify({
       "@context": "https://schema.org",
@@ -687,6 +704,11 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
   const pathname = url.pathname;
   const host = url.hostname.toLowerCase();
+
+  const platformIcon = PLATFORM_ICON_ALIASES.get(pathname);
+  if (platformIcon && (HAKWONPLUS_HOSTS.has(host) || host === DEV_CONSOLE_HOST)) {
+    return Response.redirect(new URL(platformIcon, url).href, 307);
+  }
 
   if (
     HAKWONPLUS_HOSTS.has(host)
