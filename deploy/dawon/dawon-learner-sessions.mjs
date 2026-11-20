@@ -10,10 +10,10 @@ const menus = [
   ["grades", "학교 성적", "clipboard"],
 ];
 
-const drawerGroups = [
-  ['학원 생활', ['notices', 'attendance', 'clinic']],
-  ['수업과 과제', ['video', 'curriculum', 'homework']],
-  ['평가와 문의', ['exam', 'grades', 'questions']],
+const menuGroups = [
+  ['학원 생활', ['notices', 'attendance']],
+  ['수업 기록', ['video', 'exam', 'homework', 'curriculum']],
+  ['신청·문의·제출', ['clinic', 'questions', 'grades']],
 ];
 
 const paths = {
@@ -28,6 +28,7 @@ const paths = {
   calendar: "M4 6h16v15H4zM7 3v6M17 3v6M4 11h16M9 15h1M14 15h1",
   message: "M3 5h18v12H9l-6 4zm4 4h10M7 13h6",
   qr: "M4 4h5v5H4zm11 0h5v5h-5zM4 15h5v5H4zm11 0h2m3 0v2m0 3h-5v-3",
+  close: "m6 6 12 12M18 6 6 18",
   right: "m9 5 7 7-7 7",
   left: "m15 5-7 7 7 7",
 };
@@ -42,10 +43,24 @@ const style = [
   'h1,h2,p{margin:0}a{color:inherit;text-decoration:none}button{font:inherit}a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--dw-accent);outline-offset:3px}.dw-icon,svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}',
   '.dw-wrap{width:min(calc(100% - 48px),var(--dw-width));margin:0 auto}.dw-header{position:relative;z-index:2;min-height:57px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 24px;background:#fff;border-bottom:1px solid var(--dw-line)}',
   '.dw-brand,.dw-headerActions{display:flex;align-items:center;gap:12px}.dw-brand>a{font-weight:650;color:var(--dw-muted)}.dw-brand strong{font-weight:760}.dw-headerActions a{display:inline-flex;align-items:center;gap:6px;min-height:44px;font-size:14px;font-weight:700;color:var(--dw-accent)}',
-  '.dw-drawer summary{list-style:none;display:grid;place-items:center;width:44px;height:44px;cursor:pointer;border-radius:8px;color:var(--dw-muted)}.dw-drawer summary::-webkit-details-marker{display:none}.dw-drawer nav{position:absolute;top:calc(100% + 6px);left:12px;width:230px;max-height:calc(100dvh - 175px);overflow:auto;display:grid;background:#fff;padding:8px;border:1px solid var(--dw-line);border-radius:10px;box-shadow:0 8px 24px #29201a26}.dw-drawer section{display:grid}.dw-drawer section+section{border-top:1px solid var(--dw-line);margin-top:4px}.dw-drawer h2{font-size:13px;color:var(--dw-muted);padding:8px 12px 2px;margin:0}.dw-drawer [aria-current=page]{color:var(--dw-accent);background:#fff0e6;font-weight:700}.dw-drawer nav a{padding:8px 12px;min-height:44px}.dw-drawer nav a:hover{background:#fff0e6}',
+  `
+  .dw-header{position:sticky;top:var(--dawon-demo-bar-height,0px);z-index:4;padding:0}
+  .dw-headerInner{min-height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .dw-brand{min-width:0}.dw-brand>a{color:var(--dw-ink);white-space:nowrap;font-weight:750}.dw-brand>span{color:#a39891}.dw-brand>strong{font-size:14px;color:var(--dw-muted);font-weight:600}
+  .dw-brand button,.dw-drawerHead button{display:grid;place-items:center;border:0;background:transparent;color:var(--dw-muted);width:44px;height:44px;border-radius:8px;cursor:pointer}
+  .dw-brand button:hover,.dw-drawerHead button:hover{background:#f4efeb}.dw-brand>[data-dw-menu]{margin-inline-start:-8px}
+  .dw-drawerPanel{position:fixed;inset:0 auto 0 0;box-sizing:border-box;margin:0;padding:0;width:min(312px,calc(100vw - 40px));height:100dvh;max-height:none;max-width:none;border:0;border-right:1px solid var(--dw-line);background:#fff;color:var(--dw-ink);overflow:hidden}
+  .dw-drawerPanel[open]{display:flex;flex-direction:column}.dw-drawerPanel::backdrop{background:#23201b66}html:has(.dw-drawerPanel[open]){overflow:hidden}
+  .dw-drawerHead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;padding:calc(9px + env(safe-area-inset-top,0px)) 14px 9px 20px;border-bottom:1px solid var(--dw-line)}.dw-drawerHead h2{font-size:18px;line-height:1.4;margin:0}
+  .dw-drawerPanel nav{padding:8px 12px max(16px,env(safe-area-inset-bottom));overflow:auto;overscroll-behavior:contain}
+  .dw-drawerPanel section{border-top:1px solid var(--dw-line);margin-top:8px;padding-top:8px}.dw-drawerPanel nav h2{margin:3px 12px;font-size:13px;color:var(--dw-muted);font-weight:650}
+  .dw-drawerPanel nav a{display:flex;align-items:center;gap:12px;min-height:44px;padding:8px 12px;border-radius:8px;font-size:15px;font-weight:600}
+  .dw-drawerPanel nav a svg{width:19px;height:19px;color:var(--dw-muted)}.dw-drawerPanel nav a:hover{background:#faf6f2}.dw-drawerPanel nav a[aria-current]{color:var(--dw-accent);background:#fff0e5;font-weight:720}.dw-drawerPanel nav a[aria-current] svg{color:inherit}
+  @media(prefers-reduced-motion:no-preference){.dw-drawerPanel[open]{animation:dw-enter .16s ease-out}@keyframes dw-enter{from{transform:translateX(-24px)}to{transform:translateX(0)}}}
+  `,
   '.dw-hero{background:var(--dw-orange);color:#fff;padding:40px 0 42px}.dw-hero .dw-wrap{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px}.dw-hero h1{font-size:clamp(29px,4.4vw,52px);line-height:1.16;letter-spacing:-.045em;font-weight:760}.dw-hero p{font-size:clamp(17px,2.1vw,25px);font-weight:650;line-height:1.4}',
-  '.dw-content{padding-block:24px 30px}.dw-homeMenu ul{list-style:none;display:grid;gap:12px;margin:0;padding:0}.dw-rowLink,.dw-spotlight{display:flex;align-items:center;gap:14px;min-height:62px;border:1px solid var(--dw-line);border-radius:10px;padding:11px 16px;background:#fff;font-size:clamp(16px,2vw,21px);font-weight:720;box-shadow:0 2px 4px #31251d10}.dw-rowLink:hover,.dw-spotlight:hover{border-color:#d69c77;background:#fffaf6}.dw-rowLink>svg:first-child{color:#5d6c65}.dw-rowLink>svg:last-child,.dw-spotlight>svg{margin-left:auto;color:#747d86;width:18px;height:18px}.dw-spotlight{min-height:52px;margin-bottom:20px;background:#f0efed;box-shadow:none;font-size:15px}.dw-spotlight strong{font-size:13px;color:var(--dw-accent)}.dw-footnote{margin-top:24px;color:var(--dw-muted);font-size:13px}',
-  '.dw-bottom{position:fixed;inset:auto 0 0;z-index:3;background:#fff;border-top:1px solid var(--dw-line);padding-bottom:env(safe-area-inset-bottom,0px)}.dw-bottom .dw-wrap{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.dw-bottom a{min-height:var(--dw-footer);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--dw-muted);font-size:13px;font-weight:650}.dw-bottom [aria-current=page]{color:var(--dw-accent)}.dw-bottom a:hover{background:#fff5ee}',
+  '.dw-content{padding-block:24px 30px}.dw-homeMenu section+section{margin-top:20px}.dw-homeMenu h2{font-size:14px;font-weight:700;color:var(--dw-muted);margin:0 0 7px 2px}.dw-homeMenu ul{list-style:none;display:grid;gap:6px;margin:0;padding:0}.dw-rowLink,.dw-spotlight{display:flex;align-items:center;gap:14px;min-height:62px;border:1px solid var(--dw-line);border-radius:10px;padding:11px 16px;background:#fff;font-size:clamp(16px,2vw,21px);font-weight:720;box-shadow:0 2px 4px #31251d10}.dw-rowLink:hover,.dw-spotlight:hover{border-color:#d69c77;background:#fffaf6}.dw-rowLink>svg:first-child{color:#655449;width:20px;height:20px}.dw-rowLink{box-shadow:0 1px 3px #31251d0b}.dw-rowLink>span{min-width:0;overflow-wrap:anywhere}.dw-rowLink>svg:last-child,.dw-spotlight>svg{margin-left:auto;color:#747d86;width:18px;height:18px}.dw-spotlight{min-height:52px;margin-bottom:20px;background:#f0efed;box-shadow:none;font-size:15px}.dw-spotlight strong{font-size:13px;color:var(--dw-accent)}.dw-footnote{margin-top:24px;color:var(--dw-muted);font-size:13px}',
+  '.dw-bottom{position:fixed;inset:auto 0 0;z-index:3;background:#fff;border-top:1px solid var(--dw-line);padding-bottom:env(safe-area-inset-bottom,0px)}.dw-bottom .dw-wrap{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.dw-bottom a{min-height:var(--dw-footer);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--dw-muted);font-size:13px;font-weight:650}.dw-bottom [aria-current]{color:var(--dw-accent);font-weight:750}.dw-bottom a{position:relative}.dw-bottom a[aria-current]::before{content:"";position:absolute;top:0;width:28px;height:3px;background:#b65217;border-radius:0 0 3px 3px}.dw-bottom a:hover{background:#fff5ee}',
   '.dw-title{display:flex;align-items:center;gap:6px;margin-bottom:14px}.dw-title h1{font-size:clamp(23px,3vw,31px);letter-spacing:-.04em}.dw-back{display:grid;place-items:center;width:44px;height:44px;border:1px solid var(--dw-line);border-radius:8px;background:#fff;flex:none}',
   `
   .dw-card{background:#fff;border:1px solid var(--dw-line);border-radius:12px;box-shadow:0 2px 5px #31251d0b;padding:clamp(12px,2.5vw,22px)}
@@ -66,9 +81,9 @@ const style = [
   .dw-dayNumber{font-size:16px;font-weight:650;line-height:1}.dw-dayHint{display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;font-weight:700;line-height:11px}
   .dw-day[data-outside=true]{color:var(--dw-cell-outside);background:#faf9f8}.dw-day[data-records]{background:#fff6ed;border-color:#ead2bd}
   .dw-day[aria-current=date]{color:#833607;background:#fff0e2;border-color:#c88250}.dw-day[data-last-viewed]{box-shadow:inset 0 0 0 2px #9d4a1c}
-  .dw-day:hover{background:#f9eee6;border-color:#b77a55}.dw-marker{flex:none;display:inline-block;width:6px;height:6px;border-radius:50%;background:#a64b18}
+  .dw-day:hover{background:#f9eee6;border-color:#b77a55}.dw-marker{flex:none;display:inline-block;width:7px;height:7px;border-radius:50%;background:#a64b18}
   .dw-marker[hidden]{display:none}.dw-legend{margin:12px 0 0;color:var(--dw-muted);font-size:13px;display:flex;align-items:center;gap:7px}
-  .dw-markerPending{background:white;border:1.5px solid #806e61}.dw-attendanceState{font-size:14px;font-weight:700;color:var(--dw-accent)}
+  .dw-legend .dw-markerPending{margin-left:8px}.dw-markerPending{background:white;border:1.5px solid #806e61}.dw-attendanceState{font-size:14px;font-weight:700;color:var(--dw-accent)}
   .dw-attendanceState[data-pending]{color:var(--dw-muted)}.dw-day[data-only-pending]:not([aria-current=date]){background:white}
   .dw-detailHead{padding-bottom:12px;border-bottom:1px solid var(--dw-line)}.dw-count{color:var(--dw-muted);font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
   .dw-dayList{list-style:none;padding:0;margin:0}.dw-record{position:relative;display:flex;align-items:center;justify-content:space-between;gap:6px 18px;flex-wrap:wrap;padding:14px 2px;overflow-wrap:anywhere}
@@ -83,7 +98,18 @@ const style = [
   .dw-empty{margin-top:14px;padding:12px 14px;border-radius:8px;background:#f8f6f4}.dw-empty .dw-state{margin:0}.dw-nearest{align-self:start}
   .dw-state{margin:10px 0;color:var(--dw-muted);overflow-wrap:anywhere}.dw-actions{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
   .dw-back:has(span){display:flex;align-items:center;gap:3px;width:auto;padding:0 10px;font-size:14px;font-weight:650;white-space:nowrap}.dw-back span{line-height:1.35}.dw-back:has(span) svg{width:16px}
-  .dw-spotlight span{min-width:0;overflow-wrap:anywhere}.dw-spotlight strong{flex:none}
+  .dw-spotlight[hidden],.dw-homeNoticeError[hidden]{display:none}.dw-spotlight span{min-width:0;overflow-wrap:anywhere}.dw-spotlight time{margin-left:auto;white-space:nowrap;font-size:12px;color:var(--dw-muted);font-weight:600}.dw-spotlight>svg{margin-left:0}.dw-homeNoticeError{margin:0 0 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:2px 8px 2px 12px;font-size:14px;color:var(--dw-muted);background:#f5f2ef;border-radius:8px}
+  .dw-alertDay h2{margin:0;padding:0 0 10px;border-bottom:1px solid var(--dw-line);font-size:15px;font-weight:700}.dw-alertDay+.dw-alertDay{margin-top:18px}
+  .dw-recordText,.dw-taskBody dd,.dw-questionNote,.dw-empty{word-break:keep-all;overflow-wrap:anywhere}
+  .dw-content{scroll-margin-top:calc(var(--dawon-demo-bar-height,0px) + 60px)}.dw-content :is(input,textarea,button,summary,a){scroll-margin-block:115px 72px}
+  .dw-title{gap:10px}.dw-questionTools{display:flex;border-bottom:1px solid var(--dw-line);gap:14px}.dw-questionTools a{display:inline-flex;align-items:center;min-height:44px;font-size:15px;font-weight:650;border-bottom:2px solid transparent;color:var(--dw-muted)}.dw-questionTools [aria-current]{border-color:#ae4b12;color:var(--dw-accent)}
+  .dw-questionNote{margin:12px 0;color:var(--dw-muted);font-size:14px;line-height:1.55}.dw-questionForm label{font-size:14px;font-weight:680}.dw-questionForm input,.dw-questionForm textarea{font-weight:400;background:#fff;color:var(--dw-ink)}
+  .dw-questionForm button[type=submit]{justify-self:start;background:#a74610;border-color:#a74610;color:#fff;min-width:112px;padding-inline:18px}.dw-photoField{border-block:1px solid var(--dw-line);padding:0 2px 2px}.dw-photoField summary{display:flex;align-items:center;gap:8px;min-height:44px;font-weight:650;font-size:14px;cursor:pointer}.dw-photoField summary::after{content:"";margin:0 4px 3px auto;width:7px;height:7px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}.dw-photoField[open] summary::after{transform:rotate(225deg)}.dw-photoField p{font-size:13px;color:var(--dw-muted);margin:6px 0}
+  .dw-photoButtons{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}.dw-questionForm .dw-questionPhoto{display:block}.dw-questionForm .dw-questionPhoto[hidden]{display:none}
+  .dw-questionRow{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;font-weight:650}.dw-questionRow span{color:var(--dw-muted);font-size:13px;font-weight:600;white-space:nowrap}.dw-questionText{line-height:1.65;margin-block:8px}.dw-questionNote~h2,.dw-questionNote~h3{margin:14px 0 4px}.dw-questionForm [type=file]{max-width:100%}
+  body[data-learner-menu=questions]:has(.dw-questionForm,.dw-questionTools) .dw-content{max-width:760px}
+  @media(max-width:580px){.dw-questionForm button[type=submit]{justify-self:stretch}.dw-legend{gap:5px}.dw-headerInner{min-height:52px}}
+  .dw-spotlight strong{flex:none}
   .dw-action[aria-current=page]{background:#fff1e6;border-color:#dbab84;color:#843008}
   @media(max-width:580px){
     .dw-calendarHeader{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding-bottom:10px;margin-bottom:8px}
@@ -92,8 +118,8 @@ const style = [
   }
   @media(prefers-reduced-motion:no-preference){.dw-day,.dw-rowLink,.dw-recordAction,.dw-modeSwitch a{transition:background-color .12s,border-color .12s}}
   `,
-  '.dw-questionForm,.dw-questionForm label{display:grid;gap:8px}.dw-questionForm{gap:16px;margin-top:16px}.dw-questionForm input,.dw-questionForm textarea{font:inherit;border:1px solid var(--dw-line);border-radius:8px;padding:10px;width:100%}.dw-questionForm textarea{min-height:8em}.dw-questionPhoto{max-width:min(100%,480px);max-height:450px;object-fit:contain}.dw-questionRow{display:block;padding:14px 0;border-bottom:1px solid var(--dw-line)}.dw-questionText{white-space:pre-wrap;overflow-wrap:anywhere}.dw-questionForm [hidden]{display:none}',
-  '@media(max-width:580px){.dw-wrap{width:calc(100% - 28px)}.dw-header{padding:0 11px;gap:6px}.dw-brand,.dw-headerActions{gap:6px}.dw-brand strong{font-size:15px}.dw-hero{padding:26px 0 28px}.dw-hero .dw-wrap{display:grid;gap:4px}.dw-hero p{font-size:17px}.dw-content{padding-top:16px}.dw-homeMenu ul{gap:9px}.dw-rowLink{min-height:53px;padding:9px 12px}.dw-spotlight{margin-bottom:12px;padding-inline:10px}.dw-bottom a{font-size:12px}}',
+  '.dw-questionForm,.dw-questionForm label{display:grid;gap:8px}.dw-questionForm{gap:16px;margin-top:16px}.dw-questionForm input,.dw-questionForm textarea{font:inherit;border:1px solid var(--dw-line);border-radius:8px;padding:10px;width:100%}.dw-questionForm textarea{min-height:8em}.dw-questionPhoto{max-width:min(100%,480px);max-height:450px;object-fit:contain}.dw-questionRow{padding:14px 0;border-bottom:1px solid var(--dw-line)}.dw-questionText{white-space:pre-wrap;overflow-wrap:anywhere}.dw-questionForm [hidden]{display:none}',
+  '@media(max-width:580px){.dw-wrap{width:calc(100% - 28px)}.dw-header{padding:0;gap:6px}.dw-brand,.dw-headerActions{gap:6px}.dw-brand strong{font-size:15px}.dw-hero{padding:26px 0 28px}.dw-hero .dw-wrap{display:grid;gap:4px}.dw-hero p{font-size:17px}.dw-content{padding-top:16px}.dw-homeMenu section+section{margin-top:16px}.dw-homeMenu ul{gap:5px}.dw-rowLink{min-height:49px;padding:9px 12px}.dw-spotlight{margin-bottom:12px;padding-inline:10px}.dw-bottom a{font-size:12px}}',
 ].join('\n');
 
 function escapeHtml(value) {
@@ -121,13 +147,17 @@ export function renderDawonLearner(url, chromeOnly = false) {
   if (!(home || item || topic === 'alerts')) return null;
   const title = home ? '학습 홈' : (item?.[1] ?? '알림');
   const homeUrl = learnerHref('home', role);
-  const menuLinks = visibleMenus.map(([key, label, image]) => '<li><a class="dw-rowLink" href="' +
-    learnerHref(key,role) + '" id="tile-' + key + '">' + icon(image) + '<span>' + label + '</span>' + icon('right') + '</a></li>').join('');
-  const drawerLinks = drawerGroups.map(([heading, keys]) => {
-    const links = keys.map(key => visibleMenus.find(menu => menu[0] === key)).filter(Boolean)
-      .map(([key,label]) => '<a href="' + learnerHref(key,role) + '"' +
-        (topic === key ? ' aria-current="page"' : '') + '>' + label + '</a>').join('');
-    return '<section><h2>' + heading + '</h2>' + links + '</section>';
+  const sections = menuGroups.map(([name, keys]) => ({
+    name: guardian && keys.includes('grades') ? '신청·문의' : name,
+    items: keys.map(key => visibleMenus.find(menu => menu[0] === key)).filter(Boolean),
+  }));
+  const menuLinks = sections.map(({name,items}) => '<section><h2>' + name + '</h2><ul>' +
+    items.map(([key,label,image]) => '<li><a class="dw-rowLink" href="' + learnerHref(key,role) +
+      '" id="tile-' + key + '">' + icon(image) + '<span>' + label + '</span>' + icon('right') + '</a></li>').join('') + '</ul></section>').join('');
+  const menuLink = ([key, label, image]) => '<a href="' + learnerHref(key,role) + '" data-dw-menu-key="' + key + '"' +
+    (topic === key ? ' aria-current="page"' : '') + '>' + icon(image) + '<span>' + label + '</span></a>';
+  const drawerLinks = '<div class="dw-drawerHome">' + menuLink(['home','학습 홈','home']) + menuLink(['alerts','알림','bell']) + '</div>' + sections.map(({name,items}) => {
+    return '<section><h2>' + name + '</h2>' + items.map(menuLink).join('') + '</section>';
   }).join('');
   const actions = guardian ? '/login/dawon?demo=guardian&amp;view=counsel' : '/learn/questions?action=ask&amp;detail=question';
   const tabs = [
@@ -136,21 +166,25 @@ export function renderDawonLearner(url, chromeOnly = false) {
     ['alerts', '알림', 'bell', learnerHref('alerts',role)],
     ['questions', guardian ? '상담하기' : '질문하기', 'message', actions],
   ];
-  const footer = tabs.map(([key,label,image,href]) => '<a id="tab-' + key + '" href="' + href + '"' +
-    (topic === key ? ' aria-current="page"' : '') + '>' + icon(image) + label + '</a>').join('');
+  const activeTab = tabs.some(([key]) => key === topic) ? topic : 'home';
+  const footer = tabs.map(([key,label,image,href]) => '<a id="tab-' + key + '" data-dw-tab-key="' + key + '" href="' + href + '"' +
+    (activeTab === key ? ' aria-current="' + (topic === key ? 'page' : 'location') + '"' : '') + '>' + icon(image) + '<span>' + label + '</span></a>').join('');
   const banner = home ? '<section class="dw-hero"><div class="dw-wrap"><h1>김학생 2</h1><p>' +
     (guardian ? '보호자 2 · 자녀 학습' : '김선생 1') + ' · 수학Ⅱ</p></div></section>' : '';
-  const header = '<header class="dw-header"><div class="dw-brand"><details class="dw-drawer"><summary aria-label="학습 메뉴 열기">' + icon('menu') +
-    '</summary><nav aria-label="학습 메뉴">' + drawerLinks + '</nav></details><a href="' + homeUrl +
-    '">다원수학</a><span aria-hidden="true">/</span><strong>' + escapeHtml(title) + '</strong></div><div class="dw-headerActions">' +
-    (!guardian ? '<a href="/login/dawon?demo=student" aria-label="QR 출석">' + icon('qr') + '<span>QR 출석</span></a>' : '') + '</div></header>';
-  if (chromeOnly) return {header, footer, css:style.replace(':root{',':host{')};
+  const header = '<header class="dw-header"><div class="dw-wrap dw-headerInner"><div class="dw-brand">' +
+    '<button type="button" data-dw-menu aria-label="학습 메뉴 열기" aria-haspopup="dialog" aria-controls="dw-navigation" aria-expanded="false">' + icon('menu') + '</button>' +
+    '<dialog id="dw-navigation" class="dw-drawerPanel" aria-labelledby="dw-menu-heading"><div class="dw-drawerHead"><h2 id="dw-menu-heading">학습 메뉴</h2>' +
+    '<form method="dialog"><button autofocus aria-label="메뉴 닫기">' + icon('close') + '</button></form></div><nav aria-label="학습 메뉴">' + drawerLinks + '</nav></dialog>' +
+    '<a href="' + homeUrl + '" aria-label="다원수학 학습 홈">다원수학</a><span aria-hidden="true">/</span><strong>' +
+    (home ? title : guardian ? '자녀 학습' : '학생 학습') + '</strong></div><div class="dw-headerActions">' +
+    (!guardian ? '<a href="/login/dawon?demo=student" aria-label="QR 출석">' + icon('qr') + '<span>QR 출석</span></a>' : '') + '</div></div></header>';
+  if (chromeOnly) return {header, footer, drawerLinks, css:style.replace(':root{',':host{')};
   const content = home ? '<a class="dw-spotlight" href="' + learnerHref('notices',role) +
-      '"><strong>공지</strong><span id="dw-latest-notice">공지사항 확인</span>' + icon('right') +
-      '</a><nav class="dw-homeMenu" aria-label="홈 메뉴"><ul>' + menuLinks +
-      '</ul></nav><p class="dw-footnote">다원수학 체험판 · 예시 학생과 수업입니다.</p>'
+      '" hidden><strong>공지</strong><span id="dw-latest-notice"></span><time></time>' + icon('right') +
+      '</a><p class="dw-homeNoticeError" hidden></p><nav class="dw-homeMenu" aria-label="홈 메뉴">' + menuLinks +
+      '</nav><p class="dw-footnote">다원수학 체험판 · 예시 학생과 수업입니다.</p>'
     : '<div class="dw-title"><a class="dw-back" id="dw-back" href="' + homeUrl + '" aria-label="홈으로">' + icon('left') +
-      '</a><h1>' + escapeHtml(title) + '</h1></div><section class="dw-card" aria-label="' +
+      '<span>홈</span></a><h1>' + escapeHtml(title) + '</h1></div><section class="dw-card" aria-label="' +
       escapeHtml(title) + '" id="dw-view"><p class="dw-state" role="status">불러오는 중입니다.</p></section>';
   return '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">' +
     '<link rel="icon" type="image/svg+xml" href="/dawon-brand.svg"><title>' + escapeHtml(title) + ' | 다원수학</title><style>' + style +
@@ -159,21 +193,35 @@ export function renderDawonLearner(url, chromeOnly = false) {
     footer + '</div></nav></body></html>';
 }
 
-function mountLearner() {
+export function mountLearnerMenu(scope) {
+  const panel = scope.querySelector('.dw-drawerPanel');
+  const opener = scope.querySelector('[data-dw-menu]');
+  if (!panel || !opener) return;
+  opener.addEventListener('click', () => {
+    panel.showModal();
+    opener.setAttribute('aria-expanded','true');
+  });
+  panel.addEventListener('click', event => {
+    if (event.target.closest?.('a[href]') && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
+      panel.close();
+      return;
+    }
+    if (event.target !== panel) return;
+    const box = panel.getBoundingClientRect();
+    if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) panel.close();
+  });
+  panel.addEventListener('close', () => {
+    opener.setAttribute('aria-expanded','false');
+    opener.focus({preventScroll:true});
+  });
+}
+
+function mountLearner(mountMenu) {
   const role = document.body.dataset.role;
   const topic = document.body.dataset.learnerMenu;
   const guardian = role === 'guardian';
   try { sessionStorage.setItem('dawon-room-role', role); } catch {}
-  const drawer = document.querySelector('.dw-drawer');
-  document.addEventListener('click', event => {
-    if (drawer?.open && !drawer.contains(event.target)) drawer.open = false;
-  });
-  document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && drawer?.open) {
-      drawer.open = false;
-      drawer.querySelector('summary').focus();
-    }
-  });
+  mountMenu(document);
 
   if(guardian) document.addEventListener('click',event=>{
     const target=event.target.closest?.('a[href]');
@@ -230,7 +278,7 @@ function mountLearner() {
     calendar.searchParams.set('selected',key);
     back.href = fromAlerts ? '/learn/alerts' + (guardian ? '?preview=guardian' : '') : calendar.pathname + calendar.search;
     back.setAttribute('aria-label',fromAlerts ? '알림으로' : (period === 'month' ? '월간 달력으로' : '주간 달력으로'));
-    back.append(element('span',fromAlerts ? '알림' : '달력'));
+    back.querySelector('span').textContent = fromAlerts ? '알림' : '달력';
   }
 
   function status(label) {
@@ -315,7 +363,7 @@ function mountLearner() {
     const href = (next, id) => {
       const query = new URLSearchParams(params);
       query.set('action',next);
-      query.delete('entry');
+      if (next === 'detail' && action === 'list') query.set('entry','list');
       query.delete('detail');
       if (id) query.set('id',id); else query.delete('id');
       return '/learn/questions?' + query;
@@ -327,17 +375,16 @@ function mountLearner() {
     const toList = action === 'detail' && !fromDay;
     back.href = toList ? href('list') : origin.has('date') ? '/learn/questions?' + origin : '/?preview=student';
     back.setAttribute('aria-label',toList ? '질문 목록으로' : origin.has('date') ? '해당 날짜로' : '홈으로');
-    const backLabel = back.querySelector('span');
-    if (backLabel) backLabel.textContent = toList ? '내역' : '날짜별 기록';
+    back.querySelector('span').textContent = toList ? '내역' : origin.has('date') ? '날짜별 기록' : '홈';
     view.replaceChildren();
-    view.append(status('질문 체험은 이 브라우저에만 저장됩니다. 선생님에게 전송되지 않으며, 기록에 표시된 답변은 예시입니다.'));
-    const nav = element('nav',null,'dw-actions');nav.setAttribute('aria-label','질문 메뉴');
-    for (const [key,label] of [['ask','질문하기'],['photo','사진으로 질문'],['list','질문 내역']]) {
-      const node=link(label,href(key),'dw-action');
-      if (action === key) node.setAttribute('aria-current','page');
+    const nav = element('nav',null,'dw-questionTools');nav.setAttribute('aria-label','질문 메뉴');
+    const currentTab = action === 'photo' ? 'ask' : action === 'detail' ? 'list' : action;
+    for (const [key,label] of [['ask','질문 작성'],['list','질문 내역']]) {
+      const node=link(label,href(key));
+      if (currentTab === key) node.setAttribute('aria-current','page');
       nav.append(node);
     }
-    view.append(nav);
+    view.append(nav,element('p','데모 질문은 이 브라우저에만 저장되며 선생님에게 전송되지 않습니다.','dw-questionNote'));
     const error=element('p');error.setAttribute('role','alert');
     view.append(error);
     let state;
@@ -345,9 +392,12 @@ function mountLearner() {
     const questions=(Array.isArray(state.questions) ? state.questions : []).filter(q=>q?.author==='student' && q.type!=='consult');
     const photoUrl=value=>typeof value==='string' && /^data:image\/(?:jpeg|png|webp);base64,/i.test(value);
     if(action==='list'){
-      view.append(element('h2','질문 내역'));
-      if(!questions.length)view.append(status('작성한 질문이 없습니다.'));
-      for(const q of questions)view.append(link(q.title+' · '+(q.answer?'답변 완료':'답변 대기'),href('detail',q.id),'dw-questionRow'));
+      if(!questions.length)view.append(status('아직 작성한 질문이 없습니다.'));
+      for(const q of questions){
+        const row=link(q.title,href('detail',q.id),'dw-questionRow');
+        row.append(element('span',q.answer?'예시 답변 있음':'답변 없음'));
+        view.append(row);
+      }
       return;
     }
     if(action==='detail'){
@@ -367,13 +417,23 @@ function mountLearner() {
     };
     const title=field('input','질문 제목',draft.title,80);
     const body=field('textarea','내용',draft.body,1500);
-    const photoLabel=element('label','사진 첨부 (선택)');
-    const file=element('input');file.type='file';file.accept='image/jpeg,image/png,image/webp';
-    if(action==='photo')file.setAttribute('capture','environment');photoLabel.append(file);
+    const photoField=element('details',null,'dw-photoField');
+    photoField.open=action==='photo' || Boolean(draft.photo);
+    const photoTitle=element('summary','사진 첨부 (선택)');
+    const file=element('input');file.type='file';file.accept='image/jpeg,image/png,image/webp';file.hidden=true;
+    const buttons=element('div',null,'dw-photoButtons');
+    const choose=element('button','사진 선택','dw-action');choose.type='button';
+    choose.onclick=()=>{file.removeAttribute('capture');file.click();};
+    buttons.append(choose);
+    if (matchMedia('(pointer:coarse)').matches || action==='photo'){
+      const camera=element('button','사진 촬영','dw-action');camera.type='button';
+      camera.onclick=()=>{file.setAttribute('capture','environment');file.click();};buttons.append(camera);
+    }
     const preview=element('img',null,'dw-questionPhoto');preview.alt='첨부 사진 미리보기';
-    const remove=element('button','사진 제거','dw-action');remove.type='button';
+    const remove=element('button','사진 제거','dw-action');remove.type='button';buttons.append(remove);
+    photoField.append(photoTitle,element('p','JPG, PNG, WEBP · 최대 5MB'),file,buttons,preview);
     const submit=element('button','데모 질문 등록','dw-action');submit.type='submit';
-    form.append(photoLabel,preview,remove,element('p','제목·내용·사진은 이 브라우저에 저장됩니다.'),submit);
+    form.append(photoField,submit);
     view.append(form);
     let photo=photoUrl(draft.photo?.data)?draft.photo:null;
     const paint=()=>{preview.hidden=remove.hidden=!photo;if(photo)preview.src=photo.data;else preview.removeAttribute('src');};
@@ -465,7 +525,7 @@ function mountLearner() {
     if (!action) return;
     const wrapper = element('div',null,'dw-actions');
     if (topic === 'questions' && !guardian) {
-      const launch = new URL(location.href);launch.searchParams.set('action','ask');
+      const launch = new URL(location.href);launch.searchParams.set('action','ask');launch.searchParams.set('entry','date');
       wrapper.append(link(action[0],launch.pathname + launch.search,'dw-action'));
       launch.searchParams.set('action','list');wrapper.append(link('질문 내역',launch.pathname + launch.search,'dw-action'));
     } else wrapper.append(link(action[0],action[1],'dw-action'));
@@ -587,9 +647,18 @@ function mountLearner() {
   function render(payload) {
     if (headline) {
       const notice = payload.notices?.[0];
-      headline.textContent = notice?.title || '공지사항 확인';
+      const spotlight = headline.closest('a');
+      document.querySelector('.dw-homeNoticeError').hidden = true;
+      spotlight.hidden = !notice?.title;
+      headline.textContent = notice?.title || '';
+      const stamp = spotlight.querySelector('time');
+      stamp.textContent = '';
+      stamp.removeAttribute('datetime');
+      spotlight.href = '/learn/notices' + (guardian ? '?preview=guardian' : '');
       if (notice?.date && normalize(notice.date) === notice.date) {
-        const destination = new URL(headline.closest('a').href);
+        stamp.dateTime = notice.date;
+        stamp.textContent = format(notice.date,{month:'numeric',day:'numeric'});
+        const destination = new URL(spotlight.href);
         destination.searchParams.set('date',notice.date);
         destination.searchParams.set('noticeDate',notice.date);
         headline.closest('a').href = destination.pathname + destination.search;
@@ -604,11 +673,20 @@ function mountLearner() {
           .map(row => ({...row, menu:'questions', action:'상담 내역 보기'})) :
           (payload.clinics ?? []).filter(row => row.booked)
             .map(row => ({...row, menu:'clinic', action:'클리닉 기록 보기'}))),
-      ].sort((left,right) => right.date.localeCompare(left.date));
-      renderList(alerts.map(record => ({
-        ...record, path:'/learn/' + record.menu + '?' +
-          new URLSearchParams({ ...(guardian ? {preview:'guardian'} : {}), view:'day', date:record.date, from:'alerts' }),
-      })), '새 알림이 없습니다.');
+      ].sort((left,right) => (right.date || '').localeCompare(left.date || ''));
+      const days = new Map();
+      for (const record of alerts) {
+        if (!days.has(record.date)) days.set(record.date,[]);
+        days.get(record.date).push({...record, path:'/learn/' + record.menu + '?' +
+          new URLSearchParams({ ...(guardian ? {preview:'guardian'} : {}), ...(record.date && normalize(record.date) === record.date ? {view:'day', date:record.date, from:'alerts'} : {}) })});
+      }
+      if (!days.size) view.append(status('새 알림이 없습니다.'));
+      for (const [date,items] of days) {
+        const section = element('section',null,'dw-alertDay');
+        const label = date && normalize(date) === date ? format(date,{year:'numeric',month:'long',day:'numeric',weekday:'short'}) : '날짜 미확인';
+        section.append(element('h2',label),recordList(items));
+        view.append(section);
+      }
       return;
     }
     const records = recordsFor(payload);
@@ -665,6 +743,16 @@ function mountLearner() {
       try { sessionStorage.setItem(projectionCache,JSON.stringify({payload,fetchedAt:Date.now()})); } catch {}
       render(payload);
     } catch {
+      if (!view && headline) {
+        const error = document.querySelector('.dw-homeNoticeError');
+        headline.closest('a').hidden = true;
+        const retry = element('button','다시 시도','dw-action');
+        retry.type = 'button';
+        retry.onclick = () => { retry.disabled = true; void load(true); };
+        error.replaceChildren(element('span','최신 공지를 불러오지 못했습니다.'),retry);
+        error.hidden = false;
+        return;
+      }
       if (!view) return;
       const retry = element('button','다시 시도','dw-action');
       retry.type = 'button';
@@ -680,4 +768,4 @@ function mountLearner() {
   void load(performance.getEntriesByType('navigation')[0]?.type === 'reload');
 }
 
-export const dawonLearnerScript = '(' + mountLearner.toString() + ')();';
+export const dawonLearnerScript = '(' + mountLearner.toString() + ')(' + mountLearnerMenu.toString() + ');';

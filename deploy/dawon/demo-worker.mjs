@@ -1,4 +1,4 @@
-import { dawonLearnerScript, renderDawonLearner } from './dawon-learner-sessions.mjs';
+import { dawonLearnerScript, renderDawonLearner, mountLearnerMenu } from './dawon-learner-sessions.mjs';
 import learnerDemo from './baseline-worker.mjs';
 import { insertDemoSwitcher, demoSwitcherScript } from './dawon-demo-header.mjs';
 
@@ -151,7 +151,8 @@ const loginNav = `<p id="dawon-preview-scope">체험 화면에서는 예시 데�
 
 const learnerBridgePath = '/dawon-learner-navigation.js';
 
-function installLearnerBridge(counselChrome) {
+function installLearnerBridge(chrome, mountMenu) {
+  const counselChrome = chrome.guardian;
   function counselFrame(){
     const active=location.pathname.replace(/\/$/,'')==='/student/community' && new URLSearchParams(location.search).get('tab')==='counsel' && guardian();
     document.documentElement.toggleAttribute('data-dawon-counsel',active);
@@ -176,8 +177,8 @@ function installLearnerBridge(counselChrome) {
         back.style.cssText='width:auto;padding:0 10px';root.querySelector('.dw-headerActions').append(back);
       }
       anchor.before(host);
-      const drawer=root.querySelector('details');
-      if(drawer)root.addEventListener('keydown',event=>{if(event.key==='Escape' && drawer.open){drawer.open=false;drawer.querySelector('summary').focus();}});
+      if (slot === 'header') mountMenu(root);
+      else root.querySelector('[data-dw-tab-key="questions"]').href = '/student/community?tab=counsel';
     }
     return true;
   }
@@ -201,35 +202,28 @@ function installLearnerBridge(counselChrome) {
     if (url.origin !== location.origin || !/^\/student(?:\/|$)/.test(url.pathname) || isNative(url.pathname)) return null;
     return destination(generic[url.pathname.split('/')[2]] || 'home');
   }
-  const paths = {
-    home:'M3 11 12 3l9 8M5 10v11h5v-7h4v7h5V10',
-    video:'M3 5h18v14H3z M10 9l5 3-5 3z',
-    alerts:'M5 17h14l-2-4V9a5 5 0 0 0-10 0v4z M10 20h4',
-    questions:'M3 4h18v13H9l-5 4v-4H3z M7 9h10 M7 12h6'
-  };
   function addLinks(nav, drawer) {
-    if (!nav || nav.querySelector(':scope > [data-dawon-links]')) return;
-    const group = document.createElement('div');
-    group.dataset.dawonLinks = drawer ? 'drawer' : 'footer';
-    const routes = [['home','홈'],['video','영상'],['alerts','알림'],['questions',guardian() ? '상담하기' : '질문하기']];
-    if (drawer) {
-      routes.push(['notices','공지사항'],['attendance','출결 현황'],['exam','테스트 결과'],['homework','과제 현황'],
-        ['curriculum','수업 진도'],['clinic','클리닉'],['questions',guardian() ? '상담 내역' : '질문 내역']);
-      if (!guardian()) routes.push(['grades','학교 성적']);
+    if (!nav) return;
+    const role = guardian() ? 'guardian' : 'student';
+    const route = location.pathname.split('/')[2];
+    const menu = ({attendance:'attendance', clinic:'clinic', community:'questions', video:'video', exams:'exam', submit:'grades'})[route];
+    const selected = drawer ? menu : menu === 'video' || menu === 'questions' ? menu : 'home';
+    let group = nav.querySelector(':scope > [data-dawon-links]');
+    if (!group || group.dataset.role !== role) {
+      const next = document.createElement('div');
+      next.dataset.dawonLinks = drawer ? 'drawer' : 'footer';
+      next.dataset.role = role;
+      next.innerHTML = drawer ? chrome[role].drawerLinks : chrome[role].footer;
+      if (!drawer && role === 'guardian') next.querySelector('[data-dw-tab-key="questions"]').href = '/student/community?tab=counsel';
+      if (group) group.replaceWith(next); else nav.append(next);
+      group = next;
     }
-    for (const [topic, label] of routes) {
-      const a = document.createElement('a');
-      a.href = topic === 'questions' && !drawer ? guardian() ? '/student/community?tab=counsel' :
-        '/learn/questions?action=ask&detail=question' : destination(topic);
-      if (!drawer) {
-        const icon = document.createElementNS('http://www.w3.org/2000/svg','svg');
-        icon.setAttribute('viewBox','0 0 24 24'); icon.setAttribute('aria-hidden','true');
-        const line = document.createElementNS(icon.namespaceURI,'path');
-        line.setAttribute('d',paths[topic]); icon.append(line); a.append(icon);
-      }
-      a.append(document.createTextNode(label)); group.append(a);
+    if (group.dataset.current === selected) return;
+    group.dataset.current = selected;
+    for (const a of group.querySelectorAll('a')) {
+      if ((a.dataset.dwMenuKey || a.dataset.dwTabKey) === selected) a.setAttribute('aria-current','location');
+      else a.removeAttribute('aria-current');
     }
-    nav.append(group);
   }
   const css = document.createElement('style');
   css.textContent = `
@@ -245,13 +239,20 @@ function installLearnerBridge(counselChrome) {
     html[data-dawon-native-learner] .student-layout {height:calc(100dvh - var(--dawon-demo-bar-height,0px));min-height:0;}
     html[data-dawon-native-learner] body .student-layout__header {top:0;}
     html[data-dawon-native-learner] nav:has(> [data-dawon-links]) > :not([data-dawon-links]) {display:none!important}
-    html[data-dawon-native-learner] [data-dawon-links="footer"] {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));max-width:760px;margin:auto;background:#fff}
+    html[data-dawon-native-learner] [data-dawon-links="footer"] {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));max-width:980px;margin:auto;background:#fff}
     html[data-dawon-native-learner] [data-dawon-links] a {color:#593f2f;text-decoration:none;font-weight:650;}
-    html[data-dawon-native-learner] [data-dawon-links="footer"] a {min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px}
+    html[data-dawon-native-learner] [data-dawon-links="footer"] a {position:relative;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:13px}
     html[data-dawon-native-learner] [data-dawon-links] a:hover,html[data-dawon-native-learner] [data-dawon-links] a:focus-visible {background:#fff1e5;color:#943f10;outline:2px solid #a54816;outline-offset:-2px}
     html[data-dawon-native-learner] [data-dawon-links] svg {width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
     html[data-dawon-native-learner] [data-dawon-links="drawer"] {display:grid;gap:2px;}
-    html[data-dawon-native-learner] [data-dawon-links="drawer"] a {display:flex;align-items:center;padding:0 14px;min-height:44px;border-radius:8px;}
+    html[data-dawon-native-learner] [data-dawon-links="drawer"] h2{font-size:13px;color:#56616b;margin:8px 12px 4px}
+    html[data-dawon-native-learner] [data-dawon-links="drawer"] section{padding:6px 0;border-top:1px solid #e6e1de}
+    html[data-dawon-native-learner] [data-dawon-links="drawer"] a{display:flex;align-items:center;gap:12px;padding:0 12px;min-height:44px;border-radius:8px}
+    html[data-dawon-native-learner] [data-dawon-links="drawer"] a[aria-current]{background:#fff0e5;color:#963c0e}
+    html[data-dawon-native-learner] [data-dawon-links="footer"] a[aria-current]{color:#963c0e;font-weight:750}
+    html[data-dawon-native-learner] [data-dawon-links="footer"] a[aria-current]::before{content:"";position:absolute;top:0;width:28px;height:3px;border-radius:0 0 3px 3px;background:#b65217}
+    html[data-dawon-native-learner] .stu-topbar__iconBtn,html[data-dawon-native-learner] .stu-topbar__profileBtn{min-width:44px;min-height:44px}
+    @media(max-width:580px){html[data-dawon-native-learner] [data-dawon-links="footer"] a{font-size:12px}}
     html[data-dawon-native-learner] [data-testid="stu-topbar-notif-bell"] > :not(svg) {display:none}
   `;
   document.head.append(css);
@@ -436,7 +437,12 @@ export async function handle(request, env, fetcher = fetch, context) {
   }
   if (pathname === '/dawon-demo-role.js') return secureResponse(demoSwitcherScript, 200, 'text/javascript; charset=utf-8');
   if (pathname === '/dawon-module-probe.mjs') return secureResponse('if (!import.meta.resolve) throw Error("import.meta.resolve not supported");', 200, 'text/javascript; charset=utf-8');
-  if (pathname === learnerBridgePath) return secureResponse('(' + installLearnerBridge.toString() + ')(' + JSON.stringify(renderDawonLearner(new URL('/learn/questions?preview=guardian',url),true)) + ');', 200, 'application/javascript; charset=utf-8');
+  if (pathname === learnerBridgePath) {
+    const guardian = renderDawonLearner(new URL('/learn/questions?preview=guardian',url),true);
+    const {footer,drawerLinks} = renderDawonLearner(new URL('/learn/questions',url),true);
+    const script = '(' + installLearnerBridge.toString() + ')(' + JSON.stringify({guardian, student:{footer,drawerLinks}}) + ',' + mountLearnerMenu.toString() + ');';
+    return secureResponse(script, 200, 'application/javascript; charset=utf-8');
+  }
   if (pathname === '/dawon-learner-app.js') return secureResponse(dawonLearnerScript, 200, 'application/javascript; charset=utf-8');
   if (pathname === linkedNavPath) return secureResponse(navigation, 200, 'application/javascript; charset=utf-8');
   if (pathname === '/version.json') {
