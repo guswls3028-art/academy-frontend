@@ -1,4 +1,4 @@
-import { verifyFullscreenControls, verifyMonitoredHlsGestures, verifyResumedClassActivity } from "../helpers/monitoredHlsGestures";
+import { verifyFullscreenControls, verifyMonitoredHlsGestures, verifyPlaybackSettingsQuality, verifyResumedClassActivity } from "../helpers/monitoredHlsGestures";
 import type { VideoCommentItem } from "../../src/app_student/domains/video/api/video.api";
 import type { Page } from "@playwright/test";
 import { syntheticLongVideoAsset } from "../../scripts/run-development-release-canary.mjs";
@@ -893,6 +893,10 @@ for (const width of [1366, 390]) {
     })).toBe(true);
   });
 }
+
+test("player settings expose available HLS quality and return keyboard focus at 390px", async ({ page }, info) => {
+  await verifyPlaybackSettingsQuality({ page, info, speedLocked: false, base: BASE, installScenario: installWatchScenario, openPlayer: openWatch });
+});
 
 for (const speedLocked of [true, false]) {
   test(`monitored HLS gestures ${speedLocked ? "locked taps never attempt speed changes" : "restore only an active long press once"}`, async ({ page }, info) => {

@@ -97,7 +97,7 @@ export default function StudentVideoPlayer({
   const [theater, setTheater] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [controlsHovered, setControlsHovered] = useState(false);
-  const [rangeKeyboardFocused, setRangeKeyboardFocused] = useState(false);
+  const [controlKeyboardFocused, setControlKeyboardFocused] = useState(false);
   const { isFullscreen, requestFullscreen } = usePlayerFullscreen(wrapElRef, videoElRef, controllerRef, setShowControls);
   const policySkipBudget = useMemo<ForwardSkipBudgetState>(() => ({
     enabled: policy.seek?.enabled === true,
@@ -259,7 +259,7 @@ export default function StudentVideoPlayer({
       clearTimeout(hideControlsTimerRef.current);
       hideControlsTimerRef.current = null;
     }
-    if (playing && !buffering && showControls && !controlsHovered && !rangeKeyboardFocused && !settingsOpen) {
+    if (playing && !buffering && showControls && !controlsHovered && !controlKeyboardFocused && !settingsOpen) {
       hideControlsTimerRef.current = window.setTimeout(() => {
         hideControlsTimerRef.current = null;
         setShowControls(false);
@@ -268,11 +268,11 @@ export default function StudentVideoPlayer({
     return () => {
       if (hideControlsTimerRef.current) clearTimeout(hideControlsTimerRef.current);
     };
-  }, [playing, buffering, showControls, controlsHovered, rangeKeyboardFocused, settingsOpen, isFullscreen]);
+  }, [playing, buffering, showControls, controlsHovered, controlKeyboardFocused, settingsOpen, isFullscreen]);
 
-  const exposeKeyboardRange = (target: EventTarget) => {
-    if (!(target instanceof HTMLInputElement) || target.type !== "range") return;
-    setRangeKeyboardFocused(true);
+  const exposeKeyboardControl = (target: EventTarget) => {
+    if (!(target instanceof HTMLElement) || !target.matches('input[type="range"], .svpPlaybackRateBtn')) return;
+    setControlKeyboardFocused(true);
     setShowControls(true);
   };
 
@@ -499,7 +499,7 @@ export default function StudentVideoPlayer({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      const nativeSpace = e.code === "Space" && target?.closest?.(".svpFullscreenTopButton, .svpFullscreenButton, .svpPlaybackRateBtn, .svpSettingsPanel button");
+      const nativeSpace = e.code === "Space" && target?.closest?.(".svpFullscreenTopButton, .svpFullscreenButton, .svpPlaybackRateBtn, .svpSettingsPanel");
       if (target?.matches?.("input, textarea, select") || target?.isContentEditable || nativeSpace) return;
       if (e.code === "Space") {
         e.preventDefault();
@@ -692,14 +692,14 @@ export default function StudentVideoPlayer({
                 onPointerLeave={(event) => {
                   if (event.pointerType === "mouse") setControlsHovered(false);
                 }}
-                onPointerDownCapture={() => setRangeKeyboardFocused(false)}
+                onPointerDownCapture={() => setControlKeyboardFocused(false)}
                 onFocusCapture={(event) => {
                   if (window.CSS?.supports("selector(:focus-visible)") && event.target.matches(":focus-visible")) {
-                    exposeKeyboardRange(event.target);
+                    exposeKeyboardControl(event.target);
                   }
                 }}
-                onKeyDownCapture={(event) => exposeKeyboardRange(event.target)}
-                onBlurCapture={() => setRangeKeyboardFocused(false)}
+                onKeyDownCapture={(event) => exposeKeyboardControl(event.target)}
+                onBlurCapture={() => setControlKeyboardFocused(false)}
               >
                 <div className="svpProgressRow">
                   <RangeSlider

@@ -3,6 +3,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { Settings } from "lucide-react";
 import { createPortal } from "react-dom";
+import type { QualityLevel } from "../headless/controllerTypes";
 import { clamp, getActiveFullscreenElement } from "./utils";
 import "./ui.css";
 
@@ -211,8 +212,6 @@ function floatingMenuRoot(button: HTMLButtonElement | null): Element {
   return fullscreen?.contains(button) ? fullscreen : document.body;
 }
 
-type QualityOption = { index: number; label: string };
-
 export function PlaybackSettings({
   rate, speeds, speedLocked, onSpeed, qualities, currentQuality, onQuality, open, onOpenChange,
 }: {
@@ -220,7 +219,7 @@ export function PlaybackSettings({
   speeds: number[];
   speedLocked: boolean;
   onSpeed: (rate: number) => void;
-  qualities?: QualityOption[];
+  qualities?: QualityLevel[];
   currentQuality: number;
   onQuality: (index: number) => void;
   open: boolean;
@@ -257,13 +256,14 @@ export function PlaybackSettings({
       if (!button.current?.contains(target) && !panel.current?.contains(target)) onOpenChange(false);
     };
     const onFullscreen = () => onOpenChange(false);
-    document.addEventListener("pointerdown", dismiss);
+    const down = typeof window.PointerEvent === "function" ? "pointerdown" : "mousedown";
+    document.addEventListener(down, dismiss);
     document.addEventListener("focusin", dismiss);
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
     fullscreenChangeEvents.forEach(type => document.addEventListener(type, onFullscreen));
     return () => {
-      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener(down, dismiss);
       document.removeEventListener("focusin", dismiss);
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
@@ -303,9 +303,9 @@ export function PlaybackSettings({
           )}
           {qualities && (
             <div className="svpQualitySetting">
-              <label htmlFor={`${panelId}-quality`}>화질</label>
-              {qualities.length <= 1 ? <span>{qualities[0]?.index >= 0 ? qualities[0].label : "자동"}</span> : (
-                <select id={`${panelId}-quality`} value={currentQuality}
+              <span id={`${panelId}-quality`}>화질</span>
+              {qualities.length <= 1 ? <span>{qualities.length && qualities[0].index >= 0 ? qualities[0].label : "자동"}</span> : (
+                <select aria-labelledby={`${panelId}-quality`} value={currentQuality}
                   onChange={(event) => { onQuality(Number(event.target.value)); close(); }}>
                   {qualities.map(quality => <option key={quality.index} value={quality.index}>
                     {quality.index === -1 ? "자동" : quality.label}

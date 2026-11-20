@@ -16,7 +16,7 @@ type GestureScenario = {
   openPlayer: (page: Page) => Promise<void>;
 };
 
-async function openMonitoredHlsPlayer({ page, speedLocked, base, viewport, installScenario, openPlayer }: Omit<GestureScenario, "info">) {
+async function openMonitoredHlsPlayer({ page, speedLocked, base, viewport, installScenario, openPlayer }: Omit<GestureScenario, "info">, multipleQualities = false) {
   await page.setViewportSize(viewport ?? { width: 390, height: 844 });
   const { videos } = await installScenario(page);
   // Observe native rate writes without replacing playback or controller methods.
@@ -35,7 +35,14 @@ async function openMonitoredHlsPlayer({ page, speedLocked, base, viewport, insta
   const state = { grants: 0, active: true, receipts: 0, events: [] as Array<{ type: string }> };
   const received = new Set<string>();
   await page.route("**/__qa__/video-long/**", route => {
-    const asset = syntheticLongVideoAsset(new URL(route.request().url()).pathname);
+    const path = new URL(route.request().url()).pathname;
+    if (multipleQualities && path.endsWith("/master.m3u8")) {
+      return route.fulfill({ contentType: "application/vnd.apple.mpegurl", body: [
+        "#EXTM3U", "#EXT-X-STREAM-INF:BANDWIDTH=100000,RESOLUTION=640x360", "360.m3u8",
+        "#EXT-X-STREAM-INF:BANDWIDTH=400000,RESOLUTION=1280x720", "720.m3u8", "",
+      ].join("\n") });
+    }
+    const asset = syntheticLongVideoAsset(path.replace(/\/(360|720)\.m3u8$/, "/master.m3u8"));
     return route.fulfill({ body: asset.body, contentType: asset.contentType });
   });
   await page.route("**/api/v1/student/video/videos/562/playback/**", route => {
@@ -83,6 +90,36 @@ async function openMonitoredHlsPlayer({ page, speedLocked, base, viewport, insta
   const writes = () => page.evaluate(() => (window as GestureRateAuditWindow).__qaGestureRateWrites);
   const clearWrites = () => page.evaluate(() => { (window as GestureRateAuditWindow).__qaGestureRateWrites = []; });
   return { video, state, writes, clearWrites };
+}
+
+export async function verifyPlaybackSettingsQuality(scenario: GestureScenario) {
+  const { page } = scenario;
+  const manual = page.context().browser()?.browserType().name() === "chromium";
+  const initialPlaylist = manual ? page.waitForRequest(/\/(360|720)\.m3u8$/) : undefined;
+  const { video, state } = await openMonitoredHlsPlayer(scenario, manual);
+  const settings = page.getByRole("button", { name: "재생 설정, 배속 1배" });
+  await settings.focus();
+  await settings.press("Space");
+  const panel = page.getByRole("dialog", { name: "재생 설정" });
+  const quality = panel.getByRole("combobox", { name: "화질" });
+  if (initialPlaylist) {
+    const other = (await initialPlaylist).url().endsWith("/720.m3u8") ? 360 : 720;
+    await Promise.all([
+      page.waitForRequest(request => request.url().endsWith(`/${other}.m3u8`)),
+      quality.selectOption({ label: `${other}p` }),
+    ]);
+    await expect(panel).toHaveCount(0);
+    await expect(settings).toBeFocused();
+    await settings.press("Enter");
+    await expect(quality.locator("option:checked")).toHaveText(`${other}p`);
+  } else {
+    await expect(panel.getByText("자동", { exact: true })).toBeVisible();
+    await expect(quality).toHaveCount(0);
+  }
+  await panel.press("Escape");
+  await expect(settings).toBeFocused();
+  await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.paused)).toBe(false);
+  expect(state.grants).toBe(1);
 }
 
 export async function verifyResumedClassActivity(scenario: GestureScenario) {
