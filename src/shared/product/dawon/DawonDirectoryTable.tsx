@@ -25,7 +25,7 @@ export default function DawonDirectoryTable<T extends {id: number}>({id, label, 
     <thead><tr>{columns.map(column => {
       const selected = sort.key === column.key;
       const Icon = selected ? (sort.ascending ? ArrowUp : ArrowDown) : ArrowUpDown;
-      return <ResizableTh key={column.key} scope="col" columnKey={column.key} width={columnWidths[column.key] ?? column.defaultWidth}
+      return <ResizableTh key={column.key} scope="col" columnKey={column.key} resizeLabel={column.label} width={columnWidths[column.key] ?? column.defaultWidth}
         minWidth={column.minWidth} onWidthChange={setColumnWidth} aria-sort={selected ? (sort.ascending ? "ascending" : "descending") : "none"}>
         <button type="button" className="inline-flex items-center gap-1" aria-label={column.label + " 정렬"}
           onClick={() => setSort({key: column.key, ascending: selected ? !sort.ascending : true})}>

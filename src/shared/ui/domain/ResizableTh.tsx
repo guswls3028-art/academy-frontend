@@ -10,6 +10,7 @@ import { cx } from "@/shared/utils/cx";
 
 type ResizableThProps = {
   columnKey: string;
+  resizeLabel?: string;
   width: number;
   minWidth?: number;
   maxWidth?: number;
@@ -44,6 +45,7 @@ function getResizableThStyle(
 
 export default function ResizableTh({
   columnKey,
+  resizeLabel = columnKey,
   width,
   minWidth = 40,
   maxWidth = 800,
@@ -72,8 +74,10 @@ export default function ResizableTh({
     if (!isResizing && localWidth !== width) setLocalWidth(width);
   }, [isResizing, width, localWidth]);
 
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent<HTMLSpanElement>) => {
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLSpanElement>) => {
+      if (!e.isPrimary || e.button !== 0) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
       e.preventDefault();
       e.stopPropagation();
       startX.current = e.clientX;
@@ -85,8 +89,8 @@ export default function ResizableTh({
     [width]
   );
 
-  const handleMouseMove = useCallback(
-    (e: MouseEvent) => {
+  const handlePointerMove = useCallback(
+    (e: PointerEvent) => {
       if (!isResizing) return;
       const delta = e.clientX - startX.current;
       if (Math.abs(delta) > 2) didResize.current = true;
@@ -97,19 +101,21 @@ export default function ResizableTh({
     [isResizing, columnKey, minWidth, maxWidth, onWidthChange]
   );
 
-  const handleMouseUp = useCallback(() => {
+  const handlePointerUp = useCallback(() => {
     setIsResizing(false);
   }, []);
 
   useEffect(() => {
     if (!isResizing) return;
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    window.addEventListener("pointercancel", handlePointerUp);
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      window.removeEventListener("pointercancel", handlePointerUp);
     };
-  }, [isResizing, handleMouseMove, handleMouseUp]);
+  }, [isResizing, handlePointerMove, handlePointerUp]);
 
   const displayWidth = isResizing ? localWidth : width;
 
@@ -133,8 +139,18 @@ export default function ResizableTh({
       <span
         role="separator"
         aria-orientation="vertical"
-        aria-label={`${columnKey} 컬럼 너비 조절`}
-        onMouseDown={handleMouseDown}
+        aria-label={`${resizeLabel} 컬럼 너비 조절`}
+        aria-valuemin={minWidth} aria-valuemax={maxWidth} aria-valuenow={displayWidth}
+        tabIndex={0}
+        onPointerDown={handlePointerDown}
+        onKeyDown={event => {
+          const step = event.shiftKey ? 32 : 8;
+          const target = {ArrowLeft: width - step, ArrowRight: width + step, Home: minWidth, End: maxWidth}[event.key as "ArrowLeft" | "ArrowRight" | "Home" | "End"];
+          if (target === undefined) return;
+          event.preventDefault();
+          event.stopPropagation();
+          onWidthChange(columnKey, Math.min(maxWidth, Math.max(minWidth, target)));
+        }}
         className="data-table-resize-handle"
       />
     </th>

@@ -553,8 +553,10 @@ table.ds-table {
   width: 8px;
   height: 100%;
   cursor: col-resize;
+  touch-action: none;
 }
 
+.data-table-resize-handle:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 .data-table-resize-handle:hover,
 .data-table-resize-handle:active {
   background: color-mix(in srgb, var(--color-primary) 20%, transparent);

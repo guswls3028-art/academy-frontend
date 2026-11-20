@@ -308,10 +308,15 @@ function forward(url, request, env, fetcher, body = null) {
     const value = request.headers.get(header);
     if (value) headers.set(header, value);
   }
-  return fetcher(originHost + url.pathname + url.search, {
+  const target = new URL(originHost + url.pathname + url.search);
+  if (url.pathname.startsWith('/assets/')) target.searchParams.set('_dawon_build', env.ADMIN_VERSION);
+  return fetcher(target.href, {
     method: request.method,
     headers,
     body,
+    // The authenticated origin serves different artifacts for the same path.
+    // Only the public worker caches verified, content-addressed responses.
+    cache: 'no-store',
     redirect: 'manual',
   });
 }
@@ -423,13 +428,14 @@ export async function handle(request, env, fetcher = fetch, context) {
       }
       const upstreamUrl = isLearnerVideo || isLearnerIntake ? new URL('/login/dawon', url) : url;
       let upstream = await forward(upstreamUrl, request, env, fetcher);
-      for (const previous of ['r14', 'r12', 'r11', 'r10', 'r9', 'r8', 'r7', 'r4', 'r3'].map(suffix => 'dawon-review-20261119-orange-' + suffix)) {
+      for (const previous of ['r23', 'r22', 'r20', 'r14', 'r12', 'r11', 'r10', 'r9', 'r8', 'r7', 'r4', 'r3'].map(suffix => 'dawon-review-20261119-orange-' + suffix)) {
         if (upstream.status !== 404 || !pathname.startsWith('/assets/')) break;
         if (previous === env.ADMIN_VERSION) continue;
         await upstream.body?.cancel();
         upstream = await forward(url, request, { ...env, ADMIN_VERSION: previous }, fetcher);
       }
       const headers = new Headers(upstream.headers);
+      if (!upstream.ok) headers.set('cache-control', 'no-store');
       if (upstream.ok && pathname.startsWith('/assets/dawon-lesson-r13/')) {
         if (pathname.endsWith('.m3u8')) headers.set('content-type', 'application/vnd.apple.mpegurl');
         if (pathname.endsWith('.ts')) headers.set('content-type', 'video/mp2t');
