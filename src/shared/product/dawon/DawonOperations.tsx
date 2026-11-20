@@ -1,12 +1,12 @@
+import DawonStaffDirectory from "./DawonStaffDirectory";
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useLocation, useSearchParams } from "react-router";
 import api from "@/shared/api/axios";
 import DomainLayout from "@/shared/ui/domain/DomainLayout";
 import { Button } from "@/shared/ui/ds";
 import styles from "./DawonOperations.module.css";
 
-type Position = "INSTRUCTOR" | "ASSISTANT";
 type Exam = {id: number; title: string; graded: number; average: number | null};
 type Lesson = {id: number; order: number; title: string; date: string | null};
 type Course = {
@@ -16,7 +16,6 @@ type Course = {
 };
 type Operations = {
   groups: {id: number | null; name: string; members: number | null; courses: Course[]}[];
-  employee: {name: string; position: Position} | null;
   exams: Exam[];
 };
 const tabs = [
@@ -66,16 +65,7 @@ function CourseDetails({course, open, section, onToggle, onSection}: {
 export default function DawonOperations() {
   const location = useLocation();
   const tab = tabs.find(item => item.path === location.pathname) ?? tabs[0];
-  const client = useQueryClient();
-  const [position, setPosition] = useState<Position | null>(null);
   const query = useQuery({queryKey, queryFn: async () => (await api.get<Operations>(endpoint)).data});
-  const mutation = useMutation({
-    mutationFn: (value: Position) => api.patch(endpoint, {position: value}),
-    onSuccess: async () => {
-      await client.invalidateQueries({queryKey});
-      setPosition(null);
-    },
-  });
   const [params, setParams] = useSearchParams();
   const groupKey = params.get("group");
   const section = sections.find(item => item.key === params.get("section"))?.key ?? "lessons";
@@ -117,17 +107,7 @@ export default function DawonOperations() {
           </article></>}
           {!data.groups.length && <p>등록된 반이 없습니다.</p>}
         </>}
-        {tab.key === "staff" && <>
-          {data.employee ? <form onSubmit={e => {e.preventDefault(); if (position) mutation.mutate(position);}}>
-            <strong>{data.employee.name}</strong>
-            <label>직위 <select value={position ?? data.employee.position} onChange={e => {setPosition(e.target.value as Position); mutation.reset();}}>
-              <option value="INSTRUCTOR">강사</option><option value="ASSISTANT">조교</option>
-            </select></label>
-            <Button type="submit" disabled={!position || position === data.employee.position || mutation.isPending}>저장</Button>
-            {mutation.isSuccess && <span role="status">직위를 저장했습니다.</span>}
-            {mutation.isError && <span role="alert">직위를 저장하지 못했습니다. 다시 시도해 주세요.</span>}
-          </form> : <p>등록된 체험 직원이 없습니다.</p>}
-        </>}
+        {tab.key === "staff" && <DawonStaffDirectory />}
         {tab.key === "results" && <>
           {exams.length > 0 && <label className={styles.resultPicker}>채점 상태
             <select value={examFilter} onChange={event => setExamFilter(event.target.value)}>

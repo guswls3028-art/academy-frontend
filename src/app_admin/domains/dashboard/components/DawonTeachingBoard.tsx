@@ -1,3 +1,4 @@
+import DawonStaffClock from "@/shared/product/dawon/DawonStaffClock";
 import { dawonQueryKeys } from "@/shared/product/dawon/queryKeys";
 import { ArrowRight, CalendarDays } from "lucide-react";
 import { useState } from "react";
@@ -73,7 +74,7 @@ function MyTeachingBoard() {
 }
 
 export default function DawonTeachingBoard() {
-  return dawonStaffPreviewRole() === "teacher" ? <MyTeachingBoard /> : <AcademyTeachingBoard />;
+  return dawonStaffPreviewRole() === "teacher" ? <><MyTeachingBoard /><DawonStaffClock /></> : <AcademyTeachingBoard />;
 }
 
 function AcademyTeachingBoard() {

@@ -1,0 +1,10 @@
+.staff { display: grid; gap: 14px; min-width: 0; justify-items: stretch; }
+.staff > button { justify-self: start; }
+.staff > section { width: 100%; border-top: 1px solid var(--color-border-divider); padding-top: 10px; }
+.staff h2, .staff h3, .clock h2 { margin: 0 0 6px; font-size: 17px; }
+.staff small { font-size: 13px; color: var(--color-text-secondary); }
+.clock, .fields { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.fields input { max-width: 100%; min-height: 44px; border: 1px solid var(--color-border-divider); border-radius: 8px; padding: 6px 10px; }
+.staff button, .clock button { min-height: 44px; }
+.clock { margin-block: 12px; border: 1px solid var(--color-border-divider); border-radius: 10px; padding: 12px; }
+.clock h2 { margin: 0 auto 0 0; }
