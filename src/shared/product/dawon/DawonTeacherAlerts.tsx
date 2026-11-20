@@ -13,6 +13,8 @@ const definitions = {
   absence_streak: { label: "연속 결석", unit: "회 이상" },
   homework_missing: { label: "과제 누적 미제출", unit: "건 이상" },
   exam_drop: { label: "시험 점수 하락", unit: "%p 이상" },
+  recent_exam_drop: { label: "직전 3회 평균 대비 하락", unit: "%p 이상" },
+  top_reference_gap: { label: "반 상위 평균 대비 부족", unit: "%p 이상" },
   exam_rise: { label: "시험 점수 상승", unit: "%p 이상" },
   homework_drop: { label: "과제 점수 하락", unit: "%p 이상" },
   video_watch: { label: "배정 영상 시청 부족", unit: "% 미만" },
@@ -32,6 +34,7 @@ type AlertFeed = {
     detail: string;
   }>;
   lectures: { id: number; title: string }[];
+  followups: {kind: string; day: string; student:string;course:string}[];
   unavailable: Rule[];
 };
 
@@ -117,6 +120,8 @@ export default function DawonTeacherAlertsPage() {
             </li>)}
           </ul>}
       </>}
+    {!!feed.data?.followups?.length && <section aria-label="상담·클리닉 일정"><h2>상담·클리닉 일정</h2><ul>{feed.data.followups.map((row,i)=>
+      <li key={i}>{row.day} · {row.student} · {row.course} · {row.kind === "counsel" ? "상담 예정" : "클리닉 예약"}</li>)}</ul></section>}
     {draft && <AdminModal open onClose={() => setDraft(null)} closeDisabled={saved.isPending} trapFocus noMinimize width={560}>
       <ModalHeader title="학습 알림 기준" description="확인할 항목과 기준값을 설정하세요." />
       <ModalBody>
