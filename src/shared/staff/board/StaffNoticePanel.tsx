@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import { ArrowRight, Megaphone } from "lucide-react";
 import { Button, ICON } from "@/shared/ui/ds";
 import { boardDate, useBoardList, useBoardScope } from "./api";
-import { boardRoot } from "./routes";
+import { boardRoot } from "@/core/router/workspaceRoutes";
 import styles from "./StaffBoard.module.css";
 
 export default function StaffNoticePanel({ root = boardRoot }: { root?: string }) {

@@ -1,12 +1,21 @@
-// Cloudflare Pages Functions also import this module without Vite's aliases.
-import { boardListParams, boardRoot, boardSearchLimit, mobileBoardRoot } from "../../shared/staff/board/routes";
-
+// Bundled with Cloudflare Pages Functions, independently of the Vite app.
 export const WORKSPACE_PATHS = {
   full: "/workspace",
   mobile: "/workspace/mobile",
   legacyFull: "/admin",
   legacyMobile: "/teacher",
 } as const;
+
+export const boardRoot = `${WORKSPACE_PATHS.full}/staff-board`;
+export const mobileBoardRoot = `${WORKSPACE_PATHS.mobile}/staff-board`;
+export const boardSearchLimit = 100;
+
+export function boardListParams(q: string, page = 1) {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (page > 1) params.set("page", String(page));
+  return params;
+}
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
 const STAFF_BOARD_PATH = /^\/workspace\/mobile\/staff-board(?:\/(notice|resource|free)(?:\/([1-9]\d*))?)?$/;

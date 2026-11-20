@@ -8,7 +8,7 @@ import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import { App as AntdApp } from "antd";
 import { FeedbackBridge } from "@/shared/ui/feedback";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
-import { mobileBoardRoot } from "@/shared/staff/board/routes";
+import { mobileBoardRoot } from "@/core/router/workspaceRoutes";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";

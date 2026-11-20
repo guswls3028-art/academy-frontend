@@ -3,7 +3,7 @@
 // 오늘 홈 — 우선순위 업무 + 오늘 수업 + 빠른 처리
 import DashboardAttendanceQr from "@/shared/ui/attendance/DashboardAttendanceQr";
 import StaffNoticePanel from "@/shared/staff/board/StaffNoticePanel";
-import { mobileBoardRoot } from "@/shared/staff/board/routes";
+import { mobileBoardRoot } from "@/core/router/workspaceRoutes";
 import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";

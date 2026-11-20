@@ -8,7 +8,7 @@ import { DomainLayout } from "@/shared/ui/layout";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { addReply, boardDate, boardKeys, boardLabels, boardWriteLabels, downloadAttachment, removeAttachment,
   useBoardList, useBoardPost, useBoardScope, type BoardScope, type Category, type Post, type PostRow } from "./api";
-import { boardListParams, boardRoot, boardSearchLimit, mobileBoardRoot } from "./routes";
+import { boardListParams, boardRoot, boardSearchLimit, mobileBoardRoot } from "@/core/router/workspaceRoutes";
 import PostEditor from "./PostEditor";
 import styles from "./StaffBoard.module.css";
 import { createRandomUuid } from "@/shared/utils/randomUuid";

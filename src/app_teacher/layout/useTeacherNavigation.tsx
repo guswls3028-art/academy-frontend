@@ -2,7 +2,7 @@ import { useMemo, type ReactNode } from "react";
 import useAuth from "@/auth/hooks/useAuth";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 import { ICON } from "@/shared/ui/ds";
-import { mobileBoardRoot } from "@/shared/staff/board/routes";
+import { mobileBoardRoot } from "@/core/router/workspaceRoutes";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import {
   Activity,
