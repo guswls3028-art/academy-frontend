@@ -5,6 +5,7 @@ import { resultTabs } from "./staffMenu";
 import { dawonQueryKeys } from "./queryKeys";
 import {AdminAlerts, AdminExamReview, AdminStudentReview, ExamLinks} from "./DawonAdminLearning";
 import DomainTable from "@/shared/ui/domain/DomainTable";
+import DawonDailyAttendance from "./DawonDailyAttendance";
 import DawonStaffDirectory from "./DawonStaffDirectory";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router";
@@ -71,7 +72,7 @@ function Dashboard() {
   const counts=new Map<number,number>();
   for (const item of alerts.data?.alerts ?? []) counts.set(item.group_id,(counts.get(item.group_id)??0)+1);
   const rows=(groups.data ?? []).filter(row=>[row.name,row.instructor_name,row.school,row.track].some(value=>value?.toLowerCase().includes(search.trim().toLowerCase())));
-  return <DomainLayout title="운영 대시보드" breadcrumbs={[]}>
+  return <DomainLayout title="반 운영 현황" breadcrumbs={[{label:"반별 출결 현황",to:"/workspace/dashboard"}]}>
     <div className={styles.section}>
       <DomainListToolbar totalLabel={"반 "+rows.length+"개"} searchSlot={<input className="ds-input" type="search" aria-label="반 또는 담당 강사 검색" placeholder="반 이름 · 담당 강사 · 학교 검색" value={search} onChange={e=>setSearch(e.target.value)}/>}
         primaryAction={<Link className={styles.actionLink} to="/workspace/dashboard?panel=alerts">전체 반 학습 경보{alerts.data ? " "+alerts.data.alerts.length+"건" : ""}</Link>}/>
@@ -98,11 +99,12 @@ export default function DawonOperations() {
   if (pathname==="/workspace/staff") return <DomainLayout title="직원 관리" breadcrumbs={[]}><div className={styles.section}><DawonStaffDirectory/></div></DomainLayout>;
   if (panel==="student") return <DomainLayout title="학생 학습 기록" density="compact" breadcrumbs={[]}><div className={styles.section}><AdminStudentReview key={params.toString()}/></div></DomainLayout>;
   if (pathname==="/workspace/dashboard" && panel==="alerts") return <AlertDirectory/>;
+  if (pathname==="/workspace/dashboard" && panel==="attendance") return <DawonDailyAttendance/>;
   if (pathname==="/workspace/dashboard") {
     const id=params.get("course"), group=params.get("group");
     if (id) return <Navigate replace to={"/workspace/lectures/"+id+"?"+params}/>;
     if (group && group!=="null") return <Navigate replace to={"/workspace/lectures?class="+group}/>;
-    return <Dashboard/>;
+    return panel==="operations" ? <Dashboard/> : <DawonDailyAttendance/>;
   }
   return <TeachingRecords/>;
 }
