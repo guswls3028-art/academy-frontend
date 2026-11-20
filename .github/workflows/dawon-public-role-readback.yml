@@ -1,0 +1,44 @@
+name: Dawon public role readback
+
+on:
+  push:
+    branches:
+      - dawon-qa/r22
+      - dawon-qa/r23
+    paths:
+      - '.github/workflows/dawon-public-role-readback.yml'
+      - 'scripts/dawon-review/**'
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Expected public frontend release
+        type: choice
+        options: [r22, r23]
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dawon-public-role-readback
+  cancel-in-progress: false
+
+jobs:
+  roles:
+    if: github.ref == 'refs/heads/dawon-qa/r22' || github.ref == 'refs/heads/dawon-qa/r23'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile --shamefully-hoist
+      - run: pnpm exec playwright install chromium --with-deps
+      - name: Read back public role flows
+        env:
+          EXPECT_REVISION: ${{ inputs.revision || github.ref_name }}
+        run: node scripts/dawon-review/public-role-readback.mjs
