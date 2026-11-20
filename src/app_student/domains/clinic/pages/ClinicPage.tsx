@@ -22,7 +22,7 @@ import {
   type ClinicSession,
 } from "../api/clinicBooking.api";
 import { fetchStudentClinicSummary } from "../api/clinicSummary.api";
-import { retryClinicVerdict } from "@student/shared/api/clinicVerdict";
+import { hasNoActiveClinicEnrollment, retryClinicVerdict } from "@student/shared/api/clinicVerdict";
 import { clinicDateParts } from "../clinicDate";
 import { studentClinicQueryKeys } from "../queryKeys";
 import { bookingErrorMessage, useClinicBookingUpdates } from "../useClinicBookingUpdates";
@@ -98,6 +98,7 @@ export default function ClinicPage() {
     data: clinicSummary,
     isLoading: clinicSummaryLoading,
     isError: clinicSummaryError,
+    error: summaryError,
     refetch: refetchClinicSummary,
   } = useQuery({
     queryKey: studentClinicQueryKeys.summary,
@@ -106,6 +107,7 @@ export default function ClinicPage() {
     staleTime: 30_000,
   });
 
+  const noEnrollment = hasNoActiveClinicEnrollment(summaryError);
   const currentTargets = useMemo(
     () => clinicSummaryError ? [] : [...(clinicSummary?.current_targets ?? [])].sort(sortTargetsNewestFirst),
     [clinicSummary, clinicSummaryError],
@@ -566,7 +568,7 @@ export default function ClinicPage() {
                     {clinicSummaryLoading
                       ? "보강 항목을 확인하고 있어요"
                       : clinicSummaryError
-                        ? "보강 항목을 불러오지 못했어요"
+                        ? (noEnrollment ? "현재 수강 중인 강의가 없어요" : "보강 항목을 불러오지 못했어요")
                         : currentTargets.length > 0
                           ? `보강이 필요한 항목 ${currentTargets.length}개`
                           : hasClinicRequirement
@@ -579,7 +581,9 @@ export default function ClinicPage() {
                 )}
               </div>
 
-              {clinicSummaryError ? (
+              {noEnrollment ? (
+                <p className={styles.targetSummaryDescription}>강의에 등록되면 이곳에서 보강 대상과 일정을 확인할 수 있어요.</p>
+              ) : clinicSummaryError ? (
                 <div className={styles.targetSummaryError}>
                   <p className={styles.targetSummaryDescription}>
                     네트워크 연결을 확인한 뒤 다시 불러와 주세요.

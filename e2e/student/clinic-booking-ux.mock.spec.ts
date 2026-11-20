@@ -64,7 +64,7 @@ type IdcardMockControl = {
   fail?: boolean;
   result?: "SUCCESS" | "FAIL";
   responseReady?: Promise<void>;
-  noEnrollment?: "forbidden" | "legacy";
+  noEnrollment?: "forbidden" | "legacy" | "other-denial";
   studentHeaders?: Array<string | undefined>;
   verdictPatch?: { current_result?: unknown; passcard_state?: unknown };
 };
@@ -398,6 +398,7 @@ async function installApi(
         await new Promise((resolve) => setTimeout(resolve, idcardControl.delayMs));
       }
       if (idcardControl?.fail) return json({ detail: "temporary unavailable" }, 503);
+      if (idcardControl?.noEnrollment === "other-denial") return json({ detail: "permission denied" }, 403);
       if (idcardControl?.noEnrollment === "forbidden") {
         return json({ code: "clinic_no_active_enrollment", detail: "활성 수강이 없습니다." }, 403);
       }
@@ -712,6 +713,28 @@ test.describe("학생 클리닉 예약 UX", () => {
       control.verdictPatch = undefined;
       await summary.getByRole("button", { name: "다시 불러오기" }).click();
       await expect(noTargets).toBeVisible();
+    });
+  }
+
+  for (const width of [390, 1366]) {
+    test(`클리닉 보강 현황은 미수강과 다른 권한 오류를 구분한다 ${width}px`, async ({ page }) => {
+      const control: IdcardMockControl = { noEnrollment: "forbidden", studentHeaders: [] };
+      await page.setViewportSize({ width, height: 844 });
+      await seed(page);
+      await installApi(page, createState(), "SUCCESS", control);
+      await page.goto(`${BASE}/student/clinic`);
+      const summary = page.getByRole("region", { name: "내 클리닉 대상 현황" });
+      await expect(summary.getByRole("heading", { name: "현재 수강 중인 강의가 없어요" })).toBeVisible();
+      await expect(summary.getByRole("button", { name: "다시 불러오기" })).toHaveCount(0);
+      expect(control.studentHeaders).toHaveLength(1);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+
+      control.noEnrollment = "other-denial";
+      await page.reload();
+      await expect(summary.getByRole("heading", { name: "보강 항목을 불러오지 못했어요" })).toBeVisible();
+      control.noEnrollment = undefined;
+      await summary.getByRole("button", { name: "다시 불러오기" }).click();
+      await expect(summary.getByRole("heading", { name: "현재 보강이 필요한 항목이 없어요" })).toBeVisible();
     });
   }
 
