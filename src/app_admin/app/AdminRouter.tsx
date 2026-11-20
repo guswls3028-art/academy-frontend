@@ -31,7 +31,8 @@ const WorkspaceSectionPage = lazy(() => import("@admin/layout/WorkspaceSectionPa
 /* ================= Lazy: Students ================= */
 const StudentsLayout = lazy(() => import("@admin/domains/students/StudentsLayout"));
 const DawonTeacherAlertsPage = lazy(() => import("@/shared/product/dawon/DawonTeacherAlerts"));
-const ClassGroupsPage = lazy(() => import("@/shared/product/dawon/ClassGroupsPage")) as ComponentType<{lectureEntry?: boolean}>;
+const ClassGroupsPage = lazy(() => import("@/shared/product/dawon/ClassGroupsPage"));
+const ClassLectureDirectory = ClassGroupsPage as ComponentType<{lectureEntry?: boolean}>;
 const DawonSchoolReportCohorts = lazy(() => import("@/shared/product/dawon/DawonSchoolReportCohorts"));
 const SurveysPage = lazy(() => import("@admin/domains/surveys/SurveysPage"));
 const SurveyEditorPage = lazy(() => import("@admin/domains/surveys/SurveysPage").then((module) => ({ default: module.SurveyEditorPage })));
@@ -184,7 +185,7 @@ export default function AdminRouter() {
         <Route path="settings" element={<Navigate to="/workspace/settings/profile" replace />} />
         {["settings/profile", "settings/appearance"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonStaffSettings)} />)}
         <Route path="students/class-groups" element={renderLazyRoute(ClassGroupsPage)} />
-        <Route path="lectures" element={<Suspense fallback={<RouteFallback />}><ClassGroupsPage lectureEntry /></Suspense>} />
+        <Route path="lectures" element={<Suspense fallback={<RouteFallback />}><ClassLectureDirectory lectureEntry /></Suspense>} />
         <Route path="lectures/:lectureId" element={renderLazyRoute(DawonOperations)} />
         <Route path="students/surveys/school-reports" element={renderLazyRoute(DawonAdminSchoolReports)} />
         {["clinic/operations", "community/counsel", "results/students"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonAdminDirectories)} />)}
