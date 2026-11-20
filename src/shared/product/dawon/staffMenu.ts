@@ -5,7 +5,7 @@ const teacher = [
   { label: "시험·성적", items: [["시험", "exams"], ["성적", "results"], ["성적취합", "students/surveys/school-reports"]] },
   { label: "클리닉·상담·알림", items: [["클리닉", "clinic/operations?panel=unresolved&focus=pending"], ["상담", "community/counsel"], ["학습 알림", "teacher-alerts"]] },
 ];
-const admin = [{ label: "학원 운영", items: [["반 운영 현황", "dashboard"], ["시험 결과", "results"], ["직원 관리", "staff"]] }];
+const admin = [{ label: "학원 운영", items: [["반 운영 현황", "dashboard"], ["반 편성", "students/class-groups"], ["시험 결과", "results"], ["직원 관리", "staff"]] }];
 const settings = { label: "환경 설정", items: [["설정", "settings/profile"]] };
 
 export const staffMenus = { teacher: [...teacher, settings], admin: [...admin, settings] };

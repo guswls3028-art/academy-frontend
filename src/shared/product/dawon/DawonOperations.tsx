@@ -1,3 +1,4 @@
+import { dawonQueryKeys } from "./queryKeys";
 import {AdminAlerts, AdminExamReview, AdminStudentReview, ExamLinks} from "./DawonAdminLearning";
 import DomainTable from "@/shared/ui/domain/DomainTable";
 import DawonStaffDirectory from "./DawonStaffDirectory";
@@ -25,7 +26,7 @@ const tabs = [
   {key: "results", label: "시험 결과", path: "/workspace/results"},
 ];
 const endpoint = "/students/demo-operations/";
-const queryKey = ["dawon", "admin", "operations"] as const;
+const queryKey = dawonQueryKeys.adminOperations;
 
 const sections = [
   { key: "lessons", label: "수업 차시" },
@@ -108,6 +109,7 @@ export default function DawonOperations() {
             </select>
           </label><article className={styles.group} key={group.id ?? "ungrouped"}>
             <h2>{group.name}</h2>
+            {group.id != null && <Link to={"/workspace/students/class-groups?class="+group.id}>반 명단 열기</Link>}
             {group.id != null && <Link to={"/workspace/dashboard?panel=alerts&group="+group.id}>이 반 학습 경보</Link>}
             <p>{group.members !== null && `반 학생 ${group.members}명 · `}강의 {group.courses.length}개</p>
             {group.courses.map(course => {

@@ -19,6 +19,7 @@ export type RosterStudent = {
   parent_phone?: string;
   phone?: string;
   eligible?: boolean;
+  course_ids?: number[];
 };
 
 const PAGE_SIZE = 50;

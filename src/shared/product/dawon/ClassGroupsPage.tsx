@@ -35,13 +35,14 @@ function failure(error: unknown) {
   return <p role="alert" className={styles.error}>{getApiErrorMessage(error, "저장하거나 불러오지 못했습니다. 다시 시도해 주세요.")}</p>;
 }
 
-function GroupForm({ onCreated, onCancel }: { onCreated: (id: number) => void; onCancel: () => void }) {
+function GroupForm({ admin, onCreated, onCancel }: { admin: boolean; onCreated: (id: number) => void; onCancel: () => void }) {
   const [kind, setKind] = useState<Kind>("union");
   const formId = useId();
   const create = useMutation({
     mutationFn: async (form: FormData) => {
       const { data } = await api.post<Group>(endpoint, {
         name: form.get("name"),
+        ...(admin && form.has("assignTeacher") ? {assign_demo_teacher: true} : {}),
         kind,
         ...(kind === "union" ? { track: form.get("track") } : { school: form.get("school") }),
       });
@@ -59,6 +60,7 @@ function GroupForm({ onCreated, onCancel }: { onCreated: (id: number) => void; o
           create.mutate(new FormData(event.currentTarget));
         }}>
           <label>반 이름 <input name="name" maxLength={100} required autoFocus /></label>
+          {admin && <label><input type="checkbox" name="assignTeacher" />체험 강사에게 반 운영 맡기기</label>}
           <fieldset className={styles.typeOptions}>
             <legend>반 종류</legend>
             <label>
@@ -84,7 +86,7 @@ function GroupForm({ onCreated, onCancel }: { onCreated: (id: number) => void; o
   );
 }
 
-function CourseList({ group, lectureRoot }: { group: Detail; lectureRoot: string }) {
+function CourseList({ group, lectureRoot, admin }: { admin: boolean; group: Detail; lectureRoot: string }) {
   const [past, setPast] = useState(false);
   const [query, setQuery] = useState("");
   const pastCount = group.lectures.filter((course) => course.cycle_status === "past").length;
@@ -102,7 +104,7 @@ function CourseList({ group, lectureRoot }: { group: Detail; lectureRoot: string
       <tbody>{visible.map((course) => {
         const audience = course.school || (group.kind === "school" ? group.school : "연합반 전체");
         return <tr key={course.id}><td>
-          <Link className={styles.courseLink} to={`${lectureRoot}/${course.id}`} aria-label={`${course.title} 운영`}>
+          <Link className={styles.courseLink} to={admin ? `/workspace/dashboard?group=${group.id}&course=${course.id}` : `${lectureRoot}/${course.id}`} aria-label={`${course.title} 운영`}>
             <LectureChip size={32} lectureName={course.title} chipLabel={course.chip_label || (course.period === "vacation" ? "방학" : "내신")} color={course.color || "#AE531F"} />
             <span><strong>{course.title}</strong><small>{course.cycle_status === "upcoming" ? "개강 예정 · " : ""}{periods[course.period]}<span className={styles.mobileAudience}> · {audience}</span></small></span>
           </Link></td>
@@ -114,16 +116,17 @@ function CourseList({ group, lectureRoot }: { group: Detail; lectureRoot: string
   </section>;
 }
 
-function GroupDetail({ id, root, lectureRoot, rosterRoot, lectureEntry, assignOnOpen, afterInitialAssignment }: { id: number; root: string; lectureRoot: string; rosterRoot: string; lectureEntry: boolean; assignOnOpen: boolean; afterInitialAssignment: () => void }) {
+function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, assignOnOpen, afterInitialAssignment }: { admin: boolean; id: number; root: string; lectureRoot: string; rosterRoot: string; lectureEntry: boolean; assignOnOpen: boolean; afterInitialAssignment: () => void }) {
   const client = useQueryClient();
   const location = useLocation();
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<"add" | "remove" | "lecture" | null>(assignOnOpen ? "add" : null);
+  const [selectedStudent, setStudent] = useState<RosterStudent | null>(null);
   const [notice, setNotice] = useState("");
   const [createdCourse, setCreatedCourse] = useState<Lecture | null>(null);
   const [period, setPeriod] = useState<Period>("vacation");
   const [school, setSchool] = useState("");
-  const detailKey = dawonQueryKeys.group(id);
+  const detailKey = admin ? dawonQueryKeys.adminGroup(id) : dawonQueryKeys.group(id);
   const detail = useQuery({
     queryKey: detailKey,
     staleTime: 30_000,
@@ -139,7 +142,8 @@ function GroupDetail({ id, root, lectureRoot, rosterRoot, lectureEntry, assignOn
       remove: mode === "remove" ? ids : [],
     });
     client.setQueryData(detailKey, data);
-    void client.invalidateQueries({ queryKey: dawonQueryKeys.groups, exact: true });
+    void client.invalidateQueries({ queryKey: admin ? dawonQueryKeys.adminGroups : dawonQueryKeys.groups, exact: true });
+    if (admin) void client.invalidateQueries({queryKey:dawonQueryKeys.adminOperations});
     void client.invalidateQueries({ queryKey: dawonQueryKeys.roster });
     setNotice(mode === "add" ? `${ids.length}명을 배정했습니다.` : `${ids.length}명을 반 명단에서 제외했습니다.`);
     stopEditing();
@@ -165,13 +169,13 @@ function GroupDetail({ id, root, lectureRoot, rosterRoot, lectureEntry, assignOn
     <div className={styles.detail}>
       <header className={styles.heading}>
         <div><Link to={root} className={styles.back}>반 목록</Link><h2>{group.name}</h2><span className={styles.kind}>{groupType(group)}</span></div>
-        {lectureEntry && <Button intent="primary" onClick={() => openEditor("lecture")} disabled={!eligibleMembers.length}>수업 개설</Button>}
+        {lectureEntry && !admin && <Button intent="primary" onClick={() => openEditor("lecture")} disabled={!eligibleMembers.length}>수업 개설</Button>}
       </header>
       <nav className={styles.groupNav} aria-label="반 업무">
-        <Link to={`${lectureRoot}?class=${id}`} aria-current={lectureEntry ? "page" : undefined}>강의 목록</Link>
+        <Link to={admin ? `${rosterRoot}?class=${id}&view=courses` : `${lectureRoot}?class=${id}`} aria-current={lectureEntry ? "page" : undefined}>강의 목록</Link>
         <Link to={`${rosterRoot}?class=${id}`} aria-current={!lectureEntry ? "page" : undefined}>반 명단</Link>
       </nav>
-      {lectureEntry && !eligibleMembers.length && <p>수업을 개설하려면 <Link to={`${rosterRoot}?class=${id}`}>반 명단</Link>에서 수강 가능한 학생을 배정하세요.</p>}
+      {lectureEntry && !admin && !eligibleMembers.length && <p>수업을 개설하려면 <Link to={`${rosterRoot}?class=${id}`}>반 명단</Link>에서 수강 가능한 학생을 배정하세요.</p>}
       {notice && <p role="status" className={styles.notice}>{notice}</p>}
       {createdCourse && <div className={styles.createdCourse}>
         <p role="status"><strong>{createdCourse.title}</strong> 개설 완료 · 수강생 {createdCourse.student_count}명 등록</p>
@@ -204,7 +208,7 @@ function GroupDetail({ id, root, lectureRoot, rosterRoot, lectureEntry, assignOn
           </div>,
         }} />
       </Suspense>}
-      {lectureEntry && <CourseList group={group} lectureRoot={lectureRoot} />}
+      {lectureEntry && <CourseList admin={admin} group={group} lectureRoot={lectureRoot} />}
       {!lectureEntry && <section className={styles.detail} aria-label="반 명단">
         <DomainListToolbar totalLabel={`반 명단 ${query.trim() ? visibleMembers.length + " / " : ""}${members.length}명`}
           searchSlot={<ListSearch label="이름 · 학교 · 전화번호 검색" value={query} change={setQuery} />}
@@ -216,13 +220,22 @@ function GroupDetail({ id, root, lectureRoot, rosterRoot, lectureEntry, assignOn
           empty={members.length ? "검색 조건에 맞는 학생이 없습니다." : "배정된 학생이 없습니다."}
           columns={[
             {key: "name", label: "학생 이름", defaultWidth: 160, value: student => student.name, render: student => <>
-              <Link className={styles.rowLink} to={`/workspace/students/${student.id}`} state={{backgroundLocation: location}}>{student.name}</Link>
+              {admin ? <button type="button" className={styles.rowLink} onClick={()=>setStudent(student)}>{student.name}</button> : <Link className={styles.rowLink} to={`/workspace/students/${student.id}`} state={{backgroundLocation: location}}>{student.name}</Link>}
               {student.eligible === false && <small>배정 자격 확인 필요</small>}</>},
             {key: "school", label: "학교", defaultWidth: 120, value: student => student.school},
             {key: "grade", label: "학년", defaultWidth: 70, value: student => student.grade ?? 0, render: student => student.grade ? `${student.grade}학년` : "—"},
             {key: "parent", label: "학부모 연락처", defaultWidth: 145, value: student => student.parent_phone || ""},
             {key: "phone", label: "학생 연락처", defaultWidth: 145, value: student => student.phone || ""},
           ]} />
+        {admin && selectedStudent && <AdminModal open noMinimize trapFocus width={MODAL_WIDTH.sm} onClose={()=>setStudent(null)}>
+          <ModalHeader title={selectedStudent.name+" · 학생 학습 기록"}/>
+          <ModalBody>{selectedStudent.course_ids?.length ? <>
+            <p>학습 기록을 확인할 수강 강의를 선택하세요.</p>
+            <ul>{group.lectures.filter(course=>selectedStudent.course_ids?.includes(course.id)).map(course=>
+              <li key={course.id}><Link to={`/workspace/dashboard?panel=student&origin=roster&group=${id}&course=${course.id}&student=${selectedStudent.id}`}>{course.title}</Link></li>)}</ul>
+          </> : <p>이 반에서 현재 수강 중인 강의가 없습니다.</p>}</ModalBody>
+          <ModalFooter right={<Button onClick={()=>setStudent(null)}>닫기</Button>}/>
+        </AdminModal>}
         {(mode === "add" || mode === "remove") && <ClassRosterModal
           title={mode === "add" ? "반 인원 배정" : "반 명단에서 제외"}
           description={mode === "add" ? group.name : `${group.name} · 기존 수강·출결 기록은 유지됩니다.`}
@@ -247,7 +260,7 @@ function ListSearch({label, value, change}: {label: string; value: string; chang
     value={value} onChange={(event) => change(event.target.value)} />;
 }
 
-export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry?: boolean }) {
+export default function ClassGroupsPage({ lectureEntry = false, admin = false }: { lectureEntry?: boolean; admin?: boolean }) {
   const mobile = useLocation().pathname.startsWith("/workspace/mobile/");
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
@@ -261,14 +274,14 @@ export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry
   const rosterRoot = mobile ? "/workspace/mobile/students/class-groups" : "/workspace/students/class-groups";
   const root = lectureEntry ? lectureRoot : rosterRoot;
   const groups = useQuery({
-    queryKey: dawonQueryKeys.groups,
+    queryKey: admin ? dawonQueryKeys.adminGroups : dawonQueryKeys.groups,
     enabled: isDawon && !id,
     staleTime: 30_000,
     queryFn: async ({ signal }) => (await api.get<Group[]>(endpoint, { signal })).data,
   });
   if (!isDawon) return <Navigate to={mobile ? "/workspace/mobile/students" : "/workspace/students/home"} replace />;
   if (id && lectureEntry && params.get("assign") === "1") return <Navigate to={`${rosterRoot}?class=${id}&assign=1`} replace />;
-  if (id) return <div className={styles.page}><GroupDetail key={`${root}-${id}`} id={id} rosterRoot={rosterRoot} lectureEntry={lectureEntry} root={root} lectureRoot={lectureRoot} assignOnOpen={params.get("assign") === "1"} afterInitialAssignment={() => setParams({ class: String(id) }, { replace: true })} /></div>;
+  if (id) return <div className={styles.page}><GroupDetail admin={admin} key={`${root}-${id}`} id={id} rosterRoot={rosterRoot} lectureEntry={lectureEntry || (admin && params.get("view") === "courses")} root={root} lectureRoot={lectureRoot} assignOnOpen={params.get("assign") === "1"} afterInitialAssignment={() => setParams({ class: String(id) }, { replace: true })} /></div>;
   const all = groups.data ?? [];
   const visible = all.filter((group) => matches(query, group.name, groupType(group), group.track, group.school));
   return (
@@ -279,9 +292,10 @@ export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry
           {lectureEntry && <Link className="ds-btn" to={`${lectureRoot}?view=all`}>전체 강의 목록</Link>}
           <Button intent="primary" onClick={() => setCreating(true)}>반 만들기</Button>
         </div>} />
-      {creating && <GroupForm onCancel={() => setCreating(false)} onCreated={(createdId) => {
+      {creating && <GroupForm admin={admin} onCancel={() => setCreating(false)} onCreated={(createdId) => {
         setCreating(false);
         void client.invalidateQueries({ queryKey: dawonQueryKeys.groups });
+        if (admin) void client.invalidateQueries({queryKey:dawonQueryKeys.adminOperations});
         navigate(`${rosterRoot}?class=${createdId}&assign=1`);
       }} />}
       {groups.isPending && <p role="status">반 목록을 불러오는 중입니다.</p>}
