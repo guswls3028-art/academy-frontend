@@ -846,28 +846,8 @@
 /* ── 영상 정보 ── */
 
 .vpp-info {
-  position: relative;
-  margin-top: 12px;
-  padding: 18px 20px;
-  border: 1px solid color-mix(in srgb, var(--stu-primary) 10%, var(--stu-border));
-  border-radius: 16px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface) 96%, white), var(--stu-surface)),
-    var(--stu-surface);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.76) inset,
-    0 16px 38px rgba(15, 23, 42, 0.08);
-  overflow: hidden;
-}
-
-.vpp-info::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.46), transparent 44%, rgba(255, 255, 255, 0.12));
-  opacity: 0.7;
+  margin-top: 10px;
+  padding: 0 2px;
 }
 
 .vpp-title {
@@ -887,7 +867,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 6px;
   flex-wrap: wrap;
 }
 
@@ -1270,15 +1250,14 @@
   }
 
   .vpp-info-row {
-    align-items: stretch;
-    flex-direction: column;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 4px;
   }
 
-  .vpp-primary-actions,
-  .vpp-info-actions {
-    justify-content: space-between;
-    width: 100%;
-    flex-wrap: wrap;
+  .vpp-primary-actions, .vpp-info-actions { display: contents; }
+  .vpp-root .vpp-back-link, .vpp-root .vpp-next-link, .vpp-root .vpp-like-btn {
+    padding-inline: 9px;
   }
 
   .vpp-title {
@@ -1435,10 +1414,6 @@
   background: var(--stu-surface);
   color: var(--stu-text-muted);
   font-size: 14px;
-}
-
-.vpp-comments-anchor {
-  scroll-margin-top: 76px;
 }
 
 @keyframes vppPanelIn {

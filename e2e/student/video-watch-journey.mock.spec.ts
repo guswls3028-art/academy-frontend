@@ -691,7 +691,10 @@ for (const width of [1366, 390]) {
     const { vendorRequests } = await installWatchScenario(page);
     await openWatch(page);
     await expect(page.getByRole("button", { name: "좋아요", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "댓글", exact: true })).toBeVisible();
+    const preview = page.getByRole("button", { name: "댓글 보기", exact: true });
+    await expect(preview).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "댓글", exact: true })).toHaveCount(0);
+    expect(await preview.evaluate(button => !!(button.compareDocumentPosition(document.getElementById("video-playlist")!) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
     await expect(page.getByRole("link", { name: new RegExp(SECOND_TITLE) })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: info.outputPath(`watch-${width}.png`), fullPage: true });
@@ -709,7 +712,19 @@ for (const width of [1366, 390]) {
     await page.getByRole("button", { name: "재생목록 열기", exact: true }).click();
     await expect(page.getByRole("link", { name: new RegExp(SECOND_TITLE) })).toBeVisible();
     await page.getByRole("button", { name: "댓글 보기", exact: true }).click();
-    await expect(page.locator("#video-comments")).toBeFocused();
+    const dialog = page.getByRole("dialog", { name: "댓글", exact: true });
+    const close = dialog.getByRole("button", { name: "댓글 닫기" });
+    await expect(close).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    expect(await dialog.evaluate(el => el.contains(document.activeElement))).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(preview).toBeFocused();
+    await preview.click();
+    await dialog.getByRole("button", {name: "삭제", exact: true}).click();
+    await expect(page.getByRole("alertdialog", {name: "삭제 확인"})).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    await expect(dialog).toBeVisible();
     await expect(page.getByRole("heading", { name: "댓글", exact: true })).toBeInViewport();
     await page.screenshot({ path: info.outputPath(`comments-${width}.png`), fullPage: true });
     expect(vendorRequests).toEqual([]);
@@ -762,16 +777,20 @@ test("comment failure is not presented as zero and retry preserves the draft", a
   const { state } = await installWatchScenario(page);
   state.commentsFail = true;
   await openWatch(page);
+  await page.getByRole("button", { name: "댓글 보기" }).click();
   await expect(page.getByText("댓글을 불러오지 못했습니다.", { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("아직 댓글이 없습니다. 첫 댓글을 남겨보세요.")).toHaveCount(0);
   await page.getByPlaceholder("댓글을 입력하세요...").fill("새로 읽으며 작성한 댓글");
   state.commentsFail = false;
   await page.getByRole("button", { name: "댓글 다시 불러오기" }).click();
   await expect(page.getByText(state.comments[0].content, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "댓글 닫기" }).click();
+  await page.getByRole("button", { name: "댓글 보기" }).click();
   await expect(page.getByPlaceholder("댓글을 입력하세요...")).toHaveValue("새로 읽으며 작성한 댓글");
   await page.getByRole("button", { name: "등록", exact: true }).click();
   await expect(page.getByText("새로 읽으며 작성한 댓글", { exact: true })).toBeVisible();
   await page.reload();
+  await page.getByRole("button", { name: "댓글 보기" }).click();
   await expect(page.getByText("새로 읽으며 작성한 댓글", { exact: true })).toBeVisible();
 });
 
@@ -869,6 +888,7 @@ test("deleting the root preserves an existing teacher reply without showing dele
     replies: [{ ...state.comments[0], id: 702, author_type: "teacher", author_name: "합성 선생님",
       is_mine: false, content: "기존 선생님 답변은 계속 읽을 수 있습니다.", replies: [] }] };
   await openWatch(page);
+  await page.getByRole("button", { name: "댓글 보기" }).click();
   await expect(page.getByText("삭제된 댓글입니다.", { exact: true })).toBeVisible();
   await expect(page.getByText("숨겨야 하는 삭제 내용", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "답글 1개", exact: true }).click();

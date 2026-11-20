@@ -208,6 +208,25 @@ async function mountAuditSurface(page: Page) {
   });
 }
 
+test("학원플러스 로그인과 계정 복구의 실제 상태 문구가 읽힌다", async ({ page }) => {
+  await page.route("**/api/v1/core/program/**", route => route.fulfill({ json: {
+    tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {},
+    feature_flags: {}, is_active: true,
+  } }));
+  await page.route("**/api/v1/core/landing/has-published/**", route => route.fulfill({ json: { has_published: false } }));
+  await page.addInitScript(() => sessionStorage.setItem("session_expired", "1"));
+  await page.goto(`${BASE}/login/hakwonplus`);
+  const sessionNotice = page.getByText("세션이 만료되었습니다. 다시 로그인해 주세요.");
+  await expect(sessionNotice).toBeVisible();
+  expect((await readState(sessionNotice)).contrast).toBeGreaterThanOrEqual(4.5);
+  await page.getByRole("button", { name: "아이디 찾기", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.locator('button[type="submit"]').click();
+  const error = dialog.getByRole("alert");
+  await expect(error).toHaveText("학생 이름을 입력해 주세요.");
+  expect((await readState(error)).contrast).toBeGreaterThanOrEqual(4.5);
+});
+
 test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구분된다", async ({ page }, testInfo) => {
   await page.route("**/api/v1/core/program/**", async (route) => {
     await route.fulfill({
@@ -433,7 +452,7 @@ test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구
     return {
       movementhuiPanel: read("movementhui-panel-error", "rgb(9, 18, 33)"),
       movementhuiModal: read("movementhui-modal-error", "rgb(255, 255, 255)"),
-      hakwonplusPanel: read("hakwonplus-panel-error", "rgb(6, 18, 30)"),
+      hakwonplusPanel: read("hakwonplus-panel-error", "rgb(255, 255, 255)"),
       hakwonplusModal: read("hakwonplus-modal-error", "rgb(255, 255, 255)"),
     };
   });
@@ -442,11 +461,11 @@ test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구
     expect.soft(state, `${key}: 상태 박스를 찾지 못함`).not.toBeNull();
     if (!state) continue;
     expect.soft(state.contrast, `${key}: 오류 문구 대비`).toBeGreaterThanOrEqual(4.5);
-    if (key.endsWith("Panel")) {
+    if (key === "movementhuiPanel") {
       // 어두운 로그인 면 위에 밝은 카드가 뜨지 않아야 한다
       expect.soft(state.boxLuminance, `${key}: 어두운 면 위 밝은 박스`).toBeLessThan(0.35);
     } else {
-      // 모달은 흰 카드를 유지하므로 테마가 밝은 면을 어둡게 덮어서는 안 된다
+      // 학원플러스 로그인과 두 테넌트의 모달은 흰 카드 위에 오류를 표시한다.
       expect.soft(state.boxLuminance, `${key}: 흰 카드 위 어두운 박스`).toBeGreaterThan(0.5);
     }
   }

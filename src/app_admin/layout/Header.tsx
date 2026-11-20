@@ -223,6 +223,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
     ? (tenantBranding?.headerLogoDarkUrl ?? tenantBranding?.headerLogoUrl ?? null)
     : (tenantBranding?.headerLogoUrl ?? null);
   const headerBrandStyle = getTenantHeaderCssVars(tenantBranding);
+  const platformWordmark = tenantId === 1 && !isMobile ? tenantBranding?.logoUrl : undefined;
   // 배경이 포함된 브랜드 에셋은 등록된 헤더용 크롭을 우선해 정사각형 원본 노출을 피한다.
   const brandLogoUrl = headerBrandStyle ? (headerLogoUrl ?? logoUrl) : (logoUrl ?? headerLogoUrl);
 
@@ -335,13 +336,16 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
             className="app-header__brand"
             data-testid="app-header-go-dashboard"
             data-tenant-header-brand={headerBrandStyle ? "" : undefined}
+            data-platform-wordmark={platformWordmark ? "" : undefined}
             style={headerBrandStyle as React.CSSProperties | undefined}
             title={`${academyName} 대시보드`}
             aria-label={`${academyName} 대시보드로 이동`}
             onClick={() => nav("/workspace/dashboard")}
           >
             <span className="app-header__brandMark" aria-hidden>
-              {brandLogoUrl ? (
+              {platformWordmark ? (
+                <img src={platformWordmark} alt="" />
+              ) : brandLogoUrl ? (
                 <img
                   className={headerBrandStyle ? "app-header__brandLogo--blended" : undefined}
                   src={brandLogoUrl}
@@ -356,7 +360,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
                 />
               )}
             </span>
-            <span className="app-header__brandName">{academyName}</span>
+            {!platformWordmark && <span className="app-header__brandName">{academyName}</span>}
           </button>
         </div>
 
