@@ -79,9 +79,9 @@ export function AdminStudentReview() {
   const [kind,setKind]=useState<"counsel"|"clinic"|null>(null);
   const saved=useMutation({mutationFn:(action:"clinic"|"counsel")=>api.patch(endpoint,{...args,followup:action,
     ...(action==="counsel"? {day:day||q.data?.today}:{session:Number(slot)})}),
-    onSuccess:async()=>{await client.invalidateQueries({queryKey:["dawon","admin","learning-review"]});setKind(null);}});
+    onSuccess:async()=>{await client.invalidateQueries({queryKey:dawonQueryKeys.adminLearningRoot});setKind(null);}});
   const data=q.data;
-  return <section><Link state={fromRoster ? location.state : undefined} to={fromLearners ? address("/workspace/results/students",{group:params.get("scope"),q:params.get("q"),page:params.get("page")}) : fromRoster ? address("/workspace/students/class-groups",{class:group}) : exam ? address("/workspace/results",{exam,course,group,...listContext(params)}):address("/workspace/dashboard",{panel:"alerts",group})}>{fromLearners ? "학생별 목록으로" : fromRoster ? "반 명단으로" : exam ? "시험 결과로" : "학습 경보로"}</Link>
+  return <section><Link state={fromRoster || fromLearners ? location.state : undefined} to={fromLearners ? address("/workspace/results/students",{group:params.get("scope"),page:params.get("page")}) : fromRoster ? address("/workspace/students/class-groups",{class:group}) : exam ? address("/workspace/results",{exam,course,group,...listContext(params)}):address("/workspace/dashboard",{panel:"alerts",group})}>{fromLearners ? "학생별 목록으로" : fromRoster ? "반 명단으로" : exam ? "시험 결과로" : "학습 경보로"}</Link>
     {q.isPending?<p role="status">학생 기록을 확인하는 중입니다.</p>:q.isError||!data?<Failed retry={()=>void q.refetch()}/>:<>
       <h2>{data.student} · 학생 학습 기록</h2><p>{data.course}</p>
       <Trend rows={data.exams}/><HistoryTable title="시험 성적 추이" rows={data.exams}/><HistoryTable title="과제 이력" rows={data.homework}/>

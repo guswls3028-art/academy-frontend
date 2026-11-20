@@ -51,13 +51,13 @@ function CareDetail({filters,close}:{filters:Record<string,string>;close:()=>voi
 }
 
 export default function DawonAdminDirectories() {
-  const {pathname}=useLocation();
+  const {pathname,state}=useLocation();
   const [params,setParams]=useSearchParams();
   const learners=pathname==="/workspace/results/students";
   const clinic=pathname==="/workspace/clinic/operations";
   const kind=clinic?"clinic":params.get("kind")==="appointments"?"appointments":"requests";
   const group=params.get("group") || "";
-  const search=params.get("q") || "";
+  const search=typeof state?.directorySearch==="string" ? state.directorySearch : "";
   const q=useDebouncedValue(search.trim());
   const page=Math.max(1,Number(params.get("page")) || 1);
   const filters:Record<string,string>={view:learners?"learners":"care",group,q,page:String(page)};
@@ -67,8 +67,8 @@ export default function DawonAdminDirectories() {
     const next=new URLSearchParams(params);
     if (key!=="record") next.delete("record");
     if (key!=="page" && key!=="record") next.delete("page");
-    if (value) next.set(key,value); else next.delete(key);
-    setParams(next,{replace:key==="q",preventScrollReset:true});
+    if (key!=="q" && value) next.set(key,value); else next.delete(key);
+    setParams(next,{replace:key==="q",preventScrollReset:true,state:{directorySearch:key==="q"?value:search}});
   }
   const count=query.data?.count ?? 0;
   const title=learners?"시험 결과·통계":clinic?"클리닉":"상담";
@@ -89,8 +89,8 @@ export default function DawonAdminDirectories() {
           <tbody>{query.data.rows.map(row=>{
             if ("lecture_id" in row) {
               const target=new URLSearchParams({panel:"student",origin:"learners",group:String(row.group_id),course:String(row.lecture_id),
-                student:String(row.student_id),scope:group,q:search,page:String(page)});
-              return <tr key={row.lecture_id+"-"+row.student_id}><th scope="row"><Link to={"/workspace/results?"+target}>{row.name}</Link></th><td>{row.group}</td><td>{row.course}</td></tr>;
+                student:String(row.student_id),scope:group,page:String(page)});
+              return <tr key={row.lecture_id+"-"+row.student_id}><th scope="row"><Link state={{directorySearch:search}} to={"/workspace/results?"+target}>{row.name}</Link></th><td>{row.group}</td><td>{row.course}</td></tr>;
             }
             return <tr key={row.id}><th scope="row">{row.name}</th><td>{row.groups.join(", ") || "미편성"}</td>
               <td><button type="button" className={styles.textAction} onClick={()=>update("record",String(row.id))}>{row.title}</button></td>

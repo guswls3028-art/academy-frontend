@@ -25,7 +25,7 @@ type Operations = {
   exams: Exam[];
 };
 const endpoint = "/students/demo-operations/";
-const queryKey = dawonQueryKeys.adminOperations;
+
 
 const sections = [
   { key: "lessons", label: "수업 차시" },
@@ -118,7 +118,7 @@ function AlertDirectory() {
 function TeachingRecords() {
   const {lectureId}=useParams();
   const [params,setParams]=useSearchParams();
-  const query=useQuery({queryKey:[...queryKey,lectureId??"all"],queryFn:async({signal})=>(await api.get<Operations>(endpoint,{signal,params:lectureId?{course_overview:lectureId}:undefined})).data});
+  const query=useQuery({queryKey:dawonQueryKeys.operationsOverview(lectureId),queryFn:async({signal})=>(await api.get<Operations>(endpoint,{signal,params:lectureId?{course_overview:lectureId}:undefined})).data});
   const section=sections.find(item=>item.key===params.get("section"))?.key ?? "lessons";
   const groupKey=params.get("group");
   const examFilter = params.get("status") || "all";
