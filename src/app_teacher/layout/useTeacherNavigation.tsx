@@ -67,6 +67,7 @@ export function useTeacherNavigation() {
           { label: "학생 업무 도우미", path: "/workspace/mobile/assistant", icon: <Sparkles size={ICON.md} />, beta: true, keywords: ["사진", "학생 등록", "영상 권한", "챗봇"] },
           { label: "알림 센터", path: "/workspace/mobile/notifications", icon: <Bell size={ICON.md} />, badge: totalNotifications, badgeLabel: totalNotificationsLabel, keywords: ["알림", "대기 업무"] },
           { label: "커뮤니티", path: "/workspace/mobile/comms", icon: <MessageSquare size={ICON.md} />, badge: totalNotifications, badgeLabel: totalNotificationsLabel, keywords: ["질문", "Q&A", "공지"] },
+          { label: "교직원 게시판", path: "/workspace/staff-board", icon: <ClipboardList size={ICON.md} />, keywords: ["학원 내부 공지", "강사", "조교", "자료실", "자유게시글"] },
           { label: "제출함", path: "/workspace/mobile/submissions", icon: <Send size={ICON.md} />, badge: recentSubmissions, badgeLabel: recentSubmissionsLabel, keywords: ["과제", "채점", "제출"] },
         ],
       },

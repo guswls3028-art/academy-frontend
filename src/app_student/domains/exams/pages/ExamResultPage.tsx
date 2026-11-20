@@ -90,7 +90,6 @@ export default function ExamResultPage() {
     essayIndices.get(number),
   );
   const totalScore = r.total_score;
-  const pct = totalScore != null && r.max_score > 0 ? clampPercent(Math.round((totalScore / r.max_score) * 100)) : 0;
   const finalPass = deriveFinalPass(r);
   const achievement = deriveAchievement(r);
   const firstAttemptMissing = r.meta_status === "NOT_SUBMITTED" || achievement === "NOT_SUBMITTED";
@@ -128,12 +127,14 @@ export default function ExamResultPage() {
           </div>
         ) : null}
 
-        {/* ── Score Gauge ── */}
         <div className={styles.scorePanel}>
-          {!firstAttemptMissing && totalScore != null && <ScoreGauge pct={pct} passed={finalPass} />}
+          {!firstAttemptMissing && totalScore != null && <span>{r.is_provisional ? "임시 점수" : "내 점수"}</span>}
           <div className={styles.scoreText}>
             {firstAttemptMissing ? "원시험 미응시" : totalScore == null ? "원시험 점수 없음" : `${totalScore} / ${r.max_score}점`}
           </div>
+          {!r.is_provisional && hasQuestionAnalysis && totalScore != null && (
+            <strong>정답 {correctCount} / {analysis.total_questions}문항</strong>
+          )}
           {!wrongCompletionOnly && (
             <GradeBadge
               passed={finalPass}
@@ -160,25 +161,6 @@ export default function ExamResultPage() {
           )}
         </div>
 
-        {(wrongCompletionOnly || r.correction_status) && (
-          <CorrectionStatusCard status={r.correction_status} wrongCompletionOnly={wrongCompletionOnly} />
-        )}
-
-        {hasQuestionAnalysis && totalScore != null && (
-          <AnalysisOverviewCard
-            analysis={analysis}
-            cohortAvg={r.cohort_avg ?? null}
-            myScore={totalScore}
-            maxScore={r.max_score}
-            questionLabel={questionLabel}
-          />
-        )}
-
-        {/* ── Clinic CTA (불합격 + 미해소 클리닉 대상) ── */}
-        {r.clinic_required && finalPass === false && !firstAttemptMissing && (
-          <ClinicRequiredCard wrongCompletionOnly={wrongCompletionOnly} />
-        )}
-
         {/* ── Rank & Comparison ── */}
         {!firstAttemptMissing && totalScore != null && (r.rank != null || (r.cohort_size != null && r.cohort_size > 0)) && (
           <RankComparisonCard
@@ -186,9 +168,25 @@ export default function ExamResultPage() {
             cohortSize={r.cohort_size ?? null}
             percentile={r.percentile ?? null}
             cohortAvg={r.cohort_avg ?? null}
-            myScore={totalScore}
-            maxScore={r.max_score}
+            topDecileAvg={r.cohort_top_decile_avg ?? null}
+            highest={r.cohort_highest ?? null}
           />
+        )}
+
+        {(wrongCompletionOnly || r.correction_status) && (
+          <CorrectionStatusCard status={r.correction_status} wrongCompletionOnly={wrongCompletionOnly} />
+        )}
+
+        {hasQuestionAnalysis && totalScore != null && (
+          <AnalysisOverviewCard
+            analysis={analysis}
+            questionLabel={questionLabel}
+          />
+        )}
+
+        {/* ── Clinic CTA (불합격 + 미해소 클리닉 대상) ── */}
+        {r.clinic_required && finalPass === false && !firstAttemptMissing && (
+          <ClinicRequiredCard wrongCompletionOnly={wrongCompletionOnly} />
         )}
 
         {/* ── Correct/Wrong Bar ── */}
@@ -312,53 +310,17 @@ function ClinicRequiredCard({ wrongCompletionOnly }: { wrongCompletionOnly: bool
 
 function AnalysisOverviewCard({
   analysis,
-  cohortAvg,
-  myScore,
-  maxScore,
   questionLabel,
 }: {
   analysis: ExamResultAnalysis;
-  cohortAvg: number | null;
-  myScore: number;
-  maxScore: number;
   questionLabel: (number: number) => string;
 }) {
-  const diff = cohortAvg != null ? Math.round((myScore - cohortAvg) * 10) / 10 : null;
-  const scoreRate = maxScore > 0 ? clampPercent(Math.round((myScore / maxScore) * 100)) : null;
-
   return (
     <div className={`${styles.cardPanel} ${styles.analysisPanel}`} data-testid="score-analysis-card">
-      <div className={styles.analysisHeader}>
-        <div className={styles.sectionTitle}>
-          핵심 분석
-        </div>
-        {scoreRate != null && (
-          <span className={styles.analysisRate}>
-            득점률 {scoreRate}%
-          </span>
-        )}
-      </div>
-
-      <div className={styles.analysisGrid}>
-        <div className={styles.analysisCell}>
-          <span className={styles.analysisLabel}>정답률</span>
-          <strong>{analysis.accuracy_rate ?? 0}%</strong>
-          <span className="stu-muted">
-            {analysis.correct_count}/{analysis.total_questions}문항
-          </span>
-        </div>
-        <div className={styles.analysisCell} data-danger={analysis.wrong_count > 0}>
-          <span className={styles.analysisLabel}>오답</span>
-          <strong>{analysis.wrong_count}문항</strong>
-          <span className="stu-muted">
-            {analysis.wrong_count > 0 ? "다시 볼 번호" : "틀린 번호 없음"}
-          </span>
-        </div>
-        <div className={styles.analysisCell} data-positive={diff != null && diff >= 0}>
-          <span className={styles.analysisLabel}>평균 대비</span>
-          <strong>{diff == null ? "-" : diff >= 0 ? `+${diff}` : diff}</strong>
-          <span className="stu-muted">{cohortAvg != null ? `평균 ${cohortAvg}점` : "비교 인원 부족"}</span>
-        </div>
+      <div className={styles.sectionTitle}>핵심 분석</div>
+      <div className={styles.analysisCell} data-danger={analysis.wrong_count > 0}>
+        <span className={styles.analysisLabel}>오답</span>
+        <strong>{analysis.wrong_count}문항</strong>
       </div>
 
       <div className={styles.wrongNumberBlock}>
@@ -377,60 +339,6 @@ function AnalysisOverviewCard({
   );
 }
 
-/* ── Score Gauge (SVG) ── */
-
-function ScoreGauge({ pct, passed }: { pct: number; passed: boolean | null }) {
-  const R = 44;
-  const C = 2 * Math.PI * R;
-  const safePct = clampPercent(pct);
-  const offset = C - (safePct / 100) * C;
-  const color = passed === null ? "var(--stu-primary)" : passed ? "var(--stu-success)" : "var(--stu-danger)";
-
-  return (
-    <svg width={108} height={108} viewBox="0 0 108 108">
-      <circle
-        cx={54}
-        cy={54}
-        r={R}
-        fill="none"
-        stroke="var(--stu-surface-soft)"
-        strokeWidth={10}
-      />
-      <circle
-        cx={54}
-        cy={54}
-        r={R}
-        fill="none"
-        stroke={color}
-        strokeWidth={10}
-        strokeLinecap="round"
-        strokeDasharray={C}
-        strokeDashoffset={offset}
-        transform="rotate(-90 54 54)"
-        className={styles.gaugeProgress}
-      />
-      <text
-        x={54}
-        y={54}
-        textAnchor="middle"
-        dominantBaseline="central"
-        className={styles.gaugeValue}
-      >
-        {safePct}
-      </text>
-      <text
-        x={54}
-        y={72}
-        textAnchor="middle"
-        dominantBaseline="central"
-        className={styles.gaugeUnit}
-      >
-        %
-      </text>
-    </svg>
-  );
-}
-
 /* ── Rank Comparison Card ── */
 
 function RankComparisonCard({
@@ -438,23 +346,17 @@ function RankComparisonCard({
   cohortSize,
   percentile,
   cohortAvg,
-  myScore,
-  maxScore,
+  topDecileAvg,
+  highest,
 }: {
   rank: number | null;
   cohortSize: number | null;
   percentile: number | null;
   cohortAvg: number | null;
-  myScore: number;
-  maxScore: number;
+  topDecileAvg: number | null;
+  highest: number | null;
 }) {
   const topPct = percentile == null ? null : Math.round(percentile);
-  const diff = rank != null && cohortAvg != null ? Math.round((myScore - cohortAvg) * 10) / 10 : null;
-  const avgBarPct = cohortAvg != null && maxScore > 0
-    ? clampPercent(Math.round((cohortAvg / maxScore) * 100))
-    : 0;
-  const myBarPct = maxScore > 0 ? clampPercent(Math.round((myScore / maxScore) * 100)) : 0;
-
   return (
     <div className={styles.cardPanel}>
       <div className={styles.sectionTitle}>
@@ -479,35 +381,15 @@ function RankComparisonCard({
         )}
       </div>
 
-      {/* Average comparison bar */}
       {rank != null && cohortAvg != null && (
-        <div>
-          <div className={styles.comparisonHeader}>
-            <span className="stu-muted">전체 평균 {cohortAvg}점</span>
-            <span className={styles.diffValue} data-positive={diff != null && diff >= 0}>
-              {diff != null ? (diff >= 0 ? `+${diff}점` : `${diff}점`) : ""}
-            </span>
-          </div>
-          <svg
-            className={styles.comparisonChart}
-            viewBox="0 0 100 8"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <rect width="100" height="8" fill="var(--stu-border)" rx="4" />
-            <rect
-              className={styles.comparisonFill}
-              width={myBarPct}
-              height="8"
-              fill={myBarPct >= avgBarPct ? "var(--stu-success)" : "var(--stu-danger)"}
-              rx="4"
-            />
-            <rect x={avgBarPct} width="2" height="8" fill="var(--stu-text-muted)" />
-          </svg>
-          <div className={styles.axisRow}>
-            <span className="stu-muted">0</span>
-            <span className="stu-muted">{maxScore}</span>
-          </div>
+        <div className={styles.analysisGrid} role="group" aria-label="시험 점수 비교">
+          {([["전체 평균", cohortAvg], ["상위 10% 평균", topDecileAvg], ["최고점", highest]] as const)
+            .map(([label, value]) => (
+              <div key={label} className={styles.analysisCell}>
+                <span className={styles.analysisLabel}>{label}</span>
+                <strong>{value == null ? "—" : `${value}점`}</strong>
+              </div>
+            ))}
         </div>
       )}
     </div>

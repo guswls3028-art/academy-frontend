@@ -37,6 +37,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
             ? h.max_score
             : null;
           const inspectionPending = h.inspection_status === "VIDEO_MAKEUP";
+          const pendingGrade = Boolean(h.practice_inspection) && score == null;
           const scoreText = inspectionPending ? "검사 대기" : gradingMode === "COMPLETION"
             ? score == null ? "검사 전" : score > 0 ? "통과" : "미통과"
             : score == null
@@ -67,8 +68,15 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                   </div>
                 </div>
                 <div className={styles.homeworkStatus}>
-                  <strong className={styles.homeworkScore}>{scoreText}</strong>
-                  {!inspectionPending && <GradeBadge
+                  <strong className={styles.homeworkScore}>{pendingGrade ? (gradingMode === "COMPLETION" ? "통과 판정 미입력" : "점수 미입력") : scoreText}</strong>
+                  {pendingGrade && inspectionPending && <span className="stu-muted">영상 보강 검사 대기</span>}
+                  {pendingGrade && !inspectionPending && h.submission_state === "awaiting_review" && (
+                    <span className="stu-muted">온라인 제출물 확인 대기</span>
+                  )}
+                  {pendingGrade && !inspectionPending && h.submission_state === "needs_submission" && (
+                    <span className="stu-muted">온라인 제출 필요</span>
+                  )}
+                  {!inspectionPending && (!pendingGrade || h.teacher_resolved || h.achievement === "REMEDIATED") && <GradeBadge
                     passed={badgePassed}
                     achievement={h.achievement}
                     label={gradingMode === "COMPLETION" ? { pass: "통과", fail: "미통과" } : { pass: "완료", fail: "미완료" }}
@@ -80,8 +88,13 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                   />}
                 </div>
               </div>
+              {h.practice_inspection && <section className={styles.practiceInspection} aria-label="과제 검사 결과">
+                <strong>과제 검사 결과</strong>
+                {h.practice_inspection.solved != null && <span>{h.practice_inspection.solved}/{h.practice_inspection.total}문제 풀이</span>}
+                {h.practice_inspection.feedback && <p>{h.practice_inspection.feedback}</p>}
+              </section>}
               <ParentAssessmentComment kind="homework" assessmentId={h.homework_id} sessionId={h.session_id} />
-              {gradingMode === "SCORE" && maxScore != null && (
+              {gradingMode === "SCORE" && maxScore != null && !pendingGrade && (
                 <progress
                   className={styles.homeworkProgress}
                   value={Math.min(Math.max(score ?? 0, 0), maxScore)}
