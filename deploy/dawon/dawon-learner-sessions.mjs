@@ -136,6 +136,41 @@ function learnerHref(topic, role) {
   return '/learn/' + topic + roleQuery;
 }
 
+function normalizeLearnerDay(value, today) {
+  const date = new Date(value + 'T00:00:00Z');
+  return /^\d{4}-\d{2}-\d{2}$/.test(value || '') && Number.isFinite(+date) &&
+    date.toISOString().slice(0,10) === value && value >= '1900-01-01' && value <= '2100-12-31' ? value : today;
+}
+
+function learnerBackLink(url, topic, role) {
+  const params = url.searchParams;
+  const action = params.get('action');
+  const home = {href:learnerHref('home', role), text:'홈', label:'홈으로'};
+  if (topic === 'questions' && role === 'student' && ['ask','list','detail','photo'].includes(action)) {
+    const origin = new URLSearchParams(params);
+    origin.delete('id');
+    origin.delete('detail');
+    if (action === 'detail' && !(origin.get('entry') === 'date' && origin.get('view') === 'day')) {
+      origin.set('action','list');
+      return {href:'/learn/questions?' + origin, text:'내역', label:'질문 목록으로'};
+    }
+    origin.delete('entry');
+    origin.delete('action');
+    return origin.has('date') ? {href:'/learn/questions?' + origin, text:'날짜별 기록', label:'해당 날짜로'} : home;
+  }
+  if (params.get('view') !== 'day' || topic === 'alerts') return home;
+  if (params.get('from') === 'alerts') return {href:learnerHref('alerts', role), text:'알림', label:'알림으로'};
+  const today = new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(new Date());
+  const selected = normalizeLearnerDay(params.get('date'), today);
+  const date = normalizeLearnerDay(params.get('originDate'), selected);
+  const period = params.get('period') === 'month' ? 'month' : 'week';
+  const parent = new URL(learnerHref(topic, role), url);
+  parent.searchParams.set('view', period);
+  parent.searchParams.set('date', date);
+  parent.searchParams.set('selected', selected);
+  return {href:parent.pathname + parent.search, text:'달력', label:period === 'month' ? '월간 달력으로' : '주간 달력으로'};
+}
+
 export function renderDawonLearner(url, chromeOnly = false) {
   const role = getRole(url);
   const guardian = role === 'guardian';
@@ -179,12 +214,13 @@ export function renderDawonLearner(url, chromeOnly = false) {
     (home ? title : guardian ? '자녀 학습' : '학생 학습') + '</strong></div><div class="dw-headerActions">' +
     (!guardian ? '<a href="/login/dawon?demo=student" aria-label="QR 출석">' + icon('qr') + '<span>QR 출석</span></a>' : '') + '</div></div></header>';
   if (chromeOnly) return {header, footer, drawerLinks, css:style.replace(':root{',':host{')};
+  const back = home ? null : learnerBackLink(url, topic, role);
   const content = home ? '<a class="dw-spotlight" href="' + learnerHref('notices',role) +
       '" hidden><strong>공지</strong><span id="dw-latest-notice"></span><time></time>' + icon('right') +
       '</a><p class="dw-homeNoticeError" hidden></p><nav class="dw-homeMenu" aria-label="홈 메뉴">' + menuLinks +
       '</nav><p class="dw-footnote">다원수학 체험판 · 예시 학생과 수업입니다.</p>'
-    : '<div class="dw-title"><a class="dw-back" id="dw-back" href="' + homeUrl + '" aria-label="홈으로">' + icon('left') +
-      '<span>홈</span></a><h1>' + escapeHtml(title) + '</h1></div><section class="dw-card" aria-label="' +
+    : '<div class="dw-title"><a class="dw-back" id="dw-back" href="' + escapeHtml(back.href) + '" aria-label="' + back.label + '">' + icon('left') +
+      '<span>' + back.text + '</span></a><h1>' + escapeHtml(title) + '</h1></div><section class="dw-card" aria-label="' +
       escapeHtml(title) + '" id="dw-view"><p class="dw-state" role="status">불러오는 중입니다.</p></section>';
   return '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">' +
     '<link rel="icon" type="image/svg+xml" href="/dawon-brand.svg"><title>' + escapeHtml(title) + ' | 다원수학</title><style>' + style +
@@ -216,7 +252,7 @@ export function mountLearnerMenu(scope) {
   });
 }
 
-function mountLearner(mountMenu) {
+function mountLearner(mountMenu, normalizeDay) {
   const role = document.body.dataset.role;
   const topic = document.body.dataset.learnerMenu;
   const guardian = role === 'guardian';
@@ -235,10 +271,7 @@ function mountLearner(mountMenu) {
   const today = new Intl.DateTimeFormat('sv-SE', {timeZone:'Asia/Seoul'}).format(new Date());
   const iso = date => date.toISOString().slice(0,10);
   const fromDate = key => new Date(key + 'T00:00:00Z');
-  const normalize = key => {
-    const date = fromDate(key);
-    return /^\d{4}-\d{2}-\d{2}$/.test(key || '') && Number.isFinite(+date) && iso(date) === key && key >= '1900-01-01' && key <= '2100-12-31' ? key : today;
-  };
+  const normalize = key => normalizeDay(key, today);
   const shift = (date, days) => iso(new Date(+fromDate(date) + days * 86400000));
   const format = (date, options) => new Intl.DateTimeFormat('ko-KR',{ timeZone:'UTC', ...options }).format(fromDate(date));
   const mode = ['month','day'].includes(params.get('view')) ? params.get('view') : 'week';
@@ -268,17 +301,6 @@ function mountLearner(mountMenu) {
       query.set('originDate',mode === 'day' ? normalize(params.get('originDate') || key) : key);
     }
     return '/learn/' + topic + '?' + query.toString();
-  }
-
-  if (view && mode === 'day' && topic !== 'alerts') {
-    const back = document.getElementById('dw-back');
-    const fromAlerts = params.get('from') === 'alerts';
-    const originDate = params.get('originDate');
-    const calendar = new URL(dateUrl(period,originDate && normalize(originDate) === originDate ? originDate : key), location.origin);
-    calendar.searchParams.set('selected',key);
-    back.href = fromAlerts ? '/learn/alerts' + (guardian ? '?preview=guardian' : '') : calendar.pathname + calendar.search;
-    back.setAttribute('aria-label',fromAlerts ? '알림으로' : (period === 'month' ? '월간 달력으로' : '주간 달력으로'));
-    back.querySelector('span').textContent = fromAlerts ? '알림' : '달력';
   }
 
   function status(label) {
@@ -368,14 +390,6 @@ function mountLearner(mountMenu) {
       if (id) query.set('id',id); else query.delete('id');
       return '/learn/questions?' + query;
     };
-    const back = document.querySelector('#dw-back');
-    const origin = new URLSearchParams(params);
-    ['action','id','detail','entry'].forEach(key => origin.delete(key));
-    const fromDay = params.get('entry') === 'date' && origin.get('view') === 'day';
-    const toList = action === 'detail' && !fromDay;
-    back.href = toList ? href('list') : origin.has('date') ? '/learn/questions?' + origin : '/?preview=student';
-    back.setAttribute('aria-label',toList ? '질문 목록으로' : origin.has('date') ? '해당 날짜로' : '홈으로');
-    back.querySelector('span').textContent = toList ? '내역' : origin.has('date') ? '날짜별 기록' : '홈';
     view.replaceChildren();
     const nav = element('nav',null,'dw-questionTools');nav.setAttribute('aria-label','질문 메뉴');
     const currentTab = action === 'photo' ? 'ask' : action === 'detail' ? 'list' : action;
@@ -768,4 +782,4 @@ function mountLearner(mountMenu) {
   void load(performance.getEntriesByType('navigation')[0]?.type === 'reload');
 }
 
-export const dawonLearnerScript = '(' + mountLearner.toString() + ')(' + mountLearnerMenu.toString() + ');';
+export const dawonLearnerScript = '(' + mountLearner.toString() + ')(' + mountLearnerMenu.toString() + ',' + normalizeLearnerDay.toString() + ');';
