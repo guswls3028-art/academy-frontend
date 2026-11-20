@@ -50,6 +50,7 @@ const style = [
   '.dw-card{background:#fff;border:1px solid var(--dw-line);border-radius:12px;box-shadow:0 2px 5px #31251d0b;padding:clamp(12px,2.5vw,22px)}.dw-cardHeader{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.dw-cardHeader h2,.dw-detailDate{font-size:clamp(17px,2.4vw,21px);font-weight:730;letter-spacing:-.02em;line-height:1.4;color:var(--dw-ink)}.dw-detailDate{margin-bottom:12px}.dw-controls{display:flex;align-items:center;gap:6px}.dw-controls a{min-width:44px}.dw-controls a,.dw-action{display:inline-flex;min-height:44px;align-items:center;justify-content:center;gap:5px;padding:0 10px;border:1px solid var(--dw-line);border-radius:8px;font-weight:700;font-size:14px;color:var(--dw-accent);background:#fff}.dw-controls a{color:#4e4137}.dw-controls [aria-current=true]{background:#fff1e6;border-color:#e1b08a;color:#843008}.dw-controls a:hover,.dw-action:hover{background:#fff6ee}',
   '.dw-calendarControls{margin-bottom:12px}.dw-calendarControls a:first-child,.dw-calendarControls a:last-child{font-size:22px;line-height:1}.dw-calendarControls a:first-child,.dw-calendarControls a:last-child{padding:0;width:44px}.dw-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}.dw-weekday{padding:3px 0 5px;color:var(--dw-muted);font-size:13px;font-weight:700}.dw-day{min-width:0;height:54px;display:grid;grid-template-rows:1fr 9px;align-items:center;justify-items:center;padding:5px 0 4px;border:1px solid var(--dw-line);border-radius:8px;color:var(--dw-cell);font-size:15px;font-weight:675;line-height:1;font-variant-numeric:tabular-nums}.dw-day[data-outside=true]{color:var(--dw-cell-outside);background:#f9f9f9}.dw-day[aria-current=date]{color:#85370c;background:#fff0e3;border-color:#ce8853}.dw-day:hover{background:#fff1e6}.dw-marker{width:6px;height:6px;border-radius:50%;background:#ac4a14}.dw-marker[hidden]{visibility:hidden;display:block}.dw-legend{margin-top:10px;color:var(--dw-muted);font-size:13px;display:flex;align-items:center;gap:6px}',
   '.dw-dayList{list-style:none;padding:0;margin:0;display:grid;gap:9px}.dw-record{background:#fff;border:1px solid var(--dw-line);border-radius:10px;padding:12px 14px;overflow-wrap:anywhere}.dw-record strong{display:block;color:var(--dw-ink);font-size:15px;line-height:1.45}.dw-record span{display:block;color:var(--dw-muted);font-size:14px;line-height:1.5;margin-top:4px}.dw-record a{margin-top:12px}.dw-state{color:var(--dw-muted);margin:10px 0}.dw-actions{margin-top:14px;display:flex;gap:7px;flex-wrap:wrap}',
+  '.dw-questionForm,.dw-questionForm label{display:grid;gap:8px}.dw-questionForm{gap:16px;margin-top:16px}.dw-questionForm input,.dw-questionForm textarea{font:inherit;border:1px solid var(--dw-line);border-radius:8px;padding:10px;width:100%}.dw-questionForm textarea{min-height:8em}.dw-questionPhoto{max-width:min(100%,480px);max-height:450px;object-fit:contain}.dw-questionRow{display:block;padding:14px 0;border-bottom:1px solid var(--dw-line)}.dw-questionText{white-space:pre-wrap;overflow-wrap:anywhere}.dw-questionForm [hidden]{display:none}',
   '@media(max-width:580px){.dw-wrap{width:calc(100% - 28px)}.dw-header{padding:0 11px;gap:6px}.dw-brand,.dw-headerActions{gap:6px}.dw-brand strong{font-size:15px}.dw-hero{padding:26px 0 28px}.dw-hero .dw-wrap{display:grid;gap:4px}.dw-hero p{font-size:17px}.dw-content{padding-top:16px}.dw-homeMenu ul{gap:9px}.dw-rowLink{min-height:53px;padding:9px 12px}.dw-spotlight{margin-bottom:12px;padding-inline:10px}.dw-day{height:48px}.dw-cardHeader{gap:8px}.dw-cardHeader h2{flex:1 1 auto;min-width:min(100%,122px)}.dw-bottom a{font-size:12px}}',
 ].join('\n');
 
@@ -67,7 +68,7 @@ function learnerHref(topic, role) {
   return '/learn/' + topic + roleQuery;
 }
 
-export function renderDawonLearner(url) {
+export function renderDawonLearner(url, chromeOnly = false) {
   const role = getRole(url);
   const guardian = role === 'guardian';
   const home = ['/', '/student', '/guardian'].includes(url.pathname);
@@ -101,6 +102,7 @@ export function renderDawonLearner(url) {
     '</summary><nav aria-label="학습 메뉴">' + drawerLinks + '</nav></details><a href="' + homeUrl +
     '">다원수학</a><span aria-hidden="true">/</span><strong>' + escapeHtml(title) + '</strong></div><div class="dw-headerActions">' +
     (!guardian ? '<a href="/login/dawon?demo=student" aria-label="QR 출석">' + icon('qr') + '<span>QR 출석</span></a>' : '') + '</div></header>';
+  if (chromeOnly) return {header, footer, css:style.replace(':root{',':host{')};
   const content = home ? '<a class="dw-spotlight" href="' + learnerHref('notices',role) +
       '"><strong>공지</strong><span id="dw-latest-notice">공지사항 확인</span>' + icon('right') +
       '</a><nav class="dw-homeMenu" aria-label="홈 메뉴"><ul>' + menuLinks +
@@ -131,6 +133,12 @@ function mountLearner() {
     }
   });
 
+  if(guardian) document.addEventListener('click',event=>{
+    const target=event.target.closest?.('a[href]');
+    if(target?.pathname==='/login/dawon' && new URL(target.href).searchParams.get('view')==='counsel'){
+      try {sessionStorage.setItem('dawon-counsel-return',location.pathname+location.search);} catch {}
+    }
+  });
   const view = document.getElementById('dw-view');
   const headline = document.getElementById('dw-latest-notice');
   const params = new URLSearchParams(location.search);
@@ -203,6 +211,98 @@ function mountLearner() {
     view.append(records.length ? recordList(records) : status(empty));
   }
 
+  function mountQuestions() {
+    const storeKey = 'dawon-planning-demo-v1';
+    const action = params.get('action');
+    const read = () => JSON.parse(localStorage.getItem(storeKey) || '{}');
+    const href = (next, id) => {
+      const query = new URLSearchParams(params);
+      query.set('action',next);
+      query.delete('detail');
+      if (id) query.set('id',id); else query.delete('id');
+      return '/learn/questions?' + query;
+    };
+    const back = document.querySelector('#dw-back');
+    const origin = new URLSearchParams(params);
+    ['action','id','detail'].forEach(key => origin.delete(key));
+    back.href = action === 'detail' ? href('list') : origin.has('date') ? '/learn/questions?' + origin : '/?preview=student';
+    back.setAttribute('aria-label',action === 'detail' ? '질문 목록으로' : origin.has('date') ? '해당 날짜로' : '홈으로');
+    view.replaceChildren();
+    const nav = element('nav',null,'dw-actions');nav.setAttribute('aria-label','질문 메뉴');
+    for (const [key,label] of [['ask','질문하기'],['photo','사진으로 질문'],['list','질문 내역']]) {
+      const node=link(label,href(key),'dw-action');
+      if (action === key) node.setAttribute('aria-current','page');
+      nav.append(node);
+    }
+    view.append(nav);
+    const error=element('p');error.setAttribute('role','alert');
+    view.append(error);
+    let state;
+    try {state=read();} catch {error.textContent='질문 기록을 열 수 없습니다. 브라우저 저장 공간을 확인하고 다시 시도해 주세요.';return;}
+    const questions=(Array.isArray(state.questions) ? state.questions : []).filter(q=>q?.author==='student' && q.type!=='consult');
+    const photoUrl=value=>typeof value==='string' && /^data:image\/(?:jpeg|png|webp);base64,/i.test(value);
+    if(action==='list'){
+      view.append(element('h2','질문 내역'));
+      if(!questions.length)view.append(status('작성한 질문이 없습니다.'));
+      for(const q of questions)view.append(link(q.title+' · '+(q.answer?'답변 완료':'답변 대기'),href('detail',q.id),'dw-questionRow'));
+      return;
+    }
+    if(action==='detail'){
+      const q=questions.find(q=>q.id===params.get('id'));
+      if(!q){view.append(status('이 질문을 찾을 수 없습니다.'));return;}
+      view.append(element('h2',q.title),element('p',q.body,'dw-questionText'));
+      if(photoUrl(q.image)){const img=element('img');img.src=q.image;img.alt=q.filename || '첨부한 문제 사진';img.className='dw-questionPhoto';view.append(img);}
+      view.append(element('h3',q.answer?'선생님 답변':'답변 대기'));
+      if(q.answer)view.append(element('p',q.answer,'dw-questionText'));
+      return;
+    }
+    const draft=state.drafts?.question || {};
+    const form=element('form',null,'dw-questionForm');
+    const field=(tag,label,value,limit)=>{
+      const wrap=element('label',label);const input=element(tag);
+      input.required=true;input.maxLength=limit;input.value=value || '';wrap.append(input);form.append(wrap);return input;
+    };
+    const title=field('input','질문 제목',draft.title,80);
+    const body=field('textarea','내용',draft.body,1500);
+    const photoLabel=element('label','사진 첨부 (선택)');
+    const file=element('input');file.type='file';file.accept='image/jpeg,image/png,image/webp';
+    if(action==='photo')file.setAttribute('capture','environment');photoLabel.append(file);
+    const preview=element('img',null,'dw-questionPhoto');preview.alt='첨부 사진 미리보기';
+    const remove=element('button','사진 제거','dw-action');remove.type='button';
+    const submit=element('button','데모 질문 등록','dw-action');submit.type='submit';
+    form.append(photoLabel,preview,remove,element('p','제목·내용·사진은 이 브라우저에 저장됩니다.'),submit);
+    view.append(form);
+    let photo=photoUrl(draft.photo?.data)?draft.photo:null;
+    const paint=()=>{preview.hidden=remove.hidden=!photo;if(photo)preview.src=photo.data;else preview.removeAttribute('src');};
+    const persist=()=>{try{const cur=read();cur.drafts={...cur.drafts,question:{title:title.value,body:body.value,photo}};localStorage.setItem(storeKey,JSON.stringify(cur));return true;}catch{error.textContent='저장 공간을 확인해 주세요. 입력한 내용은 이 화면에 남아 있습니다.';return false;}};
+    paint();title.oninput=body.oninput=persist;
+    remove.onclick=()=>{photo=null;file.value='';paint();persist();};
+    file.onchange=async()=>{
+      const selected=file.files[0];if(!selected)return;
+      error.textContent='';
+      if(!['image/jpeg','image/png','image/webp'].includes(selected.type)||selected.size>5*1024*1024){file.value='';error.textContent='5MB 이하 JPEG, PNG, WEBP 사진을 선택해 주세요.';return;}
+      submit.disabled=file.disabled=remove.disabled=true;
+      const src=URL.createObjectURL(selected);
+      try{
+        const img=new Image();img.src=src;await img.decode();
+        const scale=Math.min(1,720/Math.max(img.naturalWidth,img.naturalHeight));
+        const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+        photo={data:canvas.toDataURL('image/jpeg',0.78),name:selected.name};paint();persist();
+      }catch{error.textContent='사진을 읽지 못했습니다. 다른 사진을 선택해 주세요.';}finally{URL.revokeObjectURL(src);submit.disabled=file.disabled=remove.disabled=false;}
+    };
+    form.onsubmit=event=>{
+      event.preventDefault();if(submit.disabled)return;
+      if(!title.value.trim()||!body.value.trim()){error.textContent='제목과 내용을 입력해 주세요.';return;}
+      try{
+        const cur=read();const all=cur.questions || [];
+        if(all.length>=20){error.textContent='브라우저 체험 기록은 최대 20개까지 저장할 수 있습니다.';return;}
+        const q={id:crypto.randomUUID(),createdAt:new Date().toISOString(),title:title.value.trim(),body:body.value.trim(),type:'question',author:'student',image:photo?.data || null,filename:photo?.name || null};
+        cur.questions=[q,...all];cur.drafts={...cur.drafts,question:{}};localStorage.setItem(storeKey,JSON.stringify(cur));submit.disabled=true;location.replace(href('detail',q.id));
+      }catch{error.textContent='저장하지 못했습니다. 입력을 유지한 채 다시 시도할 수 있습니다.';}
+    };
+  }
+
   function localQuestions() {
     try {
       const state = JSON.parse(localStorage.getItem('dawon-planning-demo-v1') || '{}');
@@ -254,7 +354,11 @@ function mountLearner() {
     const action = launchers[topic];
     if (!action) return;
     const wrapper = element('div',null,'dw-actions');
-    wrapper.append(link(action[0],action[1],'dw-action'));
+    if (topic === 'questions' && !guardian) {
+      const launch = new URL(location.href);launch.searchParams.set('action','ask');
+      wrapper.append(link(action[0],launch.pathname + launch.search,'dw-action'));
+      launch.searchParams.set('action','list');wrapper.append(link('질문 내역',launch.pathname + launch.search,'dw-action'));
+    } else wrapper.append(link(action[0],action[1],'dw-action'));
     view.append(wrapper);
   }
 
@@ -344,6 +448,11 @@ function mountLearner() {
         view.append(details);
       }
     }
+  }
+
+  if (topic === 'questions' && !guardian && ['ask','list','detail','photo'].includes(params.get('action'))) {
+    mountQuestions();
+    return;
   }
 
   const projectionCache = 'dawon-learning-projection-r15';
