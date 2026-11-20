@@ -1,13 +1,14 @@
 import { Link } from "react-router";
 import { ArrowRight, Megaphone } from "lucide-react";
 import { Button, ICON } from "@/shared/ui/ds";
-import { boardDate, boardRoot, useBoardList, useBoardScope } from "./api";
+import { boardDate, useBoardList, useBoardScope } from "./api";
+import { boardRoot } from "./routes";
 import styles from "./StaffBoard.module.css";
 
-export default function StaffNoticePanel() {
+export default function StaffNoticePanel({ root = boardRoot }: { root?: string }) {
   const scope = useBoardScope();
-  const notices = useBoardList(scope, "notice", 1, 3, 60_000);
-  const path = `${boardRoot}/notice`;
+  const notices = useBoardList(scope, "notice", { pageSize: 3, refreshInterval: 60_000 });
+  const path = `${root}/notice`;
   return (
     <section className={styles.noticePanel} aria-label="학원 내부 공지">
       <header className={styles.noticeHeader}>

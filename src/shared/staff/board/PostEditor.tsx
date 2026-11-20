@@ -3,8 +3,8 @@ import { useMutation } from "@tanstack/react-query";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
-import { boardLabels, savePost, type Category, type Post, type PostRow } from "@/shared/staff/board/api";
-import styles from "@/shared/staff/board/StaffBoard.module.css";
+import { boardWriteLabels, savePost, type Category, type Post, type PostRow } from "./api";
+import styles from "./StaffBoard.module.css";
 import { createRandomUuid } from "@/shared/utils/randomUuid";
 
 export default function PostEditor({ category, post, onClose, onSaved }: {
@@ -16,6 +16,7 @@ export default function PostEditor({ category, post, onClose, onSaved }: {
   const [file, setFile] = useState<File | null>(null);
   const [validation, setValidation] = useState("");
   const [discard, setDiscard] = useState(false);
+  const canAttach = category === "resource" && !post;
   const attempt = useRef<{ title: string; body: string; file: File | null; key: string } | null>(null);
   const save = useMutation({
     mutationFn: (draft: NonNullable<typeof attempt.current>) => savePost(category, draft, draft.key, post?.id),
@@ -42,24 +43,24 @@ export default function PostEditor({ category, post, onClose, onSaved }: {
   }
   return (
     <AdminModal open onClose={close} closeDisabled={save.isPending} noMinimize trapFocus width={580}>
-      <ModalHeader title={post ? "글 수정" : `${boardLabels[category]} 글쓰기`} description="같은 학원의 강사와 조교 등 직원에게 보입니다." noIcon />
+      <ModalHeader title={post ? "글 수정" : boardWriteLabels[category]} description="같은 학원의 강사와 조교 등 직원에게 보입니다." noIcon />
       <ModalBody>
         <form id={formId} className={styles.form} onSubmit={submit}>
-          <div>
-            <label htmlFor={formId + "-title"}>제목</label>
-            <input id={formId + "-title"} required maxLength={200} value={title}
-              onChange={e => setTitle(e.target.value)} disabled={save.isPending} autoFocus />
-          </div>
-          <div>
-            <label htmlFor={formId + "-body"}>내용</label>
-            <textarea id={formId + "-body"} required maxLength={20000} rows={7} value={body}
-              onChange={e => setBody(e.target.value)} disabled={save.isPending} />
-          </div>
-          {category === "resource" && !post && (
+          {canAttach && (
             <label>첨부파일 <small>선택 · 최대 10 MB</small>
               <input type="file" onChange={e => setFile(e.target.files?.[0] ?? null)} disabled={save.isPending} />
             </label>
           )}
+          <div>
+            <label htmlFor={formId + "-title"}>제목</label>
+            <input id={formId + "-title"} required maxLength={200} value={title}
+              onChange={e => setTitle(e.target.value)} disabled={save.isPending} autoFocus={!canAttach} />
+          </div>
+          <div>
+            <label htmlFor={formId + "-body"}>내용</label>
+            <textarea id={formId + "-body"} required maxLength={20000} rows={5} value={body}
+              onChange={e => setBody(e.target.value)} disabled={save.isPending} />
+          </div>
           {validation && <p role="alert" className={styles.error}>{validation}</p>}
           {save.isError && <p role="alert" className={styles.error}>{getApiErrorMessage(save.error, "글을 저장하지 못했습니다. 다시 시도해 주세요.")}</p>}
         </form>

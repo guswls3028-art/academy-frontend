@@ -1,3 +1,5 @@
+import { boardListParams, boardRoot, boardSearchLimit, mobileBoardRoot } from "@/shared/staff/board/routes";
+
 export const WORKSPACE_PATHS = {
   full: "/workspace",
   mobile: "/workspace/mobile",
@@ -60,6 +62,19 @@ export function parseMobileWorkspaceReturnPath(candidate: string): string | null
   const parsed = parseRelativeMobileUrl(candidate);
   if (!parsed) return null;
   const { pathname, searchParams } = parsed;
+
+  const boardMatch = pathname.match(/^\/workspace\/mobile\/staff-board(?:\/(notice|resource|free)(?:\/([1-9]\d*))?)?$/);
+  if (boardMatch) {
+    const [, category, postId] = boardMatch;
+    if (!category) return searchParams.size === 0 ? mobileBoardRoot : null;
+    if (!hasOnlySearchParams(searchParams, ["q", "page"]) || (postId && !positiveInteger(postId))) return null;
+    const q = searchParams.get("q")?.trim() ?? "";
+    const rawPage = searchParams.get("page");
+    const page = rawPage == null ? 1 : positiveInteger(rawPage);
+    if (q.length > boardSearchLimit || hasControlCharacter(q) || !page) return null;
+    const search = boardListParams(q, page).toString();
+    return `${pathname}${search ? `?${search}` : ""}`;
+  }
 
   if (pathname === `${WORKSPACE_PATHS.mobile}/menu`) {
     if (!hasOnlySearchParams(searchParams, ["group"])) return null;
@@ -130,6 +145,10 @@ export function resolveFullWorkspaceDestination(candidate: string): string | nul
   if (!mobilePath) return null;
   const parsed = new URL(mobilePath, "https://workspace.invalid");
   const { pathname, searchParams } = parsed;
+
+  if (pathname === mobileBoardRoot || pathname.startsWith(`${mobileBoardRoot}/`)) {
+    return `${boardRoot}${pathname.slice(mobileBoardRoot.length)}${parsed.search}`;
+  }
 
   if (pathname === `${WORKSPACE_PATHS.mobile}/menu`) {
     const group = searchParams.get("group");

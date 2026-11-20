@@ -189,6 +189,81 @@ test.describe("업무 화면 기능 검색", () => {
     await expect(page).toHaveURL(url);
   });
 
+  test("자료실 두 번째 검색 결과에서 글을 수정하고 같은 결과로 돌아온다", async ({ page }) => {
+    const filename = "금요일-야간수업-교대-준비물-및-보충수업-출결-처리-방법.txt";
+    const keyword = "교대";
+    let resource = { id: 49, category: "resource", title: "금요일 인수인계", body: "수업 준비",
+      attachment_name: filename, can_edit: true, replies: [], reply_count: 0, author_name: "김선생",
+      created_at: "2026-11-18T09:00:00Z" };
+    await page.route("**/api/v1/staffs/board/posts/**", async route => {
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith("/49/")) {
+        if (route.request().method() === "PATCH") resource = { ...resource, ...route.request().postDataJSON() };
+        return route.fulfill({ json: resource });
+      }
+      const q = url.searchParams.get("q");
+      const second = url.searchParams.get("page") === "2";
+      const firstPage = Array.from({ length: 20 }, (_, index) => ({
+        ...resource, id: index + 100, title: `교대 자료 ${index + 1}`, attachment_name: "",
+      }));
+      const results = q === keyword ? (second ? [resource] : firstPage) : [];
+      return route.fulfill({ json: {
+        results, count: q === keyword ? 21 : 0, next: q === keyword && !second ? "next" : null,
+        previous: second ? "previous" : null,
+      } });
+    });
+    await page.setViewportSize({ width: 390, height: 900 });
+    const list = `${BASE}/workspace/staff-board/resource`;
+    await page.goto(list);
+    const search = page.getByRole("searchbox", { name: "게시글 검색어" });
+    await search.fill(keyword);
+    await search.press("Enter");
+    await expect(page.getByText("검색 결과 21건")).toBeVisible();
+    await page.getByRole("button", { name: "다음", exact: true }).click();
+    const result = page.getByRole("link", { name: new RegExp(resource.title) });
+    await expect(result).toContainText(filename);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    await result.click();
+    await page.getByRole("button", { name: "글 수정" }).click();
+    const revised = "금요일 수업 인수인계";
+    await page.getByRole("dialog").getByLabel("제목", { exact: true }).fill(revised);
+    await page.getByRole("button", { name: "수정 저장" }).click();
+    await expect(page.getByRole("heading", { name: revised, exact: true })).toBeVisible();
+    await page.reload();
+    await page.getByRole("link", { name: "자료실 목록" }).click();
+    await expect(page).toHaveURL(`${list}?q=${encodeURIComponent(keyword)}&page=2`);
+    await expect(search).toHaveValue(keyword);
+    await expect(page.getByRole("link", { name: new RegExp(revised) })).toBeVisible();
+    await search.fill("없는 파일");
+    await page.getByRole("button", { name: "검색", exact: true }).click();
+    await expect(page.getByText("검색 결과가 없습니다.", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "검색 초기화" }).click();
+    await expect(page).toHaveURL(list);
+    await expect(search).toHaveValue("");
+  });
+
+  test("간편 업무 대시보드에서 공지를 열고 하단 메뉴로 복귀한다", async ({ page }) => {
+    const notice = { id: 50, category: "notice", title: "보충 수업 교실 변경", body: "2강의실을 사용하세요.",
+      attachment_name: "", can_edit: false, replies: [], reply_count: 0, author_name: "김선생",
+      created_at: "2026-11-18T09:00:00Z" };
+    await page.route("**/api/v1/staffs/board/posts/**", async route => {
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith("/50/")) return route.fulfill({ json: notice });
+      return route.fulfill({ json: { count: 1, results: [notice], next: null, previous: null } });
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/workspace/mobile`);
+    const panel = page.getByRole("region", { name: "학원 내부 공지" });
+    await panel.getByRole("link", { name: new RegExp(notice.title) }).click();
+    await expect(page).toHaveURL(`${BASE}/workspace/mobile/staff-board/notice/50`);
+    await expect(page.getByRole("heading", { name: notice.title })).toBeVisible();
+    const home = page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "대시보드" });
+    await expect(home).toBeVisible();
+    await home.click();
+    await expect(page).toHaveURL(`${BASE}/workspace/mobile`);
+    await expect(panel.getByRole("link", { name: new RegExp(notice.title) })).toBeVisible();
+  });
+
   for (const width of [1366, 390]) {
     test(`사이드바에서 업무 분류를 접고 펼쳐 상세로 바로 이동한다 ${width}px`, async ({ page }, info) => {
       await page.setViewportSize({ width, height: 900 });

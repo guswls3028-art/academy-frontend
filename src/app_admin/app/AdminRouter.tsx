@@ -20,7 +20,7 @@ import { renderLazyRoute } from "@/core/router/renderLazyRoute";
 
 /* ================= Lazy: Dashboard ================= */
 const DashboardPage = lazy(() => import("@admin/domains/dashboard/pages/DashboardPage"));
-const StaffBoardPage = lazy(() => import("@admin/domains/staff-board/StaffBoardPage"));
+const StaffBoardPage = lazy(() => import("@/shared/staff/board/StaffBoardPage"));
 const WorkspaceSectionPage = lazy(() => import("@admin/layout/WorkspaceSectionPage"));
 
 /* ================= Lazy: Students ================= */
