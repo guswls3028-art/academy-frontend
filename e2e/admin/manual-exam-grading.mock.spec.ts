@@ -4682,6 +4682,7 @@ test.describe("문항별 직접 채점", () => {
         path: screenshotPath,
         contentType: "image/png",
       });
+      await revealScoreManagement(page);
       await expect(toolsTrigger).toBeVisible();
       const responsiveLayout = await toolsTrigger.evaluate((button) => {
         const label = button.querySelector<HTMLElement>(".ds-button__label");

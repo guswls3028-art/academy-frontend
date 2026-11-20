@@ -2984,9 +2984,9 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await page.getByRole("tab", { name: "성적", exact: true }).first().click();
     const recoveryDialog = page.getByRole("dialog", { name: /임시저장된 변경 1건/ });
     await expect(recoveryDialog).toBeVisible({ timeout: 30_000 });
+    await expect(recoveryDialog).toHaveAttribute("aria-modal", "true");
     await expect(editButton).toBeDisabled();
-    await revealScoreManagement(page);
-    await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "OMR 스캔 등록", includeHidden: true })).toBeDisabled();
     const releasedBeforeRecoveryNavigation = draftCommits.filter(
       (commit) => commit.release_lease === true,
     ).length;
@@ -2995,6 +2995,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       .first()
       .evaluate((button) => (button as HTMLButtonElement).click());
     await expect(page).toHaveURL(/\/attendance/);
+    await expect(recoveryDialog).toBeHidden();
     await expect(page.getByRole("button", { name: "수강생 등록", exact: true }).first()).toBeVisible();
     await expect
       .poll(
@@ -3019,6 +3020,8 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(0);
     await expect(page.getByRole("cell", { name: /83\/100/ }).first()).toBeVisible();
     await expect(page.getByRole("dialog", { name: /임시저장된 변경/ })).toHaveCount(0);
+    await revealScoreManagement(page);
+    await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeEnabled();
 
     await editButton.click();
     failNextLeaseRelease = true;
@@ -3578,6 +3581,7 @@ for (const width of [1366, 1100, 390]) {
     await page.setViewportSize({ width, height: 1000 });
     await openScores(page, { includeHomework: true, homeworkMaxScore: 1,
       homeworkGradingMode: "COMPLETION", homeworkAssignedRows: [true, true], initialHomeworkScores: [null, 0] });
+    await revealScoreManagement(page);
     const additions = page.getByRole("group", { name: "시험·과제 추가와 답안 등록", exact: true });
     await expect(additions).toBeVisible({ timeout: 45_000 });
     await expect(additions.getByRole("button", { name: "시험 추가", exact: true })).toBeVisible();
