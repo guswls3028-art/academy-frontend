@@ -4,6 +4,7 @@ import type { AttendanceListItem } from "@admin/domains/lectures/api/attendance"
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import { DomainTable } from "@/shared/ui/domain";
 import StudentLectureMemo from "@/shared/ui/enrollment/StudentLectureMemo";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { ATTENDANCE_META, ORDERED_ATTENDANCE_STATUS, type AttendanceStatus } from "@/shared/ui/badges/attendanceStatus";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import ArrivalPlanCell, { type ArrivalPlanPayload } from "./ArrivalPlanCell";
@@ -48,8 +49,10 @@ export default function DawonAttendanceRoster(props: Props) {
       const saving = props.pending.has(row.id);
       return <Fragment key={row.id}><tr aria-busy={saving} className={props.selected.has(row.id) ? "ds-row-selected" : undefined}>
         <td className={styles.check}><input type="checkbox" checked={props.selected.has(row.id)} onChange={() => props.toggle(row.id)} aria-label={name + " 선택"} /></td>
-        <td className={styles.name}><StudentDetailLink studentId={row.student_id ?? row.enrollment?.student_id} studentName={name}>{name}</StudentDetailLink>
-          {row.name_highlight_clinic_target && <small>클리닉 대상</small>}</td>
+        <td className={styles.name}><StudentDetailLink studentId={row.student_id ?? row.enrollment?.student_id} studentName={name}>
+          <StudentNameWithLectureChip name={name} density="compact" avatarSize={20} profilePhotoUrl={row.profile_photo_url ?? undefined}
+            clinicHighlight={row.name_highlight_clinic_target === true} />
+        </StudentDetailLink></td>
         <td><select value={status} aria-label={name + " 출결 상태"} disabled={saving} onChange={e => void props.changeStatus(row,e.target.value as AttendanceStatus)}>
           {ORDERED_ATTENDANCE_STATUS.map(code => <option key={code} value={code}>{ATTENDANCE_META[code].label}</option>)}
         </select>{saving && <small role="status">저장 중</small>}</td>

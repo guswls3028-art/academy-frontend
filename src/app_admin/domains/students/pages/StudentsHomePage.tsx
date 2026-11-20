@@ -33,6 +33,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 import styles from "./StudentsHomePage.module.css";
 
 const EMPTY_STUDENTS: ClientStudent[] = [];
@@ -43,6 +44,7 @@ export default function StudentsHomePage() {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const isMobile = useIsMobile();
+  const directorDirectory = dawonStaffPreviewRole() === "admin";
   const { openSendMessageModal } = useSendMessageModal();
 
   const isDeletedTab = location.pathname.includes("/deleted");
@@ -361,8 +363,8 @@ export default function StudentsHomePage() {
 
   return (
     <>
-      <div className="flex flex-col gap-4">
-        {!isDeletedTab && <AccountPasswordSettings />}
+      <div className={directorDirectory ? styles.directorDirectory : "flex flex-col gap-4"}>
+        {!isDeletedTab && !directorDirectory && <AccountPasswordSettings />}
         {isAlimtalkComposeEntry && !isDeletedTab && (
           <section className={styles.alimtalkComposeGuide} aria-label="알림톡 발송 안내">
             <div className={styles.alimtalkComposeGuideText}>
@@ -460,6 +462,8 @@ export default function StudentsHomePage() {
           }
           belowSlot={selectedCount > 0 || totalPages > 1 ? selectionBar : undefined}
         />
+
+        {directorDirectory && !isDeletedTab && <AccountPasswordSettings />}
 
         {/* 엑셀 업로드 진행바 (모달 닫고 진행 중일 때) */}
         {bulkUploadProgress && !showCreate && (
