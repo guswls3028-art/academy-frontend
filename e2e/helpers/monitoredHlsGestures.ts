@@ -95,6 +95,15 @@ async function openMonitoredHlsPlayer({ page, speedLocked, base, viewport, insta
 export async function verifyPlaybackSettingsQuality(scenario: GestureScenario) {
   const { page } = scenario;
   const manual = page.context().browser()?.browserType().name() === "chromium";
+  if (manual) {
+    // Exercise the MSE path even on Chromium installations that advertise native HLS.
+    await page.addInitScript(() => {
+      const canPlayType = HTMLMediaElement.prototype.canPlayType;
+      HTMLMediaElement.prototype.canPlayType = function (type) {
+        return /mpegurl/i.test(type) ? "" : canPlayType.call(this, type);
+      };
+    });
+  }
   const initialPlaylist = manual ? page.waitForRequest(/\/(360|720)\.m3u8$/) : undefined;
   const { video, state } = await openMonitoredHlsPlayer(scenario, manual);
   const settings = page.getByRole("button", { name: "재생 설정, 배속 1배" });
@@ -469,6 +478,11 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
     await expect(panel.getByRole("button", { name: "2배속" })).toHaveCount(0);
     await panel.getByRole("button", { name: "닫기" }).click();
     await expect(settings).toBeFocused();
+    if (width === 390) {
+      const play = await controls.locator(".svpBtn--play, .svpBtn--pause").boundingBox();
+      const rate = await settings.boundingBox();
+      expect(Math.abs(play!.y + play!.height / 2 - rate!.y - rate!.height / 2)).toBeLessThan(2);
+    }
     const regions = await assertSeparatedRegions();
     expect(regions.media.width / regions.media.height).toBeCloseTo(16 / 9, 2);
     const targets = await wrap.evaluate(root => Array.from(root.querySelectorAll<HTMLButtonElement | HTMLInputElement>(".svpControls button, .svpControls input[type='range'], .svpBigPlay"))

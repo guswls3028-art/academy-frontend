@@ -77,13 +77,13 @@ export function IconButton({
   const svgMap: Record<string, React.ReactNode> = {
     play: <svg width={S} height={S} viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 4.5v15l13-7.5z"/></svg>,
     pause: <svg width={S} height={S} viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="4.5" height="16" rx="1"/><rect x="14.5" y="4" width="4.5" height="16" rx="1"/></svg>,
-    replay10: <svg width={S} height={S} viewBox="0 0 24 24" fill="currentColor"><path d="M11 5L4 12l7 7" opacity="0.5"/><path d="M18 5l-7 7 7 7"/><text x="11" y="24" textAnchor="middle" fontSize="7" fontWeight="800">10</text></svg>,
-    forward10: <svg width={S} height={S} viewBox="0 0 24 24" fill="currentColor"><path d="M13 5l7 7-7 7"/><path d="M6 5l7 7-7 7" opacity="0.5"/><text x="13" y="24" textAnchor="middle" fontSize="7" fontWeight="800">10</text></svg>,
+    replay10: <svg width={S} height={S} viewBox="0 0 24 24" fill="none"><path d="M8 5a8 8 0 1 1-3.7 7M8 2 5 5l3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><text x="12" y="16.1" textAnchor="middle" fill="currentColor" fontSize="8.5" fontWeight="700">10</text></svg>,
+    forward10: <svg width={S} height={S} viewBox="0 0 24 24" fill="none"><path d="M16 5a8 8 0 1 0 3.7 7M16 2l3 3-3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><text x="12" y="16.1" textAnchor="middle" fill="currentColor" fontSize="8.5" fontWeight="700">10</text></svg>,
     volume: <svg width={S} height={S} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>,
     mute: <svg width={S} height={S} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>,
-    fullscreen: <svg width={S} height={S} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>,
+    fullscreen: <svg width={S} height={S} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9V4h5m6 0h5v5m0 6v5h-5M9 20H4v-5"/></svg>,
     theater: <svg width={S} height={S} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="10" rx="2"/></svg>,
-    shrink: <svg width={S} height={S} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>,
+    shrink: <svg width={S} height={S} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9h5V4m6 0v5h5m0 6h-5v5m-6 0v-5H4"/></svg>,
   };
   return (
     <button

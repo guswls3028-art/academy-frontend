@@ -199,9 +199,9 @@
   min-height: 44px;
   padding: 0 10px;
   color: white;
-  background: transparent;
+  background: #ffffff1c;
   border: 0;
-  border-radius: 8px;
+  border-radius: 999px;
   font-family: inherit;
   font-size: 14px;
   font-weight: 600;
@@ -286,4 +286,12 @@
 @media (prefers-reduced-motion: reduce) {
   .svpPlaybackRateBtn svg { transition: none; }
   .svpSettingsPanel { animation: none; }
+}
+
+@media (max-width: 640px) {
+  .svpRoot .svpControls .svpBtn {
+    width: 44px;
+    height: 44px;
+  }
+  .svpControls :is(.svpControlRow, .svpLeftControls, .svpRightControls) { gap: 2px; }
 }
