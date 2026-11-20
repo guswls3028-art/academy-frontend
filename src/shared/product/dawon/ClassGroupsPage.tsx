@@ -39,11 +39,16 @@ function failure(error: unknown) {
 function GroupForm({ admin, onCreated, onCancel }: { admin: boolean; onCreated: (id: number) => void; onCancel: () => void }) {
   const [kind, setKind] = useState<Kind>("union");
   const formId = useId();
+  const instructors = useQuery({
+    queryKey: dawonQueryKeys.assignableInstructors,
+    enabled: admin,
+    queryFn: async ({signal}) => (await api.get<{id:number;name:string}[]>(endpoint, {params:{view:"instructors"},signal})).data,
+  });
   const create = useMutation({
     mutationFn: async (form: FormData) => {
       const { data } = await api.post<Group>(endpoint, {
         name: form.get("name"),
-        ...(admin && form.has("assignTeacher") ? {assign_demo_teacher: true} : {}),
+        ...(admin && form.get("assignedTeacher") ? {assigned_teacher_id: Number(form.get("assignedTeacher"))} : {}),
         kind,
         ...(kind === "union" ? { track: form.get("track") } : { school: form.get("school") }),
       });
@@ -61,7 +66,14 @@ function GroupForm({ admin, onCreated, onCancel }: { admin: boolean; onCreated: 
           create.mutate(new FormData(event.currentTarget));
         }}>
           <label>반 이름 <input name="name" maxLength={100} required autoFocus /></label>
-          {admin && <label><input type="checkbox" name="assignTeacher" />체험 강사에게 반 운영 맡기기</label>}
+          {admin && <>
+            <label>담당 강사 <select name="assignedTeacher" disabled={instructors.isPending || instructors.isError}>
+              <option value="">담당 미지정</option>
+              {instructors.data?.map(person=><option key={person.id} value={person.id}>{person.name}</option>)}
+            </select></label>
+            {instructors.isPending && <p role="status">담당 강사를 불러오는 중입니다.</p>}
+            {instructors.isError && <p role="alert">담당 강사를 불러오지 못했습니다. <Button type="button" onClick={()=>void instructors.refetch()}>다시 시도</Button></p>}
+          </>}
           <fieldset className={styles.typeOptions}>
             <legend>반 종류</legend>
             <label>
@@ -81,7 +93,7 @@ function GroupForm({ admin, onCreated, onCancel }: { admin: boolean; onCreated: 
       </ModalBody>
       <ModalFooter right={<>
         <Button onClick={onCancel} disabled={create.isPending}>취소</Button>
-        <Button intent="primary" type="submit" form={formId} loading={create.isPending}>반 저장</Button>
+        <Button intent="primary" type="submit" form={formId} loading={create.isPending} disabled={admin && (instructors.isPending || instructors.isError)}>반 저장</Button>
       </>} />
     </AdminModal>
   );

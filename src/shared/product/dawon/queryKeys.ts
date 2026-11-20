@@ -4,6 +4,7 @@ const alerts = ["dawon", "teacher-alerts"] as const;
 
 export const dawonQueryKeys = {
   adminOperations: ["dawon", "admin", "operations"] as const,
+  assignableInstructors: [...groups,"admin","instructors"] as const,
   adminGroups: [...groups, "admin"] as const,
   adminGroup: (id: number) => [...groups, "admin", id] as const,
   adminLearning: (params: Record<string, string>) => ["dawon", "admin", "learning-review", params] as const,
