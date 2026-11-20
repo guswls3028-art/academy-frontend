@@ -367,6 +367,19 @@ function forward(url, request, env, fetcher, body = null) {
   });
 }
 
+// Only the shipped sample HTML and JavaScript pass through here. Browser drafts
+// and records returned by the authenticated API retain the names their owner set.
+function labelLegacySamples(source) {
+  const labels = {
+    '김하늘':'김학생 2', '하늘이 보호자':'보호자 2', '하늘이':'김학생 2', '김다원 선생님':'김선생 1',
+    '박소연':'김학생 1', '서준우':'김학생 3', '이주원':'김학생 4', '윤가람':'김학생 5', '정해솔':'김학생 6',
+    '예시고 학교별 내신반':'내신반 1',
+    "name:levels[i]+' 연합반'":"name:['1%반 1','하이퍼1','스카이반 1'][i]",
+  };
+  for (const [original, label] of Object.entries(labels)) source = source.replaceAll(original, label);
+  return source;
+}
+
 async function handleApi(request, url, env, fetcher) {
   const { method } = request;
   if (!['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) return secureResponse(null, 405);
@@ -524,7 +537,7 @@ export async function handle(request, env, fetcher = fetch, context) {
 
     const response = await learnerDemo.fetch(request);
     if (pathname === '/school.js' && request.method === 'GET' && response.ok) {
-      const text = await response.text();
+      const text = labelLegacySamples(await response.text());
       const dated = text.replace('id:crypto.randomUUID(),title,body,type,author:demoRole',
         'id:crypto.randomUUID(),createdAt:new Date().toISOString(),title,body,type,author:demoRole');
       return secureResponse(dated, 200, 'application/javascript; charset=utf-8');
@@ -534,7 +547,7 @@ export async function handle(request, env, fetcher = fetch, context) {
     for (const stale of ['content-encoding', 'content-length', 'etag']) headers.delete(stale);
     headers.set('cache-control', 'no-store');
     headers.append('set-cookie', consoleCookieExpired);
-    const html = (await response.text()).replace('</head>', `${brandStyle(env.ADMIN_VERSION)}<style>.bottomnav [data-route=schedule],.bottomnav #tab-schedule{display:none!important}.bottomnav{grid-template-columns:repeat(4,minmax(0,1fr))!important}</style>${reloadScript(env.UI_VERSION || env.ADMIN_VERSION)}<script src="${linkedNavPath}" defer></script></head>`);
+    const html = labelLegacySamples(await response.text()).replace('</head>', `${brandStyle(env.ADMIN_VERSION)}<style>.bottomnav [data-route=schedule],.bottomnav #tab-schedule{display:none!important}.bottomnav{grid-template-columns:repeat(4,minmax(0,1fr))!important}</style>${reloadScript(env.UI_VERSION || env.ADMIN_VERSION)}<script src="${linkedNavPath}" defer></script></head>`);
     return new Response(insertDemoSwitcher(html, url, false), {status: response.status, headers});
   } catch {
     return secureResponse('{"detail":"다원 데모를 잠시 후 다시 열어 주세요."}', 503);
