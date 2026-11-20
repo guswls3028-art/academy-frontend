@@ -50,6 +50,14 @@
   width: 100%;
 }
 
+.mobileCompactRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mobileCompactRow > .totalMobile { flex-shrink: 0; }
+
 .horizontalScroller,
 .mobileActionScroller,
 .mobileBelowScroller {

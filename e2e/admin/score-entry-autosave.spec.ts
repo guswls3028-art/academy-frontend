@@ -1,3 +1,4 @@
+import { revealScoreManagement } from "../helpers/revealScoreManagement";
 import { runHomeworkCorrectionFixture } from "../helpers/homeworkCorrectionFixture";
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { getBaseUrl } from "../helpers/auth";
@@ -882,6 +883,7 @@ test(`reload의 기존 셀 잠금을 자동 점유하지 않고 OMR 재전송의
   });
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect.poll(() => acquisitionStarted).toBe(true);
+  await revealScoreManagement(page);
   const openUpload = page.getByRole("button", { name: "OMR 스캔 등록", exact: true });
   try {
     await expect(openUpload).toBeDisabled();
@@ -1296,6 +1298,7 @@ test("시험 분석 이동 중 추가 점수 입력을 막고 잠금 해제 실�
   const cells = page.locator(".ds-scores-cell-editable");
   const picker = page.getByRole("dialog", { name: "분석할 시험 선택", exact: true });
   try {
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "시험 성적 분석", exact: true }).click();
     await expect(picker).toBeVisible();
     await picker.getByRole("button", { name: "주간 확인", exact: true }).click();
@@ -1853,6 +1856,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect(saveAndLockButton).toBeVisible({ timeout: 10_000 });
     await expect(scoreDraftStatus(page)).toContainText("수정 중 · 자동 저장 준비");
     await expect(page.locator(".ds-scores-cell-editable")).toHaveCount(2);
+    await revealScoreManagement(page);
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeEnabled();
     await page.screenshot({ path: testInfo.outputPath("score-entry-empty-auto-edit-1366.png"), fullPage: true });
 
@@ -1865,6 +1869,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
   test("변경 없는 자동 수정 상태에서는 빈 lease를 해제하고 OMR 등록을 연다", async ({ page }) => {
     await openScores(page, { initialScores: [null, null] });
 
+    await revealScoreManagement(page);
     const omrButton = page.getByRole("button", { name: "OMR 스캔 등록" });
     await expect(omrButton).toBeEnabled({ timeout: 10_000 });
     await omrButton.click();
@@ -2562,6 +2567,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("cell", { name: "103/105", exact: true })).toBeVisible();
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "성적 도구" }).click();
     await page.getByRole("menuitem").filter({ hasText: "개인 성적표" }).click();
     const reportFrame = page.frameLocator('iframe[title="자동저장학생1 개인 성적표 미리보기"]');
@@ -2862,6 +2868,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await editButton.click();
     await expect(page.getByRole("button", { name: "점수 입력 마침", exact: true })).toBeVisible();
     await expect(page.getByText("Ctrl+S 저장 · Ctrl+Z 실행 취소")).toBeVisible();
+    await revealScoreManagement(page);
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeEnabled();
     const cells = page.locator(".ds-scores-cell-editable");
     await expect(cells.first()).toBeVisible();
@@ -2978,6 +2985,7 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     const recoveryDialog = page.getByRole("dialog", { name: /임시저장된 변경 1건/ });
     await expect(recoveryDialog).toBeVisible({ timeout: 30_000 });
     await expect(editButton).toBeDisabled();
+    await revealScoreManagement(page);
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeDisabled();
     const releasedBeforeRecoveryNavigation = draftCommits.filter(
       (commit) => commit.release_lease === true,
@@ -3111,6 +3119,7 @@ for (const report of [
       scoreOutputMode: report.menu === "익명 순위표" ? "anonymous_billboard" : undefined,
       scoreSheetReadSequence: readState,
     });
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "성적 도구", exact: true }).click();
     readState[0] = "error";
     await page.getByRole("menuitem").filter({ hasText: report.menu }).click();
@@ -3141,6 +3150,7 @@ for (const width of [1366, 390]) {
       scoreOutputMode: "anonymous_billboard",
     });
     const open = async () => {
+      await revealScoreManagement(page);
       await page.getByRole("button", { name: "성적 도구", exact: true }).click();
       await page.getByRole("menuitem").filter({ hasText: "익명 순위표" }).click();
     };
@@ -3539,6 +3549,7 @@ test("@billboard-fraction 여러 쪽 순위표의 마지막 순위까지 화면 
     includeSecondExam: true, examMaxScore: 61.1, secondExamMaxScore: 52.2,
     examTotalMaxScore: 113.3, scoreOutputMode: "anonymous_billboard",
   });
+  await revealScoreManagement(page);
   await page.getByRole("button", { name: "성적 도구", exact: true }).click();
   await page.getByRole("menuitem").filter({ hasText: "익명 순위표" }).click();
   const modal = page.getByRole("dialog", { name: "익명 순위표 미리보기", exact: true });
@@ -3581,6 +3592,7 @@ for (const width of [1366, 1100, 390]) {
     await dialog.getByRole("button", { name: "취소", exact: true }).click();
     await expect(page.getByRole("group", { name: "선택 학생 작업", exact: true })).toHaveCount(0);
     if (width === 390) await page.setViewportSize({ width, height: 568 });
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "성적 도구", exact: true }).click();
     const tools = page.getByRole("menu", { name: "성적 도구", exact: true });
     await expect(tools.getByRole("menuitem", { name: /과제 추가|시험 추가/ })).toHaveCount(0);
@@ -3603,9 +3615,11 @@ for (const width of [1366, 1100, 390]) {
     }
     await page.keyboard.press("Escape");
     await expect(tools).toBeHidden();
+    await revealScoreManagement(page);
     await expect(page.getByRole("button", { name: "성적 도구", exact: true })).toBeFocused();
     if (width === 390) {
       await page.setViewportSize({ width, height: 1000 });
+      await revealScoreManagement(page);
       await page.getByRole("button", { name: "성적 도구", exact: true }).click();
       await tools.getByRole("button", { name: "성적 도구 닫기", exact: true }).click();
       await expect(tools).toBeHidden();

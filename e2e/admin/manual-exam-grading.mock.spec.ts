@@ -1,3 +1,4 @@
+import { revealScoreManagement } from "../helpers/revealScoreManagement";
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { guideRecording } from "../helpers/guideRecording";
 import { gotoAndSettle } from "../helpers/wait";
@@ -3232,6 +3233,7 @@ test.describe("문항별 직접 채점", () => {
         `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`,
         { timeout: 30_000 },
       );
+      await revealScoreManagement(page);
       const shortcut = page.getByRole("button", { name: "시험 성적 분석", exact: true });
       await expect(shortcut).toBeEnabled({ timeout: 60_000 });
       const [analysis] = await Promise.all([
@@ -3255,6 +3257,7 @@ test.describe("문항별 직접 채점", () => {
         contentType: "image/png",
       });
       await page.goBack();
+      await revealScoreManagement(page);
       await expect(page.getByRole("button", { name: "시험 성적 분석", exact: true })).toBeVisible();
     });
   }
@@ -4280,6 +4283,7 @@ test.describe("문항별 직접 채점", () => {
       // Hold the real entrance motion at its first frame, then finish it between
       // pointer down/up. A scaling popup used to move the action out of the click.
       const motionHold = await page.addStyleTag({ content: ".ant-popover { animation-play-state: paused !important; }" });
+      await revealScoreManagement(page);
       const analysis = page.getByRole("button", { name: "시험 성적 분석", exact: true });
       await expect(analysis).toBeDisabled();
       const analysisWidth = () => analysis.evaluate((button) => button.getBoundingClientRect().width);
@@ -4537,6 +4541,7 @@ test.describe("문항별 직접 채점", () => {
     );
 
     const editAction = page.locator(".scores-edit-action");
+    await revealScoreManagement(page);
     const toolsTrigger = page.getByRole("button", { name: "성적 도구", exact: true });
     const scoreTab = page.getByRole("tab", { name: "성적", exact: true, selected: true });
     const attendanceTab = page.getByRole("tab", { name: "출결", exact: true, selected: false });

@@ -1,3 +1,4 @@
+import { revealScoreManagement } from "../helpers/revealScoreManagement";
 /**
  * Student homework media submission -> assistant discovery/preview and UI grading
  * -> student/parent projection, reload and login.
@@ -289,6 +290,7 @@ async function verifyHomeworkFeedback(
         await staffPage.locator(`[data-score-cell="homework:${created.enrollmentId}:${completion.id}"]`).scrollIntoViewIfNeeded();
         await staffPage.screenshot({ path: test.info().outputPath(`real-mixed-homework-${width}.png`), animations: "disabled" });
         checkpoint.phase = "feedback-report";
+        await revealScoreManagement(staffPage);
         await staffPage.getByRole("button", { name: "개인 성적표", exact: true }).click();
         const report = staffPage.getByRole("dialog");
         await report.getByRole("combobox", { name: "성적표 학생 선택" }).selectOption(String(created.enrollmentId));
@@ -321,6 +323,7 @@ async function verifyHomeworkFeedback(
         }
         await report.getByRole("button", { name: "닫기", exact: true }).click();
         await expect(report).toBeHidden();
+        await revealScoreManagement(staffPage);
         await staffPage.getByRole("button", { name: "성적 도구", exact: true }).click();
         await staffPage.getByRole("menuitem", { name: /성적표 출력/ }).click();
         const teacherReport = staffPage.getByRole("dialog", { name: "성적표 미리보기", exact: true });

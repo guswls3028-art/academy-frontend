@@ -1,3 +1,4 @@
+import { revealScoreManagement } from "../helpers/revealScoreManagement";
 import { expect, test, type Page, type Route } from "../fixtures/strictTest";
 import { getBaseUrl } from "../helpers/auth";
 import {
@@ -402,6 +403,7 @@ async function openScores(page: Page, options: ScoreRouteOptions & { gradingExam
     { waitUntil: "domcontentloaded", timeout: 45_000 },
   );
   await expect(page).toHaveURL(new RegExp(`/sessions/${SESSION_ID}/scores`));
+  await revealScoreManagement(page);
   const omrButton = page.getByRole("button", { name: "OMR 스캔 등록" });
   await expect(omrButton).toBeVisible({ timeout: 30_000 });
   await expect(omrButton).toBeEnabled();
@@ -937,6 +939,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     await page.setViewportSize({ width: 1366, height: 900 });
     const unexpectedMutations = await openScores(page);
 
+    await revealScoreManagement(page);
     const omrButton = page.getByRole("button", { name: "OMR 스캔 등록" });
     const mixedButton = page.getByRole("button", { name: "중대부고 2회차 혼합형 문항별 점수 입력" });
     await expect(mixedButton).toBeVisible();
@@ -1144,6 +1147,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       if (storageFailure) {
         await page.getByRole("tab", { name: "출결", exact: true }).click();
         await page.getByRole("tab", { name: "성적", exact: true }).click();
+        await revealScoreManagement(page);
         await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeVisible();
         await page.evaluate((failure) => {
           const original = Storage.prototype.setItem;
@@ -1295,6 +1299,7 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
             return event.defaultPrevented;
           })).toBe(true);
           await page.goForward();
+          await revealScoreManagement(page);
           await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeVisible();
           await page.getByRole("button", { name: "수정", exact: true }).click();
           const restored = await openAnswer();

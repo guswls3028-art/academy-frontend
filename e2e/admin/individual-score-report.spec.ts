@@ -1,3 +1,4 @@
+import { revealScoreManagement } from "../helpers/revealScoreManagement";
 import { readFile, writeFile } from "fs/promises";
 import path from "path";
 import type { Page } from "@playwright/test";
@@ -591,6 +592,7 @@ test.describe("개인 성적표", () => {
       await page.setViewportSize({ width, height: 900 });
       await installApi(page, { provisionalExam: true });
       await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await revealScoreManagement(page);
       await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
       const frame = page.frameLocator('iframe[title="김서윤 개인 성적표 미리보기"]');
       const assessment = frame.locator(".assessment-row").filter({ has: frame.getByText("방정식 단원평가", { exact: true }) });
@@ -619,6 +621,7 @@ test.describe("개인 성적표", () => {
     test(`@assessment-report-total ${totalState} 총점은 미입력·0점·합산 없음이 구분된다`, async ({ page }) => {
       await installApi(page, { totalState });
       await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await revealScoreManagement(page);
       await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
       const frame = page.frameLocator('iframe[title="김서윤 개인 성적표 미리보기"]');
       for (const label of ["시험 총점", "과제 총점"]) {
@@ -635,6 +638,7 @@ test.describe("개인 성적표", () => {
       await page.setViewportSize({ width, height: 900 });
       await installApi(page, { homeworkModes: true });
       await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await revealScoreManagement(page);
       await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
       const dialog = page.getByRole("dialog");
       const frame = page.frameLocator('iframe[title="김서윤 개인 성적표 미리보기"]');
@@ -681,6 +685,7 @@ test.describe("개인 성적표", () => {
     await installApi(page);
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
+    await revealScoreManagement(page);
     const reportButton = page.getByRole("button", { name: "개인 성적표", exact: true });
     await expect(reportButton).toBeVisible({ timeout: 30_000 });
     await page.route((url) => url.pathname.endsWith(`/results/admin/sessions/${SESSION_ID}/scores/`), async (route) => {
@@ -696,7 +701,9 @@ test.describe("개인 성적표", () => {
     await installApi(page, { omrIssue: true });
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "commit", timeout: 30_000 });
+    await revealScoreManagement(page);
     await expect(page.getByRole("button", { name: "성적 도구" })).toBeVisible({ timeout: 30_000 });
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "성적 도구" }).click();
     await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
     const dialog = page.getByRole("dialog");
@@ -713,6 +720,7 @@ test.describe("개인 성적표", () => {
     await installApi(page, { omrIssueQueryFailure: true });
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "성적 도구" }).click();
     await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
     const dialog = page.getByRole("dialog");
@@ -725,7 +733,9 @@ test.describe("개인 성적표", () => {
     await installApi(page, { omrIssueQueryPartial: true });
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "commit", timeout: 30_000 });
+    await revealScoreManagement(page);
     await expect(page.getByRole("button", { name: "성적 도구" })).toBeVisible({ timeout: 30_000 });
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "성적 도구" }).click();
     await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
     const dialog = page.getByRole("dialog");
@@ -737,14 +747,18 @@ test.describe("개인 성적표", () => {
     const api = await installApi(page, { omrIssue: true });
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "commit", timeout: 30_000 });
+    await revealScoreManagement(page);
     await expect(page.getByRole("button", { name: "성적 도구" })).toBeVisible({ timeout: 30_000 });
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "성적 도구" }).click();
     await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByRole("button", { name: "개인 성적표 PDF" })).toBeDisabled();
     api.resolveOmrIssue();
     await page.reload({ waitUntil: "commit", timeout: 30_000 });
+    await revealScoreManagement(page);
     await expect(page.getByRole("button", { name: "성적 도구" })).toBeVisible({ timeout: 30_000 });
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "성적 도구" }).click();
     await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
     await expect(page.getByRole("dialog").getByRole("button", { name: "개인 성적표 PDF" })).toBeEnabled();
@@ -754,6 +768,7 @@ test.describe("개인 성적표", () => {
     await installApi(page, { omrIssue: true, omrIssueEnrollmentId: 9102 });
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "성적 도구" }).click();
     await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
     const dialog = page.getByRole("dialog");
@@ -768,7 +783,9 @@ test.describe("개인 성적표", () => {
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
 
+    await revealScoreManagement(page);
     await expect(page.getByRole("button", { name: "개인 성적표", exact: true })).toBeVisible({ timeout: 30_000 });
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "개인 성적표", exact: true }).click();
 
     const dialog = page.getByRole("dialog");
@@ -881,6 +898,7 @@ test.describe("개인 성적표", () => {
     const requestCountBeforeReopen = apiTracker.getStudentGradesRequestCount();
     await dialog.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(dialog).toBeHidden();
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "성적 도구" }).click();
     await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
     await expect.poll(() => apiTracker.getStudentGradesRequestCount()).toBeGreaterThan(requestCountBeforeReopen);
@@ -894,7 +912,9 @@ test.describe("개인 성적표", () => {
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
 
+    await revealScoreManagement(page);
     await expect(page.getByRole("button", { name: "성적 도구" })).toBeVisible({ timeout: 30_000 });
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "성적 도구" }).click();
     await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
 
@@ -956,7 +976,9 @@ test.describe("개인 성적표", () => {
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
 
+    await revealScoreManagement(page);
     await expect(page.getByRole("button", { name: "성적 도구" })).toBeVisible({ timeout: 30_000 });
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "성적 도구" }).click();
     await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
 
@@ -1028,6 +1050,7 @@ test.describe("교사용 전체 성적표", () => {
   test("@teacher-total-assignment 미배정 학생은 총점 완료 인원의 분모에서 제외한다", async ({ page }) => {
     await installApi(page, { homeworkModes: true, teacherMixedAssignments: true });
     await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "성적 도구" }).click();
     await page.getByRole("menuitem", { name: /성적표 출력/ }).click();
     await expect(page.getByRole("dialog", { name: "성적표 미리보기", exact: true })).toBeVisible();
@@ -1044,6 +1067,7 @@ test.describe("교사용 전체 성적표", () => {
       await page.setViewportSize({ width, height: 900 });
       await installApi(page, { homeworkModes: true, provisionalExam: true, teacherUnassigned: true });
       await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await revealScoreManagement(page);
       await page.getByRole("button", { name: "성적 도구" }).click();
       await page.getByRole("menuitem", { name: /성적표 출력/ }).click();
       const dialog = page.getByRole("dialog", { name: "성적표 미리보기" });
@@ -1103,6 +1127,7 @@ test.describe("교사용 전체 성적표", () => {
       await page.setViewportSize({ width: 1366, height: 900 });
       await installApi(page, state === "partial" ? { teacherPartialTotals: true } : { totalState: state });
       await page.goto(`${getBaseUrl("admin")}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await revealScoreManagement(page);
       await page.getByRole("button", { name: "성적 도구" }).click();
       await page.getByRole("menuitem", { name: /성적표 출력/ }).click();
       await expect(page.getByRole("dialog", { name: "성적표 미리보기", exact: true })).toBeVisible();
@@ -1134,6 +1159,7 @@ test.describe("교사용 전체 성적표", () => {
       { waitUntil: "load" },
     );
 
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "성적 도구" }).click();
     await page.getByRole("menuitem", { name: /성적표 출력/ }).click();
 

@@ -335,6 +335,30 @@ async function expectDocumentOverflowZero(page: Page) {
   }))).toEqual({ body: 0, document: 0 });
 }
 
+test("390px 성적표 첫 진입에서 학생과 수정이 보이고 차시·평가 작업은 펼쳐서 사용한다", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await openScores(page);
+  const firstStudent = page.getByText("모바일순서학생", { exact: true }).first();
+  const edit = page.getByRole("button", { name: "수정", exact: true });
+  const tools = page.locator(".scores-management > summary");
+  await expect(tools).toHaveText("차시·성적 작업");
+  await expect(edit).toBeInViewport({ ratio: 1 });
+  await expect(firstStudent).toBeInViewport({ ratio: 1 });
+  const bounds = await firstStudent.boundingBox();
+  const navigation = await page.getByRole("navigation", { name: "하단 메뉴" }).boundingBox();
+  expect(bounds!.y + bounds!.height).toBeLessThan(navigation!.y);
+  await expectDocumentOverflowZero(page);
+  await page.screenshot({ path: testInfo.outputPath("score-initial-390x900.png"), animations: "disabled" });
+
+  await tools.focus();
+  await tools.press("Enter");
+  await expect(page.getByRole("button", { name: "수업일 관리" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "시험 추가", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "개인 성적표", exact: true })).toBeVisible();
+  await tools.press("Enter");
+  await expect(page.getByRole("button", { name: "시험 추가", exact: true })).toBeHidden();
+});
+
 async function expectAssessmentFieldLayout(fields: Locator[], width: number) {
   // Read without scrolling: even fields below the modal fold share one coordinate space.
   const boxes = await Promise.all(fields.map(async (field) => {
