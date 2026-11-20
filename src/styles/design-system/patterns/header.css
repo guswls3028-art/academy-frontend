@@ -130,6 +130,15 @@
   outline-offset: 3px;
 }
 
+[data-app="admin"] .app-header__brand[data-platform-wordmark] {
+  padding: 5px 10px;
+  background: var(--tenant-header-surface);
+}
+
+[data-app="admin"] .app-header__brand[data-platform-wordmark]:hover {
+  background: var(--tenant-header-surface-soft);
+}
+
 [data-app="admin"] .app-header__brandMark {
   width: auto;
   height: 32px;
