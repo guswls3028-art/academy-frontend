@@ -50,7 +50,7 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
     await expect(dialog.getByRole("heading", { name: `${label} ${kind}`, exact: true })).toBeVisible();
     const qr = dialog.getByLabel("출결 QR 인쇄 미리보기").locator(".ant-qrcode");
     await expect(qr.locator("svg")).toBeVisible();
-    const photo = await qr.screenshot();
+    const photo = await qr.screenshot({ animations: "disabled" });
     await assertNoHorizontalOverflow(teacherPage);
     await testInfo.attach(`qr-${kind}-poster`, { body: await dialog.screenshot(), contentType: "image/png" });
     await dialog.getByRole("button", { name: "닫기", exact: true }).last().click();
@@ -72,25 +72,35 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
     });
   };
   try {
-    await expectApi(request, "PATCH", `/lectures/lectures/${lectureId}/`, adminAccess, { start_date: today });
+    const lecture = await expectApi<{ title: string }>(request, "PATCH", `/lectures/lectures/${lectureId}/`, adminAccess, { start_date: today });
     const session = await expectApi<{ id: number }>(request, "POST", "/lectures/sessions/", adminAccess, { lecture: lectureId, title: label, date: today, order: 1 });
     classSessionId = session.id;
     // The parent owns enrollment targets; it must remove those before this session.
     recordClassSession(classSessionId);
     await expectApi(request, "POST", "/enrollments/session-enrollments/bulk_create/", adminAccess, { session: classSessionId, enrollments: [enrollmentId] });
     await expectApi(request, "POST", "/lectures/attendance/bulk_create/", adminAccess, { session: classSessionId, students: [student.id] });
-    const classSign = await createSign(`/workspace/lectures/${lectureId}/sessions/${classSessionId}/attendance`, "class");
+    const rosterPath = `/workspace/lectures/${lectureId}/sessions/${classSessionId}/attendance`;
+    const classSign = await createSign(rosterPath, "class");
+    await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile`);
+    await teacherPage.getByRole("button", { name: "수업 출석 QR", exact: true }).click();
+    const picker = teacherPage.getByRole("dialog", { name: "수업 출석 QR", exact: true });
+    await picker.getByRole("button", { name: lecture.title, exact: true }).click();
+    await picker.getByRole("button").filter({ hasText: label }).click();
+    const sessionPoster = teacherPage.getByLabel("출결 QR 인쇄 미리보기");
+    await expect(sessionPoster.getByRole("heading", { name: label, exact: true })).toBeVisible();
+    const sessionPhoto = await sessionPoster.locator(".ant-qrcode").screenshot({ animations: "disabled" });
     await logoutStudentApp(page);
     await loginThroughUi(page, student.ps_number, student.password);
     await page.setViewportSize({ width: 390, height: 844 });
-    await scanCamera(classSign.photo, () => expect(page.getByText("출석이 기록되었습니다.", { exact: true })).toBeVisible());
+    await scanCamera(sessionPhoto, () => expect(page.getByText("출석이 기록되었습니다.", { exact: true })).toBeVisible());
     await page.getByRole("link", { name: "내 출결 기록 보기" }).click();
     await reloadStudentApp(page);
     await expect(page.getByText(label, { exact: false })).toBeVisible();
     const summary = await expectApi<{ count: number; results: Array<{ id: number; status: string; qr_checked_in_at: string }> }>(request, "GET", `/lectures/attendance/?session=${classSessionId}`, adminAccess);
     expect(summary.results).toEqual(expect.arrayContaining([expect.objectContaining({ status: "PRESENT", qr_checked_in_at: expect.any(String) })]));
-    await teacherPage.reload({ waitUntil: "domcontentloaded" });
-    await expect(teacherPage.getByText(student.name, { exact: true }).first()).toBeVisible();
+    await gotoAndSettle(teacherPage, QA_BASE + rosterPath);
+    const statusSelector = teacherPage.getByRole("group", { name: `${student.name} 출결 상태 선택`, exact: true });
+    await expect(statusSelector.getByRole("button", { name: "현장", exact: true, pressed: true })).toBeVisible();
 
     // Permission failure must remain recoverable through the real photo decoder.
     await gotoAndSettle(page, `${QA_BASE}/student/attendance/scan`);
