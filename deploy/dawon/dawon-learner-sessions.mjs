@@ -74,6 +74,9 @@ const style = [
   .dw-dayList{list-style:none;padding:0;margin:0}.dw-record{position:relative;display:flex;align-items:center;justify-content:space-between;gap:6px 18px;flex-wrap:wrap;padding:14px 2px;overflow-wrap:anywhere}
   .dw-record+.dw-record{border-top:1px solid var(--dw-line)}.dw-recordText{min-width:0;flex:1 1 220px}
   .dw-record strong{display:block;font-size:16px;line-height:1.45}.dw-recordText span{display:block;color:var(--dw-muted);font-size:14px;line-height:1.5;margin-top:3px;white-space:pre-line}
+  .dw-taskRow{display:block;padding:0}.dw-taskRow summary{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:12px 2px;list-style:none}.dw-taskRow summary::-webkit-details-marker{display:none}
+  .dw-taskRow summary:focus-visible{outline:2px solid var(--dw-accent);outline-offset:2px}.dw-taskRow summary:hover{background:#fff9f4}.dw-taskToggle{color:var(--dw-accent);font-size:14px;font-weight:700;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}.dw-taskToggle::after{content:"";width:7px;height:7px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}.dw-taskRow details[open] .dw-taskToggle::after{transform:rotate(225deg)}
+  .dw-taskBody{display:grid;grid-template-columns:max-content minmax(0,1fr);align-items:baseline;gap:10px 14px;margin:0 0 14px;padding:14px;border-radius:8px;background:#faf7f4;line-height:1.55}.dw-taskBody dt{font-size:14px;font-weight:700;color:var(--dw-muted)}.dw-taskBody dd{margin:0;white-space:pre-line;overflow-wrap:anywhere}
   .dw-recordAction,.dw-nearest{min-height:44px;display:inline-flex;align-items:center;gap:7px;color:var(--dw-accent);font-size:14px;font-weight:700}
   .dw-recordAction::after,.dw-nearest::after{content:"";width:6px;height:6px;border:solid currentColor;border-width:1.5px 1.5px 0 0;transform:rotate(45deg)}
   .dw-recordAction::before{content:"";position:absolute;inset:0}.dw-record:has(.dw-recordAction:hover){background:#fff9f4}
@@ -85,7 +88,7 @@ const style = [
   @media(max-width:580px){
     .dw-calendarHeader{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding-bottom:10px;margin-bottom:8px}
     .dw-period,.dw-calendarOptions{justify-content:space-between}.dw-day{min-height:48px}
-    .dw-record{padding:12px 0}.dw-recordText{flex-basis:180px}.dw-detailHead{gap:8px}
+    .dw-record{padding:12px 0}.dw-taskRow{padding:0}.dw-recordText{flex-basis:180px}.dw-detailHead{gap:8px}
   }
   @media(prefers-reduced-motion:no-preference){.dw-day,.dw-rowLink,.dw-recordAction,.dw-modeSwitch a{transition:background-color .12s,border-color .12s}}
   `,
@@ -236,9 +239,49 @@ function mountLearner() {
     return para;
   }
 
+  function homeworkRow(record, openByDefault) {
+    const task = record.homework;
+    const item = element('li',null,'dw-record dw-taskRow');
+    const details = element('details');
+    details.name = 'dw-homework';
+    details.open = openByDefault;
+    const summary = element('summary');
+    const heading = element('span',null,'dw-recordText');
+    heading.append(element('strong',record.title),element('span',record.detail));
+    summary.append(heading,element('span','상세','dw-taskToggle'));
+    const fields = element('dl',null,'dw-taskBody');
+    let deadline = '기한 없음';
+    if (task.due_date) deadline = normalize(task.due_date) === task.due_date
+      ? format(task.due_date,{year:'numeric',month:'long',day:'numeric',weekday:'short'}) : '기한 확인 필요';
+    for (const [label,value] of [
+      ['과제 내용',task.student_instructions?.trim() || '등록된 안내가 없습니다.'],
+      ['제출기한',deadline],
+      ['제출 방법',task.submission_guide?.trim() || '등록된 제출 방법이 없습니다.'],
+    ]) fields.append(element('dt',label),element('dd',value));
+    details.append(summary,fields);
+    item.append(details);
+    if (Number.isSafeInteger(task.id) && task.id > 0) {
+      const id = String(task.id);
+      if (params.has('homework')) details.open = params.get('homework') === id;
+      details.addEventListener('toggle',() => {
+        if (!details.isConnected) return;
+        const url = new URL(location.href);
+        if (details.open) url.searchParams.set('homework',id);
+        else if (url.searchParams.get('homework') === id) url.searchParams.delete('homework');
+        else return;
+        if (url.href !== location.href) history.replaceState(history.state,'',url);
+      });
+    }
+    return item;
+  }
+
   function recordList(records) {
     const list = element('ul',null,'dw-dayList');
     for (const [index,record] of records.entries()) {
+      if (record.homework) {
+        list.append(homeworkRow(record, mode === 'day' && records.length === 1));
+        continue;
+      }
       const item = element('li',null,'dw-record');
       const text = element('div',null,'dw-recordText');
       const title = element('strong',record.title);
@@ -405,7 +448,7 @@ function mountLearner() {
             (exam.score == null ? '결과 대기' : exam.score + (exam.max == null ? '점' : ' / ' + exam.max + '점')),
             ...(hasResult ? {path:'/student/exams/' + exam.id + '/result?' + origin, action:'성적표 보기'} : {})};
         });
-        case 'homework': return row.homework.map(homework => ({...base,title:homework.title,detail:row.lecture + ' · ' + (homeworkStatus[homework.state] ?? '배정됨')}));
+        case 'homework': return row.homework.map(homework => ({...base,homework,title:homework.title,detail:row.lecture + ' · ' + (homeworkStatus[homework.state] ?? '배정됨')}));
         default: return [];
       }
     });
@@ -600,7 +643,7 @@ function mountLearner() {
     return;
   }
 
-  const projectionCache = 'dawon-learning-projection-r15';
+  const projectionCache = 'dawon-learning-projection-r30';
   async function load(force = false) {
     try {
       if (topic === 'questions' && !guardian) {

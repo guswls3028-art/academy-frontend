@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { resolveTenantCodeString } from "@/shared/tenant";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import formStyles from "@/shared/ui/assessment/AssessmentSetupForm.module.css";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -20,6 +21,8 @@ import type { HomeworkCutlineMode, HomeworkGradingMode } from "../../types";
 type HomeworkPolicyForm = {
   title: string;
   dueDate: string;
+  studentInstructions: string;
+  submissionGuide: string;
   gradingMode: HomeworkGradingMode;
   maxScore: string;
   cutlineMode: HomeworkCutlineMode;
@@ -32,6 +35,8 @@ function formFromHomework(homework: AdminHomeworkDetail): HomeworkPolicyForm {
   return {
     title: homework.title,
     dueDate,
+    studentInstructions: typeof homework.meta?.student_instructions === "string" ? homework.meta.student_instructions : "",
+    submissionGuide: typeof homework.meta?.submission_guide === "string" ? homework.meta.submission_guide : "",
     gradingMode: homework.grading_mode,
     maxScore: String(homework.max_score ?? homework.default_max_score ?? 100),
     cutlineMode: homework.effective_cutline_mode,
@@ -83,6 +88,7 @@ export default function HomeworkPolicyPanel({
   onSaveAllowedChange?: (allowed: boolean) => void;
   onSaveErrorChange?: (error: string) => void;
 }) {
+  const isDawon = resolveTenantCodeString() === "dawon";
   const qc = useQueryClient();
   const confirm = useConfirm();
   const { data: homework, isLoading, isError, refetch } = useAdminHomework(homeworkId);
@@ -139,7 +145,7 @@ export default function HomeworkPolicyPanel({
     baseUpdatedAt: baseUpdatedAtRef.current,
     form,
     dirty,
-    onRestore: setForm,
+    onRestore: (draft) => setForm((current) => ({ ...current, ...draft })),
   });
 
   const updateMutation = useMutation({
@@ -167,10 +173,19 @@ export default function HomeworkPolicyPanel({
         payload.cutline_value = Number(nextForm.cutlineValue);
         payload.round_unit_percent = Number(nextForm.roundUnitPercent);
       }
-      if (nextForm.dueDate !== baseForm.dueDate) {
-        const nextMeta: Record<string, unknown> = { ...(homework.meta ?? {}) };
-        if (nextForm.dueDate) nextMeta.due_date = nextForm.dueDate;
-        else delete nextMeta.due_date;
+      const changes: Record<string, unknown> = {};
+      if (isDawon && nextForm.studentInstructions !== baseForm.studentInstructions) {
+        changes.student_instructions = nextForm.studentInstructions.trim();
+      }
+      if (isDawon && nextForm.submissionGuide !== baseForm.submissionGuide) {
+        changes.submission_guide = nextForm.submissionGuide.trim();
+      }
+      if (Object.keys(changes).length || nextForm.dueDate !== baseForm.dueDate) {
+        const nextMeta = { ...homework.meta, ...changes };
+        if (nextForm.dueDate !== baseForm.dueDate) {
+          if (nextForm.dueDate) nextMeta.due_date = nextForm.dueDate;
+          else delete nextMeta.due_date;
+        }
         payload.meta = nextMeta;
       }
 
@@ -324,6 +339,20 @@ export default function HomeworkPolicyPanel({
               />
               <span className={formStyles.helper}>비워 두면 제출기한 없이 운영합니다.</span>
             </label>
+            {isDawon && <>
+              <label className={formStyles.field}>
+                <span className={formStyles.label}>과제 내용</span>
+                <textarea className={formStyles.input} rows={3} maxLength={2000}
+                  value={form.studentInstructions}
+                  onChange={(event) => setForm({ ...form, studentInstructions: event.target.value })} />
+              </label>
+              <label className={formStyles.field}>
+                <span className={formStyles.label}>제출 방법</span>
+                <textarea className={formStyles.input} rows={3} maxLength={500}
+                  value={form.submissionGuide}
+                  onChange={(event) => setForm({ ...form, submissionGuide: event.target.value })} />
+              </label>
+            </>}
           </div>
         </div>
 
