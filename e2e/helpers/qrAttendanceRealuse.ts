@@ -50,7 +50,7 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
     await expect(dialog.getByRole("heading", { name: `${label} ${kind}`, exact: true })).toBeVisible();
     const qr = dialog.getByLabel("출결 QR 인쇄 미리보기").locator(".ant-qrcode");
     await expect(qr.locator("svg")).toBeVisible();
-    const photo = await qr.screenshot();
+    const photo = await qr.screenshot({ animations: "disabled" });
     await assertNoHorizontalOverflow(teacherPage);
     await testInfo.attach(`qr-${kind}-poster`, { body: await dialog.screenshot(), contentType: "image/png" });
     await dialog.getByRole("button", { name: "닫기", exact: true }).last().click();
@@ -88,7 +88,7 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
     await picker.getByRole("button").filter({ hasText: label }).click();
     const sessionPoster = teacherPage.getByLabel("출결 QR 인쇄 미리보기");
     await expect(sessionPoster.getByRole("heading", { name: label, exact: true })).toBeVisible();
-    const sessionPhoto = await sessionPoster.locator(".ant-qrcode").screenshot();
+    const sessionPhoto = await sessionPoster.locator(".ant-qrcode").screenshot({ animations: "disabled" });
     await logoutStudentApp(page);
     await loginThroughUi(page, student.ps_number, student.password);
     await page.setViewportSize({ width: 390, height: 844 });
@@ -99,7 +99,8 @@ export async function verifyQrAttendanceRealuse({ page, teacherPage, request, te
     const summary = await expectApi<{ count: number; results: Array<{ id: number; status: string; qr_checked_in_at: string }> }>(request, "GET", `/lectures/attendance/?session=${classSessionId}`, adminAccess);
     expect(summary.results).toEqual(expect.arrayContaining([expect.objectContaining({ status: "PRESENT", qr_checked_in_at: expect.any(String) })]));
     await gotoAndSettle(teacherPage, QA_BASE + rosterPath);
-    await expect(teacherPage.getByText(student.name, { exact: true }).first()).toBeVisible();
+    const statusSelector = teacherPage.getByRole("group", { name: `${student.name} 출결 상태 선택`, exact: true });
+    await expect(statusSelector.getByRole("button", { name: "현장", exact: true, pressed: true })).toBeVisible();
 
     // Permission failure must remain recoverable through the real photo decoder.
     await gotoAndSettle(page, `${QA_BASE}/student/attendance/scan`);
