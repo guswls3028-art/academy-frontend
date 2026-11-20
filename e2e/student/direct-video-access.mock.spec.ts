@@ -1,6 +1,7 @@
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
+import { syntheticLongVideoAsset } from "../../scripts/run-development-release-canary.mjs";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 const CLOCK_START = new Date("2026-08-29T14:00:00.000Z");
@@ -17,6 +18,7 @@ function jwt(): string {
 type Evidence = {
   playbackRequests: number;
   renewalRequests: number;
+  manifestRequests: number;
   accessChecks: number;
   requestedPaths: string[];
   mutationPaths: string[];
@@ -29,10 +31,12 @@ async function installApp(
   page: Page,
   mode: PlaybackMode = "direct",
   viewer: "student" | "parent" = "student",
+  loadMedia = false,
 ): Promise<{ evidence: Evidence; revoke: () => void }> {
   const evidence: Evidence = {
     playbackRequests: 0,
     renewalRequests: 0,
+    manifestRequests: 0,
     accessChecks: 0,
     requestedPaths: [],
     mutationPaths: [],
@@ -50,6 +54,13 @@ async function installApp(
   }, { token: jwt(), parent: viewer === "parent" });
 
   await page.route("https://cdn.example.test/direct/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/direct/master.m3u8") evidence.manifestRequests += 1;
+    if (loadMedia) {
+      const asset = syntheticLongVideoAsset(path.replace("/direct/", "/__qa__/video-long/"));
+      await route.fulfill({ body: asset.body, contentType: asset.contentType, headers: { "access-control-allow-origin": "*" } });
+      return;
+    }
     // Keep media loading pending so this contract exercises direct access and
     // token refresh without coupling it to a browser codec or HLS transmuxer.
     await new Promise<void>((resolveClose) => page.once("close", resolveClose));
@@ -119,7 +130,7 @@ async function installApp(
         return;
       }
       if (revoked) return json({ detail: "현재 이 영상을 시청할 권한이 없습니다." }, 403);
-      const expiresAt = evidence.playbackRequests === 1 ? baseEpoch + 70 : baseEpoch + 670;
+      const expiresAt = evidence.playbackRequests === 1 && !loadMedia ? baseEpoch + 70 : baseEpoch + 670;
       return json({
         video: {
           id: 902,
@@ -205,6 +216,14 @@ test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 r
 
 test("개별 영상 학생 재생은 canonical bootstrap·exact-only·로컬 이어보기·짧은 갱신 경계를 지킨다", async ({ page }) => {
   const { evidence, revoke } = await installApp(page);
+  // The initial grant is already in the renewal window. Hold its replacement
+  // until the test has observed a checkpoint on the initial source.
+  const checkpointSaved = Promise.withResolvers<void>();
+  page.once("close", () => checkpointSaved.resolve());
+  await page.route("**/api/v1/media/playback/renew/", async (route) => {
+    await checkpointSaved.promise;
+    if (!page.isClosed()) await route.fallback();
+  });
   await page.goto(`${BASE}/student/video/play?video=902&session=802`, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
@@ -218,23 +237,35 @@ test("개별 영상 학생 재생은 canonical bootstrap·exact-only·로컬 이
 
   const video = page.locator("video");
   await expect(video).toHaveCount(1);
+  // The video node can mount before the HLS controller attaches its listeners.
+  await expect.poll(() => evidence.manifestRequests, { timeout: 30_000 }).toBe(1);
+  expect(evidence.renewalRequests).toBe(0);
   await video.evaluate((element) => {
     Object.defineProperty(element, "currentTime", { configurable: true, get: () => 125 });
     Object.defineProperty(element, "duration", { configurable: true, get: () => 600 });
+    element.dispatchEvent(new Event("seeking"));
     const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
+    const visibility = Object.getOwnPropertyDescriptor(document, "visibilityState");
     Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
     document.dispatchEvent(new Event("visibilitychange"));
     if (hidden) Object.defineProperty(document, "hidden", hidden);
     else Reflect.deleteProperty(document, "hidden");
+    if (visibility) Object.defineProperty(document, "visibilityState", visibility);
+    else Reflect.deleteProperty(document, "visibilityState");
   });
-  await expect.poll(() => page.evaluate(() => {
+  const storedPosition = () => page.evaluate(() => {
     const key = Object.keys(localStorage).find((item) => item.includes("student-video-position:902:enrollment:self"));
     if (!key) return null;
     return JSON.parse(localStorage.getItem(key) || "null")?.pos ?? null;
-  })).toBe(125);
+  });
+  await expect.poll(storedPosition).toBe(125);
 
+  checkpointSaved.resolve();
   await page.clock.runFor(26_000);
   await expect.poll(() => evidence.renewalRequests).toBe(1);
+  await expect.poll(() => evidence.manifestRequests).toBe(2);
+  await expect.poll(storedPosition).toBe(125);
   expect(evidence.mutationPaths.filter(
     (path) => path === "/student/video/videos/902/playback/",
   )).toHaveLength(1);
@@ -263,6 +294,43 @@ test("개별 영상 학생 재생은 canonical bootstrap·exact-only·로컬 이
   await expect.poll(
     () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
   ).toBeLessThanOrEqual(1);
+});
+
+test("개별 영상에서 처음으로 돌아가면 이전 기기 위치를 복원하지 않는다", async ({ page }) => {
+  const { evidence } = await installApp(page, "direct", "student", true);
+  const url = `${BASE}/student/video/play?video=902&session=802`;
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45_000 });
+  const video = page.locator("video");
+  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.readyState)).toBeGreaterThan(0);
+  const currentTime = () => video.evaluate((element: HTMLVideoElement) => element.currentTime);
+  const savePosition = async (position: number) => {
+    await video.evaluate(async (element: HTMLVideoElement, position) => {
+      const seeked = new Promise<void>((resolve) => element.addEventListener("seeked", () => resolve(), { once: true }));
+      element.currentTime = position;
+      await seeked;
+    }, position);
+    await expect.poll(currentTime).toBe(position);
+    await video.evaluate(() => {
+      const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
+      document.dispatchEvent(new Event("visibilitychange"));
+      if (hidden) Object.defineProperty(document, "hidden", hidden);
+      else Reflect.deleteProperty(document, "hidden");
+    });
+  };
+  const storedPosition = () => page.evaluate(() => {
+    const key = Object.keys(localStorage).find((item) => item.includes("student-video-position:902:enrollment:self"));
+    return key ? JSON.parse(localStorage.getItem(key) || "null")?.pos : null;
+  });
+  await savePosition(125);
+  await expect.poll(storedPosition).toBe(125);
+  await savePosition(0);
+  await expect.poll(storedPosition).toBe(0);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.readyState)).toBeGreaterThan(0);
+  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime)).toBe(0);
+  await expect.poll(storedPosition).toBe(0);
+  expect(evidence.requestedPaths.filter((path) => path.includes("/progress"))).toEqual([]);
 });
 
 test("기존 수강 재생은 canonical bootstrap 뒤 화면 활동을 한 번만 기록하고 만료 전에 갱신한다", async ({ page }) => {

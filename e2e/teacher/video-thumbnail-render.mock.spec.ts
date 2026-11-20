@@ -55,7 +55,8 @@ test.describe("teacher session video thumbnails", () => {
       {
         id: 448,
         title: "3회차 두각 언남고 생식세포 형성과 유전적 다양성 - 1",
-        status: "READY",
+        status: "FAILED",
+        source_type: "s3",
         thumbnail_url: "/e2e/video-448-thumbnail.svg",
       },
       {
@@ -131,6 +132,7 @@ test.describe("teacher session video thumbnails", () => {
           : { count: 0, results: [] });
       }
       if (path === `/lectures/sessions/${session.id}/`) return json(session);
+      if (path === "/media/videos/448/") return json(videos[0]);
       if (path === "/lectures/sessions/") {
         return json(url.searchParams.get("lecture") === String(lecture.id)
           ? { count: 1, results: [session] }
@@ -180,9 +182,13 @@ test.describe("teacher session video thumbnails", () => {
 
     await page.screenshot({ path: testInfo.outputPath("desktop-session.png"), fullPage: true });
 
-    const videoMenu = page
-      .getByRole("navigation", { name: "선생님 메뉴" })
-      .getByRole("button", { name: "영상", exact: true });
+    const classMenu = page.getByRole("navigation", { name: "선생님 메뉴" })
+      .getByRole("button", { name: /^수업 운영/ });
+    await expect(classMenu).toHaveCount(1);
+    await classMenu.click();
+    await expect(page).toHaveURL(/\/workspace\/mobile\/menu\?group=classes$/);
+    await expect(page.getByRole("heading", { name: "수업 운영", exact: true })).toBeInViewport({ ratio: 1 });
+    const videoMenu = page.locator("main").getByRole("button", { name: "영상", exact: true });
     await expect(videoMenu).toHaveCount(1);
     await videoMenu.click();
     await expect(page.getByRole("heading", { name: "영상", exact: true })).toBeVisible();
@@ -213,5 +219,11 @@ test.describe("teacher session video thumbnails", () => {
     await expect(page.getByTestId("video-thumbnail").locator("img")).toHaveCount(2);
 
     await page.screenshot({ path: testInfo.outputPath("mobile-video-list.png"), fullPage: true });
+
+    await page.goto(`${BASE}/workspace/mobile/classes/${lecture.id}/sessions/${session.id}`, { waitUntil: "domcontentloaded" });
+    await page.locator("main").getByRole("button", { name: "영상", exact: true }).click();
+    await page.getByRole("button", { name: new RegExp(videos[0].title) }).click();
+    await expect(page).toHaveURL(/\/workspace\/mobile\/videos\/448$/);
+    await expect(page.getByRole("button", { name: "원본 다운로드", exact: true })).toBeVisible();
   });
 });

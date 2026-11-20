@@ -3,9 +3,8 @@
  * 선생님 전용 모바일 앱 라우터 — 하단 4탭(오늘|강의|학생|커뮤니티) + 헤더 햄버거 드로어
  */
 import { Suspense, type ReactNode } from "react";
+import ProductUpdatePage from "@/shared/product/ProductUpdateNotes";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
-import ExternalRedirect from "@/core/router/ExternalRedirect";
-import { PUBLIC_UPDATES_URL } from "@/shared/constants/origins";
 import { Navigate, Route, Routes } from "react-router";
 import TeacherLayout from "@teacher/layout/TeacherLayout";
 import RoleGuard from "@teacher/shared/ui/RoleGuard";
@@ -18,6 +17,7 @@ import styles from "./TeacherRouter.module.css";
 const TodayPage = lazy(() => import("@teacher/domains/today/pages/TodayPage"));
 const OpsAssistantPage = lazy(() => import("@teacher/domains/assistant/pages/OpsAssistantPage"));
 const TeacherGuidePage = lazy(() => import("@teacher/domains/guide/pages/TeacherGuidePage"));
+const TeacherMenuPage = lazy(() => import("@teacher/layout/TeacherMenuPage"));
 const LectureListPage = lazy(() => import("@teacher/domains/lectures/pages/LectureListPage"));
 const LectureDetailPage = lazy(() => import("@teacher/domains/lectures/pages/LectureDetailPage"));
 const SessionDetailPage = lazy(() => import("@teacher/domains/lectures/pages/SessionDetailPage"));
@@ -45,6 +45,7 @@ const ExamBundlesPage = lazy(() => import("@teacher/domains/exams/pages/ExamBund
 const OmrPage = lazy(() => import("@teacher/domains/exams/pages/OmrPage"));
 const HomeworkDetailPage = lazy(() => import("@teacher/domains/exams/pages/HomeworkDetailPage"));
 const VideoListPage = lazy(() => import("@teacher/domains/videos/pages/VideoListPage"));
+const VideoWatchLogsPage = lazy(() => import("@/shared/media/video/VideoWatchLogsPage"));
 const VideoDetailPage = lazy(() => import("@teacher/domains/videos/pages/VideoDetailPage"));
 const ClinicPage = lazy(() => import("@teacher/domains/clinic/pages/ClinicPage"));
 const ClinicReportsPage = lazy(() => import("@teacher/domains/clinic/pages/ClinicReportsPage"));
@@ -105,6 +106,7 @@ export default function TeacherRouter() {
           <Route index element={<TodayPage />} />
           <Route path="assistant" element={<OpsAssistantPage />} />
           <Route path="guide" element={<TeacherGuidePage />} />
+          <Route path="menu" element={<TeacherMenuPage />} />
 
           {/* 수업 */}
           <Route path="classes" element={<LectureListPage />} />
@@ -140,6 +142,7 @@ export default function TeacherRouter() {
           {/* 영상 (Phase 3) */}
           <Route path="videos" element={<VideoListPage />} />
           <Route path="videos/:videoId" element={<VideoDetailPage />} />
+          <Route path="videos/:videoId/logs/:studentId?" element={<VideoWatchLogsPage />} />
 
           {/* 클리닉 (Phase 3, section_mode) */}
           <Route path="clinic" element={<ClinicPage />} />
@@ -182,7 +185,7 @@ export default function TeacherRouter() {
           <Route path="tools/stopwatch" element={<StopwatchPage />} />
 
           {/* To개발자 (Phase 4) */}
-          <Route path="developer" element={<ExternalRedirect to={PUBLIC_UPDATES_URL} />} />
+          <Route path="developer" element={<ProductUpdatePage />} />
           <Route path="developer/bug" element={<BugReportPage />} />
           <Route path="developer/feedback" element={<FeedbackPage />} />
         </Route>

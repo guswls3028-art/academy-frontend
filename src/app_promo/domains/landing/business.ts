@@ -10,9 +10,9 @@ export const CONSULT_PHONE_DISPLAY = CONSULT_PHONE_PARTS.join("-");
 export const CONSULT_CALLBACK_NOTICE =
   "통화 연결이 어려울 경우 문자를 남겨주시면 확인 후 연락드리겠습니다.";
 export const START_GUIDANCE_NOTICE =
-  "학원플러스 이용료 결제 후 사용을 시작하실 때, 개발자가 직접 프로그램을 소개하고 직원·강사분들께 홈페이지 사용법을 안내해 드립니다.";
+  "이용을 시작하시면 개발자가 직접 프로그램을 소개하고 직원·강사분들께 사용법을 안내해 드립니다.";
 export const PLANNED_PAYMENT_NOTICE =
-  "원비·교재비 온라인 결제 기능은 도입 예정입니다. 현재는 온라인 결제를 지원하지 않으며, 도입 일정은 확정 후 안내드립니다.";
+  "원비·교재비 온라인 결제 기능은 도입 예정입니다. 현재는 온라인 결제를 지원하지 않으며, 일정은 확정되는 대로 안내드립니다.";
 export const MONTHLY_VAT_RATE_PERCENT = 10;
 export const AUGUST_MONTHLY_SUPPLY_AMOUNT = 145000;
 export const AUGUST_MONTHLY_TAX_AMOUNT = 14000;
@@ -24,9 +24,9 @@ export const AUGUST_PROMOTION_LABEL = "2026년 8월 가입 혜택 · 신규 적�
 export const AUGUST_MONTHLY_SAVINGS =
   POST_AUGUST_MONTHLY_SUPPLY_AMOUNT - AUGUST_MONTHLY_SUPPLY_AMOUNT;
 export const AUGUST_PRICE_GUARANTEE =
-  "2026년 8월 1일부터 31일까지 가입한 학원은 월 14만 5천원(고정 부가세 1만 4천원 별도, 결제금액 15만 9천원)으로 이용하며, 해당 공급가는 이용 기간 동안 계속 적용됩니다.";
+  "2026년 8월 1일부터 31일까지 가입한 학원은 월 145,000원(고정 부가세 14,000원 별도, 결제금액 159,000원)으로 이용하며, 해당 공급가는 이용 기간 동안 계속 적용됩니다.";
 export const POST_AUGUST_PRICE_POLICY =
-  "2026년 9월 1일부터 가입하는 학원은 월 18만원(부가세 10% 별도, 결제금액 19만 8천원)입니다.";
+  "2026년 9월 1일부터 가입하는 학원은 월 180,000원(부가세 10% 별도, 결제금액 198,000원)입니다.";
 
 export function getConsultPhoneTelHref() {
   return `tel:${CONSULT_PHONE_PARTS.join("")}`;
@@ -76,7 +76,7 @@ export const PROMO_PLANS: PromoPlanDef[] = [
     monthlySavings: AUGUST_MONTHLY_SAVINGS,
     target: "2026년 9월 1일 이후 가입 학원",
     positioning: "현재 신규 가입 요금",
-    verdict: "신규 가입은 월 18만원(부가세 10% 별도)이며, 8월 가입 학원의 기존 요금은 유지됩니다.",
+    verdict: "신규 가입은 월 180,000원(부가세 10% 별도)이며, 8월 가입 학원의 기존 요금은 유지됩니다.",
     studentLimit: "학생 수에 따른 추가 요금 없음",
     adminLimit: "계정 수에 따른 추가 요금 없음",
     storage: "200GB 포함",
@@ -102,11 +102,5 @@ export function formatWon(value: number) {
 }
 
 export function formatKoreanPrice(value: number) {
-  const tenThousands = Math.floor(value / 10000);
-  const remainder = value % 10000;
-
-  if (remainder === 0) return `${tenThousands}만원`;
-  if (remainder % 1000 === 0) return `${tenThousands}만 ${remainder / 1000}천원`;
-  if (tenThousands > 0) return `${tenThousands}만 ${formatWon(remainder)}원`;
   return `${formatWon(value)}원`;
 }

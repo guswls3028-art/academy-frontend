@@ -317,11 +317,11 @@ test.describe.serial("[real-use] 학생 온라인 시험 roundtrip", () => {
     expect(primaryResult.rank).toBe(1);
     expect(primaryResult.cohort_size).toBe(2);
     expect(primaryResult.answers_visible).toBe(false);
-    await expect(page.getByTestId("wrong-number-chip")).toHaveText(["2", "5"]);
+    await expect(page.getByTestId("wrong-number-chip")).toHaveText(["2번", "5번"]);
     await expect(page.getByText("정답 내용은 비공개입니다. 틀린 번호와 내 답만 확인할 수 있습니다.")).toBeVisible();
     await page.reload({ waitUntil: "domcontentloaded" });
     await waitForRenderSettled(page, { timeout: 20_000 });
-    await expect(page.getByTestId("wrong-number-chip")).toHaveText(["2", "5"]);
+    await expect(page.getByTestId("wrong-number-chip")).toHaveText(["2번", "5번"]);
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
 
     await page.setViewportSize({ width: 1366, height: 900 });
@@ -329,7 +329,8 @@ test.describe.serial("[real-use] 학생 온라인 시험 roundtrip", () => {
     const gradeCard = page.getByRole("link").filter({ hasText: EXAM_TITLE }).first();
     await expect(gradeCard).toBeVisible();
     await expect(gradeCard.getByTestId("grade-wrong-summary")).toContainText("오답 2문항");
-    await expect(gradeCard.getByText("1/2등")).toBeVisible();
+    await expect(gradeCard.getByText("1등", { exact: true })).toBeVisible();
+    await expect(gradeCard.getByText("2명 응시", { exact: true })).toBeVisible();
     await page.reload({ waitUntil: "domcontentloaded" });
     await waitForRenderSettled(page, { timeout: 20_000 });
     await expect(gradeCard).toBeVisible();

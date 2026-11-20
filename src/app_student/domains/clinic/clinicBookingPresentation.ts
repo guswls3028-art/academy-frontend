@@ -1,5 +1,4 @@
 import { clinicBookingRangeText } from "@/shared/ui/clinic/clinicTimeRange";
-import { hhmmText as formatTime } from "@/shared/ui/time/timeFormat";
 
 import type { ClinicBookingRequest, ClinicSession } from "./api/clinicBooking.api";
 import type { ClinicCurrentTarget } from "./api/clinicSummary.api";
@@ -30,6 +29,7 @@ export function targetResolutionLink(
   const sourceId = Number(target.source_id);
   if (!Number.isInteger(sourceId) || sourceId <= 0) return null;
   if (target.source_type === "homework") {
+    if (target.can_submit_homework_files === false) return null;
     return {
       to: `/student/submit/assignment?sessionId=${target.session_id}&homeworkId=${sourceId}`,
       label: "과제 온라인 제출",
@@ -72,11 +72,13 @@ export function hasValidPreferredRange(
 ): boolean {
   const sessionStart = session.start_time.slice(0, 5);
   const sessionEnd = session.end_time?.slice(0, 5);
-  return !!sessionEnd && (
-    sessionStart <= preferredStart &&
-    preferredStart < preferredEnd &&
-    preferredEnd <= sessionEnd
-  );
+  if (!sessionEnd || sessionStart === sessionEnd) return false;
+
+  // Keep an overnight preference on the same operating-day timeline as the API.
+  const onOperatingDay = (time: string) => `${sessionEnd < sessionStart && time < sessionStart ? 1 : 0} ${time}`;
+  const start = onOperatingDay(preferredStart);
+  const end = onOperatingDay(preferredEnd);
+  return onOperatingDay(sessionStart) <= start && start < end && end <= onOperatingDay(sessionEnd);
 }
 
 export function preferredRangeText(request: ClinicBookingRequest): string | null {
@@ -84,5 +86,9 @@ export function preferredRangeText(request: ClinicBookingRequest): string | null
     return `이용 ${clinicBookingRangeText(request)}`;
   }
   if (!request.preferred_start_time || !request.preferred_end_time) return null;
-  return `희망 ${formatTime(request.preferred_start_time)}–${formatTime(request.preferred_end_time)}`;
+  return `희망 ${clinicBookingRangeText({
+    session_start_time: request.session_start_time,
+    booking_start_time: request.preferred_start_time,
+    booking_end_time: request.preferred_end_time,
+  })}`;
 }

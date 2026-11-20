@@ -85,26 +85,26 @@ function renderPlayerFixture() {
                     </div>
                     <div class="svpVideoStage">
                       <video class="svpVideo"></video>
-                      <div class="svpControls">
-                        <div class="svpProgressRow">
-                          <input class="svpRange" type="range" min="0" max="100" value="33" aria-label="진행 바" />
-                          <div class="svpTime"><span>0:33</span><span>/</span><span>2:00</span></div>
+                    </div>
+                    <div class="svpControls">
+                      <div class="svpProgressRow">
+                        <input class="svpRange" type="range" min="0" max="100" value="33" aria-label="진행 바" />
+                        <div class="svpTime"><span>0:33</span><span>/</span><span>2:00</span></div>
+                      </div>
+                      <div class="svpControlRow">
+                        <div class="svpLeftControls">
+                          ${iconButton("play", "재생")}
+                          ${iconButton("replay10", "-10초")}
+                          ${iconButton("forward10", "+10초")}
+                          <div class="svpVolume">
+                            ${iconButton("volume", "음소거")}
+                            <div class="svpVolumeSlider"><input class="svpRange" type="range" min="0" max="1" value="1" /></div>
+                          </div>
                         </div>
-                        <div class="svpControlRow">
-                          <div class="svpLeftControls">
-                            ${iconButton("play", "재생")}
-                            ${iconButton("replay10", "-10초")}
-                            ${iconButton("forward10", "+10초")}
-                            <div class="svpVolume">
-                              ${iconButton("volume", "음소거")}
-                              <div class="svpVolumeSlider"><input class="svpRange" type="range" min="0" max="1" value="1" /></div>
-                            </div>
-                          </div>
-                          <div class="svpRightControls">
-                            <button type="button" class="svpSpeedBtn svpQualityBtn svpSpeedBtn--disabled" disabled>Auto</button>
-                            <button type="button" class="svpSpeedBtn svpPlaybackRateBtn">1x</button>
-                            ${iconButton("fullscreen", "전체화면", "svpFullscreenButton")}
-                          </div>
+                        <div class="svpRightControls">
+                          <button type="button" class="svpSpeedBtn svpQualityBtn svpSpeedBtn--disabled" disabled>Auto</button>
+                          <button type="button" class="svpSpeedBtn svpPlaybackRateBtn">1x</button>
+                          ${iconButton("fullscreen", "전체화면", "svpFullscreenButton")}
                         </div>
                       </div>
                     </div>

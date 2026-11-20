@@ -101,6 +101,7 @@ async function installStudentApi(page: Page, role: "student" | "parent" = "stude
   await page.addInitScript(() => localStorage.setItem("tenant_code", "godmin"));
   const access = `e30.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url")}.test`;
   const loginBodies: unknown[] = [];
+  const reportBodies: unknown[] = [];
   const studentScopes: string[] = [];
   const analyticsBodies: Array<{ events?: Array<{ event_id: string; event_type: string; view_id?: string }> }> = [];
   const notice = { id: 801, post_type: "notice", title: NOTICE_TITLE,
@@ -141,6 +142,10 @@ async function installStudentApi(page: Page, role: "student" | "parent" = "stude
       analyticsBodies.push(request.postDataJSON());
       return json({ accepted: true });
     }
+    if (path === "/core/problem-reports/" && request.method() === "POST") {
+      reportBodies.push(request.postDataJSON());
+      return json({ incident_id: 1 }, 201);
+    }
     if (path === "/student/dashboard/") return json({ notices: [notice], today_sessions: [], badges: {} });
     if (path === "/student/sessions/me/" || path === "/clinic/participants/" || path === "/community/posts/") return json([]);
     if (path === "/student/exams/") return json({ items: [] });
@@ -155,16 +160,27 @@ async function installStudentApi(page: Page, role: "student" | "parent" = "stude
       policy: { access_mode: "FREE_REVIEW", monitoring_enabled: false, allow_seek: true,
         playback_rate: { max: 1, ui_control: true }, source: { type: "s3", provider: "uploaded" } } });
     if (path === "/student/video/sessions/802/videos/") return json({ items: [video] });
+    if (path === "/student/video/me/") return json({ lectures: [], archived_lectures: [], public: null });
     if (path === "/staffs/currently-working/") return json([]);
     if (path === "/media/videos/public-session/") return json(null);
     return json({});
   });
-  return { loginBodies, analyticsBodies, access, studentScopes };
+  return { loginBodies, reportBodies, analyticsBodies, access, studentScopes };
+}
+
+async function waitForLegacyStyles(page: Page) {
+  await expect.poll(() => page.locator('link[rel="stylesheet"][href*="/assets/"]').evaluateAll((links) => (
+    links.length > 0 && links.every((link) => {
+      const stylesheet = link as HTMLLinkElement;
+      return stylesheet.href.endsWith("-legacy.css") && stylesheet.sheet !== null;
+    })
+  ))).toBe(true);
 }
 
 async function login(page: Page, role: "student" | "parent" = "student") {
   await page.goto(`${BASE}/login/godmin`, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible({ timeout: 45_000 });
+  await waitForLegacyStyles(page);
   const submitStyle = await page.getByTestId("login-submit").evaluate((element) => {
     const style = getComputedStyle(element);
     const rect = element.getBoundingClientRect();
@@ -200,6 +216,32 @@ async function expectNoOverflow(page: Page) {
 
 test.use({ serviceWorkers: "block" });
 
+test.describe("legacy entry recovery", () => {
+  // The unavailable entry asset is intentional in this scenario.
+  test.use({ strictBrowserAutoAssert: false });
+
+  test("390px legacy fallback remains usable before the application starts", async ({ page }) => {
+    const appOrigin = new URL(BASE).origin;
+    await page.route("**/*", (route) => new URL(route.request().url()).origin === appOrigin
+      ? route.continue()
+      : route.abort());
+    await installLegacyRuntime(page, { ...profiles[0], width: 390 });
+    await installStudentApi(page);
+    await page.addInitScript(() => sessionStorage.setItem("hplus:entry_asset_reload_ts", String(Date.now())));
+    const legacyEntry = /\/assets\/index-legacy-[^/]+\.js(?:\?.*)?$/;
+    await page.route(legacyEntry, (route) => route.abort());
+
+    await page.goto(`${BASE}/login/godmin`, { waitUntil: "domcontentloaded" });
+    const fallback = page.getByRole("heading", { name: "화면을 불러오지 못했어요" });
+    await expect(fallback).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.unroute(legacyEntry);
+    await page.getByRole("button", { name: "다시 불러오기" }).click();
+    await expect(page.getByRole("button", { name: "로그인", exact: true })).toBeVisible();
+    await expect(fallback).toHaveCount(0);
+  });
+});
+
 for (const profile of profiles) {
   test(`${profile.name}: production legacy chunks support login, notice navigation and persisted reload`, async ({ page }) => {
     const { scriptRequests: scripts, stylesheetResponses } = await installLegacyRuntime(page, profile);
@@ -209,7 +251,15 @@ for (const profile of profiles) {
     expect(api.loginBodies).toEqual([{ username: "student.legacy", password: "Case-Sensitive-Pw", tenant_code: "godmin" }]);
     await expectNoOverflow(page);
 
-    await page.getByRole("link", { name: "공지", exact: true }).click();
+    const fullMenu = page.getByRole("link", { name: /전체 메뉴/ });
+    await expect(fullMenu).toHaveAttribute("href", "/student/menu");
+    await fullMenu.click();
+    await expect(page).toHaveURL(/\/student\/menu$/);
+    await expect(page.getByRole("heading", { name: "전체 메뉴", exact: true })).toBeInViewport({ ratio: 1 });
+    const noticeMenu = page.getByRole("link", { name: /^공지사항/ });
+    await expect(noticeMenu).toHaveCount(1);
+    await expect(noticeMenu).toHaveAttribute("href", "/student/notices");
+    await noticeMenu.click();
     await expect(page).toHaveURL(/\/student\/notices$/);
     await expect(page.getByRole("heading", { name: "공지사항", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: new RegExp(NOTICE_TITLE) })).toBeVisible();
@@ -230,13 +280,14 @@ for (const profile of profiles) {
     })).toBe(api.access);
 
     // Static stylesheet conversion does not cover Ant Design's runtime styles.
-    // Open and edit the existing dialog, then cancel without submitting a report.
+    // Open the existing dialog and verify its shared report form on the legacy bundle.
     await page.getByRole("button", { name: "프로필 메뉴" }).click();
     await page.getByRole("button", { name: "문제 신고", exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: "문제 신고" });
+    const dialog = page.getByRole("dialog", { name: "버그 제보" });
     await expect(dialog).toBeVisible();
-    await dialog.getByRole("textbox").fill("구형 브라우저 입력 점검");
-    await expect(dialog.getByRole("textbox")).toHaveValue("구형 브라우저 입력 점검");
+    const description = dialog.getByRole("textbox", { name: "어떤 문제가 있었나요?" });
+    await description.fill("구형 브라우저 입력 점검");
+    await expect(description).toHaveValue("구형 브라우저 입력 점검");
     const modalStyles = await page.locator("style[data-css-hash]").allTextContents();
     const modalCss = modalStyles.filter((css) => css.includes(".ant-modal")).join("\n");
     expect(modalCss).not.toBe("");
@@ -248,6 +299,16 @@ for (const profile of profiles) {
     expect(mask?.width).toBe(profile.width);
     expect(mask?.height).toBe(profile.height);
     await page.keyboard.press("Escape");
+    await expect(dialog).not.toBeVisible();
+    expect(api.reportBodies).toEqual([]);
+    await page.getByRole("button", { name: "프로필 메뉴" }).click();
+    await page.getByRole("button", { name: "문제 신고", exact: true }).click();
+    await expect(description).toHaveValue("");
+    await description.fill("구형 브라우저 입력 점검");
+    await dialog.getByRole("button", { name: "제보 보내기" }).click();
+    await expect(dialog.getByRole("heading", { name: "버그 제보가 접수됐어요" })).toBeVisible();
+    expect(api.reportBodies).toEqual([expect.objectContaining({ source: "manual", message: "구형 브라우저 입력 점검" })]);
+    await dialog.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(dialog).not.toBeVisible();
 
     await expect.poll(() => api.analyticsBodies.length).toBeGreaterThan(0);
@@ -265,9 +326,7 @@ for (const profile of profiles) {
     expect(stylesheets.every((url) => url.endsWith("-legacy.css"))).toBe(true);
     expect(stylesheetResponses.length).toBeGreaterThan(0);
     expect(stylesheetResponses.every((response) => response.status === 200)).toBe(true);
-    await expect.poll(() => page.locator('link[rel="stylesheet"][href*="/assets/"]').evaluateAll((links) => (
-      links.every((link) => (link as HTMLLinkElement).sheet !== null)
-    ))).toBe(true);
+    await waitForLegacyStyles(page);
     await expectNoOverflow(page);
     await expect(page.locator("html")).toHaveAttribute("data-student-app", "true");
     await expect(page.locator("html")).toHaveCSS("overflow", "hidden");
@@ -325,7 +384,7 @@ test("390px legacy parent selects and switches children, then reloads the same s
   await page.screenshot({ path: test.info().outputPath("legacy-parent-home390.png"), fullPage: true, animations: "disabled" });
 });
 
-test("legacy iOS native HLS contract starts and pauses without a play Promise or MediaSource", async ({ page }) => {
+test("legacy student lists load analysis and HLS code only where needed", async ({ page }) => {
   const { scriptRequests: scripts } = await installLegacyRuntime(page, profiles[0]);
   await installStudentApi(page);
   await page.addInitScript(() => {
@@ -337,18 +396,37 @@ test("legacy iOS native HLS contract starts and pauses without a play Promise or
     };
     // Older WebKit returns void. Media events stand in for physical decoding;
     // the real controller, access bootstrap and rendered controls still run.
+    const playing = new WeakSet<HTMLMediaElement>();
+    Object.defineProperty(HTMLMediaElement.prototype, "paused", {
+      configurable: true,
+      get(this: HTMLMediaElement) { return !playing.has(this); },
+    });
     HTMLMediaElement.prototype.play = function () {
+      playing.add(this);
       this.dispatchEvent(new Event("play"));
       this.dispatchEvent(new Event("playing"));
       return undefined as unknown as Promise<void>;
     };
-    HTMLMediaElement.prototype.pause = function () { this.dispatchEvent(new Event("pause")); };
+    HTMLMediaElement.prototype.pause = function () {
+      playing.delete(this);
+      this.dispatchEvent(new Event("pause"));
+    };
   });
   await page.route("https://cdn.example.test/legacy/**", async (route) => {
     await new Promise<void>((resolve) => page.once("close", resolve));
     try { await route.abort(); } catch { /* Request closes with the page. */ }
   });
   await login(page);
+  const learningSummary = page.getByRole("region", { name: "학습 현황", exact: true });
+  await learningSummary.locator('a[href="/student/grades"]').click();
+  await expect(page.getByText("시험 결과가 아직 없습니다.", { exact: true })).toBeVisible();
+  expect(scripts.filter((url) => /vendor-charts.*\.js/.test(url))).toEqual([]);
+  await page.getByRole("tab", { name: "추이 분석", exact: true }).click();
+  await expect(page.getByRole("region", { name: "회차별 성적 추이", exact: true })).toContainText("아직 연결할 점수가 없습니다.");
+  expect(scripts.some((url) => /vendor-charts.*\.js/.test(url))).toBe(true);
+  await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "영상", exact: true }).click();
+  await expect(page.getByRole("tab", { name: "강의", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "강의", exact: true })).toHaveAttribute("aria-selected", "true");
   await page.goto(`${BASE}/student/video/play?video=902&session=802`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: VIDEO_TITLE })).toBeVisible({ timeout: 45_000 });
   const video = page.locator("video");
@@ -370,10 +448,13 @@ test("legacy iOS native HLS contract starts and pauses without a play Promise or
   await expect(player).toHaveClass(/svpPlayerWrap--controlsHidden/);
   await tapLeft();
   await expect(player).not.toHaveClass(/svpPlayerWrap--controlsHidden/);
-  await page.getByRole("button", { name: "일시정지", exact: true }).click();
-  await expect(page.getByRole("button", { name: "재생", exact: true }).last()).toBeVisible();
   await video.evaluate((element) => {
     Object.defineProperty(element, "currentTime", { configurable: true, get: () => 125 });
+    element.dispatchEvent(new Event("timeupdate"));
+  });
+  await page.getByRole("button", { name: "일시정지", exact: true }).click();
+  await expect(page.getByRole("button", { name: "재생", exact: true }).last()).toBeVisible();
+  await video.evaluate(() => {
     const hidden = Object.getOwnPropertyDescriptor(document, "hidden");
     Object.defineProperty(document, "hidden", { configurable: true, get: () => true });
     document.dispatchEvent(new Event("visibilitychange"));
@@ -391,6 +472,6 @@ test("legacy iOS native HLS contract starts and pauses without a play Promise or
     element.dispatchEvent(new Event("loadedmetadata"));
   });
   await expect.poll(() => video.evaluate((element) => (element as HTMLVideoElement).currentTime)).toBe(125);
-  expect(scripts.filter((url) => /hls.*\.js/i.test(url))).toEqual([]);
+  expect(scripts.filter((url) => /\/vendor-hls(?:-legacy)?-[\w-]+\.js$/.test(new URL(url).pathname))).toEqual([]);
   await expectNoOverflow(page);
 });

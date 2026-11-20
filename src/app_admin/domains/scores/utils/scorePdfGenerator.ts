@@ -377,13 +377,8 @@ function reportColumns(params: ScorePdfParams, source: "exam" | "homework"): Rep
   const entries: ReportColumn[] = source === "exam"
     ? (params.meta.exams ?? []).map(exam => ({ kind: "exam", exam }))
     : (params.meta.homeworks ?? []).map(homework => ({ kind: "homework", homework }));
-  const ids = source === "exam" ? params.meta.total_config?.exam_ids : params.meta.total_config?.homework_ids;
-  const included = (column: ReportColumn) => column.kind === "exam"
-    ? !ids || ids.includes(column.exam.exam_id)
-    : column.kind === "homework" && column.homework.grading_mode !== "COMPLETION"
-      && (!ids || ids.includes(column.homework.homework_id));
   const hasTotal = params.rows.some(row => (source === "exam" ? row.exam_total : row.homework_total) != null);
-  return [...entries.filter(included), ...(hasTotal ? [{ kind: "total" as const, source }] : []), ...entries.filter(column => !included(column))];
+  return [...entries, ...(hasTotal ? [{ kind: "total" as const, source }] : [])];
 }
 
 function examReady(block: ScoreBlock | undefined): boolean {
@@ -404,6 +399,7 @@ function totalText(total: AssessmentTotal | undefined): string {
 }
 
 function missingHomework(block: ScoreBlock | undefined): string {
+  if (block?.meta?.status === "VIDEO_MAKEUP") return "검사 대기";
   return !block ? "미배정" : block.meta?.status === "NOT_SUBMITTED" ? "미제출" : "미입력";
 }
 
@@ -451,6 +447,7 @@ function buildBodyRows(rows: SessionScoreRow[], params: ScorePdfParams, indexOff
     }
     const verdict = reportVerdict(row);
     const verdictMeta = verdict === "clinic_target" ? ["클리닉", "verdict-clinic"]
+      : verdict === "inspection_pending" ? ["검사 대기", "verdict-missing"]
       : verdict === "pending" ? ["채점 확인 중", "verdict-review"]
         : verdict === "review" ? ["검수 대기", "verdict-review"]
           : verdict === "incomplete" ? ["미입력", "verdict-missing"]

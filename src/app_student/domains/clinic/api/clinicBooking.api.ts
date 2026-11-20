@@ -450,7 +450,7 @@ export type ClinicAvailability = ClinicBookingAvailability & {
   booking_mode: "fixed_slot" | "time_range";
 };
 
-export async function fetchClinicAvailability(sessionId: number): Promise<ClinicAvailability> {
-  const res = await api.get<ClinicAvailability>(`/clinic/sessions/${sessionId}/availability/`);
+export async function fetchClinicAvailability(sessionId: number, signal?: AbortSignal): Promise<ClinicAvailability> {
+  const res = await api.get<ClinicAvailability>(`/clinic/sessions/${sessionId}/availability/`, { signal });
   return res.data;
 }

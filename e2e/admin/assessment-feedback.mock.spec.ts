@@ -135,7 +135,7 @@ for (const width of [1920, 1366, 1100, 390]) {
       await expect(table.locator('tbody td[data-col-type="name"]')).toBeInViewport();
     }
     await page.getByRole("button", { name: "어휘 작업 선택", exact: true }).click();
-    await expect(page.getByRole("menuitem", { name: "수정", exact: true })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: /^시험 설정/ })).toBeVisible();
     await page.keyboard.press("Escape");
     if (width === 390) {
       const controls = page.getByTestId("score-column-order-exam-9101");
@@ -646,6 +646,36 @@ for (const width of [1366, 390]) {
     const row = page.locator("tbody tr").filter({ hasText: "모바일순서학생" }).last();
     await expect(row.locator(".assessment-total-value").first()).toContainText("0 / 200");
     await expect(row.locator(".assessment-total-value").first()).toContainText("집계 중 · 1/2");
+    const table = page.locator(".ds-scores-table");
+    const examTotal = row.locator('[data-col-type="exam-summary"]');
+    const homeworkTotal = row.locator('[data-col-type="homework-summary"]');
+    const visibleColumns = await table.locator("colgroup col").count();
+    const hideExam = page.getByRole("button", { name: "시험 총점 숨기기", exact: true });
+    const hideBounds = await hideExam.boundingBox();
+    expect(hideBounds?.width).toBeGreaterThanOrEqual(width === 390 ? 44 : 24);
+    await hideExam.click();
+    await expect(examTotal).toHaveCount(0);
+    await expect(homeworkTotal).toBeVisible();
+    await page.getByRole("button", { name: "과제 총점 숨기기", exact: true }).click();
+    await expect(homeworkTotal).toHaveCount(0);
+    await expect(table.locator("colgroup col")).toHaveCount(visibleColumns - 2);
+    await page.reload();
+    await expect(row).toBeVisible();
+    await expect(examTotal).toHaveCount(0);
+    await expect(homeworkTotal).toHaveCount(0);
+    await page.getByRole("button", { name: /표시 옵션/ }).click();
+    const totalVisibility = page.getByRole("group", { name: "총점 열 표시", exact: true });
+    const showExam = totalVisibility.getByRole("button", { name: "시험 총점", exact: true });
+    const showHomework = totalVisibility.getByRole("button", { name: "과제 총점", exact: true });
+    await expect(showExam).toHaveAttribute("aria-pressed", "false");
+    await expect(showHomework).toHaveAttribute("aria-pressed", "false");
+    await showExam.click();
+    await expect(examTotal).toContainText("0 / 200");
+    await expect(homeworkTotal).toHaveCount(0);
+    await showHomework.click();
+    await expect(homeworkTotal).toContainText("65 / 200");
+    await expect(table.locator("colgroup col")).toHaveCount(visibleColumns);
+    expect(harness.writes).toHaveLength(0);
     await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
     const modal = page.getByRole("dialog", { name: "합산 설정", exact: true });
     // Wait for the opening scale animation before drag or visual capture.
@@ -671,54 +701,66 @@ for (const width of [1366, 390]) {
     await expect(examGroup.getByRole("checkbox", { checked: true })).toHaveCount(2);
     await secondExam.uncheck();
     await expect(modal.getByRole("group", { name: "시험 총점 · 1개 합산" })).toBeVisible();
-    await modal.getByRole("checkbox", { name: "둘째 과제 합산에 포함", exact: true }).uncheck();
+    const secondHomework = modal.getByRole("checkbox", { name: "둘째 과제 합산에 포함", exact: true });
+    await secondHomework.uncheck();
+    const homeworkRows = modal.getByRole("group", { name: /과제 총점/ }).locator(".assessment-totals-option");
+    if (width === 1366) {
+      const moved = homeworkRows.filter({ has: page.getByRole("checkbox", { name: "둘째 과제 합산에 포함", exact: true }) });
+      await moved.locator(".assessment-totals-drag-handle").dragTo(homeworkRows.first());
+    } else {
+      await modal.getByRole("button", { name: "둘째 과제 위로 이동", exact: true }).click();
+    }
+    await expect(homeworkRows.locator("strong")).toHaveText(["둘째 과제", "첫 과제", "준비물 통과형"]);
+    await expect(secondHomework).not.toBeChecked();
     await page.screenshot({ path: testInfo.outputPath(`assessment-totals-modal-${width}.png`), animations: "disabled" });
     await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
     await expect(modal.getByRole("alert")).toContainText("합산 저장 일시 실패");
+    await expect(homeworkRows.locator("strong")).toHaveText(["둘째 과제", "첫 과제", "준비물 통과형"]);
     await expect(modal.getByRole("group", { name: "시험 총점 · 1개 합산" })).toBeVisible();
     await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
     await expect(modal).toBeHidden();
     expect(harness.writes).toHaveLength(2);
-    expect(harness.writes[1]).toMatchObject({ exam_ids: [9101], homework_ids: [9151] });
+    expect(harness.writes[1]).toMatchObject({ exam_ids: [9101], homework_ids: [9151], homework_order: [9152, 9151, 9153] });
     await page.reload();
     await expect(row.locator(".assessment-total-value").first()).toHaveText("0 / 100");
     await expect(row.locator(".assessment-total-value").last()).toHaveText("25 / 100");
-    // Moving an excluded column before an included column crosses the total boundary.
+    // Reordering an excluded column does not change the explicitly selected total.
     if (width === 1366) {
-      await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "둘째 시험 작업 선택", exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "첫 시험 작업 선택", exact: true }) }));
+      await expect(page.getByRole("region", { name: "수업일 선택" }).getByRole("button", { name: "수업일 관리", exact: true })).toBeEnabled();
+      // The title/edit buttons intentionally cancel drag; use the visible kind badge.
+      await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "둘째 시험 작업 선택", exact: true }) }).locator(".scores-table-kind-badge").dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "첫 시험 작업 선택", exact: true }) }).locator(".scores-table-kind-badge"));
     } else {
       await page.getByRole("button", { name: "둘째 시험 이전 순서로 이동", exact: true }).click();
     }
     await expect.poll(() => harness.writes.length).toBe(3);
-    expect(harness.writes[2]).toMatchObject({ exam_ids: [9102, 9101], exam_order: [9102, 9101], homework_ids: [9151] });
+    expect(harness.writes[2]).toMatchObject({ exam_ids: [9101], exam_order: [9102, 9101], homework_ids: [9151] });
     await page.reload();
-    await expect(row.locator(".assessment-total-value").first()).toContainText("0 / 200");
-    await expect(row.locator(".assessment-total-value").first()).toContainText("집계 중 · 1/2");
+    await expect(row.locator(".assessment-total-value").first()).toHaveText("0 / 100");
     await row.locator('[data-col-type="exam-summary"]').scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`assessment-main-column-inclusion-${width}.png`), animations: "disabled" });
-    // Completion-only items can reorder within excluded columns but cannot enter the sum.
+    // Completion-only items can move anywhere without entering the sum.
     if (width === 1366) {
-      await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "준비물 통과형 작업 선택", exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "첫 과제 작업 선택", exact: true }) }));
+      await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "준비물 통과형 작업 선택", exact: true }) }).locator(".scores-table-kind-badge").dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "둘째 과제 작업 선택", exact: true }) }).locator(".scores-table-kind-badge"));
     } else {
       await page.getByRole("button", { name: "준비물 통과형 이전 순서로 이동", exact: true }).click();
       await expect.poll(() => harness.writes.length).toBe(4);
-      await expect.poll(() => page.locator('[data-testid^="score-column-order-homework-"]').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-column-id"))))).toEqual([9151, 9153, 9152]);
+      await expect.poll(() => page.locator('[data-testid^="score-column-order-homework-"]').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-column-id"))))).toEqual([9152, 9153, 9151]);
       await page.getByRole("button", { name: "준비물 통과형 이전 순서로 이동", exact: true }).click();
     }
     await expect.poll(() => harness.writes.length).toBe(width === 1366 ? 4 : 5);
-    expect(harness.writes.at(-1)).toMatchObject({ homework_ids: [9151], homework_order: [9151, 9153, 9152] });
+    expect(harness.writes.at(-1)).toMatchObject({ homework_ids: [9151], homework_order: [9153, 9152, 9151] });
     await page.reload();
     await expect(row.locator(".assessment-total-value").last()).toHaveText("25 / 100");
 
-    // Saving the total settings must retain completion items among excluded columns.
+    // Saving total membership must preserve all column positions.
     const writesBeforeReopen = harness.writes.length;
     await page.getByRole("button", { name: "시험 총점 합산 설정", exact: true }).click();
     await modal.getByRole("button", { name: "합산 설정 저장", exact: true }).click();
     await expect(modal).toBeHidden();
     expect(harness.writes).toHaveLength(writesBeforeReopen + 1);
-    expect(harness.writes.at(-1)).toMatchObject({ homework_ids: [9151], homework_order: [9151, 9153, 9152] });
+    expect(harness.writes.at(-1)).toMatchObject({ homework_ids: [9151], homework_order: [9153, 9152, 9151] });
     await page.reload();
-    await expect.poll(() => page.locator('[data-testid^="score-column-order-homework-"]').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-column-id"))))).toEqual([9151, 9153, 9152]);
+    await expect.poll(() => page.locator('[data-testid^="score-column-order-homework-"]').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute("data-column-id"))))).toEqual([9153, 9152, 9151]);
 
     await row.locator('[data-col-type="exam-summary"]').scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath(`assessment-totals-${width}.png`), animations: "disabled" });
@@ -869,5 +911,60 @@ for (const width of [1366, 390]) {
     await page.keyboard.press("Escape");
     await expect(modal).toBeHidden();
     await expect(page.getByRole("dialog", { name: "작성 중인 코멘트" })).toHaveCount(0);
+  });
+}
+
+for (const width of [1366, 390]) {
+  test(`@homework-inspection-recovery ${width}px 검사 저장 뒤 명단 조회 실패를 복구하고 저장된 값을 확인한다`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const { unexpectedMutations } = await openCompositionScores(page);
+    const path = "/api/v1/results/admin/sessions/9002/homework/9151/inspection/";
+    let row = { enrollment_id: 9201, student_name: "모바일순서학생", solved: 2, total: 15, feedback: "이전 코멘트", version: 3 };
+    const writes: unknown[] = [];
+    let failRead = false;
+    await page.route(`**${path}`, async route => {
+      const request = route.request();
+      if (request.method() === "POST") {
+        const body = request.postDataJSON();
+        writes.push(body);
+        const change = body.rows[0];
+        row = { ...row, solved: change.solved, total: change.total, feedback: change.feedback, version: row.version + 1 };
+        failRead = true;
+        return route.fulfill({ json: { changed: 1 } });
+      }
+      if (request.method() !== "GET") return route.fallback();
+      if (failRead) return route.fulfill({ status: 503, json: { detail: "검사 명단을 잠시 조회할 수 없습니다." } });
+      return route.fulfill({ json: { items: [row] } });
+    });
+
+    await page.getByRole("button", { name: "첫 과제 과제 검사", exact: true }).click();
+    const panel = page.getByRole("dialog", { name: "과제 검사", exact: true });
+    const solved = panel.getByLabel("풀어 온 문제 수", { exact: true });
+    const feedback = panel.getByRole("textbox", { name: "학생·학부모용 코멘트", exact: true });
+    await expect(solved).toHaveValue("2");
+    await solved.fill("12");
+    await feedback.fill("다음 시간에는 남은 세 문제를 확인해요.");
+    await panel.screenshot({ path: testInfo.outputPath(`inspection-entry-${width}.png`), animations: "disabled" });
+    const readbackFailed = page.waitForResponse(response => new URL(response.url()).pathname === path
+      && response.request().method() === "GET" && response.status() === 503);
+    await panel.getByRole("button", { name: "저장", exact: true }).click();
+    await readbackFailed;
+    await expect(panel.getByRole("status")).toContainText("검사 결과를 저장했습니다.");
+    const retry = panel.getByRole("button", { name: "최신 명단 다시 불러오기", exact: true });
+    await expect(retry).toBeEnabled();
+    await expect(solved).toHaveCount(0);
+    await expect(panel.getByRole("button", { name: "저장", exact: true })).toHaveCount(0);
+    failRead = false;
+    await retry.click();
+    await expect(solved).toHaveValue("12");
+    await expect(feedback).toHaveValue("다음 시간에는 남은 세 문제를 확인해요.");
+    await expect(panel.getByRole("button", { name: "저장", exact: true })).toBeDisabled();
+    await panel.screenshot({ path: testInfo.outputPath(`inspection-saved-${width}.png`), animations: "disabled" });
+    expect(writes).toEqual([{ rows: [{ enrollment_id: 9201, version: 3, solved: 12, total: 15, feedback: "다음 시간에는 남은 세 문제를 확인해요." }] }]);
+
+    await panel.getByRole("button", { name: "엑셀 일괄 입력", exact: true }).click();
+    await expect(panel.getByLabel("작성한 엑셀 파일")).toBeVisible();
+    await panel.screenshot({ path: testInfo.outputPath(`inspection-workbook-${width}.png`), animations: "disabled" });
+    expect(unexpectedMutations).toEqual([]);
   });
 }

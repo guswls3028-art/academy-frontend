@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import HomeworkInspectionEntry from "@/shared/ui/assessment/HomeworkInspectionEntry";
 import { EmptyState } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { fetchSessionScores, patchAssessmentCorrection } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { formatCompactFileSize } from "@/shared/utils/fileSize";
-import HomeworkMediaImage from "@/shared/ui/media/HomeworkMediaImage";
+import PhotoPreview from "@/shared/ui/media/PhotoPreview";
 import HomeworkMediaVideo from "@/shared/ui/media/HomeworkMediaVideo";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { Badge } from "@teacher/shared/ui/Badge";
@@ -158,6 +159,7 @@ export default function HomeworkDetailPage() {
         {maxScore != null && <InfoRow label="만점" value={`${maxScore}점`} />}
         <InfoRow label="제출" value={`${submitted.length} / ${submissionRows.length}`} accent />
         <InfoRow label="선생님 확인" value={`${reviewedCount} / ${submitted.length}`} accent />
+        {sessionId > 0 && <HomeworkInspectionEntry sessionId={sessionId} homeworkId={hid} title={hw.title} />}
       </div>
 
       {submitted.length > 0 && (
@@ -317,7 +319,7 @@ function HomeworkReviewSheet({ homeworkId, submission, busy, canSave, scoreLocke
               </div>
             )}
             {selectedFile && previewQ.data && !previewQ.isError && !mediaFailed && selectedFile.media_kind === "image" && (
-              <HomeworkMediaImage key={mediaKey} src={previewQ.data.url} filename={selectedFile.original_filename} mimeType={previewQ.data.mime_type} alt={`${selectedFile.original_filename} 과제 제출 미리보기`} onLoad={() => markPreviewed(selectedFile.id)} onError={() => setFailedMediaKey(mediaKey)} />
+              <PhotoPreview key={mediaKey} src={previewQ.data.url} filename={selectedFile.original_filename} mimeType={previewQ.data.mime_type} alt={`${selectedFile.original_filename} 과제 제출 미리보기`} onLoad={() => markPreviewed(selectedFile.id)} onError={() => setFailedMediaKey(mediaKey)} />
             )}
             {selectedFile && previewQ.data && !previewQ.isError && !mediaFailed && selectedFile.media_kind === "video" && (
               <HomeworkMediaVideo key={mediaKey} src={previewQ.data.url} homeworkId={homeworkId} fileId={selectedFile.id} filename={selectedFile.original_filename} onViewed={() => markPreviewed(selectedFile.id)} onError={() => setFailedMediaKey(mediaKey)} />

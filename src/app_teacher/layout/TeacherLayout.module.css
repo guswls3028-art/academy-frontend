@@ -40,7 +40,7 @@
       color-mix(in srgb, var(--tenant-header-surface) 94%, white) 0,
       color-mix(in srgb, var(--tenant-header-surface) 94%, white) 42px,
       color-mix(in srgb, var(--tenant-header-surface-soft) 94%, white) 70%,
-      transparent 100%
+      var(--tenant-header-edge, transparent) 100%
     ) !important;
 }
 
@@ -100,4 +100,11 @@
     max-width: var(--tc-page-max-w);
     padding: var(--tc-space-6) var(--tc-space-6) var(--tc-space-8);
   }
+}
+
+/* Text fields share the control scale; checkboxes, media sliders and file inputs keep their own geometry. */
+.content :global(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]):not([type="color"])),
+.content :global(select) {
+  min-block-size: var(--ds-control-md);
+  font-size: var(--ds-field-font);
 }

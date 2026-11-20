@@ -8,6 +8,8 @@ import { useNavigate, useLocation } from "react-router";
 import DomainTabs, { type DomainTab } from "./DomainTabs";
 import DomainPanel from "./DomainPanel";
 import { InlineHelp } from "@/shared/ui/guide";
+import PageTrail from "@/shared/ui/navigation/PageTrail";
+import { workspaceSectionForPath } from "@/core/navigation/workspaceSections";
 import "./DomainLayout.css";
 
 export type { DomainTab } from "./DomainTabs";
@@ -49,6 +51,9 @@ export default function DomainLayout({
 }: DomainLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const section = workspaceSectionForPath(location.pathname);
+  const resolvedBreadcrumbs = breadcrumbs ?? (section && section.to !== location.pathname
+    ? [{ label: section.title, to: section.to }] : []);
   const isCompact = density === "compact";
   const hasTabs = tabs != null && tabs.length > 0;
   const resolvedDescriptionMode =
@@ -62,8 +67,9 @@ export default function DomainLayout({
       className={["domain-layout", className].filter(Boolean).join(" ")}
       data-app="admin"
       data-domain-density={density}
+      data-page-level={resolvedBreadcrumbs.some((crumb) => crumb.to) ? "detail" : "overview"}
     >
-      {/* DOMAIN HEADER — 은은한 primary 톤 + 좌측 액센트, 탭 있으면 맨 바닥에 여백 없이 */}
+      {/* 상위 경로 → 현재 화면 제목 → 해당 화면 안의 탭 */}
       <div
         className={[
           "domain-layout__header",
@@ -71,41 +77,14 @@ export default function DomainLayout({
           isCompact ? "domain-header--compact" : "",
         ].filter(Boolean).join(" ")}
       >
+        <PageTrail items={resolvedBreadcrumbs.filter((crumb, index) =>
+          !(index === resolvedBreadcrumbs.length - 1 && !crumb.to && crumb.label === title)
+        )} />
         <div className="domain-layout__header-row">
           <div className="domain-layout__title-area">
-            <div className="domain-layout__accent" aria-hidden />
             <div className="domain-layout__title-stack">
               <div className="domain-layout__heading-line">
-                {breadcrumbs != null && breadcrumbs.length > 0 ? (
-                  <div className="domain-layout__breadcrumbs">
-                    {breadcrumbs.map((c, idx) => (
-                      <span key={`${c.label}-${idx}`} className="flex items-center gap-2">
-                        {c.to ? (
-                          <span
-                            className="domain-layout__breadcrumb-link"
-                            role="button"
-                            tabIndex={0}
-                            onClick={() => navigate(c.to!)}
-                            onKeyDown={(e) => e.key === "Enter" && navigate(c.to!)}
-                          >
-                            {c.label}
-                          </span>
-                        ) : (
-                          <span>{c.label}</span>
-                        )}
-                        {idx < breadcrumbs.length - 1 && (
-                          <span className="domain-layout__breadcrumb-separator">
-                            ›
-                          </span>
-                        )}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="domain-layout__title">
-                    {title}
-                  </div>
-                )}
+                <h1 className="domain-layout__title">{title}</h1>
                 {helpContent != null && (
                   <InlineHelp
                     title={resolvedHelpTitle}

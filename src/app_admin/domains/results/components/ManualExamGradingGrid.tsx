@@ -21,6 +21,7 @@ import {
   Redo2,
   RefreshCw,
   ScanLine,
+  ScanText,
   Settings2,
   TableProperties,
   Undo2,
@@ -28,7 +29,7 @@ import {
 } from "lucide-react";
 
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import { Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
+import { Badge, Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { useAssessmentDirtyRegistration } from "@/shared/ui/assessment/AssessmentEditGuard";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -43,6 +44,7 @@ import {
   fetchManualGradeSheet,
   previewManualGrades,
   type ManualGradeCell,
+  type ManualGradePreview,
   type ManualGradeSheet,
   type ManualGradeRequestRow,
   type ManualGradeRow,
@@ -61,11 +63,16 @@ import {
   validateManualGradingShortcuts,
   type ManualGradingShortcutSettings,
 } from "../utils/manualGradingShortcuts";
+import {
+  omrProposalHint,
+  planOmrEssayScoreFill,
+} from "../utils/omrEssayScoreProposals";
 import styles from "./ManualExamGradingGrid.module.css";
 import fixedColumnStyles from "./ManualExamGradingFixedColumns.module.css";
 import weightStyles from "./ManualExamGradingWeights.module.css";
 import overviewStyles from "./ManualExamGradingOverview.module.css";
 import writtenAnswerStyles from "./ManualExamGradingWrittenAnswer.module.css";
+import omrFillStyles from "./ManualExamGradingOmrFill.module.css";
 
 type Props = {
   examId: number;
@@ -73,6 +80,7 @@ type Props = {
   onApplied?: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   showUnavailableState?: boolean;
+  autoFocusFirstCell?: boolean;
 };
 
 export type ManualExamGradingGridHandle = {
@@ -189,6 +197,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
   onDirtyChange,
   focusEnrollmentId,
   showUnavailableState = false,
+  autoFocusFirstCell = true,
 }, forwardedRef) {
   const queryClient = useQueryClient();
   const excelApplying = useIsMutating({ mutationKey: adminResultsQueryKeys.examResultImport(examId) }) > 0;
@@ -329,14 +338,23 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     markExplicitDirty(false);
   }, [acceptedSheet, clearHistory, examId, markExplicitDirty, sheetQuery.data, sheetReadbackGeneration]);
 
-  const requestRows = useMemo(
-    () => buildRequestRows(draftRows),
-    [draftRows],
-  );
   const questionScoreState = useMemo(
     () => buildQuestionScoreState(data, questionScoreDraft),
     [data, questionScoreDraft],
   );
+  const reviewingWeights = Boolean(questionScoreState.changes);
+  const rowsForReview = useMemo(() => {
+    if (!explicitDirty) return [];
+    const baselineByEnrollment = new Map(
+      serverRowsRef.current.map((row) => [row.enrollment_id, row]),
+    );
+    return draftRows.filter((row) => {
+      // Changing weights can affect previously saved rows across the exam.
+      if (reviewingWeights && hasGradingData(row)) return true;
+      const baseline = baselineByEnrollment.get(row.enrollment_id);
+      return baseline != null && hasRowChanges(row, baseline);
+    });
+  }, [draftRows, explicitDirty, reviewingWeights]);
   const autosaveSummary = useMemo(() => {
     const rows = Object.values(autosaveRows);
     return {
@@ -385,23 +403,24 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
   }, []);
 
   const previewMutation = useMutation({
-    mutationFn: () =>
-      previewManualGrades(
-        examId,
-        requestRows,
-        questionScoreState.changes,
-      ),
+    mutationFn: async () => {
+      const rows = buildRequestRows(rowsForReview);
+      const questionScores = questionScoreState.changes;
+      const result = await previewManualGrades(examId, rows, questionScores);
+      return {
+        result,
+        rows,
+        questionScores,
+        studentNames: rowsForReview.map((row) => row.student_name),
+      };
+    },
     onError: (error) =>
       feedback.error(extractApiError(error, "입력한 채점 결과를 확인하지 못했습니다.")),
   });
 
   const applyMutation = useMutation({
-    mutationFn: () =>
-      applyManualGrades(
-        examId,
-        requestRows,
-        questionScoreState.changes,
-      ),
+    mutationFn: (confirmed: NonNullable<typeof previewMutation.data>) =>
+      applyManualGrades(examId, confirmed.rows, confirmed.questionScores),
     onSuccess: async (result) => {
       feedback.success(`${result.matched_count}명의 성적을 확정했습니다.`);
       previewMutation.reset();
@@ -719,6 +738,14 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     () => data?.questions ?? [],
     [data?.questions],
   );
+  const pasteScoreMatrixRef = useRef<
+    ((text: string, rowIndex: number, columnIndex: number) => void) | null
+  >(null);
+  const stablePasteScoreMatrix = useCallback(
+    (text: string, rowIndex: number, columnIndex: number) =>
+      pasteScoreMatrixRef.current?.(text, rowIndex, columnIndex),
+    [],
+  );
   const questionLabels = useMemo(() => {
     const labels = new Map<number, string>();
     let essayIndex = 0;
@@ -765,12 +792,24 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       }, 0);
     }, 0);
   }, [data?.manual_grading_method, draftRows, visibleQuestions]);
+  const omrFillPlan = useMemo(() => {
+    if (data?.manual_grading_method !== "score" || !data.omr_essay_score_marks) return null;
+    return planOmrEssayScoreFill(draftRows, visibleQuestions, (question) => {
+      const draftMax = Number(questionScoreDraft[String(question.question_id)]);
+      return Number.isFinite(draftMax) ? draftMax : question.max_score;
+    });
+  }, [data?.manual_grading_method, data?.omr_essay_score_marks, draftRows, questionScoreDraft, visibleQuestions]);
+  const showOmrFill = Boolean(
+    data?.omr_essay_score_marks &&
+      (data.omr_essay_score_marks.proposal_count > 0 || data.omr_essay_score_marks.needs_check_count > 0),
+  );
   const quickStartMaxScore = Number(data?.exam_max_score ?? exam?.max_score ?? 100);
   const quickStartDefaultScore =
     quickStartCount !== "" && Number(quickStartCount) > 0
       ? quickStartMaxScore / Number(quickStartCount)
       : null;
-  const preview = previewMutation.data;
+  const confirmation = previewMutation.data;
+  const preview = confirmation?.result;
   const hasErrors = Boolean(preview?.errors.length);
   const manualWriteBusy =
     previewMutation.isPending ||
@@ -778,6 +817,8 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     quickStartMutation.isPending;
   const awaitingDiscardedSheet = sheetQuery.fetchStatus !== "idle" && !dirty && sheetQuery.data !== data;
   const busy = manualWriteBusy || excelApplying || awaitingDiscardedSheet;
+  const canReview = hasEditableQuestions && rowsForReview.length > 0 &&
+    !busy && !hasAutosavePending && !questionScoreState.error;
   useImperativeHandle(forwardedRef, () => ({
     flushPending,
     // The caller holds the editing region inert until the external write and
@@ -1097,6 +1138,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
 
   useEffect(() => {
     if (
+      !autoFocusFirstCell ||
       autoFocusedExamRef.current === examId ||
       !data?.has_manual_questions ||
       busy ||
@@ -1106,6 +1148,14 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       return;
     }
     const frame = window.requestAnimationFrame(() => {
+      const workspace = workspaceRef.current;
+      const active = workspace?.ownerDocument.activeElement;
+      if (workspace && active && active !== workspace && workspace.contains(active)) {
+        // A teacher may have entered a control while the table was opening.
+        // Do not send the next keystroke to a different student's score cell.
+        autoFocusedExamRef.current = examId;
+        return;
+      }
       const focusRowIndex = draftRows.findIndex((row) => row.enrollment_id === focusEnrollmentId);
       const firstCell = (focusRowIndex >= 0
         ? tableWrapRef.current?.querySelector<HTMLElement>(
@@ -1119,7 +1169,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       autoFocusedExamRef.current = examId;
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [busy, data?.has_manual_questions, draftRows, examId, focusEnrollmentId, shortcutSettingsOpen]);
+  }, [autoFocusFirstCell, busy, data?.has_manual_questions, draftRows, examId, focusEnrollmentId, shortcutSettingsOpen]);
 
   if (sheetQuery.isLoading) {
     return (
@@ -1531,6 +1581,39 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     }
   };
 
+  const fillOmrEssayScores = () => {
+    const plan = omrFillPlan;
+    if (!plan || plan.changes.length === 0) {
+      feedback.info("OMR 점수로 채울 빈 서술형 칸이 없습니다.");
+      return;
+    }
+    pushHistory({ kind: "cells", changes: plan.changes });
+    const afterByKey = new Map(
+      plan.changes.map((change) => [`${change.enrollmentId}:${change.questionId}`, change.after]),
+    );
+    const nextRows = draftRowsRef.current.map((row) => {
+      let nextCells = row.cells;
+      for (const key of Object.keys(row.cells)) {
+        const after = afterByKey.get(`${row.enrollment_id}:${key}`);
+        if (!after) continue;
+        if (nextCells === row.cells) nextCells = { ...row.cells };
+        nextCells[key] = { ...after };
+      }
+      return nextCells === row.cells ? row : { ...row, cells: nextCells };
+    });
+    draftRowsRef.current = nextRows;
+    setDraftRows(nextRows);
+    markRowsForSave(plan.changes.map((change) => change.enrollmentId));
+    previewMutation.reset();
+    const notes = [
+      plan.needsCheck > 0 ? `확인 필요 ${plan.needsCheck}칸` : null,
+      plan.keptDifferent > 0 ? `이미 입력된 다른 점수 ${plan.keptDifferent}칸 유지` : null,
+    ].filter(Boolean);
+    feedback.success(
+      `OMR 점수 ${plan.changes.length}칸을 채웠습니다. 확인 후 저장해야 반영됩니다.${notes.length ? ` (${notes.join(", ")})` : ""}`,
+    );
+  };
+
   const pasteCorrectnessMatrix = (
     text: string,
     startRowIndex: number,
@@ -1569,7 +1652,69 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
       feedback.error("붙여넣을 수 있는 정오 입력칸이 없습니다.");
       return;
     }
+    commitPastedChanges(changes);
+  };
 
+  // 엑셀·스프레드시트에서 복사한 점수 열/표를 현재 칸부터 한 번에 붙여넣는다.
+  const pasteScoreMatrix = (
+    text: string,
+    startRowIndex: number,
+    startColumnIndex: number,
+  ) => {
+    const parsed = parseScoreClipboard(text);
+    if (parsed.error) {
+      feedback.error(parsed.error);
+      return;
+    }
+    const changes: ManualGradeCellChange[] = [];
+    const outOfRange: string[] = [];
+    parsed.matrix.forEach((values, rowOffset) => {
+      const row = draftRowsRef.current[startRowIndex + rowOffset];
+      if (!row || row.is_not_submitted) return;
+      values.forEach((score, columnOffset) => {
+        if (score === undefined) return;
+        const question = visibleQuestions[startColumnIndex + columnOffset];
+        if (!question) return;
+        const key = String(question.question_id);
+        const cell = row.cells[key];
+        if (!cell?.editable || cell.entry_method !== "score") return;
+        const draftMax = Number(questionScoreDraft[key]);
+        const maxScore = questionScoreDraft[key] != null && questionScoreDraft[key] !== "" && Number.isFinite(draftMax)
+          ? draftMax
+          : question.max_score;
+        if (score < 0 || score > maxScore) {
+          outOfRange.push(`${row.student_name} ${questionLabels.get(question.question_id) ?? `${question.number}번`}`);
+          return;
+        }
+        const nextCell = { ...cell, score };
+        if (!sameManualGradeCell(cell, nextCell)) {
+          changes.push({
+            enrollmentId: row.enrollment_id,
+            questionId: question.question_id,
+            before: { ...cell },
+            after: nextCell,
+          });
+        }
+      });
+    });
+    if (outOfRange.length > 0) {
+      feedback.error(
+        `0점~만점 범위를 벗어난 값이 있어 붙여넣지 않았습니다: ${outOfRange.slice(0, 3).join(", ")}${
+          outOfRange.length > 3 ? ` 외 ${outOfRange.length - 3}칸` : ""
+        }`,
+      );
+      return;
+    }
+    if (changes.length === 0) {
+      feedback.error("붙여넣을 수 있는 점수 입력칸이 없습니다. 결시 학생과 OMR 문항은 건너뜁니다.");
+      return;
+    }
+    commitPastedChanges(changes);
+  };
+  // Rows are memoized; route paste through the latest render's handler.
+  pasteScoreMatrixRef.current = pasteScoreMatrix;
+
+  const commitPastedChanges = (changes: ManualGradeCellChange[]) => {
     pushHistory({ kind: "cells", changes });
     const changeMap = new Map(
       changes.map((change) => [
@@ -1648,7 +1793,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
     const key = event.key.toLowerCase();
     if (commandKey && !event.altKey && (key === "z" || key === "y")) {
       event.preventDefault();
-      if (awaitingDiscardedSheet) return;
+      if (busy) return;
       const redo = key === "y" || (key === "z" && event.shiftKey);
       if (redo) redoLastChange();
       else undoLastChange();
@@ -1668,8 +1813,9 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
         });
         return;
       }
-      if (!preview || hasErrors) previewMutation.mutate();
-      else applyMutation.mutate();
+      if (!canReview) return;
+      if (!confirmation || hasErrors) previewMutation.mutate();
+      else applyMutation.mutate(confirmation);
       return;
     }
     if (
@@ -1893,6 +2039,25 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
               <b>오답노트</b> 만점을 받아도 포함
             </span>
           </div>
+          {showOmrFill && omrFillPlan && (
+            <div className={omrFillStyles.omrFill} role="group" aria-label="OMR 서술형 점수">
+              <Button
+                type="button"
+                intent="secondary"
+                size="sm"
+                leftIcon={<ScanText size={ICON_FOR_BUTTON.sm} />}
+                disabled={omrFillPlan.changes.length === 0 || busy}
+                onClick={fillOmrEssayScores}
+                title="OMR 교사 채점란에서 읽은 점수로 비어 있는 서술형 칸만 채웁니다. 저장해야 반영됩니다."
+              >
+                OMR 점수 {omrFillPlan.changes.length}칸 채우기
+              </Button>
+              <Badge tone="info" size="xs" variant="soft">Beta</Badge>
+              {omrFillPlan.needsCheck > 0 && (
+                <span className={omrFillStyles.omrFillWarning}>확인 필요 {omrFillPlan.needsCheck}칸</span>
+              )}
+            </div>
+          )}
           <div className={styles.keyboardHints}>
             <span><kbd>Tab</kbd> 다음 칸</span>
             <span><kbd>Enter</kbd> 아래 칸</span>
@@ -2196,6 +2361,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
                 onMoveFocus={focusCell}
                 onShowShortcuts={openShortcutSettings}
                 onPasteCorrectnessMatrix={pasteCorrectnessMatrix}
+                onPasteScoreMatrix={stablePasteScoreMatrix}
                 onRetryAutosave={retryAutosave}
               />
             ))}
@@ -2203,7 +2369,7 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
         </table>
       </div>
 
-      {preview && (
+      {confirmation && preview && (
         <div
           className={`${styles.preview} ${hasErrors ? styles.previewError : ""}`}
           role={hasErrors ? "alert" : "status"}
@@ -2217,17 +2383,14 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
             <strong>
               {hasErrors
                 ? "확정 전에 수정할 항목이 있습니다."
-                : `${preview.matched_count}명 · 결시 ${preview.not_submitted_count}명 · 성적 계산 완료`}
+                : `${preview.matched_count}명 · 결시 ${preview.not_submitted_count}명${
+                    preview.objective_pending_count
+                      ? ` · OMR 대기 ${preview.objective_pending_count}명`
+                      : ""
+                  } · 성적 계산 완료`}
             </strong>
             {hasErrors ? (
-              <ul>
-                {preview.errors.slice(0, 6).map((issue, index) => (
-                  <li key={`${issue.row ?? "all"}-${issue.field}-${index}`}>
-                    {issue.row ? `${issue.row}행 · ` : ""}
-                    {issue.message}
-                  </li>
-                ))}
-              </ul>
+              <ManualGradingIssues errors={preview.errors} studentNames={confirmation.studentNames} />
             ) : (
               <span>
                 기존 성적 {preview.overwrite_count}명은 이 표의 값으로 갱신됩니다.
@@ -2242,7 +2405,9 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
           <span>
             {data.manual_grading_method === "correctness" && !explicitDirty
               ? "정오를 모두 입력한 학생부터 점수·상태와 함께 자동 저장됩니다."
-              : "확인 단계에서는 통계가 바뀌지 않습니다. 성적 확정 시에만 한 번에 반영됩니다."}
+              : rowsForReview.length > 0
+                ? `확인 대상 ${rowsForReview.length}명 · 나머지 ${draftRows.length - rowsForReview.length}명 유지`
+                : "점수를 입력하거나 응시 상태를 바꾸면 확인할 수 있습니다."}
           </span>
           {data.manual_grading_method === "correctness" && !explicitDirty ? (
             autosaveSummary.failed > 0 ? (
@@ -2268,13 +2433,13 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
             ) : (
               <span className={styles.autosaveFooterSaved}>{autosaveStatusText}</span>
             )
-          ) : !preview || hasErrors ? (
+          ) : !confirmation || hasErrors ? (
             <Button
               type="button"
               intent="primary"
               onClick={() => previewMutation.mutate()}
               loading={previewMutation.isPending}
-              disabled={!explicitDirty || busy || hasAutosavePending || Boolean(questionScoreState.error)}
+              disabled={!canReview}
             >
               입력 내용 확인
             </Button>
@@ -2282,11 +2447,11 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
             <Button
               type="button"
               intent="primary"
-              onClick={() => applyMutation.mutate()}
+              onClick={() => applyMutation.mutate(confirmation)}
               loading={applyMutation.isPending}
-              disabled={busy}
+              disabled={!canReview}
             >
-              {preview.matched_count}명 성적 확정
+              {confirmation.result.matched_count}명 성적 확정
             </Button>
           )}
         </footer>
@@ -2303,6 +2468,36 @@ const ManualExamGradingGrid = forwardRef<ManualExamGradingGridHandle, Props>(fun
 });
 
 export default ManualExamGradingGrid;
+
+function ManualGradingIssues({
+  errors,
+  studentNames,
+}: {
+  errors: ManualGradePreview["errors"];
+  studentNames: string[];
+}) {
+  const items = errors.map((issue, index) => {
+    const student = issue.row == null ? null : studentNames[issue.row - 1];
+    return (
+      <li key={`${issue.row ?? "all"}-${issue.field}-${index}`}>
+        {student && <b>{student} · </b>}
+        {issue.message}
+      </li>
+    );
+  });
+  const visibleCount = 6;
+  return (
+    <>
+      <ul>{items.slice(0, visibleCount)}</ul>
+      {items.length > visibleCount && (
+        <details>
+          <summary>오류 {items.length - visibleCount}건 더 보기</summary>
+          <ul>{items.slice(visibleCount)}</ul>
+        </details>
+      )}
+    </>
+  );
+}
 
 type ManualGradingTableRowProps = {
   row: ManualGradeRow;
@@ -2326,6 +2521,11 @@ type ManualGradingTableRowProps = {
     direction: "next" | "previous" | "up" | "down",
   ) => void;
   onShowShortcuts: () => void;
+  onPasteScoreMatrix: (
+    text: string,
+    rowIndex: number,
+    columnIndex: number,
+  ) => void;
   onPasteCorrectnessMatrix: (
     text: string,
     rowIndex: number,
@@ -2333,6 +2533,48 @@ type ManualGradingTableRowProps = {
   ) => void;
   onRetryAutosave: (enrollmentId?: number) => void;
 };
+
+const OBJECTIVE_STATUS_COPY: Record<
+  NonNullable<ManualGradeRow["objective_status"]>,
+  { label: string; title: string; tone: "info" | "warning" | "neutral" }
+> = {
+  omr_pending: {
+    label: "OMR 대기",
+    title: "객관식 답안지가 아직 연결되지 않았습니다. 서술형 점수는 저장되고, 답안지가 매칭되면 자동으로 합산됩니다. 그 전에는 학생·석차·클리닉에 반영되지 않습니다.",
+    tone: "info",
+  },
+  omr_restore: {
+    label: "OMR 복원",
+    title: "저장하면 연결된 OMR 답안지의 객관식 점수를 다시 반영합니다.",
+    tone: "info",
+  },
+  omr_review_required: {
+    label: "OMR 검토 필요",
+    title: "OMR 검토에서 이 학생의 답안지를 확인하면 객관식 점수가 서술형 점수와 합산됩니다.",
+    tone: "warning",
+  },
+  omr_processing: {
+    label: "OMR 처리 중",
+    title: "답안지 처리가 끝나면 저장할 수 있습니다.",
+    tone: "neutral",
+  },
+};
+
+function ObjectiveStatusBadge({
+  status,
+}: {
+  status: NonNullable<ManualGradeRow["objective_status"]>;
+}) {
+  const copy = OBJECTIVE_STATUS_COPY[status];
+  if (!copy) return null;
+  return (
+    <span title={copy.title}>
+      <Badge tone={copy.tone} size="xs" variant="soft">
+        {copy.label}
+      </Badge>
+    </span>
+  );
+}
 
 const ManualGradingTableRow = memo(function ManualGradingTableRow({
   row,
@@ -2350,8 +2592,11 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
   onMoveFocus,
   onShowShortcuts,
   onPasteCorrectnessMatrix,
+  onPasteScoreMatrix,
   onRetryAutosave,
 }: ManualGradingTableRowProps) {
+  const isUnentered = manualGradingMethod === "score" && !hasGradingData(row);
+  const attendanceLabel = row.is_not_submitted ? "결시" : isUnentered ? "미입력" : "응시";
   return (
     <tr>
       <td className={fixedColumnStyles.studentColumn}>
@@ -2368,6 +2613,9 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
             maxLectureChips={1}
             examNotSubmittedCount={row.exam_not_submitted_count}
           />
+          {!row.is_not_submitted && row.objective_status && (
+            <ObjectiveStatusBadge status={row.objective_status} />
+          )}
           {saveState && (
             <span
               className={`${styles.rowSaveState} ${
@@ -2397,20 +2645,21 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
         <button
           type="button"
           className={`${styles.attendanceButton} ${overviewStyles.attendanceButton} ${
-            row.is_not_submitted ? styles.absent : ""
+            row.is_not_submitted ? styles.absent : isUnentered ? styles.unentered : ""
           }`}
           aria-pressed={row.is_not_submitted}
-          aria-label={row.is_not_submitted ? "결시" : "응시"}
+          aria-label={attendanceLabel}
+          title={row.is_not_submitted ? "눌러서 결시 해제" : "눌러서 결시로 변경"}
           disabled={!hasEditableQuestions || busy}
           onClick={() =>
             onSetAttendance(row.enrollment_id, !row.is_not_submitted)
           }
         >
           <span className={overviewStyles.attendanceFullLabel}>
-            {row.is_not_submitted ? "결시" : "응시"}
+            {attendanceLabel}
           </span>
           <span className={overviewStyles.attendanceOverviewLabel} aria-hidden>
-            {row.is_not_submitted ? "결" : "응"}
+            {attendanceLabel[0]}
           </span>
         </button>
       </td>
@@ -2455,6 +2704,7 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
               <ScoreCell
                 value={cell.score}
                 maxScore={maxScore}
+                omrHint={omrProposalHint(row.omr_essay_scores?.[key], cell.score, maxScore)}
                 review={cell.include_in_wrong_note}
                 disabled={row.is_not_submitted || busy}
                 studentName={row.student_name}
@@ -2462,6 +2712,7 @@ const ManualGradingTableRow = memo(function ManualGradingTableRow({
                 rowIndex={rowIndex}
                 columnIndex={columnIndex}
                 onMoveFocus={onMoveFocus}
+                onPasteMatrix={(text) => onPasteScoreMatrix(text, rowIndex, columnIndex)}
                 onScoreChange={(score) =>
                   onUpdateCell(
                     row.enrollment_id,
@@ -2668,6 +2919,7 @@ function ShortcutKeyInput({
 function ScoreCell({
   value,
   maxScore,
+  omrHint,
   review,
   disabled,
   studentName,
@@ -2675,11 +2927,13 @@ function ScoreCell({
   rowIndex,
   columnIndex,
   onMoveFocus,
+  onPasteMatrix,
   onScoreChange,
   onReviewChange,
 }: {
   value: number | null;
   maxScore: number;
+  omrHint?: { text: string; tone: "info" | "warning" } | null;
   review: boolean;
   disabled: boolean;
   studentName: string;
@@ -2690,23 +2944,41 @@ function ScoreCell({
     element: HTMLElement,
     direction: "next" | "previous" | "up" | "down",
   ) => void;
+  onPasteMatrix: (text: string) => void;
   onScoreChange: (value: number | null) => void;
   onReviewChange: (value: boolean) => void;
 }) {
   return (
-    <div className={styles.scoreCell}>
+    <div
+      className={`${styles.scoreCell} ${omrHint ? omrFillStyles.omrScoreCell : ""} ${
+        omrHint?.tone === "warning" ? omrFillStyles.omrWarn : ""
+      }`}
+    >
       <input
         type="number"
         min={0}
         max={maxScore}
         step="any"
         value={value ?? ""}
+        placeholder={value == null && omrHint ? omrHint.text : undefined}
+        title={
+          value == null && omrHint
+            ? "OMR 교사 채점란에서 읽은 점수입니다 (Beta). 'OMR 점수 채우기' 후 저장해야 반영됩니다."
+            : undefined
+        }
         disabled={disabled}
         aria-label={`${studentName} ${questionLabel} ${formatScoreInput(maxScore)}점 만점 점수`}
         data-manual-grade-cell
         data-row-index={rowIndex}
         data-column-index={columnIndex}
         onFocus={(event) => event.currentTarget.select()}
+        onPaste={(event) => {
+          const text = event.clipboardData.getData("text");
+          // 한 칸 값은 기본 입력으로 두고, 여러 행·열일 때만 표 붙여넣기로 처리한다.
+          if (!/[\t\n]/.test(text.replace(/\r?\n$/, ""))) return;
+          event.preventDefault();
+          onPasteMatrix(text);
+        }}
         onChange={(event) => {
           const raw = event.target.value;
           onScoreChange(raw === "" ? null : Number(raw));
@@ -2743,6 +3015,14 @@ function ScoreCell({
       >
         오답노트
       </button>
+      {omrHint && value != null && (
+        <span
+          className={omrFillStyles.omrHintDot}
+          role="img"
+          aria-label={omrHint.text}
+          title={`${omrHint.text} · OMR 교사 채점란에서 읽은 점수 (Beta)`}
+        />
+      )}
     </div>
   );
 }
@@ -2752,6 +3032,22 @@ function isCorrectnessRowComplete(row: ManualGradeRow): boolean {
     !cell.editable || cell.entry_method !== "correctness" ||
     cell.state === "correct" || cell.state === "incorrect" || cell.state === "review"
   );
+}
+
+function hasGradingData(row: ManualGradeRow): boolean {
+  return row.is_not_submitted || row.expected_version != null ||
+    Object.values(row.cells).some((cell) =>
+      cell.state != null || cell.score != null || cell.grading_status != null ||
+      Boolean(cell.answer) || cell.include_in_wrong_note
+    );
+}
+
+function hasRowChanges(row: ManualGradeRow, baseline: ManualGradeRow): boolean {
+  return row.is_not_submitted !== baseline.is_not_submitted ||
+    Object.entries(row.cells).some(([questionId, cell]) => {
+      const original = baseline.cells[questionId];
+      return cell.editable && (!original || !sameManualGradeCell(cell, original));
+    });
 }
 
 function buildRequestRows(rows: ManualGradeRow[]): ManualGradeRequestRow[] {
@@ -2842,6 +3138,34 @@ function getQuestionAnswerTypeLabel(
   if (answerType === "choice") return "객관식";
   if (answerType === "numeric_short_answer") return "단답형";
   return "서술형";
+}
+
+function parseScoreClipboard(text: string): {
+  matrix: Array<Array<number | undefined>>;
+  error?: string;
+} {
+  const lines = text.replace(/\r\n?/g, "\n").split("\n");
+  while (lines.length > 0 && lines[lines.length - 1].trim() === "") lines.pop();
+  if (lines.length === 0) return { matrix: [], error: "붙여넣을 점수가 없습니다." };
+  const matrix: Array<Array<number | undefined>> = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const cells = lines[index].split("\t");
+    const values: Array<number | undefined> = [];
+    for (const raw of cells) {
+      const value = raw.trim().replace(/점$/, "").trim();
+      if (value === "") {
+        values.push(undefined);
+        continue;
+      }
+      const score = Number(value);
+      if (!Number.isFinite(score)) {
+        return { matrix: [], error: `${index + 1}번째 줄의 "${raw.trim()}"은(는) 점수가 아닙니다.` };
+      }
+      values.push(score);
+    }
+    matrix.push(values);
+  }
+  return { matrix };
 }
 
 function parseCorrectnessClipboard(

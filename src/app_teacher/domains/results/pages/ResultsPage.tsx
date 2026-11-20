@@ -1,7 +1,7 @@
 // PATH: src/app_teacher/domains/results/pages/ResultsPage.tsx
 // 성적 — 조회 + 통계 탭
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Badge, EmptyState } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
@@ -21,10 +21,11 @@ import {
 import type { TeacherExamResultRow } from "@teacher/domains/scores/api";
 import EnterpriseAnalyticsTab from "@teacher/domains/results/components/EnterpriseAnalyticsTab";
 import ResultsStatsTab from "@teacher/domains/results/components/ResultsStatsTab";
+import SchoolReportCollection from "../components/SchoolReportCollection";
 import { teacherResultsQueryKeys } from "@teacher/domains/results/queryKeys";
 import styles from "./ResultsPage.module.css";
 
-type Tab = "list" | "stats" | "analytics";
+type Tab = "list" | "stats" | "analytics" | "school-report";
 
 type TeacherExamOption = {
   id: number;
@@ -33,13 +34,17 @@ type TeacherExamOption = {
 
 export default function ResultsPage() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>("list");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const tab: Tab = requestedTab === "stats" || requestedTab === "analytics" || requestedTab === "school-report"
+    ? requestedTab : "list";
   const [selectedLecture, setSelectedLecture] = useState<number | null>(null);
   const [selectedExam, setSelectedExam] = useState<number | null>(null);
 
   const lecturesQ = useQuery({
     queryKey: teacherResultsQueryKeys.activeLectures,
     queryFn: () => fetchLectures(true),
+    enabled: tab === "list",
   });
   const lectures = lecturesQ.data;
 
@@ -67,11 +72,17 @@ export default function ResultsPage() {
           { key: "list", label: "조회" },
           { key: "stats", label: "통계" },
           { key: "analytics", label: "운영 분석" },
+          { key: "school-report", label: "성적표 취합" },
         ]}
         value={tab}
-        onChange={setTab}
+        onChange={(next) => setSearchParams((previous) => {
+          const params = new URLSearchParams(previous);
+          params.set("tab", next);
+          return params;
+        }, { replace: true })}
       />
 
+      {tab === "school-report" && <SchoolReportCollection />}
       {tab === "stats" && <ResultsStatsTab />}
       {tab === "analytics" && <EnterpriseAnalyticsTab />}
 

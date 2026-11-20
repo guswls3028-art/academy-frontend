@@ -1,0 +1,22 @@
+.panel, .form, .field { display: grid; gap: 12px; min-width: 0; }
+.panel { gap: 16px; }
+.field { gap: 5px; font-weight: 600; }
+.panel input, .panel select, .panel textarea {
+  box-sizing: border-box; max-width: 100%; width: 100%; min-width: 0; padding: 9px 10px;
+  font: inherit; font-weight: 400; color: var(--color-text-primary, #243042); background: var(--color-bg-surface, white);
+  border: 1px solid var(--color-border-divider, #bcc6d2); border-radius: 6px;
+}
+.panel textarea { resize: vertical; }
+.numbers { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.modes { display: flex; flex-wrap: wrap; gap: 6px; }
+.modes button { border: 1px solid var(--color-border-divider, #bbc5d0); border-radius: 6px; padding: 8px 12px; }
+.modes button[aria-pressed="true"] { background: var(--color-primary, #244787); color: white; }
+.audience { margin: 0; color: var(--color-text-secondary, #4f6073); }
+.form { justify-items: stretch; }
+.form > button { justify-self: end; }
+.entry { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.quick { color: var(--color-primary, #244787); background: transparent; border: 0; padding: 2px 4px; font: inherit; font-size: 12px; text-decoration: underline; text-underline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) {
+  .form { animation: inspection-appear 140ms ease-out; }
+  @keyframes inspection-appear { from { opacity: .45; } to { opacity: 1; } }
+}

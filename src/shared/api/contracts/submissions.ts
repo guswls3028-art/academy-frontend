@@ -2,6 +2,7 @@
 // Submission API contract
 
 import api, { createAuthSessionBoundConfig } from "@/shared/api/axios";
+import type { components } from "@/shared/api/generated/schema";
 import { readAuthTokenEnvelopeSafely } from "@/shared/auth/tokenSession";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 
@@ -162,6 +163,7 @@ export type ExamSubmissionRow = {
 };
 
 export type SubmissionManualEditInput = {
+  expectedEditRevision?: string;
   submissionId: number;
   identifier?: { enrollment_id: number | string } | Record<string, unknown> | null;
   note?: string;
@@ -169,9 +171,12 @@ export type SubmissionManualEditInput = {
     exam_question_id: number;
     answer: string;
   }>;
+  /** 교사가 결시 해제를 명시적으로 확인한 경우에만 true */
+  resumeAbsence?: boolean;
 };
 
 export type SubmissionManualEditResult = {
+  edit_revision?: string;
   code?: string;
   readiness?: { can_grade: boolean; missing: string[] };
   recovery?: { action: string; exam_id: number };
@@ -188,6 +193,12 @@ export type SubmissionManualEditResult = {
   projection_ready?: boolean;
   grading_status?: "subjective_pending" | string | null;
   detail?: string;
+  /** 이 답안지 학생이 결시로 남아 있어 채점이 반영되지 않음 */
+  absence_preserved?: boolean;
+  /** 결시 해제 확인 후 다시 저장하면 채점할 수 있음 */
+  can_resume_absence?: boolean;
+  absence_resumed?: boolean;
+  reason?: string;
 };
 
 /** 폐기 사유 enum (backend submission_view._DISCARD_REASONS 와 동기) */
@@ -333,7 +344,7 @@ export async function retrySubmissionApi(submissionId: number): Promise<unknown>
 }
 
 export async function manualEditSubmissionApi(
-  input: SubmissionManualEditInput & { allowDuplicate?: boolean },
+  input: SubmissionManualEditInput & { allowDuplicate?: boolean; sessionId?: number },
 ): Promise<SubmissionManualEditResult> {
   const sid = Number(input.submissionId);
   if (!Number.isFinite(sid) || sid <= 0) {
@@ -341,17 +352,19 @@ export async function manualEditSubmissionApi(
   }
 
   const answers = (input.answers ?? [])
-    .filter((a) => a && Number.isFinite(Number(a.exam_question_id)))
+    .filter((a) => a && a.answer != null && Number.isFinite(Number(a.exam_question_id)))
     .map((a) => ({
       exam_question_id: Number(a.exam_question_id),
-      answer: String(a.answer ?? ""),
-    }))
-    .filter((a) => a.answer.trim().length > 0);
+      answer: String(a.answer),
+    }));
 
   const payload = {
     identifier: input.identifier ?? null,
     answers,
     note: String(input.note || "manual_edit"),
+    ...(input.sessionId === undefined ? {} : { session_id: input.sessionId }),
+    ...(input.expectedEditRevision === undefined ? {} : { expected_edit_revision: input.expectedEditRevision }),
+    ...(input.resumeAbsence === true ? { resume_absence: true } : {}),
   };
 
   const query = input.allowDuplicate ? "?allow_duplicate=1" : "";
@@ -425,6 +438,7 @@ export async function initializeOmrUploadBatchApi(input: {
   examId: number;
   totalCount: number;
   sessionId?: number | null;
+  clientRequestId: string;
 }): Promise<OmrUploadBatchSummary> {
   const examId = Number(input.examId);
   const totalCount = Number(input.totalCount);
@@ -432,13 +446,12 @@ export async function initializeOmrUploadBatchApi(input: {
   if (!Number.isInteger(totalCount) || totalCount < 1 || totalCount > 100) {
     throw new Error("totalCount must be between 1 and 100");
   }
-  const res = await api.post(
-    `/submissions/submissions/exams/${examId}/omr/batches/`,
-    {
-      total_count: totalCount,
-      ...(input.sessionId != null ? { session_id: Number(input.sessionId) } : {}),
-    },
-  );
+  const payload: components["schemas"]["OmrUploadBatchInitializeRequestRequest"] = {
+    total_count: totalCount,
+    client_request_id: input.clientRequestId,
+    ...(input.sessionId != null ? { session_id: Number(input.sessionId) } : {}),
+  };
+  const res = await api.post(`/submissions/submissions/exams/${examId}/omr/batches/`, payload);
   return res.data as OmrUploadBatchSummary;
 }
 

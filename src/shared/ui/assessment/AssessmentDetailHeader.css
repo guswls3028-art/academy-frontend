@@ -75,17 +75,7 @@
   white-space: nowrap;
 }
 
-.assessment-detail-header .ds-button.assessment-primary-action[data-size="md"] {
-  min-height: 44px;
-  padding-inline: 18px;
-  font-weight: 750;
-}
-
 @media (max-width: 640px) {
-  [data-app="admin"] .assessment-detail-header .ds-button.assessment-primary-action[data-size="md"] {
-    min-height: 44px !important;
-  }
-
   .assessment-detail-header__top {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -106,17 +96,6 @@
   .assessment-primary-action {
     order: -1;
     flex: 1 1 180px;
-  }
-
-  .assessment-template-button {
-    min-height: 32px;
-    padding-inline: var(--space-2);
-    font-size: 12px;
-  }
-
-  .assessment-template-button svg {
-    width: 14px;
-    height: 14px;
   }
 
   .assessment-detail-header {

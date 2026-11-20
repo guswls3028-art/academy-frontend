@@ -73,7 +73,7 @@ const pageImage = `data:image/svg+xml,${encodeURIComponent(
   '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1120"><rect width="800" height="1120" fill="white"/><text x="60" y="120" font-size="42">1. mobile crop fixture</text><rect x="55" y="160" width="690" height="260" fill="none" stroke="black" stroke-width="3"/></svg>',
 )}`;
 
-async function installMocks(page: Page, options: { failFirstPages?: boolean; failPageReads?: boolean; delayFirstRead?: boolean; failedAnalysis?: boolean; multiplePages?: boolean; report?: boolean; firstSimilarity?: number; missingActiveCandidate?: boolean } = {}) {
+async function installMocks(page: Page, options: { failFirstPages?: boolean; failPageReads?: boolean; delayFirstRead?: boolean; failedAnalysis?: boolean; multiplePages?: boolean; report?: boolean; firstSimilarity?: number; firstDisplaySimilarity?: number | null; missingActiveCandidate?: boolean } = {}) {
   const apiRequests: Array<{ method: string; path: string }> = [];
   let pageReads = 0;
   let pagePreparations = 0;
@@ -94,9 +94,11 @@ async function installMocks(page: Page, options: { failFirstPages?: boolean; fai
     text: `Synthetic question ${number}`, text_preview: `Synthetic question ${number}`,
     image_key: `qa/exam-${number}.png`, image_url: pageImage,
     candidates: number === 1 && options.missingActiveCandidate ? []
-      : [{ ...candidate, similarity: number === 1 ? options.firstSimilarity ?? 0.95 : 0.35 }] }));
+      : [{ ...candidate, similarity: number === 1 ? options.firstSimilarity ?? 0.95 : 0.35,
+        display_similarity: number === 1 ? options.firstDisplaySimilarity : undefined }] }));
   if (options.missingActiveCandidate) {
-    report.entries = [{ exam_problem_id: 701, selected_problem_ids: [801], comment: "", order: 0, excluded: false }];
+    report.entries = [{ exam_problem_id: 701, selected_problem_ids: [801], comment: "", order: 0, excluded: false,
+      selected_display_similarity: options.firstDisplaySimilarity === undefined ? undefined : { 801: options.firstDisplaySimilarity } }];
   }
 
   await page.addInitScript(({ access, refresh }) => {
@@ -522,6 +524,9 @@ for (const width of [390, 1366]) {
 for (const scenario of [
   { name: "real zero", firstSimilarity: 0, missingActiveCandidate: false, label: "유사도 0.0%" },
   { name: "missing score", firstSimilarity: undefined, missingActiveCandidate: true, label: "유사도 정보 없음" },
+  { name: "PDF display score", firstSimilarity: 0.829, firstDisplaySimilarity: 0.658, missingActiveCandidate: false, label: "65.8%", rowLabel: "유사도 65.8%" },
+  { name: "unmeasurable ranked candidate", firstSimilarity: 0.829, firstDisplaySimilarity: null, missingActiveCandidate: false, label: "유사도 정보 없음", rowLabel: "유사도 정보 없음" },
+  { name: "selected candidate outside ranking", firstDisplaySimilarity: 0.658, missingActiveCandidate: true, label: "65.8%", rowLabel: "수동 추가 · 유사도 65.8%" },
 ]) {
   test(`report preview distinguishes ${scenario.name} from another question's score`, async ({ page }) => {
     expect(isLocalBase(BASE)).toBe(true);
@@ -531,6 +536,8 @@ for (const scenario of [
     const report = page.getByRole("dialog", { name: "적중 보고서 작성" });
     const header = report.getByRole("button", { name: "다음 문항", exact: true }).locator("..");
     await expect(header).toContainText(scenario.label);
+    if (scenario.rowLabel) await expect(report.getByText(scenario.rowLabel, { exact: true }).last()).toBeVisible();
+    if (scenario.firstSimilarity === 0.829) await expect(report.getByText(/82\.9%/)).toHaveCount(0);
     await expect(header.locator("..")).toContainText("QA 참고자료");
     const referenceImage = report.getByRole("img", { name: "내 수업 자료", exact: true });
     await expect(referenceImage).toBeVisible();

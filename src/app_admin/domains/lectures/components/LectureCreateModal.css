@@ -1,5 +1,7 @@
 /* 강의 추가·수정: 필드의 라벨과 입력만 남기고 중첩 카드 장식을 제거한다. */
 .lecture-create-modal-form .modal-form-group {
+  /* The label owns field spacing; do not add the inherited card gap twice. */
+  gap: 0;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -10,7 +12,7 @@
   display: flex;
   align-items: baseline;
   gap: 6px;
-  margin-bottom: 7px;
+  margin-bottom: var(--space-2);
   color: var(--color-text-primary);
   font-size: 13px;
   font-weight: 600;
@@ -95,6 +97,37 @@
   font-weight: 900;
   white-space: pre-line;
 }
+
+.lecture-schedule-fields select {
+  width: 100%;
+  min-width: 0;
+}
+
+.lecture-schedule-defaults {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.lecture-schedule-defaults p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.lecture-schedule-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(76px, auto) auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.lecture-schedule-row input { min-width: 0; }
 
 .lecture-create-chip-layout {
   display: grid;

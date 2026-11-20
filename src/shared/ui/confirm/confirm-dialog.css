@@ -190,7 +190,8 @@
 
 .confirm-dialog__button {
   min-width: 64px;
-  padding: 8px 20px;
+  min-height: var(--control-lg);
+  padding: 0 var(--space-5);
   font-size: 14px;
   font-weight: 600;
   line-height: 1.4;

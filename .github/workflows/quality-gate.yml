@@ -20,6 +20,7 @@ on:
         options:
           - full-suite
           - excel-learning-homework
+          - video-multipart-storage
 
 concurrency:
   group: frontend-quality-${{ github.ref }}
@@ -421,9 +422,27 @@ jobs:
       - name: Install locked test dependencies
         run: pnpm install --frozen-lockfile --shamefully-hoist
       - name: Install Korean fonts for visual evidence
+        timeout-minutes: 10
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+          # Same official HTTPS mirror priority as the PR E2E Playwright step:
+          # an Azure mirror DNS outage must not block release QA. Distribution
+          # sources and package signature checks remain unchanged.
+          if [ -f /etc/apt/apt-mirrors.txt ]; then
+            printf 'https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://security.ubuntu.com/ubuntu/\tpriority:2\nhttp://azure.archive.ubuntu.com/ubuntu/\tpriority:3\n' \
+              | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
+          fi
+          apt_opts="-o Acquire::Retries=2 -o Acquire::http::Timeout=20 -o Acquire::https::Timeout=20"
+          if ! { sudo apt-get $apt_opts update && sudo apt-get $apt_opts install -y --no-install-recommends fonts-noto-cjk; }; then
+            # Ubuntu mirrors unreachable (runner DNS): use the official Noto
+            # release on GitHub, pinned to its SHA-256. Still fails closed below.
+            echo "::warning::Ubuntu mirrors unavailable; installing pinned Noto Sans KR release"
+            curl -fsSL --retry 3 -o /tmp/NotoSansKR.zip \
+              https://github.com/notofonts/noto-cjk/releases/download/Sans2.004/17_NotoSansKR.zip
+            echo "ac7eeb4e2b0d41de8ff31b2d6e1e2a41caf253fd5cefb380bfa1f40f1747b612  /tmp/NotoSansKR.zip" | sha256sum -c -
+            sudo mkdir -p /usr/local/share/fonts/noto-sans-kr
+            sudo unzip -oq /tmp/NotoSansKR.zip 'NotoSansKR-*.otf' -d /usr/local/share/fonts/noto-sans-kr
+            sudo fc-cache -f
+          fi
           test -n "$(fc-list :lang=ko family)"
       - name: Check bundled AWS tools and install Chromium
         run: |
@@ -465,6 +484,9 @@ jobs:
             test-results/**/homework-criteria-*.png
             test-results/**/homework-message-criteria-*.png
             test-results/**/homework-criteria-evidence-*.json
+            test-results/**/real-video-homework-notice-*.png
+            test-results/**/real-homework-report-1366.png
+            test-results/**/real-homework-report-390.png
             test-results/**/attendance-export-1366.png
             test-results/**/attendance-export-390.png
             test-results/**/attendance-1366.xlsx
@@ -476,6 +498,7 @@ jobs:
             test-results/**/public-video-390.png
             test-results/**/board-layout-*.json
             test-results/**/board-layout-*.png
+            test-results/**/teacher-score-fixture-cleanup.json
             test-results/development-release-progress.json
           retention-days: 14
           if-no-files-found: error
@@ -997,15 +1020,35 @@ jobs:
 
           CURL_ARGS=(--connect-timeout 5 -fsS)
           DEADLINE=$((SECONDS + 300))
+          VERSION_FILE=$(mktemp)
+          trap 'rm -f -- "$VERSION_FILE"' EXIT
+          probe_cloudflare_url() {
+            local output="$1" url="$2"
+            local remaining=$((DEADLINE - SECONDS))
+            local curl_status
+            if [ "$remaining" -le 0 ]; then return 1; fi
+            if curl "${CURL_ARGS[@]}" --max-time "$((remaining < 15 ? remaining : 15))" -o "$output" "$url"; then
+              return 0
+            else
+              curl_status=$?
+            fi
+            # A connection interruption can recover without losing a complete round.
+            case "$curl_status" in
+              35|56) ;;
+              *) return "$curl_status" ;;
+            esac
+            remaining=$((DEADLINE - SECONDS))
+            if [ "$remaining" -le 0 ]; then return "$curl_status"; fi
+            curl "${CURL_ARGS[@]}" --max-time "$((remaining < 5 ? remaining : 5))" -o "$output" "$url"
+          }
           ATTEMPT=0
           CONSECUTIVE=0
           while [ "$SECONDS" -lt "$DEADLINE" ]; do
             ATTEMPT=$((ATTEMPT + 1))
-            REMAINING=$((DEADLINE - SECONDS))
-            MAX_TIME=$((REMAINING < 15 ? REMAINING : 15))
-            ACTUAL_VERSION=$(curl "${CURL_ARGS[@]}" --max-time "$MAX_TIME" "${E2E_BASE_URL}/version.json?deploy_probe=${ATTEMPT}-${RANDOM}" \
-              | node -e "let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{try{process.stdout.write(String(JSON.parse(s).version||''))}catch{}})" \
-              || true)
+            ACTUAL_VERSION=
+            if probe_cloudflare_url "$VERSION_FILE" "${E2E_BASE_URL}/version.json?deploy_probe=${ATTEMPT}-${RANDOM}"; then
+              ACTUAL_VERSION=$(node -e "let s=''; process.stdin.on('data',d=>s+=d).on('end',()=>{try{process.stdout.write(String(JSON.parse(s).version||''))}catch{}})" < "$VERSION_FILE")
+            fi
             READY=true
             if [ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]; then
               READY=false
@@ -1014,13 +1057,7 @@ jobs:
               # Confirm origin propagation without priming a canonical negative
               # cache entry while the deployment is still incomplete.
               for ASSET in "${PROBE_ASSETS[@]}"; do
-                REMAINING=$((DEADLINE - SECONDS))
-                if [ "$REMAINING" -le 0 ]; then
-                  READY=false
-                  break
-                fi
-                MAX_TIME=$((REMAINING < 15 ? REMAINING : 15))
-                if ! curl "${CURL_ARGS[@]}" --max-time "$MAX_TIME" -o /dev/null "${E2E_BASE_URL}/assets/${ASSET}?deploy_probe=${ATTEMPT}-${RANDOM}"; then
+                if ! probe_cloudflare_url /dev/null "${E2E_BASE_URL}/assets/${ASSET}?deploy_probe=${ATTEMPT}-${RANDOM}"; then
                   READY=false
                   break
                 fi
@@ -1030,13 +1067,7 @@ jobs:
               # Vite imports use the exact query-less URL. This must also be
               # healthy so a stale edge-cached 404 cannot slip past the gate.
               for ASSET in "${PROBE_ASSETS[@]}"; do
-                REMAINING=$((DEADLINE - SECONDS))
-                if [ "$REMAINING" -le 0 ]; then
-                  READY=false
-                  break
-                fi
-                MAX_TIME=$((REMAINING < 15 ? REMAINING : 15))
-                if ! curl "${CURL_ARGS[@]}" --max-time "$MAX_TIME" -o /dev/null "${E2E_BASE_URL}/assets/${ASSET}"; then
+                if ! probe_cloudflare_url /dev/null "${E2E_BASE_URL}/assets/${ASSET}"; then
                   READY=false
                   break
                 fi

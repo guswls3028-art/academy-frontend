@@ -1,6 +1,7 @@
 // PATH: src/app_teacher/domains/today/api.ts
 // 오늘 수업 데이터 — 기존 sessions/attendance API 래핑
 import api from "@/shared/api/axios";
+import type { SessionScheduleDate } from '@/shared/product/sessions/sessionScheduleDisplay';
 
 export interface TodaySession {
   id: number;
@@ -10,6 +11,7 @@ export interface TodaySession {
   order: number;
   title: string;
   date: string | null;
+  schedule_dates?: SessionScheduleDate[];
   lecture_title?: string;
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
@@ -19,6 +21,22 @@ export interface TodaySession {
   // 진척률 (?include_progress=1)
   attendance_filled?: number | null;
   attendance_total?: number | null;
+}
+
+/** Resolve each actual class date before choosing a Today shortcut. */
+export function todaySessionEntries(sessions: TodaySession[], date: string) {
+  return sessions.flatMap(session => {
+    const route = `/workspace/mobile/classes/${session.lecture}/sessions/${session.id}`;
+    const title = session.lecture_title || session.title;
+    if (!session.schedule_dates?.length) {
+      return [{ startTime: session.start_time ?? null, label: title, route }];
+    }
+    return session.schedule_dates.filter(schedule => schedule.date === date).map(schedule => ({
+      startTime: schedule.start_time ?? null,
+      label: `${title} · ${schedule.label}`,
+      route: `${route}?schedule=${schedule.id}`,
+    }));
+  });
 }
 
 /**

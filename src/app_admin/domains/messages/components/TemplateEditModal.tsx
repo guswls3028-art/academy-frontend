@@ -101,7 +101,7 @@ export default function TemplateEditModal({
       setBody(stripInternalAlimtalkMemoToken(initial?.body ?? ""));
       setSelectedCategory(initial?.category ?? category);
       setConfirmDelete(false);
-      setIndividualExpanded((initial?.category ?? category) === "grades");
+      setIndividualExpanded(false);
     }
   }, [open, copy, initialName, initial?.id, initial?.subject, initial?.body, initial?.category, category]);
 
@@ -286,7 +286,7 @@ export default function TemplateEditModal({
                           ? blocks.filter((b) => !autoIds.has(b.id) && b.id !== "site_link")
                           : [];
                         if (!bodyBlocks.length) return null;
-                        const individual = (id: string) => /^(exam|hw)_\d+(?:_|$)/.test(id);
+                        const individual = (id: string) => /^(exam|hw)_\d+(?:_|$)|^class_[2-9]_/.test(id);
                         const individualBlocks = bodyBlocks.filter((block) => individual(block.id));
                         const renderBlocks = (items: typeof bodyBlocks) => (
                           <div className="flex flex-wrap gap-2">
@@ -311,6 +311,10 @@ export default function TemplateEditModal({
                         );
                         return (
                           <div className="message-template-insert-options">
+                            {selectedCategory === "grades" && <p className="grades-block-panel__hint">
+                              ‘과제별 결과’는 과제를 한 줄씩, ‘과제 완료 요약’은 완료한 개수만 표시합니다.
+                              ‘다음 수업’은 발송할 차시를 기준으로 자동으로 바뀝니다. 직접 입력한 공지는 그대로 유지됩니다.
+                            </p>}
                             {renderBlocks(bodyBlocks.filter((block) => !individual(block.id)))}
                             {individualBlocks.length > 0 && (
                               <div className="message-template-individual-blocks">

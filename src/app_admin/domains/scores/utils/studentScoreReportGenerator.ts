@@ -15,6 +15,7 @@ import {
   ALL_LECTURES,
   filterStudentScoreTrend,
   summarizeStudentScoreTrend,
+  type StudentScoreTrendDisplayPoint,
 } from "@/shared/scoring/studentScoreTrend";
 import { downloadBlob } from "@/shared/utils/safeDownload";
 import { getScoreBlockOmrReviewStatus } from "./sessionScoreRowVerdict";
@@ -369,15 +370,17 @@ const REPORT_STYLE = `
     min-height: 55mm;
     align-items: center;
     justify-content: center;
-    color: #8a96a8;
-    font-size: 9px;
+    color: #526176;
+    font-size: 11px;
   }
   .trend-chart { width: 100%; height: 52mm; overflow: visible; }
-  .trend-chart text { font-family: "Malgun Gothic", sans-serif; }
+  .trend-chart text { fill: #526176; font-size: 11px; }
+  .trend-chart .trend-score { fill: #172033; font-size: 13px; font-weight: 800; }
+  .trend-chart .trend-round { fill: #283044; font-size: 12px; font-weight: 700; }
   .trend-note {
     margin-top: 1mm;
-    color: #7b8798;
-    font-size: 7.5px;
+    color: #526176;
+    font-size: 9px;
     text-align: right;
   }
   .history-table, .item-table {
@@ -577,7 +580,9 @@ const REPORT_STYLE = `
     .session-fact small { font-size: 10px; line-height: 1.5; }
     .trend-panel { min-height: 0; padding: 14px 10px 8px; border-radius: 9px; }
     .trend-chart { height: auto; }
-    .trend-note { margin-top: 4px; font-size: 9px; }
+    .trend-chart text { font-size: 17px; }
+    .trend-chart .trend-score, .trend-chart .trend-round { font-size: 19px; }
+    .trend-note { margin-top: 4px; font-size: 10px; }
     .detail-grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
     .history-table, .item-table { border-top: 0; font-size: 11px; }
     .history-table thead, .item-table thead { display: none; }
@@ -722,46 +727,57 @@ function scopeGrades(grades: StudentGradesResponse | null | undefined, lectureId
   };
 }
 
-function buildTrendSvg(points: StudentExamTrendPoint[], theme: StudentScoreReportTheme): string {
-  const ordered = [...points]
-    .sort((a, b) => a.round_index - b.round_index)
-    .slice(-4);
-  if (ordered.length === 0) {
+function buildTrendSvg(points: StudentScoreTrendDisplayPoint[], theme: StudentScoreReportTheme): string {
+  if (points.length === 0) {
     return `<div class="trend-empty">누적 시험 점수가 쌓이면 변화 추이가 표시됩니다.</div>`;
   }
 
-  const width = 640;
-  const height = 178;
-  const left = 38;
-  const right = 18;
-  const top = 15;
-  const bottom = 36;
+  const width = 560;
+  const height = 176;
+  const left = 44;
+  const right = 10;
+  const top = 34;
+  const bottom = 52;
   const chartW = width - left - right;
   const chartH = height - top - bottom;
-  const x = (index: number) => left + (ordered.length === 1 ? chartW / 2 : (index / (ordered.length - 1)) * chartW);
+  const edgePadding = 42;
+  const x = (index: number) => left + (points.length === 1
+    ? chartW / 2
+    : edgePadding + (index / (points.length - 1)) * (chartW - 2 * edgePadding));
   const y = (value: number) => top + ((100 - Math.max(0, Math.min(100, value))) / 100) * chartH;
-  const path = ordered.map((point, index) => `${index === 0 ? "M" : "L"} ${x(index)} ${y(point.score_pct)}`).join(" ");
+  const path = points.map((point, index) => `${index === 0 ? "M" : "L"} ${x(index)} ${y(point.score_pct)}`).join(" ");
   const guides = [100, 75, 50, 25, 0].map((value) => `
     <line x1="${left}" y1="${y(value)}" x2="${width - right}" y2="${y(value)}" stroke="#dbe3ed" stroke-width="1" />
-    <text x="${left - 8}" y="${y(value) + 3}" text-anchor="end" fill="#8a96a8" font-size="9">${value}</text>
+    <text x="${left - 8}" y="${y(value)}" dominant-baseline="central" text-anchor="end">${value}</text>
   `).join("");
-  const pointsMarkup = ordered.map((point, index) => {
-    const label = point.session_title || `${point.round_index}회`;
-    const shortLabel = label.length > 8 ? `${label.slice(0, 8)}…` : label;
+  const pointDescriptions = points.map((point) => [
+    point.round_label,
+    point.session_title,
+    point.title,
+    point.session_date,
+    `${formatNumber(point.score_pct, Number.isInteger(point.score_pct) ? 0 : 1)}점`,
+  ].filter(Boolean).join(" · "));
+  const pointsMarkup = points.map((point, index) => {
+    const date = /^\d{4}-(\d{2})-(\d{2})$/.exec(point.session_date ?? "");
     return `
-      <circle cx="${x(index)}" cy="${y(point.score_pct)}" r="4" fill="${theme.accent}" stroke="${theme.primary}" stroke-width="3" />
-      <text x="${x(index)}" y="${Math.max(10, y(point.score_pct) - 9)}" text-anchor="middle" fill="${theme.primary}" font-size="9" font-weight="700">${formatNumber(point.score_pct, Number.isInteger(point.score_pct) ? 0 : 1)}</text>
-      <text x="${x(index)}" y="${height - 9}" text-anchor="middle" fill="#68758a" font-size="8">${escapeHtml(shortLabel)}</text>
+      <g class="trend-point">
+        <title>${escapeHtml(pointDescriptions[index])}</title>
+        <circle cx="${x(index)}" cy="${y(point.score_pct)}" r="4" fill="${theme.accent}" stroke="${theme.primary}" stroke-width="3" />
+        <text class="trend-score" x="${x(index)}" y="${y(point.score_pct) - 10}" text-anchor="middle">${formatNumber(point.score_pct, Number.isInteger(point.score_pct) ? 0 : 1)}</text>
+        <text class="trend-round" x="${x(index)}" y="${y(0) + 22}" text-anchor="middle">${escapeHtml(point.round_label)}</text>
+        ${date ? `<text class="trend-date" x="${x(index)}" y="${y(0) + 43}" text-anchor="middle">${date[1]}.${date[2]}</text>` : ""}
+      </g>
     `;
   }).join("");
 
   return `
-    <svg class="trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="최근 시험 점수 변화">
+    <svg class="trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="최근 시험 점수 변화" aria-describedby="trend-description">
+      <desc id="trend-description">${escapeHtml(pointDescriptions.join(". "))}</desc>
       ${guides}
       <path d="${path}" fill="none" stroke="${theme.primary}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
       ${pointsMarkup}
     </svg>
-    <div class="trend-note">최근 ${ordered.length}회 · 100점 환산 기준</div>
+    <div class="trend-note">최근 ${points.length}회 · 100점 환산 기준</div>
   `;
 }
 

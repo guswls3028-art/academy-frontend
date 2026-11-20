@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
-import { Button } from "@/shared/ui/ds";
+import { Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -9,24 +10,39 @@ import useAuth from "@/auth/hooks/useAuth";
 import { getTenantUserLocalKey } from "@/shared/utils/safeLocalStorage";
 import { readActiveAuthGenerationSafely } from "@/shared/auth/tokenSession";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
-import { fetchSessionScores, saveScoreTotalConfig, type SessionScoreMeta } from "../api/sessionScores";
+import { fetchSessionScores, saveScoreTotalConfig, type SessionScoreMeta, type ScoreTotalColumnKind } from "../api/sessionScores";
 import { scoresQueryKeys } from "../api/queryKeys";
 import "./AssessmentTotalsModal.css";
 
 type Props = { sessionId: number; meta: SessionScoreMeta; onClose: () => void };
-type TotalOrder = { exam_ids: number[]; homework_ids: number[] };
-type TotalDraft = { meta: SessionScoreMeta; version: number; order: TotalOrder };
+type TotalSettings = {
+  order: Record<ScoreTotalColumnKind, readonly number[]>;
+  selected: Record<ScoreTotalColumnKind, ReadonlySet<number>>;
+};
+type TotalDraft = { meta: SessionScoreMeta; baseline: TotalSettings; settings: TotalSettings };
+type TotalItem = { id: number; title: string; max: number | null; completion?: boolean };
+const TOTAL_GROUPS = ["exam", "homework"] as const;
 const TOTAL_DRAFTS = ["assessment-total-drafts"] as const;
 
 function initialDraft(meta: SessionScoreMeta): TotalDraft {
-  const initial = meta.total_config ?? { version: 0, exam_ids: meta.exams.map((x) => x.exam_id), homework_ids: meta.homeworks.filter((x) => x.grading_mode !== "COMPLETION").map((x) => x.homework_id) };
-  return { meta, version: initial.version, order: {
-    exam_ids: [...meta.exams.filter((x) => initial.exam_ids.includes(x.exam_id)).map((x) => x.exam_id), 0, ...meta.exams.filter((x) => !initial.exam_ids.includes(x.exam_id)).map((x) => x.exam_id)],
-    homework_ids: [...meta.homeworks.filter((x) => initial.homework_ids.includes(x.homework_id)).map((x) => x.homework_id), 0, ...meta.homeworks.filter((x) => x.grading_mode !== "COMPLETION" && !initial.homework_ids.includes(x.homework_id)).map((x) => x.homework_id)],
-  } };
+  // The score endpoint returns complete, session-local ordered metadata.
+  const order = {
+    exam: meta.exams.map((item) => item.exam_id),
+    homework: meta.homeworks.map((item) => item.homework_id),
+  };
+  const selected = {
+    exam: new Set(meta.total_config?.exam_ids ?? order.exam),
+    homework: new Set(meta.total_config?.homework_ids ?? meta.homeworks
+      .filter((item) => item.grading_mode !== "COMPLETION").map((item) => item.homework_id)),
+  };
+  const settings = { order, selected };
+  return { meta, baseline: settings, settings };
 }
-function isDirty(draft: TotalDraft) {
-  return JSON.stringify(draft.order) !== JSON.stringify(initialDraft(draft.meta).order);
+
+function isDirty({ settings, baseline }: TotalDraft) {
+  return TOTAL_GROUPS.some((kind) => settings.order[kind].some((id, index) =>
+    id !== baseline.order[kind][index] || settings.selected[kind].has(id) !== baseline.selected[kind].has(id),
+  ));
 }
 export default function AssessmentTotalsModal(props: Props) {
   const { user } = useAuth();
@@ -40,7 +56,15 @@ function ScopedTotalsModal({ sessionId, meta: serverMeta, onClose, draftScope }:
   const [draft, setDraft] = useState<TotalDraft>(() =>
     (draftScope ? qc.getQueryData<TotalDraft>(draftKey) : undefined) ?? initialDraft(serverMeta));
   const draftRef = useRef(draft);
-  const { meta, order } = draft;
+  const { meta, settings: { order, selected } } = draft;
+  const itemsByKind = useMemo(() => ({
+    exam: new Map<number, TotalItem>(meta.exams.map((item) => [item.exam_id, {
+      id: item.exam_id, title: item.title, max: item.max_score,
+    }])),
+    homework: new Map<number, TotalItem>(meta.homeworks.map((item) => [item.homework_id, {
+      id: item.homework_id, title: item.title, max: item.max_score, completion: item.grading_mode === "COMPLETION",
+    }])),
+  }), [meta.exams, meta.homeworks]);
   const [conflict, setConflict] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -75,22 +99,37 @@ function ScopedTotalsModal({ sessionId, meta: serverMeta, onClose, draftScope }:
       else qc.removeQueries({ queryKey: draftKey, exact: true });
     }
   };
-  const select = (key: keyof TotalOrder, ids: number[]) => {
+  const select = (kind: ScoreTotalColumnKind, ids: ReadonlySet<number>) => {
     if (busy.current) return;
     const current = draftRef.current;
-    // Keep rows stationary while checking. The saved table still groups selected
-    // assessments before its total, preserving the existing API/order contract.
-    const original = initialDraft(current.meta).order[key].filter(Boolean);
-    const selected = new Set(ids);
-    const next = [...original.filter(id => selected.has(id)), 0, ...original.filter(id => !selected.has(id))];
-    updateDraft({ ...current, order: { ...current.order, [key]: next } });
+    const { settings } = current;
+    updateDraft({ ...current, settings: { ...settings, selected: { ...settings.selected, [kind]: ids } } });
+  };
+  const toggle = (kind: ScoreTotalColumnKind, id: number, checked: boolean) => {
+    const ids = new Set(draftRef.current.settings.selected[kind]);
+    if (checked) ids.add(id);
+    else ids.delete(id);
+    select(kind, ids);
+  };
+  const move = (kind: ScoreTotalColumnKind, fromId: number, toId: number) => {
+    if (busy.current || fromId === toId) return;
+    const current = draftRef.current;
+    const { settings } = current;
+    const ids = settings.order[kind];
+    const from = ids.indexOf(fromId);
+    const to = ids.indexOf(toId);
+    if (from < 0 || to < 0) return;
+    const next = [...ids];
+    next.splice(from, 1);
+    next.splice(to, 0, fromId);
+    updateDraft({ ...current, settings: { ...settings, order: { ...settings.order, [kind]: next } } });
   };
   const close = async () => {
     if (busy.current || closing.current) return;
     closing.current = true;
     try {
       if (isDirty(draftRef.current) && !await confirm({
-        title: "저장하지 않은 합산 설정", message: "변경한 합산 선택을 저장하지 않고 닫을까요?",
+        title: "저장하지 않은 합산 설정", message: "변경한 합산 설정을 저장하지 않고 닫을까요?",
         confirmText: "저장하지 않고 닫기", cancelText: "계속 편집",
       })) return;
       if (!isActiveScope()) return;
@@ -102,20 +141,16 @@ function ScopedTotalsModal({ sessionId, meta: serverMeta, onClose, draftScope }:
     if (busy.current || !isActiveScope()) return;
     busy.current = true;
     const submitted = draftRef.current;
-    const { meta, version, order } = submitted;
+    const { meta, settings: { order, selected } } = submitted;
     setSaving(true);
     setError("");
     try {
-      const scoredHomeworkOrder = order.homework_ids.filter(Boolean);
-      let scoredHomeworkIndex = 0;
       await saveScoreTotalConfig(sessionId, {
-        version,
-        exam_ids: order.exam_ids.slice(0, order.exam_ids.indexOf(0)),
-        homework_ids: order.homework_ids.slice(0, order.homework_ids.indexOf(0)),
-        exam_order: order.exam_ids.filter(Boolean),
-        // Completion items are edited in the table, so retain their positions here.
-        homework_order: meta.homeworks.map((item) => item.grading_mode === "COMPLETION"
-          ? item.homework_id : scoredHomeworkOrder[scoredHomeworkIndex++]),
+        version: meta.total_config?.version ?? 0,
+        exam_ids: order.exam.filter((id) => selected.exam.has(id)),
+        homework_ids: order.homework.filter((id) => selected.homework.has(id)),
+        exam_order: [...order.exam],
+        homework_order: [...order.homework],
       });
       if (!sameAuth()) return;
       clearDraft(submitted);
@@ -126,7 +161,7 @@ function ScopedTotalsModal({ sessionId, meta: serverMeta, onClose, draftScope }:
     } catch (cause) {
       if (!isActiveScope()) return;
       setConflict([400, 409].includes((cause as { response?: { status?: number } }).response?.status ?? 0));
-      setError(extractApiError(cause, "합산 설정을 저장하지 못했습니다. 선택은 유지됩니다. 다시 시도해 주세요."));
+      setError(extractApiError(cause, "합산 설정을 저장하지 못했습니다. 편집 내용은 유지됩니다. 다시 시도해 주세요."));
     } finally { busy.current = false; if (isActiveScope()) setSaving(false); }
   };
   const reload = async () => {
@@ -147,39 +182,87 @@ function ScopedTotalsModal({ sessionId, meta: serverMeta, onClose, draftScope }:
   return <AdminModal open width={760} closeDisabled={saving} onClose={() => void close()}>
     <ModalHeader title="합산 설정" subtitle={meta.session_title} />
     <ModalBody>
-      <p className="assessment-totals-help">총점에 포함할 항목을 체크하세요. 선택한 항목의 점수와 만점을 합산합니다.</p>
-      <div className="assessment-totals-groups">{([
-        { key: "exam_ids" as const, title: "시험 총점", items: meta.exams.map((x) => ({ id: x.exam_id, title: x.title, max: x.max_score })) },
-        { key: "homework_ids" as const, title: "과제 총점", items: meta.homeworks.filter((x) => x.grading_mode !== "COMPLETION").map((x) => ({ id: x.homework_id, title: x.title, max: x.max_score })) },
-      ]).map(({ key, title, items }) => {
-        const selected = order[key].slice(0, order[key].indexOf(0));
-        const selectedItems = items.filter(item => selected.includes(item.id));
+      <p className="assessment-totals-help">총점에 포함할 항목을 체크하세요. 손잡이를 끌거나 화살표를 눌러 성적표와 알림톡의 항목 순서를 바꿀 수 있습니다.</p>
+      <div className="assessment-totals-groups">{TOTAL_GROUPS.map((kind) => {
+        const title = kind === "exam" ? "시험 총점" : "과제 총점";
+        const ids = order[kind];
+        const items = ids.map((id) => itemsByKind[kind].get(id)!);
+        const eligible = items.filter((item) => !item.completion);
+        const selectedItems = eligible.filter((item) => selected[kind].has(item.id));
         const maximum = selectedItems.reduce((sum, item) => sum + (item.max ?? 0), 0);
-        return <fieldset key={key} className="assessment-totals-group" disabled={saving}>
-          <legend>{title} · {selected.length}개 합산</legend>
+        const dragType = `text/x-academy-total-${kind}`;
+        return <fieldset key={kind} className="assessment-totals-group" disabled={saving}>
+          <legend>{title} · {selectedItems.length}개 합산</legend>
           {items.length ? <>
-            <div className="assessment-totals-group-summary">
-              <span role="status">{selected.length ? selectedItems.some(item => item.max == null) ? "만점 미설정 항목 포함" : `합산 만점 ${maximum.toLocaleString()}점` : "합산할 항목을 선택하지 않았습니다"}</span>
+            {eligible.length > 0 && <div className="assessment-totals-group-summary">
+              <span role="status">{selectedItems.length ? selectedItems.some(item => item.max == null) ? "만점 미설정 항목 포함" : `합산 만점 ${maximum.toLocaleString()}점` : "합산할 항목을 선택하지 않았습니다"}</span>
               <div className="assessment-totals-selection-actions">
-                <Button size="sm" intent="ghost" disabled={selected.length === items.length} onClick={() => select(key, items.map(item => item.id))}>전체 선택</Button>
-                <Button size="sm" intent="ghost" disabled={!selected.length} onClick={() => select(key, [])}>선택 해제</Button>
+                <Button size="sm" intent="ghost" disabled={selectedItems.length === eligible.length} onClick={() => select(kind, new Set(eligible.map((item) => item.id)))}>전체 선택</Button>
+                <Button size="sm" intent="ghost" disabled={!selectedItems.length} onClick={() => select(kind, new Set())}>선택 해제</Button>
               </div>
-            </div>
+            </div>}
             <div className="assessment-totals-options">
-              {initialDraft(meta).order[key].filter(Boolean).map(id => {
-                const item = items.find(entry => entry.id === id)!;
-                const checked = selected.includes(id);
-                return <label key={id} className="assessment-totals-option" data-selected={checked}>
-                  <input type="checkbox" checked={checked} aria-label={`${item.title} 합산에 포함`} onChange={event => select(key, event.target.checked ? [...selected, id] : selected.filter(value => value !== id))} />
-                  <span className="assessment-totals-option-copy"><strong>{item.title}</strong><small>{item.max == null ? "만점 미설정" : `${item.max.toLocaleString()}점 만점`}</small></span>
-                  <span className="assessment-totals-option-state">{checked ? "포함" : "제외"}</span>
-                </label>;
+              {items.map((item, index) => {
+                const checked = selected[kind].has(item.id);
+                const previous = ids[index - 1];
+                const next = ids[index + 1];
+                return <div key={item.id} className="assessment-totals-option" data-selected={checked}
+                  onDragOver={(event) => {
+                    if (saving || !event.dataTransfer.types.includes(dragType)) return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = "move";
+                    event.currentTarget.classList.add("assessment-totals-option--drop");
+                  }}
+                  onDragLeave={(event) => {
+                    if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+                    event.currentTarget.classList.remove("assessment-totals-option--drop");
+                  }}
+                  onDrop={(event) => {
+                    event.currentTarget.classList.remove("assessment-totals-option--drop");
+                    const id = event.dataTransfer.getData(dragType);
+                    if (!id) return;
+                    event.preventDefault();
+                    move(kind, Number(id), item.id);
+                  }}
+                >
+                  {items.length > 1 && <span
+                    className="assessment-totals-drag-handle"
+                    draggable={!saving}
+                    title={`${item.title} 순서 끌어서 변경`}
+                    aria-hidden="true"
+                    onDragStart={(event) => {
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData(dragType, String(item.id));
+                    }}
+                  ><GripVertical size={ICON.sm} /></span>}
+                  {item.completion ? (
+                    <span className="assessment-totals-option-copy assessment-totals-option-completion">
+                      <strong>{item.title}</strong><small>통과형 · 순서만 설정</small>
+                    </span>
+                  ) : (
+                    <label className="assessment-totals-option-label">
+                      <input type="checkbox" checked={checked} aria-label={`${item.title} 합산에 포함`} onChange={(event) => toggle(kind, item.id, event.target.checked)} />
+                      <span className="assessment-totals-option-copy">
+                        <strong>{item.title}</strong>
+                        <small>{item.max == null ? "만점 미설정" : `${item.max.toLocaleString()}점 만점`}</small>
+                      </span>
+                    </label>
+                  )}
+                  {items.length > 1 && <div className="assessment-totals-move-actions">
+                    <Button type="button" size="sm" intent="ghost" iconOnly leftIcon={<ChevronUp size={ICON_FOR_BUTTON.sm} />}
+                      disabled={previous == null} aria-label={`${item.title} 위로 이동`}
+                      onClick={() => move(kind, item.id, previous)} />
+                    <Button type="button" size="sm" intent="ghost" iconOnly leftIcon={<ChevronDown size={ICON_FOR_BUTTON.sm} />}
+                      disabled={next == null} aria-label={`${item.title} 아래로 이동`}
+                      onClick={() => move(kind, item.id, next)} />
+                  </div>}
+                </div>;
               })}
             </div>
           </> : <p className="assessment-totals-empty">합산할 점수형 항목이 없습니다.</p>}
         </fieldset>;
       })}</div>
-      <p className="assessment-totals-help">표에는 선택한 항목 → 총점 → 제외한 항목 순서로 표시됩니다. 항목 순서는 성적표에서 조절할 수 있습니다.</p>
+      <p className="assessment-totals-help">합산 선택과 표시 순서는 별개입니다. 항목을 이동해도 합산 여부는 바뀌지 않으며, 제외한 항목도 성적표와 알림톡 결과에서 사용할 수 있습니다.</p>
       <p className="assessment-totals-help">통과형 과제는 점수 합계에 포함하지 않습니다. 미입력·미채점 점수는 ‘집계 중’으로 표시합니다.</p>
       {error && <p role="alert" className="assessment-totals-error">{error}</p>}
       {conflict && <Button disabled={saving} onClick={() => void reload()}>최신 설정으로 다시 시작</Button>}

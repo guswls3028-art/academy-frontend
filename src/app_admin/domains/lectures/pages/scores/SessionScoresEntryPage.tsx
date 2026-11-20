@@ -10,15 +10,16 @@
  */
 
 import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ChevronDown, ClipboardCheck, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
+import { AlertCircle, ChartColumn, ChevronDown, ClipboardCheck, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
 import { useConfirm } from "@/shared/ui/confirm";
 
 import SessionScoresPanel, { type SessionScoresPanelHandle } from "@admin/domains/scores/public/SessionScoresPanel";
-import { buildScoreCsv } from "@admin/domains/scores/public/scoreCsvGenerator";
 import { useScoreEditDraft } from "@admin/domains/scores/public/useScoreEditDraft";
-import type { ScoreActiveCell } from "@admin/domains/scores/public/scoreDraft";
+import { isScoreEditStaleError, type ScoreActiveCell } from "@admin/domains/scores/public/scoreDraft";
+import { patchHomeworkQuick, type SaveDrawerHomeworkScore } from "@admin/domains/scores/public/patchHomeworkQuick";
+import { runWithScoreEditLease, trackScoreDraftWrite } from "@/shared/scoring/scoreEditLease";
 import {
   fetchSessionScores,
   type SessionScoreMeta,
@@ -26,14 +27,14 @@ import {
   type SessionScoresResponse,
   type SessionScoresExamReviewFilter,
   type SessionScoresSummaryColumnMode,
+  type ScoreTotalColumnKind,
 } from "@/shared/api/contracts/sessionScores";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { Button, EmptyState, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import { DomainListToolbar, getStoredTableOption, setStoredTableOption } from "@/shared/ui/domain";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter } from "@/shared/ui/modal";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
-import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
-import { substituteScoreVars, buildScoreVars, buildScoreDetail, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
+import { collectHighestScores, usesVideoHomeworkLabelInScoreAlimtalk } from "@/shared/scoring/scoreReport";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchSessionEnrollments } from "@/shared/api/contracts/sessionEnrollments";
 import { updateExamEnrollmentRows } from "@admin/domains/exams/api/examEnrollments";
@@ -41,6 +42,7 @@ import { putHomeworkAssignments } from "@admin/domains/homework/api/homeworkAssi
 import { adminLectureQueryKeys } from "../../queryKeys";
 import api from "@/shared/api/axios";
 import { fetchAttendance } from "@/shared/api/contracts/attendance";
+import { useBeforeScheduleChange, useSessionScheduleScope } from "@/shared/hooks/useSessionScheduleScope";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useProgram } from "@/shared/program";
@@ -67,6 +69,11 @@ type SessionScoresEntryPageProps = {
   onOpenCreateHomework?: () => void;
 };
 
+function isScoreAlimtalkAttendance(row: SessionScoreRow, includeVideo: boolean): boolean {
+  return row.attendance_status === "PRESENT" || row.attendance_status === "LATE"
+    || (includeVideo && row.attendance_status === "ONLINE");
+}
+
 function getStoredSummaryColumnMode(
   storageKey: string | null,
   legacyStorageKey: string | null,
@@ -77,6 +84,13 @@ function getStoredSummaryColumnMode(
   const mode = stored ?? legacyStored;
   if (mode === "exam_wrong" || mode === "verdict") return mode;
   return fallback;
+}
+
+function readHiddenTotalColumns(storageKey: string | null) {
+  return {
+    exam: !!storageKey && getStoredTableOption(storageKey, "exam") === "hidden",
+    homework: !!storageKey && getStoredTableOption(storageKey, "homework") === "hidden",
+  };
 }
 
 function isCompletelyBlankScoreSheet(data: SessionScoresResponse | undefined): boolean {
@@ -113,6 +127,8 @@ function resolveExamGradingMode(
 // Keep the OMR upload workspace (batch ledger, file preparation and upload UI)
 // outside the score-entry module. Both exports share the same lazy chunk.
 const SessionOmrUploadAction = lazy(() => import("./SessionOmrUploadAction"));
+const SessionScoreDraftRecoveryDialog = lazy(() => import("./SessionScoreDraftRecoveryDialog"));
+const SessionExamAnalysisAction = lazy(() => import("./SessionExamAnalysisAction"));
 const SessionOmrUploadModal = lazy(() => import("./SessionOmrUploadAction").then(module => ({ default: module.SessionOmrUploadModal })));
 const ScorePrintPreviewModal = lazy(() => import("@admin/domains/scores/public/ScorePrintPreviewModal"));
 const StudentScoreReportModal = lazy(() => import("@admin/domains/scores/public/StudentScoreReportModal"));
@@ -126,7 +142,10 @@ export default function SessionScoresEntryPage({
   onOpenCreateHomework,
 }: SessionScoresEntryPageProps = {}) {
   const { sessionId: sessionIdParam, lectureId: lectureIdParam } = useParams<{ lectureId: string; sessionId: string }>();
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const schedule = useSessionScheduleScope();
   const numericSessionId = Number(sessionIdParam);
   const numericLectureId = Number(lectureIdParam);
   const qc = useQueryClient();
@@ -135,11 +154,27 @@ export default function SessionScoresEntryPage({
   const isMobile = useIsMobile();
   const { user } = useAuth();
   const { program } = useProgram();
+  const includeVideoInScoreAlimtalk = usesVideoHomeworkLabelInScoreAlimtalk(program?.tenantCode);
   const isAnonymousBillboardMode = program?.feature_flags?.score_output_mode === "anonymous_billboard";
   const defaultSummaryColumnMode: SessionScoresSummaryColumnMode =
     program?.feature_flags?.score_summary_column_default === "exam_wrong" ? "exam_wrong" : "verdict";
   const [searchInput, setSearchInput] = useState("");
   const [selectedEnrollmentIds, setSelectedEnrollmentIds] = useState<number[]>([]);
+  const [isPreparingScoreAlimtalk, setIsPreparingScoreAlimtalk] = useState(false);
+  const [scoreAlimtalkError, setScoreAlimtalkError] = useState<string | null>(null);
+  const scoreAlimtalkRequestRef = useRef<symbol | null>(null);
+  const changeScoreSelection = useCallback((ids: number[] | ((current: number[]) => number[]), reason?: "roster") => {
+    setSelectedEnrollmentIds(ids);
+    // A fresh roster can prune ineligible rows during preparation. Keep checking the clicked selection.
+    if (reason === "roster") return;
+    scoreAlimtalkRequestRef.current = null;
+    setIsPreparingScoreAlimtalk(false);
+    setScoreAlimtalkError(null);
+  }, []);
+  useEffect(() => {
+    changeScoreSelection([]);
+    return () => { scoreAlimtalkRequestRef.current = null; };
+  }, [changeScoreSelection, numericSessionId, schedule]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   /** 편집 시 어떤 셀을 쓰기 모드로 할지 */
@@ -152,6 +187,16 @@ export default function SessionScoresEntryPage({
   const [viewFilter, setViewFilter] = useState<"all" | "exam" | "homework">("all");
   /** 점수 표시 형식: raw(원점수만) | fraction(50/100) */
   const [scoreFormat, setScoreFormat] = useState<"raw" | "fraction">("fraction");
+  const totalColumnStorageKey = getTenantUserLocalKey("scores:total-columns", user?.id);
+  const [totalColumnPrefs, setTotalColumnPrefs] = useState(() => ({
+    key: totalColumnStorageKey,
+    hidden: readHiddenTotalColumns(totalColumnStorageKey),
+  }));
+  // A change of tenant or staff account must read its own preferences immediately.
+  if (totalColumnPrefs.key !== totalColumnStorageKey) {
+    setTotalColumnPrefs({ key: totalColumnStorageKey, hidden: readHiddenTotalColumns(totalColumnStorageKey) });
+  }
+  const hiddenTotalColumns = totalColumnPrefs.hidden;
   const summaryColumnStorageKey = getTenantUserLocalKey("scores:summary-column", user?.id);
   const legacySummaryColumnStorageKey = user?.id ? `scores:summary-column:u${user.id}` : null;
   const [summaryColumnMode, setSummaryColumnMode] = useState<SessionScoresSummaryColumnMode>(
@@ -165,13 +210,17 @@ export default function SessionScoresEntryPage({
   /** 읽기 모드 표시 옵션 펼침 — 첫 사용자에게 압도감 없도록 default collapsed.
       비-default 값일 때는 자동 펼침 (학원장이 자기 설정을 즉시 인식). */
   const [viewOptionsExpanded, setViewOptionsExpanded] = useState(false);
+  const viewOptionsButtonRef = useRef<HTMLButtonElement>(null);
   const hasNonDefaultViewOptions =
     viewFilter !== "all"
     || scoreDisplayMode !== "total"
     || scoreFormat !== "fraction"
-    || summaryColumnMode !== defaultSummaryColumnMode;
+    || summaryColumnMode !== defaultSummaryColumnMode
+    || hiddenTotalColumns.exam
+    || hiddenTotalColumns.homework;
   const { openSendMessageModal } = useSendMessageModal();
   const panelRef = useRef<SessionScoresPanelHandle>(null);
+  const scoreGridRef = useRef<HTMLDivElement>(null);
   const [activeScoreCell, setActiveScoreCell] = useState<ScoreActiveCell | null>(null);
   const [showBulkScoreModal, setShowBulkScoreModal] = useState(false);
   const [bulkScoreValue, setBulkScoreValue] = useState("");
@@ -201,9 +250,6 @@ export default function SessionScoresEntryPage({
   const openedGradingDeepLinkRef = useRef<number | null>(null);
   const manualGradingRef = useRef<ManualExamGradingGridHandle>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
-  const recoveryRestoreButtonRef = useRef<HTMLButtonElement>(null);
-  const recoveryDialogRef = useRef<HTMLDivElement>(null);
-  const recoveryPreviousFocusRef = useRef<HTMLElement | null>(null);
   const isEditModeRef = useRef(false);
   const autoEditAttemptedSessionsRef = useRef(new Set<number>());
   const [autoEditSettledSessions, setAutoEditSettledSessions] = useState<ReadonlySet<number>>(new Set());
@@ -229,6 +275,19 @@ export default function SessionScoresEntryPage({
     setStoredTableOption(summaryColumnStorageKey, "mode", mode);
   }, [summaryColumnStorageKey]);
 
+  const setTotalColumnHidden = useCallback((kind: ScoreTotalColumnKind, hidden: boolean) => {
+    setTotalColumnPrefs((current) => ({ ...current, hidden: { ...current.hidden, [kind]: hidden } }));
+    if (totalColumnStorageKey) {
+      setStoredTableOption(totalColumnStorageKey, kind, hidden ? "hidden" : "visible");
+    }
+  }, [totalColumnStorageKey]);
+
+  const hideTotalColumn = useCallback((kind: ScoreTotalColumnKind) => {
+    setTotalColumnHidden(kind, true);
+    setViewOptionsExpanded(true);
+    viewOptionsButtonRef.current?.focus({ preventScroll: true });
+  }, [setTotalColumnHidden]);
+
   /** 강의 정보 (PDF 제목용) */
   const { data: lectureData } = useQuery({
     queryKey: adminLectureQueryKeys.lecture(numericLectureId),
@@ -248,8 +307,8 @@ export default function SessionScoresEntryPage({
     isError: attendanceForPdfError,
     refetch: refetchAttendanceForPdf,
   } = useQuery({
-    queryKey: adminLectureQueryKeys.attendanceForPdf(numericSessionId),
-    queryFn: () => fetchAttendance(numericSessionId, { page_size: 500 }),
+    queryKey: adminLectureQueryKeys.attendanceForPdfScope(numericSessionId, schedule),
+    queryFn: () => fetchAttendance(numericSessionId, { page_size: 500, schedule }),
     enabled: shouldLoadPrintData && Number.isFinite(numericSessionId),
   });
 
@@ -375,6 +434,8 @@ export default function SessionScoresEntryPage({
     checkForRecovery: sessionIdForDraft > 0,
     activeCell: activeScoreCell,
   });
+  const [deferredDraftSessionId, setDeferredDraftSessionId] = useState<number | null>(null);
+  const showDraftRecoveryDialog = draft.hasDraftToRestore && deferredDraftSessionId !== numericSessionId;
   const {
     beginEditing: beginScoreEditing,
     saveNow: saveScoreDraftNow,
@@ -399,6 +460,10 @@ export default function SessionScoresEntryPage({
   }, [draft.draftStatus]);
 
   const saveScoresNow = useCallback(async (announce = false): Promise<boolean> => {
+    if (draft.editStaleConflict) {
+      feedback.info("최신 성적을 확인한 뒤 저장해 주세요.");
+      return false;
+    }
     if (panelRef.current?.commitActiveCell?.() === false) return false;
     await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
     setIsSaving(true);
@@ -422,59 +487,17 @@ export default function SessionScoresEntryPage({
       }
       return true;
     } catch (err) {
-      feedback.error((err as Error).message || "저장에 실패했습니다. 입력값은 유지됩니다.");
+      if (!isScoreEditStaleError(err)) {
+        feedback.error((err as Error).message || "저장에 실패했습니다. 입력값은 유지됩니다.");
+      }
       return false;
     } finally {
       setIsSaving(false);
     }
-  }, [runTrackedTask, saveScoreDraftNow]);
-
-  useEffect(() => {
-    if (!draft.hasDraftToRestore) return;
-    recoveryPreviousFocusRef.current = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null;
-    recoveryRestoreButtonRef.current?.focus();
-
-    const keepFocusInsideDialog = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        feedback.info("임시저장을 복원하거나 버리기를 선택해 주세요.");
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const dialog = recoveryDialogRef.current;
-      if (!dialog) return;
-      const focusable = Array.from(
-        dialog.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      );
-      if (focusable.length === 0) {
-        event.preventDefault();
-        dialog.focus();
-        return;
-      }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", keepFocusInsideDialog);
-    return () => {
-      document.removeEventListener("keydown", keepFocusInsideDialog);
-      const previous = recoveryPreviousFocusRef.current;
-      if (previous?.isConnected) previous.focus();
-    };
-  }, [draft.hasDraftToRestore]);
+  }, [draft.editStaleConflict, runTrackedTask, saveScoreDraftNow]);
 
   const changeScoreHistory = useCallback((redo: boolean, notifyEmpty = false) => {
-    if (!isEditMode || panelRef.current?.hasUncommittedActiveCell?.()) return false;
+    if (!isEditMode || scoreGridRef.current?.inert || panelRef.current?.hasUncommittedActiveCell?.()) return false;
     const changed = redo ? panelRef.current?.redoLastChange?.() : panelRef.current?.undoLastChange?.();
     if (!changed && notifyEmpty) feedback.info(redo ? "다시 실행할 변경이 없습니다." : "이 화면에서 되돌릴 변경이 없습니다.");
     return Boolean(changed);
@@ -485,6 +508,10 @@ export default function SessionScoresEntryPage({
       if (!isEditMode) return;
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return;
       const key = event.key.toLowerCase();
+      if (scoreGridRef.current?.inert) {
+        if (key === "s" || key === "z" || key === "y") event.preventDefault();
+        return;
+      }
       if (key === "s") {
         event.preventDefault();
         void saveScoresNow(true);
@@ -525,10 +552,82 @@ export default function SessionScoresEntryPage({
   }, [isEditMode]);
 
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: scoresQueryKeys.sessionScores(numericSessionId),
-    queryFn: () => fetchSessionScores(numericSessionId),
+    queryKey: scoresQueryKeys.sessionScoresScope(numericSessionId, schedule),
+    queryFn: () => fetchSessionScores(numericSessionId, schedule),
     enabled: Number.isFinite(numericSessionId) && numericSessionId > 0,
   });
+  const draftReviewItems = useMemo(() => {
+    if (!draft.hasDraftToRestore) return [];
+    const rowsByEnrollment = new Map(data?.rows.map((row) => [row.enrollment_id, row]));
+    return draft.restoreChanges.map((change) => {
+      const row = rowsByEnrollment.get(change.enrollmentId);
+      const assessment = change.type === "homework"
+        ? row?.homeworks.find((homework) => homework.homework_id === change.homeworkId)
+        : row?.exams.find((exam) => exam.exam_id === change.examId);
+      return { row, assessment, change };
+    });
+  }, [data?.rows, draft.hasDraftToRestore, draft.restoreChanges]);
+  const draftHasMissingRows = draftReviewItems.some(({ row }) => !row);
+  const draftHasMissingTargets = draftReviewItems.some(({ assessment }) => !assessment);
+  const draftNeedsFullRoster = schedule !== undefined && (isError || (!isLoading && draftHasMissingRows));
+  const draftNeedsScoreRetry = !draftNeedsFullRoster && !isLoading && (isError || draftHasMissingTargets);
+  const draftNeedsVisibleRows = !isLoading && !isError && !draftHasMissingTargets && draftReviewItems.some(({ row }) => row && (
+    !matchesSessionScoreStudentSearch(row.student_name ?? "", searchInput)
+    || (summaryColumnMode === "exam_wrong" && !matchesSessionRowExamReviewFilter(row, examReviewFilter))
+  ));
+  // A browser history transition can precede the React score query commit.
+  const isDraftReviewCurrent = () => window.location.pathname === pathname
+    && (new URLSearchParams(window.location.search).get("schedule") ?? undefined) === schedule;
+  const restoreReviewedDraft = async () => {
+    if (!isDraftReviewCurrent() || !showDraftRecoveryDialog || draft.isDiscardingDraft || draft.isStartingEdit) return;
+    if (draftNeedsFullRoster || draftNeedsVisibleRows) {
+      setSearchInput("");
+      setExamReviewFilter("all");
+      setViewFilter("all");
+      if (draftNeedsFullRoster) {
+        setSearchParams((previous) => {
+          const next = new URLSearchParams(previous);
+          next.delete("schedule");
+          return next;
+        });
+      }
+      return;
+    }
+    if (draftNeedsScoreRetry) {
+      await refetch();
+      return;
+    }
+    if (!data || isLoading || isError || draftHasMissingTargets) return;
+    if (!await draft.restoreDraft(isDraftReviewCurrent)) {
+      feedback.info("성적표를 불러온 뒤 다시 복원해 주세요.");
+      return;
+    }
+    setIsEditMode(true);
+  };
+  const discardReviewedDraft = async () => {
+    if (!isDraftReviewCurrent()) return;
+    if (!await draft.discardDraft()) feedback.error("임시저장을 버리지 못했습니다. 다시 시도해 주세요.");
+  };
+  const reviewLatestScores = async () => {
+    setIsSaving(true);
+    try {
+      await refetch({ throwOnError: true });
+      const panel = panelRef.current;
+      if (!panel || panel.commitActiveCell?.() === false) return;
+      const hasDraft = draft.stageStaleRecovery();
+      setActiveScoreCell(null);
+      setIsEditMode(false);
+      if (!hasDraft && !await draft.discardDraft()) {
+        setIsEditMode(true);
+        feedback.error("이전 저장 상태를 정리하지 못했습니다. 다시 확인해 주세요.");
+      }
+    } catch {
+      feedback.error("최신 성적을 불러오지 못했습니다. 입력값은 유지됩니다. 다시 시도해 주세요.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const isBlankScoreSheet = useMemo(() => isCompletelyBlankScoreSheet(data), [data]);
 
   const examReviewOverview = useMemo(() => {
@@ -553,13 +652,18 @@ export default function SessionScoresEntryPage({
   );
   const pendingSubjectiveSummary = useMemo(() => {
     const enrollmentIds = new Set<number>();
+    const awaitingOmrIds = new Set<number>();
     for (const row of data?.rows ?? []) {
       for (const exam of row.exams ?? []) {
         if (exam.block.grading_status !== "subjective_pending") continue;
-        enrollmentIds.add(row.enrollment_id);
+        if (exam.block.grading_pending_reason === "objective_pending") {
+          awaitingOmrIds.add(row.enrollment_id);
+        } else {
+          enrollmentIds.add(row.enrollment_id);
+        }
       }
     }
-    return { studentCount: enrollmentIds.size };
+    return { studentCount: enrollmentIds.size, awaitingOmrCount: awaitingOmrIds.size };
   }, [data?.rows]);
 
   // P1-5: setPresetTotalHw / setPresetSubjectiveHw preset 함수 제거 — 5버튼 segment 단순화로 불필요.
@@ -682,28 +786,187 @@ export default function SessionScoresEntryPage({
     draft.recoveryCheckFailed ||
     draft.editLockConflict ||
     draft.hasDraftToRestore;
+
+  const saveDrawerHomeworkScore: SaveDrawerHomeworkScore = async (change) => {
+    if (isSaving || draft.isStartingEdit || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error") {
+      throw new Error("진행 중인 저장이나 복구를 마친 뒤 다시 시도해 주세요.");
+    }
+    if (!homeworkEdit) throw new Error("과제 입력 옵션을 켜 주세요.");
+
+    const save = () => patchHomeworkQuick({ ...change, sessionId: numericSessionId });
+    setIsSaving(true);
+    try {
+      // Reuse the table's lease only while editing. A single save in view mode
+      // acquires and releases its own lease without starting bulk editing.
+      if (isEditMode) await trackScoreDraftWrite(numericSessionId, save);
+      else await runWithScoreEditLease(numericSessionId, save);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  useBeforeScheduleChange(async (action) => {
+    const canViewWhileCheckingDraft = action === "view" && !isEditMode && !draft.hasPendingChanges
+      && draft.draftStatus !== "saving" && draft.draftStatus !== "error";
+    const recoveryBlocksChange = draft.recoveryCheckFailed || draft.editLockConflict || draft.hasDraftToRestore
+      || (draft.isRecoveryCheckPending && !canViewWhileCheckingDraft);
+    if (isSaving || draft.isStartingEdit || recoveryBlocksChange) {
+      feedback.info("진행 중인 저장이나 복구를 마친 뒤 다시 시도해 주세요.");
+      return false;
+    }
+    if (isEditMode) {
+      if (!await saveScoresNow() || !await draft.releaseEditLease()) return false;
+      setIsEditMode(false);
+    }
+    setShowBulkScoreModal(false);
+    setShowStudentReport(false);
+    return true;
+  });
   const selectedHasSubjectivePending = (data?.rows ?? []).some((row) => (
     selectedEnrollmentIds.includes(row.enrollment_id)
+    && isScoreAlimtalkAttendance(row, includeVideoInScoreAlimtalk)
     && row.exams.some((exam) => exam.block.grading_status === "subjective_pending")
   ));
   const scoreAlimtalkDisabled = selectedEnrollmentIds.length === 0
-    || selectedHasSubjectivePending
+    || (selectedHasSubjectivePending && (
+      includeVideoInScoreAlimtalk || !(data?.rows ?? []).some((row) => (
+        selectedEnrollmentIds.includes(row.enrollment_id) && row.attendance_status === "ONLINE"
+      ))
+    ))
     || isEditMode
     || isSaving
     || recoveryBlocked;
   const scoreAlimtalkTitle = selectedEnrollmentIds.length === 0
     ? "학생을 선택하세요."
-    : selectedHasSubjectivePending
+    : selectedHasSubjectivePending && scoreAlimtalkDisabled
       ? "서술형 점수 입력을 완료한 뒤 알림톡을 발송할 수 있습니다."
     : recoveryBlocked
       ? "이전 입력 복구 여부를 먼저 확인해 주세요."
     : isEditMode
       ? "점수 입력을 마친 뒤 알림톡을 발송할 수 있습니다."
-      : "선택한 학생에게 저장된 성적 기준으로 알림톡을 발송합니다.";
+      : includeVideoInScoreAlimtalk
+        ? "선택한 출석·지각·영상 학생의 수업결과를 확인합니다."
+        : "선택한 학생의 수업결과와 영상 학생 과제 안내를 확인합니다.";
+  const handleOpenScoreAlimtalk = async () => {
+    if (scoreAlimtalkDisabled || scoreAlimtalkRequestRef.current !== null) return;
+    const request = Symbol();
+    scoreAlimtalkRequestRef.current = request;
+    setIsPreparingScoreAlimtalk(true);
+    setScoreAlimtalkError(null);
+    const isCurrentRequest = () => scoreAlimtalkRequestRef.current === request;
+    const selectedIds = new Set(selectedEnrollmentIds);
+    const selectAttendees = (snapshot: SessionScoresResponse) => snapshot.rows.filter(
+      (row) => selectedIds.has(row.enrollment_id) && isScoreAlimtalkAttendance(row, includeVideoInScoreAlimtalk),
+    );
+    const selectVideoStudents = (snapshot: SessionScoresResponse) => includeVideoInScoreAlimtalk
+      ? []
+      : snapshot.rows.filter((row) => selectedIds.has(row.enrollment_id) && row.attendance_status === "ONLINE");
+    const refreshError = "최신 출결과 성적을 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.";
+
+    try {
+      const [preparation, initial] = await Promise.all([
+        import("./sessionScoreAlimtalk").catch(() => null),
+        refetch(),
+      ]);
+      if (!isCurrentRequest()) return;
+      if (preparation == null) {
+        setScoreAlimtalkError("수업결과 알림톡 화면을 불러오지 못했습니다. 새로고침한 뒤 다시 시도해 주세요.");
+        return;
+      }
+      if (initial.isError || !initial.data) {
+        setScoreAlimtalkError(refreshError);
+        return;
+      }
+      const initialIssue = preparation.getScoreAlimtalkIssue(selectAttendees(initial.data), false, includeVideoInScoreAlimtalk);
+      if (initialIssue && selectVideoStudents(initial.data).length === 0) {
+        setScoreAlimtalkError(initialIssue.message);
+        return;
+      }
+      if (!await saveScoresNow() || !isCurrentRequest()) return;
+
+      const latest = await refetch();
+      if (!isCurrentRequest()) return;
+      if (latest.isError || !latest.data) {
+        setScoreAlimtalkError(refreshError);
+        return;
+      }
+      const selectedRows = selectAttendees(latest.data);
+      const videoRows = selectVideoStudents(latest.data);
+      const issue = preparation.getScoreAlimtalkIssue(selectedRows, true, includeVideoInScoreAlimtalk);
+      if (issue && videoRows.length === 0) {
+        setScoreAlimtalkError(issue.message);
+        return;
+      }
+      const ids = selectedRows.map((row) => row.student_id);
+      const activeStudentIds = [...new Set(ids.filter((id): id is number => id != null && Number.isFinite(id)))];
+      const videoIds = videoRows.map((row) => row.student_id);
+      const videoHomeworkStudentIds = [...new Set(videoIds.filter((id): id is number => id != null && Number.isFinite(id)))];
+      if ([...ids, ...videoIds].some((id) => id == null || !Number.isFinite(id))) {
+        setScoreAlimtalkError("발송 대상 학생 정보를 확인하지 못했습니다. 성적표를 다시 불러와 주세요.");
+        return;
+      }
+      const excludedCount = selectedIds.size - selectedRows.length - videoRows.length;
+      if (issue) {
+        const unenteredIds = new Set(issue.unenteredEnrollmentIds);
+        const canExcludeUnentered = unenteredIds.size > 0 && selectedRows.some((row) => !unenteredIds.has(row.enrollment_id));
+        openSendMessageModal({
+          sessionId: numericSessionId,
+          recipientLabel: `과제 안내 — 영상 ${videoHomeworkStudentIds.length}명${excludedCount ? ` · ${excludedCount}명 제외` : ""}`,
+          blockCategory: "assignment",
+          videoHomeworkStudentIds,
+          scoreUnavailableReason: selectedRows.length > 0 ? {
+            message: issue.message,
+            onExcludeUnentered: canExcludeUnentered
+              ? () => changeScoreSelection((ids) => ids.filter((id) => !unenteredIds.has(id)))
+              : undefined,
+          } : undefined,
+        });
+        return;
+      }
+      const meta = latest.data.meta ?? null;
+      // SSOT (2026-05-13): backend 응답 meta가 진짜 진리. 캐시 fallback은 호환.
+      const lecture = qc.getQueryData<{ title?: string; name?: string }>(
+        adminLectureQueryKeys.lecture(numericLectureId),
+      );
+      const session = qc.getQueryData<{ title?: string }>(
+        adminLectureQueryKeys.sessionDetail(numericSessionId),
+      );
+      const lectureName = meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
+      const sessionTitle = meta?.session_title ?? session?.title ?? "";
+      const cohortData = schedule == null ? latest.data : await fetchSessionScores(numericSessionId).catch(() => {
+        if (isCurrentRequest()) feedback.warning("차시 전체 최고점을 불러오지 못했습니다. 다시 열어 확인해 주세요.");
+        return null;
+      });
+      if (!isCurrentRequest()) return;
+      const { firstScoreVars, recomputePerStudentVars } = preparation.prepareScoreAlimtalkVariables(selectedRows, meta, {
+        lectureName,
+        sessionTitle,
+        highestScores: collectHighestScores(cohortData),
+        showVideoHomeworkLabel: includeVideoInScoreAlimtalk,
+      });
+
+      openSendMessageModal({
+        sessionId: numericSessionId,
+        studentIds: activeStudentIds,
+        videoHomeworkStudentIds,
+        recipientLabel: `수업결과 발송 — ${includeVideoInScoreAlimtalk ? "출석·지각·영상" : "출석·지각"} ${activeStudentIds.length}명${excludedCount ? ` · ${excludedCount}명 제외` : ""}`,
+        blockCategory: "grades",
+        alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, ...firstScoreVars },
+        recomputePerStudentVars,
+      });
+    } finally {
+      if (isCurrentRequest()) {
+        scoreAlimtalkRequestRef.current = null;
+        setIsPreparingScoreAlimtalk(false);
+      }
+    }
+  };
+
   /* 2026-05-13 회귀 fix: hasExamsOrHomeworks 가 selectionBar 안에서 참조되는데
      이전엔 line 581 (selectionBar 아래) 에서 선언 → TDZ ReferenceError 발생, 페이지 crash.
      selectionBar 보다 위로 이동. */
-  const hasExamsOrHomeworks = (data?.meta?.exams?.length ?? 0) > 0 || (data?.meta?.homeworks?.length ?? 0) > 0;
+  const hasExamTotal = (data?.meta?.exams?.length ?? 0) > 0;
+  const hasHomeworkTotal = data?.meta?.homeworks?.some((item) => item.grading_mode !== "COMPLETION") ?? false;
+  const hasExamsOrHomeworks = hasExamTotal || (data?.meta?.homeworks?.length ?? 0) > 0;
   const examOptions = useMemo(() => data?.meta?.exams ?? [], [data?.meta?.exams]);
   const omrExamOptions = useMemo(
     () => examOptions.filter((exam) => resolveExamGradingMode(exam) !== "written"),
@@ -714,14 +977,44 @@ export default function SessionScoresEntryPage({
       const entry = row.exams.find((item) => item.exam_id === exam.exam_id);
       return entry ? [entry] : [];
     });
-    const pendingCount = entries.filter((entry) => entry.block.grading_status === "subjective_pending").length;
+    const pendingCount = entries.filter((entry) =>
+      entry.block.grading_status === "subjective_pending"
+      && entry.block.grading_pending_reason !== "objective_pending",
+    ).length;
+    const awaitingOmrCount = entries.filter((entry) =>
+      entry.block.grading_pending_reason === "objective_pending",
+    ).length;
     const unfinishedCount = entries.filter((entry) =>
       entry.block.score == null && entry.block.meta?.status !== "NOT_SUBMITTED",
     ).length;
     const gradingMode = resolveExamGradingMode(exam);
-    if (pendingCount === 0 && (gradingMode !== "written" || unfinishedCount === 0)) return [];
-    return [{ exam, gradingMode, pendingCount, unfinishedCount }];
+    if (
+      pendingCount === 0 && awaitingOmrCount === 0
+      && (gradingMode !== "written" || unfinishedCount === 0)
+    ) return [];
+    return [{ exam, gradingMode, pendingCount, unfinishedCount, awaitingOmrCount }];
   }), [data?.rows, examOptions]);
+
+  const finishScoreEditing = async () => {
+    if (!isEditMode) return true;
+    const grid = scoreGridRef.current;
+    if (!grid || grid.inert) return false;
+    // Wait for saving and lease release without accepting another cell edit.
+    grid.inert = true;
+    try {
+      if (!await saveScoresNow()) return false;
+      setIsSaving(true);
+      if (!await draft.releaseEditLease()) {
+        feedback.error("점수 입력 종료를 마친 뒤 다시 시도해 주세요.");
+        return false;
+      }
+      setIsEditMode(false);
+      return true;
+    } finally {
+      grid.inert = false;
+      setIsSaving(false);
+    }
+  };
 
   const openExamGrading = async (
     examId: number,
@@ -734,14 +1027,7 @@ export default function SessionScoresEntryPage({
       feedback.info("이전 입력 복구 여부를 먼저 확인해 주세요.");
       return;
     }
-    if (isEditMode) {
-      if (!await saveScoresNow()) return;
-      setIsSaving(true);
-      const released = await draft.releaseEditLease();
-      setIsSaving(false);
-      if (!released) return;
-      setIsEditMode(false);
-    }
+    if (!await finishScoreEditing()) return;
     if (action === "omr") {
       setGradingEntryError(null);
       setOmrReviewExam({ examId, title });
@@ -775,9 +1061,27 @@ export default function SessionScoresEntryPage({
     "manual",
   );
   const openPendingSubjectiveGradingRef = useRef(openPendingSubjectiveGrading);
+  const openExamGradingRef = useRef(openExamGrading);
   useEffect(() => {
     openPendingSubjectiveGradingRef.current = openPendingSubjectiveGrading;
+    openExamGradingRef.current = openExamGrading;
   });
+
+  useEffect(() => {
+    if (!searchParams.has("omrReviewExamId") || isLoading || isError || recoveryBlocked) return;
+    const examId = Number(searchParams.get("omrReviewExamId"));
+    const exam = omrExamOptions.find((option) => option.exam_id === examId);
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      next.delete("omrReviewExamId");
+      return next;
+    }, { replace: true });
+    if (exam) {
+      void openExamGradingRef.current(exam.exam_id, exam.title, resolveExamGradingMode(exam), exam.manual_grading_method ?? "score", "omr");
+    } else {
+      feedback.info("이 차시에서 해당 시험의 OMR 검토를 열 수 없습니다.");
+    }
+  }, [isError, isLoading, omrExamOptions, recoveryBlocked, searchParams, setSearchParams]);
 
   useEffect(() => {
     const examId = Number(searchParams.get("gradingExamId"));
@@ -812,6 +1116,7 @@ export default function SessionScoresEntryPage({
       isFetching ||
       isError ||
       isEditMode ||
+      isSaving ||
       recoveryBlocked ||
       autoEditAttemptedSessionsRef.current.has(sessionIdForDraft)
     ) {
@@ -840,6 +1145,7 @@ export default function SessionScoresEntryPage({
     isError,
     isFetching,
     isLoading,
+    isSaving,
     recoveryBlocked,
     releaseScoreEditLease,
     sessionIdForDraft,
@@ -868,156 +1174,9 @@ export default function SessionScoresEntryPage({
             intent="primary"
             size="sm"
             title={scoreAlimtalkTitle}
-            onClick={async () => {
-              if (recoveryBlocked) {
-                feedback.info("이전 입력 복구 여부를 먼저 확인해 주세요.");
-                return;
-              }
-              if (isEditMode) {
-                feedback.info("점수 입력을 마친 뒤 알림톡을 발송해 주세요.");
-                return;
-              }
-              const initialRefresh = await refetch();
-              if (initialRefresh.isError || !initialRefresh.data) {
-                feedback.error("최신 성적을 다시 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.");
-                return;
-              }
-              let freshData = initialRefresh.data;
-              let rows = freshData?.rows ?? [];
-              let selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
-              const pendingSubjectiveCount = selectedRows.reduce(
-                (count, row) => count + row.exams.filter(
-                  (exam) => exam.block.grading_status === "subjective_pending",
-                ).length,
-                0,
-              );
-              if (pendingSubjectiveCount > 0) {
-                feedback.error("최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.");
-                return;
-              }
-              const provisionalCount = selectedRows.reduce(
-                (count, row) => count + row.exams.filter(exam => exam.block.is_provisional).length, 0,
-              );
-              if (provisionalCount > 0) {
-                feedback.error(`채점을 확인 중인 시험이 ${provisionalCount}건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.`);
-                return;
-              }
-              const unenteredItemCount = selectedRows.reduce(
-                (count, row) => count + collectUnenteredScoreItems(row).length,
-                0,
-              );
-              if (unenteredItemCount > 0) {
-                feedback.error(
-                  `점수가 입력되지 않은 시험·과제가 ${unenteredItemCount}건 있습니다. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 발송해 주세요.`,
-                );
-                return;
-              }
-              if (!await saveScoresNow()) return;
-              const finalRefresh = await refetch();
-              if (finalRefresh.isError || !finalRefresh.data) {
-                feedback.error("최신 성적을 다시 확인하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.");
-                return;
-              }
-              freshData = finalRefresh.data;
-              rows = freshData?.rows ?? [];
-              selectedRows = rows.filter((r) => selectedEnrollmentIds.includes(r.enrollment_id));
-              const finalPendingSubjectiveCount = selectedRows.reduce(
-                (count, row) => count + row.exams.filter(
-                  (exam) => exam.block.grading_status === "subjective_pending",
-                ).length,
-                0,
-              );
-              if (finalPendingSubjectiveCount > 0) {
-                feedback.error("최신 성적에 서술형 점수 입력이 필요합니다. 입력을 완료한 뒤 다시 시도해 주세요.");
-                return;
-              }
-              const finalProvisionalCount = selectedRows.reduce(
-                (count, row) => count + row.exams.filter(exam => exam.block.is_provisional).length, 0,
-              );
-              if (finalProvisionalCount > 0) {
-                feedback.error(`채점을 확인 중인 시험이 ${finalProvisionalCount}건 있습니다. 채점이 완료된 뒤 다시 시도해 주세요.`);
-                return;
-              }
-              const finalUnenteredItemCount = selectedRows.reduce(
-                (count, row) => count + collectUnenteredScoreItems(row).length,
-                0,
-              );
-              if (finalUnenteredItemCount > 0) {
-                feedback.error(
-                  `최신 성적에 입력되지 않은 시험·과제가 ${finalUnenteredItemCount}건 있습니다. 점수를 입력하거나 /로 미응시·미제출을 확정한 뒤 다시 시도해 주세요.`,
-                );
-                return;
-              }
-              const meta = freshData?.meta ?? null;
-              const activeStudentIds = selectedRows
-                .map((row) => row.student_id)
-                .filter((id): id is number => id != null && Number.isFinite(id));
-              // SSOT (2026-05-13): backend 응답 meta가 진짜 진리. 캐시 fallback은 호환.
-              const lecture = qc.getQueryData<{ title?: string; name?: string }>(
-                adminLectureQueryKeys.lecture(numericLectureId),
-              );
-              const session = qc.getQueryData<{ title?: string }>(
-                adminLectureQueryKeys.sessionDetail(numericSessionId),
-              );
-              const lectureName = meta?.lecture_title ?? lecture?.title ?? lecture?.name ?? "";
-              const sessionTitle = meta?.session_title ?? session?.title ?? "";
-              const reportOptions = { lectureName, sessionTitle };
-
-              let initialBody: string | undefined;
-              let initialTemplateId: number | null = null;
-              let initialTemplateUpdatedAt: string | undefined;
-              let scoreDetail = "";
-
-              try {
-                const templates = await fetchMessageTemplates("grades");
-                const chosenTpl = templates.find((t) => t.is_user_default && !t.is_system);
-
-                // 학원장 임근혁 보고(2026-05-12 23:50):
-                // 일괄 발송 양식이 첫 학생으로 치환되어 나와 "특정 대상 한 명으로 하드코딩됐다"는 오해.
-                // → 양식 본문은 변수 그대로 (#{학생이름}/#{시험1명}/...) 노출.
-                initialBody = chosenTpl
-                  ? chosenTpl.body
-                  : "";
-                initialTemplateId = chosenTpl?.id ?? null;
-                initialTemplateUpdatedAt = chosenTpl?.updated_at;
-                scoreDetail = buildScoreDetail(selectedRows[0], meta);
-              } catch {
-                feedback.error("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
-                return;
-              }
-
-              // SSOT (2026-05-14): 학생별 변수 재계산 callback.
-              // 학원장이 modal textarea에서 본문 수정 시 modal이 currentBody 기반으로 이 callback 호출 →
-              // 각 학생별 substituteScoreVars 결과 (_body_subst) 가 학원장 수정본 반영.
-              // 직전 결함: 모달 열기 전 사전 계산된 _body_subst 만 보내면 학원장 수정이 silently discard.
-              const recomputePerStudentVars = (currentBody: string): Record<number, Record<string, string>> => {
-                const result: Record<number, Record<string, string>> = {};
-                for (const sRow of selectedRows) {
-                  if (sRow.student_id == null) continue;
-                  const scoreVars = buildScoreVars(sRow, meta, reportOptions);
-                  result[sRow.student_id] = {
-                    ...scoreVars,
-                    _body_subst: substituteScoreVars(currentBody, sRow, meta, reportOptions),
-                  };
-                }
-                return result;
-              };
-              const firstScoreVars = selectedRows[0]
-                ? buildScoreVars(selectedRows[0], meta, reportOptions)
-                : {};
-
-              openSendMessageModal({
-                sessionId: numericSessionId,
-                studentIds: activeStudentIds,
-                recipientLabel: `수업결과 발송 — 선택한 수강생 ${selectedEnrollmentIds.length}명`,
-                blockCategory: "grades",
-                initialBody,
-                initialTemplateId,
-                initialTemplateUpdatedAt,
-                alimtalkExtraVars: { 강의명: lectureName, 차시명: sessionTitle, 시험성적: scoreDetail, ...firstScoreVars },
-                recomputePerStudentVars,
-              });
-            }}
+            onClick={handleOpenScoreAlimtalk}
+            loading={isPreparingScoreAlimtalk}
+            aria-busy={isPreparingScoreAlimtalk}
             disabled={scoreAlimtalkDisabled}
           >
             수업결과 알림톡 발송
@@ -1046,7 +1205,7 @@ export default function SessionScoresEntryPage({
                 if (!await saveScoresNow()) return;
                 let freshData;
                 try {
-                  freshData = await fetchSessionScores(numericSessionId);
+                  freshData = await fetchSessionScores(numericSessionId, schedule);
                 } catch {
                   feedback.error("최신 성적을 불러오지 못했습니다. 다시 다운로드해 주세요.");
                   return;
@@ -1057,9 +1216,13 @@ export default function SessionScoresEntryPage({
                   await refetch();
                   return;
                 }
-                const blob = new Blob([buildScoreCsv(freshData.meta, selected)], { type: "text/csv;charset=utf-8" });
-                const { downloadBlob } = await import("@/shared/utils/safeDownload");
-                downloadBlob(blob, `성적_${selected.length}명.csv`);
+                try {
+                  const { downloadScoreCsv } = await import("@admin/domains/scores/public/scoreCsvGenerator");
+                  downloadScoreCsv(freshData.meta, selected);
+                } catch {
+                  feedback.error("성적 파일을 만들지 못했습니다. 새로고침한 뒤 다시 다운로드해 주세요.");
+                  return;
+                }
                 feedback.success(`엑셀 다운로드됨 (${selected.length}명)`);
               }}
               disabled={selectedEnrollmentIds.length === 0 || recoveryBlocked}
@@ -1075,7 +1238,7 @@ export default function SessionScoresEntryPage({
           <Button
             intent="ghost"
             size="sm"
-            onClick={() => setSelectedEnrollmentIds([])}
+            onClick={() => changeScoreSelection([])}
             disabled={!hasSelection}
           >
             선택 해제
@@ -1088,6 +1251,7 @@ export default function SessionScoresEntryPage({
           <>
             <button
               type="button"
+              ref={viewOptionsButtonRef}
               onClick={() => setViewOptionsExpanded((v) => !v)}
               className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] px-2 py-1 rounded hover:bg-[var(--color-bg-surface-hover)]"
               aria-expanded={viewOptionsExpanded}
@@ -1130,7 +1294,7 @@ export default function SessionScoresEntryPage({
               </div>
             </div>
             {data?.meta.homeworks.some(homework => homework.grading_mode === "COMPLETION") && (
-              <span className="scores-completion-shortcuts">과제: O 통과 · X 미통과 · Enter 다음 학생</span>
+              <span className="scores-completion-shortcuts">과제: O 통과 · X 미통과 · Enter 오른쪽 칸</span>
             )}
           </>
         )}
@@ -1143,25 +1307,33 @@ export default function SessionScoresEntryPage({
           >
             {isEditMode ? (
               <ul>
-                <li><strong>Enter</strong>: 입력 확정 후 아래 학생으로 이동</li>
+                <li><strong>Enter / Shift+Enter</strong>: 저장하고 같은 학생의 오른쪽 / 왼쪽 입력 칸으로 이동. 끝 칸에서는 그 자리에 머뭅니다.</li>
                 <li><strong>Tab / Shift+Tab</strong>: 입력 확정 후 오른쪽 / 왼쪽 칸으로 이동</li>
-                <li><strong>/ + Enter 또는 Tab</strong>: 미응시·미제출 처리 후 계속 이동</li>
+                <li><strong>↑ / ↓</strong>: 위 / 아래 학생으로 이동</li>
+                <li>점수형 과제에서 <strong>/</strong>를 입력한 뒤 다른 칸을 클릭하거나 이동하면 미제출로 저장합니다.</li>
+                <li>시험 합산 칸에서 <strong>/ + Enter</strong>를 누르면 미응시로 저장합니다.</li>
                 <li>통과형 과제: <strong>O / 1</strong> 통과, <strong>X / 0</strong> 미통과, <strong>Delete / Backspace</strong> 초기화</li>
-                <li>통과형 과제는 <strong>Enter / Shift+Enter</strong>로 다음 / 이전 학생, 좌우 화살표와 Space로 버튼 선택도 가능합니다.</li>
+                <li>통과형 과제는 좌우 화살표와 Space로 버튼을 선택할 수 있습니다.</li>
                 <li><strong>Esc</strong>: 숫자 입력 취소</li>
                 <li>입력은 자동 저장되며 <strong>Ctrl+S / Ctrl+Z</strong>도 사용할 수 있습니다.</li>
               </ul>
             ) : (
               <ul>
                 <li>학생 행을 누르면 개별 성적 상세를 볼 수 있습니다.</li>
-                <li>시험명을 누르면 채점·설정·수정·삭제를, 과제명을 누르면 수정·삭제를 선택할 수 있습니다.</li>
-                <li>시험·과제 머리글을 끌어 표시 순서를 바꿀 수 있습니다.</li>
+                <li>시험명을 눌러 채점·OMR·시험 설정·삭제를, 과제명을 눌러 과제 수정·삭제를 선택할 수 있습니다.</li>
+                <li>머리글이나 합산 설정에서 시험·과제 순서를 바꿀 수 있습니다. 숨긴 총점 열은 표시 옵션에서 다시 켤 수 있습니다.</li>
                 <li>회색 <strong>-</strong>는 해당 시험·과제에 아직 배정되지 않은 상태입니다.</li>
               </ul>
             )}
           </InlineHelp>
         </div>
       </div>
+
+      {scoreAlimtalkError && (
+        <p className="m-0 px-1 text-sm text-[var(--color-error)]" role="alert">
+          {scoreAlimtalkError}
+        </p>
+      )}
 
       {/* 표시 옵션 펼침 — selectionBar 다음 줄로 inline expand. */}
       {hasExamsOrHomeworks && viewOptionsExpanded && (
@@ -1180,6 +1352,15 @@ export default function SessionScoresEntryPage({
               <div className="scores-display-segment" role="group" aria-label="시험 점수 표시 방식">
                 <button type="button" onClick={() => setScoreDisplayMode("total")} className="scores-display-segment__btn" aria-pressed={scoreDisplayMode === "total"}>합산</button>
                 <button type="button" onClick={() => setScoreDisplayMode("breakdown")} className="scores-display-segment__btn" aria-pressed={scoreDisplayMode === "breakdown"}>객관식 + 주관식</button>
+              </div>
+            </div>
+          )}
+          {(hasExamTotal || hasHomeworkTotal) && (
+            <div className="scores-view-filter-section">
+              <span className="scores-view-filter-label">총점 열</span>
+              <div className="scores-display-segment" role="group" aria-label="총점 열 표시">
+                {hasExamTotal && <button type="button" className="scores-display-segment__btn" aria-pressed={!hiddenTotalColumns.exam} onClick={() => setTotalColumnHidden("exam", !hiddenTotalColumns.exam)}>시험 총점</button>}
+                {hasHomeworkTotal && <button type="button" className="scores-display-segment__btn" aria-pressed={!hiddenTotalColumns.homework} onClick={() => setTotalColumnHidden("homework", !hiddenTotalColumns.homework)}>과제 총점</button>}
               </div>
             </div>
           )}
@@ -1230,7 +1411,7 @@ export default function SessionScoresEntryPage({
                 size="sm"
                 leftIcon={<Users size={ICON_FOR_BUTTON.sm} />}
                 onClick={() => {
-                  setSelectedEnrollmentIds(examReviewOverview.selectableEnrollmentIds);
+                  changeScoreSelection(examReviewOverview.selectableEnrollmentIds);
                   feedback.success(`현재 결과의 평가 대상 ${examReviewOverview.selectableEnrollmentIds.length}명을 선택했습니다.`);
                 }}
                 disabled={isEditMode || examReviewOverview.selectableEnrollmentIds.length === 0}
@@ -1350,6 +1531,21 @@ export default function SessionScoresEntryPage({
 
   const outputActions = (
     <div className="scores-output-actions" role="group" aria-label="성적표 출력과 관리">
+      {examOptions.length > 0 && (
+        <Suspense fallback={(
+          <Button type="button" intent="secondary" size="sm" leftIcon={<ChartColumn size={ICON_FOR_BUTTON.sm} />} disabled aria-busy="true">
+            시험 성적 분석
+          </Button>
+        )}>
+          <SessionExamAnalysisAction
+            exams={examOptions}
+            lectureId={numericLectureId}
+            sessionId={numericSessionId}
+            disabled={recoveryBlocked || isSaving || isLoading || isError || draft.isStartingEdit}
+            onBeforeNavigate={finishScoreEditing}
+          />
+        </Suspense>
+      )}
       {hasExamsOrHomeworks && (
         <Button type="button" intent="secondary" size="sm" disabled={recoveryBlocked || isLoading || isError || displayCount === 0} leftIcon={<UserRound size={ICON_FOR_BUTTON.sm} />} onClick={() => void openStudentScoreReport()} title={displayCount === 0 ? "수강생이 등록되면 개인 성적표를 출력할 수 있습니다" : undefined}>
           개인 성적표
@@ -1429,7 +1625,21 @@ export default function SessionScoresEntryPage({
                     <span className="scores-tool-card__icon" data-tone="clinic"><Trophy size={ICON_FOR_BUTTON.sm} /></span>
                     <span><strong>익명 순위표</strong><small>게시용 출력</small></span>
                   </button>
-                ) : (
+                ) : null}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="scores-tool-card"
+                  disabled={recoveryBlocked || !Number.isFinite(numericLectureId)}
+                  onClick={() => {
+                    setShowMoreMenu(false);
+                    navigate(`/workspace/lectures/${numericLectureId}/rankings?from=${numericSessionId}&to=${numericSessionId}&scope=exam`);
+                  }}
+                >
+                  <span className="scores-tool-card__icon" data-tone="clinic"><Trophy size={ICON_FOR_BUTTON.sm} /></span>
+                  <span><strong>명예의 전당</strong><small>주차별 순위 출력</small></span>
+                </button>
+                {isAnonymousBillboardMode ? null : (
                   <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked} onClick={async () => {
                     if (!await prepareScorePrint()) return;
                     setShowClinicPreview(true);
@@ -1511,12 +1721,29 @@ export default function SessionScoresEntryPage({
                   </>
                 ) : draft.isRecoveryCheckPending ? (
                   <span>이전 입력 확인 중…</span>
+                ) : draft.hasDraftToRestore && !showDraftRecoveryDialog ? (
+                  <button type="button" className="underline text-[var(--color-brand-primary)]" onClick={() => setDeferredDraftSessionId(null)}>
+                    보존된 임시저장 확인
+                  </button>
                 ) : (
                   <span className="scores-lock-status">
                     <LockKeyhole size={13} aria-hidden />
                     성적표 수정 잠김
                   </span>
                 )
+              ) : draft.editStaleConflict ? (
+                <>
+                  <span className="text-[var(--color-error)]">서버 성적이 변경되었습니다. 입력값은 보존했습니다.</span>
+                  {" "}
+                  <button
+                    type="button"
+                    className="underline text-[var(--color-brand-primary)]"
+                    disabled={isSaving}
+                    onClick={() => void reviewLatestScores()}
+                  >
+                    {isSaving ? "성적 불러오는 중…" : "최신 성적 확인"}
+                  </button>
+                </>
               ) : (
                 <>
                   {draft.draftStatus === "dirty" && "저장 대기 중…"}
@@ -1563,68 +1790,25 @@ export default function SessionScoresEntryPage({
         </div>}
       />
 
-      {draft.hasDraftToRestore && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="draft-restore-title-entry"
-          aria-describedby="draft-restore-description-entry"
-        >
-          <div
-            ref={recoveryDialogRef}
-            tabIndex={-1}
-            className="bg-[var(--color-bg-surface)] rounded-lg shadow-lg p-6 max-w-md mx-4 border border-[var(--color-border-divider)]"
-          >
-            <h2 id="draft-restore-title-entry" className="text-base font-semibold text-[var(--color-text-primary)] mb-2">
-              {draft.restoreChangeCount > 0
-                ? `임시저장된 변경 ${draft.restoreChangeCount}건이 있습니다. 복원할까요?`
-                : "이전에 임시저장된 편집 내용이 있습니다. 복원할까요?"}
-            </h2>
-            <p id="draft-restore-description-entry" className="text-sm text-[var(--color-text-muted)] mb-4">
-              복원하면 이전 편집 내용이 테이블에 다시 적용됩니다. 버리면 현재 서버 데이터만 표시됩니다.
-              <br />
-              <span className="text-[11px]">※ 1시간 이상 방치된 임시저장은 다음 진입 시 자동으로 폐기됩니다.</span>
-            </p>
-            {draft.draftError && (
-              <p className="text-sm text-[var(--color-error)] mb-3" role="alert">
-                {draft.draftError}
-              </p>
-            )}
-            <div className="flex gap-2 justify-end">
-              <button
-                type="button"
-                disabled={draft.isDiscardingDraft || draft.isStartingEdit}
-                onClick={async () => {
-                  const discarded = await draft.discardDraft();
-                  if (!discarded) feedback.error("임시저장을 버리지 못했습니다. 다시 시도해 주세요.");
-                }}
-                className="h-9 px-4 rounded text-sm font-medium border border-[var(--color-border-divider)] bg-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-bg-surface-soft)]"
-              >
-                {draft.isDiscardingDraft ? "버리는 중…" : "버리기"}
-              </button>
-              <button
-                type="button"
-                ref={recoveryRestoreButtonRef}
-                disabled={isLoading || isError || draft.isDiscardingDraft || draft.isStartingEdit}
-                onClick={async () => {
-                  if (!await draft.restoreDraft()) {
-                    feedback.info("성적표를 불러온 뒤 다시 복원해 주세요.");
-                    return;
-                  }
-                  setIsEditMode(true);
-                }}
-                className="h-9 px-4 rounded text-sm font-medium bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)] hover:bg-[var(--color-brand-primary-hover)]"
-              >
-                {draft.isStartingEdit
-                  ? "복원 준비 중…"
-                  : isLoading
-                    ? "성적표 불러오는 중…"
-                    : "복원 후 수정"}
-              </button>
-            </div>
-          </div>
-        </div>
+      {showDraftRecoveryDialog && (
+        <Suspense fallback={null}>
+          <SessionScoreDraftRecoveryDialog
+            items={draftReviewItems}
+            changeCount={draft.restoreChangeCount}
+            error={draft.draftError}
+            isStale={draft.editStaleConflict}
+            isLoading={isLoading}
+            isFetching={isFetching}
+            isStarting={draft.isStartingEdit}
+            isDiscarding={draft.isDiscardingDraft}
+            needsFullRoster={draftNeedsFullRoster}
+            needsScoreRetry={draftNeedsScoreRetry}
+            needsVisibleRows={draftNeedsVisibleRows}
+            onPrimary={() => void restoreReviewedDraft()}
+            onDiscard={() => void discardReviewedDraft()}
+            onDefer={() => setDeferredDraftSessionId(numericSessionId)}
+          />
+        </Suspense>
       )}
 
       {/* 표 보기와 입력 옵션은 선택 작업과 구분한다. */}
@@ -1692,10 +1876,13 @@ export default function SessionScoresEntryPage({
               {pendingSubjectiveSummary.studentCount > 0 && (
                 <p>{pendingSubjectiveSummary.studentCount}명의 서술형 점수 입력이 필요합니다. 완료 전에는 최종 점수·학생 공개·석차·클리닉 반영이 보류됩니다.</p>
               )}
+              {pendingSubjectiveSummary.awaitingOmrCount > 0 && (
+                <p>{pendingSubjectiveSummary.awaitingOmrCount}명은 서술형 점수가 저장됐고 OMR 답안지 매칭을 기다리고 있습니다. OMR 검토에서 학생을 확정하면 자동으로 합산됩니다.</p>
+              )}
             </div>
           </div>
           <div className="scores-grading-next__list">
-            {gradingAttentionExams.map(({ exam, gradingMode, pendingCount, unfinishedCount }) => (
+            {gradingAttentionExams.map(({ exam, gradingMode, pendingCount, unfinishedCount, awaitingOmrCount }) => (
               <div className="scores-grading-next__exam" key={exam.exam_id}>
                 <div className="scores-grading-next__exam-copy">
                   <strong>{exam.title}</strong>
@@ -1703,8 +1890,10 @@ export default function SessionScoresEntryPage({
                     {gradingMode === "choice"
                       ? "서술형 채점 대기 상태와 OMR 전용 설정이 맞지 않습니다. 시험명 → 시험 설정에서 문항 유형을 확인해 주세요."
                       : pendingCount > 0
-                        ? `객관식 저장 완료 · 서술형 ${pendingCount}명 남음`
-                        : `${unfinishedCount}명 채점 전`}
+                        ? `객관식 저장 완료 · 서술형 ${pendingCount}명 남음${awaitingOmrCount > 0 ? ` · OMR 대기 ${awaitingOmrCount}명` : ""}`
+                        : awaitingOmrCount > 0 && unfinishedCount === 0
+                          ? `서술형 저장 완료 · OMR 대기 ${awaitingOmrCount}명`
+                          : `${unfinishedCount}명 채점 전`}
                   </span>
                 </div>
                 {gradingMode !== "choice" && (
@@ -1728,47 +1917,53 @@ export default function SessionScoresEntryPage({
       )}
 
       {data && (
-        <SessionScoresPanel
-          ref={setPanelHandle}
-          sessionId={numericSessionId}
-          lectureId={numericLectureId}
-          search={searchInput}
-          isEditMode={isEditMode}
-          onRequestAnswerEdit={async () => {
-            if (isSaving || draft.isStartingEdit || draft.isRecoveryCheckPending || draft.recoveryCheckFailed || draft.hasDraftToRestore) {
-              feedback.info("진행 중인 저장이나 복구를 마친 뒤 다시 시도해 주세요.");
-              return false;
-            }
-            if (isEditMode) return true;
-            if (!await beginScoreEditing()) {
-              feedback.error("답안 수정 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-              return false;
-            }
-            setIsEditMode(true);
-            return true;
-          }}
-          hasUnsavedChanges={isEditMode || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
-          hasPendingScoreChanges={isSaving || draft.isStartingEdit || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
-          assessmentDeleteLocked={recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error" || activeScoreCell !== null}
-          onPendingChange={draft.requestAutosave}
-          activeEditors={draft.activeEditors}
-          onClaimOwnCell={draft.claimOwnCell}
-          onActiveCellChange={setActiveScoreCell}
-          examEditTotal={examEditTotal}
-          examEditObjective={false}
-          examEditSubjective={examEditSubjective}
-          homeworkEdit={homeworkEdit}
-          scoreDisplayMode={scoreDisplayMode}
-          scoreFormat={scoreFormat}
-          viewFilter={viewFilter}
-          summaryColumnMode={summaryColumnMode}
-          examReviewFilter={examReviewFilter}
-          selectedEnrollmentIds={selectedEnrollmentIds}
-          onSelectionChange={setSelectedEnrollmentIds}
-          onOpenExamGrading={(examId, title, gradingMode, manualGradingMethod, action) => {
-            void openExamGrading(examId, title, gradingMode, manualGradingMethod, action);
-          }}
-        />
+        <div className="min-w-0" ref={scoreGridRef}>
+          <SessionScoresPanel
+            ref={setPanelHandle}
+            sessionId={numericSessionId}
+            lectureId={numericLectureId}
+            search={searchInput}
+            schedule={schedule}
+            isEditMode={isEditMode}
+            onSaveDrawerHomeworkScore={saveDrawerHomeworkScore}
+            onRequestAnswerEdit={async () => {
+              if (isSaving || draft.isStartingEdit || draft.isRecoveryCheckPending || draft.recoveryCheckFailed || draft.hasDraftToRestore) {
+                feedback.info("진행 중인 저장이나 복구를 마친 뒤 다시 시도해 주세요.");
+                return false;
+              }
+              if (isEditMode) return true;
+              if (!await beginScoreEditing()) {
+                feedback.error("답안 수정 준비에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+                return false;
+              }
+              setIsEditMode(true);
+              return true;
+            }}
+            hasUnsavedChanges={isEditMode || isSaving || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
+            hasPendingScoreChanges={isSaving || draft.isStartingEdit || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error"}
+            assessmentDeleteLocked={isSaving || recoveryBlocked || draft.hasPendingChanges || draft.draftStatus === "saving" || draft.draftStatus === "error" || activeScoreCell !== null}
+            onPendingChange={draft.requestAutosave}
+            activeEditors={draft.activeEditors}
+            onClaimOwnCell={draft.claimOwnCell}
+            onActiveCellChange={setActiveScoreCell}
+            examEditTotal={examEditTotal}
+            examEditObjective={false}
+            examEditSubjective={examEditSubjective}
+            homeworkEdit={homeworkEdit}
+            scoreDisplayMode={scoreDisplayMode}
+            scoreFormat={scoreFormat}
+            viewFilter={viewFilter}
+            summaryColumnMode={summaryColumnMode}
+            hiddenTotalColumns={hiddenTotalColumns}
+            onHideTotalColumn={hideTotalColumn}
+            examReviewFilter={examReviewFilter}
+            selectedEnrollmentIds={selectedEnrollmentIds}
+            onSelectionChange={changeScoreSelection}
+            onOpenExamGrading={(examId, title, gradingMode, manualGradingMethod, action) => {
+              void openExamGrading(examId, title, gradingMode, manualGradingMethod, action);
+            }}
+          />
+        </div>
       )}
 
       {/* 성적 일괄 변경 모달.

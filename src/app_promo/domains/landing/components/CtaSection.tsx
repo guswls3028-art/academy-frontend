@@ -1,6 +1,6 @@
 // PATH: src/app_promo/domains/landing/components/CtaSection.tsx
 import { Link } from "react-router";
-import { CONSULT_CALLBACK_NOTICE, CONSULT_PHONE_DISPLAY } from "../business";
+import { CONSULT_PHONE_DISPLAY } from "../business";
 import PhoneInquiryLink from "./PhoneInquiryLink";
 import styles from "./CtaSection.module.css";
 
@@ -12,8 +12,8 @@ interface CtaSectionProps {
 }
 
 export default function CtaSection({
-  title = "이용 문의",
-  subtitle = "궁금한 기능과 이용 조건을 안내해 드립니다.",
+  title = "도입 상담",
+  subtitle = "학원의 운영 방식에 맞춰 필요한 기능과 도입 절차를 안내해 드립니다.",
   secondaryPath = "/promo/contact",
   secondaryLabel = "문의하기",
 }: CtaSectionProps) {
@@ -29,7 +29,6 @@ export default function CtaSection({
         <p className={styles.phoneNote}>
           전화 상담 <PhoneInquiryLink>{CONSULT_PHONE_DISPLAY}</PhoneInquiryLink>
         </p>
-        <p className={styles.phoneNote}>{CONSULT_CALLBACK_NOTICE}</p>
       </div>
     </section>
   );

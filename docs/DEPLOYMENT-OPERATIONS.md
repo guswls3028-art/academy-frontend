@@ -49,7 +49,7 @@ release guard의 `Request` 원본 body 캡처는 앱 origin에만 적용한다. 
 해당 진단 모듈의 메모리에서 바꾼다. evidence는 source/술어/경계 hash, 단계, 제한된 재생
 상태와 controller/cleanup 결과만 담고 원문 header·cookie·오류·응답 본문은 남기지 않는다.
 결과는 항상 `diagnosticOnly:true`, `promotable:false`이며 원인 구분을 위한 보충 증거다.
-정상 재생이 관측돼도 아래 동일 산출물 41건 전체 성공과 cleanup0, production 승인 및
+정상 재생이 관측돼도 아래 동일 산출물 42건 전체 성공과 cleanup0, production 승인 및
 운영 확인을 대신하지 않는다. 실패 결과를 성공으로 바꾸거나 bot challenge를 자동 해제하지 않는다.
 
 필수 WebKit 게이트에는 `pr-modal-webkit`의 `@dialog-journey` 20건도 포함한다.
@@ -81,15 +81,20 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
    `deploy`가 시작되지 않는다. main 실행은 후속 push로 취소하지 않아 cleanup을 보존한다.
    파일별 필수 개수는 같은 파일의 `developmentRealUseCases`가 소유하며,
    Playwright 대상·실행 결과 검증·진행 기록 allowlist가 이를 함께 사용한다.
-   현재 22개 파일·41건이며 앱 업무 흐름, 재시도 금지와 수업 영상 재생 시간은 유지한다.
+   현재 23개 파일·42건이며 앱 업무 흐름, 재시도 금지와 수업 영상 재생 시간은 유지한다.
+   교사·학부모 시나리오의 fixture 정리 결과는 `teacher-score-fixture-cleanup.json`으로
+   따로 보존한다. 고정 작업명·소유 대상 ID·HTTP 상태·보관 여부와 가족 정리 단계별
+   요청/응답 여부·학생 순번·삭제 수·저장소 정리 대기/실패 수만 기록하고 원문 응답·
+   인증정보·개인정보·전체 trace/report는 업로드하지 않는다. 이 자료는 fixture 실패를
+   진단하기 위한 것이며 별도 tenant/user/runtime cleanup0이나 42건 성공을 대신하지 않는다.
    공개 YouTube의 정확한 봇 확인 응답은 아래 `publicVideoAvailability` 계약에 따라
    외부 가용성 결과로 따로 기록한다. 해당 관측만으로 다른 기능의 배포를 막지 않는다.
    기본 실행은 첫 실패 후 `maxFailures=1`로 나머지 시나리오를 중단하고 exact cleanup을 수행한다.
-   이때 건너뛴 테스트도 성공 증거로 인정하지 않으며, 운영 승격에는 여전히 41건 모두의
+   이때 건너뛴 테스트도 성공 증거로 인정하지 않으며, 운영 승격에는 여전히 42건 모두의
    통과와 cleanup0이 필요하다. 이미 실패한 실행이 장시간 영상 검증까지 계속되는 비용을 줄인다.
    남은 흐름의 증거 수집이 별도로 승인된 경우에만 `workflow_dispatch`의
    `diagnostic_full_suite` 입력(기본값 false)을 true로 지정할 수 있다. 이때만
-   `ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE=1`과 `maxFailures=0`으로 41건을 계속 수집한다.
+   `ACADEMY_RELEASE_DIAGNOSTIC_FULL_SUITE=1`과 `maxFailures=0`으로 42건을 계속 수집한다.
    잘못된 플래그나 수동 dispatch 외의 opt-in은 최초 null-safe evidence를 남긴 뒤
    AWS/QA 전에 `preflight_failed`로 종료한다. 진단 실행은 `diagnosticOnly:true`를 기록하고,
    실제 통과·실패·미실행 수와 cleanup 결과를 보존하되 모두 통과해도 최종 `passed:false`,
@@ -97,13 +102,13 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
    재시도 0·strict 경계·85분 suite/100분 job·cleanup 기준은 바뀌지 않는다. 이전 실행의
    cleanup 완료를 확인한 뒤 단일 QA 소유자가 직렬 실행하며, 수집 결과는 보충 증거로만 쓴다.
    YouTube bot challenge를 우회하거나 해소하는 모드가 아니며, 운영 승격에는 정상 모드의
-   동일 산출물 41건 통과와 cleanup0이 계속 필요하다.
-   수동 진단의 `diagnostic_scope` 기본값은 `full-suite`이며 기존 41건을 실행한다.
+   동일 산출물 42건 통과와 cleanup0이 계속 필요하다.
+   수동 진단의 `diagnostic_scope` 기본값은 `full-suite`이며 기존 42건을 실행한다.
    `excel-learning-homework`는 진단 플래그를 켠 수동 실행에서만 허용하며,
    기존 평가·과제·학습 실사용 spec 3개만 실행한다. 선택 범위와 고정 spec 목록은
    최초 evidence부터 기록하고, 알 수 없거나 빈 범위 및 진단 플래그 없는 선택은
    AWS/QA 전에 거부한다. 세 건이 모두 성공해도 진단은 실패 종료하며 운영 승격의
-   41건 조건을 대신하지 않는다. workflow도 수동 범위가 `full-suite`가 아니면
+   42건 조건을 대신하지 않는다. workflow도 수동 범위가 `full-suite`가 아니면
    진단 플래그 값이나 QA 결과와 무관하게 production을 차단한다.
    학습의 교사/출결 단계와 과제의 피드백/기준/최종 미리보기 단계는 실패 시
    정해진 단계·화면 폭·오류 분류만 남긴다. 과제 기준은 테스트의 95/90 값만 허용하며,
@@ -133,7 +138,7 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
    사전 API 로그인과 UI 로그인이 공유하는 계정별 5분 10회 제한에서 실제 429와
    유효한 `Retry-After`(1–300초)를 받은 경우에만 전체 대기시간 후 UI 제출을 한 번
    재시도한다. 그 외 오류, 누락·잘못된 대기시간, 두 번째 429는 상태 코드만 기록하고
-   실패한다. 보안 제한·업무 쓰기 재시도 금지·41건 전체 통과 조건은 유지한다.
+   실패한다. 보안 제한·업무 쓰기 재시도 금지·42건 전체 통과 조건은 유지한다.
    가입 실사용 검사는 유효한 입력 후 `가입 신청 최종 확인`에서 학부모 초기
    비밀번호 방식을 명시적으로 선택하고 최종 신청을 누른 뒤 정확한 응답을 기다린다.
    첫 신청 버튼이 최종 POST를 보낸다고 가정하지 않으며 수동·자동 승인과 이후
@@ -146,8 +151,12 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
    route-critical lazy asset이 연속 3회 일치한 뒤 login, tenant availability,
    조회-only session-assessment canary를 실행한다. notice/QnA/clinic 쓰기는 개발
    job에서만 실행한다. 후보마다 실제 IAM/격리 검증과 cleanup0을 통과해야 한다.
+   운영 전파 검사 중 TLS 연결 또는 데이터 수신 오류(curl 35/56)는 300초 전체
+   한도 안에서 같은 URL을 한 번 재시도한다. 재시도는 최대 5초이며 HTTP 오류,
+   잘못된 revision 또는 남은 시간 소진 시 해당 회차를 실패로 기록한다.
    진입 자산을 빼면 새
    HTML만 먼저 전파되어 `index-*.js`가 404인 순간을 안정화 완료로 오인할 수 있다.
+운영 테넌트 화면 검사는 모바일과 데스크톱에서 같은 출처의 요청 실패도 수집한다. 학원플러스 홍보 첫 화면의 출결·학생 운영 예시 PNG 두 개는 브라우저가 같은 이미지 요청을 두 번 시작하고 하나를 취소할 수 있다. 이 경우에만 취소된 GET과 별개의 같은 URL 요청이 200으로 완료되고 최종 화면에서 같은 이미지가 실제 크기로 디코딩됐는지 대조한다. 증거가 빠지거나 문서·API·인증·다른 자산 요청이 실패하면 검사를 실패 처리한다.
 7. deploy job 내부 검증 실패는 같은 승인 job에서 즉시 baseline으로 rollback한다.
    후속 E2E 실패는 별도 `production-rollback` environment가 승인 대기 없이
    baseline으로 보상하고 실제 version 복귀를 확인한다.
@@ -161,8 +170,9 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
 배포 교체 중 이전 앱 셸이 새 lazy JavaScript 또는 CSS asset을 가리키지 못하면
 `vite:preloadError`, window error/rejection, React ErrorBoundary가 같은
 `isChunkLoadError` 분류를 사용해 제한된 cache-bust reload를 수행한다.
-`Unable to preload CSS`도 배포 자산 경합으로 분류하며, 반복 상한 뒤에는 사용자에게
-일반화된 새로고침 안내만 남긴다. route-critical CSS는 외부 Google Fonts 같은
+`Unable to preload CSS`도 배포 자산 경합으로 분류하며, 반복 상한 뒤에는 공통 오류
+카드에서 다시 불러오기와 [버그 제보](DEV-INBOX-GUIDE.md#화면-오류에서-바로-제보)를 제공한다.
+route-critical CSS는 외부 Google Fonts 같은
 CSP 차단 의존성을 두지 않는다.
 
 운영 build에서는 `ErrorBoundary`가 이 복구를 직접 소유한다. 개발자용
@@ -458,16 +468,20 @@ API의 media ID와 일치해야 하며 SigV4 만료는 최대 600초다. 등록 
 개발 공지·QnA·일반 게시판·자료실·상담 첨부 사진은 인증·QA tenant·CORS를 통과한 정확한
 `GET /api/v1/community/posts/<post_id>/`의 200 응답에서 `post_type`이 `notice`,
 `qna`, `board`, `materials`, `counsel`인 게시글·첨부 ID를 현재 browser context에 등록한다. `post_type=qna` 목록은
-응답의 게시글 유형도 `qna`인 경우만 등록한다. 학생 상세 화면이
+응답의 게시글 유형도 `qna`인 경우만 등록한다. 교사 공지 목록은
+`GET /api/v1/community/posts/?post_type=notice&page_size=50&ordering=-created_at`의 인증된 200 응답에서
+최대 50개 중 `notice` 유형의 사진만 등록한다. 세 query 값은 각각 한 번씩 있어야 하고
+사진 메타데이터에 양수의 크기(최대 5MB)가 필요하다. 학생 상세 화면이
 `GET /api/v1/community/posts/<post_id>/attachments/<att_id>/download/`를 호출하면
 앞서 등록한 동일 게시글·첨부와 원본 파일명이 일치하는 200 응답의 URL만 추가 등록한다.
 URL은 Setup tenant와 해당 게시글의
-`community/posts/<post_id>/uploads/` 경로, PNG/JPEG/WebP 확장자·MIME,
+`community/posts/<post_id>/uploads/` 경로, PNG/JPEG/WebP/HEIC 확장자·MIME,
 `response-content-type` 및 최대 3600초 SigV4 host 서명을 모두 만족해야 한다.
 다운로드 응답 URL에는 원본 파일명과 일치하는 단일 `response-content-disposition`도 요구한다.
-등록된 정확한 image GET만 인증 header 없이 전달하고 redirect·다른 bucket·tenant·
-게시글·변형된 서명 query를 거부한다. 200 응답의 MIME과 이미지 시그니처를 확인한 실제
-bytes만 브라우저에 전달한다. direct APIRequestContext의 외부 origin 경계는 유지한다.
+등록된 정확한 image GET과 HEIC 디코딩 XHR을 인증 header 없이 전달하고 redirect·
+다른 bucket·tenant·게시글·변형된 서명 query를 거부한다. 200 응답의 MIME과 이미지
+시그니처를 검사하고, 등록된 크기가 있으면 실제 bytes와 대조한다. HEIC XHR은 스토리지
+응답의 CORS도 확인한다. direct APIRequestContext는 외부 origin을 별도로 검사한다.
 `release-community-image-boundary.test.mjs`가 각 유형의 허용·거부와 목록 유형 일치를
 검사한다. 공지 실사용은 관리자 사진만 추가·저장·reload와 학생 사진 decode·reload를,
 QnA 실사용은 사진 decode, 확대·회전·답변, 학생 화면 반영을 검증하며 모두 cleanup zero를 요구한다.
@@ -483,7 +497,14 @@ QnA 실사용은 사진 decode, 확대·회전·답변, 학생 화면 반영을 
 모바일 교사 첨부, 학생 조회 권한과 공개 글/후기 사진 저장·작성자 수정·PC/390px reload,
 후기 승인 전후 공개 범위를 실제 API/R2로 확인한다. QA 홈페이지 설정·글·사진은
 해당 disposable tenant에만 생성하며 기존 전체 tenant/user/R2 cleanup0 계약에 포함된다.
+같은 게시판 검증에서 교직원 내부 공지의 작성·수정·대시보드 조회, 조교 댓글, 재시도 중복 방지와 첨부 회수를 확인한다.
+개발 브라우저는 격리 API에서 합성 자료를 받고 파일명과 원본 내용을 대조한다. 학생은 다운로드가 거절되고, 회수 후에는 교직원의 다운로드도 거절되는지 확인한다.
 
+설문 실사용의 교사 첨부 묶음은 인증된 응답 목록과 인벤토리 서명 응답이 같은
+개발 tenant·학생의 합성 PNG를 가리킬 때만 읽는다. 정확한 300초 서명 URL에 대한
+브라우저 GET만 허용하며, 인증 헤더 전달과 리다이렉트는 차단한다. 원본 CORS·타입·파일명과
+합성 바이트 해시를 확인한 뒤 실제 파일을 돌려준다. 브라우저의 ZIP 생성·다운로드와
+학생 폴더·바이트 검사는 그대로 유지한다.
 개발 transport는 artifact가 가리키는 정확한 `https://api.hakwonplus.com/api/`만
 SSM의 `http://127.0.0.1:<port>/api/`로 전달한다. 웹 origin은 개발 settings가 실제로
 허용하는 `http://localhost:4173`이다. real upstream status/body/header를 전달하고
@@ -548,13 +569,22 @@ release readonly strict browser는 이 exact host/path/SHA-512 mismatch 한 줄�
 - `POST /api/v1/students/me/activity/`의 정확한 두 키
   `{screen_id, device_class: "desktop"|"tablet"|"mobile"}`. `screen_id`는 운영 canary가
   실제 방문하는 `student.dashboard.home`, `student.session.list`, `student.grades.home`,
-  `student.guide.home`, `student.assignment.submit` 다섯 값만 허용한다. 홈 학습 현황에서
+  `student.exam.list`, `student.video.home`, `student.clinic.home`, `student.guide.home`,
+  `student.assignment.submit` 여덟 값만 허용한다. 시험 결과 분석, 영상 통계, 클리닉 달력과
+  내 일정의 운영 검사는 해당 화면의 관측을 사용한다. 클리닉 검사는 두 일정 목록을 조회한
+  뒤 탭을 전환하며 예약을 변경하지 않는다. 홈 학습 현황에서
   일정·과제·시험 내역으로 이동해 새로고침하는 흐름과 가이드에서 과제 제출 화면으로
   이동하고 돌아오는 흐름 모두 이 동일한 화면 열기 API를 사용한다.
   추가 키(과제 ID 등), 다른 screen/method와 `/activity/homework-open/`은 거부한다.
   이 요청은 append-only 화면 관측 감사 로그다.
   인증·관측 attempted/accepted를 각각 보고하며 전체 DB read-only 또는 총 쓰기 0으로
   표현하지 않는다. 진도·출결·성적·완료·결제·발송·product-usage mutation은 허용하지 않는다.
+
+영상 목록에서는 인증된 `GET /api/v1/student/video/me/` 응답이 해당 브라우저에 제공한
+`cdn.hakwonplus.com`의 서명된 HLS `thumbnail.jpg` URL만 이미지 GET으로 실제 조회한다.
+`/student/video`에서 시작한 요청이어야 하고 인증·쿠키·테넌트·CSRF 헤더가 있거나 CDN이
+리디렉션, 오류, JPEG 이외 응답을 반환하면 실패한다. 서명 검증은 CDN이 수행하며 URL의
+서명 값은 검증 로그에 출력하지 않는다.
 
 Backend 증거 소유자는 `apps/domains/students/tests/test_student_support.py`의
 `test_dashboard_screen_observation_only_appends_one_audit_row`이며, 실제 API 호출의
@@ -578,18 +608,33 @@ ProductUsageEvent/DailyActor 변화 0임을 검사한다. 도메인 설명은 ba
 설치하여 한글 표시에 필요한 시스템 글꼴을 갖춘다. PNG의 한글이 네모로 표시되면
 기능 검증 성공과 구분하여 시각 검증 실패로 취급하고, 글꼴 설치 후 새 증거로 확인한다.
 개발 실사용 Linux runner는 `fonts-noto-cjk`를 명시적으로 설치하고 `fc-list :lang=ko`가
-비어 있으면 검사 시작 전에 실패한다. 제품 번들은 그대로 사용하며, 보존된 PC/390px PNG에서
+비어 있으면 검사 시작 전에 실패한다. 설치 전 PR E2E와 같은 공식 HTTPS 미러 우선순위
+(`archive.ubuntu.com` → `security.ubuntu.com` → Azure 미러)로 `/etc/apt/apt-mirrors.txt`를
+바꿔 Azure 미러 DNS 장애가 release QA를 막지 않게 한다. 패키지 출처·서명 검증은 그대로다.
+Ubuntu 미러 전체가 runner에서 해석되지 않으면 apt 설치 실패에 한해 공식 Noto 저장소의
+`Sans2.004/17_NotoSansKR.zip`을 고정 SHA-256
+`ac7eeb4e2b0d41de8ff31b2d6e1e2a41caf253fd5cefb380bfa1f40f1747b612`로 검증한 뒤 OTF만 설치하고
+경고를 남긴다. 해시 불일치나 다운로드 실패는 그대로 실패하며 `fc-list :lang=ko` 확인도 유지한다.
+글꼴 버전을 바꿀 때는 공식 release 크기·해시를 다시 확인해 함께 갱신한다. 제품 번들은 그대로 사용하며, 보존된 PC/390px PNG에서
 한글 가독성을 직접 확인해야 시각 증거가 유효하다.
 
 공식 main 배포는 먼저 `backend-readiness`에서 backend의 진행 중인 main release run과
 successful manifest·active development host를 읽는다. 진행 중인 release만 최대
 45분 동안 30초 간격으로 기다린다. 최신 run이 취소됐어도 이전 active run을 확인한다.
-잘못된 host identity/IAM, 읽기 오류, 종료된
-release와 manifest/host 불일치는 즉시 실패한다. 대기는 별도 job과 임시 인증으로
+완료된 release는 성공 결과와 manifest의 source SHA, run ID, attempt 및 active host가
+일치해야 한다. 성공한 V1 실행이 runtime 후보 조립, 격리 개발 검증, 배포 검증을 모두
+건너뛴 경우에만 해당 attempt의 공식 job 기록과 이전 manifest를 발행한 성공 attempt를
+별도로 확인하고 기존 host를 사용한다. 잘못된 host identity/IAM, 실패·취소된 release,
+읽기 오류와 버전·manifest 검증 불일치는 즉시 실패한다.
+응답 형식이 유효한 active 실행 목록에서 건수와 실제 항목 수만 다르면
+전체 active 상태 목록을 1초·2초 후 최대 두 번 다시 조회한다. 그동안 최신 실행을
+대신 선택하거나 개발 QA를 시작하지 않는다. 목록 재조회도 기존 45분 제한을 따르며,
+불일치가 계속되거나 응답 형식·권한·버전·manifest·host 검증이 잘못되면 실패한다.
+재조회 횟수와 고정 오류 코드는 동일한 관측 증거에 남긴다. 대기는 별도 job과 임시 인증으로
 수행해 real-use의 100분 job/인증 예산을 소모하지 않는다. 준비 완료 뒤 기존 QA가
 최신 immutable backend revision, IAM, SSM 문서, host를 다시 검사하므로 대기 중
 성공한 관측으로 이후 검증을 생략하지 않는다. 관측은 PII 없는
-`backend-readiness-evidence`에 남긴다. 대기 이후 새 release가 시작되어 다시
+`backend-readiness-evidence`에 남긴다. 실패 시 고정된 단계·오류 코드와 해당되는 HTTP 상태만 추가한다. 대기 이후 새 release가 시작되어 다시
 불일치하면 기존 preflight가 실패하며 QA나 운영 승격을 강행하지 않는다.
 
 `scripts/run-development-release-canary.mjs`는 공식 main CI/OIDC에서만 실행된다.
@@ -660,6 +705,7 @@ path/query 형태는 즉시 거부하고, exact 형태여도 응답 URL이나 HL
 브라우저의 CORS `OPTIONS` preflight는 공통 요청 경계에서 origin·path·query와
 전송 대상을 이미 검증하므로 제품 payload 응답 증거에서는 제외한다. 실패한
 preflight는 일반 request 오류 집계에 남는다.
+
 장시간 재생이 완료 전에 실패하면 artifact에는 사용자·URL·토큰·원문 오류 대신
 desktop/mobile별 마지막 통과 단계와 제한된 재생 상태만 고정 allowlist 값으로 남긴다.
 재생 상태는 각 화면의 video mount 여부, 정수 초의 현재 위치·길이·벽시계·최근 저장 위치,
@@ -702,6 +748,21 @@ scoped state에만 기존 영상 1개, 접근/PROCTORED 접근/진도 각 2개, 
 프로세스에는 85분을 허용한다. 100분 개발 카나리 job 안에서 결과 JSON 생성과 exact
 Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 85분을 넘기면 기존처럼 실패
 폐쇄하고 cleanup 0이 증명되기 전에는 운영 승격하지 않는다.
+
+별도 `SyntheticMultipartVideo=true` 진단은 같은 개발 artifact와 고정 SSM Setup이
+반환한 정확한 테넌트·강의·차시에서 실행한다. 관리자 영상 추가 화면에서 합성
+101 MiB MP4를 선택하고 API가 이 영상과 upload ID에 대해 반환한 정확한 주소로
+두 파트를 전송한다. 요청 경계는 개발 R2 bucket·raw key·서명 query를 검증하고
+CORS와 ETag의 실제 응답을 확인한다. R2 요청에는 Origin과 필요한 전송 헤더만
+사용한다. 응답 리다이렉트는 요청 경계에서 거부한다. 첫 번째 파트의 실제
+성공 응답은 브라우저 업로드 코드에서 한 번만 유실시킨다. 브라우저가 같은 객체와
+upload ID의 첫 파트 주소를 다시 발급받아 보내고, 두 번째 파트는 한 번만
+보냈는지 확인한다. 완료 요청에는 마지막으로 받은 두 ETag가 있어야 한다.
+검증 결과에는 주소나 ETag 없이 성공 PUT 3회, 응답 유실 1회와 재시도 일치 여부만 기록한다.
+
+브라우저 완료와 새로고침 후 영상 상태, 서버의 조립 크기, 일반 Batch 미제출,
+완료 객체와 미완료 업로드 정리 0을 함께 확인한다. 일반 영상 인코딩이 꺼진 개발
+환경에서 저장소까지 검증한다. 운영 승격에는 별도의 기본 42건 카나리 통과가 필요하다.
 
 고정 NonInteractiveCommands 세션의 Inspect/Setup/Cleanup과 합성 등록 계정용 AccountProbe만 사용하고 임의 shell 입력,
 기존 qa tenant 재사용/reset, 광역 command stdout 조회는 허용하지 않는다. Setup이 실패해도
@@ -825,7 +886,7 @@ process/listener 정리 0은 확인됐지만 운영 승격은 차단됐다. 이�
 기존 36건에 47.79분이 걸려 60분 한도로 마지막 영상을 완료하지 못했다. 마지막 영상의
 17분과 추가 사진 흐름 2건의 각 7분 한도를 더한 78.79분에 여유를 둬 전체 85분으로
 맞춘다. 같은 산출물의 새 전체 실행으로 검증한다. OMR 각 10분,
-영상 test 17분, 단일 worker·재시도 0·필수 41건·690초 재생 및 cleanup0 요구는 유지한다.
+영상 test 17분, 단일 worker·재시도 0·필수 42건·690초 재생 및 cleanup0 요구는 유지한다.
 `development-release-progress.json`은 테스트 시작/종료마다 허용 spec 파일명·행·상태·
 소요 시간만 저장해 child timeout 시 마지막 진행 지점을 보존한다. 제목·오류 원문·
 API 데이터·인증정보는 기록하지 않는다. 이 진단 파일이나 일부 통과 결과로 전체 JSON
@@ -874,7 +935,7 @@ import/database 등의 고정 코드로 구분한다. 목록 밖의 이름은 �
 [backend의 이력 보존 정책](https://github.com/guswls3028-art/academy-backend/blob/main/docs/domain/student-core.md)에 따라
 일반 DELETE로 지우지 않는다. 시나리오 종료 시 가입 설정을 복원하고 브라우저를
 닫으며, 합성 가입 이력은 실행 전체의 exact disposable-tenant Cleanup에서 제거한다.
-양쪽 QA tenant/user·R2·프로세스 잔여 0 확인과 41건 전체 통과 조건은 유지한다.
+양쪽 QA tenant/user·R2·프로세스 잔여 0 확인과 42건 전체 통과 조건은 유지한다.
 `release-context-observation/v1`은 worker 내부의 고유 `observationOrdinal`, 선택적인
 browser `contextOrdinal`, 증가하는 `snapshotSequence`로 한 관측의 교체 snapshot을
 식별한다. assertion 전 snapshot은 실패해도 먼저 남기고, native context 종료나
@@ -999,7 +1060,7 @@ context crash와 그 밖의 예외는 전파한다. 관측된 identityMatches=fa
 검사한다. iframe 제거·교체·숨김이나 잘못된 영상/params는 외부 가용성으로 통과하지 않는다. 외부 요청·redirect·
 인증·tenant·strict browser 결함은 기존대로 실패한다. 전체 test의 catch로 앱 오류를
 삼키지 않는다. parser는 원 spec의 닫힌 schema/enum/수치만 보존하며 추가 키·중복 폭·
-누락·다른 spec·잘못된 관측을 거부한다. 정상 승격은 두 폭의 유효한 관측, 앱 41건 통과,
+누락·다른 spec·잘못된 관측을 거부한다. 정상 승격은 두 폭의 유효한 관측, 앱 42건 통과,
 exact artifact identity와 cleanup0을 요구한다. `public-video-1366.png`,
 `public-video-390.png`와 실제 관측을 보존한다. 공개 영상 240초 제한과 retries 0은 유지한다.
 
@@ -1025,6 +1086,11 @@ exact artifact identity와 cleanup0을 요구한다. `public-video-1366.png`,
 생성 즉시 부모 시나리오에 등록하고, 부모가 소유한 강의 수강 등록을 제거해
 출결 참조가 정리된 후 삭제한다. 차시 GET 404와 최종 tenant/user/R2/process
 cleanup 0 조건을 유지하며 운영의 출결/차시 삭제 보호 규칙을 완화하지 않는다.
+
+수업일 검증도 같은 평가 spec에서 검토된 `verifySessionSchedules.ts` 파일명·행·열과
+고정 단계만 남긴다. 단계는 초기 명단, 기본 일정·차시 생성, 관리자 출결·성적 범위,
+학생 날짜, 수업일 이동, 충돌·삭제, 정리다. 정리 실패는 별도로 기록하며,
+앞선 오류가 있으면 그 오류를 그대로 유지한다. 정리 실패 자체도 검증 실패다.
 
 OMR cleanup의 실제 실패 지점은 remove/verify-absent/archive-action/verify-archive
 단계와 기존 expected HTTP status 목록, received status만 기록한다(응답 없는 전송
@@ -1077,7 +1143,9 @@ test child를 기다리는 동안 runner는 60초마다 내용 없는 진행 신
 stop reason, 경과 시간만 보존한다. 미종료 상태는 null이며 raw 출력·세션 식별자는
 포함하지 않는다. 최종 cleanup 뒤 기존 evidence 쓰기에서 함께 저장하며, 관측 callback은
 성공 여부나 gate 조건을 변경하지 않는다.
-job timeout은 100분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다.
+job timeout은 100분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다. 한국어 글꼴 준비 단계는 5분으로 제한한다.
+미러 다운로드가 지연되면 QA 데이터 생성 전에 실패하여 실사용 검사와 cleanup 시간을
+잠식하지 않게 한다. 글꼴 존재 확인과 전체 실사용·cleanup0 승격 조건은 그대로 유지한다.
 
 GitHub 강제 취소의 짧은 grace, SIGKILL, runner/host 소실, IAM·네트워크 상실에서는
 finally 실행·evidence 업로드·tenant cleanup을 보장할 수 없다. 미완료 파일이 있으면
@@ -1227,7 +1295,7 @@ frontend 운영 `version.json`을 함께 검증한다. 검증 결과를 별도 m
 고유 작업 ID를 확인하고 실제 Tools/R2 XLSX의 학생명 `=1+1`, `#N/A`,
 차시명 `=1+1`, 전화번호 앞자리 0, 출결 상태가 수식/오류가 아닌 문자열로
 보존되는지 읽는다. 임시 이름은 finally에서 복원하고 API로 재조회한 후
-기존 학생·부모 화면 검증을 계속한다. 기존 41건 및 최종 cleanup 0을 유지한다.
+기존 학생·부모 화면 검증을 계속한다. 기존 42건 및 최종 cleanup 0을 유지한다.
 합성 데이터만 담은 attendance-export-1366/390.png와 attendance-1366/390.xlsx는
 development-release-evidence에 명시적으로 업로드해 화면과 실제 파일을 재검토한다.
 

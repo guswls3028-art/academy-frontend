@@ -8,6 +8,7 @@
  */
 
 import api from "@/shared/api/axios";
+import type { SubmissionManualEditResult } from "@/shared/api/contracts/submissions";
 
 export type OmrAnswerStats = {
   total: number;
@@ -53,6 +54,7 @@ export type OmrAnswerMeta = {
   version?: string;
   detected?: (string | number)[];
   marking?: "single" | "blank" | "multi" | string;
+  expected_multi_answer?: boolean;
   confidence?: number;
   status?: "ok" | string;
   /** 문항 전체 영역 bbox (모든 버블의 bounding box) */
@@ -91,6 +93,8 @@ export type OmrReviewDetail = {
   target_id: number;
   identifier: unknown;
   answers: OmrReviewDetailAnswer[];
+  answer_review_version?: string | null;
+  edit_revision?: string | null;
   scan_image_url: string;
   original_scan_image_url?: string;
   scan_image_is_aligned?: boolean;
@@ -149,15 +153,19 @@ export async function rotateRescanApi(
  */
 export async function acceptFromDuplicatesApi(
   submissionId: number,
+  sessionId?: number,
 ): Promise<AcceptFromDuplicatesResult> {
   const res = await api.post(
     `/submissions/submissions/${submissionId}/accept-from-duplicates/`,
+    sessionId === undefined ? undefined : { session_id: sessionId },
   );
   return res.data as AcceptFromDuplicatesResult;
 }
 
-export async function listOmrReviewRows(examId: number): Promise<OmrReviewRow[]> {
-  const res = await api.get(`/submissions/submissions/exams/${examId}/`);
+export async function listOmrReviewRows(examId: number, sessionId?: number): Promise<OmrReviewRow[]> {
+  const res = await api.get(`/submissions/submissions/exams/${examId}/`, {
+    params: { session_id: sessionId },
+  });
   const data = res.data;
   const items = Array.isArray(data)
     ? data
@@ -178,11 +186,12 @@ export type OmrReviewIssuesPage = {
 /** 전체 시험에서 미해결 건만 서버가 세어 반환한다. 최신 200건 제한을 사용하지 않는다. */
 export async function listOmrReviewIssuesPage(
   examId: number,
-  options: { cursor?: number; enrollmentIds?: number[]; includeUnbound?: boolean; focusId?: number } = {},
+  options: { cursor?: number; enrollmentIds?: number[]; includeUnbound?: boolean; focusId?: number; sessionId?: number } = {},
 ): Promise<OmrReviewIssuesPage> {
   const res = await api.get(`/submissions/submissions/exams/${examId}/`, {
     params: {
       review_issues: 1,
+      session_id: options.sessionId,
       ...(options.cursor ? { cursor: options.cursor } : {}),
       ...(options.enrollmentIds ? { enrollment_ids: options.enrollmentIds.join(",") } : {}),
       ...(options.includeUnbound === false ? { include_unbound: 0 } : {}),
@@ -207,6 +216,19 @@ export async function fetchOmrReviewDetail(submissionId: number): Promise<OmrRev
   return res.data as OmrReviewDetail;
 }
 
+export async function confirmOmrAnswerReviewApi(
+  submissionId: number,
+  version: string,
+  sessionId?: number,
+): Promise<SubmissionManualEditResult> {
+  const res = await api.post(`/submissions/submissions/${submissionId}/manual-edit/`, {
+    answer_review_version: version,
+    note: "omr_review_ui_confirm_answers",
+    ...(sessionId === undefined ? {} : { session_id: sessionId }),
+  });
+  return res.data;
+}
+
 /* 학생 picker — OMR 검토용 응시 대상 후보 */
 export type CandidateRow = {
   enrollment_id: number;
@@ -222,9 +244,17 @@ export type CandidateRow = {
 export async function fetchExamCandidates(
   examId: number,
   q: string,
+  sessionId?: number,
 ): Promise<CandidateRow[]> {
-  const params = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : "";
-  const res = await api.get(`/submissions/submissions/exams/${examId}/candidates/${params}`);
+  const res = await api.get(`/submissions/submissions/exams/${examId}/candidates/`, {
+    params: { q: q.trim() || undefined, session_id: sessionId },
+  });
+  if (sessionId !== undefined) {
+    if (res.data?.session_id !== sessionId || !Array.isArray(res.data?.candidates)) {
+      throw new Error("차시 응시 대상자 목록을 확인하지 못했습니다.");
+    }
+    return res.data.candidates as CandidateRow[];
+  }
   return (Array.isArray(res.data) ? res.data : []) as CandidateRow[];
 }
 

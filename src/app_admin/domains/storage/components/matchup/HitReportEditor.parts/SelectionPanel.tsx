@@ -9,6 +9,7 @@ import { ICON } from "@/shared/ui/ds";
 import type { HitReportExamProblem } from "../../../api/matchup.api";
 import {
   classifyMatch,
+  displayedSimilarity,
   TIER_COLOR,
   type CandidateMeta,
   type Tier,
@@ -117,8 +118,9 @@ function SelectionPanelInner({
             </div>
           </div>
         ) : null}
-        {active.candidates.map((c) => (
-          <SelectRow
+        {active.candidates.map((c) => {
+          const similarity = displayedSimilarity(active, c);
+          return <SelectRow
             key={c.id}
             isActive={c.id === activeCandidateId}
             isSelected={selectedSet.has(c.id)}
@@ -137,11 +139,11 @@ function SelectionPanelInner({
               c.document_category,
               `자료 ${c.document_id}번`,
             ].filter(Boolean).join("  ·  ")}
-            meta={`유사도 ${(c.similarity * 100).toFixed(1)}%`}
-            tier={classifyMatch(c.similarity)}
+            meta={similarity != null ? `유사도 ${(similarity * 100).toFixed(1)}%` : "유사도 정보 없음"}
+            tier={similarity != null ? classifyMatch(similarity) : "miss"}
             text={c.text_preview}
-          />
-        ))}
+          />;
+        })}
         {extraSelected.length > 0 && (
           <div style={{
             marginTop: 12, paddingTop: 10,
@@ -166,6 +168,7 @@ function SelectionPanelInner({
                 ? meta.document_title
                 : `자료 ${meta.document_id}번`;
               const docCategory = ("document_category" in meta) ? meta.document_category : "";
+              const similarity = displayedSimilarity(active, meta);
               return (
                 <SelectRow
                   key={pid}
@@ -182,8 +185,8 @@ function SelectionPanelInner({
                     docCategory,
                     `자료 ${meta.document_id}번`,
                   ].filter(Boolean).join("  ·  ")}
-                  meta="수동 추가"
-                  tier="miss"
+                  meta={similarity != null ? `수동 추가 · 유사도 ${(similarity * 100).toFixed(1)}%` : "수동 추가"}
+                  tier={similarity != null ? classifyMatch(similarity) : "miss"}
                   text={meta.text_preview}
                 />
               );

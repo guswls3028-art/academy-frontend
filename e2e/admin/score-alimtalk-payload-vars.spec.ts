@@ -437,3 +437,70 @@ test("@assessment-feedback 소수 만점 합계의 부동소수 오차로 익명
   expect(pdf.totalMaxScore).toBeCloseTo(3.3, 12);
   expect(pdf.averageScore).toBeCloseTo(1.55, 12);
 });
+
+test("@alimtalk-order 번호형 결과는 순서 변경·학생별 미배정에도 같은 평가를 유지한다", () => {
+  const meta: SessionScoreMeta = { ...scoreMeta,
+    total_config: { version: 2, exam_ids: [11], homework_ids: [21], exam_order: [12, 11] },
+    exams: [{ ...scoreMeta.exams[0], exam_id: 12, title: "합산 제외 시험", display_order: 0 }, scoreMeta.exams[0]],
+    homeworks: [{ ...scoreMeta.homeworks[0], homework_id: 22, title: "추가 과제", display_order: 0 }, scoreMeta.homeworks[0]],
+  };
+  const first = scoreRow(null);
+  first.exams[0].block.score = 80;
+  first.exams.push({ ...first.exams[0], exam_id: 12, title: "합산 제외 시험", block: { ...first.exams[0].block, score: 25 } });
+  first.homeworks[0].block.score = 7;
+  first.exam_total = { score: 80, max_score: 100, selected_count: 1, scored_count: 1, complete: true };
+  const vars = buildScoreVars(first, meta);
+  expect(vars).toMatchObject({ 시험1명: "합산 제외 시험", 시험1: "25", 시험2명: "단원평가", 시험2: "80", 시험총점: "80", 과제1명: "추가 과제", 과제1결과: "미배정", 과제2: "7" });
+  const body = "#{시험1명}: #{시험1결과}\n#{시험2명}: #{시험2결과}\n총점 #{시험총점}/#{시험총만점}";
+  const second = scoreRow(null);
+  second.exams[0].block.score = 0;
+  second.exam_total = { score: 0, max_score: 100, selected_count: 1, scored_count: 1, complete: true };
+  const rendered = substituteScoreVars(body, second, meta);
+  expect(rendered).toContain("합산 제외 시험: 미배정");
+  expect(rendered).toContain("단원평가: 0/100");
+  expect(rendered).toContain("총점 0/100");
+  expect(compactGradesPerStudentPayloadVars(body, { 101: { _body_subst: rendered } })?.[101]).toEqual({ _body_subst: rendered });
+});
+
+test("@alimtalk-order 전체 성적 블록과 목록은 차시 순서를 사용하고 학생별 미배정은 목록에서 생략한다", () => {
+  const meta: SessionScoreMeta = {
+    exams: [{ ...scoreMeta.exams[0], exam_id: 12, title: "먼저 보는 시험" }, scoreMeta.exams[0]],
+    homeworks: [{ ...scoreMeta.homeworks[0], homework_id: 22, title: "먼저 보는 과제" }, scoreMeta.homeworks[0]],
+  };
+  const row = scoreRow(null);
+  row.exams.push({ ...row.exams[0], exam_id: 12, title: "먼저 보는 시험" });
+  row.homeworks.push({ ...row.homeworks[0], homework_id: 22, title: "먼저 보는 과제" });
+  const vars = buildScoreVars(row, meta);
+  expect(vars["시험목록"]).toMatch(/먼저 보는 시험[\s\S]*단원평가/);
+  expect(vars["시험이력"]).toBe(vars["시험목록"]);
+  expect(vars["과제목록"]).toMatch(/먼저 보는 과제[\s\S]*연습과제/);
+  expect(vars["전체요약"]).toContain("미입력 항목: 먼저 보는 시험, 단원평가, 먼저 보는 과제, 연습과제");
+  expect(vars["시험성적"]).toMatch(/먼저 보는 시험[\s\S]*단원평가[\s\S]*먼저 보는 과제[\s\S]*연습과제/);
+  expect(vars["선생님메모"]).toBe(vars["시험성적"]);
+  expect(buildScoreDetail(row, meta)).toBe(vars["시험성적"]);
+  expect(row.exams.map(exam => exam.exam_id)).toEqual([11, 12]);
+  expect(row.homeworks.map(hw => hw.homework_id)).toEqual([21, 22]);
+
+  const [practice, firstHomework] = row.homeworks;
+  const videoRow: SessionScoreRow = {
+    ...row,
+    attendance_status: "ONLINE",
+    homeworks: [
+      { ...practice, block: { ...practice.block, meta: { ...practice.block.meta, status: "NOT_SUBMITTED" } } },
+      firstHomework,
+    ],
+  };
+  const videoOptions = { showVideoHomeworkLabel: true };
+  const videoVars = buildScoreVars(videoRow, meta, videoOptions);
+  expect(videoVars).toMatchObject({ 과제1결과: "점수 미입력", 과제2결과: "영상보강" });
+  expect(videoVars["과제목록"]).toMatch(/먼저 보는 과제: 점수 미입력[\s\S]*연습과제: 영상보강/);
+  expect(videoVars["시험성적"]).toMatch(/┌ 먼저 보는 과제\n└ 점수 미입력[\s\S]*┌ 연습과제\n└ 영상보강/);
+  expect(buildScoreDetail(videoRow, meta, videoOptions)).toBe(videoVars["시험성적"]);
+  expect(buildScoreVars(videoRow, meta)["과제2결과"]).toBe("미제출");
+
+  const sparse = buildScoreVars(scoreRow(null), meta);
+  expect(sparse["시험1결과"]).toBe("미배정");
+  expect(sparse["과제1결과"]).toBe("미배정");
+  expect(sparse["시험목록"]).not.toContain("먼저 보는 시험");
+  expect(sparse["과제목록"]).not.toContain("먼저 보는 과제");
+});

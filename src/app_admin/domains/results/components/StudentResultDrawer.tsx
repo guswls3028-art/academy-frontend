@@ -43,6 +43,7 @@ import {
 } from "../utils/choiceAnswerMatching";
 import type { AnswerEditController } from "./useAnswerEditQueue";
 import StudentResultAnswerEditor from "./StudentResultAnswerEditor";
+import { useDialogSurface } from "@/shared/ui/overlays/useDialogSurface";
 export type { AnswerEditController } from "./useAnswerEditQueue";
 
 function toBadgeTone(t: ReturnType<typeof achievementTone>): BadgeTone {
@@ -287,6 +288,9 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
   };
   const exitEdit = () => { void finishEditing(false); };
   const closeDrawer = () => { void finishEditing(true); };
+  const compact = readOnly && !onRequestEdit;
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogSurface(compact, dialogRef, closeDrawer);
 
   useEffect(() => {
     if (readOnly && !editorRef.current?.hasPending()) setIsEditMode(false);
@@ -337,7 +341,15 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
     <>
       <div className="srd-modal-backdrop" onClick={closeDrawer} aria-hidden />
       <div className="srd-modal-wrap">
-        <div className="srd-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <div
+          ref={dialogRef}
+          className={compact ? "srd-modal srd-modal--compact" : "srd-modal"}
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${studentName} 답안 상세`}
+          tabIndex={-1}
+        >
           <CloseButton className="srd-modal__close" onClick={closeDrawer} />
 
           {/* ── 헤더 ── */}
@@ -362,7 +374,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                     tone={toBadgeTone(achievementTone(ach))}
                     title={
                       ach === "REMEDIATED"
-                        ? "1차 불합격 후 클리닉 재시험/수동 해소로 통과"
+                        ? "클리닉 재시험 또는 수동 해소로 최종 통과"
                         : undefined
                     }
                     // eslint-disable-next-line no-restricted-syntax
@@ -424,21 +436,26 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
               {/* eslint-disable-next-line no-restricted-syntax */}
               <span style={{ fontWeight: 700 }}>보강 합격</span>
               <span>
-                1차 점수 {detail.total_score}점(미달) → 클리닉 재시험
-                {typeof detail.clinic_retake.score === "number"
-                  ? ` ${detail.clinic_retake.score}점`
-                  : ""}
-                {typeof detail.clinic_retake.pass_score === "number"
-                  ? ` / 기준 ${detail.clinic_retake.pass_score}점`
-                  : ""}
-                {" 통과"}
+                {detail.total_score != null
+                  ? `1차 점수 ${detail.total_score}점 · `
+                  : detail.meta_status === "NOT_SUBMITTED"
+                    ? "1차 미응시 · "
+                    : "1차 점수 미입력 · "}
+                {detail.clinic_retake.resolution_type === "MANUAL_OVERRIDE" ? (
+                  "수동 해소로 통과"
+                ) : (
+                  <>
+                    클리닉 재시험
+                    {typeof detail.clinic_retake.score === "number"
+                      ? ` ${detail.clinic_retake.score}점`
+                      : ""}
+                    {typeof detail.clinic_retake.pass_score === "number"
+                      ? ` / 기준 ${detail.clinic_retake.pass_score}점`
+                      : ""}
+                    {" 통과"}
+                  </>
+                )}
               </span>
-              {detail.clinic_retake.resolution_type === "MANUAL_OVERRIDE" && (
-                // eslint-disable-next-line no-restricted-syntax
-                <span style={{ marginLeft: "auto", fontSize: 11, opacity: 0.8 }}>
-                  관리자 수동 해소
-                </span>
-              )}
             </div>
           )}
 

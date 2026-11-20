@@ -359,6 +359,7 @@ test.describe.serial("[E2E] 학생 과제 제출 실사용 검증", () => {
     await gotoAndSettle(page, `${BASE}/student/grades`, { timeout: 30_000 });
     await waitForRenderSettled(page, { timeout: 20_000 });
     await page.getByRole("button", { name: "과제 현황" }).click();
+    await page.getByRole("group", { name: "과제 상태 필터" }).getByRole("button", { name: /^전체 / }).click();
     const scoredHomeworkCard = page.locator('.stu-panel[data-session-type]').filter({
       has: page.getByText(HOMEWORK_TITLE, { exact: true }),
     });

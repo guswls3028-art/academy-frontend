@@ -3,7 +3,7 @@ import api, { createAuthSessionBoundConfig } from "@/shared/api/axios";
 import { readAuthTokenEnvelopeSafely } from "@/shared/auth/tokenSession";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { Button } from "@/shared/ui/ds";
-import styles from "./HomeworkMediaImage.module.css";
+import styles from "./MediaPreview.module.css";
 
 type CompatiblePreview = { status: "not_requested" | "queued" | "processing" | "ready" | "failed"; url?: string; detail?: string };
 type Props = { src: string; homeworkId: number; fileId: string; filename: string; studentId?: number | null; onViewed?: () => void; onError: () => void };

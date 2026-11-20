@@ -12,6 +12,7 @@
 | [개발 저장공간·CI 캐시 정책](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/concurrent-codex-sessions.md#session-output-lifecycle) | 원격 빌드 기본값, 작업별 임시 파일 수명주기, 종료된 PR 캐시 정리와 검증 기록 보존 |
 | [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) | 학생·교사·관리자 공통 토큰, 세 화면 스타일·강조색, 이관·저장·반응형 검증 |
 | [PUBLIC-RESOURCE-BOARD.md](PUBLIC-RESOURCE-BOARD.md) | godmin 공개 자료게시판·게시자·파일·오류 복구·PC/모바일 검증 |
+| [STAFF-BOARD.md](STAFF-BOARD.md) | 교직원 전용 공지·자료·자유게시글과 대시보드에서 공지를 읽는 흐름 |
 | [PUBLIC-VIDEOS.md](PUBLIC-VIDEOS.md) | 공개 YouTube 영상·히어로·두 게시자 스튜디오·초안/공개·오류 복구 |
 | [ROUTING.md](ROUTING.md) | 공개 URL 네이밍, 권한 분리, 기존 경로 호환 규칙 |
 | [PROMO-GUIDE-AND-SUPPORT.md](PROMO-GUIDE-AND-SUPPORT.md) | 공개 전체 사용 가이드, 개발자 시작 안내, 전화 부재 회신과 온라인 결제 예정 고지 |
@@ -36,6 +37,7 @@
 | [HOMEWORK-SCORING.md](HOMEWORK-SCORING.md) | 과제별 만점·합격 기준, 성적표 분모·저장 계약 |
 | [강의 기존 학생 직접 등록](LECTURE-STUDENT-ENROLLMENT.md) | 차시 없이 기존 학생 검색·다중 선택·등록과 실패 복구 계약 |
 | [LECTURE-MANAGEMENT.md](LECTURE-MANAGEMENT.md) | 강의 설정 메뉴·수정값 보존·종료/복원·날짜 해제와 반응형 목록 계약 |
+| [LECTURE-RANKINGS.md](LECTURE-RANKINGS.md) | 여러 차시를 묶은 종합·시험·과제 순위, 공동 등수, 명예의 전당 A4 출력과 상태·390px 계약 |
 | [ATTENDANCE-ROSTER-SAFETY.md](ATTENDANCE-ROSTER-SAFETY.md) | 차시 수강생 일괄배정의 미입력 시작, 선택 검토·실행취소, 전체 현장 출석의 원자적 되돌리기 계약 |
 | [ATTENDANCE-QR.md](ATTENDANCE-QR.md) | 교실 QR 출력·학생 카메라 출석·클리닉 등원/하원·오류 복구 계약 |
 | [ARRIVAL-OPERATIONS.md](ARRIVAL-OPERATIONS.md) | 보강 예정 입력과 클리닉 예약을 합친 대시보드·우상단 알림 운영 계약 |
@@ -48,8 +50,9 @@
 | [STUDENT-NOTICE-NOTIFICATIONS.md](STUDENT-NOTICE-NOTIFICATIONS.md) | 학생·학부모 공지 범위 복원, 알림 공유 조회·읽음·실패 복구 계약 |
 | [REAL-USE-E2E-INVENTORY.md](REAL-USE-E2E-INVENTORY.md) | 기존 E2E 자산을 실사용 운영 리뷰 관점으로 분류한 인벤토리 |
 | [DEPLOYMENT-OPERATIONS.md](DEPLOYMENT-OPERATIONS.md) | Cloudflare preview/production/rollback, scoped token, PR 무쓰기 E2E, Actions 공급망, backend/frontend release-bundle readback 계약 |
-| [DEV-INBOX-GUIDE.md](DEV-INBOX-GUIDE.md) | 학원 직원 문의 제출·답변 확인과 플랫폼 문의 처리 가이드 |
+| [DEV-INBOX-GUIDE.md](DEV-INBOX-GUIDE.md) | 공통 화면 오류·빠른 제보, 학원 직원 문의·답변, 플랫폼 문의 처리 |
 | [DEVELOPER-CONSOLE.md](DEVELOPER-CONSOLE.md) | 개발자 콘솔 정보 구조, 운영 상태 레저, 반응형 메뉴, 조회 실패·쓰기 안전 계약 |
+| [AGENT-SESSIONS.md](AGENT-SESSIONS.md) | admin97 전용 Codex·Claude 세션·하위 에이전트 조직도와 상태·연결 복구 |
 | [TENANT-BRANDING.md](TENANT-BRANDING.md) | 신규 테넌트 로그인·역할별 공용 헤더 브랜딩 계약과 검증표 |
 | [학생앱 디자인 시스템](../src/app_student/shared/ui/theme/README.md) | 학생·학부모 앱 토큰, 테넌트 테마(공통 브랜드 레이어·토큰 전용 테넌트 파일), 라이트·다크 대비 기준과 테넌트 추가 절차 |
 | [DEV-TENANT-OPERATIONS.md](DEV-TENANT-OPERATIONS.md) | 개발자 콘솔 테넌트·소유자 생성, 기존 계정 승격, 실패 안전 UI 계약 |
@@ -73,8 +76,11 @@
 | [TEACHER-SESSION-ASSESSMENTS.md](TEACHER-SESSION-ASSESSMENTS.md) | 차시 시험·과제 종합 조회, 반응형 비교표, 시험 선택 복원과 입력 연결 계약 |
 | [TEACHER-OPS-ASSISTANT.md](TEACHER-OPS-ASSISTANT.md) | 사진 기반 학생 식별·수강·ONLINE 영상 권한·초기 알림톡 검토/확정 계약 |
 | [MESSAGING-OPERATIONS.md](MESSAGING-OPERATIONS.md) | 알림톡 문구·블록 편집·학생별 미리보기·과제 완료 판정, 발송 기록과 390px UX 계약 |
+| [SURVEYS.md](SURVEYS.md) | 설문·성적 취합·학생별 응답, 첨부 ZIP·CSV와 복구·390px 계약 |
 
 ## 관련 위치
+
+- [차시별 수업일](LECTURE-SESSION-SCOPES.md#차시별-수업일) — 한 차시의 여러 날짜 관리, 출결·성적 범위와 개인 일정 표시
 
 | 용도 | 경로 |
 |------|------|
@@ -123,3 +129,8 @@ e2e/
   workspace `_artifacts/`에 저장하고 커밋하지 않음
 
 - [PARENT-ASSESSMENT-COMMENTS.md](PARENT-ASSESSMENT-COMMENTS.md) — 학부모 전용 평가 코멘트와 수정/조회 흐름
+
+매치업 정밀분석은 OpenAI를 사용하며 분석 중 기존 결과를 유지한다. 실패 시 오류를
+표시하고 같은 페이지에서 재시도할 수 있다. API 대기시간은 서버의 제한된 재시도
+예산을 포함한다. 공급자·모델·데이터 경계는
+[백엔드 OpenAI 운영 계약](https://github.com/guswls3028-art/academy-backend/blob/main/docs/operations/openai-provider.md)을 따른다.

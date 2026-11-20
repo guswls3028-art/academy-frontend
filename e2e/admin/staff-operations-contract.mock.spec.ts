@@ -6,6 +6,7 @@ import {
   installTenantOneInitScript,
 } from "../helpers/localAuthApiStubs";
 import { gotoAndSettle } from "../helpers/wait";
+import { installWorkspaceReadApiStubs } from "../helpers/workspaceReadApiStubs";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 
@@ -1930,8 +1931,9 @@ test.describe("직원 운영 계약", () => {
 
     await directorRow.getByText("박철", { exact: true }).click();
     const detail = page.getByTestId("staff-detail-overlay");
-    await expect(detail.locator("dl").getByText("직위", { exact: true }).locator("..")).toContainText("실장");
-    await expect(detail.locator("dl").getByText("계정", { exact: true }).locator("..")).toContainText("관리자 계정");
+    await expect(detail.getByText("실장", { exact: true })).toBeVisible();
+    await detail.getByRole("button", { name: "직원 정보·계정" }).click();
+    await expect(detail.getByText("관리자 계정", { exact: true })).toBeVisible();
     await expect(detail.getByRole("button", { name: "퇴사 처리" })).toHaveCount(0);
     await expect(detail.getByRole("button", { name: /권한 부여|권한 회수/ })).toHaveCount(0);
 
@@ -2013,6 +2015,7 @@ test.describe("직원 운영 계약", () => {
     await page.getByText("김조교", { exact: true }).first().click();
     const staffDetail = page.getByTestId("staff-detail-overlay");
     await expect(staffDetail).toBeVisible();
+    await staffDetail.getByRole("button", { name: "직원 정보·계정" }).click();
     await expect(staffDetail.getByRole("button", { name: "퇴사 처리" })).toBeVisible();
     await expect(staffDetail.getByRole("button", { name: "잘못 등록한 직원 삭제" })).toHaveCount(0);
 
@@ -2039,9 +2042,14 @@ test.describe("직원 운영 계약", () => {
     await expect(staffDetail.getByRole("button", { name: "닫기" })).toBeFocused();
     await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe("hidden");
     await expect(staffRow).toBeVisible();
-    await expect(staffDetail.getByLabel("재직 상태: 재직")).toBeVisible();
+    await expect(staffDetail.getByText("재직", { exact: true })).toBeVisible();
     await expect(staffDetail.getByRole("button", { name: "정보 수정" })).toBeVisible();
+    const employeeInfo = staffDetail.getByRole("button", { name: "직원 정보·계정" });
+    await expect(employeeInfo).toHaveAttribute("aria-expanded", "false");
+    await expect(staffDetail.getByText("공제 전 합계", { exact: true })).toHaveCount(1);
     const managerToggle = staffDetail.getByRole("button", { name: "직원관리 권한 없음, 권한 부여" });
+    await expect(managerToggle).toBeHidden();
+    await employeeInfo.click();
     await expect(managerToggle).toBeVisible();
     await expect(managerToggle).toHaveAttribute("title", "눌러서 직원관리 권한 부여");
     const summaryTab = staffDetail.getByRole("tab", { name: "요약", exact: true });
@@ -2469,6 +2477,8 @@ test.describe("직원 운영 계약", () => {
       name: "비밀번호 변경",
       exact: true,
     });
+    await expect(passwordButton).toBeHidden();
+    await detail.getByRole("button", { name: "직원 정보·계정" }).click();
     await expect(passwordButton).toBeVisible();
     await passwordButton.click();
 
@@ -3061,4 +3071,79 @@ test.describe("직원 운영 계약", () => {
       fullPage: true,
     });
   });
+});
+
+test.describe("원장 직원 정보 자동 복구", () => {
+  for (const width of [1366, 390]) {
+    for (const initiallyInvalid of [false, "staff_id", "permission"] as const) {
+      test(`누락 정보 연결·저장·재진입${initiallyInvalid ? ` ${initiallyInvalid} 실패 복구` : ""} ${width}px`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        await seedAuth(page);
+        await installWorkspaceReadApiStubs(page);
+        await mockStaffApi(page);
+        await page.route("**/api/v1/core/me/", route => route.fulfill({ json: {
+          id: 12, username: "t1_owner", name: "원장 계정", phone: null,
+          is_staff: true, is_superuser: false, tenantRole: "owner", linkedStudents: null,
+          must_change_password: false,
+        } }));
+        let prepared = false;
+        let invalid: false | "staff_id" | "permission" = initiallyInvalid;
+        let setupPosts = 0;
+        await page.route("**/api/v1/staffs/me/", async route => {
+          const request = route.request();
+          const headers = await request.allHeaders();
+          expect(headers["x-tenant-code"]).toBe("hakwonplus");
+          expect(headers.authorization).toMatch(/^Bearer /);
+          const snapshot = {
+            is_authenticated: true, is_superuser: false, is_staff: true,
+            is_payroll_manager: true, is_owner: true,
+            owner_display_name: "박원장", owner_phone: "01011112222",
+            owner_setup_required: !prepared,
+            ...(prepared ? { staff_id: 1, default_work_type_id: 21 } : {}),
+          };
+          if (request.method() === "GET") return route.fulfill({ json: snapshot });
+          if (request.method() !== "POST") return route.fallback();
+          expect(request.postDataJSON()).toEqual({});
+          setupPosts++;
+          if (invalid) return route.fulfill({ json: { ...snapshot, owner_setup_required: false,
+            ...(invalid === "permission" ? { staff_id: 1, is_payroll_manager: undefined } : {}) } });
+          prepared = true;
+          return route.fulfill({ json: { ...snapshot, owner_setup_required: false,
+            staff_id: 1, default_work_type_id: 21 } });
+        });
+        await gotoAndSettle(page, `${BASE}/workspace/staff/home`);
+        if (initiallyInvalid) {
+          const warning = page.getByRole("alert").filter({ hasText: "직원 정보 연결 결과를 확인하지 못했습니다" });
+          await expect(warning).toBeVisible();
+          if (width === 390) {
+            expect((await warning.getByRole("button", { name: "연결 다시 확인", exact: true }).boundingBox())!.height)
+              .toBeGreaterThanOrEqual(44);
+          }
+          await expect(page.getByRole("heading", { name: "직원 관리", exact: true })).toBeVisible();
+          await expect(page.getByText("박원장", { exact: true }).first()).toBeVisible();
+          await test.info().attach(`owner-setup-error-${width}`, {
+            body: await page.screenshot({ path: test.info().outputPath(`owner-setup-error-${width}.png`),
+              fullPage: true, animations: "disabled" }), contentType: "image/png",
+          });
+          invalid = false;
+          await warning.getByRole("button", { name: "연결 다시 확인", exact: true }).click();
+          await expect(warning).toHaveCount(0);
+        }
+        await expect(page.getByRole("heading", { name: "직원 관리", exact: true })).toBeVisible();
+        await expect(page.getByText("박원장", { exact: true }).first()).toBeVisible();
+        expect(prepared).toBe(true);
+        if (!initiallyInvalid) expect(setupPosts).toBe(1);
+        const postsAfterSetup = setupPosts;
+        await page.reload();
+        await expect(page.getByRole("heading", { name: "직원 관리", exact: true })).toBeVisible();
+        await expect(page.getByText("박원장", { exact: true }).first()).toBeVisible();
+        expect(setupPosts).toBe(postsAfterSetup);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        await test.info().attach(`owner-setup-recovered-${width}-${initiallyInvalid}`, {
+          body: await page.screenshot({ path: test.info().outputPath(`owner-setup-recovered-${width}-${initiallyInvalid}.png`),
+            fullPage: true, animations: "disabled" }), contentType: "image/png",
+        });
+      });
+    }
+  }
 });

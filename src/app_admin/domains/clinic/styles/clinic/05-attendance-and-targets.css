@@ -561,3 +561,16 @@
 .clinic-schedule__card--clickable:active {
   transform: scale(0.99);
 }
+
+.clinic-ops__reminder-entry {
+  display: flex;
+  justify-content: flex-end;
+  margin-block: 0.5rem;
+}
+
+@media (max-width: 480px) {
+  .clinic-ops__reminder-entry > button {
+    width: 100%;
+    min-height: 44px;
+  }
+}

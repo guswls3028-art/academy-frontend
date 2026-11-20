@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/scores/panels/SessionScoresPanel.tsx
 // 성적 테이블 — 엑셀형 키보드 이동 (Tab/화살표), 자동 저장과 실행 취소
 
-import { lazy, Suspense, useEffect, useMemo, useState, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -11,6 +11,7 @@ import {
   type SessionScoreMeta,
   type SessionScoresExamReviewFilter,
   type SessionScoresSummaryColumnMode,
+  type ScoreTotalColumnKind,
 } from "../api/sessionScores";
 import { scoresQueryKeys } from "../api/queryKeys";
 import { attendanceQueryKeys } from "@/shared/api/queryKeys/attendance";
@@ -29,7 +30,7 @@ import {
   matchesSessionRowExamReviewFilter,
   matchesSessionScoreStudentSearch,
 } from "@/shared/scoring/sessionScoreRows";
-import type { ScoreActiveCell, ScoreActiveEditor } from "../api/scoreDraft";
+import { activeScoreCellKey, type ScoreActiveCell, type ScoreActiveEditor } from "../api/scoreDraft";
 
 const StudentScoresDrawer = lazy(() => import("../components/StudentScoresDrawer"));
 const AssessmentTotalsModal = lazy(() => import("../components/AssessmentTotalsModal"));
@@ -39,7 +40,9 @@ type Props = {
   lectureId?: number;
   search?: string;
   isEditMode?: boolean;
+  schedule?: string;
   onRequestAnswerEdit?: () => Promise<boolean>;
+  onSaveDrawerHomeworkScore?: import("../api/patchHomeworkQuick").SaveDrawerHomeworkScore;
   /** 수정 중 알림톡 등 저장된 점수 소비 액션을 잠시 막는 상태 */
   hasUnsavedChanges?: boolean;
   /** 판정·비고는 점수 수정 모드가 아니라 실제 저장/복구 대기 중에만 차단한다. */
@@ -57,10 +60,12 @@ type Props = {
   viewFilter?: "all" | "exam" | "homework";
   /** 마지막 요약 열: 전체 상태 판정 | 시험 오답 확인 상태 */
   summaryColumnMode?: SessionScoresSummaryColumnMode;
+  hiddenTotalColumns: Readonly<Record<ScoreTotalColumnKind, boolean>>;
+  onHideTotalColumn: (kind: ScoreTotalColumnKind) => void;
   /** 테스트 오답 확인 모드의 학생 행 필터 */
   examReviewFilter?: SessionScoresExamReviewFilter;
   selectedEnrollmentIds?: number[];
-  onSelectionChange?: (enrollmentIds: number[]) => void;
+  onSelectionChange?: (enrollmentIds: number[], reason?: "roster") => void;
   onPendingChange?: () => void;
   activeEditors?: ScoreActiveEditor[];
   onClaimOwnCell?: (cell: ScoreActiveCell) => Promise<boolean>;
@@ -82,7 +87,7 @@ export type SessionScoresPanelHandle = {
   /** 자동 저장용: 현재 pending 스냅샷 */
   getPendingSnapshot: () => import("../api/scoreDraft").PendingChange[];
   /** 드래프트 복원 시 호출 */
-  applyDraftPatch: (changes: import("../api/scoreDraft").PendingChange[]) => void;
+  applyDraftPatch: (changes: import("../api/scoreDraft").PendingChange[]) => boolean;
   commitActiveCell: () => boolean;
   undoLastChange: () => boolean;
   redoLastChange: () => boolean;
@@ -108,7 +113,9 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   lectureId,
   search = "",
   isEditMode = false,
+  schedule,
   onRequestAnswerEdit,
+  onSaveDrawerHomeworkScore,
   hasUnsavedChanges = false,
   hasPendingScoreChanges = hasUnsavedChanges,
   assessmentDeleteLocked = false,
@@ -120,6 +127,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   scoreFormat = "raw",
   viewFilter = "all",
   summaryColumnMode = "verdict",
+  hiddenTotalColumns,
+  onHideTotalColumn,
   examReviewFilter = "all",
   selectedEnrollmentIds = [],
   onSelectionChange,
@@ -147,8 +156,8 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   /** 답안 상세 드로어 (StudentScoresDrawer → 답안 상세 보기) */
   const [answerDetail, setAnswerDetail] = useState<{ examId: number; enrollmentId: number; examTitle: string } | null>(null);
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: scoresQueryKeys.sessionScores(sessionId),
-    queryFn: () => fetchSessionScores(sessionId),
+    queryKey: scoresQueryKeys.sessionScoresScope(sessionId, schedule),
+    queryFn: () => fetchSessionScores(sessionId, schedule),
     enabled: Number.isFinite(sessionId) && sessionId > 0,
     refetchInterval: isEditMode ? 1_500 : false,
     refetchIntervalInBackground: false,
@@ -163,10 +172,10 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const openTotals = () => { if (meta) setTotalsEditor({ sessionId, meta }); };
   const attendancePageSize = allRows.length > 50 ? Math.min(allRows.length, 500) : undefined;
   const { data: attendanceList } = useQuery({
-    queryKey: [...scoresQueryKeys.attendance(sessionId), attendancePageSize ?? "default"] as const,
+    queryKey: scoresQueryKeys.attendanceScope(sessionId, attendancePageSize, schedule),
     queryFn: () => fetchAttendance(
       sessionId,
-      attendancePageSize ? { page_size: attendancePageSize } : undefined,
+      { page_size: attendancePageSize, schedule },
     ),
     enabled: Number.isFinite(sessionId) && sessionId > 0 && allRows.length > 0,
   });
@@ -180,26 +189,16 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
       homework_ids: meta.homeworks.filter(h => h.grading_mode !== "COMPLETION").map(h => h.homework_id),
     };
     const ids = type === "exam" ? meta.exams.map(e => e.exam_id) : meta.homeworks.map(h => h.homework_id);
-    const completionIds = new Set(meta.homeworks.filter(h => h.grading_mode === "COMPLETION").map(h => h.homework_id));
-    const selected = new Set(type === "exam" ? config.exam_ids : config.homework_ids.filter(id => !completionIds.has(id)));
-    // Match the rendered columns, including the total boundary between groups.
-    const displayed = [...ids.filter(id => selected.has(id)), 0, ...ids.filter(id => !selected.has(id))];
-    const fromIdx = displayed.indexOf(fromId);
-    const toIdx = displayed.indexOf(toId);
+    const fromIdx = ids.indexOf(fromId);
+    const toIdx = ids.indexOf(toId);
     if (fromIdx < 0 || toIdx < 0) return;
-    const movedOrder = [...displayed];
-    const [moved] = movedOrder.splice(fromIdx, 1);
-    movedOrder.splice(toIdx, 0, moved);
-    const included = movedOrder.slice(0, movedOrder.indexOf(0))
-      .filter(id => type === "exam" || !completionIds.has(id));
-    const includedSet = new Set(included);
-    // Completion-only homework always remains behind the total, even when dragged across it.
-    const order = [...included, ...movedOrder.filter(id => id !== 0 && !includedSet.has(id))];
+    const order = [...ids];
+    const [moved] = order.splice(fromIdx, 1);
+    order.splice(toIdx, 0, moved);
+    // Reordering is presentation only. Only the totals editor changes membership.
     try {
       await saveScoreTotalConfig(sessionId, {
         ...config,
-        exam_ids: type === "exam" ? included : config.exam_ids,
-        homework_ids: type === "homework" ? included : config.homework_ids,
         exam_order: type === "exam" ? order : meta.exams.map(e => e.exam_id),
         homework_order: type === "homework" ? order : meta.homeworks.map(h => h.homework_id),
       });
@@ -218,7 +217,12 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     flushPendingChanges: () => tableRef.current?.flushPendingChanges?.()
       ?? Promise.resolve({ savedCount: 0, projectionPendingCount: 0 }),
     getPendingSnapshot: () => tableRef.current?.getPendingSnapshot?.() ?? [],
-    applyDraftPatch: (changes) => tableRef.current?.applyDraftPatch?.(changes),
+    applyDraftPatch: (changes) => {
+      const table = tableRef.current;
+      if (!table) return false;
+      table.applyDraftPatch(changes);
+      return true;
+    },
     commitActiveCell: () => tableRef.current?.commitActiveCell?.() ?? true,
     undoLastChange: () => tableRef.current?.undoLastChange?.() ?? false,
     redoLastChange: () => tableRef.current?.redoLastChange?.() ?? false,
@@ -243,7 +247,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     if (!onSelectionChange || selectedEnrollmentIds.length === 0) return;
     const eligibleIds = new Set(allRows.filter((row) => row.assessment_todo_eligible !== false).map((row) => row.enrollment_id));
     const next = selectedEnrollmentIds.filter((id) => eligibleIds.has(id));
-    if (next.length !== selectedEnrollmentIds.length) onSelectionChange(next);
+    if (next.length !== selectedEnrollmentIds.length) onSelectionChange(next, "roster");
   }, [allRows, onSelectionChange, selectedEnrollmentIds]);
 
   /** enrollment_id → attendance record id (for PATCH API) */
@@ -297,6 +301,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
 
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | null>(null);
   const [selectedColIndex, setSelectedColIndex] = useState<number>(0); // editable columns index
+  const [focusRequest, setFocusRequest] = useState<{ cell: ScoreActiveCell; sessionId: number; schedule?: string } | null>(null);
   const prevEditModeRef = useRef(false);
 
   const examCols = meta?.exams ?? EMPTY_EXAM_COLS;
@@ -325,12 +330,21 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     return Math.max(0, Math.min(i, editableCols.length - 1));
   }, [editableCols.length]);
 
-  const ensureSelection = useCallback(() => {
+  const ensureSelection = useCallback((from: Element | null = document.activeElement) => {
     if (!rows.length || editableCols.length === 0) return { r: 0, c: 0, ok: false as const };
+    // Keyboard focus can enter a cell before the table has selected it.
+    // Resolve movement from that cell without publishing an edit lease on focus.
+    const key = from?.closest<HTMLTableCellElement>("td[data-score-cell]")?.dataset.scoreCell;
+    if (key) {
+      const enrollmentId = Number(key.split(":")[1]);
+      const r = rows.findIndex((row) => row.enrollment_id === enrollmentId);
+      const c = editableCols.findIndex((col) => activeScoreCellKey({ ...col, enrollmentId }) === key);
+      if (r >= 0 && c >= 0) return { r, c, ok: true as const };
+    }
     const r = Math.max(0, Math.min(rowIndex, rows.length - 1));
     const c = clampCol(selectedColIndex);
     return { r, c, ok: true as const };
-  }, [rows.length, editableCols.length, rowIndex, clampCol, selectedColIndex]);
+  }, [rows, editableCols, rowIndex, clampCol, selectedColIndex]);
 
   const focusAt = useCallback((r: number, c: number): boolean => {
     if (r < 0 || r >= rows.length || c < 0 || c >= editableCols.length) return false;
@@ -347,6 +361,24 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     setSelectedColIndex(c);
     return true;
   }, [rows, editableCols]);
+
+  useLayoutEffect(() => {
+    if (!focusRequest) return;
+    if (!isEditMode || focusRequest.sessionId !== sessionId || focusRequest.schedule !== schedule) {
+      setFocusRequest(null);
+      return;
+    }
+    const { cell } = focusRequest;
+    const claimedRow = rows.findIndex((row) => row.enrollment_id === cell.enrollmentId);
+    const claimedColumn = editableCols.findIndex((column) => {
+      if (cell.type === "homework") return column.type === "homework" && column.homeworkId === cell.homeworkId;
+      return column.type === "exam" && column.examId === cell.examId && column.sub === cell.sub
+        && (column.sub !== "item" || column.questionId === cell.questionId);
+    });
+    // A successful lease transfer can resolve before React replaces the old
+    // collaborator with an input. Retry when the editor list commits again.
+    if (claimedRow < 0 || claimedColumn < 0 || focusAt(claimedRow, claimedColumn)) setFocusRequest(null);
+  }, [activeEditors, editableCols, focusAt, focusRequest, isEditMode, rows, schedule, sessionId]);
 
   const focusLinear = useCallback((r: number, c: number, direction: 1 | -1) => {
     const columnCount = editableCols.length;
@@ -381,7 +413,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     return false;
   }, [editableCols.length, rows.length, focusAt]);
 
-  const handleGridKeyDown = (e: React.KeyboardEvent) => {
+  const handleGridKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (!isEditMode) return;
     const cur = ensureSelection();
     if (!cur.ok) return;
@@ -389,7 +421,13 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     const key = e.key;
     const isTab = key === "Tab";
 
-    if (key === "ArrowDown" || key === "Enter") {
+    if (key === "Enter") {
+      if (e.target !== e.currentTarget) return;
+      e.preventDefault();
+      onRequestMoveWithinRow(e.shiftKey, e.currentTarget);
+      return;
+    }
+    if (key === "ArrowDown") {
       e.preventDefault();
       focusVertical(cur.r, cur.c, 1);
       return;
@@ -426,6 +464,17 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     if (!moved) tableRef.current?.commitActiveCell();
     return moved;
   }, [ensureSelection, focusLinear]);
+
+  const onRequestMoveWithinRow = useCallback((backward: boolean, from: HTMLElement) => {
+    const cur = ensureSelection(from);
+    if (!cur.ok) return;
+    const direction = backward ? -1 : 1;
+    for (let c = cur.c + direction; c >= 0 && c < editableCols.length; c += direction) {
+      if (focusAt(cur.r, c)) return;
+    }
+    // Commit at the row boundary and leave keyboard navigation on this student.
+    if (tableRef.current?.commitActiveCell()) focusAt(cur.r, cur.c);
+  }, [editableCols.length, ensureSelection, focusAt]);
 
   const onRequestMoveDown = useCallback(() => {
     const cur = ensureSelection();
@@ -553,12 +602,16 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
           scoreFormat={scoreFormat}
           viewFilter={viewFilter}
           summaryColumnMode={summaryColumnMode}
+          hiddenTotalColumns={hiddenTotalColumns}
+          onHideTotalColumn={onHideTotalColumn}
           selectedEnrollmentId={selectedEnrollmentId}
           selectedCell={selectedCell}
           activeEditors={activeEditors}
           onClaimOwnCell={onClaimOwnCell}
+          onFocusClaimedCell={(cell) => setFocusRequest({ cell, sessionId, schedule })}
           onRequestMoveNext={onRequestMoveNext}
           onRequestMovePrev={onRequestMovePrev}
+          onRequestMoveWithinRow={onRequestMoveWithinRow}
           onRequestMoveDown={onRequestMoveDown}
           onRequestMoveUp={onRequestMoveUp}
           onPendingChange={onPendingChange}
@@ -606,12 +659,15 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
       {drawerRow && (
         <Suspense fallback={<div role="status">학생 성적 상세를 불러오는 중...</div>}>
           <StudentScoresDrawer
+            key={drawerRow.enrollment_id}
             row={drawerRow}
             meta={meta}
             sessionId={sessionId}
             isEditMode={isEditMode}
             hasUnsavedChanges={hasUnsavedChanges}
             hasPendingScoreChanges={hasPendingScoreChanges}
+            homeworkEdit={homeworkEdit}
+            onSaveDrawerHomeworkScore={onSaveDrawerHomeworkScore}
             onClose={() => {
               void (answerEditRef.current?.flush() ?? Promise.resolve()).then(() => {
                 setDrawerEnrollmentId(null);

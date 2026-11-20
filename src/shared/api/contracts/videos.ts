@@ -1,4 +1,4 @@
-import api from "@/shared/api/axios";
+import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import type { components } from "@/shared/api/generated/schema";
 
@@ -20,8 +20,8 @@ export async function fetchPublicSession(): Promise<PublicVideoSession | null> {
 }
 
 /** Call only from an explicit upload, YouTube, or folder creation action. */
-export async function preparePublicSession(): Promise<PublicVideoSession> {
-  const { data } = await api.post<unknown>("/media/videos/public-session/");
+export async function preparePublicSession(config?: ApiRequestConfig): Promise<PublicVideoSession> {
+  const { data } = await api.post<unknown>("/media/videos/public-session/", undefined, config);
   return publicVideoSessionFromResponse(data);
 }
 

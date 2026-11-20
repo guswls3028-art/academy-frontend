@@ -6,6 +6,17 @@ import { hhmmText } from "@/shared/ui/time/timeFormat";
 import styles from "./ClinicBookingFeedback.module.css";
 import pageStyles from "../pages/ClinicPage.module.css";
 
+export function ClinicListError({ description, onRetry }: { description: string; onRetry: () => void }) {
+  return <>
+    <EmptyState title="클리닉 정보를 불러오지 못했습니다" description={description} />
+    <div className={pageStyles.retryWrap}>
+      <button type="button" className="stu-btn stu-btn--secondary" onClick={onRetry}>
+        다시 시도
+      </button>
+    </div>
+  </>;
+}
+
 export function ClinicRejectedBookingHistory({ requests }: { requests: ClinicBookingRequest[] }) {
   if (!requests.length) return null;
   return <div className={pageStyles.bookingGroup}>

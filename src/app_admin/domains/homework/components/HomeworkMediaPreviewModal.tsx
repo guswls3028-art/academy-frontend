@@ -7,7 +7,7 @@ import {
 } from "@admin/domains/submissions/api/adminHomeworkSubmissions.api";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
-import HomeworkMediaImage from "@/shared/ui/media/HomeworkMediaImage";
+import PhotoPreview from "@/shared/ui/media/PhotoPreview";
 import HomeworkMediaVideo from "@/shared/ui/media/HomeworkMediaVideo";
 import { QUERY_KEYS } from "../queryKeys";
 import styles from "../panels/HomeworkSubmissionsPanel.module.css";
@@ -80,7 +80,7 @@ export default function HomeworkMediaPreviewModal({ open, homeworkId, file, medi
             </div>
           )}
           {previewAvailable && file?.media_kind === "image" && file.mime_type !== "application/pdf" && (
-            <HomeworkMediaImage key={mediaKey} src={previewQ.data.url} filename={file.original_filename} mimeType={file.mime_type} alt={`${file.original_filename} 과제 제출 미리보기`} onLoad={() => onViewed?.(file.id)} onError={() => setFailedMediaKey(mediaKey)} />
+            <PhotoPreview key={mediaKey} src={previewQ.data.url} filename={file.original_filename} mimeType={file.mime_type} alt={`${file.original_filename} 과제 제출 미리보기`} onLoad={() => onViewed?.(file.id)} onError={() => setFailedMediaKey(mediaKey)} />
           )}
           {previewAvailable && file?.media_kind === "video" && file.mime_type !== "application/pdf" && (
             <HomeworkMediaVideo key={mediaKey} src={previewQ.data.url} homeworkId={homeworkId} fileId={file.id} filename={file.original_filename} onViewed={() => onViewed?.(file.id)} onError={() => setFailedMediaKey(mediaKey)} />

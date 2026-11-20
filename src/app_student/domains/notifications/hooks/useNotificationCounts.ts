@@ -6,24 +6,30 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
-import { fetchNotificationCounts } from "../api/notifications.api";
+import { fetchNotificationCounts, NOTIFICATION_COUNTS_REFRESH_INTERVAL_MS } from "../api/notifications.api";
 
 export function useNotificationCounts() {
   const queryClient = useQueryClient();
   return useQuery({
     queryKey: studentQueryKeys.notificationCounts,
-    queryFn: async () => {
-      let profile = queryClient.getQueryData<{ id: number }>(studentQueryKeys.me);
-      if (profile?.id == null) {
-        profile = await fetchMyProfile();
-        queryClient.setQueryData(studentQueryKeys.me, profile);
-      }
+    queryFn: async ({ signal }) => {
+      const state = queryClient.getQueryState(studentQueryKeys.notificationCounts);
+      // Retrying an error without data sets the status to pending before this callback.
+      const recovering = state?.status === "error"
+        || (state?.data === undefined && (state?.errorUpdatedAt ?? 0) > 0);
+      const profile = await queryClient.fetchQuery({
+        queryKey: studentQueryKeys.me,
+        queryFn: fetchMyProfile,
+        staleTime: Infinity,
+        retry: false,
+      });
+      if (signal.aborted) throw new DOMException("Notification lookup was canceled", "AbortError");
       if (profile?.id == null) {
         throw new Error("Student profile id is required for notification counts.");
       }
-      return fetchNotificationCounts({ profileId: profile.id, queryClient });
+      return fetchNotificationCounts({ profileId: profile.id, queryClient, recovering });
     },
-    refetchInterval: 60000, // 60초마다 갱신 (기존 30초에서 완화)
+    refetchInterval: NOTIFICATION_COUNTS_REFRESH_INTERVAL_MS,
     refetchOnWindowFocus: false,
     staleTime: 10000,
     retry: 1,

@@ -27,8 +27,10 @@ type Props = {
   examTrend: StudentExamTrendPoint[];
   lectureOptions: StudentScoreLectureOption[];
   analytics?: MyGradesAnalytics;
-  analyticsLoading?: boolean;
-  analyticsError?: boolean;
+  analyticsLoading: boolean;
+  analyticsError: boolean;
+  analyticsFetching: boolean;
+  onRetryAnalytics: () => void;
   reportLayout: StudentGradeReportLayout;
 };
 
@@ -46,15 +48,18 @@ export default function GradesStatsTab({
   analytics,
   analyticsLoading,
   analyticsError,
+  analyticsFetching,
+  onRetryAnalytics,
   reportLayout,
 }: Props) {
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const examStats = useMemo(() => calculateExamStats(exams, wrongCompletionOnly), [exams, wrongCompletionOnly]);
   const hwStats = useMemo(() => calculateHomeworkStats(homeworks), [homeworks]);
+  const homeworkRate = (wrongCompletionOnly ? hwStats?.completionRate : hwStats?.passRate) ?? null;
   const hasScoredHomework = homeworks.some((homework) => homework.grading_mode !== "COMPLETION");
 
   const rankInsight = useMemo(() => {
-    const ranked = exams.filter((e) => e.rank != null && e.cohort_size != null && e.cohort_size > 1 && e.meta_status !== "NOT_SUBMITTED");
+    const ranked = exams.filter((e) => e.rank != null && e.percentile != null && e.meta_status !== "NOT_SUBMITTED");
     if (ranked.length === 0) return null;
     const topQuartile = ranked.filter((e) => e.percentile != null && e.percentile <= 25).length;
     const midRange = ranked.filter((e) => e.percentile != null && e.percentile > 25 && e.percentile <= 75).length;
@@ -82,7 +87,19 @@ export default function GradesStatsTab({
     if (analyticsError || !analytics) {
       return analyticsError && sectionId === firstVisibleAnalytics ? (
         <div className={styles.analyticsNotice}>
-          비교 분석을 불러오지 못했습니다. 다른 성적 정보는 계속 확인할 수 있습니다.
+          <span role="status">
+            {analyticsFetching
+              ? "비교 분석을 다시 불러오는 중입니다."
+              : "비교 분석을 불러오지 못했습니다. 다른 성적 정보는 계속 확인할 수 있습니다."}
+          </span>
+          <button
+            type="button"
+            className="stu-btn stu-btn--secondary"
+            aria-disabled={analyticsFetching}
+            onClick={() => { if (!analyticsFetching) onRetryAnalytics(); }}
+          >
+            비교 분석 다시 시도
+          </button>
         </div>
       ) : null;
     }
@@ -132,7 +149,7 @@ export default function GradesStatsTab({
               <StatCard label="시험 수" value={`${examStats.count}건`} />
               {examStats.avgRank != null
                 ? <StatCard label="평균 등수" value={`${examStats.avgRank}등`} />
-                : <StatCard label="응시완료" value={`${exams.filter((e) => e.total_score != null).length}건`} />
+                : <StatCard label="응시완료" value={`${examStats.submittedCount}건`} />
               }
             </StatGrid>
           </div>
@@ -151,13 +168,15 @@ export default function GradesStatsTab({
           {rankInsight.bestExam && (
             <div>
               <span className={styles.bestLabel}>최고 성적</span>{" "}
-              {rankInsight.bestExam.title} — {rankInsight.bestExam.rank}등/{rankInsight.bestExam.cohort_size}명
+              {rankInsight.bestExam.title} — {rankInsight.bestExam.rank}등
+              {rankInsight.bestExam.cohort_size != null ? ` · ${rankInsight.bestExam.cohort_size}명 응시` : ""}
             </div>
           )}
           {rankInsight.worstExam && rankInsight.worstExam.exam_id !== rankInsight.bestExam?.exam_id && (
             <div>
               <span className={styles.worstLabel}>보완 필요</span>{" "}
-              {rankInsight.worstExam.title} — {rankInsight.worstExam.rank}등/{rankInsight.worstExam.cohort_size}명
+              {rankInsight.worstExam.title} — {rankInsight.worstExam.rank}등
+              {rankInsight.worstExam.cohort_size != null ? ` · ${rankInsight.worstExam.cohort_size}명 응시` : ""}
             </div>
           )}
         </div>
@@ -179,7 +198,7 @@ export default function GradesStatsTab({
         <StatGrid>
           <StatCard label="처리 완료" value={`${hwStats.graded}/${hwStats.total}건`} />
           <StatCard label="평균 득점률" value={hwStats.avgPct != null ? `${hwStats.avgPct}%` : hasScoredHomework ? "미채점" : "해당 없음"} />
-          <StatCard label={wrongCompletionOnly ? "완료율" : "합격률"} value={hwStats.passRate == null ? "미판정" : `${hwStats.passRate}%`} accent={hwStats.passRate == null ? undefined : hwStats.passRate >= 70 ? "success" : "danger"} />
+          <StatCard label={wrongCompletionOnly ? "완료율" : "합격률"} value={homeworkRate == null ? "미판정" : `${homeworkRate}%`} accent={homeworkRate == null ? undefined : homeworkRate >= 70 ? "success" : "danger"} />
         </StatGrid>
         {!hasScoredHomework && <p className="stu-muted text-xs mt-2">통과형 과제는 점수 평균에 포함하지 않습니다.</p>}
         {hwStats.total > 0 && (

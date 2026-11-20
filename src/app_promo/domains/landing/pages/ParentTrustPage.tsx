@@ -55,7 +55,7 @@ const USE_CASES = [
     icon: Smartphone,
     title: "영상 복습 관리",
     body: "누가 영상을 안 봤는지, 어디까지 봤는지를 확인해 복습 안내와 상담 근거로 활용합니다.",
-    image: "/promo/student-video-player.webp",
+    image: "/promo/student-video-player.webp?v=20261120",
     alt: "학생전용앱 영상 플레이어 화면",
     imageWidth: 780,
     imageHeight: 1688,
@@ -64,7 +64,7 @@ const USE_CASES = [
     icon: MessageSquareText,
     title: "보강이 필요한 학생 안내",
     body: "시험 결과와 영상 이력을 보고 보강이 필요한 학생을 찾고, 내용을 확인한 뒤 알림톡으로 안내합니다.",
-    image: "/promo/admin-alimtalk-auto-send.png",
+    image: "/promo/admin-alimtalk-auto-send.png?v=20261120",
     alt: "관리자 알림톡 운영 화면",
     imageWidth: 1440,
     imageHeight: 820,
@@ -74,8 +74,8 @@ const USE_CASES = [
 const PACKAGES = [
   {
     name: "기본 요금제",
-    target: "2026년 9월 이후 신규 가입 · 월 18만원",
-    body: "신규 가입은 부가세 10%를 포함해 월 19만 8천원입니다. 8월 기존 가입은 월 14만 5천원에 고정 부가세 1만 4천원, 결제금액 15만 9천원이며 기존 공급가는 계속 유지됩니다. 안내된 기능을 모두 포함하며 알림톡, 추가 저장공간 등 별도 비용은 요금 안내에서 확인할 수 있습니다.",
+    target: "2026년 9월 이후 신규 가입 · 월 180,000원",
+    body: "신규 가입은 부가세 10%를 포함해 월 198,000원입니다. 8월 기존 가입은 월 145,000원에 고정 부가세 14,000원, 결제금액 159,000원이며 기존 공급가는 계속 유지됩니다. 안내된 기능을 모두 포함하며 알림톡, 추가 저장공간 등 별도 비용은 요금 안내에서 확인할 수 있습니다.",
   },
 ];
 
@@ -91,7 +91,7 @@ function HeroReportPreview() {
       </div>
       <figure className={styles.reportScreen}>
         <PromoEvidenceImage
-          src="/promo/admin-scores-authority-20260726.png"
+          src="/promo/admin-scores-authority-20260726.png?v=20261120"
           alt="예시 학생 세 명의 시험별 점수와 판정 결과를 확인하는 학원플러스 관리자 성적 화면"
           width={1440}
           height={900}

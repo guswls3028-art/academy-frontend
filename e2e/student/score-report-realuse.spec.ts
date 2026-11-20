@@ -421,21 +421,22 @@ test.describe.serial("[E2E] 학생 성적 리포트 실사용 검증", () => {
     expect(primaryResult.answers_visible).toBe(false);
 
     await expect(page.getByTestId("score-analysis-card")).toContainText("핵심 분석");
-    await expect(page.getByTestId("score-analysis-card")).toContainText("정답률");
+    await expect(page.getByText(/^정답 \d+ \/ \d+문항$/)).toBeVisible();
     await expect(page.getByTestId("score-analysis-card")).toContainText("오답");
-    await expect(page.getByTestId("wrong-number-chip")).toHaveText(["2", "5"]);
+    await expect(page.getByTestId("wrong-number-chip")).toHaveText(["2번", "5번"]);
     await expect(page.getByText("정답 내용은 비공개입니다. 틀린 번호와 내 답만 확인할 수 있습니다.")).toBeVisible();
     await expect(page.getByText("내 등수")).toBeVisible();
     await expect(page.getByText("1등")).toBeVisible();
-    await expect(page.getByText("/ 2명")).toBeVisible();
+    await expect(page.getByText("2명 응시")).toBeVisible();
 
     await page.screenshot({ path: `e2e/screenshots/score-report-realuse-result-${TS}.png`, fullPage: true });
 
     await gotoAndSettle(page, `${BASE}/student/grades`, { timeout: 20_000 });
     await expect(page.getByText(EXAM_TITLE)).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId("grade-wrong-summary")).toContainText("오답 2문항");
-    await expect(page.getByTestId("grade-wrong-summary")).toContainText("2, 5번");
-    await expect(page.getByText("1/2등")).toBeVisible();
+    await expect(page.getByTestId("grade-wrong-summary")).toContainText("2번, 5번");
+    await expect(page.getByText("1등", { exact: true })).toBeVisible();
+    await expect(page.getByText("2명 응시", { exact: true })).toBeVisible();
     await page.screenshot({ path: `e2e/screenshots/score-report-realuse-grades-${TS}.png`, fullPage: true });
   });
 });

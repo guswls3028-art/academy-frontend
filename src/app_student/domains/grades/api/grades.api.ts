@@ -69,6 +69,8 @@ export type MyHomeworkGradeSummary = {
   submission_media_locked?: boolean;
   /** Required submission, accepted evidence awaiting review, or reviewed. */
   submission_state?: "needs_submission" | "awaiting_review" | "reviewed";
+  practice_inspection?: { solved: number | null; total: number | null; feedback: string };
+  inspection_status?: "VIDEO_MAKEUP" | null;
   retake_count?: number;
   grading_mode?: "SCORE" | "COMPLETION";
   display_order?: number;

@@ -16,13 +16,20 @@ export function isSessionRowProgressCompleted(row: SessionScoreRow): boolean {
   return row.progress_completed === true || row.progress_status === "completed";
 }
 
+function hasCompletedAssessmentProgress(row: SessionScoreRow): boolean {
+  return row.assessment_progress_completed ?? isSessionRowProgressCompleted(row);
+}
+
 export function getScoreBlockOmrReviewStatus(block: ScoreBlock | null | undefined): "review" | null {
   return block?.meta?.status === "OMR_REVIEW_REQUIRED" ? "review" : null;
 }
 
-type AttentionKind = "missing" | "review" | "failed" | null;
+type AttentionKind = "missing" | "review" | "failed" | "inspection_pending" | null;
 
 function blockAttentionKind(block: ScoreBlock, sourceType: "exam" | "homework"): AttentionKind {
+  if (sourceType === "homework" && block.score == null && block.meta?.status === "VIDEO_MAKEUP") {
+    return "inspection_pending";
+  }
   if (getScoreBlockOmrReviewStatus(block)) return "review";
   if (sourceType === "exam" && isSubjectivePendingScoreBlock(block)) return "missing";
   const fp = deriveFinalPass({
@@ -50,6 +57,7 @@ function blockAttentionKind(block: ScoreBlock, sourceType: "exam" | "homework"):
 export type SessionRowAttentionSummary = {
   missingTitles: string[];
   reviewTitles: string[];
+  inspectionTitles: string[];
   failedTitles: string[];
 };
 
@@ -58,14 +66,16 @@ export function getSessionRowAttentionSummary(row: SessionScoreRow): SessionRowA
   const summary: SessionRowAttentionSummary = {
     missingTitles: [],
     reviewTitles: [],
+    inspectionTitles: [],
     failedTitles: [],
   };
-  if (isSessionRowProgressCompleted(row)) return summary;
+  if (hasCompletedAssessmentProgress(row)) return summary;
 
   const append = (kind: AttentionKind, title: string) => {
     if (kind === "missing") summary.missingTitles.push(title);
     if (kind === "review") summary.reviewTitles.push(title);
     if (kind === "failed") summary.failedTitles.push(title);
+    if (kind === "inspection_pending") summary.inspectionTitles.push(title);
   };
 
   for (const exam of row.exams ?? []) {
@@ -81,6 +91,7 @@ export function getSessionRowAttentionCountLabel(summary: SessionRowAttentionSum
   const parts = [
     summary.reviewTitles.length > 0 ? `검수 ${summary.reviewTitles.length}` : "",
     summary.missingTitles.length > 0 ? `미입력 ${summary.missingTitles.length}` : "",
+    summary.inspectionTitles.length > 0 ? "검사 대기 " + summary.inspectionTitles.length : "",
     summary.failedTitles.length > 0 ? `미달 ${summary.failedTitles.length}` : "",
   ].filter(Boolean);
   return parts.join(" · ");
@@ -90,6 +101,7 @@ export type SessionScoresTableVerdictKind =
   | "clinic_target"
   | "review"
   | "incomplete"
+  | "inspection_pending"
   | "fail"
   | "pass"
   | "dash";
@@ -100,12 +112,13 @@ export type SessionScoresTableVerdictKind =
  * - 그 외는 검수 대기 → 미입력 → 실제 미달 순서로 다음 행동을 안내한다.
  */
 export function getSessionScoresTableVerdict(row: SessionScoreRow): SessionScoresTableVerdictKind {
-  if (isSessionRowProgressCompleted(row)) return "pass";
+  if (hasCompletedAssessmentProgress(row)) return "pass";
   if (row.clinic_required) return "clinic_target";
   const summary = getSessionRowAttentionSummary(row);
   if (summary.reviewTitles.length > 0) return "review";
   if (summary.missingTitles.length > 0) return "incomplete";
   if (summary.failedTitles.length > 0) return "fail";
+  if (summary.inspectionTitles.length > 0) return "inspection_pending";
   const hasItems = (row.exams?.length ?? 0) + (row.homeworks?.length ?? 0) > 0;
   if (!hasItems) return "dash";
   return "pass";

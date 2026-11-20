@@ -63,7 +63,7 @@ async function installApi(page: Page, initialRole = "student", kind = "class") {
     });
     if (path === "/clinic/participants/") return json(state.checkedIn ? [{ id: 41, student: 11, session: 51, session_title: "오늘 클리닉", session_date: "2026-10-31", session_start_time: "13:00:00", session_location: "301호", status: "attended", checked_in_at: state.checkedIn, checked_out_at: state.checkedOut, created_at: state.checkedIn, can_self_cancel: false }] : []);
     if (path === "/clinic/settings/") return json({ capabilities: { booking_policy: { read: true, write: true }, student_operations: { read: true, write: true } } });
-    if (path === "/clinic/idcard/") return json({ current_targets: [], current_result: "SUCCESS" });
+    if (path === "/clinic/idcard/") return json({ current_targets: [], current_result: "SUCCESS", passcard_state: "PASSED" });
     if (path.startsWith("/clinic/sessions")) return json([]);
     return json({ results: [], count: 0, next: null, notices: [], today_sessions: [], badges: {} });
   });
@@ -71,6 +71,26 @@ async function installApi(page: Page, initialRole = "student", kind = "class") {
 }
 
 for (const width of [390, 1366]) {
+  test(`session QR saves only the selected eligible class and keeps scope on retry ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = await installApi(page);
+    const choice = { label: "다른 차시", date: "2026-11-19", start_time: null, status: "UNSET",
+      checked_in_at: null, checked_out_at: null, can_check_in: true, can_check_out: false };
+    let eligible = false;
+    await page.route("**/api/v1/student/attendance/qr/resolve/", route => route.fulfill({ json: {
+      point: { label: "수학", kind: "class" },
+      choices: [{ ...choice, id: 42 }, ...(eligible ? [{ ...choice, id: 41, label: "선택한 차시" }] : [])],
+    } }));
+    await page.goto(`${BASE}/student/attendance/scan#class_qr=${TOKEN}&session=41`);
+    await expect(page.getByRole("alert")).toContainText("오늘 내 출석 대상이 아닙니다");
+    expect(state.records).toEqual([]);
+    eligible = true;
+    await page.getByRole("button", { name: "같은 QR 다시 확인" }).click();
+    await expect(page.getByRole("heading", { name: "출석이 기록되었습니다." })).toBeVisible();
+    await expect(page.getByText("선택한 차시", { exact: true })).toBeVisible();
+    expect(state.records).toEqual(["check_in"]);
+  });
+
   test(`QR link changes during lookup and reload use the latest link ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     const state = await installApi(page);

@@ -80,16 +80,16 @@ export default function ExamHeader({ exam, primaryAction, readError = false, rea
         </div>
 
         <div className="assessment-detail-header__actions">
-          <AssessmentTitleEditButton key={exam.id} kind="exam" id={exam.id} title={exam.title} disabled={readError || readPending} />
+          <AssessmentTitleEditButton size="lg" key={exam.id} kind="exam" id={exam.id} title={exam.title} disabled={readError || readPending} />
           {canSaveAsTemplate && (
             <Button
               type="button"
               intent="secondary"
-              size="sm"
+              size="lg"
               onClick={() => setTemplateModalOpen(true)}
               disabled={readError || readPending || saveAsTemplateMut.isPending}
               className="assessment-template-button"
-              leftIcon={<FiSave size={ICON_FOR_BUTTON.sm} />}
+              leftIcon={<FiSave size={ICON_FOR_BUTTON.lg} />}
             >
               템플릿으로 저장
             </Button>
@@ -99,12 +99,12 @@ export default function ExamHeader({ exam, primaryAction, readError = false, rea
               <Button
                 type="button"
                 intent="secondary"
-                size="sm"
+                size="lg"
                 onClick={() => setTemplateDropdownOpen((v) => !v)}
                 aria-expanded={templateDropdownOpen}
                 aria-haspopup="true"
                 className="assessment-template-button"
-                rightIcon={<FiChevronDown size={ICON_FOR_BUTTON.sm} />}
+                rightIcon={<FiChevronDown size={ICON_FOR_BUTTON.lg} />}
               >
                 템플릿으로 저장됨
               </Button>
@@ -142,11 +142,11 @@ export default function ExamHeader({ exam, primaryAction, readError = false, rea
             <Button
               type="button"
               intent="primary"
-              size="md"
+              size="lg"
               onClick={primaryAction.onClick}
               className="assessment-primary-action"
               data-testid="assessment-primary-action"
-              rightIcon={<FiArrowRight size={ICON_FOR_BUTTON.sm} />}
+              rightIcon={<FiArrowRight size={ICON_FOR_BUTTON.lg} />}
             >
               {primaryAction.label}
             </Button>
@@ -165,7 +165,7 @@ export default function ExamHeader({ exam, primaryAction, readError = false, rea
         <ModalBody>
           {readError && <div role="alert" className="mb-4 text-sm">
             현재 설정을 확인하지 못했습니다. 입력은 유지됩니다. 다시 확인한 뒤 저장해 주세요.
-            <Button intent="secondary" size="lg" className="h-11" disabled={readPending} onClick={onRetryRead}>다시 시도</Button>
+            <Button intent="secondary" size="lg" disabled={readPending} onClick={onRetryRead}>다시 시도</Button>
           </div>}
           <div className="space-y-4">
             <label className="block">

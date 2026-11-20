@@ -1,5 +1,6 @@
 import api from "@student/shared/api/student.api";
 import type { ReviewWatch } from "./reviewWatch.api";
+import type { ReviewWatchSummary } from "@/shared/media/video/reviewWatchSummary";
 import type { AccessMode, VideoSourceType } from "@/shared/api/contracts/videos";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import { formatSessionLabel, type SessionOrderLike } from "@/shared/product/sessions/sessionOrdering";
@@ -10,6 +11,8 @@ export type StudentVideoMeSession = SessionOrderLike & {
   title: string;
   order: number;
   date: string | null;
+  schedule_configured?: boolean;
+  schedule_label?: string | null;
 };
 
 export type StudentVideoMeLecture = {
@@ -84,6 +87,7 @@ export async function fetchVideoMe(): Promise<StudentVideoMeResponse> {
 }
 
 export type StudentVideoListItem = {
+  review_watch_summary?: ReviewWatchSummary | null;
   id: number;
   session_id: number | null;
   enrollment_id?: number | null;
@@ -124,7 +128,10 @@ function normalizeStudentVideoItem(video: StudentVideoListItem): StudentVideoLis
 
 
 export type StudentVideoPlayback = {
+  support_preview?: boolean;
+  review_watch_summary?: ReviewWatchSummary | null;
   review_watch?: ReviewWatch | null;
+  progress_revision?: string | null;
   video: StudentVideoListItem;
   hls_url?: string | null;
   mp4_url?: string | null;
@@ -426,6 +433,17 @@ export async function deleteVideoComment(commentId: number): Promise<{ deleted: 
 
 /* ─── 진행률 ─── */
 
+type SavedVideoProgress = {
+  id: number;
+  video_id: number;
+  enrollment_id: number;
+  progress: number;
+  progress_percent: number;
+  completed: boolean;
+  last_position: number;
+  progress_revision?: string;
+};
+
 export async function updateVideoProgress(
   videoId: number,
   data: {
@@ -434,15 +452,7 @@ export async function updateVideoProgress(
     last_position?: number; // seconds
   },
   enrollmentId?: number | null
-): Promise<{
-  id: number;
-  video_id: number;
-  enrollment_id: number;
-  progress: number;
-  progress_percent: number;
-  completed: boolean;
-  last_position: number;
-}> {
+): Promise<SavedVideoProgress> {
   if (Number.isNaN(Number(videoId)) || videoId < 1) {
     throw new Error("유효한 영상이 아닙니다.");
   }
@@ -452,13 +462,5 @@ export async function updateVideoProgress(
   if (out == null || typeof out !== "object") {
     throw new Error("진행률 저장 응답이 없습니다.");
   }
-  return out as {
-    id: number;
-    video_id: number;
-    enrollment_id: number;
-    progress: number;
-    progress_percent: number;
-    completed: boolean;
-    last_position: number;
-  };
+  return out as SavedVideoProgress;
 }

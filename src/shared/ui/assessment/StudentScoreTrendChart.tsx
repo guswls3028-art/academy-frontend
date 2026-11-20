@@ -128,7 +128,7 @@ function TrendTooltip({
       <div className={styles.tooltipRound}>{point.round_label}</div>
       <strong>{point.title}</strong>
       {metric === "rank" && (
-        <span>{formatMetricValue("rank", point.rank ?? null, point.cohort_size)} · 상위 {formatPct(point.percentile)}</span>
+        <span>{formatMetricValue("rank", point.rank ?? null, point.cohort_size)}{point.percentile != null ? ` · 상위 ${formatPct(point.percentile)}` : ""}</span>
       )}
       {metric === "percentile" && (
         <span>상위 {formatPct(point.percentile)} · {formatMetricValue("rank", point.rank ?? null, point.cohort_size)}</span>
@@ -351,7 +351,7 @@ export default function StudentScoreTrendChart({
           )}
           {showComparisonHint && (
             <p id={comparisonHintId} className={styles.comparisonHint}>
-              같은 시험에 2명 이상 응시하면 등수와 상위 %를 확인할 수 있습니다.
+              등수와 상위 %는 학원에서 공개한 항목만 표시합니다. 비교 정보가 없으면 득점률로 확인할 수 있습니다.
             </p>
           )}
         </div>
@@ -373,7 +373,7 @@ export default function StudentScoreTrendChart({
       ) : metricDisplayPoints.length === 0 ? (
         <div className={styles.empty}>
           <strong>비교 가능한 석차가 아직 없습니다.</strong>
-          <span>같은 시험에 2명 이상 응시하면 등수와 상위 % 추이가 표시됩니다.</span>
+          <span>공개된 비교 정보가 없습니다. 득점률을 선택해 점수 변화를 확인해 보세요.</span>
         </div>
       ) : (
         <>

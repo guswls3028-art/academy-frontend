@@ -6,6 +6,7 @@
 
 import { useEffect, useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useLocation, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import { deleteVideo, getRetryErrorMessage } from "../api/videos.api";
@@ -24,15 +25,18 @@ import {
 } from "@/shared/api/contracts/videos";
 
 import { styles } from "./VideoDetail.styles";
+import { watchLogsPath } from "@/shared/media/video/watchLogs";
 
 import PermissionModal from "@admin/domains/videos/components/features/video-detail/modals/PermissionModal";
 import VideoPreviewSection from "@admin/domains/videos/components/features/video-detail/components/VideoPreviewSection";
+import VideoSourceDownload from "@/shared/media/video/VideoSourceDownload";
 import VideoPolicySection from "@admin/domains/videos/components/features/video-detail/components/VideoPolicySection";
 import VideoStudentsSection from "@admin/domains/videos/components/features/video-detail/components/VideoStudentsSection";
 import VideoEngagementBar from "@admin/domains/videos/components/features/video-detail/components/VideoEngagementBar";
 import AdminCommentSection from "@admin/domains/videos/components/features/video-detail/components/AdminCommentSection";
 import type { TabKey } from "@admin/domains/videos/components/features/video-permission/permission.types";
 import VideoEditModal from "@admin/domains/videos/components/features/video-detail/modals/VideoEditModal";
+import VideoPlacementsModal from "@admin/domains/videos/components/features/video-detail/modals/VideoPlacementsModal";
 import { formatVideoBytes, formatVideoDuration } from "@/shared/media/video/videoFormat";
 import { adminVideoQueryKeys } from "../queryKeys";
 import "./VideoDetailPage.css";
@@ -72,6 +76,8 @@ export default function VideoDetailOverlay({
   onClose,
 }: VideoDetailOverlayProps) {
   const qc = useQueryClient();
+  const location = useLocation();
+  const navigate = useNavigate();
   const confirm = useConfirm();
   const panelRef = useRef<HTMLDivElement>(null);
   const [permissionOpen, setPermissionOpen] = useState(false);
@@ -79,15 +85,16 @@ export default function VideoDetailOverlay({
   const [supportOpeningStudentId, setSupportOpeningStudentId] = useState<number | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [placementsOpen, setPlacementsOpen] = useState(false);
 
   // Close on Escape
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !permissionOpen) {
+      if (e.key === "Escape" && !permissionOpen && !placementsOpen) {
         onClose();
       }
     },
-    [onClose, permissionOpen]
+    [onClose, permissionOpen, placementsOpen]
   );
 
   useEffect(() => {
@@ -252,6 +259,11 @@ export default function VideoDetailOverlay({
                           </>
                         )}
                         <span className="video-detail-meta-spacer" />
+                        {video.source_type !== "youtube" && <VideoSourceDownload key={videoId} videoId={videoId}
+                          canExport={video.status === "READY"} styles={{ action: "video-detail-action", error: "video-detail-download-error" }} />}
+                        {video.status === "READY" && video.source_type !== "youtube" && <button
+                          type="button" className="video-detail-action" onClick={() => setPlacementsOpen(true)}
+                        >사용 차시 관리</button>}
                         <button
                           type="button"
                           onClick={() => setEditOpen(true)}
@@ -361,7 +373,7 @@ export default function VideoDetailOverlay({
                           students={students}
                           onOpenPermission={() => openModal("permission")}
                           onOpenAchievement={() => openModal("achievement")}
-                          onOpenLog={() => openModal("log")}
+                          onOpenLog={() => navigate(watchLogsPath(videoId, location.pathname + location.search))}
                           openingStudentId={supportOpeningStudentId}
                           onOpenStudentView={(studentId) => void openStudentView(studentId)}
                         />
@@ -370,6 +382,9 @@ export default function VideoDetailOverlay({
                   </div>
                 </div>
 
+                {video && placementsOpen && <VideoPlacementsModal
+                    key={videoId} videoId={videoId} onClose={() => setPlacementsOpen(false)} onCurrentDetached={onClose}
+                />}
                 {video && (
                   <VideoEditModal
                     open={editOpen}

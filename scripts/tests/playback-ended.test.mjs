@@ -2,6 +2,283 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { harness, settle } from './helpers/playback-lifecycle-harness.mjs';
 
+test('native HLS seeking notifications cannot postpone recovery while the playhead is stuck', async () => {
+  const h = harness();
+  const errors = [];
+  const loaded = [];
+  const playUrl = 'https://unit.invalid/master.m3u8';
+  const controller = h.controller('hls', 'student-fixture', {
+    playUrl, policy: { monitoring_enabled: false, allow_seek: true },
+    onFatal: (error) => errors.push(error),
+  });
+  const el = Object.assign(new EventTarget(), {
+    currentTime: 45, duration: 600, readyState: 4, HAVE_FUTURE_DATA: 3,
+    paused: true, seeking: false, playbackRate: 1, volume: 0.5, muted: false, error: null,
+    canPlayType: () => 'probably',
+    async play() { this.paused = false; this.dispatchEvent(new Event('play')); },
+    pause() { this.paused = true; },
+    getAttribute() { return this.src ?? null; },
+    removeAttribute() { this.src = null; },
+    load() { loaded.push(this.src); },
+  });
+  await controller.attach(el);
+  el.dispatchEvent(new Event('loadedmetadata'));
+  await el.play();
+  h.sampleIntervals(1_000);
+  for (let sample = 1; sample <= 11; sample++) {
+    h.advance(1_000);
+    el.seeking = true;
+    el.currentTime = sample % 2 ? 45.25 : 45;
+    el.dispatchEvent(new Event('seeking'));
+    el.seeking = false;
+    h.sampleIntervals(1_000);
+  }
+  assert.deepEqual(loaded, [playUrl], 'seeking and playhead jitter still allow one source reload');
+  assert.deepEqual(errors, []);
+  el.seeking = false;
+  el.dispatchEvent(new Event('loadedmetadata'));
+  h.sampleIntervals(1_000);
+  el.currentTime = 46;
+  el.dispatchEvent(new Event('timeupdate'));
+  h.advance(1_000);
+  h.sampleIntervals(1_000);
+  assert.equal(el.paused, false);
+  assert.equal(controller.getState().reconnecting, false);
+  controller.dispose();
+});
+
+test('a native seeking notification at the allowed position does not seek again', async () => {
+  const h = harness();
+  const controller = h.controller('hls', 'student-fixture', {
+    playUrl: 'https://unit.invalid/master.m3u8',
+    policy: { monitoring_enabled: false, allow_seek: false, seek: { mode: 'blocked' } },
+  });
+  let position = 43;
+  const seeks = [];
+  const el = Object.assign(new EventTarget(), {
+    duration: 600, paused: true, playbackRate: 1, error: null,
+    canPlayType: () => 'probably', pause() {},
+    getAttribute() { return this.src ?? null; },
+    removeAttribute() { this.src = null; },
+    load() {},
+  });
+  Object.defineProperty(el, 'currentTime', {
+    get: () => position,
+    set: (value) => { seeks.push(value); position = value; },
+  });
+  await controller.attach(el);
+  el.dispatchEvent(new Event('timeupdate'));
+  el.dispatchEvent(new Event('seeking'));
+  assert.deepEqual(seeks, []);
+  position = 55;
+  el.dispatchEvent(new Event('seeking'));
+  el.dispatchEvent(new Event('seeking'));
+  assert.deepEqual(seeks, [43], 'the disallowed jump is still corrected once');
+  controller.dispose();
+});
+
+test('native HLS restores playback after a network error and saves the resumed position', async () => {
+  const h = harness();
+  const saved = [];
+  const errors = [];
+  const controller = h.controller('hls', 'student-fixture', {
+    playUrl: 'https://unit.invalid/master.m3u8', policy: { monitoring_enabled: false },
+    onFatal: (error) => errors.push(error), onLeaveProgress: (progress) => saved.push(progress),
+  });
+  let loads = 0;
+  const el = Object.assign(new EventTarget(), {
+    currentTime: 0, duration: 600, readyState: 4, HAVE_FUTURE_DATA: 3,
+    paused: true, playbackRate: 1, volume: 0.5, muted: false, error: null,
+    canPlayType: () => 'probably',
+    async play() { this.paused = false; this.dispatchEvent(new Event('play')); },
+    pause() { this.paused = true; },
+    getAttribute() { return this.src ?? null; },
+    removeAttribute() { this.src = null; },
+    load() { if (this.src) loads++; this.currentTime = 0; this.error = null; },
+  });
+  await controller.attach(el);
+  el.dispatchEvent(new Event('loadedmetadata'));
+  await el.play();
+  el.currentTime = 123;
+  el.dispatchEvent(new Event('timeupdate'));
+  el.error = { code: 2 };
+  el.paused = true;
+  el.dispatchEvent(new Event('error'));
+  assert.equal(loads, 1);
+  assert.equal(controller.getState().reconnecting, true);
+  assert.deepEqual(errors, []);
+
+  el.dispatchEvent(new Event('loadedmetadata'));
+  assert.equal(el.currentTime, 123);
+  assert.equal(el.paused, false);
+  el.currentTime = 124;
+  el.dispatchEvent(new Event('timeupdate'));
+  h.fireTimers();
+  assert.equal(controller.getState().reconnecting, false);
+  assert.deepEqual(errors, []);
+
+  el.error = { code: 2 };
+  el.dispatchEvent(new Event('error'));
+  h.fireTimers();
+  assert.equal(loads, 2, 'a second source load is not attempted when the retry itself stalls');
+  assert.equal(errors.length, 1);
+  assert.equal(el.src, null, 'a failed native source is released before the error UI unmounts it');
+  assert.equal(el.currentTime, 0, 'source release resets the native media element');
+  controller.setSource('https://unit.invalid/late-renewal.m3u8');
+  assert.equal(el.src, null, 'a late renewal cannot restart a terminal player');
+  controller.dispose();
+  assert.equal(saved.at(-1)?.last_position, 124);
+});
+
+test('a late HLS import failure cannot reinitialize a disposed player', async () => {
+  const h = harness();
+  const controller = h.controller('hls', 'student-fixture', {
+    playUrl: 'https://unit.invalid/master.m3u8', policy: { monitoring_enabled: false },
+  });
+  const el = Object.assign(new EventTarget(), {
+    src: null, currentTime: 0, duration: NaN, canPlayType: () => '',
+    pause() {}, load() {},
+    getAttribute() { return this.src; },
+    removeAttribute() { this.src = null; },
+  });
+
+  // The harness rejects its unmocked hls.js import on the next microtask.
+  const attaching = controller.attach(el);
+  controller.dispose();
+  await attaching;
+
+  assert.equal(el.src, null);
+  assert.equal(controller.videoListeners.length, 0);
+  assert.equal(controller.docCleanups.length, 0);
+  assert.equal(controller.intervals.length, 0);
+});
+
+test('a native source error that clears media metadata does not erase the saved playhead', async () => {
+  const h = harness();
+  const saved = [];
+  const errors = [];
+  const controller = h.controller('hls', 'student-fixture', {
+    playUrl: 'https://unit.invalid/master.m3u8', policy: { monitoring_enabled: false },
+    onFatal: (error) => errors.push(error), onLeaveProgress: (progress) => saved.push(progress),
+  });
+  const el = Object.assign(new EventTarget(), {
+    currentTime: 0, duration: 600, paused: true, playbackRate: 1, error: null,
+    canPlayType: () => 'probably', pause() {},
+    getAttribute() { return this.src ?? null; },
+    removeAttribute() { this.src = null; },
+    load() {},
+  });
+  await controller.attach(el);
+  el.dispatchEvent(new Event('loadedmetadata'));
+  el.paused = false;
+  el.currentTime = 123;
+  el.dispatchEvent(new Event('timeupdate'));
+  Object.assign(el, { currentTime: 0, duration: NaN, error: { code: 4 } });
+  el.dispatchEvent(new Event('error'));
+  await settle();
+  assert.equal(errors.length, 1);
+  controller.dispose();
+  assert.equal(saved.at(-1)?.last_position, 123);
+  assert.equal(saved.at(-1)?.completed, false);
+});
+
+for (const outcome of ['resumes', 'times out silently', 'times out after retry', 'fails twice']) {
+  test(`a renewed native HLS grant uses its own bounded recovery window: ${outcome}`, async () => {
+    const h = harness();
+    const errors = [];
+    const loaded = [];
+    const oldUrl = 'https://unit.invalid/master.m3u8?grant=old';
+    const newUrl = 'https://unit.invalid/master.m3u8?grant=new';
+    const controller = h.controller('hls', 'student-fixture', {
+      playUrl: oldUrl, policy: { monitoring_enabled: false },
+      onFatal: (error) => errors.push(error),
+    });
+    const el = Object.assign(new EventTarget(), {
+      currentTime: 0, duration: 600, readyState: 4, HAVE_FUTURE_DATA: 3,
+      paused: true, playbackRate: 1, volume: 0.5, error: null,
+      canPlayType: () => 'probably',
+      async play() { this.paused = false; this.dispatchEvent(new Event('play')); },
+      pause() { this.paused = true; },
+      getAttribute() { return this.src ?? null; },
+      removeAttribute() { this.src = null; },
+      load() { loaded.push(this.src); this.currentTime = 0; this.error = null; },
+    });
+    const networkError = () => {
+      el.error = { code: 2, message: '' };
+      el.dispatchEvent(new Event('error'));
+    };
+    await controller.attach(el);
+    el.dispatchEvent(new Event('loadedmetadata'));
+    await el.play();
+    el.currentTime = 123;
+    el.dispatchEvent(new Event('timeupdate'));
+    networkError();
+    h.advance(9_000);
+    controller.setSource(newUrl);
+    h.advance(1_000);
+    h.fireDueTimers();
+    el.dispatchEvent(new Event('error'));
+    assert.equal(el.src, newUrl, 'a stale deadline or media event cannot discard the new grant');
+    assert.deepEqual(errors, []);
+
+    if (outcome === 'resumes') {
+      el.dispatchEvent(new Event('loadedmetadata'));
+      assert.equal(el.currentTime, 123);
+      el.currentTime = 124;
+      el.dispatchEvent(new Event('timeupdate'));
+      h.advance(9_000);
+      h.fireDueTimers();
+      assert.deepEqual(errors, []);
+      assert.equal(controller.getState().reconnecting, false);
+    } else {
+      if (outcome !== 'times out silently') {
+        networkError();
+        assert.deepEqual(loaded, [oldUrl, newUrl, newUrl], 'the renewed grant gets one retry');
+      }
+      if (outcome !== 'fails twice') {
+        h.advance(8_999);
+        h.fireDueTimers();
+        assert.deepEqual(errors, []);
+        h.advance(1);
+        h.fireDueTimers();
+      } else {
+        networkError();
+      }
+      assert.equal(errors.length, 1);
+      assert.equal(el.src, null);
+    }
+    controller.dispose();
+  });
+}
+
+test('native HLS releases the previous source once when its controller is disposed', async () => {
+  const h = harness();
+  const calls = [];
+  const oldUrl = 'https://unit.invalid/old/master.m3u8';
+  const nextUrl = 'https://unit.invalid/next/master.m3u8';
+  const first = h.controller('hls', 'student-fixture', { playUrl: oldUrl });
+  const el = Object.assign(new EventTarget(), {
+    canPlayType: () => 'probably',
+    getAttribute() { return this.src ?? null; },
+    pause() { calls.push('pause'); },
+    removeAttribute() { this.src = null; calls.push('clear'); },
+    load() { calls.push(this.src ?? 'reset'); },
+  });
+  await first.attach(el);
+  assert.equal(el.src, oldUrl);
+  calls.length = 0;
+
+  first.dispose();
+  assert.deepEqual(calls, ['pause', 'clear', 'reset']);
+  assert.equal(el.src, null);
+
+  const next = h.controller('hls', 'student-fixture', { playUrl: nextUrl });
+  await next.attach(el);
+  first.dispose();
+  assert.equal(el.src, nextUrl);
+  next.dispose();
+});
+
 for (const kind of ['hls', 'youtube']) {
   test(`${kind}: completed replay progress and disposal never announce a new playback end`, async () => {
     const h = harness();
@@ -12,7 +289,9 @@ for (const kind of ['hls', 'youtube']) {
       onLeaveProgress: (value) => saved.push(value), onEnded: () => ended++ });
     if (kind === 'hls') {
       controller.el = Object.assign(new EventTarget(), { currentTime: 30, duration: 600, playbackRate: 1,
-        pause() {}, removeAttribute() {}, load() {} });
+        paused: false, pause() {}, removeAttribute() {}, load() {} });
+      controller.bindVideoEvents();
+      controller.el.dispatchEvent(new Event('timeupdate'));
     } else {
       controller.player = { getCurrentTime: () => 30, getDuration: () => 600, destroy() {} };
     }

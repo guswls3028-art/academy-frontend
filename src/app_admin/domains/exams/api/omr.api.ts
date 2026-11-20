@@ -10,6 +10,7 @@ export type OMRDefaults = {
   mc_count: number;
   essay_count: number;
   essay_numbering?: "continuous" | "separate";
+  essay_score_marks?: boolean;
   include_optional_essay_area: boolean;
   can_include_optional_essay_area: boolean;
   n_choices: number;
@@ -63,6 +64,36 @@ function toStaticPreviewHtml(html: string): string {
     .replace(/<script\b[^>]*\/?>/gi, "")
     .replace(/\s+on\w+\s*=\s*(".*?"|'.*?'|[^\s>]+)/gi, "")
     .replace(/\s(href|src)\s*=\s*(['"]?)javascript:[^\s>]*\2/gi, "");
+}
+
+/**
+ * Beta: 서술형 교사 채점란 설정. 켜면 서술형 칸마다 점수(십·일·소수 첫째 자리)
+ * 마킹칸이 인쇄되고, 스캔에서 읽은 점수가 채점표 제안으로 채워진다.
+ */
+export type OMREssayScoreMarksState = {
+  enabled: boolean;
+  available: boolean;
+  printed: boolean;
+  reason: string;
+  essay_count: number;
+  max_score: number;
+  beta: boolean;
+};
+
+export async function fetchOMREssayScoreMarks(examId: number): Promise<OMREssayScoreMarksState> {
+  const { data } = await api.get<OMREssayScoreMarksState>(`/exams/${examId}/omr/essay-score-marks/`);
+  return data;
+}
+
+export async function updateOMREssayScoreMarks(
+  examId: number,
+  enabled: boolean,
+): Promise<OMREssayScoreMarksState> {
+  const { data } = await api.patch<OMREssayScoreMarksState>(
+    `/exams/${examId}/omr/essay-score-marks/`,
+    { enabled },
+  );
+  return data;
 }
 
 /** 시험 기반 OMR 기본값 조회 */

@@ -1,6 +1,7 @@
 // PATH: src/shared/ui/domain/DomainTabs.tsx
 // Students 도메인 UI SSOT — ds-tabs 공통 컴포넌트
 
+import { useEffect, useRef } from "react";
 import { Badge } from "@/shared/ui/ds";
 
 export type DomainTab = {
@@ -25,20 +26,24 @@ type DomainTabsProps = {
   onNavigate: (path: string) => void;
 };
 
+function matchesPath(pathname: string, destination: string, exact = false): boolean {
+  // Query parameters carry the destination's context; the route identifies this tab.
+  const path = destination.split(/[?#]/, 1)[0].replace(/\/$/, "");
+  const current = pathname.replace(/\/$/, "");
+  return current === path || (!exact && current.startsWith(`${path}/`));
+}
+
 function isTabActive(tab: DomainTab, pathname: string): boolean {
   if (tab.activePaths?.length) {
     return tab.activePaths.some(
-      (path) =>
-        pathname === path ||
-        pathname === `${path}/` ||
-        pathname.startsWith(`${path}/`),
+      (path) => matchesPath(pathname, path),
     );
   }
   if (tab.path == null) return false;
   if (tab.exact) {
-    return pathname === tab.path || pathname === `${tab.path}/`;
+    return matchesPath(pathname, tab.path, true);
   }
-  return pathname === tab.path || pathname.startsWith(`${tab.path}/`);
+  return matchesPath(pathname, tab.path);
 }
 
 export default function DomainTabs({
@@ -46,8 +51,19 @@ export default function DomainTabs({
   pathname,
   onNavigate,
 }: DomainTabsProps) {
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const list = listRef.current;
+    const selected = list?.querySelector<HTMLButtonElement>('[aria-selected="true"]');
+    const viewport = list?.closest<HTMLElement>(".domain-header__tabs-wrap");
+    if (!selected || !viewport) return;
+    const item = selected.getBoundingClientRect();
+    const frame = viewport.getBoundingClientRect();
+    if (item.left < frame.left) viewport.scrollLeft += item.left - frame.left;
+    else if (item.right > frame.right) viewport.scrollLeft += item.right - frame.right;
+  }, [pathname]);
   return (
-    <div className="ds-tabs ds-tabs--flat" role="tablist">
+    <div ref={listRef} className="ds-tabs ds-tabs--flat" role="tablist">
       {tabs.map((tab) => {
         const active = !tab.locked && isTabActive(tab, pathname);
         return tab.locked ? (

@@ -405,6 +405,7 @@ test("actual homework flow retains primary failures through cleanup and closed d
     const order = [];
     const locator = label => ({
       getByRole: (_role, options) => locator(options?.name), getByLabel: name => locator(name), locator: () => locator('nested'),
+      getByText: name => locator(name),
       check: async () => {}, uncheck: async () => {}, fill: async () => {},
       click: async () => { if (label === 'private-user 넣기' && ++insertClicks === 2) throw primary; },
     });
@@ -430,8 +431,8 @@ test("actual homework flow retains primary failures through cleanup and closed d
     const finalScenario = { ...scenario, homeworkTitle: 'private-assignment', completionTitle: 'private-completion',
       studentName: 'private-user-one', comparisonStudent: { ...scenario.comparisonStudent, name: 'private-user-two' } };
     const bodies = [
-      'private-user-one\nprivate-assignment: 92/100 (92%) · FAIL\nprivate-completion: 통과',
-      'private-user-two\nprivate-assignment: 60/100 (60%) · FAIL\nprivate-completion: 미통과',
+      'private-user-one\nprivate-assignment: 92/100 (92%) · FAIL\nprivate-assignment 최고점 92점\nprivate-completion: 통과',
+      'private-user-two\nprivate-assignment: 60/100 (60%) · FAIL\nprivate-assignment 최고점 92점\nprivate-completion: 미통과',
     ];
     const preflight = { ok: true, can_send: true, send_to: 'parent', blockers: [],
       recipient: { selected: 2, resolved: 2, valid_phone: 2, skipped_no_phone: 0, duplicate_phone: 0, unique_phone: 2, invalid_or_deleted: 0 },
@@ -440,7 +441,7 @@ test("actual homework flow retains primary failures through cleanup and closed d
         student_name: index === 0 ? student.studentName : student.name,
         excluded: false, full_message_body: bodies[index],
       })) };
-    const payload = { send_to: 'parent', student_ids: [6, 7], raw_body: '390px 기준 95 과제별 판정 확인\n#{과제4결과}\n#{과제5결과}' };
+    const payload = { send_to: 'parent', student_ids: [6, 7], raw_body: '390px 기준 95 과제별 판정 확인\n#{과제4결과}\n#{과제4최고점}\n#{과제5결과}' };
     const response = { status: () => 200, json: async () => preflight,
       url: () => 'https://local.invalid/api/v1/messaging/send/preflight/',
       request: () => ({ method: () => 'POST', postDataJSON: () => payload }) };
@@ -449,6 +450,7 @@ test("actual homework flow retains primary failures through cleanup and closed d
     const locator = (kind, label = '') => ({ kind, label,
       getByRole: (role, options) => locator(role, options?.name ?? ''),
       getByLabel: name => locator(name === '카카오톡 실제 발송 미리보기' ? 'final-container' : 'inline', name),
+      getByText: name => locator('text', name),
       locator: selector => locator(kind === 'final-container' ? 'final-body' : selector),
       filter: ({ hasText }) => locator('student-radio', hasText),
       innerText: async () => bodies[0],
@@ -489,7 +491,7 @@ test("actual homework flow retains primary failures through cleanup and closed d
         assert.equal(expected, bodies[0]);
         assert.equal(preflightVerified, true);
         assert.equal(recipientChecks, 2);
-        assert.equal(bodyChecks, 10);
+        assert.equal(bodyChecks, 12);
         order.push('final-assert');
         throw primary;
       },

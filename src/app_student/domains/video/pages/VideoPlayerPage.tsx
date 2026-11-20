@@ -5,12 +5,13 @@ import { useLocation, useNavigate, useParams } from "react-router";
 
 import EmptyState from "../../../layout/EmptyState";
 import VideoPlaybackError from "../components/VideoPlaybackError";
+import { getStudentSupportSessionInfo } from "@/shared/auth/supportPreviewSession";
+import { useVideoResume } from "../hooks/useVideoResume";
 import {
   checkStudentVideoAccess,
   fetchStudentVideoPlayback,
   fetchStudentSessionVideos,
   renewStudentVideoPlayback,
-  updateVideoProgress,
   toggleVideoLike,
   type StudentSessionVideosResponse,
   type StudentVideoAccessCheck,
@@ -32,6 +33,7 @@ import VideoCommentSection from "../components/VideoCommentSection";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import { IconChevronRight, IconPlay } from "@student/shared/ui/icons/Icons";
 import { isYouTubeSource } from "@/shared/media/video/youtube";
+import type { ReviewWatchSummary } from "@/shared/media/video/reviewWatchSummary";
 import {
   canPlayStudentVideo,
   isStudentVideoBlocked,
@@ -42,9 +44,7 @@ import {
 import { sortStudentVideos } from "../utils/videoSort";
 import { studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
 import {
-  getStoredVideoPosition,
   getStudentCurrentVideoStorageKey,
-  storeVideoPosition,
 } from "../utils/videoPlaybackStorage";
 
 function playlistProgressStyle(progress: number): CSSProperties {
@@ -155,10 +155,12 @@ export default function VideoPlayerPage() {
     safeParseInt(q.get("enrollment_id")) ??
     safeParseInt(params.enrollmentId);
   const enrollmentId = rawEnrollmentId != null && Number.isFinite(rawEnrollmentId) ? rawEnrollmentId : null;
+  const supportSessionId = getStudentSupportSessionInfo()?.sessionId;
   const playbackStorageScope = useMemo(() => ({
     userId: user?.id,
     enrollmentId,
-  }), [enrollmentId, user?.id]);
+    supportSessionId,
+  }), [enrollmentId, user?.id, supportSessionId]);
   const currentVideoStorageKey = getStudentCurrentVideoStorageKey(playbackStorageScope);
 
   /* ─── Playback 데이터 (React Query) ─── */
@@ -251,6 +253,7 @@ export default function VideoPlayerPage() {
     const accessMode = (playbackData.policy?.access_mode || "FREE_REVIEW") as "FREE_REVIEW" | "PROCTORED_CLASS";
     const b: PlaybackBootstrap = {
       review_watch: playbackData.review_watch,
+      review_watch_summary: playbackData.review_watch_summary ?? vd.review_watch_summary,
       token: playbackData.playback_token || `student-${videoId}-${Date.now()}`,
       session_id: playbackData.playback_session_id || null,
       expires_at: playbackData.playback_expires_at || null,
@@ -279,7 +282,6 @@ export default function VideoPlayerPage() {
   const videoListUrl = sessionId
     ? `/student/video/sessions/${sessionId}${effectiveEnrollmentId ? `?enrollment=${effectiveEnrollmentId}` : ""}`
     : "/student/video";
-  const commentsRef = useRef<HTMLDivElement>(null);
 
   /* ─── 세션 영상 목록 (React Query, dependent) ─── */
   const sessionVideosQuery = useQuery({
@@ -322,41 +324,21 @@ export default function VideoPlayerPage() {
   }, [effectiveEnrollmentId, enrollmentId, queryClient, queryScope, sessionId, videoId]);
 
   /* ─── 이어보기 위치 계산 ─── */
-  const initialPosition = useMemo(() => {
-    if (!videoId) return 0;
-    const apiPos = video?.last_position ?? 0;
-    const localPos = getStoredVideoPosition(videoId, playbackStorageScope);
-    return Math.max(apiPos, localPos);
-  }, [playbackStorageScope, videoId, video?.last_position]);
-
-  const progressMutation = useMutation({
-    mutationFn: (data: { progress?: number; completed?: boolean; last_position?: number }) => {
-      if (!videoId || !effectiveEnrollmentId || isDirectAccess) {
-        throw new Error("서버 진도를 저장할 수강 정보가 필요합니다.");
-      }
-      return updateVideoProgress(videoId, data, effectiveEnrollmentId);
-    },
-    onSuccess: (confirmed) => {
-      void queryClient.invalidateQueries({ queryKey: studentVideoQueryKeys.stats(queryScope) });
-      if (sessionId == null) return;
-      const key = studentVideoQueryKeys.sessionVideos(queryScope, sessionId, effectiveEnrollmentId ?? null);
-      const progress = Number.isFinite(confirmed.progress_percent)
-        ? confirmed.progress_percent
-        : confirmed.progress;
-      queryClient.setQueryData<StudentSessionVideosResponse>(key, (current) => current ? {
-        ...current,
-        items: current.items.map((item) => item.id === videoId ? {
-          ...item,
-          progress,
-          completed: confirmed.completed,
-          last_position: confirmed.last_position,
-        } : item),
-      } : current);
-    },
+  const playbackData = playbackQuery.data;
+  const reviewStream = playbackData?.review_watch?.stream;
+  const onReviewSummary = useCallback((summary: ReviewWatchSummary) => {
+    if (!reviewStream) return;
+    queryClient.setQueryData<StudentVideoPlayback>(
+      studentVideoQueryKeys.playback(queryScope, videoId, enrollmentId),
+      current => current?.review_watch?.stream === reviewStream
+        ? { ...current, review_watch_summary: summary }
+        : current,
+    );
+  }, [queryClient, queryScope, videoId, enrollmentId, reviewStream]);
+  const { initialPosition, onLeaveProgress, playbackIdentity } = useVideoResume({
+    userId: user?.id, queryScope, videoId, enrollmentId, effectiveEnrollmentId,
+    sessionId, isDirectAccess, playbackData, serverPosition: video?.last_position ?? 0,
   });
-
-  const progressMutationRef = useRef(progressMutation);
-  progressMutationRef.current = progressMutation;
 
   /* ─── 다음 영상 ─── */
   const nextVideo = useMemo(() => {
@@ -372,15 +354,6 @@ export default function VideoPlayerPage() {
     return playlistItems.findIndex((v) => v.id === videoId);
   }, [playlistItems, videoId]);
 
-  // Defer comments to reduce bandwidth contention during player initialization
-  const [showComments, setShowComments] = useState(false);
-  useEffect(() => {
-    setShowComments(false);
-    if (isDirectAccess) return;
-    const t = setTimeout(() => setShowComments(true), 2000);
-    return () => clearTimeout(t);
-  }, [isDirectAccess, videoId]);
-
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [policyRebootstrapPending, setPolicyRebootstrapPending] = useState(false);
   const policyTransitionRef = useRef<string | null>(null);
@@ -393,7 +366,6 @@ export default function VideoPlayerPage() {
     policyTransitionGenerationRef.current += 1;
   }
   const onFatal = useCallback((reason: string) => setFatalError(reason), []);
-  const playbackData = playbackQuery.data;
   const refetchPlayback = playbackQuery.refetch;
   useEffect(() => {
     setFatalError(null);
@@ -686,21 +658,6 @@ export default function VideoPlayerPage() {
   const nextVideoRef = useRef(nextVideo);
   nextVideoRef.current = nextVideo;
 
-  const onLeaveProgress = useCallback(
-    (data: { progress?: number; completed?: boolean; last_position?: number }) => {
-      if (!videoId) return;
-      storeVideoPosition(videoId, data.last_position ?? 0, playbackStorageScope);
-      if (!isDirectAccess && effectiveEnrollmentId) {
-        progressMutationRef.current.mutate({
-          progress: data.progress,
-          last_position: data.last_position,
-          completed: data.completed,
-        });
-      }
-    },
-    [effectiveEnrollmentId, isDirectAccess, playbackStorageScope, videoId]
-  );
-
   // Completion is durable learning state; only a new media-end event advances playback.
   const onPlaybackEnded = useCallback(() => {
     if (!nextVideoRef.current || autoPlayTimerRef.current) return;
@@ -761,17 +718,20 @@ export default function VideoPlayerPage() {
         </div>
       ) : (loadError || fatalError) ? (
         <VideoPlaybackError message={fatalError || loadError} error={playbackQuery.error}
+          summary={playbackData?.review_watch_summary ?? playbackData?.video.review_watch_summary}
           onRetry={() => { void retryPlayback(); }} onBack={() => nav(videoListUrl)} />
       ) : video && boot ? (
         <>
           {/* ─── 플레이어 ─── */}
           <div className="vpp-player-section">
             <StudentVideoPlayer
+              key={playbackIdentity}
               video={video}
               bootstrap={boot}
               enrollmentId={effectiveEnrollmentId != null ? Number(effectiveEnrollmentId) : null}
               initialPosition={initialPosition}
               onFatal={onFatal}
+              onReviewSummary={onReviewSummary}
               onEnded={onPlaybackEnded}
               onLeaveProgress={onLeaveProgress}
             />
@@ -809,21 +769,6 @@ export default function VideoPlayerPage() {
                     initialCount={video.like_count ?? 0}
                     onConfirmed={onLikeConfirmed}
                   />
-                )}
-                {!isDirectAccess && (
-                  <button
-                    type="button"
-                    className="vpp-back-link"
-                    aria-label="댓글 보기"
-                    onClick={() => {
-                      setShowComments(true);
-                      commentsRef.current?.scrollIntoView({
-                        block: "start",
-                        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-                      });
-                      commentsRef.current?.focus({ preventScroll: true });
-                    }}
-                  >댓글</button>
                 )}
               </div>
               <div className="vpp-info-actions">
@@ -871,6 +816,7 @@ export default function VideoPlayerPage() {
             </div>
           </div>
 
+          {videoId && !isDirectAccess && <VideoCommentSection key={playbackIdentity} videoId={videoId} />}
           {sessionVideosQuery.isError && (
             <div className="vpp-section-status" role="alert">
               <span>재생목록을 불러오지 못했습니다.</span>
@@ -972,13 +918,6 @@ export default function VideoPlayerPage() {
                   );
                 })}
               </div>
-            </div>
-          )}
-          {videoId && !isDirectAccess && (
-            <div id="video-comments" ref={commentsRef} className="vpp-comments-anchor" tabIndex={-1}>
-              {showComments ? <VideoCommentSection key={videoId} videoId={videoId} /> : (
-                <div className="vpp-section-status" role="status">댓글을 불러오는 중…</div>
-              )}
             </div>
           )}
         </>

@@ -1,6 +1,17 @@
 // 테넌트 11: 신과함께 (godmin.kr)
 import type { TenantDef } from "./types";
 
+const DOMAIN = "godmin.kr";
+const NAME = "신민 과학 연구소";
+
+export const GODMIN_PUBLIC_SITE = {
+  domain: DOMAIN,
+  origin: `https://${DOMAIN}`,
+  name: NAME,
+  title: `${NAME} | 신민T 통합과학`,
+  description: "대치동 통합과학 강사 신민T의 수업 철학과 학습 관리, 수강생·학부모 전용 학습 플랫폼.",
+};
+
 export const godmin: TenantDef = {
   id: 11,
   code: "godmin",

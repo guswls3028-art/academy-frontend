@@ -1655,7 +1655,7 @@ export interface paths {
             cookie?: never;
         };
         /** @description GET/POST /posts/:id/replies/ — 답변 목록 조회, 답변 등록(선생/관리자). */
-        get: operations["community_posts_replies_retrieve"];
+        get: operations["community_posts_replies_list"];
         put?: never;
         /** @description GET/POST /posts/:id/replies/ — 답변 목록 조회, 답변 등록(선생/관리자). */
         post: operations["community_posts_replies_create"];
@@ -1720,6 +1720,23 @@ export interface paths {
         put?: never;
         /** @description POST /posts/:id/replies/:reply_id/report/ — 댓글 신고. */
         post: operations["community_posts_replies_report_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/community/posts/{id}/replies/with-images/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Post CRUD. tenant from request. list: ?node_id= or admin list. */
+        post: operations["community_posts_replies_with_images_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1902,6 +1919,23 @@ export interface paths {
          *     must_change_password 플래그도 해제.
          */
         post: operations["core_change_password_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/core/dev/agent-sessions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Read-only coding-session metadata for tenant 1's admin97. Impersonation and support previews are denied. */
+        get: operations["core_dev_agent_sessions_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3378,6 +3412,34 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/exams/{exam_id}/omr/essay-score-marks/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description GET/PATCH /api/v1/exams/{exam_id}/omr/essay-score-marks/
+         *
+         *     Beta 서술형 교사 채점란 설정. PATCH {"enabled": bool}는 문항 편집과 같은
+         *     구조 소유권·템플릿 봉인 규칙을 따른다. 배치할 수 없으면 400과 사유를 반환한다.
+         */
+        get: operations["exams_omr_essay_score_marks_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * @description GET/PATCH /api/v1/exams/{exam_id}/omr/essay-score-marks/
+         *
+         *     Beta 서술형 교사 채점란 설정. PATCH {"enabled": bool}는 문항 편집과 같은
+         *     구조 소유권·템플릿 봉인 규칙을 따른다. 배치할 수 없으면 400과 사유를 반환한다.
+         */
+        patch: operations["exams_omr_essay_score_marks_partial_update"];
         trace?: never;
     };
     "/api/v1/exams/{exam_id}/omr/pdf/": {
@@ -6114,6 +6176,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/lectures/lectures/{id}/schedule-settings/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description 일반 강의 필드는 생략할 수 있지만 schedule_mode와 schedule_defaults는 모두 필요합니다. */
+        patch: operations["lectures_lectures_schedule_settings_partial_update"];
+        trace?: never;
+    };
     "/api/v1/lectures/lectures/instructor-options/": {
         parameters: {
             query?: never;
@@ -6145,6 +6224,22 @@ export interface paths {
         put?: never;
         /** @description Persist one active/past lecture scope as an exact tenant-local order. */
         post: operations["lectures_lectures_reorder_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/lectures/lectures/with-schedule-settings/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["lectures_lectures_with_schedule_settings_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6338,6 +6433,38 @@ export interface paths {
         options?: never;
         head?: never;
         patch: operations["lectures_sessions_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/lectures/sessions/{id}/schedules/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["lectures_sessions_schedules_retrieve"];
+        put: operations["lectures_sessions_schedules_update"];
+        post: operations["lectures_sessions_schedules_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/lectures/sessions/with-schedules/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["lectures_sessions_with_schedules_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/media/admin/videos/landing-stats/": {
@@ -6888,6 +7015,42 @@ export interface paths {
         patch: operations["media_videos_partial_update"];
         trace?: never;
     };
+    "/api/v1/media/videos/{id}/placements/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Video 관리 + 통계 + 학생 목록 */
+        get: operations["media_videos_placements_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description Video 관리 + 통계 + 학생 목록 */
+        patch: operations["media_videos_placements_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/media/videos/{id}/playback-export/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Video 관리 + 통계 + 학생 목록 */
+        get: operations["media_videos_playback_export_retrieve"];
+        put?: never;
+        /** @description Video 관리 + 통계 + 학생 목록 */
+        post: operations["media_videos_playback_export_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/media/videos/{id}/progress/": {
         parameters: {
             query?: never;
@@ -6916,6 +7079,23 @@ export interface paths {
         put?: never;
         /** @description Video 관리 + 통계 + 학생 목록 */
         post: operations["media_videos_retry_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/videos/{id}/source-download/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Video 관리 + 통계 + 학생 목록 */
+        post: operations["media_videos_source_download_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -7157,6 +7337,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/media/videos/{video_id}/review-watch/report/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["media_videos_review_watch_report_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/media/videos/{video_id}/review-watch/students/{student_id}/allowance/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["media_videos_review_watch_students_allowance_partial_update"];
+        trace?: never;
+    };
     "/api/v1/media/videos/bulk-policy/": {
         parameters: {
             query?: never;
@@ -7283,8 +7495,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Video 관리 + 통계 + 학생 목록 */
-        get: operations["media_videos_student_retrieve"];
+        /** @description GET /student/video/sessions/{session_id}/videos/ */
+        get: operations["media_videos_student_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -8395,6 +8607,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/results/admin/exams/{exam_id}/analysis-insights/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["results_admin_exams_analysis_insights_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/results/admin/exams/{exam_id}/enrollments/{enrollment_id}/": {
         parameters: {
             query?: never;
@@ -9167,6 +9395,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/results/school-reports/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["school_report_roster_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/school-reports/{student_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["school_report_staff_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/school-reports/me/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["school_report_student_retrieve"];
+        put: operations["school_report_student_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/school-reports/requests/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["school_report_request_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/results/wrong-notes": {
         parameters: {
             query?: never;
@@ -9448,6 +9740,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/staffs/board/posts/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["staffs_board_posts_list"];
+        put?: never;
+        post: operations["staffs_board_posts_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staffs/board/posts/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["staffs_board_posts_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["staffs_board_posts_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/staffs/board/posts/{id}/attachment/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["staffs_board_posts_attachment_retrieve"];
+        put?: never;
+        post?: never;
+        delete: operations["staffs_board_posts_attachment_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staffs/board/posts/{id}/replies/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["staffs_board_posts_replies_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/staffs/currently-working/": {
         parameters: {
             query?: never;
@@ -9506,7 +9862,7 @@ export interface paths {
         };
         get: operations["staffs_me_retrieve"];
         put?: never;
-        post?: never;
+        post: operations["staffs_me_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -10388,6 +10744,22 @@ export interface paths {
          *     비디오 진행률 업데이트 (수강 완료, 다시보기 등)
          */
         post: operations["student_video_videos_progress_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/student/video/videos/{video_id}/review-watch/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["student_video_videos_review_watch_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -11720,6 +12092,198 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/surveys/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surveys_list"];
+        put?: never;
+        post: operations["surveys_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/{survey_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surveys_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["surveys_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/surveys/{survey_id}/close/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["surveys_close_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/{survey_id}/export/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surveys_export_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/{survey_id}/publish/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["surveys_publish_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/{survey_id}/responses/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surveys_responses_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/{survey_id}/statistics/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surveys_statistics_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/student-choices/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surveys_student_choices_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/student/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["student_surveys_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/student/{survey_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surveys_student_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/student/{survey_id}/response/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["surveys_student_response_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/surveys/students/{student_id}/responses/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["surveys_students_responses_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/teacher-app/notifications/summary/": {
         parameters: {
             query?: never;
@@ -12588,6 +13152,15 @@ export interface components {
          */
         AccountStateEnum: "ACTIVE" | "INACTIVE" | "DELETED" | "UNLINKED";
         /**
+         * @description * `A` - A
+         *     * `B` - B
+         *     * `C` - C
+         *     * `D` - D
+         *     * `E` - E
+         * @enum {string}
+         */
+        AchievementLevelEnum: "A" | "B" | "C" | "D" | "E";
+        /**
          * @description * `check_in` - check_in
          *     * `check_out` - check_out
          * @enum {string}
@@ -12650,6 +13223,7 @@ export interface components {
             /** @default  */
             school: string;
             session_id?: number | null;
+            session_label: string;
             session_title: string;
             source_id?: number | null;
             source_scope?: string | null;
@@ -12667,6 +13241,14 @@ export interface components {
          * @enum {string}
          */
         AdminClinicTargetReasonEnum: "score" | "confidence" | "missing";
+        AdminExamAnalysisInsights: {
+            below_recommended_count: number | null;
+            recommended_cutoff: number | null;
+            score_summary: components["schemas"]["ExamScoreSummary"];
+            scored_count: number;
+            trend_threshold_pp: number;
+            trends: components["schemas"]["ExamScoreTrend"][];
+        };
         AdminExamResultRow: {
             achievement?: string | null;
             clinic_required: boolean;
@@ -12686,6 +13268,7 @@ export interface components {
             final_pass?: boolean | null;
             /** Format: double */
             final_score: number | null;
+            grading_pending_reason?: (components["schemas"]["GradingPendingReasonEnum"] | components["schemas"]["NullEnum"]) | null;
             grading_status?: (components["schemas"]["GradingStatusEnum"] | components["schemas"]["NullEnum"]) | null;
             /** @default false */
             is_provisional: boolean;
@@ -13052,11 +13635,17 @@ export interface components {
             mode: components["schemas"]["ClinicReminderRequestModeEnum"];
             /** Format: date-time */
             repeat_until?: string;
+            /**
+             * Format: uuid
+             * @description 한 번 보내기 재시도 시 유지할 요청 키.
+             */
+            request_id?: string;
             send_to: components["schemas"]["SendToEnum"];
         };
         ClinicReminderResponse: {
             detail?: string;
             ok?: boolean;
+            retryable?: boolean;
             scheduled?: number;
             sent?: number;
             skipped?: number;
@@ -13684,6 +14273,16 @@ export interface components {
          * @enum {string}
          */
         EssayNumberingEnum: "continuous" | "separate";
+        EssayScoreMarksState: {
+            available: boolean;
+            beta: boolean;
+            enabled: boolean;
+            essay_count: number;
+            /** Format: double */
+            max_score: number;
+            printed: boolean;
+            reason: string;
+        };
         /**
          * @description * `1` - 1
          *     * `2` - 2
@@ -13769,6 +14368,10 @@ export interface components {
             session_ids?: number[];
             source_filename?: string;
             readonly structure_owner_id: number;
+            /** @description 등수 산정에 포함된 응시 인원을 학생·학부모 성적 화면에 표시한다. */
+            student_cohort_size_published?: boolean;
+            /** @description 학생·학부모 성적 화면에 등수를 표시한다. */
+            student_rank_published?: boolean;
             /** @description 학생·학부모 성적 공개 여부. 비공개여도 교직원 채점·통계 기록은 유지한다. */
             student_results_published?: boolean;
             readonly subject: string;
@@ -13962,6 +14565,52 @@ export interface components {
          */
         ExamPassSourceEnum: "POLICY" | "EXAM";
         /**
+         * @description * `first` - first
+         *     * `second` - second
+         * @enum {string}
+         */
+        ExamRoundEnum: "first" | "second";
+        ExamScoreSummary: {
+            /** Format: double */
+            average: number | null;
+            distribution_counts: number[];
+            /** Format: double */
+            highest: number | null;
+            /** Format: double */
+            median: number | null;
+            /** Format: double */
+            p25: number | null;
+            /** Format: double */
+            p75: number | null;
+            pass_count: number;
+            pass_criterion_count: number;
+            remediated_count: number;
+            /** Format: double */
+            std_dev: number | null;
+            /** Format: double */
+            std_rate: number | null;
+            /** Format: double */
+            top_ten_average: number | null;
+            unscored_count: number;
+        };
+        ExamScoreTrend: {
+            /** Format: double */
+            cumulative_delta_pp: number;
+            /** Format: double */
+            cumulative_rate: number;
+            /** Format: double */
+            current_rate: number;
+            enrollment_id: number;
+            lecture_title: string;
+            /** Format: double */
+            previous_delta_pp: number | null;
+            /** Format: double */
+            previous_session_rate: number | null;
+            prior_exam_count: number;
+            signal: (components["schemas"]["SignalEnum"] | components["schemas"]["NullEnum"]) | null;
+            student_name: string;
+        };
+        /**
          * @description * `template` - Template
          *     * `regular` - Regular
          * @enum {string}
@@ -14031,6 +14680,10 @@ export interface components {
             open_at?: string | null;
             /** Format: double */
             pass_score?: number;
+            /** @description 등수 산정에 포함된 응시 인원을 학생·학부모 성적 화면에 표시한다. */
+            student_cohort_size_published?: boolean;
+            /** @description 학생·학부모 성적 화면에 등수를 표시한다. */
+            student_rank_published?: boolean;
             /** @description 학생·학부모 성적 공개 여부. 비공개여도 교직원 채점·통계 기록은 유지한다. */
             student_results_published?: boolean;
             subject?: string;
@@ -14102,6 +14755,10 @@ export interface components {
             open_at?: string | null;
             /** Format: double */
             pass_score?: number;
+            /** @description 등수 산정에 포함된 응시 인원을 학생·학부모 성적 화면에 표시한다. */
+            student_cohort_size_published?: boolean;
+            /** @description 학생·학부모 성적 화면에 등수를 표시한다. */
+            student_rank_published?: boolean;
             /** @description 학생·학부모 성적 공개 여부. 비공개여도 교직원 채점·통계 기록은 유지한다. */
             student_results_published?: boolean;
             subject?: string;
@@ -14267,6 +14924,19 @@ export interface components {
             errors: string[];
             skipped: number;
         };
+        /**
+         * @description * `five` - five
+         *     * `nine` - nine
+         * @enum {string}
+         */
+        GradeScaleEnum: "five" | "nine";
+        /**
+         * @description * `subjective_pending` - subjective_pending
+         *     * `objective_pending` - objective_pending
+         *     * `manual_review_required` - manual_review_required
+         * @enum {string}
+         */
+        GradingPendingReasonEnum: "subjective_pending" | "objective_pending" | "manual_review_required";
         /**
          * @description * `subjective_pending` - subjective_pending
          * @enum {string}
@@ -14690,12 +15360,6 @@ export interface components {
          * @enum {string}
          */
         ItemTypeEnum: "exam" | "homework";
-        /**
-         * @description * `class` - 수업
-         *     * `clinic` - 클리닉
-         * @enum {string}
-         */
-        KindEnum: "class" | "clinic";
         Lecture: {
             readonly active_enrollment_count: number;
             /** @description 강의딱지 2글자 (미입력 시 제목 앞 2자 사용) */
@@ -14716,6 +15380,14 @@ export interface components {
             /** @description 강의 시간 (예: 토 12:00 ~ 13:00) */
             lecture_time?: string;
             name: string;
+            schedule_defaults?: components["schemas"]["LectureScheduleDefault"][];
+            /**
+             * @description 새 차시의 기본 수업일 구성
+             *
+             *     * `SINGLE` - 한 날짜
+             *     * `SPLIT` - 여러 날짜
+             */
+            schedule_mode?: components["schemas"]["ScheduleModeEnum"];
             /** Format: date */
             start_date?: string | null;
             subject: string;
@@ -14829,6 +15501,45 @@ export interface components {
             /** @description 강의 시간 (예: 토 12:00 ~ 13:00) */
             lecture_time?: string;
             name: string;
+            schedule_defaults?: components["schemas"]["LectureScheduleDefaultRequest"][];
+            /**
+             * @description 새 차시의 기본 수업일 구성
+             *
+             *     * `SINGLE` - 한 날짜
+             *     * `SPLIT` - 여러 날짜
+             */
+            schedule_mode?: components["schemas"]["ScheduleModeEnum"];
+            /** Format: date */
+            start_date?: string | null;
+            subject: string;
+            title: string;
+        };
+        LectureScheduleDefault: {
+            label: string;
+            /** @description ISO 요일 (1=월요일, 7=일요일) */
+            weekday: number;
+        };
+        LectureScheduleDefaultRequest: {
+            label: string;
+            /** @description ISO 요일 (1=월요일, 7=일요일) */
+            weekday: number;
+        };
+        LectureScheduleSettingsRequest: {
+            /** @description 강의딱지 2글자 (미입력 시 제목 앞 2자 사용) */
+            chip_label?: string;
+            /** @description 아이콘/라벨 색상 */
+            color?: string;
+            description?: string;
+            /** Format: date */
+            end_date?: string | null;
+            is_active?: boolean;
+            /** @description 시스템용 강의 (전체공개영상 컨테이너 등). 강의 목록·성적 등에서 자동 제외. */
+            is_system?: boolean;
+            /** @description 강의 시간 (예: 토 12:00 ~ 13:00) */
+            lecture_time?: string;
+            name: string;
+            schedule_defaults: components["schemas"]["LectureScheduleDefaultRequest"][];
+            schedule_mode: components["schemas"]["ScheduleModeEnum"];
             /** Format: date */
             start_date?: string | null;
             subject: string;
@@ -14918,7 +15629,12 @@ export interface components {
         };
         LectureSession: {
             readonly attendance_filled: number;
-            readonly attendance_total: string;
+            /**
+             * @description 진척률 표시용 분모. include_progress 컨텍스트가 켜진 경우에만 계산.
+             *     - section이 있으면: 해당 section의 ACTIVE class_assignments 수
+             *     - 없으면: lecture의 ACTIVE enrollments 수
+             */
+            readonly attendance_total: number | null;
             /** Format: date-time */
             readonly created_at: string;
             /** Format: date */
@@ -14933,6 +15649,7 @@ export interface components {
             readonly location: string;
             order?: number | null;
             regular_order?: number | null;
+            readonly schedule_dates: components["schemas"]["SessionScheduleSummary"][];
             /** @description 반별 차시 (section_mode=true). null이면 반 무관 공통 차시. */
             section?: number | null;
             readonly section_label: string;
@@ -14944,6 +15661,22 @@ export interface components {
             title?: string;
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        LectureSessionCreateRequest: {
+            /** Format: uuid */
+            create_request_id: string;
+            /** Format: date */
+            date?: string | null;
+            initial_schedules: components["schemas"]["SessionCreateScheduleInputRequest"][];
+            insert_after_order?: number | null;
+            lecture: number;
+            order?: number | null;
+            regular_order?: number | null;
+            /** @description 반별 차시 (section_mode=true). null이면 반 무관 공통 차시. */
+            section?: number | null;
+            /** @default REGULAR */
+            session_type: components["schemas"]["SessionTypeEnum"];
+            title?: string;
         };
         LectureSessionRequest: {
             /** Format: date */
@@ -14957,6 +15690,22 @@ export interface components {
             /** @default REGULAR */
             session_type: components["schemas"]["SessionTypeEnum"];
             title?: string;
+        };
+        LegacyStudentVideoListItem: {
+            allow_skip: boolean;
+            can_play: boolean;
+            duration: number | null;
+            hls_url: string | null;
+            id: number;
+            /** Format: double */
+            max_speed: number;
+            order: number;
+            reason: string | null;
+            session_id: number | null;
+            show_watermark: boolean;
+            status: string;
+            thumbnail_url: string | null;
+            title: string;
         };
         /**
          * @description * `COURSE` - 강의
@@ -15249,7 +15998,12 @@ export interface components {
             batch: components["schemas"]["OmrUploadBatchSummary"];
             notify: boolean;
         };
+        OmrUploadBatchInitializeConflict: {
+            detail: string;
+        };
         OmrUploadBatchInitializeRequestRequest: {
+            /** Format: uuid */
+            client_request_id?: string;
             session_id?: number | null;
             total_count: number;
         };
@@ -15740,6 +16494,21 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["PostEntity"][];
         };
+        PaginatedPostReplyList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["PostReply"][];
+        };
         PaginatedPostTemplateList: {
             /** @example 123 */
             count: number;
@@ -15979,6 +16748,21 @@ export interface components {
              */
             previous?: string | null;
             results: components["schemas"]["Sheet"][];
+        };
+        PaginatedStaffBoardSummaryList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["StaffBoardSummary"][];
         };
         PaginatedStaffExpenseRecordList: {
             /** @example 123 */
@@ -16398,6 +17182,9 @@ export interface components {
             lecture?: number;
             status?: components["schemas"]["Status2d4Enum"];
         };
+        PatchedEssayScoreMarksUpdateRequest: {
+            enabled?: boolean;
+        };
         /**
          * @description 수정 전용 serializer
          *     - exam_type, subject 직접 변경 ❌
@@ -16462,6 +17249,10 @@ export interface components {
             open_at?: string | null;
             /** Format: double */
             pass_score?: number;
+            /** @description 등수 산정에 포함된 응시 인원을 학생·학부모 성적 화면에 표시한다. */
+            student_cohort_size_published?: boolean;
+            /** @description 학생·학부모 성적 화면에 등수를 표시한다. */
+            student_rank_published?: boolean;
             /** @description 학생·학부모 성적 공개 여부. 비공개여도 교직원 채점·통계 기록은 유지한다. */
             student_results_published?: boolean;
             subject?: string;
@@ -16595,6 +17386,35 @@ export interface components {
             /** @description 강의 시간 (예: 토 12:00 ~ 13:00) */
             lecture_time?: string;
             name?: string;
+            schedule_defaults?: components["schemas"]["LectureScheduleDefaultRequest"][];
+            /**
+             * @description 새 차시의 기본 수업일 구성
+             *
+             *     * `SINGLE` - 한 날짜
+             *     * `SPLIT` - 여러 날짜
+             */
+            schedule_mode?: components["schemas"]["ScheduleModeEnum"];
+            /** Format: date */
+            start_date?: string | null;
+            subject?: string;
+            title?: string;
+        };
+        PatchedLectureScheduleSettingsRequest: {
+            /** @description 강의딱지 2글자 (미입력 시 제목 앞 2자 사용) */
+            chip_label?: string;
+            /** @description 아이콘/라벨 색상 */
+            color?: string;
+            description?: string;
+            /** Format: date */
+            end_date?: string | null;
+            is_active?: boolean;
+            /** @description 시스템용 강의 (전체공개영상 컨테이너 등). 강의 목록·성적 등에서 자동 제외. */
+            is_system?: boolean;
+            /** @description 강의 시간 (예: 토 12:00 ~ 13:00) */
+            lecture_time?: string;
+            name?: string;
+            schedule_defaults?: components["schemas"]["LectureScheduleDefaultRequest"][];
+            schedule_mode?: components["schemas"]["ScheduleModeEnum"];
             /** Format: date */
             start_date?: string | null;
             subject?: string;
@@ -16750,7 +17570,7 @@ export interface components {
         };
         PatchedQrPointRequest: {
             active?: boolean;
-            kind?: components["schemas"]["KindEnum"];
+            kind?: components["schemas"]["QrPointKindEnum"];
             label?: string;
             lecture_id?: number | null;
             location?: string;
@@ -16782,6 +17602,11 @@ export interface components {
             /** Format: uuid */
             request_id?: string;
             title?: string;
+        };
+        PatchedReviewAllowanceRequest: {
+            expected_revision?: string;
+            /** Format: int64 */
+            limit_ms?: number | null;
         };
         /** @description API uses access_mode (SSOT). DB table kept as video_videopermission. */
         PatchedSealedVideoAccessRequest: {
@@ -16842,12 +17667,11 @@ export interface components {
             allow_skip?: boolean;
             /** Format: int64 */
             duration?: number | null;
-            /** @description S3 object key (presigned upload) */
-            file_key?: string;
             /** Format: double */
             max_speed?: number;
             /** Format: int64 */
             order?: number;
+            review_watch_limit_enabled?: boolean;
             session?: number;
             show_watermark?: boolean;
             status?: components["schemas"]["SealedVideoStatusEnum"];
@@ -16878,6 +17702,10 @@ export interface components {
             name?: string;
             /** Format: int64 */
             total_questions?: number;
+        };
+        PatchedStaffBoardEditRequest: {
+            body?: string;
+            title?: string;
         };
         PatchedStaffExpenseRecordRequest: {
             /** Format: int64 */
@@ -17088,6 +17916,23 @@ export interface components {
             target_type?: components["schemas"]["TargetTypeEnum"];
             tenant?: number;
         };
+        PatchedSurveyWriteRequest: {
+            allow_attachments?: boolean;
+            audience?: unknown;
+            /** Format: date-time */
+            closes_at?: string | null;
+            /** Format: uuid */
+            creation_key?: string | null;
+            description?: string;
+            expected_version?: number;
+            kind?: components["schemas"]["SurveyKind"];
+            /** Format: date-time */
+            opens_at?: string | null;
+            questions?: unknown;
+            response_limit?: number | null;
+            score_defaults?: unknown;
+            title?: string;
+        };
         PatchedTeacherRequest: {
             email?: (string) | null;
             is_active?: boolean;
@@ -17100,6 +17945,10 @@ export interface components {
         PatchedVideoEditRequest: {
             draft_content?: components["schemas"]["VideoContentRequest"];
             expected_revision?: number;
+        };
+        PatchedVideoPlacementChangeRequest: {
+            add_session_ids?: number[];
+            remove_video_ids?: number[];
         };
         PatchedVideoShowcaseRequest: {
             description?: string;
@@ -17311,6 +18160,30 @@ export interface components {
         PostMappingRequest: {
             node: number;
             post: number;
+        };
+        /** @description QnA 답변 조회/생성. question 필드는 프론트 Answer 타입 호환용(post_id). */
+        PostReply: {
+            readonly attachments: components["schemas"]["PostAttachment"][];
+            /** @description 작성자 역할 (staff/student) */
+            readonly author_role: string;
+            content: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly created_by: number | null;
+            readonly created_by_display: string;
+            readonly id: number;
+            readonly is_liked: string;
+            readonly like_count: string;
+            /** @description 답글 — null이면 최상위 댓글, 값 있으면 해당 댓글의 답글 (2026-05-11 도입). */
+            parent_reply?: number | null;
+            readonly post: number;
+            readonly question: number;
+        };
+        /** @description QnA 답변 조회/생성. question 필드는 프론트 Answer 타입 호환용(post_id). */
+        PostReplyRequest: {
+            content: string;
+            /** @description 답글 — null이면 최상위 댓글, 값 있으면 해당 댓글의 답글 (2026-05-11 도입). */
+            parent_reply?: number | null;
         };
         PostTemplate: {
             content?: string;
@@ -17780,6 +18653,11 @@ export interface components {
         PublicViewCount: {
             readonly view_count: number;
         };
+        QnaPhotoReplyRequest: {
+            content?: string;
+            files: string[];
+            idempotency_key: string;
+        };
         QrChoice: {
             can_check_in: boolean;
             can_check_out: boolean;
@@ -17802,7 +18680,7 @@ export interface components {
         QrPoint: {
             active?: boolean;
             readonly id: number;
-            kind: components["schemas"]["KindEnum"];
+            kind: components["schemas"]["QrPointKindEnum"];
             label: string;
             lecture_id?: number | null;
             location?: string;
@@ -17813,9 +18691,15 @@ export interface components {
             kind: string;
             label: string;
         };
+        /**
+         * @description * `class` - 수업
+         *     * `clinic` - 클리닉
+         * @enum {string}
+         */
+        QrPointKindEnum: "class" | "clinic";
         QrPointRequest: {
             active?: boolean;
-            kind: components["schemas"]["KindEnum"];
+            kind: components["schemas"]["QrPointKindEnum"];
             label: string;
             lecture_id?: number | null;
             location?: string;
@@ -18158,6 +19042,62 @@ export interface components {
          * @enum {string}
          */
         ResultStatusEnum: "NOT_SUBMITTED" | "PROCESSING" | "PARTIAL" | "DONE" | "FAILED";
+        ReviewReport: {
+            duration: number | null;
+            enabled: boolean;
+            source_type: string;
+            students: components["schemas"]["ReviewStudent"][];
+            threshold_ms: number;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ReviewSignalRequest: {
+            enrollment?: number;
+            /** @default false */
+            playing: boolean;
+            /**
+             * Format: int64
+             * @default 0
+             */
+            position_ms: number;
+            /** @default false */
+            prepare: boolean;
+            /** Format: int64 */
+            sequence: number;
+            /** Format: uuid */
+            stream: string;
+        };
+        ReviewState: {
+            remaining_ms: number | null;
+            retry_after_ms?: number;
+            review_watch_summary?: components["schemas"]["ReviewWatchSummary"];
+            /** Format: uuid */
+            stream: string;
+            used_ms: number;
+        };
+        ReviewStudent: {
+            applicable: boolean;
+            can_adjust: boolean;
+            enabled: boolean;
+            exhausted: boolean;
+            limit_ms: number | null;
+            remaining_ms: number | null;
+            revision: string;
+            /** Format: date-time */
+            started_at: string | null;
+            student_id: number;
+            student_name: string;
+            used_ms: number;
+        };
+        ReviewWatchSummary: {
+            applicable: boolean;
+            enabled: boolean;
+            exhausted: boolean;
+            limit_ms: number | null;
+            remaining_ms: number | null;
+            revision: string;
+            used_ms: number;
+        };
         RiskLog: {
             /** Format: date-time */
             readonly created_at: string;
@@ -18191,6 +19131,165 @@ export interface components {
          * @enum {integer}
          */
         RotationDegreesEnum: 90 | 180 | 270;
+        ScheduleInput: {
+            /** Format: date */
+            date: string;
+            /** Format: time */
+            end_time?: string | null;
+            enrollment_ids: number[];
+            id?: number | null;
+            label: string;
+            /** Format: time */
+            start_time?: string | null;
+        };
+        ScheduleInputRequest: {
+            /** Format: date */
+            date: string;
+            /** Format: time */
+            end_time?: string | null;
+            enrollment_ids: number[];
+            id?: number | null;
+            label: string;
+            /** Format: time */
+            start_time?: string | null;
+        };
+        /**
+         * @description * `SINGLE` - 한 날짜
+         *     * `SPLIT` - 여러 날짜
+         * @enum {string}
+         */
+        ScheduleModeEnum: "SINGLE" | "SPLIT";
+        ScheduleRosterEntry: {
+            enrollment_id: number;
+            student_name: string;
+        };
+        SchoolReportDetailResponse: {
+            academic_year: number;
+            direct_scores: components["schemas"]["SchoolReportScoreResponse"][];
+            exam_round: components["schemas"]["ExamRoundEnum"];
+            grade: number | null;
+            /** Format: date-time */
+            requested_at: string | null;
+            school: string;
+            scores: components["schemas"]["SchoolReportScoreResponse"][];
+            semester: number;
+            status: components["schemas"]["SchoolReportSubmissionStatus"];
+            student_id: number;
+            student_name: string;
+            /** Format: date-time */
+            submitted_at: string | null;
+        };
+        SchoolReportEntryRequest: {
+            subjects: components["schemas"]["SchoolReportSubjectRequest"][];
+        };
+        SchoolReportRequestRequest: {
+            academic_year: number;
+            exam_round: components["schemas"]["ExamRoundEnum"];
+            semester: number;
+            student_ids: number[];
+        };
+        SchoolReportRequestResponse: {
+            requested: number;
+            skipped: number;
+        };
+        SchoolReportRosterResponse: {
+            alimtalk_available: boolean;
+            count: number;
+            missing_count: number;
+            /** Format: uri */
+            next: string | null;
+            /** Format: uri */
+            previous: string | null;
+            results: components["schemas"]["SchoolReportRosterStudent"][];
+            submitted_count: number;
+            total_count: number;
+        };
+        SchoolReportRosterStudent: {
+            can_request: boolean;
+            can_request_alimtalk: boolean;
+            grade: number | null;
+            name: string;
+            /** Format: date-time */
+            requested_at: string | null;
+            school: string;
+            score_count: number;
+            status: components["schemas"]["SchoolReportSubmissionStatus"];
+            student_id: number;
+            /** Format: date-time */
+            submitted_at: string | null;
+        };
+        SchoolReportScoreResponse: {
+            academic_year: number;
+            achievement_level: (components["schemas"]["AchievementLevelEnum"] | components["schemas"]["NullEnum"]) | null;
+            cohort_size: number | null;
+            /** Format: date-time */
+            created_at: string;
+            direct_entry: boolean;
+            evidence_file_id: number | null;
+            evidence_r2_key: string;
+            /** Format: date */
+            exam_date: string | null;
+            exam_month: number | null;
+            exam_name: string | null;
+            exam_round: components["schemas"]["ExamRoundEnum"];
+            grade_rank: number | null;
+            grade_scale: (components["schemas"]["GradeScaleEnum"] | components["schemas"]["NullEnum"]) | null;
+            id: number;
+            label: string;
+            /** Format: double */
+            max_score: number;
+            /** Format: double */
+            percentile: number | null;
+            review_note: string;
+            /** Format: date-time */
+            reviewed_at: string | null;
+            /** Format: double */
+            score: number;
+            /** Format: double */
+            score_pct: number | null;
+            semester: number;
+            source: components["schemas"]["SchoolReportScoreResponseSourceEnum"];
+            source_group: components["schemas"]["SourceGroupEnum"];
+            /** Format: double */
+            standard_deviation: number | null;
+            /** Format: double */
+            standard_score: number | null;
+            status: components["schemas"]["SchoolReportScoreResponseStatusEnum"];
+            student_id: number;
+            subject: string;
+            /** Format: double */
+            subject_average: number | null;
+        };
+        /**
+         * @description * `school_exam` - school_exam
+         * @enum {string}
+         */
+        SchoolReportScoreResponseSourceEnum: "school_exam";
+        /**
+         * @description * `pending` - pending
+         *     * `verified` - verified
+         * @enum {string}
+         */
+        SchoolReportScoreResponseStatusEnum: "pending" | "verified";
+        SchoolReportSubjectRequest: {
+            achievement_level?: (components["schemas"]["AchievementLevelEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
+            cohort_size?: number | null;
+            /** Format: date */
+            exam_date?: string | null;
+            grade_rank?: number | null;
+            grade_scale?: (components["schemas"]["GradeScaleEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
+            max_score: number | string;
+            score: number | string;
+            standard_deviation?: (number | string) | null;
+            subject: string;
+            subject_average?: (number | string) | null;
+        };
+        /**
+         * @description * `submitted` - submitted
+         *     * `missing` - missing
+         * @enum {string}
+         */
+        SchoolReportSubmissionStatus: "submitted" | "missing";
         /**
          * @description * `ELEMENTARY` - 초등
          *     * `MIDDLE` - 중등
@@ -18242,7 +19341,7 @@ export interface components {
             readonly encoding_step_total: string;
             readonly error_reason: string | null;
             /** @description S3 object key (presigned upload) */
-            file_key?: string;
+            readonly file_key: string;
             readonly folder: number;
             /** @description HLS master playlist path (relative to CDN root) */
             readonly hls_path: string;
@@ -18252,6 +19351,7 @@ export interface components {
             max_speed?: number;
             /** Format: int64 */
             order?: number;
+            review_watch_limit_enabled?: boolean;
             readonly session_id: number;
             show_watermark?: boolean;
             /**
@@ -18432,12 +19532,11 @@ export interface components {
             allow_skip?: boolean;
             /** Format: int64 */
             duration?: number | null;
-            /** @description S3 object key (presigned upload) */
-            file_key?: string;
             /** Format: double */
             max_speed?: number;
             /** Format: int64 */
             order?: number;
+            review_watch_limit_enabled?: boolean;
             session: number;
             show_watermark?: boolean;
             status?: components["schemas"]["SealedVideoStatusEnum"];
@@ -18566,6 +19665,9 @@ export interface components {
             /** @description 수신 대상 학생 ID 목록 (send_to가 student/parent일 때 사용) */
             student_ids?: number[];
             template_id?: number | null;
+            /** @default false */
+            video_makeup_homework: boolean;
+            video_makeup_homework_fingerprint?: string;
         };
         SendMessageResponse: {
             accepted_count: number;
@@ -18601,6 +19703,15 @@ export interface components {
          * @enum {string}
          */
         SessionAttendanceStatus: "UNSET" | "PRESENT" | "LATE" | "ONLINE" | "SUPPLEMENT" | "EARLY_LEAVE" | "ABSENT" | "RUNAWAY" | "MATERIAL" | "INACTIVE" | "SECESSION";
+        SessionCreateScheduleInputRequest: {
+            /** Format: date */
+            date: string;
+            /** Format: time */
+            end_time?: string | null;
+            label: string;
+            /** Format: time */
+            start_time?: string | null;
+        };
         SessionEnrollment: {
             /** Format: date-time */
             readonly created_at: string;
@@ -18647,6 +19758,39 @@ export interface components {
             video_completed?: boolean;
             /** Format: int64 */
             video_progress_rate?: number;
+        };
+        SessionScheduleCopyRequest: {
+            source_session: number;
+            version: string;
+        };
+        SessionScheduleState: {
+            roster: components["schemas"]["ScheduleRosterEntry"][];
+            schedules: components["schemas"]["ScheduleInput"][];
+            unassigned_enrollment_ids: number[];
+            version: string;
+        };
+        SessionScheduleSummary: {
+            /** Format: date */
+            date: string;
+            /** Format: time */
+            end_time?: string | null;
+            readonly id: number;
+            label: string;
+            /** Format: time */
+            start_time?: string | null;
+        };
+        SessionScheduleSummaryRequest: {
+            /** Format: date */
+            date: string;
+            /** Format: time */
+            end_time?: string | null;
+            label: string;
+            /** Format: time */
+            start_time?: string | null;
+        };
+        SessionScheduleWriteRequest: {
+            schedules: components["schemas"]["ScheduleInputRequest"][];
+            version: string;
         };
         /**
          * @description * `ACTIVE` - 활성
@@ -18706,6 +19850,12 @@ export interface components {
             total_questions?: number;
         };
         /**
+         * @description * `up` - up
+         *     * `down` - down
+         * @enum {string}
+         */
+        SignalEnum: "up" | "down";
+        /**
          * @description * `` - 미신청
          *     * `PENDING` - 검수 대기
          *     * `APPROVED` - 승인
@@ -18731,11 +19881,85 @@ export interface components {
          */
         SourceD60Enum: "auto" | "manual" | "student_request";
         /**
+         * @description * `school` - school
+         * @enum {string}
+         */
+        SourceGroupEnum: "school";
+        /**
          * @description * `s3` - 직접 업로드
          *     * `youtube` - YouTube 링크
          * @enum {string}
          */
         SourceTypeEnum: "s3" | "youtube";
+        /**
+         * @description * `notice` - 공지사항
+         *     * `resource` - 자료실
+         *     * `free` - 자유게시글
+         * @enum {string}
+         */
+        StaffBoardCategory: "notice" | "resource" | "free";
+        StaffBoardDetail: {
+            readonly attachment_name: string;
+            readonly author_name: string;
+            body: string;
+            readonly can_edit: boolean;
+            readonly can_remove_attachment: boolean;
+            category: components["schemas"]["StaffBoardCategory"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: number;
+            readonly replies: components["schemas"]["StaffBoardReply"][];
+            /** @default 0 */
+            readonly reply_count: number;
+            title: string;
+        };
+        StaffBoardError: {
+            detail: string;
+        };
+        StaffBoardPost: {
+            readonly attachment_name: string;
+            readonly author_name: string;
+            body: string;
+            readonly can_edit: boolean;
+            readonly can_remove_attachment: boolean;
+            category: components["schemas"]["StaffBoardCategory"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: number;
+            /** @default 0 */
+            readonly reply_count: number;
+            title: string;
+        };
+        StaffBoardPostRequest: {
+            body: string;
+            category: components["schemas"]["StaffBoardCategory"];
+            /** Format: binary */
+            file?: string;
+            title: string;
+        };
+        StaffBoardReply: {
+            readonly author_name: string;
+            body: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: number;
+        };
+        StaffBoardReplyRequest: {
+            body: string;
+        };
+        StaffBoardSummary: {
+            readonly attachment_name: string;
+            readonly author_name: string;
+            readonly can_edit: boolean;
+            readonly can_remove_attachment: boolean;
+            category: components["schemas"]["StaffBoardCategory"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: number;
+            /** @default 0 */
+            readonly reply_count: number;
+            title: string;
+        };
         StaffDetail: {
             readonly account_role: string;
             readonly can_manage_staff: boolean;
@@ -18831,6 +20055,29 @@ export interface components {
             readonly staff_work_types: components["schemas"]["StaffWorkType"][];
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        StaffMe: {
+            assigned_work_types?: components["schemas"]["StaffMeAssignedWorkType"][];
+            default_work_type_id?: number;
+            is_authenticated: boolean;
+            is_owner: boolean;
+            is_payroll_manager: boolean;
+            is_staff: boolean;
+            is_superuser: boolean;
+            owner_display_name: string | null;
+            owner_phone: string | null;
+            /** @description 대표의 기존 자동 연결 준비가 필요하면 true. 명시적인 POST /staffs/me/로 준비합니다. */
+            owner_setup_required: boolean;
+            staff_id?: number;
+        };
+        StaffMeAssignedWorkType: {
+            hourly_wage: number;
+            id: number;
+            name: string;
+        };
+        StaffMeError: {
+            code?: string;
+            detail: string;
         };
         StaffPayrollOverview: {
             /** Format: date */
@@ -19106,6 +20353,14 @@ export interface components {
          * @enum {string}
          */
         StaffWriteRoleEnum: "TEACHER" | "ASSISTANT";
+        /**
+         * @description * `not_requested` - not_requested
+         *     * `preparing` - preparing
+         *     * `ready` - ready
+         *     * `failed` - failed
+         * @enum {string}
+         */
+        StateEnum: "not_requested" | "preparing" | "ready" | "failed";
         /**
          * @description * `ACTIVE` - 활성
          *     * `INACTIVE` - 비활성
@@ -19733,6 +20988,10 @@ export interface components {
             id: number;
             name: string;
         };
+        StudentSurveyDetail: {
+            response: components["schemas"]["SurveyResponseRead"] | null;
+            survey: components["schemas"]["SurveyRead"];
+        };
         StudentTag: {
             color?: string;
             readonly id: number;
@@ -19860,6 +21119,7 @@ export interface components {
              * @default 0
              */
             progress: number;
+            review_watch_summary?: components["schemas"]["ReviewWatchSummary"];
             session_id: number | null;
             show_watermark: boolean;
             /** @default s3 */
@@ -19897,12 +21157,20 @@ export interface components {
                 [key: string]: unknown;
             };
             policy_version: number;
+            progress_revision?: string | null;
+            review_watch?: {
+                [key: string]: unknown;
+            } | null;
+            review_watch_summary?: components["schemas"]["ReviewWatchSummary"];
+            support_preview?: boolean;
             video: components["schemas"]["StudentVideoListItem"];
         };
         StudentVideoPlaybackOrAccessCheck: components["schemas"]["StudentVideoPlayback"] | components["schemas"]["StudentVideoAccessCheck"];
         StudentVideoPlaybackRequestRequest: {
             /** @default 1 */
             event_protocol_version: components["schemas"]["EventProtocolVersionEnum"];
+            /** @default false */
+            review_watch: boolean;
         };
         Submission: {
             /** Format: date-time */
@@ -19982,6 +21250,129 @@ export interface components {
          * @enum {string}
          */
         SupportKindEnum: "bug" | "feedback";
+        SurveyActionRequest: {
+            expected_version: number;
+        };
+        SurveyAttachment: {
+            content_type: string;
+            id: number;
+            name: string;
+            r2_key: string;
+            size_bytes: number;
+        };
+        SurveyHistoryPage: {
+            count: number;
+            results: components["schemas"]["SurveyResponseRead"][];
+        };
+        /**
+         * @description * `general` - 일반 설문
+         *     * `school_score` - 성적 취합
+         *     * `memo` - 학생 메모
+         * @enum {string}
+         */
+        SurveyKind: "general" | "school_score" | "memo";
+        SurveyPage: {
+            count: number;
+            results: components["schemas"]["SurveyRead"][];
+        };
+        SurveyRead: {
+            allow_attachments?: boolean;
+            answered: boolean;
+            audience?: unknown;
+            can_respond: boolean;
+            /** Format: date-time */
+            closes_at?: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+            description?: string;
+            readonly id: number;
+            kind?: components["schemas"]["SurveyKind"];
+            /** Format: date-time */
+            opens_at?: string | null;
+            /** Format: date-time */
+            published_at?: string | null;
+            questions?: unknown;
+            response_count: number;
+            /** Format: int64 */
+            response_limit?: number | null;
+            response_unavailable_reason: string;
+            score_defaults?: unknown;
+            selected_students?: components["schemas"]["SurveySelectedStudent"][];
+            status?: components["schemas"]["SurveyStatus"];
+            target_count?: number;
+            title: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+            /** Format: int64 */
+            version?: number;
+        };
+        SurveyRecipientRead: {
+            answered: boolean;
+            response: components["schemas"]["SurveyResponseRead"] | null;
+            student_id: number;
+            student_name: string;
+        };
+        SurveyRecipientsPage: {
+            count: number;
+            results: components["schemas"]["SurveyRecipientRead"][];
+            survey: components["schemas"]["SurveyRead"];
+        };
+        SurveyResponseRead: {
+            answers: unknown;
+            attachments: components["schemas"]["SurveyAttachment"][];
+            /** Format: date-time */
+            created_at: string;
+            id: number;
+            kind: components["schemas"]["SurveyKind"];
+            questions: unknown;
+            score_submissions: {
+                [key: string]: unknown;
+            }[];
+            student_id: number;
+            student_name: string;
+            student_ps: string;
+            survey_id: number;
+            survey_title: string;
+            /** Format: date-time */
+            updated_at: string;
+            version: number;
+        };
+        SurveyResponseWriteRequest: {
+            answers?: {
+                [key: string]: unknown;
+            };
+            attachment_ids?: number[];
+            expected_version: number;
+            score_submission_ids?: number[];
+        };
+        SurveySelectedStudent: {
+            id: number;
+            name: string;
+        };
+        /**
+         * @description * `draft` - 작성 중
+         *     * `open` - 응답 받는 중
+         *     * `closed` - 마감
+         * @enum {string}
+         */
+        SurveyStatus: "draft" | "open" | "closed";
+        SurveyWriteRequest: {
+            allow_attachments?: boolean;
+            audience?: unknown;
+            /** Format: date-time */
+            closes_at?: string | null;
+            /** Format: uuid */
+            creation_key?: string | null;
+            description?: string;
+            expected_version?: number;
+            kind?: components["schemas"]["SurveyKind"];
+            /** Format: date-time */
+            opens_at?: string | null;
+            questions?: unknown;
+            response_limit?: number | null;
+            score_defaults?: unknown;
+            title: string;
+        };
         /**
          * @description * `student` - student
          *     * `parent` - parent
@@ -20207,6 +21598,26 @@ export interface components {
             request_id: string;
             url: string;
         };
+        VideoPlacementItem: {
+            is_original: boolean;
+            lecture_id: number;
+            lecture_title: string;
+            session_id: number;
+            session_title: string;
+            video_id: number;
+        };
+        VideoPlacements: {
+            can_attach: boolean;
+            placements: components["schemas"]["VideoPlacementItem"][];
+            source_video_id: number;
+        };
+        VideoPlaybackExport: {
+            /** Format: uri */
+            download_url?: string;
+            expires_in?: number;
+            filename?: string;
+            state: components["schemas"]["StateEnum"];
+        };
         VideoPublication: {
             showcase_revision: number;
             video: components["schemas"]["ManagedVideo"];
@@ -20230,6 +21641,12 @@ export interface components {
             /** Format: uri */
             thumbnail_url: string;
             youtube_video_id: string;
+        };
+        VideoSourceDownload: {
+            /** Format: uri */
+            download_url: string;
+            expires_in: number;
+            filename: string;
         };
         /**
          * @description * `ENROLLED` - 수강생 전용
@@ -22871,9 +24288,14 @@ export interface operations {
             };
         };
     };
-    community_posts_replies_retrieve: {
+    community_posts_replies_list: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
+                page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
+            };
             header?: never;
             path: {
                 /** @description Post을 식별하는 고유한 정수 값. */
@@ -22888,7 +24310,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PostEntity"];
+                    "application/json": components["schemas"]["PaginatedPostReplyList"];
                 };
             };
         };
@@ -22905,18 +24327,18 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["PostEntityRequest"];
-                "application/x-www-form-urlencoded": components["schemas"]["PostEntityRequest"];
-                "multipart/form-data": components["schemas"]["PostEntityRequest"];
+                "application/json": components["schemas"]["PostReplyRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PostReplyRequest"];
+                "multipart/form-data": components["schemas"]["PostReplyRequest"];
             };
         };
         responses: {
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PostEntity"];
+                    "application/json": components["schemas"]["PostReply"];
                 };
             };
         };
@@ -23048,6 +24470,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PostEntity"];
+                };
+            };
+        };
+    };
+    community_posts_replies_with_images_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["QnaPhotoReplyRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostReply"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostReply"];
                 };
             };
         };
@@ -23267,6 +24723,59 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    core_dev_agent_sessions_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: date-time */
+                        collected_at: string | null;
+                        nodes: {
+                            /** @enum {string} */
+                            evidence: "runtime" | "last_turn" | "closed" | "unknown";
+                            id: string;
+                            parent_id: string | null;
+                            /** @enum {string} */
+                            provider: "codex" | "claude";
+                            role: string;
+                            /** @enum {string} */
+                            status: "running" | "waiting" | "completed" | "interrupted" | "unknown";
+                            title: string;
+                            /** Format: date-time */
+                            updated_at: string | null;
+                        }[];
+                        /** @enum {integer} */
+                        schema: 1;
+                        source_errors: ("codex" | "claude")[];
+                        /** @enum {string} */
+                        source_status: "connected" | "stale" | "unavailable";
+                        stale_after_seconds: number;
+                        truncated: boolean;
+                    };
+                };
+            };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        detail: string;
+                    };
+                };
             };
         };
     };
@@ -25387,6 +26896,54 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    exams_omr_essay_score_marks_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EssayScoreMarksState"];
+                };
+            };
+        };
+    };
+    exams_omr_essay_score_marks_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedEssayScoreMarksUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedEssayScoreMarksUpdateRequest"];
+                "multipart/form-data": components["schemas"]["PatchedEssayScoreMarksUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EssayScoreMarksState"];
+                };
             };
         };
     };
@@ -29995,6 +31552,33 @@ export interface operations {
             };
         };
     };
+    lectures_lectures_schedule_settings_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedLectureScheduleSettingsRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedLectureScheduleSettingsRequest"];
+                "multipart/form-data": components["schemas"]["PatchedLectureScheduleSettingsRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lecture"];
+                };
+            };
+        };
+    };
     lectures_lectures_instructor_options_retrieve: {
         parameters: {
             query?: never;
@@ -30030,6 +31614,31 @@ export interface operations {
         };
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Lecture"];
+                };
+            };
+        };
+    };
+    lectures_lectures_with_schedule_settings_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LectureScheduleSettingsRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureScheduleSettingsRequest"];
+                "multipart/form-data": components["schemas"]["LectureScheduleSettingsRequest"];
+            };
+        };
+        responses: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -30382,8 +31991,12 @@ export interface operations {
     lectures_sessions_list: {
         parameters: {
             query?: {
+                /** @description 실제 수업일. 수업일 미설정 차시는 기존 기준일로 조회합니다. */
+                date?: string;
+                lecture?: number;
                 /** @description 검색어. */
                 search?: string;
+                section?: number;
             };
             header?: never;
             path?: never;
@@ -30431,7 +32044,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                /** @description session을 식별하는 고유한 정수 값. */
+                id: number;
             };
             cookie?: never;
         };
@@ -30452,7 +32066,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                /** @description session을 식별하는 고유한 정수 값. */
+                id: number;
             };
             cookie?: never;
         };
@@ -30479,7 +32094,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                /** @description session을 식별하는 고유한 정수 값. */
+                id: number;
             };
             cookie?: never;
         };
@@ -30499,7 +32115,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                id: string;
+                /** @description session을 식별하는 고유한 정수 값. */
+                id: number;
             };
             cookie?: never;
         };
@@ -30518,6 +32135,116 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["LectureSession"];
                 };
+            };
+        };
+    };
+    lectures_sessions_schedules_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description session을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionScheduleState"];
+                };
+            };
+        };
+    };
+    lectures_sessions_schedules_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description session을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionScheduleWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SessionScheduleWriteRequest"];
+                "multipart/form-data": components["schemas"]["SessionScheduleWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionScheduleState"];
+                };
+            };
+        };
+    };
+    lectures_sessions_schedules_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description session을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionScheduleCopyRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SessionScheduleCopyRequest"];
+                "multipart/form-data": components["schemas"]["SessionScheduleCopyRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionScheduleState"];
+                };
+            };
+        };
+    };
+    lectures_sessions_with_schedules_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LectureSessionCreateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["LectureSessionCreateRequest"];
+                "multipart/form-data": components["schemas"]["LectureSessionCreateRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LectureSession"];
+                };
+            };
+            /** @description 같은 생성 요청 ID에 이미 다른 입력이 저장되었습니다. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -31726,6 +33453,106 @@ export interface operations {
             };
         };
     };
+    media_videos_placements_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description video을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoPlacements"];
+                };
+            };
+        };
+    };
+    media_videos_placements_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description video을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedVideoPlacementChangeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoPlacements"];
+                };
+            };
+        };
+    };
+    media_videos_playback_export_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description video을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoPlaybackExport"];
+                };
+            };
+        };
+    };
+    media_videos_playback_export_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description video을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoPlaybackExport"];
+                };
+            };
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoPlaybackExport"];
+                };
+            };
+        };
+    };
     media_videos_progress_retrieve: {
         parameters: {
             query?: never;
@@ -31768,6 +33595,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SealedVideo"];
+                };
+            };
+        };
+    };
+    media_videos_source_download_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description video을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoSourceDownload"];
                 };
             };
         };
@@ -32074,6 +33923,63 @@ export interface operations {
             };
         };
     };
+    media_videos_review_watch_report_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                video_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewReport"];
+                };
+            };
+        };
+    };
+    media_videos_review_watch_students_allowance_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                student_id: number;
+                video_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedReviewAllowanceRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedReviewAllowanceRequest"];
+                "multipart/form-data": components["schemas"]["PatchedReviewAllowanceRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewWatchSummary"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewWatchSummary"];
+                };
+            };
+        };
+    };
     media_videos_bulk_policy_create: {
         parameters: {
             query?: never;
@@ -32281,9 +34187,11 @@ export interface operations {
             };
         };
     };
-    media_videos_student_retrieve: {
+    media_videos_student_list: {
         parameters: {
-            query?: never;
+            query: {
+                session: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -32295,7 +34203,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SealedVideo"];
+                    "application/json": components["schemas"]["LegacyStudentVideoListItem"][];
                 };
             };
         };
@@ -33987,6 +35895,30 @@ export interface operations {
             };
         };
     };
+    results_admin_exams_analysis_insights_retrieve: {
+        parameters: {
+            query?: {
+                /** @description An exam-linked lecture in the current tenant. */
+                lecture_id?: number;
+            };
+            header?: never;
+            path: {
+                exam_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminExamAnalysisInsights"];
+                };
+            };
+        };
+    };
     results_admin_exams_enrollments_retrieve: {
         parameters: {
             query?: never;
@@ -34996,6 +36928,158 @@ export interface operations {
             };
         };
     };
+    school_report_roster_list: {
+        parameters: {
+            query: {
+                academic_year: number;
+                /**
+                 * @description * `first` - first
+                 *     * `second` - second
+                 */
+                exam_round: "first" | "second";
+                lecture_id?: number;
+                /** @description Page number. Defaults to 1. */
+                page?: number;
+                /** @description Students per page. Defaults to 50. */
+                page_size?: number;
+                search?: string;
+                semester: number;
+                /**
+                 * @description * `submitted` - submitted
+                 *     * `missing` - missing
+                 */
+                status?: "submitted" | "missing";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolReportRosterResponse"];
+                };
+            };
+        };
+    };
+    school_report_staff_retrieve: {
+        parameters: {
+            query: {
+                academic_year: number;
+                /**
+                 * @description * `first` - first
+                 *     * `second` - second
+                 */
+                exam_round: "first" | "second";
+                semester: number;
+            };
+            header?: never;
+            path: {
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolReportDetailResponse"];
+                };
+            };
+        };
+    };
+    school_report_student_retrieve: {
+        parameters: {
+            query: {
+                academic_year: number;
+                /**
+                 * @description * `first` - first
+                 *     * `second` - second
+                 */
+                exam_round: "first" | "second";
+                semester: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolReportDetailResponse"];
+                };
+            };
+        };
+    };
+    school_report_student_update: {
+        parameters: {
+            query: {
+                academic_year: number;
+                /**
+                 * @description * `first` - first
+                 *     * `second` - second
+                 */
+                exam_round: "first" | "second";
+                semester: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchoolReportEntryRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SchoolReportEntryRequest"];
+                "multipart/form-data": components["schemas"]["SchoolReportEntryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolReportDetailResponse"];
+                };
+            };
+        };
+    };
+    school_report_request_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchoolReportRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SchoolReportRequestRequest"];
+                "multipart/form-data": components["schemas"]["SchoolReportRequestRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchoolReportRequestResponse"];
+                };
+            };
+        };
+    };
     results_wrong_notes_retrieve: {
         parameters: {
             query?: never;
@@ -35423,6 +37507,230 @@ export interface operations {
             };
         };
     };
+    staffs_board_posts_list: {
+        parameters: {
+            query?: {
+                category?: "free" | "notice" | "resource";
+                /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
+                page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedStaffBoardSummaryList"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffBoardPostRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StaffBoardPostRequest"];
+                "multipart/form-data": components["schemas"]["StaffBoardPostRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardPost"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardPost"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardError"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardDetail"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedStaffBoardEditRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedStaffBoardEditRequest"];
+                "multipart/form-data": components["schemas"]["PatchedStaffBoardEditRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardPost"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_attachment_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardError"];
+                };
+            };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardError"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_attachment_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    staffs_board_posts_replies_create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffBoardReplyRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StaffBoardReplyRequest"];
+                "multipart/form-data": components["schemas"]["StaffBoardReplyRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardReply"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardReply"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardError"];
+                };
+            };
+        };
+    };
     staffs_currently_working_list: {
         parameters: {
             query?: never;
@@ -35602,7 +37910,62 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StaffWrite"];
+                    "application/json": components["schemas"]["StaffMe"];
+                };
+            };
+        };
+    };
+    staffs_me_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMe"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMeError"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMeError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMeError"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMeError"];
                 };
             };
         };
@@ -37023,6 +39386,33 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    student_video_videos_review_watch_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                video_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReviewSignalRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["ReviewSignalRequest"];
+                "multipart/form-data": components["schemas"]["ReviewSignalRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewState"];
+                };
             };
         };
     };
@@ -39070,6 +41460,14 @@ export interface operations {
                     "application/json": components["schemas"]["OmrUploadBatchSummary"];
                 };
             };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OmrUploadBatchInitializeConflict"];
+                };
+            };
         };
     };
     submissions_submissions_homework_retrieve: {
@@ -39231,6 +41629,362 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    surveys_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                search?: string;
+                status?: "closed" | "draft" | "open";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyPage"];
+                };
+            };
+        };
+    };
+    surveys_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SurveyWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SurveyWriteRequest"];
+                "multipart/form-data": components["schemas"]["SurveyWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyRead"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyRead"];
+                };
+            };
+        };
+    };
+    surveys_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyRead"];
+                };
+            };
+        };
+    };
+    surveys_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedSurveyWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedSurveyWriteRequest"];
+                "multipart/form-data": components["schemas"]["PatchedSurveyWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyRead"];
+                };
+            };
+        };
+    };
+    surveys_close_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SurveyActionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SurveyActionRequest"];
+                "multipart/form-data": components["schemas"]["SurveyActionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyRead"];
+                };
+            };
+        };
+    };
+    surveys_export_retrieve: {
+        parameters: {
+            query?: {
+                response_status?: "all" | "answered" | "unanswered";
+                search?: string;
+            };
+            header?: never;
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
+                };
+            };
+        };
+    };
+    surveys_publish_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SurveyActionRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SurveyActionRequest"];
+                "multipart/form-data": components["schemas"]["SurveyActionRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyRead"];
+                };
+            };
+        };
+    };
+    surveys_responses_retrieve: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                response_status?: "all" | "answered" | "unanswered";
+                search?: string;
+            };
+            header?: never;
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyRecipientsPage"];
+                };
+            };
+        };
+    };
+    surveys_statistics_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    surveys_student_choices_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    student_surveys_list: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                /** @description Required for a linked parent; identifies the selected child. */
+                "X-Student-Id"?: number;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyPage"];
+                };
+            };
+        };
+    };
+    surveys_student_retrieve: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Required for a linked parent; identifies the selected child. */
+                "X-Student-Id"?: number;
+            };
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentSurveyDetail"];
+                };
+            };
+        };
+    };
+    surveys_student_response_update: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Required for a linked parent; identifies the selected child. */
+                "X-Student-Id"?: number;
+            };
+            path: {
+                survey_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SurveyResponseWriteRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["SurveyResponseWriteRequest"];
+                "multipart/form-data": components["schemas"]["SurveyResponseWriteRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyResponseRead"];
+                };
+            };
+        };
+    };
+    surveys_students_responses_retrieve: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SurveyHistoryPage"];
+                };
             };
         };
     };

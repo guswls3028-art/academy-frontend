@@ -1,19 +1,21 @@
 /**
  * Required isolated development QA: teacher-app UI score writes -> reload ->
- * student/parent projections. Setup/readback/cleanup APIs are not score writes.
+ * student/parent projections. The clinic scenario seeds an explicit exam absence.
  * The fixed QA operator has admin authority; this does not prove a teacher-only role.
  */
+import { writeFile } from "node:fs/promises";
 import { expect, test } from "../fixtures/strictTest";
 import type { APIRequestContext, Page, Response, TestInfo } from "@playwright/test";
 import type { SessionScoresResponse } from "../../src/shared/api/contracts/sessionScores";
+import { loginViaUI } from "../helpers/auth";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import {
   api, assertNoHorizontalOverflow, assertQaStudentParentRuntime, cleanupQaFamily,
   createQaFamily, expectApi, installQaStudentParentBoundary, loginAdmin,
-  loginThroughUi, QA_ADMIN_PASSWORD, QA_ADMIN_USER, QA_BASE, QA_TENANT,
+  loginThroughUi, QA_ADMIN_PASSWORD, QA_ADMIN_USER, QA_API, QA_BASE, QA_TENANT,
   reloadStudentApp, selectParentStudentThroughUi, STUDENT_PARENT_REALUSE_ENABLED,
-  type QaFamily, type QaStudent,
+  type QaFamily, type QaFamilyCleanupObservation, type QaStudent,
 } from "../helpers/qaStudentParentScenario";
 import { gotoAndSettle, waitForRenderSettled } from "../helpers/wait";
 
@@ -31,15 +33,28 @@ type Enrollment = { id: number; student: { id: number } };
 type Exam = { id: number; title: string };
 type ScoreWrite = { examId: number; enrollmentId: number; score: number; max_score: number };
 type GradeRow = { exam_id: number; enrollment_id: number; total_score: number | null; max_score: number };
+type ClinicTargetRow = {
+  exam_id: number;
+  enrollment_id: number;
+  session_id: number;
+  source_type: string;
+  reason: string;
+  meta_status: string | null;
+  clinic_link_id: number | null;
+  exam_score: number | null;
+};
 
 const owned = {
   family: null as QaFamily | null,
   adminAccess: "",
   lectureId: 0,
   sessionId: 0,
+  clinicSessionId: 0,
+  clinicParticipantId: 0,
   exams: [] as Exam[],
   enrollments: [] as Enrollment[],
   sessionEnrollmentIds: [] as number[],
+  attendanceIds: [] as number[],
   messageTemplateIds: [] as number[],
   scheduledMessageIds: [] as number[],
   previousGradeDefaultId: null as number | null,
@@ -121,6 +136,21 @@ async function seedFixture(request: APIRequestContext): Promise<void> {
 async function cleanupFixture(request: APIRequestContext, testInfo: TestInfo): Promise<void> {
   if (!owned.adminAccess) return;
   const failures: string[] = [];
+  const familyCleanupObservations: QaFamilyCleanupObservation[] = [];
+  if (owned.clinicSessionId) {
+    const path = `/clinic/sessions/${owned.clinicSessionId}/`;
+    try {
+      const removed = await api(request, "DELETE", path, owned.adminAccess);
+      if (![200, 204, 404].includes(removed.status)) failures.push(`DELETE ${path}: ${removed.status}`);
+      const residue = await api(request, "GET", path, owned.adminAccess);
+      if (residue.status !== 404) failures.push(`GET ${path}: expected absent, got ${residue.status}`);
+      if (owned.clinicParticipantId) {
+        const participantPath = `/clinic/participants/${owned.clinicParticipantId}/`;
+        const participantResidue = await api(request, "GET", participantPath, owned.adminAccess);
+        if (participantResidue.status !== 404) failures.push(`GET ${participantPath}: expected absent, got ${participantResidue.status}`);
+      }
+    } catch { failures.push(`${path}: cleanup/readback transport failed`); }
+  }
   for (const id of owned.scheduledMessageIds) {
     const result = await api<{ status: string }>(request, "POST", `/messaging/scheduled/${id}/cancel/`, owned.adminAccess);
     if (result.status !== 200 || result.body.status !== "cancelled") failures.push(`cancel scheduled message ${id}: ${result.status}`);
@@ -153,6 +183,7 @@ async function cleanupFixture(request: APIRequestContext, testInfo: TestInfo): P
     } catch { failures.push(`exam ${exam.id}: cleanup/readback transport failed`); }
   }
   const paths = [
+    ...owned.attendanceIds.map((id) => `/lectures/attendance/${id}/`),
     ...owned.sessionEnrollmentIds.map((id) => `/enrollments/session-enrollments/${id}/`),
     ...owned.enrollments.map((row) => `/enrollments/${row.id}/`),
     ...(owned.sessionId ? [`/lectures/sessions/${owned.sessionId}/`] : []),
@@ -164,7 +195,10 @@ async function cleanupFixture(request: APIRequestContext, testInfo: TestInfo): P
       if (![200, 202, 204, 404].includes(result.status)) failures.push(`DELETE ${path}: ${result.status}`);
     } catch { failures.push(`DELETE ${path}: transport failed`); }
   }
-  try { await cleanupQaFamily(request, owned.adminAccess, owned.family); }
+  try {
+    await cleanupQaFamily(request, owned.adminAccess, owned.family,
+      (event) => familyCleanupObservations.push(event));
+  }
   catch { failures.push("exact synthetic family cleanup failed"); }
   for (const path of paths) {
     try {
@@ -182,9 +216,13 @@ async function cleanupFixture(request: APIRequestContext, testInfo: TestInfo): P
       else if (residue.status !== 404) failures.push(`final exam ${exam.id}: unexpected residue ${residue.status}`);
     } catch { failures.push(`final exam ${exam.id}: residue not verified`); }
   }
+  const cleanupEvidencePath = testInfo.outputPath("teacher-score-fixture-cleanup.json");
+  await writeFile(cleanupEvidencePath, JSON.stringify({
+    archivedExamIds, retainedExamIds, outerTenantCleanupRequired: true,
+    tenantUserZeroProvenByThisSpec: false, failures, familyCleanupObservations,
+  }));
   await testInfo.attach("teacher-score-fixture-cleanup", {
-    body: JSON.stringify({ archivedExamIds, retainedExamIds, outerTenantCleanupRequired: true,
-      tenantUserZeroProvenByThisSpec: false, failures }),
+    path: cleanupEvidencePath,
     contentType: "application/json",
   });
   expect(failures, "fixture cleanup is separate from outer tenant/user/token/activity/R2 cleanup").toEqual([]);
@@ -335,7 +373,107 @@ async function verifyConsumer(page: Page, testInfo: TestInfo, student: QaStudent
   await captureSurface(page, testInfo, `${role}-${width}-${expectedScore}-result-reloaded`);
 }
 
+async function verifyClinicExamScore(page: Page, request: APIRequestContext, testInfo: TestInfo,
+  student: QaStudent, exam: Exam, score: number): Promise<void> {
+  const enrollmentId = enrollmentFor(student);
+  const draftPath = `/results/admin/sessions/${owned.sessionId}/score-draft/`;
+  const commitPath = `${draftPath}commit/`;
+  const scorePath = `/results/admin/exams/${exam.id}/enrollments/${enrollmentId}/score/`;
+  const headers = {
+    Authorization: `Bearer ${owned.adminAccess}`,
+    "X-Tenant-Code": QA_TENANT,
+    "X-Score-Editor-Client": `qa-clinic-absence-${STAMP}`,
+    "X-Score-Session-Id": String(owned.sessionId),
+  };
+  const lease = await request.put(`${QA_API}/api/v1${draftPath}`, {
+    headers, data: { changes: [{ type: "examTotal", examId: exam.id, enrollmentId, score: 0, metaStatus: "NOT_SUBMITTED" }] },
+  });
+  expect(lease.status()).toBe(200);
+  try {
+    const marked = await request.patch(`${QA_API}/api/v1${scorePath}`, {
+      headers, data: { meta_status: "NOT_SUBMITTED" },
+    });
+    expect(marked.status()).toBe(200);
+    expect(await marked.json()).toMatchObject({ exam_id: exam.id, enrollment_id: enrollmentId, meta_status: "NOT_SUBMITTED" });
+  } finally {
+    const released = await request.post(`${QA_API}/api/v1${commitPath}`, {
+      headers, data: { release_lease: true },
+    });
+    expect(released.status()).toBe(204);
+  }
+  const readTarget = async () => {
+    const targets = await expectApi<ClinicTargetRow[]>(request, "GET", "/results/admin/clinic-targets/", owned.adminAccess);
+    return targets.find((target) => target.exam_id === exam.id && target.enrollment_id === enrollmentId
+      && target.session_id === owned.sessionId && target.source_type === "exam");
+  };
+  await expect.poll(readTarget).toMatchObject({ reason: "missing", meta_status: "NOT_SUBMITTED", clinic_link_id: null });
+
+  const date = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" })
+    .format(new Date(Date.now() + 86_400_000));
+  const clinic = await expectApi<{ id: number }>(request, "POST", "/clinic/sessions/", owned.adminAccess, {
+    date, start_time: "14:00", duration_minutes: 60, max_participants: 5,
+    title: `QA 미응시 점수 ${STAMP}`, location: `QA ${STAMP}`,
+    booking_mode: "fixed_slot", booking_interval_minutes: 60, booking_max_stay_minutes: 240,
+    allow_multi_slot_booking: false,
+  }, [201]);
+  owned.clinicSessionId = clinic.id;
+  const booking = await expectApi<{
+    count: number;
+    participants: Array<{ id: number; session: number; student: number; enrollment_id: number; status: string }>;
+  }>(request, "POST", "/clinic/participants/bulk-create/", owned.adminAccess, {
+    session_ids: [clinic.id], enrollment_ids: [enrollmentId],
+  }, [201]);
+  const participant = booking.participants[0];
+  if (participant) owned.clinicParticipantId = participant.id;
+  expect(booking.count).toBe(1);
+  expect(participant).toMatchObject({ session: clinic.id, student: student.id, enrollment_id: enrollmentId, status: "booked" });
+
+  await loginViaUI(page, "admin");
+  await gotoAndSettle(page, `${QA_BASE}/workspace/clinic/operations?date=${date}&session=${clinic.id}`);
+  const card = page.locator(".clinic-ops__card").filter({ hasText: student.name });
+  const item = card.getByRole("button", { name: new RegExp(exam.title) });
+  const workbench = page.getByRole("dialog", { name: `${student.name} 클리닉 워크벤치`, exact: true });
+  await expect(item).toContainText("시험 미응시");
+  await item.click();
+  const input = workbench.getByRole("spinbutton", { name: "시험 점수", exact: true });
+  await expect(input).toHaveValue("");
+  await input.fill(String(score));
+  const [draft, patched, released] = await Promise.all([
+    apiResponse(page, draftPath, "PUT"), apiResponse(page, scorePath, "PATCH"), apiResponse(page, commitPath, "POST"),
+    workbench.getByRole("button", { name: "점수 저장", exact: true }).click(),
+    expect(page.getByText("시험 점수를 저장했습니다.", { exact: true })).toBeVisible(),
+  ]);
+  await checkResponseScope(draft, 200);
+  await checkResponseScope(patched, 200);
+  await checkResponseScope(released, 204);
+  expect(patched.request().postDataJSON()).toMatchObject({ score, max_score: 100 });
+  expect(await patched.request().headerValue("x-score-session-id")).toBe(String(owned.sessionId));
+  expect(await patched.json()).toMatchObject({
+    saved: true, exam_id: exam.id, enrollment_id: enrollmentId, total_score: score, progress: { dispatched: true },
+  });
+  const readback = await readTarget();
+  expect(readback).toMatchObject({ reason: "score", meta_status: null, exam_score: score });
+  expect(readback?.clinic_link_id).toBeGreaterThan(0);
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(item).toContainText(`시험 ${score}/50점`);
+    await item.click();
+    await expect(workbench).toContainText(`${score}점`);
+    await expect(workbench.getByText("시험 미응시", { exact: true })).toHaveCount(0);
+    await captureSurface(page, testInfo, `clinic-exam-score-${width}-reloaded`);
+  }
+}
+
 async function verifyEditableScoreMessage(page: Page, request: APIRequestContext, testInfo: TestInfo, student: QaStudent, exam: Exam) {
+  // The score composer requires recorded attendance for the selected recipient.
+  const attendance = await expectApi<Array<{ id: number }>>(request, "POST", "/lectures/attendance/bulk_create/",
+    owned.adminAccess, { session: owned.sessionId, students: [student.id] }, [201]);
+  expect(attendance).toHaveLength(1);
+  const attendanceId = attendance[0].id;
+  owned.attendanceIds.push(attendanceId);
+  await expectApi(request, "PATCH", `/lectures/attendance/${attendanceId}/`, owned.adminAccess, { status: "PRESENT" });
+
   const templates = await expectApi<Array<{ id: number; is_user_default: boolean }>>(
     request, "GET", "/messaging/templates/?category=grades", owned.adminAccess);
   owned.previousGradeDefaultId = templates.find(template => template.is_user_default)?.id ?? null;
@@ -410,11 +548,12 @@ async function verifyEditableScoreMessage(page: Page, request: APIRequestContext
       const scheduled = await scheduledResponse;
       await checkResponseScope(scheduled, 200);
       expect(await scheduled.json()).toMatchObject({ scheduled: 1, enqueued: 0 });
-      const pending = await expectApi<{ count: number; results: Array<{ id: number; target_id: string; trigger: string }> }>(
+      const pending = await expectApi<{ count: number; results: Array<{ id: number; target_id: string; trigger: string; recipient_summary: string }> }>(
         request, "GET", "/messaging/scheduled/?status=pending&page_size=100", owned.adminAccess);
       const mine = pending.results.filter(item => String(item.target_id) === String(student.id) && item.trigger === "manual_send");
       owned.scheduledMessageIds.push(...mine.map(item => item.id));
       expect(mine).toHaveLength(1);
+      expect(mine[0].recipient_summary).toContain(student.parent_phone);
       await gotoAndSettle(page, `${QA_BASE}/workspace/message/log`);
       const scheduledPanel = page.getByRole("region", { name: "예약 발송", exact: true });
       await expect(scheduledPanel.getByRole("button", { name: "예약 새로고침", exact: true })).toBeEnabled();
@@ -425,6 +564,7 @@ async function verifyEditableScoreMessage(page: Page, request: APIRequestContext
         await checkResponseScope(await nextPage, 200);
       }
       await expect(row).toContainText(student.name);
+      await expect(row).toContainText(student.parent_phone);
       await row.getByRole("button", { name: "예약 취소", exact: true }).click();
       const cancelDialog = page.getByRole("alertdialog", { name: "예약 발송 취소", exact: true });
       await expect(cancelDialog).toContainText(student.name);
@@ -501,6 +641,16 @@ test.describe.serial("[real-use] teacher-app UI score save and student/parent pr
     await mainButton(page, "종합 조회").click();
     await verifyTeacherOverview(page, request, testInfo);
 
+    const clinicScore = 42;
+    const clinicContext = await browser.newContext({ viewport: { width: 1366, height: 844 } });
+    try {
+      const clinicPage = await clinicContext.newPage();
+      const clinicBoundary = await installQaStudentParentBoundary(clinicPage, request);
+      const clinicGuards = attachStrictBrowserGuards(clinicPage);
+      await verifyClinicExamScore(clinicPage, request, testInfo, peer, examA, clinicScore);
+      clinicBoundary.assertClean(); clinicGuards.assertZeroDefects();
+    } finally { await clinicContext.close(); }
+
     const studentContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
     try {
       const studentPage = await studentContext.newPage();
@@ -523,6 +673,8 @@ test.describe.serial("[real-use] teacher-app UI score save and student/parent pr
         await selectParentStudentThroughUi(parentPage, student);
         await verifyConsumer(parentPage, testInfo, student, examB, score, "parent", width);
       }
+      await selectParentStudentThroughUi(parentPage, peer);
+      await verifyConsumer(parentPage, testInfo, peer, examA, clinicScore, "parent", 390);
       parentBoundary.assertClean(); parentGuards.assertZeroDefects();
     } finally { await parentContext.close(); }
     await verifyEditableScoreMessage(page, request, testInfo, primary, examB);
@@ -534,7 +686,9 @@ test.describe.serial("[real-use] teacher-app UI score save and student/parent pr
     await testInfo.attach("teacher-score-realuse-evidence", {
       body: JSON.stringify({ operatorAuthority: "qa-admin-in-teacher-app",
         viewports: [390, 768, 1366], uiScoreWrites: writes, consumerScores: { student: [0, 91], parent: [0, 91, 37, 91] },
-        setupScoreWrites: 0, notes: "Login and student activity POSTs are real writes, not read-only observations." }),
+        setupScoreWrites: 0, clinicOperations: { role: "qa-admin", setupAbsenceWrites: 1, uiScore: clinicScore,
+          persistedParentScore: clinicScore, viewports: [1366, 390] },
+        notes: "Login and student activity POSTs are real writes, not read-only observations." }),
       contentType: "application/json",
     });
     boundary.assertClean(); guards.assertZeroDefects();

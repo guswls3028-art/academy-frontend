@@ -7,10 +7,11 @@
 .ds-input {
   appearance: none;
   width: 100%;
-  height: 36px;
-  padding: 0 12px;
+  height: var(--control-group-height, var(--field-height, var(--control-md)));
+  min-height: var(--control-group-height, var(--field-height, var(--control-md)));
+  padding: 0 var(--space-3);
 
-  font-size: 13px;
+  font-size: var(--ds-field-font);
   font-weight: 500;
   color: var(--color-text-primary);
 
@@ -128,19 +129,27 @@
 }
 
 .ds-textarea {
-  min-height: 88px;
+  min-height: calc(var(--control-lg) * 2);
+  line-height: 1.5;
   padding: var(--space-3);
   resize: vertical;
   width: 100%;
-  font-size: 13px;
+  font-size: var(--ds-field-font);
   font-weight: 500;
   color: var(--color-text-primary);
 }
 
 .ds-select {
-  height: 36px;
-  padding: 0 12px;
-  font-size: 13px;
+  height: var(--control-group-height, var(--field-height, var(--control-md)));
+  min-height: var(--control-group-height, var(--field-height, var(--control-md)));
+  padding: 0 var(--space-3);
+  font-size: var(--ds-field-font);
   font-weight: 500;
   color: var(--color-text-primary);
 }
+
+/* A field beside an action consumes the same context scale. */
+
+.ds-input[data-size="sm"], .ds-select[data-size="sm"] { --field-height: var(--control-sm); }
+.ds-input[data-size="lg"], .ds-select[data-size="lg"] { --field-height: var(--control-lg); }
+.ds-input[data-size="xl"], .ds-select[data-size="xl"] { --field-height: var(--control-xl); }

@@ -24,7 +24,8 @@ export function studentScoreTrendMetricValue(
   metric: StudentScoreTrendMetric,
 ): number | null {
   if (metric === "score_pct") return Number.isFinite(point.score_pct) ? point.score_pct : null;
-  if (point.cohort_size == null || point.cohort_size <= 1) return null;
+  // The server independently projects rank, percentile and cohort visibility.
+  if (point.cohort_size != null && point.cohort_size <= 1) return null;
   const value = metric === "rank" ? point.rank : point.percentile;
   return value != null && Number.isFinite(value) ? value : null;
 }

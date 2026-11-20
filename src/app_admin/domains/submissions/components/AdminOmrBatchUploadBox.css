@@ -1,4 +1,5 @@
 .admin-omr-upload {
+  container: omr-upload / inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -18,7 +19,7 @@
 }
 
 .admin-omr-upload__zone .excel-upload-zone {
-  min-height: 132px;
+  min-height: 112px;
 }
 
 .admin-omr-upload__notice {
@@ -40,6 +41,24 @@
   gap: var(--space-2);
 }
 
+.admin-omr-upload__count,
+.admin-omr-upload__receipt p {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.admin-omr-upload__receipt {
+  min-inline-size: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-subtle);
+}
+
+.admin-omr-upload__receipt p {
+  margin: var(--space-2) 0 0;
+}
+
 .admin-omr-upload__summary {
   display: inline-flex;
   align-items: center;
@@ -51,18 +70,16 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  max-height: 320px;
-  overflow-y: auto;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .admin-omr-upload__file {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-2);
   min-height: 54px;
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border-divider);
@@ -80,10 +97,6 @@
 .admin-omr-upload__file-icon {
   color: var(--color-text-muted);
   flex-shrink: 0;
-}
-
-.admin-omr-upload__file-icon--done {
-  color: var(--color-success);
 }
 
 .admin-omr-upload__preview {
@@ -141,9 +154,7 @@
 }
 
 .admin-omr-upload__file-size,
-.admin-omr-upload__file-rotation,
-.admin-omr-upload__file-message,
-.admin-omr-upload__footnote {
+.admin-omr-upload__file-rotation {
   color: var(--color-text-muted);
   font-size: 12px;
 }
@@ -154,49 +165,35 @@
   font-weight: 700;
 }
 
-.admin-omr-upload__file-state {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-2);
-  flex-shrink: 0;
-}
-
-.admin-omr-upload__file-controls {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.admin-omr-upload__file-message {
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.admin-omr-upload__file-status {
   white-space: nowrap;
 }
 
-.admin-omr-upload__footnote {
-  line-height: 1.4;
+.admin-omr-upload__file-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
 }
 
-@media (max-width: 640px) {
-  .admin-omr-upload__actions,
-  .admin-omr-upload__file,
-  .admin-omr-upload__file-state {
-    align-items: stretch;
-    flex-direction: column;
+.admin-omr-upload__file-controls button[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@container omr-upload (max-width: 560px) {
+  .admin-omr-upload__file {
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .admin-omr-upload__file-controls {
-    flex-wrap: wrap;
+    grid-column: 1 / -1;
   }
+}
 
-  .admin-omr-upload__file-state {
-    align-items: flex-start;
-    gap: var(--space-1);
-  }
-
-  .admin-omr-upload__file-list {
-    max-height: min(320px, 42vh);
+@media (pointer: coarse) {
+  .admin-omr-upload__file-controls .ds-button {
+    min-inline-size: 44px;
+    min-block-size: 44px;
   }
 }

@@ -67,7 +67,8 @@ async function exercise(options = {}) {
   fetch: async (settings) => { fetched.push(settings); if (options.fetchError) throw new Error("private signed URL");
     return { status: () => options.status ?? 200,
       headers: () => ({ "content-type": options.contentType ?? "image/png", "set-cookie": "private",
-        ...(options.disposition ? { "content-disposition": options.disposition } : {}) }),
+        ...(options.disposition ? { "content-disposition": options.disposition } : {}),
+        ...(options.storageCors ? { "access-control-allow-origin": options.storageCors } : {}) }),
       body: async () => options.body ?? png }; }, fulfill: async (response) => fulfilled.push(response) });
   return { guard, fetched, fulfilled, aborted };
 }
@@ -119,6 +120,50 @@ test("QnA image requires exact authenticated post response and preserves R2 PNG 
   assert.throws(() => assertReleaseRequestSafe(boundary, url, "GET"), /escaped/);
 });
 
+
+test("QnA reply photos require authenticated reply data and the exact scoped image", async () => {
+  const replyUrl = url.replace("/uploads/", "/reply-uploads/").replace("qa-problem.png?", "photo.png?");
+  const photo = { id: 22, size_bytes: png.length, content_type: "image/png", download_url: replyUrl };
+  const reply = { id: 21, post: 123, question: 123, author_role: "staff", attachments: [photo] };
+  const options = { registerUrl: replyUrl, apiPath: "/api/v1/community/posts/123/replies/", payload: [reply] };
+
+  const result = await exercise(options);
+  result.guard.assertClean();
+  assert.deepEqual(result.fulfilled, [{ status: 200, headers: { "content-type": "image/png" }, body: png }]);
+  rejected(await exercise({ ...options, apiPath: "/api/v1/community/posts/123/replies/?unexpected=1" }));
+  rejected(await exercise({ ...options, apiHeaders: { authorization: undefined } }));
+  rejected(await exercise({ ...options, payload: [{ ...reply, post: 124 }] }));
+  rejected(await exercise({ ...options, payload: [{ ...reply, author_role: "student" }] }));
+  rejected(await exercise({ ...options, payload: [{ ...reply, attachments: [{ ...photo, size_bytes: png.length + 1 }] }] }), 1);
+  rejected(await exercise({ ...options, apiPath: "/api/v1/community/posts/124/replies/" }));
+  rejected(await exercise({ ...options, apiPath: "/api/v1/community/posts/123/", payload: { id: 123, post_type: "qna", attachments: [photo] } }));
+});
+
+test("QnA HEIC decoding reads exact scoped bytes with real storage CORS and no app credentials", async () => {
+  const body = readFileSync(new URL("../../e2e/fixtures/files/homework.heic", import.meta.url));
+  const heicUrl = new URL(url.replace("qa-problem.png?", "qa-problem.heic?"));
+  heicUrl.searchParams.set("response-content-type", "image/heic");
+  const attachment = { id: 456, original_name: "qa-problem.heic", content_type: "image/heic",
+    size_bytes: body.length, download_url: heicUrl.href };
+  const options = { resourceType: "xhr", registerUrl: heicUrl.href, contentType: "image/heic",
+    attachments: [attachment], body, storageCors: boundary.webOrigin };
+  const result = await exercise(options);
+  result.guard.assertClean();
+  assert.deepEqual(result.fetched, [{ url: heicUrl.href, method: "GET",
+    headers: { accept: "image/heic", origin: boundary.webOrigin }, maxRedirects: 0 }]);
+  assert.deepEqual(result.fulfilled, [{ status: 200, headers: { "content-type": "image/heic",
+    "access-control-allow-origin": boundary.webOrigin }, body }]);
+  for (const invalid of [
+    { register: false }, { resourceType: "fetch" }, { method: "POST" }, { headers: { authorization: "Bearer qa-token" } },
+    { attachments: [{ ...attachment, size_bytes: 5 * 1024 * 1024 + 1 }] },
+    { url: heicUrl.href.replace("/tenants/352/", "/tenants/353/") },
+  ]) rejected(await exercise({ ...options, ...invalid }));
+  for (const invalid of [
+    { body: Buffer.alloc(body.length) }, { body: body.subarray(0, body.length - 1) },
+    { storageCors: undefined }, { storageCors: "https://foreign.invalid" }, { status: 302 },
+  ]) rejected(await exercise({ ...options, ...invalid }), 1);
+});
+
 test("student QnA list binds attachment ID to an exact authorized download URL", async () => {
   const result = await exercise({ list: true, download: true });
   result.guard.assertClean();
@@ -142,6 +187,39 @@ test("notice detail binds saved photos and refreshed student download URLs", asy
     assert.equal(result.aborted, 0);
     assert.deepEqual(result.fetched, [{ url: download ? downloadUrl : url, method: "GET", headers: { accept: "image/png" }, maxRedirects: 0 }]);
     assert.deepEqual(result.fulfilled, [{ status: 200, headers: { "content-type": "image/png" }, body: png }]);
+  }
+});
+
+test("teacher notice list binds each preview to exact authenticated metadata and object bytes", async () => {
+  const apiPath = "/api/v1/community/posts/?post_type=notice&page_size=50&ordering=-created_at";
+  const attachment = { id: 456, original_name: "qa-problem.png", content_type: "image/png",
+    size_bytes: png.length, download_url: url };
+  const options = { apiPath, list: true, postType: "notice", attachments: [attachment] };
+  const result = await exercise({ ...options, payload: { results: [{ id: 123, post_type: "notice", attachments: [attachment] }] } });
+  result.guard.assertClean();
+  assert.deepEqual(result.fetched, [{ url, method: "GET", headers: { accept: "image/png" }, maxRedirects: 0 }]);
+  assert.deepEqual(result.fulfilled, [{ status: 200, headers: { "content-type": "image/png" }, body: png }]);
+
+  for (const invalid of [
+    { apiPath: apiPath.replace("&ordering=-created_at", "") }, { apiPath: apiPath.replace("=-created_at", "=created_at") },
+    { apiPath: apiPath.replace("page_size=50", "page_size=51") }, { apiPath: apiPath.replace("post_type=notice", "post_type=board") },
+    { apiPath: apiPath + "&post_type=notice" }, { apiPath: apiPath + "&q=photo" },
+    { register: false }, { apiStatus: 403 }, { apiHeaders: { authorization: "" } },
+    { apiHeaders: { "x-tenant-code": "qa-ymath-realuse-other" } },
+    { postType: "qna" }, { postId: 124 }, { attachments: [{ ...attachment, id: 0 }] },
+    { payload: { results: Array.from({ length: 51 }, () => ({ id: 123, post_type: "notice", attachments: [attachment] })) } },
+    ...[undefined, 0, -1, 1.5, 5 * 1024 * 1024 + 1].map((size_bytes) => ({ attachments: [{ ...attachment, size_bytes }] })),
+    ...[
+      url.replace("tenants/352/", "tenants/353/"), url.replace("posts/123/", "posts/124/"),
+      url.replace("academy-development-artifacts", "academy-production-artifacts"),
+      url.replace("Expires=3600", "Expires=3601"), url + "&extra=1",
+    ].map((download_url) => ({ attachments: [{ ...attachment, download_url }], url: download_url })),
+    { headers: { authorization: "Bearer qa-token" } }, { headers: { cookie: "private" } },
+    { url: url.replace("a".repeat(64), "d".repeat(64)) }, { method: "HEAD" }, { resourceType: "fetch" },
+  ]) rejected(await exercise({ ...options, ...invalid }));
+  for (const invalid of [{ status: 302 }, { status: 403 }, { contentType: "image/jpeg" },
+    { body: Buffer.alloc(png.length) }, { body: Buffer.concat([png, Buffer.from([0])]) }]) {
+    rejected(await exercise({ ...options, ...invalid }), 1);
   }
 });
 

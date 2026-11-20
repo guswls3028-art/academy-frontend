@@ -6,26 +6,26 @@
 import { postEvents, postHeartbeat, postRefresh } from "./playbackTransport";
 import { prepareReviewPlayback, REVIEW_EXHAUSTED } from "../../../api/reviewWatch.api";
 import type Hls from "hls.js";
-import type { ErrorData, LevelSwitchedData, Level } from "hls.js";
 import { clamp, getEpochSec } from "../design/utils";
 import { resolveStudentVideoPlayUrl } from "../playbackUrl";
 import { PlaybackSessionEnd } from "./playbackSessionEnd";
+import { PlaybackStallWatch, readStallPlayhead } from "./playbackStallWatch";
+import { NativePlaybackRecovery } from "./nativePlaybackRecovery";
+import { createStudentHls } from "./studentHlsEngine";
+import { capturePlaybackSource, progressFromPlayhead, restorePlaybackSource, type PlaybackSourceSnapshot } from "./playbackMediaSettings";
 import { normalizeControllerPolicy as normalizePolicy } from "./controllerTypes";
-import type { ControllerOptions, ControllerState, EventType, Policy, QualityLevel } from "./controllerTypes";
+import type { ControllerOptions, ControllerState, EventType, Policy } from "./controllerTypes";
 export type { ControllerOptions, ControllerState, EventType, Policy, QualityLevel } from "./controllerTypes";
 import { acquirePlaybackEventBatches, type PlaybackEventBatches } from "./playbackEventBatches";
 
 const ignoreBestEffortError = () => undefined;
-
-
-
-
 
 type Listener = (state: ControllerState) => void;
 
 export class StudentHlsController {
   private el: HTMLVideoElement | null = null;
   private hls: Hls | null = null;
+  private nativeEngineRecovery: "idle" | "loading" | "recovering" | "used" = "idle";
   private playGeneration = 0;
   private pendingPreparation: Promise<number> = Promise.resolve(0);
   private nativeGestureUntil = 0;
@@ -51,12 +51,16 @@ export class StudentHlsController {
 
   // HLS fatal 자동 재시도 — exponential backoff
   private reconnectAttempts = 0;
+  private stallWatch: PlaybackStallWatch | null = null;
+  private nativeRecovery = new NativePlaybackRecovery();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly MAX_RECONNECT_ATTEMPTS = 4;
 
   private maxWatchedRef = 0;
   private lastTimeRef = 0;
-  private seekGuardRef = { blocking: false, lastWarnAt: 0, initialSeekActive: false };
+  private hasProgressActivity = false;
+  private automaticSeekTarget: number | null = null;
+  private lastSeekWarningAt = 0;
   private eventQueue: Array<{ type: EventType; occurred_at: number; payload?: Record<string, unknown> }> = [];
   private intervals: ReturnType<typeof setInterval>[] = [];
   private timeouts: ReturnType<typeof setTimeout>[] = [];
@@ -66,14 +70,7 @@ export class StudentHlsController {
   private playbackEnd: PlaybackSessionEnd;
   private readonly eventBatches?: PlaybackEventBatches;
   private initialPositionApplied = false;
-  private pendingSourceResume: {
-    position: number;
-    wasPlaying: boolean;
-    rate: number;
-    volume: number;
-    muted: boolean;
-    quality: number;
-  } | null = null;
+  private pendingSourceResume: PlaybackSourceSnapshot | null = null;
 
   constructor(opts: ControllerOptions) {
     this.opts = opts;
@@ -133,6 +130,7 @@ export class StudentHlsController {
   play() {
     if (this.disposed || !this.el) return;
     if (this.opts.reviewStream) {
+      if (this.pendingSourceResume) this.pendingSourceResume.wasPlaying = true;
       const generation = ++this.playGeneration;
       if (performance.now() < this.nativeGestureUntil) this.playPreparedMedia(generation);
       else void this.startReviewPlayback(generation, this.opts.reviewStream);
@@ -157,7 +155,7 @@ export class StudentHlsController {
 
   private async startReviewPlayback(generation: number, stream: string, seekTo?: number) {
     try {
-      const position = seekTo ?? (this.el?.readyState ? this.el.currentTime : this.opts.initialPosition || 0);
+      const position = seekTo ?? this.pendingSourceResume?.position ?? (this.el?.readyState ? this.el.currentTime : this.opts.initialPosition || 0);
       // Serialize admission: a slow earlier drag must never replace the grant for the final playhead.
       this.pendingPreparation = this.pendingPreparation.catch(() => 0).then(() =>
         this.disposed || generation !== this.playGeneration ? 0 :
@@ -174,10 +172,17 @@ export class StudentHlsController {
       if (!this.hls && this.el && !this.el.getAttribute("src")) {
         const url = resolveStudentVideoPlayUrl(this.opts.playUrl || "");
         if (!url) throw new Error("Invalid review playback URL");
-        this.el.src = url;
+        this.nativeRecovery.setSource(this.el, url);
       }
-      if (seekTo !== undefined && this.el) {
+      if (this.pendingSourceResume) {
+        this.pendingSourceResume.position = position;
+        if (seekTo !== undefined) this.hasProgressActivity = true;
+        this.hls?.startLoad(position);
+        if (this.pendingSourceResume.wasPlaying) this.playPreparedMedia(generation);
+      } else if (seekTo !== undefined && this.el) {
+        this.stallWatch?.resetSample();
         this.el.currentTime = position;
+        this.hasProgressActivity = true;
         if (!this.el.paused) this.hls?.startLoad(position);
       } else {
         this.hls?.startLoad(position);
@@ -195,6 +200,11 @@ export class StudentHlsController {
     if (this.disposed || !this.el) return;
     this.playGeneration++;
     this.nativeGestureUntil = 0;
+    if (this.pendingSourceResume) this.pendingSourceResume.wasPlaying = false;
+    if (this.stallWatch?.retrying || this.pendingSourceResume) {
+      this.setState({ playing: false, buffering: false, reconnecting: false });
+    }
+    this.stallWatch?.stop();
     if (this.opts.reviewStream) this.hls?.stopLoad();
     try {
       this.el.pause();
@@ -205,14 +215,16 @@ export class StudentHlsController {
 
   seek(t: number) {
     if (this.disposed || !this.el) return;
-    const d = Number(this.el.duration) || 0;
+    const d = Number(this.el.duration) || this.state.duration || 0;
     const safe = clamp(t, 0, Math.max(0, d));
+    if (this.pendingSourceResume) this.pendingSourceResume.position = safe;
     if (this.opts.reviewStream) {
       this.nativeGestureUntil = 0;
       void this.startReviewPlayback(++this.playGeneration, this.opts.reviewStream, safe);
       return;
     }
     try {
+      this.stallWatch?.resetSample();
       this.el.currentTime = safe;
     } catch {
       ignoreBestEffortError();
@@ -223,16 +235,17 @@ export class StudentHlsController {
     if (this.disposed || !this.el) return;
     const duration = Number(this.el.duration) || 0;
     const target = clamp(t, 0, Math.max(0, duration));
-    this.seekGuardRef.initialSeekActive = true;
     this.maxWatchedRef = Math.max(this.maxWatchedRef, target);
     this.lastTimeRef = target;
     try {
+      this.stallWatch?.resetSample();
+      this.automaticSeekTarget = target;
       this.el.currentTime = target;
+      this.hasProgressActivity = true;
       this.setState({ current: target });
     } catch {
       ignoreBestEffortError();
     }
-    setTimeout(() => { this.seekGuardRef.initialSeekActive = false; }, 200);
   }
 
   setRate(r: number) {
@@ -326,6 +339,10 @@ export class StudentHlsController {
   }
   setSource(playUrl: string) {
     if (this.disposed || !playUrl || playUrl === this.opts.playUrl) return;
+    this.reloadSource(playUrl);
+  }
+
+  private reloadSource(playUrl: string) {
     const url = resolveStudentVideoPlayUrl(playUrl);
     if (!url) {
       this.opts.onFatal?.("잘못된 재생 URL 형식입니다.");
@@ -335,21 +352,21 @@ export class StudentHlsController {
     const el = this.el;
     if (!el) return;
 
-    this.pendingSourceResume = {
-      position: Number(el.currentTime || this.state.current || 0),
-      wasPlaying: !el.paused,
-      rate: Number(el.playbackRate || this.state.rate || 1),
-      volume: Number(el.volume ?? this.state.volume),
-      muted: Boolean(el.muted),
-      quality: this.state.currentQuality,
-    };
+    this.pendingSourceResume ??= capturePlaybackSource(el, this.state);
+    if (!this.state.ready && this.pendingSourceResume.position === 0) {
+      this.pendingSourceResume.position = Number(this.opts.initialPosition || 0);
+    }
     this.setState({ buffering: true });
     try {
       if (this.hls) {
         this.hls.loadSource(url);
-        this.hls.startLoad?.(this.pendingSourceResume.position);
+        if (this.opts.reviewStream) {
+          if (this.pendingSourceResume.wasPlaying) {
+            void this.startReviewPlayback(++this.playGeneration, this.opts.reviewStream);
+          }
+        } else this.hls.startLoad(this.pendingSourceResume.position);
       } else {
-        el.src = url;
+        this.nativeRecovery.setSource(el, url);
         el.load();
       }
       this.opts.playUrl = playUrl;
@@ -365,16 +382,22 @@ export class StudentHlsController {
     const el = this.el;
     if (!pending || !el || this.disposed) return;
     this.pendingSourceResume = null;
-    this.seekGuardRef.initialSeekActive = true;
     this.maxWatchedRef = Math.max(this.maxWatchedRef, pending.position);
     this.lastTimeRef = pending.position;
     try {
-      el.currentTime = pending.position;
-      el.playbackRate = pending.rate;
-      el.volume = pending.volume;
-      el.muted = pending.muted;
-      if (pending.quality >= 0 && this.hls) this.hls.currentLevel = pending.quality;
-      if (pending.wasPlaying) el.play()?.catch(ignoreBestEffortError);
+      this.automaticSeekTarget = pending.position;
+      restorePlaybackSource(el, pending, this.hls);
+      if (pending.wasPlaying) {
+        el.play()?.catch(() => {
+          if (this.disposed || this.pendingSourceResume || !el.paused
+            || (!this.stallWatch?.retrying && !this.nativeRecovery.active && this.nativeEngineRecovery !== "recovering")) return;
+          this.stallWatch?.stop();
+          this.nativeRecovery.clear();
+          if (this.nativeEngineRecovery === "recovering") this.nativeEngineRecovery = "used";
+          this.setState({ playing: false, buffering: false, reconnecting: false });
+          this.showToast("재생을 눌러 보던 위치부터 이어보세요.", "info");
+        });
+      }
     } catch {
       ignoreBestEffortError();
     }
@@ -385,10 +408,7 @@ export class StudentHlsController {
       muted: pending.muted,
       buffering: false,
     });
-    const releaseGuard = setTimeout(() => {
-      this.seekGuardRef.initialSeekActive = false;
-    }, 200);
-    this.timeouts.push(releaseGuard);
+    this.stallWatch?.resetSample();
   }
 
   /** 화질 선택. -1 = Auto(ABR). 다른 값은 hls.levels[index]. */
@@ -405,25 +425,31 @@ export class StudentHlsController {
     }
   }
 
-  private publishQualities() {
-    if (this.disposed || !this.hls) return;
-    const levels: Level[] = Array.isArray(this.hls.levels) ? this.hls.levels : [];
-    // 단일 해상도(level 1개 이하) 영상은 화질 선택이 의미 없음 → 빈 배열로 두어 UI 비활성화.
-    if (levels.length < 2) {
-      this.setState({ qualities: [] });
+  private recoverStall(exhausted: boolean) {
+    const terminal = exhausted || Boolean(this.opts.reviewStream) || this.nativeEngineRecovery === "recovering";
+    const alternate = terminal && !this.hls && this.nativeEngineRecovery === "idle";
+    this.queueEvent("PLAYER_ERROR", { details: "playhead_stall", fatal: terminal && !alternate });
+    if (alternate) {
+      void this.recoverNativePlayback().then((recovered) => {
+        if (!recovered && !this.disposed) {
+          this.dispose();
+          this.opts.onFatal?.("영상 재생이 멈췄어요. 다시 시도해 보던 위치에서 이어보세요.");
+        }
+      });
       return;
     }
-    const qs: QualityLevel[] = [{ index: -1, label: "Auto", height: 0, bitrate: 0 }];
-    levels.forEach((lv, i) => {
-      const h = Number(lv?.height || 0);
-      const br = Number(lv?.bitrate || 0);
-      const label = h > 0 ? `${h}p` : br > 0 ? `${Math.round(br / 1000)}k` : `Level ${i + 1}`;
-      qs.push({ index: i, label, height: h, bitrate: br });
-    });
-    // 화질 내림차순 (Auto는 맨 위 유지)
-    const auto = qs[0];
-    const rest = qs.slice(1).sort((a, b) => b.height - a.height || b.bitrate - a.bitrate);
-    this.setState({ qualities: [auto, ...rest] });
+    if (terminal) {
+      const message = "영상 재생이 멈췄어요. 다시 시도해 보던 위치에서 이어보세요.";
+      if (this.hls) this.pause();
+      else this.dispose();
+      this.opts.onFatal?.(message);
+      return;
+    }
+    // Do not compete with an already scheduled Hls.js fatal retry.
+    if (this.reconnectTimer !== null) clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+    this.setState({ buffering: true, reconnecting: true, toast: null });
+    this.reloadSource(this.opts.playUrl);
   }
 
   private scheduleReconnect(kind: "network" | "media") {
@@ -536,6 +562,7 @@ export class StudentHlsController {
     this.playbackEnd.listen();
     const onVis = () => {
       if (this.disposed) return;
+      this.stallWatch?.resetSample();
       if (document.hidden) {
         this.flushProgress();
         this.queueEvent("VISIBILITY_HIDDEN", { hidden: true });
@@ -570,26 +597,19 @@ export class StudentHlsController {
     this.videoListeners = [];
   }
 
-  /**
-   * force: true → dispose 시에도 실행 (disposed 가드 무시)
-   */
   private flushProgress(force = false) {
-    if ((!force && this.disposed) || !this.el || !this.opts.onLeaveProgress) return;
-    const currentTime = Number(this.el.currentTime || 0);
-    const maxWatched = Math.max(0, this.maxWatchedRef);
-    const dur = Number(this.el.duration);
-    // Do not overwrite server progress with a synthetic 0% before metadata is ready.
-    if (!(dur > 0 && Number.isFinite(dur))) return;
-    const baselineProgress = Math.min(100, Math.max(0, Number(this.opts.initialProgress) || 0));
-    const progressPercent = Math.max(baselineProgress, Math.min(100, (maxWatched / dur) * 100));
-    const completed = baselineProgress >= 100 || maxWatched >= dur - 0.5;
-    this.opts.onLeaveProgress({ progress: progressPercent, last_position: Math.round(currentTime), completed });
+    if ((!force && this.disposed) || !this.hasProgressActivity || !this.el || !this.opts.onLeaveProgress) return;
+    const pending = this.pendingSourceResume;
+    const currentTime = pending?.position ?? (this.el.error ? this.lastTimeRef : Number(this.el.currentTime || 0));
+    const duration = pending || this.el.error ? this.state.duration : Number(this.el.duration);
+    const progress = progressFromPlayhead(currentTime, duration, this.maxWatchedRef, this.opts.initialProgress);
+    if (progress) this.opts.onLeaveProgress(progress);
   }
 
   private lastSavedPosition = -1;
   private flushProgressIfChanged() {
-    if (this.disposed || !this.el) return;
-    const cur = Math.round(Number(this.el.currentTime || 0));
+    if (this.disposed || !this.hasProgressActivity || !this.el) return;
+    const cur = Math.round(this.pendingSourceResume?.position ?? Number(this.el.currentTime || 0));
     if (Math.abs(cur - this.lastSavedPosition) < 5) return; // 5초 미만 변화 무시
     this.lastSavedPosition = cur;
     this.flushProgress();
@@ -616,142 +636,86 @@ export class StudentHlsController {
       return;
     }
 
-    const canNative =
-      el.canPlayType("application/vnd.apple.mpegurl") || el.canPlayType("application/x-mpegURL");
-
-    if (canNative) {
-      if (this.opts.reviewStream) this.setState({ ready: true });
-      else el.src = url;
-      this.bindVideoEvents();
-      this.startIntervals();
-      this.startDocListeners();
-      return;
-    }
-
-    try {
-      const mod = await import("hls.js");
-      if (this.disposed || this.el !== el) return;
-      const Hls = mod.default;
-
-      if (Hls && Hls.isSupported()) {
-        const hls = new Hls({
-          lowLatencyMode: false,
-          autoStartLoad: !this.opts.reviewStream,
-          backBufferLength: 30,
-          maxBufferLength: 60,
-          maxMaxBufferLength: 120,
-          startLevel: -1,
-          abrEwmaDefaultEstimate: 20_000_000,
-          abrEwmaDefaultEstimateMax: 50_000_000,
-        });
-        this.hls = hls;
-
-        // Manifest 파싱 시 화질 목록 수집 → ControllerState에 노출
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          if (this.disposed) return;
-          if (this.opts.reviewStream) this.setState({ ready: true });
-          this.publishQualities();
-        });
-        // 프래그먼트 1개 정상 버퍼링 시 재시도 카운터 리셋
-        hls.on(Hls.Events.FRAG_BUFFERED, () => {
-          if (this.disposed) return;
-          if (this.reconnectAttempts > 0) {
-            this.reconnectAttempts = 0;
-          }
-        });
-        hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data: LevelSwitchedData) => {
-          if (this.disposed) return;
-          // ABR(Auto) 상태에서는 currentQuality는 -1로 유지
-          if ((this.hls?.autoLevelEnabled ?? true) === true) {
-            if (this.state.currentQuality !== -1) this.setState({ currentQuality: -1 });
-          } else if (typeof data?.level === "number" && data.level !== this.state.currentQuality) {
-            this.setState({ currentQuality: data.level });
-          }
-        });
-
-        hls.on(Hls.Events.ERROR, (_event, data: ErrorData) => {
-          if (this.disposed) return;
-          try {
-            this.queueEvent("PLAYER_ERROR", {
-              fatal: !!data?.fatal,
-              details: data?.details || "",
-              type: data?.type || "",
-            });
-          } catch {
-            ignoreBestEffortError();
-          }
-
-          if (!data?.fatal) return;
-          if (this.disposed) return;
-
-          const errorMsg = data?.details || data?.type || "알 수 없는 오류";
-          const errorCode = data?.response?.code ?? (data as { code?: number })?.code;
-          const errorType = data?.type || "";
-          const is404 = errorCode === 404 || String(errorMsg).includes("404") || String(errorMsg).includes("Not Found");
-          const isServiceAuthError = errorCode === 401 || errorCode === 403;
-          const isServiceUnavailable = typeof errorCode === "number" && errorCode >= 500;
-          const isNetworkError =
-            errorType === Hls.ErrorTypes?.NETWORK_ERROR ||
-            errorCode === -1 || errorCode === -2 ||
-            String(errorMsg).includes("network") ||
-            String(errorMsg).includes("NetworkError") ||
-            String(errorMsg).includes("Timeout") ||
-            String(errorMsg).includes("manifestLoad");
-          const isMediaError = errorType === Hls.ErrorTypes?.MEDIA_ERROR;
-
-          // 404 (원본 누락) — 재시도해도 무의미. 즉시 fatal.
-          if (is404) {
-            this.setState({
-              toast: { text: "비디오 파일을 찾을 수 없습니다. 처리 중이거나 업로드되지 않았을 수 있습니다.", kind: "danger" },
-              reconnecting: false,
-            });
-            this.opts.onFatal?.("비디오 파일을 찾을 수 없습니다.");
-            return;
-          }
-
-          // CDN 인증 실패는 같은 URL 재시도로 복구되지 않는다. 학생 네트워크
-          // 문제로 안내하지 말고 페이지가 새 재생 URL을 요청할 수 있게 종료한다.
-          if (isServiceAuthError) {
-            const message = "영상 서비스 인증에 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.";
-            this.setState({
-              toast: { text: message, kind: "danger" },
-              reconnecting: false,
-            });
-            this.opts.onFatal?.(message);
-            return;
-          }
-
-          // 네트워크/미디어 오류 — 자동 재시도(exponential backoff)
-          if ((isNetworkError || isMediaError) && this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
-            this.scheduleReconnect(isMediaError ? "media" : "network");
-            return;
-          }
-
-          // 한도 초과 또는 알 수 없는 fatal — 사용자에게 알리고 종료
-          const message = isServiceUnavailable
-            ? "영상 서비스 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요."
-            : isNetworkError
-            ? "영상 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요."
-            : `재생 오류가 발생했습니다: ${errorMsg}`;
-          this.setState({ toast: { text: message, kind: "danger" }, reconnecting: false });
-          this.opts.onFatal?.(message);
-        });
-
-        hls.loadSource(url);
-        hls.attachMedia(el);
-      } else if (!this.opts.reviewStream) {
-        el.src = url;
-      } else {
-        this.setState({ ready: true });
+    const canNative = el.canPlayType("application/vnd.apple.mpegurl") || el.canPlayType("application/x-mpegURL");
+    let attachedHls = false;
+    if (!canNative) {
+      try {
+        const { default: Hls } = await import("hls.js");
+        if (this.disposed || this.el !== el) return;
+        if (Hls?.isSupported()) {
+          this.attachHls(Hls, el, url);
+          attachedHls = true;
+        }
+      } catch {
+        ignoreBestEffortError();
       }
-    } catch {
+      if (this.disposed || this.el !== el) return;
+    }
+    if (!attachedHls) {
       if (this.opts.reviewStream) this.setState({ ready: true });
-      else el.src = url;
+      else this.nativeRecovery.setSource(el, url);
     }
 
     this.bindVideoEvents();
     this.startIntervals();
     this.startDocListeners();
+  }
+
+  private attachHls(Hls: typeof import("hls.js").default, el: HTMLVideoElement, url: string) {
+    const hls = createStudentHls(Hls, {
+      protectedReview: Boolean(this.opts.reviewStream),
+      disposed: () => this.disposed,
+      setState: (state) => this.setState(state),
+      currentQuality: () => this.state.currentQuality,
+      buffered: () => { this.reconnectAttempts = 0; },
+      error: (payload) => this.queueEvent("PLAYER_ERROR", payload),
+      canRetry: () => !this.stallWatch?.retrying && this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS,
+      retry: (kind) => this.scheduleReconnect(kind),
+      fatal: (message) => this.opts.onFatal?.(message),
+    });
+    this.hls = hls;
+    hls.loadSource(url);
+    hls.attachMedia(el);
+  }
+
+  private async recoverNativePlayback(): Promise<boolean> {
+    this.nativeEngineRecovery = "loading";
+    try {
+      const { default: Hls } = await import("hls.js");
+      const el = this.el;
+      if (this.disposed || !el) return true;
+      // A native failure is not proof that this browser supports MSE/MMS.
+      if (!Hls.isSupported()) return false;
+      const url = resolveStudentVideoPlayUrl(this.opts.playUrl);
+      if (!url) return false;
+
+      this.pendingSourceResume ??= {
+        ...capturePlaybackSource(el, this.state),
+        wasPlaying: this.state.playing || !el.paused,
+      };
+      if (!this.initialPositionApplied && this.pendingSourceResume.position === 0) {
+        this.pendingSourceResume.position = Number(this.opts.initialPosition || 0);
+      }
+      // A gesture admission belongs to the old engine; ignore its late play rejection too.
+      this.nativeGestureUntil = 0;
+      this.playGeneration++;
+      this.nativeRecovery.clear();
+      this.stallWatch?.stop();
+      this.nativeRecovery.releaseSource(el);
+      this.nativeEngineRecovery = "recovering";
+      const resuming = this.pendingSourceResume.wasPlaying;
+      this.setState({ buffering: resuming, reconnecting: resuming, toast: null });
+      this.attachHls(Hls, el, url);
+      if (resuming) this.stallWatch?.start();
+      if (this.opts.reviewStream && this.pendingSourceResume?.wasPlaying) {
+        void this.startReviewPlayback(++this.playGeneration, this.opts.reviewStream);
+      }
+      return true;
+    } catch {
+      return false;
+    } finally {
+      if (this.nativeEngineRecovery === "loading") this.nativeEngineRecovery = "used";
+    }
   }
 
   private bindVideoEvents() {
@@ -761,10 +725,22 @@ export class StudentHlsController {
     const maxRate = Math.max(1, Number(this.policy.playback_rate?.max) || 1);
     const speedLocked = this.policy.playback_rate?.ui_control === false || maxRate <= 1.0001;
 
+    this.stallWatch = new PlaybackStallWatch(() => {
+      if (this.disposed || document.hidden || this.playbackEnd.started || this.nativeRecovery.active) return null;
+      return readStallPlayhead(el, this.pendingSourceResume);
+    }, (exhausted) => this.recoverStall(exhausted), () => {
+      this.reconnectAttempts = 0;
+      this.setState({ buffering: false, reconnecting: false });
+    });
+
     const onLoadedMeta = () => {
       if (this.disposed) return;
       const d = Number(el.duration || 0);
       if (d && Number.isFinite(d)) this.setState({ duration: d });
+      const pending = this.pendingSourceResume;
+      if (!this.state.ready && pending && d > 0 && Number.isFinite(d)) {
+        pending.position = Math.min(pending.position, Math.max(0, d - 1));
+      }
       this.setState({ ready: true, buffering: false });
 
       // 이어보기: initialPosition이 있으면 해당 위치로 이동 (seek 정책 가드 우회)
@@ -773,40 +749,59 @@ export class StudentHlsController {
         this.initialPositionApplied = true;
         const safePos = Math.min(initPos, d - 1);
         if (safePos > 1) {
-          this.seekGuardRef.initialSeekActive = true;
           this.maxWatchedRef = Math.max(this.maxWatchedRef, safePos);
           try {
+            this.automaticSeekTarget = safePos;
             el.currentTime = safePos;
           } catch {
             ignoreBestEffortError();
           }
-          // onSeeking 이벤트가 동기적으로 발생하므로 즉시 해제해도 안전
-          // 다만 비동기 발생 가능성 대비 짧은 타이머
-          setTimeout(() => { this.seekGuardRef.initialSeekActive = false; }, 200);
         }
       }
       this.resumeAfterSourceRefresh();
+      if ((this.nativeRecovery.active || this.nativeEngineRecovery === "recovering") && !pending?.wasPlaying) {
+        this.nativeRecovery.clear();
+        if (this.nativeEngineRecovery === "recovering") this.nativeEngineRecovery = "used";
+        this.setState({ reconnecting: false });
+      }
     };
 
     const onTime = () => {
-      if (this.disposed) return;
+      if (this.disposed || this.pendingSourceResume || el.error) return;
       const t = Number(el.currentTime || 0);
-      this.setState({ current: t });
+      const advanced = !el.paused && !el.seeking && t > this.lastTimeRef;
+      if (advanced) this.hasProgressActivity = true;
+      const resumed = (this.nativeRecovery.active || this.nativeEngineRecovery === "recovering") && advanced;
+      if (resumed) {
+        this.nativeRecovery.clear();
+        if (this.nativeEngineRecovery === "recovering") this.nativeEngineRecovery = "used";
+      }
+      this.setState(resumed ? { current: t, reconnecting: false } : { current: t });
       this.lastTimeRef = t;
       if (t > this.maxWatchedRef) this.maxWatchedRef = t;
     };
 
-    const onPlay = () => this.guard(() => this.setState({ playing: true, buffering: el.readyState < el.HAVE_FUTURE_DATA }));
-    const onPause = () => this.guard(() => this.setState({ playing: false }));
-    const onWaiting = () => this.guard(() => this.setState({ buffering: true }));
-    const onPlaying = () => this.guard(() => this.setState({ buffering: false }));
+    const onPlay = () => this.guard(() => {
+      this.stallWatch?.start();
+      this.setState({ playing: true, buffering: el.readyState < el.HAVE_FUTURE_DATA });
+    });
+    const onPause = () => this.guard(() => {
+      if (this.pendingSourceResume?.wasPlaying) return;
+      const retrying = this.stallWatch?.retrying;
+      this.stallWatch?.stop();
+      this.setState({ playing: false, buffering: false, ...(retrying ? { reconnecting: false } : {}) });
+    });
+    const onWaiting = () => this.setState({ buffering: true });
+    const onPlaying = () => this.setState({ buffering: false });
     const onEnded = () => {
       if (this.disposed) return;
+      this.stallWatch?.stop();
       const duration = Number(el.duration);
       if (duration > 0 && Number.isFinite(duration)) {
         this.maxWatchedRef = Math.max(this.maxWatchedRef, duration);
       }
       this.setState({ playing: false, buffering: false, current: Number(el.currentTime || 0) });
+      this.hasProgressActivity = true;
       this.flushProgress();
       this.opts.onEnded?.();
     };
@@ -842,31 +837,39 @@ export class StudentHlsController {
 
     const onSeeking = () => {
       if (this.disposed) return;
-      if (this.seekGuardRef.initialSeekActive) return; // 이어보기 초기 seek 시 가드 우회
+      this.stallWatch?.observeSeek();
+      const target = Number(el.currentTime || 0);
+      if (this.automaticSeekTarget !== null) {
+        const automaticTarget = this.automaticSeekTarget;
+        this.automaticSeekTarget = null;
+        if (Math.abs(target - automaticTarget) < 0.01) return;
+      }
+      if (this.pendingSourceResume) return;
       const allowSeek = !!this.policy.allow_seek && this.policy.seek?.mode !== "blocked";
       const seekMode = this.policy.seek?.mode || "free";
       const grace = Math.max(0, Number(this.policy.seek?.grace_seconds ?? 3));
       const boundedForward = seekMode === "bounded_forward";
       const budgetedForward = seekMode === "budgeted_forward";
-      if (allowSeek && !boundedForward && !budgetedForward) return;
+      if (allowSeek && !boundedForward && !budgetedForward) {
+        this.hasProgressActivity = true;
+        return;
+      }
 
       const now = Date.now();
-      const guard = this.seekGuardRef;
-      const target = Number(el.currentTime || 0);
       const maxWatched = this.maxWatchedRef;
       const allowedMax = (boundedForward || budgetedForward) ? maxWatched + grace : maxWatched;
       const isForwardBeyond = target > allowedMax + 0.001;
 
       if (!allowSeek || seekMode === "blocked") {
-        guard.blocking = true;
+        if (target === maxWatched) return;
         try {
+          this.automaticSeekTarget = maxWatched;
           el.currentTime = maxWatched;
         } catch {
           ignoreBestEffortError();
         }
-        guard.blocking = false;
-        if (now - guard.lastWarnAt > 900) {
-          guard.lastWarnAt = now;
+        if (now - this.lastSeekWarningAt > 900) {
+          this.lastSeekWarningAt = now;
           this.setState({ toast: { text: "탐색이 제한된 영상입니다.", kind: "warn" } });
         }
         this.queueEvent("SEEK_ATTEMPT", { mode: "blocked", target, max_watched: maxWatched });
@@ -874,15 +877,14 @@ export class StudentHlsController {
       }
 
       if ((boundedForward || budgetedForward) && isForwardBeyond) {
-        guard.blocking = true;
         try {
+          this.automaticSeekTarget = allowedMax;
           el.currentTime = allowedMax;
         } catch {
           ignoreBestEffortError();
         }
-        guard.blocking = false;
-        if (now - guard.lastWarnAt > 900) {
-          guard.lastWarnAt = now;
+        if (now - this.lastSeekWarningAt > 900) {
+          this.lastSeekWarningAt = now;
           this.setState({
             toast: {
               text: budgetedForward
@@ -893,26 +895,38 @@ export class StudentHlsController {
           });
         }
         this.queueEvent("SEEK_ATTEMPT", { mode: seekMode, target, max_watched: maxWatched, grace });
+        return;
       }
+      this.hasProgressActivity = true;
     };
 
     const onError = () => {
       if (this.disposed) return;
-      const elErr: MediaError | null = el.error;
-      const errorCode = elErr?.code || 0;
-      const errorMessage = elErr?.message || "";
+      const elErr = el.error;
+      if (!elErr) return;
+      const { code: errorCode, message: errorMessage = "" } = elErr;
       this.queueEvent("PLAYER_ERROR", { code: errorCode, message: errorMessage });
-      // hls.js가 연결된 경우 HTTP 상태를 포함한 HLS 오류 이벤트가 더 정확하다.
-      // 브라우저의 일반 MediaError(code=4)로 먼저 오분류하지 않는다.
+      // Hls.js reports the HTTP status more reliably than a generic MediaError.
       if (this.hls) return;
-      let message = "재생 오류가 발생했습니다.";
-      const sourceFailed = errorCode === 4 || errorMessage.includes("404") || errorMessage.includes("Not Found");
-      if (sourceFailed) {
-        message = "영상 서비스에서 재생 파일을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
-      } else if (errorCode === 2) message = "영상 연결이 원활하지 않습니다. 잠시 후 다시 시도해 주세요.";
-      else if (errorCode === 3) message = "비디오 디코딩 오류가 발생했습니다.";
-      if (this.opts.reviewStream || sourceFailed) this.opts.onFatal?.(message);
-      this.setState({ toast: { text: message, kind: "danger" } });
+      if (this.nativeEngineRecovery === "loading") return;
+      const failNative = () => this.nativeRecovery.handleError(errorCode, errorMessage, !this.opts.reviewStream && !this.stallWatch?.retrying, () => {
+        this.pendingSourceResume ??= {
+          ...capturePlaybackSource(el, this.state),
+          wasPlaying: this.state.playing || !el.paused,
+        };
+        this.setState({ buffering: true, reconnecting: true, toast: null });
+        this.reloadSource(this.opts.playUrl);
+      }, (message) => {
+        this.dispose();
+        this.opts.onFatal?.(message);
+      });
+      if ((errorCode === 3 || errorCode === 4) && this.nativeEngineRecovery === "idle") {
+        void this.recoverNativePlayback().then((recovered) => {
+          if (!recovered && !this.disposed) failNative();
+        });
+      } else {
+        failNative();
+      }
     };
 
     this.addVideoListener("loadedmetadata", onLoadedMeta);
@@ -943,6 +957,8 @@ export class StudentHlsController {
     this.disposed = true;
 
     this.listeners.clear();
+    this.stallWatch?.stop();
+    this.nativeRecovery.clear();
 
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
@@ -969,6 +985,7 @@ export class StudentHlsController {
 
     this.playbackEnd.finish(() => postEvents(token, batch, this.opts.videoId, this.opts.enrollmentId));
 
+    this.nativeRecovery.releaseSource(this.el);
     this.el = null;
   }
 }

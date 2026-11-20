@@ -3,9 +3,9 @@
  * Runs only in the disposable production-shaped development tenant.
  */
 import { expect, test } from "../fixtures/strictTest";
-import type { APIRequestContext, Page, Route, TestInfo } from "@playwright/test";
+import type { APIRequestContext, Locator, Page, TestInfo } from "@playwright/test";
 import type { SendPreflightResponse } from "../../src/app_admin/domains/messages/api/messages.api";
-import type { ManualGradeSheet } from "../../src/app_admin/domains/results/api/manualExamGrading";
+import type { ManualGradePreview, ManualGradeRequestRow, ManualGradeSheet } from "../../src/app_admin/domains/results/api/manualExamGrading";
 import type { ExamsListResponse } from "../../src/app_student/domains/exams/api/exams.api";
 import type { MyGradesSummary } from "../../src/app_student/domains/grades/api/grades.api";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
@@ -40,10 +40,8 @@ import { verifySubmissionInbox } from "../helpers/verifySubmissionInbox";
 import { verifyOnlineWrittenSubmission } from "../helpers/verifyOnlineWrittenSubmission";
 import { verifyExcelAssessment } from "./excelAssessmentRealuse";
 import { withOwnedScoreLeaseCleanup } from "../helpers/scoreLeaseCleanup";
+import { verifySessionSchedules } from '../helpers/verifySessionSchedules';
 
-// This scenario now spans submission, feedback, templates, grading, copy and
-// attendance and online written-answer journeys. Budget the combined flow without relaxing any individual
-// action, navigation, API or assertion deadline.
 test.setTimeout(660_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 
@@ -70,8 +68,9 @@ type CreatedState = {
 
 type ResultBody = {
   total_score: number;
-  rank: number;
-  cohort_size: number;
+  rank: number | null;
+  percentile: number | null;
+  cohort_size: number | null;
   analysis: {
     wrong_count: number;
     wrong_question_numbers: number[];
@@ -345,6 +344,8 @@ async function submitFirstStudentThroughUi(
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${QA_BASE}/student/exams/${examId}/result`, { timeout: 30_000 });
   await waitForRenderSettled(page, { timeout: 20_000 });
+  await expect(page.getByText("60 / 100점", { exact: true })).toBeVisible();
+  await expect(page.getByText("정답 3 / 5문항", { exact: true })).toBeVisible();
   await expect(page.getByTestId("wrong-number-chip")).toHaveText(["2번", "5번"]);
   await assertNoHorizontalOverflow(page);
   return submissionId;
@@ -363,6 +364,10 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
   });
 
   test("390px 학생·학부모 자녀별 제출·결과·reload/relogin·desktop을 완료한다", async ({ page, request }, testInfo) => {
+    // The combined assessment journey includes weekday schedules, written
+    // answers and Excel. The release canary reached Excel but hit 660s before
+    // student readback. Give this case margin; keep action and hook limits.
+    test.setTimeout(840_000);
     const boundary = await installQaStudentParentBoundary(page, request);
     const browser = attachStrictBrowserGuards(page);
     const admin = await loginAdmin(request);
@@ -370,10 +375,6 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     created.family = await createQaFamily(request, admin.access, "assessment", 2);
     const [primary, peer] = created.family.students;
     await seedAssessment(request, admin.access, created.family);
-    await verifyAssessmentTitle(page, request, admin, {
-      kind: "exam", id: created.examId!, title: examTitle,
-      lectureId: created.lectureId!, sessionId: created.sessionId!,
-    });
 
     await test.step("student submission and persisted result", () => submitFirstStudentThroughUi(page, primary, created.examId!));
     const primaryTokens = await loginApi(request, primary.ps_number, primary.password);
@@ -413,6 +414,10 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
       total_score: 20,
       analysis: { wrong_count: 4 },
     });
+    const comparison = page.getByRole("group", { name: "시험 점수 비교" });
+    await expect(comparison).toContainText("전체 평균40점");
+    await expect(comparison).toContainText("상위 10% 평균60점");
+    await expect(comparison).toContainText("최고점60점");
     const teacherProjection = await expectApi<{
       user: number;
       target_type: string;
@@ -438,12 +443,100 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     const firstCard = page.getByRole("link").filter({ hasText: examTitle }).first();
     await expect(firstCard).toBeVisible();
     await expect(firstCard.getByTestId("grade-wrong-summary")).toContainText("오답 2문항");
-    await expect(firstCard.getByText("1/2등")).toBeVisible();
+    await expect(firstCard.getByText("1등", { exact: true })).toBeVisible();
+    await expect(firstCard.getByText("2명 응시", { exact: true })).toBeVisible();
     expect(await waitForResult(request, parentTokens.access, created.examId!, primary.id)).toMatchObject({
       total_score: 60,
       rank: 1,
       cohort_size: 2,
       analysis: { wrong_question_numbers: [2, 5] },
+    });
+    await test.step("teacher visibility saves and reaches student and selected parent child", async () => {
+      const context = await page.context().browser()!.newContext({ serviceWorkers: "block" });
+      const staffPage = await context.newPage();
+      const staffBoundary = await installQaStudentParentBoundary(staffPage, request);
+      const staffBrowser = attachStrictBrowserGuards(staffPage);
+      try {
+        await seedBrowserAuth(staffPage, admin);
+        const combinations = [[1366, false, false], [1366, false, true], [390, true, false], [1366, true, true]] as const;
+        for (const [index, [width, showRank, showCount]] of combinations.entries()) {
+          await staffPage.setViewportSize({ width, height: 900 });
+          if (index === 0) {
+            await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?assessment=exam%3A${created.examId}`);
+            await acknowledgeInitialAccountPromptsIfVisible(staffPage);
+          }
+          // Each save already reloads and verifies this policy page. Start the
+          // next edit there, with the viewport for that combination.
+          const settings = staffPage.locator("#assessment-policy > details");
+          const settingsSummary = staffPage.locator("#assessment-policy > details > summary");
+          if (await settings.getAttribute("open") === null) await settingsSummary.click();
+          await staffPage.getByLabel("학생 등수 공개", { exact: true }).setChecked(showRank);
+          await staffPage.getByLabel("학생 응시 인원 공개", { exact: true }).setChecked(showCount);
+          const saved = staffPage.waitForResponse(response => response.request().method() === "PATCH"
+            && new URL(response.url()).pathname === `/api/v1/exams/${created.examId}/`);
+          await staffPage.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
+          expect((await saved).status()).toBe(200);
+          if (!showRank && !showCount) {
+            // Establish real persisted false/false before either desktop or
+            // mobile title-only PATCH; the helper snapshots both policy fields.
+            expect(await expectApi(request, "GET", `/exams/${created.examId}/`, admin.access)).toMatchObject({
+              student_rank_published: false,
+              student_cohort_size_published: false,
+            });
+            await verifyAssessmentTitle(page, request, admin, {
+              kind: "exam", id: created.examId!, title: examTitle,
+              lectureId: created.lectureId!, sessionId: created.sessionId!,
+            });
+          }
+          await staffPage.reload({ waitUntil: "domcontentloaded" });
+          await expect(settings).toBeVisible();
+          if (await settings.getAttribute("open") === null) await settingsSummary.click();
+          await expect(staffPage.getByLabel("학생 등수 공개", { exact: true })).toBeChecked({ checked: showRank });
+          await expect(staffPage.getByLabel("학생 응시 인원 공개", { exact: true })).toBeChecked({ checked: showCount });
+          const expected = {
+            total_score: 60, rank: showRank ? 1 : null, cohort_size: showCount ? 2 : null,
+            cohort_highest: showRank ? 60 : null, cohort_top_decile_avg: showRank ? 60 : null,
+          };
+          const studentResult = await waitForResult(request, primaryTokens.access, created.examId!);
+          const parentResult = await waitForResult(request, parentTokens.access, created.examId!, primary.id);
+          expect(studentResult).toMatchObject(expected);
+          expect(parentResult).toMatchObject(expected);
+          if (!showRank || !showCount) {
+            expect(studentResult.percentile).toBeNull();
+            expect(parentResult.percentile).toBeNull();
+          }
+          if (!showRank && !showCount) {
+            // Reuse the existing browser and real accounts for the student
+            // readback, then restore the selected parent child for later steps.
+            await logoutStudentApp(page);
+            await loginThroughUi(page, primary.ps_number, primary.password);
+            await page.goto(`${QA_BASE}/student/grades`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+            await expect(firstCard).toBeVisible();
+            await page.reload({ waitUntil: "domcontentloaded" });
+            await expect(firstCard).toBeVisible();
+            await expect(firstCard.getByText("1등", { exact: true })).toHaveCount(0);
+            await expect(firstCard.getByText("2명 응시", { exact: true })).toHaveCount(0);
+            await assertNoHorizontalOverflow(page);
+            await logoutStudentApp(page);
+            await loginThroughUi(page, created.family!.parentPhone, created.family!.parentPassword);
+            await selectParentStudentThroughUi(page, primary);
+            await page.goto(`${QA_BASE}/student/grades`, { waitUntil: "domcontentloaded", timeout: 30_000 });
+            await expect(firstCard).toBeVisible();
+          }
+          // Login prompts were handled at login. The selected child and the
+          // persisted card below tell us when this authenticated reload is ready.
+          await page.reload({ waitUntil: "domcontentloaded" });
+          await expect(page.getByRole("tab", { name: primary.name })).toHaveAttribute("aria-selected", "true");
+          await expect(firstCard).toBeVisible();
+          await expect(firstCard.getByText("1등", { exact: true })).toHaveCount(showRank ? 1 : 0);
+          await expect(firstCard.getByText("2명 응시", { exact: true })).toHaveCount(showCount ? 1 : 0);
+          await assertNoHorizontalOverflow(staffPage);
+        }
+        staffBoundary.assertClean();
+        staffBrowser.assertZeroDefects();
+      } finally {
+        await context.close();
+      }
     });
     await gotoAndSettle(page, `${QA_BASE}/student/notifications`, { timeout: 30_000 });
     await expect(page.getByRole("heading", { name: "새 성적" })).toBeVisible();
@@ -460,15 +553,21 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     await expect(page.getByRole("link").filter({ hasText: examTitle }).first()).toBeVisible();
     await assertNoHorizontalOverflow(page);
     await test.step("parent-only assessment feedback", () => verifyAssessmentFeedback(page, request, admin, primary, peer, primaryTokens, parentTokens, testInfo));
-    await test.step("score message template and defaults", () => verifyScoreMessageTemplate(page, request, admin, primary, testInfo));
+    const peerAttendanceId = await recordScoreMessageAttendance(request, admin, primary, peer);
+    await test.step("score message attendance recipients, template and defaults", () => verifyScoreMessageTemplate(page, request, admin, primary, testInfo));
     await test.step("manual score precision and retake totals", () => verifyManualScorePrecision(page, request, admin, primary, primaryTokens, parentTokens));
     await test.step("exam order and total-boundary persistence", () => verifyExamOrderPersistence(page, request, admin, parentTokens, testInfo));
     await test.step("assessment copy", () => verifyAssessmentCopy(page, request, admin, primaryTokens, {
       lectureId: created.lectureId!, sessionId: created.sessionId!, examId: created.examId!,
       examTitle, enrollmentIds: created.enrollmentIds, date: todayKst,
     }, (sessionId) => { created.copySessionIds.push(sessionId); }));
-    await test.step("attendance priority and absent scores", () => verifyAttendancePriorityAndAbsentScores(page, request, admin, created.family!, testInfo));
+    await test.step("attendance priority and absent scores", () => verifyAttendancePriorityAndAbsentScores(
+      page, request, admin, created.family!, peerAttendanceId, testInfo,
+    ));
     await test.step("ended-course todos and restored eligibility", () => verifyEndedCourseTodos(page, request, admin, primary, primaryTokens));
+    await test.step('weekday schedules, scoped rosters, student dates and preserved records', () => verifySessionSchedules(page, request, admin, primaryTokens, created.family!, {
+      lectureId: created.lectureId!, sessionId: created.sessionId!, enrollmentIds: created.enrollmentIds,
+    }, testInfo));
     await test.step("online written submission and teacher grading", () => verifyOnlineWrittenSubmission(page, request, admin, primaryTokens, {
       lectureId: created.lectureId!, sessionId: created.sessionId!,
       enrollmentId: created.primaryEnrollmentId!, studentName: primary.name,
@@ -482,19 +581,28 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
   });
 });
 
-async function verifyAttendancePriorityAndAbsentScores(
-  parentPage: Page, request: APIRequestContext, admin: QaTokens, family: QaFamily, testInfo: TestInfo,
-): Promise<void> {
-  const [present, absent] = family.students;
-  for (const [student, status] of [[present, "PRESENT"], [absent, "ABSENT"]] as const) {
+async function recordScoreMessageAttendance(
+  request: APIRequestContext, admin: QaTokens, present: QaStudent, online: QaStudent,
+): Promise<number> {
+  const attendanceIds: number[] = [];
+  for (const [student, status] of [[present, "PRESENT"], [online, "ONLINE"]] as const) {
     const rows = await expectApi<Array<{ id: number }>>(
       request, "POST", "/lectures/attendance/bulk_create/", admin.access,
       { session: created.sessionId, students: [student.id] }, [201],
     );
     expect(rows).toHaveLength(1);
     created.attendanceIds.push(rows[0].id);
+    attendanceIds.push(rows[0].id);
     await expectApi(request, "PATCH", `/lectures/attendance/${rows[0].id}/`, admin.access, { status });
   }
+  return attendanceIds[1];
+}
+
+async function verifyAttendancePriorityAndAbsentScores(
+  parentPage: Page, request: APIRequestContext, admin: QaTokens, family: QaFamily, peerAttendanceId: number, testInfo: TestInfo,
+): Promise<void> {
+  const [present, absent] = family.students;
+  await expectApi(request, "PATCH", `/lectures/attendance/${peerAttendanceId}/`, admin.access, { status: "ABSENT" });
   const context = await parentPage.context().browser()!.newContext({ serviceWorkers: "block" });
   await withOwnedScoreLeaseCleanup(context, request, { sessionId: created.sessionId!, actorAccess: admin.access }, async () => {
     const page = await context.newPage();
@@ -610,8 +718,11 @@ async function verifyManualScorePrecision(
   );
   expect(questions).toHaveLength(6);
   for (const question of questions) expect(question.score).toBe(100 / 6);
-  await expectApi(request, "PUT", `/exams/${exam.id}/enrollments/?session_id=${created.sessionId}`, admin.access,
-    { enrollment_ids: [created.primaryEnrollmentId] }, [200]);
+  const unenteredEnrollmentId = created.enrollmentIds.find((id) => id !== created.primaryEnrollmentId);
+  expect(unenteredEnrollmentId).toBeDefined();
+  const rosterPath = `/exams/${exam.id}/enrollments/?session_id=${created.sessionId}`;
+  await expectApi(request, "PUT", rosterPath, admin.access,
+    { enrollment_ids: [created.primaryEnrollmentId, unenteredEnrollmentId] }, [200]);
 
   const username = `qa-score-assistant-${runStamp}`;
   const staff = await expectApi<{ id: number }>(request, "POST", "/staffs/", admin.access, {
@@ -641,10 +752,12 @@ async function verifyManualScorePrecision(
     await page.getByRole("menu", { name: `${manualExamTitle} 작업 선택`, exact: true })
       .getByRole("menuitem", { name: /^문항별 점수 입력/ }).click();
     const dialog = page.getByRole("dialog").filter({ hasText: `${manualExamTitle} 문항별 점수 입력` });
-    await expect(dialog.locator("input[data-manual-grade-cell]")).toHaveCount(6);
+    await expect(dialog.locator("input[data-manual-grade-cell]")).toHaveCount(12);
     await dialog.getByRole("combobox", { name: "채점표 배율 선택" }).selectOption(width === 390 ? "50" : "100");
     return dialog;
   };
+  const primaryCells = (dialog: Locator) => dialog.getByRole("row")
+    .filter({ hasText: student.name }).locator("input[data-manual-grade-cell]");
   await withOwnedScoreLeaseCleanup(context, request, { sessionId: created.sessionId!, actorAccess: staffTokens.access }, async () => {
     await gotoAndSettle(page, `${QA_BASE}/login/${QA_TENANT}`, { timeout: 45_000 });
     await page.getByTestId("login-username").fill(username);
@@ -658,17 +771,24 @@ async function verifyManualScorePrecision(
     await expect(clockIn).toBeHidden();
     for (const width of [1366, 390]) {
       let dialog = await openSheet(width);
+      const markAbsence = width === 390;
+      const expectedRows = markAbsence ? 2 : 1;
       const expectedMaximum = width === 390 ? 16.6667 : 100 / 6;
       const weights = dialog.getByRole("spinbutton", { name: /^\d+번 배점$/ });
-      const cells = dialog.locator("input[data-manual-grade-cell]");
+      const cells = primaryCells(dialog);
+      await expect(cells).toHaveCount(6);
       for (let index = 0; index < 6; index += 1) {
         const maximum = await weights.nth(index).inputValue();
         expect(Number(maximum)).toBe(100 / 6);
         if (width === 390) await weights.nth(index).fill(String(expectedMaximum));
         await cells.nth(index).fill(width === 390 && index === 0 ? "0" : String(expectedMaximum));
       }
+      if (markAbsence) {
+        await dialog.getByRole("button", { name: "미입력", exact: true }).click();
+      }
       await dialog.getByRole("button", { name: "입력 내용 확인", exact: true }).click();
-      await expect(dialog.getByText("1명 · 결시 0명 · 성적 계산 완료", { exact: true })).toBeVisible();
+      await expect(dialog.getByText(`${expectedRows}명 · 결시 ${markAbsence ? 1 : 0}명 · 성적 계산 완료`, { exact: true })).toBeVisible();
+      await expect(dialog.getByText(`확인 대상 ${expectedRows}명 · 나머지 ${2 - expectedRows}명 유지`, { exact: true })).toBeVisible();
       const saved = page.waitForResponse((response) => response.request().method() === "POST"
         && new URL(response.url()).pathname === `/api/v1${manualPath}`
         && response.request().postDataJSON()?.apply === true).then(async (response) => {
@@ -676,35 +796,48 @@ async function verifyManualScorePrecision(
         const payload = response.request().postDataJSON() as {
           question_scores?: Record<string, number>;
           expected_question_scores?: Record<string, number>;
-          rows: Array<{ enrollment_id: number; cells: Record<string, { score: number }> }>;
+          rows: ManualGradeRequestRow[];
         };
-        expect(payload.rows).toHaveLength(1);
-        expect(payload.rows[0].enrollment_id).toBe(created.primaryEnrollmentId);
+        expect(payload.rows).toHaveLength(expectedRows);
+        const graded = payload.rows.find((row) => row.enrollment_id === created.primaryEnrollmentId);
+        expect(graded?.attendance).toBe("present");
         for (const question of questions) {
-          expect(payload.rows[0].cells[String(question.id)].score).toBe(width === 390 && question.number === 1 ? 0 : expectedMaximum);
+          expect(graded?.cells[String(question.id)]?.score).toBe(width === 390 && question.number === 1 ? 0 : expectedMaximum);
+        }
+        if (markAbsence) {
+          expect(payload.rows.find((row) => row.enrollment_id === unenteredEnrollmentId))
+            .toMatchObject({ attendance: "absent", expected_version: null });
         }
         if (width === 390) {
           expect(payload.question_scores).toEqual(Object.fromEntries(questions.map((question) => [String(question.id), 16.6667])));
           expect(payload.expected_question_scores).toEqual(Object.fromEntries(questions.map((question) => [String(question.id), 100 / 6])));
         } else expect(payload).not.toHaveProperty("question_scores");
-        return await response.json() as { applied: boolean; rows: Array<{ total_score: number }> };
+        return await response.json() as ManualGradePreview;
       });
-      await dialog.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
+      await dialog.getByRole("button", { name: `${expectedRows}명 성적 확정`, exact: true }).click();
       const result = await saved;
       // The manual-grading service rounds the sum to two decimal places.
       const expectedTotal = width === 390 ? 83.33 : 100;
       expect(result.applied).toBe(true);
-      expect(result.rows[0].total_score).toBe(expectedTotal);
+      expect(result.rows.find((row) => row.enrollment_id === created.primaryEnrollmentId))
+        .toMatchObject({ total_score: expectedTotal, is_not_submitted: false });
       await expect(dialog.getByText("현재 저장된 성적 기준", { exact: true })).toBeVisible();
       await dialog.getByRole("button", { name: "닫기", exact: true }).click();
       dialog = await openSheet(width);
       for (let index = 0; index < 6; index += 1) {
-        await expect(dialog.locator("input[data-manual-grade-cell]").nth(index))
+        await expect(primaryCells(dialog).nth(index))
           .toHaveValue(width === 390 && index === 0 ? "0" : String(expectedMaximum));
         await expect(dialog.getByRole("spinbutton", { name: /^\d+번 배점$/ }).nth(index)).toHaveValue(String(expectedMaximum));
       }
       const persisted = await expectApi<ManualGradeSheet>(request, "GET", manualPath, staffTokens.access);
       expect(persisted.questions.map((question) => question.max_score)).toEqual(Array(6).fill(expectedMaximum));
+      const secondRow = persisted.rows.find((row) => row.enrollment_id === unenteredEnrollmentId);
+      expect(secondRow).toMatchObject({
+        expected_version: markAbsence ? expect.any(String) : null,
+        is_not_submitted: markAbsence,
+      });
+      expect(Object.values(secondRow?.cells ?? {}).map((cell) => cell.score)).toEqual(Array(6).fill(null));
+      await expect(dialog.getByRole("button", { name: markAbsence ? "결시" : "미입력", exact: true })).toBeVisible();
       expect((await waitForResult(request, studentTokens.access, exam.id)).total_score).toBe(expectedTotal);
       expect((await waitForResult(request, parentTokens.access, exam.id, student.id)).total_score).toBe(expectedTotal);
       await assertNoHorizontalOverflow(page);
@@ -717,6 +850,10 @@ async function verifyManualScorePrecision(
     boundary.assertClean();
     guards.assertZeroDefects();
   });
+  // The following exam-order check opens the missing-assignment notice.
+  const restoredRoster = await expectApi<{ selected_count: number }>(request, "PUT", rosterPath, admin.access,
+    { enrollment_ids: [created.primaryEnrollmentId] }, [200]);
+  expect(restoredRoster.selected_count).toBe(1);
 }
 
 /** Real server order persistence; restore the existing selection before later copy/attendance checks. */
@@ -773,16 +910,32 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
       await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
       await verify(original.exam_order, original.exam_ids);
       await verifyParentTotal(60, 100, 1);
-      // Start with the second exam excluded: this move must cross the rendered
-      // total boundary and change both the saved order and included assessment set.
-      if (width === 1366) {
-        await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }));
-      } else await page.getByRole("button", { name: `${manualExamTitle} 이전 순서로 이동`, exact: true }).click();
-      const reversed = [created.manualExamId!, created.examId!];
-      await verify(reversed, reversed);
+      await page.getByRole("button", { name: "시험 총점 숨기기", exact: true }).click();
+      await expect(page.locator('th[data-col-type="exam-summary"]')).toHaveCount(0);
       await page.reload();
-      await verify(reversed, reversed);
-      await verifyParentTotal(143.33, 200, 2);
+      await verify(original.exam_order, original.exam_ids);
+      await expect(page.locator('th[data-col-type="exam-summary"]')).toHaveCount(0);
+      await page.getByRole("button", { name: /표시 옵션/ }).click();
+      await page.getByRole("group", { name: "총점 열 표시", exact: true })
+        .getByRole("button", { name: "시험 총점", exact: true }).click();
+      // Moving the excluded exam changes presentation only, including after reload.
+      const totals = await openTotals();
+      if (width === 1366) {
+        await expect.poll(() => totals.evaluate(node =>
+          Math.abs(node.getBoundingClientRect().width - node.clientWidth),
+        )).toBeLessThan(1);
+        const rows = totals.getByRole("group", { name: /시험 총점/ }).locator(".assessment-totals-option");
+        const moved = rows.filter({ has: page.getByRole("checkbox", { name: `${manualExamTitle} 합산에 포함`, exact: true }) });
+        const target = rows.filter({ has: page.getByRole("checkbox", { name: `${examTitle} 합산에 포함`, exact: true }) });
+        await moved.locator(".assessment-totals-drag-handle").dragTo(target);
+      } else await totals.getByRole("button", { name: `${manualExamTitle} 위로 이동`, exact: true }).click();
+      await expect(totals.getByRole("checkbox", { name: `${manualExamTitle} 합산에 포함`, exact: true })).not.toBeChecked();
+      await save(totals);
+      const reversed = [created.manualExamId!, created.examId!];
+      await verify(reversed, original.exam_ids);
+      await page.reload();
+      await verify(reversed, original.exam_ids);
+      await verifyParentTotal(60, 100, 1);
       const rosterWarning = page.getByRole("region", { name: "응시·제출 대상 미배정 안내", exact: true });
       const assignAll = rosterWarning.getByRole("button", { name: "누락 전부 배정", exact: true });
       await expect(assignAll).toBeVisible();
@@ -798,24 +951,23 @@ async function verifyExamOrderPersistence(parentPage: Page, request: APIRequestC
       if (width === 1366) {
         await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }));
       } else await page.getByRole("button", { name: `${examTitle} 이전 순서로 이동`, exact: true }).click();
-      await verify(original.exam_order, original.exam_order);
+      await verify(original.exam_order, original.exam_ids);
       const restore = await openTotals();
       await restore.getByRole("checkbox", { name: `${manualExamTitle} 합산에 포함`, exact: true }).uncheck();
       await save(restore);
       await verify(original.exam_order, original.exam_ids);
-      // Moving the included exam past an excluded one crosses the boundary in
-      // the other direction; neither score may remain in the displayed total.
+      // Moving the included exam past an excluded one also preserves the sum.
       if (width === 1366) {
         await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }));
       } else await page.getByRole("button", { name: `${examTitle} 다음 순서로 이동`, exact: true }).click();
-      await verify(reversed, []);
+      await verify(reversed, original.exam_ids);
       await page.reload();
-      await verify(reversed, []);
-      await verifyParentTotal(null, 0, 0);
+      await verify(reversed, original.exam_ids);
+      await verifyParentTotal(60, 100, 1);
       if (width === 1366) {
         await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${manualExamTitle} 작업 선택`, exact: true }) }).dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: `${examTitle} 작업 선택`, exact: true }) }));
       } else await page.getByRole("button", { name: `${manualExamTitle} 다음 순서로 이동`, exact: true }).click();
-      await verify(original.exam_order, []);
+      await verify(original.exam_order, original.exam_ids);
       const finalRestore = await openTotals();
       await finalRestore.getByRole("checkbox", { name: `${examTitle} 합산에 포함`, exact: true }).check();
       await save(finalRestore);
@@ -911,15 +1063,34 @@ async function verifyScoreMessageTemplate(
 
     await page.setViewportSize({ width: 1366, height: 900 });
     await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`, { timeout: 30_000 });
-    await page.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();
+    await page.getByRole("checkbox", { name: "전체 선택", exact: true }).check();
     await page.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click();
     const send = page.getByRole("dialog", { name: "알림톡 발송" });
+    await expect(send.getByText("출석·지각 1명", { exact: true })).toBeVisible();
+    await expect(send.getByRole("checkbox", { name: "영상 학생에게 과제 안내도 보내기", exact: true })).not.toBeChecked();
+    await expect(send.getByText("선택한 영상 학생 1명은 수업결과 발송에서 제외됩니다.", { exact: true })).toBeVisible();
     // This family fixture has parent phones only. Verify the normal authorized recipient journey.
     await send.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
     await send.getByRole("checkbox", { name: "학부모", exact: true }).check();
     await send.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
     const picker = page.getByRole("dialog").filter({ has: page.locator(".tpl-picker__layout") });
-    await picker.getByRole("button", { name: new RegExp(templateName) }).click();
+    const savedCard = picker.locator(".tpl-picker__card").filter({ has: page.getByRole("button", { name: new RegExp(templateName) }) });
+    await savedCard.getByRole("button", { name: "더보기", exact: true }).click();
+    await savedCard.getByRole("button", { name: "이름 변경", exact: true }).click();
+    const rename = savedCard.getByRole("form", { name: "안내문 이름 변경" });
+    const renamedTemplateName = `${templateName} 이름수정`;
+    await rename.getByRole("textbox", { name: "안내문 이름", exact: true }).fill(renamedTemplateName);
+    const renameResponse = page.waitForResponse(response => response.request().method() === "PATCH"
+      && new URL(response.url()).pathname.endsWith(`/messaging/templates/${saved.id}/`));
+    await rename.getByRole("button", { name: "이름 저장", exact: true }).click();
+    expect((await renameResponse).status()).toBe(200);
+    await expect(rename).toBeHidden();
+    const renamed = await expectApi<{ name: string; body: string }>(request, "GET", `/messaging/templates/${saved.id}/`, admin.access);
+    expect(renamed.name).toBe(renamedTemplateName);
+    expect(renamed.body).toBe(persisted.body);
+    await picker.getByRole("button", { name: "닫기", exact: true }).last().click();
+    await send.getByRole("button", { name: "안내문 바꾸기", exact: true }).click();
+    await picker.getByRole("button", { name: new RegExp(renamedTemplateName) }).click();
     await expect(picker.getByLabel("선택할 안내문 내용"))
       .toContainText("학생 #{학생이름3} 점수 #{시험총점} 확인 완료");
     await expect(picker.getByLabel("카카오톡 실제 발송 미리보기")).toHaveCount(0);
@@ -934,8 +1105,11 @@ async function verifyScoreMessageTemplate(
       }).then(response => {
         const payload = response.request().postDataJSON() as {
           raw_body?: string;
+          student_ids?: number[];
           alimtalk_extra_vars_per_student?: Record<string, { _body_subst?: string }>;
         };
+        expect(payload.student_ids).toEqual([student.id]);
+        expect(Object.keys(payload.alimtalk_extra_vars_per_student ?? {})).toEqual([String(student.id)]);
         expect(payload.raw_body).toBe("학생 #{학생이름3} 점수 #{시험총점} 확인 완료");
         expect(payload.alimtalk_extra_vars_per_student?.[String(student.id)]?._body_subst)
           .toBe(`학생 ${student.name} 점수 60 확인 완료`);
@@ -1048,72 +1222,55 @@ async function verifyScoreMessageTemplate(
     expect(defaultRead.is_user_default).toBe(true);
     await page.reload();
     await page.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();
-    // Hold the caller's actual v1 GET acknowledgement while another editor
-    // commits v2. Forward the unchanged real response, never a fabricated body.
-    const entryRaceBody = `${combinedBody}\n진입 중 다른 직원이 보완한 안내`;
-    let callerVersion: string | undefined;
-    let entryRaceVersion: string | undefined;
-    const entryRaceRoute = "**/api/v1/messaging/templates/?category=grades";
-    const holdCallerSnapshot = async (route: Route) => {
-      if (route.request().method() !== "GET" || callerVersion) return route.fallback();
-      const actual = await api<Array<{ id: number; body: string; updated_at: string }>>(
-        request, "GET", "/messaging/templates/?category=grades", admin.access,
-      );
-      expect(actual.status).toBe(200);
-      const callerTemplate = actual.body.find(item => item.id === saved.id);
-      expect(callerTemplate?.body).toBe(combinedBody);
-      callerVersion = callerTemplate!.updated_at;
-      const newer = await expectApi<{ updated_at: string }>(request, "PATCH", `/messaging/templates/${saved.id}/`, admin.access, {
-        body: entryRaceBody, expected_updated_at: callerVersion,
-      });
-      entryRaceVersion = newer.updated_at;
-      expect(entryRaceVersion).not.toBe(callerVersion);
-      await route.fulfill({ status: actual.status, json: actual.body });
-    };
-    await page.route(entryRaceRoute, holdCallerSnapshot);
-    try {
-      const [modalTemplates] = await Promise.all([
-        page.waitForResponse(response => response.request().method() === "GET"
-          && new URL(response.url()).pathname.endsWith("/api/v1/messaging/templates/")
-          && !new URL(response.url()).searchParams.has("category")),
-        page.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click(),
-      ]);
-      expect(modalTemplates.status()).toBe(200);
-      const latestList = await modalTemplates.json() as Array<{ id: number; body: string; updated_at: string }>;
-      expect(latestList.find(item => item.id === saved.id)).toMatchObject({ body: entryRaceBody, updated_at: entryRaceVersion });
-      const entryDraft = send.getByRole("textbox", { name: "안내문", exact: true });
-      await expect(entryDraft).toContainText("과제도 함께 확인해 주세요.");
-      await expect(entryDraft).not.toContainText("진입 중 다른 직원이 보완한 안내");
-      await entryDraft.fill(`${combinedBody}\n진입 전 본문으로 작성한 초안`);
-      const [entryConflictResponse] = await Promise.all([
-        page.waitForResponse(response => response.request().method() === "PATCH"
-          && new URL(response.url()).pathname.endsWith(`/api/v1/messaging/templates/${saved.id}/`)),
-        send.getByRole("button", { name: "변경 내용 저장", exact: true }).click(),
-      ]);
-      expect(entryConflictResponse.status()).toBe(409);
-      expect(entryConflictResponse.request().postDataJSON().expected_updated_at).toBe(callerVersion);
-      const entryConflict = send.getByRole("region", { name: "문구 수정 충돌" });
-      await expect(entryConflict).toContainText(entryRaceBody);
-      await expect(entryDraft).toContainText("진입 전 본문으로 작성한 초안");
-      const retained = await expectApi<{ body: string; updated_at: string }>(request, "GET", `/messaging/templates/${saved.id}/`, admin.access);
-      expect(retained).toMatchObject({ body: entryRaceBody, updated_at: entryRaceVersion });
-      // Explicitly restore the original owned scenario content, preserving all
-      // downstream default/reload and lost-ack assertions below.
-      await entryDraft.fill(combinedBody);
-      await send.getByRole("button", { name: "변경 내용 저장", exact: true }).click();
-      const [restoredResponse] = await Promise.all([
-        page.waitForResponse(response => response.request().method() === "PATCH"
-          && new URL(response.url()).pathname.endsWith(`/api/v1/messaging/templates/${saved.id}/`)),
-        page.getByRole("alertdialog", { name: "현재 초안으로 저장할까요?" })
-          .getByRole("button", { name: "이 초안 저장", exact: true }).click(),
-      ]);
-      expect(restoredResponse.status()).toBe(200);
-      expect(restoredResponse.request().postDataJSON().expected_updated_at).toBe(entryRaceVersion);
-      await expect(entryConflict).toBeHidden();
-      expect((await expectApi<{ body: string }>(request, "GET", `/messaging/templates/${saved.id}/`, admin.access)).body).toBe(combinedBody);
-    } finally {
-      await page.unroute(entryRaceRoute, holdCallerSnapshot);
-    }
+    // The modal selects the default from its own live list. Update that
+    // template through a separate request after the editor has loaded it.
+    const [modalTemplates] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "GET"
+        && new URL(response.url()).pathname.endsWith("/api/v1/messaging/templates/")
+        && !new URL(response.url()).searchParams.has("category")),
+      page.getByRole("button", { name: "수업결과 알림톡 발송", exact: true }).click(),
+    ]);
+    expect(modalTemplates.status()).toBe(200);
+    const openedTemplates = await modalTemplates.json() as Array<{
+      id: number; body: string; updated_at: string; is_user_default: boolean;
+    }>;
+    const openedDefault = openedTemplates.find(item => item.id === saved.id)!;
+    expect(openedDefault).toMatchObject({ body: combinedBody, updated_at: expect.any(String), is_user_default: true });
+    await expect(send.locator(".send-modal__tpl-bar-name")).toHaveText(renamedTemplateName);
+    const entryDraft = send.getByRole("textbox", { name: "안내문", exact: true });
+    await expect(entryDraft).toContainText("과제도 함께 확인해 주세요.");
+    const entryRaceBody = `${combinedBody}\n다른 직원이 보완한 안내`;
+    const newerDefault = await expectApi<{ updated_at: string }>(request, "PATCH", `/messaging/templates/${saved.id}/`, admin.access, {
+      body: entryRaceBody, expected_updated_at: openedDefault.updated_at,
+    });
+    expect(newerDefault.updated_at).not.toBe(openedDefault.updated_at);
+    const entryDraftBody = `${combinedBody}\n처음 불러온 본문으로 작성한 초안`;
+    await entryDraft.fill(entryDraftBody);
+    const [entryConflictResponse] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname.endsWith(`/api/v1/messaging/templates/${saved.id}/`)),
+      send.getByRole("button", { name: "변경 내용 저장", exact: true }).click(),
+    ]);
+    expect(entryConflictResponse.status()).toBe(409);
+    expect(entryConflictResponse.request().postDataJSON().expected_updated_at).toBe(openedDefault.updated_at);
+    const entryConflict = send.getByRole("region", { name: "문구 수정 충돌" });
+    await expect(entryConflict).toContainText(entryRaceBody);
+    await expect(entryDraft).toContainText("처음 불러온 본문으로 작성한 초안");
+    const retained = await expectApi<{ body: string; updated_at: string }>(request, "GET", `/messaging/templates/${saved.id}/`, admin.access);
+    expect(retained).toMatchObject({ body: entryRaceBody, updated_at: newerDefault.updated_at });
+    // Restore this owned fixture before the default reload and lost-ack checks.
+    await entryDraft.fill(combinedBody);
+    await send.getByRole("button", { name: "변경 내용 저장", exact: true }).click();
+    const [restoredResponse] = await Promise.all([
+      page.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname.endsWith(`/api/v1/messaging/templates/${saved.id}/`)),
+      page.getByRole("alertdialog", { name: "현재 초안으로 저장할까요?" })
+        .getByRole("button", { name: "이 초안 저장", exact: true }).click(),
+    ]);
+    expect(restoredResponse.status()).toBe(200);
+    expect(restoredResponse.request().postDataJSON().expected_updated_at).toBe(newerDefault.updated_at);
+    await expect(entryConflict).toBeHidden();
+    expect((await expectApi<{ body: string }>(request, "GET", `/messaging/templates/${saved.id}/`, admin.access)).body).toBe(combinedBody);
     // The conflict exercise used fill(), which leaves raw variable text in the
     // current editor. Re-enter from persisted data before checking restored blocks.
     await page.reload();

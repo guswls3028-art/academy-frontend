@@ -14,6 +14,51 @@ function receipt(request) {
   } };
 }
 
+test('support preview accepts a duplicate end receipt without using the staff login generation', async () => {
+  let lostReceipt = true;
+  const h = harness({ support: true, respond: (request) => {
+    const result = receipt(request);
+    if (lostReceipt) return { status: 503, body: { detail: 'receipt_unavailable' } };
+    result.body.inserted_count = 0;
+    for (const acknowledgement of result.body.acknowledgements) acknowledgement.duplicate = true;
+    return result;
+  } });
+  const originalStaffLogin = h.envelope();
+  const { acquirePlaybackEventBatches, getPlaybackSaveSnapshot, retryPlaybackSaves } = h.load(modulePath);
+  const { expiresAt, sessionId } = options();
+  const writer = acquirePlaybackEventBatches('signed-preview', expiresAt, sessionId, () => {});
+  writer.enqueue({ type: 'FOCUS_GAINED', occurred_at: Date.now() / 1000 });
+  writer.finish();
+  await writer.flush();
+  assert.equal(getPlaybackSaveSnapshot()[0].state, 'retry');
+  lostReceipt = false;
+  retryPlaybackSaves();
+  await writer.flush();
+  assert.deepEqual(h.requests.map((request) => request.path), Array(2).fill('/api/v1/media/playback/v2/end/'));
+  assert.deepEqual(h.requests[0].body, h.requests[1].body);
+  assert.equal(getPlaybackSaveSnapshot().length, 0);
+  assert.equal(h.envelope(), originalStaffLogin);
+  assert.equal(h.counts.refresh, 0);
+});
+
+for (const status of [200, 401]) {
+  test(`support preview discards a late ${status} after the support session is replaced`, async () => {
+    let release;
+    const h = harness({ support: true, respond: () => new Promise((resolve) => { release = resolve; }) });
+    h.replaceEnvelope(null);
+    const pending = h.api.post('/media/playback/v2/end/', { token: 'signed-preview', batches: [] }, {
+      playbackEventScope: h.exports.capturePlaybackEventScope(),
+    });
+    const rejected = assert.rejects(pending, { code: 'ERR_CANCELED' });
+    await settle();
+    assert.equal(h.requests.length, 1);
+    h.setSupportSessionId('replacement-support-session');
+    release({ status, body: {} });
+    await rejected;
+    assert.equal(h.counts.supportEnd, 0);
+  });
+}
+
 test('final overtakes an in-flight batch and carries the identical payload and UUID', async () => {
   let release;
   const h = harness({ respond: (request) => request.path.endsWith('/events/')

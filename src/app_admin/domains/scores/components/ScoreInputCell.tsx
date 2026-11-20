@@ -30,6 +30,7 @@ type Props = {
   /** optional: 키보드 연속 입력용 */
   onMovePrev?: () => void;
   onMoveNext?: () => void;
+  onEnter?: (backward: boolean, from: HTMLInputElement) => void;
 };
 
 export default function ScoreInputCell({
@@ -44,6 +45,7 @@ export default function ScoreInputCell({
   inputRef,
   onMovePrev,
   onMoveNext,
+  onEnter,
 }: Props) {
   const [draft, setDraft] = useState<string>(value == null ? "" : String(value));
   const [saving, setSaving] = useState(false);
@@ -132,7 +134,10 @@ export default function ScoreInputCell({
 
         if (e.key === "Enter") {
           e.preventDefault();
-          commitAndMove(onMoveNext);
+          e.stopPropagation();
+          const backward = e.shiftKey;
+          const from = e.currentTarget;
+          commitAndMove(() => onEnter?.(backward, from));
           return;
         }
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
-import { isApiError } from "@/shared/api/axios";
+import { hasNoActiveClinicEnrollment, retryClinicVerdict } from "@student/shared/api/clinicVerdict";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
@@ -53,6 +53,7 @@ export default function ClinicIDCardPage() {
   const query = useQuery({
     queryKey: studentQueryKeys.clinicIdcard,
     queryFn: ({ signal }) => fetchClinicIdcard(signal),
+    retry: retryClinicVerdict,
     // Five missed polling intervals must not leave a live-looking credential.
     staleTime: 10_000,
     refetchInterval: 2_000,
@@ -93,9 +94,7 @@ export default function ClinicIDCardPage() {
     return <div className="clinic-idcard-state" role="status">{cardLabel} 불러오는 중…</div>;
   }
 
-  const enrollmentUnavailable = isApiError(query.error)
-    && query.error.response?.status === 403
-    && (query.error.response.data as { code?: string } | undefined)?.code === "clinic_no_active_enrollment";
+  const enrollmentUnavailable = hasNoActiveClinicEnrollment(query.error);
   // Cover older API instances that returned an empty passing payload as well.
   if (enrollmentUnavailable || (!query.isError && query.data?.lectures.length === 0)) {
     return (

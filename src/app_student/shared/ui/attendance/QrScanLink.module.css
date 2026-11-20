@@ -1,5 +1,5 @@
-.link { display: flex; align-items: center; gap: 12px; padding: 14px 16px; margin-bottom: 16px; border: 1px solid var(--color-border); border-radius: 14px; color: var(--color-text-primary); background: var(--color-surface); text-decoration: none; transition: transform .16s ease, background .16s ease; }
+.link { display: flex; align-items: center; gap: 12px; padding: 14px 16px; margin-bottom: 16px; border: 1px solid var(--stu-border); border-radius: 14px; color: var(--stu-text); background: var(--stu-surface-1); text-decoration: none; transition: transform .16s ease, background .16s ease; }
 .link span:nth-child(2) { display: grid; flex: 1; gap: 3px; }
-.link small { font-size: 12px; color: var(--color-text-secondary); }
+.link small { font-size: 12px; color: var(--stu-text-muted); }
 .link:active { transform: scale(.99); }
 @media (prefers-reduced-motion: reduce) { .link { transition: none; } }

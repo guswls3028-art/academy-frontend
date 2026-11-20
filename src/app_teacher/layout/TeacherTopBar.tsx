@@ -40,8 +40,8 @@ export default function TeacherTopBar({
   const navigate = useNavigate();
   const { program } = useProgram();
   const { user } = useAuth();
-  const { counts, failures, isLoading, isError } = useTeacherPendingCounts();
   const productUpdate = useProductUpdateAwareness(user?.id);
+  const { counts, failures, isLoading, isError } = useTeacherPendingCounts();
   const tenantName = program?.display_name?.trim() || "";
   const tenantResult = resolveTenantCode();
   const tenantId = tenantResult.ok ? getTenantIdFromCode(tenantResult.code) : null;
@@ -112,7 +112,7 @@ export default function TeacherTopBar({
           data-tenant-header-brand={headerBrandStyle ? "" : undefined}
           style={{
             background: headerBrandStyle
-              ? "linear-gradient(90deg, var(--tenant-header-surface) 0, var(--tenant-header-surface) 42px, var(--tenant-header-surface-soft) 70%, transparent 100%)"
+              ? "linear-gradient(90deg, var(--tenant-header-surface) 0, var(--tenant-header-surface) 42px, var(--tenant-header-surface-soft) 70%, var(--tenant-header-edge, transparent) 100%)"
               : "none",
             border: "none",
             padding: headerBrandStyle ? "5px 20px 5px 5px" : "8px 4px",
@@ -204,13 +204,7 @@ export default function TeacherTopBar({
           iconSize={ICON.lg}
           ariaLabel="가이드북"
           onNavigate={navigate}
-          updateNotice={{
-            title: productUpdate.latest.title,
-            date: productUpdate.latest.date,
-            href: productUpdate.href,
-            isUnread: productUpdate.isUnread,
-            onOpen: productUpdate.markRead,
-          }}
+          productUpdate={productUpdate}
         />
         <button
           onClick={() => navigate("/workspace/mobile/notifications")}

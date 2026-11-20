@@ -5,6 +5,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
+import PhotoPreview from "@/shared/ui/media/PhotoPreview";
+import { isPhotoFile } from "@/shared/ui/media/photoType";
 import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
 import { fetchNoticeDetail, getAttachmentDownloadUrl, type PostAttachment } from "../api/notices.api";
 import EmptyState from "@student/layout/EmptyState";
@@ -15,7 +17,7 @@ import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import styles from "./NoticeDetailPage.module.css";
 
 function isImageAttachment(att: PostAttachment): boolean {
-  return att.content_type.startsWith("image/");
+  return isPhotoFile(att.original_name, att.content_type);
 }
 
 type ImagePreviewState =
@@ -103,7 +105,7 @@ export default function NoticeDetailPage() {
 
           {/* 첨부파일 */}
           {notice.attachments && notice.attachments.length > 0 && (
-            <NoticeAttachments postId={notice.id} attachments={notice.attachments} />
+            <NoticeAttachments key={notice.id} postId={notice.id} attachments={notice.attachments} />
           )}
 
           {/* 목록으로 돌아가기 */}
@@ -173,8 +175,10 @@ function NoticeAttachments({ postId, attachments }: { postId: number; attachment
         return (
           <div key={`img-${att.id}`} className={styles.imageFrame}>
             {state.status === "loaded" ? (
-              <img
+              <PhotoPreview
                 src={state.url}
+                filename={att.original_name}
+                mimeType={att.content_type}
                 alt={att.original_name}
                 className={styles.imagePreview}
                 onError={() => setImageStates((current) => ({
@@ -193,6 +197,9 @@ function NoticeAttachments({ postId, attachments }: { postId: number; attachment
                   onClick={() => void retryImage(att)}
                 >
                   다시 시도
+                </button>
+                <button type="button" className={`stu-btn stu-btn--secondary stu-btn--sm ${styles.imageRetry}`} onClick={() => void handleDownload(att)}>
+                  원본 다운로드
                 </button>
               </div>
             ) : (

@@ -1,29 +1,24 @@
 /**
  * 선생앱 모바일: 좌측 드로어에 표시할 전체 메뉴. 링크 클릭 시 드로어 닫힘.
  */
-import { NavLink, useLocation, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { Drawer } from "antd";
 import { Search, Smartphone } from "lucide-react";
 import { useAdminLayout } from "./useAdminLayout";
-import { NavIcon } from "./adminNavConfig";
-import { useAvailableAdminNavigation } from "./useAvailableAdminNavigation";
 import useAuth from "@/auth/hooks/useAuth";
 import { consumeMobileWorkspaceReturnPath, setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import styles from "./AdminNavDrawer.module.css";
+import AdminPrimaryNavigation from "./AdminPrimaryNavigation";
 import { HeaderCenterStaffClock } from "@admin/domains/staff/components/HeaderCenterStaffClock";
 
 export default function AdminNavDrawer({ onOpenQuickNavigation }: { onOpenQuickNavigation: () => void }) {
   const layout = useAdminLayout();
-  const loc = useLocation();
   const navigate = useNavigate();
   const open = layout?.drawerOpen ?? false;
   const onClose = layout?.closeDrawer ?? (() => {});
-  const groups = useAvailableAdminNavigation();
   const { user } = useAuth();
   const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
 
-  const isActive = (to: string) =>
-    to !== "" && (loc.pathname === to || loc.pathname.startsWith(to + "/"));
 
   return (
     <Drawer
@@ -57,29 +52,7 @@ export default function AdminNavDrawer({ onOpenQuickNavigation }: { onOpenQuickN
         className={styles.nav}
         data-analytics-placement="admin.drawer"
       >
-        {groups.map((g, gi) => (
-          <div key={gi} className="sidebar-group">
-            {g.title ? (
-              <div className="sidebar-group-title">{g.title}</div>
-            ) : null}
-            {g.items.map((it) => {
-              const active = isActive(it.to);
-              return (
-                <NavLink
-                  key={it.to}
-                  to={it.to}
-                  onClick={onClose}
-                  className={`nav-item ${active ? "active" : ""}`}
-                >
-                  <span className={styles.navIcon}>
-                    <NavIcon d={it.iconPath} />
-                  </span>
-                  <span>{it.label}</span>
-                </NavLink>
-              );
-            })}
-          </div>
-        ))}
+        <AdminPrimaryNavigation onNavigate={onClose} />
       </div>
 
       {/* 모바일에서만 표시: 간편 업무으로 돌아가기 */}

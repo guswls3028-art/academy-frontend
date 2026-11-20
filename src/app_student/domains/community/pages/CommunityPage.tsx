@@ -2,6 +2,7 @@
  * PATH: src/app_student/domains/community/pages/CommunityPage.tsx
  * 학생 커뮤니티 — QnA | 게시판 | 자료실
  */
+import { ReplyPhotos } from "@/shared/ui/content/ReplyPhotos";
 import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -21,6 +22,8 @@ import {
 } from "@student/shared/ui/icons/Icons";
 import RichTextEditor from "@/shared/ui/editor/RichTextEditor";
 import { selectCommunityFiles } from "@/shared/utils/selectCommunityFiles";
+import PhotoPreview from "@/shared/ui/media/PhotoPreview";
+import { isPhotoFile } from "@/shared/ui/media/photoType";
 import RichHtmlContent from "@/shared/ui/content/RichHtmlContent";
 import { richHtmlToPlainText, richHtmlToPreviewText } from "@/shared/utils/richHtml";
 import { formatCompactFileSize as formatAttachmentSize } from "@/shared/utils/fileSize";
@@ -29,6 +32,7 @@ import { useDurableDraft, type DurableDraftStatus } from "@/shared/hooks/useDura
 import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
 import { fetchVideoMe } from "@student/domains/video/api/video.api";
+import { STUDENT_VIDEO_CATALOG_STALE_MS, studentVideoQueryKeys, studentVideoQueryScope } from "@student/domains/video/queryKeys";
 import { useMarkNotificationsSeen } from "@student/domains/notifications/hooks/useSeenNotifications";
 import {
   fetchMyQuestions,
@@ -493,7 +497,7 @@ function NoticeDetail({ id, onBack }: { id: number; onBack: () => void }) {
         <div className="community-content-divider">
           <HtmlContent html={post.content} />
         </div>
-        <AttachmentList postId={post.id} attachments={post.attachments} />
+        <AttachmentList key={post.id} postId={post.id} attachments={post.attachments} />
       </div>
     </StudentPageShell>
   );
@@ -667,6 +671,7 @@ function QnaDetailContent({ question, onBack }: { question: PostEntity; onBack: 
                       className="stu-panel community-answer-card"
                     >
                       <HtmlContent html={r.content} />
+                      <ReplyPhotos attachments={r.attachments} onRetry={refetch} />
                       <div className="stu-muted community-answer-date">{formatYmd(r.created_at)}</div>
                     </div>
                   ))}
@@ -808,7 +813,11 @@ function QnaForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => v
   useEffect(() => {
     if (qnaPendingDraft) restoreQnaPendingDraft();
   }, [qnaPendingDraft, restoreQnaPendingDraft]);
-  const videoMeQ = useQuery({ queryKey: studentCommunityQueryKeys.videoMe, queryFn: fetchVideoMe, staleTime: 60_000 });
+  const videoMeQ = useQuery({
+    queryKey: studentVideoQueryKeys.me(studentVideoQueryScope(user)),
+    queryFn: fetchVideoMe,
+    staleTime: STUDENT_VIDEO_CATALOG_STALE_MS,
+  });
   const videoMe = videoMeQ.data;
   const lectureOptions = useMemo(() => (videoMe?.lectures ?? []).map((l) => l.title), [videoMe]);
   const hasLectureOptions = lectureOptions.length > 0;
@@ -1067,7 +1076,7 @@ function BoardDetail({ id, onBack }: { id: number; onBack: () => void }) {
         <div className="community-content-divider">
           <HtmlContent html={post.content} />
         </div>
-        <AttachmentList postId={post.id} attachments={post.attachments} />
+        <AttachmentList key={post.id} postId={post.id} attachments={post.attachments} />
       </div>
     </StudentPageShell>
   );
@@ -1549,7 +1558,7 @@ function MaterialsDetail({ id, onBack }: { id: number; onBack: () => void }) {
         <div className="community-content-divider">
           <HtmlContent html={post.content} />
         </div>
-        <AttachmentList postId={post.id} attachments={post.attachments} />
+        <AttachmentList key={post.id} postId={post.id} attachments={post.attachments} />
         <p className="community-materials-note">
           💡 자료실은 다운로드 전용입니다. 질문은 QnA 탭에서 등록해 주세요.
         </p>
@@ -1567,22 +1576,19 @@ type AttachmentImageState =
   | { status: "error" };
 
 function AttachmentList({ postId, attachments }: { postId: number; attachments?: PostAttachment[] }) {
-  const isImage = (ct: string) => ct.startsWith("image/");
+  const isImage = (attachment: PostAttachment) => isPhotoFile(attachment.original_name, attachment.content_type);
 
   // 이미지 URL 캐시 — 병렬 fetch (이전: 직렬 for…of, N round-trip)
   const [imageStates, setImageStates] = useState<Record<number, AttachmentImageState>>({});
-  const imgUrls = useMemo(() => Object.fromEntries(
-    Object.entries(imageStates)
-      .filter((entry): entry is [string, { status: "loaded"; url: string }] => entry[1].status === "loaded")
-      .map(([id, state]) => [Number(id), state.url]),
-  ), [imageStates]);
   // lightbox: 전체화면 이미지 뷰어
   const [lightboxId, setLightboxId] = useState<number | null>(null);
   const lightboxRef = useRef<HTMLDivElement>(null);
-  useDialogSurface(lightboxId != null && Boolean(imgUrls[lightboxId]), lightboxRef, () => setLightboxId(null));
+  const lightboxPhoto = attachments?.find((attachment) => attachment.id === lightboxId);
+  const lightboxState = lightboxPhoto ? imageStates[lightboxPhoto.id] : undefined;
+  useDialogSurface(lightboxState?.status === "loaded", lightboxRef, () => setLightboxId(null));
   useEffect(() => {
     if (!attachments || attachments.length === 0) return;
-    const images = attachments.filter((a) => isImage(a.content_type));
+    const images = attachments.filter(isImage);
     if (images.length === 0) return;
     let cancelled = false;
     setImageStates(Object.fromEntries(images.map((img) => [img.id, { status: "loading" }])));
@@ -1627,7 +1633,7 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
   return (
     <div className="community-attachments">
       {/* 이미지 미리보기 — 클릭 시 lightbox */}
-      {attachments.filter((a) => isImage(a.content_type)).map((att) => {
+      {attachments.filter(isImage).map((att) => {
         const state = imageStates[att.id] ?? { status: "loading" as const };
         return (
           <div key={`img-${att.id}`} className="community-image-frame">
@@ -1638,8 +1644,10 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
                 className="community-image-preview community-image-preview--loaded"
                 aria-label={`${att.original_name} 크게 보기`}
               >
-                <img
+                <PhotoPreview
                   src={state.url}
+                  filename={att.original_name}
+                  mimeType={att.content_type}
                   alt={att.original_name}
                   className="community-image"
                   onError={() => setImageStates((current) => ({
@@ -1660,6 +1668,9 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
                 >
                   다시 시도
                 </button>
+                <button type="button" className="stu-btn stu-btn--secondary stu-btn--sm" onClick={() => void handleDownload(att)}>
+                  원본 다운로드
+                </button>
               </div>
             ) : (
               <div className="community-image-placeholder" role="status">이미지 로딩 중…</div>
@@ -1669,7 +1680,7 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
       })}
 
       {/* Lightbox 모달 */}
-      {lightboxId != null && imgUrls[lightboxId] && createPortal(
+      {lightboxPhoto && lightboxState?.status === "loaded" && createPortal(
         <div
           ref={lightboxRef}
           tabIndex={-1}
@@ -1679,10 +1690,16 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
           aria-label="이미지 크게 보기"
           className="community-lightbox"
         >
-          <img
-            src={imgUrls[lightboxId]}
-            alt={attachments.find((a) => a.id === lightboxId)?.original_name ?? ""}
+          <PhotoPreview
+            src={lightboxState.url}
+            filename={lightboxPhoto.original_name}
+            mimeType={lightboxPhoto.content_type}
+            alt={lightboxPhoto.original_name}
             onClick={(e) => e.stopPropagation()}
+            onError={() => {
+              setLightboxId(null);
+              setImageStates((current) => ({ ...current, [lightboxPhoto.id]: { status: "error" } }));
+            }}
             className="community-lightbox__image"
           />
           <button
@@ -1697,12 +1714,12 @@ function AttachmentList({ postId, attachments }: { postId: number; attachments?:
       )}
 
       {/* 파일 목록 */}
-      {attachments.filter((a) => !isImage(a.content_type)).length > 0 && (
+      {attachments.filter((a) => !isImage(a)).length > 0 && (
         <div className="community-file-heading">
-          첨부파일 ({attachments.filter((a) => !isImage(a.content_type)).length})
+          첨부파일 ({attachments.filter((a) => !isImage(a)).length})
         </div>
       )}
-      {attachments.filter((a) => !isImage(a.content_type)).map((att) => (
+      {attachments.filter((a) => !isImage(a)).map((att) => (
         <button
           key={att.id}
           type="button"

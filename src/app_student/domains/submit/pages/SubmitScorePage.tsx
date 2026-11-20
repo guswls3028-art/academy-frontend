@@ -1,7 +1,7 @@
 /**
  * 성적표 제출 — 시험 정보 + 원본 증빙을 함께 제출하고 교직원 확인 상태를 조회한다.
  */
-import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
@@ -22,6 +22,7 @@ import type {
 import { formatCompactFileSize as formatBytes } from "@/shared/utils/fileSize";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 import styles from "./SubmitScorePage.module.css";
+import type { SurveyScoreDefaults } from "@/shared/api/surveys";
 
 const ACCEPT = "image/png,image/jpeg,.pdf";
 const MAX_SIZE_MB = 20;
@@ -93,19 +94,23 @@ function optionalNumber(value: string): number | undefined {
   return value.trim() === "" ? undefined : Number(value);
 }
 
-export default function SubmitScorePage() {
+function ScoreSubmissionFrame({ embedded, children }: { embedded: boolean; children: ReactNode }) {
+  return embedded ? <div>{children}</div> : <StudentPageShell title="성적표 제출" description="시험 정보와 성적표 원본을 보내면, 선생님 확인 후 내 성적 추이에 반영됩니다." descriptionMode="help" onBack={() => window.history.back()}>{children}</StudentPageShell>;
+}
+
+export default function SubmitScorePage({ embedded = false, defaults = {}, onSubmitted, onBusyChange }: { embedded?: boolean; defaults?: SurveyScoreDefaults; onSubmitted?: (file: InventoryFile) => void; onBusyChange?: (busy: boolean) => void } = {}) {
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nextItemId = useRef(2);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [source, setSource] = useState<StudentScoreSource>("school_exam");
-  const [academicYear, setAcademicYear] = useState(CURRENT_YEAR);
-  const [semester, setSemester] = useState<1 | 2>(1);
-  const [examRound, setExamRound] = useState<StudentSchoolExamRound>("first");
-  const [examName, setExamName] = useState("");
-  const [examMonth, setExamMonth] = useState(6);
+  const [source, setSource] = useState<StudentScoreSource>(defaults.source ?? "school_exam");
+  const [academicYear, setAcademicYear] = useState(defaults.academic_year ?? CURRENT_YEAR);
+  const [semester, setSemester] = useState<1 | 2>(defaults.semester ?? 1);
+  const [examRound, setExamRound] = useState<StudentSchoolExamRound>(defaults.exam_round ?? "first");
+  const [examName, setExamName] = useState(defaults.exam_name ?? "");
+  const [examMonth, setExamMonth] = useState(defaults.exam_month ?? 6);
   const [examDate, setExamDate] = useState("");
-  const [scoreItems, setScoreItems] = useState<ScoreItemDraft[]>([newScoreItem(1, "수학")]);
+  const [scoreItems, setScoreItems] = useState<ScoreItemDraft[]>([newScoreItem(1, defaults.subject ?? "수학")]);
   const [error, setError] = useState<string | null>(null);
 
   const { data: profile, isLoading: profileLoading } = useQuery({
@@ -155,9 +160,15 @@ export default function SubmitScorePage() {
   };
 
   const uploadMut = useMutation({
+    onMutate: () => onBusyChange?.(true),
+    onSettled: () => onBusyChange?.(false),
     mutationFn: async () => {
       if (!ps) throw new Error("프로필을 불러오는 중입니다.");
       if (!selectedFile) throw new Error("성적표 원본을 선택해 주세요.");
+      const selectedExam = { source, academic_year: academicYear, semester, exam_round: examRound, exam_name: examName, exam_month: examMonth };
+      if (Object.entries(defaults).some(([key, value]) => key === "subject" ? !scoreItems.some((item) => item.subject.trim() === value) : selectedExam[key as keyof typeof selectedExam] !== value)) {
+        throw new Error("설문에서 요청한 시험 정보와 과목을 유지해 주세요. 다른 시험은 일반 성적표 제출에서 보낼 수 있습니다.");
+      }
       if (source === "school_exam" && (examRound === "performance" || examRound === "other")) {
         if (!examName.trim()) throw new Error("성적표에 적힌 학교 평가명을 입력해 주세요.");
         if (!examDate) throw new Error("수행평가·기타 학교 평가는 시험일을 입력해 주세요.");
@@ -208,11 +219,12 @@ export default function SubmitScorePage() {
         scoreSubmissions,
       });
     },
-    onSuccess: () => {
+    onSuccess: (file) => {
       clearSelectedFile();
       setScoreItems([newScoreItem(nextItemId.current++)]);
       void qc.invalidateQueries({ queryKey: inventoryQueryKey });
-      studentToast.success("성적표를 선생님께 보냈습니다.");
+      onSubmitted?.(file);
+      studentToast.success(onSubmitted ? "성적표를 등록했습니다. 설문 응답을 마무리해 주세요." : "성적표를 선생님께 보냈습니다.");
     },
     onError: (e: Error) => setError(e.message || "제출에 실패했습니다."),
   });
@@ -246,12 +258,7 @@ export default function SubmitScorePage() {
   const isMock = source !== "school_exam";
 
   return (
-    <StudentPageShell
-      title="성적표 제출"
-      description="시험 정보와 성적표 원본을 보내면, 선생님 확인 후 내 성적 추이에 반영됩니다."
-      descriptionMode="help"
-      onBack={() => window.history.back()}
-    >
+    <ScoreSubmissionFrame embedded={embedded}>
       <div className={`stu-section stu-section--nested ${styles.sectionStack}`}>
         <div className={styles.processStrip} aria-label="성적 반영 절차">
           <strong>정보 입력</strong><span aria-hidden>→</span><strong>성적표 제출</strong><span aria-hidden>→</span><strong>선생님 확인</strong><span aria-hidden>→</span><strong>통계 반영</strong>
@@ -419,6 +426,6 @@ export default function SubmitScorePage() {
           )}
         </section>
       </div>
-    </StudentPageShell>
+    </ScoreSubmissionFrame>
   );
 }

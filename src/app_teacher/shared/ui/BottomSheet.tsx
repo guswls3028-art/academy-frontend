@@ -2,6 +2,7 @@
 // 공용 바텀시트 — Phase 2 소통/메시지 등에서 재사용
 import { useId, useRef, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
+import { ControlSizeContext } from "@/shared/ui/ds/ControlSizeContext";
 import styles from "./BottomSheet.module.css";
 import { useDialogSurface } from "@/shared/ui/overlays/useDialogSurface";
 
@@ -24,11 +25,12 @@ export default function BottomSheet({ open, onClose, title, children, footer, in
   if (!open) return null;
 
   return createPortal(
-    <>
+    <ControlSizeContext.Provider value={null}>
       <div className={styles.overlay} aria-hidden="true" onClick={requestClose} />
       <div
         ref={sheetRef}
         className={styles.sheet}
+        data-app="teacher"
         role="dialog"
         tabIndex={-1}
         aria-modal="true"
@@ -60,12 +62,14 @@ export default function BottomSheet({ open, onClose, title, children, footer, in
         {/* Content */}
         <div className={`${styles.content} ${footer ? styles.contentWithFooter : ""}`}>{children}</div>
         {footer && (
-          <div className={styles.footer}>
-            {footer}
-          </div>
+          <ControlSizeContext.Provider value="lg">
+            <div className={styles.footer} data-control-size="lg">
+              {footer}
+            </div>
+          </ControlSizeContext.Provider>
         )}
       </div>
-    </>,
+    </ControlSizeContext.Provider>,
     document.body,
   );
 }

@@ -28,8 +28,12 @@ export function harness(options = {}) {
   const document = new EventTarget();
   document.hidden = false;
   const timers = new Map();
+  const intervalCallbacks = new Map();
   let timerOrdinal = 0;
-  window.setTimeout = (callback, delay) => { timers.set(++timerOrdinal, { callback, delay }); return timerOrdinal; };
+  window.setTimeout = (callback, delay) => {
+    timers.set(++timerOrdinal, { callback, delay, dueAt: clockOffset + delay });
+    return timerOrdinal;
+  };
   window.clearTimeout = (id) => timers.delete(id);
   const counts = { refresh: 0, clear: 0, supportEnd: 0, apiError: 0 };
   const requests = [];
@@ -43,7 +47,10 @@ export function harness(options = {}) {
     '@/shared/api/parentStudentSelection': { getParentStudentId: () => parentId },
     '@/shared/ui/asyncStatus/asyncStatusStore': { asyncStatusStore: { trackRequest: () => 'unit-request', completeTask() {} } },
     '@/shared/tenant': { getTenantCodeForApiRequest: () => tenant },
-    '@/shared/lib/sentryContext': { captureApiError: () => counts.apiError++ },
+    '@/shared/lib/sentryContext': {
+      captureApiError: () => counts.apiError++,
+      sanitizeObservabilityPath: (value) => new URL(value, 'https://unit.invalid').pathname,
+    },
     '@/shared/utils/safeSessionStorage': { getSessionItem: () => null, removeSessionItem() {}, setSessionItem() {} },
     '@/shared/auth/tokenSession': {
       AuthTokenStorageError: class AuthTokenStorageError extends Error {},
@@ -84,7 +91,13 @@ export function harness(options = {}) {
         if (specifier.startsWith('.')) return load(path.relative(root, path.resolve(path.dirname(file), `${specifier}.ts`)));
         throw new Error(`Unmocked import: ${specifier}`);
       },
-      window, document, console, atob, URL, TextEncoder, AbortController, Date: TestDate, crypto: webcrypto, setInterval: () => 1, clearInterval() {},
+      window, document, console, atob, URL, TextEncoder, AbortController, Event, Date: TestDate, crypto: webcrypto,
+      performance: { now: () => clockOffset },
+      setInterval: (callback, delay) => {
+        intervalCallbacks.set(++timerOrdinal, { callback, delay });
+        return timerOrdinal;
+      },
+      clearInterval: (id) => intervalCallbacks.delete(id),
       fetch: (url, init) => {
         const request = new Request(url, init);
         const record = { path: new URL(request.url).pathname, headers: request.headers,
@@ -117,6 +130,17 @@ export function harness(options = {}) {
     setSupportSessionId: (value) => { supportSessionId = value; },
     setParentId: (value) => { parentId = value; }, setTenant: (value) => { tenant = value; },
     advance: (milliseconds) => { clockOffset += milliseconds; },
+    sampleIntervals: (delay) => {
+      for (const interval of [...intervalCallbacks.values()]) {
+        if (interval.delay === delay) interval.callback();
+      }
+    },
+    fireDueTimers: () => {
+      const due = [...timers].filter(([, timer]) => timer.dueAt <= clockOffset);
+      for (const [id, timer] of due) {
+        if (timers.delete(id)) timer.callback();
+      }
+    },
     fireTimers: (maximumDelay = Infinity) => {
       const callbacks = [...timers].filter(([, timer]) => timer.delay <= maximumDelay);
       callbacks.forEach(([id]) => timers.delete(id));

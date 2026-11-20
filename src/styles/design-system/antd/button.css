@@ -2,6 +2,8 @@
 /* AntD Button — UI CONTROL SLOT WIRED (FINAL) */
 
 .ant-btn {
+  min-height: var(--control-group-height, var(--field-height, var(--control-md)));
+  font-size: var(--ds-text-md);
   font-family: var(--app-font-sans) !important;
   border-radius: var(--radius-md);
 }
@@ -100,4 +102,15 @@
   box-shadow:
     0 0 0 2px var(--ui-control-bg),
     0 0 0 4px color-mix(in srgb, var(--ui-control-border-focus) 60%, transparent);
+}
+
+.ant-btn.ant-btn-sm { min-height: var(--control-group-height, var(--control-sm)); }
+.ant-btn.ant-btn-lg { min-height: var(--control-group-height, var(--control-lg)); }
+
+[data-control-size] .ant-btn {
+  padding-inline: var(--control-group-padding);
+  font-size: var(--control-group-font);
+}
+[data-control-size] .ant-btn .anticon {
+  font-size: var(--control-group-icon);
 }

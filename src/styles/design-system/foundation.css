@@ -23,6 +23,33 @@
   --ds-text-xl: 20px;
   --ds-text-2xl: 24px;
   --ds-text-3xl: 30px;
+  --ds-text-4xl: 36px;
+  --ds-text-name: 15px;
+
+  /* Physical control scale shared by every role. Context, not intent, chooses size. */
+  --ds-control-sm: 32px;
+  --ds-control-md: 40px;
+  --ds-control-lg: 44px;
+  --ds-control-xl: 48px;
+  --ds-touch-target: 44px;
+  --ds-content-reading: 1120px;
+  --ds-content-work: 1320px;
+  --ds-field-font: var(--ds-text-md);
+  --ds-control-icon-sm: 16px;
+  --ds-control-icon-md: 18px;
+  --ds-control-icon-lg: 18px;
+  --ds-control-icon-xl: 22px;
+  --ds-badge-font-xs: 10px;
+  --ds-badge-font-sm: 11px;
+  --ds-badge-font-md: 12px;
+  --ds-badge-font-lg: 13px;
+  --ds-badge-pad-xs: 2px 6px;
+  --ds-badge-pad-sm: 3px 8px;
+  --ds-badge-pad-md: 4px 10px;
+  --ds-badge-pad-lg: 5px 12px;
+  --ds-card-radius: var(--ds-radius-lg);
+  --ds-card-padding: var(--ds-space-4);
+  --ds-card-gap: var(--ds-space-3);
   --ds-duration-fast: 100ms;
   --ds-duration-base: 160ms;
   --ds-duration-slow: 240ms;
@@ -46,4 +73,14 @@
 }
 @media (prefers-reduced-motion: reduce) {
   :root { --ds-duration-fast: 0ms; --ds-duration-base: 0ms; --ds-duration-slow: 0ms; }
+}
+
+/* Small/coarse-pointer screens keep every standard control comfortably operable.
+   Sizes remain tokens; domain CSS must not shrink the touch target again. */
+@media (max-width: 1023px), (pointer: coarse) {
+  :root {
+    --ds-control-sm: var(--ds-touch-target);
+    --ds-control-md: var(--ds-touch-target);
+    --ds-field-font: var(--ds-text-lg);
+  }
 }

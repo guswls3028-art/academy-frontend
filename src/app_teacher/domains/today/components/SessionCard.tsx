@@ -1,8 +1,8 @@
 // PATH: src/app_teacher/domains/today/components/SessionCard.tsx
 // 수업 카드 — LectureChip + 진행상태 + 출결 진척 + 퀵 액션(출석/성적)
 import { useNavigate } from "react-router";
-import type { ReactNode } from "react";
-import { ICON } from "@/shared/ui/ds";
+import { useRef, useState, type ReactNode } from "react";
+import { Button, ICON } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { cx } from "@/shared/utils/cx";
 import { Check, Edit3 } from "@teacher/shared/ui/Icons";
@@ -12,6 +12,8 @@ import styles from "./SessionCard.module.css";
 
 interface Props {
   session: TodaySession;
+  date: string;
+  onRefresh: () => void;
 }
 
 type SessionPhase = "upcoming" | "ongoing" | "ended" | "unknown";
@@ -47,17 +49,25 @@ const PHASE_BADGE: Record<SessionPhase, { label: string; tone: "info" | "primary
   unknown: null,
 };
 
-export default function SessionCard({ session }: Props) {
+export default function SessionCard({ session, date, onRefresh }: Props) {
   const navigate = useNavigate();
+  const [selectedScheduleId, setSelectedScheduleId] = useState<number | null>(null);
+  const choiceRef = useRef<HTMLDivElement>(null);
+  const configured = Boolean(session.schedule_dates?.length);
+  const matching = session.schedule_dates?.filter(s => s.date === date) ?? [];
+  const selected = matching.length === 1 ? matching[0] : matching.find(s => s.id === selectedScheduleId);
+  const current = configured ? selected : session;
+  const scopedSuffix = selected ? `?schedule=${selected.id}` : '';
+  const needsChoice = configured && !selected;
   const timeStr =
-    session.start_time && session.end_time
-      ? `${session.start_time.slice(0, 5)} – ${session.end_time.slice(0, 5)}`
+    current?.start_time && current.end_time
+      ? `${current.start_time.slice(0, 5)} – ${current.end_time.slice(0, 5)}`
       : null;
-  const subtitle = [timeStr, session.location, session.section_label]
+  const subtitle = [configured ? selected?.label ?? (matching.map(s => s.label).join(' · ') || '수업일 확인 필요') : null, timeStr, session.location, session.section_label]
     .filter(Boolean)
     .join(" · ");
 
-  const phase = getPhase(session.start_time, session.end_time);
+  const phase = getPhase(current?.start_time, current?.end_time);
   const phaseBadge = PHASE_BADGE[phase];
 
   const filled = session.attendance_filled ?? 0;
@@ -72,9 +82,11 @@ export default function SessionCard({ session }: Props) {
       <button
         type="button"
         className={styles.bodyButton}
-        onClick={() =>
-          navigate(`/workspace/mobile/classes/${session.lecture}/sessions/${session.id}`)
-        }
+        onClick={() => {
+          if (configured && !matching.length) { onRefresh(); return; }
+          if (needsChoice) { choiceRef.current?.querySelector('button')?.focus(); return; }
+          navigate(`/workspace/mobile/classes/${session.lecture}/sessions/${session.id}${scopedSuffix}`);
+        }}
       >
         <LectureChip
           lectureName={session.lecture_title ?? session.title}
@@ -106,12 +118,18 @@ export default function SessionCard({ session }: Props) {
         </div>
       </button>
 
+      {configured && matching.length > 1 && <div ref={choiceRef} className="flex flex-wrap gap-2 px-3 pb-3" role="group" aria-label="오늘 수업일 선택">
+        <p className="w-full text-xs">수업일을 선택하면 해당 학생의 출석·성적을 열 수 있습니다.</p>
+        {matching.map(s => <Button key={s.id} size="sm" intent={selected?.id === s.id ? 'primary' : 'secondary'} aria-pressed={selected?.id === s.id} onClick={() => setSelectedScheduleId(s.id)}>{s.label}{s.start_time ? ` · ${s.start_time.slice(0, 5)}` : ''}</Button>)}
+      </div>}
+      {configured && !matching.length && <div className="px-3 pb-3" role="alert"><p className="text-sm">오늘 수업일을 확인하지 못했습니다.</p><Button size="sm" onClick={onRefresh}>수업일 다시 불러오기</Button></div>}
+
       {/* Attendance progress */}
       {hasProgress && (
         <div className={styles.progressSection}>
           <div className={styles.progressHeader}>
             <span className={styles.progressLabel}>
-              출결 입력
+              {configured ? '오늘 수업일 출결 입력' : '출결 입력'}
             </span>
             <span
               className={cx(
@@ -140,14 +158,16 @@ export default function SessionCard({ session }: Props) {
           variant="success"
           done={attendanceDone}
           ariaLabel={`${session.lecture_title || session.title} 출석 입력`}
-          onClick={() => navigate(`/workspace/mobile/attendance/${session.id}`)}
+          disabled={needsChoice}
+          onClick={() => navigate(`/workspace/mobile/attendance/${session.id}${scopedSuffix}`)}
         />
         <QuickBtn
           icon={<Edit3 size={ICON.xs} />}
           label="성적"
           variant="primary"
           ariaLabel={`${session.lecture_title || session.title} 성적 입력`}
-          onClick={() => navigate(`/workspace/mobile/scores/${session.id}`)}
+          disabled={needsChoice}
+          onClick={() => navigate(`/workspace/mobile/scores/${session.id}${scopedSuffix}`)}
         />
       </div>
     </div>
@@ -161,6 +181,7 @@ function QuickBtn({
   done,
   ariaLabel,
   onClick,
+  disabled,
 }: {
   icon: ReactNode;
   label: string;
@@ -168,12 +189,15 @@ function QuickBtn({
   done?: boolean;
   ariaLabel: string;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   const variantClass = QUICK_BUTTON_CLASS[variant];
 
   return (
     <button
       type="button"
+      disabled={disabled}
+      title={disabled ? '오늘 수업일을 먼저 선택하거나 다시 불러와 주세요.' : undefined}
       onClick={(e) => {
         e.stopPropagation();
         onClick();

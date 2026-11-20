@@ -11,10 +11,12 @@ export const adminLectureQueryKeys = {
   sessionsForLecture: (lectureId: number | null | undefined) => ["sessions", lectureId] as const,
   sessionDetail: (sessionId: number | null | undefined) => ["session-detail", sessionId] as const,
 
-  attendance: (sessionId: number, page: number, search: string, status: string, ordering: string) =>
-    ["attendance", sessionId, page, search, status, ordering] as const,
+  attendance: (sessionId: number, page: number, search: string, status: string, ordering: string, schedule?: string) =>
+    ["attendance", sessionId, page, search, status, ordering, schedule ?? 'all'] as const,
   attendanceForSession: (sessionId: number | null | undefined) => ["attendance", sessionId] as const,
   attendanceForPdf: (sessionId: number | null | undefined) => ["attendance-for-pdf", sessionId] as const,
+  attendanceForPdfScope: (sessionId: number, schedule: string | undefined) =>
+    ["attendance-for-pdf", sessionId, schedule ?? 'all'] as const,
   attendanceMatrix: (lectureId: number | null | undefined) => ["attendance-matrix", lectureId] as const,
   attendanceEnrolledIds: attendanceQueryKeys.enrolledIds,
 

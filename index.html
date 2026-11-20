@@ -6,7 +6,7 @@
     <link rel="icon" href="/vite.svg" type="image/svg+xml" />
     <link rel="canonical" href="https://hakwonplus.com/promo" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#37D6F2" />
+    <meta name="theme-color" content="#293ab0" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="학원플러스" />
@@ -20,13 +20,172 @@
     <meta property="og:title" content="학원플러스 | 학원의 수업과 운영을 한 흐름으로" />
     <meta property="og:description" content="적중 매치업, 칠판용 PPT, 출결·성적·영상·알림톡을 한곳에서 관리합니다." />
     <meta property="og:url" content="https://hakwonplus.com/promo" />
-    <meta property="og:image" content="https://hakwonplus.com/tenants/hakwonplus/og-image.png" />
+    <meta property="og:image" content="https://hakwonplus.com/tenants/hakwonplus/og-image.png?v=20261119" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="학원플러스 | 학원의 수업과 운영을 한 흐름으로" />
     <meta name="twitter:description" content="적중 매치업, 칠판용 PPT, 출결·성적·영상·알림톡을 한곳에서 관리합니다." />
-    <meta name="twitter:image" content="https://hakwonplus.com/tenants/hakwonplus/og-image.png" />
+    <meta name="twitter:image" content="https://hakwonplus.com/tenants/hakwonplus/og-image.png?v=20261119" />
+    <style>
+      /* Shared by HTML boot recovery and the React error/report surfaces. */
+      .error-recovery {
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        min-height: 100dvh;
+        padding: 24px 16px;
+        background: var(--color-bg-canvas, #f5f7fb);
+        color: var(--color-text-primary, #172237);
+        font-family: var(--app-font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+      }
+      .error-recovery--boot {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        min-height: 0;
+        overflow: auto;
+      }
+      .error-recovery__card {
+        box-sizing: border-box;
+        width: 100%;
+        max-width: 464px;
+        padding: 28px;
+        border: 1px solid var(--color-border-divider, #dce3ee);
+        border-radius: 16px;
+        background: var(--color-bg-surface, #fff);
+        box-shadow: 0 12px 32px rgba(20, 33, 61, .08);
+      }
+      .error-recovery__mark {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        margin-bottom: 14px;
+        border-radius: 10px;
+        background: var(--color-warning-soft, #fff0db);
+        color: var(--color-warning-text, #8e410f);
+        font-size: 20px;
+        font-weight: 700;
+      }
+      .error-recovery__card h1 {
+        margin: 0;
+        color: var(--color-text-primary, #172237);
+        font-size: 22px;
+        font-weight: 750;
+        line-height: 1.35;
+        word-break: keep-all;
+        overflow-wrap: anywhere;
+      }
+      .error-recovery__card > p {
+        margin: 8px 0 0;
+        color: var(--color-text-secondary, #495774);
+        font-size: 14px;
+        line-height: 1.65;
+        word-break: keep-all;
+        overflow-wrap: anywhere;
+      }
+      .error-recovery__actions {
+        display: flex;
+        flex-wrap: wrap;
+        margin-top: 18px;
+        margin-right: -8px;
+        margin-bottom: -8px;
+      }
+      .error-recovery__actions > button {
+        box-sizing: border-box;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        margin: 0 8px 8px 0;
+        padding: 9px 14px;
+        border: 1px solid var(--color-border-divider, #dce3ee);
+        border-radius: 8px;
+        background: var(--color-bg-surface, #fff);
+        color: var(--color-text-primary, #172237);
+        font: inherit;
+        font-size: 14px;
+        font-weight: 650;
+        cursor: pointer;
+        transition: transform .12s ease, opacity .12s ease;
+      }
+      .error-recovery__actions > [data-primary] {
+        border-color: var(--color-brand-primary-active, #244baf);
+        background: var(--color-brand-primary-active, #244baf);
+        color: var(--color-brand-primary-contrast, #fff);
+      }
+      .error-recovery__actions > button:not(:disabled):hover { opacity: .88; }
+      .error-recovery__actions > button:not(:disabled):active { transform: translateY(1px); }
+      .error-recovery__actions > button:disabled { cursor: default; opacity: .56; }
+      .error-recovery__actions > button:focus-visible,
+      .error-recovery__form textarea:focus-visible {
+        outline: 2px solid var(--color-border-focus, #244baf);
+        outline-offset: 2px;
+      }
+      .error-recovery__form, .error-recovery__receipt { margin-top: 16px; }
+      .error-recovery__receipt h2 {
+        margin: 0;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: var(--color-success-soft, #e4f5ea);
+        color: var(--color-success-text, #14603b);
+        font-size: 16px;
+        line-height: 1.5;
+      }
+      .error-recovery__form label {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--color-text-primary, #172237);
+        font-weight: 650;
+      }
+      .error-recovery__form textarea {
+        box-sizing: border-box;
+        display: block;
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--color-border-divider, #dce3ee);
+        border-radius: 8px;
+        background: var(--color-bg-surface, #fff);
+        color: var(--color-text-primary, #172237);
+        font: inherit;
+        font-size: 16px;
+        line-height: 1.5;
+        resize: vertical;
+      }
+      .error-recovery__context {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-top: 8px;
+        color: var(--color-text-secondary, #495774);
+        font-size: 12px;
+        line-height: 1.55;
+        word-break: keep-all;
+      }
+      .error-recovery__context > :last-child { margin-left: 12px; white-space: nowrap; }
+      .error-recovery__form > [role="alert"] {
+        margin: 12px 0 0;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: var(--color-error-soft, #fde9e7);
+        color: var(--color-error-text, #9f2d26);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      @media (max-width: 440px) {
+        .error-recovery__card { padding: 20px; }
+        .error-recovery__actions > button { flex: 1 1 108px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .error-recovery__actions > button { transition: none; }
+      }
+    </style>
     <script>
       (function () {
         var host = (typeof location !== "undefined" && location.hostname) ? location.hostname.toLowerCase() : "";
@@ -36,9 +195,9 @@
         var tenants = {
           "tchul.com":       { t: "박철 과학", d: "박철 과학(tchul.com) – 대치동 과학 전문 학원. 생명과학·화학·물리·지구과학 학습 플랫폼", f: "/tenants/tchul/favicon.png", i: "/tenants/tchul/og-image.png", a: "/tenants/tchul/apple-touch-icon.png", w: 800, h: 427, k: "박철,박철과학,박철 과학,대치동과학,대치동학원,과학학원,생명과학,화학,물리,지구과학,학습플랫폼,tchul", s: { name: "박철 과학", url: "https://tchul.com", desc: "박철 과학 – 대치동 과학 전문 학습 플랫폼" } },
           "www.tchul.com":   { t: "박철 과학", d: "박철 과학(tchul.com) – 대치동 과학 전문 학원. 생명과학·화학·물리·지구과학 학습 플랫폼", f: "/tenants/tchul/favicon.png", i: "/tenants/tchul/og-image.png", a: "/tenants/tchul/apple-touch-icon.png", w: 800, h: 427, k: "박철,박철과학,박철 과학,대치동과학,대치동학원,과학학원,생명과학,화학,물리,지구과학,학습플랫폼,tchul", s: { name: "박철 과학", url: "https://tchul.com", desc: "박철 과학 – 대치동 과학 전문 학습 플랫폼" } },
-          "hakwonplus.com":  { t: "학원플러스 | 학원의 수업과 운영을 한 흐름으로", d: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 자료 제작, 학원 홈페이지를 한곳에서 이어갑니다.", f: "/tenants/hakwonplus/favicon.png?v=20260727", i: "/tenants/hakwonplus/og-image.png", w: 1200, h: 630, a: "/tenants/hakwonplus/apple-touch-icon.png?v=20260727", tc: "#37D6F2", k: "학원플러스,학원관리,학생앱영상,알림톡,학원홈페이지,수업자료,학생관리,성적관리,hakwonplus", s: { name: "학원플러스", url: "https://hakwonplus.com", desc: "수업과 학생 관리, 학부모 안내와 학원 홈페이지를 한곳에서 이어가는 학원 관리 서비스", type: "Organization" } },
-          "www.hakwonplus.com": { t: "학원플러스 | 학원의 수업과 운영을 한 흐름으로", d: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 자료 제작, 학원 홈페이지를 한곳에서 이어갑니다.", f: "/tenants/hakwonplus/favicon.png?v=20260727", i: "/tenants/hakwonplus/og-image.png", w: 1200, h: 630, a: "/tenants/hakwonplus/apple-touch-icon.png?v=20260727", tc: "#37D6F2", k: "학원플러스,학원관리,학생앱영상,알림톡,학원홈페이지,수업자료,학생관리,성적관리,hakwonplus", s: { name: "학원플러스", url: "https://hakwonplus.com", desc: "수업과 학생 관리, 학부모 안내와 학원 홈페이지를 한곳에서 이어가는 학원 관리 서비스", type: "Organization" } },
-          "dev.hakwonplus.com": { t: "학원플러스 콘솔", d: "학원플러스 문의와 운영 상태를 확인하는 개발자 콘솔", f: "/tenants/hakwonplus/favicon.png?v=20260727", i: "/tenants/hakwonplus/og-image.png", w: 1200, h: 630, a: "/tenants/hakwonplus/apple-touch-icon.png?v=20260727", tc: "#0f172a", k: "학원플러스,개발자콘솔" },
+          "hakwonplus.com":  { t: "학원플러스 | 학원의 수업과 운영을 한 흐름으로", d: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 자료 제작, 학원 홈페이지를 한곳에서 이어갑니다.", f: "/tenants/hakwonplus/favicon.png?v=20261119", i: "/tenants/hakwonplus/og-image.png?v=20261119", w: 1200, h: 630, a: "/tenants/hakwonplus/apple-touch-icon.png?v=20261119", tc: "#293ab0", k: "학원플러스,학원관리,학생앱영상,알림톡,학원홈페이지,수업자료,학생관리,성적관리,hakwonplus", s: { name: "학원플러스", url: "https://hakwonplus.com", desc: "수업과 학생 관리, 학부모 안내와 학원 홈페이지를 한곳에서 이어가는 학원 관리 서비스", type: "Organization" } },
+          "www.hakwonplus.com": { t: "학원플러스 | 학원의 수업과 운영을 한 흐름으로", d: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 자료 제작, 학원 홈페이지를 한곳에서 이어갑니다.", f: "/tenants/hakwonplus/favicon.png?v=20261119", i: "/tenants/hakwonplus/og-image.png?v=20261119", w: 1200, h: 630, a: "/tenants/hakwonplus/apple-touch-icon.png?v=20261119", tc: "#293ab0", k: "학원플러스,학원관리,학생앱영상,알림톡,학원홈페이지,수업자료,학생관리,성적관리,hakwonplus", s: { name: "학원플러스", url: "https://hakwonplus.com", desc: "수업과 학생 관리, 학부모 안내와 학원 홈페이지를 한곳에서 이어가는 학원 관리 서비스", type: "Organization" } },
+          "dev.hakwonplus.com": { t: "학원플러스 콘솔", d: "학원플러스 문의와 운영 상태를 확인하는 개발자 콘솔", f: "/tenants/hakwonplus/favicon.png?v=20261119", i: "/tenants/hakwonplus/og-image.png?v=20261119", w: 1200, h: 630, a: "/tenants/hakwonplus/apple-touch-icon.png?v=20261119", tc: "#0f172a", k: "학원플러스,개발자콘솔" },
           "limglish.kr":     { t: "임근혁 영어", d: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/limglish/favicon.png", i: "/tenants/limglish/og-image.png", a: "/tenants/limglish/apple-touch-icon.png", w: 800, h: 420, k: "임근혁,임근혁영어,임근혁 영어,limglish,영어학원,영어학습,학습플랫폼", s: { name: "임근혁 영어", url: "https://limglish.kr", desc: "임근혁 영어 – 영어 전문 학습 플랫폼" } },
           "www.limglish.kr": { t: "임근혁 영어", d: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/limglish/favicon.png", i: "/tenants/limglish/og-image.png", a: "/tenants/limglish/apple-touch-icon.png", w: 800, h: 420, k: "임근혁,임근혁영어,임근혁 영어,limglish,영어학원,영어학습,학습플랫폼", s: { name: "임근혁 영어", url: "https://limglish.kr", desc: "임근혁 영어 – 영어 전문 학습 플랫폼" } },
           "ymath.co.kr":     { t: "Y_math", d: "Y_math – 수학 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/ymath/favicon.png", i: "/tenants/ymath/og-image.png", a: "/tenants/ymath/apple-touch-icon.png", w: 800, h: 420, k: "Y_math,수학학원,수학학습,학습플랫폼,ymath", s: { name: "Y_math", url: "https://ymath.co.kr", desc: "수학 전문 학습 플랫폼" } },
@@ -48,22 +207,31 @@
           "dnbacademy.co.kr":     { t: "DnB 보습학원", d: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/dnb/favicon.png", i: "/tenants/dnb/og-image.png", a: "/tenants/dnb/apple-touch-icon.png", w: 800, h: 420, k: "DnB보습학원,보습학원,학습플랫폼,dnbacademy", s: { name: "DnB 보습학원", url: "https://dnbacademy.co.kr", desc: "보습 전문 학습 플랫폼" } },
           "www.dnbacademy.co.kr": { t: "DnB 보습학원", d: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", f: "/tenants/dnb/favicon.png", i: "/tenants/dnb/og-image.png", a: "/tenants/dnb/apple-touch-icon.png", w: 800, h: 420, k: "DnB보습학원,보습학원,학습플랫폼,dnbacademy", s: { name: "DnB 보습학원", url: "https://dnbacademy.co.kr", desc: "보습 전문 학습 플랫폼" } },
           "godmin.kr":       { t: "신민T 통합과학 | 신과함께", d: "대치동 통합과학 강사 신민T의 수업 철학과 학습 관리, 수강생·학부모 전용 학습 플랫폼.", f: "/tenants/godmin/favicon.png", i: "/tenants/godmin/og-image.png", a: "/tenants/godmin/apple-touch-icon.png", tc: "#147a62", w: 1200, h: 630, k: "신민,신민T,신과함께,통합과학,대치동과학,과학강사,godmin", s: { name: "신과함께", url: "https://godmin.kr", desc: "신민T 통합과학 수업과 학습 관리" } },
-          "www.godmin.kr":   { t: "신민T 통합과학 | 신과함께", d: "대치동 통합과학 강사 신민T의 수업 철학과 학습 관리, 수강생·학부모 전용 학습 플랫폼.", f: "/tenants/godmin/favicon.png", i: "/tenants/godmin/og-image.png", a: "/tenants/godmin/apple-touch-icon.png", tc: "#147a62", w: 1200, h: 630, k: "신민,신민T,신과함께,통합과학,대치동과학,과학강사,godmin", s: { name: "신과함께", url: "https://godmin.kr", desc: "신민T 통합과학 수업과 학습 관리" } }
+          "www.godmin.kr":   { t: "신민T 통합과학 | 신과함께", d: "대치동 통합과학 강사 신민T의 수업 철학과 학습 관리, 수강생·학부모 전용 학습 플랫폼.", f: "/tenants/godmin/favicon.png", i: "/tenants/godmin/og-image.png", a: "/tenants/godmin/apple-touch-icon.png", tc: "#147a62", w: 1200, h: 630, k: "신민,신민T,신과함께,통합과학,대치동과학,과학강사,godmin", s: { name: "신과함께", url: "https://godmin.kr", desc: "신민T 통합과학 수업과 학습 관리" } },
+          "xn--oj4bo6fugp3an0c.com": { t: "정성원영어", d: "정성원영어의 수업 일정, 과제와 성적을 확인하는 학습 공간입니다.", f: "/tenants/jeongseongwon-lab/favicon.png", i: "/tenants/jeongseongwon-lab/og-image.png", a: "/tenants/jeongseongwon-lab/apple-touch-icon.png", tc: "#1a2f4e", w: 1200, h: 630 }
         };
+        tenants["www.xn--oj4bo6fugp3an0c.com"] = tenants["xn--oj4bo6fugp3an0c.com"];
         var fallbackName = (host.split(".")[0] || "학원").replace(/[-_]+/g, " ");
         var cfg = tenants[host] || { t: fallbackName, d: fallbackName + " 학습 플랫폼", k: "학원,학습플랫폼" };
-        document.title = cfg.t;
+        var pathname = location.pathname;
+        // Godmin public routes receive page-specific metadata from the Pages Function.
+        var godminPublic = (host === "godmin.kr" || host === "www.godmin.kr")
+          && (pathname === "/" || pathname === "/landing" || pathname.indexOf("/landing/") === 0);
         function setMeta(sel, val) { var el = document.querySelector(sel); if (el) el.setAttribute("content", val); }
         function setAttr(sel, attr, val) { var el = document.querySelector(sel); if (el) el.setAttribute(attr, val); }
-        /* 기본 메타 태그 */
-        setMeta('meta[name="description"]', cfg.d);
-        if (cfg.k) setMeta('meta[name="keywords"]', cfg.k);
-        /* OG/Twitter */
-        setMeta('meta[property="og:site_name"]', cfg.s ? cfg.s.name : cfg.t);
-        setMeta('meta[property="og:title"]', cfg.t);
-        setMeta('meta[property="og:description"]', cfg.d);
-        setMeta('meta[name="twitter:title"]', cfg.t);
-        setMeta('meta[name="twitter:description"]', cfg.d);
+        if (!godminPublic) {
+          document.title = cfg.t;
+          setMeta('meta[name="description"]', cfg.d);
+          if (cfg.k) setMeta('meta[name="keywords"]', cfg.k);
+          setMeta('meta[property="og:site_name"]', cfg.s ? cfg.s.name : cfg.t);
+          setMeta('meta[property="og:title"]', cfg.t);
+          setMeta('meta[property="og:description"]', cfg.d);
+          setMeta('meta[name="twitter:title"]', cfg.t);
+          setMeta('meta[name="twitter:description"]', cfg.d);
+          var pageUrl = origin + pathname;
+          setAttr('link[rel="canonical"]', "href", pageUrl);
+          setMeta('meta[property="og:url"]', pageUrl);
+        }
         if (cfg.tc) setMeta('meta[name="theme-color"]', cfg.tc);
         var manifest = document.querySelector('link[rel="manifest"]');
         if (manifest) {
@@ -82,10 +250,6 @@
           }
           robots.setAttribute("content", "noindex, nofollow, noarchive");
         }
-        /* canonical + og:url */
-        var pageUrl = typeof location !== "undefined" ? (location.origin + location.pathname) : "";
-        setAttr('link[rel="canonical"]', "href", pageUrl);
-        setMeta('meta[property="og:url"]', pageUrl);
         /* favicon */
         if (cfg.f) {
           var link = document.querySelector('link[rel="icon"]');
@@ -102,7 +266,7 @@
           apple.setAttribute("href", cfg.a);
         }
         /* OG image */
-        if (cfg.i) {
+        if (cfg.i && !godminPublic) {
           var imgUrl = origin + cfg.i;
           setMeta('meta[property="og:image"]', imgUrl);
           setMeta('meta[name="twitter:image"]', imgUrl);
@@ -110,14 +274,16 @@
           if (cfg.h) setMeta('meta[property="og:image:height"]', String(cfg.h));
         }
         /* Schema.org JSON-LD 구조화 데이터 — 검색엔진 리치 스니펫용 */
-        if (cfg.s) {
+        if (cfg.s && !godminPublic && !document.getElementById("platform-organization")) {
           var schema = {
             "@context": "https://schema.org",
             "@type": cfg.s.type || "EducationalOrganization",
             "name": cfg.s.name,
             "url": cfg.s.url,
             "description": cfg.s.desc,
-            "logo": cfg.i ? (cfg.s.url + cfg.i) : undefined
+            "logo": cfg.s.type === "Organization" && (host === "hakwonplus.com" || host === "www.hakwonplus.com")
+              ? cfg.s.url + "/tenants/hakwonplus/pwa-512.png?v=20261119"
+              : cfg.i ? (cfg.s.url + cfg.i) : undefined
           };
           var script = document.createElement("script");
           script.type = "application/ld+json";
@@ -171,11 +337,14 @@
           var root = document.getElementById("root");
           if (!root || root.childElementCount > 0) return;
           root.innerHTML =
-            '<div style="max-width:420px;margin:80px auto;padding:28px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;text-align:center;border:1px solid #d9e2ef;border-radius:12px;background:#fff;color:#111827">' +
-            '<h1 style="margin:0 0 12px;font-size:20px;line-height:1.35">화면을 불러오지 못했어요</h1>' +
-            '<p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#4b5563">연결 상태를 확인하고 다시 불러와 주세요. 문제가 계속되면 브라우저를 닫고 다시 열어 주세요.</p>' +
-            '<button id="hplus-reload-button" type="button" style="border:0;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;font-size:14px;padding:12px 20px;cursor:pointer">다시 불러오기</button>' +
-            '</div>';
+            '<div class="error-recovery error-recovery--boot">' +
+            '<section class="error-recovery__card" aria-labelledby="hplus-recovery-title">' +
+            '<span class="error-recovery__mark" aria-hidden="true">!</span>' +
+            '<h1 id="hplus-recovery-title">화면을 불러오지 못했어요</h1>' +
+            '<p role="alert">연결 상태를 확인하고 다시 불러와 주세요.</p>' +
+            '<div class="error-recovery__actions">' +
+            '<button id="hplus-reload-button" data-primary type="button">다시 불러오기</button>' +
+            '</div></section></div>';
           var reloadButton = document.getElementById("hplus-reload-button");
           if (reloadButton) reloadButton.addEventListener("click", function () { location.reload(); });
         }

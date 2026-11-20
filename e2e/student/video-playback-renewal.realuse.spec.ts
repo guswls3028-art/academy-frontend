@@ -13,6 +13,7 @@ import { installSyntheticVideoPosterBridge } from "../helpers/syntheticVideoPost
 import { classifyVideoPlaybackResponse } from "../helpers/videoPlaybackResponseKind";
 import { exerciseFullscreenAudit, runPlaybackExitProbe } from "../helpers/playbackExitProbe";
 import { emitReleaseTestFailure } from "../helpers/releaseApiBoundary";
+import { runVideoStabilityProbe } from "../helpers/videoStabilityProbe";
 
 const MINIMUM_PLAYBACK_SECONDS = 690;
 const MINIMUM_RENEW_SECONDS = 390;
@@ -404,7 +405,7 @@ async function seedStudentSession(
   tenantCode: string,
   username: string,
   password: string,
-): Promise<void> {
+): Promise<{ access: string }> {
   const response = await context.request.post(`${getApiBaseUrl()}/api/v1/token/`, {
     headers: { "content-type": "application/json", "x-tenant-code": tenantCode },
     data: { username, password, tenant_code: tenantCode },
@@ -419,6 +420,7 @@ async function seedStudentSession(
     localStorage.setItem("tenant_code", code);
     sessionStorage.setItem("tenantCode", code);
   }, { access: String(tokens.access), refresh: String(tokens.refresh), code: tenantCode });
+  return { access: String(tokens.access) };
 }
 
 function newObservation(viewport: "desktop" | "mobile"): StudentObservation {
@@ -537,7 +539,7 @@ async function prepareStudent(
   videoId: number,
   hlsPath: string,
   baseUrl: string,
-): Promise<{ context: BrowserContext; page: Page; state: StudentObservation }> {
+): Promise<{ context: BrowserContext; page: Page; state: StudentObservation; apiAccessToken: string }> {
   const context = await browser.newContext({ viewport, serviceWorkers: "block" });
   const page = await context.newPage();
   const state = newObservation(viewportName);
@@ -610,7 +612,7 @@ async function prepareStudent(
   await installSyntheticHlsBridge(context, state, hlsPath, baseUrl);
   await installSyntheticVideoPosterBridge(context, state, tenantId, videoId);
   emitLongVideoCheckpoint(viewportName, "routes-installed");
-  await seedStudentSession(context, page, tenantCode, username, password);
+  const auth = await seedStudentSession(context, page, tenantCode, username, password);
   emitLongVideoCheckpoint(viewportName, "authenticated");
   const navigationStartedAt = Date.now();
   await page.goto(`${baseUrl}/student/video/play?video=${videoId}`, { waitUntil: "domcontentloaded", timeout: 45_000 });
@@ -667,7 +669,7 @@ async function prepareStudent(
   });
   state.startedAt = Date.now();
   emitLongVideoCheckpoint(viewportName, "playback-started");
-  return { context, page, state };
+  return { context, page, state, apiAccessToken: auth.access };
 }
 
 async function finishStudent(
@@ -791,6 +793,7 @@ async function finishStudent(
     await test.info().attach(`video-watch-${state.viewport}`, {
       body: await page.screenshot({ fullPage: true }), contentType: "image/png",
     });
+    await page.getByRole("button", { name: "댓글 닫기" }).click();
     const reloadedBootstrap = state.bootstraps.at(-1)!;
     const apiPosition = Number(reloadedBootstrap.video?.last_position);
     expect(Number.isFinite(apiPosition)).toBe(true);
@@ -927,5 +930,14 @@ if (process.env.E2E_PLAYBACK_EXIT_PROBE === "1") {
     test.setTimeout(8 * 60_000);
     await runPlaybackExitProbe((viewport, viewportName, username, password, tenantCode, tenantId, videoId, hlsPath, baseUrl) =>
       prepareStudent(browser, viewport, viewportName, username, password, tenantCode, tenantId, videoId, hlsPath, baseUrl));
+  });
+}
+
+// Additional exact-artifact proof on an owned disposable scenario, never a release-suite substitute.
+if (process.env.E2E_VIDEO_STABILITY_PROBE === "1") {
+  test("support playback and review allowance changes preserve student learning state", async ({ browser }) => {
+    test.setTimeout(10 * 60_000);
+    await runVideoStabilityProbe(browser, (viewport, name, username, password, tenant, tenantId, videoId, hlsPath, base) =>
+      prepareStudent(browser, viewport, name, username, password, tenant, tenantId, videoId, hlsPath, base));
   });
 }

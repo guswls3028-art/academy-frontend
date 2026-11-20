@@ -437,7 +437,7 @@ export default function LowConfPageReviewer({
                   onClick={handleVlmClassify}
                   disabled={excluding || reanalyzing || vlmLoadingIdx !== null || Boolean(activeVlm)}
                   data-testid="matchup-low-conf-vlm-btn"
-                  title="Gemini AI로 이 페이지를 정밀 분석합니다. 페이지당 1회만 호출되며, 학원별 일일 한도가 적용됩니다."
+                  title="OpenAI로 이 페이지를 정밀 분석합니다. 페이지당 1회만 호출되며, 학원별 일일 한도가 적용됩니다."
                   leftIcon={
                     vlmLoadingIdx === activeIdx
                       ? <Loader2 size={ICON.sm} className="animate-spin" />

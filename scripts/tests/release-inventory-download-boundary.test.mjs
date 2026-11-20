@@ -12,7 +12,19 @@ const boundary = releaseBoundaryFromEnv({ E2E_RELEASE_API_MODE: "development", E
   E2E_TENANT_CODE: "qa-ymath-realuse-inventory", E2E_OMR_R2_TENANT_ID: "352" });
 const origin = "https://af4f2937d73db240e99864b8518265c5.r2.cloudflarestorage.com";
 const encode = (value) => encodeURIComponent(value).replace(/[!'()*]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
-function fixture(hwpx = false) {
+function fixture(hwpx = false, survey = false) {
+  if (survey) {
+    const name = "시험범위.png", contentType = "image/png";
+    const body = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "base64");
+    const r2Key = "tenants/352/students/01012345678/inventory/시험범위_261011_" + "a".repeat(32) + ".png";
+    const disposition = 'attachment; filename="download"; filename*=UTF-8\'\'' + encode(name);
+    const u = new URL(fixture().url);
+    u.pathname = "/academy-development-artifacts/" + r2Key.split("/").map(encode).join("/");
+    u.searchParams.set("response-content-type", contentType);
+    u.searchParams.set("response-content-disposition", disposition);
+    u.searchParams.set("X-Amz-Expires", "300");
+    return { name, r2Key, contentType, body, sizeBytes: body.length, disposition, url: u.href };
+  }
   const ext = hwpx ? "hwpx" : "HWP";
   const name = "qa-한글원본." + ext;
   const r2Key = "tenants/352/students/01012345678/inventory/qa-한글원본_261011_" + "a".repeat(32) + "." + ext;
@@ -27,7 +39,7 @@ function fixture(hwpx = false) {
 }
 
 async function exercise(options = {}) {
-  const file = fixture(options.hwpx);
+  const file = fixture(options.hwpx, options.survey);
   let handler;
   const context = { request: { fetch: async () => assert.fail("No direct API transport") },
     exposeBinding: async () => {}, addInitScript: async () => {}, on() {},
@@ -35,24 +47,36 @@ async function exercise(options = {}) {
   const guard = await installReleaseContextGuard(context, options.boundary ?? boundary);
   const apiHeaders = { origin: boundary.webOrigin, authorization: "Bearer qa-token",
     "x-tenant-code": boundary.tenantCode, ...options.apiHeaders };
-  const api = async (endpoint, data, payload, status = 200) => handler({
-    request: () => ({ url: () => boundary.apiOrigin + "/api/v1/storage/inventory/" + endpoint,
-      method: () => "POST", resourceType: () => "fetch", allHeaders: async () => apiHeaders,
+  const api = async (path, data, payload, status = 200, method = "POST") => handler({
+    request: () => ({ url: () => boundary.apiOrigin + "/api/v1/" + path,
+      method: () => method, ...(options.omitApiResourceType ? {} : { resourceType: () => "fetch" }),
+      allHeaders: async () => apiHeaders,
       headerValue: async (key) => apiHeaders[key] ?? null, postDataJSON: () => data, postDataBuffer: () => null }),
     abort: async () => {}, continue: async () => assert.fail("unguarded API"),
     fetch: async () => ({ status: () => status, headers: () => ({ "content-type": "application/json",
       "access-control-allow-origin": boundary.webOrigin, "access-control-allow-credentials": "true" }),
       json: async () => payload }), fulfill: async () => {},
   });
-  if (options.upload !== false) await api("upload/", {}, { ...file, ...options.metadata }, options.uploadStatus ?? 201);
-  if (options.presign !== false) await api("presign/", { r2_key: file.r2Key, download: true, ...options.presignData },
+  if (options.survey) {
+    if (options.register !== false) await api("surveys/123/responses/?filter=all", null, { survey: { id: 123 }, results: [{
+      student_id: 17, answered: true, response: {
+        survey_id: 123, student_id: 17, student_ps: "01012345678",
+        attachments: [{ name: file.name, content_type: file.contentType, size_bytes: file.sizeBytes, r2_key: file.r2Key, ...options.metadata }],
+        ...options.surveyResponse,
+      },
+    }] }, options.registerStatus ?? 200, "GET");
+  } else if (options.upload !== false) {
+    await api("storage/inventory/upload/", {}, { ...file, ...options.metadata }, options.uploadStatus ?? 201);
+  }
+  if (options.presign !== false) await api("storage/inventory/presign/", { r2_key: file.r2Key, download: true,
+    ...(options.survey ? { expires_in: 300 } : {}), ...options.presignData },
     { url: options.registerUrl ?? file.url }, options.presignStatus ?? 200);
   const fetched = [], fulfilled = [];
   let aborted = 0;
-  const headers = options.headers ?? {};
+  const headers = { ...(options.survey ? { origin: boundary.webOrigin } : {}), ...options.headers };
   await handler({
     request: () => ({ url: () => options.url ?? options.registerUrl ?? file.url, method: () => options.method ?? "GET",
-      resourceType: () => options.resourceType ?? "document", allHeaders: async () => headers,
+      resourceType: () => options.resourceType ?? (options.survey ? "xhr" : "document"), allHeaders: async () => headers,
       headerValue: async (key) => headers[key] ?? null, postDataJSON: () => null,
       postDataBuffer: () => options.requestBody ?? null }),
     abort: async () => { aborted++; }, continue: async () => assert.fail("unguarded download"),
@@ -61,6 +85,7 @@ async function exercise(options = {}) {
       return { status: () => options.status ?? 200, headers: () => ({
         "content-type": options.contentType ?? file.contentType,
         "content-disposition": options.disposition ?? file.disposition,
+        ...(options.survey ? { "access-control-allow-origin": options.allowOrigin ?? boundary.webOrigin } : {}),
       }), body: async () => options.body ?? file.body }; },
     fulfill: async (response) => fulfilled.push(response),
   });
@@ -124,3 +149,33 @@ test("download rejects changed URL, credentials, mutation, wrong MIME/name/conta
   ]) rejected(await exercise(options), 1);
 });
 
+
+test("staff survey download reads only the isolated, presigned synthetic attachment", async () => {
+  const result = await exercise({ survey: true, omitApiResourceType: true });
+  result.guard.assertClean();
+  assert.equal(result.aborted, 0);
+  assert.deepEqual(result.fetched, [{ url: result.file.url, method: "GET",
+    headers: { accept: "image/png", origin: boundary.webOrigin }, maxRedirects: 0 }]);
+  assert.deepEqual(result.fulfilled, [{ status: 200, headers: { "content-type": "image/png",
+    "access-control-allow-origin": boundary.webOrigin, "cache-control": "no-store" }, body: result.file.body }]);
+});
+
+test("survey read fails closed on missing provenance, altered signature, other actors or bytes", async () => {
+  const { r2Key, url, body } = fixture(false, true);
+  for (const options of [
+    { register: false }, { registerStatus: 403 }, { presign: false }, { presignStatus: 403 },
+    { boundary: { ...boundary, mode: "readonly" } }, { apiHeaders: { "x-student-id": "17" } },
+    { surveyResponse: { survey_id: 124 } }, { surveyResponse: { student_id: 18 } },
+    { metadata: { r2_key: r2Key.replace("/352/", "/353/") } },
+    { metadata: { r2_key: r2Key.replace("/01012345678/", "/01000000000/") } },
+    { metadata: { name: "other.png" } }, { metadata: { size_bytes: 69 } },
+    { presignData: { expires_in: 301 } }, { registerUrl: url.replace("Expires=300", "Expires=301") },
+    { registerUrl: url.replace("academy-development-artifacts", "academy-production-artifacts") },
+    { url: url.replace("a".repeat(64), "b".repeat(64)) }, { method: "HEAD" }, { resourceType: "document" },
+    { headers: { origin: "https://foreign.invalid" } }, { headers: { authorization: "private" } },
+  ]) rejected(await exercise({ survey: true, ...options }));
+  for (const options of [
+    { status: 302 }, { allowOrigin: "https://foreign.invalid" }, { disposition: "inline" },
+    { body: Buffer.concat([body.subarray(0, -1), Buffer.from([0])]) },
+  ]) rejected(await exercise({ survey: true, ...options }), 1);
+});

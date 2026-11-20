@@ -90,6 +90,31 @@ function visualSignature(state: ControlState): string {
   ].join("|");
 }
 
+async function assertControlDimensions(page: Page, width: number) {
+  await page.setViewportSize({ width, height: 900 });
+  const row = page.getByTestId("control-row");
+  await expect.poll(() => row.locator("input, select, button").evaluateAll((controls) =>
+    controls.map((control) => Math.round(control.getBoundingClientRect().height)),
+  )).toEqual([44, 44, 44]);
+  await expect.poll(() => page.getByTestId("size-scale").locator("button").evaluateAll((buttons) =>
+    buttons.map((button) => Math.round(button.getBoundingClientRect().height)),
+  )).toEqual(width < 1024 ? [44, 44, 44, 48] : [32, 40, 44, 48]);
+  const input = row.getByRole("textbox");
+  await input.fill("긴 한글 이름과 숫자 12345");
+  await expect(input).toHaveValue("긴 한글 이름과 숫자 12345");
+  await row.getByRole("combobox").selectOption({ label: "선택 완료" });
+  await expect(row.getByRole("combobox")).toHaveValue("선택 완료");
+  const fits = await row.evaluate((element) => {
+    const group = element.getBoundingClientRect();
+    return Array.from(element.querySelectorAll("input, select, button")).every((control) => {
+      const box = control.getBoundingClientRect();
+      return box.left >= group.left - 1 && box.right <= group.right + 1;
+    });
+  });
+  expect(fits).toBe(true);
+  if (width < 1024) await expect(input).toHaveCSS("font-size", "16px");
+}
+
 async function mountAuditSurface(page: Page) {
   await page.evaluate(() => {
     document.querySelector("#theme-control-audit")?.remove();
@@ -142,6 +167,14 @@ async function mountAuditSurface(page: Page) {
           <span data-testid="solid-${tone}" style="padding: 8px; background: var(--color-${tone}-solid); color: var(--color-semantic-contrast)">${tone}</span>
         `).join("")}
         <button class="ds-button" data-size="md" data-intent="secondary" data-testid="disabled" disabled>사용 불가</button>
+        <div class="ds-action-bar" data-control-size="lg" data-testid="control-row" style="width:100%">
+          <input class="ds-input" aria-label="규격 확인 이름" placeholder="이름 입력" style="flex:1 1 160px;width:auto;min-width:0" />
+          <select class="ds-select" aria-label="규격 확인 상태"><option>전체 상태</option><option>선택 완료</option></select>
+          <button class="ds-button" data-size="lg" data-intent="primary"><span class="ds-button__label">선택한 항목 저장하기</span></button>
+        </div>
+        <div class="ds-action-bar" data-testid="size-scale" style="width:100%">
+          ${["sm", "md", "lg", "xl"].map((size) => `<button class="ds-button" data-size="${size}" data-intent="secondary">${size} 확인</button>`).join("")}
+        </div>
         <div class="ds-segment selection-group" role="group" aria-label="출결 선택 상태" data-testid="selection-group">
           ${["primary", "success", "warning", "danger", "complement", "teal", "neutral"].map((tone) => `
             <button class="ds-segment__btn" data-size="sm" data-tone="${tone}" aria-pressed="false" data-testid="selection-${tone}">현장 출석</button>
@@ -174,6 +207,25 @@ async function mountAuditSurface(page: Page) {
     document.body.append(audit);
   });
 }
+
+test("학원플러스 로그인과 계정 복구의 실제 상태 문구가 읽힌다", async ({ page }) => {
+  await page.route("**/api/v1/core/program/**", route => route.fulfill({ json: {
+    tenantCode: "hakwonplus", display_name: "학원플러스", ui_config: {},
+    feature_flags: {}, is_active: true,
+  } }));
+  await page.route("**/api/v1/core/landing/has-published/**", route => route.fulfill({ json: { has_published: false } }));
+  await page.addInitScript(() => sessionStorage.setItem("session_expired", "1"));
+  await page.goto(`${BASE}/login/hakwonplus`);
+  const sessionNotice = page.getByText("세션이 만료되었습니다. 다시 로그인해 주세요.");
+  await expect(sessionNotice).toBeVisible();
+  expect((await readState(sessionNotice)).contrast).toBeGreaterThanOrEqual(4.5);
+  await page.getByRole("button", { name: "아이디 찾기", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.locator('button[type="submit"]').click();
+  const error = dialog.getByRole("alert");
+  await expect(error).toHaveText("학생 이름을 입력해 주세요.");
+  expect((await readState(error)).contrast).toBeGreaterThanOrEqual(4.5);
+});
 
 test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구분된다", async ({ page }, testInfo) => {
   await page.route("**/api/v1/core/program/**", async (route) => {
@@ -209,6 +261,8 @@ test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구
       for (const [key, value] of Object.entries(variables)) document.documentElement.style.setProperty(key, value);
     }, { themeKey: theme.key, variables: accentVariables(theme.key, DEFAULT_ACCENT) });
 
+    for (const width of [1366, 1100, 390]) await assertControlDimensions(page, width);
+    await page.setViewportSize({ width: 1366, height: 900 });
     const primary = page.getByTestId("primary");
     const secondary = page.getByTestId("secondary");
     const danger = page.getByTestId("danger");
@@ -398,7 +452,7 @@ test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구
     return {
       movementhuiPanel: read("movementhui-panel-error", "rgb(9, 18, 33)"),
       movementhuiModal: read("movementhui-modal-error", "rgb(255, 255, 255)"),
-      hakwonplusPanel: read("hakwonplus-panel-error", "rgb(6, 18, 30)"),
+      hakwonplusPanel: read("hakwonplus-panel-error", "rgb(255, 255, 255)"),
       hakwonplusModal: read("hakwonplus-modal-error", "rgb(255, 255, 255)"),
     };
   });
@@ -407,11 +461,11 @@ test("세 화면 스타일에서 공용 버튼과 탭의 상태가 명확히 구
     expect.soft(state, `${key}: 상태 박스를 찾지 못함`).not.toBeNull();
     if (!state) continue;
     expect.soft(state.contrast, `${key}: 오류 문구 대비`).toBeGreaterThanOrEqual(4.5);
-    if (key.endsWith("Panel")) {
+    if (key === "movementhuiPanel") {
       // 어두운 로그인 면 위에 밝은 카드가 뜨지 않아야 한다
       expect.soft(state.boxLuminance, `${key}: 어두운 면 위 밝은 박스`).toBeLessThan(0.35);
     } else {
-      // 모달은 흰 카드를 유지하므로 테마가 밝은 면을 어둡게 덮어서는 안 된다
+      // 학원플러스 로그인과 두 테넌트의 모달은 흰 카드 위에 오류를 표시한다.
       expect.soft(state.boxLuminance, `${key}: 흰 카드 위 어두운 박스`).toBeGreaterThan(0.5);
     }
   }

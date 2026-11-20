@@ -627,16 +627,16 @@ test.describe("조교 로그인 출근 선택", () => {
     const menu = page.getByRole("navigation", { name: "선생님 메뉴" });
     await expect(menu).toBeVisible();
     await clinicPendingRequested;
-    const loadingBadge = menu.getByLabel("알림 센터 집계 중");
+    const loadingBadge = menu.getByLabel("오늘 업무 집계 중");
     await expect(loadingBadge).toBeVisible();
     const accountGroupButton = menu.getByRole("button", { name: /내 계정/ });
     await accountGroupButton.click();
-    await expect(accountGroupButton).toHaveAttribute("aria-expanded", "true");
-    const recordsButton = menu.getByRole("button", { name: "근무 기록 / 지출", exact: true });
+    await expect(page).toHaveURL(/\/workspace\/mobile\/menu\?group=account$/);
+    const recordsButton = page.getByRole("region", { name: "내 계정", exact: true }).getByRole("button", { name: "근무 기록 / 지출", exact: true });
     await expect(recordsButton).toBeVisible();
     releaseClinicPendingResponse();
     await expect(loadingBadge).toHaveCount(0);
-    await expect(accountGroupButton).toHaveAttribute("aria-expanded", "true");
+    await expect(page.getByRole("heading", { name: "내 계정", exact: true })).toBeVisible();
     await expect(recordsButton).toBeVisible();
     await recordsButton.click();
 

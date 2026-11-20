@@ -13,7 +13,9 @@ import {
   loginApi,
   loginThroughUi,
   logoutStudentApp,
+  QA_API,
   QA_BASE,
+  QA_TENANT,
   reloadStudentApp,
   seedBrowserAuth,
   STUDENT_PARENT_REALUSE_ENABLED,
@@ -37,6 +39,8 @@ type ClinicParticipant = {
   booking_end_date?: string;
   booking_start_time?: string;
   booking_end_time?: string;
+  checked_in_at?: string | null;
+  checked_out_at?: string | null;
 };
 
 let family: QaFamily | null = null;
@@ -241,11 +245,119 @@ test.describe.serial("[real-use] 학생 예약에서 학부모 클리닉 project
     expect(participant).toMatchObject({ booking_start_date: bookingDate, booking_end_date: bookingDate });
     expect(participant.booking_start_time?.slice(0, 5)).toBe("00:30");
     expect(participant.booking_end_time?.slice(0, 5)).toBe("01:00");
+    const parentTokens = await loginApi(request, family.parentPhone, family.parentPassword);
+    async function expectLearnerSchedules(status: "예약됨" | "등원") {
+      await Promise.all([
+        { role: "student", access: studentTokens.access },
+        { role: "parent", access: parentTokens.access },
+      ].map(async ({ role, access }) => {
+        const headers: Record<string, string> = { Authorization: `Bearer ${access}`, "X-Tenant-Code": QA_TENANT };
+        if (role === "parent") headers["X-Student-Id"] = String(student.id);
+        const response = await request.get(`${QA_API}/api/v1/student/sessions/me/`, {
+          headers,
+          timeout: 60_000,
+        });
+        expect(response.status(), `${role} schedule read`).toBe(200);
+        const row = listFrom(await response.json()).find(({ id }) => id === -participant.id);
+        expect(row, `${role} overnight clinic schedule (${status})`).toMatchObject({
+          type: "clinic",
+          date: bookingDate,
+          start_time: "00:30:00",
+          status,
+        });
+      }));
+    }
+    await expectLearnerSchedules("예약됨");
     await page.getByRole("tab", { name: /내 일정/ }).click();
     await expect(page.locator("article").filter({ hasText: sessionTitle })).toContainText(bookingMemo);
     await expect(page.locator("article").filter({ hasText: sessionTitle })).toContainText(`이용 ${bookingDate} 00:30–01:00`);
     await testInfo.attach("overnight-student-booked-390", { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
     await assertNoHorizontalOverflow(page);
+
+    const staffContext = await page.context().browser()!.newContext({ serviceWorkers: "block" });
+    try {
+      const staffPage = await staffContext.newPage();
+      const staffBoundary = await installQaStudentParentBoundary(staffPage, request);
+      const staffBrowser = attachStrictBrowserGuards(staffPage);
+      await seedBrowserAuth(staffPage, admin);
+      await staffPage.setViewportSize({ width: 390, height: 844 });
+      await gotoAndSettle(staffPage, QA_BASE + "/workspace/clinic/operations?panel=reservations", { timeout: 30_000 });
+      const search = staffPage.getByRole("searchbox", { name: "학생 이름 또는 장소" });
+      await search.fill(student.name);
+      await search.press("Enter");
+      const reservation = staffPage.getByRole("list", { name: "예약 검색 결과" })
+        .getByRole("listitem").filter({ hasText: sessionTitle });
+      await expect(reservation).toContainText(bookingDate + " 00:30");
+      await expect(reservation).toContainText("등록 시각");
+      await reservation.getByRole("link", { name: "해당 일정 열기" }).click();
+      const rosterCard = staffPage.locator(".clinic-ops__card").filter({ hasText: student.name });
+      await rosterCard.getByRole("button", { name: /학생 작업대 열기/ }).click();
+      const staffWorkbench = staffPage.getByRole("dialog", { name: student.name + " 클리닉 워크벤치" });
+      if (participant.status === "pending") {
+        await staffWorkbench.getByRole("button", { name: "승인", exact: true }).click();
+      }
+      await staffWorkbench.getByRole("button", { name: "등원", exact: true }).click();
+      await staffPage.getByRole("dialog", { name: "등원 처리" })
+        .getByRole("button", { name: "등원 확정" }).click();
+      const undoButton = staffWorkbench.getByRole("button", { name: "등원 취소", exact: true });
+      await expect(undoButton).toBeVisible();
+      const participantPath = "/clinic/participants/" + participant.id + "/";
+      const arrived = await expectApi<ClinicParticipant>(request, "GET", participantPath, admin.access);
+      expect(arrived).toMatchObject({ status: "attended", checked_in_at: expect.any(String), checked_out_at: null });
+      await expectLearnerSchedules("등원");
+
+      const stale = await api(request, "PATCH", participantPath + "set_status/", admin.access, {
+        status: "booked",
+        expected_checked_in_at: "2020-01-01T00:00:00+09:00",
+      });
+      expect(stale.status).toBe(409);
+
+      await undoButton.click();
+      const undoResponse = staffPage.waitForResponse((response) => (
+        response.request().method() === "PATCH"
+        && new URL(response.url()).pathname.endsWith(participantPath + "set_status/")
+      ));
+      await staffPage.getByRole("dialog", { name: "등원 취소" })
+        .getByRole("button", { name: "미등원으로 되돌리기" }).click();
+      const undone = await undoResponse;
+      expect(undone.status()).toBe(200);
+      expect(undone.request().postDataJSON()).toEqual({
+        status: "booked",
+        expected_checked_in_at: arrived.checked_in_at,
+      });
+      expect(await undone.json()).toMatchObject({
+        id: participant.id,
+        status: "booked",
+        checked_in_at: null,
+        checked_out_at: null,
+        notification: null,
+        booking_start_date: bookingDate,
+        booking_start_time: participant.booking_start_time,
+      });
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(rosterCard.locator(".clinic-ops__status-badge")).toHaveText("미등원");
+      await expectLearnerSchedules("예약됨");
+      await assertNoHorizontalOverflow(staffPage);
+      staffBoundary.assertClean();
+      staffBrowser.assertZeroDefects();
+    } finally {
+      await staffContext.close();
+    }
+
+    await gotoAndSettle(page, `${QA_BASE}/student/sessions`, { timeout: 30_000 });
+    const nextCalendarMonth = page.getByRole("button", { name: "다음 달" });
+    await expect(nextCalendarMonth).toBeVisible();
+    const [bookingYear, bookingMonth, bookingDay] = bookingDate.split("-");
+    const bookingMonthLabel = page.getByText(`${bookingYear}년 ${Number(bookingMonth)}월`, { exact: true });
+    if (!(await bookingMonthLabel.isVisible())) {
+      await nextCalendarMonth.click();
+    }
+    await expect(bookingMonthLabel).toBeVisible();
+    await page.getByRole("button", { name: String(Number(bookingDay)), exact: true })
+      .and(page.locator("button:enabled")).click();
+    const calendarBooking = page.getByRole("link").filter({ hasText: sessionTitle });
+    await expect(calendarBooking).toBeVisible();
+    await expect(calendarBooking).toContainText("00:30 · 예약됨");
 
     await logoutStudentApp(page);
     await loginThroughUi(page, family.parentPhone, family.parentPassword);

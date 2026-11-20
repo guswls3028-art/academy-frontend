@@ -2,10 +2,11 @@
 /* Height / Size Tokens */
 
 :root {
-  /* controls — 나이든 사용자 가시성 보강: 기본보다 +2~4px 키움 (2026-05-12) */
-  --control-sm: 32px;
-  --control-md: 36px;
-  --control-lg: 44px;
+  /* Compatibility aliases: physical values belong to foundation.css. */
+  --control-sm: var(--ds-control-sm);
+  --control-md: var(--ds-control-md);
+  --control-lg: var(--ds-control-lg);
+  --control-xl: var(--ds-control-xl);
 
   /* sidebar — 학원장 가시성 보강: 172→184 (2026-05-12 icon 22px 키운 후 정합) */
   --sidebar-width: var(--sidebar-width-expanded);
@@ -41,15 +42,15 @@
    *   lg : kpi strip / 강조 카드
    * 수치는 px 폰트 — 단순 키우기가 아니라 컨텍스트 단계 정의용.
    * ============================================================ */
-  --badge-font-xs: 10px;
-  --badge-font-sm: 11px;
-  --badge-font-md: 12px;
-  --badge-font-lg: 13px;
+  --badge-font-xs: var(--ds-badge-font-xs);
+  --badge-font-sm: var(--ds-badge-font-sm);
+  --badge-font-md: var(--ds-badge-font-md);
+  --badge-font-lg: var(--ds-badge-font-lg);
 
-  --badge-pad-xs: 2px 6px;
-  --badge-pad-sm: 3px 8px;
-  --badge-pad-md: 4px 10px;
-  --badge-pad-lg: 5px 12px;
+  --badge-pad-xs: var(--ds-badge-pad-xs);
+  --badge-pad-sm: var(--ds-badge-pad-sm);
+  --badge-pad-md: var(--ds-badge-pad-md);
+  --badge-pad-lg: var(--ds-badge-pad-lg);
 
   /* ============================================================
    * TYPOGRAPHY SSOT — 학원장 시선 위계 4단계 (2026-05-13)
@@ -66,10 +67,10 @@
    *   --text-hint (11px / 400) : 힌트/placeholder/약관 미주.
    *                              부속 정보, 색은 더 muted.
    * ============================================================ */
-  --text-name: 15px;
-  --text-body: 14px;
-  --text-meta: 12px;
-  --text-hint: 11px;
+  --text-name: var(--ds-text-name);
+  --text-body: var(--ds-text-md);
+  --text-meta: var(--ds-text-xs);
+  --text-hint: var(--ds-text-xs);
 
   --font-name: 600;
   --font-body: 400;

@@ -24,9 +24,42 @@ test.describe("promo business readiness", () => {
     await stubPromoBootstrap(page);
   });
 
+  for (const width of [390, 1366]) {
+    test(`product preview zoom targets are distinct and open their own image at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(BASE + "/promo", { waitUntil: "load" });
+      for (const area of ["header", "footer"]) {
+        const logo = page.locator(`${area} a[aria-label="학원플러스 프로모션 홈"] img`).first();
+        await expect(logo).toHaveAttribute("src", "/tenants/hakwonplus/logo.png?v=20261119");
+        await expect.poll(() => logo.evaluate((img: HTMLImageElement) =>
+          img.naturalHeight > 0 && img.naturalWidth > 3 * img.naturalHeight)).toBe(true);
+      }
+      const showcase = page.getByTestId("promo-real-product-showcase");
+      const desktop = showcase.getByRole("button", { name: /합성 학생 출결 상태/ });
+      const mobile = showcase.getByRole("button", { name: /오늘 수업과 다음 일정/ });
+      await expect(desktop).toBeVisible();
+      await expect(mobile).toBeVisible();
+      const [pcBox, phoneBox] = await Promise.all([desktop.boundingBox(), mobile.boundingBox()]);
+      expect(pcBox).not.toBeNull();
+      expect(phoneBox).not.toBeNull();
+      expect(pcBox!.x + pcBox!.width).toBeLessThan(phoneBox!.x);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+      for (const trigger of [desktop, mobile]) {
+        const source = await trigger.getAttribute("src");
+        const alt = await trigger.getAttribute("alt");
+        await trigger.click();
+        const dialog = page.getByRole("dialog");
+        await expect(dialog.getByRole("img", { name: alt! })).toHaveAttribute("src", source!);
+        await dialog.getByRole("button", { name: "확대 화면 닫기" }).click();
+        await expect(trigger).toBeFocused();
+      }
+    });
+  }
+
   test("shows concise features and links to their full explanations", async ({ page }) => {
     await page.goto(BASE + "/promo?utm_source=teacher-referral&utm_campaign=matchup-ppt", { waitUntil: "load" });
-    await expect(page.getByRole("heading", { name: /수업 관리부터\s*학생의 복습까지/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /학원의 모든 기록을,\s*하나로\./ })).toBeVisible();
     const showcase = page.getByTestId("promo-real-product-showcase");
     await expect(showcase).toContainText("개인정보가 없는 예시 데이터");
     await expect(showcase.getByRole("button", { name: /합성 학생 출결 상태/ })).toBeVisible();
@@ -86,10 +119,10 @@ test.describe("promo business readiness", () => {
     await page.goto(`${BASE}/promo/video-platform`, { waitUntil: "load" });
     const studentJourney = page.getByRole("region", { name: "홈에서 영상을 찾아 복습하는 과정입니다" });
     await expect(studentJourney.locator("figure")).toHaveCount(4);
-    await expect(studentJourney.locator('img[src="/promo/student-app-home.webp"]')).toBeVisible();
-    await expect(studentJourney.locator('img[src="/promo/student-video-app.webp"]')).toBeVisible();
-    await expect(studentJourney.locator('img[src="/promo/student-video-list.webp"]')).toBeVisible();
-    await expect(studentJourney.locator('img[src="/promo/student-video-player.webp"]')).toBeVisible();
+    await expect(studentJourney.locator('img[src="/promo/student-app-home.webp?v=20261120"]')).toBeVisible();
+    await expect(studentJourney.locator('img[src="/promo/student-video-app.webp?v=20261120"]')).toBeVisible();
+    await expect(studentJourney.locator('img[src="/promo/student-video-list.webp?v=20261120"]')).toBeVisible();
+    await expect(studentJourney.locator('img[src="/promo/student-video-player.webp?v=20261120"]')).toBeVisible();
   });
 
   test("requires explicit privacy consent and preserves first-touch UTM data in the lead", async ({ page }) => {
@@ -189,15 +222,15 @@ test.describe("promo business readiness", () => {
 
     await page.goto(`${BASE}/promo/pricing`, { waitUntil: "load" });
     await expect(
-      page.getByText("월 19만 8천원", { exact: true }),
+      page.getByText("월 198,000원", { exact: true }),
     ).toBeVisible();
-    await expect(page.getByText("18만원", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("180,000원", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("부가세 10%", { exact: true })).toBeVisible();
-    await expect(page.getByText("1만 8천원", { exact: true })).toBeVisible();
+    await expect(page.getByText("18,000원", { exact: true })).toBeVisible();
     await page.locator("#existing-contract > summary").click();
     await expect(page.getByText(/8월 가입 요금은 서비스를 이용하는 동안 계속 적용/).first()).toBeVisible();
-    await expect(page.getByText("1만 4천원", { exact: true })).toBeVisible();
-    await expect(page.getByText("15만 9천원", { exact: true })).toBeVisible();
+    await expect(page.getByText("14,000원", { exact: true })).toBeVisible();
+    await expect(page.getByText("159,000원", { exact: true })).toBeVisible();
     await expect(page.getByText(/선착순|마감 임박|지금 신청/)).toHaveCount(0);
   });
 

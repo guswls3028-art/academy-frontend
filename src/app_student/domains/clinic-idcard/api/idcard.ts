@@ -1,7 +1,7 @@
 import api from "@student/shared/api/student.api";
+import { decodeClinicVerdict, type ClinicIdcardResult, type ClinicPasscardState } from "@student/shared/api/clinicVerdict";
 
-export type ClinicIdcardResult = "SUCCESS" | "FAIL";
-export type ClinicPasscardState = "PASSED" | "CLINIC_REQUIRED" | "BOOKING_CONFIRMED";
+export type { ClinicIdcardResult, ClinicPasscardState } from "@student/shared/api/clinicVerdict";
 export type ClinicBookingStatus =
   | "none"
   | "required"
@@ -77,20 +77,12 @@ const DEFAULT_COLORS: [string, string, string] = ["#ef4444", "#3b82f6", "#22c55e
 export async function fetchClinicIdcard(signal?: AbortSignal): Promise<ClinicIdcardData> {
   const res = await api.get("/clinic/idcard/", { signal });
   const raw = res.data as Partial<ClinicIdcardData>;
-  if (raw.current_result !== "SUCCESS" && raw.current_result !== "FAIL") {
-    throw new Error("Invalid clinic passcard result");
-  }
-  const rawPasscardState = String(raw.passcard_state);
-  const passcardState = rawPasscardState === "RETURN_ALLOWED"
-    ? "BOOKING_CONFIRMED"
-    : ["PASSED", "CLINIC_REQUIRED", "BOOKING_CONFIRMED"].includes(rawPasscardState)
-      ? rawPasscardState as ClinicPasscardState
-      : raw.current_result === "FAIL" ? "CLINIC_REQUIRED" : "PASSED";
+  const verdict = decodeClinicVerdict(raw);
   const bookingStatus = ["none", "required", "pending", "booked", "attended", "completed"].includes(
     String(raw.booking_status),
   )
     ? raw.booking_status as ClinicBookingStatus
-    : raw.current_result === "FAIL" ? "required" : "none";
+    : verdict.current_result === "FAIL" ? "required" : "none";
   const colors = Array.isArray(raw.background_colors) && raw.background_colors.length >= 3
     ? raw.background_colors.slice(0, 3) as [string, string, string]
     : DEFAULT_COLORS;
@@ -104,9 +96,8 @@ export async function fetchClinicIdcard(signal?: AbortSignal): Promise<ClinicIdc
     histories: Array.isArray(raw.histories) ? raw.histories : [],
     current_targets: Array.isArray(raw.current_targets) ? raw.current_targets : [],
     lectures: Array.isArray(raw.lectures) ? raw.lectures : [],
-    current_result: raw.current_result,
-    passcard_state: passcardState,
-    can_leave: passcardState !== "CLINIC_REQUIRED",
+    ...verdict,
+    can_leave: verdict.passcard_state !== "CLINIC_REQUIRED",
     booking_status: bookingStatus,
     booking_status_label: raw.booking_status_label ?? (bookingStatus === "required" ? "예약 필요" : "예약 없음"),
     current_booking: raw.current_booking ?? null,

@@ -1,3 +1,4 @@
+import { hakwonplus } from "@/shared/tenant/tenants/hakwonplus";
 import { useState, type ComponentType } from "react";
 import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import {
@@ -8,6 +9,7 @@ import {
   Command,
   CreditCard,
   ExternalLink,
+  GitBranch,
   Inbox,
   LayoutDashboard,
   LogOut,
@@ -27,12 +29,15 @@ import {
 import { CommandPalette } from "@dev/shared/components/CommandPalette";
 import { useCommandPaletteHotkey } from "@dev/shared/components/useCommandPaletteHotkey";
 import { useDevPwa } from "@dev/shared/hooks/useDevPwa";
+import useAuth from "@/auth/hooks/useAuth";
+import { canViewAgentSessions } from "@dev/domains/agentSessions/access";
 import s from "./DevLayout.module.css";
 
 type NavItem = {
   to: string;
   label: string;
   description: string;
+  agentViewerOnly?: boolean;
   icon: ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
 };
 
@@ -56,19 +61,20 @@ const NAV_SECTIONS: Array<{ label: string; items: NavItem[] }> = [
     items: [
       { to: "/dev/product-analytics", label: "기능 사용 신호", description: "방문·참여·완료", icon: BarChart3 },
       { to: "/dev/automation", label: "자동화", description: "감사 로그·크론", icon: Workflow },
+      { to: "/dev/agent-sessions", label: "AI 작업 상황판", description: "세션·에이전트 조직도", icon: GitBranch, agentViewerOnly: true },
     ],
   },
 ];
-
-const NAV_ITEMS = NAV_SECTIONS.flatMap((section) => section.items);
-const MOBILE_PRIMARY = NAV_ITEMS.filter((item) =>
-  ["/dev/dashboard", "/dev/tenants", "/dev/inbox"].includes(item.to),
-);
 
 export default function DevLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { program } = useProgram();
+  const { user } = useAuth();
+  const agentViewer = canViewAgentSessions(user, program);
+  const navSections = NAV_SECTIONS.map(section => ({ ...section, items: section.items.filter(item => !item.agentViewerOnly || agentViewer) }));
+  const navItems = navSections.flatMap(section => section.items);
+  const mobilePrimary = navItems.filter(item => ["/dev/dashboard", "/dev/tenants", "/dev/inbox"].includes(item.to));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   useCommandPaletteHotkey(setPaletteOpen);
@@ -91,9 +97,9 @@ export default function DevLayout() {
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(`${path}/`);
-  const currentItem = NAV_ITEMS.find((item) => isActive(item.to)) ?? NAV_ITEMS[0];
-  const secondaryRouteActive = NAV_ITEMS.some(
-    (item) => !MOBILE_PRIMARY.includes(item) && isActive(item.to),
+  const currentItem = navItems.find((item) => isActive(item.to)) ?? navItems[0];
+  const secondaryRouteActive = navItems.some(
+    (item) => !mobilePrimary.includes(item) && isActive(item.to),
   );
 
   function handleLogout() {
@@ -105,7 +111,7 @@ export default function DevLayout() {
     <div className={s.shell}>
       <aside className={s.sidebar} aria-label="개발자 콘솔 주 메뉴">
         <div className={s.sidebarBrand}>
-          <div className={s.brandMark} aria-hidden>H+</div>
+          <img className={s.brandMark} src={hakwonplus.branding.headerLogoUrl} alt="" />
           <div className={s.brandCopy}>
             <strong>Academy Control</strong>
             <span>Platform operations</span>
@@ -125,7 +131,7 @@ export default function DevLayout() {
         </button>
 
         <nav className={s.sidebarNav}>
-          {NAV_SECTIONS.map((section) => (
+          {navSections.map((section) => (
             <div className={s.navSection} key={section.label}>
               <div className={s.navSectionLabel}>{section.label}</div>
               {section.items.map((item) => (
@@ -161,7 +167,7 @@ export default function DevLayout() {
 
       <header className={s.mobileTopBar}>
         <div className={s.mobileTopLeft}>
-          <div className={s.brandMark} aria-hidden>H+</div>
+          <img className={s.brandMark} src={hakwonplus.branding.headerLogoUrl} alt="" />
           <div className={s.mobileTitle}>
             <strong>{currentItem.label}</strong>
             <span>Academy Control</span>
@@ -195,7 +201,7 @@ export default function DevLayout() {
               <span>전체 메뉴</span>
               <small>플랫폼 운영 도구</small>
             </div>
-            {NAV_ITEMS.map((item) => (
+            {navItems.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
@@ -248,7 +254,7 @@ export default function DevLayout() {
       </div>
 
       <nav className={s.mobileTabBar} aria-label="핵심 개발자 메뉴">
-        {MOBILE_PRIMARY.map((item) => (
+        {mobilePrimary.map((item) => (
           <Link
             key={item.to}
             to={item.to}

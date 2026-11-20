@@ -1,12 +1,6 @@
-// PATH: src/app_student/domains/sessions/components/SessionExamAction.tsx
-/**
- * SessionExamAction — 차시의 시험 진입 액션
- * exam_ids 배열이 있으면 각 시험으로 직접 링크, 없으면 시험 목록으로.
- *
- * 차시 시험이 1건 이상일 때 응시 상태 요약을 칩으로 표시
- *  (응시 가능 / 채점 완료). 기존 동선(버튼)은 그대로 유지.
- */
 import { useMemo } from "react";
+import { ChevronDown } from "lucide-react";
+import { ICON_FOR_BUTTON } from "@/shared/ui/ds/iconSize";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { fetchStudentExams, type StudentExam } from "@student/domains/exams/api/exams.api";
@@ -19,7 +13,6 @@ type SessionExamActionProps = {
 };
 
 type Summary = {
-  total: number;
   available: number;
   graded: number;
   urgent: number;
@@ -46,7 +39,7 @@ function summarize(items: StudentExam[]): Summary {
     }
     available += 1;
   }
-  return { total: items.length, available, graded, urgent };
+  return { available, graded, urgent };
 }
 
 function StatusChip({
@@ -54,11 +47,11 @@ function StatusChip({
   tone,
 }: {
   label: string;
-  tone: "success" | "warning" | "neutral" | "danger";
+  tone: "success" | "warn" | "danger";
 }) {
   return (
     <span
-      className={`stu-badge stu-badge--${tone} stu-badge--sm ${styles.statusChip}`}
+      className={`stu-badge stu-badge--${tone} stu-badge--sm`}
     >
       {label}
     </span>
@@ -96,35 +89,39 @@ export default function SessionExamAction({ examIds, sessionId }: SessionExamAct
 
   if (!hasIds) {
     return (
-      <Link to="/student/exams" className="stu-cta-link">
+      <Link to="/student/exams" className="stu-btn stu-btn--secondary" data-size="md">
         시험 목록 보기
       </Link>
     );
   }
 
+  const hasMultipleExams = examIdList.length > 1;
+  const examTitles = new Map(data?.items.map((exam) => [exam.id, exam.title.trim()]));
+  const examLinks = examIdList.map((id, index) => (
+    <Link key={id} to={`/student/exams/${id}`} className="stu-btn stu-btn--secondary" data-size="md">
+      {hasMultipleExams ? examTitles.get(id) || `시험 ${index + 1}` : "시험 보기"}
+    </Link>
+  ));
+
   return (
-    <div className={styles.stack}>
-      {examsQ.isError && <StatusChip label="시험 상태 확인 실패" tone="danger" />}
-      {summary && (
-        <div className={styles.statusRow}>
-          {summary.urgent > 0 && (
-            <StatusChip label={`마감 임박 ${summary.urgent}`} tone="danger" />
-          )}
-          {summary.available > 0 && (
-            <StatusChip label={`응시 가능 ${summary.available}`} tone="warning" />
-          )}
-          {summary.graded > 0 && (
-            <StatusChip label={`채점 완료 ${summary.graded}`} tone="success" />
-          )}
+    <div className={styles.examActions}>
+      {(examsQ.isError || summary) && (
+        <div className={styles.statusRow} aria-live="polite">
+          {examsQ.isError && <StatusChip label="시험 상태 확인 실패" tone="danger" />}
+          {!!summary?.urgent && <StatusChip label={`마감 임박 ${summary.urgent}`} tone="danger" />}
+          {!!summary?.available && <StatusChip label={`응시 가능 ${summary.available}`} tone="warn" />}
+          {!!summary?.graded && <StatusChip label={`채점 완료 ${summary.graded}`} tone="success" />}
         </div>
       )}
-      <div className={styles.linkRow}>
-        {examIdList.map((eid, idx) => (
-          <Link key={eid} to={`/student/exams/${eid}`} className="stu-cta-link">
-            {examIdList.length === 1 ? "시험 보기" : `${idx + 1}차 시험`}
-          </Link>
-        ))}
-      </div>
+      {hasMultipleExams ? (
+        <details className={styles.examChoices}>
+          <summary className="stu-btn stu-btn--secondary" data-size="md">
+            시험 선택 ({examIdList.length})
+            <ChevronDown className={styles.chevron} size={ICON_FOR_BUTTON.md} aria-hidden="true" />
+          </summary>
+          <div className={styles.linkRow}>{examLinks}</div>
+        </details>
+      ) : examLinks[0]}
     </div>
   );
 }

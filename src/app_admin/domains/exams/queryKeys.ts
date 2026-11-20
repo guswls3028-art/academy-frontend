@@ -26,6 +26,8 @@ export const adminExamsQueryKeys = {
   clinicTargetsRoot: () => ["clinic-targets"] as const,
   adminExamResults: (examId: number, lectureId?: number | null) =>
     ["admin-exam-results", examId, lectureId ?? "all"] as const,
+  examAnalysisInsights: (examId: number, lectureId: number | null) =>
+    ["admin-exam-results", examId, "analysis-insights", lectureId ?? "all"] as const,
   examQuestionStats: (examId: number, lectureId?: number | null) =>
     ["exam-question-stats", examId, lectureId ?? "all"] as const,
   examSubmissions: (examId: number) => ["exam-submissions", examId] as const,
@@ -33,6 +35,7 @@ export const adminExamsQueryKeys = {
     ["exam-submissions", examId, "omr-upload-ledger"] as const,
 
   examQuestions: (examId: number | null | undefined) => ["exam-questions", examId] as const,
+  omrEssayScoreMarks: (examId: number) => ["omr-essay-score-marks", examId] as const,
   answerKey: (examId: number | null | undefined) => ["answer-key", examId] as const,
   examExplanations: (examId: number | null | undefined) => ["exam-explanations", examId] as const,
 

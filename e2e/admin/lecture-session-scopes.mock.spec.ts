@@ -82,7 +82,6 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
     await answers.getByRole("button", { name: "유형 저장" }).click();
     await expect.poll(() => state.guidedQuestionsInitialized).toBe(true);
     for (const row of await answers.locator(".answer-key-row--choice").all()) await row.locator(".answer-key-omr-label").nth(1).click();
-    await answers.locator(".answer-key-panel--choice").getByRole("textbox", { name: "목표 총점" }).fill("100");
     await answers.getByRole("button", { name: "만점에 맞게 균등 배점" }).click();
     await recording.screen("정답과 배점 확인", "문항별 정답을 선택하고 배점 합계가 목표 총점과 일치하는지 확인합니다.", answers);
     await answers.getByRole("button", { name: /답안 저장하고 다음/ }).click();
@@ -93,6 +92,34 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
     await recording.screen("다운로드 완료 확인", "답안지 다운로드 완료 표시를 확인하고 설정 화면으로 돌아갑니다.", print.getByText("답안지 다운로드 완료"));
     await recording.finish();
   });
+}
+
+async function expectAssessmentHeaderActionLayout(page: Page) {
+  const buttons = page.locator(".assessment-detail-header__actions")
+    .locator(":scope > button, :scope > div > button");
+  await expect(buttons).toHaveCount(3);
+  await expect.poll(() => buttons.evaluateAll((elements) => {
+    const metrics = elements.map((button) => {
+      const box = button.getBoundingClientRect();
+      const group = button.closest(".assessment-detail-header__actions")!.getBoundingClientRect();
+      const style = getComputedStyle(button);
+      const label = button.querySelector(".ds-button__label")!;
+      const icon = button.querySelector("svg")!;
+      return {
+        size: [Math.round(box.height), style.paddingLeft, style.paddingRight, style.fontSize,
+          Math.round(icon.getBoundingClientRect().width)],
+        touchTarget: box.height >= 44 && box.width >= 44,
+        contained: box.left >= group.left - 1 && box.right <= group.right + 1,
+        labelFits: label.scrollWidth <= label.clientWidth + 1 && getComputedStyle(label).whiteSpace === "nowrap",
+      };
+    });
+    return {
+      sameSize: metrics.every(({ size }) => JSON.stringify(size) === JSON.stringify(metrics[0].size)),
+      touchTargets: metrics.every(({ touchTarget }) => touchTarget),
+      contained: metrics.every(({ contained }) => contained),
+      labelsFit: metrics.every(({ labelFits }) => labelFits),
+    };
+  })).toEqual({ sameSize: true, touchTargets: true, contained: true, labelsFit: true });
 }
 
 function localJwt(): string {
@@ -134,6 +161,10 @@ type MockState = {
   guidedQuestionsInitialized?: boolean;
   guidedQuestionCount?: number;
   guidedQuestionScores?: Record<number, number>;
+  /** 서술형으로 만들 문항 번호 (Beta 교사 채점란 검증) */
+  guidedEssayNumbers?: number[];
+  essayScoreMarks?: { enabled: boolean; available: boolean; reason: string; patches: boolean[] };
+  omrPreviewPosts?: number;
   answerKeySaves?: Array<Record<string, unknown>>;
   answerKeyReadMode?: "normal" | "empty" | "error" | "wrong-owner" | "changed-answer";
   answerKeyReadGate?: Promise<void>;
@@ -259,6 +290,19 @@ async function installApi(page: Page, state: MockState) {
         start_date: "2026-08-01",
         end_date: "2026-09-30",
         lecture_time: "토 14:00~16:00",
+      });
+    }
+    const schedulePath = path.match(/^\/lectures\/sessions\/(\d+)\/schedules\/$/);
+    if (schedulePath && method === "GET") {
+      const sessionId = Number(schedulePath[1]);
+      const sessions = [...sessionRows(state), ...sessionRows(state, SECOND_LECTURE_ID)];
+      if (!sessions.some(session => session.id === sessionId)) return json({ detail: "차시를 찾을 수 없습니다." }, 404);
+      const roster = (state.examSessionEnrollmentRows ?? [])
+        .filter(row => row.session === sessionId)
+        .map(row => ({ enrollment_id: row.enrollment, student_name: row.student_name }));
+      return json({
+        version: `lecture-session-${sessionId}-unconfigured`,
+        schedules: [], roster, unassigned_enrollment_ids: roster.map(student => student.enrollment_id),
       });
     }
     if (path === "/lectures/sessions/" && method === "GET") {
@@ -419,7 +463,8 @@ async function installApi(page: Page, state: MockState) {
       if (path === "/exams/9971/structure/ensure/" && method === "POST") return json(exam);
       const guidedQuestions = Array.from({ length: state.guidedQuestionCount ?? 1 }, (_, index) => {
         const id = 99711 + index;
-        return { id, sheet: 9971, number: index + 1, question_kind: "choice", score: state.guidedQuestionScores?.[id] ?? 1 };
+        const kind = state.guidedEssayNumbers?.includes(index + 1) ? "essay" : "choice";
+        return { id, sheet: 9971, number: index + 1, question_kind: kind, score: state.guidedQuestionScores?.[id] ?? 1 };
       });
       if (path === "/exams/9971/questions/" && method === "GET") {
         return json(state.guidedQuestionsInitialized ? guidedQuestions : []);
@@ -479,7 +524,21 @@ async function installApi(page: Page, state: MockState) {
           essay_question_numbers: [], logo_url: null,
         });
       }
+      if (path === "/exams/9971/omr/essay-score-marks/" && state.essayScoreMarks) {
+        const marks = state.essayScoreMarks;
+        if (method === "PATCH") {
+          const payload = request.postDataJSON() as { enabled: boolean };
+          marks.patches.push(payload.enabled);
+          if (payload.enabled && !marks.available) return json({ enabled: [marks.reason] }, 400);
+          marks.enabled = payload.enabled;
+        }
+        return json({
+          enabled: marks.enabled, available: marks.available, printed: marks.enabled && marks.available,
+          reason: marks.reason, essay_count: state.guidedEssayNumbers?.length ?? 0, max_score: 36, beta: true,
+        });
+      }
       if (path === "/exams/9971/omr/preview/" && method === "POST") {
+        state.omrPreviewPosts = (state.omrPreviewPosts ?? 0) + 1;
         return route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><html><body>OMR 미리보기</body></html>" });
       }
       if (path === "/exams/9971/omr/pdf/" && method === "POST") {
@@ -660,11 +719,13 @@ test("출석 관리는 정규 차시만 기본 표시하고 보강·전체 범�
   await expect(page.getByText("김민준", { exact: true }).locator("xpath=ancestor::tr[1]")).toContainText("현");
 });
 
-test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보강 이름을 수정·재조회한다", async ({ page }) => {
+for (const width of [1366, 390]) {
+test(`기존 전체 보기를 기본으로 유지하고 분리 보기에서 보강 이름을 수정·재조회한다 ${width}px`, async ({ page }) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉 (10:00~12:00)",
     patchTitles: [],
   };
+  await page.setViewportSize({ width, height: 844 });
   await openLecture(page, state);
 
   const allView = page.getByRole("button", { name: "전체 보기", exact: true });
@@ -692,6 +753,7 @@ test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
   await supplementCard.click();
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SUPPLEMENT_SESSION_ID}/attendance`));
   await expect(page.getByRole("tab", { name: "공지·게시판", exact: true })).toBeVisible();
+  if (width === 390) await page.getByRole("button", { name: "차시 선택", exact: true }).click();
   await page.getByRole("button", { name: "보강 설정" }).click();
   await page.getByRole("button", { name: "수정", exact: true }).click();
   await page.getByLabel("보강 이름").fill("일요일 취약 단원 클리닉");
@@ -710,6 +772,7 @@ test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
   await page.getByRole("tab", { name: /정규 수업/ }).click();
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/attendance`));
 
+  if (width === 390) await page.getByRole("button", { name: "차시 선택", exact: true }).click();
   await page.getByRole("button", { name: "전체 보기", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/attendance`));
   await expect(page.getByRole("button", { name: /일요일 취약 단원 클리닉/ })).toBeVisible();
@@ -721,6 +784,8 @@ test("기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
     ),
   );
 });
+}
+
 
 test("영상 추가 정책은 자유 이동의 정확한 상태를 표시하고 라벨 전체 클릭으로 전환된다", async ({ page }, testInfo) => {
   const state: MockState = {
@@ -968,6 +1033,11 @@ test("정규 차시 이름 수정은 실패 후 입력을 보존하고 재시도
     await page.getByRole("button", { name: /직보/ }).click();
     await expect(page).toHaveURL(new RegExp(`/sessions/${REGULAR_SESSION_ID}/attendance`));
     await expect(page.locator("main").getByText(customTitle, { exact: false }).first()).toBeVisible();
+    if (width === 390) {
+      await page.getByRole("button", { name: "차시 선택", exact: true }).click();
+      await expect(page).toHaveURL(/view=sessions/);
+      await expect(page.getByRole("heading", { name: "차시 선택", exact: true })).toBeInViewport({ ratio: 1 });
+    }
     await page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true }).click();
     await expect(page.getByRole("tab", { name: /정규 수업/ })).toHaveAttribute("aria-selected", "true");
     await page.getByRole("button", { name: "차시 설정", exact: true }).click();
@@ -1299,7 +1369,11 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   for (const row of await answerDialog.locator(".answer-key-row--choice").all()) {
     await row.locator(".answer-key-omr-label").nth(1).click();
   }
-  await answerDialog.locator(".answer-key-panel--choice").getByRole("textbox", { name: "목표 총점" }).fill("100");
+  await answerDialog.getByRole("button", { name: "자동 배점 설정", exact: true }).click();
+  const allocation = page.getByRole("dialog", { name: "자동 배점 설정", exact: true });
+  await allocation.getByRole("combobox", { name: "선택형 배점 방식" }).selectOption("manual");
+  await allocation.getByRole("textbox", { name: "선택형 목표 총점" }).fill("100");
+  await allocation.getByRole("button", { name: "편집기에 적용", exact: true }).click();
   await expect(answerDialog.getByText(/현재 \d+점 \/ 목표 100점/)).toBeVisible();
   await expect(answerDialog.getByRole("checkbox", { name: "1번 2번 선택지" })).toBeChecked();
   await answerDialog.getByRole("button", { name: "답안 저장하고 다음" }).click();
@@ -1316,7 +1390,7 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
 
   const printDialog = page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" });
   await expect(printDialog).toBeVisible();
-  await expect(page.getByText("수동 총점과 문항별 배점 합계를 맞춰 주세요.", { exact: false })).toHaveCount(0, { timeout: 500 });
+  await expect(page.getByText("문항별 배점을 목표 총점에 맞추거나 자동 배점 설정에서 목표를 조정해 주세요.", { exact: true })).toHaveCount(0, { timeout: 500 });
   await expect(printDialog.getByRole("button", { name: "OMR PDF 다운로드" })).toBeInViewport();
   const [download] = await Promise.all([
     page.waitForEvent("download"),
@@ -1326,8 +1400,10 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   await expect(printDialog.getByText("답안지 다운로드 완료")).toBeVisible();
   await printDialog.getByRole("button", { name: "설정 화면으로" }).click();
   await expect(page).toHaveURL(/\/exams\?examId=9971/);
-  await page.reload();
-  await page.getByRole("button", { name: "문항·답안 확인" }).click();
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const reopenAnswers = page.getByRole("button", { name: "문항·답안 확인", exact: true });
+  await expect(reopenAnswers).toBeVisible({ timeout: 30_000 });
+  await reopenAnswers.click();
   await expect(page.getByRole("dialog").locator(".answer-key-row--choice .answer-key-row__score-val")).toHaveText(["33.4점", "33.3점", "33.3점"]);
   await page.getByRole("dialog").getByRole("button", { name: "취소" }).click();
   await page.setViewportSize({ width: 390, height: 844 });
@@ -1337,6 +1413,84 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   expect(pickerBox!.width).toBeGreaterThan(330);
   expect(pickerBox!.x + pickerBox!.width).toBeLessThanOrEqual(390);
   expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+});
+
+for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
+  test(`${viewport.width}px OMR 답안지에서 서술형 교사 채점란(Beta)을 켜고 미리보기를 다시 그린다`, async ({ page }, testInfo) => {
+    const state: MockState = {
+      supplementTitle: "토요일 심화 클리닉",
+      patchTitles: [],
+      guidedExamFlow: true,
+      guidedQuestionsInitialized: true,
+      guidedQuestionCount: 3,
+      guidedEssayNumbers: [3],
+      createdExamPayloads: [{
+        title: "주간 테스트", max_score: 100, pass_score: 60,
+        grading_mode: "mixed", manual_grading_method: "score",
+      }],
+      examSessionEnrollmentRows: [],
+      answerKeySaves: [{ exam: 9971, answers: { "99711": "1", "99712": "2" } }],
+      essayScoreMarks: { enabled: false, available: true, reason: "", patches: [] },
+    };
+    await page.setViewportSize(viewport);
+    await openLecture(page, state);
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/exams?examId=9971`, {
+      waitUntil: "domcontentloaded",
+    });
+    await page.getByRole("button", { name: "문항·답안 확인" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("tab", { name: "OMR 답안지" }).click();
+    const option = dialog.getByRole("radiogroup", { name: "서술형 교사 채점란" });
+    await expect(option).toBeVisible();
+    await expect(dialog.getByText("서술형 교사 채점란", { exact: false }).first()).toContainText("Beta");
+    await expect.poll(() => state.omrPreviewPosts ?? 0).toBeGreaterThan(0);
+    const previewsBefore = state.omrPreviewPosts ?? 0;
+
+    await option.getByRole("radio", { name: "사용", exact: true }).click();
+    await expect.poll(() => state.essayScoreMarks?.patches).toEqual([true]);
+    await expect(option.getByRole("radio", { name: "사용", exact: true })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByText(/서술형 교사 채점란을 켰습니다/)).toBeVisible();
+    await expect.poll(() => state.omrPreviewPosts ?? 0).toBeGreaterThan(previewsBefore);
+    await expect(dialog.getByText("15점 = 7+8", { exact: false })).toBeVisible();
+    await expect(dialog.getByText(/문항별 점수 입력에서 OMR 제안을 확인하고 확정하세요/)).toBeVisible();
+    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await dialog.screenshot({ path: testInfo.outputPath(`omr-essay-strip-option-${viewport.width}.png`) });
+
+    await option.getByRole("radio", { name: "사용 안 함", exact: true }).click();
+    await expect.poll(() => state.essayScoreMarks?.patches).toEqual([true, false]);
+    await expect(option.getByRole("radio", { name: "사용 안 함", exact: true })).toHaveAttribute("aria-checked", "true");
+  });
+}
+
+test("OMR 교사 채점란을 넣을 수 없는 시험은 이유를 보여 주고 켜지 않는다", async ({ page }) => {
+  const state: MockState = {
+    supplementTitle: "토요일 심화 클리닉",
+    patchTitles: [],
+    guidedExamFlow: true,
+    guidedQuestionsInitialized: true,
+    guidedQuestionCount: 3,
+    guidedEssayNumbers: [3],
+    createdExamPayloads: [{
+      title: "주간 테스트", max_score: 100, pass_score: 60,
+      grading_mode: "mixed", manual_grading_method: "score",
+    }],
+    examSessionEnrollmentRows: [],
+    answerKeySaves: [{ exam: 9971, answers: { "99711": "1", "99712": "2" } }],
+    essayScoreMarks: {
+      enabled: false, available: false, reason: "배점이 없는 서술형 문항이 있습니다.", patches: [],
+    },
+  };
+  await openLecture(page, state);
+  await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/exams?examId=9971`, {
+    waitUntil: "domcontentloaded",
+  });
+  await page.getByRole("button", { name: "문항·답안 확인" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("tab", { name: "OMR 답안지" }).click();
+  const option = dialog.getByRole("radiogroup", { name: "서술형 교사 채점란" });
+  await expect(dialog.getByText("배점이 없는 서술형 문항이 있습니다.")).toBeVisible();
+  await expect(option.getByRole("radio", { name: "사용", exact: true })).toBeDisabled();
+  expect(state.essayScoreMarks?.patches).toEqual([]);
 });
 
 async function openGuidedAnswerDialog(page: import("@playwright/test").Page, state: MockState) {
@@ -1698,7 +1852,10 @@ test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에�
   const primaryAction = page.getByTestId("assessment-primary-action");
   await expect(page.getByRole("navigation", { name: "과제 업무 흐름" })).toBeVisible();
   await expect(primaryAction).toHaveText("제출 현황 보기");
-  await page.setViewportSize({ width: 390, height: 844 });
+  for (const width of [1366, 1100, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expectAssessmentHeaderActionLayout(page);
+  }
   const homeworkPicker = assessmentNavigation.getByRole("combobox", { name: "과제 선택", exact: true });
   await expect(homeworkPicker).toHaveValue("9961");
   await homeworkPicker.selectOption({ label: "심화 서술형" });
@@ -1777,7 +1934,7 @@ test("차시 기본 기준 과제는 제목만 저장해도 상속을 유지하�
   await expect(noDeadlineItem.locator("..")).toHaveAttribute("data-state", "ready");
 
   await page.getByLabel("합격 기준 (%)").fill("");
-  await expect(page.getByRole("alert")).toContainText("합격 기준을 입력해 주세요.");
+  await expect(page.getByRole("alert").filter({ hasText: "합격 기준을 입력해 주세요." })).toBeVisible();
   await expect(page.getByRole("button", { name: "운영 설정 저장", exact: true })).toBeDisabled();
   await page.getByLabel("합격 기준 (%)").fill("80");
 

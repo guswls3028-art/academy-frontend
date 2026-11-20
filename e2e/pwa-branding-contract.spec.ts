@@ -35,6 +35,81 @@ function documentRequest(host: string, pathname: string) {
   } as never);
 }
 
+test("HakwonPlus browser defaults and crawler HTML use the published logo before JavaScript", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({ title: "학원플러스", tenant_code: "hakwonplus" });
+  const root = "/tenants/hakwonplus/";
+  const version = "?v=20261119";
+  try {
+    for (const host of ["hakwonplus.com", "www.hakwonplus.com"]) {
+      for (const [alias, file] of [
+        ["/favicon.ico", "favicon.png"],
+        ["/apple-touch-icon.png", "apple-touch-icon.png"],
+        ["/apple-touch-icon-precomposed.png", "apple-touch-icon.png"],
+      ]) {
+        const response = await manifestRequest(host, alias);
+        expect(response.status).toBe(307);
+        expect(response.headers.get("Location")).toBe(`https://${host}${root}${file}${version}`);
+      }
+      for (const path of ["/", "/promo", "/workspace/dashboard"]) {
+        const html = await (await documentRequest(host, path)).text();
+        expect(html).toContain(`rel="icon" href="${root}favicon.png${version}"`);
+        expect(html).toContain(`property="og:image" content="https://${host}${root}og-image.png${version}"`);
+        if (path !== "/workspace/dashboard") {
+          const schema = html.match(/<script[^>]*id="platform-organization"[^>]*>([^<]+)<\/script>/);
+          expect(JSON.parse(schema![1])).toMatchObject({
+            "@type": "Organization", logo: `https://hakwonplus.com${root}pwa-512.png${version}`,
+          });
+        }
+      }
+    }
+    expect((await manifestRequest("tchul.com", "/favicon.ico")).headers.has("Location")).toBe(false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("student shell requests branding while the fallback index is loading", async () => {
+  const originalFetch = globalThis.fetch;
+  const host = "qa-shell-branding.example";
+  let brandingHost: string | null = null;
+  let indexRequested!: () => void;
+  let completeIndex!: (response: Response) => void;
+  const indexStarted = new Promise<void>((resolve) => { indexRequested = resolve; });
+  const pendingIndex = new Promise<Response>((resolve) => { completeIndex = resolve; });
+  const headers = { "Content-Type": "text/html; charset=utf-8" };
+  globalThis.fetch = async (input) => {
+    brandingHost = new URL(String(input)).searchParams.get("hostname");
+    return Response.json({ title: "QA Student Academy", tenant_code: "qa-shell-branding" });
+  };
+  const response = onRequestGet({
+    request: new Request(`https://${host}/student/dashboard`),
+    env: {
+      ASSETS: {
+        fetch: async (request: Request) => {
+          if (new URL(request.url).pathname === "/index.html") {
+            indexRequested();
+            return pendingIndex;
+          }
+          return new Response("first asset lookup", { headers });
+        },
+      },
+    },
+  } as never);
+  try {
+    await indexStarted;
+    const calledWhileIndexPending = brandingHost;
+    completeIndex(new Response(readFileSync(resolve(process.cwd(), "index.html"), "utf8"), { headers }));
+    const document = await response;
+    expect(calledWhileIndexPending).toBe(host);
+    expect(document.status).toBe(200);
+    expect(await document.text()).toContain("<title>QA Student Academy</title>");
+    expect(document.headers.get("Content-Security-Policy")).toContain("script-src 'self' 'nonce-");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("tenant metadata preserves special characters as text without injecting tags or replacement patterns", async () => {
   const originalFetch = globalThis.fetch;
   const title = 'QA </title><script id="qa-meta-injection">alert(1)</script> $&';
@@ -53,6 +128,66 @@ test("tenant metadata preserves special characters as text without injecting tag
     expect(html).not.toContain(' onerror="');
     expect(html).toContain('x=&quot; onerror=&quot;');
   } finally { globalThis.fetch = originalFetch; }
+});
+
+test("godmin public search metadata survives API failure and browser boot", async ({ page }) => {
+  const originalFetch = globalThis.fetch;
+  const siteName = "신민 과학 연구소";
+  const title = "신민 과학 연구소 | 신민T 통합과학";
+  globalThis.fetch = async (input) => {
+    const host = new URL(String(input)).searchParams.get("hostname");
+    return host === "godmin.kr"
+      ? Response.json({ title: "신과함께", tenant_code: "godmin", description: "신과함께 학습 플랫폼" })
+      : new Response(null, { status: 503 });
+  };
+  try {
+    for (const host of ["godmin.kr", "www.godmin.kr"]) {
+      for (const path of ["/", "/landing"]) {
+        const response = await documentRequest(host, path);
+        const html = await response.text();
+        const canonical = `https://godmin.kr${path}`;
+        expect(response.status).toBe(200);
+        expect(response.headers.has("X-Robots-Tag")).toBe(false);
+        expect(html).toContain(`<title>${title}</title>`);
+        expect(html).toContain(`property="og:site_name" content="${siteName}"`);
+        expect(html).toContain(`rel="canonical" href="${canonical}"`);
+        expect(html).toContain(`property="og:url" content="${canonical}"`);
+        const schemas = [...html.matchAll(/<script[^>]+type="application\/ld\+json">([^<]+)<\/script>/g)];
+        expect(schemas).toHaveLength(1);
+        expect(JSON.parse(schemas[0][1])).toEqual({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: siteName,
+          url: "https://godmin.kr/",
+        });
+      }
+      const sitemap = await manifestRequest(host, "/sitemap.xml");
+      const xml = await sitemap.text();
+      expect(xml).toContain("<loc>https://godmin.kr/landing</loc>");
+      expect(xml).not.toContain("/login/godmin");
+    }
+    const otherTenant = await documentRequest("tchul.com", "/landing");
+    const otherHtml = await otherTenant.text();
+    expect(otherHtml).toContain('property="og:site_name" content="박철 과학"');
+    expect(otherHtml).not.toContain(siteName);
+
+    const wwwLanding = await documentRequest("www.godmin.kr", "/landing/?source=search");
+    const html = await wwwLanding.text();
+    await page.route("https://www.godmin.kr/**", async (route) => {
+      if (route.request().resourceType() === "document") {
+        await route.fulfill({ body: html, headers: Object.fromEntries(wwwLanding.headers) });
+      } else {
+        await route.fulfill({ body: "", contentType: "application/javascript" });
+      }
+    });
+    await page.goto("https://www.godmin.kr/landing/?source=search");
+    await expect(page).toHaveTitle(title);
+    await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", siteName);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://godmin.kr/landing");
+    await expect(page.locator('script[type="application/ld+json"]')).toHaveCount(1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("public article SEO uses the host-resolved tenant and removes deleted article metadata", async () => {
@@ -359,11 +494,11 @@ test("developer manifest is an isolated installable app with HakwonPlus icons", 
   expect(manifest.display).toBe("standalone");
   expect(manifest.icons).toEqual([
     expect.objectContaining({
-      src: "/tenants/hakwonplus/pwa-192.png?v=20260727",
+      src: "/tenants/hakwonplus/pwa-192.png?v=20261119",
       sizes: "192x192",
     }),
     expect.objectContaining({
-      src: "/tenants/hakwonplus/pwa-512.png?v=20260727",
+      src: "/tenants/hakwonplus/pwa-512.png?v=20261119",
       sizes: "512x512",
     }),
   ]);
@@ -390,7 +525,7 @@ test("developer custom domain is canonical, non-indexable, and tenant-bound", as
   expect(html).toContain('<link rel="manifest" href="/dev-manifest.json" />');
   expect(html).toContain('apple-mobile-web-app-title" content="학원플러스 콘솔"');
   expect(html).toContain(
-    '<link rel="apple-touch-icon" href="/tenants/hakwonplus/apple-touch-icon.png?v=20260727" />',
+    '<link rel="apple-touch-icon" href="/tenants/hakwonplus/apple-touch-icon.png?v=20261119" />',
   );
 
   expect(getTenantCodeFromHostname("dev.hakwonplus.com")).toEqual({

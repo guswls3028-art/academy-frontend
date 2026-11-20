@@ -7,9 +7,12 @@ export type ReleaseBoundary = {
   webOrigin: string;
   tenantCode: string;
   omrR2TenantId?: number;
+  videoMultipartSessionId?: number;
 };
 
 const DEVELOPMENT_OMR_R2_ORIGIN = "https://af4f2937d73db240e99864b8518265c5.r2.cloudflarestorage.com";
+const MULTIPART_QA_NAME = "qa-native-multipart.mp4";
+const MAX_MULTIPART_QA_PART_BYTES = 100 * 1024 * 1024;
 const XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const PPTX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 
@@ -70,11 +73,12 @@ function inventoryDisposition(name: string): string {
     + (ascii ? "" : "; filename*=UTF-8''" + encodeRfc3986(safeName));
 }
 
-function isExactInventoryOriginalDownload(boundary: ReleaseBoundary, rawUrl: string, file: InventoryOriginal): boolean {
-  if (boundary.mode !== "development") return false;
+function isExactInventoryOriginalDownload(boundary: ReleaseBoundary, rawUrl: string, file: InventoryOriginal, exactExpiry?: number): boolean {
+  if (boundary.mode !== "development" || !URL.canParse(rawUrl)) return false;
   const target = new URL(rawUrl);
   if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
     || rawUrl !== target.origin + target.pathname + target.search
+    || (exactExpiry !== undefined && target.searchParams.get("X-Amz-Expires") !== String(exactExpiry))
     || target.pathname !== "/academy-development-artifacts/" + file.r2Key.split("/").map(encodeRfc3986).join("/")
     || target.searchParams.getAll("response-content-type").length !== 1
     || target.searchParams.get("response-content-type") !== file.contentType
@@ -82,7 +86,31 @@ function isExactInventoryOriginalDownload(boundary: ReleaseBoundary, rawUrl: str
     || target.searchParams.get("response-content-disposition") !== inventoryDisposition(file.name)) return false;
   target.searchParams.delete("response-content-type");
   target.searchParams.delete("response-content-disposition");
-  return hasExactHostSignature(target, 3600);
+  return hasExactHostSignature(target, exactExpiry ?? 3600);
+}
+
+// Only the synthetic survey PNG from the staff response list can be read here.
+const SURVEY_QA_ATTACHMENT = {
+  name: "시험범위.png", contentType: "image/png", sizeBytes: 68,
+  sha256: "5e3d382db4dd83d59aa5742793ad6b7903409e865c83bcbc54835049f043bc15",
+} as const;
+
+function surveyQaOriginals(boundary: ReleaseBoundary, surveyId: number, payload: unknown): string[] {
+  if (!Number.isSafeInteger(boundary.omrR2TenantId) || Number(boundary.omrR2TenantId) < 1
+    || !Number.isSafeInteger(surveyId) || surveyId < 1 || !isRecord(payload) || !isRecord(payload.survey)
+    || payload.survey.id !== surveyId || !Array.isArray(payload.results) || payload.results.length > 100) return [];
+  return payload.results.flatMap((row) => {
+    if (!isRecord(row) || row.answered !== true || !Number.isSafeInteger(row.student_id) || Number(row.student_id) < 1
+      || !isRecord(row.response) || row.response.survey_id !== surveyId || row.response.student_id !== row.student_id
+      || typeof row.response.student_ps !== "string" || !/^[A-Za-z0-9_-]+$/.test(row.response.student_ps)
+      || !Array.isArray(row.response.attachments) || row.response.attachments.length > 10) return [];
+    const prefix = `tenants/${boundary.omrR2TenantId}/students/${row.response.student_ps}/inventory/`;
+    return row.response.attachments.flatMap((file) => isRecord(file)
+      && file.name === SURVEY_QA_ATTACHMENT.name && file.content_type === SURVEY_QA_ATTACHMENT.contentType
+      && file.size_bytes === SURVEY_QA_ATTACHMENT.sizeBytes && typeof file.r2_key === "string"
+      && file.r2_key.startsWith(prefix) && /^시험범위_[0-9]{6}_[a-f0-9]{32}\.png$/.test(file.r2_key.slice(prefix.length))
+      ? [file.r2_key] : []);
+  });
 }
 
 export function isExactDevelopmentConversionAsset(boundary: ReleaseBoundary, rawUrl: string, conversionId: string,
@@ -229,6 +257,68 @@ function hasExactHostSignature(target: URL, maxExpires: number): boolean {
   return credential?.[2] === date.slice(0, 8) && /^[1-9][0-9]*$/.test(expires) && Number(expires) <= maxExpires;
 }
 
+function matchesQaVideoPart(rawUrl: string, fileKey: string, uploadId: string, partNumber: string): boolean {
+  if (!URL.canParse(rawUrl)) return false;
+  const target = new URL(rawUrl);
+  if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
+    || rawUrl !== target.origin + target.pathname + target.search
+    || target.pathname !== "/academy-development-artifacts/" + fileKey
+    || target.searchParams.getAll("uploadId").length !== 1 || target.searchParams.get("uploadId") !== uploadId
+    || target.searchParams.getAll("partNumber").length !== 1 || target.searchParams.get("partNumber") !== partNumber) return false;
+  target.searchParams.delete("uploadId");
+  target.searchParams.delete("partNumber");
+  return hasExactHostSignature(target, 3600);
+}
+
+function developmentVideoMultipartScope(tenantId: number, sessionId: number) {
+  const prefix = "tenants/" + tenantId + "/video/raw/" + sessionId + "/";
+  const partUrls = new Set<string>();
+  let video: { id: number; fileKey: string } | undefined;
+  let uploadId: string | undefined;
+
+  return {
+    allowsPart: (url: string) => partUrls.has(url),
+    observe(path: string, status: number, request: unknown, response: unknown) {
+      if (!isRecord(request) || !isRecord(response)) return;
+      if (!video && path === "/api/v1/media/videos/upload/init/" && status === 201
+        && request.session === sessionId && request.filename === MULTIPART_QA_NAME && request.content_type === "video/mp4"
+        && isRecord(response.video) && typeof response.video.id === "number"
+        && Number.isSafeInteger(response.video.id) && response.video.id > 0
+        && typeof response.file_key === "string" && response.file_key.startsWith(prefix)
+        && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.mp4$/.test(response.file_key.slice(prefix.length))) {
+        video = { id: response.video.id, fileKey: response.file_key };
+        return;
+      }
+      if (!video) return;
+      const base = "/api/v1/media/videos/" + video.id + "/upload/multipart/";
+      if (path === base + "init/" && status === 200 && request.content_type === "video/mp4"
+        && response.video_id === video.id && response.file_key === video.fileKey
+        && typeof response.upload_id === "string" && /^[A-Za-z0-9._~+/=-]{1,512}$/.test(response.upload_id)) {
+        uploadId = response.upload_id;
+        partUrls.clear();
+        return;
+      }
+      if (!uploadId || request.upload_id !== uploadId) return;
+      if ((path === base + "abort/" && status === 200)
+        || (path === base + "complete/" && status >= 200 && status < 300)) {
+        uploadId = undefined;
+        partUrls.clear();
+        return;
+      }
+      const parts = request.part_numbers;
+      if (path !== base + "presign/" || status !== 200 || !isRecord(response.urls)
+        || !Array.isArray(parts) || parts.length === 0 || parts.length > 10
+        || parts.some(part => !Number.isSafeInteger(part) || part < 1 || part > 10)
+        || new Set(parts).size !== parts.length || Object.keys(response.urls).length !== parts.length) return;
+      for (const part of parts) {
+        const key = String(part);
+        const rawUrl = response.urls[key];
+        if (typeof rawUrl === "string" && matchesQaVideoPart(rawUrl, video.fileKey, uploadId, key)) partUrls.add(rawUrl);
+      }
+    },
+  };
+}
+
 function isExactDevelopmentHomeworkImage(boundary: ReleaseBoundary, rawUrl: string, mediaId: string, contentType: string): boolean {
   const extension = ({ "image/png": "png", "image/heic": "heic", "image/heif": "heif" } as Record<string, string>)[contentType];
   if (!extension) return false;
@@ -252,20 +342,26 @@ function isExactDevelopmentHomeworkVideo(boundary: ReleaseBoundary, rawUrl: stri
   return Boolean(path && Number.isSafeInteger(Number(path[1])) && hasExactHostSignature(target, 600));
 }
 
+type CommunityImageType = "image/png" | "image/jpeg" | "image/webp" | "image/heic" | "image/gif";
+
 function isExactDevelopmentCommunityAttachment(
-  boundary: ReleaseBoundary, rawUrl: string, postId: number, contentType: string, downloadName?: string,
+  boundary: ReleaseBoundary, rawUrl: string, postId: number, contentType: string, downloadName?: string, replyImage = false,
 ): boolean {
   if (boundary.mode !== "development" || !Number.isSafeInteger(boundary.omrR2TenantId)
     || Number(boundary.omrR2TenantId) < 1 || !Number.isSafeInteger(postId) || postId < 1
-    || !["image/png", "image/jpeg", "image/webp", "application/pdf", "text/plain"].includes(contentType)
+    || !(replyImage ? ["image/png", "image/jpeg", "image/webp", "image/gif"]
+      : ["image/png", "image/jpeg", "image/webp", "image/heic", "application/pdf", "text/plain"]).includes(contentType)
     || (!contentType.startsWith("image/") && downloadName === undefined)) return false;
   const target = new URL(rawUrl);
   if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
     || rawUrl !== `${target.origin}${target.pathname}${target.search}`) return false;
-  const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/community/posts/${postId}/uploads/[A-Za-z0-9_-]{16,80}/[0-9]_[0-9a-f]{16}_[0-9a-f]{8}_[^/]+\\.(png|jpg|jpeg|webp|pdf|txt)$`, "i").exec(target.pathname);
+  const objectPath = replyImage ? "reply-uploads/[0-9a-f]{32}/[0-9]_[0-9a-f]{16}_[0-9a-f]{8}_photo" : "uploads/[A-Za-z0-9_-]{16,80}/[0-9]_[0-9a-f]{16}_[0-9a-f]{8}_[^/]+";
+  const path = new RegExp(`^/academy-development-artifacts/tenants/${boundary.omrR2TenantId}/community/posts/${postId}/${objectPath}\\.(png|jpg|jpeg|webp|heic|gif|pdf|txt)$`, "i").exec(target.pathname);
   if (!path) return false;
   const extensionType = path[1].toLowerCase() === "png" ? "image/png"
     : path[1].toLowerCase() === "webp" ? "image/webp"
+    : path[1].toLowerCase() === "gif" ? "image/gif"
+    : path[1].toLowerCase() === "heic" ? "image/heic"
     : path[1].toLowerCase() === "pdf" ? "application/pdf"
     : path[1].toLowerCase() === "txt" ? "text/plain" : "image/jpeg";
   if (extensionType !== contentType || target.searchParams.getAll("response-content-type").length !== 1
@@ -403,6 +499,31 @@ function isExactReadonlyCloudflareBeacon(boundary: ReleaseBoundary, target: URL,
     && !target.search && !target.hash && !target.username && !target.password;
 }
 
+const READONLY_STUDENT_SCREEN_IDS = new Set([
+  "student.dashboard.home",
+  "student.session.list",
+  "student.grades.home",
+  "student.exam.list",
+  "student.video.home",
+  "student.clinic.home",
+  "student.guide.home",
+  "student.assignment.submit",
+]);
+
+function isSignedCatalogThumbnail(rawUrl: string): boolean {
+  if (!URL.canParse(rawUrl)) return false;
+  const target = new URL(rawUrl);
+  const query = target.searchParams;
+  return target.origin === "https://cdn.hakwonplus.com"
+    && rawUrl === target.origin + target.pathname + target.search
+    && /^\/tenants\/[1-9][0-9]*\/video\/hls\/[1-9][0-9]*\/thumbnail\.jpg$/.test(target.pathname)
+    && query.size === 4
+    && /^[1-9][0-9]*$/.test(query.get("exp") ?? "")
+    && /^[0-9]+$/.test(query.get("v") ?? "")
+    && /^[A-Za-z0-9_-]{1,32}$/.test(query.get("kid") ?? "")
+    && /^[A-Za-z0-9_-]{43}$/.test(query.get("sig") ?? "");
+}
+
 export function releaseBoundaryFromEnv(env: Record<string, string | undefined>): ReleaseBoundary | null {
   if (!env.E2E_RELEASE_API_MODE) return null;
   const mode = env.E2E_RELEASE_API_MODE;
@@ -423,8 +544,14 @@ export function releaseBoundaryFromEnv(env: Record<string, string | undefined>):
   const omrTenant = env.E2E_OMR_R2_TENANT_ID;
   if (omrTenant !== undefined && (mode !== "development" || !/^[1-9][0-9]*$/.test(omrTenant)
     || !Number.isSafeInteger(Number(omrTenant)))) throw new Error("Invalid development OMR tenant scope");
+  const videoSession = env.E2E_VIDEO_MULTIPART_SESSION_ID;
+  if (videoSession !== undefined && (mode !== "development" || api.origin !== "http://127.0.0.1:18000"
+    || omrTenant === undefined || !/^[1-9][0-9]*$/.test(videoSession) || !Number.isSafeInteger(Number(videoSession)))) {
+    throw new Error("Invalid development multipart video session scope");
+  }
   return { mode, apiOrigin: api.origin, webOrigin: web.origin, tenantCode,
-    ...(omrTenant === undefined ? {} : { omrR2TenantId: Number(omrTenant) }) };
+    ...(omrTenant === undefined ? {} : { omrR2TenantId: Number(omrTenant) }),
+    ...(videoSession === undefined ? {} : { videoMultipartSessionId: Number(videoSession) }) };
 }
 
 export function assertReleaseRequestSafe(
@@ -459,7 +586,7 @@ export function assertReleaseRequestSafe(
     const payload = data as Record<string, unknown> | null;
     if (!payload || typeof payload !== "object" || Array.isArray(payload)
       || Object.keys(payload).sort().join(",") !== "device_class,screen_id"
-      || !["student.dashboard.home", "student.session.list", "student.grades.home", "student.guide.home", "student.assignment.submit"].some((screenId) => payload.screen_id === screenId)
+      || typeof payload.screen_id !== "string" || !READONLY_STUDENT_SCREEN_IDS.has(payload.screen_id)
       || !["desktop", "tablet", "mobile"].some((deviceClass) => payload.device_class === deviceClass)) {
       throw new Error("Production observation payload is outside the reviewed screen-view schema");
     }
@@ -614,7 +741,17 @@ export function emitPublicVideoNotDemonstrated(viewport: number, phase: PublicVi
     outcome: "not-demonstrated", phase, reason, playback } });
 }
 
-export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | "public-video-primary" | "context-check" | "assessment-copy" | "assessment-copy-cleanup",
+export type AssessmentScheduleFailurePhase =
+  | "assessment-schedule-setup-roster"
+  | "assessment-schedule-initial-create"
+  | "assessment-schedule-admin-attendance"
+  | "assessment-schedule-admin-scores"
+  | "assessment-schedule-student-projection"
+  | "assessment-schedule-transfer"
+  | "assessment-schedule-conflict-removal"
+  | "assessment-schedule-cleanup";
+
+export function emitReleaseTestFailure(error: unknown, phase: "video-primary" | "public-video-primary" | "context-check" | "assessment-copy" | "assessment-copy-cleanup" | AssessmentScheduleFailurePhase,
   emit: (value: unknown) => void = (value) => console.log(JSON.stringify(value)), journeyStage?: PublicVideoJourneyStage, playback?: unknown) {
   const message = error instanceof Error ? error.message.split(/\r?\n/, 1)[0] : "";
   const kind = /Release API boundary failed:/.test(message) ? "boundary"
@@ -1113,12 +1250,15 @@ export async function installReleaseContextGuard(
   if (installed) {
     if (installed.boundary.mode !== boundary.mode || installed.boundary.apiOrigin !== boundary.apiOrigin
       || installed.boundary.webOrigin !== boundary.webOrigin || installed.boundary.tenantCode !== boundary.tenantCode
-      || installed.boundary.omrR2TenantId !== boundary.omrR2TenantId) {
+      || installed.boundary.omrR2TenantId !== boundary.omrR2TenantId
+      || installed.boundary.videoMultipartSessionId !== boundary.videoMultipartSessionId) {
       throw new Error("Release context boundary mismatch");
     }
     return installed.ready;
   }
   boundary = { ...boundary };
+  const videoMultipart = boundary.mode === "development" && boundary.omrR2TenantId && boundary.videoMultipartSessionId
+    ? developmentVideoMultipartScope(boundary.omrR2TenantId, boundary.videoMultipartSessionId) : null;
 
   const observations = { attempted: 0, accepted: 0 };
   const authentication = { attempted: 0, accepted: 0 };
@@ -1132,7 +1272,7 @@ export async function installReleaseContextGuard(
   };
   const defects: string[] = [];
   const homeworkPreviewUrls = new Map<string, string>();
-  const communityImageUrls = new Map<string, "image/png" | "image/jpeg" | "image/webp">();
+  const communityImageUrls = new Map<string, { contentType: CommunityImageType; sizeBytes?: number }>();
   const communityFileUrls = new Map<string, { contentType: string; sizeBytes: number; disposition: string }>();
   const resourceDownloadUrls = new Set<string>();
   const omrPreviewPdfs = new Map<string, { url: string; reads: Array<{ sizeBytes: number; sha256: string }> }>();
@@ -1143,6 +1283,8 @@ export async function installReleaseContextGuard(
   const documentDownloadUrls = new Map<string, { url: string; filename: string; contentType: string; contentDisposition: string;
     inventoryOriginal?: InventoryOriginal }>();
   const inventoryOriginals = new Map<string, InventoryOriginal>();
+  const surveyOriginalKeys = new Set<string>();
+  const surveyDownloadUrls = new Map<string, string>();
   const communityAttachments = new Map<string, { contentType: string; originalName: string; sizeBytes?: number }>();
   const registerCommunityPost = (post: unknown, expectedType?: "qna" | "notice") => {
     if (!isRecord(post) || !["qna", "notice", "board", "materials", "counsel"].includes(String(post.post_type)) || typeof post.post_type !== "string"
@@ -1154,20 +1296,40 @@ export async function installReleaseContextGuard(
       if (!isRecord(attachment) || typeof attachment.id !== "number" || !Number.isSafeInteger(attachment.id) || Number(attachment.id) < 1
         || typeof attachment.content_type !== "string" || typeof attachment.original_name !== "string") continue;
       const contentType = attachment.content_type;
-      if (!["image/png", "image/jpeg", "image/webp", "application/pdf", "text/plain"].includes(contentType)) continue;
+      if (!["image/png", "image/jpeg", "image/webp", "image/heic", "application/pdf", "text/plain"].includes(contentType)) continue;
       const sizeBytes = typeof attachment.size_bytes === "number" && Number.isSafeInteger(attachment.size_bytes)
         && attachment.size_bytes > 0 && attachment.size_bytes <= 50 * 1024 * 1024 ? attachment.size_bytes : undefined;
-      if (!contentType.startsWith("image/") && sizeBytes === undefined) continue;
+      if (!contentType.startsWith("image/") && (expectedType === "notice" || sizeBytes === undefined)) continue;
+      if ((expectedType === "notice" || contentType === "image/heic")
+        && (sizeBytes === undefined || sizeBytes > 5 * 1024 * 1024)) continue;
       communityAttachments.set(`${postId}:${attachment.id}`, { contentType, originalName: attachment.original_name, sizeBytes });
       const url = attachment.download_url;
       if (typeof url === "string" && isExactDevelopmentCommunityAttachment(boundary, url, postId, contentType)) {
-        communityImageUrls.set(url, contentType as "image/png" | "image/jpeg" | "image/webp");
+        communityImageUrls.set(url, { contentType: contentType as CommunityImageType, sizeBytes });
+      }
+    }
+  };
+  const registerReplyImages = (replies: unknown, postId: number) => {
+    if (!Array.isArray(replies) || replies.length > 200) return;
+    for (const reply of replies) {
+      if (!isRecord(reply) || reply.post !== postId || reply.question !== postId
+        || reply.author_role !== "staff" || !Number.isSafeInteger(reply.id) || Number(reply.id) < 1
+        || !Array.isArray(reply.attachments) || reply.attachments.length > 10) continue;
+      for (const photo of reply.attachments) {
+        if (!isRecord(photo) || !Number.isSafeInteger(photo.id) || Number(photo.id) < 1
+          || typeof photo.size_bytes !== "number" || !Number.isSafeInteger(photo.size_bytes)
+          || photo.size_bytes < 1 || photo.size_bytes > 5 * 1024 * 1024
+          || typeof photo.download_url !== "string" || typeof photo.content_type !== "string") continue;
+        if (isExactDevelopmentCommunityAttachment(boundary, photo.download_url, postId, photo.content_type, undefined, true)) {
+          communityImageUrls.set(photo.download_url, { contentType: photo.content_type as CommunityImageType, sizeBytes: photo.size_bytes });
+        }
       }
     }
   };
   const requestTransportDiagnostics: RequestTransportDiagnostic[] = [];
   const activeRoutes = new Set<Promise<void>>();
   const publicVideoIds = new Set<string>();
+  const signedCatalogThumbnails = new Set<string>();
   const publicVideoFrames = new WeakSet<Frame>();
   let publicEmbedIdentityCount = 0;
   let closing = false;
@@ -1222,6 +1384,50 @@ export async function installReleaseContextGuard(
     try {
       const upstream = developmentUpstream(boundary, request.url());
       const target = new URL(upstream);
+      if (videoMultipart?.allowsPart(upstream)) {
+        const method = request.method();
+        const source = await request.allHeaders();
+        const preflight = method === "OPTIONS" && source["access-control-request-method"] === "PUT";
+        const body = method === "PUT" ? request.postDataBuffer() : null;
+        const requestedHeaders = source["access-control-request-headers"]?.trim().toLowerCase();
+        const appHeaders = ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key", "x-csrftoken"];
+        const contentType = source["content-type"];
+        if (source.origin !== boundary.webOrigin || appHeaders.some(name => source[name])
+          || (preflight ? requestedHeaders && requestedHeaders !== "content-type"
+            : !body?.length || body.length > MAX_MULTIPART_QA_PART_BYTES || request.resourceType() !== "xhr"
+              || (contentType !== undefined && !["application/octet-stream", "video/mp4"].includes(contentType)))) {
+          await reject("multipart-part-scope");
+          return;
+        }
+        const headers: Record<string, string> = { origin: boundary.webOrigin };
+        if (preflight) {
+          headers["access-control-request-method"] = "PUT";
+          if (requestedHeaders) headers["access-control-request-headers"] = requestedHeaders;
+        } else if (contentType) {
+          headers["content-type"] = contentType;
+        }
+        // Do not inherit the browser context's cookies or any API headers.
+        const response = await fetch(upstream, { method, headers, body: preflight ? undefined : new Uint8Array(body!),
+          redirect: "manual", signal: AbortSignal.timeout(120_000) });
+        await response.body?.cancel();
+        const allowOrigin = response.headers.get("access-control-allow-origin") ?? "";
+        const exposeHeaders = response.headers.get("access-control-expose-headers") ?? "";
+        const allowMethods = response.headers.get("access-control-allow-methods") ?? "";
+        const allowHeaders = response.headers.get("access-control-allow-headers") ?? "";
+        const etag = response.headers.get("etag") ?? "";
+        const canReadEtag = exposeHeaders.toLowerCase().split(/\s*,\s*/)
+          .some(header => header === "etag" || header === "*");
+        if (!response.ok || !["*", boundary.webOrigin].includes(allowOrigin)
+          || (preflight ? !allowMethods.toUpperCase().split(/\s*,\s*/).includes("PUT")
+            : !canReadEtag || !/^(?:[0-9a-f]{32}|"[0-9a-f]{32}")$/i.test(etag))) {
+          await reject("multipart-part-response");
+          return;
+        }
+        await route.fulfill({ status: response.status, headers: { "access-control-allow-origin": allowOrigin,
+          ...(preflight ? { "access-control-allow-methods": allowMethods, "access-control-allow-headers": allowHeaders }
+            : { "access-control-expose-headers": exposeHeaders, etag }) } });
+        return;
+      }
       // Public-player handling only applies outside the existing app/API
       // transports; their diagnostics and retry policy remain untouched.
       if (boundary.mode === "development" && target.origin !== boundary.apiOrigin && target.origin !== boundary.webOrigin) {
@@ -1338,6 +1544,26 @@ export async function installReleaseContextGuard(
         }
         return;
       }
+      if (boundary.mode === "readonly" && signedCatalogThumbnails.has(upstream)
+        && request.method() === "GET" && request.resourceType() === "image") {
+        const frame = new URL(request.frame().url());
+        if (frame.origin !== boundary.webOrigin || frame.pathname !== "/student/video") {
+          await reject("origin");
+          return;
+        }
+        const headers = await request.allHeaders();
+        if (headers.authorization || headers.cookie || headers["x-tenant-code"] || headers["x-csrftoken"] || headers["x-student-id"]) {
+          await reject("credentials");
+          return;
+        }
+        const response = await route.fetch({ maxRedirects: 0, timeout: 15_000, headers: { accept: "image/jpeg" } });
+        if (response.status() !== 200 || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== "image/jpeg") {
+          await reject("catalog-thumbnail-response");
+          return;
+        }
+        await route.fulfill({ response });
+        return;
+      }
       let data: unknown;
       try { data = request.postDataJSON(); } catch { data = undefined; }
       let bodyBytes = 0;
@@ -1420,6 +1646,36 @@ export async function installReleaseContextGuard(
         if (issuedPdf.reads.length < 3) issuedPdf.reads.push({ sizeBytes: body.length, sha256: createHash("sha256").update(body).digest("hex") });
         return;
       }
+      const surveyDownload = request.method() === "GET" && [...surveyDownloadUrls.values()].includes(upstream)
+        && request.resourceType() === "xhr";
+      if (surveyDownload) {
+        const headers = await request.allHeaders();
+        if (bodyBytes > 0 || headers.origin !== boundary.webOrigin
+          || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key", "range"]
+            .some((key) => headers[key])) {
+          await reject("credentials");
+          return;
+        }
+        const { contentType, sizeBytes, name, sha256 } = SURVEY_QA_ATTACHMENT;
+        const response = await route.fetch({ url: upstream, method: "GET",
+          headers: { accept: contentType, origin: boundary.webOrigin }, maxRedirects: 0 });
+        const responseHeaders = response.headers();
+        const allowOrigin = responseHeaders["access-control-allow-origin"];
+        if (response.status() !== 200 || responseHeaders["content-type"]?.split(";")[0].trim().toLowerCase() !== contentType
+          || responseHeaders["content-disposition"] !== inventoryDisposition(name)
+          || !allowOrigin || !["*", boundary.webOrigin].includes(allowOrigin)) {
+          await reject("transport");
+          return;
+        }
+        const body = await response.body();
+        if (body.length !== sizeBytes || createHash("sha256").update(body).digest("hex") !== sha256) {
+          await reject("transport");
+          return;
+        }
+        await route.fulfill({ status: 200, headers: { "content-type": contentType,
+          "access-control-allow-origin": allowOrigin, "cache-control": "no-store" }, body });
+        return;
+      }
       const documentDownload = request.method() === "GET"
         ? [...documentDownloadUrls.values()].find((item) => item.url === upstream) : undefined;
       if (documentDownload && ["document", "other"].includes(request.resourceType())) {
@@ -1487,11 +1743,12 @@ export async function installReleaseContextGuard(
         await route.fulfill({ status: 200, headers: { "content-type": "video/mp4", "content-length": String(body.length) }, body });
         return;
       }
-      const homeworkHeic = homeworkImageType === "image/heic" || homeworkImageType === "image/heif";
-      const communityImageType = request.method() === "GET" ? communityImageUrls.get(upstream) : undefined;
+      const communityImage = request.method() === "GET" ? communityImageUrls.get(upstream) : undefined;
+      const communityImageType = communityImage?.contentType;
+      const heic = homeworkImageType === "image/heic" || homeworkImageType === "image/heif" || communityImageType === "image/heic";
       const matchupImageType = isExactDevelopmentMatchupImage(boundary, upstream, request.method()) ? "image/png" : undefined;
       if (((homeworkImageType && homeworkImageType !== "video/mp4") || communityImageType || matchupImageType || isExactDevelopmentOmrImage(boundary, upstream, request.method()))
-        && (request.resourceType() === "image" || (homeworkHeic && request.resourceType() === "xhr"))) {
+        && (request.resourceType() === "image" || (heic && request.resourceType() === "xhr"))) {
         const headers = await request.allHeaders();
         if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
           .some((key) => headers[key])) {
@@ -1502,21 +1759,23 @@ export async function installReleaseContextGuard(
         // credentials/referrer or follow redirects; never report the signed URL.
         const contentType = communityImageType || homeworkImageType || matchupImageType || "image/jpeg";
         const response = await route.fetch({ url: upstream, method: "GET", headers: { accept: contentType,
-          ...(homeworkHeic ? { origin: boundary.webOrigin } : {}) }, maxRedirects: 0 });
+          ...(heic ? { origin: boundary.webOrigin } : {}) }, maxRedirects: 0 });
         if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
         const body = await response.body();
-        const signature = homeworkHeic ? [] : contentType === "image/png" ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
-          : contentType === "image/webp" ? [0x52, 0x49, 0x46, 0x46] : [0xff, 0xd8, 0xff];
+        const signature = heic ? [] : contentType === "image/png" ? [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+          : contentType === "image/webp" ? [0x52, 0x49, 0x46, 0x46]
+          : contentType === "image/gif" ? [0x47, 0x49, 0x46, 0x38] : [0xff, 0xd8, 0xff];
         if (response.status() !== 200 || response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() !== contentType
           || signature.some((byte, index) => body[index] !== byte)
-          || (homeworkHeic && (body.subarray(4, 8).toString("ascii") !== "ftyp"
+          || (heic && (body.subarray(4, 8).toString("ascii") !== "ftyp"
             || !["*", boundary.webOrigin].includes(response.headers()["access-control-allow-origin"] ?? "")))
+          || (communityImage?.sizeBytes !== undefined && body.length !== communityImage.sizeBytes)
           || (contentType === "image/webp" && body.subarray(8, 12).toString("ascii") !== "WEBP")) {
           await reject("transport");
           return;
         }
         await route.fulfill({ status: 200, headers: { "content-type": contentType,
-          ...(homeworkHeic ? { "access-control-allow-origin": response.headers()["access-control-allow-origin"] } : {}) }, body });
+          ...(heic ? { "access-control-allow-origin": response.headers()["access-control-allow-origin"] } : {}) }, body });
         return;
       }
       const kind = assertReleaseRequestSafe(boundary, upstream, request.method(), tenantCode, data);
@@ -1582,7 +1841,35 @@ export async function installReleaseContextGuard(
           || response.headers()["access-control-allow-credentials"] !== "true") {
           throw new Error("Real API CORS boundary mismatch");
         }
+        if (videoMultipart && request.method() === "POST" && !target.search
+          && /^\/api\/v1\/media\/videos\/(?:upload\/init|[1-9][0-9]*\/upload\/multipart\/(?:init|presign|complete|abort))\/$/.test(target.pathname)
+          && /^Bearer \S+$/.test(headers.authorization ?? "")
+          && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json") {
+          videoMultipart.observe(target.pathname, response.status(), data, await response.json());
+        }
+        if (boundary.mode === "readonly" && request.method() === "GET" && !target.search
+          && target.pathname === "/api/v1/student/video/me/" && response.status() === 200
+          && /^Bearer \S+$/.test(headers.authorization ?? "")) {
+          const catalog: unknown = await response.json();
+          if (isRecord(catalog)) {
+            const lectures: unknown[] = Array.isArray(catalog.lectures) ? catalog.lectures : [];
+            for (const entry of [catalog.public, ...lectures]) {
+              if (isRecord(entry) && typeof entry.thumbnail_url === "string" && isSignedCatalogThumbnail(entry.thumbnail_url)) {
+                signedCatalogThumbnails.add(entry.thumbnail_url);
+              }
+            }
+          }
+        }
         const pptTarget = new URL(upstream);
+        const surveyResponses = /^\/api\/v1\/surveys\/([1-9][0-9]*)\/responses\/$/.exec(pptTarget.pathname);
+        if (boundary.mode === "development" && surveyResponses && request.method() === "GET"
+          && response.status() === 200 && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json"
+          && /^Bearer \S+$/.test(headers.authorization ?? "") && headers["x-tenant-code"] === boundary.tenantCode
+          && !headers["x-student-id"]) {
+          for (const key of surveyQaOriginals(boundary, Number(surveyResponses[1]), await response.json())) {
+            if (surveyOriginalKeys.size < 4) surveyOriginalKeys.add(key);
+          }
+        }
         const omrPreview = /^\/api\/v1\/submissions\/submissions\/([1-9][0-9]*)\/preview\/$/.exec(pptTarget.pathname);
         if (boundary.mode === "development" && omrPreview && !pptTarget.search && request.method() === "GET") {
           const submissionId = omrPreview[1];
@@ -1616,6 +1903,12 @@ export async function installReleaseContextGuard(
           }
           if (pptTarget.pathname.endsWith("/presign/") && isRecord(data) && data.download === true
             && typeof data.r2_key === "string" && isRecord(payload) && typeof payload.url === "string") {
+            if (response.status() === 200 && !headers["x-student-id"] && data.expires_in === 300
+              && Object.keys(data).length === 3 && Object.keys(payload).length === 1 && surveyOriginalKeys.has(data.r2_key)) {
+              surveyDownloadUrls.delete(data.r2_key);
+              if (isExactInventoryOriginalDownload(boundary, payload.url,
+                { ...SURVEY_QA_ATTACHMENT, r2Key: data.r2_key }, 300)) surveyDownloadUrls.set(data.r2_key, payload.url);
+            }
             const original = inventoryOriginals.get(data.r2_key);
             if (original && isExactInventoryOriginalDownload(boundary, payload.url, original)) {
               documentDownloadUrls.set("inventory:" + original.r2Key, { url: payload.url, filename: original.name,
@@ -1774,12 +2067,13 @@ export async function installReleaseContextGuard(
             for (const photo of photos) {
               if (typeof photo !== "string") continue;
               const contentType = developmentPublicPhotoType(boundary, photo);
-              if (contentType) communityImageUrls.set(photo, contentType);
+              if (contentType) communityImageUrls.set(photo, { contentType });
             }
           }
         }
         const communityPost = /^\/api\/v1\/community\/posts\/([1-9][0-9]*)\/$/.exec(communityTarget.pathname);
-        const communityList = communityTarget.pathname === "/api/v1/community/posts/"
+        const communityListPath = communityTarget.pathname === "/api/v1/community/posts/";
+        const qnaList = communityListPath
           && communityTarget.searchParams.getAll("post_type").length === 1
           && communityTarget.searchParams.get("post_type") === "qna"
           && [...communityTarget.searchParams.keys()].every((key) => ["post_type", "page_size"].includes(key))
@@ -1787,16 +2081,26 @@ export async function installReleaseContextGuard(
             || (communityTarget.searchParams.getAll("page_size").length === 1
               && /^[1-9][0-9]*$/.test(communityTarget.searchParams.get("page_size") ?? "")
               && Number(communityTarget.searchParams.get("page_size")) <= 200));
+        const teacherNoticeList = communityListPath
+          && communityTarget.searchParams.size === 3
+          && communityTarget.searchParams.get("post_type") === "notice"
+          && communityTarget.searchParams.get("page_size") === "50"
+          && communityTarget.searchParams.get("ordering") === "-created_at";
+        const communityListType = teacherNoticeList ? "notice" : qnaList ? "qna" : undefined;
+        const communityReplies = /^\/api\/v1\/community\/posts\/([1-9][0-9]*)\/replies\/$/.exec(communityTarget.pathname);
         const communityDownload = /^\/api\/v1\/community\/posts\/([1-9][0-9]*)\/attachments\/([1-9][0-9]*)\/download\/$/.exec(communityTarget.pathname);
         if (boundary.mode === "development" && request.method() === "GET"
-          && ((communityPost && !communityTarget.search) || communityList || (communityDownload && !communityTarget.search))
+          && (((communityPost || communityReplies || communityDownload) && !communityTarget.search) || communityListType)
           && response.status() === 200 && /^Bearer \S+$/.test(headers.authorization ?? "")
           && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json") {
           const payload = await response.json();
           if (communityPost && payload?.id === Number(communityPost[1])) registerCommunityPost(payload);
-          if (communityList) {
+          if (communityReplies) registerReplyImages(payload, Number(communityReplies[1]));
+          if (communityListType) {
             const posts = Array.isArray(payload) ? payload : payload?.results;
-            if (Array.isArray(posts) && posts.length <= 200) posts.forEach((post) => registerCommunityPost(post, "qna"));
+            if (Array.isArray(posts) && posts.length <= (teacherNoticeList ? 50 : 200)) {
+              posts.forEach((post) => registerCommunityPost(post, communityListType));
+            }
           }
           if (communityDownload) {
             const postId = Number(communityDownload[1]);
@@ -1805,8 +2109,8 @@ export async function installReleaseContextGuard(
               && isExactDevelopmentCommunityAttachment(boundary, payload.url, postId,
                 attachment.contentType, attachment.originalName)) {
               if (attachment.contentType.startsWith("image/")) {
-                communityImageUrls.set(payload.url,
-                  attachment.contentType as "image/png" | "image/jpeg" | "image/webp");
+                communityImageUrls.set(payload.url, { contentType: attachment.contentType as CommunityImageType,
+                  sizeBytes: attachment.sizeBytes });
               } else if (attachment.sizeBytes !== undefined) {
                 communityFileUrls.set(payload.url, { contentType: attachment.contentType, sizeBytes: attachment.sizeBytes,
                   disposition: new URL(payload.url).searchParams.get("response-content-disposition")! });

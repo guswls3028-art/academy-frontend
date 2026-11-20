@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { clamp } from "./utils";
+import { clamp, getActiveFullscreenElement } from "./utils";
 import "./ui.css";
 
 export function Pill({
@@ -206,6 +206,14 @@ export function KebabMenu({
   );
 }
 
+const fullscreenChangeEvents = ["fullscreenchange", "webkitfullscreenchange", "mozfullscreenchange"];
+
+function floatingMenuRoot(button: HTMLButtonElement | null): Element {
+  const fullscreen = getActiveFullscreenElement();
+  // Native fullscreen covers body portals; keep the menu inside its own player's root.
+  return fullscreen?.contains(button) ? fullscreen : document.body;
+}
+
 export function SpeedButton({
   rate,
   speeds,
@@ -230,8 +238,13 @@ export function SpeedButton({
       setOpen(false);
     };
     const eventType = typeof window.PointerEvent === "function" ? "pointerdown" : "mousedown";
+    const onFullscreenChange = () => setOpen(false);
     window.addEventListener(eventType, onDown);
-    return () => window.removeEventListener(eventType, onDown);
+    fullscreenChangeEvents.forEach(type => document.addEventListener(type, onFullscreenChange));
+    return () => {
+      window.removeEventListener(eventType, onDown);
+      fullscreenChangeEvents.forEach(type => document.removeEventListener(type, onFullscreenChange));
+    };
   }, [open]);
 
   const handleOpen = () => {
@@ -280,7 +293,7 @@ export function SpeedButton({
             </button>
           ))}
         </div>,
-        document.body,
+        floatingMenuRoot(btnRef.current),
       )}
     </>
   );
@@ -315,8 +328,13 @@ export function QualityButton({
       setOpen(false);
     };
     const eventType = typeof window.PointerEvent === "function" ? "pointerdown" : "mousedown";
+    const onFullscreenChange = () => setOpen(false);
     window.addEventListener(eventType, onDown);
-    return () => window.removeEventListener(eventType, onDown);
+    fullscreenChangeEvents.forEach(type => document.addEventListener(type, onFullscreenChange));
+    return () => {
+      window.removeEventListener(eventType, onDown);
+      fullscreenChangeEvents.forEach(type => document.removeEventListener(type, onFullscreenChange));
+    };
   }, [open]);
 
   const disabled = !qualities || qualities.length <= 1;
@@ -368,7 +386,7 @@ export function QualityButton({
             </button>
           ))}
         </div>,
-        document.body,
+        floatingMenuRoot(btnRef.current),
       )}
     </>
   );

@@ -6,6 +6,9 @@ export const productionReadOnlySpecs = [
 ];
 
 export const routeMockSpecs = [
+  "e2e/admin/session-schedules.mock.spec.ts",
+  "e2e/student/session-schedules.mock.spec.ts",
+  "e2e/flows/survey-collection.mock.spec.ts",
   "e2e/student/attendance-qr.mock.spec.ts",
   "e2e/student/design-system-isolation.mock.spec.ts",
   "e2e/student/video-event-receipts.mock.spec.ts",
@@ -22,13 +25,16 @@ export const routeMockSpecs = [
   "e2e/admin/fees-operations-contract.mock.spec.ts",
   "e2e/student/attendance-history.mock.spec.ts",
   "e2e/teacher/assessment-list-pages.mock.spec.ts",
+  "e2e/teacher/school-report-collection.mock.spec.ts",
   "e2e/admin/design-system-theme.mock.spec.ts",
   "e2e/admin/student-lecture-memo.mock.spec.ts",
   "e2e/admin/public-video-preparation.mock.spec.ts",
   "e2e/helpers/api-auth-session.mock.spec.ts",
   "e2e/visual/strict-browser-recovered-cors.mock.spec.ts",
   "e2e/admin/workspace-quick-navigation.mock.spec.ts",
+  "e2e/admin/dashboard-attendance-qr.mock.spec.ts",
   "e2e/admin/dev-console-enterprise.mock.spec.ts",
+  "e2e/admin/agent-sessions.mock.spec.ts",
   "e2e/admin/dev-console-owner-safety.mock.spec.ts",
   "e2e/refactor/landing-router.spec.ts",
   "e2e/godmin-landing.mock.spec.ts",
@@ -58,6 +64,8 @@ export const routeMockSpecs = [
   "e2e/admin/video-bulk-policy.mock.spec.ts",
   "e2e/admin/lecture-create-responsive.mock.spec.ts",
   "e2e/admin/lecture-management-ordering.mock.spec.ts",
+  "e2e/admin/lecture-rankings.mock.spec.ts",
+  "e2e/admin/session-delete-recovery.mock.spec.ts",
   "e2e/admin/enrollment-excel-existing-only.mock.spec.ts",
   "e2e/admin/excel-result-import-recovery.mock.spec.ts",
   "e2e/admin/lecture-student-picker.mock.spec.ts",
@@ -85,6 +93,7 @@ export const routeMockSpecs = [
   "e2e/admin/session-attendance-bulk-safety.mock.spec.ts",
   "e2e/admin/score-entry-autosave.spec.ts",
   "e2e/admin/score-alimtalk-personalization.mock.spec.ts",
+  "e2e/admin/score-alimtalk-order.mock.spec.ts",
   "e2e/admin/message-template-editor.mock.spec.ts",
   "e2e/admin/message-template-concurrency.mock.spec.ts",
   "e2e/admin/score-column-mobile-ordering.mock.spec.ts",
@@ -108,6 +117,7 @@ export const routeMockSpecs = [
   "e2e/admin/video-batch-upload-queue.mock.spec.ts",
   "e2e/admin/video-progress-recovery.mock.spec.ts",
   "e2e/admin/video-watch-status-student-view.mock.spec.ts",
+  "e2e/admin/video-watch-logs.mock.spec.ts",
   "e2e/admin/student-unified-wrong-note.mock.spec.ts",
   "e2e/admin/wrong-note-generation-contract.mock.spec.ts",
   "e2e/shared/product-analytics-contract.mock.spec.ts",
@@ -180,6 +190,7 @@ export const e2eGateSpecs = [
 ];
 
 export const controlledWriteSpecs = [
+  "e2e/flows/survey-collection.realuse.spec.ts",
   "e2e/teacher/teacher-score-parent-realuse.spec.ts",
   "e2e/admin/public-video-realuse.spec.ts",
   "e2e/admin/public-resource-realuse.spec.ts",
@@ -207,6 +218,7 @@ export const controlledWriteSpecs = [
 // Relative to the development config's e2e testDir. This is the shared
 // inventory for collection, executed-result acceptance and safe progress.
 export const developmentRealUseCases = Object.freeze({
+  "flows/survey-collection.realuse.spec.ts": 1,
   "teacher/teacher-score-parent-realuse.spec.ts": 1,
   "admin/problem-conversion-realuse.spec.ts": 1,
   "admin/public-video-realuse.spec.ts": 1,

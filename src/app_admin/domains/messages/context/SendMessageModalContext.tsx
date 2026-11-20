@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import type { TemplateCategory } from "../constants/templateBlocks";
+import type { SendMessageModalProps } from "../components/SendMessageModal";
 import { AdminModal, ModalBody, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 
 const SendMessageModal = lazy(() => import("../components/SendMessageModal"));
@@ -21,6 +22,8 @@ export type OpenSendMessageOptions = {
   sessionId?: number;
   studentIds?: number[];
   recipientLabel?: string;
+  videoHomeworkStudentIds?: number[];
+  scoreUnavailableReason?: SendMessageModalProps["scoreUnavailableReason"];
   /** 삽입 블록 카테고리. 미지정 시 "default" (모든 블록) */
   blockCategory?: TemplateCategory;
   /** 본문 사전 입력 (성적 발송 등) */
@@ -65,6 +68,8 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
   const [open, setOpen] = useState(false);
   const [studentIds, setStudentIds] = useState<number[]>([]);
   const [recipientLabel, setRecipientLabel] = useState<string | undefined>();
+  const [videoHomeworkStudentIds, setVideoHomeworkStudentIds] = useState<number[] | undefined>();
+  const [scoreUnavailableReason, setScoreUnavailableReason] = useState<OpenSendMessageOptions["scoreUnavailableReason"]>();
   const [blockCategory, setBlockCategory] = useState<TemplateCategory | undefined>();
   const [initialBody, setInitialBody] = useState<string | undefined>();
   const [initialTemplateId, setInitialTemplateId] = useState<number | null | undefined>();
@@ -78,6 +83,8 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
     setSessionId(options.sessionId);
     setStudentIds(options.studentIds ?? []);
     setRecipientLabel(options.recipientLabel);
+    setVideoHomeworkStudentIds(options.videoHomeworkStudentIds);
+    setScoreUnavailableReason(options.scoreUnavailableReason);
     setBlockCategory(options.blockCategory);
     setInitialBody(options.initialBody);
     setInitialTemplateId(options.initialTemplateId);
@@ -93,6 +100,8 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
     setOpen(false);
     setStudentIds([]);
     setRecipientLabel(undefined);
+    setVideoHomeworkStudentIds(undefined);
+    setScoreUnavailableReason(undefined);
     setBlockCategory(undefined);
     setInitialBody(undefined);
     setInitialTemplateId(undefined);
@@ -126,6 +135,8 @@ export function SendMessageModalProvider({ children }: { children: ReactNode }) 
             sessionId={sessionId}
             initialStudentIds={studentIds}
             recipientLabel={recipientLabel}
+            videoHomeworkStudentIds={videoHomeworkStudentIds}
+            scoreUnavailableReason={scoreUnavailableReason}
             blockCategory={blockCategory}
             initialBody={initialBody}
             initialTemplateId={initialTemplateId}

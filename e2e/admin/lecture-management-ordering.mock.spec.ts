@@ -36,14 +36,18 @@ const initialLectures: Lecture[] = [
   { id: 103, title: "Gamma", name: "관리자", subject: "영어", lecture_time: "11:00~12:00", start_date: "2026-08-03", end_date: "2026-09-03", color: "#eab308", chip_label: "G", is_active: true, display_order: 3, active_enrollment_count: 17 },
 ];
 
-async function seedLectureAdmin(page: Page, options?: { failFirstReorder?: boolean; failFirstEdit?: boolean; failDetail?: boolean }) {
+async function seedLectureAdmin(page: Page, options?: { failFirstReorder?: boolean; failFirstEdit?: boolean; failDetail?: boolean; includeEmptyLecture?: boolean; activeQrLectureId?: number }) {
   test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
   let lectures = initialLectures.map((lecture) => ({ ...lecture, description: "기존 설명을 보존합니다." }));
+  if (options?.includeEmptyLecture) {
+    lectures.push({ ...lectures[2], id: 104, title: "잘못 등록한 강의", display_order: 4, active_enrollment_count: 0 });
+  }
   let failFirstReorder = options?.failFirstReorder ?? false;
   let failFirstEdit = options?.failFirstEdit ?? false;
   let failDetail = options?.failDetail ?? false;
   const reorderPayloads: Array<{ scope: string; ordered_ids: number[] }> = [];
   const edits: Array<Partial<Lecture>> = [];
+  const deletes: number[] = [];
 
   await page.route("**/api/v1/**", async (route: Route) => {
     const url = new URL(route.request().url());
@@ -80,6 +84,13 @@ async function seedLectureAdmin(page: Page, options?: { failFirstReorder?: boole
         if (failFirstEdit) { failFirstEdit = false; return json({ detail: "저장 연결을 확인하고 다시 시도해 주세요." }, 400); }
         Object.assign(lecture, payload);
       } else if (route.request().method() === "DELETE") {
+        deletes.push(lecture.id);
+        if (lecture.id === options?.activeQrLectureId) {
+          return json({ detail: "This lecture has active attendance QR points and cannot be deleted." }, 403);
+        }
+        if (lecture.active_enrollment_count > 0) {
+          return json({ detail: "This lecture has lecture enrollments and cannot be deleted." }, 403);
+        }
         lectures = lectures.filter((item) => item.id !== lecture.id);
         return route.fulfill({ status: 204 });
       } else if (failDetail) return json({ detail: "강의 조회에 실패했습니다." }, 400);
@@ -102,7 +113,7 @@ async function seedLectureAdmin(page: Page, options?: { failFirstReorder?: boole
     localStorage.setItem("refresh", `${jwt}-refresh`);
   }, localJwt());
 
-  return { reorderPayloads, edits, recoverDetail: () => { failDetail = false; }, updateSubject: (subject: string) => { lectures[0].subject = subject; } };
+  return { reorderPayloads, edits, deletes, recoverDetail: () => { failDetail = false; }, updateSubject: (subject: string) => { lectures[0].subject = subject; } };
 }
 
 async function rowTitles(page: Page) {
@@ -224,7 +235,57 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     expect(edits).toEqual([{ is_active: false }, { is_active: true }]);
   });
 
-  test("목록은 작은 순서 손잡이와 강의별·전체 수강 등록 요약을 보여 준다", async ({ page }) => {
+  test("강의 삭제는 취소를 기본으로 두고 연결 기록을 보호하며 빈 강의만 삭제한다 @dialog-journey", async ({ page }, testInfo) => {
+    const { deletes } = await seedLectureAdmin(page, { includeEmptyLecture: true, activeQrLectureId: 102 });
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });
+    const confirmation = page.getByRole("alertdialog", { name: "강의 삭제", exact: true });
+    const cancel = confirmation.getByRole("button", { name: "취소", exact: true });
+    const confirmDelete = confirmation.getByRole("button", { name: "영구 삭제", exact: true });
+    const alphaSettings = page.getByRole("button", { name: "Alpha 설정", exact: true });
+    const alphaLink = page.getByRole("link", { name: "Alpha 강의 열기", exact: true });
+
+    await alphaSettings.click();
+    await page.getByRole("menuitem", { name: "강의 삭제", exact: true }).click();
+    await expect(confirmation).toContainText("“Alpha” 강의");
+    await expect(confirmation).toContainText("복구할 수 없습니다");
+    await expect(confirmation).toContainText("사용을 중지한 출결 QR");
+    await expect(confirmation).toContainText("강의 종료");
+    await expect(cancel).toBeFocused();
+    await cancel.press("Enter");
+    await expect(confirmation).toBeHidden();
+    await expect(alphaSettings).toBeFocused();
+    expect(deletes).toEqual([]);
+
+    await alphaSettings.click();
+    await page.getByRole("menuitem", { name: "강의 삭제", exact: true }).click();
+    await confirmDelete.click();
+    await expect(page.getByText("연결된 기록이 있어 강의를 삭제할 수 없습니다.", { exact: false }).first()).toBeVisible();
+    await expect(alphaLink).toBeVisible();
+    expect(deletes).toEqual([101]);
+
+    await page.getByRole("button", { name: "Beta 설정", exact: true }).click();
+    await page.getByRole("menuitem", { name: "강의 삭제", exact: true }).click();
+    await confirmDelete.click();
+    await expect(page.getByText(/출결 도구 → 출결 QR 출력에서 해당 QR을 선택해 사용을 중지하세요/).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Beta 강의 열기", exact: true })).toBeVisible();
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const emptySettings = page.getByRole("button", { name: "잘못 등록한 강의 설정", exact: true });
+    await emptySettings.click();
+    await page.getByRole("menuitem", { name: "강의 삭제", exact: true }).click();
+    await expect(confirmation).toContainText("잘못 등록한 강의");
+    await expect(confirmDelete).toBeInViewport({ ratio: 1 });
+    await page.screenshot({ path: testInfo.outputPath("lecture-delete-390.png"), animations: "disabled" });
+    await confirmDelete.click();
+    await expect(emptySettings).toHaveCount(0);
+    expect(deletes).toEqual([101, 102, 104]);
+    await page.reload();
+    await expect(alphaLink).toBeVisible();
+    await expect(page.getByRole("link", { name: "잘못 등록한 강의 강의 열기", exact: true })).toHaveCount(0);
+  });
+
+  test("목록은 작은 순서 손잡이와 강의별·전체 수강 등록 요약을 보여 준다", async ({ page }, testInfo) => {
     await seedLectureAdmin(page);
     await page.goto(`${BASE}/workspace/lectures`, { waitUntil: "domcontentloaded" });
 
@@ -235,6 +296,9 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     const alphaHandle = page.getByRole("button", { name: "Alpha 순서 이동", exact: true });
     const handleSize = await alphaHandle.evaluate((element) => element.getBoundingClientRect().width);
     expect(handleSize).toBeLessThanOrEqual(40);
+    await expect(alphaHandle).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await expect(alphaHandle).toHaveCSS("border-top-width", "0px");
+    await page.screenshot({ path: testInfo.outputPath("lecture-list-compact.png"), animations: "disabled" });
     await expect(page.getByRole("button", { name: "Alpha 아래로", exact: true })).toBeHidden();
     await alphaHandle.click();
     await expect(page.getByRole("group", { name: "Alpha 순서 변경", exact: true })).toBeVisible();
@@ -289,6 +353,11 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     expect(metrics.width).toBeGreaterThanOrEqual(680);
     expect(metrics.height).toBeLessThanOrEqual(720);
     expect(metrics.formScrollHeight).toBeLessThanOrEqual(metrics.formClientHeight + 1);
+    await expect(modal.locator(".modal-footer")).toBeInViewport({ ratio: 1 });
+    expect(await modal.locator(".modal-footer__actions .ds-button").evaluateAll((buttons) =>
+      buttons.map((button) => button.getBoundingClientRect().height),
+    )).toEqual([44, 44]);
+    await page.screenshot({ path: test.info().outputPath("lecture-modal-1100.png") });
 
     await page.getByRole("button", { name: "시작 시간 선택", exact: true }).click();
     const popover = page.getByRole("dialog", { name: "시간 선택" });
@@ -312,6 +381,11 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     const modal = page.getByRole("dialog", { name: "강의 추가" });
     await expect(modal).toBeVisible();
     await expect.poll(() => modal.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThanOrEqual(360);
+    await expect(modal.locator(".modal-footer")).toBeInViewport({ ratio: 1 });
+    expect(await modal.locator(".modal-footer__actions .ds-button").evaluateAll((buttons) =>
+      buttons.map((button) => button.getBoundingClientRect().height),
+    )).toEqual([44, 44]);
+    await page.screenshot({ path: test.info().outputPath("lecture-modal-390.png") });
     await page.getByRole("button", { name: "시작 시간 선택", exact: true }).click();
     const popover = page.getByRole("dialog", { name: "시간 선택" });
     const bounds = await popover.evaluate((element) => {
@@ -347,11 +421,13 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
         return {
           tableWidth: rect.width,
           ownerWidth: owner.getBoundingClientRect().width,
+          gripColumnWidth: tableElement.querySelector(".lecture-reorder-cell")!.getBoundingClientRect().width,
           documentScrollWidth: document.documentElement.scrollWidth,
           viewportWidth: window.innerWidth,
         };
       }, undefined, { timeout: 60_000 });
       expect(metrics.tableWidth).toBeGreaterThanOrEqual(metrics.ownerWidth - 1);
+      expect(metrics.gripColumnWidth).toBeCloseTo(40, 0);
       expect(metrics.documentScrollWidth).toBeLessThanOrEqual(metrics.viewportWidth);
     }
 

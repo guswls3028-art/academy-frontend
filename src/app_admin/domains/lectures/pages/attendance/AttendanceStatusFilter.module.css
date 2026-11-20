@@ -1,0 +1,8 @@
+.popover {
+  z-index: 9999;
+  background: var(--color-bg-surface);
+  border-color: var(--color-border-divider);
+  max-width: calc(100vw - 16px);
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}

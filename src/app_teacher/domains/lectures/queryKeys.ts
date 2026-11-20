@@ -13,6 +13,8 @@ export const teacherLectureQueryKeys = {
   attendanceMatrix: (lectureId: number) => ["attendance-matrix", lectureId] as const,
   sessionDetail: (sessionId: number) => ["session-detail", sessionId] as const,
   sessionAttendance: (sessionId: number) => ["session-attendance", sessionId] as const,
+  sessionAttendanceScope: (sessionId: number, schedule: string | undefined) =>
+    ["session-attendance", sessionId, schedule ?? 'all'] as const,
   sessionEnrollments: (sessionId: number) => ["session-enrollments", sessionId] as const,
   sessionExamsDetail: (sessionId: number) => ["session-exams-detail", sessionId] as const,
   sessionHomeworks: (sessionId: number) => ["session-homeworks", sessionId] as const,

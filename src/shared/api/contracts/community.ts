@@ -139,6 +139,12 @@ export interface Answer {
   created_at: string;
   created_by_display?: string | null;
   author_role?: string;
+  attachments?: PostAttachment[];
+}
+
+export interface ReplyPhotoBatch {
+  files: File[];
+  requestKey: string;
 }
 
 export type BulkStatusValue = PostStatus;
@@ -547,11 +553,31 @@ export async function fetchCommunityPostReplies(
   }
 }
 
+export async function createCommunityPhotoReply(
+  client: CommunityHttpClient,
+  postId: number,
+  content: string,
+  photos: ReplyPhotoBatch,
+) {
+  const form = new FormData();
+  form.append("content", content);
+  form.append("idempotency_key", photos.requestKey);
+  for (const file of photos.files) form.append("files", file);
+  const { data } = await client.post<Answer & { post: number }>(
+    `${COMMUNITY_PREFIX}/posts/${postId}/replies/with-images/`,
+    form,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return data;
+}
+
 export async function createCommunityAnswer(
   client: CommunityHttpClient,
   questionId: number,
   content: string,
+  photos?: ReplyPhotoBatch,
 ): Promise<Answer> {
+  if (photos) return createCommunityPhotoReply(client, questionId, content, photos);
   const res = await client.post<{
     id: number;
     post?: number;
@@ -589,8 +615,15 @@ export async function deleteCommunityReply(
   client: CommunityHttpClient,
   postId: number,
   replyId: number,
-): Promise<void> {
-  await client.delete(`${COMMUNITY_PREFIX}/posts/${postId}/replies/${replyId}/`);
+): Promise<CommunityDeleteResult> {
+  try {
+    await client.delete(`${COMMUNITY_PREFIX}/posts/${postId}/replies/${replyId}/`);
+    return { status: "deleted" };
+  } catch (error) {
+    const partial = parseStorageCleanupPending(error, { posts: 0 });
+    if (partial) return partial;
+    throw error;
+  }
 }
 
 export async function uploadCommunityPostAttachments(

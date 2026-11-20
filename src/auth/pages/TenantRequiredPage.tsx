@@ -4,12 +4,17 @@ import { Link } from "react-router";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useProgram } from "@/shared/program";
 
-export default function TenantRequiredPage() {
+export default function TenantRequiredPage({ retryCurrentPage = false }: { retryCurrentPage?: boolean }) {
   const { error, refetch } = useProgram();
   const [retrying, setRetrying] = useState(false);
 
   const handleRetry = async () => {
     setRetrying(true);
+    if (retryCurrentPage) {
+      window.location.reload();
+      return;
+    }
+
     try {
       await refetch();
       // refetch 성공 시 program이 설정되어 RootRedirect가 정상 라우팅

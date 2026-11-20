@@ -7,6 +7,7 @@ import MobileWorkspaceRedirect, {
 } from "./MobileWorkspaceRedirect";
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 import RouteFallback from "./RouteFallback";
+import { renderLazyRoute } from "./renderLazyRoute";
 import ExternalRedirect from "./ExternalRedirect";
 import { ProductAnalyticsProvider } from "@/shared/productAnalytics";
 import {
@@ -14,13 +15,23 @@ import {
   WORKSPACE_PATHS,
 } from "./workspaceRoutes";
 
-const StudentRouter = lazy(() => import("@student/app/StudentRouter"));
+const StudentRouter = lazy(async () => {
+  const routerModule = import("@student/app/StudentRouter");
+  if (!/^\/student(?:\/dashboard)?\/?$/i.test(window.location.pathname)) return routerModule;
+
+  // Resolve both cold home imports in one boundary so the ready home doesn't suspend again.
+  const [{ default: Router }, { default: Dashboard }] = await Promise.all([
+    routerModule,
+    import("@student/domains/dashboard/pages/DashboardPage"),
+  ]);
+  if (!Router || !Dashboard) throw new Error("LAZY_DEFAULT_UNDEFINED");
+  return { default: function StudentHomeRouter() { return <Router loadedDashboard={Dashboard} />; } };
+});
 const MobileWorkspaceRouter = lazy(() => import("@teacher/app/TeacherRouter"));
 import AuthRouter from "./AuthRouter";
 
 import TenantRequiredPage from "@/auth/pages/TenantRequiredPage";
 import MaintenancePage from "@admin/domains/maintenance/pages/MaintenancePage";
-import { TermsPage, PrivacyPage } from "@admin/domains/legal";
 import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 import { resolveTenantCode } from "@/shared/tenant";
@@ -36,6 +47,8 @@ import {
 } from "@/shared/constants/origins";
 
 const FullWorkspaceRouter = lazy(() => import("@admin/app/AdminRouter"));
+const TermsPage = lazy(() => import("@admin/domains/legal/pages/TermsPage"));
+const PrivacyPage = lazy(() => import("@admin/domains/legal/pages/PrivacyPage"));
 const DevAppRouter = lazy(() => import("@dev/app/DevAppRouter"));
 const PromoRouter = lazy(() => import("@promo/app/PromoRouter"));
 const LandingRouter = lazy(() => import("@/landing/app/LandingRouter"));
@@ -163,8 +176,8 @@ export default function AppRouter() {
     <ProductAnalyticsProvider>
       <Routes>
       <Route path="/login/*" element={<AuthRouter />} />
-      <Route path="/terms" element={<TermsPage />} />
-      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/terms" element={renderLazyRoute(TermsPage)} />
+      <Route path="/privacy" element={renderLazyRoute(PrivacyPage)} />
       <Route path="/support-preview-ended" element={<SupportPreviewEndedPage />} />
       <Route element={<PromoGuard />}>
         <Route

@@ -3,6 +3,7 @@ import type { Achievement } from "@/shared/scoring/achievement";
 
 export type SessionScoresSummaryColumnMode = "verdict" | "exam_wrong";
 export type SessionScoresExamReviewFilter = "all" | "incomplete" | "pending" | "resolved";
+export type ScoreTotalColumnKind = "exam" | "homework";
 
 export type ScoreBlock = {
   score: number | null;
@@ -19,6 +20,8 @@ export type ScoreBlock = {
   achievement?: Achievement | null;
   is_provisional?: boolean;
   grading_status?: "subjective_pending" | null;
+  /** 관리자 표시용 보류 사유. objective_pending = 서술형 저장 완료 · OMR 답안지 매칭 대기 */
+  grading_pending_reason?: "subjective_pending" | "objective_pending" | "manual_review_required" | null;
   correction_status?: "PENDING" | "COMPLETED" | "NOT_REQUIRED" | null;
   correction_completed_at?: string | null;
   correction_note?: string;
@@ -85,6 +88,7 @@ export type SessionScoreRow = {
   updated_at: string;
   clinic_required?: boolean;
   progress_completed?: boolean;
+  assessment_progress_completed?: boolean;
   video_progress_rate?: number | null;
   video_completed?: boolean | null;
   progress_status?: "completed" | "in_progress";
@@ -152,8 +156,8 @@ export async function saveScoreTotalConfig(sessionId: number, config: ScoreTotal
   return res.data;
 }
 
-export async function fetchSessionScores(sessionId: number) {
-  const res = await api.get(`/results/admin/sessions/${sessionId}/scores/`);
+export async function fetchSessionScores(sessionId: number, schedule?: string | number) {
+  const res = await api.get(`/results/admin/sessions/${sessionId}/scores/`, { params: schedule === undefined ? undefined : { schedule } });
   return res.data as SessionScoresResponse;
 }
 

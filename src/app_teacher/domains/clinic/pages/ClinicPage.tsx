@@ -1,3 +1,5 @@
+import { isAxiosError } from "axios";
+import dayjs from "dayjs";
 import { useClinicClock } from "@/shared/ui/clinic/useClinicClock";
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/clinic/pages/ClinicPage.tsx
@@ -332,6 +334,13 @@ function ParticipantList({
       action: ClinicParticipantAction;
       payload: ClinicParticipantActionPayload;
     }) => {
+      if (action === "undo_arrival") {
+        if (!participant.checked_in_at) throw new Error("등원 기록을 확인할 수 없습니다.");
+        return patchParticipantStatus(participant.id, {
+          status: "booked",
+          expected_checked_in_at: participant.checked_in_at,
+        });
+      }
       if (action === "arrive" || action === "late" || action === "absent") {
         return patchParticipantStatus(participant.id, {
           status: action === "absent" ? "no_show" : "attended",
@@ -369,6 +378,10 @@ function ParticipantList({
         qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.participants(sessionId) }),
         qc.invalidateQueries({ queryKey: teacherClinicQueryKeys.sessions }),
       ]);
+      if (variables.action === "undo_arrival") {
+        teacherToast.success("등원을 취소했습니다. 예약은 유지됩니다.");
+        return;
+      }
       const label = variables.action === "arrive" ? "등원" : variables.action === "late" ? "지각 등원" : variables.action === "checkout" ? "하원" : variables.action === "remind" ? "재촉" : "결석";
       const notice = buildClinicOutcomeNotice(label, data.notification);
       teacherToast[notice.tone](notice.message);
@@ -376,7 +389,13 @@ function ParticipantList({
         setReschedule({ participant: variables.participant, sendTo: variables.payload.send_to });
       }
     },
-    onError: (e) => teacherToast.error(extractApiError(e, "클리닉 처리를 완료하지 못했습니다.")),
+    onError: (e, variables) => {
+      if (variables.action === "undo_arrival" && isAxiosError(e) && e.response?.status === 409) {
+        setActionDialog(null);
+        void refetch();
+      }
+      teacherToast.error(extractApiError(e, "클리닉 처리를 완료하지 못했습니다."));
+    },
   });
 
   const completeMut = useMutation({
@@ -529,7 +548,9 @@ function ParticipantList({
                 {st === "booked" && (
                   <>
                     <SmallBtn label="등원" color="var(--tc-success)" onClick={() => setActionDialog({ participant: p, action: "arrive" })} disabled={lifecycleBusy} />
-                    <SmallBtn label="재촉" color="var(--tc-warning)" onClick={() => setActionDialog({ participant: p, action: "remind" })} disabled={lifecycleBusy} />
+                    {!p.checked_in_at && !p.checked_out_at && (
+                      <SmallBtn label="재촉" color="var(--tc-warning)" onClick={() => setActionDialog({ participant: p, action: "remind" })} disabled={lifecycleBusy} />
+                    )}
                     <SmallBtn label="결석" color="var(--tc-danger)" onClick={() => setActionDialog({ participant: p, action: "absent" })} disabled={lifecycleBusy} />
                     <SmallBtn
                       label={p.checked_out_at ? "하원 완료" : "하원"}
@@ -550,6 +571,9 @@ function ParticipantList({
                 )}
                 {st === "attended" && (
                   <SmallBtn label={p.checked_out_at ? "하원 완료" : "하원"} color="var(--tc-primary)" onClick={() => setActionDialog({ participant: p, action: "checkout" })} disabled={!!p.checked_out_at || lifecycleBusy} />
+                )}
+                {st === "attended" && p.checked_in_at && !p.checked_out_at && (
+                  <SmallBtn label="등원 취소" color="var(--tc-text-secondary)" onClick={() => setActionDialog({ participant: p, action: "undo_arrival" })} disabled={lifecycleBusy} />
                 )}
                 {st === "attended" && !p.completed_at && (
                   <SmallBtn
@@ -586,6 +610,7 @@ function ParticipantList({
           participantName={actionDialog.participant.student_name ?? actionDialog.participant.enrollment_name ?? "학생"}
           selectedDate={sessionDate}
           withoutArrival={actionDialog.action === "checkout" && actionDialog.participant.status === "booked" && !actionDialog.participant.checked_in_at}
+          arrivalLabel={actionDialog.participant.checked_in_at ? dayjs(actionDialog.participant.checked_in_at).format("M월 D일 HH:mm") : undefined}
           busy={lifecycleBusy}
           onClose={() => setActionDialog(null)}
           onConfirm={(payload) => { if (!lifecycleBusy) actionMut.mutate({ ...actionDialog, payload }); }}

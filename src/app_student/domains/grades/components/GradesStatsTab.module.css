@@ -192,12 +192,20 @@
 }
 
 .analyticsNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--stu-space-3);
   padding: var(--stu-space-4);
   color: var(--stu-warn-text);
   font-size: 13px;
   font-weight: 700;
   background: var(--stu-warn-bg);
   border-radius: var(--stu-radius);
+}
+
+.analyticsNotice button {
+  min-height: 44px;
 }
 
 .analyticsSkeletonGrid {

@@ -125,6 +125,8 @@ test("student score report shows rank and wrong question analysis", async ({ pag
         percentile: 15,
         cohort_size: 20,
         cohort_avg: 64.5,
+        cohort_top_decile_avg: 92,
+        cohort_highest: 96,
         correction_status: "PENDING",
         analysis: {
           total_questions: 5,
@@ -156,16 +158,24 @@ test("student score report shows rank and wrong question analysis", async ({ pag
   await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("5월 25일 성적표")).toBeVisible();
   await expect(page.getByTestId("grade-wrong-summary")).toContainText("오답 2문항");
-  await expect(page.getByTestId("grade-wrong-summary")).toContainText("2, 5번");
-  await expect(page.getByText("3/20등")).toBeVisible();
+  await expect(page.getByTestId("grade-wrong-summary")).toContainText("2번, 5번");
+  await expect(page.getByText("3등", { exact: true })).toBeVisible();
+  await expect(page.getByText("20명 응시", { exact: true })).toBeVisible();
 
   await page.goto(`${BASE}/student/exams/101/result`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("region", { name: "테스트 오답 확인 상태" })).toContainText("오답 미완료");
   await expect(page.getByTestId("score-analysis-card")).toContainText("핵심 분석");
-  await expect(page.getByTestId("score-analysis-card")).toContainText("정답률");
+  await expect(page.getByText("정답 3 / 5문항", { exact: true })).toBeVisible();
+  const comparison = page.getByRole("group", { name: "시험 점수 비교" });
+  await expect(comparison).toContainText("전체 평균64.5점");
+  await expect(comparison).toContainText("상위 10% 평균92점");
+  await expect(comparison).toContainText("최고점96점");
   await expect(page.getByTestId("score-analysis-card")).toContainText("오답");
-  await expect(page.getByTestId("wrong-number-chip")).toHaveText(["2", "5"]);
+  await expect(page.getByTestId("wrong-number-chip")).toHaveText(["2번", "5번"]);
   await expect(page.getByText("정답 내용은 비공개입니다. 틀린 번호와 내 답만 확인할 수 있습니다.")).toBeVisible();
+  await expect(page.getByText("3등", { exact: true })).toBeVisible();
+  await expect(page.getByText("20명 응시", { exact: true })).toBeVisible();
+  await expect(page.getByText("3/20등", { exact: true })).toHaveCount(0);
   await page.screenshot({ path: "test-results/student-correction-status/student-result-detail-390.png", fullPage: true });
 });
 

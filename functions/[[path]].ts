@@ -6,6 +6,14 @@
 // 청크 해시가 바뀌면 이전 빌드의 index.html이 이전 청크를 요청해 404 → HTML 반환 시 MIME 오류 발생.
 
 import { WORKSPACE_PATHS } from "../src/core/router/workspaceRoutes";
+import { GODMIN_PUBLIC_SITE } from "../src/shared/tenant/tenants/godmin";
+import {
+  JEONGSEONGWON_LAB_ASSETS,
+  JEONGSEONGWON_LAB_DESCRIPTION,
+  JEONGSEONGWON_LAB_DOMAIN,
+  JEONGSEONGWON_LAB_NAME,
+  jeongseongwonLab,
+} from "../src/shared/tenant/tenants/jeongseongwon-lab";
 
 interface Env {
   ASSETS: Fetcher;
@@ -13,6 +21,21 @@ interface Env {
 
 const STATIC_EXT = /\.(js|mjs|css|png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|eot|map|json|xml|txt|webmanifest|mp4|vtt|pdf)(\?.*)?$/i;
 const STATIC_HTML_PATHS = new Set(["/omr-sheet", "/omr-sheet.html"]);
+
+// New reads of published guide links follow the current edition. Previously buffered video ranges keep their original bytes.
+const GUIDE_EDITION_ALIASES: Record<string, string> = {
+  "admin-attendance-3fb37f672430": "admin-attendance-3b3138750a56",
+  "create-exam-0c8d93f7042e": "create-exam-dd1f2b6c2eb4",
+  "create-homework-f034c57a9d0f": "create-homework-3b07152e6780",
+  "create-session-e6096e16cee5": "create-session-a64f320ff3cb",
+  "manual-grading-091af37c4429": "manual-grading-6155195f0ae1",
+  "register-student-32f65693ff08": "register-student-7a1b861476a0",
+  "send-alimtalk-f5520aa79a47": "send-alimtalk-a105f2492e29",
+  "student-assignment-35a80ffe8c70": "student-assignment-65858d8da971",
+  "teacher-attendance-146417c82f52": "teacher-attendance-48a19b956f87",
+  "upload-video-84172b6ffcba": "upload-video-04161af23c8f",
+  "admin-attendance-90f1db7540a8": "admin-attendance-3b3138750a56"
+};
 
 function createCspNonce(): string {
   const bytes = new Uint8Array(16);
@@ -109,6 +132,11 @@ interface TenantMeta {
 const HAKWONPLUS_HOSTS = new Set(["hakwonplus.com", "www.hakwonplus.com"]);
 const DEV_CONSOLE_HOST = "dev.hakwonplus.com";
 const DEV_CONSOLE_ORIGIN = `https://${DEV_CONSOLE_HOST}`;
+const PLATFORM_ICON_ALIASES = new Map([
+  ["/favicon.ico", "/tenants/hakwonplus/favicon.png?v=20261119"],
+  ["/apple-touch-icon.png", "/tenants/hakwonplus/apple-touch-icon.png?v=20261119"],
+  ["/apple-touch-icon-precomposed.png", "/tenants/hakwonplus/apple-touch-icon.png?v=20261119"],
+]);
 
 const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
   "/promo": {
@@ -140,8 +168,8 @@ const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
     description: "학생은 앱에서 영상을 이어 보고, 선생님은 시청 상태를 확인해 필요한 복습 안내를 보낼 수 있습니다.",
   },
   "/promo/pricing": {
-    title: "요금 안내 | 신규 가입 월 18만원 | 학원플러스",
-    description: "2026년 9월 이후 신규 가입은 월 18만원(부가세 10% 별도, 결제금액 19만 8천원)입니다. 8월 기존 가입은 월 14만 5천원에 고정 부가세 1만 4천원, 결제금액 15만 9천원이며 기존 공급가는 계속 유지됩니다.",
+    title: "요금 안내 | 신규 가입 월 180,000원 | 학원플러스",
+    description: "2026년 9월 이후 신규 가입은 월 180,000원(부가세 10% 별도, 결제금액 198,000원)입니다. 8월 기존 가입은 월 145,000원에 고정 부가세 14,000원, 결제금액 159,000원이며 기존 공급가는 계속 유지됩니다.",
   },
   "/promo/updates": {
     title: "업데이트 소식 | 학원플러스",
@@ -223,30 +251,32 @@ function normalizeImagePath(image: string): string {
   return image.startsWith("/") ? image : "/" + image;
 }
 
-/** 테넌트별 사이트맵/SEO 설정. loginPath: 메인 로그인 경로, naver: 네이버 Search Advisor 인증 코드 */
+/** 테넌트별 사이트맵/SEO 설정. entryPath: 검색용 대표 경로, naver: 네이버 Search Advisor 인증 코드 */
 interface TenantSeo {
   domain: string;
-  loginPath: string;
+  entryPath: string;
   naver?: string; // naver-site-verification meta content
 }
 
 const TENANT_SEO: Record<string, TenantSeo> = {
-  "hakwonplus.com":     { domain: "hakwonplus.com",     loginPath: "/promo",          naver: "d2824e05fff2abca6dcc15a69de142bf3c1064bb" },
-  "www.hakwonplus.com": { domain: "hakwonplus.com",     loginPath: "/promo",          naver: "d2824e05fff2abca6dcc15a69de142bf3c1064bb" },
-  "tchul.com":          { domain: "tchul.com",          loginPath: "/login/tchul",    naver: "c7939870eaa36955e7516638b8ac8677da75e30d" },
-  "www.tchul.com":      { domain: "tchul.com",          loginPath: "/login/tchul",    naver: "c7939870eaa36955e7516638b8ac8677da75e30d" },
-  "limglish.kr":        { domain: "limglish.kr",        loginPath: "/login/limglish", naver: "5d45bf4681371272637101e231d53c5e94fbe62e" },
-  "www.limglish.kr":    { domain: "limglish.kr",        loginPath: "/login/limglish", naver: "5d45bf4681371272637101e231d53c5e94fbe62e" },
-  "ymath.co.kr":        { domain: "ymath.co.kr",        loginPath: "/login/ymath",    naver: "e03517c8855c685ee7859cd49de1886f61807f81" },
-  "www.ymath.co.kr":    { domain: "ymath.co.kr",        loginPath: "/login/ymath",    naver: "e03517c8855c685ee7859cd49de1886f61807f81" },
-  "sswe.co.kr":         { domain: "sswe.co.kr",         loginPath: "/login/sswe",     naver: "a529d17f8008421019d65e13be1efda83f84b65c" },
-  "www.sswe.co.kr":     { domain: "sswe.co.kr",         loginPath: "/login/sswe",     naver: "a529d17f8008421019d65e13be1efda83f84b65c" },
-  "dnbacademy.co.kr":   { domain: "dnbacademy.co.kr",   loginPath: "/login/dnb",      naver: "63724ceef8ef97b665e728a3f1e601788af8e2d3" },
-  "www.dnbacademy.co.kr": { domain: "dnbacademy.co.kr", loginPath: "/login/dnb",      naver: "63724ceef8ef97b665e728a3f1e601788af8e2d3" },
-  "movementhui.com":    { domain: "movementhui.com",    loginPath: "/login/movementhui" },
-  "www.movementhui.com": { domain: "movementhui.com",   loginPath: "/login/movementhui" },
-  "godmin.kr":          { domain: "godmin.kr",          loginPath: "/login/godmin" },
-  "www.godmin.kr":      { domain: "godmin.kr",          loginPath: "/login/godmin" },
+  "hakwonplus.com":     { domain: "hakwonplus.com",     entryPath: "/promo",          naver: "d2824e05fff2abca6dcc15a69de142bf3c1064bb" },
+  "www.hakwonplus.com": { domain: "hakwonplus.com",     entryPath: "/promo",          naver: "d2824e05fff2abca6dcc15a69de142bf3c1064bb" },
+  "tchul.com":          { domain: "tchul.com",          entryPath: "/login/tchul",    naver: "c7939870eaa36955e7516638b8ac8677da75e30d" },
+  "www.tchul.com":      { domain: "tchul.com",          entryPath: "/login/tchul",    naver: "c7939870eaa36955e7516638b8ac8677da75e30d" },
+  "limglish.kr":        { domain: "limglish.kr",        entryPath: "/login/limglish", naver: "5d45bf4681371272637101e231d53c5e94fbe62e" },
+  "www.limglish.kr":    { domain: "limglish.kr",        entryPath: "/login/limglish", naver: "5d45bf4681371272637101e231d53c5e94fbe62e" },
+  "ymath.co.kr":        { domain: "ymath.co.kr",        entryPath: "/login/ymath",    naver: "e03517c8855c685ee7859cd49de1886f61807f81" },
+  "www.ymath.co.kr":    { domain: "ymath.co.kr",        entryPath: "/login/ymath",    naver: "e03517c8855c685ee7859cd49de1886f61807f81" },
+  "sswe.co.kr":         { domain: "sswe.co.kr",         entryPath: "/login/sswe",     naver: "a529d17f8008421019d65e13be1efda83f84b65c" },
+  "www.sswe.co.kr":     { domain: "sswe.co.kr",         entryPath: "/login/sswe",     naver: "a529d17f8008421019d65e13be1efda83f84b65c" },
+  "dnbacademy.co.kr":   { domain: "dnbacademy.co.kr",   entryPath: "/login/dnb",      naver: "63724ceef8ef97b665e728a3f1e601788af8e2d3" },
+  "www.dnbacademy.co.kr": { domain: "dnbacademy.co.kr", entryPath: "/login/dnb",      naver: "63724ceef8ef97b665e728a3f1e601788af8e2d3" },
+  "movementhui.com":    { domain: "movementhui.com",    entryPath: "/login/movementhui" },
+  "www.movementhui.com": { domain: "movementhui.com",   entryPath: "/login/movementhui" },
+  "godmin.kr":          { domain: "godmin.kr",          entryPath: "/landing" },
+  "www.godmin.kr":      { domain: "godmin.kr",          entryPath: "/landing" },
+  [JEONGSEONGWON_LAB_DOMAIN]: { domain: JEONGSEONGWON_LAB_DOMAIN, entryPath: jeongseongwonLab.loginPath },
+  [`www.${JEONGSEONGWON_LAB_DOMAIN}`]: { domain: JEONGSEONGWON_LAB_DOMAIN, entryPath: jeongseongwonLab.loginPath },
 };
 
 /** 네이버 Search Advisor HTML 파일 인증용 매핑 (도메인 → 인증 파일명) */
@@ -273,7 +303,7 @@ function generateSitemap(host: string): string | null {
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
   const primaryRoutes = HAKWONPLUS_HOSTS.has(host)
     ? HAKWONPLUS_INDEXABLE_PROMO_ROUTES
-    : [seo.loginPath];
+    : [seo.entryPath];
   const primaryEntries = primaryRoutes.map((pathname, index) => `  <url>
     <loc>${base}${pathname}</loc>
     <lastmod>${today}</lastmod>
@@ -334,9 +364,9 @@ const FALLBACK_META: Record<string, TenantMeta> = {
   "www.ymath.co.kr":    { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png", imageWidth: 800, imageHeight: 420 },
   "limglish.kr":        { title: "임근혁 영어", description: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/limglish/favicon.png", image: "/tenants/limglish/og-image.png", imageWidth: 800, imageHeight: 420 },
   "www.limglish.kr":    { title: "임근혁 영어", description: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/limglish/favicon.png", image: "/tenants/limglish/og-image.png", imageWidth: 800, imageHeight: 420 },
-  "hakwonplus.com":     { title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",  description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 한곳에서 이어갑니다.", favicon: "/tenants/hakwonplus/favicon.png?v=20260727", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
-  "www.hakwonplus.com": { title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",  description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 한곳에서 이어갑니다.", favicon: "/tenants/hakwonplus/favicon.png?v=20260727", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
-  "dev.hakwonplus.com": { title: "학원플러스 콘솔", description: "학원플러스 문의와 운영 상태를 확인하는 개발자 콘솔", favicon: "/tenants/hakwonplus/favicon.png?v=20260727", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630, appleTouchIcon: "/tenants/hakwonplus/apple-touch-icon.png?v=20260727" },
+  "hakwonplus.com":     { title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",  description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 한곳에서 이어갑니다.", favicon: "/tenants/hakwonplus/favicon.png?v=20261119", image: "/tenants/hakwonplus/og-image.png?v=20261119", imageWidth: 1200, imageHeight: 630 },
+  "www.hakwonplus.com": { title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",  description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 한곳에서 이어갑니다.", favicon: "/tenants/hakwonplus/favicon.png?v=20261119", image: "/tenants/hakwonplus/og-image.png?v=20261119", imageWidth: 1200, imageHeight: 630 },
+  "dev.hakwonplus.com": { title: "학원플러스 콘솔", description: "학원플러스 문의와 운영 상태를 확인하는 개발자 콘솔", favicon: "/tenants/hakwonplus/favicon.png?v=20261119", image: "/tenants/hakwonplus/og-image.png?v=20261119", imageWidth: 1200, imageHeight: 630, appleTouchIcon: "/tenants/hakwonplus/apple-touch-icon.png?v=20261119" },
   "sswe.co.kr":         { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
   "www.sswe.co.kr":     { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
   "dnbacademy.co.kr":   { title: "DnB 보습학원", description: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/dnb/favicon.png", image: "/tenants/dnb/og-image.png", imageWidth: 800, imageHeight: 420 },
@@ -345,6 +375,8 @@ const FALLBACK_META: Record<string, TenantMeta> = {
   "www.movementhui.com": { title: "이동휘원소 과학연구소", description: "이동휘원소 과학연구소 학습 플랫폼 – 학생·학부모·선생님 로그인", favicon: "/tenants/movementhui/favicon.png", image: "/tenants/movementhui/og-image.png", imageWidth: 500, imageHeight: 500 },
   "godmin.kr":          { title: "신민T 통합과학 | 신과함께", description: "대치동 통합과학 강사 신민T의 수업 철학과 학습 관리, 수강생·학부모 전용 학습 플랫폼.", favicon: "/tenants/godmin/favicon.png", image: "/tenants/godmin/og-image.png", imageWidth: 1200, imageHeight: 630 },
   "www.godmin.kr":      { title: "신민T 통합과학 | 신과함께", description: "대치동 통합과학 강사 신민T의 수업 철학과 학습 관리, 수강생·학부모 전용 학습 플랫폼.", favicon: "/tenants/godmin/favicon.png", image: "/tenants/godmin/og-image.png", imageWidth: 1200, imageHeight: 630 },
+  [JEONGSEONGWON_LAB_DOMAIN]: { title: JEONGSEONGWON_LAB_NAME, description: JEONGSEONGWON_LAB_DESCRIPTION, favicon: `${JEONGSEONGWON_LAB_ASSETS}/favicon.png`, image: `${JEONGSEONGWON_LAB_ASSETS}/og-image.png`, imageWidth: 1200, imageHeight: 630 },
+  [`www.${JEONGSEONGWON_LAB_DOMAIN}`]: { title: JEONGSEONGWON_LAB_NAME, description: JEONGSEONGWON_LAB_DESCRIPTION, favicon: `${JEONGSEONGWON_LAB_ASSETS}/favicon.png`, image: `${JEONGSEONGWON_LAB_ASSETS}/og-image.png`, imageWidth: 1200, imageHeight: 630 },
 };
 
 const FALLBACK_TEACHER_PWA: Record<string, TenantPwaMeta> = {
@@ -354,8 +386,8 @@ const FALLBACK_TEACHER_PWA: Record<string, TenantPwaMeta> = {
   "www.ymath.co.kr":    { title: "Y_math", icon: "/tenants/ymath/pwa-192.png", icon512: "/tenants/ymath/pwa-512.png" },
   "limglish.kr":        { title: "임근혁 영어", icon: "/tenants/limglish/pwa-192.png", icon512: "/tenants/limglish/pwa-512.png" },
   "www.limglish.kr":    { title: "임근혁 영어", icon: "/tenants/limglish/pwa-192.png", icon512: "/tenants/limglish/pwa-512.png" },
-  "hakwonplus.com":     { title: "학원플러스", icon: "/tenants/hakwonplus/pwa-192.png?v=20260727", icon512: "/tenants/hakwonplus/pwa-512.png?v=20260727", themeColor: "#37D6F2", backgroundColor: "#0A0E1A" },
-  "www.hakwonplus.com": { title: "학원플러스", icon: "/tenants/hakwonplus/pwa-192.png?v=20260727", icon512: "/tenants/hakwonplus/pwa-512.png?v=20260727", themeColor: "#37D6F2", backgroundColor: "#0A0E1A" },
+  "hakwonplus.com":     { title: "학원플러스", icon: "/tenants/hakwonplus/pwa-192.png?v=20261119", icon512: "/tenants/hakwonplus/pwa-512.png?v=20261119", themeColor: "#293ab0", backgroundColor: "#ffffff" },
+  "www.hakwonplus.com": { title: "학원플러스", icon: "/tenants/hakwonplus/pwa-192.png?v=20261119", icon512: "/tenants/hakwonplus/pwa-512.png?v=20261119", themeColor: "#293ab0", backgroundColor: "#ffffff" },
   "sswe.co.kr":         { title: "SSWE", icon: "/tenants/sswe/pwa-192.png", icon512: "/tenants/sswe/pwa-512.png" },
   "www.sswe.co.kr":     { title: "SSWE", icon: "/tenants/sswe/pwa-192.png", icon512: "/tenants/sswe/pwa-512.png" },
   "dnbacademy.co.kr":   { title: "DnB 보습학원", icon: "/tenants/dnb/pwa-192.png", icon512: "/tenants/dnb/pwa-512.png" },
@@ -364,6 +396,8 @@ const FALLBACK_TEACHER_PWA: Record<string, TenantPwaMeta> = {
   "www.movementhui.com": { title: "이동휘원소", icon: "/tenants/movementhui/pwa-192.png", icon512: "/tenants/movementhui/pwa-512.png", themeColor: "#1a253b", backgroundColor: "#1a253b" },
   "godmin.kr":          { title: "신과함께", icon: "/tenants/godmin/pwa-192.png", icon512: "/tenants/godmin/pwa-512.png", themeColor: "#147a62", backgroundColor: "#e4f7ef" },
   "www.godmin.kr":      { title: "신과함께", icon: "/tenants/godmin/pwa-192.png", icon512: "/tenants/godmin/pwa-512.png", themeColor: "#147a62", backgroundColor: "#e4f7ef" },
+  [JEONGSEONGWON_LAB_DOMAIN]: { title: JEONGSEONGWON_LAB_NAME, icon: `${JEONGSEONGWON_LAB_ASSETS}/pwa-192.png`, icon512: `${JEONGSEONGWON_LAB_ASSETS}/pwa-512.png`, themeColor: "#1a2f4e", backgroundColor: "#edf2f8" },
+  [`www.${JEONGSEONGWON_LAB_DOMAIN}`]: { title: JEONGSEONGWON_LAB_NAME, icon: `${JEONGSEONGWON_LAB_ASSETS}/pwa-192.png`, icon512: `${JEONGSEONGWON_LAB_ASSETS}/pwa-512.png`, themeColor: "#1a2f4e", backgroundColor: "#edf2f8" },
 };
 
 function iconContentType(icon: string): string {
@@ -629,6 +663,18 @@ function injectMeta(
     );
   }
 
+  if (HAKWONPLUS_HOSTS.has(host) && (pathname === "/" || pathname === "/promo")) {
+    const organization = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: "학원플러스",
+      url: "https://hakwonplus.com",
+      logo: "https://hakwonplus.com/tenants/hakwonplus/pwa-512.png?v=20261119",
+    });
+    // Place the crawler data before the startup script so browser boot can reuse it.
+    html = html.replace("<head>", `<head>\n    <script type="application/ld+json" id="platform-organization">${organization}</script>`);
+  }
+
   if (HAKWONPLUS_HOSTS.has(host) && HAKWONPLUS_PROMO_ROUTES.has(pathname)) {
     const structuredData = JSON.stringify({
       "@context": "https://schema.org",
@@ -642,7 +688,7 @@ function injectMeta(
         "@type": "Offer",
         price: "180000",
         priceCurrency: "KRW",
-        description: "2026년 9월 이후 신규 가입은 월 18만원(부가세 10% 별도, 결제금액 19만 8천원)입니다. 8월 기존 가입은 월 14만 5천원에 고정 부가세 1만 4천원, 결제금액 15만 9천원이며 기존 공급가는 계속 유지됩니다. 안내된 기능 및 200GB 저장공간 포함",
+        description: "2026년 9월 이후 신규 가입은 월 180,000원(부가세 10% 별도, 결제금액 198,000원)입니다. 8월 기존 가입은 월 145,000원에 고정 부가세 14,000원, 결제금액 159,000원이며 기존 공급가는 계속 유지됩니다. 안내된 기능 및 200GB 저장공간 포함",
       },
     }).replace(/</g, "\\u003c");
     html = html.replace(
@@ -658,6 +704,11 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
   const pathname = url.pathname;
   const host = url.hostname.toLowerCase();
+
+  const platformIcon = PLATFORM_ICON_ALIASES.get(pathname);
+  if (platformIcon && (HAKWONPLUS_HOSTS.has(host) || host === DEV_CONSOLE_HOST)) {
+    return Response.redirect(new URL(platformIcon, url).href, 307);
+  }
 
   if (
     HAKWONPLUS_HOSTS.has(host)
@@ -758,6 +809,19 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
     });
   }
 
+  const oldGuide = /^\/guide-media\/([a-z0-9-]+-[a-f0-9]{12})\/(\d{2}\.jpg|walkthrough\.mp4|captions\.vtt)$/.exec(pathname);
+  if (oldGuide) {
+    const [, edition, filename] = oldGuide;
+    const current = GUIDE_EDITION_ALIASES[edition];
+    const directNavigation = context.request.headers.get("Sec-Fetch-Mode") === "navigate";
+    // Keep an existing player's video and captions on one immutable timeline, including byte-range resumes.
+    if (current && !context.request.headers.has("Range") && (filename.endsWith(".jpg") || directNavigation)) {
+      const target = new URL(context.request.url);
+      target.pathname = `/guide-media/${current}/${filename}`;
+      return Response.redirect(target.toString(), 307);
+    }
+  }
+
   // 정적 파일은 그대로 ASSETS에 위임
   if (STATIC_EXT.test(pathname)) {
     const res = await context.env.ASSETS.fetch(context.request);
@@ -791,7 +855,12 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
   // index.html 가져오기 (SPA 루트)
   const indexUrl = new URL(context.request.url);
   indexUrl.pathname = "/index.html";
-  const res = await context.env.ASSETS.fetch(new Request(indexUrl));
+  const indexAsset = context.env.ASSETS.fetch(new Request(indexUrl));
+  // SPA 폴백을 확인한 요청에서는 index와 테넌트 메타를 함께 조회한다.
+  const branding = host !== DEV_CONSOLE_HOST && assetRes.status === 200 && assetCt.includes("text/html")
+    ? fetchOgMeta(host)
+    : null;
+  const res = await indexAsset;
 
   if (res.status !== 200) {
     return res;
@@ -805,7 +874,7 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
   let html = await res.text();
 
   // 테넌트별 메타 치환 — API 우선, 빈 필드는 폴백으로 보완
-  const apiMeta = host === DEV_CONSOLE_HOST ? null : await fetchOgMeta(host);
+  const apiMeta = host === DEV_CONSOLE_HOST ? null : await (branding ?? fetchOgMeta(host));
   const fallback = FALLBACK_META[host];
   const tenantMeta = apiMeta
     ? {
@@ -823,6 +892,16 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
         ...promoMeta,
       }
     : tenantMeta;
+  const godminHost = TENANT_SEO[host]?.domain === GODMIN_PUBLIC_SITE.domain;
+  const godminHome = godminHost && (pathname === "/" || pathname === "/landing" || pathname === "/landing/");
+  if (godminHost && meta && (godminHome || pathname.startsWith("/landing/"))) {
+    meta = {
+      ...meta,
+      siteName: GODMIN_PUBLIC_SITE.name,
+      title: godminHome ? GODMIN_PUBLIC_SITE.title : GODMIN_PUBLIC_SITE.name,
+      description: GODMIN_PUBLIC_SITE.description,
+    };
+  }
   const resourceId = /^\/landing\/resources\/([1-9][0-9]{0,18})\/?$/.exec(pathname)?.[1];
   const videoId = /^\/landing\/videos\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i.exec(pathname)?.[1];
   let resourceStatus: number | undefined;
@@ -832,7 +911,7 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
       : { status: 503 };
     resourceStatus = resource.status;
     if (resource.title && meta) {
-      meta = { ...meta, siteName: meta.title, title: `${resource.title} | ${meta.title}`,
+      meta = { ...meta, siteName: meta.siteName ?? meta.title, title: `${resource.title} | ${meta.title}`,
         description: resource.description || `${meta.title} 공개 학습자료` };
     }
   }
@@ -842,15 +921,30 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
       ? await fetchPublicVideoMeta(apiMeta.tenantCode, videoId) : { status: 503 };
     videoStatus = video.status;
     if (video.title && meta) {
-      meta = { ...meta, siteName: meta.title, title: `${video.title} | ${meta.title}`,
+      meta = { ...meta, siteName: meta.siteName ?? meta.title, title: `${video.title} | ${meta.title}`,
         description: video.description || `${meta.title} 영상`, image: video.image,
         imageWidth: 480, imageHeight: 360 };
     }
   }
   if (meta) {
     const origin = url.origin;
-    const pageUrl = `${origin}${pathname}`;
+    const pageUrl = godminHome
+      ? `${GODMIN_PUBLIC_SITE.origin}${pathname === "/" ? "/" : "/landing"}`
+      : `${origin}${pathname}`;
     html = injectMeta(html, meta, origin, pageUrl, host, pathname);
+
+    if (godminHome) {
+      const website = JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: GODMIN_PUBLIC_SITE.name,
+        url: `${GODMIN_PUBLIC_SITE.origin}/`,
+      }).replace(/</g, "\\u003c");
+      html = html.replace(
+        "</head>",
+        () => `    <script type="application/ld+json">${website}</script>\n  </head>`,
+      );
+    }
   }
 
   const headers = new Headers({

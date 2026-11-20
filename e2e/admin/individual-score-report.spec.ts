@@ -12,6 +12,7 @@ const SESSION_ID = 990102;
 const DENSE_EXAM_TITLE = "매우 긴 한국어 시험 제목으로 줄바꿈과 페이지 경계를 확인하는 누적 종합 평가 내용을 학부모에게 충분히 설명하는 평가";
 
 type InstallApiOptions = {
+  studentGradesUnavailable?: boolean;
   homeworkModes?: boolean;
   teacherPartialTotals?: boolean;
   teacherUnassigned?: boolean;
@@ -399,6 +400,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     };
   });
   let studentGradesRequestCount = 0;
+  let studentGradesUnavailable = options.studentGradesUnavailable ?? false;
   let omrIssueResolved = false;
 
   await page.route("**/version.json?*", async (route) => {
@@ -549,6 +551,10 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
     }
     if (pathname.endsWith("/results/admin/student-grades/")) {
       studentGradesRequestCount += 1;
+      if (studentGradesUnavailable) {
+        await route.fulfill({ status: 503, headers: corsHeaders, json: { detail: "unavailable" } });
+        return;
+      }
       const studentId = Number(url.searchParams.get("student_id"));
       await fulfill(options.denseReport ? denseStudentGrades(studentId) : studentGrades(studentId));
       return;
@@ -574,6 +580,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
 
   return {
     getStudentGradesRequestCount: () => studentGradesRequestCount,
+    restoreStudentGrades: () => { studentGradesUnavailable = false; },
     resolveOmrIssue: () => { omrIssueResolved = true; },
   };
 }
@@ -772,6 +779,8 @@ test.describe("개인 성적표", () => {
     await expect(firstFrame.locator("h1")).toHaveText("김서윤");
     await expect(firstFrame.locator("body")).toContainText("중등 수학 심화");
     await expect(firstFrame.getByText("최근 4회 학습 흐름", { exact: true })).toBeVisible();
+    await expect(firstFrame.locator(".trend-round")).toHaveText(["1회차", "2회차", "3회차"]);
+    await expect(firstFrame.locator(".trend-date")).toHaveText(["07.10", "07.11", "07.12"]);
     await expect(firstFrame.locator(".report-topline").first()).toHaveCSS("background-color", "rgb(37, 99, 235)");
     await expect(firstFrame.locator(".report-brand-logo").first()).toHaveAttribute("src", "/tenants/hakwonplus/icon.png");
     await expect(firstFrame.locator(".assessment-table-head")).toContainText("현재 평가");
@@ -782,7 +791,7 @@ test.describe("개인 성적표", () => {
     await expect(firstFrame.locator(".item-table")).toContainText("1번");
     await expect(firstFrame.locator("body")).not.toContainText("4928");
     await expect(firstFrame.locator(".report-footer")).toContainText(["1 / 2", "2 / 2"]);
-    await expect(dialog.getByText("학원플러스 테스트 디자인", { exact: true })).toBeVisible();
+    await expect(dialog.getByText("현재 저장된 성적 기준", { exact: true })).toBeVisible();
 
     const secondGradesResponse = page.waitForResponse((response) => {
       const url = new URL(response.url());
@@ -801,12 +810,12 @@ test.describe("개인 성적표", () => {
     await expect(secondFrame.locator(".report-footer")).toContainText("1 / 1");
     await dialog.getByRole("button", { name: "상세 2쪽" }).click();
     await expect(secondFrame.locator(".student-report-page")).toHaveCount(2);
-    await secondFrame.locator('[data-page="1"]').screenshot({
-      path: testInfo.outputPath("individual-score-report-page-1.png"),
-    });
     await page.screenshot({
       path: testInfo.outputPath("individual-score-report-preview.png"),
       fullPage: false,
+    });
+    await secondFrame.locator('[data-page="1"]').screenshot({
+      path: testInfo.outputPath("individual-score-report-page-1.png"),
     });
     await secondFrame.locator('[data-page="2"]').screenshot({
       path: testInfo.outputPath("individual-score-report-page-2.png"),
@@ -826,6 +835,11 @@ test.describe("개인 성적표", () => {
     expect(pdfBytes.byteLength).toBeLessThan(2_000_000);
 
     await dialog.getByRole("button", { name: "여러 명 출력" }).click();
+    const students = dialog.getByRole("complementary", { name: "출력할 학생" });
+    await students.getByRole("button", { name: "이전 학생" }).click();
+    await expect(firstFrame.locator("h1")).toHaveText("김서윤");
+    await expect(students.getByRole("checkbox", { name: "박도윤 성적표 출력 선택" })).toBeChecked();
+    await expect(students.getByRole("checkbox", { name: "김서윤 성적표 출력 선택" })).not.toBeChecked();
     await dialog.getByRole("checkbox", { name: "김서윤 성적표 출력 선택" }).check();
     const [batchDownload] = await Promise.all([
       page.waitForEvent("download", { timeout: 120_000 }),
@@ -852,6 +866,18 @@ test.describe("개인 성적표", () => {
       fullPage: false,
     });
 
+    await page.setViewportSize({ width: 780, height: 760 });
+    const scrollRegion = dialog.getByRole("region", { name: "성적표 미리보기" });
+    await expect.poll(() => scrollRegion.evaluate((element) => {
+      const paper = element.querySelector("iframe")!;
+      return element.scrollWidth === element.clientWidth
+        && Math.abs(paper.getBoundingClientRect().width - paper.parentElement!.clientWidth) < 2
+        && element.scrollHeight > element.clientHeight;
+    })).toBe(true);
+    await scrollRegion.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+    await expect(dialog.getByText("개인 성적표", { exact: true })).toBeInViewport({ ratio: 1 });
+    await expect(dialog.getByRole("button", { name: "2명 성적표 PDF 다운로드" })).toBeInViewport({ ratio: 1 });
+
     const requestCountBeforeReopen = apiTracker.getStudentGradesRequestCount();
     await dialog.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(dialog).toBeHidden();
@@ -864,7 +890,7 @@ test.describe("개인 성적표", () => {
   test("390px 모바일에서 학생 전환과 읽기용 재배치", async ({ page }, testInfo) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 390, height: 844 });
-    await installApi(page);
+    const apiTracker = await installApi(page, { studentGradesUnavailable: true });
     const baseUrl = getBaseUrl("admin");
     await page.goto(`${baseUrl}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`, { waitUntil: "load" });
 
@@ -873,13 +899,24 @@ test.describe("개인 성적표", () => {
     await page.getByRole("menuitem", { name: /개인 성적표/ }).click();
 
     const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("status").filter({ hasText: "누적 성적 조회 실패" })).toBeVisible();
+    apiTracker.restoreStudentGrades();
+    await dialog.getByRole("button", { name: "다시 불러오기" }).click();
+    await expect(dialog.getByText("현재 저장된 성적 기준", { exact: true })).toBeVisible();
     const mobileStudentSelect = dialog.getByRole("combobox", { name: "성적표 학생 선택" });
     await expect(mobileStudentSelect).toBeVisible();
-    await expect(dialog.locator(".student-score-report-students")).toBeHidden();
-    await expect(dialog.locator(".student-score-report-mobile-selection")).toHaveCount(0);
+    const students = dialog.getByRole("complementary", { name: "출력할 학생" });
+    await expect(students).toBeHidden();
+    await page.setViewportSize({ width: 390, height: 568 });
     await dialog.getByRole("button", { name: "여러 명 출력" }).click();
-    await expect(dialog.locator(".student-score-report-mobile-selection")).toBeVisible();
+    await expect(students).toBeVisible();
+    const search = students.getByRole("searchbox", { name: "성적표 학생 검색" });
+    await search.fill("박도윤");
+    await students.getByRole("checkbox", { name: "박도윤 성적표 출력 선택" }).check();
+    await expect(dialog.getByRole("button", { name: "2명 성적표 PDF 다운로드" })).toBeInViewport({ ratio: 1 });
+    await students.getByRole("checkbox", { name: "박도윤 성적표 출력 선택" }).uncheck();
     await dialog.getByRole("button", { name: "학생 목록 닫기" }).click();
+    await page.setViewportSize({ width: 390, height: 844 });
 
     const frame = page.frameLocator('iframe[title="김서윤 개인 성적표 미리보기"]');
     await expect(frame.locator(".student-report-page")).toHaveCount(2);
@@ -1078,7 +1115,7 @@ test.describe("교사용 전체 성적표", () => {
         await expect(examTotal).toContainText("82.25 / 200.25");
         await expect(examTotal).toContainText("집계 중 · 1/2");
         expect(await row.locator("td").evaluateAll(cells => cells.flatMap(cell => cell.hasAttribute("data-exam-id")
-          ? [`exam:${cell.getAttribute("data-exam-id")}`] : cell.getAttribute("data-total-kind") === "exam" ? ["total:exam"] : []))).toEqual(["exam:3101", "exam:3102", "total:exam", "exam:3103"]);
+          ? [`exam:${cell.getAttribute("data-exam-id")}`] : cell.getAttribute("data-total-kind") === "exam" ? ["total:exam"] : []))).toEqual(["exam:3103", "exam:3101", "exam:3102", "total:exam"]);
       } else {
         await expect(examTotal).toContainText("- / 100");
         await expect(examTotal).toContainText("집계 중 · 0/1");

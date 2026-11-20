@@ -1,5 +1,6 @@
 /** Parent selected-child QnA/counsel writes in the isolated qa-* development runtime. */
 import { expect, test } from "../fixtures/strictTest";
+import type { Page, TestInfo } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import {
   api,
@@ -7,6 +8,7 @@ import {
   assertQaStudentParentRuntime,
   cleanupQaFamily,
   createQaFamily,
+  expectApi,
   installQaStudentParentBoundary,
   loginAdmin,
   loginApi,
@@ -21,6 +23,7 @@ import {
   STUDENT_PARENT_REALUSE_ENABLED,
   type QaFamily,
 } from "../helpers/qaStudentParentScenario";
+import { homeworkHeic } from "../helpers/homeworkHeicFixture";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle } from "../helpers/wait";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
@@ -28,23 +31,126 @@ import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLogin
 test.setTimeout(300_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 
+async function verifyParentMenuReads(page: Page, studentId: number) {
+  const openMenuLink = async (label: string) => {
+    await page.getByRole("button", { name: "메뉴 열기", exact: true }).click();
+    await page.getByRole("dialog", { name: "메뉴", exact: true })
+      .getByRole("link", { name: label, exact: true }).click();
+  };
+  const readAfterReload = async (path: string) => {
+    const [response] = await Promise.all([
+      page.waitForResponse((result) => result.request().method() === "GET"
+        && new URL(result.url()).pathname === path),
+      reloadStudentApp(page),
+    ]);
+    expect(response.status()).toBe(200);
+    expect(await response.request().headerValue("x-student-id")).toBe(String(studentId));
+  };
+
+  // The fixed QA scenario supplies no notices, board posts or materials.
+  // Verify each authorized empty result without creating public/shared content.
+  await openMenuLink("공지사항");
+  await expect(page).toHaveURL(/\/student\/notices$/);
+  await readAfterReload("/api/v1/community/posts/notices/");
+  await expect(page.getByText("등록된 공지가 없습니다.", { exact: true })).toBeVisible();
+  const noticeTabs = page.getByRole("group", { name: "공지 종류" });
+  for (const [tab, message] of [
+    ["강의공지", "강의 공지가 없습니다."],
+    ["차시공지", "차시 공지가 없습니다."],
+  ]) {
+    const button = noticeTabs.getByRole("button", { name: tab, exact: true });
+    await button.click();
+    await expect(button).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText(message, { exact: true })).toBeVisible();
+  }
+  for (const [label, tab, message] of [
+    ["게시판", "board", "등록된 게시물이 없습니다"],
+    ["자료실", "materials", "등록된 자료가 없습니다"],
+  ]) {
+    await openMenuLink(label);
+    await expect(page).toHaveURL(new RegExp(`/student/community\\?tab=${tab}$`));
+    await readAfterReload(`/api/v1/community/posts/${tab}/`);
+    await expect(page.getByRole("group", { name: "커뮤니티 메뉴" })
+      .getByRole("button", { name: label, exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText(message, { exact: true })).toBeVisible();
+  }
+
+  await openMenuLink("설정");
+  await expect(page).toHaveURL(/\/student\/settings$/);
+  const selectedMode = page.getByRole("button", { name: /^(라이트|다크|시스템)$/, pressed: true });
+  await expect(selectedMode).toHaveCount(1);
+  const originalMode = (await selectedMode.innerText()).trim();
+  const alternative = page.getByRole("button", { name: originalMode === "다크" ? "라이트" : "다크", exact: true });
+  await alternative.click();
+  await expect(alternative).toHaveAttribute("aria-pressed", "true");
+  await reloadStudentApp(page);
+  await expect(alternative).toHaveAttribute("aria-pressed", "true");
+  const restore = page.getByRole("button", { name: originalMode, exact: true });
+  await restore.click();
+  await expect(restore).toHaveAttribute("aria-pressed", "true");
+
+  await openMenuLink("사용 가이드");
+  await expect(page).toHaveURL(/\/student\/guide$/);
+  await page.getByRole("group", { name: "가이드 분류" })
+    .getByRole("button", { name: "시작·수업", exact: true }).click();
+  await page.getByRole("searchbox", { name: "어떤 작업이 필요한가요?" }).fill("수업 일정");
+  const guideTitle = "수업 일정과 출결 확인";
+  await page.getByRole("navigation", { name: "주요 기능 이용 순서" })
+    .getByRole("button", { name: new RegExp(guideTitle) }).click();
+  const guideHeading = page.getByRole("heading", { name: guideTitle, exact: true });
+  await expect(guideHeading).toBeVisible();
+  await page.getByRole("link", { name: `${guideTitle} 화면 열기` }).click();
+  await expect(page).toHaveURL(/\/student\/sessions$/);
+  await page.goBack();
+  await expect(guideHeading).toBeVisible();
+  await assertNoHorizontalOverflow(page);
+}
+
 let family: QaFamily | null = null;
 let adminAccess = "";
+let blockedUserId: number | null = null;
 const postIds: number[] = [];
+const scopeSessionIds: number[] = [];
+const scopeLectureIds: number[] = [];
 const runStamp = Date.now();
 const qnaTitle = `QA 학부모 질문 ${runStamp}`;
 const counselTitle = `QA 학부모 상담 ${runStamp}`;
 const studentQuestionTitle = `QA 학생 답변 확인 ${runStamp}`;
 const answerContent = "QA 관리자 화면에서 저장한 학습 답변입니다.";
+const answerPng = "iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAEElEQVR4nGM4aFYDRww4OQBWkBFlOSF6ngAAAABJRU5ErkJggg==";
+
+async function expectAnswerPhotos(page: Parameters<typeof gotoAndSettle>[0]) {
+  const photos = page.getByRole("img", { name: /^답변 사진:/ });
+  await expect(photos).toHaveCount(2);
+  for (const photo of await photos.all()) {
+    await expect(photo).toBeVisible();
+    await expect(photo).toHaveJSProperty("naturalWidth", 4);
+  }
+}
 
 async function cleanup(request: Parameters<typeof api>[0]): Promise<void> {
   if (!adminAccess) return;
   const failures: string[] = [];
+  if (blockedUserId !== null) {
+    const removed = await api(request, "DELETE", `/community/admin/user-blocks/${blockedUserId}/`, adminAccess);
+    if (removed.status !== 200) failures.push(`DELETE owned community block -> ${removed.status}`);
+  }
   for (const id of postIds) {
     const removed = await api(request, "DELETE", `/community/posts/${id}/`, adminAccess);
     if (![200, 204, 404].includes(removed.status)) failures.push(`DELETE community post ${id} -> ${removed.status}`);
     const residue = await api(request, "GET", `/community/posts/${id}/`, adminAccess);
     if (residue.status !== 404) failures.push(`verify community post ${id} absent -> ${residue.status}`);
+  }
+  // Only identifiers returned by this scenario's creates are eligible. Remove
+  // posts before scopes so cleanup itself cannot widen a surviving audience.
+  for (const path of [
+    ...scopeSessionIds.map((id) => `/lectures/sessions/${id}/`),
+    ...scopeLectureIds.map((id) => `/lectures/lectures/${id}/`),
+  ]) {
+    const removed = await api(request, "DELETE", path, adminAccess);
+    if (![204, 404].includes(removed.status)) failures.push(`DELETE owned scope -> ${removed.status}`);
+    const residue = await api(request, "GET", path, adminAccess);
+    if (residue.status !== 404) failures.push(`verify owned scope absent -> ${residue.status}`);
   }
   await cleanupQaFamily(request, adminAccess, family);
   if (failures.length) throw new Error(`student/parent community cleanup failed:\n${failures.join("\n")}`);
@@ -55,6 +161,94 @@ async function openCommunityTab(page: Parameters<typeof gotoAndSettle>[0], tab: 
   const entryName = tab === "QnA" ? /^내 질문과 답변/ : /^상담/;
   await page.getByRole("button", { name: entryName }).click();
   await expect(page.getByRole("button", { name: tab, exact: true })).toHaveAttribute("aria-pressed", "true");
+}
+
+async function verifyScopeDeletionRecovery(
+  page: Parameters<typeof gotoAndSettle>[0],
+  request: Parameters<typeof api>[0],
+  nonEnrolledAccess: string,
+  testInfo: TestInfo,
+) {
+  // Fixture writes and UI requests use the already-installed exact-release
+  // boundary. This family is never enrolled in either newly created lecture.
+  for (const kind of ["lecture", "session"] as const) {
+    const title = `qa-community-${kind}-${runStamp}`;
+    const lecture = await expectApi<{ id: number }>(request, "POST", "/lectures/lectures/", adminAccess, {
+      title, name: "QA 강사", subject: "수학", is_active: kind === "session",
+    }, [201]);
+    expect(Number.isSafeInteger(lecture.id) && lecture.id > 0).toBe(true);
+    scopeLectureIds.push(lecture.id);
+    let sessionId: number | null = null;
+    if (kind === "session") {
+      const session = await expectApi<{ id: number }>(request, "POST", "/lectures/sessions/", adminAccess, {
+        lecture: lecture.id, order: 1, title: "공개 범위 보존", date: "2026-11-01",
+      }, [201]);
+      expect(Number.isSafeInteger(session.id) && session.id > 0).toBe(true);
+      sessionId = session.id;
+      scopeSessionIds.push(session.id);
+    }
+    const nodes = await expectApi<Array<{ id: number; lecture: number; session: number | null }>>(
+      request, "GET", "/community/scope-nodes/", adminAccess,
+    );
+    const matches = nodes.filter((node) => node.lecture === lecture.id && node.session === sessionId);
+    expect(matches).toHaveLength(1);
+    const nodeId = matches[0].id;
+    const content = "삭제 거부 뒤에도 보존할 검증용 글입니다.";
+    const post = await expectApi<{ id: number }>(request, "POST", "/community/posts/", adminAccess, {
+      post_type: kind === "lecture" ? "notice" : "materials", status: "published",
+      title, content, node_ids: [nodeId],
+    }, [201]);
+    expect(Number.isSafeInteger(post.id) && post.id > 0).toBe(true);
+    postIds.push(post.id);
+    const postPath = `/community/posts/${post.id}/`;
+    const scopePath = kind === "lecture" ? `/lectures/lectures/${lecture.id}/` : `/lectures/sessions/${sessionId}/`;
+    const trigger = kind === "lecture"
+      ? page.getByRole("button", { name: `${title} 설정`, exact: true })
+      : page.getByRole("button", { name: "차시 설정", exact: true });
+    const removeThroughUi = async () => {
+      await trigger.click();
+      if (kind === "lecture") await page.getByRole("menuitem", { name: "강의 삭제", exact: true }).click();
+      else await page.getByRole("menu", { name: "차시 설정 메뉴" }).getByRole("button", { name: "삭제", exact: true }).click();
+      const confirmation = page.getByRole("alertdialog", { name: kind === "lecture" ? "강의 삭제" : "차시 삭제", exact: true });
+      const [response] = await Promise.all([
+        page.waitForResponse((value) => value.request().method() === "DELETE"
+          && new URL(value.url()).pathname === `/api/v1${scopePath}`),
+        confirmation.getByRole("button", { name: kind === "lecture" ? "영구 삭제" : "삭제", exact: true }).click(),
+      ]);
+      return response;
+    };
+    expect((await api(request, "GET", postPath, nonEnrolledAccess)).status).toBe(404);
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await gotoAndSettle(page, kind === "lecture" ? `${QA_BASE}/workspace/lectures/past` : `${QA_BASE}/workspace/lectures/${lecture.id}`);
+      const rejected = await removeThroughUi();
+      expect(rejected.status()).toBe(403);
+      const { detail } = await rejected.json() as { detail: string };
+      expect(detail).toContain("연결된 커뮤니티 글");
+      expect(detail).toContain("다시 시도");
+      const notice = page.getByText(detail, { exact: true });
+      await expect(notice).toBeVisible();
+      await expect(notice).toBeInViewport({ ratio: 1 });
+      await assertNoHorizontalOverflow(page);
+      await page.screenshot({ path: testInfo.outputPath(`community-${kind}-delete-denied-development-${width}.png`) });
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(trigger).toBeVisible();
+      expect((await api(request, "GET", scopePath, adminAccess)).status).toBe(200);
+      const retained = await expectApi<{ title: string; content: string; status: string; mappings: Array<{ node: number }> }>(request, "GET", postPath, adminAccess);
+      expect(retained).toMatchObject({ title, content, status: "published" });
+      expect(retained.mappings.map((mapping) => mapping.node)).toEqual([nodeId]);
+      expect((await api(request, "GET", postPath, nonEnrolledAccess)).status).toBe(404);
+    }
+    // This exact synthetic post is deliberately discarded. Do not clear its
+    // mappings or relabel it global to make the deletion succeed.
+    expect((await api(request, "DELETE", postPath, adminAccess)).status).toBe(204);
+    expect((await api(request, "GET", postPath, adminAccess)).status).toBe(404);
+    expect((await removeThroughUi()).status()).toBe(204);
+    await expect(trigger).toHaveCount(0);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(trigger).toHaveCount(0);
+    expect((await api(request, "GET", scopePath, adminAccess)).status).toBe(404);
+  }
 }
 
 test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => {
@@ -70,6 +264,10 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     const admin = await loginAdmin(request);
     adminAccess = admin.access;
     family = await createQaFamily(request, admin.access, "community", 2);
+    const parentTokens = await loginApi(request, family.parentPhone, family.parentPassword);
+    const parentIdentity = await api<{ id: number }>(request, "GET", "/core/me/", parentTokens.access);
+    expect(parentIdentity.status).toBe(200);
+    expect(Number.isSafeInteger(parentIdentity.body.id) && parentIdentity.body.id > 0).toBe(true);
     const primary = family.students[0];
     const sibling = family.students[1];
 
@@ -78,13 +276,16 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     await selectParentStudentThroughUi(page, primary);
     await gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 });
     await assertNoHorizontalOverflow(page);
+    await test.step("390px 학부모 메뉴 조회, 화면 모드 복구, 가이드 이동", async () => {
+      await verifyParentMenuReads(page, primary.id);
+    });
+    await gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 });
     await page.getByRole("region", { name: "학부모 주요 확인" })
       .getByRole("link", { name: /^질문하기/ }).click();
     await page.getByPlaceholder("질문 제목").fill(qnaTitle);
     await page.locator(".ProseMirror").fill("선택한 자녀의 학습 질문입니다.");
     const attachment = {
-      name: "qa-community-recovery.png", mimeType: "image/png",
-      buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"),
+      name: "qa-community-recovery.heic", mimeType: "image/heic", buffer: homeworkHeic,
     };
     const documentAttachment = {
       name: "qa-질문-추가-학습자료.txt", mimeType: "text/plain",
@@ -120,6 +321,36 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     await page.getByRole("button", { name: "질문하기", exact: true }).click();
     await expect(page.getByPlaceholder("질문 제목")).toHaveValue(qnaTitle);
     await expect(page.getByRole("button", { name: "첨부 다시 시도", exact: true })).toBeDisabled();
+    // Exercise the real tenant moderation boundary after the post has already
+    // been saved. A blocked upload must not create metadata or discard input.
+    blockedUserId = parentIdentity.body.id;
+    const blocked = await api(request, "POST", "/community/admin/user-blocks/", adminAccess, {
+      user_id: blockedUserId, reason: "QA community attachment recovery",
+    });
+    expect(blocked.status).toBe(201);
+    await page.locator(".community-file-picker__input").setInputFiles([attachment, documentAttachment]);
+    const blockedUploadPromise = page.waitForResponse((response) => response.request().method() === "POST"
+      && new URL(response.url()).pathname.endsWith(`/api/v1/community/posts/${qna.id}/attachments/`));
+    await page.getByRole("button", { name: "첨부 다시 시도", exact: true }).click();
+    const blockedUpload = await blockedUploadPromise;
+    expect(blockedUpload.status()).toBe(403);
+    expect(await blockedUpload.json()).toMatchObject({ code: "user_blocked" });
+    await expect(page.getByRole("alert")).toContainText("커뮤니티 활동이 제한되었습니다");
+    await expect(page.getByPlaceholder("질문 제목")).toHaveValue(qnaTitle);
+    const whileBlocked = await api<{ attachments: unknown[] }>(request, "GET", `/community/posts/${qna.id}/`, adminAccess);
+    expect(whileBlocked.status).toBe(200);
+    expect(whileBlocked.body.attachments).toHaveLength(0);
+    await assertNoHorizontalOverflow(page);
+    await page.screenshot({ path: testInfo.outputPath("community-blocked-upload-development-390.png") });
+    await reloadStudentApp(page);
+    await openCommunityTab(page, "QnA");
+    await page.getByRole("button", { name: "질문하기", exact: true }).click();
+    await expect(page.getByPlaceholder("질문 제목")).toHaveValue(qnaTitle);
+    await expect(page.getByRole("button", { name: "첨부 다시 시도", exact: true })).toBeDisabled();
+    const unblocked = await api<{ deleted: number }>(request, "DELETE", `/community/admin/user-blocks/${blockedUserId}/`, adminAccess);
+    expect(unblocked.status).toBe(200);
+    expect(unblocked.body.deleted).toBe(1);
+    blockedUserId = null;
     await page.locator(".community-file-picker__input").setInputFiles([attachment, documentAttachment]);
     const uploadResponsePromise = page.waitForResponse((response) => response.request().method() === "POST"
       && new URL(response.url()).pathname.endsWith(`/api/v1/community/posts/${qna.id}/attachments/`));
@@ -172,6 +403,9 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
     await page.getByRole("button", { name: "상담", exact: true }).click();
     await expect(page.getByText(counselTitle, { exact: true })).toBeVisible();
     await assertNoHorizontalOverflow(page);
+    await test.step("1366px 학부모 메뉴 조회, 화면 모드 복구, 가이드 이동", async () => {
+      await verifyParentMenuReads(page, primary.id);
+    });
     await logoutStudentApp(page);
     await loginThroughUi(page, primary.ps_number, primary.password);
     await gotoAndSettle(page, `${QA_BASE}/student/community`);
@@ -207,20 +441,35 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
       await gotoAndSettle(adminPage, `${QA_BASE}/workspace/community/qna?id=${studentQuestion.id}`);
       await expect(adminPage.locator(".qna-inbox__thread-title")).toHaveText(studentQuestionTitle);
       await adminPage.getByRole("button", { name: "답변하기", exact: true }).click();
-      await adminPage.locator(".qna-inbox__composer .ProseMirror").fill(answerContent);
+      const editor = adminPage.locator(".qna-inbox__composer .ProseMirror");
+      await editor.fill(answerContent);
+      await adminPage.locator('.qna-inbox__composer input[type="file"][accept="image/*"]').setInputFiles({
+        name: "qa-답변-선택.png", mimeType: "image/png", buffer: Buffer.from(answerPng, "base64"),
+      });
+      await adminContext.grantPermissions(["clipboard-read", "clipboard-write"]);
+      await editor.click();
+      await adminPage.evaluate(async (png) => {
+        const bytes = Uint8Array.from(atob(png), (character) => character.charCodeAt(0));
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": new Blob([bytes], { type: "image/png" }) })]);
+      }, answerPng);
+      await editor.press("Control+v");
+      await expect(adminPage.getByRole("list", { name: "첨부할 답변 사진" }).getByRole("img")).toHaveCount(2);
       const replied = adminPage.waitForResponse((response) => response.request().method() === "POST"
-        && new URL(response.url()).pathname === `/api/v1/community/posts/${studentQuestion.id}/replies/`);
+        && new URL(response.url()).pathname === `/api/v1/community/posts/${studentQuestion.id}/replies/with-images/`);
       await adminPage.getByRole("button", { name: "답변 등록", exact: true }).click();
       expect((await replied).status()).toBe(201);
       await adminPage.reload({ waitUntil: "domcontentloaded" });
       await expect(adminPage.getByText(answerContent, { exact: true })).toBeVisible();
+      await expectAnswerPhotos(adminPage);
       await expect(adminPage.locator(".qna-inbox__thread-header")).toContainText("답변 완료");
       for (const width of [1366, 390]) {
         await adminPage.setViewportSize({ width, height: 900 });
         await gotoAndSettle(adminPage, `${QA_BASE}/workspace/community/qna?id=${qna.id}`);
         const files = adminPage.getByRole("region", { name: "첨부파일", exact: true });
         await expect(files).toContainText(documentAttachment.name);
-        await expect(adminPage.getByRole("img", { name: attachment.name, exact: true })).toBeVisible();
+        const photo = adminPage.getByRole("img", { name: attachment.name, exact: true });
+        await expect(photo).toBeVisible();
+        await expect(photo).toHaveJSProperty("naturalWidth", 640);
         const downloadPromise = adminPage.waitForEvent("download");
         await files.getByRole("button", { name: "다운로드", exact: true }).click();
         const download = await downloadPromise;
@@ -228,6 +477,7 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
         expect(await readFile((await download.path())!)).toEqual(documentAttachment.buffer);
         await adminPage.reload({ waitUntil: "domcontentloaded" });
         await expect(files).toContainText(documentAttachment.name);
+        await expect(photo).toHaveJSProperty("naturalWidth", 640);
         await assertNoHorizontalOverflow(adminPage);
         await adminPage.screenshot({ path: testInfo.outputPath(`qna-attachment-development-${width}.png`) });
       }
@@ -238,6 +488,7 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
       await expect(detail.getByText(qnaTitle, { exact: true })).toBeVisible();
       await expect(detail.getByText(counselTitle, { exact: true })).toHaveCount(0);
       const sharedMemo = "QA 학생 상세 저장·후속 화면 확인";
+      await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
       const memo = detail.getByRole("textbox", { name: "학생 공통 메모" });
       await memo.fill(sharedMemo);
       const saved = adminPage.waitForResponse((response) => response.request().method() === "PATCH"
@@ -246,11 +497,11 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
       expect((await saved).status()).toBe(200);
       await expect(detail.getByText("저장됨", { exact: true })).toBeVisible();
       await adminPage.reload({ waitUntil: "domcontentloaded" });
+      await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
       await expect(memo).toHaveValue(sharedMemo);
       await assertNoHorizontalOverflow(adminPage);
       await adminPage.screenshot({ path: testInfo.outputPath("student-detail-development-desktop.png") });
       await adminPage.setViewportSize({ width: 390, height: 844 });
-      await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
       await expect(memo).toHaveValue(sharedMemo);
       await assertNoHorizontalOverflow(adminPage);
       await adminPage.screenshot({ path: testInfo.outputPath("student-detail-development-mobile.png") });
@@ -280,6 +531,9 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
         await expect(adminPage.getByText(qnaTitle, { exact: true })).toHaveCount(0);
         await expect(adminPage.getByText(counselTitle, { exact: true })).toHaveCount(0);
       }
+      await test.step("연결 글의 공개 범위 보존과 강의·차시 삭제 복구", async () => {
+        await verifyScopeDeletionRecovery(adminPage, request, studentTokens.access, testInfo);
+      });
       adminBoundary.assertClean();
       adminBrowser.assertZeroDefects();
     } finally {
@@ -298,9 +552,11 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
       await expect(question.locator("xpath=ancestor::button[1]")).toContainText("답변 완료");
       await question.click();
       await expect(page.getByText(answerContent, { exact: true })).toBeVisible();
+      await expectAnswerPhotos(page);
       await reloadStudentApp(page);
       await page.getByText(studentQuestionTitle, { exact: true }).click();
       await expect(page.getByText(answerContent, { exact: true })).toBeVisible();
+      await expectAnswerPhotos(page);
       await assertNoHorizontalOverflow(page);
     }
     await selectParentStudentThroughUi(page, sibling);

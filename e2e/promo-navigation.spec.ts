@@ -202,11 +202,11 @@ test.describe("promo navigation", () => {
       const popup = await popupPromise;
       await expect(popup).toHaveURL("https://www.instagram.com/hakwon_p/");
       await popup.close();
-      await expect(page.getByRole("heading", { name: /수업 관리부터\s*학생의 복습까지/ })).toBeVisible();
+      await expect(page.getByRole("heading", { name: /학원의 모든 기록을,\s*하나로\./ })).toBeVisible();
       const screenshotPath = info.outputPath("promo-home-" + width + ".png");
       await page.screenshot({ path: screenshotPath, fullPage: true });
       await info.attach("promo-home-" + width, { path: screenshotPath, contentType: "image/png" });
-      await page.getByRole("link", { name: "43쪽 상세 가이드 보기" }).click();
+      await page.getByRole("link", { name: "전체 가이드", exact: true }).click();
       await expect(page.getByRole("heading", { name: "기능 상세 가이드", exact: true })).toBeVisible();
       const reader = page.getByRole("region", { name: "기능 둘러보기", exact: true });
       await expect(reader.getByRole("button", { name: "상세 설명 43쪽", exact: true })).toHaveAttribute("aria-pressed", "true");
@@ -266,7 +266,7 @@ test.describe("promo navigation", () => {
       await page.goto(BASE + "/promo/pricing#existing-contract");
       await expect(page.locator("#existing-contract")).toHaveAttribute("open", "");
       await page.reload();
-      await expect(page.locator("#existing-contract").getByText("15만 9천원", { exact: true })).toBeVisible();
+      await expect(page.locator("#existing-contract").getByText("159,000원", { exact: true })).toBeVisible();
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: info.outputPath("pricing-contract-" + width + ".png"), fullPage: true });
     });

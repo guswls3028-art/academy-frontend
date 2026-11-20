@@ -246,6 +246,7 @@ test("no phone: mandatory selection and short-input failures recover to a succes
   await expect(confirmation.getByText("학생 비밀번호 방식을 선택해 주세요.", { exact: true })).toBeVisible();
   expect(posts).toBe(0);
   await choose(confirmation, "학생", "fixed", "123"); await choose(confirmation, "학부모", "fixed");
+  await expect(confirmation.getByLabel("학생 직접 입력 비밀번호", { exact: true })).toHaveValue("123");
   await confirmation.getByRole("button", { name: "확인하고 등록", exact: true }).click();
   await expect(confirmation.getByText("학생 비밀번호를 4자 이상 입력해 주세요.", { exact: true })).toBeVisible();
   expect(posts).toBe(0);
@@ -327,6 +328,14 @@ for (const autoApprove of [false, true]) {
         await expect(dialog.getByText("신청이 완료되었습니다. 승인 후 로그인해 주세요.", { exact: true })).toHaveCount(0);
       } else {
         registrationId = (await response.json() as { id: number }).id;
+        await gotoAndSettle(page, `${QA_BASE}/workspace/mobile/comms?tab=requests`);
+        await page.getByText(row.name, { exact: true }).click();
+        const teacherDetail = page.getByRole("dialog", { name: "등록요청 상세" });
+        for (const phone of [row.phone, row.parentPhone]) {
+          const formatted = `${phone.slice(0, 3)}-${phone.slice(3, 7)}-${phone.slice(7)}`;
+          await expect(teacherDetail.getByText(formatted, { exact: true })).toBeVisible();
+        }
+        await assertNoHorizontalOverflow(page);
         // A later academy policy cannot rewrite the pending applicant's explicit choice.
         await expectApi(request, "PATCH", policyPath, admin, { parent_mode: "random" });
         await gotoAndSettle(page, `${QA_BASE}/workspace/students/requests`);

@@ -197,13 +197,20 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       const essayPanel = modal.locator(".answer-key-panel--essay");
       const choiceCountInput = choicePanel.locator("input.answer-key-input--count");
       const essayCountInput = essayPanel.locator("input.answer-key-input--count");
-      const choiceTotalInput = choicePanel.locator("input.answer-key-input--score");
-
-      await choicePanel.getByRole("button", { name: /^사용$/ }).click();
-      await choicePanel.getByRole("button", { name: /^소수 1자리$/ }).click();
-      await choiceTotalInput.fill("1.");
-      await expect(choiceTotalInput).toHaveValue("1.");
-      await choiceTotalInput.fill("30.5");
+      const applyChoiceTotal = async (total: string, checkIncompleteDecimal = false) => {
+        await modal.getByRole("button", { name: "자동 배점 설정", exact: true }).click();
+        const allocation = page.getByRole("dialog", { name: "자동 배점 설정", exact: true });
+        await allocation.getByRole("combobox", { name: "선택형 배점 방식" }).selectOption("decimal-with-base");
+        const choiceTotalInput = allocation.getByRole("textbox", { name: "선택형 목표 총점" });
+        if (checkIncompleteDecimal) {
+          await choiceTotalInput.fill("1.");
+          await expect(choiceTotalInput).toHaveValue("1.");
+        }
+        await choiceTotalInput.fill(total);
+        await allocation.getByRole("button", { name: "편집기에 적용", exact: true }).click();
+        await expect(allocation).toBeHidden();
+        await expect(modal.getByRole("button", { name: `저장 (총 ${total}점)`, exact: true })).toBeEnabled();
+      };
 
       await choiceCountInput.fill("30");
       await essayCountInput.fill("0");
@@ -215,6 +222,7 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       await choicePanel.getByRole("button", { name: "적용" }).click();
       await initResponse;
       await expect(choicePanel.locator(".answer-key-row--choice")).toHaveCount(30, { timeout: 15_000 });
+      await applyChoiceTotal("30.5", true);
 
       const initialQuestions = await getQuestions(page, examId);
       expect(initialQuestions).toHaveLength(30);
@@ -233,7 +241,6 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       await saveResponse;
       expect(Object.keys((await getSavedAnswerKey(page, examId)).answers)).toContain(staleQuestionId);
 
-      await choiceTotalInput.fill("10.5");
       await choiceCountInput.fill("10");
       await essayCountInput.fill("0");
       initResponse = page.waitForResponse((resp) =>
@@ -244,6 +251,7 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       await choicePanel.getByRole("button", { name: "적용" }).click();
       await initResponse;
       await expect(choicePanel.locator(".answer-key-row--choice")).toHaveCount(10, { timeout: 15_000 });
+      await applyChoiceTotal("10.5");
 
       saveResponse = page.waitForResponse((resp) =>
         ["POST", "PUT"].includes(resp.request().method()) &&
@@ -261,7 +269,6 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       expect(Object.keys(reducedAnswers).every((key) => key === "__score_adjustment__" || reducedQuestionIds.has(key))).toBe(true);
       expect(reducedAnswers).not.toHaveProperty(staleQuestionId);
 
-      await choiceTotalInput.fill("20");
       await choiceCountInput.fill("20");
       await essayCountInput.fill("0");
       initResponse = page.waitForResponse((resp) =>
@@ -272,6 +279,7 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       await choicePanel.getByRole("button", { name: "적용" }).click();
       await initResponse;
       await expect(choicePanel.locator(".answer-key-row--choice")).toHaveCount(20, { timeout: 15_000 });
+      await applyChoiceTotal("20");
       expect(pageErrors).toEqual([]);
     } finally {
       if (examId) {

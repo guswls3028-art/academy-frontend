@@ -95,10 +95,13 @@ for (const width of [1366, 1100, 390]) {
     await expect(preview).toContainText(INITIAL);
     await expect(preview).toContainText(COMMON);
     const table = page.locator(".ds-table--attendance");
-    await expect(table.getByRole("columnheader", { name: "메모" })).toBeVisible();
-    await expect(table.locator("tbody tr")).toHaveCount(1);
-    await expect(table.locator("tbody tr td").last()).toContainText(INITIAL);
-    await expect(table.locator("tbody tr td").last()).toContainText(NAME);
+    const row = table.getByRole("row").filter({ has: preview });
+    await expect(row).toHaveCount(1);
+    await expect(row.getByRole("link", { name: NAME + " 학생 상세 열기" })).toBeVisible();
+    if (width !== 390) {
+      await expect(table.getByRole("columnheader", { name: "메모" })).toBeVisible();
+      await expect(row.getByRole("cell").last()).toContainText(NAME);
+    }
     const dialog = await openEditor(page);
     await expect(page.getByTestId("student-detail-overlay")).toHaveCount(0);
     await expect(dialog.getByRole("region", { name: "학생 공통 메모" })).toContainText(COMMON);
@@ -206,6 +209,7 @@ test("학생 정보의 공통 메모 수정은 명단에 반영되고 강의 메
   await page.goto(`${BASE}${adminPath()}`);
   await page.getByRole("link", { name: `${NAME} 학생 상세 열기` }).click();
   const overlay = page.getByTestId("student-detail-overlay");
+  await overlay.getByRole("button", { name: "연락처·메모 보기" }).click();
   const input = overlay.getByRole("textbox", { name: "학생 공통 메모", exact: true });
   await input.fill("수정된 학생 공통 특이사항");
   await input.blur();

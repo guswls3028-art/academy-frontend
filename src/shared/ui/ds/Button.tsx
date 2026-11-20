@@ -1,9 +1,10 @@
 // PATH: src/shared/ui/ds/Button.tsx
 import React from "react";
+import { ControlSizeContext, type ControlSize } from "./ControlSizeContext";
 import { cx } from "@/shared/utils/cx";
 
 export type ButtonIntent = "primary" | "secondary" | "danger" | "ghost";
-export type ButtonSize = "sm" | "md" | "lg" | "xl";
+export type ButtonSize = ControlSize;
 
 type ButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "color"> & {
   intent?: ButtonIntent;
@@ -29,6 +30,7 @@ export default function Button({
   children,
   ...props
 }: ButtonProps) {
+  const controlSize = React.useContext(ControlSizeContext) ?? size;
   const isDisabled = !!disabled || !!loading;
 
   return (
@@ -38,7 +40,7 @@ export default function Button({
       disabled={isDisabled}
       className={cx("ds-button", className)}
       data-intent={intent}
-      data-size={size}
+      data-size={controlSize}
       data-icon-only={iconOnly ? "true" : "false"}
       data-loading={loading ? "true" : "false"}
       data-disabled={isDisabled ? "true" : "false"}

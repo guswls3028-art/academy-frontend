@@ -44,8 +44,6 @@ type RetryConfig = ApiRequestConfig & {
   _retry?: boolean;
   _asyncId?: string;
   _transientRetryCount?: number;
-  _authGeneration?: string | null;
-  _expectedTenant?: string;
   _documentGeneration?: number;
 };
 
@@ -58,8 +56,13 @@ export type PlaybackEventScope = {
 };
 export type ApiRequestConfig = AxiosRequestConfig & {
   skipAuth?: boolean;
+  /** Keep a report draft visible after expiring its rejected authentication. */
+  preservePageOnAuthFailure?: boolean;
   playbackUnload?: true;
   playbackEventScope?: PlaybackEventScope;
+  /** Captured continuation identity; refresh rotation keeps the generation. */
+  _authGeneration?: string | null;
+  _expectedTenant?: string;
 };
 
 export function capturePlaybackEventScope(): PlaybackEventScope {
@@ -75,6 +78,12 @@ export function isPlaybackEventScopeCurrent(scope: PlaybackEventScope): boolean 
   return Boolean(scope.tenantCode && (scope.generation || scope.supportSessionId))
     && current.tenantCode === scope.tenantCode && current.generation === scope.generation
     && current.supportSessionId === scope.supportSessionId;
+}
+
+function isResponseAuthCurrent(config: RetryConfig): boolean {
+  if (config.playbackEventScope) return isPlaybackEventScopeCurrent(config.playbackEventScope);
+  return config._authGeneration === undefined
+    || config._authGeneration === (readAuthTokenEnvelopeSafely()?.generation ?? null);
 }
 
 /** Reject a queued mutation if another login becomes active before its interceptor runs. */
@@ -226,13 +235,13 @@ function getExpiredSessionLoginPath(): string {
   }
 }
 
-function endExpiredSession(expectedGeneration?: string | null) {
+function endExpiredSession(expectedGeneration?: string | null, preservePage = false) {
   const supportWindow = isStudentSupportWindow();
   if (!supportWindow && isSessionEnding) return;
   const loginPath = getExpiredSessionLoginPath();
   clearTokens(expectedGeneration);
   if (supportWindow) {
-    window.location.href = "/support-preview-ended";
+    if (!preservePage) window.location.href = "/support-preview-ended";
     return;
   }
 
@@ -243,6 +252,7 @@ function endExpiredSession(expectedGeneration?: string | null) {
     setSessionItem("session_expired", "1");
   } catch { /* ignore */ }
   saveReturnPath();
+  if (preservePage) return;
   window.location.href = loginPath;
 }
 
@@ -487,7 +497,9 @@ api.interceptors.request.use(async (config) => {
       || shouldSkipAuth(cfg.url, cfg) || !isPlaybackEventScopeCurrent(retryCfg.playbackEventScope)) {
       throw new axios.CanceledError("Playback event scope changed.");
     }
-    retryCfg._authGeneration = retryCfg.playbackEventScope.generation;
+    if (retryCfg.playbackEventScope.generation !== null) {
+      retryCfg._authGeneration = retryCfg.playbackEventScope.generation;
+    }
   }
 
   // Attach Authorization if access exists (JWT)
@@ -522,6 +534,12 @@ api.interceptors.request.use(async (config) => {
         const auth = unloading
           ? { ...current!, sessionChanged: false, reusedRotation: false }
           : await ensureFreshToken();
+        if (current && !auth && retryCfg.preservePageOnAuthFailure) {
+          retryCfg._retry = true;
+          throw new AxiosError("Authentication expired", AxiosError.ERR_BAD_REQUEST, cfg, undefined, {
+            data: null, status: 401, statusText: "Unauthorized", headers: {}, config: cfg,
+          });
+        }
         if (auth?.sessionChanged || (auth && auth.generation !== retryCfg._authGeneration)) {
           throw new axios.CanceledError("Authentication session changed.");
         }
@@ -674,12 +692,9 @@ api.interceptors.response.use(
   (res: AxiosResponse) => {
     const responseConfig = res.config as RetryConfig;
     const id = responseConfig._asyncId;
-    if (responseConfig._authGeneration !== undefined) {
-      const currentGeneration = readAuthTokenEnvelopeSafely()?.generation ?? null;
-      if (responseConfig._authGeneration !== currentGeneration) {
-        if (id) asyncStatusStore.completeTask(id, "error", "Authentication session changed.");
-        throw new axios.CanceledError("Authentication session changed.");
-      }
+    if (!isResponseAuthCurrent(responseConfig)) {
+      if (id) asyncStatusStore.completeTask(id, "error", "Authentication session changed.");
+      throw new axios.CanceledError("Authentication session changed.");
     }
     if (id) asyncStatusStore.completeTask(id, "success");
     return res;
@@ -697,14 +712,11 @@ api.interceptors.response.use(
     // Reject every stale response class before retry/status handling. A delayed
     // 403/404/network/timeout from account A must never reach account B's
     // AuthContext or query consumers.
-    if (original._authGeneration !== undefined) {
-      const currentGeneration = readAuthTokenEnvelopeSafely()?.generation ?? null;
-      if (original._authGeneration !== currentGeneration) {
-        if (asyncId) {
-          asyncStatusStore.completeTask(asyncId, "error", "Authentication session changed.");
-        }
-        throw new axios.CanceledError("Authentication session changed.");
+    if (!isResponseAuthCurrent(original)) {
+      if (asyncId) {
+        asyncStatusStore.completeTask(asyncId, "error", "Authentication session changed.");
       }
+      throw new axios.CanceledError("Authentication session changed.");
     }
 
     if (shouldRetryTransientApiError(err, original)) {
@@ -759,7 +771,7 @@ api.interceptors.response.use(
     // 대리보기는 관리자 localStorage 세션과 분리된 일회성 access-only 창이다.
     // 관리자 refresh envelope를 재사용하지 않고 전용 세션만 종료한다.
     if (status === 401 && isStudentSupportWindow() && !shouldSkipAuth(original.url, original)) {
-      endExpiredSession();
+      endExpiredSession(undefined, original.preservePageOnAuthFailure);
       completeAsyncError();
       throw err;
     }
@@ -815,7 +827,7 @@ api.interceptors.response.use(
           original._authGeneration === undefined
           || original._authGeneration === readAuthTokenEnvelopeSafely()?.generation
         ) {
-          endExpiredSession(original._authGeneration);
+          endExpiredSession(original._authGeneration, original.preservePageOnAuthFailure);
         }
         completeAsyncError();
         throw err;
@@ -838,7 +850,7 @@ api.interceptors.response.use(
         original._authGeneration === undefined
         || original._authGeneration === readAuthTokenEnvelopeSafely()?.generation
       ) {
-        endExpiredSession(original._authGeneration);
+        endExpiredSession(original._authGeneration, original.preservePageOnAuthFailure);
       }
       completeAsyncError();
       throw err;

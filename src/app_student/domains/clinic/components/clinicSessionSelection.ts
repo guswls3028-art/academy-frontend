@@ -1,7 +1,4 @@
-import type {
-  ClinicBookingRequest,
-  ClinicSession,
-} from "../api/clinicBooking.api";
+import type { ClinicSession } from "../api/clinicBooking.api";
 import { isClinicSessionFull as isFull } from "@/shared/utils/clinicSessionCapacity";
 
 type SelectionInput = {
@@ -11,7 +8,7 @@ type SelectionInput = {
   groupSessions: ClinicSession[];
   rangeStartSessionId: number | null;
   selectedSessionIds: number[];
-  bookings: ClinicBookingRequest[];
+  bookedSessionIds: Pick<ReadonlySet<number>, "has">;
 };
 
 type SelectionResult = {
@@ -27,7 +24,7 @@ export function resolveClinicSessionSelection({
   groupSessions,
   rangeStartSessionId,
   selectedSessionIds,
-  bookings,
+  bookedSessionIds,
 }: SelectionInput): SelectionResult {
   if (changingBooking) {
     return { sessionIds: [session.id], rangeStartSessionId: session.id, notice: null };
@@ -72,10 +69,7 @@ export function resolveClinicSessionSelection({
   }
   if (range.some((item) => (
     isFull(item)
-    || bookings.some((booking) => (
-      booking.session === item.id
-      && (booking.status === "pending" || booking.status === "booked")
-    ))
+    || bookedSessionIds.has(item.id)
   ))) {
     return unchanged("사이에 마감되었거나 이미 예약한 시간대가 있어 연속 선택할 수 없어요.");
   }

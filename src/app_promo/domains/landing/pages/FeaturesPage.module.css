@@ -11,8 +11,11 @@
 .navigation a { padding: 12px; border-radius: 5px; text-decoration: none; font-size: 14px; line-height: 1.5; }
 .navigation a:hover, .navigation a[aria-current] { background: #edf3f5; }
 .catalog { min-width: 0; scroll-margin-top: 110px; }
-.catalogTitle { margin: 0 0 20px; color: #65727b; font-size: 15px; font-weight: 500; }
-.group { position: relative; padding: 30px 0 34px; border-top: 1px solid #e1e6e9; scroll-margin-top: 104px; }
+.catalogTitle { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.group { position: relative; padding: 40px 0 44px; border-top: 1px solid #e1e6e9; scroll-margin-top: 104px; }
+.group:first-of-type { border-top: 0; padding-top: 0; }
+.groupHead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 24px; margin-bottom: 12px; }
+.group .groupHead h2 { margin: 0; }
 .anchor { position: absolute; top: 0; scroll-margin-top: 104px; }
 .group h2, .next h2 { margin: 0 0 14px; font-size: 26px; font-weight: 650; line-height: 1.45; letter-spacing: -.025em; word-break: keep-all; }
 .description { margin: 0 0 22px; color: #65727b; font-size: 16px; line-height: 1.85; word-break: keep-all; }
@@ -41,9 +44,9 @@
 .screens img { width: 100%; height: auto; border: 1px solid #e1e6e9; border-radius: 6px; }
 .screens[data-phone] { max-width: 260px; }
 .note { padding: 14px 18px; background: #f7f9fa; border-radius: 5px; color: #52636d; font-size: 14px; line-height: 1.8; word-break: keep-all; }
-.reference { margin-top: 10px; }
+.groupHead .reference { min-height: 32px; font-size: 14px; }
 .moreLinks { display: grid; justify-items: start; }
-.next { padding: 30px; background: #f7f9fa; border-radius: 8px; }
+.next { margin-top: 8px; padding: 36px 0 0; border-top: 1px solid #e1e6e9; }
 .next a { display: flex; width: fit-content; }
 .page :is(a, summary):focus-visible { outline: 2px solid #365d6e; outline-offset: 4px; }
 .navigation a:focus-visible { outline-offset: -2px; }
@@ -63,6 +66,6 @@
   .functions > div { grid-template-columns: 1fr; gap: 3px; }
   .functions { gap: 16px; }
   .group { padding: 26px 0; }
-  .next { padding: 24px 20px; }
+  .next { padding: 28px 0 0; }
 }
 @media (prefers-reduced-motion: reduce) { .details summary svg { transition: none; } .details[open] > :not(summary) { animation: none; } }

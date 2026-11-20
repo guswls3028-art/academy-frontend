@@ -22,6 +22,8 @@ export type DashboardSession = {
   id: number;
   title: string;
   date: string | null;
+  schedule_label?: string | null;
+  schedule_configured?: boolean;
   status: string | null;
   type?: "session" | "clinic";
   start_time?: string | null;
@@ -65,6 +67,8 @@ export async function fetchStudentDashboard(): Promise<StudentDashboardResponse>
           id: Number(s.id),
           title: richHtmlToPlainText(String(s.title ?? "")),
           date: s.date != null ? String(s.date) : null,
+          schedule_label: s.schedule_label ?? null,
+          schedule_configured: s.schedule_configured === true,
           status: s.status != null ? String(s.status) : null,
           type,
           start_time: s.start_time != null ? String(s.start_time) : null,

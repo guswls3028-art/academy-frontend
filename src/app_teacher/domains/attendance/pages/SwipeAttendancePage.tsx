@@ -22,6 +22,8 @@ import { useSecessionConfirm } from "@/shared/ui/attendance/useSecessionConfirm"
 import type { SecessionScope } from "@/shared/api/contracts/attendance";
 import { attendanceQueryKeys } from "@/shared/api/queryKeys/attendance";
 import styles from "./SwipeAttendancePage.module.css";
+import { useSessionScheduleScope } from '@/shared/hooks/useSessionScheduleScope';
+import { useSessionScheduleRoster } from '@/shared/hooks/useSessionScheduleRoster';
 
 const EMPTY_RECORDS: AttendanceListItem[] = [];
 
@@ -37,20 +39,23 @@ export default function SwipeAttendancePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const sid = Number(sessionId);
+  const schedule = useSessionScheduleScope();
+  const scopeRoster = useSessionScheduleRoster(sid, schedule);
   const validSession = Number.isSafeInteger(sid) && sid > 0;
   const runTrackedTask = useTrackedTask();
   const { confirmSecession, secessionDialog } = useSecessionConfirm();
 
   const { data: result, isLoading, isFetching, isError, error, refetch } = useQuery({
-    queryKey: teacherAttendanceQueryKeys.completeAttendance(sid),
-    queryFn: () => fetchAttendanceRoster(sid),
+    queryKey: teacherAttendanceQueryKeys.completeAttendanceScope(sid, schedule),
+    queryFn: () => fetchAttendanceRoster(sid, schedule),
     enabled: validSession,
   });
 
   const records = result ?? EMPTY_RECORDS;
-  const rosterReady = validSession && result !== undefined && !isError;
+  const rosterReady = validSession && result !== undefined && !isError && (schedule === undefined || (scopeRoster.isSuccess && !scopeRoster.isError));
 
   const [sheetRecord, setSheetRecord] = useState<AttendanceListItem | null>(null);
+  useEffect(() => { setSheetRecord(null); setUndoItem(null); }, [schedule]);
   const [undoItem, setUndoItem] = useState<{
     id: number;
     prev: string;
@@ -84,7 +89,7 @@ export default function SwipeAttendancePage() {
   const bulkMut = useMutation({
     mutationFn: () => runTrackedTask(
       "attendance.bulk-present",
-      () => bulkSetPresent(sid),
+      () => bulkSetPresent(sid, schedule),
     ),
     onSuccess: async (data) => {
       setUndoItem(null);
@@ -107,7 +112,7 @@ export default function SwipeAttendancePage() {
 
   const handleStatusChange = useCallback(
     async (attendanceId: number, status: string) => {
-      if (updateMut.isPending || bulkMut.isPending) return;
+      if (!rosterReady || updateMut.isPending || bulkMut.isPending) return;
       const prev = records.find((r) => r.id === attendanceId);
       if (!prev || (prev.status === status && status !== "SECESSION")) return;
       const scope = status === "SECESSION"
@@ -127,7 +132,7 @@ export default function SwipeAttendancePage() {
         },
       });
     },
-    [records, updateMut, bulkMut.isPending, confirmSecession],
+    [records, rosterReady, updateMut, bulkMut.isPending, confirmSecession],
   );
 
   const handleUndo = useCallback(async () => {
@@ -174,9 +179,12 @@ export default function SwipeAttendancePage() {
           disabled={!rosterReady || isFetching || !records.length || bulkMut.isPending || updateMut.isPending}
           className={styles.bulkButton}
         >
-          전체출석
+          {schedule === undefined ? '전체출석' : '수업일 전체출석'}
         </button>
       </div>
+      {schedule !== undefined && <div role={scopeRoster.isError ? 'alert' : 'status'}>
+        {scopeRoster.isError ? <><p>선택한 수업일을 확인하지 못했습니다.</p><EmptyActionButton onClick={() => void scopeRoster.refetch()}>수업일 다시 불러오기</EmptyActionButton></> : scopeRoster.data ? <p>{scopeRoster.data.label}</p> : <p>수업일 확인 중…</p>}
+      </div>}
 
       {/* Summary bar */}
       {rosterReady && <div className={styles.summaryBar}>
@@ -209,9 +217,9 @@ export default function SwipeAttendancePage() {
       </div>
 
       {/* Cards */}
-      {isLoading ? (
+      {isLoading || (schedule !== undefined && scopeRoster.isPending) ? (
         <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
-      ) : !validSession || isError ? (
+      ) : schedule !== undefined && scopeRoster.isError ? null : !validSession || isError ? (
         <EmptyState
           scope="panel"
           tone="error"

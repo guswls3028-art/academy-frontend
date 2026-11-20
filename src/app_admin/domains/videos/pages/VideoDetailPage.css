@@ -103,6 +103,12 @@
   flex: 1 1 auto;
 }
 
+.video-detail-download-error {
+  color: var(--color-error);
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+}
+
 .video-detail-action,
 .video-detail-back-link {
   padding: 4px var(--space-2);

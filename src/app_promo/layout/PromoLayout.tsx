@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { SiInstagram } from "react-icons/si";
+import { hakwonplus } from "@/shared/tenant/tenants/hakwonplus";
 import { ICON } from "@/shared/ui/ds";
 import PhoneInquiryLink from "../domains/landing/components/PhoneInquiryLink";
 import { CONSULT_PHONE_DISPLAY, INSTAGRAM_HANDLE, INSTAGRAM_URL } from "../domains/landing/business";
@@ -36,7 +37,13 @@ const ACTIVE_ALIASES: Record<string, string[]> = {
   "/promo/contact": ["/promo/demo"],
 };
 
-const HAKWONPLUS_ICON = "/tenants/hakwonplus/favicon.png?v=20260727";
+function BrandLink() {
+  return (
+    <Link to="/promo" className={styles.brand} aria-label="학원플러스 프로모션 홈">
+      <img src={hakwonplus.branding.logoUrl} alt="" width={142} height={31} />
+    </Link>
+  );
+}
 
 function isActive(pathname: string, path: string) {
   if (path === "/promo") return pathname === "/promo";
@@ -124,15 +131,7 @@ function Header() {
             {mobileOpen ? <X size={ICON.lg} /> : <Menu size={ICON.lg} />}
           </button>
 
-          <Link to="/promo" className={styles.brand} aria-label="학원플러스 프로모션 홈">
-            <span className={styles.brandMark} aria-hidden="true">
-              <img src={HAKWONPLUS_ICON} alt="" width={64} height={64} />
-            </span>
-            <span className={styles.brandText}>
-              <strong>학원플러스</strong>
-              <small>학원 운영 플랫폼</small>
-            </span>
-          </Link>
+          <BrandLink />
 
           <div className={styles.desktopNavWrap}>
             <nav className={styles.desktopNav} aria-label="프로모션 메뉴">
@@ -199,15 +198,7 @@ function Header() {
         aria-hidden={!mobileOpen}
       >
         <div className={styles.sidebarHead}>
-          <Link to="/promo" className={styles.brand} aria-label="학원플러스 프로모션 홈">
-            <span className={styles.brandMark} aria-hidden="true">
-              <img src={HAKWONPLUS_ICON} alt="" width={64} height={64} />
-            </span>
-            <span className={styles.brandText}>
-              <strong>학원플러스</strong>
-              <small>학원 운영 플랫폼</small>
-            </span>
-          </Link>
+          <BrandLink />
           <button ref={closeButtonRef} type="button" onClick={() => setMobileOpen(false)} aria-label="메뉴 닫기">
             <X size={ICON.md} />
           </button>
@@ -320,16 +311,8 @@ function Footer() {
     <footer className={styles.footer}>
       <div className={styles.footerInner}>
         <div className={styles.footerBrand}>
-          <Link to="/promo" className={styles.brand}>
-            <span className={styles.brandMark} aria-hidden="true">
-              <img src={HAKWONPLUS_ICON} alt="" width={64} height={64} />
-            </span>
-            <span className={styles.brandText}>
-              <strong>학원플러스</strong>
-              <small>학원 운영 플랫폼</small>
-            </span>
-          </Link>
-          <p>학생 관리, 수업 기록, 영상과 알림톡.</p>
+          <BrandLink />
+          <p>학원 운영을 위한 하나의 플랫폼.</p>
           <PhoneInquiryLink className={styles.footerPhone}>
             전화 상담 {CONSULT_PHONE_DISPLAY}
           </PhoneInquiryLink>

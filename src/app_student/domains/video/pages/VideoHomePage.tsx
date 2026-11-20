@@ -3,14 +3,14 @@
  * 홈: 강의 코스 그리드
  * 통계: 시청 분석 (완료율, 시청시간, 강좌별 진도)
  */
-import { useState, useEffect } from "react";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import DomainTabShell from "@student/shared/ui/pages/DomainTabShell";
 import { IconPlay } from "@student/shared/ui/icons/Icons";
 import { fetchVideoMe } from "../api/video.api";
 import VideoHomeTab from "../components/VideoHomeTab";
 import VideoStatsTab from "../components/VideoStatsTab";
-import { studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
+import { STUDENT_VIDEO_CATALOG_STALE_MS, studentVideoQueryKeys, studentVideoQueryScope } from "../queryKeys";
 import { useAuthContext } from "@/auth/context/AuthContext";
 
 const TABS = [
@@ -23,16 +23,10 @@ export default function VideoHomePage() {
   const { user } = useAuthContext();
   const queryScope = studentVideoQueryScope(user);
 
-  // Preload hls.js chunk for faster video playback start
-  useEffect(() => {
-    import("hls.js").catch(() => {});
-  }, []);
-
   const videoMeQ = useQuery({
     queryKey: studentVideoQueryKeys.me(queryScope),
     queryFn: fetchVideoMe,
-    staleTime: 60 * 1000,
-    placeholderData: keepPreviousData,
+    staleTime: STUDENT_VIDEO_CATALOG_STALE_MS,
   });
   const videoMe = videoMeQ.data;
   const isLoading = videoMeQ.isLoading;

@@ -4,6 +4,8 @@ import { apiCall } from "../helpers/api";
 import { loginViaUI } from "../helpers/auth";
 import { waitForRenderSettled } from "../helpers/wait";
 
+test.use({ screenshot: "off", trace: "off", video: "off" });
+
 const VISIBLE_DIALOG = "[role='dialog']:visible, .admin-modal-overlay:visible";
 
 type ListEnvelope<T> = T[] | { results?: T[]; items?: T[] };
@@ -102,11 +104,16 @@ async function openLectureFromList(page: Page, lecture: TargetLecture): Promise<
   // This same read-only journey also runs after promotion against the live bundle.
   for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: 900 });
+    const grip = lectureRow.getByRole("button", { name: `${lecture.title} 순서 이동`, exact: true });
+    await expect(grip).toBeVisible();
+    await expect(grip).toHaveCSS("width", "40px");
+    await expect(grip).toHaveCSS("border-top-width", "0px");
     const settings = lectureRow.getByRole("button", { name: `${lecture.title} 설정`, exact: true });
     await settings.scrollIntoViewIfNeeded();
     await settings.click();
     const menu = page.getByRole("menu");
     await expect(menu.getByRole("menuitem", { name: "강의 수정", exact: true })).toBeVisible();
+    await expect(menu.getByRole("menuitem", { name: "강의 삭제", exact: true })).toBeVisible();
     const bounds = await menu.evaluate((element) => ({ left: element.getBoundingClientRect().left, right: element.getBoundingClientRect().right }));
     expect(bounds.left).toBeGreaterThanOrEqual(0);
     expect(bounds.right).toBeLessThanOrEqual(width + 1);
@@ -132,6 +139,30 @@ async function openFirstSessionFromLecture(page: Page): Promise<void> {
   });
   await waitForRenderSettled(page, { timeout: 15_000 });
   await expect(page.getByText("Not Found", { exact: true })).toHaveCount(0);
+}
+
+async function exerciseAttendanceTools(page: Page): Promise<void> {
+  const viewport = page.viewportSize();
+  const url = page.url();
+  const trigger = page.getByRole("button", { name: "출결 도구", exact: true });
+  const dialog = page.getByRole("dialog", { name: "출결 도구", exact: true });
+  const close = dialog.getByRole("button", { name: "대화상자 종료" });
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await trigger.click();
+    await expect(dialog.getByRole("heading", { name: "출결 도구", exact: true })).toBeInViewport();
+    await expect(close).toBeInViewport();
+    await expect(dialog.getByRole("button", { name: "엑셀 다운로드", exact: true })).toBeVisible();
+    await expect(page).toHaveURL(url);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
+    const path = test.info().outputPath(`attendance-tools-${width}.png`);
+    await dialog.screenshot({ path, animations: "disabled" });
+    await test.info().attach(`attendance-tools-${width}`, { path, contentType: "image/png" });
+    await close.click();
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
+  }
+  if (viewport) await page.setViewportSize(viewport);
 }
 
 async function assertCoreSessionTabs(page: Page): Promise<void> {
@@ -215,6 +246,46 @@ async function exerciseScoresMoreMenu(page: Page): Promise<void> {
   await expect(menu).toBeHidden({ timeout: 5_000 });
 }
 
+async function inspectIndividualScoreReport(page: Page): Promise<void> {
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    const tools = page.getByRole("button", { name: "성적 도구" });
+    await tools.click();
+    const entry = page.getByRole("menuitem", { name: /^개인 성적표/ });
+    await expect(entry).toBeVisible();
+    if (await entry.isDisabled()) {
+      await tools.click();
+      console.log(JSON.stringify({ individualScoreReport: "entry-unavailable", width }));
+      continue;
+    }
+
+    await entry.click();
+    const report = page.locator(".student-score-report-modal");
+    await expect(report).toBeVisible();
+    let view = "loading";
+    await expect.poll(async () => {
+      view = await report.evaluate((dialog) => {
+        const frame = dialog.querySelector<HTMLIFrameElement>(".student-score-report-preview__iframe");
+        if (frame?.contentDocument?.querySelector(".student-report-page")) return "preview";
+        if (dialog.querySelector(".student-score-report-preview__empty")) return "empty";
+        return "loading";
+      });
+      return view;
+    }).not.toBe("loading");
+    await expect(report.locator(".student-score-report-modal__title")).toBeInViewport({ ratio: 1 });
+    await expect(report.getByRole("button", { name: "개인 성적표 PDF 다운로드", exact: true }))
+      .toBeInViewport({ ratio: 1 });
+    if (view === "preview") {
+      const preview = report.getByRole("region", { name: "성적표 미리보기" });
+      await expect.poll(() => preview.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    }
+    console.log(JSON.stringify({ individualScoreReport: view, width }));
+    await report.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(report).toBeHidden();
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+}
+
 async function openScoresToolAssessmentModal(page: Page, kind: "시험" | "과제"): Promise<void> {
   await openCreateAssessmentModal(page, page.getByRole("button", { name: `${kind} 추가`, exact: true }).first(), kind);
 }
@@ -265,6 +336,7 @@ test.describe("admin real-use session assessment flow", () => {
 
     await openLectureFromList(page, targetLecture);
     await openFirstSessionFromLecture(page);
+    await exerciseAttendanceTools(page);
     await assertCoreSessionTabs(page);
 
     await clickSessionTab(page, "성적", "scores");
@@ -273,6 +345,7 @@ test.describe("admin real-use session assessment flow", () => {
     });
     await expect(assessmentRemote(page), "성적 탭은 시험/과제 리모컨을 렌더하지 않는다").toHaveCount(0);
     await exerciseScoresMoreMenu(page);
+    await inspectIndividualScoreReport(page);
     await exerciseOmrIfAvailable(page);
     await openScoresToolAssessmentModal(page, "시험");
     await openScoresToolAssessmentModal(page, "과제");

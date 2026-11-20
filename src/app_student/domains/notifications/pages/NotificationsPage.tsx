@@ -20,6 +20,10 @@ import { IconChevronRight, IconClinic, IconNotice } from "@student/shared/ui/ico
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
+import useAuth from "@/auth/hooks/useAuth";
+import { isStudentSupportWindow } from "@/shared/auth/supportPreviewSession";
+import { schoolReportPeriodLabel, studentSchoolReportLink } from "@/shared/product/schoolReports/period";
+import { fetchSchoolReportNotifications, markSchoolReportNotificationRead, schoolReportNotificationsKey } from "../api/schoolReportNotifications";
 import styles from "./NotificationsPage.module.css";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -31,6 +35,61 @@ function isRecent(timestamp: string | null | undefined, cutoffTime: number): boo
 }
 
 export default function NotificationsPage() {
+  return (
+    <StudentPageShell title="알림">
+      <SchoolReportRequests />
+      <ActivityNotifications />
+    </StudentPageShell>
+  );
+}
+
+function SchoolReportRequests() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const readOnly = isStudentSupportWindow();
+  const enabled = user?.tenantRole === "student" && !readOnly;
+  const requests = useQuery({
+    queryKey: schoolReportNotificationsKey,
+    queryFn: ({ signal }) => fetchSchoolReportNotifications(signal),
+    enabled,
+  });
+  if (!enabled || requests.isPending) return null;
+  if (requests.isError) {
+    return (
+      <div className={styles.schoolReportRequests}>
+        <p role="status">성적표 제출 요청을 불러오지 못했습니다.</p>
+        <button className="stu-btn stu-btn--secondary" type="button" onClick={() => void requests.refetch()}>
+          제출 요청 다시 불러오기
+        </button>
+      </div>
+    );
+  }
+  if (requests.data.length === 0) return null;
+  return (
+    <div className={styles.schoolReportRequests}>
+      <NotificationSection icon={<IconNotice className={styles.sectionIcon} />} title="성적표 제출 요청" count={requests.data.length}>
+        {requests.data.map(({ id, period, read }) => (
+          <NotificationLink
+            key={id}
+            to={studentSchoolReportLink(period)}
+            title={`${period.academic_year}학년도 ${schoolReportPeriodLabel(period)} 성적표 제출`}
+            meta={read ? "성적표 열기" : "새 요청 · 성적표 열기"}
+            onOpen={read ? undefined : () => {
+              void markSchoolReportNotificationRead(id).then(() => {
+                void qc.invalidateQueries({ queryKey: schoolReportNotificationsKey });
+                void qc.invalidateQueries({ queryKey: studentQueryKeys.communityUnread });
+              }).catch(() => {
+                void qc.invalidateQueries({ queryKey: schoolReportNotificationsKey });
+              });
+            }}
+          />
+        ))}
+      </NotificationSection>
+    </div>
+  );
+}
+
+function ActivityNotifications() {
   const qc = useQueryClient();
   const { isLoading: countsLoading, isError: countsError } = useNotificationCounts();
 
@@ -128,42 +187,37 @@ export default function NotificationsPage() {
 
   if (isLoading) {
     return (
-      <StudentPageShell title="알림">
-        <div className={styles.loadingStack}>
-          <div className={`stu-skel ${styles.skelTitle}`} />
-          <div className={`stu-skel ${styles.skelCard}`} />
-          <div className={`stu-skel ${styles.skelCard}`} />
-          <div className={`stu-skel ${styles.skelCard}`} />
-        </div>
-      </StudentPageShell>
+      <div className={styles.loadingStack}>
+        <div className={`stu-skel ${styles.skelTitle}`} />
+        <div className={`stu-skel ${styles.skelCard}`} />
+        <div className={`stu-skel ${styles.skelCard}`} />
+        <div className={`stu-skel ${styles.skelCard}`} />
+      </div>
     );
   }
 
   if (isError) {
     return (
-      <StudentPageShell title="알림">
-        <EmptyState
-          title="알림을 불러오지 못했습니다"
-          description="네트워크 연결을 확인하고 잠시 후 다시 시도해 주세요."
-          onRetry={() => {
-            qc.invalidateQueries({ queryKey: studentQueryKeys.clinicBookings });
-            qc.invalidateQueries({ queryKey: studentQueryKeys.qnaQuestions });
-            qc.invalidateQueries({ queryKey: studentQueryKeys.counselRequests });
-            qc.invalidateQueries({ queryKey: studentQueryKeys.me });
-            qc.invalidateQueries({ queryKey: studentQueryKeys.gradesSummary });
-            qc.invalidateQueries({ queryKey: studentQueryKeys.notificationCounts });
-          }}
-        />
-      </StudentPageShell>
+      <EmptyState
+        title="알림을 불러오지 못했습니다"
+        description="네트워크 연결을 확인하고 잠시 후 다시 시도해 주세요."
+        onRetry={() => {
+          qc.invalidateQueries({ queryKey: studentQueryKeys.clinicBookings });
+          qc.invalidateQueries({ queryKey: studentQueryKeys.qnaQuestions });
+          qc.invalidateQueries({ queryKey: studentQueryKeys.counselRequests });
+          qc.invalidateQueries({ queryKey: studentQueryKeys.me });
+          qc.invalidateQueries({ queryKey: studentQueryKeys.gradesSummary });
+          qc.invalidateQueries({ queryKey: studentQueryKeys.notificationCounts });
+        }}
+      />
     );
   }
 
   return (
-    <StudentPageShell title="알림">
+    <>
       {!hasNotifications ? (
         <EmptyState
-          title="알림이 없습니다"
-          description="새로운 알림이 오면 여기에 표시됩니다."
+          title="최근 학습 알림이 없습니다"
         />
       ) : (
         <div className={styles.stack}>
@@ -237,7 +291,7 @@ export default function NotificationsPage() {
           )}
         </div>
       )}
-    </StudentPageShell>
+    </>
   );
 }
 
@@ -269,16 +323,19 @@ function NotificationLink({
   state,
   title,
   meta,
+  onOpen,
 }: {
   to: string;
   state?: unknown;
   title: string;
   meta: ReactNode;
+  onOpen?: () => void;
 }) {
   return (
     <Link
       to={to}
       state={state}
+      onClick={onOpen}
       className={`stu-panel stu-panel--pressable ${styles.card}`}
     >
       <div className={styles.cardText}>

@@ -5,6 +5,7 @@
  */
 
 import api, { releaseEmptyScoreDraftOnPageExit } from "@/shared/api/axios";
+import type { HomeworkMetaStatus } from "@/shared/scoring/homeworkStatus";
 import {
   scoreEditorRequestHeaders,
   resolvedScoreEditorClientId,
@@ -27,7 +28,7 @@ export type PendingChange =
       enrollmentId: number;
       homeworkId: number;
       score: number | null;
-      metaStatus?: "NOT_SUBMITTED";
+      metaStatus?: NonNullable<HomeworkMetaStatus>;
       expectedUpdatedAt?: string | null;
     };
 
@@ -36,6 +37,11 @@ export type ScoreActiveCell = { enrollmentId: number } & (
   | { type: "exam"; examId: number; sub: "total" | "objective" | "subjective"; questionId?: undefined }
   | { type: "exam"; examId: number; sub: "item"; questionId: number }
 );
+
+export function activeScoreCellKey(cell: ScoreActiveCell): string {
+  if (cell.type === "homework") return `homework:${cell.enrollmentId}:${cell.homeworkId}`;
+  return `exam:${cell.enrollmentId}:${cell.examId}:${cell.sub}:${cell.sub === "item" ? cell.questionId : ""}`;
+}
 
 export type ScoreActiveEditor = {
   client_id: string;

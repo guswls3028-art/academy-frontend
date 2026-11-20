@@ -7,14 +7,15 @@
  * - 프론트는 계산/판정 금지 → 서버 결과만 신뢰
  *
  * ✅ 확장(최소):
- * - meta_status: "NOT_SUBMITTED" | null (미제출 저장/해제)
+ * - meta_status: "NOT_SUBMITTED" | "VIDEO_MAKEUP" | null
  * - score: number | null (미입력/미제출을 위해 null 허용)
  */
 
 import api from "@/shared/api/axios";
+import { parseHomeworkMetaStatus, type HomeworkMetaStatus as SharedHomeworkMetaStatus } from "@/shared/scoring/homeworkStatus";
 import { scoreEditorRequestHeaders } from "./scoreDraft";
 
-export type HomeworkMetaStatus = "NOT_SUBMITTED";
+export type HomeworkMetaStatus = NonNullable<SharedHomeworkMetaStatus>;
 
 export type HomeworkScoreCellValue = {
   score: number | null;
@@ -35,6 +36,10 @@ type HomeworkQuickPatchResult = {
   meta?: { status?: HomeworkMetaStatus | null } | null;
   updated_at: string;
 };
+
+export type SaveDrawerHomeworkScore = (
+  change: Omit<Parameters<typeof patchHomeworkQuick>[0], "sessionId">,
+) => Promise<void>;
 
 export async function patchHomeworkQuick(params: {
   sessionId: number;
@@ -57,7 +62,7 @@ export async function patchHomeworkQuick(params: {
       enrollment_id: params.enrollmentId,
       homework_id: params.homeworkId,
       score: params.score,
-      max_score: params.maxScore ?? null,
+      max_score: params.metaStatus === "VIDEO_MAKEUP" ? null : params.maxScore ?? null,
       meta_status: params.metaStatus ?? null,
       expected_updated_at: params.expectedUpdatedAt,
     },
@@ -91,7 +96,7 @@ export function getHomeworkScoreCellConflict(error: unknown): HomeworkScoreCellC
     serverValue: {
       score: typeof value.score === "number" ? value.score : null,
       max_score: typeof value.max_score === "number" ? value.max_score : null,
-      meta_status: value.meta_status === "NOT_SUBMITTED" ? "NOT_SUBMITTED" : null,
+      meta_status: parseHomeworkMetaStatus(value.meta_status),
       updated_at: typeof value.updated_at === "string" ? value.updated_at : null,
     },
   };

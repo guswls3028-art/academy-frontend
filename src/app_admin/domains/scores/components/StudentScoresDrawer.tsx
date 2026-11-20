@@ -32,12 +32,10 @@ import { fetchAdminExamResultDetail } from "@admin/domains/results/api/adminExam
 import { fetchAttemptHistory, type AttemptHistoryResponse } from "../api/attemptHistory";
 import { submitClinicRetake, updateClinicRetake } from "@admin/domains/clinic/api/clinicLinks.api";
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
-import {
-  getHomeworkScoreCellConflict,
-  patchHomeworkQuick,
-  type HomeworkScoreCellValue,
-} from "../api/patchHomeworkQuick";
-import { buildScoreVars, buildScoreDetail, substituteScoreVars, collectUnenteredScoreItems } from "@/shared/scoring/scoreReport";
+import type { SaveDrawerHomeworkScore } from "../api/patchHomeworkQuick";
+import HomeworkScoreEditor from "./HomeworkScoreEditor";
+import { buildScoreVars, buildScoreDetail, collectHighestScores, substituteScoreVars, collectUnenteredScoreItems, usesVideoHomeworkLabelInScoreAlimtalk } from "@/shared/scoring/scoreReport";
+import { useProgram } from "@/shared/program";
 import {
   getSessionRowAttentionCountLabel,
   getSessionRowAttentionSummary,
@@ -46,13 +44,13 @@ import {
   type SessionRowAttentionSummary,
   type SessionScoresTableVerdictKind,
 } from "../utils/sessionScoreRowVerdict";
-import { fetchMessageTemplates } from "@admin/domains/messages/api/messages.api";
 import { useSendMessageModal } from "@admin/domains/messages/context/SendMessageModalContext";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { scoresQueryKeys } from "../api/queryKeys";
 import CloseButton from "@/shared/ui/ds/CloseButton";
 import { Badge, Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
+import { InlineHelp } from "@/shared/ui/guide";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
@@ -76,6 +74,8 @@ type Props = {
   isEditMode?: boolean;
   hasUnsavedChanges?: boolean;
   hasPendingScoreChanges?: boolean;
+  homeworkEdit?: boolean;
+  onSaveDrawerHomeworkScore?: SaveDrawerHomeworkScore;
   onClose: () => void;
   /** 답안 상세 드로어 열기 — 기존 StudentResultDrawer 연계 */
   onOpenAnswerDetail?: (examId: number, enrollmentId: number, examTitle: string) => void;
@@ -105,11 +105,17 @@ function pctNum(score: number | null | undefined, max: number | null | undefined
   return Math.round((score / max) * 100);
 }
 
-export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode = false, hasUnsavedChanges = false, hasPendingScoreChanges = hasUnsavedChanges, onClose, onOpenAnswerDetail }: Props) {
+export default function StudentScoresDrawer({
+  row, meta, sessionId, isEditMode = false, hasUnsavedChanges = false,
+  hasPendingScoreChanges = hasUnsavedChanges, homeworkEdit = false,
+  onSaveDrawerHomeworkScore, onClose, onOpenAnswerDetail,
+}: Props) {
   const [expandedExamId, setExpandedExamId] = useState<number | null>(null);
   const [expandedHwId, setExpandedHwId] = useState<number | null>(null);
   const { openSendMessageModal } = useSendMessageModal();
   const labels = useTenantLabels();
+  const { program } = useProgram();
+  const showVideoHomeworkLabel = usesVideoHomeworkLabelInScoreAlimtalk(program?.tenantCode);
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const qc = useQueryClient();
   // SSOT: 일괄 발송 path(SessionScoresEntryPage)와 동일하게 React Query cache에서 lecture/session 메타 조회.
@@ -137,6 +143,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
   const verdict = getSessionScoresTableVerdict(row);
   const attentionCount = attentionSummary.missingTitles.length
     + attentionSummary.reviewTitles.length
+    + attentionSummary.inspectionTitles.length
     + attentionSummary.failedTitles.length;
   const scoreSendDisabled = hasUnsavedChanges || row.student_id == null;
   const scoreSendTitle = hasUnsavedChanges
@@ -214,6 +221,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     }
     let currentRow = row;
     let currentMeta = meta;
+    let highestScores: ReturnType<typeof collectHighestScores> | undefined;
     if (sessionId != null && Number.isFinite(sessionId)) {
       try {
         const freshScores = await qc.fetchQuery({
@@ -229,6 +237,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
         }
         currentRow = refreshedRow;
         currentMeta = freshScores.meta ?? meta;
+        highestScores = collectHighestScores(freshScores);
       } catch {
         feedback.error("최신 성적을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
         return;
@@ -257,26 +266,10 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
     const lectureName = currentMeta?.lecture_title ?? lecture?.title ?? lecture?.name ?? (currentRow as any).lecture_title ?? "";
     const sessionTitle = currentMeta?.session_title ?? session?.title ?? (currentRow as any).session_title ?? "";
     // Phase #5 (2026-05-12) — 학원장 커스텀 합/불 라벨 메시지 본문에 반영.
-    const reportOptions = { lectureName, sessionTitle, passLabel: labels.pass, failLabel: labels.fail };
+    const reportOptions = { lectureName, sessionTitle, passLabel: labels.pass, failLabel: labels.fail, highestScores, showVideoHomeworkLabel };
 
     // 명시적으로 기본 지정한 사용자 문구가 없으면 빈 본문에서 작성한다.
-    let body: string;
-    let initialTemplateId: number | null = null;
-    let initialTemplateUpdatedAt: string | undefined;
-    try {
-      const templates = await fetchMessageTemplates("grades");
-      const chosenTpl = templates.find((t) => t.is_user_default && !t.is_system);
-      body = chosenTpl
-        ? chosenTpl.body
-        : "";
-      initialTemplateId = chosenTpl?.id ?? null;
-      initialTemplateUpdatedAt = chosenTpl?.updated_at;
-    } catch {
-      feedback.error("성적표 문구를 불러오지 못했습니다. 다시 시도해 주세요.");
-      return;
-    }
-
-    const scoreDetail = buildScoreDetail(currentRow, currentMeta, { passLabel: labels.pass, failLabel: labels.fail });
+    const scoreDetail = buildScoreDetail(currentRow, currentMeta, reportOptions);
     // SSOT (2026-05-14): 단건 path 도 학원장이 textarea 본문에 #{학생이름}/#{시험성적} 다시 쓰면
     // raw 변수 잔존 가능. substituteScoreVars 가 학생이름2/학생이름3/시험성적 까지 처리하니 callback 통과.
     const sid = currentRow.student_id;
@@ -294,9 +287,6 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
       studentIds: sid != null ? [sid] : [],
       recipientLabel: `${currentRow.student_name} 성적 발송`,
       blockCategory: "grades",
-      initialBody: body,
-      initialTemplateId,
-      initialTemplateUpdatedAt,
       alimtalkExtraVars: {
         강의명: lectureName,
         차시명: sessionTitle,
@@ -305,7 +295,7 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
       },
       recomputePerStudentVars,
     });
-  }, [hasUnsavedChanges, row, meta, openSendMessageModal, labels.pass, labels.fail, qc, numericLectureId, sessionId, onClose]);
+  }, [hasUnsavedChanges, row, meta, openSendMessageModal, labels.pass, labels.fail, showVideoHomeworkLabel, qc, numericLectureId, sessionId, onClose]);
 
   return (
     <div className="student-scores-drawer-side-panel">
@@ -437,6 +427,14 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
                     </span>
                   </div>
                 )}
+                {attentionSummary.inspectionTitles.length > 0 && (
+                  <div className="student-scores-drawer__summary-row">
+                    <span className="student-scores-drawer__summary-label">검사 대기</span>
+                    <span className="student-scores-drawer__summary-value">
+                      {attentionSummary.inspectionTitles.join(", ")}
+                    </span>
+                  </div>
+                )}
                 {attentionSummary.missingTitles.length > 0 && (
                   <div className="student-scores-drawer__summary-row" data-tone="missing">
                     <span className="student-scores-drawer__summary-label">미입력</span>
@@ -509,6 +507,8 @@ export default function StudentScoresDrawer({ row, meta, sessionId, isEditMode =
                     sessionId={sessionId}
                     isEditMode={isEditMode}
                     hasPendingScoreChanges={hasPendingScoreChanges}
+                    homeworkEdit={homeworkEdit}
+                    onSaveScore={onSaveDrawerHomeworkScore}
                     expanded={expandedHwId === hw.homework_id}
                     onToggle={() => setExpandedHwId((prev) => (prev === hw.homework_id ? null : hw.homework_id))}
                   />
@@ -609,35 +609,39 @@ function ExamResultCard({
             </span>
           </div>
         </div>
-        <div className="student-scores-drawer__exam-quick-actions">
-          <CorrectionStatusControl
-            block={exam.block}
-            enrollmentId={enrollmentId}
-            sourceType="exam"
-            sourceId={exam.exam_id}
-            sessionId={sessionId}
-            disabled={hasPendingScoreChanges}
-            compact
-          />
-          {canStartRetake && (
-            <button
-              type="button"
-              className="student-scores-drawer__quick-retake"
-              aria-disabled={hasUnsavedChanges}
-              title={hasUnsavedChanges ? "점수 초안을 먼저 저장한 뒤 재시험을 추가해 주세요." : "같은 원시험에 다음 재시험 점수를 기록합니다."}
-              onClick={() => {
-                if (hasUnsavedChanges) {
-                  feedback.info("점수 초안을 먼저 저장한 뒤 재시험을 추가해 주세요.");
-                  return;
-                }
-                setRetakeRequested(true);
-                if (!expanded) onToggle();
-              }}
-            >
-              재시험 기록 추가
-            </button>
-          )}
-        </div>
+        {(!expanded || canStartRetake) && (
+          <div className="student-scores-drawer__exam-quick-actions">
+            {!expanded && (
+              <CorrectionStatusControl
+                block={exam.block}
+                enrollmentId={enrollmentId}
+                sourceType="exam"
+                sourceId={exam.exam_id}
+                sessionId={sessionId}
+                disabled={hasPendingScoreChanges}
+                compact
+              />
+            )}
+            {canStartRetake && (
+              <button
+                type="button"
+                className="student-scores-drawer__quick-retake"
+                aria-disabled={hasUnsavedChanges}
+                title={hasUnsavedChanges ? "점수 초안을 먼저 저장한 뒤 재시험을 추가해 주세요." : "같은 원시험에 다음 재시험 점수를 기록합니다."}
+                onClick={() => {
+                  if (hasUnsavedChanges) {
+                    feedback.info("점수 초안을 먼저 저장한 뒤 재시험을 추가해 주세요.");
+                    return;
+                  }
+                  setRetakeRequested(true);
+                  if (!expanded) onToggle();
+                }}
+              >
+                재시험 기록 추가
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {expanded && (
@@ -812,6 +816,8 @@ function HomeworkResultCard({
   sessionId,
   isEditMode,
   hasPendingScoreChanges,
+  homeworkEdit,
+  onSaveScore,
   expanded,
   onToggle,
 }: {
@@ -821,11 +827,14 @@ function HomeworkResultCard({
   sessionId?: number;
   isEditMode: boolean;
   hasPendingScoreChanges: boolean;
+  homeworkEdit: boolean;
+  onSaveScore?: SaveDrawerHomeworkScore;
   expanded: boolean;
   onToggle: () => void;
 }) {
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
+  const completion = metaHw?.grading_mode === "COMPLETION";
   const hwMaxScore = hw.block.max_score ?? metaHw?.max_score ?? null;
   const percent = pctNum(hw.block.score, hwMaxScore);
 
@@ -836,19 +845,23 @@ function HomeworkResultCard({
           <span className="student-scores-drawer__hw-title">{hw.title}</span>
           <span className="student-scores-drawer__status-badges">
             <CorrectionStatusBadge block={hw.block} sourceType="homework" />
-            {!wrongCompletionOnly && hw.block.score != null && <PassBadge block={hw.block} />}
+            {!completion && !wrongCompletionOnly && hw.block.score != null && <PassBadge block={hw.block} />}
           </span>
         </div>
         <div className="student-scores-drawer__hw-score-row">
           {hw.block.score != null ? (
             <span className="student-scores-drawer__hw-score-val" data-tone={hw.block.passed === true ? "success" : hw.block.passed === false ? "danger" : undefined}>
-              {hw.block.score}
-              {hwMaxScore != null && <span className="student-scores-drawer__max-score"> / {hwMaxScore}</span>}
-              {percent != null && <PercentBadge value={percent} passed={hw.block.passed} />}
+              {completion ? (hw.block.score >= 1 ? "완료" : "미완료") : (
+                <>
+                  {hw.block.score}
+                  {hwMaxScore != null && <span className="student-scores-drawer__max-score"> / {hwMaxScore}</span>}
+                  {percent != null && <PercentBadge value={percent} passed={hw.block.passed} />}
+                </>
+              )}
             </span>
           ) : (
             <span className="student-scores-drawer__no-score">
-              {hw.block.meta?.status === "NOT_SUBMITTED" ? "미제출" : "점수 미입력"}
+              {hw.block.meta?.status === "VIDEO_MAKEUP" ? "영상 보강" : hw.block.meta?.status === "NOT_SUBMITTED" ? "미제출" : "점수 미입력"}
             </span>
           )}
           <span className={`student-scores-drawer__expand-icon ${expanded ? "is-expanded" : ""}`} aria-hidden>
@@ -861,6 +874,22 @@ function HomeworkResultCard({
 
       {expanded && (
         <>
+          {onSaveScore && (
+            <HomeworkScoreEditor
+              homework={hw}
+              enrollmentId={enrollmentId}
+              maxScore={metaHw?.max_score ?? hwMaxScore}
+              completion={completion}
+              blockedReason={hw.block.is_locked
+                ? "이 과제 점수는 잠겨 있어 변경할 수 없습니다."
+                : !homeworkEdit
+                  ? "성적표에서 과제 입력 옵션을 켜 주세요."
+                  : hasPendingScoreChanges
+                    ? "진행 중인 저장이나 복구를 마친 뒤 다시 시도해 주세요."
+                    : undefined}
+              onSave={onSaveScore}
+            />
+          )}
           <CorrectionStatusControl
             block={hw.block}
             enrollmentId={enrollmentId}
@@ -875,7 +904,6 @@ function HomeworkResultCard({
             sourceId={hw.homework_id}
             sessionId={sessionId}
             isEditMode={isEditMode}
-            homeworkUpdatedAt={hw.block.updated_at ?? null}
           />
         </>
       )}
@@ -892,18 +920,6 @@ function parseOptionalPositiveNumber(value: string): number | null | false {
   return parsed;
 }
 
-type HomeworkFirstEditSnapshot = {
-  sourceId: number;
-  enrollmentId: number;
-  attemptIndex: 1;
-  expectedUpdatedAt: string | null;
-};
-
-function homeworkConflictValueLabel(value: HomeworkScoreCellValue): string {
-  if (value.meta_status === "NOT_SUBMITTED") return "미제출";
-  return value.score == null ? "미입력" : String(value.score);
-}
-
 function AttemptTimeline({
   enrollmentId,
   sourceType,
@@ -911,7 +927,6 @@ function AttemptTimeline({
   sessionId,
   isEditMode,
   onOpenDetail,
-  homeworkUpdatedAt,
   startNewAttempt = false,
   onStartNewAttemptHandled,
 }: {
@@ -921,7 +936,6 @@ function AttemptTimeline({
   sessionId?: number;
   isEditMode: boolean;
   onOpenDetail?: () => void;
-  homeworkUpdatedAt?: string | null;
   startNewAttempt?: boolean;
   onStartNewAttemptHandled?: () => void;
 }) {
@@ -934,15 +948,11 @@ function AttemptTimeline({
   const [editingAttempt, setEditingAttempt] = useState<number | null>(null);
   const [editScore, setEditScore] = useState("");
   const [editPassScore, setEditPassScore] = useState("");
-  const [homeworkFirstEditSnapshot, setHomeworkFirstEditSnapshot] = useState<HomeworkFirstEditSnapshot | null>(null);
-  const [homeworkFirstEditConflict, setHomeworkFirstEditConflict] = useState<HomeworkScoreCellValue | null>(null);
 
   const resetAttemptEditing = useCallback(() => {
     setEditingAttempt(null);
     setEditScore("");
     setEditPassScore("");
-    setHomeworkFirstEditSnapshot(null);
-    setHomeworkFirstEditConflict(null);
   }, []);
 
   const isExam = sourceType === "exam";
@@ -1011,30 +1021,18 @@ function AttemptTimeline({
     onError: () => feedback.error("점수 수정에 실패했습니다."),
   });
 
-  // 1차 수정 mutation (기존 성적 PATCH API — progress pipeline 트리거)
+  // First exam score. First homework scores are edited above the history.
   const editFirstMutation = useMutation({
-    mutationFn: async (params: { score: number; maxScore?: number; expectedUpdatedAt?: string | null }) => {
-      if (isExam) {
-        if (!sessionId) throw new Error("sessionId가 필요합니다.");
-        return patchExamTotalScoreQuick({
-          sessionId,
-          examId: sourceId,
-          enrollmentId,
-          score: params.score,
-          maxScore: params.maxScore,
-          attemptIndex: 1,
-        });
-      } else {
-        if (!sessionId) throw new Error("sessionId가 필요합니다.");
-        return patchHomeworkQuick({
-          sessionId,
-          enrollmentId,
-          homeworkId: sourceId,
-          score: params.score,
-          maxScore: params.maxScore,
-          expectedUpdatedAt: params.expectedUpdatedAt ?? null,
-        });
-      }
+    mutationFn: async (params: { score: number; maxScore?: number }) => {
+      if (!sessionId) throw new Error("sessionId가 필요합니다.");
+      return patchExamTotalScoreQuick({
+        sessionId,
+        examId: sourceId,
+        enrollmentId,
+        score: params.score,
+        maxScore: params.maxScore,
+        attemptIndex: 1,
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: scoresQueryKeys.attemptHistory(sourceType, sourceId, enrollmentId) });
@@ -1043,18 +1041,7 @@ function AttemptTimeline({
       resetAttemptEditing();
       feedback.success("1차 점수가 수정되었습니다.");
     },
-    onError: (error) => {
-      const conflict = getHomeworkScoreCellConflict(error);
-      if (conflict) {
-        setHomeworkFirstEditConflict(conflict.serverValue);
-        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
-        feedback.warning(
-          `다른 화면이 먼저 저장했습니다. 최신 서버값 ${homeworkConflictValueLabel(conflict.serverValue)}, 내 입력 ${editScore}을 유지했습니다. 확인 후 내 점수 다시 적용을 눌러 주세요.`,
-        );
-        return;
-      }
-      feedback.error("점수 수정에 실패했습니다.");
-    },
+    onError: () => feedback.error("점수 수정에 실패했습니다."),
   });
 
   function handleEditSubmit(attemptIndex: number) {
@@ -1085,27 +1072,12 @@ function AttemptTimeline({
       return;
     }
 
-    if (attemptIndex === 1) {
-      // 1차: 기존 성적 PATCH API (Result + ExamAttempt 동기화 + progress pipeline)
-      let expectedUpdatedAt: string | null | undefined;
-      if (!isExam) {
-        const snapshot = homeworkFirstEditSnapshot;
-        if (
-          snapshot == null
-          || snapshot.sourceId !== sourceId
-          || snapshot.enrollmentId !== enrollmentId
-        ) {
-          feedback.error("과제 점수의 편집 시작 버전을 확인할 수 없습니다. 편집을 다시 열어 주세요.");
-          return;
-        }
-        expectedUpdatedAt = snapshot.expectedUpdatedAt;
-      }
+    if (attemptIndex === 1 && isExam) {
       editFirstMutation.mutate({
         score: val,
         maxScore: data?.max_score ?? undefined,
-        expectedUpdatedAt,
       });
-    } else {
+    } else if (attemptIndex >= 2) {
       // 2차+: update-retake API
       if (!data?.clinic_link_id) return;
       updateMutation.mutate({
@@ -1177,7 +1149,7 @@ function AttemptTimeline({
           {/* ── 차수별 카드 블록 ── */}
           {(data.attempts ?? []).map((a) => {
             const isEditing = editingAttempt === a.attempt_index;
-            const canEdit = isEditMode && (a.attempt_index === 1 || (a.attempt_index >= 2 && data.clinic_link_id != null));
+            const canEdit = isEditMode && (a.attempt_index === 1 ? isExam : data.clinic_link_id != null);
             const isMutating = editFirstMutation.isPending || updateMutation.isPending || retakeMutation.isPending;
             const attemptMax = isExam && a.attempt_index === 1
               ? data.max_score
@@ -1204,13 +1176,6 @@ function AttemptTimeline({
                           setEditingAttempt(a.attempt_index);
                           setEditScore(a.score != null ? String(a.score) : "");
                           setEditPassScore(a.attempt_index >= 2 && attemptPassScore != null ? String(attemptPassScore) : "");
-                          setHomeworkFirstEditConflict(null);
-                          setHomeworkFirstEditSnapshot(!isExam && a.attempt_index === 1 ? {
-                            sourceId,
-                            enrollmentId,
-                            attemptIndex: 1,
-                            expectedUpdatedAt: homeworkUpdatedAt ?? null,
-                          } : null);
                         }}
                         title="점수 수정"
                       >
@@ -1286,25 +1251,6 @@ function AttemptTimeline({
                     >
                       취소
                     </button>
-                    {!isExam && a.attempt_index === 1 && homeworkFirstEditConflict && (
-                      <div className="ssd-attempt-card__conflict" role="alert">
-                        <span>
-                          최신 서버값 {homeworkConflictValueLabel(homeworkFirstEditConflict)} · 내 입력 {editScore || "미입력"}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setHomeworkFirstEditSnapshot((current) => current ? {
-                              ...current,
-                              expectedUpdatedAt: homeworkFirstEditConflict.updated_at,
-                            } : current);
-                            setHomeworkFirstEditConflict(null);
-                          }}
-                        >
-                          내 점수 다시 적용
-                        </button>
-                      </div>
-                    )}
                   </div>
                 ) : (
                   <div className="ssd-attempt-card__score-row">
@@ -1506,7 +1452,13 @@ function CorrectionStatusControl({
   const persistedNote = block.correction_note ?? "";
   const status = block.correction_status ?? null;
   const isHomework = sourceType === "homework";
-  const title = isHomework ? "교사 완료 판정" : wrongExamCompletionOnly ? "테스트 오답 확인" : "교사 최종 판정";
+  const title = isHomework ? "과제 완료 상태" : wrongExamCompletionOnly ? "시험 오답 확인" : "시험 통과 판정";
+  const helpTitle = isHomework ? "과제 완료 상태 기록" : wrongExamCompletionOnly ? "오답 확인 상태 기록" : "시험 통과 판정";
+  const helpDescription = isHomework
+    ? "완료 여부만 기록합니다. 완료 처리하면 학생의 확인 필요 목록에서 빠집니다. 과제 점수와 제출 기록은 바뀌지 않으며, 완료로 표시할 때는 2자 이상의 사유를 남겨 주세요."
+    : wrongExamCompletionOnly
+      ? "오답 확인 여부만 기록합니다. 시험 점수는 바뀌지 않습니다. 완료 처리 전에 확인 근거를 2자 이상 남겨 주세요."
+      : "현장에서 보완을 확인한 뒤 통과로 기록합니다. 시험 점수는 바뀌지 않으며, 처리 전에 판정 사유를 2자 이상 남겨 주세요.";
   const noteId = `assessment-note-${sourceType}-${sourceId}`;
   const noteHintId = `${noteId}-hint`;
 
@@ -1576,11 +1528,15 @@ function CorrectionStatusControl({
         ? "비고를 저장했습니다."
         : wrongExamCompletionOnly
           ? variables.completed
-            ? "오답 완료로 저장했습니다. 원점수는 그대로 유지됩니다."
-            : "오답 미완료로 저장했습니다."
-        : variables.completed
-          ? `${title}을 확정했습니다. 원점수는 그대로 유지됩니다.`
-          : `${title}을 해제해 Clinic 대상을 다시 계산합니다.`);
+            ? "오답 확인 완료로 저장했습니다. 시험 점수는 그대로입니다."
+            : "오답 확인 필요로 변경했습니다."
+          : isHomework
+            ? variables.completed
+              ? "과제를 완료로 표시했습니다. 점수와 제출 기록은 그대로입니다."
+              : "과제를 미완료로 표시했습니다."
+            : variables.completed
+              ? "교사 통과로 기록했습니다. 시험 점수는 그대로입니다."
+              : "보완 대상으로 되돌렸습니다. 재시험·보완 대상 여부를 다시 확인합니다.");
     },
     onError: (error) => {
       feedback.error(getApiErrorMessage(
@@ -1612,16 +1568,16 @@ function CorrectionStatusControl({
         : "점수를 입력하면 실제 오답 확인 상태를 기록할 수 있습니다."
     : isHomework
     ? status === "COMPLETED"
-      ? "교사가 협의 후 완료로 확정했습니다. 원점수와 제출 기록은 그대로 유지됩니다."
+        ? "교사가 협의 후 완료로 표시했습니다. 원점수와 제출 기록은 그대로 유지됩니다."
       : status === "PENDING"
-        ? "남은 범위를 비고에 적어 두면 다음 검사 때 바로 이어볼 수 있습니다."
+        ? "사유를 적고 ‘완료로 표시’를 누르면 사유와 완료 상태가 함께 저장됩니다."
         : status === "NOT_REQUIRED"
           ? "점수상 완료된 과제도 교사 판정과 사유를 별도로 남길 수 있습니다."
-          : "사이트 제출 여부와 무관하게 교사 완료 판정을 기록할 수 있습니다."
+          : "학생의 제출 여부와 관계없이 교사가 완료 여부를 기록합니다."
     : status === "COMPLETED"
       ? "현장에서 오답 해결을 확인해 원점수 변경 없이 최종 통과 처리했습니다."
       : status === "PENDING"
-        ? "통과 전까지 재시험·Clinic 보완 대상으로 유지됩니다."
+        ? "통과로 기록하기 전까지 재시험·보완 대상으로 남습니다."
         : status === "NOT_REQUIRED"
           ? "만점이라 확인할 오답이 없습니다."
           : "점수를 입력한 뒤 사유와 함께 교사 통과 여부를 기록할 수 있습니다.";
@@ -1638,19 +1594,19 @@ function CorrectionStatusControl({
         data-status={completed ? "completed" : "pending"}
         aria-pressed={completed}
         aria-label={wrongExamCompletionOnly
-          ? `${completed ? "오답 완료" : "오답 미완료"}; 눌러서 ${completed ? "오답 미완료" : "오답 완료"}로 변경`
+          ? `${completed ? "오답 확인 완료" : "오답 확인 필요"}; 눌러서 ${completed ? "오답 확인 필요" : "오답 확인 완료"}로 변경`
           : completed
-            ? "교사 PASS에서 보완 필요로 변경"
-            : "보완 필요에서 교사 PASS로 변경"}
+            ? "교사 통과 상태에서 보완 필요로 변경"
+            : "보완 필요에서 교사 통과로 변경"}
         title={disabled
           ? "점수 초안을 먼저 저장한 뒤 판정을 변경해 주세요."
           : wrongExamCompletionOnly
             ? completed
-              ? "원점수는 유지하고 오답 미완료로 변경합니다."
-              : "원점수는 유지하고 오답 완료로 변경합니다."
+              ? "시험 점수는 그대로 두고 오답 확인 필요로 변경합니다."
+              : "시험 점수는 그대로 두고 오답 확인 완료로 변경합니다."
           : completed
             ? "원점수는 유지하고 다시 보완 대상으로 전환합니다."
-            : "원점수는 유지하고 교사 PASS로 확정합니다."}
+            : "시험 점수는 그대로 두고 교사 통과로 기록합니다."}
         onClick={(event) => {
           event.stopPropagation();
           mutation.mutate({
@@ -1670,8 +1626,10 @@ function CorrectionStatusControl({
         {mutation.isPending
           ? "저장 중…"
           : wrongExamCompletionOnly
-            ? completed ? "오답 완료" : "오답 미완료"
-            : completed ? "PASS ✓" : "보완 필요 → PASS"}
+            ? completed ? "오답 완료" : "오답 확인 필요"
+            : isHomework
+              ? completed ? "과제 완료" : "미완료"
+            : completed ? "교사 통과" : "통과로 처리"}
       </button>
     );
   }
@@ -1684,7 +1642,22 @@ function CorrectionStatusControl({
     >
       <div className="ssd-correction-control__copy">
         <div className="ssd-correction-control__title-row">
-          <strong>{title}</strong>
+          <div className="ssd-correction-control__title-help">
+            <strong>{title}</strong>
+            <InlineHelp
+              title={helpTitle}
+              tone="admin"
+              align="left"
+              placement="top"
+              className="ssd-correction-control__help"
+              openOnHover
+              ariaLabel={`${helpTitle} 설명`}
+              iconSize={14}
+              triggerClassName="ssd-correction-control__help-trigger"
+            >
+              <p>{helpDescription}</p>
+            </InlineHelp>
+          </div>
           <CorrectionStatusBadge block={block} sourceType={sourceType} />
         </div>
         <span>{description}</span>
@@ -1694,7 +1667,7 @@ function CorrectionStatusControl({
       <div
         className="ssd-correction-control__actions"
         role="group"
-        aria-label={`${title} 상태`}
+        aria-label={`${title} 변경`}
         title={disabledReason}
       >
         <Button
@@ -1714,7 +1687,7 @@ function CorrectionStatusControl({
             && mutation.variables.completed === false
           }
         >
-          {isHomework ? "미완료" : wrongExamCompletionOnly ? "오답 미완료" : "보완 필요"}
+          {isHomework ? "미완료로 표시" : wrongExamCompletionOnly ? "오답 확인 필요" : "보완 필요로 표시"}
         </Button>
         <Button
           size="sm"
@@ -1743,7 +1716,7 @@ function CorrectionStatusControl({
             && mutation.variables.completed === true
           }
         >
-          {isHomework ? "완료 확정" : wrongExamCompletionOnly ? "오답 완료" : "통과 확정"}
+          {isHomework ? "완료로 표시" : wrongExamCompletionOnly ? "오답 확인 완료" : "통과로 처리"}
         </Button>
       </div>
       <div className="ssd-correction-control__note">
@@ -1756,13 +1729,13 @@ function CorrectionStatusControl({
             className="ssd-correction-control__note-hint"
             role="alert"
           >
-            {isHomework ? "완료 확정" : wrongExamCompletionOnly ? "오답 완료" : "통과 확정"} 사유를 2자 이상 입력해 주세요.
+            {isHomework ? "과제 완료" : wrongExamCompletionOnly ? "오답 확인 완료" : "통과 처리"} 사유를 2자 이상 입력해 주세요.
           </span>
         )}
         <textarea
           ref={noteRef}
           id={noteId}
-          aria-label={`${title} 비고`}
+          aria-label={`${title} 사유`}
           aria-describedby={!completionReasonReady ? noteHintId : undefined}
           aria-invalid={completionReasonRequested && !completionReasonReady}
           value={note}
@@ -1807,7 +1780,7 @@ function CorrectionStatusControl({
         )}
         {!completionReasonRequested && !completionReasonReady && (
           <span id={noteHintId} className="ssd-correction-control__note-hint" role="status">
-            {wrongExamCompletionOnly ? "오답 완료 전 확인 근거" : "통과 또는 완료 확정 전 판정 사유"}를 2자 이상 입력해 주세요.
+            {wrongExamCompletionOnly ? "오답 확인 완료 전 근거" : "통과 또는 과제 완료 처리 전 사유"}를 2자 이상 입력해 주세요.
           </span>
         )}
       </div>
@@ -1875,7 +1848,9 @@ function VerdictBanner({
       : kind === "clinic_target" || kind === "review"
         ? "warning"
         : "muted";
-  const value = kind === "clinic_target"
+  const value = kind === "inspection_pending"
+    ? "검사 대기"
+    : kind === "clinic_target"
     ? "클리닉 대상"
     : kind === "review"
       ? "검수 대기"

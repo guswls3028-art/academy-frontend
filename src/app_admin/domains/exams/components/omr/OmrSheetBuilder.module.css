@@ -264,3 +264,23 @@
     max-width: none;
   }
 }
+
+/* Beta 서술형 교사 채점란: 설명이 길어 선택 버튼을 아래에 둔다. */
+.optionRowStacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--color-border-divider);
+}
+
+.optionRowStacked .areaChoices {
+  width: 100%;
+}
+
+.optionLabelWithBadge {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}

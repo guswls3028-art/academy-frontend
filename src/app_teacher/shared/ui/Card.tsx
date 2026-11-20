@@ -83,14 +83,7 @@ export function KpiCard({
   onClick?: () => void;
 }) {
   const valueClass = color ? KPI_VALUE_COLOR_CLASS[color] : undefined;
-
-  return (
-    <div
-      className={cx(styles.kpiCard, onClick && styles.clickable)}
-      onClick={onClick}
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
-    >
+  const content = <>
       <span className={cx(styles.kpiValue, valueClass)}>
         {value}
       </span>
@@ -102,8 +95,10 @@ export function KpiCard({
       <span className={styles.kpiLabel}>
         {label}
       </span>
-    </div>
-  );
+  </>;
+  return onClick
+    ? <button type="button" className={cx(styles.kpiCard, styles.clickable)} onClick={onClick}>{content}</button>
+    : <div className={styles.kpiCard}>{content}</div>;
 }
 
 /** 탭 바 (세그먼트형) */
@@ -160,6 +155,7 @@ export function BackButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
+      aria-label="뒤로 가기"
       className={styles.backButton}
     >
       <ChevronLeft size={ICON.md} />

@@ -18,13 +18,13 @@ import {
   Inbox as InboxIcon,
   Check as CheckIcon,
   Search as SearchIcon,
-  Sparkles,
 } from "lucide-react";
 import { useAdminNotificationCounts, type AdminNotificationItem } from "@admin/domains/admin-notifications";
 import { useProgram } from "@/shared/program";
 import { useAdminLayout } from "@admin/layout/useAdminLayout";
 import { useWorkbox } from "@/shared/ui/layout/useWorkbox";
 import { useAsyncStatus } from "@/shared/ui/asyncStatus/useAsyncStatus";
+import { omrGradingAttentionCount } from "@/shared/ui/asyncStatus/omrGradingAttention";
 import { WorkboxPanelContent } from "@/shared/ui/asyncStatus";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { accountQueryKeys } from "@/shared/api/queryKeys/account";
@@ -147,6 +147,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
   const meQ = useQuery({ queryKey: accountQueryKeys.me, queryFn: fetchMe });
   const me = meQ.data;
   const { clearAuth, user } = useAuth();
+  const productUpdate = useProductUpdateAwareness(user?.id);
 
   const [openNotice, setOpenNotice] = useState(false);
   const [alarmDropdownOpen, setAlarmDropdownOpen] = useState(false);
@@ -157,8 +158,9 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
   const displayTasks = tasks.filter((t) => (t.tenantScope ?? "") === currentTenantKey);
   const pendingCount = displayTasks.filter((t) => t.status === "pending").length;
   const errorCount = displayTasks.filter((t) => t.status === "error").length;
+  const attentionCount = displayTasks.filter((t) => t.status === "success" && omrGradingAttentionCount(t.omrBatch) > 0).length;
   const hasCompletedOnly = pendingCount === 0 && displayTasks.length > 0;
-  const hasOnlySuccessCompleted = hasCompletedOnly && errorCount === 0;
+  const hasOnlySuccessCompleted = hasCompletedOnly && errorCount === 0 && attentionCount === 0;
 
   // 자동 clearCompleted 제거: 사용자가 결과를 보기 전에 비워지지 않도록.
   // 명시적 "완료된 항목 지우기" 버튼(AsyncStatusBar.tsx)으로만 제거.
@@ -172,20 +174,12 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
     isFetching: adminNotificationsFetching,
     refetch: refetchAdminNotifications,
   } = useAdminNotificationCounts();
-  const productUpdate = useProductUpdateAwareness(user?.id);
-  const unreadCount = adminCounts.total + (productUpdate.isUnread ? 1 : 0);
+  const unreadCount = adminCounts.total;
   const hasNotificationFailures = adminNotificationFailures.length > 0;
 
   const openNoticeAndCloseAlarm = () => {
     setAlarmDropdownOpen(false);
     setOpenNotice(true);
-  };
-
-  const openLatestProductUpdate = () => {
-    productUpdate.markRead();
-    setAlarmDropdownOpen(false);
-    const nextWindow = window.open(productUpdate.href, "_blank", "noopener,noreferrer");
-    if (nextWindow) nextWindow.opener = null;
   };
 
 
@@ -229,6 +223,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
     ? (tenantBranding?.headerLogoDarkUrl ?? tenantBranding?.headerLogoUrl ?? null)
     : (tenantBranding?.headerLogoUrl ?? null);
   const headerBrandStyle = getTenantHeaderCssVars(tenantBranding);
+  const platformWordmark = tenantId === 1 && !isMobile ? tenantBranding?.logoUrl : undefined;
   // 배경이 포함된 브랜드 에셋은 등록된 헤더용 크롭을 우선해 정사각형 원본 노출을 피한다.
   const brandLogoUrl = headerBrandStyle ? (headerLogoUrl ?? logoUrl) : (logoUrl ?? headerLogoUrl);
 
@@ -341,13 +336,16 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
             className="app-header__brand"
             data-testid="app-header-go-dashboard"
             data-tenant-header-brand={headerBrandStyle ? "" : undefined}
+            data-platform-wordmark={platformWordmark ? "" : undefined}
             style={headerBrandStyle as React.CSSProperties | undefined}
             title={`${academyName} 대시보드`}
             aria-label={`${academyName} 대시보드로 이동`}
             onClick={() => nav("/workspace/dashboard")}
           >
             <span className="app-header__brandMark" aria-hidden>
-              {brandLogoUrl ? (
+              {platformWordmark ? (
+                <img src={platformWordmark} alt="" />
+              ) : brandLogoUrl ? (
                 <img
                   className={headerBrandStyle ? "app-header__brandLogo--blended" : undefined}
                   src={brandLogoUrl}
@@ -362,7 +360,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
                 />
               )}
             </span>
-            <span className="app-header__brandName">{academyName}</span>
+            {!platformWordmark && <span className="app-header__brandName">{academyName}</span>}
           </button>
         </div>
 
@@ -416,7 +414,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
                       ? "작업박스 닫기"
                       : errorCount > 0
                         ? `작업박스 (실패 ${errorCount}건)`
-                        : "작업박스 열기"
+                        : attentionCount > 0 ? `작업박스 (확인 필요 ${attentionCount}건)` : "작업박스 열기"
                   }
                   aria-expanded={workbox.workboxOpen}
                   aria-haspopup="menu"
@@ -425,12 +423,16 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
                       ? "작업박스 닫기"
                       : errorCount > 0
                         ? `작업박스 — 실패 ${errorCount}건`
-                        : "작업박스"
+                        : attentionCount > 0 ? `작업박스 — 확인 필요 ${attentionCount}건` : "작업박스"
                   }
                   leftIcon={
                     errorCount > 0 ? (
                       <AntBadge count={errorCount} size="small" offset={[-2, 2]}>
                         <InboxIcon size={ICON_FOR_BUTTON.lg} aria-hidden />
+                      </AntBadge>
+                    ) : attentionCount > 0 ? (
+                      <AntBadge count={attentionCount} color="var(--color-status-warning)" size="small" offset={[-2, 2]}>
+                        <AlertTriangle size={ICON_FOR_BUTTON.lg} aria-hidden />
                       </AntBadge>
                     ) : hasOnlySuccessCompleted ? (
                       <CheckIcon size={ICON_FOR_BUTTON.lg} aria-hidden />
@@ -490,24 +492,6 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
                   </span>
                 </div>
                 <div className="alarm-panel__list">
-                  <button
-                    type="button"
-                    className="alarm-panel__product-update"
-                    data-unread={productUpdate.isUnread || undefined}
-                    onClick={openLatestProductUpdate}
-                  >
-                    <span className="alarm-panel__product-update-icon" aria-hidden>
-                      <Sparkles size={ICON.sm} />
-                    </span>
-                    <span className="alarm-panel__product-update-copy">
-                      <span>
-                        {productUpdate.isUnread ? "새 업데이트" : "최신 업데이트"}
-                        <small>{productUpdate.latest.date}</small>
-                      </span>
-                      <strong>{productUpdate.latest.title}</strong>
-                      <small>클릭해서 달라진 기능과 사용 범위를 확인하세요.</small>
-                    </span>
-                  </button>
                   {hasNotificationFailures && adminNotificationItems.length === 0 ? (
                     <div className="alarm-panel__empty alarm-panel__empty--warning">
                       일부 알림을 불러오지 못했습니다. 다시 불러오기를 눌러주세요.
@@ -578,6 +562,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
             iconSize={ICON_FOR_BUTTON.lg}
             ariaLabel="가이드북"
             onNavigate={nav}
+            productUpdate={productUpdate}
             supportAction={{
               label: "문제 신고",
               onClick: () => document.dispatchEvent(new Event("ui:bugreport:open")),

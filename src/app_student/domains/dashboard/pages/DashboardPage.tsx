@@ -8,7 +8,7 @@
  *   3) 오늘 수업
  *   4) 학습 현황 (집계 범위·조회 상태와 상세 진입)
  *   5) 공지 (긴급 1건+ 또는 신규 있을 때만 강조, 비어 있으면 1행 라인 링크)
- *   6) 앱 아이콘 (탭바 중복 제거 + 퇴실용 패스카드, 8개)
+ *   6) 전체 메뉴로 이동 + 퇴실용 상태 카드
  *   7) 학원문의 (1행 압축, 분점 다수일 때만 펼침)
  *
  * 부분 실패: 한쪽 쿼리만 실패해도 가능한 섹션 노출.
@@ -18,14 +18,15 @@ import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import QrScanLink from "@student/shared/ui/attendance/QrScanLink";
-import { Badge } from "@/shared/ui/ds";
+import { Badge, Button } from "@/shared/ui/ds";
 import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 import { useStudentDashboard } from "../hooks/useStudentDashboard";
 import type { StudentDashboardResponse } from "../api/dashboard.api";
-import { useMySessions } from "@student/domains/sessions/hooks/useStudentSessions";
+import { useHomeSessions } from "@student/domains/sessions/hooks/useStudentSessions";
 import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
 import { getExamPassStatus } from "@student/domains/grades/public/examPassStatus";
+import { calculateHomeworkStats } from "@student/domains/grades/public/homeworkStats";
 import { useStudentExams } from "@student/domains/exams/hooks/useStudentExams";
 import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import {
@@ -35,7 +36,6 @@ import {
 import { formatYmd } from "@student/shared/utils/date";
 import { useNotificationCounts } from "@student/domains/notifications/hooks/useNotificationCounts";
 import type { NotificationCounts } from "@student/domains/notifications/api/notifications.api";
-import NotificationBadge from "@student/shared/ui/components/NotificationBadge";
 import type { StudentSession } from "@student/domains/sessions/api/sessions.api";
 import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisplay";
 import { learningDate, useLearningClock } from "@student/shared/hooks/useLearningClock";
@@ -139,6 +139,7 @@ const CountdownCard = memo(function CountdownCard({
           <div className={styles.countdownTitle}>{session.title}</div>
           <div className={styles.countdownTimeText}>
             {formatYmd(session.date ?? null)}
+            {session.schedule_label && ` · ${session.schedule_label}`}
             {session.start_time && ` ${session.start_time.slice(0, 5)}`}
           </div>
         </div>
@@ -153,20 +154,6 @@ const CountdownCard = memo(function CountdownCard({
 /* ============================================================================
  * 앱 아이콘
  * ========================================================================== */
-
-function AppIcon({
-  to, icon, label, badge,
-}: { to: string; icon: ReactNode; label: string; badge?: number; }) {
-  return (
-    <Link to={to} className={styles.shortcut}>
-      <div className={styles.shortcutIcon}>
-        {icon}
-        {badge != null && badge > 0 && <NotificationBadge count={badge} />}
-      </div>
-      <span className={styles.shortcutLabel}>{label}</span>
-    </Link>
-  );
-}
 
 function QuickAction({
   to, state, icon, label, detail, badge, primary = false,
@@ -213,14 +200,14 @@ export default function DashboardPage() {
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const feesEnabled = useFeesEnabled();
   const dashboardQ = useStudentDashboard();
-  const sessionsQ = useMySessions();
-  const gradesQ = useMyGradesSummary();
+  const sessionsQ = useHomeSessions();
+  const gradesQ = useMyGradesSummary({ reuseFreshData: true });
   const examsQ = useStudentExams({ include_upcoming: true });
   const notificationCountsQ = useNotificationCounts();
   const dashboard = dashboardQ.data;
   const dashLoading = dashboardQ.isPending;
   const dashError = dashboardQ.isError;
-  const sessions = sessionsQ.data;
+  const sessions = sessionsQ.data?.items;
   const sessionsLoading = sessionsQ.isPending;
   const sessionsError = sessionsQ.isError;
   const grades = gradesQ.data;
@@ -231,6 +218,21 @@ export default function DashboardPage() {
   const todoDataError = dashError || gradesQ.isError || examsQ.isError || countsError;
   const todoDataPending = (dashLoading || gradesQ.isPending || examsQ.isPending || countsLoading) && !todoDataError;
   const isParent = user?.tenantRole === "parent";
+  const [retrying, setRetrying] = useState(false);
+  const queries = [dashboardQ, sessionsQ, gradesQ, examsQ, notificationCountsQ];
+  const waitingForConnection = retrying && queries.some((query) => query.isPaused);
+  const retryLabel = waitingForConnection ? "연결 대기 중" : retrying ? "다시 확인 중" : "다시 시도";
+
+  async function retryFailedQueries() {
+    setRetrying(true);
+    try {
+      await Promise.all(queries.filter((query) => query.isError).map((query) =>
+        query.refetch({ cancelRefetch: false }),
+      ));
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   const now = useLearningClock();
   const today = learningDate(now);
@@ -238,13 +240,15 @@ export default function DashboardPage() {
   const { refetch: refetchGrades } = gradesQ;
   const { refetch: refetchDashboard } = dashboardQ;
   const { refetch: refetchExams } = examsQ;
+  const { refetch: refetchSessions } = sessionsQ;
   useEffect(() => {
     if (previousDay.current === today) return;
     previousDay.current = today;
     void refetchGrades();
     void refetchDashboard();
     void refetchExams();
-  }, [today, refetchGrades, refetchDashboard, refetchExams]);
+    void refetchSessions();
+  }, [today, refetchGrades, refetchDashboard, refetchExams, refetchSessions]);
   const todaySessions = useMemo<StudentSession[]>(() => {
     const dashboardSessions = dashboard?.today_sessions;
     if (dashboardSessions) {
@@ -252,6 +256,8 @@ export default function DashboardPage() {
         id: s.id,
         title: s.title,
         date: s.date,
+        schedule_label: s.schedule_label,
+        schedule_configured: s.schedule_configured,
         status: s.status,
         type: s.type ?? "session",
         start_time: s.start_time ?? null,
@@ -342,7 +348,7 @@ export default function DashboardPage() {
     );
   }
 
-  /* 둘 다 실패 — 전체 다시 시도. 한쪽만 실패면 가능한 섹션 노출. */
+  /* 둘 다 실패하면 복구 동작을 제공하고 한쪽만 실패하면 가능한 섹션을 노출한다. */
   if (dashError && sessionsError) {
     return (
       <div style={{ padding: "var(--stu-space-8) var(--stu-space-4)", textAlign: "center" }}>
@@ -351,7 +357,8 @@ export default function DashboardPage() {
         </div>
         <button
           type="button"
-          onClick={() => window.location.reload()}
+          disabled={retrying}
+          onClick={() => void retryFailedQueries()}
           style={{
             padding: "10px 20px",
             borderRadius: "var(--stu-radius-md)",
@@ -363,7 +370,7 @@ export default function DashboardPage() {
             cursor: "pointer",
           }}
         >
-          다시 시도
+          {retryLabel}
         </button>
       </div>
     );
@@ -374,13 +381,18 @@ export default function DashboardPage() {
   const learningStatus = (
     <LearningStatusCard gradesQ={gradesQ} sessionsQ={sessionsQ} now={now} wrongCompletionOnly={wrongCompletionOnly} />
   );
-  const partialFailureBanner = todoDataError || sessionsError ? (
-    <div className={styles.heroDone} role="alert">
-      <div>
-        <div className={styles.heroDoneTitle}>일부 정보를 확인하지 못했어요</div>
-        <div className={styles.heroDoneText}>할 일이나 일정이 0건이라고 확정하지 않았습니다.</div>
+  const partialFailureBanner = todoDataError || sessionsError || retrying ? (
+    <div className={`${styles.heroDone} ${styles.retryBanner}`} role={retrying ? "status" : "alert"}>
+      <div className={styles.retryMessage}>
+        <div className={styles.heroDoneTitle}>
+          {waitingForConnection ? "연결되면 일부 정보를 다시 확인해요."
+            : retrying ? "일부 정보를 다시 확인하고 있어요" : "일부 정보를 확인하지 못했어요"}
+        </div>
+        <div className={styles.heroDoneText}>확인이 필요한 항목만 다시 불러와요.</div>
       </div>
-      <button type="button" onClick={() => window.location.reload()}>다시 시도</button>
+      <Button className={styles.retryButton} disabled={retrying} onClick={() => void retryFailedQueries()}>
+        {retryLabel}
+      </Button>
     </div>
   ) : null;
 
@@ -405,6 +417,8 @@ export default function DashboardPage() {
         notificationCounts={notificationCounts}
         countsLoading={countsLoading}
         countsError={countsError}
+        scheduleStatus={dashError ? "error" : dashLoading ? "pending" : "ready"}
+        supportStatus={gradesQ.isError ? "error" : gradesQ.isPending ? "pending" : "ready"}
         summaryPending={todoDataPending || sessionsLoading}
         summaryError={todoDataError || sessionsError}
         todoCount={todoCount}
@@ -559,6 +573,37 @@ export default function DashboardPage() {
         ) : null}
       </section>
 
+      {todaySessions.length > 0 && (
+        <section className={styles.section}>
+          <SectionLabel>오늘 수업</SectionLabel>
+          <div className={styles.sessionList}>
+            {todaySessions.slice(0, 3).map((s) => {
+              const isClinic = s.type === "clinic";
+              return (
+                <Link
+                  key={s.id}
+                  to={isClinic ? "/student/clinic" : `/student/sessions/${s.id}`}
+                  className={`stu-panel stu-panel--pressable ${styles.sessionCard} ${isClinic ? "stu-panel--nav" : "stu-panel--action"}`}
+                >
+                  <div className={`${styles.sessionIcon} ${isClinic ? styles.sessionIconClinic : ""}`}>
+                    {isClinic
+                      ? <IconClinic />
+                      : <IconCalendar />}
+                  </div>
+                  <div className={styles.sessionBody}>
+                    <div className={styles.sessionTitle}>
+                      {s.title}
+                      {s.start_time && <span className={styles.sessionTime}>{s.start_time.slice(0, 5)}</span>}
+                    </div>
+                    <div className="stu-muted">{s.schedule_configured && !s.date ? "수업일 미배정" : s.schedule_label ? `오늘 수업 · ${s.schedule_label}` : "오늘 수업"}</div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       <section className={`${styles.quickSection} ${styles.contentShortcuts}`} aria-label="게시판과 자료실">
         <div className={styles.sectionLabel}>학원 소식·자료</div>
         <div className={styles.quickGrid}>
@@ -613,37 +658,6 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {todaySessions.length > 0 && (
-        <section className={styles.section}>
-          <SectionLabel>오늘 수업</SectionLabel>
-          <div className={styles.sessionList}>
-            {todaySessions.slice(0, 3).map((s) => {
-              const isClinic = s.type === "clinic";
-              return (
-                <Link
-                  key={s.id}
-                  to={isClinic ? "/student/clinic" : `/student/sessions/${s.id}`}
-                  className={`stu-panel stu-panel--pressable ${styles.sessionCard} ${isClinic ? "stu-panel--nav" : "stu-panel--action"}`}
-                >
-                  <div className={`${styles.sessionIcon} ${isClinic ? styles.sessionIconClinic : ""}`}>
-                    {isClinic
-                      ? <IconClinic />
-                      : <IconCalendar />}
-                  </div>
-                  <div className={styles.sessionBody}>
-                    <div className={styles.sessionTitle}>
-                      {s.title}
-                      {s.start_time && <span className={styles.sessionTime}>{s.start_time.slice(0, 5)}</span>}
-                    </div>
-                    <div className="stu-muted">오늘 수업</div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
       <div data-guide="dash-stats">
         {learningStatus}
       </div>
@@ -652,26 +666,11 @@ export default function DashboardPage() {
         <NoticeStrip notices={dashboard?.notices ?? []} hasNotices={hasNotices} />
       )}
 
-      <section className={styles.shortcutSection} data-guide="dash-apps">
-        <div className={styles.shortcutGrid}>
-          <AppIcon to="/student/grades" label="성적"
-            icon={<IconGrade />}
-            badge={!countsLoading && !countsError ? notificationCounts?.grade : undefined} />
-          <AppIcon to="/student/exams" label="시험"
-            icon={<IconExam />} />
-          <AppIcon to="/student/submit/assignment" label="과제"
-            icon={<IconClipboard />} />
-          <AppIcon to="/student/clinic" label="클리닉"
-            icon={<IconClinic />}
-            badge={!countsLoading && !countsError ? notificationCounts?.clinic : undefined} />
-          <AppIcon to="/student/attendance" label="출결"
-            icon={<IconCheck />} />
-          <AppIcon to="/student/notices" label="공지"
-            icon={<IconNotice />} />
-          <AppIcon to="/student/inventory" label="보관함"
-            icon={<IconFolder />} />
-          <AppIcon to="/student/idcard" label={wrongCompletionOnly ? "오답 상태 카드" : "클리닉 패스카드"}
-            icon={<IconClinic />} />
+      <section className={styles.quickSection} data-guide="dash-apps" aria-label="전체 메뉴와 상태 카드">
+        <div className={styles.quickGrid}>
+          <QuickAction to="/student/menu" icon={<IconFolder />} label="전체 메뉴" detail="학습·학원 소식·내 계정" />
+          <QuickAction to="/student/idcard" icon={<IconClinic />}
+            label={wrongCompletionOnly ? "오답 상태 카드" : "클리닉 패스카드"} detail="선생님께 상태 보여 드리기" />
         </div>
       </section>
 
@@ -689,6 +688,8 @@ type ParentUpcomingExam = {
   d: number | null;
 };
 
+type ParentMetricStatus = "pending" | "error" | "ready";
+
 type ParentDashboardViewProps = {
   childName: string;
   todaySessions: StudentSession[];
@@ -701,6 +702,8 @@ type ParentDashboardViewProps = {
   notificationCounts: NotificationCounts | undefined;
   countsLoading: boolean;
   countsError: boolean;
+  scheduleStatus: ParentMetricStatus;
+  supportStatus: ParentMetricStatus;
   summaryPending: boolean;
   summaryError: boolean;
   todoCount: number;
@@ -726,6 +729,8 @@ function ParentDashboardView({
   notificationCounts,
   countsLoading,
   countsError,
+  scheduleStatus,
+  supportStatus,
   summaryPending,
   summaryError,
   todoCount,
@@ -769,23 +774,23 @@ function ParentDashboardView({
         <div className={styles.parentSummaryGrid}>
           <ParentMetric
             label="선생님 답변"
-            value={countsLoading || countsError ? null : replyCount}
-            unit={countsLoading || countsError ? "" : "건"}
-            placeholder={countsError ? "확인 필요" : countsLoading ? "확인 중" : undefined}
+            value={replyCount}
+            unit="건"
+            status={countsError ? "error" : countsLoading ? "pending" : "ready"}
             tone={replyCount > 0 ? "primary" : "neutral"}
           />
           <ParentMetric
             label="오늘 일정"
-            value={summaryPending || summaryError ? null : todaySessions.length}
-            unit={summaryPending || summaryError ? "" : "개"}
-            placeholder={summaryError ? "확인 필요" : summaryPending ? "확인 중" : undefined}
+            value={todaySessions.length}
+            unit="개"
+            status={scheduleStatus}
             tone={todaySessions.length > 0 ? "primary" : "neutral"}
           />
           <ParentMetric
             label="보충 필요"
-            value={summaryPending || summaryError ? null : supportCount}
-            unit={summaryPending || summaryError ? "" : "건"}
-            placeholder={summaryError ? "확인 필요" : summaryPending ? "확인 중" : undefined}
+            value={supportCount}
+            unit="건"
+            status={supportStatus}
             tone={supportCount > 0 ? "warn" : "neutral"}
           />
         </div>
@@ -936,20 +941,19 @@ function ParentMetric({
   label,
   value,
   unit,
-  placeholder,
+  status,
   tone,
 }: {
   label: string;
-  value: number | null;
+  value: number;
   unit: string;
-  placeholder?: string;
+  status: ParentMetricStatus;
   tone: "primary" | "warn" | "neutral";
 }) {
   return (
     <div className={styles.parentMetric} data-tone={tone}>
       <div className={styles.parentMetricValue}>
-        {value == null ? placeholder : value}
-        {value != null && <span>{unit}</span>}
+        {status === "error" ? "확인 필요" : status === "pending" ? "확인 중" : <>{value}<span>{unit}</span></>}
       </div>
       <div className={styles.parentMetricLabel}>{label}</div>
     </div>
@@ -967,12 +971,12 @@ function LearningStatusCard({
   wrongCompletionOnly,
 }: {
   gradesQ: ReturnType<typeof useMyGradesSummary>;
-  sessionsQ: ReturnType<typeof useMySessions>;
+  sessionsQ: ReturnType<typeof useHomeSessions>;
   now: number;
   wrongCompletionOnly: boolean;
 }) {
   const grades = gradesQ.data;
-  const sessions = sessionsQ.data;
+  const sessions = sessionsQ.data?.items;
   const today = learningDate(now);
   const cutoff = learningDate(now - 27 * 24 * 60 * 60 * 1000);
   /* 오늘을 포함한 한국 날짜 28일. 수업 목록에는 클리닉도 포함된다. */
@@ -981,15 +985,10 @@ function LearningStatusCard({
     return sessions.filter((s) => s.date && s.date >= cutoff && s.date <= today).length;
   }, [sessions, cutoff, today]);
 
-  /* 과제 통과율 */
-  const hwCount = grades?.homeworks?.length ?? 0;
-  const passedHw = grades?.homeworks?.filter((h) => (
-    h.teacher_resolved === true
-    || h.achievement === "PASS"
-    || h.achievement === "REMEDIATED"
-    || h.passed === true
-  )).length ?? 0;
-  const hwRate = hwCount > 0 ? Math.round((passedHw / hwCount) * 100) : null;
+  const homework = calculateHomeworkStats(grades?.homeworks ?? []);
+  const inspectionCount = grades?.homeworks.filter(row => row.practice_inspection).length ?? 0;
+  const hwCount = homework?.total ?? 0;
+  const hwRate = (wrongCompletionOnly ? homework?.completionRate : homework?.passRate) ?? null;
 
   /* 시험 합격률 (점수 평균 대신 합격/총합 비율) */
   const examJudgments = grades?.exams.map((exam) => getExamPassStatus(exam, wrongCompletionOnly)) ?? [];
@@ -1003,7 +1002,7 @@ function LearningStatusCard({
   const sessionsPending = sessionsQ.isPending;
   const hasError = gradesError || sessionsError;
   const hasPending = gradesPending || sessionsPending;
-  const hasData = (sessions?.length ?? 0) > 0 || hwCount > 0 || (grades?.exams.length ?? 0) > 0;
+  const hasData = sessionsQ.data?.hasAnySessions || hwCount > 0 || (grades?.exams.length ?? 0) > 0;
   const retrying = (gradesError && gradesQ.isFetching) || (sessionsError && sessionsQ.isFetching);
   const placeholder = (error: boolean, pending: boolean, empty: string) => error ? "확인 필요" : pending ? "확인 중" : empty;
 
@@ -1025,14 +1024,20 @@ function LearningStatusCard({
           value={sessionsError || sessionsPending ? null : recentSessionCount} unit="회"
           placeholder={placeholder(sessionsError, sessionsPending, "기록 없음")} tone="var(--stu-text)" />
         <Divider />
-        <Stat to="/student/grades?view=homework" label={wrongCompletionOnly ? "과제 완료" : "과제 통과"} scope="전체 과제"
+        <Stat to="/student/grades?view=homework" label={wrongCompletionOnly ? "과제 완료" : "과제 통과"}
+          scope={wrongCompletionOnly ? "전체 과제" : "전체 판정 결과"}
           value={gradesError || gradesPending ? null : hwRate} unit="%"
-          placeholder={placeholder(gradesError, gradesPending, "기록 없음")} tone={tone(hwRate)} />
+          placeholder={placeholder(gradesError, gradesPending, hwCount > 0 ? "결과 대기" : "기록 없음")} tone={tone(hwRate)} />
         <Divider />
         <Stat to="/student/grades" label={wrongCompletionOnly ? "오답 완료" : "시험 합격"} scope="전체 판정 결과"
           value={gradesError || gradesPending ? null : examRate} unit="%"
           placeholder={placeholder(gradesError, gradesPending, (grades?.exams.length ?? 0) > 0 ? "결과 대기" : "기록 없음")} tone={tone(examRate)} />
       </div>
+      {!gradesError && !gradesPending && inspectionCount > 0 && (
+        <Link className="stu-cta-link" to="/student/grades?view=homework&homework_status=inspection">
+          과제 검사 결과 {inspectionCount}건 보기
+        </Link>
+      )}
       {hasError ? (
         <div className={styles.learningFeedback} role="alert">
           <span>{gradesError && sessionsError ? "학습 현황을" : gradesError ? "성적을" : "일정을"} 불러오지 못했어요.</span>

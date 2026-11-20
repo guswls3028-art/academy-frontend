@@ -1,0 +1,49 @@
+.days, .rows, .row {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.row {
+  padding: 10px 12px 12px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-surface-soft);
+}
+
+.rowTitle, .rowTitle span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rowTitle {
+  justify-content: space-between;
+  min-height: 32px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.fields label, .dayName {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.fields > div > label { margin-bottom: 4px; }
+.dayName input { width: 100%; }
+.add { justify-self: start; }
+.limit { margin: 0; font-size: 13px; color: var(--color-text-secondary); }
+
+@media (max-width: 480px) {
+  .fields { grid-template-columns: minmax(0, 1fr); }
+}

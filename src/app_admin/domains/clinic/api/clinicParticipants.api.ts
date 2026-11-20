@@ -41,6 +41,7 @@ export type ClinicParticipant = {
   session_location: string;
 
   status: ClinicParticipantStatus;
+  created_at?: string;
   preferred_start_time?: string | null;
   preferred_end_time?: string | null;
   booking_start_time?: string | null;
@@ -82,6 +83,7 @@ export type ClinicParticipantListParams = {
   session_date_from?: string;
   session_date_to?: string;
   onsite_date?: string;
+  search?: string;
   status?: ClinicParticipantStatus;
 };
 
@@ -217,6 +219,7 @@ export async function patchClinicParticipantStatus(
     status: ClinicParticipantStatus;
     memo?: string;
     is_late?: boolean;
+    expected_checked_in_at?: string;
     send_to?: ClinicRecipient;
   }
 ) {
@@ -237,12 +240,14 @@ export type ClinicParticipantReminderResult = {
   sent: number;
   scheduled?: number;
   skipped: number;
+  retryable?: boolean;
 };
 
 export async function remindClinicParticipant(
   id: number,
   payload: {
     mode: "once" | "repeat";
+    request_id?: string;
     send_to: ClinicRecipient;
     interval_minutes?: number;
     repeat_until?: string;

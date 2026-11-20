@@ -4,13 +4,22 @@
  */
 
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { fetchMySessions, fetchSessionDetail } from "@student/domains/sessions/api/sessions.api";
+import { fetchHomeSessions, fetchMySessions, fetchSessionDetail } from "@student/domains/sessions/api/sessions.api";
 import { studentSessionQueryKeys } from "../queryKeys";
 
 export function useMySessions() {
   return useQuery({
     queryKey: studentSessionQueryKeys.root,
     queryFn: fetchMySessions,
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useHomeSessions() {
+  return useQuery({
+    queryKey: studentSessionQueryKeys.home,
+    queryFn: fetchHomeSessions,
     staleTime: 60 * 1000,
     placeholderData: keepPreviousData,
   });

@@ -57,6 +57,7 @@ export type TemplatePickerModalProps = {
   /** 직접 작성 모드 선택 — 모달은 자동 닫힘 */
   onPickFreeForm: () => void;
   onSetDefault: (id: number) => Promise<void> | void;
+  onRename: (id: number, name: string) => Promise<void>;
   onDuplicate: (id: number) => Promise<void> | void;
   onDelete: (id: number) => Promise<void> | void;
 };
@@ -81,6 +82,7 @@ export default function TemplatePickerModal({
   onPickFreeForm,
   onSetDefault,
   onDuplicate,
+  onRename,
   onDelete,
 }: TemplatePickerModalProps) {
   const [search, setSearch] = useState("");
@@ -89,6 +91,23 @@ export default function TemplatePickerModal({
     selectedPresetId ? `preset:${selectedPresetId}` : selectedTemplateId ? `template:${selectedTemplateId}` : null,
   );
   const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
+  const [renameId, setRenameId] = useState<number | null>(null);
+  const [renameName, setRenameName] = useState("");
+  const [renameError, setRenameError] = useState("");
+  const renamePending = useRef(false);
+  const submitRename = async () => {
+    if (renameId == null || !renameName.trim() || busy || renamePending.current) return;
+    renamePending.current = true;
+    setRenameError("");
+    try {
+      await onRename(renameId, renameName.trim());
+      setRenameId(null);
+    } catch (error) {
+      setRenameError(error instanceof Error ? error.message : "이름 변경에 실패했습니다. 다시 저장해 주세요.");
+    } finally {
+      renamePending.current = false;
+    }
+  };
   const menuRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const prevOpenRef = useRef(false);
@@ -110,6 +129,8 @@ export default function TemplatePickerModal({
       setSearch("");
       setShowAllCategories(false);
       setMenuOpenId(null);
+      setRenameId(null);
+      setRenameError("");
     }
   }, [open, selectedTemplateId, selectedPresetId, defaultPresets]);
 
@@ -227,6 +248,7 @@ export default function TemplatePickerModal({
         className="tpl-picker__card"
         data-preview={isPreview || undefined}
         data-selected={isSelected || undefined}
+        data-renaming={renameId === t.id || undefined}
       >
         <button disabled={busy}
           type="button"
@@ -252,6 +274,23 @@ export default function TemplatePickerModal({
           </div>
         </button>
 
+        {renameId === t.id && (
+          <form className="tpl-picker__rename" aria-label="안내문 이름 변경" onSubmit={(event) => { event.preventDefault(); void submitRename(); }}>
+            <label htmlFor={`template-rename-${t.id}`}>안내문 이름</label>
+            <Input id={`template-rename-${t.id}`} value={renameName} maxLength={120} autoFocus
+              disabled={busy} onChange={event => setRenameName(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === "Enter" && (event.nativeEvent.isComposing || event.keyCode === 229)) event.preventDefault();
+                if (event.key === "Escape" && !busy) { event.stopPropagation(); setRenameId(null); }
+              }} />
+            {renameError && <p role="alert">{renameError}</p>}
+            <div className="tpl-picker__rename-actions">
+              <Button type="submit" size="sm" intent="primary" disabled={busy || !renameName.trim()}>{busy ? "저장 중…" : "이름 저장"}</Button>
+              <Button type="button" size="sm" intent="secondary" disabled={busy} onClick={() => setRenameId(null)}>취소</Button>
+            </div>
+          </form>
+        )}
+
         <div ref={menuOpenId === t.id ? menuRef : undefined} className="tpl-picker__card-menu">
           <button disabled={busy}
             type="button"
@@ -267,6 +306,13 @@ export default function TemplatePickerModal({
                 <Star size={ICON.xs} className={t.is_user_default ? "tpl-picker__menu-star--active" : "tpl-picker__menu-star--idle"} />
                 {t.is_user_default ? "기본 해제" : "기본으로 지정"}
               </button>
+              {!isSys && t.category === "grades" && (
+                <button disabled={busy} type="button" onClick={() => {
+                  setRenameId(t.id); setRenameName(t.name); setRenameError(""); setMenuOpenId(null);
+                }} className="tpl-picker__card-menu-item">
+                  <Edit3 size={ICON.xs} className="tpl-picker__icon-muted" />이름 변경
+                </button>
+              )}
               <button disabled={busy} type="button" onClick={() => { onDuplicate(t.id); setMenuOpenId(null); }} className="tpl-picker__card-menu-item">
                 <Copy size={ICON.xs} className="tpl-picker__icon-muted" />
                 {isSys ? "복제해서 내 문구로" : "다른 이름으로 복제"}

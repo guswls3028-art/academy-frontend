@@ -1,3 +1,4 @@
+import { progressFromPlayhead } from "./playbackMediaSettings";
 import { postEvents, postHeartbeat, postRefresh } from "./playbackTransport";
 import { extractYouTubeVideoId } from "@/shared/media/video/youtube";
 import { clamp, getEpochSec } from "../design/utils";
@@ -123,6 +124,9 @@ export class StudentYoutubeController {
   private readonly eventBatches?: PlaybackEventBatches;
   private maxWatchedRef = 0;
   private lastSavedPosition = -1;
+  private hasProgressActivity = false;
+  private initialSeekTarget: number | null = null;
+  private observedPosition = 0;
   private eventQueue: Array<{ type: EventType; occurred_at: number; payload?: Record<string, unknown> }> = [];
   private intervals: ReturnType<typeof setInterval>[] = [];
   private docCleanups: Array<() => void> = [];
@@ -252,6 +256,7 @@ export class StudentYoutubeController {
 
     try {
       this.player.seekTo(target, true);
+      this.hasProgressActivity = true;
       this.setState({ current: target });
     } catch {
       ignoreBestEffortError();
@@ -264,6 +269,7 @@ export class StudentYoutubeController {
     this.maxWatchedRef = Math.max(this.maxWatchedRef, target);
     try {
       this.player.seekTo(target, true);
+      this.hasProgressActivity = true;
       this.setState({ current: target });
     } catch {
       ignoreBestEffortError();
@@ -413,6 +419,7 @@ export class StudentYoutubeController {
       this.maxWatchedRef = Math.max(this.maxWatchedRef, safe);
       try {
         player.seekTo(safe, true);
+        this.initialSeekTarget = safe;
       } catch {
         ignoreBestEffortError();
       }
@@ -443,6 +450,7 @@ export class StudentYoutubeController {
       const duration = this.safeDuration();
       this.maxWatchedRef = Math.max(this.maxWatchedRef, duration);
       this.setState({ playing: false, buffering: false, current: duration, duration });
+      this.hasProgressActivity = true;
       this.flushProgress();
       this.opts.onEnded?.();
       return;
@@ -518,6 +526,7 @@ export class StudentYoutubeController {
     const current = this.safeCurrent();
     const duration = this.safeDuration();
     const playing = this.player.getPlayerState?.() === 1;
+    this.observeProgressActivity(current);
     if (playing && current > this.maxWatchedRef) this.maxWatchedRef = current;
     this.setState({ current, duration: duration || this.state.duration });
   }
@@ -595,22 +604,28 @@ export class StudentYoutubeController {
     await postEvents(token, batch, this.opts.videoId, this.opts.enrollmentId);
   };
 
+  private observeProgressActivity(current: number) {
+    if (this.initialSeekTarget !== null) {
+      const initialTarget = this.initialSeekTarget;
+      const playing = this.player?.getPlayerState?.() === 1;
+      if (playing && current > initialTarget) this.hasProgressActivity = true;
+      if (Math.abs(current - initialTarget) < 0.5 || playing) {
+        this.initialSeekTarget = null;
+        this.observedPosition = current;
+      }
+      return;
+    }
+    if (current !== this.observedPosition) this.hasProgressActivity = true;
+    this.observedPosition = current;
+  }
+
   private flushProgress(force = false) {
     if ((!force && this.disposed) || !this.opts.onLeaveProgress) return;
     const currentTime = this.safeCurrent();
-    const duration = this.safeDuration();
-    const maxWatched = Math.max(0, this.maxWatchedRef);
-    // Leaving before the SDK reports duration must not replace persisted
-    // progress with a fabricated 0% update.
-    if (!(duration > 0 && Number.isFinite(duration))) return;
-    const baselineProgress = Math.min(100, Math.max(0, Number(this.opts.initialProgress) || 0));
-    const progressPercent = Math.max(baselineProgress, Math.min(100, (maxWatched / duration) * 100));
-    const completed = baselineProgress >= 100 || maxWatched >= duration - 0.5;
-    this.opts.onLeaveProgress({
-      progress: progressPercent,
-      last_position: Math.round(currentTime),
-      completed,
-    });
+    this.observeProgressActivity(currentTime);
+    if (!this.hasProgressActivity) return;
+    const progress = progressFromPlayhead(currentTime, this.safeDuration(), this.maxWatchedRef, this.opts.initialProgress);
+    if (progress) this.opts.onLeaveProgress(progress);
   }
 
   private flushProgressIfChanged() {

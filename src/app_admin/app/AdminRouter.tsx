@@ -2,6 +2,7 @@
 // 선생앱(관리자) 라우터 — 라우트별 lazy 로딩으로 첫 진입·탭 전환 시 청크 분리
 
 import { Suspense, type ComponentType } from "react";
+import ProductUpdatePage from "@/shared/product/ProductUpdateNotes";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import {
   Routes,
@@ -15,15 +16,18 @@ import {
 } from "react-router";
 import { default as AppLayout } from "@admin/layout/AppLayout";
 import RouteFallback from "@/core/router/RouteFallback";
-import ExternalRedirect from "@/core/router/ExternalRedirect";
 import { renderLazyRoute } from "@/core/router/renderLazyRoute";
-import { PUBLIC_UPDATES_URL } from "@/shared/constants/origins";
 
 /* ================= Lazy: Dashboard ================= */
 const DashboardPage = lazy(() => import("@admin/domains/dashboard/pages/DashboardPage"));
+const StaffBoardPage = lazy(() => import("@admin/domains/staff-board/StaffBoardPage"));
+const WorkspaceSectionPage = lazy(() => import("@admin/layout/WorkspaceSectionPage"));
 
 /* ================= Lazy: Students ================= */
 const StudentsLayout = lazy(() => import("@admin/domains/students/StudentsLayout"));
+const SurveysPage = lazy(() => import("@admin/domains/surveys/SurveysPage"));
+const SurveyEditorPage = lazy(() => import("@admin/domains/surveys/SurveysPage").then((module) => ({ default: module.SurveyEditorPage })));
+const SurveyDetailPage = lazy(() => import("@admin/domains/surveys/SurveysPage").then((module) => ({ default: module.SurveyDetailPage })));
 const StudentsHomePage = lazy(() => import("@admin/domains/students/pages/StudentsHomePage"));
 // StudentsRequestsPage: 동적 import 시 청크 fetch 실패(404) 방지를 위해 정적 import (#310 동일 대응)
 import StudentsRequestsPage from "@admin/domains/students/pages/StudentsRequestsPage";
@@ -37,6 +41,7 @@ const LecturesPage = lazy(() => import("@admin/domains/lectures/pages/lectures/L
 const LectureLayout = lazy(() => import("@admin/domains/lectures/LectureLayout"));
 const LectureStudentsPage = lazy(() => import("@admin/domains/lectures/pages/lectures/LectureStudentsPage"));
 const LectureSessionsPage = lazy(() => import("@admin/domains/lectures/pages/sessions/LectureSessionsPage"));
+const LectureRankingsPage = lazy(() => import("@admin/domains/lectures/pages/rankings/LectureRankingsPage"));
 const SectionManagementPage = lazy(() => import("@admin/domains/lectures/pages/sections/SectionManagementPage"));
 
 /* ================= Lazy: Sessions ================= */
@@ -44,6 +49,7 @@ const SessionLayout = lazy(() => import("@admin/domains/sessions/SessionLayout")
 const SessionDetailPage = lazy(() => import("@admin/domains/sessions/pages/SessionDetailPage"));
 
 /* ================= Lazy: Video ================= */
+const VideoWatchLogsPage = lazy(() => import("@/shared/media/video/VideoWatchLogsPage"));
 const VideoDetailPage = lazy(() => import("@admin/domains/videos/pages/VideoDetailPage"));
 
 /* ================= Lazy: Community ================= */
@@ -168,11 +174,18 @@ export default function AdminRouter() {
       <Route element={<AppLayout overlay={studentDetailOverlay ?? staffDetailOverlay} />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={renderLazyRoute(DashboardPage)} />
+        <Route path="staff-board/:category?/:postId?" element={renderLazyRoute(StaffBoardPage)} />
+        <Route path="learning" element={renderLazyRoute(WorkspaceSectionPage)} />
+        <Route path="management" element={renderLazyRoute(WorkspaceSectionPage)} />
 
         {/* ================= Students (SSOT) ================= */}
         <Route path="students" element={renderLazyRoute(StudentsLayout)}>
           <Route index element={<Navigate to="home" replace />} />
           <Route path="home" element={renderLazyRoute(StudentsHomePage)} />
+          <Route path="surveys" element={renderLazyRoute(SurveysPage)} />
+          <Route path="surveys/new" element={renderLazyRoute(SurveyEditorPage)} />
+          <Route path="surveys/:surveyId" element={renderLazyRoute(SurveyDetailPage)} />
+          <Route path="surveys/:surveyId/edit" element={renderLazyRoute(SurveyEditorPage)} />
           <Route path="requests" element={<Suspense fallback={<RouteFallback />}><StudentsRequestsPage /></Suspense>} />
           <Route path="deleted" element={renderLazyRoute(StudentsHomePage)} />
           <Route
@@ -196,6 +209,7 @@ export default function AdminRouter() {
         <Route path="lectures/:lectureId" element={renderLazyRoute(LectureLayout)}>
           <Route index element={renderLazyRoute(LectureStudentsPage)} />
           <Route path="sessions" element={renderLazyRoute(LectureSessionsPage)} />
+          <Route path="rankings" element={renderLazyRoute(LectureRankingsPage)} />
         </Route>
 
         {/* 반 편성 — 자체 헤더로 분리 (section_mode) */}
@@ -253,6 +267,7 @@ export default function AdminRouter() {
           <Route index element={renderLazyRoute(VideoExplorerPage)} />
           <Route path="tree" element={renderLazyRoute(VideoTreePage)} />
         </Route>
+        <Route path="videos/:videoId/logs/:studentId?" element={renderLazyRoute(VideoWatchLogsPage)} />
         <Route path="videos/:videoId" element={renderLazyRoute(VideoIdToSessionRedirect)} />
 
         <Route path="counsel" element={renderLazyRoute(CounselPage)} />
@@ -286,7 +301,7 @@ export default function AdminRouter() {
 
         {/* ================= Developer (To개발자) ================= */}
         <Route path="developer" element={renderLazyRoute(DeveloperLayout)}>
-          <Route index element={<ExternalRedirect to={PUBLIC_UPDATES_URL} />} />
+          <Route index element={<ProductUpdatePage />} />
           <Route path="bug" element={renderLazyRoute(BugReportPage)} />
           <Route path="feedback" element={renderLazyRoute(FeedbackPage)} />
           <Route path="flags" element={renderLazyRoute(FeatureFlagsPage)} />

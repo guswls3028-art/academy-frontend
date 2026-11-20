@@ -2,6 +2,7 @@
 // 알림톡 잔액 · 충전 · 카카오 연동 · 발송 로그 (Backend 연동 대비)
 
 import api, { createAuthSessionBoundConfig } from "@/shared/api/axios";
+import type { AlimtalkTemplateType } from "@/shared/messaging/alimtalkEnvelope";
 
 const PREFIX = "/messaging";
 
@@ -66,6 +67,8 @@ export interface NotificationLogItem {
   amount_deducted: string;
   /** 수신자 수 또는 요약 */
   recipient_summary?: string;
+  /** 동일 학원의 현재 연락처. 과거 실제 발송 번호를 뜻하지 않는다. */
+  current_recipient_phone?: string;
   /** 템플릿/제목 요약 */
   template_summary?: string;
   /** 실패 시 사유 */
@@ -245,7 +248,7 @@ export interface SendPreflightResponse {
     solapi_status: string;
     detail: string;
     uses_unified_template: boolean;
-    template_type: string;
+    template_type: AlimtalkTemplateType | "";
   };
   preview_recipients: Array<{
     student_id: number;
@@ -256,6 +259,11 @@ export interface SendPreflightResponse {
     /** 실제 Solapi replacements로 조립된 승인 봉투 전체 문구 */
     full_message_body: string;
   }>;
+  video_makeup_homework_preview?: {
+    fingerprint: string | null;
+    recipients: Array<{ student_id: number; homework_titles: string[] }>;
+    excluded: Array<{ student_id: number; reason: "not_video" | "no_homework" }>;
+  };
   limits: {
     hourly_limit: number;
     sent_last_hour: number;
@@ -476,6 +484,8 @@ export interface SendMessagePayload {
    * 학원장 본문 어떻게 수정해도 봉투(검수 양식)는 유지되어 발송 (domain-policy §5).
    */
   block_category?: string;
+  video_makeup_homework?: true;
+  video_makeup_homework_fingerprint?: string;
   /** 알림톡 추가 치환 변수 (성적 발송 등) */
   alimtalk_extra_vars?: Record<string, string>;
   /** 학생별 개별 치환 변수 — key: student_id (대량 성적 발송 등) */
@@ -499,8 +509,11 @@ export async function sendMessage(payload: SendMessagePayload): Promise<SendMess
   return res.data;
 }
 
-export async function preflightSendMessage(payload: SendMessagePayload): Promise<SendPreflightResponse> {
-  const res = await api.post<SendPreflightResponse>(`${PREFIX}/send/preflight/`, payload);
+export async function preflightSendMessage(
+  payload: SendMessagePayload,
+  signal?: AbortSignal,
+): Promise<SendPreflightResponse> {
+  const res = await api.post<SendPreflightResponse>(`${PREFIX}/send/preflight/`, payload, { signal });
   return res.data;
 }
 

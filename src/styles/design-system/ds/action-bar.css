@@ -3,7 +3,7 @@
 .ds-action-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
@@ -13,4 +13,30 @@
 
 .ds-action-bar[data-align="left"] {
   justify-content: flex-start;
+}
+
+/* Context sizing is shared by DS, native fields and AntD compatibility controls. */
+[data-control-size="sm"] {
+  --control-group-height: var(--control-sm);
+  --control-group-padding: var(--space-3);
+  --control-group-font: var(--ds-text-xs);
+  --control-group-icon: var(--ds-control-icon-sm);
+}
+[data-control-size="md"] {
+  --control-group-height: var(--control-md);
+  --control-group-padding: var(--space-4);
+  --control-group-font: var(--ds-text-md);
+  --control-group-icon: var(--ds-control-icon-md);
+}
+[data-control-size="lg"] {
+  --control-group-height: var(--control-lg);
+  --control-group-padding: var(--space-5);
+  --control-group-font: var(--ds-text-md);
+  --control-group-icon: var(--ds-control-icon-lg);
+}
+[data-control-size="xl"] {
+  --control-group-height: var(--control-xl);
+  --control-group-padding: var(--space-6);
+  --control-group-font: var(--ds-text-lg);
+  --control-group-icon: var(--ds-control-icon-xl);
 }

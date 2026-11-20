@@ -4,6 +4,8 @@ export type SyntheticVideoPosterState = {
   responseChain: Promise<void>;
   allowedMasterUrls: Set<string>;
   allowedPosterUrls: Set<string>;
+  /** Only the exact support bootstrap may bind its shorter-lived poster. */
+  supportPosterExpiries?: Map<string, number>;
   posterLoads: number;
 };
 
@@ -34,7 +36,7 @@ function isExactSignedPosterShape(
       && /^[A-Za-z0-9._-]{1,32}$/.test(target.searchParams.get("kid") || "")
       && /^[A-Za-z0-9_-]{43}$/.test(target.searchParams.get("sig") || "")
       && /^[1-9][0-9]*$/.test(rawExpiry) && Number.isSafeInteger(expiresAt)
-      && expiresAt - now > 690
+      && expiresAt > now
       && expiresAt - now <= MAX_SIGNED_POSTER_TTL_SECONDS + MAX_CROSS_HOST_CLOCK_SKEW_SECONDS
       // `v` is the source-object content version, not a URL issuance time. It
       // can legitimately predate this QA run; freshness is enforced by `exp`.
@@ -52,11 +54,16 @@ async function waitForExactResponseDerivedPoster(
 ): Promise<boolean> {
   if (!isExactSignedPosterShape(rawUrl, tenantId, videoId)) return false;
   const target = new URL(rawUrl);
+  const expiresAt = Number(target.searchParams.get("exp"));
   for (let attempt = 0; attempt < 60; attempt += 1) {
     // Playwright may expose the dependent image request just before the
     // response callback appends its URL. Re-read the current chain each time.
     await state.responseChain;
-    if (state.allowedPosterUrls.has(rawUrl)
+    const now = Math.floor(Date.now() / 1_000);
+    const validLifetime = expiresAt > now && (
+      expiresAt - now > 690 || state.supportPosterExpiries?.get(rawUrl) === expiresAt
+    );
+    if (validLifetime && state.allowedPosterUrls.has(rawUrl)
       && [...state.allowedMasterUrls].some((master) => new URL(master).origin === target.origin)) {
       return true;
     }

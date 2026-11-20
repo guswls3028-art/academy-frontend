@@ -10,10 +10,14 @@ import type {
   SessionScoreExamEntry,
   SessionScoreRow,
   SessionScoreMeta,
+  SessionScoresResponse,
+  ScoreBlock,
 } from "@/shared/api/contracts/sessionScores";
 import { isSubjectivePendingScoreBlock } from "@/shared/scoring/subjectivePending";
 import { SCORE_TEMPLATE_SLOT_LIMIT } from "@/shared/scoring/scoreTemplateSlots";
 import { deriveFinalPass } from "@/shared/scoring/achievement";
+
+const VIDEO_HOMEWORK_LABEL = "영상보강";
 
 export type ScoreReportOptions = {
   lectureName?: string;
@@ -22,9 +26,59 @@ export type ScoreReportOptions = {
   /** Phase #5 (2026-05-12): 학원장 커스텀 합/불 라벨. 미지정 시 "합격"/"불합격" 기본. */
   passLabel?: string;
   failLabel?: string;
+  highestScores?: ReturnType<typeof collectHighestScores>;
+  showVideoHomeworkLabel?: boolean;
 };
 
+export function usesVideoHomeworkLabelInScoreAlimtalk(tenantCode?: string): boolean {
+  return tenantCode === "limglish";
+}
+
+/** Uses the server's first-attempt projections from the entire session roster. */
+export function collectHighestScores(snapshot: SessionScoresResponse | null | undefined) {
+  const examScores = new Map<number, number>();
+  const homeworkScores = new Map<number, number>();
+  const record = (scores: Map<number, number>, id: number, block: ScoreBlock) => {
+    const score = block.score;
+    if (score == null || !Number.isFinite(score) || score < 0
+      || block.is_provisional || isSubjectivePendingScoreBlock(block) || block.lock_reason === "GRADING"
+      || block.meta?.manual_review_required || block.meta?.status === "NOT_SUBMITTED") return;
+    scores.set(id, Math.max(scores.get(id) ?? score, score));
+  };
+
+  for (const row of snapshot?.rows ?? []) {
+    for (const exam of row.exams ?? []) record(examScores, exam.exam_id, exam.block);
+    for (const homework of row.homeworks ?? []) record(homeworkScores, homework.homework_id, homework.block);
+  }
+
+  return { examScores, homeworkScores };
+}
+
 // ── helpers ──
+
+function orderAssessmentEntries<Entry, Option>(
+  entries: Entry[], options: Option[] | undefined, entryId: (entry: Entry) => number,
+  optionId: (option: Option) => number,
+): Entry[] {
+  if (!options?.length || entries.length < 2) return entries;
+  const entriesById = new Map(entries.map(entry => [entryId(entry), entry]));
+  const ordered = options.flatMap(option => {
+    const id = optionId(option);
+    const entry = entriesById.get(id);
+    if (entry === undefined) return [];
+    entriesById.delete(id);
+    return [entry];
+  });
+  return [...ordered, ...entriesById.values()];
+}
+
+function orderScoreRow(row: SessionScoreRow, meta: SessionScoreMeta | null): SessionScoreRow {
+  return {
+    ...row,
+    exams: orderAssessmentEntries(row.exams ?? [], meta?.exams, exam => exam.exam_id, exam => exam.exam_id),
+    homeworks: orderAssessmentEntries(row.homeworks ?? [], meta?.homeworks, hw => hw.homework_id, hw => hw.homework_id),
+  };
+}
 
 function pct(score: number | null | undefined, max: number | null | undefined): string {
   if (score == null || max == null || max === 0) return "";
@@ -47,9 +101,16 @@ function isExplicitNotSubmitted(status: string | null | undefined): boolean {
 function missingScoreLabel(
   kind: "exam" | "homework",
   status: string | null | undefined,
+  showVideoHomeworkLabel = false,
 ): string {
+  if (kind === "homework" && status === "VIDEO_MAKEUP") return "검사 대기";
   if (!isExplicitNotSubmitted(status)) return "점수 미입력";
-  return kind === "exam" ? "미응시" : "미제출";
+  if (kind === "exam") return "미응시";
+  return showVideoHomeworkLabel ? VIDEO_HOMEWORK_LABEL : "미제출";
+}
+
+function displaysVideoHomework(row: SessionScoreRow, enabled?: boolean): boolean {
+  return enabled === true && row.attendance_status === "ONLINE";
 }
 
 export function collectUnenteredScoreItems(row: SessionScoreRow): string[] {
@@ -62,7 +123,9 @@ export function collectUnenteredScoreItems(row: SessionScoreRow): string[] {
       ))
       .map((exam) => `시험: ${exam.title}`),
     ...(row.homeworks ?? [])
-      .filter((homework) => homework.block.score == null && !isExplicitNotSubmitted(homework.block.meta?.status))
+      .filter((homework) => homework.block.score == null
+        && homework.block.meta?.status !== "VIDEO_MAKEUP"
+        && !isExplicitNotSubmitted(homework.block.meta?.status))
       .map((homework) => `과제: ${homework.title}`),
   ];
 }
@@ -229,6 +292,7 @@ function collectStats(row: SessionScoreRow, meta: SessionScoreMeta | null): Summ
       }
       if (hw.block.passed === true) s.hwPassed++;
     }
+    if (hw.block.score == null && hw.block.meta?.status === "VIDEO_MAKEUP") continue;
     if (hw.block.score == null && !isExplicitNotSubmitted(hw.block.meta?.status)) {
       s.pendingItems.push(hw.title);
     } else if (isExplicitNotSubmitted(hw.block.meta?.status) || hw.block.passed === false) {
@@ -403,20 +467,23 @@ function renderScoreDetailHomeworkLines(
   meta: SessionScoreMeta | null,
   passLabel: string,
   failLabel: string,
+  showVideoHomeworkLabel?: boolean,
 ): string[] {
   if (!row.homeworks || row.homeworks.length === 0) return [];
   const lines = ["[과제]"];
+  const videoHomework = displaysVideoHomework(row, showVideoHomeworkLabel);
   for (const hw of row.homeworks) {
+    const missingLabel = missingScoreLabel("homework", hw.block.meta?.status, videoHomework);
     const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
     if (metaHw?.grading_mode === "COMPLETION") {
-      appendScoreCard(lines, hw.title, hw.block.score == null ? missingScoreLabel("homework", hw.block.meta?.status) : hw.block.passed ? "통과 (O)" : "미통과 (X)");
+      appendScoreCard(lines, hw.title, hw.block.score == null ? missingLabel : hw.block.passed ? "통과 (O)" : "미통과 (X)");
       continue;
     }
     const max = hw.block.max_score ?? metaHw?.max_score ?? null;
     appendScoreCard(
       lines,
       hw.title,
-      `${formatCompactScore(hw.block.score, max, missingScoreLabel("homework", hw.block.meta?.status))}${hw.block.score == null ? "" : compactPassSuffix(hw.block.passed, passLabel, failLabel)}`,
+      `${formatCompactScore(hw.block.score, max, missingLabel)}${hw.block.score == null ? "" : compactPassSuffix(hw.block.passed, passLabel, failLabel)}`,
     );
   }
   return lines;
@@ -488,16 +555,17 @@ export function generateScoreReport(
   const passLabel = options.passLabel || "합격";
   const failLabel = options.failLabel || "불합격";
 
-  const examLines = renderExamLines(row, meta, passLabel, failLabel);
+  const orderedRow = orderScoreRow(row, meta);
+  const examLines = renderExamLines(orderedRow, meta, passLabel, failLabel);
   if (examLines.length > 0) lines.push(...examLines);
 
-  const hwLines = renderHomeworkLines(row, meta, passLabel, failLabel);
+  const hwLines = renderHomeworkLines(orderedRow, meta, passLabel, failLabel);
   if (hwLines.length > 0) {
     if (examLines.length > 0) lines.push("");
     lines.push(...hwLines);
   }
 
-  const stats = collectStats(row, meta);
+  const stats = collectStats(orderedRow, meta);
   stats.passLabel = passLabel;
   const summaryLines = renderSummaryLines(stats);
   if (summaryLines.length > 0) {
@@ -539,6 +607,7 @@ export function buildScoreVars(
   options: ScoreReportOptions = {},
 ): Record<string, string> {
   const vars: Record<string, string> = {};
+  const orderedRow = orderScoreRow(row, meta);
 
   // 기본 변수
   const studentName = row.student_name || "";
@@ -559,12 +628,32 @@ export function buildScoreVars(
   }
 
   // 시험 변수 (번호 기반, 실제 데이터로 덮어쓰기)
-  const exams = row.exams ?? [];
-  for (let i = 0; i < exams.length; i++) {
-    const exam = exams[i];
-    const metaExam = meta?.exams?.find((e) => e.exam_id === exam.exam_id);
-    const max = exam.block.max_score ?? metaExam?.max_score ?? 0;
+  const exams = orderedRow.exams;
+  const examsById = new Map(exams.map(exam => [exam.exam_id, exam]));
+  const examMetaById = new Map(meta?.exams?.map(exam => [exam.exam_id, exam]));
+  // A numbered slot identifies the same assessment for every recipient, including
+  // students without an assignment. Per-student arrays may have different gaps/order.
+  const examSlots = [
+    ...(meta?.exams ?? []),
+    ...exams.filter(exam => !examMetaById.has(exam.exam_id)),
+  ];
+  for (let i = 0; i < examSlots.length; i++) {
+    const slot = examSlots[i];
+    const exam = examsById.get(slot.exam_id);
+    const metaExam = examMetaById.get(slot.exam_id);
     const n = i + 1;
+    const highestScore = options.highestScores?.examScores.get(slot.exam_id);
+    if (n <= SCORE_TEMPLATE_SLOT_LIMIT && highestScore !== undefined) {
+      vars["시험" + n + "최고점"] = slot.title + " 최고점 " + highestScore + "점";
+    }
+    if (!exam) {
+      vars[`시험${n}명`] = slot.title;
+      vars[`시험${n}`] = "미배정";
+      vars[`시험${n}만점`] = String(metaExam?.max_score ?? "-");
+      vars[`시험${n}결과`] = "미배정";
+      continue;
+    }
+    const max = exam.block.max_score ?? metaExam?.max_score ?? 0;
     const subjectivePending = isSubjectivePendingScoreBlock(exam.block);
     vars[`시험${n}`] = subjectivePending
       ? "서술형 입력 필요"
@@ -587,23 +676,43 @@ export function buildScoreVars(
   vars["과제총만점"] = row.homework_total?.selected_count ? String(row.homework_total.max_score) : "-";
 
   // 과제 변수 (번호 기반, 실제 데이터로 덮어쓰기)
-  const homeworks = row.homeworks ?? [];
+  const homeworks = orderedRow.homeworks;
+  const homeworksById = new Map(homeworks.map(hw => [hw.homework_id, hw]));
+  const homeworkMetaById = new Map(meta?.homeworks?.map(hw => [hw.homework_id, hw]));
+  const videoHomework = displaysVideoHomework(row, options.showVideoHomeworkLabel);
   // 완료 여부는 서버의 교사 확인/자동 완료 상태를 따른다. 점수 입력·합격과는 별개다.
   const completedHomeworks = homeworks.filter(({ block }) => (
     block.correction_status === "COMPLETED" || block.correction_status === "NOT_REQUIRED"
   )).length;
-  for (let i = 0; i < homeworks.length; i++) {
-    const hw = homeworks[i];
-    const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
-    const max = hw.block.max_score ?? metaHw?.max_score ?? 0;
+  const homeworkSlots = [
+    ...(meta?.homeworks ?? []),
+    ...homeworks.filter(hw => !homeworkMetaById.has(hw.homework_id)),
+  ];
+  for (let i = 0; i < homeworkSlots.length; i++) {
+    const slot = homeworkSlots[i];
+    const hw = homeworksById.get(slot.homework_id);
+    const metaHw = homeworkMetaById.get(slot.homework_id);
     const n = i + 1;
-    vars[`과제${n}`] = hw.block.score != null
-      ? metaHw?.grading_mode === "COMPLETION" ? (hw.block.score >= 1 ? "통과" : "미통과") : String(hw.block.score)
-      : missingScoreLabel("homework", hw.block.meta?.status);
+    const highestScore = options.highestScores?.homeworkScores.get(slot.homework_id);
+    if (n <= SCORE_TEMPLATE_SLOT_LIMIT && metaHw?.grading_mode === "SCORE" && highestScore !== undefined) {
+      vars["과제" + n + "최고점"] = slot.title + " 최고점 " + highestScore + "점";
+    }
+    if (!hw) {
+      vars[`과제${n}명`] = slot.title;
+      vars[`과제${n}`] = "미배정";
+      vars[`과제${n}만점`] = metaHw?.grading_mode === "COMPLETION" ? "" : String(metaHw?.max_score ?? "-");
+      vars[`과제${n}결과`] = "미배정";
+      continue;
+    }
+    const max = hw.block.max_score ?? metaHw?.max_score ?? 0;
+    const missingLabel = missingScoreLabel("homework", hw.block.meta?.status, videoHomework);
     vars[`과제${n}만점`] = metaHw?.grading_mode === "COMPLETION" ? "" : String(max);
     vars[`과제${n}명`] = hw.title || "";
+    vars[`과제${n}`] = hw.block.score != null
+      ? metaHw?.grading_mode === "COMPLETION" ? (hw.block.score >= 1 ? "통과" : "미통과") : String(hw.block.score)
+      : missingLabel;
     vars[`과제${n}결과`] = hw.block.score == null
-      ? missingScoreLabel("homework", hw.block.meta?.status)
+      ? missingLabel
       : metaHw?.grading_mode === "COMPLETION"
         ? (hw.block.score >= 1 ? "통과" : "미통과")
         : `${formatCompactScore(hw.block.score, max, "미입력")}${compactPassSuffix(hw.block.passed, passLabel, failLabel)}`;
@@ -637,12 +746,12 @@ export function buildScoreVars(
     const lines: string[] = [];
     for (let i = 0; i < homeworks.length; i++) {
       const hw = homeworks[i];
-      const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
+      const metaHw = homeworkMetaById.get(hw.homework_id);
       const max = hw.block.max_score ?? metaHw?.max_score ?? 0;
       const completion = metaHw?.grading_mode === "COMPLETION";
       const scoreStr = hw.block.score != null
         ? completion ? (hw.block.score >= 1 ? "통과" : "미통과") : `${hw.block.score}/${max}`
-        : missingScoreLabel("homework", hw.block.meta?.status);
+        : missingScoreLabel("homework", hw.block.meta?.status, videoHomework);
       const pctStr = !completion && hw.block.score != null && max > 0 ? ` (${Math.round((hw.block.score / max) * 100)}%)` : "";
       lines.push(`- ${hw.title}: ${scoreStr}${pctStr}`);
     }
@@ -653,7 +762,7 @@ export function buildScoreVars(
 
   // #{전체요약} — 시험+과제 통합 요약 블록
   {
-    const stats = collectStats(row, meta);
+    const stats = collectStats(orderedRow, meta);
     stats.passLabel = passLabel;
     const lines: string[] = [];
     if (stats.examTotal > 0) {
@@ -675,10 +784,10 @@ export function buildScoreVars(
   }
 
   // 시험성적 블록 (기존 buildScoreDetail과 동일)
-  vars["시험성적"] = buildScoreDetail(row, meta, { passLabel, failLabel });
+  vars["시험성적"] = renderScoreDetail(orderedRow, meta, options);
 
   // 알림톡 봉투 변수 — 전체 본문에서는 성적 상세로 치환 (#{선생님메모}는 Solapi 래퍼 변수)
-  vars["선생님메모"] = buildScoreDetail(row, meta, { passLabel, failLabel });
+  vars["선생님메모"] = vars["시험성적"];
   // 기타 봉투 변수 — 전체 본문에서 빈 문자열로 치환하여 원문 노출 방지
   vars["내용"] = vars["내용"] ?? "";
   vars["사이트링크"] = vars["사이트링크"] ?? "";
@@ -692,8 +801,10 @@ export function substituteScoreVars(
   meta: SessionScoreMeta | null,
   options: ScoreReportOptions = {},
 ): string {
-  const vars = buildScoreVars(row, meta, options);
+  return substituteScoreValues(templateBody, buildScoreVars(row, meta, options));
+}
 
+export function substituteScoreValues(templateBody: string, vars: Readonly<Record<string, string>>): string {
   // 치환 수행
   let result = templateBody.replace(/#\{([^}]+)\}/g, (match, varName) => {
     // Sending time and actual class facts are authoritative server values.
@@ -704,7 +815,7 @@ export function substituteScoreVars(
   // 미사용 시험/과제 행 제거 — 치환 후 빈 슬롯("- : -/-", ": -/-", ": /") 줄 정리.
   // 과거 양식에 지원 범위를 넘는 시험/과제 번호 변수가 남아도 알림톡 편지지에 그대로 노출되지 않게 제거한다.
   result = result
-    .replace(/#\{(?:시험|과제)\d+(?:명|만점|결과)?\}/g, "")
+    .replace(/#\{(?:시험|과제)\d+(?:명|만점|결과|최고점)?\}/g, "")
     .replace(/^[ \t]*:[ \t]*$/gm, "")
     .replace(/^[^\n]*:\s*-?\s*\/\s*-?\s*$/gm, "")  // "시험명: -/-", "시험명: /" 패턴 줄 삭제
     .replace(/^- *: *-\s*$/gm, "")         // "- : -" 패턴 줄 삭제
@@ -718,16 +829,19 @@ export function substituteScoreVars(
 export function buildScoreDetail(
   row: SessionScoreRow,
   meta: SessionScoreMeta | null,
-  labels?: { passLabel?: string; failLabel?: string },
+  options?: ScoreReportOptions,
 ): string {
-  const lines: string[] = ["성적 상세표", "━━━━━━━━━━━━"];
-  const passLabel = labels?.passLabel || "합격";
-  const failLabel = labels?.failLabel || "불합격";
+  return renderScoreDetail(orderScoreRow(row, meta), meta, options);
+}
 
+function renderScoreDetail(row: SessionScoreRow, meta: SessionScoreMeta | null, options?: ScoreReportOptions): string {
+  const lines: string[] = ["성적 상세표", "━━━━━━━━━━━━"];
+  const passLabel = options?.passLabel || "합격";
+  const failLabel = options?.failLabel || "불합격";
   const examLines = renderScoreDetailExamLines(row, meta, passLabel, failLabel);
   if (examLines.length > 0) lines.push(...examLines);
 
-  const hwLines = renderScoreDetailHomeworkLines(row, meta, passLabel, failLabel);
+  const hwLines = renderScoreDetailHomeworkLines(row, meta, passLabel, failLabel, options?.showVideoHomeworkLabel);
   if (hwLines.length > 0) {
     if (examLines.length > 0) lines.push("");
     lines.push(...hwLines);

@@ -21,17 +21,13 @@
 }
 
 .identityAvatar {
-  width: 56px;
-  height: 56px;
-  border: 3px solid var(--color-bg-surface);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--color-brand-primary) 22%, var(--color-border-divider)),
-    0 8px 22px color-mix(in srgb, var(--color-brand-primary) 14%, transparent);
-  font-size: 30px;
+  width: var(--ds-control-xl);
+  height: var(--ds-control-xl);
+  font-size: var(--ds-text-xl);
 }
 
 .headerTitleBlock {
-  gap: 9px;
+  gap: var(--ds-space-1);
   padding: 0;
 }
 
@@ -43,8 +39,8 @@
 }
 
 .headerActions {
-  gap: 6px;
-  padding: 0;
+  gap: var(--ds-space-2);
+  flex-wrap: wrap;
 }
 
 .schoolSummary {
@@ -53,173 +49,6 @@
   font-size: 13px;
   line-height: 1.5;
   overflow-wrap: anywhere;
-}
-
-.statusControl {
-  display: grid;
-  gap: 2px;
-  padding: 0 4px;
-}
-
-.statusLabel {
-  color: var(--color-text-muted);
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.statusToggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 58px;
-  padding: 2px 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.statusToggle[data-active="true"] {
-  color: var(--color-success);
-}
-
-.statusToggle:hover:not(:disabled) {
-  color: var(--color-brand-primary);
-}
-
-.statusToggle:focus-visible {
-  border-radius: 5px;
-  outline: 2px solid var(--color-border-focus);
-  outline-offset: 3px;
-}
-
-.statusToggle:disabled {
-  cursor: wait;
-  opacity: 0.62;
-}
-
-.statusDot {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 auto;
-  border-radius: 999px;
-  background: var(--color-text-muted);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-text-muted) 12%, transparent);
-}
-
-.statusToggle[data-active="true"] .statusDot {
-  background: var(--color-success);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-success) 14%, transparent);
-}
-
-
-.deleteAction {
-  color: var(--color-text-muted);
-}
-
-.deleteAction:hover {
-  background: color-mix(in srgb, var(--color-danger) 8%, transparent);
-  color: var(--color-danger);
-}
-
-.statTabs {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
-  padding: 8px;
-  border-bottom: 1px solid var(--color-border-divider);
-  background: color-mix(in srgb, var(--color-bg-surface-soft) 70%, var(--color-bg-surface));
-}
-
-.statTab {
-  all: unset;
-  box-sizing: border-box;
-  display: grid;
-  min-width: 0;
-  min-height: 64px;
-  align-content: center;
-  justify-items: start;
-  gap: 2px;
-  padding: 8px 10px;
-  border: 1px solid transparent;
-  border-radius: 9px;
-  cursor: pointer;
-  transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
-}
-
-.statTab:hover {
-  border-color: color-mix(in srgb, var(--color-brand-primary) 16%, var(--color-border-divider));
-  background: color-mix(in srgb, var(--color-bg-surface) 84%, transparent);
-}
-
-.statTab:focus-visible {
-  outline: 2px solid var(--color-border-focus);
-  outline-offset: 1px;
-}
-
-.statTabActive {
-  border-color: color-mix(in srgb, var(--color-brand-primary) 28%, var(--color-border-divider));
-  background: var(--color-bg-surface);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
-  transform: translateY(-1px);
-}
-
-.statTabMuted:not(.statTabActive) {
-  opacity: 0.58;
-}
-
-.statTabLabel {
-  color: var(--color-text-muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.statTabActive .statTabLabel {
-  color: var(--color-brand-primary);
-}
-
-.statTabValue {
-  overflow: hidden;
-  max-width: 100%;
-  color: var(--color-text-primary);
-  font-size: 15px;
-  font-weight: 850;
-  line-height: 1.15;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.statTabValueSuccess {
-  color: var(--color-success);
-}
-
-.statTabValueDanger {
-  color: var(--color-error);
-}
-
-.statTabActive .statTabValue {
-  color: var(--color-brand-primary);
-}
-
-.statTabSub {
-  overflow: hidden;
-  max-width: 100%;
-  color: var(--color-text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.inventoryTrigger {
-  width: 46px;
-  height: 46px;
-  color: var(--color-brand-primary);
-  font-size: 0;
 }
 
 .centerAction {
@@ -370,170 +199,31 @@
   container-type: inline-size;
 }
 
-.scoreScope {
-  margin-bottom: 12px;
-  overflow: hidden;
-  border: 1px solid var(--color-border-divider);
-  border-radius: 10px;
-  background: var(--color-bg-surface);
-}
-
-.scoreScopeHeader {
+.recordToolbar {
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 11px 14px 10px;
+  justify-content: flex-end;
 }
 
-.scoreScopeHeader > div {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.scoreScopeHeader span {
-  color: var(--color-text-muted);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-
-.scoreScopeHeader strong {
-  color: var(--color-text-primary);
-  font-size: 13px;
-  font-weight: 750;
-  letter-spacing: -0.015em;
-}
-
-.scoreScopeHeader p {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: 10.5px;
-  line-height: 1.4;
-  text-align: right;
-  word-break: keep-all;
-}
-
-.scoreScopeTabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
-  border-top: 1px solid var(--color-border-divider);
-  background: var(--color-border-divider);
-}
-
-.scoreScopeTabs button {
-  position: relative;
+.scoreToolbar {
   display: flex;
-  min-width: 0;
-  min-height: 46px;
   align-items: center;
   justify-content: space-between;
-  gap: 5px;
-  padding: 9px 9px 11px;
-  border: 0;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+  margin-bottom: var(--ds-space-3);
+}
+
+.scoreToolbar > :first-child {
+  max-width: 100%;
+}
+
+.trendSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-3);
+  margin-bottom: var(--ds-space-2);
   color: var(--color-text-secondary);
-  background: var(--color-bg-surface);
-  font: inherit;
-  cursor: pointer;
-  transition: color 140ms ease, background-color 140ms ease;
-}
-
-.scoreScopeTabs button::after {
-  position: absolute;
-  right: 11px;
-  bottom: 0;
-  left: 11px;
-  height: 3px;
-  border-radius: 999px 999px 0 0;
-  content: "";
-  background: transparent;
-}
-
-.scoreScopeTabs button > span {
-  overflow: hidden;
-  font-size: 11.5px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.scoreScopeTabs button > strong {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: baseline;
-  gap: 2px;
-  font-size: 15px;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.03em;
-}
-
-.scoreScopeTabs button > strong small {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0;
-}
-
-.scoreScopeTabs button[data-active="true"] {
-  color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-text-primary) 4%, var(--color-bg-surface));
-}
-
-.scoreScopeTabs button[data-session-type="REGULAR"][data-active="true"] {
-  color: var(--color-brand-primary);
-  background: color-mix(in srgb, var(--color-brand-primary) 7%, var(--color-bg-surface));
-}
-
-.scoreScopeTabs button[data-session-type="SUPPLEMENT"][data-active="true"] {
-  color: var(--color-info, #0891b2);
-  background: color-mix(in srgb, var(--color-info, #0891b2) 7%, var(--color-bg-surface));
-}
-
-.scoreScopeTabs button[data-active="true"]::after {
-  background: currentColor;
-}
-
-.scoreScopeTabs button:focus-visible {
-  z-index: 1;
-  outline: 3px solid color-mix(in srgb, var(--color-brand-primary) 32%, transparent);
-  outline-offset: -3px;
-}
-
-.matrixBanner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 14px;
-  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 24%, var(--color-border-divider));
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--color-brand-primary) 5%, var(--color-bg-surface));
-}
-
-.matrixCopy {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.matrixTitle {
-  color: var(--color-text-primary);
-  font-size: 12.5px;
-  font-weight: 700;
-}
-
-.matrixDescription {
-  color: var(--color-text-muted);
-  font-size: 11px;
-}
-
-.matrixPanel {
-  padding: 12px;
-  border: 1px solid var(--color-border-divider);
-  border-radius: 8px;
-  background: var(--color-bg-canvas);
+  font-size: var(--ds-text-sm);
 }
 
 .tabRecord,
@@ -854,35 +544,6 @@
 }
 
 @media (max-width: 768px) {
-  .detailHeader {
-    padding: 14px 16px 12px;
-  }
-
-  .identityAvatar {
-    width: 60px;
-    height: 60px;
-    font-size: 24px;
-  }
-
-  .headerActions {
-    width: 100%;
-    overflow-x: visible;
-  }
-
-  .statTabs {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 2px;
-    padding: 6px;
-  }
-
-  .statTab {
-    min-height: 54px;
-    padding: 6px;
-  }
-
-  .statTabSub { display: none; }
-  .statTabValue { font-size: 13px; }
-
   .recordActionHint {
     font-size: 0;
   }
@@ -917,10 +578,6 @@
     flex: 1;
   }
 
-  .inventoryTrigger {
-    width: 40px;
-    height: 40px;
-  }
 }
 
 @container (max-width: 500px) {
@@ -946,7 +603,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .statTab,
   .homeworkQuickEditor {
     transition: none;
     animation: none;

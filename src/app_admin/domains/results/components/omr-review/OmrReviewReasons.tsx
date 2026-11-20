@@ -1,7 +1,8 @@
 import { reasonLabel } from "./omrReviewReasonLabels";
 
-export function OmrReviewReasons({ reasons, onIdentify, onEdit }: {
+export function OmrReviewReasons({ reasons, hint, onIdentify, onEdit }: {
   reasons: string[];
+  hint?: string;
   onIdentify?: () => void;
   onEdit?: () => void;
 }) {
@@ -11,10 +12,15 @@ export function OmrReviewReasons({ reasons, onIdentify, onEdit }: {
       <div className="orw-review-callout__reasons">
         {reasons.length ? [...new Set(reasons.map(reasonLabel))].map((label) => <div key={label}>{label}</div>)
           : <div>판독 결과 확인이 필요합니다.</div>}
+        {hint && <div>{hint}</div>}
       </div>
       <div className="orw-review-callout__actions">
         {onIdentify && <button type="button" className="orw-review-callout__action" onClick={onIdentify}>학생 연결하기</button>}
-        {onEdit && <button type="button" className="orw-review-callout__action" onClick={onEdit}>답안 수정하기</button>}
+        {onEdit && (
+          <button type="button" className="orw-review-callout__action" onClick={onEdit}>
+            {hint ? "답안 확인하기" : "답안 수정하기"}
+          </button>
+        )}
       </div>
     </section>
   );

@@ -138,7 +138,7 @@ for (const width of [1366, 390]) {
     const state = await prepare(page, true, true); state.sessionExpired = true;
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`${BASE}/landing/admin/videos/new`);
-    await expect(page).toHaveURL(`${BASE}/login/godmin`);
+    await page.waitForURL(`${BASE}/login/godmin`, { waitUntil: "commit", timeout: 30_000 });
     await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible();
     expect(await page.evaluate(() => sessionStorage.getItem("session_return_path"))).toBe("/landing/admin/videos/new");
     await expect(page.getByLabel("01 · YouTube 링크", { exact: true })).toHaveCount(0);

@@ -53,3 +53,9 @@
 .error { color: var(--color-danger); font-size: 13px; overflow-wrap: anywhere; }
 @media (max-width: 640px) { .preview { min-height: 44px; } }
 @media (prefers-reduced-motion: reduce) { .preview { transition: none; } }
+
+/* Keep both memo entries available side by side without inflating mobile rows. */
+.root[data-compact="true"] { display: flex; align-items: stretch; padding: 2px 0; }
+.root[data-compact="true"] .preview { flex: 1 1 0; align-items: center; gap: 6px; min-height: 44px; padding: 6px; }
+.root[data-compact="true"] .previewText { -webkit-line-clamp: 1; }
+.root[data-compact="true"] .editHint { display: none; }

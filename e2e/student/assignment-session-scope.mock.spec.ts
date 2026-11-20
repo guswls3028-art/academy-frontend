@@ -14,13 +14,14 @@ function fakeJwt(): string {
   })}.sig`;
 }
 
-async function installApi(page: Page) {
+async function installApi(page: Page, beforeUploadResponse?: () => Promise<void>) {
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE),
     "학생 제출 route-mock 검증은 로컬 dev 서버 전용",
   );
   const token = fakeJwt();
   let submissionCount = 0;
+  const submissionTargets: string[] = [];
   const mediaFiles: Array<Record<string, unknown>> = [];
 
   await page.addInitScript((jwt) => {
@@ -164,12 +165,15 @@ async function installApi(page: Page) {
         },
       });
     }
+    const mediaTarget = path.match(/\/submissions\/submissions\/homework\/(\d+)\/media\/$/);
+    if (mediaTarget && request.method() === "POST") submissionTargets.push(mediaTarget[1]);
     if (path.endsWith("/submissions/submissions/homework/501/media/") && request.method() === "POST") {
       submissionCount += 1;
       const body = request.postData() ?? "";
       expect(body).toContain("401");
       const field = (name: string) => body.match(new RegExp(`name="${name}"\\r?\\n\\r?\\n([^\\r\\n]+)`))?.[1] ?? "";
       await new Promise((resolve) => setTimeout(resolve, 250));
+      await beforeUploadResponse?.();
       const uploaded = {
         id: String(900 + submissionCount),
         legacy: false,
@@ -194,7 +198,7 @@ async function installApi(page: Page) {
     return fulfill({ count: 0, results: [] });
   });
 
-  return { getSubmissionCount: () => submissionCount };
+  return { getSubmissionCount: () => submissionCount, submissionTargets };
 }
 
 test("차시 제출 링크는 다른 차시를 숨기고 과제별 선택 복원·제출 후 재조회를 완료한다", async ({ page }) => {
@@ -281,6 +285,99 @@ test("클리닉 링크는 해당 차시의 정확한 과제를 바로 선택한�
     .toBeLessThanOrEqual(1);
 });
 
+const assignmentReturnCases = [
+  { otherSession: true, chooseBeforeExpand: false },
+  { otherSession: false, chooseBeforeExpand: false },
+  { otherSession: false, chooseBeforeExpand: true },
+];
+for (const width of [390, 1366]) {
+  for (const { otherSession, chooseBeforeExpand } of assignmentReturnCases) {
+    const timing = chooseBeforeExpand ? " 전체 제출을 열기 전에 과제를 선택해도" : "";
+    test(`${width}px${timing} 전체 제출에서 돌아오면 ${otherSession ? "다른" : "같은"} 차시의 다른 과제 파일을 보관하고 링크 과제만 제출한다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const api = await installApi(page);
+      const scoped = `${BASE}/student/submit/assignment?sessionId=${SESSION_ID}&homeworkId=501`;
+      await page.goto(scoped, { waitUntil: "domcontentloaded" });
+
+      const summary = page.locator('[class*="submitSummary"]');
+      const picker = page.locator('input[type="file"]');
+      const saved = page.getByText(/이 기기에 임시 보관했습니다/);
+      const bTitle = otherSession ? "다른 차시 과제" : "현재 차시 추가 과제";
+      const otherTarget = page.getByRole("button", { name: new RegExp(bTitle) });
+      const expand = page.getByRole("link", { name: "전체 제출 대상 보기" });
+      const origin = await page.evaluate(() => performance.timeOrigin);
+      await expect(summary).toContainText("현재 차시 필수 과제");
+      if (chooseBeforeExpand) {
+        await otherTarget.click();
+        await expect(summary).toContainText(bTitle);
+      }
+      await expand.click();
+      await expect(page).toHaveURL(`${BASE}/student/submit/assignment`);
+      await expect(expand).toHaveCount(0);
+      if (!chooseBeforeExpand) await otherTarget.click();
+      await expect(summary).toContainText(bTitle);
+      await expect(picker).toBeEnabled();
+      await picker.setInputFiles({
+        name: "other-session.jpg",
+        mimeType: "image/jpeg",
+        buffer: Buffer.from("synthetic-other-session"),
+      });
+      await expect(saved).toBeVisible();
+
+      await page.goBack();
+      await expect(page).toHaveURL(scoped);
+      expect(await page.evaluate(() => performance.timeOrigin)).toBe(origin);
+      if (otherSession) await expect(otherTarget).toHaveCount(0);
+      else await expect(otherTarget).toHaveAttribute("data-selected", "false");
+      await expect(page.getByText("other-session.jpg", { exact: true })).toHaveCount(0);
+      await expect(summary).toContainText("현재 차시 필수 과제");
+      expect(api.submissionTargets).toEqual([]);
+
+      await expect(picker).toBeEnabled();
+      await picker.setInputFiles({ name: "in-session.jpg", mimeType: "image/jpeg", buffer: Buffer.from("in-session") });
+      await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
+      await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
+      expect(api.submissionTargets).toEqual(["501"]);
+
+      if (otherSession) await expand.click();
+      await otherTarget.click();
+      await expect(summary).toContainText(bTitle);
+      await expect(page.getByText("other-session.jpg", { exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "파일 1개 제출하기" })).toBeEnabled();
+      expect(api.submissionTargets).toEqual(["501"]);
+    });
+  }
+}
+
+test("전체 제출 대상으로 이동해도 진행 중인 과제의 결과를 같은 파일 목록에 표시한다", async ({ page }) => {
+  let releaseUpload: () => void = () => {};
+  const uploadResponse = new Promise<void>((resolve) => { releaseUpload = resolve; });
+  const api = await installApi(page, () => uploadResponse);
+  await page.goto(`${BASE}/student/submit/assignment?sessionId=${SESSION_ID}&homeworkId=501`, { waitUntil: "domcontentloaded" });
+  const picker = page.locator('input[type="file"]');
+  try {
+    await expect(picker).toBeEnabled();
+    await picker.setInputFiles({
+      name: "active-assignment.png",
+      mimeType: "image/png",
+      buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "base64"),
+    });
+    await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
+    await expect.poll(() => api.submissionTargets).toEqual(["501"]);
+    const expand = page.getByRole("link", { name: "전체 제출 대상 보기" });
+    await expand.click();
+    await expect(page).toHaveURL(`${BASE}/student/submit/assignment`);
+    await expect(expand).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "파일별로 제출 중…" })).toBeVisible();
+    releaseUpload();
+    await expect(page.getByRole("region", { name: "이미 제출한 파일" }).getByText("active-assignment.png", { exact: true }))
+      .toBeVisible();
+    expect(api.submissionTargets).toEqual(["501"]);
+  } finally {
+    releaseUpload();
+  }
+});
+
 for (const device of [
   { name: "iPhone", viewport: { width: 390, height: 844 }, filename: "아이폰풀이.heic", mimeType: "image/heic" },
   { name: "Galaxy", viewport: { width: 360, height: 800 }, filename: "갤럭시풀이.jpg", mimeType: "image/jpeg" },
@@ -323,6 +420,8 @@ test("교사 완료 과제는 원점수 없이도 완료로 표시되고 재제�
   const card = page.locator('[class*="homeworkCard"]').filter({
     hasText: "수업 중 교사 확인 과제",
   });
+  await expect(card).toHaveCount(0);
+  await page.getByRole("group", { name: "과제 상태 필터" }).getByRole("button", { name: "완료 1", exact: true }).click();
   await expect(card).toBeVisible();
   await expect(card).toContainText("–/100");
   await expect(card).toContainText("교사 확인 완료");

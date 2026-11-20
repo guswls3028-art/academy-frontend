@@ -86,13 +86,20 @@ test.describe("godmin public landing", () => {
     await page.goto(`${BASE}/landing`, { waitUntil: "commit", timeout: 45_000 });
 
     await expect(page.getByRole("heading", { name: "복잡한 과학을, 이해되는 구조로." })).toBeVisible({ timeout: 90_000 });
-    await expect(page).toHaveTitle("신민T 통합과학 | 신과함께");
+    await expect(page).toHaveTitle("신민 과학 연구소 | 신민T 통합과학");
+    await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute("content", "신민 과학 연구소");
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://godmin.kr/landing");
     await expect(page.getByAltText("통합과학 강사 신민 선생님")).toBeVisible();
     const login = page.getByRole("link", { name: "수강생·학부모 로그인" });
     await expect(login).toHaveAttribute("href", "/login/godmin");
     await expect(page.getByText("대성마이맥 통합과학", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "네 영역을 잇는 하나의 과학 지도" })).toBeVisible();
     await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /대치동 통합과학 강사 신민T/);
+    const enroll = page.getByText("수강신청 바로가기", { exact: true });
+    await enroll.press("Enter");
+    await expect(page.getByRole("link", { name: /두각학원/ })).toBeVisible();
+    await enroll.press("Enter");
+    await expect(page.getByRole("link", { name: /두각학원/ })).toBeHidden();
     expect(genericLandingRequests).toBe(0);
     expect(publishedConfigRequests).toBe(0);
     expect(await page.evaluate(
@@ -108,12 +115,13 @@ test.describe("godmin public landing", () => {
     await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible({ timeout: 30_000 });
   });
 
-  test("keeps the 390px home readable, actionable, and free of horizontal overflow", async ({ page }, testInfo) => {
+  test("keeps the 390px home readable, actionable, and free of horizontal overflow", async ({ page, context }, testInfo) => {
     await page.setViewportSize({ width: 390, height: 844 });
 
     await page.goto(`${BASE}/landing`, { waitUntil: "commit", timeout: 45_000 });
 
     await expect(page.getByRole("heading", { name: "복잡한 과학을, 이해되는 구조로." })).toBeVisible({ timeout: 90_000 });
+    await expect(page.getByText("신민 과학 연구소 · 대치동 통합과학", { exact: true })).toBeVisible();
     const nav = page.getByRole("navigation", { name: "홈페이지 주요 메뉴" });
     await expect(nav).toBeVisible();
     for (const label of ["수업 철학", "학습 관리", "신민T", "자료게시판", "영상"]) {
@@ -129,6 +137,25 @@ test.describe("godmin public landing", () => {
     expect(await page.evaluate(
       () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
     )).toBeLessThanOrEqual(1);
+
+    const enroll = page.getByText("수강신청 바로가기", { exact: true });
+    const academyLink = page.getByRole("link", { name: /두각학원/ });
+    await expect(enroll).toBeInViewport();
+    await expect(academyLink).toBeHidden();
+    await enroll.click();
+    await expect(academyLink).toBeVisible();
+    expect((await academyLink.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(
+      () => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - window.innerWidth,
+    )).toBeLessThanOrEqual(1);
+
+    const signup = "https://www.dugak.net/time/?tid=43&mid=427";
+    await context.route(signup, (route) => route.fulfill({ body: "두각학원 수강신청", contentType: "text/plain" }));
+    await expect(academyLink).toHaveAttribute("rel", "noopener noreferrer");
+    const [applicationTab] = await Promise.all([page.waitForEvent("popup"), academyLink.click()]);
+    await expect(applicationTab).toHaveURL(signup);
+    await applicationTab.close();
+    await expect(academyLink).toBeVisible();
 
     const screenshotPath = testInfo.outputPath("godmin-landing-390.png");
     await page.screenshot({ path: screenshotPath, fullPage: true });

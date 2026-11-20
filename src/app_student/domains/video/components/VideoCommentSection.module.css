@@ -1,17 +1,26 @@
+.preview {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px;
+  margin: 10px 0; padding: 8px 12px; border: 1px solid var(--stu-border); border-radius: 12px;
+  background: var(--stu-surface); color: var(--stu-text); text-align: left; cursor: pointer;
+}
+.previewHeading { display: flex; align-items: center; gap: 5px; flex: none; font-weight: 700; }
+.previewText { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--stu-text-muted); }
+.overlay { position: fixed; inset: 0; z-index: 3000; display: flex; justify-content: center; align-items: flex-end; background: rgb(12 18 28 / 45%); overscroll-behavior: contain; }
+.overlay[hidden] { display: none; }
 .section {
-  margin-top: var(--stu-space-4);
-  padding: 18px;
-  overflow: hidden;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--stu-surface) 96%, white), var(--stu-surface));
-  border: 1px solid color-mix(in srgb, var(--stu-primary) 10%, var(--stu-border));
-  border-radius: 16px;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.72) inset,
-    0 14px 34px rgba(15, 23, 42, 0.06);
+  width: min(100%, 720px); max-height: 76dvh; overflow-y: auto; overscroll-behavior: contain;
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0;
+  background: var(--stu-surface); color: var(--stu-text); box-shadow: 0 -8px 30px rgb(0 0 0 / 16%);
+}
+.close { display: grid; width: 44px; height: 44px; place-items: center; color: inherit; border: 0; background: transparent; cursor: pointer; }
+.preview:focus-visible, .close:focus-visible { outline: 2px solid var(--stu-primary); outline-offset: -2px; }
+@media (prefers-reduced-motion: no-preference) {
+  .overlay:not([hidden]) .section { animation: commentSheetIn 160ms ease-out; }
+  @keyframes commentSheetIn { from { transform: translateY(16px); opacity: .3; } }
 }
 
 .header {
+  position: sticky; top: 0; z-index: 1; padding: 6px 0; background: var(--stu-surface);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -450,8 +459,8 @@
 
 @media (max-width: 480px) {
   .section {
-    padding: 14px;
-    border-radius: 14px;
+    padding-inline: 12px;
+    border-radius: 14px 14px 0 0;
   }
 
   .composerBody {

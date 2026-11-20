@@ -354,7 +354,7 @@
 
 .qna-inbox__image-stage {
   display: grid;
-  min-height: clamp(360px, 46vh, 620px);
+  min-height: 180px;
   max-height: 68vh;
   overflow: auto;
   place-items: center;
@@ -401,6 +401,14 @@
 
 .qna-inbox__image-strip button.is-active {
   border-color: var(--color-primary);
+}
+
+.qna-inbox__heic-thumb {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
 }
 
 .qna-inbox__image-strip img {
@@ -1867,7 +1875,6 @@
   }
 
   .qna-inbox__image-stage {
-    min-height: 360px;
     max-height: none;
     padding: 18px;
   }

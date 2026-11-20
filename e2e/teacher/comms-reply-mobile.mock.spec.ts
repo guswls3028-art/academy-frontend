@@ -1,4 +1,5 @@
 import { test, expect } from "../fixtures/strictTest";
+import { homeworkHeic, installHomeworkHeicPreview } from "../helpers/homeworkHeicFixture";
 import type { Page, Route } from "@playwright/test";
 
 const BASE =
@@ -163,8 +164,20 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
       "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
   });
 
-  test("Q&A 답변 등록 버튼이 하단 탭바에 가려지지 않고 답변을 등록한다", async ({ page }) => {
+  test("Q&A 사진을 본 뒤 답변 등록 버튼이 하단 탭바에 가려지지 않고 답변을 등록한다", async ({ page }) => {
+    const { url } = await installHomeworkHeicPreview(page);
+    const answer = "감수 2분열이라서 그래요.";
+    const photoBytes = "iVBORw0KGgoAAAANSUhEUgAAAAQAAAADCAIAAAA7ljmRAAAAEElEQVR4nGM4aFYDRww4OQBWkBFlOSF6ngAAAABJRU5ErkJggg==";
+    const photo = {
+      id: 992,
+      original_name: "모바일 풀이.png",
+      content_type: "image/png",
+      size_bytes: Buffer.from(photoBytes, "base64").length,
+      created_at: "2026-06-03T08:50:00.000Z",
+      download_url: `data:image/png;base64,${photoBytes}`,
+    };
     const post = {
+      attachments: [{ id: 991, original_name: "질문사진.heic", size_bytes: homeworkHeic.length, content_type: "image/heic", download_url: url }],
       id: POST_ID,
       post_type: "qna",
       title: "[E2E] 모바일 답변 버튼 회귀",
@@ -181,6 +194,7 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
       author_display_name: string;
       author_role: string;
       created_at: string;
+      attachments: Array<typeof photo>;
     }> = [];
 
     await page.route("**/api/v1/**", async (route) => {
@@ -230,23 +244,19 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
         return json({ results: replies, count: replies.length });
       }
 
-      if (path === `/community/posts/${POST_ID}/replies/` && request.method() === "POST") {
-        const raw = request.postData();
-        let payload: { content?: string } = {};
-        if (raw) {
-          try {
-            payload = JSON.parse(raw) as { content?: string };
-          } catch {
-            payload = Object.fromEntries(new URLSearchParams(raw)) as { content?: string };
-          }
-        }
+      if (path === `/community/posts/${POST_ID}/replies/with-images/` && request.method() === "POST") {
+        const body = request.postDataBuffer()?.toString("utf8");
+        expect(body).toContain(answer);
+        expect(body).toContain('name="files"');
+        expect(body).toContain('name="idempotency_key"');
         const reply = {
           id: 880001,
           post: POST_ID,
-          content: `<p>${String(payload.content ?? "")}</p>`,
+          content: answer,
           author_display_name: "선생님",
           author_role: "staff",
           created_at: new Date().toISOString(),
+          attachments: [photo],
         };
         replies.push(reply);
         post.replies_count = replies.length;
@@ -269,6 +279,7 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
     await page.getByText(post.title).click();
     await expect(page.getByText("감수 1분열 중기는 다양성과 상관이 있는데")).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText("왜 감수 2분열 중기는 다양성과 상관이 없나요")).toBeVisible();
+    await expect(page.getByRole("img", { name: "질문사진.heic", exact: true })).toHaveJSProperty("naturalWidth", 640);
     await expect.poll(async () => page.locator("body").innerText()).not.toContain("<p>");
     await expect(page.getByText("아직 답변이 없습니다")).toBeVisible({ timeout: 10_000 });
 
@@ -276,8 +287,11 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
     const sheet = page.getByRole("dialog", { name: "답변 작성" });
     await expect(sheet).toBeVisible({ timeout: 10_000 });
 
-    const answer = "감수 2분열이라서 그래요.";
-    await sheet.getByPlaceholder(/답변을 입력하세요/).fill(answer);
+    await sheet.locator(".ProseMirror").fill(answer);
+    const chooser = page.waitForEvent("filechooser");
+    await sheet.getByRole("button", { name: "이미지 삽입", exact: true }).click();
+    await (await chooser).setFiles({ name: photo.original_name, mimeType: photo.content_type, buffer: Buffer.from(photoBytes, "base64") });
+    await expect(sheet.getByRole("img", { name: photo.original_name, exact: true })).toBeVisible();
 
     const submit = sheet.getByRole("button", { name: "등록" });
     await expect(submit).toBeVisible();
@@ -299,6 +313,10 @@ test.describe("선생님 소통 모바일 답변 시트", () => {
 
     await expect(sheet).not.toBeVisible({ timeout: 10_000 });
     await expect(page.getByText(answer)).toBeVisible({ timeout: 10_000 });
+    const savedPhoto = page.getByRole("img", { name: "답변 사진: 모바일 풀이.png" });
+    await expect(savedPhoto).toHaveJSProperty("naturalWidth", 4);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(savedPhoto).toHaveJSProperty("naturalWidth", 4);
     await expect.poll(async () => page.locator("body").innerText()).not.toContain("<p>");
   });
 
@@ -543,21 +561,42 @@ test.describe("선생님 가입 정책과 대기 업무 경계", () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 
-  test("자가 가입 사용 학원은 대시보드 CTA에서 실제 처리 탭으로 이동한다", async ({ page }) => {
-    await page.setViewportSize({ width: 1366, height: 900 });
-    await installRegistrationPolicyMocks(page, { registrationStatus: 200 });
+  for (const viewport of [{ width: 1366, height: 900 }, { width: 390, height: 844 }]) {
+    test(`자가 가입 사용 학원은 대시보드에서 전체 연락처를 확인한다 (${viewport.width}px)`, async ({ page }, testInfo) => {
+      await page.setViewportSize(viewport);
+      await installRegistrationPolicyMocks(page, { registrationStatus: 200 });
 
-    await page.goto(`${BASE}/workspace/mobile`, { waitUntil: "load", timeout: 20_000 });
-    await expect(page.getByRole("heading", { name: "가입 신청 학생 1건" })).toBeVisible();
-    await page.getByRole("button", { name: "처리 필요 처리하러 가기" }).click();
+      await page.goto(`${BASE}/workspace/mobile`, { waitUntil: "load", timeout: 20_000 });
+      await expect(page.getByRole("heading", { name: "가입 신청 학생 1건" })).toBeVisible();
+      await page.getByRole("button", { name: "처리 필요 처리하러 가기" }).click();
 
-    await expect(page).toHaveURL(/\/workspace\/mobile\/comms\?tab=requests$/);
-    await expect(page.getByText("과거 가입 요청", { exact: true })).toBeVisible();
-    await page.getByText("과거 가입 요청", { exact: true }).click();
-    await expect(page.getByRole("button", { name: "승인", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "거절", exact: true })).toBeVisible();
-    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  });
+      await expect(page).toHaveURL(/\/workspace\/mobile\/comms\?tab=requests$/);
+      await page.getByText("과거 가입 요청", { exact: true }).click();
+      const detail = page.getByRole("dialog", { name: "등록요청 상세" });
+      await detail.getByRole("button", { name: "승인", exact: true }).click({ trial: true });
+      await detail.getByRole("button", { name: "거절", exact: true }).click({ trial: true });
+      await expect(detail.getByText("연락처", { exact: true })).toBeInViewport({ ratio: 1 });
+      await expect(detail.getByText("학부모 연락처", { exact: true })).toBeInViewport({ ratio: 1 });
+      await expect(detail.getByText("010-0000-0001", { exact: true })).toBeInViewport({ ratio: 1 });
+      await expect(detail.getByText("010-0000-0002", { exact: true })).toBeInViewport({ ratio: 1 });
+      await expect(detail.getByRole("link", { name: "010-0000-0001", exact: true })).toHaveAttribute("href", "tel:01000000001");
+      await expect(detail.getByRole("link", { name: "010-0000-0002", exact: true })).toHaveAttribute("href", "tel:01000000002");
+      await expect.poll(() => detail.evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      await testInfo.attach(`registration-full-contacts-${viewport.width}`, {
+        body: await page.screenshot({ path: testInfo.outputPath(`registration-full-contacts-${viewport.width}.png`), animations: "disabled" }),
+        contentType: "image/png",
+      });
+      await page.evaluate(() => {
+        const key = "academy:auth-active-generation:v1";
+        const oldValue = localStorage.getItem(key);
+        localStorage.setItem(key, "qa-registration-other-account");
+        window.dispatchEvent(new StorageEvent("storage", { key, oldValue, newValue: "qa-registration-other-account" }));
+      });
+      await expect(page).toHaveURL(/\/login(?:\/|\?|$)/);
+      await expect(page.getByText(/010-0000-0001|010-0000-0002/)).toHaveCount(0);
+    });
+  }
 
   test("가입 신청 설정은 조회 성공 전 변경할 수 없고 재시도 뒤에만 열린다", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });

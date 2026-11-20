@@ -2,7 +2,7 @@
 // HitReportEditor 전용 타입/상수 SSOT.
 // 적중 분류 임계값은 backend pdf_report.py SIM_* 와 동일해야 한다 (PDF 출력 일관성).
 
-import type { HitReportCandidate, HitReportSelectedMeta } from "../../../api/matchup.api";
+import type { HitReportCandidate, HitReportExamProblem, HitReportSelectedMeta } from "../../../api/matchup.api";
 
 // 적중 분류 — pdf_report.py와 동일 임계값 (직접/유형/개념/없음)
 export const SIM_DIRECT = 0.85;
@@ -41,3 +41,12 @@ export const SOURCE_PANE_COLOR = "#D97706";  // amber-600 — 시험지(원본)
 export const SOURCE_PANE_BG = "#FEF3C7";     // amber-100
 
 export type CandidateMeta = HitReportCandidate | HitReportSelectedMeta;
+
+export function displayedSimilarity(problem: HitReportExamProblem, candidate: CandidateMeta): number | null {
+  if ("similarity" in candidate && candidate.display_similarity !== undefined) {
+    return candidate.display_similarity;
+  }
+  const pinnedScore = problem.entry?.selected_display_similarity?.[candidate.id];
+  if (pinnedScore !== undefined) return pinnedScore;
+  return "similarity" in candidate ? candidate.similarity : null;
+}

@@ -1,4 +1,4 @@
-import type { Page, Route } from "@playwright/test";
+import type { Page, Request, Route } from "@playwright/test";
 import ExcelJS from "exceljs";
 
 import { expect, test } from "../fixtures/strictTest";
@@ -57,6 +57,59 @@ for (const width of [1366, 390]) {
 }
 
 test.use({ serviceWorkers: "block" });
+
+test("늦게 도착한 학원 설정이 학생 등록에서 지운 비밀번호를 복원하지 않는다", async ({ page }) => {
+  await installTenantOneInitScript(page);
+  await page.addInitScript((jwt) => {
+    localStorage.setItem("access", jwt);
+    localStorage.setItem("refresh", `${jwt}-refresh`);
+  }, localJwt());
+  await installApi(page);
+
+  let releasePolicy!: () => void;
+  const policyReady = new Promise<void>((resolve) => { releasePolicy = resolve; });
+  await page.route("**/api/v1/students/account-password-settings/", async (route) => {
+    await policyReady;
+    await route.fulfill({ json: {
+      student_mode: "fixed", parent_mode: "fixed",
+      student_fixed_password: "synthetic-student-default", parent_fixed_password: "synthetic-parent-default",
+    } });
+  });
+  let registrations = 0;
+  page.on("request", (request) => {
+    if (request.method() === "POST" && new URL(request.url()).pathname === "/api/v1/students/") registrations += 1;
+  });
+
+  await page.setViewportSize({ width: 390, height: 900 });
+  await gotoAndSettle(page, `${BASE}/workspace/students/home`, { timeout: 45_000 });
+  await page.getByRole("button", { name: "학생 추가", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "학생 등록" });
+  await dialog.getByRole("button", { name: "1명만 등록", exact: true }).click();
+  await dialog.getByPlaceholder("이름", { exact: true }).fill("등록 테스트");
+  await dialog.getByLabel("학부모 전화 앞 4자리").fill("55551234");
+  await dialog.getByPlaceholder("로그인 아이디 (선택·비우면 학생 전화번호 사용)").fill("qa-register");
+  await dialog.getByRole("button", { name: "등록", exact: true }).click();
+
+  const confirmation = page.getByRole("alertdialog", { name: "학생 등록 최종 확인" });
+  const student = confirmation.getByRole("group", { name: "학생 초기 비밀번호", exact: true });
+  const parent = confirmation.getByRole("group", { name: "학부모 초기 비밀번호", exact: true });
+  await student.getByLabel("직접 입력", { exact: true }).check();
+  const studentPassword = student.getByLabel("학생 직접 입력 비밀번호", { exact: true });
+  await studentPassword.fill("123");
+  await studentPassword.clear();
+
+  releasePolicy();
+  await expect(student.getByText("학원 기본 설정: 직접 입력", { exact: true })).toBeVisible();
+  await expect(studentPassword).toHaveValue("");
+  await parent.getByLabel("직접 입력", { exact: true }).check();
+  await expect(parent.getByLabel("학부모 직접 입력 비밀번호", { exact: true })).toHaveValue("synthetic-parent-default");
+  await studentPassword.fill("123");
+  await confirmation.getByRole("button", { name: "확인하고 등록", exact: true }).click();
+  await expect(student.getByRole("alert")).toHaveText("학생 비밀번호를 4자 이상 입력해 주세요.");
+  expect(registrations).toBe(0);
+});
+
+
 
 test("학생 엑셀 읽기 중 닫고 다시 열어도 이전 실패가 새 읽기를 해제하지 않는다", async ({ page }) => {
   await installTenantOneInitScript(page);
@@ -324,12 +377,8 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
   });
   await expect(studentLink).toBeVisible();
 
-  const attendanceStatus = page.getByRole("group", {
-    name: "테스트학생 출결 빠른 선택",
-  });
-  await attendanceStatus.getByRole("button", {
-    name: "테스트학생 결석 상태로 변경",
-  }).click();
+  await page.getByRole("group", { name: "테스트학생 출결 상태 선택" })
+    .getByRole("button", { name: "결석", exact: true }).click();
   await expect(page).toHaveURL(/\/workspace\/lectures\/441\/sessions\/428\/attendance$/);
   await expect(page.getByTestId("student-detail-overlay")).toHaveCount(0);
 
@@ -355,7 +404,7 @@ test("출결 상태 액션은 유지하고 학생 행은 학생 상세를 연다
   await expect(page.getByRole("heading", { name: "로그인 정보 안내 알림톡" })).toHaveCount(0);
   await expect(overlay.getByText("로그인 가능", { exact: true })).toBeVisible();
   await expect(overlay.getByRole("button", {
-    name: "현재 관리 중, 관리 대상에서 제외",
+    name: "관리 대상에서 제외",
   })).toBeVisible();
   await expect(overlay.getByRole("tab", { name: "수강" })).toHaveAttribute("aria-selected", "true");
   await overlay.getByRole("tab", { name: "시험 0건", exact: true }).click();
@@ -760,7 +809,7 @@ test("학생 상세 계정 이력에서 접수와 최종 전달 실패를 구분
     await page.setViewportSize({ width, height: 900 });
     await gotoAndSettle(page, BASE + "/workspace/students/1001");
     const overlay = page.getByTestId("student-detail-overlay");
-    if (width === 390) await overlay.getByRole("button", { name: "연락처·메모 보기" }).click();
+    await overlay.getByRole("button", { name: "연락처·메모 보기" }).click();
     await overlay.locator("summary").filter({ hasText: "계정 알림톡 이력" }).click();
     const history = overlay.getByRole("region", { name: "계정 안내 발송 내역" });
     await expect(history.getByText("발송 접수", { exact: true })).toBeVisible();
@@ -787,12 +836,17 @@ test("학생 상세는 1366·1100·390px에서 주요 작업과 전체 탭에 �
     await expect(overlay.getByRole("button", { name: "정보 수정" })).toBeVisible();
     await expect(overlay.getByRole("button", { name: "학생 화면 보기" })).toBeVisible();
     for (const label of ["수강", "시험", "과제", "오답노트", "클리닉", "질문", "활동"]) {
-      await expect(overlay.getByRole("tab", { name: new RegExp("^" + label) })).toBeInViewport();
+      await expect(overlay.getByRole("tab", { name: new RegExp("^" + label) })).toBeVisible();
     }
-    if (width === 390) {
-      await expect(overlay.getByRole("textbox", { name: "학생 공통 메모" })).toBeHidden();
-      await overlay.getByRole("button", { name: "연락처·메모 보기" }).click();
+    const profile = overlay.getByRole("button", { name: "연락처·메모 보기" });
+    await expect(profile).toHaveAttribute("aria-expanded", "false");
+    await expect(overlay.getByRole("textbox", { name: "학생 공통 메모" })).toBeHidden();
+    const headerButtons = ["정보 수정", "계정·관리"];
+    for (const name of headerButtons) {
+      expect((await overlay.getByRole("button", { name }).boundingBox())?.height).toBe(44);
     }
+    await page.screenshot({ path: testInfo.outputPath("student-detail-" + width + ".png") });
+    await profile.click();
     await expect(overlay.getByRole("button", { name: "학부모 전화 010-1111-2222 복사" })).toBeVisible();
     await expect.poll(() => overlay.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
     await overlay.getByRole("tab", { name: /^수강/ }).focus();
@@ -800,7 +854,7 @@ test("학생 상세는 1366·1100·390px에서 주요 작업과 전체 탭에 �
     await expect(overlay.getByRole("tab", { name: /^활동/ })).toBeFocused();
     await page.keyboard.press("Home");
     await expect(overlay.getByRole("tab", { name: /^수강/ })).toHaveAttribute("aria-selected", "true");
-    await page.screenshot({ path: testInfo.outputPath("student-detail-" + width + ".png") });
+    await page.screenshot({ path: testInfo.outputPath("student-contact-" + width + ".png") });
   }
 });
 
@@ -822,6 +876,7 @@ test("학생 메모는 느린 저장 중 재입력한 내용을 보존하고 닫
   await gotoAndSettle(page, BASE + "/workspace/students/home");
   await page.goto(BASE + "/workspace/students/1001");
   const overlay = page.getByTestId("student-detail-overlay");
+  await overlay.getByRole("button", { name: "연락처·메모 보기" }).click();
   const input = overlay.getByRole("textbox", { name: "학생 공통 메모" });
   await input.fill("잠시 입력한 값");
   await input.fill("기존 메모");
@@ -838,16 +893,20 @@ test("학생 메모는 느린 저장 중 재입력한 내용을 보존하고 닫
   await expect(page).toHaveURL(/\/workspace\/students\/home$/);
   expect(patches).toEqual(["첫 번째 메모", "새로 입력한 최종 메모"]);
   await page.goto(BASE + "/workspace/students/1001");
+  await page.getByRole("button", { name: "연락처·메모 보기" }).click();
   await expect(page.getByRole("textbox", { name: "학생 공통 메모" })).toHaveValue("새로 입력한 최종 메모");
   await page.reload();
+  await page.getByRole("button", { name: "연락처·메모 보기" }).click();
   await expect(page.getByRole("textbox", { name: "학생 공통 메모" })).toHaveValue(serverMemo);
 });
 
 test("메모 저장 이전에 시작한 상세 재조회가 저장 결과를 되돌리지 않는다", async ({ page }) => {
   await prepareDetail(page);
-  let serverMemo = "저장 전 메모";
+  const oldMemo = "저장 전 메모";
+  const savedMemo = "저장 완료한 메모";
+  let serverMemo = oldMemo;
   let removed = false;
-  let reads = 0;
+  let staleRead: Request | undefined;
   let releaseSave!: () => void;
   let releaseRead!: () => void;
   const saving = new Promise<void>((resolve) => { releaseSave = resolve; });
@@ -863,26 +922,39 @@ test("메모 저장 이전에 시작한 상세 재조회가 저장 결과를 되
       return route.fulfill({ json: { id: 1001, memo: serverMemo } });
     }
     const memo = serverMemo;
-    reads++;
-    if (reads === 2) await reading;
+    if (removed && memo === oldMemo && !staleRead) {
+      staleRead = route.request();
+      await reading;
+    }
     return route.fulfill({ json: { id: 1001, name: "재조회학생", memo,
       tags: removed ? [] : [{ id: 91, name: "재조회 태그", color: "#2563eb" }], enrollments: [] } });
   });
   await gotoAndSettle(page, BASE + "/workspace/students/1001");
   const overlay = page.getByTestId("student-detail-overlay");
+  await overlay.getByRole("button", { name: "연락처·메모 보기" }).click();
   const input = overlay.getByRole("textbox", { name: "학생 공통 메모" });
-  await input.fill("저장 완료한 메모");
-  await overlay.getByRole("button", { name: "재조회 태그 태그 제거", exact: true }).click();
-  await expect.poll(() => reads).toBe(2);
-  releaseSave();
-  await expect(overlay.getByText("저장됨", { exact: true })).toBeVisible();
-  const lateResponse = page.waitForResponse((response) => response.request().method() === "GET"
-    && new URL(response.url()).pathname === "/api/v1/students/1001/");
-  releaseRead();
-  await lateResponse;
-  await expect(overlay.getByRole("button", { name: "재조회 태그 태그 제거", exact: true })).toHaveCount(0);
-  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-  await expect(input).toHaveValue("저장 완료한 메모");
+  const tag = overlay.getByRole("button", { name: "재조회 태그 태그 제거", exact: true });
+  try {
+    await input.fill(savedMemo);
+    await Promise.all([
+      page.waitForRequest((request) => request.method() === "PATCH"
+        && new URL(request.url()).pathname === "/api/v1/students/1001/"),
+      input.blur(),
+    ]);
+    await tag.click();
+    await expect.poll(() => Boolean(staleRead)).toBe(true);
+    releaseSave();
+    await expect(overlay.getByText("저장됨", { exact: true })).toBeVisible();
+    const lateResponse = page.waitForResponse((response) => response.request() === staleRead);
+    releaseRead();
+    await lateResponse;
+    await expect(tag).toHaveCount(0);
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    await expect(input).toHaveValue(savedMemo);
+  } finally {
+    releaseSave();
+    releaseRead();
+  }
 });
 
 test("빈 메모의 null 응답은 저장으로 확인하고 누락 응답은 재시도한다", async ({ page }) => {
@@ -898,12 +970,14 @@ test("빈 메모의 null 응답은 저장으로 확인하고 누락 응답은 �
   });
   await gotoAndSettle(page, BASE + "/workspace/students/1001");
   const detail = page.getByTestId("student-detail-overlay");
+  await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
   const input = detail.getByRole("textbox", { name: "학생 공통 메모" });
   await input.fill("");
   await detail.getByRole("tab", { name: /^수강/ }).click();
   await expect(detail.getByText("저장됨", { exact: true })).toBeVisible();
   expect(serverMemo).toBeNull();
   await page.reload();
+  await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
   await expect(input).toHaveValue("");
   omitResult = true;
   await input.fill("다시 확인할 메모");
@@ -935,6 +1009,7 @@ test("저장 중 뒤로 갔다 다시 연 학생의 새 메모는 앞선 쓰기�
   const row = page.locator('tr[data-student-detail-trigger="1002"]');
   await row.click();
   const detail = page.getByTestId("student-detail-overlay");
+  await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
   const input = detail.getByRole("textbox", { name: "학생 공통 메모" });
   await input.fill("먼저 저장한 값");
   await detail.getByRole("tab", { name: /^수강/ }).click();
@@ -951,6 +1026,7 @@ test("저장 중 뒤로 갔다 다시 연 학생의 새 메모는 앞선 쓰기�
   expect(patches).toEqual(["먼저 저장한 값", "다시 열어 수정한 값"]);
   expect(serverMemo).toBe("다시 열어 수정한 값");
   await page.reload();
+  await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
   await expect(input).toHaveValue("다시 열어 수정한 값");
 });
 
@@ -974,6 +1050,7 @@ test("인증 세션이 바뀌면 대기하던 메모를 자동 전송하지 않�
   const row = page.locator('tr[data-student-detail-trigger="1002"]');
   await row.click();
   const detail = page.getByTestId("student-detail-overlay");
+  await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
   const input = detail.getByRole("textbox", { name: "학생 공통 메모" });
   await input.fill("진행 중 메모");
   await detail.getByRole("tab", { name: /^수강/ }).click();
@@ -1016,6 +1093,7 @@ test("학생 메모 저장 실패는 입력과 상세를 유지하고 재시도�
   });
   await gotoAndSettle(page, BASE + "/workspace/students/1001");
   const overlay = page.getByTestId("student-detail-overlay");
+  await overlay.getByRole("button", { name: "연락처·메모 보기" }).click();
   const input = overlay.getByRole("textbox", { name: "학생 공통 메모" });
   await input.fill("실패해도 유지할 변경  ");
   await overlay.getByRole("button", { name: "닫기", exact: true }).click();
@@ -1028,6 +1106,7 @@ test("학생 메모 저장 실패는 입력과 상세를 유지하고 재시도�
   await expect(input).toHaveValue("실패해도 유지할 변경");
   await expect(overlay.getByRole("button", { name: "보존할 태그 태그 제거", exact: true })).toBeVisible();
   await page.reload();
+  await page.getByRole("button", { name: "연락처·메모 보기" }).click();
   await expect(page.getByRole("textbox", { name: "학생 공통 메모" })).toHaveValue("실패해도 유지할 변경");
 });
 
@@ -1088,6 +1167,9 @@ test("학생 ID 복사는 구두점을 보존하고 키보드로 사용할 수 �
     json: { id: 1001, name: "학생", ps_number: "student.name+01", tags: [], enrollments: [] },
   }));
   await gotoAndSettle(page, BASE + "/workspace/students/1001");
+  const profileToggle = page.getByRole("button", { name: "연락처·메모 보기" });
+  await profileToggle.focus();
+  await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "아이디 student.name+01 복사", exact: true }).focus();
   await page.keyboard.press("Enter");
   await expect(page.locator("html")).toHaveAttribute("data-copied-student-id", "student.name+01");
@@ -1118,6 +1200,7 @@ test("저장 실패 후 뒤로 이동해도 같은 학생을 다시 열면 메�
   await gotoAndSettle(page, BASE + "/workspace/students/home");
   const row = page.locator('tr[data-student-detail-trigger="1002"]');
   await row.click();
+  await page.getByRole("button", { name: "연락처·메모 보기" }).click();
   await page.getByRole("textbox", { name: "학생 공통 메모" }).fill("돌아와서 복구할 메모");
   await page.getByRole("tab", { name: /^수강/ }).click();
   await expect(page.getByRole("button", { name: "다시 저장", exact: true })).toBeVisible();
