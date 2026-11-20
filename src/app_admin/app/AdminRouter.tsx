@@ -181,7 +181,7 @@ export default function AdminRouter() {
       <Route element={<AppLayout />}>
         <Route path="settings" element={<Navigate to="/workspace/settings/profile" replace />} />
         {["settings/profile", "settings/appearance"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonStaffSettings)} />)}
-        <Route path="students/class-groups" element={<Suspense fallback={<RouteFallback />}><ClassGroupsPage admin /></Suspense>} />
+        <Route path="students/class-groups" element={renderLazyRoute(ClassGroupsPage)} />
         {["dashboard", "staff", "results"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonOperations)} />)}
         <Route path="*" element={<Navigate to="/workspace/dashboard" replace />} />
       </Route>

@@ -1,3 +1,4 @@
+import { dawonStaffPreviewRole } from "./staffPreview";
 import { dawonQueryKeys } from "./queryKeys";
 import { lazy, Suspense, useId, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
@@ -260,7 +261,8 @@ function ListSearch({label, value, change}: {label: string; value: string; chang
     value={value} onChange={(event) => change(event.target.value)} />;
 }
 
-export default function ClassGroupsPage({ lectureEntry = false, admin = false }: { lectureEntry?: boolean; admin?: boolean }) {
+export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry?: boolean }) {
+  const admin = dawonStaffPreviewRole() === "admin";
   const mobile = useLocation().pathname.startsWith("/workspace/mobile/");
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
