@@ -1,4 +1,5 @@
-import { boardListParams, boardRoot, boardSearchLimit, mobileBoardRoot } from "@/shared/staff/board/routes";
+// Cloudflare Pages Functions also import this module without Vite's aliases.
+import { boardListParams, boardRoot, boardSearchLimit, mobileBoardRoot } from "../../shared/staff/board/routes";
 
 export const WORKSPACE_PATHS = {
   full: "/workspace",
