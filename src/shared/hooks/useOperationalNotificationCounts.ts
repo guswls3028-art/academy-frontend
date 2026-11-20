@@ -15,13 +15,14 @@ import {
 } from "@/shared/api/contracts/arrivalOverview";
 import useAuth from "@/auth/hooks/useAuth";
 
-export function useOperationalNotificationCounts() {
+export function useOperationalNotificationCounts(enabled = true) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const includeConsult = user?.tenantRole === "owner" || user?.tenantRole === "admin";
   const queryKey = notificationQueryKeys.operationalCountsForRole(includeConsult);
   const q = useQuery({
     queryKey,
+    enabled,
     queryFn: async () => {
       return fetchOperationalNotificationCounts(
         () => queryClient.fetchQuery({

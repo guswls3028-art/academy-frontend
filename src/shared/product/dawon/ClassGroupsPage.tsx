@@ -8,7 +8,8 @@ import { resolveTenantCodeString } from "@/shared/tenant";
 import { Button } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { teacherLectureQueryKeys } from "@/app_teacher/domains/lectures/queryKeys";
-import { ChevronRight, UsersRound } from "lucide-react";
+import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
+import { ChevronRight } from "lucide-react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import ClassRosterModal, { type RosterStudent } from "./ClassRosterModal";
 import styles from "./ClassGroupsPage.module.css";
@@ -84,17 +85,18 @@ function GroupForm({ onCreated, onCancel }: { onCreated: (id: number) => void; o
 
 function CourseList({ group, lectureRoot }: { group: Detail; lectureRoot: string }) {
   const [past, setPast] = useState(false);
+  const [query, setQuery] = useState("");
   const pastCount = group.lectures.filter((course) => course.cycle_status === "past").length;
   const visible = group.lectures.filter((course) => (course.cycle_status === "past") === past)
+    .filter((course) => matches(query, course.title, course.school, periods[course.period], course.lecture_time))
     .sort((left, right) => (right.start_date || "").localeCompare(left.start_date || "") || right.id - left.id);
   return <section className={styles.coursePanel} aria-label="강의 목록">
-    <div className={styles.courseHeading}><h3>강의 목록</h3>
+    <DomainListToolbar totalLabel={`강의 ${visible.length}개`} searchSlot={<ListSearch label="강의명 · 학교 · 수업 시간 검색" value={query} change={setQuery} />} primaryAction={null} filterSlot={
       <div className={styles.courseTabs} aria-label="강의 기간">
         <button aria-pressed={!past} onClick={() => setPast(false)}>현재·예정 <span>{group.lectures.length - pastCount}</span></button>
         <button aria-pressed={past} onClick={() => setPast(true)}>지난 강의 <span>{pastCount}</span></button>
-      </div>
-    </div>
-    {visible.length ? <table className={styles.courseTable}>
+      </div>} />
+    {visible.length ? <DomainTable scrollLabel="반별 강의" tableClassName={`ds-table--flat ${styles.courseTable}`}>
       <thead><tr><th>강의 이름</th><th>대상</th><th>수강생</th><th>수업 기간</th><th aria-label="강의 열기" /></tr></thead>
       <tbody>{visible.map((course) => {
         const audience = course.school || (group.kind === "school" ? group.school : "연합반 전체");
@@ -107,12 +109,14 @@ function CourseList({ group, lectureRoot }: { group: Detail; lectureRoot: string
           <td><time>{course.start_date}</time> ~ <time>{course.end_date}</time>{course.lecture_time && <small>{course.lecture_time}</small>}</td>
           <td aria-hidden="true"><ChevronRight size={16} /></td></tr>;
       })}</tbody>
-    </table> : <p className={styles.emptyCourse}>{past ? "지난 강의가 없습니다." : "현재 진행 중이거나 예정된 강의가 없습니다."}</p>}
+    </DomainTable> : <p className={styles.emptyCourse}>{query.trim() ? "검색 조건에 맞는 강의가 없습니다." : past ? "지난 강의가 없습니다." : "현재 진행 중이거나 예정된 강의가 없습니다."}</p>}
   </section>;
 }
 
 function GroupDetail({ id, root, lectureRoot, rosterRoot, lectureEntry, assignOnOpen, afterInitialAssignment }: { id: number; root: string; lectureRoot: string; rosterRoot: string; lectureEntry: boolean; assignOnOpen: boolean; afterInitialAssignment: () => void }) {
   const client = useQueryClient();
+  const location = useLocation();
+  const [query, setQuery] = useState("");
   const [mode, setMode] = useState<"add" | "remove" | "lecture" | null>(assignOnOpen ? "add" : null);
   const [notice, setNotice] = useState("");
   const [createdCourse, setCreatedCourse] = useState<Lecture | null>(null);
@@ -150,6 +154,7 @@ function GroupDetail({ id, root, lectureRoot, rosterRoot, lectureEntry, assignOn
   if (detail.isError) return <div className={styles.panel}>{failure(detail.error)}<button onClick={() => void detail.refetch()}>다시 시도</button> <Link to={root}>반 목록</Link></div>;
   const group = detail.data;
   const members = group.students;
+  const visibleMembers = members.filter((student) => matches(query, student.name, student.school, student.phone, student.parent_phone));
   const eligibleMembers = members.filter((student) => student.eligible !== false);
   const schoolScoped = group.kind === "union" && period !== "vacation";
   const schools = [...new Set(eligibleMembers.map((student) => student.school).filter(Boolean))].sort();
@@ -159,9 +164,7 @@ function GroupDetail({ id, root, lectureRoot, rosterRoot, lectureEntry, assignOn
     <div className={styles.detail}>
       <header className={styles.heading}>
         <div><Link to={root} className={styles.back}>반 목록</Link><h2>{group.name}</h2><span className={styles.kind}>{groupType(group)}</span></div>
-        {lectureEntry
-          ? <button className={styles.primary} onClick={() => openEditor("lecture")} disabled={!eligibleMembers.length}>수업 개설</button>
-          : <button className={styles.primary} onClick={() => openEditor("add")}>반 인원 배정</button>}
+        {lectureEntry && <Button intent="primary" onClick={() => openEditor("lecture")} disabled={!eligibleMembers.length}>수업 개설</Button>}
       </header>
       <nav className={styles.groupNav} aria-label="반 업무">
         <Link to={`${lectureRoot}?class=${id}`} aria-current={lectureEntry ? "page" : undefined}>강의 목록</Link>
@@ -201,20 +204,23 @@ function GroupDetail({ id, root, lectureRoot, rosterRoot, lectureEntry, assignOn
         }} />
       </Suspense>}
       {lectureEntry && <CourseList group={group} lectureRoot={lectureRoot} />}
-      {!lectureEntry && <section className={styles.panel} aria-label="반 명단">
-        <div className={styles.sectionHeader}>
-          <h3>반 명단 <span>{members.length}명</span></h3>
-          <div className={styles.actions}>
-            {members.length > 0 && <button onClick={() => openEditor("remove")}>명단에서 제외</button>}
-          </div>
-        </div>
-        {members.length === 0 && <p>배정된 학생이 없습니다.</p>}
-        <ul className={styles.rows}>
-          {members.map((student) => <li key={student.id}>
-            <strong>{student.name}</strong>
-            <span>{student.school || "학교 미등록"}{student.eligible === false && " · 배정 자격 확인 필요"}</span>
-          </li>)}
-        </ul>
+      {!lectureEntry && <section className={styles.detail} aria-label="반 명단">
+        <DomainListToolbar totalLabel={`반 명단 ${query.trim() ? visibleMembers.length + " / " : ""}${members.length}명`}
+          searchSlot={<ListSearch label="이름 · 학교 · 전화번호 검색" value={query} change={setQuery} />}
+          primaryAction={<div className={styles.actions}>
+            {members.length > 0 && <Button intent="secondary" onClick={() => openEditor("remove")}>명단에서 제외</Button>}
+            <Button intent="primary" onClick={() => openEditor("add")}>반 인원 배정</Button>
+          </div>} />
+        <DomainTable scrollLabel="반 학생 명단" tableClassName="ds-table--flat" tableStyle={{minWidth: 540}}>
+          <thead><tr>{["학생 이름", "학교", "학부모 연락처", "학생 연락처"].map((title) => <th scope="col" key={title}>{title}</th>)}</tr></thead>
+          <tbody>{visibleMembers.map((student) => <tr key={student.id}>
+            <td><Link className={styles.rowLink} to={`/workspace/students/${student.id}`} state={{backgroundLocation: location}}>{student.name}</Link>
+              {student.eligible === false && <small>배정 자격 확인 필요</small>}</td>
+            <td>{student.school || "미등록"}</td><td>{student.parent_phone || "—"}</td><td>{student.phone || "—"}</td>
+          </tr>)}
+            {!visibleMembers.length && <tr><td colSpan={4}>{members.length ? "검색 조건에 맞는 학생이 없습니다." : "배정된 학생이 없습니다."}</td></tr>}
+          </tbody>
+        </DomainTable>
         {(mode === "add" || mode === "remove") && <ClassRosterModal
           title={mode === "add" ? "반 인원 배정" : "반 명단에서 제외"}
           description={mode === "add" ? group.name : `${group.name} · 기존 수강·출결 기록은 유지됩니다.`}
@@ -229,10 +235,21 @@ function GroupDetail({ id, root, lectureRoot, rosterRoot, lectureEntry, assignOn
   );
 }
 
+function matches(query: string, ...values: (string | undefined)[]) {
+  const normalize = (value: string) => value.normalize("NFKC").toLowerCase().replace(/[\s-]+/g, "");
+  return values.some((value) => normalize(value ?? "").includes(normalize(query)));
+}
+
+function ListSearch({label, value, change}: {label: string; value: string; change: (query: string) => void}) {
+  return <input type="search" className="ds-input w-full max-w-[360px]" aria-label={label} placeholder={label}
+    value={value} onChange={(event) => change(event.target.value)} />;
+}
+
 export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry?: boolean }) {
   const mobile = useLocation().pathname.startsWith("/workspace/mobile/");
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
+  const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
   const client = useQueryClient();
   const isDawon = resolveTenantCodeString() === "dawon";
@@ -250,15 +267,16 @@ export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry
   if (!isDawon) return <Navigate to={mobile ? "/workspace/mobile/students" : "/workspace/students/home"} replace />;
   if (id && lectureEntry && params.get("assign") === "1") return <Navigate to={`${rosterRoot}?class=${id}&assign=1`} replace />;
   if (id) return <div className={styles.page}><GroupDetail key={`${root}-${id}`} id={id} rosterRoot={rosterRoot} lectureEntry={lectureEntry} root={root} lectureRoot={lectureRoot} assignOnOpen={params.get("assign") === "1"} afterInitialAssignment={() => setParams({ class: String(id) }, { replace: true })} /></div>;
+  const all = groups.data ?? [];
+  const visible = all.filter((group) => matches(query, group.name, groupType(group), group.track, group.school));
   return (
     <div className={styles.page}>
-      <header className={styles.heading}>
-        <div><h2>{lectureEntry ? "반별 강의" : "반 편성"}</h2></div>
-        <div className={styles.actions}>
-          {lectureEntry && <Link to={`${lectureRoot}?view=all`} className={styles.operate}>전체 강의 목록</Link>}
-          <button className={styles.primary} onClick={() => setCreating(true)}>반 만들기</button>
-        </div>
-      </header>
+      <DomainListToolbar totalLabel={`반 ${query.trim() ? visible.length + " / " : ""}${all.length}개`}
+        searchSlot={<ListSearch label="반 이름 · 학교 · 과정 검색" value={query} change={setQuery} />}
+        primaryAction={<div className={styles.actions}>
+          {lectureEntry && <Link className="ds-btn" to={`${lectureRoot}?view=all`}>전체 강의 목록</Link>}
+          <Button intent="primary" onClick={() => setCreating(true)}>반 만들기</Button>
+        </div>} />
       {creating && <GroupForm onCancel={() => setCreating(false)} onCreated={(createdId) => {
         setCreating(false);
         void client.invalidateQueries({ queryKey: dawonQueryKeys.groups });
@@ -266,14 +284,17 @@ export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry
       }} />}
       {groups.isPending && <p role="status">반 목록을 불러오는 중입니다.</p>}
       {groups.isError && <div className={styles.panel}>{failure(groups.error)}<button onClick={() => void groups.refetch()}>다시 시도</button></div>}
-      {groups.data?.length === 0 && <p className={styles.panel}>아직 편성한 반이 없습니다.</p>}
-      <ul className={styles.groupList}>
-        {groups.data?.map((group) => <li key={group.id}><Link to={`${root}?class=${group.id}`}>
-          <span className={styles.groupIcon} aria-hidden="true"><UsersRound size={19} /></span>
-          <div><strong>{group.name}</strong><span>{groupType(group)}</span></div>
-          <div className={styles.groupCounts}><span>학생 <strong>{group.student_count}명</strong></span><span>수업 <strong>{group.lecture_count ?? 0}개</strong></span></div><ChevronRight size={16} aria-hidden="true" />
-        </Link></li>)}
-      </ul>
+      {groups.isSuccess && <DomainTable scrollLabel="반 목록" tableClassName="ds-table--flat" tableStyle={{minWidth: 500}}>
+        <thead><tr>{["반 이름", "반 구분", "과정 · 학교", "학생 수", "강의 수"].map((title) => <th scope="col" key={title}>{title}</th>)}</tr></thead>
+        <tbody>{visible.map((group) => <tr key={group.id}>
+          <td><Link className={styles.rowLink} to={`${root}?class=${group.id}`}>{group.name}</Link></td>
+          <td>{group.kind === "union" ? "연합반" : "학교별 내신반"}</td>
+          <td>{(group.kind === "union" ? group.track : group.school) || "—"}</td>
+          <td>{group.student_count}명</td><td>{group.lecture_count}개</td>
+        </tr>)}
+          {!visible.length && <tr><td colSpan={5}>{all.length ? "검색 조건에 맞는 반이 없습니다." : "아직 편성한 반이 없습니다."}</td></tr>}
+        </tbody>
+      </DomainTable>}
     </div>
   );
 }

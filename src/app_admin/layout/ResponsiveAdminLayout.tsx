@@ -3,11 +3,11 @@
  */
 import { useLayoutEffect, useRef, useState } from "react";
 import { Drawer } from "antd";
-import { Menu } from "lucide-react";
+import { useAdminLayout } from "./useAdminLayout";
 import { WORKSPACE_SECTIONS } from "@/core/navigation/workspaceSections";
 import { DawonStaffNavigation } from "@/shared/product/dawon/DawonStaffNavigation";
 import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
-import { Link, Outlet, useLocation } from "react-router";
+import { Outlet, useLocation } from "react-router";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import AdminNavDrawer from "./AdminNavDrawer";
@@ -28,19 +28,16 @@ export default function ResponsiveAdminLayout({ onOpenQuickNavigation }: { onOpe
     previousPath.current = location.pathname;
   }, [location.pathname]);
   const isMobile = useIsMobile();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawer = useAdminLayout();
+  const [collapsed, setCollapsed] = useState(false);
   const previewRole = dawonStaffPreviewRole();
   return (
-    <div data-app="admin" className={styles.root}>
-      <div className={styles.layout} data-dawon-staff={previewRole ?? undefined}>
+    <div data-app="admin" data-workspace-shell="" className={styles.root}>
+      <div className={styles.layout} data-dawon-staff={previewRole ?? undefined} data-collapsed={previewRole && collapsed ? true : undefined}>
         <header className={styles.header}>
-          {previewRole ? <>
-            <div className={styles.previewHeading}>
-              {isMobile && <button className={styles.menuButton} aria-label="업무 메뉴 열기" aria-expanded={drawerOpen} onClick={() => setDrawerOpen(true)}><Menu size={19} aria-hidden /> 메뉴</button>}
-              <strong>{previewRole === "admin" ? "다원수학 관리자앱" : "다원수학 선생님앱"}</strong>
-              <Link to={`/login/dawon?demo=${previewRole}`}>로그인 화면</Link></div>
-
-          </> : <Header onOpenQuickNavigation={onOpenQuickNavigation} />}
+          <Header onOpenQuickNavigation={onOpenQuickNavigation}
+            onToggleSidebar={previewRole && !isMobile ? () => setCollapsed(value => !value) : undefined}
+            sidebarExpanded={previewRole ? (isMobile ? drawer?.drawerOpen : !collapsed) : undefined} />
         </header>
         <aside className={`sidebar ${styles.sidebar}`}>
           {!isMobile && (previewRole ? <DawonStaffNavigation role={previewRole} /> : <Sidebar />)}
@@ -51,8 +48,8 @@ export default function ResponsiveAdminLayout({ onOpenQuickNavigation }: { onOpe
           </div>
         </main>
       </div>
-      {isMobile && previewRole && <Drawer title="업무 메뉴" placement="left" size={280} zIndex={100010} open={drawerOpen} destroyOnHidden onClose={() => setDrawerOpen(false)}>
-        <DawonStaffNavigation role={previewRole} onNavigate={() => setDrawerOpen(false)} />
+      {isMobile && previewRole && <Drawer title="업무 메뉴" placement="left" size={280} zIndex={100010} open={drawer?.drawerOpen} destroyOnHidden onClose={drawer?.closeDrawer}>
+        <DawonStaffNavigation role={previewRole} onNavigate={drawer?.closeDrawer} />
       </Drawer>}
       {isMobile && !previewRole && <AdminNavDrawer onOpenQuickNavigation={onOpenQuickNavigation} />}
       {isMobile && !previewRole && <TeacherBottomBar />}

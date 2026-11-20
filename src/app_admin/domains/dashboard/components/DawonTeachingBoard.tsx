@@ -14,7 +14,7 @@ import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 import styles from "./DawonTeachingBoard.module.css";
 
 type TeachingClass = {
-  id: number; name: string; members: number; courses: number[];
+  id: number; name: string; kind: "union" | "school"; track: string; school: string; members: number; courses: number[];
   recent: {id: number; lecture_id: number; title: string; date: string; schedule_id: number | null} | null;
 };
 
@@ -50,7 +50,7 @@ function MyTeachingBoard() {
   const recent = group.recent;
   return <section className={styles.classBoard} aria-labelledby="dawon-class-title">
     <header className={styles.classHead}><div><span className={styles.context}>담당 반</span>
-      <h1 id="dawon-class-title">{group.name}</h1><p>학생 {group.members}명</p></div>
+      <h1 id="dawon-class-title">{group.name}</h1><p>{group.kind === "union" ? `연합반 · ${group.track}` : `학교별 내신반 · ${group.school}`} · 학생 {group.members}명</p></div>
       {groups.length > 1 && <label className={styles.switchClass}>담당 반 선택<select aria-label="담당 반 선택" value={group.id} onChange={e => select("group", e.target.value)}>
         {groups.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
       <Link className={styles.action} to={`/workspace/lectures?class=${group.id}`}>반 수업 관리 <ArrowRight size={16} aria-hidden /></Link>

@@ -20,6 +20,7 @@ import RouteFallback from "@/core/router/RouteFallback";
 import { renderLazyRoute } from "@/core/router/renderLazyRoute";
 
 /* ================= Lazy: Dashboard ================= */
+const DawonStaffSettings = lazy(() => import("@/shared/product/dawon/DawonStaffSettings"));
 const DawonOperations = lazy(() => import("@/shared/product/dawon/DawonOperations"));
 const DawonTeachingBoard = lazy(() => import("@admin/domains/dashboard/components/DawonTeachingBoard"));
 const DashboardPage = lazy(() => import("@admin/domains/dashboard/pages/DashboardPage"));
@@ -178,6 +179,8 @@ export default function AdminRouter() {
   if (previewRole === "admin") return (
     <Routes>
       <Route element={<AppLayout />}>
+        <Route path="settings" element={<Navigate to="/workspace/settings/profile" replace />} />
+        {["settings/profile", "settings/appearance"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonStaffSettings)} />)}
         {["dashboard", "staff", "results"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonOperations)} />)}
         <Route path="*" element={<Navigate to="/workspace/dashboard" replace />} />
       </Route>
@@ -330,7 +333,10 @@ export default function AdminRouter() {
         <Route path="billing/card/callback" element={renderLazyRoute(CardRegisterCallbackPage)} />
 
         {/* ================= 설정 — 사이드바 레이아웃 ================= */}
-        <Route path="settings" element={renderLazyRoute(SettingsLayout)}>
+        {previewRole === "teacher" ? <>
+          <Route path="settings" element={<Navigate to="/workspace/settings/profile" replace />} />
+          {["settings/profile", "settings/appearance"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonStaffSettings)} />)}
+        </> : <Route path="settings" element={renderLazyRoute(SettingsLayout)}>
           <Route index element={<Navigate to="profile" replace />} />
           <Route path="profile" element={renderLazyRoute(ProfileSettingsPage)} />
           <Route path="organization" element={renderLazyRoute(OrganizationSettingsPage)} />
@@ -343,7 +349,7 @@ export default function AdminRouter() {
           {/* 하위 호환 리디렉트 */}
           <Route path="account" element={<Navigate to="/workspace/settings/profile" replace />} />
           <Route path="system" element={<Navigate to="/workspace/settings/appearance" replace />} />
-        </Route>
+        </Route>}
 
         {/* ================= Profile (근태 · 지출 — 내 계정은 설정 탭으로) ================= */}
         <Route path="profile" element={renderLazyRoute(ProfileLayout)}>

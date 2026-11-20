@@ -5,6 +5,7 @@ import api from "@/shared/api/axios";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 import { downloadStudentExcelTemplate, parseStudentExcel } from "@/shared/product/students/studentExcel";
+import { DomainTable } from "@/shared/ui/domain";
 import { Button } from "@/shared/ui/ds";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
@@ -111,16 +112,17 @@ export default function ClassRosterModal({
             {candidateUrl && candidates.isPending && <p role="status">학생 명단을 불러오는 중입니다.</p>}
             {candidateUrl && candidates.isError && <p role="alert">학생을 불러오지 못했습니다. <Button onClick={() => void candidates.refetch()}>다시 시도</Button></p>}
             {rows?.length === 0 && <p>선택할 수 있는 학생이 없습니다.</p>}
-            <div className={styles.rosterColumns} aria-hidden="true"><span>학생 이름</span><span>학교 · 연락처 끝자리</span></div>
-            <ul className={styles.rosterRows}>
-              {rows?.map((student) => <li key={student.id} data-selected={selected.has(student.id)}>
-                <label className={styles.pick}>
-                  <input type="checkbox" checked={selected.has(student.id)} disabled={busy || candidates.isPlaceholderData || input.trim() !== search} onChange={() => toggle(student)} />
-                  <strong>{student.name}</strong>
-                </label>
-                <span>{[student.school, digits(student.parent_phone || student.phone).slice(-4)].filter(Boolean).join(" · ")}</span>
-              </li>)}
-            </ul>
+            <div className={styles.pickerViewport}>
+              <DomainTable scrollLabel="배정할 학생 목록" tableClassName="ds-table--flat">
+                <thead><tr><th scope="col">학생 이름</th><th scope="col">학교</th><th scope="col">연락처 끝자리</th></tr></thead>
+                <tbody>{rows?.map((student) => <tr key={student.id} aria-selected={selected.has(student.id)}>
+                  <td><label className={styles.pick}>
+                    <input type="checkbox" checked={selected.has(student.id)} disabled={busy || candidates.isPlaceholderData || input.trim() !== search} onChange={() => toggle(student)} />
+                    <strong>{student.name}</strong>
+                  </label></td><td>{student.school || "—"}</td><td>{digits(student.parent_phone || student.phone).slice(-4) || "—"}</td>
+                </tr>)}</tbody>
+              </DomainTable>
+            </div>
             {(offset > 0 || (rows?.length ?? 0) >= PAGE_SIZE) && <div className={styles.rosterTabs}>
               <Button disabled={!offset || busy || candidates.isFetching} onClick={() => setOffset((value) => Math.max(0, value - PAGE_SIZE))}>이전</Button>
               <Button disabled={(rows?.length ?? 0) < PAGE_SIZE || busy || candidates.isFetching} onClick={() => setOffset((value) => value + PAGE_SIZE)}>다음</Button>

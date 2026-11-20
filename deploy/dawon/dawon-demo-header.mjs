@@ -20,7 +20,7 @@ body{padding-block-start:var(--dawon-demo-bar-height)!important}
 body:has(.admin-modal-wrap:not([style*="display: none"]) .admin-modal[role="dialog"],.ds-overlay-panel[role="dialog"]) #dawon-demo-switcher{z-index:10}
 
 body .role-preview, #dawon-preview-roles{display:none!important}
-body [data-app=admin]{height:calc(100dvh - var(--dawon-demo-bar-height));min-height:calc(100dvh - var(--dawon-demo-bar-height))}
+body [data-workspace-shell]{height:calc(100dvh - var(--dawon-demo-bar-height));min-height:calc(100dvh - var(--dawon-demo-bar-height))}
 body [data-app=admin] [data-analytics-placement="admin.sidebar"]{max-height:calc(100dvh - var(--panel-header) - var(--dawon-demo-bar-height))}
 body [data-app=teacher]>header, body .student-layout__header, body.learning-room .route-header{top:var(--dawon-demo-bar-height)}
 body.learning-room .route-rail{top:var(--dawon-demo-bar-height);max-height:calc(100dvh - var(--dawon-demo-bar-height))}

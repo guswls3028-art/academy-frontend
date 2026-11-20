@@ -9,3 +9,6 @@
 .nav details { border-top:1px solid var(--color-border-divider); }
 .nav summary { cursor:pointer; padding:11px 12px; min-height:44px; box-sizing:border-box; font-size:14px; font-weight:650; }
 .nav details a { padding-inline-start:24px; }
+
+.nav a { gap: 12px; }
+.nav svg { flex: 0 0 auto; }

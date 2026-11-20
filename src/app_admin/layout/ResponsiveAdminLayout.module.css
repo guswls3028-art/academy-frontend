@@ -75,7 +75,7 @@
   border-right: 1px solid var(--color-border-divider);
 }
 @media (min-width:1024px) {
-  .layout[data-dawon-staff] { grid-template-columns: 216px minmax(0,1fr); }
+  .layout[data-dawon-staff] { grid-template-columns: var(--sidebar-width) minmax(0,1fr); }
 }
 .menuButton {
   display: inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 10px;
@@ -84,3 +84,8 @@
 }
 .previewHeading strong { flex:1; }
 @media(max-width:600px) { .previewHeading { gap:8px; padding:0 12px; } }
+
+@media (min-width:1024px) {
+ .layout[data-dawon-staff][data-collapsed] { grid-template-columns: 0 minmax(0,1fr); }
+ .layout[data-dawon-staff][data-collapsed] .sidebar { visibility: hidden; }
+}

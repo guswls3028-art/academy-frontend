@@ -4,6 +4,7 @@ import { useLocation } from "react-router";
 import { ConfigProvider, App } from "antd";
 import { AdminLayoutProvider } from "./AdminLayoutContext";
 import { TeacherViewProvider } from "./TeacherViewContext";
+import { staffMenus, type StaffRoom } from "@/shared/product/dawon/staffMenu";
 import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 import { WorkboxProvider } from "@/shared/ui/layout/WorkboxContext";
 import { FeedbackBridge } from "@/shared/ui/feedback";
@@ -90,11 +91,19 @@ function AppLayoutContent({ overlay }: { overlay?: ReactNode }) {
   );
 }
 
-function PreviewLayoutContent({overlay}: {overlay?: ReactNode}) {
+function PreviewLayoutContent({overlay, role}: {overlay?: ReactNode; role: StaffRoom}) {
+  const [open, setOpen] = useState(false);
+  const show = useCallback(() => setOpen(true), []);
+  useQuickNavigationHotkey(show);
+  const items = useMemo(() => staffMenus[role].flatMap(section => section.items.map(([label, path]) => ({
+    label, to: "/workspace/" + path, group: section.label,
+  }))), [role]);
   return (
     <AdminLayoutProvider>
       <WorkboxProvider>
-        <Suspense fallback={null}><ResponsiveAdminLayout onOpenQuickNavigation={() => {}} /></Suspense>
+        <Suspense fallback={null}><ResponsiveAdminLayout onOpenQuickNavigation={show} /></Suspense>
+        <QuickNavigationDialog open={open} onClose={() => setOpen(false)} items={items}
+          storageKey={`dawon.quick-navigation.${role}`} placement="admin.quick-navigation" />
         {overlay}
       </WorkboxProvider>
     </AdminLayoutProvider>
@@ -162,7 +171,7 @@ export default function AppLayout({ overlay }: { overlay?: ReactNode }) {
             <GuideTourProvider>
             <ClinicHighlights>
             <SendMessageModalProvider>
-              {previewRole ? <PreviewLayoutContent overlay={overlay} /> : <AppLayoutContent overlay={overlay} />}
+              {previewRole ? <PreviewLayoutContent role={previewRole} overlay={overlay} /> : <AppLayoutContent overlay={overlay} />}
               <GuideTourOverlay />
             </SendMessageModalProvider>
             </ClinicHighlights>

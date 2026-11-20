@@ -2,7 +2,7 @@
 //
 // 헤더 레이아웃은 design-system/patterns/header.css의 app-header 패턴을 SSOT로 사용.
 import { lazy, Suspense, useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Badge as AntBadge } from "antd";
 import {
@@ -19,6 +19,8 @@ import {
   Check as CheckIcon,
   Search as SearchIcon,
 } from "lucide-react";
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
+import { staffGuide } from "@/shared/product/dawon/staffMenu";
 import { DawonLearningAlertsLink } from "@/shared/product/dawon/DawonTeacherAlerts";
 import { useAdminNotificationCounts, type AdminNotificationItem } from "@admin/domains/admin-notifications";
 import { useProgram } from "@/shared/program";
@@ -139,8 +141,11 @@ const STAFF_ROLE_LABEL: Record<MeStaffRole, string> = {
   ASSISTANT: "조교",
 };
 
-export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigation: () => void }) {
+export default function Header({ onOpenQuickNavigation, onToggleSidebar, sidebarExpanded }: {
+  onOpenQuickNavigation: () => void; onToggleSidebar?: () => void; sidebarExpanded?: boolean;
+}) {
   const nav = useNavigate();
+  const previewRole = dawonStaffPreviewRole();
   const adminLayout = useAdminLayout();
   const isMobile = useIsMobile();
   const { program } = useProgram();
@@ -172,7 +177,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
     failures: adminNotificationFailures,
     isFetching: adminNotificationsFetching,
     refetch: refetchAdminNotifications,
-  } = useAdminNotificationCounts();
+  } = useAdminNotificationCounts(!previewRole);
   const unreadCount = adminCounts.total;
   const hasNotificationFailures = adminNotificationFailures.length > 0;
 
@@ -193,7 +198,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
   useDocumentTitle();
 
   // 학원 이름: Program의 display_name 사용
-  const academyName = program?.display_name || "HakwonPlus";
+  const academyName = previewRole ? "다원수학" : program?.display_name || "HakwonPlus";
   
   
 
@@ -223,13 +228,13 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
     : (tenantBranding?.headerLogoUrl ?? null);
   const headerBrandStyle = getTenantHeaderCssVars(tenantBranding);
   // 배경이 포함된 브랜드 에셋은 등록된 헤더용 크롭을 우선해 정사각형 원본 노출을 피한다.
-  const brandLogoUrl = headerBrandStyle ? (headerLogoUrl ?? logoUrl) : (logoUrl ?? headerLogoUrl);
+  const brandLogoUrl = previewRole ? "/dawon-brand.svg" : headerBrandStyle ? (headerLogoUrl ?? logoUrl) : (logoUrl ?? headerLogoUrl);
 
   const userMenu = {
     onClick: ({ key }: { key: string }) => {
       setProfileDropdownOpen(false);
       if (key === "profile") nav("/workspace/settings/profile");
-      if (key === "settings") nav("/workspace/settings");
+      if (key === "settings") nav(previewRole ? "/workspace/settings/appearance" : "/workspace/settings");
       if (key === "landing") {
         // 같은 탭 — 로그인 토큰은 same-origin 자동 유지. 학원장이 자기 도메인 랜딩 즉시 확인.
         window.location.assign("/landing");
@@ -241,7 +246,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
       }
       if (key === "logout") {
         clearAuth();
-        nav("/login");
+        nav(previewRole ? `/login/dawon?demo=${previewRole}` : "/login");
       }
     },
   };
@@ -270,7 +275,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
                 <span className="app-header__profileDropdownUserCard-name">{meDisplayName}</span>
                 {meStaffRole && (
                   <Badge tone={staffRoleBadgeTone(meStaffRole)} size="sm" variant="soft">
-                    {STAFF_ROLE_LABEL[meStaffRole]}
+                    {previewRole === "admin" ? "관리자" : previewRole === "teacher" ? "선생님" : STAFF_ROLE_LABEL[meStaffRole]}
                   </Badge>
                 )}
               </div>
@@ -291,8 +296,9 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
       </button>
       <button type="button" role="menuitem" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "settings" })}>
         <SettingsIcon size={ICON.sm} aria-hidden />
-        <span>학원/시스템 설정</span>
+        <span>{previewRole ? "화면 설정" : "학원/시스템 설정"}</span>
       </button>
+      {!previewRole && <>
       <button type="button" role="menuitem" className="app-header__profileDropdownItem" onClick={() => userMenu.onClick({ key: "landing" })}>
         <GlobeIcon size={ICON.sm} aria-hidden />
         <span>우리 학원 홈페이지</span>
@@ -303,6 +309,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
         <span>문제 신고</span>
       </button>
       <div className="app-header__profileDropdownDivider" />
+      </>}
       <button type="button" role="menuitem" className="app-header__profileDropdownItem app-header__profileDropdownItem--danger" onClick={() => userMenu.onClick({ key: "logout" })}>
         <LogOut size={ICON.sm} aria-hidden />
         <span>로그아웃</span>
@@ -320,11 +327,12 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
             size="lg"
             iconOnly
             className="app-header__iconBtn"
-            onClick={() =>
+            aria-expanded={sidebarExpanded}
+            onClick={onToggleSidebar ?? (() =>
               isMobile
                 ? adminLayout?.openDrawer()
                 : document.dispatchEvent(new Event("ui:sidebar:toggle"))
-            }
+            )}
             aria-label={isMobile ? "메뉴 열기" : "사이드바 토글"}
             leftIcon={<MenuIcon size={ICON_FOR_BUTTON.lg} aria-hidden />}
           />
@@ -360,7 +368,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
         </div>
 
         {/* CENTER: 근무 중인 직원 아바타 + 총근무시간 + 출근/퇴근 */}
-        {!isMobile && (
+        {!previewRole && !isMobile && (
           <div className="app-header__center">
             <HeaderCenterStaffClock />
           </div>
@@ -369,7 +377,7 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
         {/* RIGHT: 알람 | 프로필 */}
         <div className="app-header__right">
 
-          {isMobile && <CompactStaffClockButton />}
+          {isMobile && !previewRole && <CompactStaffClockButton />}
 
           {!isMobile && (
             <Button
@@ -443,8 +451,15 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
             open={alarmDropdownOpen}
             onToggle={() => setAlarmDropdownOpen((v) => !v)}
             onClose={() => setAlarmDropdownOpen(false)}
-            content={
+            content={previewRole ? (
               <div className="ds-header-dropdown app-header__alarmDropdown alarm-panel--workbox-style">
+                <div className="alarm-panel__header"><strong>알림</strong></div>
+                <div className="alarm-panel__list" onClick={() => setAlarmDropdownOpen(false)}>
+                  {previewRole === "teacher" ? <DawonLearningAlertsLink /> :
+                    <Link className="alarm-panel__item" to="/workspace/dashboard?panel=alerts">반별 학습 알림 보기</Link>}
+                </div>
+              </div>
+            ) : <div className="ds-header-dropdown app-header__alarmDropdown alarm-panel--workbox-style">
                 <div className="alarm-panel__header">
                   <span className="alarm-panel__header-title">
                     <span>알림</span>
@@ -548,14 +563,14 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
           </ProfileDropdown>
 
           <GuideBookLauncher
-            preset={ADMIN_GUIDE_BOOK}
+            preset={previewRole ? staffGuide(previewRole) : ADMIN_GUIDE_BOOK}
             tone="admin"
             buttonClassName="app-header__iconBtn"
             iconSize={ICON_FOR_BUTTON.lg}
             ariaLabel="가이드북"
             onNavigate={nav}
-            productUpdate={productUpdate}
-            supportAction={{
+            productUpdate={previewRole ? undefined : productUpdate}
+            supportAction={previewRole ? undefined : {
               label: "문제 신고",
               onClick: () => document.dispatchEvent(new Event("ui:bugreport:open")),
             }}
