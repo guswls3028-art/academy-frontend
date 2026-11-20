@@ -22,6 +22,21 @@ interface Env {
 const STATIC_EXT = /\.(js|mjs|css|png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|eot|map|json|xml|txt|webmanifest|mp4|vtt|pdf)(\?.*)?$/i;
 const STATIC_HTML_PATHS = new Set(["/omr-sheet", "/omr-sheet.html"]);
 
+// New reads of published guide links follow the current edition. Previously buffered video ranges keep their original bytes.
+const GUIDE_EDITION_ALIASES: Record<string, string> = {
+  "admin-attendance-3fb37f672430": "admin-attendance-3b3138750a56",
+  "create-exam-0c8d93f7042e": "create-exam-dd1f2b6c2eb4",
+  "create-homework-f034c57a9d0f": "create-homework-3b07152e6780",
+  "create-session-e6096e16cee5": "create-session-a64f320ff3cb",
+  "manual-grading-091af37c4429": "manual-grading-6155195f0ae1",
+  "register-student-32f65693ff08": "register-student-7a1b861476a0",
+  "send-alimtalk-f5520aa79a47": "send-alimtalk-a105f2492e29",
+  "student-assignment-35a80ffe8c70": "student-assignment-65858d8da971",
+  "teacher-attendance-146417c82f52": "teacher-attendance-48a19b956f87",
+  "upload-video-84172b6ffcba": "upload-video-04161af23c8f",
+  "admin-attendance-90f1db7540a8": "admin-attendance-3b3138750a56"
+};
+
 function createCspNonce(): string {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
@@ -117,6 +132,11 @@ interface TenantMeta {
 const HAKWONPLUS_HOSTS = new Set(["hakwonplus.com", "www.hakwonplus.com"]);
 const DEV_CONSOLE_HOST = "dev.hakwonplus.com";
 const DEV_CONSOLE_ORIGIN = `https://${DEV_CONSOLE_HOST}`;
+const PLATFORM_ICON_ALIASES = new Map([
+  ["/favicon.ico", "/tenants/hakwonplus/favicon.png?v=20261119"],
+  ["/apple-touch-icon.png", "/tenants/hakwonplus/apple-touch-icon.png?v=20261119"],
+  ["/apple-touch-icon-precomposed.png", "/tenants/hakwonplus/apple-touch-icon.png?v=20261119"],
+]);
 
 const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
   "/promo": {
@@ -344,9 +364,9 @@ const FALLBACK_META: Record<string, TenantMeta> = {
   "www.ymath.co.kr":    { title: "Y_math",     description: "Y_math 학습 플랫폼", favicon: "/tenants/ymath/favicon.png", image: "/tenants/ymath/og-image.png", imageWidth: 800, imageHeight: 420 },
   "limglish.kr":        { title: "임근혁 영어", description: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/limglish/favicon.png", image: "/tenants/limglish/og-image.png", imageWidth: 800, imageHeight: 420 },
   "www.limglish.kr":    { title: "임근혁 영어", description: "임근혁 영어(limglish) – 영어 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/limglish/favicon.png", image: "/tenants/limglish/og-image.png", imageWidth: 800, imageHeight: 420 },
-  "hakwonplus.com":     { title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",  description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 한곳에서 이어갑니다.", favicon: "/tenants/hakwonplus/favicon.png?v=20260727", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
-  "www.hakwonplus.com": { title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",  description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 한곳에서 이어갑니다.", favicon: "/tenants/hakwonplus/favicon.png?v=20260727", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630 },
-  "dev.hakwonplus.com": { title: "학원플러스 콘솔", description: "학원플러스 문의와 운영 상태를 확인하는 개발자 콘솔", favicon: "/tenants/hakwonplus/favicon.png?v=20260727", image: "/tenants/hakwonplus/og-image.png", imageWidth: 1200, imageHeight: 630, appleTouchIcon: "/tenants/hakwonplus/apple-touch-icon.png?v=20260727" },
+  "hakwonplus.com":     { title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",  description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 한곳에서 이어갑니다.", favicon: "/tenants/hakwonplus/favicon.png?v=20261119", image: "/tenants/hakwonplus/og-image.png?v=20261119", imageWidth: 1200, imageHeight: 630 },
+  "www.hakwonplus.com": { title: "학원플러스 | 학원의 수업과 운영을 한 흐름으로",  description: "강의·학생·출결·성적·보강 관리와 학생앱 영상, 알림톡, 칠판용 PPT·매치업, 학원 홈페이지를 한곳에서 이어갑니다.", favicon: "/tenants/hakwonplus/favicon.png?v=20261119", image: "/tenants/hakwonplus/og-image.png?v=20261119", imageWidth: 1200, imageHeight: 630 },
+  "dev.hakwonplus.com": { title: "학원플러스 콘솔", description: "학원플러스 문의와 운영 상태를 확인하는 개발자 콘솔", favicon: "/tenants/hakwonplus/favicon.png?v=20261119", image: "/tenants/hakwonplus/og-image.png?v=20261119", imageWidth: 1200, imageHeight: 630, appleTouchIcon: "/tenants/hakwonplus/apple-touch-icon.png?v=20261119" },
   "sswe.co.kr":         { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
   "www.sswe.co.kr":     { title: "SSWE", description: "SSWE 학습 플랫폼 – 학생·선생님 로그인", favicon: "/tenants/sswe/favicon.png", image: "/tenants/sswe/logo-full.png", imageWidth: 800, imageHeight: 380 },
   "dnbacademy.co.kr":   { title: "DnB 보습학원", description: "DnB 보습학원 – 보습 전문 학습 플랫폼. 학생·선생님 로그인", favicon: "/tenants/dnb/favicon.png", image: "/tenants/dnb/og-image.png", imageWidth: 800, imageHeight: 420 },
@@ -366,8 +386,8 @@ const FALLBACK_TEACHER_PWA: Record<string, TenantPwaMeta> = {
   "www.ymath.co.kr":    { title: "Y_math", icon: "/tenants/ymath/pwa-192.png", icon512: "/tenants/ymath/pwa-512.png" },
   "limglish.kr":        { title: "임근혁 영어", icon: "/tenants/limglish/pwa-192.png", icon512: "/tenants/limglish/pwa-512.png" },
   "www.limglish.kr":    { title: "임근혁 영어", icon: "/tenants/limglish/pwa-192.png", icon512: "/tenants/limglish/pwa-512.png" },
-  "hakwonplus.com":     { title: "학원플러스", icon: "/tenants/hakwonplus/pwa-192.png?v=20260727", icon512: "/tenants/hakwonplus/pwa-512.png?v=20260727", themeColor: "#37D6F2", backgroundColor: "#0A0E1A" },
-  "www.hakwonplus.com": { title: "학원플러스", icon: "/tenants/hakwonplus/pwa-192.png?v=20260727", icon512: "/tenants/hakwonplus/pwa-512.png?v=20260727", themeColor: "#37D6F2", backgroundColor: "#0A0E1A" },
+  "hakwonplus.com":     { title: "학원플러스", icon: "/tenants/hakwonplus/pwa-192.png?v=20261119", icon512: "/tenants/hakwonplus/pwa-512.png?v=20261119", themeColor: "#293ab0", backgroundColor: "#ffffff" },
+  "www.hakwonplus.com": { title: "학원플러스", icon: "/tenants/hakwonplus/pwa-192.png?v=20261119", icon512: "/tenants/hakwonplus/pwa-512.png?v=20261119", themeColor: "#293ab0", backgroundColor: "#ffffff" },
   "sswe.co.kr":         { title: "SSWE", icon: "/tenants/sswe/pwa-192.png", icon512: "/tenants/sswe/pwa-512.png" },
   "www.sswe.co.kr":     { title: "SSWE", icon: "/tenants/sswe/pwa-192.png", icon512: "/tenants/sswe/pwa-512.png" },
   "dnbacademy.co.kr":   { title: "DnB 보습학원", icon: "/tenants/dnb/pwa-192.png", icon512: "/tenants/dnb/pwa-512.png" },
@@ -643,6 +663,18 @@ function injectMeta(
     );
   }
 
+  if (HAKWONPLUS_HOSTS.has(host) && (pathname === "/" || pathname === "/promo")) {
+    const organization = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: "학원플러스",
+      url: "https://hakwonplus.com",
+      logo: "https://hakwonplus.com/tenants/hakwonplus/pwa-512.png?v=20261119",
+    });
+    // Place the crawler data before the startup script so browser boot can reuse it.
+    html = html.replace("<head>", `<head>\n    <script type="application/ld+json" id="platform-organization">${organization}</script>`);
+  }
+
   if (HAKWONPLUS_HOSTS.has(host) && HAKWONPLUS_PROMO_ROUTES.has(pathname)) {
     const structuredData = JSON.stringify({
       "@context": "https://schema.org",
@@ -672,6 +704,11 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url);
   const pathname = url.pathname;
   const host = url.hostname.toLowerCase();
+
+  const platformIcon = PLATFORM_ICON_ALIASES.get(pathname);
+  if (platformIcon && (HAKWONPLUS_HOSTS.has(host) || host === DEV_CONSOLE_HOST)) {
+    return Response.redirect(new URL(platformIcon, url).href, 307);
+  }
 
   if (
     HAKWONPLUS_HOSTS.has(host)
@@ -770,6 +807,19 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
       status: 404,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
+  }
+
+  const oldGuide = /^\/guide-media\/([a-z0-9-]+-[a-f0-9]{12})\/(\d{2}\.jpg|walkthrough\.mp4|captions\.vtt)$/.exec(pathname);
+  if (oldGuide) {
+    const [, edition, filename] = oldGuide;
+    const current = GUIDE_EDITION_ALIASES[edition];
+    const directNavigation = context.request.headers.get("Sec-Fetch-Mode") === "navigate";
+    // Keep an existing player's video and captions on one immutable timeline, including byte-range resumes.
+    if (current && !context.request.headers.has("Range") && (filename.endsWith(".jpg") || directNavigation)) {
+      const target = new URL(context.request.url);
+      target.pathname = `/guide-media/${current}/${filename}`;
+      return Response.redirect(target.toString(), 307);
+    }
   }
 
   // 정적 파일은 그대로 ASSETS에 위임

@@ -59,7 +59,7 @@ export default function VideoPlatformPage() {
           <div className={styles.heroScreens} aria-label="학생전용앱 영상 캡처">
             <figure className={`${styles.device} ${styles.deviceFront}`}>
               <PromoEvidenceImage
-                src="/promo/student-video-player.webp"
+                src="/promo/student-video-player.webp?v=20261120"
                 alt="학생전용앱 영상 플레이어 화면"
                 width={780}
                 height={1688}
@@ -67,7 +67,7 @@ export default function VideoPlatformPage() {
             </figure>
             <figure className={styles.device}>
               <PromoEvidenceImage
-                src="/promo/student-app-home.webp"
+                src="/promo/student-app-home.webp?v=20261120"
                 alt="학생전용앱 홈에서 오늘 할 일과 수업을 확인하는 화면"
                 width={780}
                 height={1688}
@@ -91,7 +91,7 @@ export default function VideoPlatformPage() {
           <div className={styles.evidenceGrid}>
             <figure className={styles.evidencePhone}>
               <PromoEvidenceImage
-                src="/promo/student-app-home.webp"
+                src="/promo/student-app-home.webp?v=20261120"
                 alt="학생전용앱 홈에서 오늘 할 일과 수업을 확인하는 화면"
                 width={780}
                 height={1688}
@@ -101,7 +101,7 @@ export default function VideoPlatformPage() {
             </figure>
             <figure className={styles.evidencePhone}>
               <PromoEvidenceImage
-                src="/promo/student-video-app.webp"
+                src="/promo/student-video-app.webp?v=20261120"
                 alt="학생전용앱에서 수강 중인 영상 강의를 고르는 화면"
                 width={780}
                 height={1688}
@@ -111,7 +111,7 @@ export default function VideoPlatformPage() {
             </figure>
             <figure className={styles.evidencePhone}>
               <PromoEvidenceImage
-                src="/promo/student-video-list.webp"
+                src="/promo/student-video-list.webp?v=20261120"
                 alt="학생전용앱에서 차시별 영상과 시청 진도를 확인하는 화면"
                 width={780}
                 height={1688}
@@ -121,7 +121,7 @@ export default function VideoPlatformPage() {
             </figure>
             <figure className={styles.evidencePhone}>
               <PromoEvidenceImage
-                src="/promo/student-video-player.webp"
+                src="/promo/student-video-player.webp?v=20261120"
                 alt="학생전용앱 영상 플레이어와 선생님 댓글 화면"
                 width={780}
                 height={1688}
@@ -240,7 +240,7 @@ export default function VideoPlatformPage() {
             </div>
             <figure className={styles.alimtalkVisual}>
               <PromoEvidenceImage
-                src="/promo/admin-alimtalk-auto-send.png"
+                src="/promo/admin-alimtalk-auto-send.png?v=20261120"
                 alt="관리자 알림톡 발송 설정 화면"
                 width={1440}
                 height={820}

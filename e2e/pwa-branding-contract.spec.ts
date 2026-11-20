@@ -35,6 +35,40 @@ function documentRequest(host: string, pathname: string) {
   } as never);
 }
 
+test("HakwonPlus browser defaults and crawler HTML use the published logo before JavaScript", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({ title: "학원플러스", tenant_code: "hakwonplus" });
+  const root = "/tenants/hakwonplus/";
+  const version = "?v=20261119";
+  try {
+    for (const host of ["hakwonplus.com", "www.hakwonplus.com"]) {
+      for (const [alias, file] of [
+        ["/favicon.ico", "favicon.png"],
+        ["/apple-touch-icon.png", "apple-touch-icon.png"],
+        ["/apple-touch-icon-precomposed.png", "apple-touch-icon.png"],
+      ]) {
+        const response = await manifestRequest(host, alias);
+        expect(response.status).toBe(307);
+        expect(response.headers.get("Location")).toBe(`https://${host}${root}${file}${version}`);
+      }
+      for (const path of ["/", "/promo", "/workspace/dashboard"]) {
+        const html = await (await documentRequest(host, path)).text();
+        expect(html).toContain(`rel="icon" href="${root}favicon.png${version}"`);
+        expect(html).toContain(`property="og:image" content="https://${host}${root}og-image.png${version}"`);
+        if (path !== "/workspace/dashboard") {
+          const schema = html.match(/<script[^>]*id="platform-organization"[^>]*>([^<]+)<\/script>/);
+          expect(JSON.parse(schema![1])).toMatchObject({
+            "@type": "Organization", logo: `https://hakwonplus.com${root}pwa-512.png${version}`,
+          });
+        }
+      }
+    }
+    expect((await manifestRequest("tchul.com", "/favicon.ico")).headers.has("Location")).toBe(false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("student shell requests branding while the fallback index is loading", async () => {
   const originalFetch = globalThis.fetch;
   const host = "qa-shell-branding.example";
@@ -460,11 +494,11 @@ test("developer manifest is an isolated installable app with HakwonPlus icons", 
   expect(manifest.display).toBe("standalone");
   expect(manifest.icons).toEqual([
     expect.objectContaining({
-      src: "/tenants/hakwonplus/pwa-192.png?v=20260727",
+      src: "/tenants/hakwonplus/pwa-192.png?v=20261119",
       sizes: "192x192",
     }),
     expect.objectContaining({
-      src: "/tenants/hakwonplus/pwa-512.png?v=20260727",
+      src: "/tenants/hakwonplus/pwa-512.png?v=20261119",
       sizes: "512x512",
     }),
   ]);
@@ -491,7 +525,7 @@ test("developer custom domain is canonical, non-indexable, and tenant-bound", as
   expect(html).toContain('<link rel="manifest" href="/dev-manifest.json" />');
   expect(html).toContain('apple-mobile-web-app-title" content="학원플러스 콘솔"');
   expect(html).toContain(
-    '<link rel="apple-touch-icon" href="/tenants/hakwonplus/apple-touch-icon.png?v=20260727" />',
+    '<link rel="apple-touch-icon" href="/tenants/hakwonplus/apple-touch-icon.png?v=20261119" />',
   );
 
   expect(getTenantCodeFromHostname("dev.hakwonplus.com")).toEqual({

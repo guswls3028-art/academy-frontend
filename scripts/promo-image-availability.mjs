@@ -1,7 +1,7 @@
 const promoUrl = "https://hakwonplus.com/promo";
 const images = new Set([
   promoUrl + "/admin-attendance-realuse-20260828.png",
-  promoUrl + "/student-operations-realuse-20260828.png",
+  promoUrl + "/student-operations-realuse-20260828.png?v=20261120",
 ]);
 
 export function observePromoImages(page, target) {

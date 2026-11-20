@@ -44,7 +44,7 @@ const GUIDE_STEPS: GuideStep[] = [
       "문항 자동 분리·직접 보정",
       "학교·학기·시험별 분류",
     ],
-    image: "/promo/matchup-gaepo-results-20260725.png",
+    image: "/promo/matchup-gaepo-results-20260725.png?v=20261120",
     imageWidth: 1280,
     imageHeight: 720,
     alt: "실제 시험지와 사전 대비 자료를 문항별로 나눈 매치업 실제 화면",
@@ -61,7 +61,7 @@ const GUIDE_STEPS: GuideStep[] = [
       "실제 시험과 사전 대비 자료 나란히 비교",
       "선생님이 적중 근거 최종 확정",
     ],
-    image: "/promo/matchup-gaepo-candidates-20260725.png",
+    image: "/promo/matchup-gaepo-candidates-20260725.png?v=20261120",
     imageWidth: 1280,
     imageHeight: 720,
     alt: "실제 시험 문항마다 사전 대비 자료의 유사 후보를 보여주는 매치업 실제 화면",
@@ -78,7 +78,7 @@ const GUIDE_STEPS: GuideStep[] = [
       "PDF 문항 자동 분리·이미지별 슬라이드",
       "16:9·4:3 화면 비율 선택",
     ],
-    image: "/promo/ppt-gaepo-setup-20260725.png",
+    image: "/promo/ppt-gaepo-setup-20260725.png?v=20261120",
     imageWidth: 1280,
     imageHeight: 720,
     alt: "개포고 문제 자료를 슬라이드 단위로 나누고 16대 9 비율을 설정하는 학원플러스 PPT 생성 화면",
@@ -218,7 +218,7 @@ export default function MatchupPptPage() {
             <figure className={styles.heroFrame}>
               <ProductBar label="매치업 · 문항별 유사 후보" />
               <PromoEvidenceImage
-                src="/promo/matchup-gaepo-candidates-20260725.png"
+                src="/promo/matchup-gaepo-candidates-20260725.png?v=20261120"
                 alt="실제 시험 문항과 학원 사전 자료의 유사 후보를 보여주는 매치업 실제 화면"
                 width={1280}
                 height={720}
