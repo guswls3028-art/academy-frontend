@@ -15,6 +15,7 @@ export type RosterStudent = {
   id: number;
   name: string;
   school: string;
+  grade?: number | null;
   parent_phone?: string;
   phone?: string;
   eligible?: boolean;

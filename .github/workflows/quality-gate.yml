@@ -153,14 +153,14 @@ jobs:
         run: node --test scripts/tests/development-release-canary.test.mjs
 
       # 차단 게이트: 빌드 실패 = 서비스 장애
-      - name: Configure dedicated Dawon candidate
-        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/codex/dawon-admin-reuse-1119-frontend-20261119-055133'
-        run: |
-          echo "VITE_BUILD_VERSION=dawon-review-20261119-orange-r23" >> "$GITHUB_ENV"
-          echo "VITE_API_BASE_URL= " >> "$GITHUB_ENV"
-
       - name: Build
-        run: pnpm build
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" == "refs/heads/codex/dawon-admin-reuse-1119-frontend-20261119-055133" ]]; then
+            env -u GITHUB_SHA VITE_BUILD_VERSION=dawon-review-20261119-orange-r23 VITE_API_BASE_URL=' ' pnpm build
+            node -e 'const v = require("./dist/version.json").version; if (v !== "dawon-review-20261119-orange-r23") throw Error(v)'
+          else
+            pnpm build
+          fi
 
       - name: Upload build artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

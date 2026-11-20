@@ -65,31 +65,9 @@ function mountDemoSwitcher() {
       else link.removeAttribute("aria-current");
     }
   }
-  function markStaffShell() {
-    const header = document.querySelector('[data-app="admin"] > div > header');
-    const login = header?.querySelector('a[href^="/login/dawon?demo="]');
-    const role = login && new URL(login.href).searchParams.get("demo");
-    if (role !== "teacher" && role !== "admin") return;
-    header.parentElement.dataset.dawonStaff = role;
-    const heading = login.parentElement.querySelector(':scope > strong');
-    const label = role === "teacher" ? "다원수학 선생님용" : "다원수학 학원용 · 관리자 모드";
-    if (heading && heading.textContent !== label) heading.textContent = label;
-  }
-
   const sync = () => { markRole(); };
   markRole();
   new MutationObserver(sync).observe(document.body, {attributes:true,attributeFilter:["data-role"]});
-  if (nav.dataset.shell === "native") {
-    let frame;
-    const app = document.querySelector('#root');
-    if (app) {
-      new MutationObserver(() => {
-        if (frame) return;
-        frame = requestAnimationFrame(() => { frame = undefined; markStaffShell(); });
-      }).observe(app,{childList:true,subtree:true});
-      markStaffShell();
-    }
-  }
   window.addEventListener("popstate",sync);
   for (const method of ["pushState", "replaceState"]) {
     const original=history[method];

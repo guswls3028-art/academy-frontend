@@ -8,6 +8,7 @@ import { resolveTenantCodeString } from "@/shared/tenant";
 import { Button } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { teacherLectureQueryKeys } from "@/app_teacher/domains/lectures/queryKeys";
+import DawonDirectoryTable from "./DawonDirectoryTable";
 import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
 import { ChevronRight } from "lucide-react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
@@ -211,16 +212,17 @@ function GroupDetail({ id, root, lectureRoot, rosterRoot, lectureEntry, assignOn
             {members.length > 0 && <Button intent="secondary" onClick={() => openEditor("remove")}>명단에서 제외</Button>}
             <Button intent="primary" onClick={() => openEditor("add")}>반 인원 배정</Button>
           </div>} />
-        <DomainTable scrollLabel="반 학생 명단" tableClassName="ds-table--flat" tableStyle={{minWidth: 540}}>
-          <thead><tr>{["학생 이름", "학교", "학부모 연락처", "학생 연락처"].map((title) => <th scope="col" key={title}>{title}</th>)}</tr></thead>
-          <tbody>{visibleMembers.map((student) => <tr key={student.id}>
-            <td><Link className={styles.rowLink} to={`/workspace/students/${student.id}`} state={{backgroundLocation: location}}>{student.name}</Link>
-              {student.eligible === false && <small>배정 자격 확인 필요</small>}</td>
-            <td>{student.school || "미등록"}</td><td>{student.parent_phone || "—"}</td><td>{student.phone || "—"}</td>
-          </tr>)}
-            {!visibleMembers.length && <tr><td colSpan={4}>{members.length ? "검색 조건에 맞는 학생이 없습니다." : "배정된 학생이 없습니다."}</td></tr>}
-          </tbody>
-        </DomainTable>
+        <DawonDirectoryTable id="dawon-class-members" label="반 학생 명단" rows={visibleMembers}
+          empty={members.length ? "검색 조건에 맞는 학생이 없습니다." : "배정된 학생이 없습니다."}
+          columns={[
+            {key: "name", label: "학생 이름", defaultWidth: 160, value: student => student.name, render: student => <>
+              <Link className={styles.rowLink} to={`/workspace/students/${student.id}`} state={{backgroundLocation: location}}>{student.name}</Link>
+              {student.eligible === false && <small>배정 자격 확인 필요</small>}</>},
+            {key: "school", label: "학교", defaultWidth: 120, value: student => student.school},
+            {key: "grade", label: "학년", defaultWidth: 70, value: student => student.grade ?? 0, render: student => student.grade ? `${student.grade}학년` : "—"},
+            {key: "parent", label: "학부모 연락처", defaultWidth: 145, value: student => student.parent_phone || ""},
+            {key: "phone", label: "학생 연락처", defaultWidth: 145, value: student => student.phone || ""},
+          ]} />
         {(mode === "add" || mode === "remove") && <ClassRosterModal
           title={mode === "add" ? "반 인원 배정" : "반 명단에서 제외"}
           description={mode === "add" ? group.name : `${group.name} · 기존 수강·출결 기록은 유지됩니다.`}
@@ -284,17 +286,16 @@ export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry
       }} />}
       {groups.isPending && <p role="status">반 목록을 불러오는 중입니다.</p>}
       {groups.isError && <div className={styles.panel}>{failure(groups.error)}<button onClick={() => void groups.refetch()}>다시 시도</button></div>}
-      {groups.isSuccess && <DomainTable scrollLabel="반 목록" tableClassName="ds-table--flat" tableStyle={{minWidth: 500}}>
-        <thead><tr>{["반 이름", "반 구분", "과정 · 학교", "학생 수", "강의 수"].map((title) => <th scope="col" key={title}>{title}</th>)}</tr></thead>
-        <tbody>{visible.map((group) => <tr key={group.id}>
-          <td><Link className={styles.rowLink} to={`${root}?class=${group.id}`}>{group.name}</Link></td>
-          <td>{group.kind === "union" ? "연합반" : "학교별 내신반"}</td>
-          <td>{(group.kind === "union" ? group.track : group.school) || "—"}</td>
-          <td>{group.student_count}명</td><td>{group.lecture_count}개</td>
-        </tr>)}
-          {!visible.length && <tr><td colSpan={5}>{all.length ? "검색 조건에 맞는 반이 없습니다." : "아직 편성한 반이 없습니다."}</td></tr>}
-        </tbody>
-      </DomainTable>}
+      {groups.isSuccess && <DawonDirectoryTable id="dawon-class-directory" label="반 목록" rows={visible}
+        empty={all.length ? "검색 조건에 맞는 반이 없습니다." : "아직 편성한 반이 없습니다."}
+        columns={[
+          {key: "name", label: "반 이름", defaultWidth: 215, value: group => group.name,
+            render: group => <Link className={styles.rowLink} to={`${root}?class=${group.id}`}>{group.name}</Link>},
+          {key: "kind", label: "반 구분", defaultWidth: 125, value: group => group.kind === "union" ? "연합반" : "학교별 내신반"},
+          {key: "scope", label: "과정 · 학교", defaultWidth: 140, value: group => group.kind === "union" ? group.track : group.school},
+          {key: "members", label: "학생 수", defaultWidth: 78, value: group => group.student_count, render: group => group.student_count + "명"},
+          {key: "courses", label: "강의 수", defaultWidth: 78, value: group => group.lecture_count, render: group => group.lecture_count + "개"},
+        ]} />}
     </div>
   );
 }

@@ -18,24 +18,6 @@ const workspaceStyle = `<style>
   padding:0 11px;min-height:44px;border:1px solid #dcd3cc;border-radius:8px;
   color:#48362a;background:#fff;text-decoration:none;font-weight:650;
 }
-[data-dawon-staff] > header > div:has(a[href^="/login/dawon?demo="]) {
-  min-height:54px;gap:12px;padding-inline:clamp(14px,2.5vw,28px);
-  border-bottom:1px solid #ede5df;color:#362920;background:#fff;
-}
-[data-dawon-staff] > header a[href^="/login/dawon?demo="] {padding:8px;white-space:nowrap}
-[data-dawon-staff] nav[aria-label="업무 메뉴"] a[aria-current="page"] {
-  background:#fff1e5;color:#843a0e;font-weight:700;
-}
-[data-dawon-staff="teacher"] .domain-layout:has(nav[aria-label="반 업무"]) > .domain-layout__header {
-  padding:10px 16px;background:transparent;border:0;
-}
-[data-dawon-staff="teacher"] .domain-layout:has(nav[aria-label="반 업무"]) > .domain-layout__header .domain-layout__title {
-  font-size:14px;line-height:1.4;color:#514b47;
-}
-[data-dawon-staff="teacher"] .domain-layout:has(nav[aria-label="반 업무"]) > .domain-layout__header .domain-header__tabs-wrap {
-  display:none;
-}
-[data-dawon-staff="admin"] .domain-header__tabs-wrap {display:none}
 [data-dawon-staff="admin"] section[aria-label="반 운영 현황"] article {background:#fff}
 [data-dawon-staff="admin"] section[aria-label="반 운영 현황"] article li {
   gap:4px 16px;padding-block:12px;
