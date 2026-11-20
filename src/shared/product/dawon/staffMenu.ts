@@ -26,3 +26,8 @@ export const staffGuide = (role: StaffRoom) => ({
     {title: "담당 학생", description: "반 명단에서 학생을 찾아 수강 정보를 확인합니다.", path: "/workspace/students/home"},
   ]}],
 });
+
+export const resultTabs = [
+  {key:"exams",label:"시험별",path:"/workspace/results",exact:true},
+  {key:"students",label:"학생별",path:"/workspace/results/students",exact:true},
+];

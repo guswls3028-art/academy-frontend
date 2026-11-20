@@ -1,7 +1,7 @@
 import { useState } from "react";
 import DomainListToolbar from "@/shared/ui/domain/DomainListToolbar";
 import DawonDirectoryTable from "./DawonDirectoryTable";
-import {resultTabs} from "./DawonAdminDirectories";
+import { resultTabs } from "./staffMenu";
 import { dawonQueryKeys } from "./queryKeys";
 import {AdminAlerts, AdminExamReview, AdminStudentReview, ExamLinks} from "./DawonAdminLearning";
 import DomainTable from "@/shared/ui/domain/DomainTable";

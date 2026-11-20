@@ -10,10 +10,7 @@ import { AdminModal, ModalBody, ModalHeader, MODAL_WIDTH } from "@/shared/ui/mod
 import { dawonQueryKeys } from "./queryKeys";
 import styles from "./DawonOperations.module.css";
 
-export const resultTabs = [
-  {key:"exams",label:"시험별",path:"/workspace/results",exact:true},
-  {key:"students",label:"학생별",path:"/workspace/results/students",exact:true},
-];
+import { resultTabs } from "./staffMenu";
 
 export function AdminGroupSelect({value, onChange}: {value:string;onChange:(id:string)=>void}) {
   const groups = useQuery({queryKey:dawonQueryKeys.adminGroups, queryFn:async ({signal}) =>
