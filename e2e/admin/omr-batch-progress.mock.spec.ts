@@ -1,3 +1,4 @@
+import { revealScoreManagement } from "../helpers/revealScoreManagement";
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
@@ -508,6 +509,7 @@ async function openWorkbox(page: Page, totalCount = 22) {
 }
 
 async function openOmrUpload(page: Page) {
+  await revealScoreManagement(page);
   const trigger = page.getByRole("button", { name: "OMR 스캔 등록" });
   await expect(trigger).toBeVisible({ timeout: 30_000 });
   await trigger.click();
