@@ -42,7 +42,13 @@ async function openMonitoredHlsPlayer({ page, speedLocked, base, viewport, insta
         "#EXT-X-STREAM-INF:BANDWIDTH=400000,RESOLUTION=1280x720", "720.m3u8", "",
       ].join("\n") });
     }
-    const asset = syntheticLongVideoAsset(path.replace(/\/(360|720)\.m3u8$/, "/master.m3u8"));
+    const rendition = path.match(/\/(360|720)\.m3u8$/);
+    if (rendition) {
+      const asset = syntheticLongVideoAsset("/__qa__/video-long/master.m3u8");
+      return route.fulfill({ contentType: asset.contentType,
+        body: asset.body.toString("utf8").replace("media.m4s", `${rendition[1]}-media.m4s`) });
+    }
+    const asset = syntheticLongVideoAsset(path.replace(/\/(360|720)-media\.m4s$/, "/media.m4s"));
     return route.fulfill({ body: asset.body, contentType: asset.contentType });
   });
   await page.route("**/api/v1/student/video/videos/562/playback/**", route => {
@@ -104,17 +110,23 @@ export async function verifyPlaybackSettingsQuality(scenario: GestureScenario) {
       };
     });
   }
-  const initialPlaylist = manual ? page.waitForRequest(/\/(360|720)\.m3u8$/) : undefined;
+  let loadedRendition = "";
+  page.on("request", request => {
+    const segment = new URL(request.url()).pathname.match(/\/(360|720)-media\.m4s$/);
+    if (segment) loadedRendition = segment[1];
+  });
   const { video, state } = await openMonitoredHlsPlayer(scenario, manual);
   const settings = page.getByRole("button", { name: "재생 설정, 배속 1배" });
   await settings.focus();
   await settings.press("Space");
   const panel = page.getByRole("dialog", { name: "재생 설정" });
   const quality = panel.getByRole("combobox", { name: "화질" });
-  if (initialPlaylist) {
-    const other = (await initialPlaylist).url().endsWith("/720.m3u8") ? 360 : 720;
+  if (manual) {
+    // ABR may preload both playlists. Verify a fresh segment of the selected rendition.
+    expect(["360", "720"]).toContain(loadedRendition);
+    const other = loadedRendition === "720" ? 360 : 720;
     await Promise.all([
-      page.waitForRequest(request => request.url().endsWith(`/${other}.m3u8`)),
+      page.waitForRequest(request => request.url().endsWith(`/${other}-media.m4s`)),
       quality.selectOption({ label: `${other}p` }),
     ]);
     await expect(panel).toHaveCount(0);
