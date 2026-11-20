@@ -29,6 +29,12 @@ const workspaceStyle = `<style>
 [data-dawon-staff="teacher"] [aria-labelledby="dawon-teaching-heading"] a[href$="/attendance"] > span:last-child {
   color:#863c10;background:#fff2e7;min-height:36px;padding-inline:9px;border-radius:8px;white-space:nowrap;
 }
+@media(max-width:1023px) {
+  /* The name link supplies the touch target inside each roster row. */
+  [data-dawon-staff] [aria-label="반 학생 명단"] .ds-table.ds-table--flat tbody td {
+    padding-top:1px !important;padding-bottom:1px !important;
+  }
+}
 @media(max-width:600px) {
   [data-dawon-staff="admin"] section[aria-label="반 운영 현황"] article li {align-items:flex-start;flex-direction:column}
 
