@@ -4,6 +4,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { useLocation, useNavigate } from "react-router";
+import useAuth from "@/auth/hooks/useAuth";
+import { canSendManualAlimtalk } from "@teacher/domains/comms/messagePermissions";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import { formatPhone } from "@/shared/utils/formatPhone";
@@ -73,6 +75,8 @@ function defaultScheduledLocalValue(): string {
 export default function StudentListPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
+  const canSend = canSendManualAlimtalk(user?.tenantRole);
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [search, setSearch] = useState("");
@@ -95,12 +99,14 @@ export default function StudentListPage() {
   useEffect(() => {
     const state = location.state as StudentListLocationState;
     if (!state?.startSelectMode) return;
-    const timing = state.preferredMessageTiming === "scheduled" ? "scheduled" : "now";
-    setSelectMode(true);
-    setSelectModeIntent(timing === "scheduled" ? "scheduled" : "message");
-    setPreferredMessageTiming(timing);
+    if (canSend) {
+      const timing = state.preferredMessageTiming === "scheduled" ? "scheduled" : "now";
+      setSelectMode(true);
+      setSelectModeIntent(timing === "scheduled" ? "scheduled" : "message");
+      setPreferredMessageTiming(timing);
+    }
     navigate(location.pathname, { replace: true, state: {} });
-  }, [location.pathname, location.state, navigate]);
+  }, [canSend, location.pathname, location.state, navigate]);
 
   const studentPages = useInfiniteQuery({
     queryKey: teacherStudentsQueryKeys.studentPages(deferredSearch, filters),
@@ -400,11 +406,13 @@ export default function StudentListPage() {
             zIndex: 230,
           }}>
           <div className="flex gap-2">
-            <BulkBtn
-              icon={<MessageSquare size={ICON.xs} />}
-              label={preferredMessageTiming === "scheduled" ? "예약" : "알림톡"}
-              onClick={() => setBulkAction("message")}
-            />
+            {canSend && (
+              <BulkBtn
+                icon={<MessageSquare size={ICON.xs} />}
+                label={preferredMessageTiming === "scheduled" ? "예약" : "알림톡"}
+                onClick={() => setBulkAction("message")}
+              />
+            )}
             <BulkBtn icon={<Tag size={ICON.xs} />} label="태그" onClick={() => setBulkAction("tag")} />
             <BulkBtn icon={<Lock size={ICON.xs} />} label="비번초기화" onClick={() => setBulkAction("password")} />
             <BulkBtn icon={<Trash2 size={ICON.xs} />} label="삭제" tone="danger"
@@ -453,8 +461,10 @@ export default function StudentListPage() {
       <CreateStudentSheet open={createOpen} onClose={() => setCreateOpen(false)} />
 
       {/* Bulk action sheets */}
-      <BulkMessageSheet open={bulkAction === "message"} onClose={() => setBulkAction(null)}
-        students={selectedStudents} initialSendTiming={preferredMessageTiming} onDone={exitSelectMode} />
+      {canSend && (
+        <BulkMessageSheet open={bulkAction === "message"} onClose={() => setBulkAction(null)}
+          students={selectedStudents} initialSendTiming={preferredMessageTiming} onDone={exitSelectMode} />
+      )}
       <BulkTagSheet open={bulkAction === "tag"} onClose={() => setBulkAction(null)}
         students={selectedStudents} onDone={exitSelectMode} />
       <BulkPasswordSheet open={bulkAction === "password"} onClose={() => setBulkAction(null)}

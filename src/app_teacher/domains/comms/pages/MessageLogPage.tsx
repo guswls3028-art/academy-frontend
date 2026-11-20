@@ -14,6 +14,7 @@ import { formatPhone } from "@/shared/utils/formatPhone";
 import { resolveTenantCodeString } from "@/shared/tenant";
 import { fetchMessageLog, fetchMessageLogDetail, type MessageLogItem } from "../api";
 import { teacherCommsQueryKeys } from "../queryKeys";
+import { canSendManualAlimtalk } from "../messagePermissions";
 
 /** 비밀번호·로그인 정보 포함 본문은 staff 에게 본문 자체를 숨김. */
 function isSensitiveBody(body: string | null | undefined): boolean {
@@ -41,6 +42,7 @@ export default function MessageLogPage() {
   const viewerScope = [resolveTenantCodeString(), user?.id, user?.tenantRole];
   const role = (user?.tenantRole ?? "").toLowerCase();
   const isPrivileged = role === "owner" || role === "admin";
+  const canSend = canSendManualAlimtalk(user?.tenantRole);
 
   const logQ = useQuery({
     queryKey: teacherCommsQueryKeys.withViewerScope(teacherCommsQueryKeys.messageLogPage(page), viewerScope),
@@ -94,9 +96,10 @@ export default function MessageLogPage() {
           scope="panel"
           tone="empty"
           title={page > 1 ? "이 페이지에 발송 내역이 없습니다" : "발송 내역이 없습니다"}
-          description={page > 1 ? "최신 내역으로 돌아가 다시 확인해 주세요." : "학생을 선택해 알림톡을 보내면 접수와 처리 상태가 이곳에 기록됩니다."}
+          description={page > 1 ? "최신 내역으로 돌아가 다시 확인해 주세요."
+            : canSend ? "학생을 선택해 알림톡을 보내면 접수와 처리 상태가 이곳에 기록됩니다." : "발송 요청이 접수되면 처리 상태가 이곳에 표시됩니다."}
           actions={
-            page > 1 ? <EmptyActionButton onClick={() => goToPage(1)}>최신 내역 보기</EmptyActionButton> : <EmptyActionButton onClick={() => navigate("/workspace/mobile/students", { state: { startSelectMode: true, preferredMessageTiming: "now" } })}>
+            page > 1 ? <EmptyActionButton onClick={() => goToPage(1)}>최신 내역 보기</EmptyActionButton> : canSend && <EmptyActionButton onClick={() => navigate("/workspace/mobile/students", { state: { startSelectMode: true, preferredMessageTiming: "now" } })}>
               학생 선택 발송
             </EmptyActionButton>
           }
