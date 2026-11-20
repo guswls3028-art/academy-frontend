@@ -69,6 +69,7 @@ function HistoryTable({title, rows}: {title:string;rows:HistoryRow[]}) {
 }
 
 export function AdminStudentReview() {
+  const location=useLocation();
   const [params] = useSearchParams();
   const course = params.get("course") || "", student=params.get("student") || "", group=params.get("group");
   const fromRoster=params.get("origin")==="roster" && group && /^[1-9]\d*$/.test(group);
@@ -80,7 +81,7 @@ export function AdminStudentReview() {
     ...(action==="counsel"? {day:day||q.data?.today}:{session:Number(slot)})}),
     onSuccess:async()=>{await client.invalidateQueries({queryKey:panelKey(args)});setKind(null);}});
   const data=q.data;
-  return <section><Link to={fromRoster ? address("/workspace/students/class-groups",{class:group}) : exam ? address("/workspace/results",{exam,course,group,...listContext(params)}):address("/workspace/dashboard",{panel:"alerts",group})}>{fromRoster ? "반 명단으로" : exam ? "시험 결과로" : "학습 경보로"}</Link>
+  return <section><Link state={fromRoster ? location.state : undefined} to={fromRoster ? address("/workspace/students/class-groups",{class:group}) : exam ? address("/workspace/results",{exam,course,group,...listContext(params)}):address("/workspace/dashboard",{panel:"alerts",group})}>{fromRoster ? "반 명단으로" : exam ? "시험 결과로" : "학습 경보로"}</Link>
     {q.isPending?<p role="status">학생 기록을 확인하는 중입니다.</p>:q.isError||!data?<Failed retry={()=>void q.refetch()}/>:<>
       <h2>{data.student} · 학생 학습 기록</h2><p>{data.course}</p>
       <Trend rows={data.exams}/><HistoryTable title="시험 성적 추이" rows={data.exams}/><HistoryTable title="과제 이력" rows={data.homework}/>

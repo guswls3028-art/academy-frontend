@@ -7,13 +7,18 @@ export type DirectoryColumn<T> = TableColumnDef & {
   render?: (row: T) => ReactNode;
 };
 
+export type DirectorySort = {key: string; ascending: boolean};
+
 const compareText = new Intl.Collator("ko", {numeric: true});
 
-export default function DawonDirectoryTable<T extends {id: number}>({id, label, rows, columns, empty}: {
+export default function DawonDirectoryTable<T extends {id: number}>({id, label, rows, columns, empty, sort: controlledSort, onSort}: {
+  sort?: DirectorySort; onSort?: (sort: DirectorySort) => void;
   id: string; label: string; rows: T[]; columns: DirectoryColumn<T>[]; empty: string;
 }) {
   const {columnWidths, setColumnWidth} = useTableColumnPrefs(id, columns);
-  const [sort, setSort] = useState({key: columns[0].key, ascending: true});
+  const [localSort, setLocalSort] = useState({key: columns[0].key, ascending: true});
+  const sort = controlledSort ?? localSort;
+  const setSort = onSort ?? setLocalSort;
   const active = columns.find(column => column.key === sort.key) ?? columns[0];
   const sorted = [...rows].sort((left, right) => {
     const a = active.value(left), b = active.value(right);

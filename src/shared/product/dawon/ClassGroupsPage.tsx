@@ -9,7 +9,7 @@ import { resolveTenantCodeString } from "@/shared/tenant";
 import { Button } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { teacherLectureQueryKeys } from "@/app_teacher/domains/lectures/queryKeys";
-import DawonDirectoryTable from "./DawonDirectoryTable";
+import DawonDirectoryTable, { type DirectorySort } from "./DawonDirectoryTable";
 import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
 import { ChevronRight } from "lucide-react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
@@ -132,7 +132,13 @@ function CourseList({ group, lectureRoot, admin }: { admin: boolean; group: Deta
 function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, assignOnOpen, afterInitialAssignment }: { admin: boolean; id: number; root: string; lectureRoot: string; rosterRoot: string; lectureEntry: boolean; assignOnOpen: boolean; afterInitialAssignment: () => void }) {
   const client = useQueryClient();
   const location = useLocation();
-  const [query, setQuery] = useState("");
+  const navigate = useNavigate();
+  const previous = admin && location.state?.roster?.group === id ? location.state.roster : undefined;
+  const [query, setQuery] = useState<string>(() => typeof previous?.query === "string" ? previous.query : "");
+  const [sort, setSort] = useState<DirectorySort>(() => previous?.sort &&
+    typeof previous.sort.key === "string" && typeof previous.sort.ascending === "boolean"
+    ? previous.sort : {key:"name", ascending:true});
+  const rosterState = {roster: {group:id, query, sort}};
   const [mode, setMode] = useState<"add" | "remove" | "lecture" | null>(assignOnOpen ? "add" : null);
   const [selectedStudent, setStudent] = useState<RosterStudent | null>(null);
   const [notice, setNotice] = useState("");
@@ -229,11 +235,14 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
             {members.length > 0 && <Button intent="secondary" onClick={() => openEditor("remove")}>명단에서 제외</Button>}
             <Button intent="primary" onClick={() => openEditor("add")}>반 인원 배정</Button>
           </div>} />
-        <DawonDirectoryTable id="dawon-class-members" label="반 학생 명단" rows={visibleMembers}
+        <DawonDirectoryTable sort={sort} onSort={setSort} id="dawon-class-members" label="반 학생 명단" rows={visibleMembers}
           empty={members.length ? "검색 조건에 맞는 학생이 없습니다." : "배정된 학생이 없습니다."}
           columns={[
             {key: "name", label: "학생 이름", defaultWidth: 160, value: student => student.name, render: student => <>
-              {admin ? <button type="button" className={styles.rowLink} onClick={()=>setStudent(student)}>{student.name}</button> : <Link className={styles.rowLink} to={`/workspace/students/${student.id}`} state={{backgroundLocation: location}}>{student.name}</Link>}
+              {admin ? <button type="button" className={styles.rowLink} onClick={()=>{
+                navigate(location.pathname + location.search, {replace:true, state:rosterState, preventScrollReset:true});
+                setStudent(student);
+              }}>{student.name}</button> : <Link className={styles.rowLink} to={`/workspace/students/${student.id}`} state={{backgroundLocation: location}}>{student.name}</Link>}
               {student.eligible === false && <small>배정 자격 확인 필요</small>}</>},
             {key: "school", label: "학교", defaultWidth: 120, value: student => student.school},
             {key: "grade", label: "학년", defaultWidth: 70, value: student => student.grade ?? 0, render: student => student.grade ? `${student.grade}학년` : "—"},
@@ -245,7 +254,7 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
           <ModalBody>{selectedStudent.course_ids?.length ? <>
             <p>학습 기록을 확인할 수강 강의를 선택하세요.</p>
             <ul>{group.lectures.filter(course=>selectedStudent.course_ids?.includes(course.id)).map(course=>
-              <li key={course.id}><Link to={`/workspace/dashboard?panel=student&origin=roster&group=${id}&course=${course.id}&student=${selectedStudent.id}`}>{course.title}</Link></li>)}</ul>
+              <li key={course.id}><Link state={rosterState} to={`/workspace/dashboard?panel=student&origin=roster&group=${id}&course=${course.id}&student=${selectedStudent.id}`}>{course.title}</Link></li>)}</ul>
           </> : <p>이 반에서 현재 수강 중인 강의가 없습니다.</p>}</ModalBody>
           <ModalFooter right={<Button onClick={()=>setStudent(null)}>닫기</Button>}/>
         </AdminModal>}

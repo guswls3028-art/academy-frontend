@@ -62,6 +62,7 @@ export default function ResizableTh({
   noWrap = false,
   dataAttributes,
 }: ResizableThProps) {
+  const activePointer = useRef<number | null>(null);
   const startX = useRef(0);
   const startWidth = useRef(0);
   const [isResizing, setIsResizing] = useState(false);
@@ -76,7 +77,8 @@ export default function ResizableTh({
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLSpanElement>) => {
-      if (!e.isPrimary || e.button !== 0) return;
+      if (!e.isPrimary || e.button !== 0 || activePointer.current !== null) return;
+      activePointer.current = e.pointerId;
       e.currentTarget.setPointerCapture(e.pointerId);
       e.preventDefault();
       e.stopPropagation();
@@ -91,7 +93,7 @@ export default function ResizableTh({
 
   const handlePointerMove = useCallback(
     (e: PointerEvent) => {
-      if (!isResizing) return;
+      if (!isResizing || e.pointerId !== activePointer.current) return;
       const delta = e.clientX - startX.current;
       if (Math.abs(delta) > 2) didResize.current = true;
       const next = Math.min(maxWidth, Math.max(minWidth, startWidth.current + delta));
@@ -101,7 +103,9 @@ export default function ResizableTh({
     [isResizing, columnKey, minWidth, maxWidth, onWidthChange]
   );
 
-  const handlePointerUp = useCallback(() => {
+  const handlePointerUp = useCallback((e: PointerEvent) => {
+    if (e.pointerId !== activePointer.current) return;
+    activePointer.current = null;
     setIsResizing(false);
   }, []);
 
