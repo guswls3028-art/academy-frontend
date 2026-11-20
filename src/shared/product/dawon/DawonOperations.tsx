@@ -8,6 +8,7 @@ import DawonDailyAttendance from "./DawonDailyAttendance";
 import {todayInSeoul, useDawonDailyAttendance} from "./useDawonDailyAttendance";
 import DawonStaffDirectory from "./DawonStaffDirectory";
 import { useQuery } from "@tanstack/react-query";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { Link, Navigate, useLocation, useParams, useSearchParams } from "react-router";
 import api from "@/shared/api/axios";
 import DomainLayout from "@/shared/ui/domain/DomainLayout";
@@ -64,6 +65,7 @@ function CourseDetails({course, groupId, section, onSection}: {
 type GroupSummary = {id:number;name:string;kind:"union"|"school";track:string;school:string;instructor_name:string;student_count:number;lecture_count:number};
 
 function Dashboard() {
+  const compact=useIsMobile();
   const [params,setParams]=useSearchParams();
   const day=params.get("date") ?? todayInSeoul();
   const search=params.get("q") ?? "";
@@ -97,19 +99,20 @@ function Dashboard() {
       {groups.isPending ? <p role="status">반 운영 현황을 불러오는 중입니다.</p> : groups.isError ?
         <p role="alert">반 목록을 불러오지 못했습니다. <Button onClick={()=>void groups.refetch()}>다시 시도</Button></p> :
         !rows.length ? <p className={styles.empty}>표시할 반이 없습니다. <Link to="/workspace/students/class-groups">반 편성 열기</Link></p> :
-        <DawonDirectoryTable id="dawon-admin-overview" label="반별 운영 현황" rows={rows} empty="표시할 반이 없습니다." columns={[
-          {key:"name",label:"반 이름",defaultWidth:200,value:r=>r.name,render:r=><Link to={"/workspace/lectures?class="+r.id}>{r.name}</Link>},
-          {key:"unmarked",label:"미입력 출결",defaultWidth:110,value:r=>{const d=dailyGroups.get(r.id);return d?d.unset+d.missing:-1;},render:r=>{
+        <DawonDirectoryTable id={compact?"dawon-admin-overview-mobile":"dawon-admin-overview"} label="반별 운영 현황" rows={rows} empty="표시할 반이 없습니다." columns={[
+          {key:"name",label:compact?"반 · 담당 강사":"반 이름",defaultWidth:compact?155:200,value:r=>r.name,render:r=><>
+            <Link to={"/workspace/lectures?class="+r.id}>{r.name}</Link>{compact && <small className={styles.teacherName}>{r.instructor_name || "담당 미지정"}</small>}</>},
+          {key:"unmarked",label:"미입력 출결",defaultWidth:compact?91:110,value:r=>{const d=dailyGroups.get(r.id);return d?d.unset+d.missing:-1;},render:r=>{
             if(!daily.data)return daily.isPending?"조회 중":"조회 실패";
             const d=dailyGroups.get(r.id);
             return d?<Link aria-label={r.name+" 미입력 출결 상세"} to={attendanceUrl(r.id)}>{d.unset+d.missing}건</Link>:"수업 없음";
           }},
+          {key:"alerts",label:"학습 경보",defaultWidth:compact?85:95,value:r=>counts.get(r.id)??0,render:r=>alerts.data?
+            <Link aria-label={r.name+" 학습 경보"} to={"/workspace/dashboard?panel=alerts&group="+r.id}>{counts.get(r.id)??0}건</Link>:"—"},
           {key:"instructor",label:"담당 강사",defaultWidth:120,value:r=>r.instructor_name || "미지정"},
           {key:"kind",label:"반 구분",defaultWidth:150,value:r=>r.kind==="union"?"연합반 · "+r.track:"내신반 · "+r.school},
           {key:"students",label:"학생",defaultWidth:75,value:r=>r.student_count,render:r=>r.student_count+"명"},
           {key:"lectures",label:"강의",defaultWidth:75,value:r=>r.lecture_count,render:r=>r.lecture_count+"개"},
-          {key:"alerts",label:"학습 경보",defaultWidth:95,value:r=>counts.get(r.id)??0,render:r=>alerts.data?
-            <Link aria-label={r.name+" 학습 경보"} to={"/workspace/dashboard?panel=alerts&group="+r.id}>{counts.get(r.id)??0}건</Link>:"—"}
         ]}/>}
     </div></DomainLayout>;
 }

@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { AttendanceListItem } from "@admin/domains/lectures/api/attendance";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
@@ -26,6 +26,19 @@ type Props = {
   savePlan: (id: number, value: ArrivalPlanPayload) => Promise<void>;
 };
 
+export function DawonAttendanceToolbar({count,search,onSearch,filters,actions,selection,filtered}: {
+  count: string; search: string; onSearch: (term:string)=>void; filters: ReactNode; actions: ReactNode; selection: ReactNode; filtered: boolean;
+}) {
+  return <div className={styles.toolbar}>
+    <div className={styles.bar}><strong>{count}</strong>
+      <input className="ds-input" type="search" value={search} aria-label="이름 또는 전화번호 검색" placeholder="이름 · 전화번호 검색" onChange={e=>onSearch(e.target.value)}/>
+    </div>
+    <details className={styles.options}><summary>출결 옵션{filtered && " · 필터 적용 중"}</summary>
+      <div>{filters}</div>{actions}
+    </details>{selection}
+  </div>;
+}
+
 export default function DawonAttendanceRoster(props: Props) {
   const [expanded, setExpanded] = useState<number | null>(null);
   function heading(key: AttendanceSortColumn, label: string) {
@@ -39,7 +52,7 @@ export default function DawonAttendanceRoster(props: Props) {
   return <div className={styles.roster}><DomainTable scrollLabel="차시 출결 명단" tableClassName={styles.table + " ds-table--flat"}>
     <thead><tr>
       <th scope="col" className={styles.check}><input type="checkbox" checked={props.allSelected} onChange={props.toggleAll} aria-label="전체 선택" /></th>
-      {heading("name","이름")}<th scope="col">출결 상태</th>{heading("parent_phone","학부모 연락처")}{heading("phone","학생 연락처")}
+      {heading("name","이름")}<th scope="col" className={styles.status}>출결 상태</th>{heading("parent_phone","학부모 연락처")}{heading("phone","학생 연락처")}
       <th scope="col" className={styles.more}>상세</th>
     </tr></thead>
     <tbody>{props.rows.map(row => {

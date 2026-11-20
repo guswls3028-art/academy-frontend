@@ -9,5 +9,21 @@
 .name { overflow-wrap: anywhere; font-weight: 650; }
 .table small { display: block; color: var(--color-text-secondary); }
 .detail { display: grid; gap: 8px; padding: 8px; background: var(--color-bg-surface-soft); }
-@container (max-width: 650px) { .table .phone { display: none; } }
+.toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
+.bar { display:flex; align-items:center; gap:8px; flex:1 1 174px; min-width:0; }
+.bar strong { white-space:nowrap; font-size:13px; }
+.bar input { width:100%; max-width:280px; min-width:0; }
+.options summary { cursor:pointer; padding:7px 1px; font-weight:600; }
+.options[open] { flex-basis:100%; }
+.options[open] > div { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.roster :global(.ds-table-wrap) .table :is(thead th,tbody td) { padding:2px 6px; }
+@container (max-width: 650px) {
+  .table .phone { display: none; }
+  .roster .table .check { width:27px; }
+  .roster .table .more { width:37px; }
+  .roster .table .status { width:80px; }
+  .name :global(.student-name-chip__avatar) { display:none; }
+  .name :global(.student-name-chip__name) { white-space: normal; overflow:visible; text-overflow:clip; overflow-wrap:anywhere; }
+  .name :global(.student-name-chip__body) { min-width:0; }
+}
 @media (pointer: coarse) { .table :is(button,select), .table .more button { min-height: 44px; } }

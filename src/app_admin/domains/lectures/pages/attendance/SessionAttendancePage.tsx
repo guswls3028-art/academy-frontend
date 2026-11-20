@@ -12,7 +12,7 @@ import { useLocation, useNavigate } from "react-router";
 import { RotateCcw, ShieldCheck, X } from "lucide-react";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
-import DawonAttendanceRoster from "./DawonAttendanceRoster";
+import DawonAttendanceRoster, { DawonAttendanceToolbar } from "./DawonAttendanceRoster";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchAttendance,
@@ -665,7 +665,10 @@ export default function SessionAttendancePage({
       {attendanceView === "sessions" && lectureId != null ? (
         <AttendanceSessionPage listPath={listPath} notice={safetyRecord}>{sessionSelector}</AttendanceSessionPage>
       ) : <>
-      <DomainListToolbar
+      {dawonStaffPreviewRole() === "teacher" ? <DawonAttendanceToolbar
+        count={isLoading ? "…" : `총 ${totalCount}명`} search={searchInput} onSearch={setSearchInput}
+        filters={filterSlot} actions={primaryAction} filtered={Boolean(statusFilter)}
+        selection={<>{selectionSummary}{totalPages > 1 && pagination}</>} /> : <DomainListToolbar
         totalLabel={isLoading ? "…" : `총 ${totalCount}명`}
         searchSlot={
           <input
@@ -679,7 +682,7 @@ export default function SessionAttendancePage({
         filterSlot={filterSlot}
         primaryAction={primaryAction}
         belowSlot={(selectedIds.length > 0 || totalPages > 1) ? <>{selectionSummary}{pagination}</> : undefined}
-      />
+      />}
       {safetyRecord}
       <div className="overflow-x-auto w-full attendance-memo-container">
         {sorted.length === 0 ? (

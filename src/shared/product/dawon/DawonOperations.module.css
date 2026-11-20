@@ -45,3 +45,4 @@
 .record p,.record blockquote {white-space:pre-wrap; overflow-wrap:anywhere;}
 .sectionPicker button[aria-pressed="true"] {color:var(--color-primary); background:var(--color-bg-surface);}
 @media (max-width:640px) {.section {padding:8px 0;} .filterRow {align-items:flex-start;}}
+.teacherName { display:block; font-size:12px; line-height:16px; color:var(--color-text-secondary); }

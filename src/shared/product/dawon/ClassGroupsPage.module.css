@@ -257,6 +257,7 @@
 
 .rowLink { display: inline-flex; align-items: center; min-height: 40px; font-weight: 650; color: var(--color-text-primary); text-decoration: none; }
 .rowLink:hover, .rowLink:focus-visible { color: var(--color-brand-primary); text-decoration: underline; }
+.page .detail :global(.ds-table-wrap .ds-table.ds-table--flat) tbody td { padding: 1px 9px; }
 
 .pickerViewport { min-width: 0; }
 .pickerViewport :global(.ds-table-wrap) { max-height: min(42vh, 350px); overflow: auto; }
