@@ -102,8 +102,7 @@ function renderPlayerFixture() {
                           </div>
                         </div>
                         <div class="svpRightControls">
-                          <button type="button" class="svpSpeedBtn svpQualityBtn svpSpeedBtn--disabled" disabled>Auto</button>
-                          <button type="button" class="svpSpeedBtn svpPlaybackRateBtn">1x</button>
+                          <button type="button" class="svpPlaybackRateBtn"><svg width="20" height="20" aria-hidden="true"></svg><span>배속 <b>1×</b></span></button>
                           ${iconButton("fullscreen", "전체화면", "svpFullscreenButton")}
                         </div>
                       </div>
@@ -142,9 +141,9 @@ for (const profile of profiles) {
       const row = document.querySelector<HTMLElement>(".svpControlRow");
       const bottomButton = document.querySelector<HTMLElement>(".svpControls .svpBtn--fullscreen");
       const topButton = document.querySelector<HTMLElement>(".svpFullscreenTopButton");
-      const qualityButton = document.querySelector<HTMLElement>(".svpQualityBtn");
+      const settings = document.querySelector<HTMLElement>(".svpPlaybackRateBtn");
 
-      if (!wrap || !controls || !row || !bottomButton || !topButton || !qualityButton) {
+      if (!wrap || !controls || !row || !bottomButton || !topButton || !settings) {
         throw new Error("player fixture missing expected elements");
       }
 
@@ -164,7 +163,7 @@ for (const profile of profiles) {
           bottomRect.bottom <= controlsRect.bottom + 0.5,
         rowFits: row.scrollWidth <= row.clientWidth + 1,
         topButtonVisible: window.getComputedStyle(topButton).display !== "none" && topRect.width > 0 && topRect.height > 0,
-        qualityButtonHidden: window.getComputedStyle(qualityButton).display === "none",
+        speedTargetVisible: settings.getBoundingClientRect().height >= 44 && settings.getBoundingClientRect().right <= controlsRect.right + 0.5,
       };
     });
 
@@ -172,7 +171,7 @@ for (const profile of profiles) {
     expect(metrics.bottomButtonWithinControls).toBe(true);
     expect(metrics.rowFits).toBe(true);
     expect(metrics.topButtonVisible).toBe(true);
-    expect(metrics.qualityButtonHidden).toBe(true);
+    expect(metrics.speedTargetVisible).toBe(true);
 
     await context.close();
   });
