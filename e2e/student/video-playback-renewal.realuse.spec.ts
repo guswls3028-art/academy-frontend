@@ -793,6 +793,7 @@ async function finishStudent(
     await test.info().attach(`video-watch-${state.viewport}`, {
       body: await page.screenshot({ fullPage: true }), contentType: "image/png",
     });
+    await page.getByRole("button", { name: "댓글 닫기" }).click();
     const reloadedBootstrap = state.bootstraps.at(-1)!;
     const apiPosition = Number(reloadedBootstrap.video?.last_position);
     expect(Number.isFinite(apiPosition)).toBe(true);
