@@ -47,11 +47,48 @@ const style = [
   '.dw-content{padding-block:24px 30px}.dw-homeMenu ul{list-style:none;display:grid;gap:12px;margin:0;padding:0}.dw-rowLink,.dw-spotlight{display:flex;align-items:center;gap:14px;min-height:62px;border:1px solid var(--dw-line);border-radius:10px;padding:11px 16px;background:#fff;font-size:clamp(16px,2vw,21px);font-weight:720;box-shadow:0 2px 4px #31251d10}.dw-rowLink:hover,.dw-spotlight:hover{border-color:#d69c77;background:#fffaf6}.dw-rowLink>svg:first-child{color:#5d6c65}.dw-rowLink>svg:last-child,.dw-spotlight>svg{margin-left:auto;color:#747d86;width:18px;height:18px}.dw-spotlight{min-height:52px;margin-bottom:20px;background:#f0efed;box-shadow:none;font-size:15px}.dw-spotlight strong{font-size:13px;color:var(--dw-accent)}.dw-footnote{margin-top:24px;color:var(--dw-muted);font-size:13px}',
   '.dw-bottom{position:fixed;inset:auto 0 0;z-index:3;background:#fff;border-top:1px solid var(--dw-line);padding-bottom:env(safe-area-inset-bottom,0px)}.dw-bottom .dw-wrap{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.dw-bottom a{min-height:var(--dw-footer);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--dw-muted);font-size:13px;font-weight:650}.dw-bottom [aria-current=page]{color:var(--dw-accent)}.dw-bottom a:hover{background:#fff5ee}',
   '.dw-title{display:flex;align-items:center;gap:6px;margin-bottom:14px}.dw-title h1{font-size:clamp(23px,3vw,31px);letter-spacing:-.04em}.dw-back{display:grid;place-items:center;width:44px;height:44px;border:1px solid var(--dw-line);border-radius:8px;background:#fff;flex:none}',
-  '.dw-card{background:#fff;border:1px solid var(--dw-line);border-radius:12px;box-shadow:0 2px 5px #31251d0b;padding:clamp(12px,2.5vw,22px)}.dw-cardHeader{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.dw-cardHeader h2,.dw-detailDate{font-size:clamp(17px,2.4vw,21px);font-weight:730;letter-spacing:-.02em;line-height:1.4;color:var(--dw-ink)}.dw-detailDate{margin-bottom:12px}.dw-controls{display:flex;align-items:center;gap:6px}.dw-controls a{min-width:44px}.dw-controls a,.dw-action{display:inline-flex;min-height:44px;align-items:center;justify-content:center;gap:5px;padding:0 10px;border:1px solid var(--dw-line);border-radius:8px;font-weight:700;font-size:14px;color:var(--dw-accent);background:#fff}.dw-controls a{color:#4e4137}.dw-controls [aria-current=true]{background:#fff1e6;border-color:#e1b08a;color:#843008}.dw-controls a:hover,.dw-action:hover{background:#fff6ee}',
-  '.dw-calendarControls{margin-bottom:12px}.dw-calendarControls a:first-child,.dw-calendarControls a:last-child{font-size:22px;line-height:1}.dw-calendarControls a:first-child,.dw-calendarControls a:last-child{padding:0;width:44px}.dw-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}.dw-weekday{padding:3px 0 5px;color:var(--dw-muted);font-size:13px;font-weight:700}.dw-day{min-width:0;height:54px;display:grid;grid-template-rows:1fr 9px;align-items:center;justify-items:center;padding:5px 0 4px;border:1px solid var(--dw-line);border-radius:8px;color:var(--dw-cell);font-size:15px;font-weight:675;line-height:1;font-variant-numeric:tabular-nums}.dw-day[data-outside=true]{color:var(--dw-cell-outside);background:#f9f9f9}.dw-day[aria-current=date]{color:#85370c;background:#fff0e3;border-color:#ce8853}.dw-day:hover{background:#fff1e6}.dw-marker{width:6px;height:6px;border-radius:50%;background:#ac4a14}.dw-marker[hidden]{visibility:hidden;display:block}.dw-legend{margin-top:10px;color:var(--dw-muted);font-size:13px;display:flex;align-items:center;gap:6px}',
-  '.dw-dayList{list-style:none;padding:0;margin:0;display:grid;gap:9px}.dw-record{background:#fff;border:1px solid var(--dw-line);border-radius:10px;padding:12px 14px;overflow-wrap:anywhere}.dw-record strong{display:block;color:var(--dw-ink);font-size:15px;line-height:1.45}.dw-record span{display:block;color:var(--dw-muted);font-size:14px;line-height:1.5;margin-top:4px}.dw-record a{margin-top:12px}.dw-state{color:var(--dw-muted);margin:10px 0}.dw-actions{margin-top:14px;display:flex;gap:7px;flex-wrap:wrap}',
+  `
+  .dw-card{background:#fff;border:1px solid var(--dw-line);border-radius:12px;box-shadow:0 2px 5px #31251d0b;padding:clamp(12px,2.5vw,22px)}
+  .dw-action,.dw-step,.dw-todayLink,.dw-controls a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;border-radius:8px;font-size:14px;font-weight:650;line-height:1.35}
+  .dw-action,.dw-step,.dw-todayLink{padding:6px 12px;border:1px solid var(--dw-line);background:#fff;color:var(--dw-ink)}
+  .dw-action{color:var(--dw-accent);cursor:pointer}.dw-action:hover,.dw-step:hover,.dw-todayLink:hover{background:#fff5ee}
+  .dw-calendarHeader,.dw-detailHead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .dw-calendarHeader{padding-bottom:14px;border-bottom:1px solid var(--dw-line);margin-bottom:12px;flex-wrap:wrap}
+  .dw-period,.dw-calendarOptions,.dw-controls{display:flex;align-items:center}.dw-period{gap:12px}
+  .dw-period h2,.dw-detailDate{font-size:clamp(17px,2vw,21px);font-weight:730;letter-spacing:-.035em;line-height:1.4}
+  .dw-period h2{margin:0;text-align:center;font-variant-numeric:tabular-nums}.dw-year{display:block;color:var(--dw-muted);font-size:12px;line-height:1.4;font-weight:600}
+  .dw-step{padding:0;font-size:22px;color:#45413e}.dw-calendarOptions{gap:10px}
+  .dw-modeSwitch{border-radius:10px;padding:2px;background:#f1eeeb}.dw-modeSwitch a{padding:5px 12px;color:var(--dw-muted);border:1px solid transparent}
+  .dw-modeSwitch [aria-current=true]{background:white;border-color:#dfd7cf;color:var(--dw-accent);box-shadow:0 1px 3px #34251113}
+  .dw-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}
+  .dw-weekday{padding:4px 0 6px;color:var(--dw-muted);font-size:13px;font-weight:650}
+  .dw-day{min-width:0;min-height:52px;display:grid;grid-template-rows:22px 11px;align-content:center;justify-items:center;align-items:center;border:1px solid #ebe8e5;border-radius:8px;color:var(--dw-cell);font-variant-numeric:tabular-nums}
+  .dw-dayNumber{font-size:16px;font-weight:650;line-height:1}.dw-dayHint{display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;font-weight:700;line-height:11px}
+  .dw-day[data-outside=true]{color:var(--dw-cell-outside);background:#faf9f8}.dw-day[data-records]{background:#fff6ed;border-color:#ead2bd}
+  .dw-day[aria-current=date]{color:#833607;background:#fff0e2;border-color:#c88250}.dw-day[data-last-viewed]{box-shadow:inset 0 0 0 2px #9d4a1c}
+  .dw-day:hover{background:#f9eee6;border-color:#b77a55}.dw-marker{flex:none;display:inline-block;width:6px;height:6px;border-radius:50%;background:#a64b18}
+  .dw-marker[hidden]{display:none}.dw-legend{margin:12px 0 0;color:var(--dw-muted);font-size:13px;display:flex;align-items:center;gap:7px}
+  .dw-detailHead{padding-bottom:12px;border-bottom:1px solid var(--dw-line)}.dw-count{color:var(--dw-muted);font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .dw-dayList{list-style:none;padding:0;margin:0}.dw-record{position:relative;display:flex;align-items:center;justify-content:space-between;gap:6px 18px;flex-wrap:wrap;padding:14px 2px;overflow-wrap:anywhere}
+  .dw-record+.dw-record{border-top:1px solid var(--dw-line)}.dw-recordText{min-width:0;flex:1 1 220px}
+  .dw-record strong{display:block;font-size:16px;line-height:1.45}.dw-recordText span{display:block;color:var(--dw-muted);font-size:14px;line-height:1.5;margin-top:3px;white-space:pre-line}
+  .dw-recordAction,.dw-nearest{min-height:44px;display:inline-flex;align-items:center;gap:7px;color:var(--dw-accent);font-size:14px;font-weight:700}
+  .dw-recordAction::after,.dw-nearest::after{content:"";width:6px;height:6px;border:solid currentColor;border-width:1.5px 1.5px 0 0;transform:rotate(45deg)}
+  .dw-recordAction::before{content:"";position:absolute;inset:0}.dw-record:has(.dw-recordAction:hover){background:#fff9f4}
+  .dw-empty{margin-top:14px;padding:12px 14px;border-radius:8px;background:#f8f6f4}.dw-empty .dw-state{margin:0}.dw-nearest{align-self:start}
+  .dw-state{margin:10px 0;color:var(--dw-muted);overflow-wrap:anywhere}.dw-actions{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+  .dw-back:has(span){display:flex;align-items:center;gap:3px;width:auto;padding:0 10px;font-size:14px;font-weight:650;white-space:nowrap}.dw-back span{line-height:1.35}.dw-back:has(span) svg{width:16px}
+  .dw-spotlight span{min-width:0;overflow-wrap:anywhere}.dw-spotlight strong{flex:none}
+  .dw-action[aria-current=page]{background:#fff1e6;border-color:#dbab84;color:#843008}
+  @media(max-width:580px){
+    .dw-calendarHeader{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding-bottom:10px;margin-bottom:8px}
+    .dw-period,.dw-calendarOptions{justify-content:space-between}.dw-day{min-height:48px}
+    .dw-record{padding:12px 0}.dw-recordText{flex-basis:180px}.dw-detailHead{gap:8px}
+  }
+  @media(prefers-reduced-motion:no-preference){.dw-day,.dw-rowLink,.dw-recordAction,.dw-modeSwitch a{transition:background-color .12s,border-color .12s}}
+  `,
   '.dw-questionForm,.dw-questionForm label{display:grid;gap:8px}.dw-questionForm{gap:16px;margin-top:16px}.dw-questionForm input,.dw-questionForm textarea{font:inherit;border:1px solid var(--dw-line);border-radius:8px;padding:10px;width:100%}.dw-questionForm textarea{min-height:8em}.dw-questionPhoto{max-width:min(100%,480px);max-height:450px;object-fit:contain}.dw-questionRow{display:block;padding:14px 0;border-bottom:1px solid var(--dw-line)}.dw-questionText{white-space:pre-wrap;overflow-wrap:anywhere}.dw-questionForm [hidden]{display:none}',
-  '@media(max-width:580px){.dw-wrap{width:calc(100% - 28px)}.dw-header{padding:0 11px;gap:6px}.dw-brand,.dw-headerActions{gap:6px}.dw-brand strong{font-size:15px}.dw-hero{padding:26px 0 28px}.dw-hero .dw-wrap{display:grid;gap:4px}.dw-hero p{font-size:17px}.dw-content{padding-top:16px}.dw-homeMenu ul{gap:9px}.dw-rowLink{min-height:53px;padding:9px 12px}.dw-spotlight{margin-bottom:12px;padding-inline:10px}.dw-day{height:48px}.dw-cardHeader{gap:8px}.dw-cardHeader h2{flex:1 1 auto;min-width:min(100%,122px)}.dw-bottom a{font-size:12px}}',
+  '@media(max-width:580px){.dw-wrap{width:calc(100% - 28px)}.dw-header{padding:0 11px;gap:6px}.dw-brand,.dw-headerActions{gap:6px}.dw-brand strong{font-size:15px}.dw-hero{padding:26px 0 28px}.dw-hero .dw-wrap{display:grid;gap:4px}.dw-hero p{font-size:17px}.dw-content{padding-top:16px}.dw-homeMenu ul{gap:9px}.dw-rowLink{min-height:53px;padding:9px 12px}.dw-spotlight{margin-bottom:12px;padding-inline:10px}.dw-bottom a{font-size:12px}}',
 ].join('\n');
 
 function escapeHtml(value) {
@@ -174,8 +211,8 @@ function mountLearner() {
     query.set('view',nextMode);
     query.set('date',date);
     if (nextMode === 'day') {
-      query.set('period',mode);
-      query.set('originDate',key);
+      query.set('period',mode === 'day' ? period : mode);
+      query.set('originDate',mode === 'day' ? normalize(params.get('originDate') || key) : key);
     }
     return '/learn/' + topic + '?' + query.toString();
   }
@@ -184,9 +221,11 @@ function mountLearner() {
     const back = document.getElementById('dw-back');
     const fromAlerts = params.get('from') === 'alerts';
     const originDate = params.get('originDate');
-    back.href = fromAlerts ? '/learn/alerts' + (guardian ? '?preview=guardian' : '') :
-      dateUrl(period,originDate && normalize(originDate) === originDate ? originDate : key);
+    const calendar = new URL(dateUrl(period,originDate && normalize(originDate) === originDate ? originDate : key), location.origin);
+    calendar.searchParams.set('selected',key);
+    back.href = fromAlerts ? '/learn/alerts' + (guardian ? '?preview=guardian' : '') : calendar.pathname + calendar.search;
     back.setAttribute('aria-label',fromAlerts ? '알림으로' : (period === 'month' ? '월간 달력으로' : '주간 달력으로'));
+    back.append(element('span',fromAlerts ? '알림' : '달력'));
   }
 
   function status(label) {
@@ -197,11 +236,19 @@ function mountLearner() {
 
   function recordList(records) {
     const list = element('ul',null,'dw-dayList');
-    for (const record of records) {
+    for (const [index,record] of records.entries()) {
       const item = element('li',null,'dw-record');
-      item.append(element('strong', record.title));
-      if (record.detail) item.append(element('span', record.detail));
-      if (record.path) item.append(link(record.action,record.path,'dw-action'));
+      const text = element('div',null,'dw-recordText');
+      const title = element('strong',record.title);
+      title.id = 'dw-record-title-' + index;
+      text.append(title);
+      if (record.detail) text.append(element('span',record.detail));
+      item.append(text);
+      if (record.path) {
+        const action = link(record.action,record.path,'dw-recordAction');
+        action.setAttribute('aria-describedby',title.id);
+        item.append(action);
+      }
       list.append(item);
     }
     return list;
@@ -218,15 +265,20 @@ function mountLearner() {
     const href = (next, id) => {
       const query = new URLSearchParams(params);
       query.set('action',next);
+      query.delete('entry');
       query.delete('detail');
       if (id) query.set('id',id); else query.delete('id');
       return '/learn/questions?' + query;
     };
     const back = document.querySelector('#dw-back');
     const origin = new URLSearchParams(params);
-    ['action','id','detail'].forEach(key => origin.delete(key));
-    back.href = action === 'detail' ? href('list') : origin.has('date') ? '/learn/questions?' + origin : '/?preview=student';
-    back.setAttribute('aria-label',action === 'detail' ? '질문 목록으로' : origin.has('date') ? '해당 날짜로' : '홈으로');
+    ['action','id','detail','entry'].forEach(key => origin.delete(key));
+    const fromDay = params.get('entry') === 'date' && origin.get('view') === 'day';
+    const toList = action === 'detail' && !fromDay;
+    back.href = toList ? href('list') : origin.has('date') ? '/learn/questions?' + origin : '/?preview=student';
+    back.setAttribute('aria-label',toList ? '질문 목록으로' : origin.has('date') ? '해당 날짜로' : '홈으로');
+    const backLabel = back.querySelector('span');
+    if (backLabel) backLabel.textContent = toList ? '내역' : '날짜별 기록';
     view.replaceChildren();
     view.append(status('질문 체험은 이 브라우저에만 저장됩니다. 선생님에게 전송되지 않으며, 기록에 표시된 답변은 예시입니다.'));
     const nav = element('nav',null,'dw-actions');nav.setAttribute('aria-label','질문 메뉴');
@@ -305,22 +357,25 @@ function mountLearner() {
   }
 
   function localQuestions() {
-    try {
-      const state = JSON.parse(localStorage.getItem('dawon-planning-demo-v1') || '{}');
-      const questions = Array.isArray(state.questions) ? state.questions : [];
-      return questions.filter(row => row?.author === 'student' && typeof row.title === 'string')
-        .map(row => ({
-          date: typeof row.createdAt === 'string' && Number.isFinite(Date.parse(row.createdAt)) ?
-            new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(new Date(row.createdAt)) : null,
-          title: row.title,
-          detail: row.answer ? '답변 완료' : '답변 대기',
-        }));
-    } catch { return []; }
+    const state = JSON.parse(localStorage.getItem('dawon-planning-demo-v1') || '{}');
+    const questions = Array.isArray(state?.questions) ? state.questions : [];
+    return questions.filter(row => row?.author === 'student' && row.type !== 'consult' && typeof row.title === 'string')
+      .map(row => {
+        const date = typeof row.createdAt === 'string' && Number.isFinite(Date.parse(row.createdAt)) ?
+          new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(new Date(row.createdAt)) : null;
+        const query = new URLSearchParams(params);
+        query.set('action','detail');
+        if (date && mode === 'day') query.set('entry','date');
+        query.set('id',row.id);
+        return {date, title:row.title, detail:row.answer ? '답변 완료' : '답변 대기',
+          ...(row.id ? {path:'/learn/questions?' + query, action:'질문 보기'} : {})};
+      });
   }
 
   function recordsFor(payload) {
     const homeworkStatus = { needs_submission:'제출 필요', awaiting_review:'확인 중', reviewed:'확인 완료' };
-    const groups = { notices:payload.notices, clinic:payload.clinics, questions: guardian ? payload.counsels : localQuestions(), grades:payload.school_reports };
+    if (topic === 'questions') return guardian ? payload.counsels ?? [] : localQuestions();
+    const groups = { notices:payload.notices, clinic:payload.clinics, grades:payload.school_reports };
     if (Object.hasOwn(groups, topic)) return groups[topic] ?? [];
     return (payload.sessions ?? []).flatMap(row => {
       const base = { date:row.date, title:row.title, lecture:row.lecture };
@@ -363,6 +418,31 @@ function mountLearner() {
     view.append(wrapper);
   }
 
+  const recordKind = {
+    notices:'공지', attendance:'출결 기록', video:'수업 영상·자료', exam:'테스트 결과',
+    homework:'과제', curriculum:'수업 진도', clinic:'클리닉 일정',
+    questions: guardian ? '상담 기록' : '질문', grades:'학교 성적',
+  }[topic];
+
+  function showEmpty(records, place) {
+    const empty = element('div',null,'dw-empty');
+    empty.append(status(place + ' 등록된 기록이 없습니다.'));
+    const dates = records.map(row => row.date).filter(date => date && normalize(date) === date);
+    const reference = +fromDate(key);
+    const nearest = dates.reduce((best, date) => {
+      if (!best) return date;
+      const distance = Math.abs(+fromDate(date) - reference);
+      const bestDistance = Math.abs(+fromDate(best) - reference);
+      return distance < bestDistance || (distance === bestDistance && date < best) ? date : best;
+    }, null);
+    if (nearest) {
+      const options = {month:'long',day:'numeric',weekday:'short'};
+      if (nearest.slice(0,4) !== key.slice(0,4)) options.year = 'numeric';
+      empty.append(link('가장 가까운 기록 · ' + format(nearest,options),dateUrl('day',nearest),'dw-nearest'));
+    }
+    view.append(empty);
+  }
+
   function renderCalendar(records) {
     const monthly = mode === 'month';
     const current = fromDate(key);
@@ -371,11 +451,24 @@ function mountLearner() {
     const monthLength = new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0)).getUTCDate();
     const count = monthly ? 7 * Math.ceil((first.getUTCDay() + monthLength) / 7) : 7;
     const adjacent = offset => monthly ? iso(new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+offset,1))) : shift(key,offset*7);
-    const heading = element('header',null,'dw-cardHeader');
-    const periodLabel = monthly ? format(key,{year:'numeric',month:'long'}) :
-      format(start,{month:'numeric',day:'numeric'}) + ' – ' + format(shift(start,6),{month:'numeric',day:'numeric'});
-    heading.append(element('h2',periodLabel));
-    const modes = element('nav',null,'dw-controls');
+    const heading = element('header',null,'dw-calendarHeader');
+    const dates = element('nav',null,'dw-period');
+    dates.setAttribute('aria-label','기간 이동');
+    const periodStep = (offset, symbol, name) => {
+      const control = link(symbol,dateUrl(mode,adjacent(offset)),'dw-step');
+      control.setAttribute('aria-label',name);
+      return control;
+    };
+    const end = shift(start,6);
+    const periodLabel = monthly ? format(key,{month:'long'}) : format(start,{month:'long',day:'numeric'}) +
+      ' – ' + format(end,start.slice(0,7) === end.slice(0,7) ? {day:'numeric'} : {month:'long',day:'numeric'});
+    const title = element('h2');
+    const yearLabel = monthly || start.slice(0,4) === end.slice(0,4) ? format(key,{year:'numeric'}) :
+      format(start,{year:'numeric'}) + ' – ' + format(end,{year:'numeric'});
+    title.append(element('span',yearLabel,'dw-year'),document.createTextNode(periodLabel));
+    dates.append(periodStep(-1,'‹','이전 기간'),title,periodStep(1,'›','다음 기간'));
+    const tools = element('div',null,'dw-calendarOptions');
+    const modes = element('nav',null,'dw-controls dw-modeSwitch');
     modes.setAttribute('aria-label','달력 보기');
     for (const [id,label] of [['week','주간'],['month','월간']]) {
       const control = link(label,dateUrl(id,key));
@@ -383,39 +476,59 @@ function mountLearner() {
       if (id === mode) control.setAttribute('aria-current','true');
       modes.append(control);
     }
-    heading.append(modes);
-    const dates = element('nav',null,'dw-controls dw-calendarControls');
-    dates.setAttribute('aria-label','기간 이동');
-    for (const [label,display,date] of [['이전 기간','‹',adjacent(-1)],['오늘','오늘',today],['다음 기간','›',adjacent(1)]]) {
-      const control = link(display,dateUrl(mode,date));
-      control.setAttribute('aria-label',label);
-      dates.append(control);
-    }
+    tools.append(link('오늘',dateUrl(mode,today),'dw-todayLink'),modes);
+    heading.append(dates,tools);
     const byDate = new Map();
-    for (const row of records) byDate.set(row.date,(byDate.get(row.date) ?? 0) + 1);
+    for (const row of records) if (row.date) byDate.set(row.date,(byDate.get(row.date) ?? 0) + 1);
     const grid = element('div',null,'dw-days');
     for (const day of ['일','월','화','수','목','금','토']) grid.append(element('span',day,'dw-weekday'));
+    let visibleCount = 0;
     for (let index=0; index<count; index++) {
       const date = shift(start,index);
       const items = byDate.get(date) ?? 0;
-      const cell = link(String(Number(date.slice(8))),dateUrl('day',date),'dw-day');
+      visibleCount += items;
+      const cell = link(null,dateUrl('day',date),'dw-day');
       cell.id = 'dw-cal-' + date;
       cell.dataset.outside = String(monthly && date.slice(0,7) !== key.slice(0,7));
-      cell.setAttribute('aria-label',format(date,{month:'long',day:'numeric',weekday:'long'}) + ' · ' + (items ? items + '건' : '기록 없음'));
-      if (date === today) cell.setAttribute('aria-current','date');
+      cell.toggleAttribute('data-records',items > 0);
+      const isToday = date === today;
+      const isLastViewed = date === params.get('selected');
+      const noticeDate = topic === 'notices' && date === params.get('noticeDate');
+      cell.toggleAttribute('data-last-viewed',isLastViewed || noticeDate);
+      cell.setAttribute('aria-label',[format(date,{month:'long',day:'numeric',weekday:'long'}), isToday && '오늘',
+        isLastViewed && '마지막으로 본 날짜', noticeDate && '선택한 공지 날짜', items ? recordKind + ' ' + items + '건' : '기록 없음'].filter(Boolean).join(' · '));
+      if (isToday) cell.setAttribute('aria-current','date');
+      const label = element('span',String(Number(date.slice(8))),'dw-dayNumber');
+      const hint = element('span',null,'dw-dayHint');
+      hint.setAttribute('aria-hidden','true');
+      if (isToday) hint.append('오늘');
       const mark = element('span',null,'dw-marker');
       mark.hidden = !items;
-      mark.setAttribute('aria-hidden','true');
-      cell.append(mark);
+      hint.append(mark);
+      cell.append(label,hint);
       grid.append(cell);
     }
-    const legend = element('p',null,'dw-legend');
-    legend.append(element('span',null,'dw-marker'),document.createTextNode('기록 또는 일정 있음'));
-    view.append(heading,dates,grid,legend);
+    view.append(heading,grid);
+    if (visibleCount) {
+      const legend = element('p',null,'dw-legend');
+      legend.append(element('span',null,'dw-marker'),document.createTextNode(recordKind + ' 있음'));
+      view.append(legend);
+    } else {
+      showEmpty(records,monthly ? '이 달에는' : '이 주에는');
+    }
   }
 
   function render(payload) {
-    if (headline) headline.textContent = payload.notices?.[0]?.title || '공지사항 확인';
+    if (headline) {
+      const notice = payload.notices?.[0];
+      headline.textContent = notice?.title || '공지사항 확인';
+      if (notice?.date && normalize(notice.date) === notice.date) {
+        const destination = new URL(headline.closest('a').href);
+        destination.searchParams.set('date',notice.date);
+        destination.searchParams.set('noticeDate',notice.date);
+        headline.closest('a').href = destination.pathname + destination.search;
+      }
+    }
     if (!view) return;
     view.replaceChildren();
     if (topic === 'alerts') {
@@ -434,9 +547,14 @@ function mountLearner() {
     }
     const records = recordsFor(payload);
     if (mode === 'day') {
-      view.append(element('h2',format(key,{year:'numeric',month:'long',day:'numeric',weekday:'long'}),'dw-detailDate'));
-      renderList(records.filter(record => record.date === key),'이 날짜에 등록된 기록이 없습니다.');
-      if (topic !== 'exam' || records.some(record => record.date === key && !record.path)) dayActions();
+      const dated = records.filter(record => record.date === key);
+      const heading = element('header',null,'dw-detailHead');
+      heading.append(element('h2',format(key,{year:'numeric',month:'long',day:'numeric',weekday:'long'}),'dw-detailDate'));
+      if (dated.length) heading.append(element('span',dated.length + '건','dw-count'));
+      view.append(heading);
+      if (dated.length) view.append(recordList(dated));
+      else showEmpty(records,'이 날짜에는');
+      if (topic !== 'exam' || dated.some(record => !record.path)) dayActions();
     } else {
       renderCalendar(records);
       const undated = records.filter(record => !record.date);
@@ -459,6 +577,10 @@ function mountLearner() {
   const projectionCache = 'dawon-learning-projection-r15';
   async function load(force = false) {
     try {
+      if (topic === 'questions' && !guardian) {
+        render({});
+        return;
+      }
       if (!force) {
         try {
           const cached = JSON.parse(sessionStorage.getItem(projectionCache) || 'null');
@@ -478,7 +600,9 @@ function mountLearner() {
       const retry = element('button','다시 시도','dw-action');
       retry.type = 'button';
       retry.onclick = () => { retry.disabled = true; void load(true); };
-      view.replaceChildren(status('기록을 불러오지 못했습니다.'),retry);
+      const message = topic === 'questions' && !guardian ?
+        '질문 기록을 열 수 없습니다. 브라우저 저장 공간을 확인해 주세요.' : '기록을 불러오지 못했습니다.';
+      view.replaceChildren(status(message),retry);
       if (mode === 'day') dayActions();
     }
   }
