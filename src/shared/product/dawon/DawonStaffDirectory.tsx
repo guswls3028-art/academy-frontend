@@ -152,7 +152,7 @@ function StaffMaster() {
             render:row=>row.classes.join(", ") || <span className={styles.muted}>담당 반 없음</span>},
         ]}/>
     </section>
-    {selected && <AdminModal open type="inspect" width={MODAL_WIDTH.lg} noMinimize trapFocus onClose={closeEmployee}>
+    {selected && <AdminModal open type="inspect" width={MODAL_WIDTH.wide} noMinimize trapFocus onClose={closeEmployee}>
       <ModalHeader type="inspect" title={person?.name ?? "직원 상세"} description={person ? labels[person.position] : undefined}/>
       <ModalBody><div className={styles.employeeModalBody}>
         {person && <p>담당 반 · {person.classes.join(", ") || "없음"}</p>}

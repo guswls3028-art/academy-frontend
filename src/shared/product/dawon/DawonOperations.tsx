@@ -1,3 +1,4 @@
+import { useAlertSummary } from "./alertQueue";
 import DawonSearchInput from "./DawonSearchInput";
 import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
 import DomainListToolbar from "@/shared/ui/domain/DomainListToolbar";
@@ -7,6 +8,8 @@ import { dawonQueryKeys } from "./queryKeys";
 import {AdminAlerts, AdminExamReview, AdminStudentReview, ExamLinks} from "./DawonAdminLearning";
 import recordsDesk from "./DawonAdminRecords.module.css";
 import DomainTable from "@/shared/ui/domain/DomainTable";
+import { buildAssessmentSearch } from "@/shared/lib/assessmentQueryParams";
+import LectureSessionsPage from "@admin/domains/lectures/pages/sessions/LectureSessionsPage";
 import DawonCourseRoster from "./DawonCourseRoster";
 import DawonDailyAttendance from "./DawonDailyAttendance";
 import {todayInSeoul, useDawonDailyAttendance} from "./useDawonDailyAttendance";
@@ -50,11 +53,7 @@ function CourseDetails({course, groupId, groupName, section, onSection}: {
         {sections.map(item => <button type="button" key={item.key} aria-pressed={section === item.key} onClick={() => onSection(item.key)}>{item.label}</button>)}
       </div>
       {section === "roster" && <DawonCourseRoster key={course.id} course={course.id} title={course.title} groupName={groupName} groupId={groupId}/>}
-      {section === "lessons" && <>
-      {course.sessions.length ? <ul>{course.sessions.map(lesson => <li key={lesson.id}>
-        <strong>{lessonNames.get(lesson.id)}</strong><span>{lesson.date || "일정 미정"}</span>
-      </li>)}</ul> : <p>등록된 차시가 없습니다.</p>}
-      </>}
+      {section === "lessons" && <LectureSessionsPage autoAssignRegular={groupId !== null}/>}
       {section === "exams" && <>
       {course.exams.length ? <ul>{course.exams.map(exam => <li key={exam.id}>
         <strong><ExamLinks course={course.id} exam={exam.id} group={groupId} title={exam.title}/></strong><span>{exam.average === null ? "채점 대기" : `채점 ${exam.graded}건 · 평균 ${Number(exam.average.toFixed(1))}점`}</span>
@@ -62,7 +61,7 @@ function CourseDetails({course, groupId, groupName, section, onSection}: {
       </>}
       {section === "homework" && <>
       {course.homework.length ? <ul>{course.homework.map(item => <li key={item.id}>
-        <strong>{item.title}</strong><span>{lessonNames.get(item.session_id)} · {{DRAFT: "초안", OPEN: "진행 중", CLOSED: "마감"}[item.status]}</span>
+        <strong><Link to={`/workspace/lectures/${course.id}/sessions/${item.session_id}/assignments${buildAssessmentSearch("homework",item.id)}`}>{item.title}</Link></strong><span>{lessonNames.get(item.session_id)} · {{DRAFT: "초안", OPEN: "진행 중", CLOSED: "마감"}[item.status]}</span>
         <small className={styles.progress}>{item.progress.assigned ? `대상 ${item.progress.assigned}명 · 제출 ${item.progress.submitted}명 · 미제출 ${item.progress.missing}명 · 채점 ${item.progress.graded}명${item.progress.deferred ? ` · 검사 보류 ${item.progress.deferred}명` : ""}` : "배정된 수강생이 없습니다."}</small>
       </li>)}</ul> : <p>등록된 과제가 없습니다.</p>}
       </>}
@@ -93,13 +92,11 @@ function Dashboard() {
   };
   const groups=useQuery({queryKey:dawonQueryKeys.adminGroups,queryFn:async({signal})=>
     (await api.get<GroupSummary[]>("/students/class-groups/",{signal})).data});
-  const alerts=useQuery({queryKey:dawonQueryKeys.adminLearning({alerts:"1"}),queryFn:async({signal})=>
-    (await api.get<{alerts:{group_id:number}[]}>(endpoint,{params:{alerts:"1"},signal})).data});
-  const counts=new Map<number,number>();
-  for (const item of alerts.data?.alerts ?? []) counts.set(item.group_id,(counts.get(item.group_id)??0)+1);
+  const alerts = useAlertSummary("admin");
+  const counts = alerts.data?.by_group ?? {};
   const matching=(groups.data ?? []).filter(row=>[row.name,row.instructor_name,row.school,row.track].some(value=>value?.toLowerCase().includes(search.trim().toLowerCase())));
   const rows = matching.filter(row => {
-    if (attention === "alerts") return (counts.get(row.id) ?? 0) > 0;
+    if (attention === "alerts") return (counts[row.id] ?? 0) > 0;
     const entry = dailyGroups.get(row.id);
     return attention !== "attendance" || Boolean(entry && entry.unset + entry.missing > 0);
   });
@@ -110,7 +107,7 @@ function Dashboard() {
   };
   const byPriority = (left: GroupSummary, right: GroupSummary) =>
     outstanding(right.id) - outstanding(left.id) ||
-    (counts.get(right.id) ?? 0) - (counts.get(left.id) ?? 0) ||
+    (counts[right.id] ?? 0) - (counts[left.id] ?? 0) ||
     left.name.localeCompare(right.name, "ko", {numeric:true});
   const waiting = matching.filter(row => outstanding(row.id) > 0).length;
   const order = params.get("order") || "";
@@ -127,7 +124,7 @@ function Dashboard() {
         primaryAction={<div className={styles.filterRow}>
           {daily.data && groups.data && <Button size="sm" intent={attention==="attendance" ? "primary" : "secondary"} aria-pressed={attention==="attendance"}
             onClick={()=>updateFilter("attention",attention==="attendance"?"":"attendance")}>출결 미입력 {waiting}개 반</Button>}
-          <Link className={styles.actionLink} to="/workspace/dashboard?panel=alerts">전체 반 학습 경보{alerts.data ? " "+alerts.data.alerts.length+"건" : ""}</Link>
+          <Link className={styles.actionLink} to="/workspace/dashboard?panel=alerts">전체 반 학습 경보{alerts.data ? " "+alerts.data.pending+"건" : ""}</Link>
           {order && <Button size="sm" onClick={()=>sortBy("")}>업무 우선순으로</Button>}
         </div>}/>
       {alerts.isError && <p role="alert">학습 경보를 확인하지 못했습니다. <Button onClick={()=>void alerts.refetch()}>다시 시도</Button></p>}
@@ -145,8 +142,8 @@ function Dashboard() {
             const d=dailyGroups.get(r.id);
             return d?<Link data-attention={d.unset+d.missing>0} aria-label={r.name+" 미입력 출결 상세"} to={attendanceUrl(r.id)}>{d.unset+d.missing}건</Link>:"수업 없음";
           }},
-          {key:"alerts",label:"학습 경보",defaultWidth:compact?85:95,value:r=>counts.get(r.id)??0,render:r=>alerts.data?
-            <Link data-attention={(counts.get(r.id)??0)>0} aria-label={r.name+" 학습 경보"} to={"/workspace/dashboard?panel=alerts&group="+r.id}>{counts.get(r.id)??0}건</Link>:"—"},
+          {key:"alerts",label:"학습 경보",defaultWidth:compact?85:95,value:r=>counts[r.id]??0,render:r=>alerts.data?
+            <Link data-attention={(counts[r.id]??0)>0} aria-label={r.name+" 학습 경보"} to={"/workspace/dashboard?panel=alerts&group="+r.id}>{counts[r.id]??0}건</Link>:"—"},
           {key:"instructor",label:"담당 강사",defaultWidth:120,value:r=>r.instructor_name || "미지정"},
           {key:"kind",label:"반 구분",defaultWidth:150,value:r=>r.kind==="union"?"연합반 · "+r.track:"내신반 · "+r.school},
           {key:"students",label:"학생",defaultWidth:75,value:r=>r.student_count,render:r=>r.student_count+"명"},

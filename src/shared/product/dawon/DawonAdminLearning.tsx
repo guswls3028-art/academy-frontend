@@ -1,4 +1,5 @@
 import { examCohort, examFilters, examSchool, examGrade, examBandLabel, questionRates, type ExamQuestionMarks, type ExamFilter, type ExamRow } from "./adminExamCohort";
+import DawonAlertQueue from "./DawonAlertQueue";
 import styles from "./DawonOperations.module.css";
 import desk from "./DawonAdminRecords.module.css";
 import { dawonQueryKeys } from "./queryKeys";
@@ -15,7 +16,6 @@ import { AdminModal, ModalBody, ModalHeader, MODAL_WIDTH } from "@/shared/ui/mod
 const endpoint = "/students/demo-operations/";
 const panelKey = dawonQueryKeys.adminLearning;
 type Group = {id:number|null;name:string};
-type Alert = {group_name:string;group_id:number;student_id:number;student_name:string;lecture_id:number;lecture_title:string;rule:string;detail:string};
 type HistoryRow = {title:string;date:string|null;score:number|null;maximum:number|null;state:string;completion?:number|null;wrong?:number[];unfinished?:number[]};
 type History = {student:string;course:string;exams:HistoryRow[];homework:HistoryRow[];counsel:string[];
   clinic:{session__date:string;session__title:string;status:string}[];can_follow:boolean;today:string;slots:{id:number;title:string;date:string;start_time:string}[]};
@@ -37,22 +37,10 @@ function usePanel<T>(params:Record<string,string>) {
   return useQuery({queryKey:panelKey(params), queryFn:async ({signal}) => (await api.get<T>(endpoint,{params,signal})).data});
 }
 function Failed({retry}: {retry:()=>void}) {return <p role="alert">기록을 불러오지 못했습니다. <Button onClick={retry}>다시 시도</Button></p>;}
-const stateLabels:Record<string,string>={needs_submission:"제출 필요",awaiting_review:"확인 중",reviewed:"확인 완료",booked:"예약 확정",pending:"승인 대기",attended:"참석",no_show:"미참석",cancelled:"취소",rejected:"거절"};
+const stateLabels:Record<string,string>={absent:"미응시",needs_submission:"제출 필요",awaiting_review:"확인 중",reviewed:"확인 완료",booked:"예약 확정",pending:"승인 대기",attended:"참석",no_show:"미참석",cancelled:"취소",rejected:"거절"};
 
 export function AdminAlerts({groups}: {groups:Group[]}) {
-  const [params,setParams] = useSearchParams();
-  const group = params.get("group") || "";
-  const query = usePanel<{count:number;alerts:Alert[]}>(group ? {alerts:"1",group} : {alerts:"1"});
-  return <section className={desk.desk} aria-label="학습 경보"><div className={desk.controls}><strong>{query.data ? `학습 경보 ${query.data.count}건` : "학습 경보"}</strong><label>반 범위 <select value={group} onChange={e => {
-      const q = new URLSearchParams({panel:"alerts"}); if(e.target.value) q.set("group",e.target.value); setParams(q);}}>
-      <option value="">전체 반</option>{groups.filter(g=>g.id!=null).map(g=><option key={g.id} value={String(g.id)}>{g.name}</option>)}</select></label></div>
-    {query.isPending ? <p role="status">학습 경보를 확인하는 중입니다.</p> : query.isError ? <Failed retry={()=>void query.refetch()}/> :
-      !query.data.alerts.length ? <p>현재 담당 강사의 기준에 해당하는 경보가 없습니다.</p> :
-      <DomainTable scrollLabel="학습 경보 목록"><thead><tr><th>학생</th><th>반·강의</th><th>경보 근거</th></tr></thead><tbody>
-        {query.data.alerts.map(row=><tr key={[row.student_id,row.lecture_id,row.rule].join("-")}><th scope="row">
-          <Link to={address("/workspace/dashboard",{panel:"student",group,course:row.lecture_id,student:row.student_id})}>{row.student_name}</Link></th>
-          <td><strong>{row.group_name}</strong><small className={desk.secondary}>{row.lecture_title}</small></td><td>{row.detail}</td></tr>)}</tbody></DomainTable>}
-  </section>;
+  return <DawonAlertQueue role="admin" groups={groups}/>;
 }
 
 function Trend({rows}: {rows:HistoryRow[]}) {
@@ -68,8 +56,30 @@ function Trend({rows}: {rows:HistoryRow[]}) {
 function HistoryTable({title, rows}: {title:string;rows:HistoryRow[]}) {
   return <section><h3>{title}</h3>{!rows.length ? <p>등록된 기록이 없습니다.</p> : <DomainTable scrollLabel={title}>
     <thead><tr><th>일자</th><th>항목</th><th>결과</th></tr></thead><tbody>{rows.map((r,i)=><tr key={i}><td>{r.date || "일정 미정"}</td>
-      <th scope="row">{r.title}</th><td>{r.completion !== undefined ? (r.completion == null ? "예정" : r.completion + "% 완료") : r.score == null ? stateLabels[r.state] || "미채점" : pct(r.score) + (r.maximum == null ? "" : " / "+pct(r.maximum))}{!!r.wrong?.length && <div>오답 {r.wrong.join(", ")}</div>}{!!r.unfinished?.length && <div>미완료 {r.unfinished.join(", ")}</div>}</td></tr>)}</tbody>
+      <th scope="row">{r.title}</th><td>{r.completion !== undefined ? (r.completion == null ? "예정" : r.completion + "% 완료") : r.score == null ? (r.state === "pending" ? "채점 대기" : stateLabels[r.state] || "미채점") : pct(r.score) + (r.maximum == null ? "" : " / "+pct(r.maximum))}{!!r.wrong?.length && <div>오답 {r.wrong.join(", ")}</div>}{!!r.unfinished?.length && <div>미완료 {r.unfinished.join(", ")}</div>}</td></tr>)}</tbody>
     </DomainTable>}</section>;
+}
+
+export function DirectoryPerformance({student, course, role}: {student:number; course:number; role:"teacher"|"admin"}) {
+  const query = useQuery({
+    queryKey: ["dawon", role, "student-directory-scores", student, course],
+    queryFn: async ({signal}) => (await api.get<{exams:HistoryRow[];delta_percent:number|null;previous_title:string|null}>("/students/class-groups/", {
+      params: {view:"student_scores", student, course}, signal,
+    })).data,
+  });
+  if (query.isPending) return <p role="status">시험 성적을 불러오는 중…</p>;
+  if (query.isError) return <Failed retry={()=>void query.refetch()}/>;
+  const rows = query.data.exams;
+  const graded = rows.filter(row => row.score != null && row.maximum != null && row.maximum > 0);
+  const latest = graded[graded.length - 1];
+  const change = query.data.delta_percent == null ? null : Math.round(query.data.delta_percent * 10) / 10;
+  if (!rows.length) return <p>이 강의에 배정된 시험이 없습니다.</p>;
+  return <section aria-label="성적 추이">
+    {latest && <p><strong>최근 채점 · {latest.title}</strong> · {latest.score} / {latest.maximum}점
+      {change !== null && <span> · {query.data.previous_title} 대비 {change > 0 ? "+" : ""}{change}%p</span>}</p>}
+    {graded.length >= 2 && <Trend rows={rows}/>}
+    <HistoryTable title="회차별 시험 결과" rows={rows}/>
+  </section>;
 }
 
 export function AdminStudentReview() {
@@ -87,7 +97,7 @@ export function AdminStudentReview() {
     ...(action==="counsel"? {day:day||q.data?.today}:{session:Number(slot)})}),
     onSuccess:async()=>{await client.invalidateQueries({queryKey:dawonQueryKeys.adminLearningRoot});setKind(null);}});
   const data=q.data;
-  return <section className={desk.desk}><Link className={desk.back} state={fromDirectory || fromRoster || fromLearners ? location.state : undefined} to={fromDirectory ? {pathname:"/workspace/students/home",search:location.state?.directorySearch || new URLSearchParams({student}).toString()} : fromLearners ? {pathname:"/workspace/results/students",search:location.state?.resultReturn ?? new URLSearchParams({group:params.get("scope") || "",page:params.get("page") || "1"}).toString()} : fromRoster ? address("/workspace/students/class-groups",{class:group}) : exam ? address("/workspace/results",{exam,course,group,...listContext(params),...examContext(params)}):address("/workspace/dashboard",{panel:"alerts",group})}>{fromDirectory ? "학생 명단으로" : fromLearners ? "학생별 목록으로" : fromRoster ? "반 명단으로" : exam ? "시험 결과로" : "학습 경보로"}</Link>
+  return <section className={desk.desk}><Link className={desk.back} state={fromDirectory || fromRoster || fromLearners ? location.state : undefined} to={fromDirectory ? {pathname:"/workspace/students/home",search:location.state?.directorySearch || new URLSearchParams({student}).toString()} : fromLearners ? {pathname:"/workspace/results/students",search:location.state?.resultReturn ?? new URLSearchParams({group:params.get("scope") || "",page:params.get("page") || "1"}).toString()} : fromRoster ? address("/workspace/students/class-groups",{class:group}) : exam ? address("/workspace/results",{exam,course,group,...listContext(params),...examContext(params)}):(location.state?.alertReturn || address("/workspace/dashboard",{panel:"alerts",group}))}>{fromDirectory ? "학생 명단으로" : fromLearners ? "학생별 목록으로" : fromRoster ? "반 명단으로" : exam ? "시험 결과로" : "학습 경보로"}</Link>
     {q.isPending?<p role="status">학생 기록을 확인하는 중입니다.</p>:q.isError||!data?<Failed retry={()=>void q.refetch()}/>:<>
       <header className={desk.heading}><h2>{data.student} · 학생 학습 기록</h2><p>{data.course}</p></header>
       <div className={desk.histories}><div><Trend rows={data.exams}/><HistoryTable title="시험 성적 추이" rows={data.exams}/></div><HistoryTable title="과제 이력" rows={data.homework}/></div>

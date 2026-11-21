@@ -21,6 +21,7 @@ import { renderLazyRoute } from "@/core/router/renderLazyRoute";
 
 /* ================= Lazy: Dashboard ================= */
 const DawonStaffSettings = lazy(() => import("@/shared/product/dawon/DawonStaffSettings"));
+const DawonStudentOverlay = lazy(() => import("@/shared/product/dawon/DawonAdminStudents").then(module=>({default:module.StudentProfileOverlay}))) as typeof import("@/shared/product/dawon/DawonAdminStudents").StudentProfileOverlay;
 const DawonAdminStudents = lazy(() => import("@/shared/product/dawon/DawonAdminStudents"));
 const DawonAdminDirectories = lazy(() => import("@/shared/product/dawon/DawonAdminDirectories"));
 const DawonAdminSchoolReports = lazy(() => import("@/shared/product/dawon/DawonAdminSchoolReports"));
@@ -152,6 +153,26 @@ function QnaReadRedirect() {
   return <Navigate to={id ? `/workspace/community/qna?id=${id}` : "/workspace/community/qna"} replace />;
 }
 
+function sessionRoutes() {
+  return <>
+        <Route
+          path="lectures/:lectureId/sessions/:sessionId/*"
+          element={renderLazyRoute(SessionLayout)}
+        >
+          <Route index element={<Navigate to="attendance" replace />} />
+          <Route path="attendance" element={renderLazyRoute(SessionDetailPage)} />
+          <Route path="scores" element={renderLazyRoute(SessionDetailPage)} />
+          <Route path="exams" element={renderLazyRoute(SessionDetailPage)} />
+          <Route path="assignments" element={renderLazyRoute(SessionDetailPage)} />
+          <Route path="notice" element={renderLazyRoute(SessionDetailPage)} />
+          <Route path="videos" element={renderLazyRoute(SessionDetailPage)} />
+          <Route path="clinic" element={renderLazyRoute(SessionDetailPage)} />
+          <Route path="videos/:videoId" element={renderLazyRoute(VideoDetailPage)} />
+        </Route>
+        <Route path="sessions/:sessionId/:workflow" element={renderLazyRoute(SessionIdToLectureRedirect)} />
+  </>;
+}
+
 export default function AdminRouter() {
   const location = useLocation();
   const previewRole = dawonStaffPreviewRole();
@@ -168,7 +189,8 @@ export default function AdminRouter() {
   const studentDetailOverlay =
     backgroundLocation && Number.isInteger(modalStudentId) && modalStudentId > 0 ? (
       <Suspense fallback={<RouteFallback />}>
-        <StudentsDetailOverlay studentId={modalStudentId} onClose={() => navigate(-1)} />
+        {previewRole ? <DawonStudentOverlay id={String(modalStudentId)} role={previewRole} directorySearch={"student="+modalStudentId}
+          onClose={()=>navigate(-1)}/> : <StudentsDetailOverlay studentId={modalStudentId} onClose={() => navigate(-1)} />}
       </Suspense>
     ) : undefined;
   const staffDetailMatch = matchPath("/workspace/staff/:staffId", location.pathname);
@@ -181,14 +203,19 @@ export default function AdminRouter() {
     ) : undefined;
 
   if (previewRole === "admin") return (
-    <Routes>
-      <Route element={<AppLayout />}>
+    <Routes location={backgroundLocation ?? location}>
+      <Route element={<AppLayout overlay={studentDetailOverlay} />}>
         <Route path="settings" element={<Navigate to="/workspace/settings/profile" replace />} />
         {["settings/profile", "settings/appearance"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonStaffSettings)} />)}
         <Route path="students/home" element={renderLazyRoute(DawonAdminStudents)} />
         <Route path="students/class-groups" element={renderLazyRoute(ClassGroupsPage)} />
         <Route path="lectures" element={renderLazyRoute(DawonAdminLectures)} />
         <Route path="lectures/:lectureId" element={renderLazyRoute(DawonOperations)} />
+        <Route path="lectures/:lectureId/sessions" element={renderLazyRoute(DawonOperations)} />
+        {sessionRoutes()}
+        <Route path="exams/:examId" element={renderLazyRoute(ExamIdToSessionRedirect)} />
+        <Route path="videos/:videoId" element={renderLazyRoute(VideoIdToSessionRedirect)} />
+        <Route path="videos/:videoId/logs/:studentId?" element={renderLazyRoute(VideoWatchLogsPage)} />
         <Route path="students/surveys/school-reports" element={renderLazyRoute(DawonAdminSchoolReports)} />
         {["clinic/operations", "community/counsel", "results/students"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonAdminDirectories)} />)}
         {["dashboard", "staff", "results"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonOperations)} />)}
@@ -245,21 +272,7 @@ export default function AdminRouter() {
         <Route path="lectures/:lectureId/sections" element={renderLazyRoute(SectionManagementPage)} />
 
         {/* ================= Sessions ================= */}
-        <Route
-          path="lectures/:lectureId/sessions/:sessionId/*"
-          element={renderLazyRoute(SessionLayout)}
-        >
-          <Route index element={<Navigate to="attendance" replace />} />
-          <Route path="attendance" element={renderLazyRoute(SessionDetailPage)} />
-          <Route path="scores" element={renderLazyRoute(SessionDetailPage)} />
-          <Route path="exams" element={renderLazyRoute(SessionDetailPage)} />
-          <Route path="assignments" element={renderLazyRoute(SessionDetailPage)} />
-          <Route path="notice" element={renderLazyRoute(SessionDetailPage)} />
-          <Route path="videos" element={renderLazyRoute(SessionDetailPage)} />
-          <Route path="clinic" element={renderLazyRoute(SessionDetailPage)} />
-          <Route path="videos/:videoId" element={renderLazyRoute(VideoDetailPage)} />
-        </Route>
-        <Route path="sessions/:sessionId/:workflow" element={renderLazyRoute(SessionIdToLectureRedirect)} />
+        {sessionRoutes()}
 
         {/* ================= Materials ================= */}
         <Route path="materials/*" element={renderLazyRoute(MaterialsRoutes)} />

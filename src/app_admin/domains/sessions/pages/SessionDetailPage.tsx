@@ -146,7 +146,7 @@ export default function SessionDetailPage() {
 
   const assessmentRemoteKind = SESSION_ASSESSMENT_REMOTE_KIND_BY_TAB[activeTab];
   const hasAttendanceChooser = activeTab === "attendance" && searchParams.get("view") === "sessions";
-  const compactAttendance = activeTab === "attendance" && dawonStaffPreviewRole() === "teacher" && !hasAttendanceChooser;
+  const compactAttendance = activeTab === "attendance" && Boolean(dawonStaffPreviewRole()) && !hasAttendanceChooser;
   const showSessionStrip =
     (activeTab === "attendance" && !isMobile && !hasAttendanceChooser) ||
     activeTab === "scores" ||

@@ -665,7 +665,7 @@ export default function SessionAttendancePage({
       {attendanceView === "sessions" && lectureId != null ? (
         <AttendanceSessionPage listPath={listPath} notice={safetyRecord}>{sessionSelector}</AttendanceSessionPage>
       ) : <>
-      {dawonStaffPreviewRole() === "teacher" ? <DawonAttendanceToolbar
+      {dawonStaffPreviewRole() ? <DawonAttendanceToolbar
         count={isLoading ? "…" : `총 ${totalCount}명`} search={searchInput} onSearch={setSearchInput}
         filters={filterSlot} actions={primaryAction} filtered={Boolean(statusFilter)}
         selection={<>{selectionSummary}{totalPages > 1 && pagination}</>} /> : <DomainListToolbar
@@ -707,7 +707,7 @@ export default function SessionAttendancePage({
               ) : undefined
             }
           />
-        ) : dawonStaffPreviewRole() === "teacher" ? (
+        ) : dawonStaffPreviewRole() ? (
           <DawonAttendanceRoster key={sessionId + ":" + schedule} rows={sorted} selected={selectedSet} pending={pendingStatusIds}
             allSelected={allSelected} toggleAll={toggleSelectAll} toggle={toggleSelect} sort={sort} onSort={toggleSort}
             changeStatus={handleStatusChange} supplement={isSupplementSession} sessionDate={sessionDate} savePlan={saveArrivalPlan}/>

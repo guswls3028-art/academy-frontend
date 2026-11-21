@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { Link, useLocation, useSearchParams } from "react-router";
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import api from "@/shared/api/axios";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
-import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
+import { AdminModal, ModalBody, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
+import { formatPhone, formatStudentPhoneDisplay } from "@/shared/utils/formatPhone";
+import { DirectoryPerformance } from "./DawonAdminLearning";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { DomainLayout, DomainTable } from "@/shared/ui/domain";
 import { Button } from "@/shared/ui/ds";
@@ -38,6 +40,8 @@ function StudentDirectory({ role }: { role: "admin" | "teacher" }) {
   const [params, setParams] = useSearchParams();
   const { key, state } = useLocation();
   const teacher = role === "teacher";
+  const navigate = useNavigate();
+  const list = useRef<HTMLElement>(null);
   const savedSearch = typeof state?.directoryTerm === "string" ? state.directoryTerm : "";
   // Replacing this history entry after a debounce must not interrupt a newer keystroke.
   const entry = state?.directorySearchEntry ?? key;
@@ -57,6 +61,27 @@ function StudentDirectory({ role }: { role: "admin" | "teacher" }) {
   const group = params.get("group") || params.get("class") || "";
   const grade = params.get("grade") || "";
   const selected = params.get("student");
+  const previousStudent = useRef(selected);
+  useEffect(() => {
+    const prior = previousStudent.current;
+    previousStudent.current = selected;
+    if (prior && !selected) {
+      const row = list.current?.querySelector<HTMLAnchorElement>(`[data-student-id="${CSS.escape(prior)}"]`);
+      (row ?? document.getElementById("dawon-directory-search"))?.focus({ preventScroll: true });
+    }
+  }, [selected]);
+
+  function closeStudent() {
+    if (state?.alertReturn) {
+      void navigate(state.alertReturn, {replace:true, preventScrollReset:true});
+    } else if (state?.courseReturn) {
+      void navigate(state.courseReturn, {replace:true, preventScrollReset:true});
+    } else if (state?.studentListEntry && window.history.state?.idx > 0) {
+      void navigate(-1);
+    } else {
+      void navigate(detailUrl(), {replace:true, preventScrollReset:true, state:{directoryTerm:search}});
+    }
+  }
   const pageParam = Number(params.get("page"));
   const page = Number.isSafeInteger(pageParam) && pageParam > 0 ? pageParam : 1;
 
@@ -72,13 +97,6 @@ function StudentDirectory({ role }: { role: "admin" | "teacher" }) {
   const people = useQuery({
     queryKey: dawonQueryKeys.studentPage(role, filters),
     queryFn: async ({ signal }) => (await api.get<Page>(endpoint, { params: filters, signal })).data,
-  });
-  const person = useQuery({
-    queryKey: dawonQueryKeys.studentDetail(role, selected),
-    enabled: !!selected,
-    queryFn: async ({ signal }) => (await api.get<Page>(endpoint, {
-      params: { view: "students", id: selected }, signal,
-    })).data.results[0] ?? null,
   });
 
   function update(key: Filter, value: string) {
@@ -106,14 +124,13 @@ function StudentDirectory({ role }: { role: "admin" | "teacher" }) {
   }
 
   const hasFilters = Boolean(search || grade || kind || group);
-  const row = person.data;
   const pages = Math.max(1, Math.ceil((people.data?.count ?? 0) / pageSize));
   const busy = people.isFetching || search.trim() !== savedSearch.trim();
   const countLabel = busy ? "조회 중…" : people.isError ? "조회 실패" : `학생 ${people.data?.count ?? 0}명`;
 
   return <DomainLayout title="학생 명단" breadcrumbs={[]} density="compact">
-    <div className={styles.studentFilters} role="group" aria-label="학생 조회 조건" data-detail-open={selected ? "true" : undefined}>
-      <input type="search" className="ds-input" aria-label="학생 검색" placeholder="이름 · 학교 · 전화번호 검색"
+    <div className={styles.studentFilters} role="group" aria-label="학생 조회 조건">
+      <input id="dawon-directory-search" type="search" className="ds-input" aria-label="학생 검색" placeholder="이름 · 학교 · 전화번호 검색"
         value={search} onChange={event => setDraft({ entry, text: event.target.value })}
         onCompositionStart={() => setComposing(true)} onCompositionEnd={() => setComposing(false)} />
       <div className={styles.filterOptions}>
@@ -139,21 +156,22 @@ function StudentDirectory({ role }: { role: "admin" | "teacher" }) {
       </div>
     </div>
     {groups.isError && <p role="alert">반 목록을 불러오지 못했습니다. <Button onClick={() => void groups.refetch()}>반 목록 다시 시도</Button></p>}
-    <div className={styles.split} data-open={selected ? "true" : undefined}>
-      <section className={styles.list} aria-label="학생 조회 결과" aria-busy={busy}>
+    <div className={styles.split}>
+      <section ref={list} className={styles.directoryList} aria-label="학생 조회 결과" aria-busy={busy}>
         {people.isError ? <p role="alert">학생 명단을 불러오지 못했습니다. <Button onClick={() => void people.refetch()}>다시 시도</Button></p> :
           <DomainTable scrollLabel="학생 명단" tableClassName="ds-table--flat">
-            <thead><tr><th scope="col">학생 이름</th><th scope="col">학교</th><th scope="col">학년</th><th scope="col">소속 반</th></tr></thead>
+            <thead><tr><th scope="col">학생 이름</th><th scope="col">학교</th><th scope="col">학년</th><th scope="col">소속 반</th><th scope="col">학부모 전화</th><th scope="col">학생 전화</th></tr></thead>
             <tbody>{people.data?.results.map(student => <tr key={student.id}>
-              <th scope="row"><Link aria-label={student.name} to={detailUrl(student.id)} state={{ directoryTerm: search }} preventScrollReset
+              <th scope="row"><Link aria-label={student.name} aria-haspopup="dialog" data-student-id={student.id} to={detailUrl(student.id)} state={{ directoryTerm: search, studentListEntry: true }} preventScrollReset
                 aria-current={String(student.id) === selected ? "true" : undefined}>
                 <StudentNameWithLectureChip name={student.name} avatarSize={22} density="compact" />
               </Link></th>
               <td>{student.school || "미입력"}</td><td>{student.grade ? student.grade + "학년" : "미입력"}</td>
               <td>{student.groups.map(item => item.name).join(", ") || "미편성"}</td>
+              <td>{formatPhone(student.parent_phone)}</td><td>{formatStudentPhoneDisplay(student.phone)}</td>
             </tr>)}
-              {people.isPending && <tr><td colSpan={4}>학생 명단을 불러오는 중…</td></tr>}
-              {people.data && !people.data.results.length && <tr><td colSpan={4}>{page > 1 ? "이 페이지에 학생이 없습니다." : hasFilters ? "조건에 맞는 학생이 없습니다." : teacher ? "담당 반에 배정된 학생이 없습니다." : "등록된 학생이 없습니다."}</td></tr>}
+              {people.isPending && <tr><td colSpan={6}>학생 명단을 불러오는 중…</td></tr>}
+              {people.data && !people.data.results.length && <tr><td colSpan={6}>{page > 1 ? "이 페이지에 학생이 없습니다." : hasFilters ? "조건에 맞는 학생이 없습니다." : teacher ? "담당 반에 배정된 학생이 없습니다." : "등록된 학생이 없습니다."}</td></tr>}
             </tbody>
           </DomainTable>}
         {people.data && (pages > 1 || page > 1) && <nav aria-label="학생 목록 페이지" className={styles.paging}>
@@ -161,26 +179,55 @@ function StudentDirectory({ role }: { role: "admin" | "teacher" }) {
           <span>{page} / {pages}</span><Button size="sm" disabled={page >= pages} onClick={() => update("page", String(page + 1))}>다음</Button>
         </nav>}
       </section>
-      {selected && <section className={styles.inspector} aria-label="학생 상세">
-        {state?.courseReturn ? <Link to={state.courseReturn}>강의 수강 명단으로</Link> :
-          <Link to={detailUrl()} state={{ directoryTerm: search }} preventScrollReset>학생 목록</Link>}
-        {person.isPending ? <p role="status">학생 상세 조회 중…</p> : person.isError ? <p role="alert">상세 조회에 실패했습니다. <Button onClick={() => void person.refetch()}>다시 시도</Button></p> :
-          row ? <><h2>{row.name}</h2><dl className={styles.fields}>
-            <dt>학교 · 학년</dt><dd>{row.school || "학교 미입력"} · {row.grade ? row.grade + "학년" : "학년 미입력"}</dd>
-            <dt>학생 연락처</dt><dd>{row.phone || "미입력"}</dd><dt>학부모 연락처</dt><dd>{row.parent_phone || "미입력"}</dd>
-            <dt>소속 반</dt><dd>{row.groups.length ? row.groups.map(item => <Link key={item.id} to={"/workspace/students/class-groups?class=" + item.id}>{item.name}</Link>) : "미편성"}</dd>
-          </dl>
-            <h3>수강 중인 강의</h3>{row.courses?.length ? <DomainTable scrollLabel="학생 수강 강의" tableClassName="ds-table--flat">
-              <thead><tr><th>강의</th>{!teacher && <th>학습 기록</th>}</tr></thead>
-              <tbody>{row.courses.map(course => <tr key={course.id}>
-                <td><Link to={"/workspace/lectures/" + course.id + "?group=" + course.group} aria-label={course.title}>
-                  <LectureChipLabel lectureName={course.title} color={course.color} chipLabel={course.chip_label} /></Link></td>
-                {!teacher && <td><Link state={{ directorySearch: params.toString(), directoryTerm: search }} to={"/workspace/results?" + new URLSearchParams({
-                  panel: "student", origin: "directory", course: String(course.id), group: String(course.group), student: String(row.id),
-                })}>기록 보기</Link></td>}
-              </tr>)}</tbody>
-            </DomainTable> : <p>반에 연결된 수강 강의가 없습니다.</p>}</> : <p>조회할 수 없는 학생입니다.</p>}
-      </section>}
     </div>
+    {selected && <StudentProfileOverlay id={selected} role={role} onClose={closeStudent} directorySearch={params.toString()} search={search}/>}
   </DomainLayout>;
+}
+
+export function StudentProfileOverlay({id:selected, role, onClose, directorySearch, search=""}: {
+  id:string; role:"teacher"|"admin"; onClose:()=>void; directorySearch:string; search?:string;
+}) {
+  const person = useQuery({
+    queryKey: dawonQueryKeys.studentDetail(role, selected),
+    enabled: !!selected,
+    queryFn: async ({ signal }) => (await api.get<Page>(endpoint, {
+      params: { view: "students", id: selected }, signal,
+    })).data.results[0] ?? null,
+  });
+  const row = person.data;
+  return <AdminModal open type="inspect" width={MODAL_WIDTH.wide} noMinimize trapFocus onClose={onClose}>
+      <ModalHeader type="inspect" title={row?.name || "학생 상세"} description={row ? [row.school, row.grade && row.grade + "학년"].filter(Boolean).join(" · ") : undefined}/>
+      <ModalBody>{person.isPending ? <p role="status">학생 상세 조회 중…</p> :
+        person.isError ? <p role="alert">상세 조회에 실패했습니다. <Button onClick={() => void person.refetch()}>다시 시도</Button></p> :
+        row ? <StudentProfile key={row.id} row={row} role={role} directorySearch={directorySearch} search={search}/> :
+        <p>조회할 수 없는 학생입니다.</p>}
+      </ModalBody>
+    </AdminModal>;
+}
+
+function StudentProfile({row, role, directorySearch, search}: {row:Student; role:"teacher"|"admin"; directorySearch:string; search:string}) {
+  const courses = row.courses ?? [];
+  const [selectedCourse, selectCourse] = useState(courses[0]?.id);
+  const course = courses.find(item => item.id === selectedCourse) ?? courses[0];
+  return <div className={styles.studentProfile}>
+    <dl className={styles.fields}>
+      <dt>소속 반</dt><dd>{row.groups.length ? row.groups.map(item => <Link key={item.id} to={"/workspace/students/class-groups?class=" + item.id}>{item.name}</Link>) : "미편성"}</dd>
+      <dt>학부모 전화</dt><dd>{formatPhone(row.parent_phone)}</dd>
+      <dt>학생 전화</dt><dd>{formatStudentPhoneDisplay(row.phone)}</dd>
+    </dl>
+    {course ? <section aria-label="강의별 학습 기록">
+      <div className={styles.performanceHeading}><h3>강의별 성적</h3>
+        {courses.length > 1 ? <select aria-label="성적 조회 강의" className="ds-select" value={course.id}
+          onChange={e=>selectCourse(Number(e.target.value))}>{courses.map(item=><option key={item.id} value={item.id}>{item.title}</option>)}</select> :
+          <strong>{course.title}</strong>}
+      </div>
+      <DirectoryPerformance student={row.id} course={course.id} role={role}/>
+      <nav className={styles.profileLinks} aria-label="관련 기록">
+        <Link to={"/workspace/lectures/" + course.id + "?group=" + course.group}>강의 열기</Link>
+        {role === "admin" && <Link state={{directorySearch, directoryTerm:search}} to={"/workspace/results?" + new URLSearchParams({
+          panel:"student", origin:"directory", course:String(course.id), group:String(course.group), student:String(row.id),
+        })}>과제·상담·클리닉 기록</Link>}
+      </nav>
+    </section> : <p>반에 연결된 수강 강의가 없습니다.</p>}
+  </div>;
 }

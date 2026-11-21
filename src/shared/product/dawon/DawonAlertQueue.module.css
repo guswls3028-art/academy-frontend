@@ -1,0 +1,10 @@
+.queue { display:grid; gap:12px; min-width:0; }
+.switcher, .filters, .paging { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.switcher { border-bottom:1px solid var(--color-border-divider); }
+.switcher button { display:inline-flex; gap:6px; align-items:center; padding:8px 10px; border-bottom:2px solid transparent; font-weight:600; }
+.switcher button[aria-pressed=true] { color:var(--color-brand-primary-active); border-color:currentColor; }
+.switcher b { font-variant-numeric:tabular-nums; }
+.filters input { width:min(100%,20rem); }
+.filters select { width:auto; max-width:100%; }
+.paging { justify-content:center; }
+@media(max-width:600px) { .filters { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); } .filters input { grid-column:1/-1; width:100%; } .filters select { width:100%; min-width:0; } }

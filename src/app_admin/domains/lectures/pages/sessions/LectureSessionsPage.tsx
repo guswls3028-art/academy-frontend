@@ -19,7 +19,7 @@ const LECTURE_SESSIONS_COLUMN_DEFS: TableColumnDef[] = [
   // ID 컬럼 제거 — 선생님에게 내부 ID 노출 불필요
 ];
 
-export default function LectureSessionsPage() {
+export default function LectureSessionsPage({autoAssignRegular = false}: {autoAssignRegular?:boolean}) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { lectureId } = useParams<{ lectureId: string }>();
@@ -276,7 +276,7 @@ export default function LectureSessionsPage() {
         )}
       </div>
 
-      {open && <SessionCreateModal lectureId={lecId} onClose={handleClose} />}
+      {open && <SessionCreateModal autoAssignRegular={autoAssignRegular} lectureId={lecId} onClose={handleClose} />}
     </>
   );
 }

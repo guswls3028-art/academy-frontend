@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import api from "@/shared/api/axios";
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 import { getRetryErrorMessage, reorderVideos } from "@admin/domains/videos/api/videos.api";
 import { canShowRetryButton } from "@/shared/api/contracts/videos";
 import { logRetryAttempt, logRetryError } from "@/shared/api/retryLogger";
@@ -62,6 +63,7 @@ interface SessionVideosTabProps {
 }
 
 export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
+  const demoRole = dawonStaffPreviewRole();
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [showModal, setShowModal] = useState(false);
@@ -346,7 +348,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
         </div>
 
         <div className={styles.actions}>
-          {canShowRetryButton(video) && (
+          {!demoRole && canShowRetryButton(video) && (
             <Button
               intent="primary"
               size="sm"
@@ -374,7 +376,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
           >
             수정
           </Button>
-          <Button
+          {!demoRole && <Button
             intent="ghost"
             size="sm"
             disabled={deleteMutation.isPending}
@@ -387,7 +389,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
             }}
           >
             삭제
-          </Button>
+          </Button>}
         </div>
       </div>
     );

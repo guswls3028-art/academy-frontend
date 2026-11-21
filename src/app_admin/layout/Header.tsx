@@ -1,4 +1,4 @@
-import { dawonQueryKeys } from "@/shared/product/dawon/queryKeys";
+import { useAlertSummary } from "@/shared/product/dawon/alertQueue";
 // PATH: src/shared/ui/layout/Header.tsx
 //
 // 헤더 레이아웃은 design-system/patterns/header.css의 app-header 패턴을 SSOT로 사용.
@@ -24,7 +24,6 @@ import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 import { staffGuide } from "@/shared/product/dawon/staffMenu";
 import { DawonLearningAlertsLink } from "@/shared/product/dawon/DawonTeacherAlerts";
 import { useAdminNotificationCounts, type AdminNotificationItem } from "@admin/domains/admin-notifications";
-import api from "@/shared/api/axios";
 import { useProgram } from "@/shared/program";
 import { useAdminLayout } from "@admin/layout/useAdminLayout";
 import { useWorkbox } from "@/shared/ui/layout/useWorkbox";
@@ -180,13 +179,8 @@ export default function Header({ onOpenQuickNavigation, onToggleSidebar, sidebar
     isFetching: adminNotificationsFetching,
     refetch: refetchAdminNotifications,
   } = useAdminNotificationCounts(!previewRole);
-  const classAlerts = useQuery({
-    queryKey: dawonQueryKeys.adminLearning({alerts: "1"}),
-    enabled: previewRole === "admin" && alarmDropdownOpen,
-    queryFn: async ({signal}) => (await api.get<{count: number}>("/students/demo-operations/", {params: {alerts: 1}, signal})).data,
-    staleTime: 30_000,
-  });
-  const unreadCount = previewRole === "admin" ? classAlerts.data?.count ?? 0 : adminCounts.total;
+  const classAlerts = useAlertSummary(previewRole);
+  const unreadCount = previewRole ? classAlerts.data?.pending ?? 0 : adminCounts.total;
   const hasNotificationFailures = adminNotificationFailures.length > 0;
 
   const openNoticeAndCloseAlarm = () => {
@@ -468,7 +462,7 @@ export default function Header({ onOpenQuickNavigation, onToggleSidebar, sidebar
                 <div className="alarm-panel__list" onClick={() => setAlarmDropdownOpen(false)}>
                   {previewRole === "teacher" ? <DawonLearningAlertsLink /> :
                     <Link className="alarm-panel__item" to="/workspace/dashboard?panel=alerts">
-                      반별 학습 알림 보기 {classAlerts.data && <strong>{classAlerts.data.count}건</strong>}
+                      반별 학습 알림 보기 {classAlerts.data && <strong>{classAlerts.data.pending}건</strong>}
                     </Link>}
                 </div>
               </div>

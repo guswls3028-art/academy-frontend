@@ -7,7 +7,7 @@ type Summary = {
   unset: number; missing: number; absent: number;
 };
 type Lesson = {
-  id: number; title: string; order: number; course: string;
+  id: number; title: string; order: number; course_id:number; course: string;
   students: { enrollment: number; name: string; status: string | null }[];
 };
 type Attendance = {

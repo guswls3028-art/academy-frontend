@@ -21,3 +21,7 @@
 .adminNav a:focus-visible { outline:2px solid var(--color-brand-primary-active); outline-offset:-2px; }
 .adminNav svg { flex:none; }
 @media(max-width:1023px) { .adminNav { padding:0; } .adminNav a { min-height:44px; } }
+
+.closedBadge { margin-inline-start:8px; }
+details[open] > summary .closedBadge { display:none; }
+.count { margin-inline-start:auto; display:inline-flex; align-items:center; }

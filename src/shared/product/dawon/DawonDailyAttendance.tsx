@@ -58,6 +58,7 @@ export default function DawonDailyAttendance() {
         </> : !data.lessons.length ? <p>선택한 날짜에 이 반의 수업이 없습니다.</p> :
         data.lessons.map(lesson => <section key={lesson.id} className={styles.lesson}>
           <h2>{lesson.course} · {lesson.order}차시{lesson.title && " · " + lesson.title}</h2>
+          <Link to={`/workspace/lectures/${lesson.course_id}/sessions/${lesson.id}/attendance`}>이 차시 출결 입력</Link>
           <table><caption>수강생 {lesson.students.length}명</caption>
             <thead><tr><th scope="col">이름</th><th scope="col">출결 상태</th></tr></thead>
             <tbody>{lesson.students.map(student => <tr key={student.enrollment}>

@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/videos/components/features/video-detail/modals/VideoUploadModal.tsx
 // 영상 추가 모달 — 다건 파일 큐에서 제목과 재생 순서를 확정한 뒤 업로드
 
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { originalDurationSeconds } from "@/shared/media/video/reviewDuration";
@@ -56,7 +57,8 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
   const nextItemIdRef = useRef(0);
   const mountedRef = useRef(true);
 
-  const [uploadMode, setUploadMode] = useState<UploadMode>("file");
+  const initialMode = dawonStaffPreviewRole() === "admin" ? "youtube" : "file";
+  const [uploadMode, setUploadMode] = useState<UploadMode>(initialMode);
   const [baseTitle, setBaseTitle] = useState("");
   const [description, setDescription] = useState("");
   const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
@@ -84,7 +86,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
 
   useEffect(() => {
     if (!isOpen) return;
-    setUploadMode("file");
+    setUploadMode(initialMode);
     setBaseTitle("");
     setDescription("");
     setUploadItems([]);
@@ -98,7 +100,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
     setMaxSpeed(1);
     setIsUploading(false);
     setInitErrorMessages([]);
-  }, [isOpen]);
+  }, [isOpen, initialMode]);
 
   const filledCount = uploadItems.length;
   const youtubeVideoId = useMemo(() => extractYouTubeVideoId(youtubeUrl), [youtubeUrl]);
@@ -354,7 +356,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
 
       <ModalBody>
         <div className="modal-scroll-body modal-scroll-body--compact video-upload-modal__body">
-          <div className="video-upload-modal__mode-tabs" role="tablist" aria-label="영상 추가 방식">
+          {initialMode === "file" && <div className="video-upload-modal__mode-tabs" role="tablist" aria-label="영상 추가 방식">
             <button
               type="button"
               role="tab"
@@ -377,7 +379,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
               <Youtube size={17} aria-hidden />
               <span>YouTube 링크</span>
             </button>
-          </div>
+          </div>}
 
           {/* 직전 시도에서 실패한 파일 사유 — 제목과 순서를 보존한 채 다시 시도 가능 */}
           {uploadMode === "file" && initErrorMessages.length > 0 && (

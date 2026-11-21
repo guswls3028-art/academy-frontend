@@ -46,3 +46,15 @@
 
 .rowAction { background:none; border:0; padding:4px 0; font:inherit; font-weight:600; color:var(--color-brand-primary-active); cursor:pointer; white-space:nowrap; }
 .rowAction:is(:hover,:focus-visible) { text-decoration:underline; }
+
+.directoryList { min-width:0; }
+.directoryList th, .directoryList td:nth-last-child(-n+2) { white-space:nowrap; }
+.directoryList th[scope=row] { position:sticky; inset-inline-start:0; z-index:1; background:var(--color-bg-surface); }
+.directoryList th a, .profileLinks a { color:var(--color-brand-primary-active); text-underline-offset:3px; }
+.studentProfile { display:grid; gap:20px; }
+.studentProfile dl { margin:0; }
+.studentProfile h3 { font-size:16px; margin:0; }
+.performanceHeading,.profileLinks { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; }
+.performanceHeading { margin-bottom:12px; justify-content:space-between; }
+.performanceHeading select { width:auto; max-width:100%; }
+.profileLinks { margin-top:12px; }
