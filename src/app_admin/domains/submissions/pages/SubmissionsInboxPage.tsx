@@ -32,11 +32,7 @@ import { invalidateSubmissionResultCaches } from "@admin/domains/results/public/
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentPickerModal from "@admin/domains/results/components/omr-review/StudentPickerModal";
 import { confirmAbsenceResume, isResumableAbsenceConflict } from "@admin/domains/results/components/omr-review/absenceResume";
-import {
-  fetchExamCandidates,
-  fetchHomeworkCandidates,
-  type CandidateRow,
-} from "@admin/domains/results/components/omr-review/omrReviewApi";
+import type { CandidateRow } from "@admin/domains/results/components/omr-review/omrReviewApi";
 import {
   manualEditSubmissionApi,
   retrySubmissionApi,
@@ -530,13 +526,6 @@ export default function SubmissionsInboxPage() {
   const allVisibleSelected =
     visibleSelectableIds.length > 0 && visibleSelectableIds.every((id) => selectedIds.has(id));
 
-  // picker fetcher 분기 (exam vs homework)
-  const pickerFetcher = pickerRow
-    ? pickerRow.target_type === "exam"
-      ? (q: string) => fetchExamCandidates(Number(pickerRow.target_id), q)
-      : (q: string) => fetchHomeworkCandidates(Number(pickerRow.target_id), q)
-    : undefined;
-
   // 폐기 모달의 기본 사유 (orphan 이면 target_missing)
   const discardDefaultReason: DiscardReason | undefined =
     discardModal?.kind === "single" && !isTargetResolved(discardModal.row)
@@ -726,11 +715,10 @@ export default function SubmissionsInboxPage() {
       />
 
       {/* 학생 지정 모달 */}
-      {pickerRow && pickerFetcher && (
+      {pickerRow && (
         <StudentPickerModal
-          open={true}
-          fetchCandidates={pickerFetcher}
-          contextLabel={pickerRow.target_type === "exam" ? "응시 대상" : "수강생"}
+          targetType={pickerRow.target_type === "exam" ? "exam" : "homework"}
+          targetId={Number(pickerRow.target_id)}
           onClose={() => setPickerRow(null)}
           onPick={handlePickStudent}
         />

@@ -747,17 +747,19 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
       already_matched: false,
     };
     let assignment: unknown;
+    let failInitialCandidateLookup = true;
     await page.route("**/api/v1/submissions/submissions/**", async (route) => {
       const url = new URL(route.request().url());
       if (url.pathname.endsWith(`/exams/${MIXED_EXAM_ID}/candidates/`)) {
         expect(url.searchParams.get("session_id")).toBe(String(SESSION_ID));
+        expect(url.searchParams.get("unmatched_only")).toBe("1");
         const query = url.searchParams.get("q");
-        if (!query) {
+        if (!query && failInitialCandidateLookup) {
           // A previous backend can return an exam-wide list without validating the session.
           return route.fulfill({ json: [{ ...eligibleCandidate, student_name: "다른 차시 학생" }] });
         }
         return route.fulfill({
-          json: { session_id: SESSION_ID, candidates: query === "12345678" ? [eligibleCandidate] : [] },
+          json: { session_id: SESSION_ID, candidates: !query || query === "12345678" ? [eligibleCandidate] : [] },
         });
       }
       if (url.pathname.endsWith(`/exams/${MIXED_EXAM_ID}/`)) {
@@ -805,6 +807,9 @@ test.describe("OMR와 서술형 점수 입력 진입", () => {
     const picker = page.getByRole("dialog", { name: "학생 선택" });
     await expect(picker).toContainText("학생 목록을 불러오지 못했습니다.");
     await expect(picker.getByText("다른 차시 학생")).toHaveCount(0);
+    failInitialCandidateLookup = false;
+    await picker.getByRole("button", { name: "학생 목록 다시 시도" }).click();
+    await expect(picker.getByRole("status")).toHaveText("답안지 미매칭 1명");
     const search = picker.getByRole("textbox", { name: "학생 검색" });
     await expect(search).toHaveAttribute("placeholder", "학생 이름 또는 전화번호 뒤 4·8자리");
     await search.fill("12345678");
