@@ -620,8 +620,9 @@ export async function handle(request, env, fetcher = fetch, context) {
         });
       }
     }
+    const roleLogin = ['student', 'guardian', 'teacher', 'admin'].includes(url.searchParams.get('demo'));
     const isConsoleLogin = pathname === '/login/dawon' ||
-      (pathname === '/login' && /(?:^|;\s*)dawon_console=1(?:;|$)/.test(request.headers.get('cookie') ?? ''));
+      (pathname === '/login' && (roleLogin || /(?:^|;\s*)dawon_console=1(?:;|$)/.test(request.headers.get('cookie') ?? '')));
     const isLearnerVideo = /^\/student\/video\/(?:sessions\/[1-9]\d*|play)\/?$/.test(pathname);
     const isLearnerIntake = /^\/student\/(?:clinic|community)\/?$/.test(pathname);
     const isNative = isConsoleLogin || isLearnerVideo || isLearnerIntake || /^\/(?:workspace|student\/(?:attendance|exams|submit\/school-report))(?:\/|$)/.test(pathname) || ['/terms', '/privacy'].includes(pathname)
