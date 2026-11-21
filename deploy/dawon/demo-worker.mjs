@@ -210,19 +210,25 @@ section[aria-label$="차시 카드"] .session-block__gear:focus-visible {
   }
   [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] table {
     table-layout: fixed;
-    width: 612px;
+    width: 628px;
     min-width: 100%;
   }
-  [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] :is(th, td) {
+  [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] table.ds-table :is(th, td) {
     box-sizing: border-box;
     padding-inline: 8px;
   }
   [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] thead th:nth-child(1) { width: 122px; }
   [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] thead th:nth-child(2) { width: 76px; }
-  [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] thead th:nth-child(3) { width: 48px; }
+  [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] thead th:nth-child(3) { width: 64px; }
   [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] thead th:nth-child(4) { width: 110px; }
   [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] thead th:nth-child(n+5) { width: 128px; }
   [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] td:nth-child(3) { white-space: nowrap; }
+  [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] .student-name-chip__name {
+    white-space: normal;
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+  }
   [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] td:is(:nth-child(2), :nth-child(4)) {
     word-break: keep-all;
     overflow-wrap: anywhere;
