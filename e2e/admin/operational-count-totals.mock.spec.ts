@@ -31,7 +31,7 @@ for (const width of [1366, 390]) {
         }
         if (path === "/results/admin/teacher-dashboard-counts/") {
           if (state === "unavailable") return json({ detail: "Temporarily unavailable" }, 503);
-          return json({ video_failed: 2, qna_pending: state === "invalid" ? -1 : 105, counsel_pending: 107, submission_pending: 205 });
+          return json({ video_failed: 2, qna_pending: state === "invalid" ? -1 : 105, counsel_pending: 107, submission_pending: 205, homework_review_pending: 0, homework_review_by_homework: {} });
         }
         if (path === "/community/admin/posts/") {
           obsoleteDetailRequests += 1;

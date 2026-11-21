@@ -18,6 +18,22 @@ export const SUBMISSION_STATUS_COLOR: Record<SubmissionStatus | "graded" | "pend
   processing: "blue",
 };
 
+const DISCARD_REASON_LABEL: Record<string, string> = {
+  scan_quality: "스캔 품질",
+  wrong_upload: "오업로드",
+  duplicate: "중복",
+  target_missing: "원본 없음",
+  operator_discarded: "운영자 폐기",
+  cascade_exam_deleted: "시험 삭제",
+  cascade_homework_deleted: "과제 삭제",
+  other: "기타",
+};
+
+export function discardReasonLabel(reason: string | null | undefined): string {
+  if (!reason) return "폐기";
+  return DISCARD_REASON_LABEL[reason] ?? reason;
+}
+
 export function formatSubmissionDate(iso: string): string {
   if (!iso) return "";
   const date = new Date(iso);

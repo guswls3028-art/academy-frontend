@@ -56,7 +56,7 @@ async function install(page: Page, state: ReturnType<typeof fixture>) {
     if (method === 'OPTIONS') return route.fulfill({ status: 204 });
     if (endpoint === '/core/program/') return json({ tenantCode: 'hakwonplus', isPlatformAdmin: true, display_name: '학원플러스', feature_flags: { section_mode: state.legacySection }, is_active: true });
     if (endpoint === '/core/me/') return json({ id: 12, username: 'admin', name: '관리자', is_staff: true, is_superuser: true, tenantRole: 'admin', must_change_password: false });
-    if (endpoint === '/results/admin/teacher-dashboard-counts/') return json({ qna_pending: 0, counsel_pending: 0, submission_pending: 0, video_failed: 0 });
+    if (endpoint === '/results/admin/teacher-dashboard-counts/') return json({ qna_pending: 0, counsel_pending: 0, submission_pending: 0, homework_review_pending: 0, homework_review_by_homework: {}, video_failed: 0 });
     if (endpoint === '/lectures/attendance/arrival-overview/') return json({ generated_at: '2026-11-05T00:00:00Z', today: '2026-11-05', tomorrow: '2026-11-06', range_end: '2026-11-11', range_days: 7, soon_window_minutes: 60, summary: { soon: 0, today: 0, tomorrow: 0, upcoming: 0, time_unset: 0, overdue: 0 }, items: [] });
     if (endpoint === '/lectures/lectures/instructor-options/') return json([{ name: '관리자', type: 'owner' }]);
     if (endpoint === '/lectures/sections/' && state.legacySection) return json([{ id: 41, label: 'A', section_type: 'CLASS', is_active: true, day_of_week_display: '수요일', start_time: '16:00' }]);
@@ -480,7 +480,7 @@ for (const [width, action] of [[390, "manage"], [1366, "manage"], [390, "add"], 
   const draftPath = '/api/v1/results/admin/sessions/9902/score-draft/';
   let releaseDraft!: () => void;
   const draftGate = new Promise<void>(resolve => { releaseDraft = resolve; });
-  const draftRead = page.waitForRequest(request => new URL(request.url()).pathname === draftPath && request.method() === 'GET');
+  let draftRequested = false;
   const writes: string[] = [];
   page.on('request', request => {
     const url = new URL(request.url());
@@ -490,13 +490,14 @@ for (const [width, action] of [[390, "manage"], [1366, "manage"], [390, "add"], 
   });
   await page.route(url => url.pathname === draftPath, async route => {
     if (route.request().method() !== 'GET') return route.fallback();
+    draftRequested = true;
     await draftGate;
     await route.fulfill({ json: { changes: [], active_editors: [] } });
   });
   try {
     await page.goto(`${BASE}${path}/scores?schedule=71`, { waitUntil: 'domcontentloaded' });
-    await draftRead;
     await expect(page.getByRole('checkbox', { name: '김수연 선택', exact: true })).toBeVisible();
+    await expect.poll(() => draftRequested).toBe(true);
     expect(writes).toEqual([]);
     const strip = page.getByRole('region', { name: '수업일 선택', exact: true });
     const manage = strip.getByRole('button', { name: '수업일 관리', exact: true });

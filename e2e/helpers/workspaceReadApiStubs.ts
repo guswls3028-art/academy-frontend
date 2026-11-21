@@ -17,7 +17,7 @@ const readFixtures: Record<string, unknown> = {
   "/api/v1/submissions/submissions/omr/batches/": [],
   "/api/v1/media/videos/": { count: 0, next: null, previous: null, results: [] },
   "/api/v1/core/landing/admin/consult/": { summary: { unread: 0 } },
-  "/api/v1/results/admin/teacher-dashboard-counts/": { video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 0 },
+  "/api/v1/results/admin/teacher-dashboard-counts/": { video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 0, homework_review_pending: 0, homework_review_by_homework: {} },
   "/api/v1/community/admin/reports/pending-count/": { count: 0 },
   "/api/v1/community/notifications/unread-count/": { count: 0 },
   "/api/v1/lectures/attendance/arrival-overview/": emptyArrivalOverview,

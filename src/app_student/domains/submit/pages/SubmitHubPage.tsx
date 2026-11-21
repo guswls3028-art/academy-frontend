@@ -17,6 +17,15 @@ const schoolReportLink = {
   Icon: IconGrade,
 };
 
+const homeworkLink = {
+  to: "/student/submit/assignment",
+  title: "과제 제출",
+  description: "풀이 사진·동영상을 올리고 이미 제출한 파일을 봅니다.",
+  badge: "동영상 / 사진",
+  tone: "assignment",
+  Icon: IconBoard,
+};
+
 const submitLinks = [
   {
     to: "/student/surveys",
@@ -35,14 +44,6 @@ const submitLinks = [
     Icon: IconGrade,
   },
   {
-    to: "/student/submit/assignment",
-    title: "과제 제출",
-    description: "동영상·사진을 제출하고 선생님 확인 결과를 확인합니다.",
-    badge: "동영상 / 사진",
-    tone: "assignment",
-    Icon: IconBoard,
-  },
-  {
     to: "/student/inventory",
     title: "내 인벤토리",
     description: "제출한 파일을 확인하고 관리합니다.",
@@ -54,15 +55,16 @@ const submitLinks = [
 
 export default function SubmitHubPage() {
   const { user } = useAuth();
-  const links = user?.tenantRole === "parent" ? submitLinks : [schoolReportLink, ...submitLinks];
+  const links = [homeworkLink, ...(user?.tenantRole === "parent" ? [] : [schoolReportLink]), ...submitLinks];
   return (
     <StudentPageShell
       title="제출"
       description="성적표나 과제 파일을 제출하고 학습 현황에서 결과를 확인하세요."
       descriptionMode="help"
+      actions={<Link className="stu-btn stu-btn--secondary" to="/student/grades?view=homework&homework_status=all">과제 확인 결과</Link>}
     >
       <div className={styles.stack}>
-{links.map(({ to, title, description, badge, tone, Icon }) => (
+        {links.map(({ to, title, description, badge, tone, Icon }) => (
           <Link
             key={to}
             to={to}

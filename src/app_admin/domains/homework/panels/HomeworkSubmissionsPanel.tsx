@@ -2,7 +2,7 @@
 /** 학생별 과제 제출 묶음과 파일별 업로드·검수 상태를 보여준다. */
 
 import { useMemo, useRef, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, CheckCircle2, FileImage, FileText, LoaderCircle, Video } from "lucide-react";
 
 import {
@@ -11,6 +11,7 @@ import {
   type HomeworkSubmissionRow,
 } from "@admin/domains/submissions/api/adminHomeworkSubmissions.api";
 import { fetchSessionScores, patchAssessmentCorrection, type SessionScoresResponse } from "@/shared/api/contracts/sessionScores";
+import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
@@ -63,6 +64,7 @@ function fileKindLabel(file: HomeworkSubmissionMediaFile): string {
 
 export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: number }) {
   const confirm = useConfirm();
+  const queryClient = useQueryClient();
   const hwQ = useAdminHomework(homeworkId);
   const homeworkTitle = hwQ.data?.title ?? "";
   const sessionId = Number(hwQ.data?.session_id);
@@ -118,6 +120,7 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
       });
     },
     onSuccess: async (_, { row, completed }) => {
+      void queryClient.invalidateQueries({ queryKey: notificationQueryKeys.operationalCounts });
       const [freshSubmissions, freshScores] = await Promise.all([q.refetch(), scoreQ.refetch()]);
       const current = freshSubmissions.data?.find((item) => item.id === row.id);
       if (freshSubmissions.isError || freshScores.isError || !current) {

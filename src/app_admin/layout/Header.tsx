@@ -19,6 +19,7 @@ import {
   Check as CheckIcon,
   Search as SearchIcon,
 } from "lucide-react";
+import { useHomeworkReviewForegroundAlert } from "@/shared/hooks/useHomeworkReviewForegroundAlert";
 import { useAdminNotificationCounts, type AdminNotificationItem } from "@admin/domains/admin-notifications";
 import { useProgram } from "@/shared/program";
 import { useAdminLayout } from "@admin/layout/useAdminLayout";
@@ -172,8 +173,14 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
     items: adminNotificationItems,
     failures: adminNotificationFailures,
     isFetching: adminNotificationsFetching,
+    dataUpdatedAt: notificationDataUpdatedAt,
     refetch: refetchAdminNotifications,
   } = useAdminNotificationCounts();
+  useHomeworkReviewForegroundAlert(
+    adminCounts.homeworkReviewByHomework,
+    notificationDataUpdatedAt,
+    "/workspace/results/submissions?homework=pending",
+  );
   const unreadCount = adminCounts.total;
   const hasNotificationFailures = adminNotificationFailures.length > 0;
 
@@ -492,6 +499,16 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
                   </span>
                 </div>
                 <div className="alarm-panel__list">
+                  <button
+                    type="button"
+                    className="alarm-panel__header-link"
+                    onClick={() => {
+                      setAlarmDropdownOpen(false);
+                      nav("/workspace/results/submissions?homework=all");
+                    }}
+                  >
+                    과제 제출 확인
+                  </button>
                   {hasNotificationFailures && adminNotificationItems.length === 0 ? (
                     <div className="alarm-panel__empty alarm-panel__empty--warning">
                       일부 알림을 불러오지 못했습니다. 다시 불러오기를 눌러주세요.

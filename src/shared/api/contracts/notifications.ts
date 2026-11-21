@@ -1,4 +1,5 @@
 import api from "@/shared/api/axios";
+import type { components } from "@/shared/api/generated/schema";
 import {
   fetchArrivalOverview,
   type ArrivalOverview,
@@ -11,6 +12,8 @@ export type OperationalNotificationCounts = {
   clinicPending: number;
   registrationRequestsPending: number;
   recentSubmissions: number;
+  homeworkReviewPending: number;
+  homeworkReviewByHomework: Readonly<Record<string, number>> | null;
   videoFailed: number;
   consultUnread: number;
   reportsPending: number;
@@ -28,6 +31,7 @@ export type OperationalNotificationSource =
   | "clinic"
   | "registration_requests"
   | "submissions"
+  | "homework_review"
   | "video_failed"
   | "consult"
   | "reports"
@@ -73,6 +77,8 @@ export function createEmptyOperationalNotificationCounts(): OperationalNotificat
     clinicPending: 0,
     registrationRequestsPending: 0,
     recentSubmissions: 0,
+    homeworkReviewPending: 0,
+    homeworkReviewByHomework: null,
     videoFailed: 0,
     consultUnread: 0,
     reportsPending: 0,
@@ -99,15 +105,34 @@ function countFromListEnvelope(data: unknown): number {
   return unwrapList<unknown>(data).length;
 }
 
+function readHomeworkReview(raw: unknown, total: number | null): Readonly<Record<string, number>> | null {
+  if (total === null || !raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const entries = Object.entries(raw as Record<string, unknown>);
+  const counts: Record<string, number> = {};
+  let sum = 0;
+  for (const [id, count] of entries) {
+    if (!/^[1-9]\d*$/.test(id) || !Number.isSafeInteger(Number(id)) ||
+        typeof count !== "number" || !Number.isSafeInteger(count) || count <= 0) return null;
+    counts[id] = count;
+    sum += count;
+  }
+  return sum === total ? counts : null;
+}
+
 async function fetchDashboardWorkCounts() {
-  const empty = { qna: null, counsel: null, submissions: null, video: null };
+  const empty = { qna: null, counsel: null, submissions: null, video: null, homework: null, homeworkById: null };
   try {
-    const { data } = await api.get<Record<string, unknown>>("/results/admin/teacher-dashboard-counts/");
-    const read = (key: string): number | null => {
+    type DashboardCounts = components["schemas"]["TeacherDashboardCounts"];
+    const { data } = await api.get<Partial<DashboardCounts>>("/results/admin/teacher-dashboard-counts/");
+    const read = (key: keyof DashboardCounts): number | null => {
       const value = data?.[key];
       return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
     };
-    return { qna: read("qna_pending"), counsel: read("counsel_pending"), submissions: read("submission_pending"), video: read("video_failed") };
+    const homework = read("homework_review_pending");
+    return {
+      qna: read("qna_pending"), counsel: read("counsel_pending"), submissions: read("submission_pending"),
+      video: read("video_failed"), homework, homeworkById: readHomeworkReview(data?.homework_review_by_homework, homework),
+    };
   } catch {
     return empty;
   }
@@ -205,7 +230,7 @@ export async function fetchOperationalNotificationCounts(
     loadArrivalOverview().catch(() => null),
   ]);
 
-  const { qna: qnaCount, counsel: counselCount, submissions: recentSubmissionsRes, video: videoFailedRes } = workCounts;
+  const { qna: qnaCount, counsel: counselCount, submissions: recentSubmissionsRes, video: videoFailedRes, homework, homeworkById } = workCounts;
 
   const failures: OperationalNotificationSource[] = [];
   if (qnaCount === null) failures.push("qna");
@@ -213,6 +238,7 @@ export async function fetchOperationalNotificationCounts(
   if (clinicPendingRes === null) failures.push("clinic");
   if (registrationRequestsRes.count === null) failures.push("registration_requests");
   if (recentSubmissionsRes === null) failures.push("submissions");
+  if (homeworkById === null) failures.push("homework_review");
   if (videoFailedRes === null) failures.push("video_failed");
   if (includeConsult && consultRes === null) failures.push("consult");
   if (reportsRes === null) failures.push("reports");
@@ -224,6 +250,7 @@ export async function fetchOperationalNotificationCounts(
   const clinicPending = clinicPendingRes ?? 0;
   const registrationRequestsPending = registrationRequestsRes.count ?? 0;
   const recentSubmissions = recentSubmissionsRes ?? 0;
+  const homeworkReviewPending = homeworkById === null ? 0 : homework ?? 0;
   const videoFailed = videoFailedRes ?? 0;
   const consultUnread = consultRes ?? 0;
   const reportsPending = reportsRes ?? 0;
@@ -240,6 +267,7 @@ export async function fetchOperationalNotificationCounts(
     clinicPending +
     registrationRequestsPending +
     recentSubmissions +
+    homeworkReviewPending +
     videoFailed +
     consultUnread +
     reportsPending +
@@ -249,7 +277,7 @@ export async function fetchOperationalNotificationCounts(
     arrivalsOverdue +
     arrivalsTimeUnset;
 
-  const requestedSourceCount = includeConsult ? 10 : 9;
+  const requestedSourceCount = includeConsult ? 11 : 10;
   if (failures.length === requestedSourceCount) {
     return {
       counts: createEmptyOperationalNotificationCounts(),
@@ -265,6 +293,8 @@ export async function fetchOperationalNotificationCounts(
       clinicPending,
       registrationRequestsPending,
       recentSubmissions,
+      homeworkReviewPending,
+      homeworkReviewByHomework: homeworkById,
       videoFailed,
       consultUnread,
       reportsPending,
@@ -346,6 +376,12 @@ export function buildOperationalNotificationItems(
   }
   if (counts.qnaPending > 0) {
     items.push({ type: "qna", label: "답변 대기 질문", count: counts.qnaPending, to: "/workspace/community/qna" });
+  }
+  if (counts.homeworkReviewPending > 0) {
+    items.push({
+      type: "homework_review", label: "확인 대기 과제 제출", count: counts.homeworkReviewPending,
+      to: "/workspace/results/submissions?homework=pending",
+    });
   }
   if (counts.recentSubmissions > 0) {
     items.push({ type: "submissions", label: "처리 대기 제출", count: counts.recentSubmissions, to: "/workspace/results/submissions" });

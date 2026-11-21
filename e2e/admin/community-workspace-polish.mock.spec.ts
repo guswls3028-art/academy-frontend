@@ -148,7 +148,7 @@ async function installApi(page: Page) {
         items: [],
       });
     }
-    if (path === "/results/admin/teacher-dashboard-counts/") return json({ video_failed: 0, qna_pending: answered ? 0 : 1, counsel_pending: 0, submission_pending: 0 });
+    if (path === "/results/admin/teacher-dashboard-counts/") return json({ video_failed: 0, qna_pending: answered ? 0 : 1, counsel_pending: 0, submission_pending: 0, homework_review_pending: 0, homework_review_by_homework: {} });
     if (path.includes("pending-count") || path.includes("unread-count")) return json({ count: 0 });
     return json({ count: 0, results: [] });
   });

@@ -43,6 +43,7 @@ import {
 import {
   SUBMISSION_STATUS_LABEL,
   SUBMISSION_STATUS_TONE,
+  discardReasonLabel,
   formatSubmissionDate,
 } from "@admin/domains/submissions/statusMaps";
 import {
@@ -50,6 +51,7 @@ import {
   type PendingSubmissionRow,
 } from "@/shared/api/contracts/submissions";
 import SubmissionInboxPager from "@/shared/ui/submissions/SubmissionInboxPager";
+import HomeworkReviewInbox from "@admin/domains/homework/public/HomeworkReviewInbox";
 import DiscardReasonModal from "../components/DiscardReasonModal";
 import SubmissionPreviewModal, {
   submissionFileKind,
@@ -123,22 +125,6 @@ function examSetupPath(row: PendingSubmissionRow, recovery: { action?: string; e
   return `/workspace/lectures/${row.lecture_id}/sessions/${row.session_id}/exams?exam_id=${row.target_id}&examTab=setup`;
 }
 
-const DISCARD_REASON_LABEL: Record<string, string> = {
-  scan_quality: "스캔 품질",
-  wrong_upload: "오업로드",
-  duplicate: "중복",
-  target_missing: "원본 없음",
-  operator_discarded: "운영자 폐기",
-  cascade_exam_deleted: "시험 삭제",
-  cascade_homework_deleted: "과제 삭제",
-  other: "기타",
-};
-
-function discardReasonLabel(reason: string | null | undefined): string {
-  if (!reason) return "폐기";
-  return DISCARD_REASON_LABEL[reason] ?? reason;
-}
-
 function orphanReasonLabel(row: PendingSubmissionRow): string {
   if (row.target_resolved_reason === "session_missing") {
     return row.target_type === "exam"
@@ -154,6 +140,19 @@ function orphanReasonLabel(row: PendingSubmissionRow): string {
 /* ─── Component ─── */
 
 export default function SubmissionsInboxPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const homework = searchParams.get("homework");
+  if (homework) return <HomeworkReviewInbox selection={homework} />;
+
+  return <ExamSubmissionsInbox onOpenHomework={() => {
+    const next = new URLSearchParams(searchParams);
+    next.set("homework", "all");
+    next.delete("homeworkList");
+    setSearchParams(next);
+  }} />;
+}
+
+function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const confirm = useConfirm();
@@ -535,9 +534,12 @@ export default function SubmissionsInboxPage() {
 
   return (
     <div className="space-y-5">
-      <p className="text-sm leading-relaxed text-[var(--color-text-muted)]">
-        대기 중인 제출은 모두 표시합니다. 완료·실패·폐기는 최근 24시간에 접수된 제출만 표시합니다.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm leading-relaxed text-[var(--color-text-muted)]">
+          대기 중인 시험 답안은 모두 표시합니다. 완료·실패·폐기는 최근 24시간에 접수된 답안만 표시합니다.
+        </p>
+        <Button intent="secondary" size="sm" onClick={onOpenHomework}>과제 제출 확인</Button>
+      </div>
       {identificationNotice && (
         <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4" data-testid="submission-identification-result">
           <p className="min-w-0 flex-1 text-sm">{identificationNotice.message}</p>

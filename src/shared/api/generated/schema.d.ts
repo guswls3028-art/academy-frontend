@@ -21530,6 +21530,10 @@ export interface components {
         };
         TeacherDashboardCounts: {
             counsel_pending: number;
+            homework_review_by_homework: {
+                [key: string]: number;
+            };
+            homework_review_pending: number;
             qna_pending: number;
             submission_pending: number;
             video_failed: number;
@@ -39127,7 +39131,10 @@ export interface operations {
     };
     student_grades_retrieve: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Use rows for exam/homework rows with Home todo eligibility; otherwise returns the full grade board. */
+                scope?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;

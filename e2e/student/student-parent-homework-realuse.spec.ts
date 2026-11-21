@@ -975,6 +975,14 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     const otherTitle = `QA 동명 강좌 과제 ${runStamp}`;
     const pendingHomework = todo.getByRole("link", { name: /^과제 제출 필요 2건/ });
     await expect(pendingHomework).toBeVisible();
+    const submitShortcut = page.getByRole("link", { name: /^자료 제출·확인/ });
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      await submitShortcut.scrollIntoViewIfNeeded();
+      await expect(submitShortcut).toBeInViewport();
+      await assertNoHorizontalOverflow(page);
+      await page.screenshot({ path: testInfo.outputPath(`student-submission-shortcut-${width}.png`) });
+    }
     await expect(pendingHomework).toContainText(homeworkTitle);
     await expect(pendingHomework).toContainText(otherTitle);
     const scopedSubmission = `${QA_BASE}/student/submit/assignment?sessionId=${created.sessionId}&homeworkId=${created.homeworkId}`;
@@ -1065,6 +1073,20 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       const staffPage = await staffContext.newPage();
       const staffBoundary = await installQaStudentParentBoundary(staffPage, request);
       const staffBrowser = attachStrictBrowserGuards(staffPage);
+      const pendingForHomework = async () => {
+        const result = await expectApi<{ homework_review_by_homework: Record<string, number> }>(
+          request, "GET", "/results/admin/teacher-dashboard-counts/", staffTokens.access,
+        );
+        expect(result.homework_review_by_homework).toBeDefined();
+        return result.homework_review_by_homework[String(created.homeworkId)] ?? 0;
+      };
+      const expectHomeworkClearedFromPending = async (homeworkChoice: Locator) => {
+        await expect(staffPage).toHaveURL(/[?&]homework=pending(?:&|$)/);
+        const empty = staffPage.getByText("확인 대기 과제가 없습니다", { exact: true });
+        const list = staffPage.getByRole("list", { name: "검토할 과제", exact: true });
+        await expect(empty.or(list)).toBeVisible();
+        await expect(homeworkChoice).toHaveCount(0);
+      };
       await seedBrowserAuth(staffPage, staffTokens);
       await gotoAndSettle(staffPage, `${QA_BASE}/workspace/mobile/homeworks/${created.homeworkId}`, { timeout: 30_000 });
       await expect(staffPage.getByRole("heading", { name: homeworkTitle, exact: true })).toBeVisible();
@@ -1112,7 +1134,14 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
           staffPage.off("request", observeManualSend);
         }
       });
-      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/mobile/homeworks/${created.homeworkId}`);
+      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/mobile/notifications`);
+      await staffPage.getByRole("button", { name: "과제 제출 확인", exact: true }).click();
+      const mobileHomeworkChoice = staffPage.getByRole("link").filter({ hasText: homeworkTitle });
+      await expect(mobileHomeworkChoice).toContainText(lectureTitle);
+      await assertNoHorizontalOverflow(staffPage);
+      await expect.poll(pendingForHomework).toBe(0);
+      await mobileHomeworkChoice.click();
+      await expect(staffPage.getByRole("heading", { name: homeworkTitle, exact: true })).toBeVisible();
       await staffPage.getByRole("button", { name: "과제 검사", exact: true }).click();
       const mobileInspection = staffPage.getByRole("dialog", { name: "과제 검사", exact: true });
       await mobileInspection.getByLabel("학생 선택").selectOption(String(created.enrollmentId));
@@ -1169,6 +1198,11 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
         studentTokens.access,
         (row) => row.submission_state === "awaiting_review" && row.score === null,
       );
+      await page.getByRole("link", { name: "과제 확인 결과", exact: true }).click();
+      const allHomework = page.getByRole("group", { name: "과제 상태 필터" }).getByRole("button", { name: /^전체/ });
+      await expect(allHomework).toHaveAttribute("aria-pressed", "true");
+      const submittedCard = page.locator(".stu-panel[data-session-type]").filter({ has: page.getByText(homeworkTitle, { exact: true }) });
+      await expect(submittedCard).toContainText("온라인 제출물 확인 대기");
       const studentHomeRows = await openHomeWithGradeRows(page);
       expect(studentHomeRows).toContainEqual(expect.objectContaining({
         homework_id: created.homeworkId,
@@ -1186,7 +1220,16 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await assertNoHorizontalOverflow(page);
       // Keep the assistant detail open: discovery must not depend on navigation
       // or manual reload after the student's successful submission.
+      await staffPage.bringToFront();
       await expect(fileRow).toBeVisible({ timeout: 30_000 });
+      await staffPage.getByRole("button", { name: /^알림(?:$| \d+건| 일부 확인 필요)/ }).click();
+      await staffPage.getByRole("button", { name: /확인 대기 과제 제출/ }).click({ timeout: 40_000 });
+      await expect(mobileHomeworkChoice).toContainText("확인 대기 1건");
+      await expect(staffPage.getByRole("link").filter({ hasText: otherTitle })).toHaveCount(0);
+      await assertNoHorizontalOverflow(staffPage);
+      await staffPage.screenshot({ path: testInfo.outputPath("assistant-homework-finder-390.png") });
+      await mobileHomeworkChoice.click();
+      await expect(fileRow).toBeVisible();
       await applyHomeworkPreviewCsp(staffPage);
       await staffPage.getByRole("button", { name: "제출물 확인" }).click();
       const preview = staffPage.getByRole("dialog", { name: `${student.name} 제출 확인` });
@@ -1207,6 +1250,14 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await expect(preview).toBeHidden();
       await expect(submissionRow).toHaveCount(1);
       await expect(submissionRow.getByText("확인 완료", { exact: true })).toBeVisible();
+      await expect.poll(pendingForHomework).toBe(0);
+      await staffPage.getByRole("button", { name: "뒤로 가기", exact: true }).click();
+      await expectHomeworkClearedFromPending(mobileHomeworkChoice);
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await expectHomeworkClearedFromPending(mobileHomeworkChoice);
+      await staffPage.getByRole("button", { name: "전체 과제 보기", exact: true }).click();
+      await mobileHomeworkChoice.click();
+      await expect(submissionRow.getByText("확인 완료", { exact: true })).toBeVisible();
       const completedRows = await expectApi<Array<{ enrollment_id: number; teacher_reviewed: boolean; teacher_review_source: string | null }>>(
         request, "GET", `/submissions/submissions/homework/${created.homeworkId}/`, staffTokens.access,
       );
@@ -1214,6 +1265,13 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
         enrollment_id: created.enrollmentId, teacher_reviewed: true, teacher_review_source: "manual",
       })]));
       await waitForHomeworkSummary(request, studentTokens.access, (row) => row.score === null && row.submission_media_locked === true);
+      await page.getByRole("link", { name: /^자료 제출·확인/ }).click();
+      await page.getByRole("link", { name: "과제 확인 결과", exact: true }).click();
+      await expect(submittedCard).toContainText("교사 확인 완료");
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(allHomework).toHaveAttribute("aria-pressed", "true");
+      await expect(submittedCard).toContainText("교사 확인 완료");
+      await assertNoHorizontalOverflow(page);
       await staffPage.reload({ waitUntil: "domcontentloaded" });
       await expect(fileRow).toBeVisible();
       await expect(submissionRow.getByText("확인 완료", { exact: true })).toBeVisible();
@@ -1249,8 +1307,16 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
         body: await staffPage.screenshot({ fullPage: true }),
         contentType: "image/png",
       });
-      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/assignments?assessment=homework%3A${created.homeworkId}`, { timeout: 30_000 });
-      await staffPage.getByRole("tab", { name: "제출관리", exact: true }).click();
+      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/results/submissions`, { timeout: 30_000 });
+      await staffPage.getByRole("button", { name: /^알림(?:$| \(일부 로드 실패\)$)/ }).click();
+      await staffPage.getByRole("button", { name: /확인 대기 과제 제출/ }).click();
+      const pcHomeworkChoice = staffPage.getByRole("link").filter({ hasText: homeworkTitle });
+      await expect(pcHomeworkChoice).toContainText(lectureTitle);
+      await expect(pcHomeworkChoice).toContainText("확인 대기 1건");
+      await expect(staffPage.getByRole("link").filter({ hasText: otherTitle })).toHaveCount(0);
+      await assertNoHorizontalOverflow(staffPage);
+      await staffPage.screenshot({ path: testInfo.outputPath("assistant-homework-finder-1366.png") });
+      await pcHomeworkChoice.click();
       await expect(staffPage.getByRole("heading", { name: "과제 제출 검수" })).toBeVisible();
       await applyHomeworkPreviewCsp(staffPage);
       const pcComplete = staffPage.getByRole("button", { name: "직접 확인 완료" });
@@ -1280,7 +1346,11 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await expect(staffPage.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
       await waitForHomeworkSummary(request, studentTokens.access, (row) => row.score === null && row.submission_media_locked === true);
       await staffPage.reload({ waitUntil: "domcontentloaded" });
-      await staffPage.getByRole("tab", { name: "제출관리", exact: true }).click();
+      await expect(staffPage.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
+      await staffPage.getByRole("button", { name: "과제 목록으로 돌아가기", exact: true }).click();
+      await expectHomeworkClearedFromPending(pcHomeworkChoice);
+      await staffPage.getByRole("button", { name: "전체 과제 보기", exact: true }).click();
+      await pcHomeworkChoice.click();
       await expect(staffPage.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
       await assertNoHorizontalOverflow(staffPage);
       await testInfo.attach("assistant-homework-pc-review-1366", {
@@ -1296,9 +1366,9 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await staffPage.getByRole("button", { name: "확인 완료 취소" }).click();
       await staffPage.getByRole("alertdialog").getByRole("button", { name: "확인 취소", exact: true }).click();
       expect((await pcCancelled).status()).toBe(200);
+      await expect.poll(pendingForHomework).toBe(1);
       await waitForHomeworkSummary(request, studentTokens.access, (row) => row.score === null && row.submission_media_locked === false);
       await staffPage.reload({ waitUntil: "domcontentloaded" });
-      await staffPage.getByRole("tab", { name: "제출관리", exact: true }).click();
       await expect(staffPage.getByRole("button", { name: "직접 확인 완료" })).toBeDisabled();
 
       // A real HEVC object must survive submission/reload and display actual
@@ -1323,7 +1393,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await expectRealHomeworkVideo(page.getByRole("region", { name: "제출 파일 미리보기" }));
       await assertNoHorizontalOverflow(page);
       await page.getByRole("button", { name: "미리보기 닫기", exact: true }).click();
-      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/assignments?homeworkId=${created.homeworkId}`);
       await staffPage.getByRole("tab", { name: "제출관리", exact: true }).click();
       await staffPage.locator('[class*="fileRow"]').filter({ hasText: videoUploadName })
         .getByRole("button", { name: "미리보기", exact: true }).click();

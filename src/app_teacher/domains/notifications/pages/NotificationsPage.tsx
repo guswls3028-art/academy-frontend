@@ -32,6 +32,7 @@ const ICON_MAP: Record<ItemType, ReactNode> = {
   clinic: <Calendar size={ICON.sm} />,
   registration_requests: <UserPlus size={ICON.sm} />,
   submissions: <ClipboardList size={ICON.sm} />,
+  homework_review: <ClipboardList size={ICON.sm} />,
   video_failed: <Video size={ICON.sm} />,
   consult: <MessageCircle size={ICON.sm} />,
   reports: <ClipboardList size={ICON.sm} />,
@@ -48,6 +49,7 @@ const DEST_LABEL: Record<ItemType, string> = {
   clinic: "클리닉에서 처리",
   registration_requests: "소통에서 승인",
   submissions: "제출함에서 처리",
+  homework_review: "확인 대기 과제 목록 보기",
   video_failed: "영상에서 재시도",
   consult: "관리실에서 응대",
   reports: "커뮤니티 신고함에서 검토",
@@ -103,6 +105,12 @@ export default function NotificationsPage() {
             총 {knownTotal}건
           </Badge>
         ) : null}
+      </div>
+
+      <div className="self-start">
+        <EmptyActionButton variant="secondary" onClick={() => navigate("/workspace/mobile/submissions?homework=all")}>
+          과제 제출 확인
+        </EmptyActionButton>
       </div>
 
       {/* SSOT 안내: 같은 데이터를 Today에서도 빠르게 확인 가능 */}
