@@ -43,7 +43,7 @@ function StudentDirectory({ role }: { role: "admin" | "teacher" }) {
   const entry = state?.directorySearchEntry ?? key;
   const [draft, setDraft] = useState<{ entry: string; text: string } | null>(null);
   const [composing, setComposing] = useState(false);
-  const search = draft?.entry === entry ? draft.text : savedSearch;
+  const search = draft && draft.entry === entry ? draft.text : savedSearch;
   const settledSearch = useDebouncedValue(search);
   useEffect(() => {
     if (composing || search === savedSearch || settledSearch !== search) return;
