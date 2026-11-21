@@ -805,11 +805,16 @@ export default function SessionScoresEntryPage({
       setIsSaving(false);
     }
   };
+  const hasRecoveryBlock = draft.recoveryCheckFailed || draft.editLockConflict || draft.hasDraftToRestore;
+  const managementReadiness = draft.isRecoveryCheckPending
+    ? "pending"
+    : hasRecoveryBlock || isSaving || draft.isStartingEdit || isEditMode || draft.hasPendingChanges
+      ? "blocked"
+      : "ready";
   useBeforeScheduleChange(async (action) => {
     const canViewWhileCheckingDraft = action === "view" && !isEditMode && !draft.hasPendingChanges
       && draft.draftStatus !== "saving" && draft.draftStatus !== "error";
-    const recoveryBlocksChange = draft.recoveryCheckFailed || draft.editLockConflict || draft.hasDraftToRestore
-      || (draft.isRecoveryCheckPending && !canViewWhileCheckingDraft);
+    const recoveryBlocksChange = hasRecoveryBlock || (draft.isRecoveryCheckPending && !canViewWhileCheckingDraft);
     if (isSaving || draft.isStartingEdit || recoveryBlocksChange) {
       feedback.info("진행 중인 저장이나 복구를 마친 뒤 다시 시도해 주세요.");
       return false;
@@ -821,7 +826,7 @@ export default function SessionScoresEntryPage({
     setShowBulkScoreModal(false);
     setShowStudentReport(false);
     return true;
-  });
+  }, managementReadiness);
   const selectedHasSubjectivePending = (data?.rows ?? []).some((row) => (
     selectedEnrollmentIds.includes(row.enrollment_id)
     && isScoreAlimtalkAttendance(row, includeVideoInScoreAlimtalk)

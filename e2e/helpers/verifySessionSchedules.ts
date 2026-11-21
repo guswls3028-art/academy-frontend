@@ -251,7 +251,10 @@ export async function verifySessionSchedules(
 
     phase = 'assessment-schedule-conflict-removal';
     // Another authorized editor mutates this same synthetic configuration; the UI must retain its draft on 409.
-    await page.getByRole('button', { name: '수업일 관리', exact: true }).click();
+    const manage = strip.getByRole('button', { name: '수업일 관리', exact: true });
+    await expect(manage).toBeEnabled();
+    await manage.click();
+    await expect(modal).toBeVisible();
     await modal.getByRole('region', { name: '수업일 목록', exact: true }).getByRole('button', { name: /^수요일반/ }).click();
     await modal.getByLabel('수업일 1 이름', { exact: true }).fill('수요일 작성 중');
     const concurrent = await expectApi<SessionSchedules>(request, 'PUT', endpoint, admin.access, {
