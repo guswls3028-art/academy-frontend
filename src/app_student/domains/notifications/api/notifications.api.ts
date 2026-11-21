@@ -5,7 +5,7 @@
  */
 import { fetchMyClinicBookingRequests } from "@student/domains/clinic/api/clinicBooking.api";
 import { fetchMyQuestions, fetchMyCounselRequests } from "@student/domains/community/api/community.api";
-import { fetchMyGradesSummary } from "@student/domains/grades/api/grades.api";
+import { fetchMyGradeRows, fetchMyGradesSummary } from "@student/domains/grades/api/grades.api";
 import { isNotificationSeen } from "../hooks/useSeenNotifications";
 import type { QueryClient } from "@tanstack/react-query";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
@@ -24,6 +24,7 @@ export type FetchNotificationCountsOptions = {
   profileId: number;
   queryClient: QueryClient;
   recovering?: boolean;
+  fullGradeBoard?: boolean;
 };
 
 export const NOTIFICATION_COUNTS_REFRESH_INTERVAL_MS = 60_000;
@@ -43,7 +44,9 @@ export async function fetchNotificationCounts(
     cached(studentQueryKeys.clinicBookings, fetchMyClinicBookingRequests),
     cached(studentQueryKeys.notificationQuestions, () => fetchMyQuestions(options.profileId, 50)),
     cached(studentQueryKeys.notificationCounsel, () => fetchMyCounselRequests(options.profileId, 50)),
-    cached(studentQueryKeys.gradesSummary, fetchMyGradesSummary),
+    options.fullGradeBoard
+      ? cached(studentQueryKeys.gradesSummary, fetchMyGradesSummary)
+      : cached(studentQueryKeys.gradeRows, fetchMyGradeRows),
   ]);
 
   const clinic = clinicBookings.filter((b) => {

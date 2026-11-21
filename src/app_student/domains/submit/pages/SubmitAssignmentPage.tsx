@@ -5,7 +5,7 @@ import { Link, useLocation, useSearchParams } from "react-router";
 
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
-import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
+import { useMyGradeRows } from "@student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
 import type { HomeworkMediaFile } from "@student/domains/submit/api/homeworkMedia.api";
 import { fetchHomeworkMedia, removeHomeworkMedia } from "@student/domains/submit/api/homeworkMedia.api";
@@ -128,7 +128,7 @@ export default function SubmitAssignmentPage() {
   const [error, setError] = useState<string | null>(null);
   const [reviewLocked, setReviewLocked] = useState(false);
   const [previewFile, setPreviewFile] = useState<HomeworkMediaFile | null>(null);
-  const gradesQ = useMyGradesSummary();
+  const gradesQ = useMyGradeRows();
   const grades = gradesQ.data;
 
   const unfinishedHomeworks = useMemo(

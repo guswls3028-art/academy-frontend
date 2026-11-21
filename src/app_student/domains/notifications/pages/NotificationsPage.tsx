@@ -13,7 +13,7 @@ import { useMarkNotificationsSeen } from "../hooks/useSeenNotifications";
 import { fetchMyClinicBookingRequests } from "@student/domains/clinic/api/clinicBooking.api";
 import { fetchMyQuestions, fetchMyCounselRequests } from "@student/domains/community/api/community.api";
 import { fetchMyProfile } from "@student/domains/profile/api/profile.api";
-import { fetchMyGradesSummary } from "@student/domains/grades/api/grades.api";
+import { fetchMyGradeRows } from "@student/domains/grades/api/grades.api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { IconChevronRight, IconClinic, IconNotice } from "@student/shared/ui/icons/Icons";
@@ -118,8 +118,8 @@ function ActivityNotifications() {
   });
 
   const { data: gradesSummary, isLoading: gradesLoading, isError: gradesError } = useQuery({
-    queryKey: studentQueryKeys.gradesSummary,
-    queryFn: fetchMyGradesSummary,
+    queryKey: studentQueryKeys.gradeRows,
+    queryFn: fetchMyGradeRows,
     staleTime: 30000,
   });
 
