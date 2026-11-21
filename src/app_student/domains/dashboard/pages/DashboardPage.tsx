@@ -23,7 +23,7 @@ import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 import { useStudentDashboard } from "../hooks/useStudentDashboard";
 import type { StudentDashboardResponse } from "../api/dashboard.api";
 import { useHomeSessions } from "@student/domains/sessions/hooks/useStudentSessions";
-import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
+import { useMyGradeRows } from "@student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
 import { getExamPassStatus } from "@student/domains/grades/public/examPassStatus";
 import { calculateHomeworkStats } from "@student/domains/grades/public/homeworkStats";
@@ -201,7 +201,7 @@ export default function DashboardPage() {
   const feesEnabled = useFeesEnabled();
   const dashboardQ = useStudentDashboard();
   const sessionsQ = useHomeSessions();
-  const gradesQ = useMyGradesSummary({ reuseFreshData: true });
+  const gradesQ = useMyGradeRows({ reuseFreshData: true });
   const examsQ = useStudentExams({ include_upcoming: true });
   const notificationCountsQ = useNotificationCounts();
   const dashboard = dashboardQ.data;
@@ -970,7 +970,7 @@ function LearningStatusCard({
   now,
   wrongCompletionOnly,
 }: {
-  gradesQ: ReturnType<typeof useMyGradesSummary>;
+  gradesQ: ReturnType<typeof useMyGradeRows>;
   sessionsQ: ReturnType<typeof useHomeSessions>;
   now: number;
   wrongCompletionOnly: boolean;
