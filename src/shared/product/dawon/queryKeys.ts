@@ -11,8 +11,8 @@ const courseRoster = (course:number) => ["dawon","admin","course-roster",course]
 export const dawonQueryKeys = {
   adminStudents:students,
   adminStudentRoot:individual,
-  studentPage:(filters:Record<string,string|number>)=>[...students,filters] as const,
-  studentDetail:(id:string|null)=>[...individual,id] as const,
+  studentPage:(role:"teacher"|"admin", filters:Record<string,string|number>)=>[...students,role,filters] as const,
+  studentDetail:(role:"teacher"|"admin", id:string|null)=>[...individual,role,id] as const,
   courseRoster,
   courseRosterPage:(course:number, search:string, offset:number)=>[...courseRoster(course),search,offset] as const,
   adminCandidates:(url:string|undefined,search:string,offset:number,grade:string)=>[...roster,url,search,offset,"admin-page",grade] as const,

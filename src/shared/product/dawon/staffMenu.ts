@@ -23,7 +23,7 @@ export const staffGuide = (role: StaffRoom) => ({
     {title: "직원 근태·급여", description: "담당 직원을 검색하고 조회할 월을 선택합니다.", path: "/workspace/staff"},
   ] : [
     {title: "수업 진행", description: "담당 반에서 강의와 차시를 선택해 출결·시험·과제를 기록합니다.", path: "/workspace/lectures"},
-    {title: "담당 학생", description: "반 명단에서 학생을 찾아 수강 정보를 확인합니다.", path: "/workspace/students/home"},
+    {title: "담당 학생", description: "학생 명단에서 이름이나 반으로 찾아 수강 정보를 확인합니다.", path: "/workspace/students/home"},
   ]}],
 });
 

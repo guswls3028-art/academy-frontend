@@ -208,7 +208,7 @@ export default function AdminRouter() {
         {/* ================= Students (SSOT) ================= */}
         <Route path="students" element={renderLazyRoute(StudentsLayout)}>
           <Route index element={<Navigate to="home" replace />} />
-          <Route path="home" element={renderLazyRoute(previewRole === "teacher" ? ClassGroupsPage : StudentsHomePage)} />
+          <Route path="home" element={renderLazyRoute(previewRole === "teacher" ? DawonAdminStudents : StudentsHomePage)} />
           <Route path="class-groups" element={renderLazyRoute(ClassGroupsPage)} />
           <Route path="surveys" element={renderLazyRoute(SurveysPage)} />
           <Route path="surveys/school-reports" element={renderLazyRoute(DawonSchoolReportCohorts)} />

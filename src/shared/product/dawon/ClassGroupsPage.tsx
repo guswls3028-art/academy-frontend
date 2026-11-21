@@ -17,14 +17,14 @@ import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/
 import ClassRosterModal, { type RosterStudent } from "./ClassRosterModal";
 import styles from "./ClassGroupsPage.module.css";
 import DawonClassRecords from "./DawonClassRecords";
+import { dawonUnionTracks, type DawonClassKind } from "./classTypes";
 
 const LectureCreateModal = lazy(() => import("@admin/domains/lectures/components/LectureCreateModal"));
 
 const endpoint = "/students/class-groups/";
-const tracks = ["1%", "HYPER", "SKY"] as const;
 const periods = { vacation: "방학", midterm: "내신 · 중간", final: "내신 · 기말" };
 
-type Kind = "union" | "school";
+type Kind = DawonClassKind;
 type Period = keyof typeof periods;
 type Group = { instructor_name?:string; id: number; name: string; kind: Kind; track: string; school: string; student_count: number; lecture_count: number };
 type Lecture = { id: number; title: string; period: Period; school: string; start_date: string; end_date: string; student_count: number; cycle_status: "upcoming" | "current" | "past"; color?: string; chip_label?: string; lecture_time?: string };
@@ -88,7 +88,7 @@ function GroupForm({ admin, onCreated, onCancel }: { admin: boolean; onCreated: 
             </label>
           </fieldset>
           {kind === "union"
-            ? <label>연합반 과정 <select name="track" required>{tracks.map((track) => <option key={track}>{track}</option>)}</select></label>
+            ? <label>연합반 과정 <select name="track" required>{dawonUnionTracks.map((track) => <option key={track}>{track}</option>)}</select></label>
             : <label>학교 이름 <input name="school" maxLength={100} required placeholder="학생 정보에 등록된 학교 이름" /></label>}
           {create.isError && failure(create.error)}
         </form>
@@ -196,7 +196,8 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
     void client.invalidateQueries({ queryKey: admin ? dawonQueryKeys.adminGroups : dawonQueryKeys.groups, exact: true });
     if (admin) void client.invalidateQueries({queryKey:dawonQueryKeys.adminOperations});
     void client.invalidateQueries({ queryKey: dawonQueryKeys.roster });
-    if (admin) { void client.invalidateQueries({queryKey:dawonQueryKeys.adminStudents}); void client.invalidateQueries({queryKey:dawonQueryKeys.adminStudentRoot}); }
+    void client.invalidateQueries({queryKey:dawonQueryKeys.adminStudents});
+    void client.invalidateQueries({queryKey:dawonQueryKeys.adminStudentRoot});
     setNotice(mode === "add" ? `${ids.length}명을 배정했습니다.` : `${ids.length}명을 반 명단에서 제외했습니다.`);
     stopEditing();
   };
