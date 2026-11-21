@@ -5,6 +5,7 @@ import { getTenantCodeForApiRequest } from "@/shared/tenant";
 type AssessmentListItem = {
   id: number;
   title: string;
+  session?: number;
   created_at?: string;
   exam_type?: string;
   max_score?: number;

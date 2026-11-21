@@ -604,7 +604,7 @@ export default function DashboardPage() {
         </section>
       )}
 
-      <section className={`${styles.quickSection} ${styles.contentShortcuts}`} aria-label="게시판과 자료실">
+      <section className={styles.quickSection} aria-label="게시판과 자료실">
         <div className={styles.sectionLabel}>학원 소식·자료</div>
         <div className={styles.quickGrid}>
           <QuickAction
@@ -625,6 +625,7 @@ export default function DashboardPage() {
       <section className={styles.quickSection} aria-label="자주 쓰는 일">
         <div className={styles.sectionLabel}>자주 쓰는 일</div>
         <div className={styles.quickGrid}>
+          <QuickAction to="/student/submit" icon={<IconClipboard />} label="자료 제출·확인" detail="과제·성적표·설문" />
           <QuickAction
             to="/student/qna"
             state={{ openQnaForm: true }}
@@ -799,6 +800,7 @@ function ParentDashboardView({
       <section className={styles.quickSection} aria-label="학부모 주요 확인">
         <div className={styles.sectionLabel}>바로 확인</div>
         <div className={styles.quickGrid}>
+          <QuickAction to="/student/submit" icon={<IconClipboard />} label="자료 제출·확인" detail="자녀의 과제·성적표·설문" />
           <QuickAction
             to="/student/qna"
             state={{ openQnaForm: true }}

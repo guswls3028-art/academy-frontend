@@ -33,6 +33,7 @@ import {
 } from "@/shared/api/contracts/submissions";
 import { teacherResultsQueryKeys } from "@teacher/domains/results/queryKeys";
 import SubmissionInboxPager from "@/shared/ui/submissions/SubmissionInboxPager";
+import HomeworkReviewPicker from "@/shared/ui/submissions/HomeworkReviewPicker";
 
 type FilterKey = "pending" | "done" | "failed" | "all";
 
@@ -84,6 +85,42 @@ function isTargetResolved(row: PendingSubmissionRow): boolean {
 }
 
 export default function SubmissionsInboxPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const homework = searchParams.get("homework");
+  const showingHomework = homework === "all" || homework === "pending";
+  const pendingOnly = homework === "pending";
+
+  function selectHomeworkList(view?: "all" | "pending") {
+    setSearchParams((previous) => {
+      const next = new URLSearchParams(previous);
+      if (view) next.set("homework", view);
+      else next.delete("homework");
+      return next;
+    });
+  }
+
+  if (!showingHomework) return <ExamSubmissionsInbox onOpenHomework={() => selectHomeworkList("all")} />;
+
+  return (
+    <section className="flex flex-col gap-3" aria-label="과제 제출 확인">
+      <div className="flex flex-wrap items-center justify-between gap-2 py-0.5">
+        <h1 className="text-[17px] font-bold text-[var(--tc-text)]">과제 제출 확인</h1>
+        <EmptyActionButton variant="secondary" onClick={() => selectHomeworkList()}>제출함으로 돌아가기</EmptyActionButton>
+      </div>
+      <div className="self-start">
+        <EmptyActionButton variant="secondary" onClick={() => selectHomeworkList(pendingOnly ? "all" : "pending")}>
+          {pendingOnly ? "전체 과제 보기" : "확인 대기만 보기"}
+        </EmptyActionButton>
+      </div>
+      <HomeworkReviewPicker
+        fromInbox pendingOnly={pendingOnly}
+        homeworkPath={(id) => `/workspace/mobile/homeworks/${id}?from=${pendingOnly ? "pending" : "submissions"}`}
+      />
+    </section>
+  );
+}
+
+function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -222,9 +259,10 @@ export default function SubmissionsInboxPage() {
       <div className="flex items-center gap-2 py-0.5">
         <BackButton onClick={() => navigate(-1)} />
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>제출함</h1>
+        <EmptyActionButton variant="secondary" onClick={onOpenHomework}>과제 제출 확인</EmptyActionButton>
       </div>
       <p className="text-[13px] leading-relaxed text-[var(--tc-text-muted)]">
-        대기 중인 제출은 모두 표시합니다. 완료·실패·폐기는 최근 24시간에 접수된 제출만 표시합니다.
+        대기 중인 시험 답안은 모두 표시합니다. 완료·실패·폐기는 최근 24시간에 접수된 답안만 표시합니다.
       </p>
 
       {/* 원본 없음 일괄 폐기 배너 — 2건 이상일 때만 노출. 학원장 노동 압축. */}

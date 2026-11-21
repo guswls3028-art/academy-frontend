@@ -1,10 +1,11 @@
 // PATH: src/app_admin/domains/exams/queryKeys.ts
 
+import { assessmentQueryKeys } from "@/shared/api/queryKeys/assessments";
 import { submissionsQueryKeys } from "@/shared/api/queryKeys/submissions";
 
 export const adminExamsQueryKeys = {
-  adminExamsLectures: ["admin-exams-lectures"] as const,
-  lectureSessionsAll: ["lecture-sessions-all"] as const,
+  adminExamsLectures: assessmentQueryKeys.allLectures,
+  lectureSessionsAll: assessmentQueryKeys.allLectureSessions,
   adminExamsForSession: (sessionId: number | null | undefined) => ["admin-exams", sessionId] as const,
 
   examDetail: (examId: number | null | undefined) => ["exam-detail", examId] as const,
