@@ -9,6 +9,7 @@ const students = ["dawon","admin","students"] as const;
 const individual = ["dawon","admin","student"] as const;
 const courseRoster = (course:number) => ["dawon","admin","course-roster",course] as const;
 export const dawonQueryKeys = {
+  monthlyPayroll: (month: string) => ["dawon", "admin", "payroll", month] as const,
   adminStudents:students,
   adminStudentRoot:individual,
   studentPage:(role:"teacher"|"admin", filters:Record<string,string|number>)=>[...students,role,filters] as const,

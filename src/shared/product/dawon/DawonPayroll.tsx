@@ -4,11 +4,14 @@ import { useSearchParams } from "react-router";
 import api from "@/shared/api/axios";
 import DomainTable from "@/shared/ui/domain/DomainTable";
 import { Button } from "@/shared/ui/ds";
+import { dawonQueryKeys } from "./queryKeys";
 import styles from "./DawonStaff.module.css";
 
 type Row = {id:number; name:string; position:"DIRECTOR"|"INSTRUCTOR"|"ASSISTANT"|"STAFF"; minutes:number|null; work_amount:number|null; expense_amount:number|null;
   total_amount:number|null; state:"confirmed"|"estimate"|"missing"; open_count:number};
 const states={confirmed:"확정",estimate:"예상",missing:"미확정"};
+const byName=new Intl.Collator("ko",{numeric:true});
+const positionOrder={DIRECTOR:0,INSTRUCTOR:1,ASSISTANT:2,STAFF:3};
 const money=(value:number|null)=>value==null ? "—" : value.toLocaleString("ko-KR")+"원";
 const duration=(value:number|null)=>value==null ? "—" : Math.floor(value/60)+"시간 "+value%60+"분";
 const normalize=(v:string)=>v.replace(/\s+/g,"").toLocaleLowerCase();
@@ -19,8 +22,10 @@ export default function DawonPayroll({month,labels,detail}:{month:string; labels
   const [chosen,setChosen]=useState<Set<number>>(()=>new Set());
   const search=params.get("paySearch") || "";
   const state=params.get("payState") || "";
-  const payroll=useQuery({queryKey:["dawon","admin","payroll",month],queryFn:async({signal})=>
-    (await api.get<{month:string;rows:Row[]}>("/students/demo-staff/",{params:{view:"payroll",month},signal})).data});
+  const payroll=useQuery({queryKey:dawonQueryKeys.monthlyPayroll(month),queryFn:async({signal})=>{
+    const {data}=await api.get<{month:string;rows:Row[]}>("/students/demo-staff/",{params:{view:"payroll",month},signal});
+    return {...data,rows:[...data.rows].sort((a,b)=>positionOrder[a.position]-positionOrder[b.position] || byName.compare(a.name,b.name))};
+  }});
   const all=payroll.data?.rows ?? [];
   const filtered=all.filter(r=>(!state || r.state===state) && normalize(r.name+" "+(labels[r.position] ?? r.position)).includes(normalize(search)));
   const selected=all.filter(r=>chosen.has(r.id));
