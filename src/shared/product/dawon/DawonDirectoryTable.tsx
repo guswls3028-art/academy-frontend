@@ -11,7 +11,8 @@ export type DirectorySort = {key: string; ascending: boolean};
 
 const compareText = new Intl.Collator("ko", {numeric: true});
 
-export default function DawonDirectoryTable<T extends {id: number}>({id, label, rows, columns, empty, sort: controlledSort, onSort}: {
+export default function DawonDirectoryTable<T extends {id: number}>({id, label, rows, columns, empty, sort: controlledSort, onSort, defaultCompare}: {
+  defaultCompare?: (left: T, right: T) => number;
   sort?: DirectorySort; onSort?: (sort: DirectorySort) => void;
   id: string; label: string; rows: T[]; columns: DirectoryColumn<T>[]; empty: string;
 }) {
@@ -21,6 +22,7 @@ export default function DawonDirectoryTable<T extends {id: number}>({id, label, 
   const setSort = onSort ?? setLocalSort;
   const active = columns.find(column => column.key === sort.key) ?? columns[0];
   const sorted = [...rows].sort((left, right) => {
+    if (!sort.key && defaultCompare) return defaultCompare(left, right);
     const a = active.value(left), b = active.value(right);
     const difference = typeof a === "number" && typeof b === "number" ? a - b : compareText.compare(String(a), String(b));
     return (sort.ascending ? difference : -difference) || left.id - right.id;

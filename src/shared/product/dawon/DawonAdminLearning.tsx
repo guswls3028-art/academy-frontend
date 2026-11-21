@@ -87,7 +87,7 @@ export function AdminStudentReview() {
     ...(action==="counsel"? {day:day||q.data?.today}:{session:Number(slot)})}),
     onSuccess:async()=>{await client.invalidateQueries({queryKey:dawonQueryKeys.adminLearningRoot});setKind(null);}});
   const data=q.data;
-  return <section className={desk.desk}><Link className={desk.back} state={fromDirectory || fromRoster || fromLearners ? location.state : undefined} to={fromDirectory ? {pathname:"/workspace/students/home",search:location.state?.directorySearch || new URLSearchParams({student}).toString()} : fromLearners ? address("/workspace/results/students",{group:params.get("scope"),page:params.get("page")}) : fromRoster ? address("/workspace/students/class-groups",{class:group}) : exam ? address("/workspace/results",{exam,course,group,...listContext(params),...examContext(params)}):address("/workspace/dashboard",{panel:"alerts",group})}>{fromDirectory ? "학생 명단으로" : fromLearners ? "학생별 목록으로" : fromRoster ? "반 명단으로" : exam ? "시험 결과로" : "학습 경보로"}</Link>
+  return <section className={desk.desk}><Link className={desk.back} state={fromDirectory || fromRoster || fromLearners ? location.state : undefined} to={fromDirectory ? {pathname:"/workspace/students/home",search:location.state?.directorySearch || new URLSearchParams({student}).toString()} : fromLearners ? {pathname:"/workspace/results/students",search:location.state?.resultReturn ?? new URLSearchParams({group:params.get("scope") || "",page:params.get("page") || "1"}).toString()} : fromRoster ? address("/workspace/students/class-groups",{class:group}) : exam ? address("/workspace/results",{exam,course,group,...listContext(params),...examContext(params)}):address("/workspace/dashboard",{panel:"alerts",group})}>{fromDirectory ? "학생 명단으로" : fromLearners ? "학생별 목록으로" : fromRoster ? "반 명단으로" : exam ? "시험 결과로" : "학습 경보로"}</Link>
     {q.isPending?<p role="status">학생 기록을 확인하는 중입니다.</p>:q.isError||!data?<Failed retry={()=>void q.refetch()}/>:<>
       <header className={desk.heading}><h2>{data.student} · 학생 학습 기록</h2><p>{data.course}</p></header>
       <div className={desk.histories}><div><Trend rows={data.exams}/><HistoryTable title="시험 성적 추이" rows={data.exams}/></div><HistoryTable title="과제 이력" rows={data.homework}/></div>
@@ -161,7 +161,10 @@ export function AdminExamReview({course,exam,group}:{course:string;exam:string;g
         <div><dt>최저</dt><dd>{pct(cohort.lowest)}</dd></div>
       </dl>
       {saved.isError && <p role="alert">검토 상태를 저장하지 못했습니다. 다시 시도해 주세요.</p>}
-      <div className={desk.examBody}><section><h3>학생별 결과</h3>
+      <nav className={desk.sectionLinks} aria-label="성적 상세 바로가기">
+        <a href="#dawon-exam-students">학생별 결과</a><a href="#dawon-exam-questions">문항 분석</a>
+      </nav>
+      <div className={desk.examBody}><section><h3 id="dawon-exam-students" tabIndex={-1}>학생별 결과</h3>
       {!cohort.rows.length ? <p>{filtered ? "조건에 맞는 학생이 없습니다. 조건을 변경하거나 초기화해 주세요." : "응시 대상 학생이 없습니다."}</p> : <DomainTable scrollLabel="학생별 시험 결과"><thead><tr><th>학생</th><th>점수</th><th>상태</th></tr></thead><tbody>
         {cohort.rows.map(row=><tr key={row.id}><th scope="row"><Link to={address("/workspace/results",{panel:"student",group,course,student:row.student_id,exam,...listContext(params),...examContext(params)})}>{row.name}</Link><small className={desk.secondary}>{row.school || "학교 미입력"} · {row.grade == null ? "학년 미입력" : row.grade+"학년"}</small></th>
           <td>{row.score==null?"미채점":Number(row.score.toFixed(1))+(row.maximum!=null?" / "+Number(row.maximum.toFixed(1)):"")+"점"}</td><td>{row.status}</td></tr>)}
@@ -172,7 +175,7 @@ export function AdminExamReview({course,exam,group}:{course:string;exam:string;g
         return <li key={i}><span>{label}</span><meter aria-label={label} min={0} max={Math.max(1,...cohort.distribution)} value={n}/><strong>{n}명</strong></li>;
       })}</ul></section>
       </div>
-      <section className={desk.questionAnalysis}><h3>문항 분석</h3>
+      <section className={desk.questionAnalysis}><h3 id="dawon-exam-questions" tabIndex={-1}>문항 분석</h3>
         {data.questions.length ? <DomainTable scrollLabel="문항별 채점 인원과 정답률"><thead><tr><th>문항</th><th>주제</th><th>채점 인원</th><th>정답률</th></tr></thead><tbody>
           {questionRates(data.questions,cohort.rows).map(row=><tr key={row.number}><th scope="row">{row.number}번</th><td>{row.topic || "미등록"}</td>
             <td>{row.graded}명</td><td>{row.rate==null?"미집계":Number(row.rate.toFixed(1))+"%"}</td></tr>)}

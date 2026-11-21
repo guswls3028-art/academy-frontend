@@ -11,6 +11,9 @@ import ArrivalPlanCell, { type ArrivalPlanPayload } from "./ArrivalPlanCell";
 import type { AttendanceSort, AttendanceSortColumn } from "./attendanceSort";
 import styles from "./DawonAttendanceRoster.module.css";
 
+const quickStatuses: AttendanceStatus[] = ["PRESENT", "LATE", "ABSENT"];
+const otherStatuses = ORDERED_ATTENDANCE_STATUS.filter(code => !quickStatuses.includes(code));
+
 type Props = {
   rows: AttendanceListItem[];
   selected: Set<number>;
@@ -66,9 +69,18 @@ export default function DawonAttendanceRoster(props: Props) {
           <StudentNameWithLectureChip name={name} density="compact" avatarSize={20} profilePhotoUrl={row.profile_photo_url ?? undefined}
             clinicHighlight={row.name_highlight_clinic_target === true} />
         </StudentDetailLink></td>
-        <td><select value={status} aria-label={name + " 출결 상태"} disabled={saving} onChange={e => void props.changeStatus(row,e.target.value as AttendanceStatus)}>
-          {ORDERED_ATTENDANCE_STATUS.map(code => <option key={code} value={code}>{ATTENDANCE_META[code].label}</option>)}
-        </select>{saving && <small role="status">저장 중</small>}</td>
+        <td><div className={styles.quick} role="group" aria-label={name + " 빠른 출결"}>
+          {quickStatuses.map(code => <button type="button" key={code} disabled={saving} aria-pressed={status === code}
+            aria-label={name + " " + ATTENDANCE_META[code].label} onClick={() => { if (status !== code) void props.changeStatus(row,code); }}>
+            {ATTENDANCE_META[code].label}</button>)}
+          <select value={quickStatuses.includes(status) ? "" : status} aria-label={name + " 기타 출결 상태"} disabled={saving}
+            onChange={e => void props.changeStatus(row,e.target.value as AttendanceStatus)}>
+            <option value="" disabled>기타</option>
+            {otherStatuses.map(code => <option key={code} value={code}>{ATTENDANCE_META[code].label}</option>)}
+          </select></div>
+          <select className={styles.compactStatus} value={status} aria-label={name + " 출결 상태"} disabled={saving} onChange={e => void props.changeStatus(row,e.target.value as AttendanceStatus)}>
+            {ORDERED_ATTENDANCE_STATUS.map(code => <option key={code} value={code}>{ATTENDANCE_META[code].label}</option>)}
+          </select>{saving && <small role="status">저장 중</small>}</td>
         <td className={styles.phone}>{formatPhone(row.parent_phone)}</td><td className={styles.phone}>{formatPhone(row.phone ?? row.student_phone)}</td>
         <td className={styles.more}><button type="button" aria-label={name + " 연락처·메모" + (props.supplement ? "·등원 예정" : "")} aria-expanded={open}
           onClick={() => setExpanded(open ? null : row.id)}>{open ? <ChevronDown size={16}/> : <ChevronRight size={16}/>}</button></td>

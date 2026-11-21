@@ -1,3 +1,11 @@
+.staffTabs { display:flex; gap:16px; border-bottom:1px solid var(--color-border-divider); margin-bottom:14px; }
+.staffTabs a { padding:7px 2px; font-weight:600; }
+.staffTabs [aria-current=page] { color:var(--color-primary); border-bottom:2px solid currentColor; }
+.payroll { display:grid; gap:12px; min-width:0; }
+.payroll .directoryTools label { display:flex; align-items:center; gap:6px; }
+.payrollTable { min-width:700px; }
+.payrollTable td:nth-last-child(-n+4) { text-align:right; font-variant-numeric:tabular-nums; }
+.payrollTable small { display:block; font-size:12px; }
 .staff { display: grid; gap: 14px; min-width: 0; justify-items: stretch; }
 .staff > button { justify-self: start; }
 .staff > section { width: 100%; border-top: 1px solid var(--color-border-divider); padding-top: 10px; }

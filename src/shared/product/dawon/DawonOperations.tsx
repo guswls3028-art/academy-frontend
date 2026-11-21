@@ -103,17 +103,40 @@ function Dashboard() {
     return attention !== "attendance" || Boolean(entry && entry.unset + entry.missing > 0);
   });
   const pendingFilter = (attention === "alerts" && !alerts.data) || (attention === "attendance" && !daily.data);
+  const outstanding = (id: number) => {
+    const row = dailyGroups.get(id);
+    return row ? row.unset + row.missing : 0;
+  };
+  const byPriority = (left: GroupSummary, right: GroupSummary) =>
+    outstanding(right.id) - outstanding(left.id) ||
+    (counts.get(right.id) ?? 0) - (counts.get(left.id) ?? 0) ||
+    left.name.localeCompare(right.name, "ko", {numeric:true});
+  const waiting = matching.filter(row => outstanding(row.id) > 0).length;
+  const order = params.get("order") || "";
+  function sortBy(key: string, ascending = true) {
+    const next = new URLSearchParams(params);
+    if (key) { next.set("order", key); next.set("direction", ascending ? "asc" : "desc"); }
+    else { next.delete("order"); next.delete("direction"); }
+    setParams(next,{replace:true,preventScrollReset:true});
+  }
   return <DomainLayout title="반 운영 현황" density="compact" breadcrumbs={[]}>
     <div className={styles.section}>
       <DomainListToolbar totalLabel={groups.isError ? "조회 실패" : groups.isPending || pendingFilter ? "반 조회 중" : "반 "+rows.length+"개"} searchSlot={<input className="ds-input" type="search" aria-label="반 또는 담당 강사 검색" placeholder="반 이름 · 담당 강사 · 학교 검색" value={search} onChange={e=>updateFilter("q",e.target.value)}/>}
         filterSlot={<div className={styles.filterRow}><label className={styles.field}>조회 대상<select value={attention} onChange={event=>updateFilter("attention",event.target.value)}><option value="">전체 반</option><option value="attendance">출결 미입력 반</option><option value="alerts">학습 경보 있는 반</option></select></label><label className={styles.field}>수업 날짜<input className="ds-input" type="date" value={day} onChange={e=>{if(e.target.value)updateFilter("date",e.target.value);}}/></label><Link to={attendanceUrl()}>전체 차시 출결</Link></div>}
-        primaryAction={<Link className={styles.actionLink} to="/workspace/dashboard?panel=alerts">전체 반 학습 경보{alerts.data ? " "+alerts.data.alerts.length+"건" : ""}</Link>}/>
+        primaryAction={<div className={styles.filterRow}>
+          {daily.data && groups.data && <Button size="sm" intent={attention==="attendance" ? "primary" : "secondary"} aria-pressed={attention==="attendance"}
+            onClick={()=>updateFilter("attention",attention==="attendance"?"":"attendance")}>출결 미입력 {waiting}개 반</Button>}
+          <Link className={styles.actionLink} to="/workspace/dashboard?panel=alerts">전체 반 학습 경보{alerts.data ? " "+alerts.data.alerts.length+"건" : ""}</Link>
+          {order && <Button size="sm" onClick={()=>sortBy("")}>업무 우선순으로</Button>}
+        </div>}/>
       {alerts.isError && <p role="alert">학습 경보를 확인하지 못했습니다. <Button onClick={()=>void alerts.refetch()}>다시 시도</Button></p>}
       {daily.isError && <p role="alert">선택한 날짜의 출결을 불러오지 못했습니다. <Button onClick={()=>void daily.refetch()}>출결 다시 시도</Button></p>}
       {groups.isPending ? <p role="status">반 운영 현황을 불러오는 중입니다.</p> : groups.isError ?
         <p role="alert">반 목록을 불러오지 못했습니다. <Button onClick={()=>void groups.refetch()}>다시 시도</Button></p> :
-        pendingFilter ? <p role="status">{(attention === "alerts" ? alerts.isError : daily.isError) ? "조회 조건의 데이터를 확인해 주세요." : "조회 중입니다."}</p> : !rows.length ? <p className={styles.empty}>표시할 반이 없습니다. <Link to="/workspace/students/class-groups">반 편성 열기</Link></p> :
-        <DawonDirectoryTable id={compact?"dawon-admin-overview-mobile":"dawon-admin-overview"} label="반별 운영 현황" rows={rows} empty="표시할 반이 없습니다." columns={[
+        pendingFilter ? <p role="status">{(attention === "alerts" ? alerts.isError : daily.isError) ? "조회 조건의 데이터를 확인해 주세요." : "조회 중입니다."}</p> : !rows.length ? <p className={styles.empty}>{attention==="attendance" ? "조회 범위에 출결 미입력 반이 없습니다." : "조건에 맞는 반이 없습니다."} {attention && <Button onClick={()=>updateFilter("attention","")}>전체 반 보기</Button>}</p> :
+        <DawonDirectoryTable id={compact?"dawon-admin-overview-mobile":"dawon-admin-overview"} label="반별 운영 현황" rows={rows}
+          defaultCompare={byPriority} sort={{key:order,ascending:params.get("direction")!=="desc"}} onSort={value=>sortBy(value.key,value.ascending)}
+          empty="표시할 반이 없습니다." columns={[
           {key:"name",label:compact?"반 · 담당 강사":"반 이름",defaultWidth:compact?155:200,value:r=>r.name,render:r=><>
             <Link to={"/workspace/lectures?class="+r.id}>{r.name}</Link>{compact && <small className={styles.teacherName}>{r.instructor_name || "담당 미지정"}</small>}</>},
           {key:"unmarked",label:"미입력 출결",defaultWidth:compact?91:110,value:r=>{const d=dailyGroups.get(r.id);return d?d.unset+d.missing:-1;},render:r=>{

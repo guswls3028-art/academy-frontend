@@ -15,6 +15,7 @@ import { AdminRosterPicker } from "./AdminRosterPicker";
 import styles from "./ClassGroupsPage.module.css";
 
 export type RosterStudent = {
+  selection_status?: "eligible" | "in_group" | "enrolled" | "previously_enrolled" | "needs_group";
   id: number;
   name: string;
   school: string;

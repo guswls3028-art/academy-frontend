@@ -9,6 +9,8 @@ import { Button } from "@/shared/ui/ds";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import styles from "./DawonStaff.module.css";
 
+import DawonPayroll from "./DawonPayroll";
+
 const endpoint = "/students/demo-staff/";
 const directoryKey = ["dawon", "admin", "staff-directory"] as const;
 const monthKey = (id: number, month: string) => [...directoryKey, id, month] as const;
@@ -25,7 +27,7 @@ const won = (amount: number | null) => amount == null ? "미확정" : Number(amo
 const currentMonth = () => new Intl.DateTimeFormat("sv-SE", {timeZone:"Asia/Seoul",year:"numeric",month:"2-digit"}).format(new Date());
 function retryButton(retry: () => void) { return <Button onClick={retry}>다시 시도</Button>; }
 
-function MonthDetail({staff, month, onMonth}: {staff: Staff; month: string; onMonth: (value: string) => void}) {
+function MonthDetail({staff, month, onMonth}: {staff: Staff; month: string; onMonth?: (value: string) => void}) {
   const client = useQueryClient();
   const [position, setPosition] = useState<Position>(staff.position);
   const query = useQuery({queryKey: monthKey(staff.id, month), queryFn: async ({signal}) =>
@@ -35,14 +37,14 @@ function MonthDetail({staff, month, onMonth}: {staff: Staff; month: string; onMo
   const data = query.data;
   return <>
     <h2 className={styles.employeeHeading}><StaffRoleAvatar role={avatarRoles[staff.position]} aria-label={labels[staff.position]} size={24}/>{staff.name}</h2>
-    {["INSTRUCTOR","ASSISTANT"].includes(staff.position) ? <form onSubmit={e => {e.preventDefault();mutation.mutate();}}>
+    {onMonth && ["INSTRUCTOR","ASSISTANT"].includes(staff.position) ? <form onSubmit={e => {e.preventDefault();mutation.mutate();}}>
       <label>직위 <select value={position} onChange={e => {setPosition(e.target.value as Position);mutation.reset();}}>
         <option value="INSTRUCTOR">강사</option><option value="ASSISTANT">조교</option></select></label>
       <Button type="submit" disabled={position === staff.position || mutation.isPending}>저장</Button>
       {mutation.isSuccess && <span role="status">직위를 저장했습니다.</span>}
       {mutation.isError && <span role="alert">{getApiErrorMessage(mutation.error,"직위를 저장하지 못했습니다.")}</span>}
     </form> : <p>{labels[staff.position]}</p>}
-    <label className={styles.fields}>조회할 월 <input type="month" value={month} onChange={e => {if (e.target.value) onMonth(e.target.value);}} /></label>
+    {onMonth && <label className={styles.fields}>조회할 월 <input type="month" value={month} onChange={e => {if (e.target.value) onMonth(e.target.value);}} /></label>}
     {query.isPending ? <p role="status">근태·급여를 불러오는 중입니다.</p> : query.isError || !data ?
       <p role="alert">근태·급여를 불러오지 못했습니다. {retryButton(() => void query.refetch())}</p> : <>
       <section aria-label="월 급여"><h3>월 급여</h3>
@@ -62,6 +64,24 @@ function MonthDetail({staff, month, onMonth}: {staff: Staff; month: string; onMo
 }
 
 export default function DawonStaffDirectory() {
+  const [params] = useSearchParams();
+  const payroll=params.get("tab")==="payroll";
+  const monthValue=params.get("month") || "";
+  const month=/^\d{4}-(0[1-9]|1[012])$/.test(monthValue) ? monthValue : currentMonth();
+  const tabUrl=(showPayroll:boolean)=>{
+    const next=new URLSearchParams(params);
+    if(showPayroll) next.set("tab","payroll"); else next.delete("tab");
+    next.delete("employee");
+    return {search:next.toString()};
+  };
+  return <><nav className={styles.staffTabs} aria-label="직원 관리 업무">
+    <Link to={tabUrl(false)} aria-current={!payroll ? "page" : undefined}>직원 명단</Link>
+    <Link to={tabUrl(true)} aria-current={payroll ? "page" : undefined}>월 정산</Link>
+  </nav>{payroll ? <DawonPayroll key={month} month={month} labels={labels}
+    detail={row=><MonthDetail staff={{id:row.id,name:row.name,position:row.position,classes:[]}} month={month}/>} /> : <StaffMaster/>}</>;
+}
+
+function StaffMaster() {
   const [params, setParams] = useSearchParams();
   const search = params.get("q") ?? "";
   const position = params.get("position") ?? "";

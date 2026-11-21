@@ -64,6 +64,22 @@
   .desk :is(.directory,.submissions) { min-width:0; width:100%; }
   .desk :is(.directory,.submissions) :is(td,th) { white-space:normal; overflow-wrap:anywhere; }
 }
+.sectionLinks { display:flex; flex-wrap:wrap; gap:16px; align-items:center; }
+.sectionLinks a { color:var(--color-primary); text-decoration:underline; text-underline-offset:3px; }
+.examBody h3, .questionAnalysis h3 { scroll-margin-top:12px; }
+.resultTools { display:flex; flex-wrap:wrap; align-items:end; gap:10px 14px; }
+.resultTools label { display:grid; gap:4px; font-size:13px; }
+.resultTools input { width:min(190px,100%); }
+.performance { min-width:620px; }
+.performance td:nth-last-child(-n+3) { font-variant-numeric:tabular-nums; text-align:right; }
+.personButton { color:var(--color-primary); font-weight:650; }
+.studentInspection { padding-block:12px; border-block:1px solid var(--color-border-divider); }
+.studentInspection ul { padding-inline-start:20px; margin:6px 0; }
+.paging { display:flex; align-items:center; justify-content:center; gap:12px; }
+@media(max-width:600px) {
+  .resultTools { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .resultTools input, .resultTools select { width:100%; }
+}
 .examFilters { display:flex; flex-wrap:wrap; align-items:end; gap:12px; }
 .examFilters label { display:grid; gap:4px; min-width:0; font-size:13px; color:var(--color-text-secondary); }
 .examFilters select { color:var(--color-text-primary); }

@@ -10,6 +10,7 @@ import { digits, filterRoster } from "./adminRosterSelection";
 import { useSchoolLevelMode } from "@/shared/hooks/useSchoolLevelMode";
 
 const size = 50;
+const unavailableLabels = {in_group:"이미 반 배정됨", enrolled:"이미 수강 중", previously_enrolled:"이전 수강 이력", needs_group:"반 배정 필요"};
 export function AdminRosterPicker({ candidateUrl, roster, selected, busy, onChange }: {
   candidateUrl?: string;
   roster?: RosterStudent[];
@@ -35,7 +36,7 @@ export function AdminRosterPicker({ candidateUrl, roster, selected, busy, onChan
     queryKey: dawonQueryKeys.adminCandidates(candidateUrl,search,offset,grade),
     enabled: Boolean(candidateUrl),
     queryFn: async ({ signal }) => (await api.get<{results: RosterStudent[]; count: number}>(candidateUrl!, {
-      params: { search, grade: grade || undefined, offset, limit: size, page_info: 1 }, signal,
+      params: { search, grade: grade || undefined, offset, limit: size, page_info: 1, include_status: search ? 1 : undefined }, signal,
     })).data,
   });
   const local = candidateUrl ? [] : filterRoster(roster ?? [], search, grade);
@@ -44,7 +45,8 @@ export function AdminRosterPicker({ candidateUrl, roster, selected, busy, onChan
   const pending = input.trim() !== search || Boolean(candidateUrl && query.isPending);
   const error = Boolean(candidateUrl && query.isError);
   const locked = busy || pending || error;
-  const all = rows.length > 0 && rows.every(student => selected.has(student.id));
+  const eligible = rows.filter(student => !student.selection_status || student.selection_status === "eligible");
+  const all = eligible.length > 0 && eligible.every(student => selected.has(student.id));
   const clear = () => { setInput(""); field.current?.focus(); };
 
   return <div className="lecture-enroll-picker__body">
@@ -62,7 +64,7 @@ export function AdminRosterPicker({ candidateUrl, roster, selected, busy, onChan
     </div>
     <div className="lecture-enroll-picker__toolbar">
       <span role="status">{pending ? "학생 명단 검색 중…" : error ? "명단 확인 필요" : `학생 ${count}명`}</span>
-      <Button size="sm" disabled={locked || !rows.length} onClick={() => onChange(rows, all)}>
+      <Button size="sm" disabled={locked || !eligible.length} onClick={() => onChange(eligible, all)}>
         {all ? "현재 페이지 선택 해제" : "현재 페이지 전체 선택"}
       </Button>
     </div>
@@ -70,11 +72,12 @@ export function AdminRosterPicker({ candidateUrl, roster, selected, busy, onChan
       {error ? <p role="alert">학생을 불러오지 못했습니다. <Button onClick={() => void query.refetch()}>다시 시도</Button></p>
         : !pending && !rows.length ? <p>{search || grade ? "검색 결과가 없습니다. 검색어나 학년을 바꿔 주세요." : "선택할 수 있는 학생이 없습니다."}</p>
         : rows.map(student => <label key={student.id} className="lecture-enroll-picker__row" data-selected={selected.has(student.id)}>
-          <input type="checkbox" checked={selected.has(student.id)} disabled={locked}
+          <input type="checkbox" checked={selected.has(student.id)} disabled={locked || (!!student.selection_status && student.selection_status !== "eligible")}
             onChange={() => onChange([student], selected.has(student.id))}/>
           <span className="lecture-enroll-picker__identity"><strong>{student.name}</strong>
             <span>{student.school || "학교 미등록"}{student.grade ? ` · ${student.grade}학년` : ""}</span></span>
           <span className="lecture-enroll-picker__contact">
+            {student.selection_status && student.selection_status !== "eligible" && <strong>{unavailableLabels[student.selection_status]}</strong>}
             {student.phone && <span>학생 끝자리 {digits(student.phone).slice(-4)}</span>}
             {student.parent_phone && <span>보호자 끝자리 {digits(student.parent_phone).slice(-4)}</span>}
           </span>
