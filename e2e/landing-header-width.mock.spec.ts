@@ -52,7 +52,7 @@ async function assertHeader(page: Page, label: string, destination: string) {
   const brand = page.getByTestId("landing-nav-brand");
   await expect(brand).toBeVisible();
   await expect(brand).toHaveAttribute("title", BRAND);
-  await expect(brand).toHaveAttribute("href", "/landing");
+  await expect(brand).toHaveAttribute("href", "/");
   await expect(nav.getByTestId("landing-nav-myconsole")).toHaveText(label);
   await expect(nav.getByTestId("landing-nav-myconsole")).toHaveAttribute("href", destination);
   for (const control of [nav.getByTestId("landing-nav-burger"), nav.getByTestId("landing-nav-myconsole")]) {
@@ -90,6 +90,10 @@ for (const { role, label, destination } of ROLES) for (const width of [1366, 390
     await expect(page).toHaveURL(`${BASE}/landing/board`);
     await expect(page.getByRole("heading", { name: "학원 가족이 함께 쓰는 자유게시판", exact: true })).toBeVisible();
     await assertHeader(page, label, destination);
+    await page.getByTestId("landing-nav-brand").click();
+    await expect(page).toHaveURL(new RegExp(destination + "(?:/|$)"));
+    await page.goBack();
+    await expect(page.getByTestId("landing-nav-brand")).toBeVisible();
     await info.attach(`landing-header-${role}-${width}.png`, { body: await page.screenshot(), contentType: "image/png" });
   });
 }

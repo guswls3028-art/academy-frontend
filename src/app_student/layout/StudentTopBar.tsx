@@ -250,22 +250,11 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
             </svg>
           </button>
         )}
-        <Link
-          to="/student/dashboard"
-          aria-label="학생 대시보드로 이동"
-          title="학생 대시보드로 이동"
-          data-testid="stu-topbar-go-dashboard"
-          className="stu-topbar__iconBtn"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 12L12 4l9 8" />
-            <path d="M5 10v10h14V10" />
-          </svg>
-        </Link>
       </div>
       <Link
         to="/student/dashboard"
         className="stu-topbar__home-link"
+        data-testid="stu-topbar-brand-home"
         data-tenant-header-brand={headerBrandStyle ? "" : undefined}
         title={branding.title}
         style={{
