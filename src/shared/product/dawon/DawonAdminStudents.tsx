@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
 import api from "@/shared/api/axios";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
@@ -23,7 +24,7 @@ type Student = {
   courses?: { id: number; title: string; group: number; color: string; chip_label: string }[];
 };
 type Page = { count: number; results: Student[] };
-type Filter = "search" | "kind" | "track" | "grade" | "group" | "page";
+type Filter = "kind" | "track" | "grade" | "group" | "page";
 const root = "/workspace/students/home";
 const endpoint = "/students/class-groups/";
 const pageSize = 25;
@@ -35,10 +36,24 @@ export default function DawonAdminStudents() {
 
 function StudentDirectory({ role }: { role: "admin" | "teacher" }) {
   const [params, setParams] = useSearchParams();
-  const { state } = useLocation();
+  const { key, state } = useLocation();
   const teacher = role === "teacher";
-  const search = typeof state?.directoryTerm === "string" ? state.directoryTerm : "";
-  const term = useDebouncedValue(search.trim());
+  const savedSearch = typeof state?.directoryTerm === "string" ? state.directoryTerm : "";
+  // Replacing this history entry after a debounce must not interrupt a newer keystroke.
+  const entry = state?.directorySearchEntry ?? key;
+  const [draft, setDraft] = useState<{ entry: string; text: string } | null>(null);
+  const [composing, setComposing] = useState(false);
+  const search = draft?.entry === entry ? draft.text : savedSearch;
+  const settledSearch = useDebouncedValue(search);
+  useEffect(() => {
+    if (composing || search === savedSearch || settledSearch !== search) return;
+    const next = new URLSearchParams(params);
+    next.delete("student");
+    next.delete("page");
+    setParams(next, {
+      replace: true, preventScrollReset: true, state: { directoryTerm: search, directorySearchEntry: entry },
+    });
+  }, [composing, entry, params, savedSearch, search, setParams, settledSearch]);
   const group = params.get("group") || params.get("class") || "";
   const grade = params.get("grade") || "";
   const selected = params.get("student");
@@ -53,7 +68,7 @@ function StudentDirectory({ role }: { role: "admin" | "teacher" }) {
   const kind = params.get("kind") || currentGroup?.kind || "";
   const track = kind === "union" ? params.get("track") || "" : "";
   const groupOptions = groups.data?.filter(item => item.kind === kind && (!track || item.track === track)) ?? [];
-  const filters = { view: "students", kind, track, group, grade, search: term, offset: (page - 1) * pageSize, limit: pageSize };
+  const filters = { view: "students", kind, track, group, grade, search: savedSearch.trim(), offset: (page - 1) * pageSize, limit: pageSize };
   const people = useQuery({
     queryKey: dawonQueryKeys.studentPage(role, filters),
     queryFn: async ({ signal }) => (await api.get<Page>(endpoint, { params: filters, signal })).data,
@@ -76,13 +91,10 @@ function StudentDirectory({ role }: { role: "admin" | "teacher" }) {
       next.delete("class");
       if (key !== "kind" && kind) next.set("kind", kind);
     }
-    if (key !== "search") {
-      if (value) next.set(key, value);
-      else next.delete(key);
-    }
+    if (value) next.set(key, value);
+    else next.delete(key);
     setParams(next, {
-      replace: key === "search", preventScrollReset: true,
-      state: { directoryTerm: key === "search" ? value : search },
+      preventScrollReset: true, state: { directoryTerm: search },
     });
   }
 
@@ -96,13 +108,14 @@ function StudentDirectory({ role }: { role: "admin" | "teacher" }) {
   const hasFilters = Boolean(search || grade || kind || group);
   const row = person.data;
   const pages = Math.max(1, Math.ceil((people.data?.count ?? 0) / pageSize));
-  const busy = people.isFetching || search.trim() !== term;
+  const busy = people.isFetching || search.trim() !== savedSearch.trim();
   const countLabel = busy ? "조회 중…" : people.isError ? "조회 실패" : `학생 ${people.data?.count ?? 0}명`;
 
   return <DomainLayout title="학생 명단" breadcrumbs={[]} density="compact">
     <div className={styles.studentFilters} role="group" aria-label="학생 조회 조건" data-detail-open={selected ? "true" : undefined}>
       <input type="search" className="ds-input" aria-label="학생 검색" placeholder="이름 · 학교 · 전화번호 검색"
-        value={search} onChange={event => update("search", event.target.value)} />
+        value={search} onChange={event => setDraft({ entry, text: event.target.value })}
+        onCompositionStart={() => setComposing(true)} onCompositionEnd={() => setComposing(false)} />
       <div className={styles.filterOptions}>
         <select className="ds-select" aria-label="반 유형" value={kind} onChange={event => update("kind", event.target.value)}>
           <option value="">전체 반 유형</option><option value="union">연합반</option><option value="school">내신반</option>
@@ -119,7 +132,10 @@ function StudentDirectory({ role }: { role: "admin" | "teacher" }) {
       </div>
       <div className={styles.directoryStatus}>
         <span role="status">{countLabel}</span>
-        {hasFilters && <Button size="sm" intent="ghost" onClick={() => setParams({}, { state: { directoryTerm: "" } })}>조건 초기화</Button>}
+        {hasFilters && <Button size="sm" intent="ghost" onClick={() => {
+          setDraft({ entry, text: "" });
+          setParams({}, { state: { directoryTerm: "" } });
+        }}>조건 초기화</Button>}
       </div>
     </div>
     {groups.isError && <p role="alert">반 목록을 불러오지 못했습니다. <Button onClick={() => void groups.refetch()}>반 목록 다시 시도</Button></p>}
