@@ -23,7 +23,7 @@ export default function DawonSearchInput({ value, onSearch, ...props }: Props) {
   }, [value]);
 
   function publish(text: string) {
-    if (text === (sent.current.at(-1) ?? value)) return;
+    if (text === (sent.current[sent.current.length - 1] ?? value)) return;
     sent.current.push(text);
     onSearch(text);
   }
