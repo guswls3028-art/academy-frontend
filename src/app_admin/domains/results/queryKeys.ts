@@ -55,7 +55,8 @@ export const adminResultsQueryKeys = {
   omrReviewIssuesFocus: (examId: number, submissionId: number | undefined, sessionId?: number) =>
     ["omr-review-issues", examId, "focus", submissionId, ...(sessionId === undefined ? [] : [sessionId])] as const,
   omrReviewDetail: (submissionId: number | null | undefined) => ["omr-review-detail", submissionId] as const,
-  omrCandidates: (queryKeyId: string, query: string) => ["omr-candidates", queryKeyId, query] as const,
+  omrCandidates: (type: "exam" | "homework", id: number, sessionId: number | undefined, unmatchedOnly: boolean, q: string) =>
+    ["omr-candidates", type, id, sessionId, unmatchedOnly, q] as const,
 
   sessionScores: ["session-scores"] as const,
   clinicTargets: ["clinic-targets"] as const,
