@@ -3,7 +3,7 @@ export type StaffRoom = "admin" | "teacher";
 const teacher = [
   { label: "수업 운영", items: [["대시보드", "dashboard"], ["강의", "lectures"], ["학생", "students/home"]] },
   { label: "시험·성적", items: [["시험", "exams"], ["성적", "results"], ["성적취합", "students/surveys/school-reports"]] },
-  { label: "클리닉·상담·알림", items: [["클리닉", "clinic/operations?panel=unresolved&focus=pending"], ["상담", "community/counsel"], ["학습 알림", "teacher-alerts"]] },
+  { label: "클리닉·상담·알림", items: [["클리닉", "clinic/operations?panel=applications&status=pending"], ["상담", "community/counsel"], ["학습 알림", "teacher-alerts"]] },
 ];
 const admin = [
   { label: "운영 현황", items: [["대시보드", "dashboard"], ["출결 현황", "dashboard?panel=attendance"], ["학습 경보", "dashboard?panel=alerts"]] },

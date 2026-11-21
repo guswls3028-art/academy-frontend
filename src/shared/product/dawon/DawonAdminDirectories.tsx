@@ -1,5 +1,9 @@
+import { useEffect } from "react";
+import { clinicQueryKeys } from "@/app_admin/domains/clinic/queryKeys";
+import { patchClinicParticipantStatus } from "@/app_admin/domains/clinic/api/clinicParticipants.api";
+import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import DawonSearchInput from "./DawonSearchInput";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useSearchParams } from "react-router";
 import api from "@/shared/api/axios";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
@@ -14,29 +18,37 @@ import styles from "./DawonOperations.module.css";
 import desk from "./DawonAdminRecords.module.css";
 import DawonStudentResults from "./DawonStudentResults";
 
-export function AdminGroupSelect({value, onChange}: {value:string;onChange:(id:string)=>void}) {
-  const groups = useQuery({queryKey:dawonQueryKeys.adminGroups, queryFn:async ({signal}) =>
+export function AdminGroupSelect({value, onChange, teacher=false}: {value:string;onChange:(id:string)=>void;teacher?:boolean}) {
+  const groups = useQuery({queryKey:teacher ? [...dawonQueryKeys.adminGroups,"teacher"] : dawonQueryKeys.adminGroups, queryFn:async ({signal}) =>
     (await api.get<{id:number;name:string}[]>("/students/class-groups/",{signal})).data});
   return <label className={styles.field}>반 범위
     <select value={value} onChange={e=>onChange(e.target.value)} disabled={groups.isPending}>
-      <option value="">전체 반</option>
+      <option value="">{teacher ? "전체 담당 반" : "전체 반"}</option>
       {groups.data?.map(group=><option key={group.id} value={group.id}>{group.name}</option>)}
     </select>
     {groups.isError && <Button onClick={()=>void groups.refetch()}>반 목록 다시 불러오기</Button>}
   </label>;
 }
 
-type CareRow = {id:number;student_id:number;name:string;groups:string[];day:string|null;title:string;status:string;course_id:number|null;body?:string;replies?:string[]};
+type CareRow = {id:number;student_id:number;name:string;groups:string[];day:string|null;title:string;status:string;course_id:number|null;can_review?:boolean;body?:string;replies?:string[]};
 const states:Record<string,string> = {pending:"승인 대기",booked:"예약 확정",attended:"참석",no_show:"미참석",cancelled:"취소",rejected:"거절"};
 function useDirectory<T>(filters:Record<string,string>) {
-  return useQuery({queryKey:dawonQueryKeys.adminLearning(filters), queryFn:async ({signal})=>
+  return useQuery({queryKey:dawonQueryKeys.adminLearning(filters), refetchInterval:filters.kind==="clinic" && !filters.record ? 15000 : false, queryFn:async ({signal})=>
     (await api.get<{count:number;rows:T[]}>("/students/demo-operations/",{params:filters,signal})).data});
 }
 
 function CareDetail({filters,close}:{filters:Record<string,string>;close:()=>void}) {
   const query=useDirectory<CareRow>(filters);
   const row=query.data?.rows[0];
-  return <AdminModal open onClose={close} trapFocus noMinimize width={MODAL_WIDTH.md}>
+  const client=useQueryClient();
+  const review=useMutation({
+    mutationFn:(status:"booked"|"rejected")=>patchClinicParticipantStatus(Number(filters.record),{status}),
+    onSettled:()=>Promise.all([
+      client.invalidateQueries({queryKey:dawonQueryKeys.adminLearningRoot}),
+      client.invalidateQueries({queryKey:clinicQueryKeys.participants}),
+    ]),
+  });
+  return <AdminModal open onClose={close} closeDisabled={review.isPending} trapFocus noMinimize width={MODAL_WIDTH.md}>
     <ModalHeader title={filters.kind==="clinic"?"클리닉 기록":"상담 기록"}/>
     <ModalBody>{query.isPending?<p role="status">기록을 불러오는 중입니다.</p>:query.isError||!row?
       <p role="alert">기록을 불러오지 못했습니다. <Button onClick={()=>void query.refetch()}>다시 시도</Button></p>:
@@ -44,6 +56,12 @@ function CareDetail({filters,close}:{filters:Record<string,string>;close:()=>voi
         <dt>학생</dt><dd>{row.name}</dd><dt>소속 반</dt><dd>{row.groups.join(", ") || "미편성"}</dd>
         <dt>일자</dt><dd>{row.day || "미정"}</dd><dt>상태</dt><dd>{states[row.status] ?? row.status}</dd></dl>
         {row.body && <p>{row.body}</p>}{row.replies?.map((reply,index)=><blockquote key={index}>{reply}</blockquote>)}
+        {row.can_review && <div role="group" aria-label="클리닉 신청 처리">
+          <Button intent="primary" disabled={review.isPending} onClick={()=>review.mutate("booked")}>예약 승인</Button>
+          <Button disabled={review.isPending} onClick={()=>review.mutate("rejected")}>신청 반려</Button>
+        </div>}
+        {review.isSuccess && <p role="status">{review.variables==="booked" ? "예약을 승인했습니다." : "신청을 반려했습니다."}</p>}
+        {review.isError && <p role="alert">{getApiErrorMessage(review.error,"처리하지 못했습니다. 현재 상태를 다시 확인해 주세요.")}</p>}
       </div>}</ModalBody>
   </AdminModal>;
 }
@@ -53,7 +71,7 @@ export default function DawonAdminDirectories() {
   return pathname==="/workspace/results/students" ? <DawonStudentResults/> : <CareDirectory/>;
 }
 
-function CareDirectory() {
+export function CareDirectory({teacher=false}:{teacher?:boolean}) {
   const {pathname,state}=useLocation();
   const [params,setParams]=useSearchParams();
   const clinic=pathname==="/workspace/clinic/operations";
@@ -63,6 +81,8 @@ function CareDirectory() {
   const q=useDebouncedValue(search.trim());
   const page=Math.max(1,Number(params.get("page")) || 1);
   const filters:Record<string,string>={view:"care",kind,group,q,page:String(page)};
+  if (clinic && params.get("status")) filters.status=params.get("status")!;
+  if (teacher) filters.scope="assigned";
   const query=useDirectory<CareRow>(filters);
   function update(key:string,value:string) {
     const next=new URLSearchParams(params);
@@ -72,16 +92,30 @@ function CareDirectory() {
     setParams(next,{replace:key==="q",preventScrollReset:true,state:{directorySearch:key==="q"?value:search}});
   }
   const count=query.data?.count ?? 0;
+  const lastPage=Math.max(1,Math.ceil(count/25));
+  useEffect(()=>{
+    if (!query.isSuccess || page<=lastPage) return;
+    const next=new URLSearchParams(params);
+    next.set("page",String(lastPage));
+    setParams(next,{replace:true,preventScrollReset:true,state});
+  },[lastPage,page,params,query.isSuccess,setParams,state]);
   const title=clinic?"클리닉":"상담";
-  return <DomainLayout title={title} breadcrumbs={[]}>
-    <div className={desk.desk}>
+  const content=<div className={desk.desk}>
       {!clinic && <div className={desk.switcher} role="group" aria-label="상담 구분">
         <Button aria-pressed={kind==="requests"} onClick={()=>update("kind","")}>학부모 상담 신청</Button>
         <Button aria-pressed={kind==="appointments"} onClick={()=>update("kind","appointments")}>등록한 상담 일정</Button>
       </div>}
       <DomainListToolbar totalLabel={query.data ? "기록 "+count+"건" : "조회 중"}
         searchSlot={<DawonSearchInput className="ds-input" aria-label="학생 이름 검색" placeholder="학생 이름 검색" maxLength={100} value={search} onSearch={text=>update("q",text)}/>}
-        filterSlot={<AdminGroupSelect value={group} onChange={id=>update("group",id)}/>} primaryAction={null}/>
+        filterSlot={<>
+          <AdminGroupSelect value={group} teacher={teacher} onChange={id=>update("group",id)}/>
+          {clinic && <label className={styles.field}>처리 상태
+            <select value={params.get("status") || ""} onChange={e=>update("status",e.target.value)}>
+              <option value="">전체 상태</option>
+              {Object.entries(states).map(([value,label])=><option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>}
+        </>} primaryAction={null}/>
       {query.isPending?<p role="status">목록을 불러오는 중입니다.</p>:query.isError?
         <p role="alert">목록을 불러오지 못했습니다. <Button onClick={()=>void query.refetch()}>다시 시도</Button></p>:
         !count?<p className={styles.empty}>조건에 맞는 기록이 없습니다.</p>:
@@ -95,6 +129,7 @@ function CareDirectory() {
       {(count>25 || page>1) && <nav className={styles.pagination} aria-label="목록 페이지">
         <Button disabled={page<=1} onClick={()=>update("page",String(page-1))}>이전</Button><span>{page} / {Math.max(1,Math.ceil(count/25))}</span>
         <Button disabled={page*25>=count} onClick={()=>update("page",String(page+1))}>다음</Button></nav>}
-      {params.get("record") && <CareDetail filters={{...filters,page:"1",record:params.get("record")!}} close={()=>update("record","")}/>}
-    </div></DomainLayout>;
+      {params.get("record") && <CareDetail key={params.get("record")} filters={{...filters,status:"",page:"1",record:params.get("record")!}} close={()=>update("record","")}/>}
+    </div>;
+  return teacher ? content : <DomainLayout title={title} breadcrumbs={[]}>{content}</DomainLayout>;
 }

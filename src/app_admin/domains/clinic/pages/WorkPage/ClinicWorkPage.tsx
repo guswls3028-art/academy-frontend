@@ -1,3 +1,4 @@
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 import { useSearchParams } from "react-router";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import { renderLazyRoute } from "@/core/router/renderLazyRoute";
@@ -7,6 +8,8 @@ const ClinicOperationsConsolePage = lazy(() => import("../OperationsConsolePage/
 const ClinicBookingsPage = lazy(() => import("../BookingsPage/ClinicBookingsPage"));
 const ClinicReservationSearch = lazy(() => import("./ClinicReservationSearch"));
 
+const TeacherClinicRequests = lazy(() => import("@/shared/product/dawon/DawonTeacherClinicRequests"));
+
 const PANELS = [
   { key: "day", label: "예약·출석", component: ClinicOperationsConsolePage },
   { key: "reservations", label: "예약 검색", component: ClinicReservationSearch },
@@ -15,7 +18,9 @@ const PANELS = [
 
 export default function ClinicWorkPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const current = PANELS.find(({ key }) => key === searchParams.get("panel")) ?? PANELS[0];
+  const panels = dawonStaffPreviewRole() === "teacher"
+    ? [{key:"applications",label:"신청 현황",component:TeacherClinicRequests}, ...PANELS] : PANELS;
+  const current = panels.find(({ key }) => key === searchParams.get("panel")) ?? PANELS[0];
 
   return (
     <div className={styles.page}>
@@ -25,7 +30,7 @@ export default function ClinicWorkPage() {
           <span>날짜별 출석, 학생 예약 검색, 미통과 처리를 한 곳에서 확인합니다.</span>
         </div>
         <div className={styles.switcherButtons}>
-          {PANELS.map(({ key, label }) => (
+          {panels.map(({ key, label }) => (
             <button
               key={key}
               type="button"
