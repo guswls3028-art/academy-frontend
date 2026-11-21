@@ -556,8 +556,10 @@ for (const [width, action] of [[390, "manage"], [1366, "manage"], [390, "add"], 
     await expect(modal).toBeVisible();
     if (action === 'add') {
       const name = modal.getByLabel('수업일 3 이름', { exact: true });
+      await expect(name).toHaveValue('');
+      await name.click();
       await expect(name).toBeFocused();
-      await name.fill('새 수업일');
+      await page.keyboard.insertText('새 수업일');
       await expect(name).toHaveValue('새 수업일');
     } else {
       if (action !== 'pencil') {
