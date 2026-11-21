@@ -1,3 +1,4 @@
+import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
 import DomainListToolbar from "@/shared/ui/domain/DomainListToolbar";
 import DawonDirectoryTable from "./DawonDirectoryTable";
 import { resultTabs } from "./staffMenu";
@@ -20,6 +21,7 @@ import styles from "./DawonOperations.module.css";
 type Exam = {id: number; title: string; date:string|null; graded: number; average: number | null};
 type Lesson = {id: number; order: number; title: string; date: string | null};
 type Course = {
+  color:string; chip_label:string;
   id: number; title: string; is_active: boolean; students: number; lessons: number;
   instructor: string; sessions: Lesson[]; exams: Exam[];
   homework: {id: number; title: string; session_id: number; status: "DRAFT" | "OPEN" | "CLOSED"; progress: {assigned: number; submitted: number; missing: number; graded: number; deferred: number}}[];
@@ -198,7 +200,7 @@ function TeachingRecords() {
           </div>
           {rows.length ? <DomainTable scrollLabel="반별 시험 목록"><thead><tr><th>시험명</th><th>시행일</th><th>반·강의</th><th>채점 인원</th><th>평균</th></tr></thead><tbody>
             {rows.map(({group:g,course,exam})=><tr key={course.id+"-"+exam.id}><th scope="row"><ExamLinks group={g.id} course={course.id} exam={exam.id} title={exam.title}/></th>
-              <td>{exam.date || "단일 일자 없음"}</td><td><strong>{g.name}</strong><small className={recordsDesk.secondary}>{course.title}</small></td><td>{exam.graded}명</td><td>{exam.average == null ? "미집계" : Number(exam.average.toFixed(1))+"점"}</td></tr>)}
+              <td>{exam.date || "단일 일자 없음"}</td><td><strong>{g.name}</strong><small className={recordsDesk.secondary}><LectureChipLabel lectureName={course.title} color={course.color} chipLabel={course.chip_label}/></small></td><td>{exam.graded}명</td><td>{exam.average == null ? "미집계" : Number(exam.average.toFixed(1))+"점"}</td></tr>)}
           </tbody></DomainTable>:<p>조건에 맞는 시험이 없습니다.</p>}
         </>}
       </section>}

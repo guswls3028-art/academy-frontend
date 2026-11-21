@@ -1,3 +1,4 @@
+import { StaffRoleAvatar, type StaffRoleType } from "@/shared/ui/avatars";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
@@ -13,6 +14,7 @@ const directoryKey = ["dawon", "admin", "staff-directory"] as const;
 const monthKey = (id: number, month: string) => [...directoryKey, id, month] as const;
 const labels = {DIRECTOR: "분원장", INSTRUCTOR: "강사", ASSISTANT: "조교", STAFF: "직원"};
 type Position = keyof typeof labels;
+const avatarRoles: Record<Position, StaffRoleType> = {DIRECTOR:"owner",INSTRUCTOR:"TEACHER",ASSISTANT:"ASSISTANT",STAFF:"ASSISTANT"};
 type Staff = {id: number; name: string; position: Position; classes: string[]};
 type Month = {
   open_count: number;
@@ -32,7 +34,7 @@ function MonthDetail({staff, month, onMonth}: {staff: Staff; month: string; onMo
     onSuccess: () => client.invalidateQueries({queryKey: directoryKey, exact: true})});
   const data = query.data;
   return <>
-    <h2>{staff.name}</h2>
+    <h2 className={styles.employeeHeading}><StaffRoleAvatar role={avatarRoles[staff.position]} aria-label={labels[staff.position]} size={24}/>{staff.name}</h2>
     {["INSTRUCTOR","ASSISTANT"].includes(staff.position) ? <form onSubmit={e => {e.preventDefault();mutation.mutate();}}>
       <label>직위 <select value={position} onChange={e => {setPosition(e.target.value as Position);mutation.reset();}}>
         <option value="INSTRUCTOR">강사</option><option value="ASSISTANT">조교</option></select></label>
@@ -102,8 +104,8 @@ export default function DawonStaffDirectory() {
         empty={staff.length ? "검색 조건에 맞는 직원이 없습니다." : "등록된 직원이 없습니다."}
         columns={[
           {key:"name",label:"이름",defaultWidth:125,minWidth:90,value:row=>row.name,
-            render:row=><Link className={styles.employeeLink} to={employeeUrl(row.id)} preventScrollReset
-              aria-current={String(row.id) === selected ? "true" : undefined}>{row.name}</Link>},
+            render:row=><Link aria-label={row.name} className={styles.employeeLink} to={employeeUrl(row.id)} preventScrollReset
+              aria-current={String(row.id) === selected ? "true" : undefined}><StaffRoleAvatar role={avatarRoles[row.position]} aria-label={labels[row.position]} size={17}/>{row.name}</Link>},
           {key:"position",label:"직위",defaultWidth:78,minWidth:58,value:row=>labels[row.position]},
           {key:"classes",label:"담당 반",defaultWidth:205,minWidth:114,value:row=>row.classes.join(", "),
             render:row=>row.classes.join(", ") || <span className={styles.muted}>담당 반 없음</span>},

@@ -1,3 +1,4 @@
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { useState } from "react";
 import { Link, useLocation } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -40,7 +41,7 @@ export default function DawonCourseRoster({course, title, groupId, groupName}: {
     </div>
     {roster.isError ? <p role="alert">수강 명단을 불러오지 못했습니다. <Button onClick={()=>void roster.refetch()}>다시 시도</Button></p> :
     roster.data && <DomainTable scrollLabel="등록된 수강생"><thead><tr><th>학생</th><th>학교</th><th>학년</th></tr></thead><tbody>
-      {roster.data.results.map(s=><tr key={s.id}><th scope="row"><Link state={{courseReturn:location.pathname+location.search}} to={"/workspace/students/home?student="+s.id}>{s.name}</Link></th>
+      {roster.data.results.map(s=><tr key={s.id}><th scope="row"><Link aria-label={s.name} state={{courseReturn:location.pathname+location.search}} to={"/workspace/students/home?student="+s.id}><StudentNameWithLectureChip name={s.name} avatarSize={22} density="compact"/></Link></th>
         <td>{s.school || "미입력"}</td><td>{s.grade ? s.grade+"학년" : "미입력"}</td></tr>)}
       {!roster.data.count && <tr><td colSpan={3}>{search ? "검색 결과가 없습니다." : "등록된 수강생이 없습니다."}</td></tr>}
     </tbody></DomainTable>}

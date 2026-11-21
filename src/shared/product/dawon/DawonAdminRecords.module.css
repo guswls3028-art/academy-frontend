@@ -13,6 +13,7 @@
 .desk :global(.ds-table) tbody th a:hover,.back:hover { text-decoration:underline; }
 .filters,.controls,.desk :global(.domain-list-toolbar) { padding:10px 0; border:0; border-bottom:1px solid var(--color-border-divider); background:var(--color-bg-surface); border-radius:3px; }
 .filters,.controls { display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px; }
+.controls input[type=search] { width:min(100%,295px); }
 .controls > strong { margin-inline-end:auto; font-size:15px; }
 .controls label,.schools label { display:inline-flex; align-items:center; flex-wrap:wrap; gap:6px; margin:0; }
 .desk select { min-width:0; min-height:40px; max-width:100%; padding:4px 9px; border:1px solid var(--color-border-divider); border-radius:6px; background:var(--color-bg-surface); color:inherit; }

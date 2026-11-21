@@ -1,3 +1,5 @@
+import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
+import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import { Link, useLocation, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
@@ -8,7 +10,7 @@ import { dawonQueryKeys } from "./queryKeys";
 import styles from "./DawonAdminDesk.module.css";
 
 type Student = {id:number; name:string; school:string; grade:number|null; phone:string; parent_phone:string;
-  groups:{id:number;name:string}[]; courses?:{id:number;title:string;group:number}[]};
+  groups:{id:number;name:string}[]; courses?:{id:number;title:string;group:number;color:string;chip_label:string}[]};
 type Page = {count:number;results:Student[]};
 const root = "/workspace/students/home";
 const endpoint = "/students/class-groups/";
@@ -59,8 +61,8 @@ export default function DawonAdminStudents() {
         {people.isError ? <p role="alert">학생 명단을 불러오지 못했습니다. <Button onClick={()=>void people.refetch()}>다시 시도</Button></p> :
           people.data && <><DomainTable scrollLabel="학생 명단" tableClassName="ds-table--flat">
             <thead><tr><th>학생 이름</th><th>학교</th><th>학년</th><th>소속 반</th></tr></thead><tbody>
-              {people.data.results.map(s=><tr key={s.id}><th scope="row"><Link to={detailUrl(s.id)} state={{directoryTerm:search}} preventScrollReset
-                aria-current={String(s.id)===selected ? "true" : undefined}>{s.name}</Link></th><td>{s.school || "미입력"}</td>
+              {people.data.results.map(s=><tr key={s.id}><th scope="row"><Link aria-label={s.name} to={detailUrl(s.id)} state={{directoryTerm:search}} preventScrollReset
+                aria-current={String(s.id)===selected ? "true" : undefined}><StudentNameWithLectureChip name={s.name} avatarSize={22} density="compact"/></Link></th><td>{s.school || "미입력"}</td>
                 <td>{s.grade ? s.grade+"학년" : "미입력"}</td><td>{s.groups.map(g=>g.name).join(", ") || "미편성"}</td></tr>)}
               {!people.data.count && <tr><td colSpan={4}>조건에 맞는 학생이 없습니다.</td></tr>}
             </tbody></DomainTable>
@@ -76,7 +78,7 @@ export default function DawonAdminStudents() {
             <dt>학생 연락처</dt><dd>{row.phone || "미입력"}</dd><dt>학부모 연락처</dt><dd>{row.parent_phone || "미입력"}</dd>
             <dt>소속 반</dt><dd>{row.groups.length ? row.groups.map(g=><Link key={g.id} to={"/workspace/students/class-groups?class="+g.id}>{g.name}</Link>) : "미편성"}</dd></dl>
             <h3>수강 중인 강의</h3>{row.courses?.length ? <DomainTable scrollLabel="학생 수강 강의" tableClassName="ds-table--flat"><thead><tr><th>강의</th><th>학습 기록</th></tr></thead>
-              <tbody>{row.courses.map(c=><tr key={c.id}><td>{c.title}</td><td><Link state={{directorySearch:params.toString(),directoryTerm:search}}
+              <tbody>{row.courses.map(c=><tr key={c.id}><td><Link to={"/workspace/lectures/"+c.id+"?group="+c.group} aria-label={c.title}><LectureChipLabel lectureName={c.title} color={c.color} chipLabel={c.chip_label}/></Link></td><td><Link state={{directorySearch:params.toString(),directoryTerm:search}}
                 to={"/workspace/results?"+new URLSearchParams({panel:"student",origin:"directory",course:String(c.id),group:String(c.group),student:String(row.id)})}>기록 보기</Link></td></tr>)}</tbody>
             </DomainTable> : <p>반에 연결된 수강 강의가 없습니다.</p>}</> : <p>조회할 수 없는 학생입니다.</p>}
       </section>}

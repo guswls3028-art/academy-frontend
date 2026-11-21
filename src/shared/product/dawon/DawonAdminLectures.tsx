@@ -1,3 +1,4 @@
+import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
 import { useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -11,7 +12,7 @@ import { DawonLectureEnrollment } from "./DawonLectureEnrollment";
 import { dawonQueryKeys } from "./queryKeys";
 import styles from "./DawonAdminDesk.module.css";
 
-type Course = {id:number;title:string;instructor:string;students:number;lessons:number;is_active:boolean};
+type Course = {color:string;chip_label:string;id:number;title:string;instructor:string;students:number;lessons:number;is_active:boolean};
 type Group = {id:number|null;name:string;courses:Course[]};
 type Row = Course & {group: Pick<Group,"id"|"name">};
 type Class = {id:number;name:string;student_count:number;instructor_name:string};
@@ -50,7 +51,7 @@ function LectureRegister() {
     </div>
     {catalog.isError ? <p role="alert">강의 목록을 불러오지 못했습니다. <Button onClick={()=>void catalog.refetch()}>다시 시도</Button></p> :
       catalog.data && <DawonDirectoryTable id="dawon-admin-course-catalog" label="강의 목록" rows={rows} empty="조건에 맞는 강의가 없습니다." columns={[
-        {key:"title",label:"강의명",defaultWidth:270,value:r=>r.title,render:r=><Link state={{lectureSearch:location.search}} to={"/workspace/lectures/"+r.id+(r.group.id ? "?group="+r.group.id : "")}>{r.title}</Link>},
+        {key:"title",label:"강의명",defaultWidth:270,value:r=>r.title,render:r=><Link aria-label={r.title} state={{lectureSearch:location.search}} to={"/workspace/lectures/"+r.id+(r.group.id ? "?group="+r.group.id : "")}><LectureChipLabel lectureName={r.title} color={r.color} chipLabel={r.chip_label}/></Link>},
         {key:"group",label:"소속 반",defaultWidth:140,value:r=>r.group.name,render:r=>r.group.id ? <Link to={"/workspace/lectures?class="+r.group.id}>{r.group.name}</Link> : r.group.name},
         {key:"teacher",label:"담당 강사",defaultWidth:100,value:r=>r.instructor || "미지정"},
         {key:"members",label:"수강생",defaultWidth:75,value:r=>r.students,render:r=>r.students+"명"},

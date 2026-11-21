@@ -66,7 +66,7 @@ export function AdminRosterPicker({ candidateUrl, roster, selected, busy, onChan
         {all ? "현재 페이지 선택 해제" : "현재 페이지 전체 선택"}
       </Button>
     </div>
-    <div ref={list} className="lecture-enroll-picker__list" style={{flex:"none", maxHeight:"min(34dvh, 320px)"}} aria-label="학생 명단" aria-busy={pending}>
+    <div ref={list} className="lecture-enroll-picker__list" role="region" aria-label="학생 명단" aria-busy={pending}>
       {error ? <p role="alert">학생을 불러오지 못했습니다. <Button onClick={() => void query.refetch()}>다시 시도</Button></p>
         : !pending && !rows.length ? <p>{search || grade ? "검색 결과가 없습니다. 검색어나 학년을 바꿔 주세요." : "선택할 수 있는 학생이 없습니다."}</p>
         : rows.map(student => <label key={student.id} className="lecture-enroll-picker__row" data-selected={selected.has(student.id)}>
