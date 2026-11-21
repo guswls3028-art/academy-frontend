@@ -173,7 +173,7 @@ export default function LoginPage() {
       )}
       <main className={styles.center} data-auth-part="card">
         <section className={styles.brandStage} data-auth-part="brand-stage">
-          <PublicBrandLink to={publicHome} aria-label={title + " 홈"} style={{ color: "inherit", textDecoration: "none" }} className={styles.brandArtwork} data-auth-part="brand-artwork">
+          <PublicBrandLink to={publicHome} aria-label={title + " 홈"} className={styles.brandArtwork} data-auth-part="brand-artwork">
             {logoUrl ? (
               <img src={logoUrl} alt="" className={styles.logo} />
             ) : (
