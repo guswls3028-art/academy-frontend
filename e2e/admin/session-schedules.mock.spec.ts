@@ -480,7 +480,7 @@ for (const [width, action] of [[390, "manage"], [1366, "manage"], [390, "add"], 
   const draftPath = '/api/v1/results/admin/sessions/9902/score-draft/';
   let releaseDraft!: () => void;
   const draftGate = new Promise<void>(resolve => { releaseDraft = resolve; });
-  const draftRead = page.waitForRequest(request => new URL(request.url()).pathname === draftPath && request.method() === 'GET');
+  let draftRequested = false;
   const writes: string[] = [];
   page.on('request', request => {
     const url = new URL(request.url());
@@ -490,13 +490,14 @@ for (const [width, action] of [[390, "manage"], [1366, "manage"], [390, "add"], 
   });
   await page.route(url => url.pathname === draftPath, async route => {
     if (route.request().method() !== 'GET') return route.fallback();
+    draftRequested = true;
     await draftGate;
     await route.fulfill({ json: { changes: [], active_editors: [] } });
   });
   try {
     await page.goto(`${BASE}${path}/scores?schedule=71`, { waitUntil: 'domcontentloaded' });
-    await draftRead;
     await expect(page.getByRole('checkbox', { name: '김수연 선택', exact: true })).toBeVisible();
+    await expect.poll(() => draftRequested).toBe(true);
     expect(writes).toEqual([]);
     const strip = page.getByRole('region', { name: '수업일 선택', exact: true });
     const manage = strip.getByRole('button', { name: '수업일 관리', exact: true });

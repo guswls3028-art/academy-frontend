@@ -53,6 +53,10 @@ async function setup(page: Page, role: "owner" | "teacher" | "staff") {
       return json({ results: [homework, otherHomework], count: 2, next: null });
     }
     if (path === "/homeworks/71/") return json(homework);
+    if (path === "/results/admin/sessions/31/scores/") return json({
+      meta: { exams: [], homeworks: [] },
+      rows: [{ enrollment_id: 10, student_name: "QA 과제 제출 학생", exams: [], homeworks: [] }],
+    });
     if (path === "/lectures/sessions/") return json([
       { id: 31, lecture: 21, title: "첫 차시" }, { id: 32, lecture: 22, title: "첫 차시" },
     ]);
