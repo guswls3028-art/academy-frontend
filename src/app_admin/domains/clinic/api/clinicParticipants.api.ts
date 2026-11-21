@@ -220,6 +220,7 @@ export async function patchClinicParticipantStatus(
     memo?: string;
     is_late?: boolean;
     expected_checked_in_at?: string;
+    expected_status?: "no_show";
     send_to?: ClinicRecipient;
   }
 ) {

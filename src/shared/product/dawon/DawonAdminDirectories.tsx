@@ -32,7 +32,7 @@ export function AdminGroupSelect({value, onChange, teacher=false}: {value:string
   </label>;
 }
 
-type CareRow = {id:number;student_id:number;name:string;groups:string[];day:string|null;title:string;status:string;course_id:number|null;can_review?:boolean;can_attend?:boolean;can_reply?:boolean;body?:string;replies?:string[]};
+type CareRow = {id:number;student_id:number;name:string;groups:string[];day:string|null;title:string;status:string;course_id:number|null;can_review?:boolean;can_attend?:boolean;can_undo_arrival?:boolean;can_undo_absence?:boolean;checked_in_at?:string|null;can_reply?:boolean;body?:string;replies?:string[]};
 const states:Record<string,string> = {pending:"승인 대기",booked:"예약 확정",attended:"참석",no_show:"미참석",cancelled:"취소",rejected:"거절"};
 function useDirectory<T>(filters:Record<string,string>) {
   return useQuery({queryKey:dawonQueryKeys.adminLearning(filters), refetchInterval:filters.kind==="clinic" && !filters.record ? 15000 : false, queryFn:async ({signal})=>
@@ -44,7 +44,13 @@ export function CareDetail({filters,close}:{filters:Record<string,string>;close:
   const row=query.data?.rows[0];
   const client=useQueryClient();
   const review=useMutation({
-    mutationFn:(status:"booked"|"rejected"|"attended"|"no_show")=>patchClinicParticipantStatus(Number(filters.record),{status}),
+    mutationFn:(status:"booked"|"rejected"|"attended"|"no_show"|"undo")=>{
+      const id=Number(filters.record);
+      if(status!=="undo") return patchClinicParticipantStatus(id,{status});
+      if(row?.can_undo_arrival && row.checked_in_at) return patchClinicParticipantStatus(id,{status:"booked",expected_checked_in_at:row.checked_in_at});
+      if(row?.can_undo_absence) return patchClinicParticipantStatus(id,{status:"booked",expected_status:"no_show"});
+      throw new Error("출결 상태가 바뀌었습니다. 다시 확인해 주세요.");
+    },
     onSettled:()=>Promise.all([
       client.invalidateQueries({queryKey:dawonQueryKeys.adminLearningRoot}),
       client.invalidateQueries({queryKey:clinicQueryKeys.participants}),
@@ -64,11 +70,13 @@ export function CareDetail({filters,close}:{filters:Record<string,string>;close:
           <Button intent="primary" disabled={review.isPending} onClick={()=>review.mutate("attended")}>출석 기록</Button>
           <Button disabled={review.isPending} onClick={()=>review.mutate("no_show")}>결석 기록</Button>
         </div>}
+        {((row.can_undo_arrival && row.checked_in_at) || row.can_undo_absence) &&
+          <Button disabled={review.isPending} onClick={()=>review.mutate("undo")}>출결 취소</Button>}
         {row.can_review && <div role="group" aria-label="클리닉 신청 처리">
           <Button intent="primary" disabled={review.isPending} onClick={()=>review.mutate("booked")}>예약 승인</Button>
           <Button disabled={review.isPending} onClick={()=>review.mutate("rejected")}>신청 반려</Button>
         </div>}
-        {review.isSuccess && <p role="status">{review.variables && {booked:"예약을 승인했습니다.", rejected:"신청을 반려했습니다.", attended:"출석을 기록했습니다.", no_show:"결석을 기록했습니다."}[review.variables]}</p>}
+        {review.isSuccess && <p role="status">{review.variables && {booked:"예약을 승인했습니다.", rejected:"신청을 반려했습니다.", attended:"출석을 기록했습니다.", no_show:"결석을 기록했습니다.", undo:"출결을 취소하고 예약 확정으로 되돌렸습니다."}[review.variables]}</p>}
         {review.isError && <p role="alert">{getApiErrorMessage(review.error,"처리하지 못했습니다. 현재 상태를 다시 확인해 주세요.")}</p>}
       </div>}</ModalBody>
   </AdminModal>;
