@@ -1,3 +1,4 @@
+import DawonSearchInput from "./DawonSearchInput";
 import { Link, useSearchParams } from "react-router";
 import DomainLayout from "@/shared/ui/domain/DomainLayout";
 import { Button } from "@/shared/ui/ds";
@@ -31,8 +32,8 @@ export default function DawonDailyAttendance() {
       <div className={styles.tools}>
         <label>수업 날짜<input className="ds-input" type="date" value={day} required
           onChange={event => { if (event.target.value) setParams(selection(event.target.value, search, group === null ? undefined : Number(group))); }}/></label>
-        {group === null && <label>반 검색<input className="ds-input" type="search" value={search} placeholder="반 이름 검색"
-          onChange={event => setParams(selection(day, event.target.value), {replace: true})}/></label>}
+        {group === null && <label>반 검색<DawonSearchInput className="ds-input" value={search} placeholder="반 이름 검색"
+          onSearch={text=> setParams(selection(day, text), {replace: true})}/></label>}
         <nav aria-label="운영 화면">
           {group !== null && <Link to={overview}>반별 출결 목록</Link>}
           <Link to={dashboard + "?" + dashboardFilters}>반 운영 현황</Link>

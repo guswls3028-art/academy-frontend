@@ -1,3 +1,4 @@
+import DawonSearchInput from "./DawonSearchInput";
 import { Fragment } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useLocation, useSearchParams } from "react-router";
@@ -65,7 +66,7 @@ export default function DawonStudentResults() {
   const pages=Math.ceil((results.data?.count ?? 0)/25);
   return <DomainLayout title="시험 결과·통계" breadcrumbs={[]} tabs={resultTabs}><div className={desk.desk}>
     <div className={desk.resultTools} role="group" aria-label="학생별 성적 조건">
-      <label>학생 이름<input className="ds-input" type="search" value={search} maxLength={100} onChange={e=>update("q",e.target.value)}/></label>
+      <label>학생 이름<DawonSearchInput className="ds-input" value={search} maxLength={100} onSearch={text=>update("q",text)}/></label>
       <label>반 범위<select value={group} onChange={e=>update("group",e.target.value)}><option value="">전체 반</option>
         {groups.data?.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
       <label>최근 응시 상태<select value={status} onChange={e=>update("status",e.target.value)}><option value="">전체</option>

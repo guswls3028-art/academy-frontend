@@ -1,3 +1,4 @@
+import DawonSearchInput from "./DawonSearchInput";
 import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
 import DomainListToolbar from "@/shared/ui/domain/DomainListToolbar";
 import DawonDirectoryTable from "./DawonDirectoryTable";
@@ -121,7 +122,7 @@ function Dashboard() {
   }
   return <DomainLayout title="반 운영 현황" density="compact" breadcrumbs={[]}>
     <div className={styles.section}>
-      <DomainListToolbar totalLabel={groups.isError ? "조회 실패" : groups.isPending || pendingFilter ? "반 조회 중" : "반 "+rows.length+"개"} searchSlot={<input className="ds-input" type="search" aria-label="반 또는 담당 강사 검색" placeholder="반 이름 · 담당 강사 · 학교 검색" value={search} onChange={e=>updateFilter("q",e.target.value)}/>}
+      <DomainListToolbar totalLabel={groups.isError ? "조회 실패" : groups.isPending || pendingFilter ? "반 조회 중" : "반 "+rows.length+"개"} searchSlot={<DawonSearchInput className="ds-input" aria-label="반 또는 담당 강사 검색" placeholder="반 이름 · 담당 강사 · 학교 검색" value={search} onSearch={text=>updateFilter("q",text)}/>}
         filterSlot={<div className={styles.filterRow}><label className={styles.field}>조회 대상<select value={attention} onChange={event=>updateFilter("attention",event.target.value)}><option value="">전체 반</option><option value="attendance">출결 미입력 반</option><option value="alerts">학습 경보 있는 반</option></select></label><label className={styles.field}>수업 날짜<input className="ds-input" type="date" value={day} onChange={e=>{if(e.target.value)updateFilter("date",e.target.value);}}/></label><Link to={attendanceUrl()}>전체 차시 출결</Link></div>}
         primaryAction={<div className={styles.filterRow}>
           {daily.data && groups.data && <Button size="sm" intent={attention==="attendance" ? "primary" : "secondary"} aria-pressed={attention==="attendance"}
@@ -214,7 +215,7 @@ function TeachingRecords() {
           <p role="alert">해당 강의를 찾을 수 없습니다. <Link to="/workspace/lectures">강의 목록으로</Link></p> :
         selectedExam && selectedCourse ?
           <AdminExamReview key={selectedCourse+"-"+selectedExam} course={selectedCourse} exam={selectedExam} group={groupKey}/> : <>
-          <div className={recordsDesk.controls}><input type="search" className="ds-input" aria-label="시험 검색" placeholder="시험명 · 반 · 강의 검색" value={params.get("q") || ""} onChange={e=>setFilter("q",e.target.value)}/><strong>시험 {rows.length}개</strong>
+          <div className={recordsDesk.controls}><DawonSearchInput className="ds-input" aria-label="시험 검색" placeholder="시험명 · 반 · 강의 검색" value={params.get("q") || ""} onSearch={text=>setFilter("q",text)}/><strong>시험 {rows.length}개</strong>
           <label className={styles.resultPicker}>반 범위 <select value={examGroup} onChange={e=>setFilter("scope",e.target.value)}>
             <option value="">전체 반</option>{groups.map(g=><option key={String(g.id)} value={String(g.id)}>{g.name}</option>)}</select></label>
           <label className={styles.resultPicker}>채점 상태 <select value={examFilter} onChange={e=>setFilter("status",e.target.value)}>

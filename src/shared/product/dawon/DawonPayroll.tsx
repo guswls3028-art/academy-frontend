@@ -1,3 +1,4 @@
+import DawonSearchInput from "./DawonSearchInput";
 import { Fragment, useState, type ReactNode } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
@@ -53,7 +54,7 @@ export default function DawonPayroll({month,labels,detail}:{month:string; labels
   return <section aria-label="직원 월 정산" className={styles.payroll}>
     <div className={styles.directoryTools}>
       <label>조회 월 <input type="month" className="ds-input" value={month} onChange={e=>{if(e.target.value) change("month",e.target.value);}}/></label>
-      <label>직원 검색 <input type="search" className="ds-input" value={search} placeholder="이름 · 직위" onChange={e=>change("paySearch",e.target.value)}/></label>
+      <label>직원 검색 <DawonSearchInput className="ds-input" value={search} placeholder="이름 · 직위" onSearch={text=>change("paySearch",text)}/></label>
       <label>정산 상태 <select className="ds-select" value={state} onChange={e=>change("payState",e.target.value)}>
         <option value="">전체</option>{Object.entries(states).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
     </div>

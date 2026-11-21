@@ -1,3 +1,4 @@
+import DawonSearchInput from "./DawonSearchInput";
 import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
 import { useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
@@ -42,7 +43,7 @@ function LectureRegister() {
   const eligible=classes.data?.filter(c=>c.student_count>0 && c.instructor_name) ?? [];
   return <DomainLayout title="강의 관리" density="compact" breadcrumbs={[]}>
     <div className={styles.tools} role="group" aria-label="강의 조회 조건">
-      <input className="ds-input" type="search" aria-label="강의 검색" placeholder="강의명 · 반 · 담당 강사 검색" value={search} onChange={e=>change("q",e.target.value)}/>
+      <DawonSearchInput className="ds-input" aria-label="강의 검색" placeholder="강의명 · 반 · 담당 강사 검색" value={search} onSearch={text=>change("q",text)}/>
       <select className="ds-select" aria-label="반 필터" value={group} onChange={e=>change("scope",e.target.value)}><option value="">전체 반</option>
         {catalog.data?.groups.map(g=><option key={g.id??"none"} value={g.id??"none"}>{g.name}</option>)}</select>
       <select className="ds-select" aria-label="운영 상태" value={status} onChange={e=>change("status",e.target.value)}><option value="">전체 상태</option><option value="active">운영 중</option><option value="closed">종료</option></select>

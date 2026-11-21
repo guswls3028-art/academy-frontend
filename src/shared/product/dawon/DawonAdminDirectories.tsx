@@ -1,3 +1,4 @@
+import DawonSearchInput from "./DawonSearchInput";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useSearchParams } from "react-router";
 import api from "@/shared/api/axios";
@@ -79,7 +80,7 @@ function CareDirectory() {
         <Button aria-pressed={kind==="appointments"} onClick={()=>update("kind","appointments")}>등록한 상담 일정</Button>
       </div>}
       <DomainListToolbar totalLabel={query.data ? "기록 "+count+"건" : "조회 중"}
-        searchSlot={<input className="ds-input" type="search" aria-label="학생 이름 검색" placeholder="학생 이름 검색" maxLength={100} value={search} onChange={e=>update("q",e.target.value)}/>}
+        searchSlot={<DawonSearchInput className="ds-input" aria-label="학생 이름 검색" placeholder="학생 이름 검색" maxLength={100} value={search} onSearch={text=>update("q",text)}/>}
         filterSlot={<AdminGroupSelect value={group} onChange={id=>update("group",id)}/>} primaryAction={null}/>
       {query.isPending?<p role="status">목록을 불러오는 중입니다.</p>:query.isError?
         <p role="alert">목록을 불러오지 못했습니다. <Button onClick={()=>void query.refetch()}>다시 시도</Button></p>:

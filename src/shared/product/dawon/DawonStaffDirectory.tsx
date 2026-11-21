@@ -1,3 +1,4 @@
+import DawonSearchInput from "./DawonSearchInput";
 import { StaffRoleAvatar, type StaffRoleType } from "@/shared/ui/avatars";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -112,8 +113,8 @@ function StaffMaster() {
     <section className={styles.directory} aria-label="직원 검색 및 목록">
       <div className={styles.directoryTools}>
         <label className="sr-only" htmlFor="dawon-employee-search">직원 찾기</label>
-        <input id="dawon-employee-search" type="search" className="ds-input" placeholder="이름 · 직위 · 담당 반 검색"
-          value={search} onChange={e => navigate("q", e.target.value || null)} />
+        <DawonSearchInput id="dawon-employee-search" className="ds-input" placeholder="이름 · 직위 · 담당 반 검색"
+          value={search} onSearch={text=> navigate("q", text || null)} />
         <select className="ds-select" aria-label="직위 필터" value={position} onChange={e=>navigate("position",e.target.value || null)}>
           <option value="">전체 직위</option>
           {Object.entries(labels).map(([code,label]) => <option key={code} value={code}>{label}</option>)}
