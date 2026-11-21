@@ -128,7 +128,7 @@ export default function LoginPage() {
   // data-tenant: 테넌트 코드 그대로 사용 (themes/*.css selector 매칭)
   const themeAttr = tenantCode ?? "tchul";
   const isHakwonplus = themeAttr === "hakwonplus";
-  const publicHome = isHakwonplus ? "/promo"
+  const publicHome = isHakwonplus || tenantCode === "9999" ? "/promo"
     : hasLanding || tenantCode === "godmin" ? "/landing"
     : window.location.pathname;
   const fieldLabelClass = isHakwonplus ? styles.fieldLabel : styles.srOnly;
