@@ -630,6 +630,24 @@ async function waitForHomeworkSummary(
   return latest;
 }
 
+async function openHomeWithGradeRows(page: Page, selectedStudentId?: number) {
+  const [response] = await Promise.all([
+    page.waitForResponse((candidate) => {
+      const url = new URL(candidate.url());
+      return candidate.request().method() === "GET" && url.pathname === "/api/v1/student/grades/"
+        && url.searchParams.get("scope") === "rows";
+    }, { timeout: 45_000 }),
+    gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 }),
+  ]);
+  expect(response.status()).toBe(200);
+  if (selectedStudentId !== undefined) {
+    expect(response.request().headers()["x-student-id"]).toBe(String(selectedStudentId));
+  }
+  const data = await response.json() as { exams: unknown[]; homeworks: HomeworkSummary[] };
+  expect(Object.keys(data).sort()).toEqual(["exams", "homeworks"]);
+  return data.homeworks;
+}
+
 async function cleanup(request: APIRequestContext): Promise<void> {
   if (!created.adminAccess) return;
   const failures: string[] = [];
@@ -1151,7 +1169,12 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
         studentTokens.access,
         (row) => row.submission_state === "awaiting_review" && row.score === null,
       );
-      await gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 });
+      const studentHomeRows = await openHomeWithGradeRows(page);
+      expect(studentHomeRows).toContainEqual(expect.objectContaining({
+        homework_id: created.homeworkId,
+        submission_state: "awaiting_review",
+        score: null,
+      }));
       const remainingHomework = todo.getByRole("link", { name: /^과제 제출 필요 1건/ });
       await expect(remainingHomework).toBeVisible();
       await expect(remainingHomework).toContainText(otherTitle);
@@ -1432,7 +1455,8 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await showAllHomeworkGrades(page);
     await expect(page.getByText(homeworkTitle).first()).toBeVisible();
     await expect(page.locator('aside[aria-label="학부모 코멘트"]')).toContainText(parentHomeworkComment);
-    await gotoAndSettle(page, `${QA_BASE}/student`);
+    const parentHomeRows = await openHomeWithGradeRows(page, student.id);
+    expect(parentHomeRows).toContainEqual(expect.objectContaining({ homework_id: created.homeworkId, score: 92 }));
     await page.getByRole("link", { name: /과제 검사 결과 .*건 보기/ }).click();
     await expect(page.getByRole("region", { name: "과제 검사 결과", exact: true })).toContainText(inspectionFeedback);
 
