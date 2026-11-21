@@ -502,6 +502,14 @@ function mountLearner(mountMenu, normalizeDay) {
   function recordsFor(payload) {
     const homeworkStatus = { needs_submission:'제출 필요', awaiting_review:'확인 중', reviewed:'확인 완료' };
     if (topic === 'questions') return guardian ? payload.counsels ?? [] : localQuestions();
+    if (topic === 'grades' && !guardian) return (payload.school_reports ?? []).map(row => {
+      if (!Number.isInteger(row.academic_year) || ![1,2].includes(row.semester) || !['first','second'].includes(row.exam_round)) return row;
+      const term = new URLSearchParams({academic_year:String(row.academic_year), semester:String(row.semester),
+        exam_round:row.exam_round, from:'day', date:key, period});
+      const origin = params.get('originDate');
+      if (origin && normalize(origin) === origin) term.set('originDate',origin);
+      return {...row, path:'/student/submit/school-report?' + term, action:'이 시험 성적 보기'};
+    });
     const groups = { notices:payload.notices, clinic:payload.clinics, grades:payload.school_reports };
     if (Object.hasOwn(groups, topic)) return groups[topic] ?? [];
     return (payload.sessions ?? []).flatMap(row => {

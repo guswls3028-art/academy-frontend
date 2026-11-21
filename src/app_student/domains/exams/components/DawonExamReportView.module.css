@@ -29,3 +29,9 @@
 .legend span::before { display: inline-block; width: 14px; margin-right: 4px; vertical-align: middle; border-top: 2px solid currentColor; content: ""; }
 .legend .average::before { border-top-style: dashed; }
 .legend .highest::before { border-top-style: dotted; }
+
+.questions { display:grid; gap:.5rem; }
+.questionHead { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.5rem; }
+.questionHead h4 { margin:0; }
+.questionHead label { display:inline-flex; align-items:center; gap:.4rem; min-height:44px; cursor:pointer; }
+.tableWrap a { color:var(--stu-primary); text-decoration:underline; text-underline-offset:.15em; }

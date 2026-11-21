@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { Link, useLocation } from "react-router";
 import type { DawonExamReport } from "../api/results";
 import styles from "./DawonExamReportView.module.css";
 
@@ -59,7 +60,28 @@ function TrendChart({rows}: {rows: DawonExamReport["trend"]}) {
   </figure>;
 }
 
+function QuestionAnalysis({section}: {section: DawonExamReport["sections"][number]}) {
+  const [wrongOnly,setWrongOnly] = useState(false);
+  const questions = section.questions;
+  const wrong = questions.filter(q => q.correct === false);
+  const correct = questions.filter(q => q.correct === true).length;
+  const pending = questions.length - correct - wrong.length;
+  const visible = wrongOnly ? wrong : questions;
+  if (!questions.length) return null;
+  return <div className={styles.questions}>
+    <div className={styles.questionHead}><h4>문항별 분석</h4>
+      <label><input type="checkbox" checked={wrongOnly} onChange={event=>setWrongOnly(event.target.checked)}/> 오답만 보기</label></div>
+    <p role="status">전체 {questions.length}문항 · 정답 {correct} · 오답 {wrong.length}{pending > 0 && ` · 미채점 ${pending}`}</p>
+    {visible.length ? <ReportTable label={section.title + " 문항별 분석"}
+      columns={["문항", "출제 주제", "내 결과", "정답률"]}
+      rows={visible.map(q => [q.number + "번", q.topic || "미등록",
+        q.correct === null ? "미채점" : q.correct ? "정답 (O)" : "오답 (X)", value(q.correct_rate, "%")])}/>
+      : <p>채점된 문항에서 오답이 없습니다.</p>}
+  </div>;
+}
+
 export default function DawonExamReportView({report}: {report: DawonExamReport}) {
+  const location = useLocation();
   const questionNumbers = (items: number[]) => items.length ? items.map(n => n + "번").join(", ") : "없음";
   const hasPercentile = report.kind === "school_mock" || report.trend.some(row => row.percentile !== null);
   return <article className={styles.report} aria-label={report.title}>
@@ -78,16 +100,15 @@ export default function DawonExamReportView({report}: {report: DawonExamReport})
         {report.kind === "school_mock" || section.percentile != null
           ? <div><dt>백분위</dt><dd>{value(section.percentile)}</dd></div> : null}
       </dl>
-      {section.questions.length > 0 && <ReportTable label={section.title + " 문항별 분석"}
-        columns={["문항", "출제 주제", "내 결과", "정답률"]}
-        rows={section.questions.map(q => [q.number + "번", q.topic || "미등록",
-          q.correct === null ? "미채점" : q.correct ? "정답 (O)" : "오답 (X)", value(q.correct_rate, "%")])} />}
+      <QuestionAnalysis section={section}/>
     </section>)}
     {report.trend.length > 0 && <section>
       <h3>회차별 성적 추이</h3>
       <TrendChart rows={report.trend} />
       <ReportTable label="회차별 성적 추이" columns={["회차", "내 점수", "평균", "최고점", ...(hasPercentile ? ["백분위"] : [])]}
-        rows={report.trend.map(row => [row.label, score(row.score, row.maximum), value(row.average, "점"),
+        rows={report.trend.map(row => [row.exam_id && location.pathname !== `/student/exams/${row.exam_id}/result`
+          ? <Link to={`/student/exams/${row.exam_id}/result${location.search}`} aria-label={row.label+" 성적표 보기"}>{row.label}</Link>
+          : row.label, score(row.score, row.maximum), value(row.average, "점"),
           value(row.highest, "점"), ...(hasPercentile ? [value(row.percentile)] : [])])} />
     </section>}
     {report.homework.length > 0 && <section>

@@ -122,3 +122,8 @@
     grid-column: 1 / -1;
   }
 }
+
+.history { display:grid; gap:.5rem; }
+.history h2 { margin:0; font-size:1rem; }
+.history > div { display:flex; flex-wrap:wrap; gap:.4rem; }
+.history button[aria-pressed=true] { color:var(--stu-primary); border-color:currentColor; }

@@ -39,7 +39,7 @@ export type DawonExamReport = {
     exam_id: number; title: string; scope: string;
     questions: {number: number; topic: string; correct: boolean | null; correct_rate: number | null}[];
   })[];
-  trend: (ReportScore & {label: string})[];
+  trend: (ReportScore & {label: string; exam_id?: number})[];
   homework: {title: string; completion: number | null; wrong: number[]; unfinished: number[]}[];
   next_homework: string;
   clinic: string;

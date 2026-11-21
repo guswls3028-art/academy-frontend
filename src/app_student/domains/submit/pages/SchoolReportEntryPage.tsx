@@ -29,16 +29,21 @@ export default function SchoolReportEntryPage() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const period = parseSchoolReportPeriod(Object.fromEntries(searchParams)) ?? currentSchoolReportPeriod();
+  const day = searchParams.get("date") || "";
+  const calendar = new URLSearchParams({view:"day",date:day,period:searchParams.get("period")==="month"?"month":"week"});
+  const origin = searchParams.get("originDate");
+  if (origin && /^\d{4}-\d{2}-\d{2}$/.test(origin)) calendar.set("originDate", origin);
+  const fromDay = searchParams.get("from")==="day" && /^\d{4}-\d{2}-\d{2}$/.test(day);
   if (user?.tenantRole === "parent") return <Navigate to="/student/submit" replace />;
   return (
     <StudentPageShell
       title={resolveTenantCodeString() === "dawon" ? "학교 성적" : "학교 성적표 제출"}
-      actions={resolveTenantCodeString() === "dawon" ? <a className="stu-btn stu-btn--secondary" href="/student">학습 홈</a> : <Link className="stu-btn stu-btn--secondary" to="/student/submit/score">파일로 제출</Link>}
+      actions={resolveTenantCodeString() === "dawon" ? <a className="stu-btn stu-btn--secondary" href={fromDay ? "/learn/grades?"+calendar : "/student"}>{fromDay ? "날짜별 학교 성적" : "학습 홈"}</a> : <Link className="stu-btn stu-btn--secondary" to="/student/submit/score">파일로 제출</Link>}
     >
       <SchoolReportEntry
         key={`${period.academic_year}-${period.semester}-${period.exam_round}`}
         period={period}
-        onPeriodChange={(next) => setSearchParams(schoolReportParams(next), { replace: true })}
+        onPeriodChange={(next) => setSearchParams(previous => { const query = new URLSearchParams(previous); for (const [key,value] of Object.entries(schoolReportParams(next))) query.set(key,value); return query; }, { replace: true })}
       />
     </StudentPageShell>
   );
@@ -132,6 +137,15 @@ function SchoolReportEntry({ period, onPeriodChange }: {
   return (
     <div className={styles.page}>
       <SchoolReportPeriodPicker period={period} disabled={save.isPending} onChange={(next) => void changePeriod(next)} />
+      {report.data?.submitted_periods && <section className={styles.history} aria-label="내 학교 성적 누적 기록">
+        <h2>내 중간·기말 기록</h2>
+        {report.data.submitted_periods.length ? <div>{report.data.submitted_periods.map(term => {
+          const active = term.academic_year === period.academic_year && term.semester === period.semester && term.exam_round === period.exam_round;
+          return <button type="button" key={term.academic_year+"-"+term.semester+"-"+term.exam_round}
+            className="stu-btn stu-btn--secondary" aria-pressed={active} disabled={save.isPending}
+            onClick={() => void changePeriod(term)}>{term.academic_year}년 {schoolReportPeriodLabel(term)}</button>;
+        })}</div> : <p>제출한 학교 성적이 없습니다.</p>}
+      </section>}
       {report.isPending ? <p role="status" className={styles.muted}>성적표를 불러오는 중…</p>
         : report.isError ? (
           <EmptyState title="성적표를 불러오지 못했습니다" onRetry={() => void report.refetch()} />

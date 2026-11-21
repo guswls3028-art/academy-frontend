@@ -26,12 +26,12 @@ export const schoolReportKeys = {
 };
 
 export async function fetchOwnSchoolReport(period: SchoolReportPeriod, signal?: AbortSignal) {
-  const { data } = await api.get<SchoolReportDetail>(endpoint + "me/", { params: period, signal });
+  const { data } = await api.get<SchoolReportDetail & {submitted_periods?: SchoolReportPeriod[]}>(endpoint + "me/", { params: period, signal });
   return data;
 }
 
 export async function saveOwnSchoolReport(period: SchoolReportPeriod, subjects: SchoolReportSubject[]) {
-  const { data } = await api.put<SchoolReportDetail>(endpoint + "me/",
+  const { data } = await api.put<SchoolReportDetail & {submitted_periods?: SchoolReportPeriod[]}>(endpoint + "me/",
     { subjects } satisfies SchoolReportSchemas["SchoolReportEntryRequest"], { params: period });
   return data;
 }
