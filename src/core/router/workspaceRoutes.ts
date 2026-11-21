@@ -1,3 +1,4 @@
+// Bundled with Cloudflare Pages Functions, independently of the Vite app.
 export const WORKSPACE_PATHS = {
   full: "/workspace",
   mobile: "/workspace/mobile",
@@ -5,7 +6,19 @@ export const WORKSPACE_PATHS = {
   legacyMobile: "/teacher",
 } as const;
 
+export const boardRoot = `${WORKSPACE_PATHS.full}/staff-board`;
+export const mobileBoardRoot = `${WORKSPACE_PATHS.mobile}/staff-board`;
+export const boardSearchLimit = 100;
+
+export function boardListParams(q: string, page = 1) {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (page > 1) params.set("page", String(page));
+  return params;
+}
+
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
+const STAFF_BOARD_PATH = /^\/workspace\/mobile\/staff-board(?:\/(notice|resource|free)(?:\/([1-9]\d*))?)?$/;
 const COMMUNITY_TABS = ["notices", "qna", "counsel", "requests", "board", "materials"] as const;
 const STUDENT_RECORD_TABS = ["enrollments", "exams", "homework", "clinic", "questions", "activity", "info"] as const;
 type CommunityTab = (typeof COMMUNITY_TABS)[number];
@@ -33,12 +46,13 @@ function hasControlCharacter(value: string): boolean {
 }
 
 function parseRelativeMobileUrl(candidate: string): URL | null {
+  const isBoard = STAFF_BOARD_PATH.test(candidate.split("?", 1)[0]);
   if (
     !candidate.startsWith(`${WORKSPACE_PATHS.mobile}/`)
-    || candidate.length > 512
+    || candidate.length > (isBoard ? 2048 : 512)
     || candidate.startsWith("//")
     || candidate.includes("\\")
-    || candidate.includes("%")
+    || (isBoard ? /%(?![0-9a-f]{2})/i.test(candidate) : candidate.includes("%"))
     || candidate.includes("#")
     || hasControlCharacter(candidate)
   ) {
@@ -60,6 +74,19 @@ export function parseMobileWorkspaceReturnPath(candidate: string): string | null
   const parsed = parseRelativeMobileUrl(candidate);
   if (!parsed) return null;
   const { pathname, searchParams } = parsed;
+
+  const boardMatch = pathname.match(STAFF_BOARD_PATH);
+  if (boardMatch) {
+    const [, category, postId] = boardMatch;
+    if (!category) return searchParams.size === 0 ? mobileBoardRoot : null;
+    if (!hasOnlySearchParams(searchParams, ["q", "page"]) || (postId && !positiveInteger(postId))) return null;
+    const q = searchParams.get("q")?.trim() ?? "";
+    const rawPage = searchParams.get("page");
+    const page = rawPage == null ? 1 : positiveInteger(rawPage);
+    if (q.length > boardSearchLimit || hasControlCharacter(q) || !page) return null;
+    const search = boardListParams(q, page).toString();
+    return `${pathname}${search ? `?${search}` : ""}`;
+  }
 
   if (pathname === `${WORKSPACE_PATHS.mobile}/menu`) {
     if (!hasOnlySearchParams(searchParams, ["group"])) return null;
@@ -130,6 +157,10 @@ export function resolveFullWorkspaceDestination(candidate: string): string | nul
   if (!mobilePath) return null;
   const parsed = new URL(mobilePath, "https://workspace.invalid");
   const { pathname, searchParams } = parsed;
+
+  if (pathname === mobileBoardRoot || pathname.startsWith(`${mobileBoardRoot}/`)) {
+    return `${boardRoot}${pathname.slice(mobileBoardRoot.length)}${parsed.search}`;
+  }
 
   if (pathname === `${WORKSPACE_PATHS.mobile}/menu`) {
     const group = searchParams.get("group");

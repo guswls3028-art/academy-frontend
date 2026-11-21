@@ -26,10 +26,26 @@
 }
 .noticeList time { flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .noticeState { margin: 0; padding: 6px 0; min-height: 36px; }
-.sheetHeader { padding: 18px 22px; border-bottom: 1px solid var(--color-border-divider); }
+.sheetHeader { flex-wrap: wrap; padding: 18px 22px; border-bottom: 1px solid var(--color-border-divider); }
+.search { display: flex; flex: 1 0 100%; gap: 8px; align-items: stretch; }
+.searchField {
+  display: flex; align-items: center; flex: 1; gap: 8px; min-width: 0; padding: 0 10px;
+  border: 1px solid var(--color-border-divider); border-radius: 8px; color: var(--color-text-muted);
+}
+.searchField svg { flex-shrink: 0; }
+.searchField input {
+  flex: 1; width: 100%; min-width: 0; min-height: 40px; border: 0; outline: none;
+  font: inherit; color: var(--color-text-primary); background: transparent;
+}
+.searchField:focus-within { outline: 2px solid var(--color-brand-primary); outline-offset: 2px; }
 .rows li + li, .replies li + li { border-top: 1px solid var(--color-border-divider); }
 .rows a { min-height: 66px; padding: 12px 22px; }
-.rowTitle { min-width: 0; }
+.rowText, .rowTitle { min-width: 0; }
+.filename {
+  display: flex; align-items: baseline; gap: 6px; margin-top: 2px; overflow-wrap: anywhere;
+  font-size: 13px; color: var(--color-text-secondary);
+}
+.filename svg { flex-shrink: 0; }
 .rowTitle strong { overflow-wrap: anywhere; font-size: 15px; }
 .rowTitle svg, .replyCount { flex-shrink: 0; }
 .replyCount { gap: 3px; font-size: 12px; }
@@ -45,6 +61,7 @@
 .article header { padding-bottom: 16px; border-bottom: 1px solid var(--color-border-divider); }
 .article h2 { margin: 0 0 10px; font-size: clamp(18px, 2vw, 24px); line-height: 1.45; word-break: keep-all; overflow-wrap: anywhere; }
 .content { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; }
+.attachment { margin: 14px 0; }
 .attachment button { max-width: 100%; height: auto; text-align: left; white-space: normal; overflow-wrap: anywhere; }
 .attachmentActions { display: flex; flex-wrap: wrap; gap: 8px; }
 .replies ul { margin: 8px 0 14px; }
@@ -86,5 +103,6 @@
   .rows a { align-items: flex-start; flex-direction: column; gap: 5px; padding: 14px 16px; }
   .rows .meta { max-width: 100%; text-align: left; }
   .sheetHeader { padding: 14px 16px; }
-  .form input, .form textarea { font-size: 16px; }
+  .searchField input, .form input, .form textarea { font-size: 16px; }
+  .searchField input, .search button { min-height: 44px; }
 }
