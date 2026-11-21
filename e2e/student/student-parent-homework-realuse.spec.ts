@@ -983,6 +983,8 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await page.setViewportSize({ width, height: 844 });
       await submitShortcut.scrollIntoViewIfNeeded();
       await expect(submitShortcut).toBeInViewport();
+      const label = submitShortcut.getByText("자료 제출·확인", { exact: true });
+      expect(await label.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
       await assertNoHorizontalOverflow(page);
       await page.screenshot({ path: testInfo.outputPath(`student-submission-shortcut-${width}.png`) });
     }
