@@ -1,3 +1,4 @@
+import PublicBrandLink from "@/shared/ui/PublicBrandLink";
 // PATH: src/app_admin/domains/landing/templates/shared.tsx
 // 공통 렌더링 유틸. 모든 템플릿에서 사용.
 //
@@ -333,12 +334,12 @@ export function LandingNavBar({ config, sections, tokens, brandMark, topNavVaria
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><line x1="3.5" y1="7" x2="20.5" y2="7" /><line x1="3.5" y1="12" x2="20.5" y2="12" /><line x1="3.5" y1="17" x2="20.5" y2="17" /></svg>
             </button>
-            <Link to="/landing" data-testid="landing-nav-brand" title={config.brand_name} style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, textDecoration: "none", color: tokens.textPrimary }}>
+            <PublicBrandLink to="/landing" data-testid="landing-nav-brand" title={config.brand_name} style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, textDecoration: "none", color: tokens.textPrimary }}>
               {logoUrl ? (
                 <img src={logoUrl} alt={config.brand_name} style={{ height: 30, width: "auto", maxWidth: 48, objectFit: "contain", flexShrink: 0 }} />
               ) : <span style={{ display: "flex", flexShrink: 0 }}>{brandMark}</span>}
               <span style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-0.022em", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{config.brand_name}</span>
-            </Link>
+            </PublicBrandLink>
           </div>
           {/* 가로 메뉴 — 데스크탑/태블릿에서만 노출(애플식 minimal top nav).
               모바일에선 햄버거 패널로 일임 (CSS .landing-nav-inline 미디어쿼리). */}
@@ -508,12 +509,12 @@ function NavSidePanel({ open, onClose, categories, tokens, config, cta, ctaLink,
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "18px 20px 16px", borderBottom: `1px solid ${dividerColor}`, flexShrink: 0,
         }}>
-          <Link to="/landing" onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, textDecoration: "none", color: tokens.textPrimary }}>
+          <PublicBrandLink to="/landing" onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, textDecoration: "none", color: tokens.textPrimary }}>
             {logoUrl
               ? <img src={logoUrl} alt={config.brand_name} style={{ height: 30, width: "auto", maxWidth: 48, objectFit: "contain", flexShrink: 0 }} />
               : <span style={{ display: "flex", flexShrink: 0 }}>{brandMark}</span>}
             <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em", minWidth: 0, overflowWrap: "anywhere" }}>{config.brand_name}</span>
-          </Link>
+          </PublicBrandLink>
           <button
             type="button"
             onClick={onClose}

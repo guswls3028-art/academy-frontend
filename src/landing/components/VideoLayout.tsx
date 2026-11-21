@@ -1,3 +1,4 @@
+import PublicBrandLink from "@/shared/ui/PublicBrandLink";
 import { useEffect, type ReactNode } from "react";
 import { Link } from "react-router";
 import { useProgram } from "@/shared/program";
@@ -17,7 +18,7 @@ export default function VideoLayout({ children, title }: { children: ReactNode; 
   useEffect(() => { const before = document.title; document.title = `${title} | ${brand}`; return () => { document.title = before; }; }, [title, brand]);
   return <div className={`${s.shell} ${isGodmin ? `${home.page} ${s.godminShell}` : ""}`}>
     {isGodmin ? <GodminSiteHeader /> : <header className={s.header}>
-      <Link to="/landing" className={s.brand}>{brand}</Link>
+      <PublicBrandLink to="/landing" className={s.brand}>{brand}</PublicBrandLink>
       <nav aria-label="홈페이지 주요 메뉴"><Link to="/landing">홈페이지</Link><Link to="/landing/videos" aria-current="page">영상</Link>
         {auth.isLoading ? <span>로그인 확인 중…</span> : auth.authUnavailable ? <button type="button" className={s.textButton} onClick={publisher.retry}>로그인 상태 다시 확인</button> : auth.user ? <><span>{auth.user.name || auth.user.username}님</span><Link to={publisher.state === "allowed" ? "/landing/admin/videos" : "/"}>{publisher.state === "allowed" ? "영상 관리" : "내 학습 공간"}</Link></> : <Link to="/login" onClick={() => saveReturnPath()}>로그인</Link>}
       </nav>

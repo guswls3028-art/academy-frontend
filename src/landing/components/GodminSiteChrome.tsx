@@ -1,3 +1,4 @@
+import PublicBrandLink from "@/shared/ui/PublicBrandLink";
 import { Link, useLocation } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import { saveReturnPath } from "@/shared/api/axios";
@@ -13,7 +14,7 @@ export function GodminSiteHeader() {
   const section = (hash: string) => pathname === "/landing" ? `#${hash}` : `/landing#${hash}`;
 
   return <header className={`${home.header} ${s.header}`}>
-    <Link className={home.brand} to="/landing" aria-label="신과함께 홈"><img src="/tenants/godmin/logo.png" alt="신과함께" /></Link>
+    <PublicBrandLink className={home.brand} to="/landing" aria-label="신과함께 홈"><img src="/tenants/godmin/logo.png" alt="신과함께" /></PublicBrandLink>
     <nav className={`${home.nav} ${s.nav}`} aria-label="홈페이지 주요 메뉴">
       <Link to={section("philosophy")}>수업 철학</Link>
       <Link to={section("system")}>학습 관리</Link>
