@@ -875,3 +875,13 @@
 .signupLegalNotice a:hover {
   color: #374151;
 }
+.counselEntry {
+  width: min(calc(100% - 32px), 40rem);
+  margin: 24px auto;
+  color: #232a33;
+}
+.counselEntry a { color: #963c0e; }
+.counselEntry section { margin-top: 12px; padding: 20px; border: 1px solid #e6e1de; border-radius: 12px; background: #fff; }
+.counselEntry h1 { font-size: 1.25rem; margin: 0; }
+.counselEntry p { margin: 12px 0; }
+.counselEntry button { background: #a64511; color: #fff; min-height: 44px; }

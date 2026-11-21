@@ -194,7 +194,7 @@ export function renderDawonLearner(url, chromeOnly = false) {
   const drawerLinks = '<div class="dw-drawerHome">' + menuLink(['home','학습 홈','home']) + menuLink(['alerts','알림','bell']) + '</div>' + sections.map(({name,items}) => {
     return '<section><h2>' + name + '</h2>' + items.map(menuLink).join('') + '</section>';
   }).join('');
-  const actions = guardian ? '/login/dawon?demo=guardian&amp;view=counsel' : '/learn/questions?action=ask&amp;detail=question';
+  const actions = guardian ? '/login/dawon?demo=guardian&amp;view=counsel&amp;panel=form' : '/learn/questions?action=ask&amp;detail=question';
   const tabs = [
     ['home', '홈', 'home', homeUrl],
     ['video', '영상', 'video', learnerHref('video',role)],
@@ -261,8 +261,11 @@ function mountLearner(mountMenu, normalizeDay) {
 
   if(guardian) document.addEventListener('click',event=>{
     const target=event.target.closest?.('a[href]');
-    if(target?.pathname==='/login/dawon' && new URL(target.href).searchParams.get('view')==='counsel'){
-      try {sessionStorage.setItem('dawon-counsel-return',location.pathname+location.search);} catch {}
+    if(target?.origin===location.origin && target.pathname==='/login/dawon' && new URL(target.href).searchParams.get('view')==='counsel'){
+      try {
+        sessionStorage.setItem('dawon-counsel-return',location.pathname+location.search);
+        sessionStorage.setItem('dawon-counsel-intent',JSON.stringify({search:target.search,at:Date.now()}));
+      } catch {}
     }
   });
   const view = document.getElementById('dw-view');
@@ -531,7 +534,7 @@ function mountLearner(mountMenu, normalizeDay) {
   function dayActions() {
     const launchers = {
       exam: guardian ? null : ['테스트 상세 조회','/login/dawon?demo=student&view=exams'],
-      questions: guardian ? ['상담 신청·답변 확인','/login/dawon?demo=guardian&view=counsel'] : ['질문하기','/learn/questions?action=ask&detail=question'],
+      questions: guardian ? ['상담 신청','/login/dawon?demo=guardian&view=counsel&panel=form'] : ['질문하기','/learn/questions?action=ask&detail=question'],
       clinic: guardian ? null : ['클리닉 예약·내 일정','/login/dawon?demo=student&view=clinic'],
       grades: ['학교 성적 입력·조회','/login/dawon?demo=student&view=school-report'],
     };
@@ -542,6 +545,9 @@ function mountLearner(mountMenu, normalizeDay) {
       const launch = new URL(location.href);launch.searchParams.set('action','ask');launch.searchParams.set('entry','date');
       wrapper.append(link(action[0],launch.pathname + launch.search,'dw-action'));
       launch.searchParams.set('action','list');wrapper.append(link('질문 내역',launch.pathname + launch.search,'dw-action'));
+    } else if (topic === 'questions' && guardian) {
+      wrapper.append(link(action[0],action[1],'dw-action'));
+      wrapper.append(link('이날 상담 내역','/login/dawon?demo=guardian&view=counsel&panel=history&date=' + key,'dw-action'));
     } else wrapper.append(link(action[0],action[1],'dw-action'));
     view.append(wrapper);
   }

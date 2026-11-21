@@ -7,7 +7,7 @@ import { useState, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useDialogSurface } from "@/shared/ui/overlays/useDialogSurface";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
@@ -378,6 +378,11 @@ export default function CommunityPage() {
   };
 
   const back = () => setView({ kind: "tabs" });
+
+  const params = new URLSearchParams(location.search);
+  if (isDawonCounselPreview() && params.get("tab") === "counsel" && ["form", "history", "detail"].includes(params.get("panel") ?? "")) {
+    return <DawonCounselRoom params={params} />;
+  }
 
   // ─── Sub-views ───
   if (view.kind === "notice-detail") return <NoticeDetail id={view.id} onBack={back} />;
@@ -1094,13 +1099,52 @@ const demoCounselRequests = [
 ];
 const sharedCounselNotice = "공용 예시 계정입니다. 선택한 상담 내용과 선생님 답변은 다른 체험자도 볼 수 있습니다.";
 
+function DawonCounselRoom({ params }: { params: URLSearchParams }) {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const date = params.get("date") ?? "";
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "";
+  const panel = params.get("panel");
+  const id = Number(params.get("id"));
+  function href(next: "form" | "history" | "detail", postId?: number) {
+    const query = new URLSearchParams({ tab: "counsel", panel: next });
+    if (day) query.set("date", day);
+    if (postId) query.set("id", String(postId));
+    return "/student/community?" + query.toString();
+  }
+  if (user?.tenantRole !== "parent") {
+    return <StudentPageShell title="학부모 상담"><a href="/guardian">학부모 홈에서 열기</a></StudentPageShell>;
+  }
+  if (panel === "detail" && Number.isSafeInteger(id) && id > 0) {
+    return <CounselDetail id={id} onBack={() => navigate(href("history"), { replace: true })} />;
+  }
+  const form = panel === "form";
+  const navigation = (
+    <nav className="community-counsel-nav" aria-label="학부모 상담 메뉴">
+      <Link to={href("form")} aria-current={form ? "page" : undefined}>상담 신청</Link>
+      <Link to={href("history")} aria-current={!form ? "page" : undefined}>신청 내역</Link>
+    </nav>
+  );
+  if (form) return <CounselForm navigation={navigation} onSuccess={postId =>
+    navigate(postId ? href("detail", postId) : href("history"), { replace: true })} />;
+  return (
+    <StudentPageShell title="상담하기">
+      {navigation}
+      {day && <p className="community-counsel-date">{day} 신청 내역 <Link to="?tab=counsel&panel=history">전체 날짜 보기</Link></p>}
+      <CounselTab day={day} onDetail={postId => navigate(href("detail", postId))} />
+    </StudentPageShell>
+  );
+}
+
 
 function CounselTab({
   onForm,
   onDetail,
+  day,
 }: {
-  onForm: () => void;
+  onForm?: () => void;
   onDetail: (id: number, cached?: PostEntity) => void;
+  day?: string;
 }) {
   const [filter, setFilter] = useState<QnaFilter>("all");
 
@@ -1122,9 +1166,17 @@ function CounselTab({
     enabled: profile?.id != null,
   });
 
-  const pending = useMemo(() => requests.filter((q) => !isAnswered(q)), [requests]);
-  const resolved = useMemo(() => requests.filter(isAnswered), [requests]);
-  const filtered = filter === "pending" ? pending : filter === "resolved" ? resolved : requests;
+  const records = useMemo(() => {
+    if (!day) return requests;
+    const inSeoul = new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" });
+    return requests.filter(request => {
+      const submitted = new Date(request.created_at);
+      return Number.isFinite(submitted.getTime()) && inSeoul.format(submitted) === day;
+    });
+  }, [day, requests]);
+  const pending = useMemo(() => records.filter((q) => !isAnswered(q)), [records]);
+  const resolved = useMemo(() => records.filter(isAnswered), [records]);
+  const filtered = filter === "pending" ? pending : filter === "resolved" ? resolved : records;
 
   if (profileQ.isError || isError) {
     return (
@@ -1142,18 +1194,18 @@ function CounselTab({
   return (
     <div className="community-stack">
       {isDawonCounselPreview() && <p className="stu-muted">{sharedCounselNotice}</p>}
-      <button
+      {onForm && <button
         type="button"
         className="stu-btn stu-btn--primary community-primary-action"
         onClick={onForm}
       >
         <IconPlus className="community-icon-sm" />
         상담 신청하기
-      </button>
+      </button>}
 
       <SegmentedTabs
         items={[
-          { key: "all" as const, label: "전체", count: requests.length },
+          { key: "all" as const, label: "전체", count: records.length },
           { key: "pending" as const, label: "답변 대기", count: pending.length },
           { key: "resolved" as const, label: "답변 완료", count: resolved.length },
         ]}
@@ -1166,7 +1218,7 @@ function CounselTab({
       ) : filtered.length === 0 ? (
         <EmptyState
           title={filter !== "all" ? "해당하는 상담 신청이 없습니다" : "상담 신청 내역이 없습니다"}
-          description={filter !== "all" ? "다른 필터를 선택해 보세요." : "상담 신청하기 버튼을 눌러 선생님께 상담을 요청해 보세요."}
+          description={filter !== "all" ? "다른 필터를 선택해 보세요." : day ? "다른 날짜를 선택하거나 새 상담을 신청할 수 있습니다." : "상담 신청을 눌러 선생님께 상담을 요청해 보세요."}
         />
       ) : (
         <PostList>
@@ -1199,7 +1251,7 @@ function CounselDetail({ id, cached, onBack }: { id: number; cached?: PostEntity
       </StudentPageShell>
     );
   }
-  if (!request) {
+  if (!request || request.post_type !== "counsel") {
     return (
       <StudentPageShell title="상담 신청 상세" onBack={onBack}>
         <EmptyState title="상담 신청을 찾을 수 없습니다" />
@@ -1286,7 +1338,7 @@ function CounselDetailContent({ request, onBack }: { request: PostEntity; onBack
 }
 
 // ─── Counsel Form ───
-function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () => void }) {
+function CounselForm({ onBack, onSuccess, navigation }: { onBack?: () => void; onSuccess: (postId?: number) => void; navigation?: ReactNode }) {
   const qc = useQueryClient();
   const { user } = useAuth();
   const isDemo = isDawonCounselPreview();
@@ -1387,14 +1439,14 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
       }
       return post;
     },
-    onSuccess: async () => {
+    onSuccess: async (post) => {
       counselDraft.markSubmitted();
       qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.counselRequests });
       qc.invalidateQueries({ queryKey: studentCommunityQueryKeys.notificationCounts });
       const { studentToast } = await import("@student/shared/ui/feedback/studentToast");
       if (getParentStudentId() !== submittedChildRef.current) return;
       studentToast.success("상담 요청이 등록되었습니다.");
-      onSuccess();
+      onSuccess(post.id);
     },
     onError: (err: unknown) => {
       const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code;
@@ -1433,8 +1485,9 @@ function CounselForm({ onBack, onSuccess }: { onBack: () => void; onSuccess: () 
   if (isDemo) {
     const choice = demoCounselRequests.find((item) => item.title === title);
     return (
-      <StudentPageShell title="상담 신청" onBack={onBack}>
-        <div className="stu-section stu-section--nested community-form-card">
+      <StudentPageShell title={navigation ? "상담하기" : "상담 신청"} onBack={onBack}>
+        {navigation}
+        <div className={navigation ? "community-form-card" : "stu-section stu-section--nested community-form-card"}>
           <p>{sharedCounselNotice}</p>
           <label className="community-field">
             <span className="community-label">상담 예시</span>

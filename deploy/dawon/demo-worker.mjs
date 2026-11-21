@@ -315,7 +315,7 @@ function installLearnerBridge(chrome, mountMenu) {
       }
       anchor.before(host);
       if (slot === 'header') mountMenu(root);
-      else root.querySelector('[data-dw-tab-key="questions"]').href = '/student/community?tab=counsel';
+      else root.querySelector('[data-dw-tab-key="questions"]').href = '/student/community?tab=counsel&panel=form';
     }
     return true;
   }
@@ -351,7 +351,15 @@ function installLearnerBridge(chrome, mountMenu) {
       next.dataset.dawonLinks = drawer ? 'drawer' : 'footer';
       next.dataset.role = role;
       next.innerHTML = drawer ? chrome[role].drawerLinks : chrome[role].footer;
-      if (!drawer && role === 'guardian') next.querySelector('[data-dw-tab-key="questions"]').href = '/student/community?tab=counsel';
+      if (!drawer && role === 'guardian') {
+        const counsel = next.querySelector('[data-dw-tab-key="questions"]');
+        counsel.addEventListener('click', () => {
+          try {
+            sessionStorage.setItem('dawon-counsel-return','/guardian');
+            sessionStorage.setItem('dawon-counsel-intent',JSON.stringify({search:counsel.search,at:Date.now()}));
+          } catch {}
+        });
+      }
       if (group) group.replaceWith(next); else nav.append(next);
       group = next;
     }
@@ -630,7 +638,7 @@ export async function handle(request, env, fetcher = fetch, context) {
       }
       const upstreamUrl = isLearnerVideo || isLearnerIntake ? new URL('/login/dawon', url) : url;
       let upstream = await forward(upstreamUrl, request, env, fetcher);
-      for (const previous of ['r31', 'r30', 'r29', 'r28', 'r25', 'r24', 'r23', 'r22', 'r20', 'r14', 'r12', 'r11', 'r10', 'r9', 'r8', 'r7', 'r4', 'r3'].map(suffix => 'dawon-review-20261119-orange-' + suffix)) {
+      for (const previous of ['r32', 'r31', 'r30', 'r29', 'r28', 'r25', 'r24', 'r23', 'r22', 'r20', 'r14', 'r12', 'r11', 'r10', 'r9', 'r8', 'r7', 'r4', 'r3'].map(suffix => 'dawon-review-20261119-orange-' + suffix)) {
         if (upstream.status !== 404 || !pathname.startsWith('/assets/')) break;
         if (previous === env.ADMIN_VERSION) continue;
         await upstream.body?.cancel();

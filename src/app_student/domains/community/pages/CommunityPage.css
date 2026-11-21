@@ -840,3 +840,21 @@
 @media (prefers-reduced-motion: reduce) {
   .community-upload-recovery { animation: none; }
 }
+.community-counsel-nav {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--stu-border);
+  margin-bottom: 16px;
+}
+.community-counsel-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border-bottom: 2px solid transparent;
+  color: var(--stu-text-muted);
+  font-weight: 650;
+}
+.community-counsel-nav a[aria-current] { border-color: var(--stu-primary); color: var(--stu-primary); }
+.community-counsel-date { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.community-counsel-date a { padding: 10px 0; color: var(--stu-primary); }
