@@ -143,6 +143,7 @@ async function installSubmissionApi(page: Page, options: {
       return;
     }
     if (path === "/submissions/submissions/exams/77/candidates/" && request.method() === "GET") {
+      const includeMatched = !new URL(request.url()).searchParams.has("unmatched_only");
       await json(route, [
         {
           enrollment_id: 901,
@@ -152,6 +153,10 @@ async function installSubmissionApi(page: Page, options: {
           lecture_title: "중2 과학 정규반",
           already_matched: false,
         },
+        ...(includeMatched ? [{
+          enrollment_id: 902, student_name: "이학생", student_phone_last4: "3333",
+          parent_phone_last4: "", lecture_title: "중2 과학 정규반", already_matched: true,
+        }] : []),
       ]);
       return;
     }
@@ -291,13 +296,23 @@ test("@assignment-recovery 다른 시험의 상세 응답은 편집하거나 저
 });
 
 for (const width of [1366, 390]) {
-  test(`@assignment-recovery ${width}px 학생 지정 뒤 미완료 채점을 직접 복구하고 새로고침한다`, async ({ page }) => {
+  test(`@assignment-recovery ${width}px 학생 지정 뒤 미완료 채점을 직접 복구하고 새로고침한다`, async ({ page }, testInfo) => {
     const calls = await installSubmissionApi(page, { recovery: true });
     await page.setViewportSize({ width, height: 900 });
     await gotoAndSettle(page, `${BASE}/workspace/results/submissions`, { timeout: 60_000 });
     await page.getByTestId("submission-preview-501").click();
     await page.getByRole("button", { name: "확인하고 학생 지정" }).click();
-    await page.getByRole("dialog", { name: "학생 선택" }).getByText("김학생", { exact: true }).click();
+    const studentPicker = page.getByRole("dialog", { name: "학생 선택" });
+    await expect(studentPicker.getByRole("status")).toHaveText("답안지 미매칭 1명");
+    await expect(studentPicker.getByText("이학생", { exact: true })).toHaveCount(0);
+    await studentPicker.screenshot({ path: testInfo.outputPath(`unmatched-exam-students-${width}.png`) });
+    const includeMatched = studentPicker.getByRole("checkbox", { name: "매칭된 학생도 보기" });
+    await includeMatched.check();
+    await expect(studentPicker.getByRole("button", { name: /이학생/ })).toContainText("중복 경고");
+    await includeMatched.uncheck();
+    await studentPicker.getByRole("textbox", { name: "학생 검색" }).focus();
+    await expect(studentPicker.getByRole("status")).toHaveText("답안지 미매칭 1명");
+    await studentPicker.getByRole("textbox", { name: "학생 검색" }).press("Enter");
     await expect(page.getByTestId("submission-identification-result")).toContainText("채점 전 확인이 필요합니다");
     expect(calls.assignmentBodies[0].answers).toEqual([]);
     await page.reload();
