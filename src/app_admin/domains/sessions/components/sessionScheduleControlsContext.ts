@@ -6,6 +6,8 @@ type ScheduleControls = {
   date: string;
   inlineActions: boolean;
   blockedNotice: ReactNode;
+  managementPending: boolean;
+  managementQueued: boolean;
   openManager: () => void;
   prepareTransition: (onReady: () => void) => Promise<void>;
 };
