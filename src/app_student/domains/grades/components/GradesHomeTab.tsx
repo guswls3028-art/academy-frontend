@@ -116,15 +116,19 @@ export default function GradesHomeTab({ exams, homeworks, labels }: Props) {
   const [examReview, setExamReview] = useState<ExamReviewFilter>("all");
   const [homeworkSort, setHomeworkSort] = useState<HomeworkSortMode>("session_desc");
   const inspectionCount = homeworks.filter(item => item.practice_inspection).length;
+  const [sessionFilter, setSessionFilter] = useState<Exclude<HomeworkStatusFilter, "inspection">>("todo");
   const requestedStatus = searchParams.get("homework_status");
-  const homeworkStatus: HomeworkStatusFilter = requestedStatus === "all" || requestedStatus === "done" || requestedStatus === "inspection"
-    ? requestedStatus : "todo";
+  const linkedStatus = requestedStatus === "all" || requestedStatus === "inspection" ? requestedStatus : null;
+  const homeworkStatus: HomeworkStatusFilter = linkedStatus ?? sessionFilter;
   const setHomeworkStatus = (status: HomeworkStatusFilter) => {
+    if (status === homeworkStatus) return;
+    if (status !== "inspection") setSessionFilter(status);
+    if (!linkedStatus && status !== "inspection") return;
     setSearchParams(current => {
       const next = new URLSearchParams(current);
       next.set("view", "homework");
-      if (status === "todo") next.delete("homework_status");
-      else next.set("homework_status", status);
+      if (status === "inspection") next.set("homework_status", status);
+      else next.delete("homework_status");
       return next;
     }, { replace: true });
   };

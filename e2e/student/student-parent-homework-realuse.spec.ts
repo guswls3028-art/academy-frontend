@@ -1080,6 +1080,13 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
         expect(result.homework_review_by_homework).toBeDefined();
         return result.homework_review_by_homework[String(created.homeworkId)] ?? 0;
       };
+      const expectHomeworkClearedFromPending = async (homeworkChoice: Locator) => {
+        await expect(staffPage).toHaveURL(/[?&]homework=pending(?:&|$)/);
+        const empty = staffPage.getByText("확인 대기 과제가 없습니다", { exact: true });
+        const list = staffPage.getByRole("list", { name: "검토할 과제", exact: true });
+        await expect(empty.or(list)).toBeVisible();
+        await expect(homeworkChoice).toHaveCount(0);
+      };
       await seedBrowserAuth(staffPage, staffTokens);
       await gotoAndSettle(staffPage, `${QA_BASE}/workspace/mobile/homeworks/${created.homeworkId}`, { timeout: 30_000 });
       await expect(staffPage.getByRole("heading", { name: homeworkTitle, exact: true })).toBeVisible();
@@ -1245,10 +1252,9 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await expect(submissionRow.getByText("확인 완료", { exact: true })).toBeVisible();
       await expect.poll(pendingForHomework).toBe(0);
       await staffPage.getByRole("button", { name: "뒤로 가기", exact: true }).click();
-      await expect(mobileHomeworkChoice).toHaveCount(0);
+      await expectHomeworkClearedFromPending(mobileHomeworkChoice);
       await staffPage.reload({ waitUntil: "domcontentloaded" });
-      await expect(staffPage.getByRole("button", { name: "전체 과제 보기", exact: true })).toBeVisible();
-      await expect(mobileHomeworkChoice).toHaveCount(0);
+      await expectHomeworkClearedFromPending(mobileHomeworkChoice);
       await staffPage.getByRole("button", { name: "전체 과제 보기", exact: true }).click();
       await mobileHomeworkChoice.click();
       await expect(submissionRow.getByText("확인 완료", { exact: true })).toBeVisible();
@@ -1342,7 +1348,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await staffPage.reload({ waitUntil: "domcontentloaded" });
       await expect(staffPage.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
       await staffPage.getByRole("button", { name: "과제 목록으로 돌아가기", exact: true }).click();
-      await expect(pcHomeworkChoice).toHaveCount(0);
+      await expectHomeworkClearedFromPending(pcHomeworkChoice);
       await staffPage.getByRole("button", { name: "전체 과제 보기", exact: true }).click();
       await pcHomeworkChoice.click();
       await expect(staffPage.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
