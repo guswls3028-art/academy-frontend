@@ -35,3 +35,4 @@
 .questionHead h4 { margin:0; }
 .questionHead label { display:inline-flex; align-items:center; gap:.4rem; min-height:44px; cursor:pointer; }
 .tableWrap a { color:var(--stu-primary); text-decoration:underline; text-underline-offset:.15em; }
+.scoreNote { font-size:.84rem; margin-bottom:.5rem; }

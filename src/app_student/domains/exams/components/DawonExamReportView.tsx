@@ -84,6 +84,14 @@ export default function DawonExamReportView({report}: {report: DawonExamReport})
   const location = useLocation();
   const questionNumbers = (items: number[]) => items.length ? items.map(n => n + "번").join(", ") : "없음";
   const hasPercentile = report.kind === "school_mock" || report.trend.some(row => row.percentile !== null);
+  const attempts = report.trend.filter(row => row.score !== null);
+  const totalsByMaximum = new Map<number | null,{sum:number; count:number}>();
+  for (const row of attempts) {
+    const total = totalsByMaximum.get(row.maximum) ?? {sum:0,count:0};
+    total.sum += row.score ?? 0;
+    total.count++;
+    totalsByMaximum.set(row.maximum,total);
+  }
   return <article className={styles.report} aria-label={report.title}>
     <header>
       <p>{[report.course_title, report.lesson_title, report.date].filter(Boolean).join(" · ")}</p>
@@ -95,21 +103,29 @@ export default function DawonExamReportView({report}: {report: DawonExamReport})
       {section.scope && section.scope !== report.scope && <p>{section.scope}</p>}
       <dl className={styles.scores}>
         <div><dt>내 점수</dt><dd>{score(section.score, section.maximum)}</dd></div>
-        <div><dt>평균</dt><dd>{value(section.average, "점")}</dd></div>
-        <div><dt>최고점</dt><dd>{value(section.highest, "점")}</dd></div>
+        <div><dt>응시생 평균</dt><dd>{value(section.average, "점")}</dd></div>
+        <div><dt>응시생 최고점</dt><dd>{value(section.highest, "점")}</dd></div>
         {report.kind === "school_mock" || section.percentile != null
-          ? <div><dt>백분위</dt><dd>{value(section.percentile)}</dd></div> : null}
+          ? <div><dt>백분위</dt><dd>{value(section.percentile,"%")}</dd></div> : null}
       </dl>
+      {section.percentile != null && <p className={styles.scoreNote}>백분위는 이 강의의 채점 완료 학생 중 내 점수 이하인 학생의 비율입니다.</p>}
       <QuestionAnalysis section={section}/>
     </section>)}
     {report.trend.length > 0 && <section>
       <h3>회차별 성적 추이</h3>
+      <dl className={styles.scores} aria-label="누적 성적 요약">
+        <div><dt>응시 횟수</dt><dd>{attempts.length}회</dd></div>
+        {[...totalsByMaximum].map(([maximum,total]) => <div key={maximum ?? "unknown"}>
+          <dt>{maximum != null ? number.format(maximum)+"점 만점 원점수 평균" : "원점수 평균"}</dt>
+          <dd>{value(total.sum / total.count,"점")}</dd>
+        </div>)}
+      </dl>
       <TrendChart rows={report.trend} />
       <ReportTable label="회차별 성적 추이" columns={["회차", "내 점수", "평균", "최고점", ...(hasPercentile ? ["백분위"] : [])]}
         rows={report.trend.map(row => [row.exam_id && location.pathname !== `/student/exams/${row.exam_id}/result`
           ? <Link to={`/student/exams/${row.exam_id}/result${location.search}`} aria-label={row.label+" 성적표 보기"}>{row.label}</Link>
           : row.label, score(row.score, row.maximum), value(row.average, "점"),
-          value(row.highest, "점"), ...(hasPercentile ? [value(row.percentile)] : [])])} />
+          value(row.highest, "점"), ...(hasPercentile ? [value(row.percentile,"%")] : [])])} />
     </section>}
     {report.homework.length > 0 && <section>
       <h3>과제 이력</h3>
