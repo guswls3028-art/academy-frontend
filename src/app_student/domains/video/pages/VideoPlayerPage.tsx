@@ -282,7 +282,6 @@ export default function VideoPlayerPage() {
   const videoListUrl = sessionId
     ? `/student/video/sessions/${sessionId}${effectiveEnrollmentId ? `?enrollment=${effectiveEnrollmentId}` : ""}`
     : "/student/video";
-  const commentsRef = useRef<HTMLDivElement>(null);
 
   /* ─── 세션 영상 목록 (React Query, dependent) ─── */
   const sessionVideosQuery = useQuery({
@@ -354,15 +353,6 @@ export default function VideoPlayerPage() {
     if (!playlistItems.length || !videoId) return -1;
     return playlistItems.findIndex((v) => v.id === videoId);
   }, [playlistItems, videoId]);
-
-  // Defer comments to reduce bandwidth contention during player initialization
-  const [showComments, setShowComments] = useState(false);
-  useEffect(() => {
-    setShowComments(false);
-    if (isDirectAccess) return;
-    const t = setTimeout(() => setShowComments(true), 2000);
-    return () => clearTimeout(t);
-  }, [isDirectAccess, videoId]);
 
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [policyRebootstrapPending, setPolicyRebootstrapPending] = useState(false);
@@ -780,21 +770,6 @@ export default function VideoPlayerPage() {
                     onConfirmed={onLikeConfirmed}
                   />
                 )}
-                {!isDirectAccess && (
-                  <button
-                    type="button"
-                    className="vpp-back-link"
-                    aria-label="댓글 보기"
-                    onClick={() => {
-                      setShowComments(true);
-                      commentsRef.current?.scrollIntoView({
-                        block: "start",
-                        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-                      });
-                      commentsRef.current?.focus({ preventScroll: true });
-                    }}
-                  >댓글</button>
-                )}
               </div>
               <div className="vpp-info-actions">
                 {hasPlaylist && (
@@ -841,6 +816,7 @@ export default function VideoPlayerPage() {
             </div>
           </div>
 
+          {videoId && !isDirectAccess && <VideoCommentSection key={playbackIdentity} videoId={videoId} />}
           {sessionVideosQuery.isError && (
             <div className="vpp-section-status" role="alert">
               <span>재생목록을 불러오지 못했습니다.</span>
@@ -942,13 +918,6 @@ export default function VideoPlayerPage() {
                   );
                 })}
               </div>
-            </div>
-          )}
-          {videoId && !isDirectAccess && (
-            <div id="video-comments" ref={commentsRef} className="vpp-comments-anchor" tabIndex={-1}>
-              {showComments ? <VideoCommentSection key={videoId} videoId={videoId} /> : (
-                <div className="vpp-section-status" role="status">댓글을 불러오는 중…</div>
-              )}
             </div>
           )}
         </>

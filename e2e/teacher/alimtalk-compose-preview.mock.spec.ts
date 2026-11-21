@@ -16,7 +16,12 @@ function localJwt(): string {
   return `${encode({ alg: "none" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "hakwonplus", user_id: 12 })}.sig`;
 }
 
-async function installMessagingMocks(page: Page, onPreflight: (payload: Record<string, unknown>) => boolean, onSend: (payload: Record<string, unknown>) => void) {
+async function installMessagingMocks(
+  page: Page,
+  onPreflight: (payload: Record<string, unknown>) => boolean,
+  onSend: (payload: Record<string, unknown>) => void,
+  role?: "teacher" | "staff",
+) {
   let savedTemplate = { id: 41, name: "상담 안내", category: "attendance", body: "저장한 문구", is_system: false };
   const copies: Record<string, unknown>[] = [];
   await installLocalAuthApiStubs(page);
@@ -29,6 +34,12 @@ async function installMessagingMocks(page: Page, onPreflight: (payload: Record<s
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
+    if (role && path === "/core/me/" && request.method() === "GET") {
+      return route.fulfill({ json: {
+        id: 12, name: "검증 교직원", username: role, is_staff: true, tenantRole: role,
+        must_change_password: false, first_login_guide_required: false,
+      } });
+    }
     if (["/core/program/", "/core/me/", "/token/refresh/", "/results/admin/clinic-targets/"].includes(path)) {
       return route.fallback();
     }
@@ -78,7 +89,7 @@ async function installMessagingMocks(page: Page, onPreflight: (payload: Record<s
         preview_recipients: recipients.map((student) => ({
           student_id: student.id,
           student_name: student.name,
-          phone: `010****${student.parent_phone.slice(-4)}`,
+          phone: payload.send_to === "student" ? student.phone : student.parent_phone,
           excluded: false,
           exclude_reason: "",
           full_message_body: `예담학원입니다.\n${student.name} 학생님.\n${String(payload.raw_body)}\nhttps://yedam.example.com`,
@@ -141,6 +152,7 @@ test("선생님은 저장 문구를 수정하고 서버의 학생별 전체 문�
     const review = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
     await expect(review).toContainText("김민준 학생님.");
     await expect(review.getByLabel("카카오톡 실제 발송 미리보기")).toContainText("이번 주 과제를 확인해 주세요.");
+    await expect(review.getByRole("option", { name: "김민준 · 01033334444" })).toHaveCount(1);
     await review.getByLabel("문구를 확인할 학생").selectOption("910002");
     await expect(review.getByLabel("카카오톡 실제 발송 미리보기")).toContainText("박서연 학생님.");
     expect(sendPayload).toBeNull();
@@ -291,4 +303,87 @@ for (const width of [390, 1366]) {
       .toContainText("수정 안내");
     expect(sends).toBe(0);
   });
+}
+
+for (const width of [1366, 390]) {
+  for (const role of ["teacher", "staff"] as const) {
+    test(`${role} ${width}px: 연락처와 학생 목록 수동 발송 권한`, async ({ page }) => {
+      test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "Local synthetic API only");
+      await page.setViewportSize({ width, height: 900 });
+      const requests: string[] = [];
+      await installMessagingMocks(page, () => {
+        requests.push("preflight");
+        return true;
+      }, () => requests.push("send"), role);
+      await page.addInitScript(() => {
+        const intent = new URLSearchParams(location.search).get("qaSendIntent");
+        if (intent) {
+          history.replaceState({
+            usr: { startSelectMode: true, preferredMessageTiming: intent },
+            key: "qa-send-intent",
+            idx: 0,
+          }, "", location.href);
+        }
+      });
+
+      const main = page.getByRole("main");
+      const selection = main.getByRole("button", { name: "선택", exact: true });
+      const cancelSelection = main.getByRole("button", { name: "선택 취소", exact: true });
+      const student = main.getByText("김민준", { exact: true });
+      const manualSend = main.getByRole("button", { name: "알림톡", exact: true });
+
+      await page.goto(`${BASE}/workspace/mobile/students`);
+      for (const [label, href] of [["학 010-1111-2222", "tel:01011112222"], ["부 010-3333-4444", "tel:01033334444"]]) {
+        const contact = main.getByRole("link", { name: label, exact: true });
+        await expect(contact).toBeVisible();
+        await expect(contact).toHaveAttribute("href", href);
+      }
+      await selection.click();
+      await student.click();
+      await expect(main.getByText("1명 선택됨", { exact: true })).toBeVisible();
+      await expect(main.getByRole("button", { name: "태그", exact: true })).toBeVisible();
+      if (role === "teacher") {
+        await manualSend.click();
+        await expect(page.getByRole("dialog", { name: "1명에게 알림톡" })).toBeVisible();
+      } else {
+        await expect(manualSend).toHaveCount(0);
+      }
+
+      await page.goto(`${BASE}/workspace/mobile/students?qaSendIntent=scheduled`);
+      await expect(student).toBeVisible();
+      if (role === "teacher") {
+        await expect(cancelSelection).toBeVisible();
+        await student.click();
+        await main.getByRole("button", { name: "예약", exact: true }).click();
+        await expect(page.getByLabel("예약 발송 시각")).toBeVisible();
+      } else {
+        await expect(selection).toBeVisible();
+        await expect(cancelSelection).toHaveCount(0);
+      }
+
+      await page.goto(`${BASE}/workspace/mobile/message-log`);
+      await expect(main.getByText("발송 내역이 없습니다", { exact: true })).toBeVisible();
+      const sendFromLog = main.getByRole("button", { name: "학생 선택 발송" });
+      if (role === "teacher") {
+        await sendFromLog.click();
+        await expect(cancelSelection).toBeVisible();
+      } else {
+        await expect(sendFromLog).toHaveCount(0);
+      }
+
+      await page.goto(`${BASE}/workspace/mobile`);
+      await expect(main.getByText("바로 처리", { exact: true })).toBeVisible();
+      const sendNow = main.getByRole("button", { name: /알림톡 학생 선택/ });
+      const sendLater = main.getByRole("button", { name: /예약 발송 시간 설정/ });
+      if (role === "teacher") {
+        await expect(sendNow).toBeVisible();
+        await expect(sendLater).toBeVisible();
+      } else {
+        await expect(sendNow).toHaveCount(0);
+        await expect(sendLater).toHaveCount(0);
+      }
+      expect(requests).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    });
+  }
 }

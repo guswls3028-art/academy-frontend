@@ -1,17 +1,19 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ArrowRightLeft, CalendarDays, Pencil, Plus } from 'lucide-react';
 import { Button } from '@/shared/ui/ds';
 import { SESSION_SCHEDULE_DAY_LIMIT, sessionSchedulesKey, type SessionSchedule, type SessionSchedules } from '@/shared/api/contracts/sessionSchedules';
 import { feedback } from '@/shared/ui/feedback/feedback';
-import { SessionScheduleNavigationContext, type SessionScheduleAction, type SessionScheduleGuard } from '@/shared/hooks/useSessionScheduleScope';
+import { SessionScheduleNavigationContext, type ScheduleManagementReadiness, type SessionScheduleAction, type SessionScheduleGuard } from '@/shared/hooks/useSessionScheduleScope';
 import { SessionScheduleControlsContext } from './sessionScheduleControlsContext';
 import SessionScheduleManager from './SessionScheduleManager';
 import SessionScheduleTransfer from './SessionScheduleTransfer';
 import styles from './SessionScheduleStrip.module.css';
 
 type Props = { sessionId: number; lectureId: number; sessionDate: string; sessionTitle: string; sessionOrder: number; shared: boolean; children: ReactNode; query: UseQueryResult<SessionSchedules, Error> };
+
+type QueuedManagement = { locationKey: string; add: boolean; dayId?: string };
 
 export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate, sessionTitle, sessionOrder, shared, children, query }: Props) {
   const [params, setParams] = useSearchParams();
@@ -25,6 +27,11 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
   const [addRequest, setAddRequest] = useState(0);
   const [preparing, setPreparing] = useState(false);
   const beforeChange = useRef<SessionScheduleGuard | undefined>(undefined);
+  const [managementReadiness, setManagementReadiness] = useState<ScheduleManagementReadiness>('ready');
+  const [queuedManagement, setQueuedManagement] = useState<QueuedManagement | null>(null);
+  const scheduleNavigation = useMemo(() => ({ beforeChange, setManagementReadiness }), []);
+  const managementPending = managementReadiness === 'pending';
+  const hasQueuedManagement = queuedManagement?.locationKey === location.key;
   const navigating = useRef(false);
   const qc = useQueryClient();
   const data = query.data;
@@ -38,7 +45,7 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
     navigate(location, { replace: true, state: nextState });
   }, [location, navigate]);
 
-  const prepare = async (onReady: () => void, action: SessionScheduleAction = 'manage', pathname = location.pathname) => {
+  const prepare = useCallback(async (onReady: () => void, action: SessionScheduleAction = 'manage', pathname = location.pathname) => {
     if (navigating.current || window.location.pathname !== pathname) return;
     navigating.current = true;
     setPreparing(true);
@@ -46,16 +53,35 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
       const ready = await beforeChange.current?.(action) ?? true;
       if (ready && window.location.pathname === pathname) onReady();
     } finally { navigating.current = false; setPreparing(false); }
-  };
+  }, [location.pathname]);
 
-  const openManager = (add = false, dayId?: string) => {
+  const openManager = useCallback((add = false, dayId?: string) => {
     void prepare(() => {
       const selectedDayId = dayId ?? new URLSearchParams(window.location.search).get('schedule');
       setEditDayId(add ? null : selectedDayId);
       if (add) setAddRequest(request => request + 1);
       setOpen(true);
     });
+  }, [prepare]);
+
+  const requestManager = (add = false, dayId?: string) => {
+    if (hasQueuedManagement) return;
+    if (managementPending) {
+      setQueuedManagement({ locationKey: location.key, add, dayId });
+      return;
+    }
+    openManager(add, dayId);
   };
+
+  useEffect(() => {
+    if (queuedManagement === null) return;
+    if (queuedManagement.locationKey !== location.key || window.location.pathname !== location.pathname || window.location.search !== location.search) {
+      setQueuedManagement(null);
+    } else if (!managementPending) {
+      setQueuedManagement(null);
+      if (managementReadiness === 'ready') openManager(queuedManagement.add, queuedManagement.dayId);
+    }
+  }, [location.key, location.pathname, location.search, managementPending, managementReadiness, openManager, queuedManagement]);
 
   const choose = async (value: string | null) => {
     const pathname = window.location.pathname;
@@ -104,13 +130,16 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
         <span><CalendarDays size={15} aria-hidden />수업일{data?.schedules.length ? ` ${data.schedules.length}개` : ''}</span>
         {query.isPending ? <span className={styles.note} role="status">불러오는 중…</span> : (
           <div className={styles.stripActions}>
-            <Button intent="ghost" size="sm" onClick={() => openManager()} disabled={!data || query.isError}>수업일 관리</Button>
+            <Button intent="ghost" size="sm" onClick={() => requestManager()} disabled={!data || query.isError || hasQueuedManagement}>수업일 관리</Button>
             {data && !query.isError && data.schedules.length < SESSION_SCHEDULE_DAY_LIMIT && (
-              <Button intent="ghost" size="sm" iconOnly aria-label="수업일 추가" title="수업일 추가" leftIcon={<Plus size={17} aria-hidden />} onClick={() => openManager(true)} />
+              <Button intent="ghost" size="sm" iconOnly aria-label="수업일 추가" title="수업일 추가" disabled={hasQueuedManagement} leftIcon={<Plus size={17} aria-hidden />} onClick={() => requestManager(true)} />
             )}
           </div>
         )}
       </div>
+      {managementPending && <p className={styles.note} role="status">
+        {hasQueuedManagement ? '수업일 관리를 열기 전에 이전 성적 입력을 확인하는 중…' : '이전 성적 입력을 확인하는 중…'}
+      </p>}
       {query.isError && <div className={styles.error} role="alert">수업일 정보를 불러오지 못했습니다. <Button intent="secondary" size="sm" onClick={() => void query.refetch()}>수업일 다시 불러오기</Button>{scope !== null && <Button intent="ghost" size="sm" onClick={() => choose(null)}>전체 명단으로 이동</Button>}</div>}
       {data && !query.isError && <>
         {hasDays && <div className={styles.dayChoices}>
@@ -120,7 +149,7 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
               <button type="button" className={styles.dayChoice} aria-pressed={scope === String(day.id)} onClick={() => choose(String(day.id))}>
                 <strong>{day.label}</strong><span> · {day.date.slice(5).replace('-', '/')}{day.start_time ? ` ${day.start_time}` : ''} · {day.enrollment_ids.length}명</span>
               </button>
-              <button type="button" className={styles.dayEdit} aria-label={`수업일 수정 · ${day.label}`} onClick={() => openManager(false, String(day.id))}>
+              <button type="button" className={styles.dayEdit} disabled={hasQueuedManagement} aria-label={`수업일 수정 · ${day.label}`} onClick={() => requestManager(false, String(day.id))}>
                 <Pencil size={14} aria-hidden />
               </button>
             </div>
@@ -137,14 +166,16 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
   );
 
   return (
-    <SessionScheduleNavigationContext.Provider value={beforeChange}>
+    <SessionScheduleNavigationContext.Provider value={scheduleNavigation}>
       <SessionScheduleControlsContext.Provider value={{
         content,
         title: sessionTitle,
         date: sessionDate,
         inlineActions: !!data && !query.isError && !hasDays,
         blockedNotice: blocked ? <p className={styles.note} role="status">{query.isPending ? '선택한 수업일을 확인하는 중…' : '수업일을 확인한 뒤 명단을 표시합니다.'}</p> : null,
-        openManager: () => openManager(),
+        managementPending,
+        managementQueued: hasQueuedManagement,
+        openManager: () => requestManager(),
         prepareTransition: prepare,
       }}>
         {children}

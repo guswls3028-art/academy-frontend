@@ -1,3 +1,4 @@
+import { revealScoreManagement } from "../helpers/revealScoreManagement";
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { openCompositionScores } from "../helpers/assessmentCompositionMock";
 
@@ -310,11 +311,15 @@ async function installScopedComposition(page: Page) {
 
 async function switchCompositionSession(page: Page, sessionId: 9002 | 9003) {
   const date = sessionId === 9002 ? "2026-08-25" : "2026-08-26";
+  await revealScoreManagement(page);
   await page.locator("button.session-block").filter({ hasText: date }).click();
   await expect(page).toHaveURL(new RegExp(`/sessions/${sessionId}/scores`));
   // React Router can update the address before committing the destination UI.
   // Wait for the same session selection that keys the score-entry page.
-  await expect(page.locator("button.session-block--selected").filter({ hasText: date })).toBeVisible();
+  const selected = page.locator("button.session-block--selected").filter({ hasText: date });
+  await expect(selected).toBeAttached();
+  await revealScoreManagement(page);
+  await expect(selected).toBeVisible();
   await expect(page.getByRole("button", { name: "시험 총점 합산 설정", exact: true })).toBeVisible();
 }
 

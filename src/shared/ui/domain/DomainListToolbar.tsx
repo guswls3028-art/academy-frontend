@@ -17,6 +17,7 @@ type DomainListToolbarProps = {
   primaryAction: ReactNode;
   /** 검색창 밑에 표시 (예: N명 선택됨 + 액션 버튼) */
   belowSlot?: ReactNode;
+  compactMobile?: boolean;
 };
 
 export default function DomainListToolbar({
@@ -25,6 +26,7 @@ export default function DomainListToolbar({
   filterSlot,
   primaryAction,
   belowSlot,
+  compactMobile = false,
 }: DomainListToolbarProps) {
   const isMobile = useIsMobile();
 
@@ -32,16 +34,14 @@ export default function DomainListToolbar({
     return (
       <ControlSizeContext.Provider value="lg">
       <div className="domain-list-toolbar flex flex-col gap-2" data-control-size="lg">
-        <div className="flex flex-col gap-2">
+        <div className={compactMobile ? styles.mobileCompactRow : "flex flex-col gap-2"}>
           <span className={styles.totalMobile}>
             {totalLabel}
           </span>
-          <div className={styles.mobileActionScroller}>
-            {primaryAction}
-          </div>
+          {compactMobile && <div className={styles.fullWidth}>{searchSlot}</div>}
+          {primaryAction && <div className={styles.mobileActionScroller}>{primaryAction}</div>}
         </div>
-        {/* 검색 풀와이드 */}
-        <div className={styles.fullWidth}>{searchSlot}</div>
+        {!compactMobile && <div className={styles.fullWidth}>{searchSlot}</div>}
         {/* 필터 */}
         {filterSlot && (
           <div className={`flex items-center gap-2 ${styles.horizontalScroller}`}>

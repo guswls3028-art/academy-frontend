@@ -73,15 +73,11 @@
 .brandMark {
   width: 34px;
   height: 34px;
-  border: 1px solid rgba(147, 197, 253, 0.32);
-  border-radius: 9px;
-  background: #17233a;
-  color: #dbeafe;
-  display: grid;
-  place-items: center;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  padding: 3px;
+  box-sizing: border-box;
+  border-radius: 7px;
+  background: #fff;
+  object-fit: contain;
   flex-shrink: 0;
 }
 

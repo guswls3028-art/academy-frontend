@@ -1,3 +1,4 @@
+import { revealScoreManagement } from "../helpers/revealScoreManagement";
 /**
  * Student homework media submission -> assistant discovery/preview and UI grading
  * -> student/parent projection, reload and login.
@@ -289,6 +290,7 @@ async function verifyHomeworkFeedback(
         await staffPage.locator(`[data-score-cell="homework:${created.enrollmentId}:${completion.id}"]`).scrollIntoViewIfNeeded();
         await staffPage.screenshot({ path: test.info().outputPath(`real-mixed-homework-${width}.png`), animations: "disabled" });
         checkpoint.phase = "feedback-report";
+        await revealScoreManagement(staffPage);
         await staffPage.getByRole("button", { name: "개인 성적표", exact: true }).click();
         const report = staffPage.getByRole("dialog");
         await report.getByRole("combobox", { name: "성적표 학생 선택" }).selectOption(String(created.enrollmentId));
@@ -321,6 +323,7 @@ async function verifyHomeworkFeedback(
         }
         await report.getByRole("button", { name: "닫기", exact: true }).click();
         await expect(report).toBeHidden();
+        await revealScoreManagement(staffPage);
         await staffPage.getByRole("button", { name: "성적 도구", exact: true }).click();
         await staffPage.getByRole("menuitem", { name: /성적표 출력/ }).click();
         const teacherReport = staffPage.getByRole("dialog", { name: "성적표 미리보기", exact: true });
@@ -1052,6 +1055,46 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await acknowledgeInitialAccountPromptsIfVisible(staffPage);
       const acknowledgedIdentity = await expectApi<{ first_login_guide_required: boolean }>(request, "GET", "/core/me/", staffTokens.access);
       expect(acknowledgedIdentity.first_login_guide_required).toBe(false);
+
+      await test.step("조교 연락처 조회와 수동 알림톡 권한", async () => {
+        const manualSendRequests: string[] = [];
+        const observeManualSend = (entry: import("@playwright/test").Request) => {
+          const path = new URL(entry.url()).pathname;
+          if (entry.method() === "POST" && /^\/api\/v1\/messaging\/send\//.test(path)) {
+            manualSendRequests.push(path);
+          }
+        };
+        staffPage.on("request", observeManualSend);
+        try {
+          const main = staffPage.getByRole("main");
+          for (const width of [1366, 390]) {
+            await staffPage.setViewportSize({ width, height: 844 });
+            await gotoAndSettle(staffPage, `${QA_BASE}/workspace/mobile/students`);
+            const rosterResponse = staffPage.waitForResponse((response) => {
+              const url = new URL(response.url());
+              return response.request().method() === "GET" && url.pathname === "/api/v1/students/"
+                && url.searchParams.get("search") === student.name;
+            });
+            await main.getByPlaceholder("이름, 아이디, 전화번호, 학교").fill(student.name);
+            expect((await rosterResponse).status()).toBe(200);
+            const row = main.getByRole("button").filter({ has: staffPage.getByText(student.name, { exact: true }) });
+            const formattedPhone = student.parent_phone.replace(/^(\d{3})(\d{4})(\d{4})$/, "$1-$2-$3");
+            const contact = row.getByRole("link", { name: `부 ${formattedPhone}`, exact: true });
+            await expect(contact).toBeVisible();
+            await expect(contact).toHaveAttribute("href", `tel:${student.parent_phone}`);
+            await main.getByRole("button", { name: "선택", exact: true }).click();
+            await row.click();
+            await expect(main.getByText("1명 선택됨", { exact: true })).toBeVisible();
+            await expect(main.getByRole("button", { name: "태그", exact: true })).toBeVisible();
+            await expect(main.getByRole("button", { name: /^(알림톡|예약)$/ })).toHaveCount(0);
+            await assertNoHorizontalOverflow(staffPage);
+          }
+          expect(manualSendRequests).toEqual([]);
+        } finally {
+          staffPage.off("request", observeManualSend);
+        }
+      });
+      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/mobile/homeworks/${created.homeworkId}`);
       await staffPage.getByRole("button", { name: "과제 검사", exact: true }).click();
       const mobileInspection = staffPage.getByRole("dialog", { name: "과제 검사", exact: true });
       await mobileInspection.getByLabel("학생 선택").selectOption(String(created.enrollmentId));

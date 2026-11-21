@@ -105,6 +105,17 @@ test.describe("업무 화면 기능 검색", () => {
     await installLocalAuthApiStubs(page);
   });
 
+  test("관리자 대시보드가 크기에 맞는 학원플러스 로고와 탭 아이콘을 유지한다", async ({ page }) => {
+    await page.goto(`${BASE}/workspace/dashboard`);
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 850 });
+      const mark = page.getByTestId("app-header-go-dashboard").locator("img");
+      await expect(mark).toHaveAttribute("src", `/tenants/hakwonplus/${width === 390 ? "icon" : "logo"}.png?v=20261119`);
+      await expect.poll(() => mark.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+      await expect(page.locator('link[rel="icon"]').first()).toHaveAttribute("href", "/tenants/hakwonplus/favicon.png?v=20261119");
+    }
+  });
+
   test("교직원 게시판 조회 실패를 복구하고 작성 오류 뒤에도 입력을 유지한다", async ({ page }) => {
     let ready = false;
     let published = false;

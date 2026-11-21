@@ -2,6 +2,7 @@ import { test, expect } from "../fixtures/strictTest";
 import type { Locator, Page } from "@playwright/test";
 import { apiCall } from "../helpers/api";
 import { loginViaUI } from "../helpers/auth";
+import { revealScoreManagement } from "../helpers/revealScoreManagement";
 import { waitForRenderSettled } from "../helpers/wait";
 
 test.use({ screenshot: "off", trace: "off", video: "off" });
@@ -249,6 +250,7 @@ async function exerciseScoresMoreMenu(page: Page): Promise<void> {
 async function inspectIndividualScoreReport(page: Page): Promise<void> {
   for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: 900 });
+    await revealScoreManagement(page);
     const tools = page.getByRole("button", { name: "성적 도구" });
     await tools.click();
     const entry = page.getByRole("menuitem", { name: /^개인 성적표/ });

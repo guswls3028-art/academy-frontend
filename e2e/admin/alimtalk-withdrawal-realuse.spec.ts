@@ -128,8 +128,26 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
       await page.getByRole("button", { name: `QA editable ${family.students[0].id} 편집`, exact: true }).click();
       const mobileEditor = page.getByRole("dialog", { name: "문구 편집", exact: true });
       await expect(mobileEditor.getByRole("textbox", { name: "안내 문구", exact: true })).toHaveText(libraryBody);
+      const bodyInput = mobileEditor.getByRole("textbox", { name: "안내 문구", exact: true });
+      const draftLines = ["#{학생이름} 학생 안내입니다.", "", `${width}px에서 저장한 합성 문구입니다.`];
+      await bodyInput.fill(draftLines.join("\n"));
+      const savedDraft = page.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === `/api/v1/messaging/templates/${editableTemplateId}/`);
+      await mobileEditor.getByRole("button", { name: "수정", exact: true }).click();
+      expect((await savedDraft).status()).toBe(200);
+      await expect(mobileEditor).toBeHidden();
+      expect((await expectApi<{ body: string }>(request, "GET", `/messaging/templates/${editableTemplateId}/`, access)).body)
+        .toBe(draftLines.join("\n"));
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.getByRole("button", { name: `QA editable ${family.students[0].id} 편집`, exact: true }).click();
+      const paragraphs = bodyInput.locator("p");
+      await expect(paragraphs).toHaveCount(3);
+      await expect(paragraphs.nth(0).locator('[data-message-variable="학생이름"]')).toHaveCount(1);
+      await expect(paragraphs.nth(0)).toContainText("학생 안내입니다.");
+      await expect(paragraphs.nth(1)).toHaveText("");
+      await expect(paragraphs.nth(2)).toHaveText(draftLines[2]);
       const mobileBody = `${width}px 선생님 화면에서 저장한 최종 안내문입니다.`;
-      await mobileEditor.getByRole("textbox", { name: "안내 문구", exact: true }).fill(mobileBody);
+      await bodyInput.fill(mobileBody);
       await mobileEditor.getByRole("button", { name: "수정", exact: true }).click();
       await expect(mobileEditor).toBeHidden();
       expect((await expectApi<{ body: string }>(request, "GET", `/messaging/templates/${editableTemplateId}/`, access)).body).toBe(mobileBody);
@@ -191,7 +209,7 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
       await gotoAndSettle(page, `${QA_BASE}/workspace/message/auto-send`);
       await page.getByRole("button", { name: "클리닉/상담", exact: true }).click();
       await expect(page.getByText(mobileBody, { exact: true })).toBeVisible();
-      const rendered = await expectApi<{ can_send: boolean; preview_recipients: Array<{ full_message_body: string }> }>(
+      const rendered = await expectApi<{ can_send: boolean; preview_recipients: Array<{ phone: string; full_message_body: string }> }>(
         request, "POST", "/messaging/send/preflight/", access, {
           template_id: editableTemplateId, student_ids: [student.id], send_to: "parent", message_mode: "alimtalk",
           block_category: "clinic", alimtalk_extra_vars: { 클리닉장소: "QA 강의실", 클리닉날짜: "2026-10-19", 클리닉시간: "18:00" },
@@ -199,6 +217,7 @@ test.describe.serial("[real-use] 퇴원 알림 접수와 개발 mock worker", ()
       );
       expect(rendered.can_send).toBe(true);
       expect(rendered.preview_recipients).toHaveLength(1);
+      expect(rendered.preview_recipients[0].phone).toBe(student.parent_phone);
       expect(rendered.preview_recipients[0].full_message_body).toContain(mobileBody);
       expect(rendered.preview_recipients[0].full_message_body).not.toContain("예전에 저장한 합성 안내문");
       await gotoAndSettle(page, `${QA_BASE}/workspace/students/home`);

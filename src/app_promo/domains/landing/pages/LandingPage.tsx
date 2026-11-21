@@ -27,7 +27,7 @@ function ProductPreview() {
             width={1440} height={900} loading="eager" />
         </div>
         <div className={styles.mobileScreen}>
-          <PromoEvidenceImage src="/promo/student-operations-realuse-20260828.png"
+          <PromoEvidenceImage src="/promo/student-operations-realuse-20260828.png?v=20261120"
             alt="오늘 수업과 다음 일정을 확인하는 학원플러스 학생 모바일 화면"
             width={780} height={1688} loading="eager" />
         </div>
