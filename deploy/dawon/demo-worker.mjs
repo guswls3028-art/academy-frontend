@@ -204,6 +204,29 @@ section[aria-label$="차시 카드"] .session-block__gear:focus-visible {
   min-height: 44px;
 }
 @media (max-width: 600px) {
+  [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] table {
+    table-layout: fixed;
+    width: 612px;
+    min-width: 100%;
+  }
+  [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] :is(th, td) {
+    box-sizing: border-box;
+    padding-inline: 8px;
+  }
+  [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] thead th:nth-child(1) { width: 122px; }
+  [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] thead th:nth-child(2) { width: 76px; }
+  [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] thead th:nth-child(3) { width: 48px; }
+  [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] thead th:nth-child(4) { width: 110px; }
+  [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] thead th:nth-child(n+5) { width: 128px; }
+  [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] td:nth-child(3) { white-space: nowrap; }
+  [data-dawon-staff] .ds-table-wrap[aria-label="학생 명단"] td:is(:nth-child(2), :nth-child(4)) {
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
   [data-dawon-staff] .domain-layout:has(:is([aria-label="반 업무"],[aria-label="차시 출결 명단"],[aria-label="반별 운영 현황"])) > .domain-layout__header {
     padding: 8px 12px;
   }
