@@ -42,7 +42,8 @@ import { type CorrectionScores, verifyScoreCorrectionWhileEditing } from "../hel
 import { verifyAssessmentTitle } from "../helpers/assessmentTitleRealuse";
 import { withOwnedScoreLeaseCleanup } from "../helpers/scoreLeaseCleanup";
 
-test.setTimeout(600_000);
+// One serial case spans student uploads, mobile and desktop staff review, and parent/learner relogin.
+test.setTimeout(12 * 60_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 
 type HomeworkSummary = {
@@ -632,12 +633,14 @@ async function waitForHomeworkSummary(
 
 async function openHomeWithGradeRows(page: Page, selectedStudentId?: number) {
   const [response] = await Promise.all([
-    page.waitForResponse((candidate) => {
+    page.waitForResponse(async (candidate) => {
       const url = new URL(candidate.url());
-      return candidate.request().method() === "GET" && url.pathname === "/api/v1/student/grades/"
-        && url.searchParams.get("scope") === "rows";
+      if (candidate.request().method() !== "GET" || url.pathname !== "/api/v1/student/grades/"
+        || url.searchParams.get("scope") !== "rows") return false;
+      await candidate.finished();
+      return true;
     }, { timeout: 45_000 }),
-    gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 }),
+    page.goto(`${QA_BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 30_000 }),
   ]);
   expect(response.status()).toBe(200);
   if (selectedStudentId !== undefined) {
@@ -980,6 +983,8 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await page.setViewportSize({ width, height: 844 });
       await submitShortcut.scrollIntoViewIfNeeded();
       await expect(submitShortcut).toBeInViewport();
+      const label = submitShortcut.getByText("자료 제출·확인", { exact: true });
+      expect(await label.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
       await assertNoHorizontalOverflow(page);
       await page.screenshot({ path: testInfo.outputPath(`student-submission-shortcut-${width}.png`) });
     }
@@ -1544,7 +1549,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await expect(scoredHomeworkCard.getByText("92/100", { exact: true })).toBeVisible();
     await expect(page.locator('aside[aria-label="학부모 코멘트"]')).toHaveCount(0);
     await expect(page.getByText(parentHomeworkComment, { exact: false })).toHaveCount(0);
-    await gotoAndSettle(page, `${QA_BASE}/student/grades`);
+    await page.getByRole("button", { name: /^시험 성적/ }).click();
     await page.getByRole("button", { name: /과제 검사 결과 .*건 보기/ }).click();
     await reloadStudentApp(page);
     await expect(page.getByRole("region", { name: "과제 검사 결과", exact: true })).toContainText(inspectionFeedback);

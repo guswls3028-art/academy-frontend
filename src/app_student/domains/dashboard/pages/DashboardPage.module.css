@@ -438,6 +438,12 @@
   outline-offset: 2px;
 }
 
+@media (max-width: 480px) {
+  .quickActionWide {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   .quickAction {
     transition: border-color 160ms ease, transform 160ms ease;
