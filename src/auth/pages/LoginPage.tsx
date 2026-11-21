@@ -21,7 +21,7 @@ import {
   resolveTenantCode,
 } from "@/shared/tenant";
 import CommonLogoIcon from "@/auth/assets/CommonLogoIcon";
-import DawonCounselEntry, { counselEntrySearch } from "./DawonCounselEntry";
+import DawonCounselEntry from "./DawonCounselEntry";
 import { fetchLandingHasPublished } from "@/landing/api";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import SignupModal from "./SignupModal";
@@ -44,6 +44,15 @@ import {
 } from "@/features/staff-clock/promptSession";
 
 const BRANDED_LOGIN_SCENES = new Set(["hakwonplus", "movementhui", "godmin"]);
+
+function counselEntrySearch(params: URLSearchParams): string | null {
+  const panel = params.get("panel");
+  if (params.get("demo") !== "guardian" || params.get("view") !== "counsel" || (panel !== "form" && panel !== "history")) return null;
+  const query = new URLSearchParams({ demo: "guardian", view: "counsel", panel });
+  const date = params.get("date");
+  if (panel === "history" && date && /^\d{4}-\d{2}-\d{2}$/.test(date)) query.set("date", date);
+  return "?" + query.toString();
+}
 
 function isDawonDemoSearch(tenantCode: string | null, search: string) {
   const params = new URLSearchParams(search);

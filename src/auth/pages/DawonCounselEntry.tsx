@@ -2,15 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { getSessionItem, removeSessionItem } from "@/shared/utils/safeSessionStorage";
 import styles from "./LoginPage.module.css";
 
-export function counselEntrySearch(params: URLSearchParams): string | null {
-  const panel = params.get("panel");
-  if (params.get("demo") !== "guardian" || params.get("view") !== "counsel" || (panel !== "form" && panel !== "history")) return null;
-  const query = new URLSearchParams({ demo: "guardian", view: "counsel", panel });
-  const date = params.get("date");
-  if (panel === "history" && date && /^\d{4}-\d{2}-\d{2}$/.test(date)) query.set("date", date);
-  return "?" + query.toString();
-}
-
 function hasRecentIntent(search: string) {
   try {
     const intent = JSON.parse(getSessionItem("dawon-counsel-intent") ?? "null");
