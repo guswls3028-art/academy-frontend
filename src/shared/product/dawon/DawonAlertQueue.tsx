@@ -6,6 +6,7 @@ import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import DomainTable from "@/shared/ui/domain/DomainTable";
 import { Button } from "@/shared/ui/ds";
 import { alertEndpoint, alertRules, queueKey } from "./alertQueue";
+import { dawonQueryKeys } from "./queryKeys";
 import DawonSearchInput from "./DawonSearchInput";
 import desk from "./DawonAdminRecords.module.css";
 import styles from "./DawonAlertQueue.module.css";
@@ -32,12 +33,12 @@ export default function DawonAlertQueue({role, groups, lectures}: {role:StaffRoo
   const page = Math.max(1, Number(params.get("page")) || 1);
   const client = useQueryClient();
   const filters = {queue:"list",status,group,kind,track,lecture_id:lecture,rule,q,page};
-  const feed = useQuery({queryKey:[...queueKey,role,filters],queryFn:async ({signal})=>
+  const feed = useQuery({queryKey:dawonQueryKeys.alertPage(role,filters),queryFn:async ({signal})=>
     (await api.get<Page>(alertEndpoint,{params:filters,signal})).data});
   const change = useMutation({mutationFn:async (key:string) => api.patch(alertEndpoint, {key,status:status === "completed" ? "pending" : "completed"}),
     onSuccess:async () => {
       await client.invalidateQueries({queryKey:queueKey});
-      await client.invalidateQueries({queryKey:["dawon","teacher-alerts"]});
+      await client.invalidateQueries({queryKey:dawonQueryKeys.alerts});
       if (page > 1 && feed.data?.alerts.length === 1) filter("page",String(page-1));
     }});
   function filter(key:string,value:string) {

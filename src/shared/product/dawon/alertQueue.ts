@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
 import type { StaffRoom } from "./staffMenu";
+import { dawonQueryKeys } from "./queryKeys";
 
 export const alertEndpoint = "/students/teacher-alerts/";
-export const queueKey = ["dawon", "learning-alert-queue"] as const;
+export const queueKey = dawonQueryKeys.alertQueue;
 export function useAlertSummary(role:StaffRoom | null) {
   return useQuery({
-    queryKey:[...queueKey, role, "summary"], enabled:!!role, staleTime:60_000, refetchInterval:120_000,
+    queryKey: dawonQueryKeys.alertSummary(role), enabled:!!role, staleTime:60_000, refetchInterval:120_000,
     queryFn:async ({signal}) => (await api.get<{pending:number;by_group:Record<string,number>}>(alertEndpoint, {
       params:{queue:"summary"}, signal,
     })).data,

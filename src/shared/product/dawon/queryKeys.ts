@@ -1,6 +1,7 @@
 const groups = ["dawon", "class-groups"] as const;
 const roster = ["dawon-roster"] as const;
 const alerts = ["dawon", "teacher-alerts"] as const;
+const alertQueue = ["dawon", "learning-alert-queue"] as const;
 
 const operations = ["dawon", "admin", "operations"] as const;
 const learning = ["dawon", "admin", "learning-review"] as const;
@@ -9,6 +10,11 @@ const students = ["dawon","admin","students"] as const;
 const individual = ["dawon","admin","student"] as const;
 const courseRoster = (course:number) => ["dawon","admin","course-roster",course] as const;
 export const dawonQueryKeys = {
+  alertQueue,
+  alertSummary: (role: "admin" | "teacher" | null) => [...alertQueue, role, "summary"] as const,
+  alertPage: (role: "admin" | "teacher", filters: Record<string, string | number>) => [...alertQueue, role, filters] as const,
+  directoryScores: (role: "admin" | "teacher", student: number, course: number) =>
+    ["dawon", role, "student-directory-scores", student, course] as const,
   monthlyPayroll: (month: string) => ["dawon", "admin", "payroll", month] as const,
   adminStudents:students,
   adminStudentRoot:individual,

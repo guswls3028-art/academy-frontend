@@ -62,7 +62,7 @@ function HistoryTable({title, rows}: {title:string;rows:HistoryRow[]}) {
 
 export function DirectoryPerformance({student, course, role}: {student:number; course:number; role:"teacher"|"admin"}) {
   const query = useQuery({
-    queryKey: ["dawon", role, "student-directory-scores", student, course],
+    queryKey: dawonQueryKeys.directoryScores(role,student,course),
     queryFn: async ({signal}) => (await api.get<{exams:HistoryRow[];delta_percent:number|null;previous_title:string|null}>("/students/class-groups/", {
       params: {view:"student_scores", student, course}, signal,
     })).data,
