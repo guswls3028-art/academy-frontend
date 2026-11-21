@@ -1528,11 +1528,11 @@ function EditPane({
           </div>
         )}
 
-        {identifierNeeded && (
+        {identifierNeeded && pickerOpen && !reviewingLatest && (
           <StudentPickerModal
-            examId={examId}
+            targetType="exam"
+            targetId={examId}
             sessionId={sessionId}
-            open={pickerOpen && !reviewingLatest}
             onClose={() => setPickerOpen(false)}
             onPick={(c) => {
               captureDraftRevision();

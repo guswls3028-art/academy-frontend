@@ -245,17 +245,19 @@ export async function fetchExamCandidates(
   examId: number,
   q: string,
   sessionId?: number,
+  unmatchedOnly = false,
 ): Promise<CandidateRow[]> {
   const res = await api.get(`/submissions/submissions/exams/${examId}/candidates/`, {
-    params: { q: q.trim() || undefined, session_id: sessionId },
+    params: { q: q.trim() || undefined, session_id: sessionId, unmatched_only: unmatchedOnly ? 1 : undefined },
   });
-  if (sessionId !== undefined) {
-    if (res.data?.session_id !== sessionId || !Array.isArray(res.data?.candidates)) {
-      throw new Error("차시 응시 대상자 목록을 확인하지 못했습니다.");
-    }
-    return res.data.candidates as CandidateRow[];
+  if (sessionId !== undefined && res.data?.session_id !== sessionId) {
+    throw new Error("차시 응시 대상자 목록을 확인하지 못했습니다.");
   }
-  return (Array.isArray(res.data) ? res.data : []) as CandidateRow[];
+  const rows = sessionId === undefined ? res.data : res.data.candidates;
+  if (!Array.isArray(rows) || (unmatchedOnly && rows.some((row) => row?.already_matched !== false))) {
+    throw new Error("응시 대상자 목록을 확인하지 못했습니다.");
+  }
+  return rows as CandidateRow[];
 }
 
 export async function fetchHomeworkCandidates(

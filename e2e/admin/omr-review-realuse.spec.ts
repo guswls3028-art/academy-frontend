@@ -2171,17 +2171,29 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await picker.click();
     const studentPicker = page.getByRole("dialog", { name: "학생 선택" });
     const phoneSuffix = CONTROLLED_PHONE.slice(-4);
+    const filteredResponse = page.waitForResponse((response) => {
+      if (!matchesApiResponse(response, "GET", `/submissions/submissions/exams/${created.examId}/candidates/`)) return false;
+      const params = new URL(response.url()).searchParams;
+      return params.get("session_id") === String(created.sessionId) && params.get("q") === phoneSuffix
+        && params.get("unmatched_only") === "1";
+    });
+    await studentPicker.getByRole("textbox", { name: "학생 검색" }).fill(phoneSuffix);
+    const filtered = await filteredResponse;
+    expect(filtered.status()).toBe(200);
+    expect(await filtered.json()).toMatchObject({ session_id: created.sessionId, candidates: [] });
+    await expect(studentPicker.getByText("일치하는 학생이 없습니다.")).toBeVisible();
     const candidates = page.waitForResponse((response) => {
       if (!matchesApiResponse(response, "GET", `/submissions/submissions/exams/${created.examId}/candidates/`)) return false;
       const params = new URL(response.url()).searchParams;
-      return params.get("session_id") === String(created.sessionId) && params.get("q") === phoneSuffix;
+      return params.get("session_id") === String(created.sessionId) && params.get("q") === phoneSuffix
+        && !params.has("unmatched_only");
     });
-    await studentPicker.getByRole("textbox", { name: "학생 검색" }).fill(phoneSuffix);
+    await studentPicker.getByRole("checkbox", { name: "매칭된 학생도 보기" }).check();
     const candidateResponse = await candidates;
     expect(candidateResponse.status()).toBe(200);
     expect(await candidateResponse.json()).toMatchObject({
       session_id: created.sessionId,
-      candidates: [expect.objectContaining({ enrollment_id: created.enrollmentId })],
+      candidates: [expect.objectContaining({ enrollment_id: created.enrollmentId, already_matched: true })],
     });
     await studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
     await expect(studentPicker).toBeHidden();
