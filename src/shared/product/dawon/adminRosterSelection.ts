@@ -5,7 +5,7 @@ const normalize = (value: string) => value.normalize("NFKC").replace(/\s+/g, "")
 
 export function filterRoster(students: RosterStudent[], search: string, grade: string) {
   const term = normalize(search).slice(0,100);
-  const number = /^[\d()+.\-]+$/.test(term) && digits(term);
+  const number = /^[\d()+.-]+$/.test(term) && digits(term);
   return students.filter(student => (!grade || String(student.grade) === grade)
     && (normalize(student.name).includes(term) || normalize(student.school || "").includes(term)
       || (number && [student.phone, student.parent_phone].some(phone => digits(phone).includes(number)))));
