@@ -266,3 +266,16 @@
 .recordFilters { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin-bottom:12px; }
 .recordFilters label { display:inline-flex; align-items:center; gap:6px; min-width:0; }
 .recordFilters select { min-width:0; max-width:100%; min-height:40px; padding:4px 8px; border:1px solid var(--color-border-default); border-radius:6px; background:var(--color-bg-surface); color:var(--color-text-primary); }
+
+.adminRosterEditor { display:grid; align-items:start; gap:12px; min-width:0; }
+.adminRosterEditor > * { min-width:0; }
+.adminRosterEditor > p { margin:0; }
+.adminRosterEditor > :global(.lecture-enroll-picker__body) { height:clamp(225px,47dvh,450px); }
+.adminRosterEditor :global(.lecture-enroll-picker__chips) { max-height:140px; overflow-y:auto; }
+@media(min-width:740px) {
+  .adminRosterEditor:has(> :global(.lecture-enroll-picker__body)) { grid-template-columns:minmax(0,1fr) minmax(190px,29%); }
+  .adminRosterEditor > * { grid-column:1/-1; }
+  .adminRosterEditor > :global(.lecture-enroll-picker__body) { grid-column:1; }
+  .adminRosterEditor:has(> :global(.lecture-enroll-picker__body)) > :global(.lecture-enroll-picker__selection) { grid-column:2; }
+  .adminRosterEditor :global(.lecture-enroll-picker__chips) { max-height:min(35vh,320px); }
+}

@@ -294,7 +294,7 @@ function PasswordChangeGroup({
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
-export default function ProfileSettingsPage() {
+export default function ProfileSettingsPage({readOnlyRole}: {readOnlyRole?: string} = {}) {
   const qc = useQueryClient();
   const { clearAuth } = useAuth();
 
@@ -331,7 +331,7 @@ export default function ProfileSettingsPage() {
     return (
       <div className={s.page}>
         <div className={s.loadingBox} style={{ borderStyle: "solid", color: "var(--color-error)" }}>
-          내 정보를 불러올 수 없습니다.
+          내 정보를 불러올 수 없습니다. <Button onClick={()=>void meQ.refetch()}>다시 시도</Button>
         </div>
       </div>
     );
@@ -348,7 +348,7 @@ export default function ProfileSettingsPage() {
       <section className={s.section}>
         <div className={s.sectionHeader}>
           <h2 className={s.sectionTitle}>프로필</h2>
-          <p className={s.sectionDescription}>개인 계정 정보를 확인하고 수정할 수 있습니다.</p>
+          {!readOnlyRole && <p className={s.sectionDescription}>개인 계정 정보를 확인하고 수정할 수 있습니다.</p>}
         </div>
         <div className={s.rows}>
           {/* Avatar */}
@@ -359,13 +359,13 @@ export default function ProfileSettingsPage() {
             <div className={s.avatarInfo}>
               <span className={s.avatarName}>{me.name || me.username}</span>
               <div className={s.avatarMeta}>
-                <span className={s.avatarRole}>{roleLabel(role)}</span>
+                <span className={s.avatarRole}>{readOnlyRole || roleLabel(role)}</span>
               </div>
             </div>
           </div>
 
           {/* Name + Phone — inline edit or display */}
-          {editingProfile ? (
+          {!readOnlyRole && editingProfile ? (
             <ProfileEditGroup
               initialName={me.name ?? ""}
               initialPhone={me.phone ?? ""}
@@ -380,26 +380,26 @@ export default function ProfileSettingsPage() {
               <div className={s.row}>
                 <span className={s.rowLabel}>이름</span>
                 <span className={me.name ? s.rowValue : s.rowValueMuted}>{me.name || "미설정"}</span>
-                <div className={s.rowActions}>
+                {!readOnlyRole && <div className={s.rowActions}>
                   <button className={s.editBtn} onClick={() => setEditingProfile(true)} type="button">
                     <FiEdit2 size={11} aria-hidden />수정
                   </button>
-                </div>
+                </div>}
               </div>
               <div className={s.row}>
                 <span className={s.rowLabel}>전화번호</span>
                 <span className={me.phone ? s.rowValue : s.rowValueMuted}>{me.phone || "미설정"}</span>
-                <div className={s.rowActions}>
+                {!readOnlyRole && <div className={s.rowActions}>
                   <button className={s.editBtn} onClick={() => setEditingProfile(true)} type="button">
                     <FiEdit2 size={11} aria-hidden />수정
                   </button>
-                </div>
+                </div>}
               </div>
             </>
           )}
 
           {/* Account ID */}
-          {editingUsername ? (
+          {!readOnlyRole && editingUsername ? (
             <UsernameEditGroup
               initialUsername={displayId}
               onSave={async (username) => {
@@ -414,18 +414,18 @@ export default function ProfileSettingsPage() {
               <span className={s.rowValue} style={{ fontFamily: "ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace", fontSize: 15, fontWeight: 600, letterSpacing: "normal" }}>
                 {displayId || "—"}
               </span>
-              <div className={s.rowActions}>
+              {!readOnlyRole && <div className={s.rowActions}>
                 <button className={s.editBtn} onClick={() => setEditingUsername(true)} type="button">
                   <FiEdit2 size={11} aria-hidden />수정
                 </button>
-              </div>
+              </div>}
             </div>
           )}
         </div>
       </section>
 
       {/* ── 보안 섹션 ── */}
-      <section className={s.section}>
+      {!readOnlyRole && <section className={s.section}>
         <div className={s.sectionHeader}>
           <h2 className={s.sectionTitle}>보안</h2>
           <p className={s.sectionDescription}>비밀번호 변경 및 로그인 관리.</p>
@@ -466,7 +466,7 @@ export default function ProfileSettingsPage() {
             </Button>
           </div>
         </div>
-      </section>
+      </section>}
 
     </div>
   );

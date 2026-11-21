@@ -21,6 +21,7 @@ import { renderLazyRoute } from "@/core/router/renderLazyRoute";
 
 /* ================= Lazy: Dashboard ================= */
 const DawonStaffSettings = lazy(() => import("@/shared/product/dawon/DawonStaffSettings"));
+const DawonAdminStudents = lazy(() => import("@/shared/product/dawon/DawonAdminStudents"));
 const DawonAdminDirectories = lazy(() => import("@/shared/product/dawon/DawonAdminDirectories"));
 const DawonAdminSchoolReports = lazy(() => import("@/shared/product/dawon/DawonAdminSchoolReports"));
 const DawonOperations = lazy(() => import("@/shared/product/dawon/DawonOperations"));
@@ -32,7 +33,7 @@ const WorkspaceSectionPage = lazy(() => import("@admin/layout/WorkspaceSectionPa
 const StudentsLayout = lazy(() => import("@admin/domains/students/StudentsLayout"));
 const DawonTeacherAlertsPage = lazy(() => import("@/shared/product/dawon/DawonTeacherAlerts"));
 const ClassGroupsPage = lazy(() => import("@/shared/product/dawon/ClassGroupsPage"));
-const ClassLectureDirectory = ClassGroupsPage as ComponentType<{lectureEntry?: boolean}>;
+const DawonAdminLectures = lazy(() => import("@/shared/product/dawon/DawonAdminLectures"));
 const DawonSchoolReportCohorts = lazy(() => import("@/shared/product/dawon/DawonSchoolReportCohorts"));
 const SurveysPage = lazy(() => import("@admin/domains/surveys/SurveysPage"));
 const SurveyEditorPage = lazy(() => import("@admin/domains/surveys/SurveysPage").then((module) => ({ default: module.SurveyEditorPage })));
@@ -184,8 +185,9 @@ export default function AdminRouter() {
       <Route element={<AppLayout />}>
         <Route path="settings" element={<Navigate to="/workspace/settings/profile" replace />} />
         {["settings/profile", "settings/appearance"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonStaffSettings)} />)}
+        <Route path="students/home" element={renderLazyRoute(DawonAdminStudents)} />
         <Route path="students/class-groups" element={renderLazyRoute(ClassGroupsPage)} />
-        <Route path="lectures" element={<Suspense fallback={<RouteFallback />}><ClassLectureDirectory lectureEntry /></Suspense>} />
+        <Route path="lectures" element={renderLazyRoute(DawonAdminLectures)} />
         <Route path="lectures/:lectureId" element={renderLazyRoute(DawonOperations)} />
         <Route path="students/surveys/school-reports" element={renderLazyRoute(DawonAdminSchoolReports)} />
         {["clinic/operations", "community/counsel", "results/students"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonAdminDirectories)} />)}

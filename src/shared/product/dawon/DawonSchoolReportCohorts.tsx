@@ -7,6 +7,7 @@ import { fetchSchoolReport, schoolReportKeys, type SchoolReportPeriod } from "@/
 import SchoolReportPeriodPicker from "@/shared/product/schoolReports/SchoolReportPeriodPicker";
 import SchoolReportScoreList from "@/shared/product/schoolReports/SchoolReportScoreList";
 import { currentSchoolReportPeriod } from "@/shared/product/schoolReports/period";
+import { DomainTable } from "@/shared/ui/domain";
 import { Button } from "@/shared/ui/ds";
 import styles from "./DawonSchoolReportCohorts.module.css";
 
@@ -26,7 +27,7 @@ function StudentScores({ id, period }: { id: number; period: SchoolReportPeriod 
     <SchoolReportScoreList scores={detail.data.scores} /></section>;
 }
 
-export function Cohorts({ period, classGroup }: { period: SchoolReportPeriod; classGroup?: number }) {
+export function Cohorts({ period, classGroup, ledger=false }: { period: SchoolReportPeriod; classGroup?: number; ledger?: boolean }) {
   const [scope, setScope] = useState<Scope | null>(null);
   const [student, setStudent] = useState<number | null>(null);
   const report = useQuery({
@@ -55,11 +56,15 @@ export function Cohorts({ period, classGroup }: { period: SchoolReportPeriod; cl
         {names.map((name, index) => <option key={name} value={index}>{name || "학교·학년 미확인"}</option>)}
       </select></label>
       {scope?.school && <label>학년 <select value={scope.grade ?? ""} onChange={(event) =>
-        changeScope({ school: scope.school, grade: Number(event.target.value) })}>
-        {cohorts.filter((row) => row.school === scope.school).map((row) => <option key={row.grade} value={row.grade ?? ""}>{row.grade}학년</option>)}
+        changeScope({ school: scope.school, grade: event.target.value === "" ? null : Number(event.target.value) })}>
+        {cohorts.filter((row) => row.school === scope.school).map((row) => <option key={row.grade} value={row.grade ?? ""}>{row.grade == null ? "학년 미입력" : row.grade + "학년"}</option>)}
       </select></label>}
     </div>
-    {rows.map((row) => <article className={styles.cohort} key={JSON.stringify([row.school, row.grade])}>
+    {ledger ? <DomainTable scrollLabel="학교·학년별 과목 성적"><thead><tr><th>학교</th><th>학년</th><th>과목</th><th>제출 인원</th><th>평균 · 100점 환산</th></tr></thead>
+      <tbody>{rows.flatMap(row => row.subjects.map(item => <tr key={JSON.stringify([row.school,row.grade,item.subject])}>
+        <th scope="row"><Button size="sm" intent="ghost" onClick={()=>changeScope(row)}>{row.school || "학교 미입력"}</Button></th>
+        <td>{row.grade == null ? "미입력" : row.grade+"학년"}</td><td>{item.subject}</td><td>{item.count}명</td><td>{Number(item.average).toFixed(1)}점</td>
+      </tr>))}</tbody></DomainTable> : rows.map((row) => <article className={styles.cohort} key={JSON.stringify([row.school, row.grade])}>
       <h3>{row.school ? row.school + " " + row.grade + "학년" : "학교·학년 미확인"}</h3>
       <ul>{row.subjects.map((item) => <li key={item.subject}>{item.subject} 평균 {Number(item.average).toFixed(1)}점 <small>({item.count}명)</small></li>)}</ul>
       {!scope && <Button intent="secondary" onClick={() => changeScope(row)}>제출 학생 {row.student_count}명 보기</Button>}

@@ -16,10 +16,13 @@ export default function DawonDailyAttendance() {
   function selection(date: string, term: string, id?: number) {
     const next = new URLSearchParams({panel: "attendance", date});
     if (term) next.set("q", term);
+    if (params.has("attention")) next.set("attention", params.get("attention")!);
     if (id !== undefined) next.set("group", String(id));
     return next;
   }
   const overview = dashboard + "?" + selection(day, search);
+  const dashboardFilters = selection(day, search);
+  dashboardFilters.delete("panel");
   const data = query.data;
   const rows = (data?.groups ?? []).filter(row => row.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
   return <DomainLayout title={group === null ? "반별 출결 현황" : (data?.group_name ?? "반 출결 상세")}
@@ -32,7 +35,7 @@ export default function DawonDailyAttendance() {
           onChange={event => setParams(selection(day, event.target.value), {replace: true})}/></label>}
         <nav aria-label="운영 화면">
           {group !== null && <Link to={overview}>반별 출결 목록</Link>}
-          <Link to={dashboard + "?" + new URLSearchParams({date:day,q:search})}>반 운영 현황</Link>
+          <Link to={dashboard + "?" + dashboardFilters}>반 운영 현황</Link>
           <Link to={dashboard + "?panel=alerts"}>학습 경보</Link>
         </nav>
       </div>

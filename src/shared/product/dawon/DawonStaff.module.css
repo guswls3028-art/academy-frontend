@@ -8,3 +8,30 @@
 .staff button, .clock button { min-height: 44px; }
 .clock { margin-block: 12px; border: 1px solid var(--color-border-divider); border-radius: 10px; padding: 12px; }
 .clock h2 { margin: 0 auto 0 0; }
+.staffDesk { display:grid; align-items:start; gap:20px; min-width:0; }
+.directory { min-width:0; max-width:860px; }
+.directoryTools { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px; }
+.directoryTools input { flex:1 1 180px; max-width:330px; min-width:0; }
+.directoryTools strong { font-size:13px; color:var(--color-text-secondary); white-space:nowrap; }
+.directoryTools select { width:auto; min-height:40px; }
+.employeeLink, .backLink { color:var(--color-brand-primary-active); text-underline-offset:3px; font-weight:650; }
+.employeeLink { display:inline-flex; align-items:center; min-height:34px; }
+.directory tr:has([aria-current="true"]) { background:var(--color-bg-surface-hover); }
+.muted { color:var(--color-text-muted); }
+.staffDetail { min-width:0; padding-inline-start:18px; border-inline-start:1px solid var(--color-border-divider); }
+.staffDetail h2 { margin:8px 0 12px; font-size:20px; }
+.staffDetail h3 { margin:16px 0 6px; font-size:15px; }
+.staffDetail :is(form,label) { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.staffDetail form { padding:0 0 12px; border:0; }
+.staffDetail > section { margin-block:14px; border-top:1px solid var(--color-border-divider); }
+@media (min-width:1100px) {
+  .staffDesk[data-detail] { grid-template-columns:minmax(355px,0.9fr) minmax(380px,1.1fr); }
+}
+@media (max-width:1099px) {
+  .staffDesk[data-detail] .directory { display:none; }
+  .staffDetail { border:0; padding:0; }
+}
+@media (max-width:600px) {
+  .directoryTools input { flex-basis:100%; max-width:none; }
+  .employeeLink { min-height:44px; }
+}

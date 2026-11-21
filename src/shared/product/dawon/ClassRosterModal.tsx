@@ -9,6 +9,9 @@ import { DomainTable } from "@/shared/ui/domain";
 import { Button } from "@/shared/ui/ds";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
+import { dawonStaffPreviewRole } from "./staffPreview";
+import { updateRosterSelection } from "./adminRosterSelection";
+import { AdminRosterPicker } from "./AdminRosterPicker";
 import styles from "./ClassGroupsPage.module.css";
 
 export type RosterStudent = {
@@ -37,6 +40,9 @@ export default function ClassRosterModal({
   onSave: (ids: number[]) => Promise<void>;
   onClose: () => void;
 }) {
+  const admin = dawonStaffPreviewRole() === "admin";
+  const [discard, setDiscard] = useState(false);
+  const [notice, setNotice] = useState("");
   const [tab, setTab] = useState<"search" | "excel">("search");
   const [input, setInput] = useState("");
   const [search, setSearch] = useState("");
@@ -54,7 +60,7 @@ export default function ClassRosterModal({
 
   const candidates = useQuery({
     queryKey: dawonQueryKeys.candidates(candidateUrl, search, offset),
-    enabled: Boolean(candidateUrl),
+    enabled: !admin && Boolean(candidateUrl),
     placeholderData: keepPreviousData,
     queryFn: async ({ signal }) => (await api.get<RosterStudent[]>(candidateUrl!, { params: { search, offset }, signal })).data,
   });
@@ -66,6 +72,19 @@ export default function ClassRosterModal({
     if (!next.delete(student.id)) next.set(student.id, student);
     return next;
   });
+  const changeAdminSelection = (students: RosterStudent[], remove: boolean) => {
+    const next = updateRosterSelection(selected, students, remove);
+    if (!next) {
+      setNotice("한 번에 최대 200명까지 선택할 수 있습니다. 선택 인원을 줄여 주세요.");
+      return;
+    }
+    setNotice("");
+    setSelected(next);
+  };
+  const close = () => {
+    if (admin && selected.size) setDiscard(true);
+    else onClose();
+  };
   const save = useMutation({ mutationFn: () => onSave([...selected.keys()]) });
   const importExcel = useMutation({
     mutationFn: async (file: File) => {
@@ -93,23 +112,24 @@ export default function ClassRosterModal({
     onMutate: () => setFileIssues([]),
     onSuccess: ({ students, issues }) => {
       setFileIssues(issues);
+      if (admin) return changeAdminSelection(students, false);
       setSelected((current) => new Map([...current, ...students.map((student) => [student.id, student] as const)]));
     },
   });
   const template = useMutation({ mutationFn: () => downloadStudentExcelTemplate(levels.mode) });
-  const busy = save.isPending || importExcel.isPending;
+  const busy = save.isPending || importExcel.isPending || discard;
   const error = save.error ?? importExcel.error ?? template.error;
 
   return (
-    <AdminModal open onClose={onClose} width={MODAL_WIDTH.wide} noMinimize trapFocus closeDisabled={busy}>
+    <AdminModal open onClose={close} width={MODAL_WIDTH.wide} noMinimize trapFocus closeDisabled={busy}>
       <ModalHeader title={title} description={description} />
       <ModalBody>
-        <div className={styles.rosterEditor}>
+        <div className={admin ? styles.adminRosterEditor : styles.rosterEditor}>
           {candidateUrl && <div className={styles.rosterTabs} aria-label="학생 선택 방식">
-            <Button aria-pressed={tab === "search"} intent={tab === "search" ? "primary" : "secondary"} onClick={() => setTab("search")}>직접 검색</Button>
-            <Button aria-pressed={tab === "excel"} intent={tab === "excel" ? "primary" : "secondary"} onClick={() => setTab("excel")}>엑셀로 선택</Button>
+            <Button disabled={admin && busy} aria-pressed={tab === "search"} intent={tab === "search" ? "primary" : "secondary"} onClick={() => setTab("search")}>직접 검색</Button>
+            <Button disabled={admin && busy} aria-pressed={tab === "excel"} intent={tab === "excel" ? "primary" : "secondary"} onClick={() => setTab("excel")}>엑셀로 선택</Button>
           </div>}
-          {tab === "search" ? <div className={styles.rosterSearch}>
+          {tab === "search" && admin ? <AdminRosterPicker candidateUrl={candidateUrl} roster={roster} selected={selected} busy={busy} onChange={changeAdminSelection} /> : tab === "search" ? <div className={styles.rosterSearch}>
             <input type="search" value={input} onChange={(event) => setInput(event.target.value)} aria-label="학생 검색" placeholder="이름 또는 학교로 검색" />
             {candidateUrl && candidates.isPending && <p role="status">학생 명단을 불러오는 중입니다.</p>}
             {candidateUrl && candidates.isError && <p role="alert">학생을 불러오지 못했습니다. <Button onClick={() => void candidates.refetch()}>다시 시도</Button></p>}
@@ -138,18 +158,30 @@ export default function ClassRosterModal({
               <ul>{fileIssues.map((issue, index) => <li key={index}>{issue}</li>)}</ul>
             </div>}
           </>}
-          <section className={styles.chosen} aria-label="선택 명단">
+          {admin ? <section className="lecture-enroll-picker__selection" aria-label="선택 명단">
+            <div className="lecture-enroll-picker__toolbar"><strong role="status">선택한 학생 {selected.size}명 / 최대 200명</strong>
+              <Button size="sm" intent="ghost" disabled={busy || !selected.size} onClick={() => changeAdminSelection([...selected.values()], true)}>전체 해제</Button></div>
+            {selected.size ? <div className="lecture-enroll-picker__chips">{[...selected.values()].map(student =>
+              <button key={student.id} type="button" disabled={busy} aria-label={`${student.name} 선택 취소`}
+                onClick={() => changeAdminSelection([student], true)}>{student.name} ×</button>)}</div>
+              : <p>선택한 학생이 여기에 표시됩니다.</p>}
+            {notice && <p role="status">{notice}</p>}
+          </section> : <section className={styles.chosen} aria-label="선택 명단">
             <strong>선택한 학생 {selected.size}명</strong>
             {!selected.size && <p>학생을 선택하면 여기에 표시됩니다.</p>}
             <ul>{[...selected.values()].map((student) => <li key={student.id}>
               {student.name} <Button disabled={busy} aria-label={`${student.name} 선택 취소`} onClick={() => toggle(student)}>빼기</Button>
             </li>)}</ul>
-          </section>
+          </section>}
+          {discard && <p role="alert">선택한 {selected.size}명을 저장하지 않고 나갈까요?</p>}
           {error && <p role="alert" className={styles.error}>{getApiErrorMessage(error, error instanceof Error ? error.message : "선택을 저장하지 못했습니다. 다시 시도해 주세요.")}</p>}
         </div>
       </ModalBody>
-      <ModalFooter right={<>
-        <Button onClick={onClose} disabled={busy}>취소</Button>
+      <ModalFooter right={discard ? <>
+        <Button onClick={() => setDiscard(false)}>계속 선택</Button>
+        <Button onClick={onClose}>선택 취소하고 나가기</Button>
+      </> : <>
+        <Button onClick={close} disabled={busy}>취소</Button>
         <Button intent="primary" onClick={() => save.mutate()} disabled={!selected.size || selected.size > 200 || busy} loading={save.isPending}>{submitLabel} ({selected.size}명)</Button>
       </>} />
     </AdminModal>

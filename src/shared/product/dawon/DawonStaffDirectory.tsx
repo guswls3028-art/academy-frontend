@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import api from "@/shared/api/axios";
 import DomainTable from "@/shared/ui/domain/DomainTable";
-import DomainListToolbar from "@/shared/ui/domain/DomainListToolbar";
+import DawonDirectoryTable from "./DawonDirectoryTable";
 import { Button } from "@/shared/ui/ds";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import styles from "./DawonStaff.module.css";
@@ -49,17 +49,20 @@ function MonthDetail({staff, month, onMonth}: {staff: Staff; month: string; onMo
         {data.open_count > 0 && <p>퇴근 전 근무 {data.open_count}건은 예상 금액에 포함되지 않습니다.</p>}
       </section>
       <section aria-label="월 근태 기록"><h3>월 근태 기록</h3>
-        {data.records.length ? <ul>{data.records.map(row => <li key={row.id}><strong>{row.date}</strong>
-          <span>{row.start_time.slice(0,5)} – {row.end_time ? ((row.end_date && row.end_date !== row.date ? row.end_date + " " : "") + row.end_time.slice(0,5)) : "근무 중"}</span>
-          <span>{row.work_hours == null ? "근무시간 미확정" : row.work_hours + "시간"} · {won(row.amount)}</span></li>)}</ul> :
-          <p>이달 등록된 근무 기록이 없습니다.</p>}
+        {data.records.length ? <DomainTable scrollLabel="월 근태 내역" tableClassName="ds-table--flat">
+          <thead><tr><th>일자</th><th>출퇴근</th><th>근무 시간</th><th>금액</th></tr></thead>
+          <tbody>{data.records.map(row => <tr key={row.id}><td>{row.date}</td>
+            <td>{row.start_time.slice(0,5)} – {row.end_time ? ((row.end_date && row.end_date !== row.date ? row.end_date + " " : "") + row.end_time.slice(0,5)) : "근무 중"}</td>
+            <td>{row.work_hours == null ? "미확정" : row.work_hours + "시간"}</td><td>{won(row.amount)}</td></tr>)}</tbody>
+        </DomainTable> : <p>이달 등록된 근무 기록이 없습니다.</p>}
       </section></>}
   </>;
 }
 
 export default function DawonStaffDirectory() {
   const [params, setParams] = useSearchParams();
-  const [search, setSearch] = useState("");
+  const search = params.get("q") ?? "";
+  const position = params.get("position") ?? "";
   const query = useQuery({queryKey: directoryKey, queryFn: async ({signal}) => (await api.get<{staff: Staff[]}>(endpoint,{signal})).data.staff});
   const selected = params.get("employee");
   const monthValue = params.get("month") ?? "";
@@ -67,32 +70,49 @@ export default function DawonStaffDirectory() {
   function navigate(key: string, value: string | null) {
     const next = new URLSearchParams(params);
     if (value === null) next.delete(key); else next.set(key,value);
-    setParams(next, {replace: key === "month", preventScrollReset: true});
+    if (key === "q" || key === "position") next.delete("employee");
+    setParams(next, {replace: key !== "employee", preventScrollReset: true});
   }
   if (query.isPending) return <p role="status">직원 목록을 불러오는 중입니다.</p>;
   if (query.isError) return <p role="alert">직원 목록을 불러오지 못했습니다. {retryButton(() => void query.refetch())}</p>;
   const staff = query.data ?? [];
-  if (selected) {
-    const person = staff.find(row => String(row.id) === selected);
-    return <div className={styles.staff}><Button onClick={() => navigate("employee",null)}>직원 목록</Button>
-      {person ? <MonthDetail key={person.id} staff={person} month={month} onMonth={v => navigate("month",v)} /> :
-        <p>조회할 수 없는 직원입니다.</p>}</div>;
-  }
-  const filtered = staff.filter(row => row.name.includes(search.trim()) || labels[row.position].includes(search.trim()));
-  return <div className={styles.staff}>
-    <DomainListToolbar totalLabel={`직원 ${filtered.length}명`} primaryAction={null}
-      searchSlot={<input type="search" className="ds-input" aria-label="직원 찾기" placeholder="이름 또는 직위" value={search} onChange={e => setSearch(e.target.value)} />} />
-    {filtered.length > 0 && <DomainTable scrollLabel="직원 명단"><thead><tr><th scope="col">이름</th><th scope="col">담당 반</th></tr></thead>
-      {(["DIRECTOR","INSTRUCTOR","ASSISTANT","STAFF"] as const).map(position => {
-        const members = filtered.filter(row => row.position === position);
-        return members.length > 0 && <tbody key={position} aria-label={labels[position]}>
-          <tr><th colSpan={2} scope="rowgroup">{labels[position]} · {members.length}명</th></tr>
-          {members.map(row => <tr key={row.id}>
-            <th scope="row"><Button onClick={() => navigate("employee",String(row.id))}>{row.name}</Button></th>
-            <td>{row.classes.join(", ") || "담당 반 없음"}</td>
-          </tr>)}
-        </tbody>;
-      })}</DomainTable>}
-    {!filtered.length && <p>{staff.length ? "검색 결과가 없습니다." : "등록된 체험 직원이 없습니다."}</p>}
+  const term = search.replace(/\s+/g, "").toLocaleLowerCase();
+  const filtered = staff.filter(row => (!position || row.position === position) &&
+    [row.name, labels[row.position], ...row.classes].some(text => text.replace(/\s+/g, "").toLocaleLowerCase().includes(term)));
+  const person = staff.find(row => String(row.id) === selected);
+  const employeeUrl = (id: number | null) => {
+    const next = new URLSearchParams(params);
+    if (id === null) next.delete("employee"); else next.set("employee", String(id));
+    return {search: next.toString()};
+  };
+
+  return <div className={styles.staffDesk} data-detail={selected ? "open" : undefined}>
+    <section className={styles.directory} aria-label="직원 검색 및 목록">
+      <div className={styles.directoryTools}>
+        <label className="sr-only" htmlFor="dawon-employee-search">직원 찾기</label>
+        <input id="dawon-employee-search" type="search" className="ds-input" placeholder="이름 · 직위 · 담당 반 검색"
+          value={search} onChange={e => navigate("q", e.target.value || null)} />
+        <select className="ds-select" aria-label="직위 필터" value={position} onChange={e=>navigate("position",e.target.value || null)}>
+          <option value="">전체 직위</option>
+          {Object.entries(labels).map(([code,label]) => <option key={code} value={code}>{label}</option>)}
+        </select>
+        <strong aria-live="polite">직원 {filtered.length}명</strong>
+      </div>
+      <DawonDirectoryTable id="dawon-employees" label="직원 명단" rows={filtered}
+        empty={staff.length ? "검색 조건에 맞는 직원이 없습니다." : "등록된 직원이 없습니다."}
+        columns={[
+          {key:"name",label:"이름",defaultWidth:125,minWidth:90,value:row=>row.name,
+            render:row=><Link className={styles.employeeLink} to={employeeUrl(row.id)} preventScrollReset
+              aria-current={String(row.id) === selected ? "true" : undefined}>{row.name}</Link>},
+          {key:"position",label:"직위",defaultWidth:78,minWidth:58,value:row=>labels[row.position]},
+          {key:"classes",label:"담당 반",defaultWidth:205,minWidth:114,value:row=>row.classes.join(", "),
+            render:row=>row.classes.join(", ") || <span className={styles.muted}>담당 반 없음</span>},
+        ]}/>
+    </section>
+    {selected && <section className={styles.staffDetail} aria-label="직원 상세">
+      <Link className={styles.backLink} to={employeeUrl(null)} preventScrollReset>직원 목록</Link>
+      {person ? <MonthDetail key={person.id} staff={person} month={month} onMonth={v=>navigate("month",v)} /> :
+        <p role="status">조회할 수 없는 직원입니다.</p>}
+    </section>}
   </div>;
 }

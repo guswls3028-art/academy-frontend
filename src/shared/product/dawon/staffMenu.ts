@@ -6,9 +6,9 @@ const teacher = [
   { label: "클리닉·상담·알림", items: [["클리닉", "clinic/operations?panel=unresolved&focus=pending"], ["상담", "community/counsel"], ["학습 알림", "teacher-alerts"]] },
 ];
 const admin = [
-  { label: "학원 운영", items: [["대시보드", "dashboard"], ["강의 관리", "lectures"], ["반 편성", "students/class-groups"]] },
-  { label: "시험·성적", items: [["시험 결과·통계", "results"], ["학교 성적 취합", "students/surveys/school-reports"]] },
-  { label: "학생 지원", items: [["클리닉", "clinic/operations"], ["상담", "community/counsel"]] },
+  { label: "운영 현황", items: [["대시보드", "dashboard"], ["출결 현황", "dashboard?panel=attendance"], ["학습 경보", "dashboard?panel=alerts"]] },
+  { label: "학생·수업", items: [["학생 명단", "students/home"], ["반 편성", "students/class-groups"], ["강의 관리", "lectures"]] },
+  { label: "학습 관리", items: [["시험 결과·통계", "results"], ["학교 성적 취합", "students/surveys/school-reports"], ["클리닉", "clinic/operations"], ["상담", "community/counsel"]] },
   { label: "직원 관리", items: [["직원·근태·급여", "staff"]] },
 ];
 const settings = { label: "환경 설정", items: [["설정", "settings/profile"]] };

@@ -1,4 +1,6 @@
+import { examCohort, examFilters, examSchool, examGrade, examBandLabel, questionRates, type ExamQuestionMarks, type ExamFilter, type ExamRow } from "./adminExamCohort";
 import styles from "./DawonOperations.module.css";
+import desk from "./DawonAdminRecords.module.css";
 import { dawonQueryKeys } from "./queryKeys";
 import { useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
@@ -17,16 +19,19 @@ type Alert = {group_name:string;group_id:number;student_id:number;student_name:s
 type HistoryRow = {title:string;date:string|null;score:number|null;maximum:number|null;state:string;completion?:number|null;wrong?:number[];unfinished?:number[]};
 type History = {student:string;course:string;exams:HistoryRow[];homework:HistoryRow[];counsel:string[];
   clinic:{session__date:string;session__title:string;status:string}[];can_follow:boolean;today:string;slots:{id:number;title:string;date:string;start_time:string}[]};
-type Analysis = {title:string;graded:number;assigned:number;average:number|null;highest:number|null;lowest:number|null;distribution:number[];reviewed:boolean;
-  roster:{id:number;student_id:number;name:string;score:number|null;maximum:number|null;status:string}[]};
+type Analysis = {top_reference_percent:number|null;title:string;graded:number;assigned:number;average:number|null;highest:number|null;lowest:number|null;distribution:number[];reviewed:boolean;
+  questions:ExamQuestionMarks[]; roster:ExamRow[]};
 const pct = (v:number|null) => v == null ? "미집계" : Number(v.toFixed(1)) + "점";
 function address(path:string, entries:Record<string,string|number|null|undefined>) {
   const q = new URLSearchParams();
   for (const [key,value] of Object.entries(entries)) if (value != null && value !== "") q.set(key,String(value));
   return path + "?" + q;
 }
+function examContext(params:URLSearchParams) {
+  return Object.fromEntries(examFilters.map(key => [key, params.get(key)]));
+}
 function listContext(params:URLSearchParams) {
-  return {scope:params.get("scope"),status:params.get("status"),origin:params.get("origin")};
+  return {q:params.get("q"),scope:params.get("scope"),status:params.get("status"),origin:params.get("origin")};
 }
 function usePanel<T>(params:Record<string,string>) {
   return useQuery({queryKey:panelKey(params), queryFn:async ({signal}) => (await api.get<T>(endpoint,{params,signal})).data});
@@ -38,15 +43,15 @@ export function AdminAlerts({groups}: {groups:Group[]}) {
   const [params,setParams] = useSearchParams();
   const group = params.get("group") || "";
   const query = usePanel<{count:number;alerts:Alert[]}>(group ? {alerts:"1",group} : {alerts:"1"});
-  return <section aria-label="학습 경보"><label>반 범위 <select value={group} onChange={e => {
+  return <section className={desk.desk} aria-label="학습 경보"><div className={desk.controls}><strong>{query.data ? `학습 경보 ${query.data.count}건` : "학습 경보"}</strong><label>반 범위 <select value={group} onChange={e => {
       const q = new URLSearchParams({panel:"alerts"}); if(e.target.value) q.set("group",e.target.value); setParams(q);}}>
-      <option value="">전체 반</option>{groups.filter(g=>g.id!=null).map(g=><option key={g.id} value={String(g.id)}>{g.name}</option>)}</select></label>
+      <option value="">전체 반</option>{groups.filter(g=>g.id!=null).map(g=><option key={g.id} value={String(g.id)}>{g.name}</option>)}</select></label></div>
     {query.isPending ? <p role="status">학습 경보를 확인하는 중입니다.</p> : query.isError ? <Failed retry={()=>void query.refetch()}/> :
       !query.data.alerts.length ? <p>현재 담당 강사의 기준에 해당하는 경보가 없습니다.</p> :
       <DomainTable scrollLabel="학습 경보 목록"><thead><tr><th>학생</th><th>반·강의</th><th>경보 근거</th></tr></thead><tbody>
         {query.data.alerts.map(row=><tr key={[row.student_id,row.lecture_id,row.rule].join("-")}><th scope="row">
           <Link to={address("/workspace/dashboard",{panel:"student",group,course:row.lecture_id,student:row.student_id})}>{row.student_name}</Link></th>
-          <td>{row.group_name} · {row.lecture_title}</td><td>{row.detail}</td></tr>)}</tbody></DomainTable>}
+          <td><strong>{row.group_name}</strong><small className={desk.secondary}>{row.lecture_title}</small></td><td>{row.detail}</td></tr>)}</tbody></DomainTable>}
   </section>;
 }
 
@@ -71,6 +76,7 @@ export function AdminStudentReview() {
   const location=useLocation();
   const [params] = useSearchParams();
   const course = params.get("course") || "", student=params.get("student") || "", group=params.get("group");
+  const fromDirectory=params.get("origin")==="directory";
   const fromLearners=params.get("origin")==="learners";
   const fromRoster=params.get("origin")==="roster" && group && /^[1-9]\d*$/.test(group);
   const exam=params.get("exam"); const args={course,student};
@@ -81,10 +87,10 @@ export function AdminStudentReview() {
     ...(action==="counsel"? {day:day||q.data?.today}:{session:Number(slot)})}),
     onSuccess:async()=>{await client.invalidateQueries({queryKey:dawonQueryKeys.adminLearningRoot});setKind(null);}});
   const data=q.data;
-  return <section><Link state={fromRoster || fromLearners ? location.state : undefined} to={fromLearners ? address("/workspace/results/students",{group:params.get("scope"),page:params.get("page")}) : fromRoster ? address("/workspace/students/class-groups",{class:group}) : exam ? address("/workspace/results",{exam,course,group,...listContext(params)}):address("/workspace/dashboard",{panel:"alerts",group})}>{fromLearners ? "학생별 목록으로" : fromRoster ? "반 명단으로" : exam ? "시험 결과로" : "학습 경보로"}</Link>
+  return <section className={desk.desk}><Link className={desk.back} state={fromDirectory || fromRoster || fromLearners ? location.state : undefined} to={fromDirectory ? {pathname:"/workspace/students/home",search:location.state?.directorySearch || new URLSearchParams({student}).toString()} : fromLearners ? address("/workspace/results/students",{group:params.get("scope"),page:params.get("page")}) : fromRoster ? address("/workspace/students/class-groups",{class:group}) : exam ? address("/workspace/results",{exam,course,group,...listContext(params),...examContext(params)}):address("/workspace/dashboard",{panel:"alerts",group})}>{fromDirectory ? "학생 명단으로" : fromLearners ? "학생별 목록으로" : fromRoster ? "반 명단으로" : exam ? "시험 결과로" : "학습 경보로"}</Link>
     {q.isPending?<p role="status">학생 기록을 확인하는 중입니다.</p>:q.isError||!data?<Failed retry={()=>void q.refetch()}/>:<>
-      <h2>{data.student} · 학생 학습 기록</h2><p>{data.course}</p>
-      <Trend rows={data.exams}/><HistoryTable title="시험 성적 추이" rows={data.exams}/><HistoryTable title="과제 이력" rows={data.homework}/>
+      <header className={desk.heading}><h2>{data.student} · 학생 학습 기록</h2><p>{data.course}</p></header>
+      <div className={desk.histories}><div><Trend rows={data.exams}/><HistoryTable title="시험 성적 추이" rows={data.exams}/></div><HistoryTable title="과제 이력" rows={data.homework}/></div>
       <h3>상담·클리닉 일정</h3>
       {!data.counsel.length && !data.clinic.length && <p>등록된 일정이 없습니다.</p>}
       {data.counsel.map(d=><p key={d}>{d} · 상담 예정</p>)}
@@ -105,27 +111,73 @@ export function AdminStudentReview() {
 }
 
 export function AdminExamReview({course,exam,group}:{course:string;exam:string;group:string|null}){
-  const [params]=useSearchParams();
+  const [params,setParams]=useSearchParams();
   const args={course,exam};const q=usePanel<Analysis>(args);const client=useQueryClient();
   const saved=useMutation({mutationFn:(reviewed:boolean)=>api.patch(endpoint,{course:Number(course),exam:Number(exam),reviewed}),
     onSuccess:()=>client.invalidateQueries({queryKey:panelKey(args)})});
   const data=q.data;
-  return <section><Link to={params.get("origin")==="dashboard"
+  const percent = data?.top_reference_percent;
+  const roster = data?.roster ?? [];
+  const cohort = examCohort(roster,params,percent);
+  const filtered = examFilters.some(key => params.has(key));
+  function apply(key?: ExamFilter, value?: string) {
+    const next = new URLSearchParams(params);
+    if (!key) examFilters.forEach(filter => next.delete(filter));
+    else if (value) next.set(key,value);
+    else next.delete(key);
+    setParams(next,{replace:true,preventScrollReset:true});
+  }
+  function control(key: ExamFilter, label:string, options: [string,string][]) {
+    const current = params.get(key) || "";
+    return <label>{label}<select value={current} onChange={event => apply(key,event.target.value)}>
+      <option value="">전체</option>{current && !options.some(([value]) => value===current) &&
+        <option value={current}>현재 조건에 해당하는 항목 없음</option>}
+      {options.map(([value,text]) => <option key={value} value={value}>{text}</option>)}
+    </select></label>;
+  }
+  return <section className={desk.desk}><Link className={desk.back} to={params.get("origin")==="dashboard"
     ? address("/workspace/dashboard",{group,course,section:"exams"})
     : address("/workspace/results",listContext(params))}>{params.get("origin")==="dashboard" ? "반 시험 결과로" : "시험 목록"}</Link>
     {q.isPending?<p role="status">시험 결과를 확인하는 중입니다.</p>:q.isError||!data?<Failed retry={()=>void q.refetch()}/>:<>
-      <h2>{data.title}</h2><p>응시 대상 {data.assigned}명 · 채점 완료 {data.graded}명</p>
-      <p>평균 {pct(data.average)} · 최고 {pct(data.highest)} · 최저 {pct(data.lowest)}</p>
-      <Button disabled={saved.isPending} onClick={()=>saved.mutate(!data.reviewed)}>{data.reviewed?"검토 완료 취소":"검토 완료"}</Button>
-      {saved.isError&&<p role="alert">검토 상태를 저장하지 못했습니다.</p>}
-      <h3>점수 분포</h3><ul aria-label="득점률 구간별 학생 수">{data.distribution.map((n,i)=>{
-        const label=i*20+"–"+(i===4?"100%":((i+1)*20)+"% 미만");
-        return <li key={i}>{label} <meter aria-label={label} min={0} max={Math.max(1,...data.distribution)} value={n}/> {n}명</li>;
-      })}</ul>
-      <DomainTable scrollLabel="학생별 시험 결과"><thead><tr><th>학생</th><th>점수</th><th>상태</th></tr></thead><tbody>
-        {data.roster.map(row=><tr key={row.id}><th scope="row"><Link to={address("/workspace/results",{panel:"student",group,course,student:row.student_id,exam,...listContext(params)})}>{row.name}</Link></th>
-          <td>{row.score==null?"미채점":pct(row.score)+(row.maximum!=null?" / "+pct(row.maximum):"")}</td><td>{row.status}</td></tr>)}
-      </tbody></DomainTable></>}
+      <header className={desk.heading}><div><h2>{data.title}</h2><p>전체 응시 대상 {data.assigned}명</p></div>
+        <Button disabled={saved.isPending} onClick={()=>saved.mutate(!data.reviewed)}>{data.reviewed?"검토 완료 취소":"검토 완료"}</Button></header>
+      <div className={desk.examFilters} role="group" aria-label="시험 통계 조건">
+        {control("examSchool","학교",[...new Map(roster.map(row=>[examSchool(row),row.school || "학교 미입력"] as const))].sort((a,b)=>a[1].localeCompare(b[1],"ko")))}
+        {control("examGrade","학년",[...new Map(roster.map(row=>[examGrade(row),row.grade == null ? "학년 미입력" : row.grade+"학년"] as const))].sort((a,b)=>a[0].localeCompare(b[0])))}
+        {control("examState","응시·채점 상태",[...new Set(roster.map(row=>row.status))].map(status=>[status,status]))}
+        {control("examBand","득점률",[
+          ...(data.distribution).flatMap((n,i):[string,string][]=>n ? [[String(i),examBandLabel(i)]] : []),
+          ...(percent && data.distribution.some(Boolean) ? [["top",`상위 ${percent}%`] as [string,string]] : [])
+        ])}
+        <Button disabled={!filtered} onClick={()=>apply()}>조건 초기화</Button>
+      </div>
+      <dl className={desk.examSummary} aria-label="시험 성적 요약" aria-live="polite">
+        <div><dt>조건 대상</dt><dd>{cohort.rows.length}명</dd></div>
+        <div><dt>채점 완료</dt><dd>{cohort.count}명</dd></div>
+        <div><dt>미응시</dt><dd>{cohort.rows.filter(row=>row.status==="미응시").length}명</dd></div>
+        <div><dt>채점 대기</dt><dd>{cohort.rows.filter(row=>row.status==="채점 대기").length}명</dd></div>
+        <div><dt>평균</dt><dd>{pct(cohort.average)}</dd></div>
+        <div><dt>최고</dt><dd>{pct(cohort.highest)}</dd></div>
+        <div><dt>최저</dt><dd>{pct(cohort.lowest)}</dd></div>
+      </dl>
+      {saved.isError && <p role="alert">검토 상태를 저장하지 못했습니다. 다시 시도해 주세요.</p>}
+      <div className={desk.examBody}><section><h3>학생별 결과</h3>
+      {!cohort.rows.length ? <p>{filtered ? "조건에 맞는 학생이 없습니다. 조건을 변경하거나 초기화해 주세요." : "응시 대상 학생이 없습니다."}</p> : <DomainTable scrollLabel="학생별 시험 결과"><thead><tr><th>학생</th><th>점수</th><th>상태</th></tr></thead><tbody>
+        {cohort.rows.map(row=><tr key={row.id}><th scope="row"><Link to={address("/workspace/results",{panel:"student",group,course,student:row.student_id,exam,...listContext(params),...examContext(params)})}>{row.name}</Link><small className={desk.secondary}>{row.school || "학교 미입력"} · {row.grade == null ? "학년 미입력" : row.grade+"학년"}</small></th>
+          <td>{row.score==null?"미채점":Number(row.score.toFixed(1))+(row.maximum!=null?" / "+Number(row.maximum.toFixed(1)):"")+"점"}</td><td>{row.status}</td></tr>)}
+      </tbody></DomainTable>}
+      </section>
+      <section className={desk.distribution}><h3>점수 분포</h3><ul aria-label="득점률 구간별 학생 수">{cohort.distribution.map((n,i)=>{
+        const label=examBandLabel(i);
+        return <li key={i}><span>{label}</span><meter aria-label={label} min={0} max={Math.max(1,...cohort.distribution)} value={n}/><strong>{n}명</strong></li>;
+      })}</ul></section>
+      </div>
+      <section className={desk.questionAnalysis}><h3>문항 분석</h3>
+        {data.questions.length ? <DomainTable scrollLabel="문항별 채점 인원과 정답률"><thead><tr><th>문항</th><th>주제</th><th>채점 인원</th><th>정답률</th></tr></thead><tbody>
+          {questionRates(data.questions,cohort.rows).map(row=><tr key={row.number}><th scope="row">{row.number}번</th><td>{row.topic || "미등록"}</td>
+            <td>{row.graded}명</td><td>{row.rate==null?"미집계":Number(row.rate.toFixed(1))+"%"}</td></tr>)}
+        </tbody></DomainTable> : <p>문항별 채점 자료가 없습니다.</p>}
+      </section></>}
   </section>;
 }
 

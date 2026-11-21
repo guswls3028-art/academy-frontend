@@ -1,0 +1,82 @@
+.desk { display:grid; align-content:start; gap:16px; min-width:0; padding:clamp(12px,1.6vw,24px); color:var(--color-text-primary); }
+.desk .desk { padding:0; }
+.desk > *, .histories > * { min-width:0; }
+.desk h2,.desk h3,.desk p { margin:0; }
+.desk h2 { font-size:20px; line-height:1.4; }
+.desk h3 { font-size:16px; line-height:1.45; }
+.desk :global(.ds-table-wrap) { border:1px solid var(--color-border-divider); border-radius:3px; background:var(--color-bg-surface); }
+.desk :global(.ds-table) { text-align:start; }
+.desk :global(.ds-table) tbody th { font-weight:650; text-align:start; }
+.desk :global(.ds-table) :is(td,th) { vertical-align:middle; }
+.desk :global(.ds-table) :is(a,button) { overflow-wrap:anywhere; }
+.desk :global(.ds-table) tbody th a,.desk .back { color:var(--color-primary); font-weight:650; }
+.desk :global(.ds-table) tbody th a:hover,.back:hover { text-decoration:underline; }
+.filters,.controls,.desk :global(.domain-list-toolbar) { padding:10px 0; border:0; border-bottom:1px solid var(--color-border-divider); background:var(--color-bg-surface); border-radius:3px; }
+.filters,.controls { display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px; }
+.controls > strong { margin-inline-end:auto; font-size:15px; }
+.controls label,.schools label { display:inline-flex; align-items:center; flex-wrap:wrap; gap:6px; margin:0; }
+.desk select { min-width:0; min-height:40px; max-width:100%; padding:4px 9px; border:1px solid var(--color-border-divider); border-radius:6px; background:var(--color-bg-surface); color:inherit; }
+.switcher { display:flex; align-items:stretch; flex-wrap:wrap; gap:4px; border-bottom:1px solid var(--color-border-divider); }
+.switcher button { min-height:44px; color:var(--color-text-secondary); border:0; border-bottom:2px solid transparent; border-radius:0; background:transparent; }
+.switcher button[aria-pressed=true] { color:var(--color-primary); border-bottom-color:currentColor; }
+.metrics,.profileFields { margin:0; }
+.metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); padding-block:14px; border:1px solid var(--color-border-divider); border-radius:3px; background:var(--color-bg-surface); }
+.metrics > div { padding-inline:clamp(12px,2vw,24px); }
+.metrics > div+div { border-inline-start:1px solid var(--color-border-divider); }
+.metrics dt,.secondary,.mobileMeta,.heading p { color:var(--color-text-secondary); }
+.metrics dt { font-size:13px; }
+.metrics dd { margin:4px 0 0; font-size:clamp(18px,2vw,25px); line-height:1.2; font-weight:700; font-variant-numeric:tabular-nums; }
+.metrics dd small { margin-inline-start:2px; font-size:14px; font-weight:500; }
+.heading { display:flex; align-items:center; flex-wrap:wrap; justify-content:space-between; gap:10px; }
+.heading p { margin-top:3px; }
+.back { width:fit-content; display:inline-flex; align-items:center; min-height:36px; }
+.status { display:inline-block; font-weight:600; }
+.status:is([data-state=pending],[data-state=missing]) { color:var(--color-text-secondary); }
+.status:is([data-state=booked],[data-state=submitted],[data-state=attended]) { color:var(--color-success-solid); }
+.secondary,.mobileMeta { font-weight:400; font-size:12px; line-height:1.45; }
+.secondary { display:block; margin-top:2px; }
+.mobileMeta { display:none; }
+.date { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.distribution,.profile { padding:16px; border:1px solid var(--color-border-divider); border-radius:3px; background:var(--color-bg-surface); }
+.distribution ul { display:grid; gap:7px; margin:10px 0 0; padding:0; list-style:none; }
+.desk .distribution li { display:grid; grid-template-columns:7rem minmax(45px,1fr) 4rem; align-items:center; gap:8px; padding:0; border:0; }
+.distribution meter { width:100%; height:16px; accent-color:var(--color-primary); }
+.distribution li strong { text-align:end; font-variant-numeric:tabular-nums; }
+.histories,.schools { display:grid; align-items:start; gap:16px; min-width:0; }
+.histories section h3 { margin:0 0 8px; }
+.schools article { background:var(--color-bg-surface); }
+.record dl,.profileFields { font-variant-numeric:tabular-nums; }
+.profile { max-width:42rem; }
+.profileFields { display:grid; grid-template-columns:max-content minmax(0,1fr); gap:0 24px; }
+.profileFields > * { margin:0; padding:10px 0; overflow-wrap:anywhere; }
+.profileFields dt { color:var(--color-text-secondary); }
+.profileFields dd { font-weight:600; }
+@media(min-width:1100px) { .histories { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:640px) {
+  .desk { gap:12px; padding:8px 0; }
+  .controls,.filters,.desk :global(.domain-list-toolbar) { padding:10px; gap:8px; }
+  .metrics { padding-block:10px; }
+  .metrics > div { padding-inline:10px; }
+  .mobileMeta { display:block; margin-top:2px; white-space:normal; overflow-wrap:anywhere; }
+  .directory :is(th,td):nth-child(2),.directory .date,.directory th:nth-last-child(2):nth-child(4),
+  .submissions :is(th,td):is(:nth-child(2),:nth-child(3)) { display:none; }
+  .desk :is(.directory,.submissions) { min-width:0; width:100%; }
+  .desk :is(.directory,.submissions) :is(td,th) { white-space:normal; overflow-wrap:anywhere; }
+}
+.examFilters { display:flex; flex-wrap:wrap; align-items:end; gap:12px; }
+.examFilters label { display:grid; gap:4px; min-width:0; font-size:13px; color:var(--color-text-secondary); }
+.examFilters select { color:var(--color-text-primary); }
+@media(max-width:600px) {
+  .examFilters { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .examFilters select { width:100%; min-height:44px; }
+}
+
+.examBody { display:grid; gap:16px; align-items:start; min-width:0; }
+.examBody section { min-width:0; }
+.examBody h3,.questionAnalysis h3 { margin:0 0 8px; font-size:16px; }
+.examSummary { display:flex; flex-wrap:wrap; margin:0; border-block:1px solid var(--color-border-divider); background:var(--color-bg-surface); }
+.examSummary > div { padding:10px 18px 10px 0; min-width:95px; }
+.examSummary dt { color:var(--color-text-secondary); font-size:13px; }
+.examSummary dd { margin:3px 0 0; font-size:18px; font-weight:650; font-variant-numeric:tabular-nums; }
+.questionAnalysis th:nth-last-child(-n+2),.questionAnalysis td:nth-last-child(-n+2) { text-align:end; font-variant-numeric:tabular-nums; }
+@media(min-width:1050px) { .examBody { grid-template-columns:minmax(340px,1.5fr) minmax(245px,1fr); } }

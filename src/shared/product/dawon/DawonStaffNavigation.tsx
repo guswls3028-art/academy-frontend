@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from "react-router";
+import { Link, NavLink, useLocation } from "react-router";
 import styles from "./DawonStaffNavigation.module.css";
 
 import { staffMenus } from "./staffMenu";
@@ -8,7 +8,26 @@ const icons = { dashboard: LayoutDashboard, lectures: BookOpen, "students/class-
   staff: UsersRound, results: ClipboardList, exams: GraduationCap, "settings/profile": Settings } as const;
 
 export function DawonStaffNavigation({role, onNavigate}: {role: "admin" | "teacher"; onNavigate?: () => void}) {
-  const {pathname} = useLocation();
+  const {pathname, search} = useLocation();
+  if (role === "admin") {
+    const params = new URLSearchParams(search);
+    const current = pathname === "/workspace/dashboard" ? params.get("panel") : null;
+    return <nav aria-label="업무 메뉴" className={styles.adminNav}>
+      {staffMenus.admin.map(section=><section key={section.label}>
+        <h2>{section.label}</h2>
+        {section.items.map(([label, path])=>{
+          const [base, filter] = path.split("?");
+          const panel = new URLSearchParams(filter).get("panel");
+          const active = base === "dashboard" ? pathname === "/workspace/dashboard" && current === panel :
+            base === "settings/profile" ? pathname.startsWith("/workspace/settings/") :
+            pathname === "/workspace/"+base || pathname.startsWith("/workspace/"+base+"/");
+          const Icon = icons[path as keyof typeof icons] ?? CalendarCheck;
+          return <Link key={path} onClick={onNavigate} to={"/workspace/"+path} aria-current={active ? "page" : undefined}>
+            <Icon size={16} aria-hidden/>{label}</Link>;
+        })}
+      </section>)}
+    </nav>;
+  }
   return <nav aria-label="업무 메뉴" className={styles.nav}>
     {staffMenus[role].map((section, index) => {
       const links = section.items.map(([label,path]) => {

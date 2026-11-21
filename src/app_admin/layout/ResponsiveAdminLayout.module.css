@@ -7,6 +7,24 @@
   color: var(--color-text-primary);
   flex-direction: column;
 }
+/* Match the HakwonPlus desktop register: filters and records share the same left edge. */
+@media(min-width:1024px) {
+  .layout[data-dawon-staff="admin"] .content { max-width:1480px; margin-inline:0 auto; padding:16px 22px 28px; }
+  .layout[data-dawon-staff="admin"] :global(.domain-layout) { min-height:0; background:var(--color-bg-surface); }
+  .layout[data-dawon-staff="admin"] :global(.domain-layout__header) { padding:14px 18px 8px; }
+  .layout[data-dawon-staff="admin"] :global(.domain-layout__header-row) { align-items:center; }
+  .layout[data-dawon-staff="admin"] :global(.domain-layout__title) { font-size:21px; line-height:1.35; }
+  .layout[data-dawon-staff="admin"] :global(.domain-layout__content) { padding:14px 18px 20px; }
+  .layout[data-dawon-staff="admin"] :global(.domain-panel) { border:0; padding:0; }
+  .layout[data-dawon-staff="admin"] :global(.domain-list-toolbar) { max-width:100%; }
+  .layout[data-dawon-staff="admin"] :global(.domain-list-toolbar input[type=search]) { max-width:360px; }
+  .layout[data-dawon-staff="admin"] :global(.ds-table-wrap) { border:1px solid var(--color-border-divider); border-radius:4px; background:var(--color-bg-surface); }
+  .layout[data-dawon-staff="admin"] :global(.ds-table) :is(th,td) { text-align:start; vertical-align:middle; }
+  .layout[data-dawon-staff="admin"] :global(.ds-table) thead th { background:var(--color-bg-surface-soft); color:var(--color-text-secondary); }
+  .layout[data-dawon-staff="admin"] :global(.ds-table) tbody :is(td,th) { border-bottom:1px solid var(--color-border-divider); font-variant-numeric:tabular-nums; }
+  .layout[data-dawon-staff="admin"] :global(.ds-table) a[data-attention="false"] { color:var(--color-text-muted); }
+  .layout[data-dawon-staff="admin"] :global(.ds-table) a[data-attention="true"] { color:var(--color-brand-primary-active); font-weight:700; }
+}
 
 .layout {
   display: grid;

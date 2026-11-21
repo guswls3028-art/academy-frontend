@@ -10,6 +10,7 @@ import { AdminModal, ModalBody, ModalHeader, MODAL_WIDTH } from "@/shared/ui/mod
 import { dawonQueryKeys } from "./queryKeys";
 import styles from "./DawonOperations.module.css";
 
+import desk from "./DawonAdminRecords.module.css";
 import { resultTabs } from "./staffMenu";
 
 export function AdminGroupSelect({value, onChange}: {value:string;onChange:(id:string)=>void}) {
@@ -39,7 +40,7 @@ function CareDetail({filters,close}:{filters:Record<string,string>;close:()=>voi
     <ModalHeader title={filters.kind==="clinic"?"클리닉 기록":"상담 기록"}/>
     <ModalBody>{query.isPending?<p role="status">기록을 불러오는 중입니다.</p>:query.isError||!row?
       <p role="alert">기록을 불러오지 못했습니다. <Button onClick={()=>void query.refetch()}>다시 시도</Button></p>:
-      <div className={styles.record}><h3>{row.title}</h3><dl>
+      <div className={styles.record+" "+desk.record}><h3>{row.title}</h3><dl>
         <dt>학생</dt><dd>{row.name}</dd><dt>소속 반</dt><dd>{row.groups.join(", ") || "미편성"}</dd>
         <dt>일자</dt><dd>{row.day || "미정"}</dd><dt>상태</dt><dd>{states[row.status] ?? row.status}</dd></dl>
         {row.body && <p>{row.body}</p>}{row.replies?.map((reply,index)=><blockquote key={index}>{reply}</blockquote>)}
@@ -70,8 +71,8 @@ export default function DawonAdminDirectories() {
   const count=query.data?.count ?? 0;
   const title=learners?"시험 결과·통계":clinic?"클리닉":"상담";
   return <DomainLayout title={title} breadcrumbs={[]} tabs={learners?resultTabs:undefined}>
-    <div className={styles.section}>
-      {!clinic && !learners && <div className={styles.sectionPicker} role="group" aria-label="상담 구분">
+    <div className={desk.desk}>
+      {!clinic && !learners && <div className={desk.switcher} role="group" aria-label="상담 구분">
         <Button aria-pressed={kind==="requests"} onClick={()=>update("kind","")}>학부모 상담 신청</Button>
         <Button aria-pressed={kind==="appointments"} onClick={()=>update("kind","appointments")}>등록한 상담 일정</Button>
       </div>}
@@ -81,17 +82,17 @@ export default function DawonAdminDirectories() {
       {query.isPending?<p role="status">목록을 불러오는 중입니다.</p>:query.isError?
         <p role="alert">목록을 불러오지 못했습니다. <Button onClick={()=>void query.refetch()}>다시 시도</Button></p>:
         !count?<p className={styles.empty}>조건에 맞는 기록이 없습니다.</p>:
-        <DomainTable scrollLabel={learners?"학생별 수강 기록":title+" 목록"}><thead><tr><th>학생</th><th>반</th>
+        <DomainTable tableClassName={desk.directory} scrollLabel={learners?"학생별 수강 기록":title+" 목록"}><thead><tr><th>학생</th><th>반</th>
           {learners ? <th>강의</th> : <><th>{clinic?"클리닉":"상담"}</th><th>일자</th><th>상태</th></>}</tr></thead>
           <tbody>{query.data.rows.map(row=>{
             if ("lecture_id" in row) {
               const target=new URLSearchParams({panel:"student",origin:"learners",group:String(row.group_id),course:String(row.lecture_id),
                 student:String(row.student_id),scope:group,page:String(page)});
-              return <tr key={row.lecture_id+"-"+row.student_id}><th scope="row"><Link state={{directorySearch:search}} to={"/workspace/results?"+target}>{row.name}</Link></th><td>{row.group}</td><td>{row.course}</td></tr>;
+              return <tr key={row.lecture_id+"-"+row.student_id}><th scope="row"><Link state={{directorySearch:search}} to={"/workspace/results?"+target}>{row.name}</Link><small className={desk.mobileMeta}>{row.group}</small></th><td>{row.group}</td><td>{row.course}</td></tr>;
             }
-            return <tr key={row.id}><th scope="row">{row.name}</th><td>{row.groups.join(", ") || "미편성"}</td>
-              <td><button type="button" className={styles.textAction} onClick={()=>update("record",String(row.id))}>{row.title}</button></td>
-              <td>{row.day || "미정"}</td><td>{states[row.status] ?? row.status}</td></tr>;
+            return <tr key={row.id}><th scope="row">{row.name}<small className={desk.mobileMeta}>{row.groups.join(", ") || "미편성"}</small></th><td>{row.groups.join(", ") || "미편성"}</td>
+              <td><button type="button" className={styles.textAction} onClick={()=>update("record",String(row.id))}>{row.title}</button><small className={desk.mobileMeta}>{row.day || "미정"}</small></td>
+              <td className={desk.date}>{row.day || "미정"}</td><td><span className={desk.status} data-state={row.status}>{states[row.status] ?? row.status}</span></td></tr>;
           })}</tbody></DomainTable>}
       {(count>25 || page>1) && <nav className={styles.pagination} aria-label="목록 페이지">
         <Button disabled={page<=1} onClick={()=>update("page",String(page-1))}>이전</Button><span>{page} / {Math.max(1,Math.ceil(count/25))}</span>

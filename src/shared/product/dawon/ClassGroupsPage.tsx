@@ -151,7 +151,7 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
     typeof previous.sort.key === "string" && typeof previous.sort.ascending === "boolean"
     ? previous.sort : {key:"name", ascending:true});
   const rosterState = {roster: {group:id, query, sort}};
-  const [mode, setMode] = useState<"add" | "remove" | "lecture" | null>(admin && assignOnOpen ? "add" : null);
+  const [mode, setMode] = useState<"add" | "remove" | "lecture" | null>(admin && assignOnOpen ? "add" : admin && new URLSearchParams(location.search).get("create")==="lecture" ? "lecture" : null);
   const [lateCourse,setLateCourse] = useState<Lecture | null>(null);
   const [editingTeacher,setEditingTeacher] = useState(false);
   const [newTeacher,setNewTeacher] = useState("");
@@ -181,6 +181,11 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
   const stopEditing = () => {
     setMode(null);
     if (assignOnOpen) afterInitialAssignment();
+    else if (admin && new URLSearchParams(location.search).has("create")) {
+      const params = new URLSearchParams(location.search);
+      params.delete("create");
+      navigate({pathname:location.pathname,search:params.toString()},{replace:true,preventScrollReset:true});
+    }
   };
   const saveMembers = async (ids: number[]) => {
     const { data } = await api.patch<Detail>(`${endpoint}${id}/members/`, {
@@ -191,6 +196,7 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
     void client.invalidateQueries({ queryKey: admin ? dawonQueryKeys.adminGroups : dawonQueryKeys.groups, exact: true });
     if (admin) void client.invalidateQueries({queryKey:dawonQueryKeys.adminOperations});
     void client.invalidateQueries({ queryKey: dawonQueryKeys.roster });
+    if (admin) { void client.invalidateQueries({queryKey:["dawon","admin","students"]}); void client.invalidateQueries({queryKey:["dawon","admin","student"]}); }
     setNotice(mode === "add" ? `${ids.length}명을 배정했습니다.` : `${ids.length}명을 반 명단에서 제외했습니다.`);
     stopEditing();
   };
@@ -213,7 +219,7 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
 
   return (
     <DomainLayout title={group.name} density="compact"
-      breadcrumbs={teacher ? [{label:"담당 반",to:root+"?view=list"}] : [{label:lectureEntry?"강의 관리":"반 편성",to:root+"?view=list"}, {label:"반 목록",to:root+"?view=list"}]}
+      breadcrumbs={teacher ? [{label:"담당 반",to:root+"?view=list"}] : [{label:lectureEntry?"강의 관리":"반 편성",to:root}]}
       description={groupType(group)+" · 담당 강사 "+(group.assigned_teacher?.name || "미지정")} descriptionMode="visible"
       headerActions={<div className={styles.actions}>
         {admin && <Button onClick={()=>{
@@ -254,7 +260,8 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
         <p role="status"><strong>{createdCourse.title}</strong> 개설 완료 · 수강생 {createdCourse.student_count}명 등록</p>
         <Link className={styles.primary} to={`${lectureRoot}/${createdCourse.id}?group=${id}`}>수업 운영 열기 <ChevronRight size={16} aria-hidden /></Link>
       </div>}
-      {mode === "lecture" && <Suspense fallback={<p role="status">강의 개설 창을 불러오는 중입니다.</p>}>
+      {mode === "lecture" && (!group.assigned_teacher || !eligibleMembers.length) && <p role="alert">수업을 개설하려면 담당 강사와 수강 가능한 학생이 있어야 합니다. <Button onClick={stopEditing}>닫기</Button></p>}
+      {mode === "lecture" && group.assigned_teacher && eligibleMembers.length > 0 && <Suspense fallback={<p role="status">강의 개설 창을 불러오는 중입니다.</p>}>
         <LectureCreateModal isOpen onClose={stopEditing} classGroup={{
           name: group.name,
           instructor:group.assigned_teacher?.name,
