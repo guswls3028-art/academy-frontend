@@ -84,6 +84,7 @@ const FeesInvoicesTab = lazy(() => import("@admin/domains/fees/components/FeesIn
 const FeesTemplatesTab = lazy(() => import("@admin/domains/fees/components/FeesTemplatesTab"));
 
 /* ================= Lazy: Clinic ================= */
+const DawonClinicWork = lazy(() => import("@admin/domains/clinic/pages/WorkPage/ClinicWorkPage"));
 const ClinicRoutes = lazy(() => import("@admin/domains/clinic/ClinicRoutes"));
 
 /* ================= Lazy: Profile ================= */
@@ -217,7 +218,8 @@ export default function AdminRouter() {
         <Route path="videos/:videoId" element={renderLazyRoute(VideoIdToSessionRedirect)} />
         <Route path="videos/:videoId/logs/:studentId?" element={renderLazyRoute(VideoWatchLogsPage)} />
         <Route path="students/surveys/school-reports" element={renderLazyRoute(DawonAdminSchoolReports)} />
-        {["clinic/operations", "community/counsel", "results/students"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonAdminDirectories)} />)}
+        <Route path="clinic/operations" element={renderLazyRoute(DawonClinicWork)} />
+        {["community/counsel", "results/students"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonAdminDirectories)} />)}
         {["dashboard", "staff", "results"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonOperations)} />)}
         <Route path="*" element={<Navigate to="/workspace/dashboard" replace />} />
       </Route>

@@ -1,3 +1,5 @@
+import PostThreadView from "@/app_admin/domains/community/components/PostThreadView";
+import { demoAnswers } from "@/app_admin/domains/community/components/dawonCounselAnswers";
 import { useEffect } from "react";
 import { clinicQueryKeys } from "@/app_admin/domains/clinic/queryKeys";
 import { patchClinicParticipantStatus } from "@/app_admin/domains/clinic/api/clinicParticipants.api";
@@ -30,19 +32,19 @@ export function AdminGroupSelect({value, onChange, teacher=false}: {value:string
   </label>;
 }
 
-type CareRow = {id:number;student_id:number;name:string;groups:string[];day:string|null;title:string;status:string;course_id:number|null;can_review?:boolean;body?:string;replies?:string[]};
+type CareRow = {id:number;student_id:number;name:string;groups:string[];day:string|null;title:string;status:string;course_id:number|null;can_review?:boolean;can_attend?:boolean;can_reply?:boolean;body?:string;replies?:string[]};
 const states:Record<string,string> = {pending:"승인 대기",booked:"예약 확정",attended:"참석",no_show:"미참석",cancelled:"취소",rejected:"거절"};
 function useDirectory<T>(filters:Record<string,string>) {
   return useQuery({queryKey:dawonQueryKeys.adminLearning(filters), refetchInterval:filters.kind==="clinic" && !filters.record ? 15000 : false, queryFn:async ({signal})=>
     (await api.get<{count:number;rows:T[]}>("/students/demo-operations/",{params:filters,signal})).data});
 }
 
-function CareDetail({filters,close}:{filters:Record<string,string>;close:()=>void}) {
+export function CareDetail({filters,close}:{filters:Record<string,string>;close:()=>void}) {
   const query=useDirectory<CareRow>(filters);
   const row=query.data?.rows[0];
   const client=useQueryClient();
   const review=useMutation({
-    mutationFn:(status:"booked"|"rejected")=>patchClinicParticipantStatus(Number(filters.record),{status}),
+    mutationFn:(status:"booked"|"rejected"|"attended"|"no_show")=>patchClinicParticipantStatus(Number(filters.record),{status}),
     onSettled:()=>Promise.all([
       client.invalidateQueries({queryKey:dawonQueryKeys.adminLearningRoot}),
       client.invalidateQueries({queryKey:clinicQueryKeys.participants}),
@@ -55,12 +57,18 @@ function CareDetail({filters,close}:{filters:Record<string,string>;close:()=>voi
       <div className={styles.record+" "+desk.record}><h3>{row.title}</h3><dl>
         <dt>학생</dt><dd>{row.name}</dd><dt>소속 반</dt><dd>{row.groups.join(", ") || "미편성"}</dd>
         <dt>일자</dt><dd>{row.day || "미정"}</dd><dt>상태</dt><dd>{states[row.status] ?? row.status}</dd></dl>
-        {row.body && <p>{row.body}</p>}{row.replies?.map((reply,index)=><blockquote key={index}>{reply}</blockquote>)}
+        {row.body && <p>{row.body}</p>}{!row.can_reply && row.replies?.map((reply,index)=><blockquote key={index}>{reply}</blockquote>)}
+        {row.can_reply && <PostThreadView postId={row.id} mode="answer" allowReply answerChoices={demoAnswers}
+          invalidateKeys={[dawonQueryKeys.adminLearningRoot]} />}
+        {row.can_attend && <div role="group" aria-label="클리닉 출석 기록">
+          <Button intent="primary" disabled={review.isPending} onClick={()=>review.mutate("attended")}>출석 기록</Button>
+          <Button disabled={review.isPending} onClick={()=>review.mutate("no_show")}>결석 기록</Button>
+        </div>}
         {row.can_review && <div role="group" aria-label="클리닉 신청 처리">
           <Button intent="primary" disabled={review.isPending} onClick={()=>review.mutate("booked")}>예약 승인</Button>
           <Button disabled={review.isPending} onClick={()=>review.mutate("rejected")}>신청 반려</Button>
         </div>}
-        {review.isSuccess && <p role="status">{review.variables==="booked" ? "예약을 승인했습니다." : "신청을 반려했습니다."}</p>}
+        {review.isSuccess && <p role="status">{review.variables && {booked:"예약을 승인했습니다.", rejected:"신청을 반려했습니다.", attended:"출석을 기록했습니다.", no_show:"결석을 기록했습니다."}[review.variables]}</p>}
         {review.isError && <p role="alert">{getApiErrorMessage(review.error,"처리하지 못했습니다. 현재 상태를 다시 확인해 주세요.")}</p>}
       </div>}</ModalBody>
   </AdminModal>;
@@ -71,7 +79,7 @@ export default function DawonAdminDirectories() {
   return pathname==="/workspace/results/students" ? <DawonStudentResults/> : <CareDirectory/>;
 }
 
-export function CareDirectory({teacher=false}:{teacher?:boolean}) {
+export function CareDirectory({teacher=false,embedded=false}:{teacher?:boolean;embedded?:boolean}) {
   const {pathname,state}=useLocation();
   const [params,setParams]=useSearchParams();
   const clinic=pathname==="/workspace/clinic/operations";
@@ -131,5 +139,5 @@ export function CareDirectory({teacher=false}:{teacher?:boolean}) {
         <Button disabled={page*25>=count} onClick={()=>update("page",String(page+1))}>다음</Button></nav>}
       {params.get("record") && <CareDetail key={params.get("record")} filters={{...filters,status:"",page:"1",record:params.get("record")!}} close={()=>update("record","")}/>}
     </div>;
-  return teacher ? content : <DomainLayout title={title} breadcrumbs={[]}>{content}</DomainLayout>;
+  return embedded || teacher ? content : <DomainLayout title={title} breadcrumbs={[]}>{content}</DomainLayout>;
 }

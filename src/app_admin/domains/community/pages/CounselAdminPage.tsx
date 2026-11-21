@@ -1,3 +1,4 @@
+import { demoAnswers } from "../components/dawonCounselAnswers";
 // PATH: src/app_admin/domains/community/pages/CounselAdminPage.tsx
 // 상담 신청 관리 — QnA와 동일한 2-pane inbox 패턴 (목록 | 상세·답변)
 // counsel 블록 유형이 없으면 자동 생성 → 사용자에게 설정 요구 없음
@@ -250,11 +251,7 @@ function CounselCard({
 }
 
 /* ── Thread View ── */
-const demoAnswers = [
-  { topic: "오답 복습 방법", content: "틀린 이유를 한 줄로 적고, 다음 날 같은 문제를 풀이 없이 다시 풀어 보세요." },
-  { topic: "시험 전 학습 계획", content: "첫 이틀은 개념을 복습하고, 이후에는 유형별 문제와 오답을 번갈아 풀어 보세요." },
-  { topic: "수업 진도 확인", content: "이번 주에는 일차방정식을 배웠습니다. 다음 수업에는 오답 노트와 교재를 준비해 주세요." },
-];
+
 
 function CounselThreadView({
   postId,

@@ -1,5 +1,6 @@
 import { CareDirectory } from "./DawonAdminDirectories";
+import { dawonStaffPreviewRole } from "./staffPreview";
 
-export default function DawonTeacherClinicRequests() {
-  return <CareDirectory teacher/>;
+export default function DawonClinicRequests() {
+  return <CareDirectory teacher={dawonStaffPreviewRole()==="teacher"} embedded/>;
 }

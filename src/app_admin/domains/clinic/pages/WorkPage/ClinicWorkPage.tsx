@@ -1,3 +1,4 @@
+import DomainLayout from "@/shared/ui/domain/DomainLayout";
 import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 import { useSearchParams } from "react-router";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
@@ -8,7 +9,7 @@ const ClinicOperationsConsolePage = lazy(() => import("../OperationsConsolePage/
 const ClinicBookingsPage = lazy(() => import("../BookingsPage/ClinicBookingsPage"));
 const ClinicReservationSearch = lazy(() => import("./ClinicReservationSearch"));
 
-const TeacherClinicRequests = lazy(() => import("@/shared/product/dawon/DawonTeacherClinicRequests"));
+const ClinicRequests = lazy(() => import("@/shared/product/dawon/DawonTeacherClinicRequests"));
 
 const PANELS = [
   { key: "day", label: "예약·출석", component: ClinicOperationsConsolePage },
@@ -18,16 +19,20 @@ const PANELS = [
 
 export default function ClinicWorkPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const panels = dawonStaffPreviewRole() === "teacher"
-    ? [{key:"applications",label:"신청 현황",component:TeacherClinicRequests}, ...PANELS] : PANELS;
-  const current = panels.find(({ key }) => key === searchParams.get("panel")) ?? PANELS[0];
+  const role=dawonStaffPreviewRole();
+  const dedicated=role==="teacher" || role==="admin";
+  const applications={key:"applications",label:"신청 현황",component:ClinicRequests};
+  const panels=dedicated ? [applications,...PANELS.filter(panel=>panel.key!=="unresolved")] : PANELS;
+  const defaultPanel=dedicated && !searchParams.has("date") && !searchParams.has("session") && !searchParams.has("scope")
+    ? applications : PANELS[0];
+  const current=panels.find(({key})=>key===searchParams.get("panel")) ?? defaultPanel;
 
-  return (
+  const content=(
     <div className={styles.page}>
       <nav className={styles.switcher} aria-label="클리닉 운영 화면">
         <div className={styles.switcherCopy}>
           <strong>클리닉 운영</strong>
-          <span>날짜별 출석, 학생 예약 검색, 미통과 처리를 한 곳에서 확인합니다.</span>
+          <span>{dedicated ? "신청을 처리하고 날짜별 출석과 학생 예약을 확인합니다." : "날짜별 출석, 학생 예약 검색, 미통과 처리를 한 곳에서 확인합니다."}</span>
         </div>
         <div className={styles.switcherButtons}>
           {panels.map(({ key, label }) => (
@@ -38,7 +43,8 @@ export default function ClinicWorkPage() {
               aria-current={key === current.key ? "page" : undefined}
               onClick={() => {
                 const next = new URLSearchParams(searchParams);
-                if (key === "day") next.delete("panel");
+                next.delete("record");
+                if (key === "day" && !dedicated) next.delete("panel");
                 else next.set("panel", key);
                 setSearchParams(next);
               }}
@@ -51,4 +57,5 @@ export default function ClinicWorkPage() {
       {renderLazyRoute(current.component)}
     </div>
   );
+  return role==="admin" ? <DomainLayout title="클리닉" breadcrumbs={[]}>{content}</DomainLayout> : content;
 }

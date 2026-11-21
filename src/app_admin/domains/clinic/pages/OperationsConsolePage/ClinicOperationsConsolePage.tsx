@@ -1,3 +1,5 @@
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
+import DawonClinicAttendance from "@/shared/product/dawon/DawonClinicAttendance";
 /**
  * PATH: src/features/clinic/pages/OperationsConsolePage/ClinicOperationsConsolePage.tsx
  * 클리닉 진행 — 좌: 달력 + 해당일 클리닉 수업 목록 | 우: 해당 수업 대상자 관리 워크스페이스
@@ -46,6 +48,8 @@ function participantStudentKey(participant: ClinicParticipant): string {
 }
 
 export default function ClinicOperationsConsolePage() {
+  const role=dawonStaffPreviewRole();
+  const dedicated=role==="teacher" || role==="admin";
   const location = useLocation();
   const navigate = useNavigate();
   const [sp, setSp] = useSearchParams();
@@ -65,7 +69,7 @@ export default function ClinicOperationsConsolePage() {
   });
 
   const { sectionMode, clinicMode } = useSectionMode();
-  const showSectionFilter = sectionMode && clinicMode === "regular";
+  const showSectionFilter = !dedicated && sectionMode && clinicMode === "regular";
   const [sectionFilter, setSectionFilter] = useState<number | "unassigned" | null>(null);
 
   // 모달 상태
@@ -357,10 +361,10 @@ export default function ClinicOperationsConsolePage() {
               }}
               selectedSessionId={selectedSessionId}
               onSelectSession={selectConsoleSession}
-              onCreateClick={() => setCreateModalOpen(true)}
-              onImportClick={() => setImportModalOpen(true)}
-              onEditSession={(sessionId) => void handleEditSession(sessionId)}
-              onDeleteSession={handleDeleteSession}
+              onCreateClick={dedicated ? undefined : () => setCreateModalOpen(true)}
+              onImportClick={dedicated ? undefined : () => setImportModalOpen(true)}
+              onEditSession={dedicated ? undefined : (sessionId) => void handleEditSession(sessionId)}
+              onDeleteSession={dedicated ? undefined : handleDeleteSession}
               showSectionFilter={showSectionFilter}
               sectionFilter={sectionFilter}
               sectionFilterOptions={sectionOptionsAll}
@@ -510,7 +514,7 @@ export default function ClinicOperationsConsolePage() {
                 </section>
               )}
 
-              <ClinicConsoleWorkspace
+              {dedicated ? <DawonClinicAttendance rows={rows} loading={participants.listQ.isLoading} failed={participants.listQ.isError} retry={()=>void participants.listQ.refetch()}/> : <ClinicConsoleWorkspace
                 selectedDate={queryDate}
                 session={consoleScope === "day" ? activeSession : null}
                 participants={rows}
@@ -523,7 +527,7 @@ export default function ClinicOperationsConsolePage() {
                 onDeleteSession={handleDeleteSession}
                 changeNoticeDraft={changeNoticeDraft}
                 onChangeNoticeConsumed={() => setChangeNoticeDraft(null)}
-              />
+              />}
             </div>
           </div>
         </div>
@@ -570,19 +574,19 @@ export default function ClinicOperationsConsolePage() {
                   selectConsoleSession(sessionId);
                   closeSelector();
                 }}
-                onCreateClick={() => {
+                onCreateClick={dedicated ? undefined : () => {
                   closeSelector(false);
                   setCreateModalOpen(true);
                 }}
-                onImportClick={() => {
+                onImportClick={dedicated ? undefined : () => {
                   closeSelector(false);
                   setImportModalOpen(true);
                 }}
-                onEditSession={(sessionId) => {
+                onEditSession={dedicated ? undefined : (sessionId) => {
                   closeSelector(false);
                   void handleEditSession(sessionId);
                 }}
-                onDeleteSession={(sessionId, label) => {
+                onDeleteSession={dedicated ? undefined : (sessionId, label) => {
                   closeSelector(false);
                   handleDeleteSession(sessionId, label);
                 }}
