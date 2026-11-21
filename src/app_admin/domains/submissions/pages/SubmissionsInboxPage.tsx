@@ -43,6 +43,7 @@ import {
 import {
   SUBMISSION_STATUS_LABEL,
   SUBMISSION_STATUS_TONE,
+  discardReasonLabel,
   formatSubmissionDate,
 } from "@admin/domains/submissions/statusMaps";
 import {
@@ -50,8 +51,7 @@ import {
   type PendingSubmissionRow,
 } from "@/shared/api/contracts/submissions";
 import SubmissionInboxPager from "@/shared/ui/submissions/SubmissionInboxPager";
-import HomeworkReviewPicker from "@/shared/ui/submissions/HomeworkReviewPicker";
-import { useAdminHomework } from "@admin/domains/homework/hooks/useAdminHomework";
+import HomeworkReviewInbox from "@admin/domains/homework/public/HomeworkReviewInbox";
 import DiscardReasonModal from "../components/DiscardReasonModal";
 import SubmissionPreviewModal, {
   submissionFileKind,
@@ -62,10 +62,6 @@ import type { SubmissionStatus } from "../types";
 
 const OmrReviewWorkspace = lazy(
   () => import("@admin/domains/results/public/OmrReviewWorkspace"),
-);
-
-const HomeworkSubmissionsPanel = lazy(
-  () => import("@admin/domains/homework/panels/HomeworkSubmissionsPanel"),
 );
 
 /* ─── Filter tabs ─── */
@@ -129,22 +125,6 @@ function examSetupPath(row: PendingSubmissionRow, recovery: { action?: string; e
   return `/workspace/lectures/${row.lecture_id}/sessions/${row.session_id}/exams?exam_id=${row.target_id}&examTab=setup`;
 }
 
-const DISCARD_REASON_LABEL: Record<string, string> = {
-  scan_quality: "스캔 품질",
-  wrong_upload: "오업로드",
-  duplicate: "중복",
-  target_missing: "원본 없음",
-  operator_discarded: "운영자 폐기",
-  cascade_exam_deleted: "시험 삭제",
-  cascade_homework_deleted: "과제 삭제",
-  other: "기타",
-};
-
-function discardReasonLabel(reason: string | null | undefined): string {
-  if (!reason) return "폐기";
-  return DISCARD_REASON_LABEL[reason] ?? reason;
-}
-
 function orphanReasonLabel(row: PendingSubmissionRow): string {
   if (row.target_resolved_reason === "session_missing") {
     return row.target_type === "exam"
@@ -162,69 +142,14 @@ function orphanReasonLabel(row: PendingSubmissionRow): string {
 export default function SubmissionsInboxPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const homework = searchParams.get("homework");
-  const homeworkId = Number(homework);
-  const showingList = homework === "all" || homework === "pending";
-  const pendingOnly = homework === "pending";
-  const returnList = searchParams.get("homeworkList") === "pending" ? "pending" : "all";
+  if (homework) return <HomeworkReviewInbox selection={homework} />;
 
-  function homeworkSearch(value?: string) {
+  return <ExamSubmissionsInbox onOpenHomework={() => {
     const next = new URLSearchParams(searchParams);
-    if (value) next.set("homework", value);
-    else next.delete("homework");
+    next.set("homework", "all");
     next.delete("homeworkList");
-    if (pendingOnly && value && /^\d+$/.test(value)) next.set("homeworkList", "pending");
-    return next;
-  }
-
-  if (!homework) {
-    return <ExamSubmissionsInbox onOpenHomework={() => setSearchParams(homeworkSearch("all"))} />;
-  }
-
-  return (
-    <section className="space-y-4" aria-label="과제 제출 확인">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-semibold">과제 제출 확인</h2>
-        <div className="flex flex-wrap gap-2">
-          {showingList && <Button intent="ghost" size="sm" onClick={() => setSearchParams(homeworkSearch(pendingOnly ? "all" : "pending"))}>
-            {pendingOnly ? "전체 과제 보기" : "확인 대기만 보기"}
-          </Button>}
-          <Button intent="secondary" size="sm" onClick={() => setSearchParams(homeworkSearch(showingList ? undefined : returnList))}>
-            {showingList ? "제출함으로 돌아가기" : "과제 목록으로 돌아가기"}
-          </Button>
-        </div>
-      </div>
-      {showingList ? (
-        <HomeworkReviewPicker pendingOnly={pendingOnly} homeworkPath={(id) => ({ search: homeworkSearch(String(id)).toString() })} />
-      ) : Number.isSafeInteger(homeworkId) && homeworkId > 0 ? (
-        <HomeworkReview key={homeworkId} homeworkId={homeworkId} />
-      ) : (
-        <EmptyState scope="panel" tone="error" title="과제를 찾을 수 없습니다" />
-      )}
-    </section>
-  );
-}
-
-function HomeworkReview({ homeworkId }: { homeworkId: number }) {
-  const details = useAdminHomework(homeworkId);
-
-  if (details.isPending) return <EmptyState scope="panel" tone="loading" title="과제 불러오는 중…" />;
-  if (details.isError) {
-    return <EmptyState scope="panel" tone="error" title="과제를 불러오지 못했습니다" actions={
-      <Button onClick={() => void details.refetch()}>다시 시도</Button>
-    } />;
-  }
-  if (details.data.homework_type !== "regular" || !details.data.session_id) {
-    return <EmptyState scope="panel" tone="error" title="제출을 확인할 수 있는 과제가 아닙니다" />;
-  }
-
-  return (
-    <div className="space-y-4">
-      <h3 className="break-words text-lg font-semibold">{details.data.title}</h3>
-      <Suspense fallback={<EmptyState scope="panel" tone="loading" title="제출 목록 불러오는 중…" />}>
-        <HomeworkSubmissionsPanel homeworkId={homeworkId} />
-      </Suspense>
-    </div>
-  );
+    setSearchParams(next);
+  }} />;
 }
 
 function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }) {

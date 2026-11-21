@@ -1,4 +1,5 @@
 import api from "@/shared/api/axios";
+import type { components } from "@/shared/api/generated/schema";
 import {
   fetchArrivalOverview,
   type ArrivalOverview,
@@ -121,8 +122,9 @@ function readHomeworkReview(raw: unknown, total: number | null): Readonly<Record
 async function fetchDashboardWorkCounts() {
   const empty = { qna: null, counsel: null, submissions: null, video: null, homework: null, homeworkById: null };
   try {
-    const { data } = await api.get<Record<string, unknown>>("/results/admin/teacher-dashboard-counts/");
-    const read = (key: string): number | null => {
+    type DashboardCounts = components["schemas"]["TeacherDashboardCounts"];
+    const { data } = await api.get<Partial<DashboardCounts>>("/results/admin/teacher-dashboard-counts/");
+    const read = (key: keyof DashboardCounts): number | null => {
       const value = data?.[key];
       return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
     };
