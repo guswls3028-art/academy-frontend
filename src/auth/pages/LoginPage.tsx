@@ -33,6 +33,7 @@ import "@/auth/themes/sswe.css";
 import "@/auth/themes/dnb.css";
 import "@/auth/themes/movementhui.css";
 import "@/auth/themes/godmin.css";
+import "@/auth/themes/jeongseongwon-lab.css";
 import "@/auth/themes/clean-decorations.css";
 import styles from "./LoginPage.module.css";
 import {
@@ -42,37 +43,12 @@ import {
 
 const BRANDED_LOGIN_SCENES = new Set(["hakwonplus", "movementhui", "godmin"]);
 
-/**
- * 테넌트 코드 결정 우선순위: hostname > URL param > storage/env > program
- * - hostname 결정 가능 시: 백엔드가 host 기반 SSOT로 인증하므로 화면 브랜딩도 host와 맞춰야 일관성 유지
- *   (param이 host와 다르면 충돌. 충돌 처리는 컴포넌트 본문에서 정규 경로로 리다이렉트)
- * - hostname 결정 불가(localhost / 프리뷰)인 경우에만 URL param 사용
- */
-function useTenantCode(programTenantCode: string | undefined): string | null {
-  const { tenantCode: paramCode } = useParams<{ tenantCode?: string }>();
-  const hostname = window.location.hostname.trim().toLowerCase();
-  const isLocalOrPreview =
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname.endsWith(".pages.dev") ||
-    hostname.endsWith(".trycloudflare.com");
-  if (isLocalOrPreview && paramCode) return paramCode;
-
-  const fromHost = getTenantCodeFromHostname();
-  if (fromHost.ok) return fromHost.code;
-  if (paramCode) return paramCode;
-  const resolved = resolveTenantCode();
-  if (resolved.ok) return resolved.code;
-  return programTenantCode ?? null;
-}
-
 export default function LoginPage() {
   useDocumentTitle();
   useFavicon();
 
   const { program, isLoading, error: programError } = useProgram();
   const { tenantCode: paramCode } = useParams<{ tenantCode?: string }>();
-  const tenantCode = useTenantCode(program?.tenantCode);
 
   // ── hooks는 조건부 return 전에 모두 호출 (Rules of Hooks) ──
   const [username, setUsername] = useState("");
@@ -118,13 +94,6 @@ export default function LoginPage() {
     return <Navigate to="/error/tenant-required" replace />;
   }
 
-  // 테넌트 1/9999도 /login 페이지 정상 사용 (프로모 리다이렉트 제거)
-  const tenantId = tenantCode ? getTenantIdFromCode(tenantCode) : null;
-  const branding = tenantId ? getTenantBranding(tenantId) : null;
-  const studentSelfRegistrationEnabled = tenantId
-    ? getTenantDefById(tenantId)?.studentSelfRegistrationEnabled !== false
-    : true;
-
   // 테넌트 도메인 접속 시 /login/code → /login 리다이렉트.
   // 같은 테넌트면 URL을 깔끔하게, 다른 테넌트면 host 기준으로 강제 정규화 (브랜딩-인증 불일치 방지).
   const fromHost = getTenantCodeFromHostname();
@@ -138,12 +107,29 @@ export default function LoginPage() {
     return <Navigate to="/login" replace />;
   }
 
+  // On a canonical host the path was normalized above. A local preview may select its tenant by path.
+  let tenantCode = paramCode || (fromHost.ok ? fromHost.code : null);
+  if (!tenantCode) {
+    const resolved = resolveTenantCode();
+    tenantCode = resolved.ok ? resolved.code : program.tenantCode ?? null;
+  }
+
+  // 테넌트 1/9999도 /login 페이지 정상 사용 (프로모 리다이렉트 제거)
+  const tenantId = tenantCode ? getTenantIdFromCode(tenantCode) : null;
+  const branding = tenantId ? getTenantBranding(tenantId) : null;
+  const studentSelfRegistrationEnabled = tenantId
+    ? getTenantDefById(tenantId)?.studentSelfRegistrationEnabled !== false
+    : true;
+
   const title = program?.ui_config?.login_title || branding?.loginTitle || "로그인";
   const logoUrl = program?.ui_config?.logo_url || branding?.logoUrl;
 
   // data-tenant: 테넌트 코드 그대로 사용 (themes/*.css selector 매칭)
   const themeAttr = tenantCode ?? "tchul";
+  const isHakwonplus = themeAttr === "hakwonplus";
+  const fieldLabelClass = isHakwonplus ? styles.fieldLabel : styles.srOnly;
   const hasBrandedScene = BRANDED_LOGIN_SCENES.has(themeAttr);
+  const isJeongseongwon = themeAttr === "jeongseongwon-lab";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -174,7 +160,7 @@ export default function LoginPage() {
 
   return (
     <div data-app="auth" data-tenant={themeAttr} className={styles.root}>
-      {hasBrandedScene && (
+      {hasBrandedScene && !isHakwonplus && (
         <div className={styles.ambient} data-auth-part="ambient" aria-hidden="true">
           <span />
           <span />
@@ -185,29 +171,32 @@ export default function LoginPage() {
         <section className={styles.brandStage} data-auth-part="brand-stage">
           <div className={styles.brandArtwork} data-auth-part="brand-artwork">
             {logoUrl ? (
-              <img src={logoUrl} alt={title} className={styles.logo} />
+              <img src={logoUrl} alt="" className={styles.logo} />
             ) : (
               <CommonLogoIcon height={64} className={styles.logo} />
             )}
-            <div className={styles.typography}>
+            <div className={isHakwonplus ? styles.srOnly : styles.typography}>
               <h1 className={styles.title}>{title}</h1>
             </div>
           </div>
+          {isJeongseongwon && <span data-auth-part="domain">{branding?.loginSubtitle}</span>}
         </section>
         <section className={styles.loginPanel} data-auth-part="login-panel">
-          {hasBrandedScene && (
+          {(hasBrandedScene || isJeongseongwon) && (
             <div className={styles.loginIntro} data-auth-part="login-intro">
               <h2>로그인</h2>
-              <p>아이디와 비밀번호를 입력해주세요.</p>
+              {hasBrandedScene && !isHakwonplus && <p>아이디와 비밀번호를 입력해주세요.</p>}
             </div>
           )}
           <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
-            <label htmlFor="login-username" className={styles.srOnly}>아이디 또는 학부모 휴대폰 번호</label>
+            <label htmlFor="login-username" className={fieldLabelClass}>
+              아이디 또는 학부모 휴대폰 번호
+            </label>
             <input
               id="login-username"
               ref={usernameRef}
               className={styles.input}
-              placeholder="아이디 또는 학부모 휴대폰 번호"
+              placeholder={isHakwonplus ? undefined : "아이디 또는 학부모 휴대폰 번호"}
               name="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -217,13 +206,13 @@ export default function LoginPage() {
               spellCheck={false}
               data-testid="login-username"
             />
-            <label htmlFor="login-password" className={styles.srOnly}>비밀번호</label>
+            <label htmlFor="login-password" className={fieldLabelClass}>비밀번호</label>
             <div className={styles.passwordWrap}>
               <input
                 id="login-password"
                 className={styles.input}
                 type={showPassword ? "text" : "password"}
-                placeholder="비밀번호"
+                placeholder={isHakwonplus ? undefined : "비밀번호"}
                 name="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -260,7 +249,7 @@ export default function LoginPage() {
             <button type="submit" className={styles.btnPrimary} disabled={pending} data-testid="login-submit">
               {pending ? "로그인 중..." : "로그인"}
             </button>
-            <div className={styles.links}>
+            <div className={styles.links} data-auth-part="account-links">
               {(hasLanding || tenantCode === "godmin") && (
                 <Link to="/landing" className={styles.link}>
                   홈페이지
@@ -293,6 +282,12 @@ export default function LoginPage() {
       />
 
       <footer className={styles.legalFooter}>
+        {isJeongseongwon && (
+          <>
+            <a href="https://hakwonplus.com/promo/guide?role=student" className={styles.legalLink}>사용 가이드</a>
+            <span className={styles.legalSep} aria-hidden="true">|</span>
+          </>
+        )}
         <Link to="/terms" className={styles.legalLink}>이용약관</Link>
         <span className={styles.legalSep}>|</span>
         <Link to="/privacy" className={styles.legalLink}>개인정보처리방침</Link>

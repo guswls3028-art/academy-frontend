@@ -15,17 +15,37 @@ import {
   hideMySession,
   unhideMySession,
 } from "@student/domains/sessions/api/sessions.api";
-import type { StudentSession } from "@student/domains/sessions/api/sessions.api";
+import type { StudentHomeSessions, StudentSession } from "@student/domains/sessions/api/sessions.api";
 import { studentSessionQueryKeys } from "../queryKeys";
 import EmptyState from "@student/layout/EmptyState";
 import { formatYmd } from "@student/shared/utils/date";
 import { IconCalendar, IconClinic, IconChevronRight, IconTrash } from "@student/shared/ui/icons/Icons";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import {
+  capturePlaybackEventScope as captureScheduleScope,
+  createAuthSessionBoundConfig,
+  isPlaybackEventScopeCurrent as isRequestScopeCurrent,
+} from "@/shared/api/axios";
+import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import { useConfirm } from "@/shared/ui/confirm";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import styles from "./SessionListPage.module.css";
 
 type ApiErrorBody = { detail?: string; message?: string };
+type ScheduleScope = ReturnType<typeof captureScheduleScope>;
+type ScheduleHide = { id: number; scope: ScheduleScope };
+type ScheduleUndo = ScheduleHide & { title: string; hideSettled: Promise<void> };
+
+function isScheduleScopeCurrent(scope: ScheduleScope): boolean {
+  return isRequestScopeCurrent(scope) && getParentStudentId() === scope.studentId;
+}
+
+function scheduleWriteConfig(scope: ScheduleScope) {
+  const auth = scope.generation
+    ? createAuthSessionBoundConfig(scope.generation, undefined, scope.tenantCode ?? undefined)
+    : {};
+  return { ...auth, headers: { "X-Student-Id": scope.studentId === null ? false : String(scope.studentId) } };
+}
 
 function toDateKey(d: string | null | undefined): string | null {
   if (!d) return null;
@@ -48,13 +68,27 @@ function getTabItems(): { key: ScheduleTab; label: string }[] {
   return items;
 }
 
+function restoreHiddenSession(
+  current: StudentSession[],
+  previous: StudentSession[],
+  sessionId: number,
+): StudentSession[] {
+  const index = previous.findIndex((session) => session.id === sessionId);
+  if (index < 0 || current.some((session) => session.id === sessionId)) return current;
+  const followingIds = new Set(previous.slice(index + 1).map((session) => session.id));
+  const nextIndex = current.findIndex((session) => followingIds.has(session.id));
+  const restored = [...current];
+  restored.splice(nextIndex < 0 ? restored.length : nextIndex, 0, previous[index]);
+  return restored;
+}
+
 export default function SessionListPage() {
   const [tab, setTab] = useState<ScheduleTab>("calendar");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const { data: sessions = [], isLoading, isError, refetch } = useMySessions();
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const [undoTarget, setUndoTarget] = useState<{ id: number; title: string } | null>(null);
+  const [undoTarget, setUndoTarget] = useState<ScheduleUndo | null>(null);
   const undoTimerRef = useRef<number | null>(null);
 
   const clearPastMutation = useMutation({
@@ -74,32 +108,67 @@ export default function SessionListPage() {
   });
 
   const hideMutation = useMutation({
-    mutationFn: hideMySession,
-    onMutate: async (id: number) => {
-      await qc.cancelQueries({ queryKey: studentSessionQueryKeys.root });
-      const prev = qc.getQueryData<StudentSession[]>(studentSessionQueryKeys.root);
-      qc.setQueryData<StudentSession[]>(studentSessionQueryKeys.root, (cur) =>
-        (cur ?? []).filter((s) => s.id !== id),
-      );
-      return { prev };
+    mutationFn: async ({ id, scope }: ScheduleHide) => {
+      if (isRequestScopeCurrent(scope)) await hideMySession(id, scheduleWriteConfig(scope));
     },
-    onError: (error: AxiosError<ApiErrorBody>, _id, ctx) => {
-      if (ctx?.prev) qc.setQueryData(studentSessionQueryKeys.root, ctx.prev);
+    onMutate: async ({ id, scope }) => {
+      if (!isScheduleScopeCurrent(scope)) return;
+      const { root, home } = studentSessionQueryKeys;
+      await qc.cancelQueries({ queryKey: root });
+      if (!isScheduleScopeCurrent(scope)) return;
+      const cache = qc.getQueryCache();
+      const listQuery = cache.find({ queryKey: root, exact: true });
+      const homeQuery = cache.find({ queryKey: home, exact: true });
+      const previous = qc.getQueryData<StudentSession[]>(root);
+      const previousHome = qc.getQueryData<StudentHomeSessions>(home);
+      const remaining = (previous ?? []).filter((session) => session.id !== id);
+      qc.setQueryData(root, remaining);
+      if (previousHome) {
+        qc.setQueryData<StudentHomeSessions>(home, {
+          items: previousHome.items.filter((session) => session.id !== id),
+          hasAnySessions: previous ? remaining.length > 0 : previousHome.hasAnySessions,
+        });
+      }
+      return { listQuery, homeQuery, previous, previousHome };
+    },
+    onError: (error: AxiosError<ApiErrorBody>, { id, scope }, ctx) => {
+      if (!isScheduleScopeCurrent(scope)) return;
+      const { root, home } = studentSessionQueryKeys;
+      const cache = qc.getQueryCache();
+      const previous = ctx?.previous;
+      const previousHome = ctx?.previousHome;
+      if (previous && cache.find({ queryKey: root, exact: true }) === ctx?.listQuery) {
+        qc.setQueryData<StudentSession[]>(root, (current) =>
+          current && restoreHiddenSession(current, previous, id),
+        );
+      }
+      if (previousHome && cache.find({ queryKey: home, exact: true }) === ctx?.homeQuery) {
+        const wasVisible = previous?.some((session) => session.id === id) ?? false;
+        qc.setQueryData<StudentHomeSessions>(home, (current) => current && ({
+          items: restoreHiddenSession(current.items, previousHome.items, id),
+          hasAnySessions: current.hasAnySessions || wasVisible,
+        }));
+      }
       studentToast.error(
         error?.response?.data?.detail ||
           error?.response?.data?.message ||
           "숨기기에 실패했어요. 잠시 후 다시 시도해주세요.",
       );
-      setUndoTarget(null);
+      setUndoTarget((target) => target?.scope === scope ? null : target);
     },
   });
 
   const unhideMutation = useMutation({
-    mutationFn: unhideMySession,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: studentSessionQueryKeys.root });
+    mutationFn: async ({ id, scope, hideSettled }: ScheduleUndo) => {
+      await hideSettled;
+      if (!isRequestScopeCurrent(scope)) return;
+      await unhideMySession(id, scheduleWriteConfig(scope));
+      if (isScheduleScopeCurrent(scope)) {
+        await qc.invalidateQueries({ queryKey: studentSessionQueryKeys.root });
+      }
     },
-    onError: (error: AxiosError<ApiErrorBody>) => {
+    onError: (error: AxiosError<ApiErrorBody>, { scope }) => {
+      if (!isScheduleScopeCurrent(scope)) return;
       studentToast.error(
         error?.response?.data?.detail ||
           error?.response?.data?.message ||
@@ -110,8 +179,9 @@ export default function SessionListPage() {
 
   const handleHide = useCallback(
     (s: StudentSession) => {
-      hideMutation.mutate(s.id);
-      setUndoTarget({ id: s.id, title: s.title });
+      const scope = captureScheduleScope();
+      const hideSettled = hideMutation.mutateAsync({ id: s.id, scope }).then(() => undefined, () => undefined);
+      setUndoTarget({ id: s.id, title: s.title, scope, hideSettled });
       if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
       undoTimerRef.current = window.setTimeout(() => setUndoTarget(null), 4500);
     },
@@ -119,8 +189,8 @@ export default function SessionListPage() {
   );
 
   const handleUndo = useCallback(() => {
-    if (!undoTarget) return;
-    unhideMutation.mutate(undoTarget.id);
+    if (!undoTarget || !isScheduleScopeCurrent(undoTarget.scope)) return;
+    unhideMutation.mutate(undoTarget);
     setUndoTarget(null);
     if (undoTimerRef.current) {
       window.clearTimeout(undoTimerRef.current);
@@ -539,6 +609,7 @@ function SessionList({
           <Link
             key={s.id}
             to={linkTo}
+            draggable={isPast && onHide ? false : undefined}
             className={`stu-panel stu-panel--pressable stu-panel--accent ${panelVariant} ${styles.sessionCard}`}
             data-past={isPast ? "true" : undefined}
           >

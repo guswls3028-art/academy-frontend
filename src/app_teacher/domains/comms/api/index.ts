@@ -258,6 +258,7 @@ export interface MessageLogItem {
   provider_delivery_failure_reason?: string;
   amount_deducted: string;
   recipient_summary?: string;
+  current_recipient_phone?: string;
   template_summary?: string;
   failure_reason?: string | null;
   message_body?: string;

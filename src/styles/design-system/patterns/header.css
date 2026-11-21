@@ -107,7 +107,7 @@
       var(--tenant-header-surface) 0,
       var(--tenant-header-surface) 42px,
       var(--tenant-header-surface-soft) 70%,
-      transparent 100%
+      var(--tenant-header-edge, transparent) 100%
     );
   color: var(--tenant-header-foreground);
   border-radius: 11px;
@@ -121,13 +121,22 @@
       color-mix(in srgb, var(--tenant-header-surface) 94%, white) 0,
       color-mix(in srgb, var(--tenant-header-surface) 94%, white) 42px,
       color-mix(in srgb, var(--tenant-header-surface-soft) 94%, white) 70%,
-      transparent 100%
+      var(--tenant-header-edge, transparent) 100%
     );
 }
 
 [data-app="admin"] .app-header__brand:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 3px;
+}
+
+[data-app="admin"] .app-header__brand[data-platform-wordmark] {
+  padding: 5px 10px;
+  background: var(--tenant-header-surface);
+}
+
+[data-app="admin"] .app-header__brand[data-platform-wordmark]:hover {
+  background: var(--tenant-header-surface-soft);
 }
 
 [data-app="admin"] .app-header__brandMark {

@@ -17,8 +17,9 @@ export default function ResponsiveAdminLayout({ onOpenQuickNavigation }: { onOpe
   const mainRef = useRef<HTMLElement>(null);
   const previousPath = useRef(location.pathname);
   useLayoutEffect(() => {
-    if (WORKSPACE_SECTIONS.some(section => section.to === location.pathname.replace(/\/$/, "")
-      || section.to === previousPath.current.replace(/\/$/, ""))) {
+    const paths = [previousPath.current, location.pathname].map(path => path.replace(/\/$/, ""));
+    if (paths.some(path => path === "/workspace/staff-board" || path.startsWith("/workspace/staff-board/"))
+      || WORKSPACE_SECTIONS.some(section => paths.includes(section.to))) {
       mainRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
     }
     previousPath.current = location.pathname;

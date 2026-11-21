@@ -1,3 +1,4 @@
+import { hakwonplus } from "@/shared/tenant/tenants/hakwonplus";
 import type { ReactNode } from "react";
 import "./KakaoAlimtalkPreview.css";
 
@@ -29,7 +30,7 @@ export default function KakaoAlimtalkPreview({
       <div className="kakao-alimtalk-preview__chat">
         <span className="kakao-alimtalk-preview__date">카카오톡 화면 예시</span>
         <div className="kakao-alimtalk-preview__message-row">
-          <div className="kakao-alimtalk-preview__profile" aria-hidden="true">H+</div>
+          <img className="kakao-alimtalk-preview__profile" src={hakwonplus.branding.headerLogoUrl} alt="" />
           <div className="kakao-alimtalk-preview__message">
             <span className="kakao-alimtalk-preview__sender">{senderLabel}</span>
             <div className="kakao-alimtalk-preview__bubble">

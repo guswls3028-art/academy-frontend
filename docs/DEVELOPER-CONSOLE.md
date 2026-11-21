@@ -29,6 +29,7 @@
 | `/dev/inbox` | 도입 문의·버그·개선 의견 분류와 답변 | 답변·처리 상태·운영 메모 |
 | `/dev/product-analytics` | 역할별 방문·참여·완료 신호 | 읽기 전용 |
 | `/dev/automation` | 감사 로그 필터와 허용된 크론 실행 | 화이트리스트 크론만 실행 |
+| `/dev/agent-sessions` | admin97 전용 Codex·Claude 세션·하위 에이전트 현황 | [읽기 전용](AGENT-SESSIONS.md) |
 
 대시보드는 다음 순서로 읽는다.
 

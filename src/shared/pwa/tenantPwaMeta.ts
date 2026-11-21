@@ -12,8 +12,8 @@ const TENANT_APP_ICON_BY_HOST: Record<string, string> = {
   "www.ymath.co.kr": "/tenants/ymath/apple-touch-icon.png",
   "limglish.kr": "/tenants/limglish/apple-touch-icon.png",
   "www.limglish.kr": "/tenants/limglish/apple-touch-icon.png",
-  "hakwonplus.com": "/tenants/hakwonplus/apple-touch-icon.png?v=20260727",
-  "www.hakwonplus.com": "/tenants/hakwonplus/apple-touch-icon.png?v=20260727",
+  "hakwonplus.com": "/tenants/hakwonplus/apple-touch-icon.png?v=20261119",
+  "www.hakwonplus.com": "/tenants/hakwonplus/apple-touch-icon.png?v=20261119",
   "sswe.co.kr": "/tenants/sswe/apple-touch-icon.png",
   "www.sswe.co.kr": "/tenants/sswe/apple-touch-icon.png",
   "dnbacademy.co.kr": "/tenants/dnb/apple-touch-icon.png",
@@ -22,6 +22,8 @@ const TENANT_APP_ICON_BY_HOST: Record<string, string> = {
   "www.movementhui.com": "/tenants/movementhui/apple-touch-icon.png",
   "godmin.kr": "/tenants/godmin/apple-touch-icon.png",
   "www.godmin.kr": "/tenants/godmin/apple-touch-icon.png",
+  "xn--oj4bo6fugp3an0c.com": "/tenants/jeongseongwon-lab/apple-touch-icon.png",
+  "www.xn--oj4bo6fugp3an0c.com": "/tenants/jeongseongwon-lab/apple-touch-icon.png",
 };
 
 const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").trim();

@@ -105,6 +105,101 @@ test.describe("업무 화면 기능 검색", () => {
     await installLocalAuthApiStubs(page);
   });
 
+  test("관리자 대시보드가 크기에 맞는 학원플러스 로고와 탭 아이콘을 유지한다", async ({ page }) => {
+    await page.goto(`${BASE}/workspace/dashboard`);
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 850 });
+      const mark = page.getByTestId("app-header-go-dashboard").locator("img");
+      await expect(mark).toHaveAttribute("src", `/tenants/hakwonplus/${width === 390 ? "icon" : "logo"}.png?v=20261119`);
+      await expect.poll(() => mark.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+      await expect(page.locator('link[rel="icon"]').first()).toHaveAttribute("href", "/tenants/hakwonplus/favicon.png?v=20261119");
+    }
+  });
+
+  test("교직원 게시판 조회 실패를 복구하고 작성 오류 뒤에도 입력을 유지한다", async ({ page }) => {
+    let ready = false;
+    let published = false;
+    const submitKeys: Array<string | null> = [];
+    const notice = { id: 47, category: "notice", title: "금요일 강사·조교 회의 및 수업 인수인계 안내",
+      body: "마지막 수업이 끝난 뒤 교무실에서 만나요.", created_at: "2026-11-18T09:00:00Z", author_name: "김선생",
+      attachment_name: "", reply_count: 0, can_edit: true, replies: [] };
+    await page.route("**/api/v1/staffs/board/posts/**", async route => {
+      if (route.request().method() === "POST") {
+        submitKeys.push(await route.request().headerValue("idempotency-key"));
+        return route.fulfill({ status: 400, json: { title: ["제목을 확인해 주세요."] } });
+      }
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith("/47/")) return route.fulfill({ json: notice });
+      const results = published && url.searchParams.get("category") === "notice" ? [notice] : [];
+      return route.fulfill({ json: ready ? { count: results.length, next: null, previous: null, results }
+        : { count: 1, results: [{ ...notice, created_at: null }] } });
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${BASE}/workspace/dashboard`);
+    const panel = page.getByRole("region", { name: "학원 내부 공지" });
+    await expect(panel.getByRole("alert")).toContainText("공지를 불러오지 못했습니다.");
+    ready = true;
+    await panel.getByRole("button", { name: "다시 시도" }).click();
+    await expect(panel).toContainText("아직 등록된 내부 공지가 없습니다.");
+    published = true;
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.reload();
+      await expect(panel.getByRole("link", { name: new RegExp(notice.title) })).toBeVisible();
+      await page.screenshot({ path: test.info().outputPath(`board-dashboard-${width}.png`) });
+    }
+    await panel.getByRole("link", { name: new RegExp(notice.title) }).click();
+    await expect(page.getByRole("heading", { name: notice.title })).toBeVisible();
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+      await page.screenshot({ path: test.info().outputPath(`board-detail-${width}.png`) });
+    }
+    await page.getByRole("tab", { name: "자유게시글" }).click();
+    await page.getByRole("button", { name: "글쓰기" }).click();
+    const editor = page.getByRole("dialog");
+    await editor.getByLabel("제목", { exact: true }).fill("강의실 변경");
+    await editor.getByLabel("내용", { exact: true }).fill("다음 수업은 2강의실입니다.");
+    await editor.getByRole("button", { name: "등록", exact: true }).click();
+    await expect(editor.getByRole("alert")).toHaveText("제목을 확인해 주세요.");
+    await expect(editor.getByLabel("내용", { exact: true })).toHaveValue("다음 수업은 2강의실입니다.");
+    await editor.getByRole("button", { name: "취소", exact: true }).click();
+    await editor.getByRole("button", { name: "계속 작성" }).click();
+    await expect(editor.getByLabel("제목", { exact: true })).toHaveValue("강의실 변경");
+    await editor.getByRole("button", { name: "등록", exact: true }).click();
+    await expect.poll(() => submitKeys.length).toBe(2);
+    expect(submitKeys[0]).toMatch(/^[a-f0-9-]{36}$/);
+    expect(submitKeys[1]).toBe(submitKeys[0]);
+  });
+
+  test("교직원 자료 다운로드 실패 후 게시글에서 다시 받아 저장한다", async ({ page }) => {
+    let available = false;
+    const title = "인수인계 자료";
+    const filename = "handover.txt";
+    await page.route("**/api/v1/staffs/board/posts/48/**", async route => {
+      if (new URL(route.request().url()).pathname.endsWith("/attachment/")) {
+        return available
+          ? route.fulfill({ contentType: "application/octet-stream", body: "업무 인수인계" })
+          : route.fulfill({ status: 404, json: { detail: "첨부파일을 찾을 수 없습니다." } });
+      }
+      return route.fulfill({ json: { id: 48, category: "resource", title, body: "자료 확인",
+        attachment_name: filename, can_remove_attachment: true, can_edit: true, author_name: "김선생",
+        created_at: "2026-11-18T09:00:00Z", reply_count: 0, replies: [] } });
+    });
+    const url = `${BASE}/workspace/staff-board/resource/48`;
+    await page.goto(url);
+    const action = page.getByRole("button", { name: `${filename} 다운로드` });
+    await action.click();
+    await expect(page.getByRole("alert")).toContainText("파일을 받지 못했습니다.");
+    await expect(page).toHaveURL(url);
+    available = true;
+    const downloading = page.waitForEvent("download");
+    await action.click();
+    expect((await downloading).suggestedFilename()).toBe(filename);
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    await expect(page).toHaveURL(url);
+  });
+
   for (const width of [1366, 390]) {
     test(`사이드바에서 업무 분류를 접고 펼쳐 상세로 바로 이동한다 ${width}px`, async ({ page }, info) => {
       await page.setViewportSize({ width, height: 900 });

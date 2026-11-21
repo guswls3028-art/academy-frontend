@@ -2,10 +2,7 @@
 // PATH: src/app_teacher/domains/comms/pages/MessageLogPage.tsx
 // 발송 이력 — 메시지 로그 조회 페이지
 //
-// 보안 (시각 검수 H-11 / H-14 2026-05-12):
-//   role=teacher/staff 는 수신자 이름·메시지 본문을 마스킹.
-//   role=owner/admin 만 풀 정보 노출. 학원장 발신 메시지 본문에 학생 로그인
-//   정보(아이디/비밀번호)가 포함될 수 있으므로 staff 권한자에게는 가림.
+// 같은 학원의 업무 연락처는 전체 표시한다. 본문·공급사 증거는 서버 권한을 따른다.
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Badge, Button, EmptyState, ICON, type BadgeTone } from "@/shared/ui/ds";
@@ -13,22 +10,11 @@ import { ChevronLeft } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import useAuth from "@/auth/hooks/useAuth";
+import { formatPhone } from "@/shared/utils/formatPhone";
+import { resolveTenantCodeString } from "@/shared/tenant";
 import { fetchMessageLog, fetchMessageLogDetail, type MessageLogItem } from "../api";
 import { teacherCommsQueryKeys } from "../queryKeys";
-
-/** 한글 이름 마스킹: 박해환 → 박○○, 이연 → 이○. */
-function maskName(name: string): string {
-  if (!name) return "";
-  const first = name.charAt(0);
-  return first + "○".repeat(Math.max(name.length - 1, 1));
-}
-
-/** 발송 이력 수신 요약 마스킹. e.g. "이서연 0101****" → "이○○ 0101****" */
-function maskRecipientSummary(s: string | null | undefined): string {
-  if (!s) return "";
-  // 한글 이름 토큰만 마스킹. 전화번호는 backend에서 이미 마스킹.
-  return s.replace(/[가-힣]{2,}/g, (m) => maskName(m));
-}
+import { canSendManualAlimtalk } from "@teacher/shared/messagePermissions";
 
 /** 비밀번호·로그인 정보 포함 본문은 staff 에게 본문 자체를 숨김. */
 function isSensitiveBody(body: string | null | undefined): boolean {
@@ -53,12 +39,15 @@ export default function MessageLogPage() {
   const requestedPage = Number(searchParams.get("page"));
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const { user } = useAuth();
+  const viewerScope = [resolveTenantCodeString(), user?.id, user?.tenantRole];
   const role = (user?.tenantRole ?? "").toLowerCase();
   const isPrivileged = role === "owner" || role === "admin";
+  const canSend = canSendManualAlimtalk(user?.tenantRole);
 
   const logQ = useQuery({
-    queryKey: teacherCommsQueryKeys.messageLogPage(page),
+    queryKey: teacherCommsQueryKeys.withViewerScope(teacherCommsQueryKeys.messageLogPage(page), viewerScope),
     queryFn: () => fetchMessageLog(page, 50),
+    enabled: Boolean(user),
   });
   const data = logQ.data;
   const isLoading = logQ.isLoading;
@@ -107,9 +96,10 @@ export default function MessageLogPage() {
           scope="panel"
           tone="empty"
           title={page > 1 ? "이 페이지에 발송 내역이 없습니다" : "발송 내역이 없습니다"}
-          description={page > 1 ? "최신 내역으로 돌아가 다시 확인해 주세요." : "학생을 선택해 알림톡을 보내면 접수와 처리 상태가 이곳에 기록됩니다."}
+          description={page > 1 ? "최신 내역으로 돌아가 다시 확인해 주세요."
+            : canSend ? "학생을 선택해 알림톡을 보내면 접수와 처리 상태가 이곳에 기록됩니다." : "발송 요청이 접수되면 처리 상태가 이곳에 표시됩니다."}
           actions={
-            page > 1 ? <EmptyActionButton onClick={() => goToPage(1)}>최신 내역 보기</EmptyActionButton> : <EmptyActionButton onClick={() => navigate("/workspace/mobile/students", { state: { startSelectMode: true, preferredMessageTiming: "now" } })}>
+            page > 1 ? <EmptyActionButton onClick={() => goToPage(1)}>최신 내역 보기</EmptyActionButton> : canSend && <EmptyActionButton onClick={() => navigate("/workspace/mobile/students", { state: { startSelectMode: true, preferredMessageTiming: "now" } })}>
               학생 선택 발송
             </EmptyActionButton>
           }
@@ -117,7 +107,7 @@ export default function MessageLogPage() {
       ) : (
         <div className="flex flex-col gap-2">
           {items.map((item) => (
-            <LogCard key={item.id} item={item} isPrivileged={isPrivileged} />
+            <LogCard key={`${JSON.stringify(viewerScope)}:${item.id}`} item={item} isPrivileged={isPrivileged} viewerScope={viewerScope} />
           ))}
         </div>
       )}
@@ -125,9 +115,9 @@ export default function MessageLogPage() {
   );
 }
 
-function LogCard({ item, isPrivileged }: { item: MessageLogItem; isPrivileged: boolean }) {
+function LogCard({ item, isPrivileged, viewerScope }: { item: MessageLogItem; isPrivileged: boolean; viewerScope: readonly unknown[] }) {
   const providerQ = useQuery({
-    queryKey: teacherCommsQueryKeys.messageLogDelivery(item.id),
+    queryKey: teacherCommsQueryKeys.withViewerScope(teacherCommsQueryKeys.messageLogDelivery(item.id), viewerScope),
     queryFn: () => fetchMessageLogDetail(item.id),
     enabled: false,
     retry: false,
@@ -168,7 +158,14 @@ function LogCard({ item, isPrivileged }: { item: MessageLogItem; isPrivileged: b
           </div>
           {item.recipient_summary && item.template_summary && (
             <div className="text-[12px] truncate" style={{ color: "var(--tc-text-secondary)" }}>
-              수신: {isPrivileged ? item.recipient_summary : maskRecipientSummary(item.recipient_summary)}
+              수신 기록: {item.recipient_summary}
+            </div>
+          )}
+          {item.current_recipient_phone && (
+            <div className="text-[12px] mt-1" style={{ color: "var(--tc-text-secondary)" }}>
+              현재 연락처: <a href={`tel:${item.current_recipient_phone}`} className="underline underline-offset-2">
+                {formatPhone(item.current_recipient_phone)}
+              </a>
             </div>
           )}
           {item.message_body && (

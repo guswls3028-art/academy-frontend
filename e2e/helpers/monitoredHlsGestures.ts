@@ -16,7 +16,7 @@ type GestureScenario = {
   openPlayer: (page: Page) => Promise<void>;
 };
 
-async function openMonitoredHlsPlayer({ page, speedLocked, base, viewport, installScenario, openPlayer }: Omit<GestureScenario, "info">) {
+async function openMonitoredHlsPlayer({ page, speedLocked, base, viewport, installScenario, openPlayer }: Omit<GestureScenario, "info">, multipleQualities = false) {
   await page.setViewportSize(viewport ?? { width: 390, height: 844 });
   const { videos } = await installScenario(page);
   // Observe native rate writes without replacing playback or controller methods.
@@ -35,7 +35,20 @@ async function openMonitoredHlsPlayer({ page, speedLocked, base, viewport, insta
   const state = { grants: 0, active: true, receipts: 0, events: [] as Array<{ type: string }> };
   const received = new Set<string>();
   await page.route("**/__qa__/video-long/**", route => {
-    const asset = syntheticLongVideoAsset(new URL(route.request().url()).pathname);
+    const path = new URL(route.request().url()).pathname;
+    if (multipleQualities && path.endsWith("/master.m3u8")) {
+      return route.fulfill({ contentType: "application/vnd.apple.mpegurl", body: [
+        "#EXTM3U", "#EXT-X-STREAM-INF:BANDWIDTH=100000,RESOLUTION=640x360", "360.m3u8",
+        "#EXT-X-STREAM-INF:BANDWIDTH=400000,RESOLUTION=1280x720", "720.m3u8", "",
+      ].join("\n") });
+    }
+    const rendition = path.match(/\/(360|720)\.m3u8$/);
+    if (rendition) {
+      const asset = syntheticLongVideoAsset("/__qa__/video-long/master.m3u8");
+      return route.fulfill({ contentType: asset.contentType,
+        body: asset.body.toString("utf8").replace("media.m4s", `${rendition[1]}-media.m4s`) });
+    }
+    const asset = syntheticLongVideoAsset(path.replace(/\/(360|720)-media\.m4s$/, "/media.m4s"));
     return route.fulfill({ body: asset.body, contentType: asset.contentType });
   });
   await page.route("**/api/v1/student/video/videos/562/playback/**", route => {
@@ -83,6 +96,51 @@ async function openMonitoredHlsPlayer({ page, speedLocked, base, viewport, insta
   const writes = () => page.evaluate(() => (window as GestureRateAuditWindow).__qaGestureRateWrites);
   const clearWrites = () => page.evaluate(() => { (window as GestureRateAuditWindow).__qaGestureRateWrites = []; });
   return { video, state, writes, clearWrites };
+}
+
+export async function verifyPlaybackSettingsQuality(scenario: GestureScenario) {
+  const { page } = scenario;
+  const manual = page.context().browser()?.browserType().name() === "chromium";
+  if (manual) {
+    // Exercise the MSE path even on Chromium installations that advertise native HLS.
+    await page.addInitScript(() => {
+      const canPlayType = HTMLMediaElement.prototype.canPlayType;
+      HTMLMediaElement.prototype.canPlayType = function (type) {
+        return /mpegurl/i.test(type) ? "" : canPlayType.call(this, type);
+      };
+    });
+  }
+  let loadedRendition = "";
+  page.on("request", request => {
+    const segment = new URL(request.url()).pathname.match(/\/(360|720)-media\.m4s$/);
+    if (segment) loadedRendition = segment[1];
+  });
+  const { video, state } = await openMonitoredHlsPlayer(scenario, manual);
+  const settings = page.getByRole("button", { name: "재생 설정, 배속 1배" });
+  await settings.focus();
+  await settings.press("Space");
+  const panel = page.getByRole("dialog", { name: "재생 설정" });
+  const quality = panel.getByRole("combobox", { name: "화질" });
+  if (manual) {
+    // ABR may preload both playlists. Verify a fresh segment of the selected rendition.
+    expect(["360", "720"]).toContain(loadedRendition);
+    const other = loadedRendition === "720" ? 360 : 720;
+    await Promise.all([
+      page.waitForRequest(request => request.url().endsWith(`/${other}-media.m4s`)),
+      quality.selectOption({ label: `${other}p` }),
+    ]);
+    await expect(panel).toHaveCount(0);
+    await expect(settings).toBeFocused();
+    await settings.press("Enter");
+    await expect(quality.locator("option:checked")).toHaveText(`${other}p`);
+  } else {
+    await expect(panel.getByText("자동", { exact: true })).toBeVisible();
+    await expect(quality).toHaveCount(0);
+  }
+  await panel.press("Escape");
+  await expect(settings).toBeFocused();
+  await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.paused)).toBe(false);
+  expect(state.grants).toBe(1);
 }
 
 export async function verifyResumedClassActivity(scenario: GestureScenario) {
@@ -141,8 +199,8 @@ export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {
     await clickCenter();
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.currentTime)).toBeGreaterThan(pausedAt);
   } else {
-    await page.locator(".svpPlaybackRateBtn").click();
-    await page.locator(".svpSpeedMenuItem").filter({ hasText: /^1\.5(?:0)?x$/ }).click();
+    await page.getByRole("button", { name: "재생 설정, 배속 1배" }).click();
+    await page.getByRole("button", { name: "1.5배속", exact: true }).click();
     await expect.poll(() => video.evaluate((el: HTMLVideoElement) => el.playbackRate)).toBe(1.5);
     await clearWrites();
   }
@@ -213,8 +271,8 @@ export async function verifyMonitoredHlsGestures(scenario: GestureScenario) {
 async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, video: Locator) {
   const wrap = page.locator(".svpPlayerWrap");
   const controls = page.locator(".svpControls");
-  const speed = controls.locator(".svpPlaybackRateBtn");
-  const menu = page.locator(".svpSpeedMenu");
+  const speed = controls.getByRole("button", { name: /^재생 설정, 배속/ });
+  const menu = page.getByRole("dialog", { name: "재생 설정" });
   const originalMedia = await video.elementHandle();
   const observations: unknown[] = [];
   const revealControls = async () => {
@@ -247,7 +305,7 @@ async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, vide
   };
   const assertRate = async (rate: number) => {
     await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.playbackRate)).toBe(rate);
-    await expect(speed).toHaveText(rate % 1 === 0 ? `${rate}x` : `${rate.toFixed(2)}x`);
+    await expect(speed).toHaveText(`배속 ${rate}×`);
   };
   const openMenu = async (width: number, phase: string, native: boolean) => {
     await revealControls();
@@ -279,7 +337,7 @@ async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, vide
     }
   };
   const selectRate = async (rate: number) => {
-    await clickOwned(menu.locator(".svpSpeedMenuItem").filter({ has: page.getByText(`${rate}x`, { exact: true }) }));
+    await clickOwned(menu.getByRole("button", { name: `${rate}배속`, exact: true }));
     await expect(menu).toHaveCount(0);
     await assertRate(rate);
   };
@@ -288,7 +346,7 @@ async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, vide
     const point = await wrap.evaluate(node => {
       const r = node.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + 2;
       const hit = document.elementFromPoint(x, y);
-      return { x, y, safe: !!hit && node.contains(hit) && !hit.closest("button, input, a, .svpSpeedMenu, .svpGestureLayer") };
+      return { x, y, safe: !!hit && node.contains(hit) && !hit.closest("button, input, a, .svpSettingsPanel, .svpGestureLayer") };
     });
     expect(point.safe, "outside click uses the player header without activating another control").toBe(true);
     await expect(menu).toHaveCount(1);
@@ -298,8 +356,8 @@ async function verifyActiveSpeedFullscreenMenus(page: Page, info: TestInfo, vide
   };
   const toggleWhileOpen = async (native: boolean) => {
     await expect(menu).toHaveCount(1);
-    await expect(speed).toBeFocused();
-    // The keyboard shortcut changes actual fullscreen without an outside pointer closing the menu first.
+    await expect(menu).toBeFocused();
+    // The focused panel preserves the player fullscreen shortcut.
     await page.keyboard.press("f");
     await expect.poll(() => wrap.evaluate((node, active) => active
       ? document.fullscreenElement === node : document.fullscreenElement === null, native)).toBe(true);
@@ -424,8 +482,19 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
     await revealControls();
     await expect(controls).toHaveCSS("opacity", "1");
     await expect(controls.locator(".svpVolume button")).toBeVisible();
-    await expect(controls.locator(".svpQualityBtn")).toBeVisible();
-    await expect(controls.locator(".svpQualityBtn")).toBeDisabled();
+    const settings = controls.getByRole("button", { name: "재생 설정, 배속 1배" });
+    await settings.click();
+    const panel = page.getByRole("dialog", { name: "재생 설정" });
+    await expect(panel.getByText("이 영상은 1배속으로 재생돼요.")).toBeVisible();
+    await expect(panel.getByText("자동", { exact: true })).toBeVisible();
+    await expect(panel.getByRole("button", { name: "2배속" })).toHaveCount(0);
+    await panel.getByRole("button", { name: "닫기" }).click();
+    await expect(settings).toBeFocused();
+    if (width === 390) {
+      const play = await controls.locator(".svpBtn--play, .svpBtn--pause").boundingBox();
+      const rate = await settings.boundingBox();
+      expect(Math.abs(play!.y + play!.height / 2 - rate!.y - rate!.height / 2)).toBeLessThan(2);
+    }
     const regions = await assertSeparatedRegions();
     expect(regions.media.width / regions.media.height).toBeCloseTo(16 / 9, 2);
     const targets = await wrap.evaluate(root => Array.from(root.querySelectorAll<HTMLButtonElement | HTMLInputElement>(".svpControls button, .svpControls input[type='range'], .svpBigPlay"))

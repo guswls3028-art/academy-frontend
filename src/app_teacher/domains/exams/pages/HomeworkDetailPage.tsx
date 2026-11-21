@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import HomeworkInspectionEntry from "@/shared/ui/assessment/HomeworkInspectionEntry";
 import { EmptyState } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { fetchSessionScores, patchAssessmentCorrection } from "@/shared/api/contracts/sessionScores";
@@ -158,6 +159,7 @@ export default function HomeworkDetailPage() {
         {maxScore != null && <InfoRow label="만점" value={`${maxScore}점`} />}
         <InfoRow label="제출" value={`${submitted.length} / ${submissionRows.length}`} accent />
         <InfoRow label="선생님 확인" value={`${reviewedCount} / ${submitted.length}`} accent />
+        {sessionId > 0 && <HomeworkInspectionEntry sessionId={sessionId} homeworkId={hid} title={hw.title} />}
       </div>
 
       {submitted.length > 0 && (

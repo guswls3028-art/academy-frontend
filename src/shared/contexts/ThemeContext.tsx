@@ -1,8 +1,8 @@
 /* eslint-disable react-refresh/only-export-components -- provider and hook share one boundary. */
 import { createContext, useContext, useEffect, useState } from "react";
-import { DEFAULT_ACCENT, isThemeKey, type ThemeKey } from "@/shared/theme/themes";
+import { isThemeKey, type ThemeKey } from "@/shared/theme/themes";
 import { normalizeAccent } from "@/shared/theme/accent";
-import { applyAppearance, loadAppearance, type Appearance, type AppearanceResult } from "@/shared/theme/themeRuntime";
+import { applyAppearance, getDefaultAccent, loadAppearance, type Appearance, type AppearanceResult } from "@/shared/theme/themeRuntime";
 type ThemeContextState = Appearance & {
   persisted: boolean;
   setTheme: (theme: ThemeKey) => void;
@@ -33,7 +33,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       const accent = normalizeAccent(value);
       if (accent) setAppearance((previous) => ({ ...previous, accent }));
     },
-    resetAppearance: () => setAppearance({ version: 1, theme: "modern-white", accent: DEFAULT_ACCENT }),
+    resetAppearance: () => setAppearance({ version: 1, theme: "modern-white", accent: getDefaultAccent() }),
     retrySave: () => { applyAppearance(appearance); },
   }}>{children}</ThemeContext.Provider>;
 }

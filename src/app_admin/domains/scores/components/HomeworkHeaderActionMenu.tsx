@@ -16,6 +16,9 @@ import { scoresQueryKeys } from "../api/queryKeys";
 import MenuAction from "./AssessmentHeaderMenuAction";
 import styles from "./ExamHeaderActionMenu.module.css";
 
+import inspectionStyles from "@/shared/ui/assessment/HomeworkInspectionPanel.module.css";
+
+const HomeworkInspectionPanel = lazy(() => import("@/shared/ui/assessment/HomeworkInspectionPanel"));
 const ParentAssessmentCommentsPanel = lazy(() => import("./ParentAssessmentCommentsPanel"));
 
 type Props = {
@@ -29,6 +32,7 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [inspectionOpen, setInspectionOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -88,7 +92,12 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
           <button type="button" role="menuitem" className={`${styles.headerAction} ${styles.headerActionDanger}`} disabled={deleting || deleteLocked} title={deleteLocked ? "진행 중인 점수 입력을 저장한 뒤 삭제할 수 있습니다." : undefined} onClick={() => { void handleDelete(); }}>{deleting ? "삭제 중…" : "삭제"}</button>
         </div>
       </div>
-      <p className={styles.menuDescription}>과제명과 운영 기준을 수정하거나 이 차시에서 삭제합니다.</p>
+      <MenuAction
+        title="과제 검사"
+        description="풀이 수와 공개 피드백 입력 · 엑셀 일괄 입력"
+        icon={<ClipboardCheck size={ICON_FOR_BUTTON.md} />}
+        onClick={() => { setMenuOpen(false); setInspectionOpen(true); }}
+      />
       <MenuAction
         title="과제 수정"
         description="과제명, 제출기한, 채점 방식과 합격 기준을 함께 수정"
@@ -106,17 +115,24 @@ export default function HomeworkHeaderActionMenu({ homeworkId, homeworkTitle, se
 
   return (
     <>
+      {inspectionOpen && <Suspense fallback={<div role="status">과제 검사를 여는 중…</div>}>
+        <HomeworkInspectionPanel sessionId={sessionId} homeworkId={homeworkId} title={homeworkTitle} onClose={() => setInspectionOpen(false)} />
+      </Suspense>}
       {commentsOpen && (
         <Suspense fallback={<div role="status">학부모 코멘트를 불러오는 중...</div>}>
           <ParentAssessmentCommentsPanel sessionId={sessionId} assessmentKind="homework" assessmentId={homeworkId} title={homeworkTitle} onClose={() => setCommentsOpen(false)} />
         </Suspense>
       )}
+      <div className={inspectionStyles.entry}>
       <Popover content={menu} trigger="click" placement="bottom" open={menuOpen} onOpenChange={setMenuOpen} arrow={false} overlayClassName={styles.popover} motion={{ motionName: "academy-exam-menu-fade" }}>
         <button ref={triggerRef} type="button" className="scores-table-exam-link" draggable={false} aria-haspopup="menu" aria-expanded={menuOpen} aria-label={`${homeworkTitle} 작업 선택`} title={`${homeworkTitle} — 작업 선택`} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} onDragStart={(event) => { event.preventDefault(); event.stopPropagation(); }}>
           <span className="scores-table-head-title whitespace-normal break-keep min-w-0 leading-tight">{homeworkTitle}</span>
           <ChevronDown className="scores-table-exam-link__icon" size={ICON_FOR_BUTTON.sm} aria-hidden />
         </button>
       </Popover>
+      <button className={inspectionStyles.quick} type="button" aria-label={`${homeworkTitle} 과제 검사`}
+        onMouseDown={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); setInspectionOpen(true); }}>과제 검사</button>
+      </div>
       <AdminModal open={editOpen} onClose={() => { void closeEdit(); }} closeDisabled={saving} type="action" width={MODAL_WIDTH.wide}>
         <ModalHeader type="action" title="과제 수정" subtitle={homeworkTitle} noIcon />
         <ModalBody>

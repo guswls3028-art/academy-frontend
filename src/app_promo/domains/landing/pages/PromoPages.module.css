@@ -20,15 +20,15 @@
 }
 
 .heroFeatures {
-  --hero-image: url("/promo/admin-home.png");
+  --hero-image: url("/promo/admin-home.png?v=20261120");
 }
 
 .heroAi {
-  --hero-image: url("/promo/admin-exams-authority-20260726.png");
+  --hero-image: url("/promo/admin-exams-authority-20260726.png?v=20261120");
 }
 
 .heroFaq {
-  --hero-image: url("/promo/admin-alimtalk-auto-send.png");
+  --hero-image: url("/promo/admin-alimtalk-auto-send.png?v=20261120");
 }
 
 .heroInner,

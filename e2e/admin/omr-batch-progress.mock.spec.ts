@@ -1,3 +1,4 @@
+import { revealScoreManagement } from "../helpers/revealScoreManagement";
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
@@ -145,6 +146,7 @@ async function installDashboardApi(
   options: {
     empty?: boolean;
     batch?: ReturnType<typeof batchSummary>;
+    extraBatch?: ReturnType<typeof batchSummary>;
     failListCalls?: number;
     holdListFailure?: boolean;
     holdListResponse?: boolean;
@@ -315,7 +317,7 @@ async function installDashboardApi(
       const batch = options.uploadFlow && initializedUploads
         ? partialUpload ? partialAdmissionSummary() : admissionSummary(uploadBatchReceived ? "received" : "pending", uploadBatchTotal)
         : options.batch ?? batchSummary({ terminal, claimed, admissionFailure: options.admissionFailure, subjectivePending: options.subjectivePending });
-      const response = options.empty || hideBatches ? [] : [batch];
+      const response = options.empty || hideBatches ? [] : [batch, ...(options.extraBatch ? [options.extraBatch] : [])];
       if (options.holdListResponse && listGets === 1) await listResponseGate;
       await safeJson(route, response);
       listResponses += 1;
@@ -371,7 +373,7 @@ async function installDashboardApi(
       claimed = true;
       await safeJson(route, {
         notify,
-        batch: batchSummary({
+        batch: options.batch ? { ...options.batch, completion_notice_claimed: true } : batchSummary({
           terminal: true,
           claimed: true,
           admissionFailure: options.admissionFailure,
@@ -507,6 +509,7 @@ async function openWorkbox(page: Page, totalCount = 22) {
 }
 
 async function openOmrUpload(page: Page) {
+  await revealScoreManagement(page);
   const trigger = page.getByRole("button", { name: "OMR 스캔 등록" });
   await expect(trigger).toBeVisible({ timeout: 30_000 });
   await trigger.click();
@@ -577,6 +580,121 @@ test.describe("OMR durable batch progress", () => {
   });
 
   for (const width of [1366, 390]) {
+    test(`@omr-grading-attention ${width}px 처리 완료와 검토 대기를 구분하고 정본 새로고침으로 해소한다`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      // Real backend shape for a matched strong multi-mark: Submission DONE,
+      // ExamResult DRAFT, no canonical Result yet (backend detector test :271).
+      const batch = {
+        ...batchSummary({ terminal: true }), total_count: 1,
+        counts: { ...batchSummary().counts, pending_admission: 0, received: 0,
+          processing: 0, completed: 1 },
+        failed_ordinals: [], grading_counts: { completed: 0, subjective_pending: 0,
+          manual_review_required: 0, grading_pending: 1 },
+        overall_status: "completed",
+      };
+      const api = await installDashboardApi(page, { batch, reviewFlow: true });
+      await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
+      let task = await openWorkbox(page, 1);
+      await expect(task.locator(".async-status-bar__status-badge")).toHaveText("검토 필요");
+      await expect(task).toContainText("채점 확인 필요 1");
+      await expect(task.locator(".async-status-bar__item-icon--success")).toHaveCount(0);
+      await expect(page.locator(".app-header__workboxBtn--done")).toHaveCount(0);
+      await expect(page.getByText("OMR 처리가 모두 끝났습니다.", { exact: true })).toHaveCount(0);
+      await expect(page.getByText("OMR 처리는 끝났습니다. 채점 확인이 필요한 답안지가 있습니다.", { exact: true })).toBeVisible();
+      await expect.poll(() => api.counts().completionClaims).toBe(1);
+      expect(await task.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+      await page.screenshot({ path: testInfo.outputPath(`omr-grading-attention-${width}.png`), fullPage: true });
+      await expect(page.getByRole("button", { name: "완료된 항목 지우기", exact: true })).toBeDisabled();
+      await expect(task).toBeVisible();
+      await task.getByRole("button", { name: "OMR 검토", exact: true }).click();
+      await expect(page.getByRole("dialog", { name: "OMR 검토" })).toBeVisible();
+      // Teacher completion is server-owned. The existing Workbox refresh must
+      // consume its new canonical state, not infer it from opening review.
+      batch.grading_complete = true; batch.grading_status = "completed";
+      batch.completion_notice_claimed = true;
+      batch.grading_counts = { completed: 1, subjective_pending: 0, manual_review_required: 0, grading_pending: 0 };
+      await page.getByRole("dialog", { name: "OMR 검토" }).getByRole("button", { name: "닫기", exact: true }).click();
+      const panel = await openWorkboxPanel(page);
+      await panel.getByRole("button", { name: "새로고침", exact: true }).click();
+      task = panel.locator(".async-status-bar__item").filter({ hasText: "OMR 1장" });
+      await expect(task.locator(".async-status-bar__status-badge")).toHaveText("완료");
+      await expect(task.getByText("채점 확인 필요 1", { exact: true })).toHaveCount(0);
+      await page.reload({ waitUntil: "domcontentloaded" });
+      task = await openWorkbox(page, 1);
+      await expect(task.locator(".async-status-bar__status-badge")).toHaveText("완료");
+      await expect(page.locator(".app-header__workboxBtn--done")).toHaveCount(1);
+      await page.screenshot({ path: testInfo.outputPath(`omr-grading-final-${width}.png`), fullPage: true });
+      await page.getByRole("button", { name: "완료된 항목 지우기", exact: true }).click();
+      await expect(task).toHaveCount(0);
+    });
+
+    test(`@omr-grading-attention ${width}px 일괄 완료 제거는 검토 대기를 남기고 명시적 개별 제거는 허용한다`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      const review = batchSummary({ terminal: true, subjectivePending: true, claimed: true });
+      review.grading_status = "pending"; review.grading_counts.subjective_pending = 0;
+      review.grading_counts.manual_review_required = 22;
+      const final = { ...batchSummary({ terminal: true, subjectivePending: true, claimed: true }),
+        id: "12345678-1234-4234-8234-123456789abd", total_count: 2, grading_complete: true,
+        grading_status: "completed", counts: { ...review.counts, completed: 2 },
+        grading_counts: { completed: 2, subjective_pending: 0, manual_review_required: 0, grading_pending: 0 },
+      };
+      await installDashboardApi(page, { batch: review, extraBatch: final });
+      await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
+      const reviewTask = await openWorkbox(page);
+      await expect(reviewTask.locator(".async-status-bar__status-badge")).toHaveText("검토 필요");
+      const panel = page.locator(".alarm-panel--workbox-style");
+      await expect(panel).toBeVisible();
+      await panel.getByRole("button", { name: "완료된 항목 지우기", exact: true }).click();
+      await expect(panel.locator(".async-status-bar__item").filter({ hasText: "OMR 2장" })).toHaveCount(0);
+      await expect(reviewTask).toBeVisible();
+      await expect(panel.getByRole("button", { name: "완료된 항목 지우기", exact: true })).toBeDisabled();
+      await reviewTask.getByRole("button", { name: "목록에서 제거", exact: true }).click();
+      await expect(reviewTask).toHaveCount(0);
+    });
+
+    for (const mode of ["final", "legacy", "failed", "mixed"] as const) {
+      test(`@omr-grading-controls ${width}px ${mode} 기존 완료·실패·재시도 계약`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        const batch = batchSummary({ terminal: true, subjectivePending: true, claimed: true });
+        batch.grading_status = "completed"; batch.grading_complete = true;
+        batch.grading_counts = { completed: 22, subjective_pending: 0, manual_review_required: 0, grading_pending: 0 };
+        batch.subjective_pending_ordinals = [];
+        if (mode === "legacy") {
+          const legacy = batch as Partial<typeof batch>;
+          delete legacy.grading_complete; delete legacy.grading_status; delete legacy.grading_counts;
+        } else if (mode === "failed" || mode === "mixed") {
+          batch.counts.completed = mode === "failed" ? 0 : 21;
+          batch.counts.failed = mode === "failed" ? 22 : 1;
+          batch.failed_ordinals = mode === "failed" ? Array.from({ length: 22 }, (_, i) => i + 1) : [22];
+          batch.grading_complete = false; batch.grading_status = "pending";
+          batch.grading_counts.completed = 0;
+          batch.grading_counts.manual_review_required = mode === "mixed" ? 21 : 0;
+        }
+        if (mode !== "legacy") batch.completion_notice_claimed = false;
+        const api = await installDashboardApi(page, { batch });
+        await page.goto(`${BASE}/workspace/dashboard`, { waitUntil: "domcontentloaded" });
+        const task = await openWorkbox(page);
+        await expect(task.locator(".async-status-bar__status-badge")).toHaveText(
+          mode === "failed" || mode === "mixed" ? "실패" : "완료",
+        );
+        await expect(task.getByRole("button", { name: "OMR 검토", exact: true })).toBeVisible();
+        if (mode === "failed" || mode === "mixed") {
+          await expect(task.getByRole("button", { name: "재처리 요청", exact: true })).toBeEnabled();
+          await expect(task).toContainText(`실패 ${batch.counts.failed}`);
+        }
+        if (mode === "mixed") await expect(task).toContainText("채점 확인 필요 21");
+        else await expect(task.getByText(/채점 확인 필요/)).toHaveCount(0);
+        if (mode === "final") {
+          await expect.poll(() => api.counts().completionClaims).toBe(1);
+          await expect(page.getByText("OMR 처리가 모두 끝났습니다.", { exact: true })).toBeVisible();
+        } else if (mode !== "legacy") {
+          await expect.poll(() => api.counts().completionClaims).toBe(1);
+          await expect(page.getByText("OMR 처리가 끝났습니다. 실패 항목을 확인해 주세요.", { exact: true })).toBeVisible();
+        }
+      });
+    }
+
     test(`${width}px 오래된 OMR 식별 대기를 남은 처리 시간으로 추정하지 않는다`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       const initial = batchSummary();

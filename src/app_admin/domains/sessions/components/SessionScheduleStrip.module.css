@@ -72,7 +72,7 @@
   font-weight: 400;
 }
 
-.dayChoice:hover, .editorDay:hover, .dayEdit:hover { background: var(--color-bg-surface-hover); }
+.dayChoice:hover, .editorDay:hover, .dayEdit:hover:enabled { background: var(--color-bg-surface-hover); }
 
 .dayChoice[aria-pressed='true'], .editorDay[aria-pressed='true'] {
   border-color: color-mix(in srgb, var(--color-brand-primary) 34%, var(--color-border-divider));
@@ -87,6 +87,8 @@
   place-items: center;
   color: var(--color-text-secondary);
 }
+
+.dayEdit:disabled { opacity: 0.5; }
 
 .dayChoice:focus-visible, .editorDay:focus-visible, .dayEdit:focus-visible, .body summary:focus-visible {
   outline: 2px solid var(--color-brand-primary);

@@ -1,3 +1,4 @@
+import { revealScoreManagement } from "../helpers/revealScoreManagement";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * OMR 업로드/검토/재채점 실사용 canary.
@@ -1470,8 +1471,11 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       await draftDialog.getByRole("button", { name: "버리기", exact: true }).click();
       await expect(draftDialog).toBeHidden({ timeout: 5_000 });
     }
+    await revealScoreManagement(page);
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeVisible({ timeout: 30_000 });
+    await revealScoreManagement(page);
     await expect(page.getByRole("button", { name: "OMR 스캔 등록" })).toBeEnabled();
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "OMR 스캔 등록" }).click();
     const uploadDialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
     await expect(uploadDialog.locator(".admin-omr-upload").getByText("스캔본·촬영 사진 선택")).toBeVisible({ timeout: 10_000 });
@@ -2080,6 +2084,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await loginBrowserAsRealUser(page,
       `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`,
       { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
+    await revealScoreManagement(page);
     await page.getByRole("button", { name: "OMR 스캔 등록" }).click();
     const uploadDialog = page.getByRole("dialog").filter({ hasText: "OMR 스캔 등록" });
     await uploadDialog.locator(".admin-omr-upload input[type='file']").setInputFiles([

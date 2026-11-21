@@ -30,6 +30,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { koreanDateTimeText, koreanFullDateTimeText } from "@/shared/utils/displayText";
+import { formatPhone } from "@/shared/utils/formatPhone";
 import { useNotificationLog } from "../hooks/useNotificationLog";
 import {
   AUTO_SEND_TRIGGER_LABELS,
@@ -234,6 +235,7 @@ function LogRow({ item, onClick }: { item: NotificationLogItem; onClick: () => v
       <span className={styles.recipientCell}>
         <span className={styles.mobileLabel}>수신자</span>
         {item.recipient_summary || "수신자 정보 없음"}
+        {item.current_recipient_phone && <small className={styles.currentContact}>현재 연락처: {formatPhone(item.current_recipient_phone)}</small>}
       </span>
       <span className={styles.purposeCell}>
         <span className={styles.mobileLabel}>알림 종류</span>
@@ -395,6 +397,11 @@ function LogDetailModal({
 
               <section className={styles.detailGrid} aria-label="발송 기본 정보">
                 <DetailItem label="수신자">{detail.recipient_summary || "정보 없음"}</DetailItem>
+                {detail.current_recipient_phone && (
+                  <DetailItem label="현재 연락처">
+                    <a href={`tel:${detail.current_recipient_phone}`}>{formatPhone(detail.current_recipient_phone)}</a>
+                  </DetailItem>
+                )}
                 <DetailItem label="알림 종류">{notificationLabel(detail)}</DetailItem>
                 <DetailItem label="기록 시각">{koreanFullDateTimeText(detail.sent_at)}</DetailItem>
                 <DetailItem label="발송 처리 시작">

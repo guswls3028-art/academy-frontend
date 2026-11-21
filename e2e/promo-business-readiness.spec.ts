@@ -28,6 +28,12 @@ test.describe("promo business readiness", () => {
     test(`product preview zoom targets are distinct and open their own image at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(BASE + "/promo", { waitUntil: "load" });
+      for (const area of ["header", "footer"]) {
+        const logo = page.locator(`${area} a[aria-label="학원플러스 프로모션 홈"] img`).first();
+        await expect(logo).toHaveAttribute("src", "/tenants/hakwonplus/logo.png?v=20261119");
+        await expect.poll(() => logo.evaluate((img: HTMLImageElement) =>
+          img.naturalHeight > 0 && img.naturalWidth > 3 * img.naturalHeight)).toBe(true);
+      }
       const showcase = page.getByTestId("promo-real-product-showcase");
       const desktop = showcase.getByRole("button", { name: /합성 학생 출결 상태/ });
       const mobile = showcase.getByRole("button", { name: /오늘 수업과 다음 일정/ });
@@ -113,10 +119,10 @@ test.describe("promo business readiness", () => {
     await page.goto(`${BASE}/promo/video-platform`, { waitUntil: "load" });
     const studentJourney = page.getByRole("region", { name: "홈에서 영상을 찾아 복습하는 과정입니다" });
     await expect(studentJourney.locator("figure")).toHaveCount(4);
-    await expect(studentJourney.locator('img[src="/promo/student-app-home.webp"]')).toBeVisible();
-    await expect(studentJourney.locator('img[src="/promo/student-video-app.webp"]')).toBeVisible();
-    await expect(studentJourney.locator('img[src="/promo/student-video-list.webp"]')).toBeVisible();
-    await expect(studentJourney.locator('img[src="/promo/student-video-player.webp"]')).toBeVisible();
+    await expect(studentJourney.locator('img[src="/promo/student-app-home.webp?v=20261120"]')).toBeVisible();
+    await expect(studentJourney.locator('img[src="/promo/student-video-app.webp?v=20261120"]')).toBeVisible();
+    await expect(studentJourney.locator('img[src="/promo/student-video-list.webp?v=20261120"]')).toBeVisible();
+    await expect(studentJourney.locator('img[src="/promo/student-video-player.webp?v=20261120"]')).toBeVisible();
   });
 
   test("requires explicit privacy consent and preserves first-touch UTM data in the lead", async ({ page }) => {

@@ -1,7 +1,9 @@
 /**
  * 영상 댓글 섹션 - 댓글 목록 + 작성 + 대댓글 + 수정/삭제
  */
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useDialogSurface } from "@/shared/ui/overlays/useDialogSurface";
 import type { ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -269,13 +271,24 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
   const qc = useQueryClient();
   const { user } = useAuthContext();
   const queryScope = studentVideoQueryScope(user);
+  const [open, setOpen] = useState(false);
+  const [visited, setVisited] = useState(false);
+  const [previewReady, setPreviewReady] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const dialog = useRef<HTMLDivElement>(null);
+  const close = useRef<HTMLButtonElement>(null);
+  useDialogSurface(open, dialog, () => setOpen(false), close);
+  useEffect(() => {
+    const timer = setTimeout(() => setPreviewReady(true), 2000);
+    return () => clearTimeout(timer);
+  }, []);
   const [newComment, setNewComment] = useState("");
   const [replyTo, setReplyTo] = useState<number | null>(null);
 
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: studentVideoQueryKeys.comments(queryScope, videoId),
     queryFn: () => fetchVideoComments(videoId),
-    enabled: videoId > 0,
+    enabled: videoId > 0 && (previewReady || visited),
     retry: 1,
   });
 
@@ -300,16 +313,34 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
     createComment({ content: trimmedNewComment, parentId: replyTo ?? undefined });
   }, [canSubmit, createComment, replyTo, trimmedNewComment]);
 
-  return (
-    <div className={styles.section}>
+  const sample = comments.find(comment => !comment.is_deleted);
+  const preview = isError ? "댓글을 불러오지 못했습니다." : !data ? "댓글 불러오는 중…" :
+    sample ? richHtmlToPlainText(sample.content) : data.total ? "답글 보기" : "첫 댓글을 남겨보세요.";
+  return <>
+    <button type="button" ref={trigger} className={styles.preview} aria-label="댓글 보기"
+      aria-haspopup="dialog" aria-expanded={open} aria-controls={visited ? "video-comments" : undefined}
+      onClick={() => { setVisited(true); setOpen(true); }}>
+      <span className={styles.previewHeading}><MessageCircle size={17} aria-hidden />댓글{data && !isError ? " " + data.total : ""}</span>
+      <span className={styles.previewText}>{open ? "" : preview}</span>
+      <ChevronUp size={18} aria-hidden />
+    </button>
+    {visited && createPortal(<div className={styles.overlay} hidden={!open} onClick={event => {
+      if (event.target === event.currentTarget) setOpen(false);
+    }}>
+    <div className={styles.section} ref={dialog} id="video-comments" role="dialog" aria-modal="true"
+      aria-labelledby="video-comments-heading" tabIndex={-1}>
+
       <div className={styles.header}>
         <div className={styles.headerTitleGroup}>
           <span className={styles.headerIcon} aria-hidden>
             <MessageCircle size={18} />
           </span>
-          <h3 className={styles.title}>댓글</h3>
+          <h2 id="video-comments-heading" className={styles.title}>댓글</h2>
           {data && <span className={styles.countBadge}>{data.total}</span>}
         </div>
+        <button type="button" ref={close} className={styles.close} aria-label="댓글 닫기" onClick={() => setOpen(false)}>
+          <X size={20} aria-hidden />
+        </button>
       </div>
 
       <div className={styles.composer}>
@@ -382,6 +413,6 @@ export default function VideoCommentSection({ videoId }: { videoId: number }) {
           ))}
         </div>
       )}
-    </div>
-  );
+    </div></div>, trigger.current?.closest('[data-app="student"]') ?? document.body)}
+  </>;
 }

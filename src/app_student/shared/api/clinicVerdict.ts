@@ -1,3 +1,5 @@
+import { isApiError } from "@/shared/api/axios";
+
 export type ClinicIdcardResult = "SUCCESS" | "FAIL";
 export type ClinicPasscardState = "PASSED" | "CLINIC_REQUIRED" | "BOOKING_CONFIRMED";
 
@@ -19,6 +21,11 @@ export function decodeClinicVerdict(value: unknown): {
   return { current_result, passcard_state: state };
 }
 
+export function hasNoActiveClinicEnrollment(error: unknown): boolean {
+  return isApiError(error) && error.response?.status === 403
+    && (error.response.data as { code?: unknown } | null)?.code === "clinic_no_active_enrollment";
+}
+
 export function retryClinicVerdict(failureCount: number, error: unknown): boolean {
-  return !(error instanceof InvalidClinicVerdictError) && failureCount < 1;
+  return !hasNoActiveClinicEnrollment(error) && !(error instanceof InvalidClinicVerdictError) && failureCount < 1;
 }

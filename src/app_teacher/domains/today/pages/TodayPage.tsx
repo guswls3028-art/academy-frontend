@@ -2,11 +2,13 @@
 // PATH: src/app_teacher/domains/today/pages/TodayPage.tsx
 // 오늘 홈 — 우선순위 업무 + 오늘 수업 + 빠른 처리
 import DashboardAttendanceQr from "@/shared/ui/attendance/DashboardAttendanceQr";
+import StaffNoticePanel from "@/shared/staff/board/StaffNoticePanel";
 import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import useAuth from "@/auth/hooks/useAuth";
+import { canSendManualAlimtalk } from "@teacher/shared/messagePermissions";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Card, KpiCard, SectionTitle } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
@@ -35,6 +37,7 @@ export default function TodayPage() {
   const today = todayISO();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const canSend = canSendManualAlimtalk(user?.tenantRole);
 
   const sessionsQ = useQuery({
     queryKey: teacherTodayQueryKeys.sessions(today),
@@ -187,6 +190,7 @@ export default function TodayPage() {
   if (sessionsQ.isError) {
     return (
       <div className={styles.page}>
+        <StaffNoticePanel />
         <DashboardAttendanceQr />
         <EmptyState
           scope="panel"
@@ -235,6 +239,7 @@ export default function TodayPage() {
         </div>
       </section>
 
+      <StaffNoticePanel />
       <DashboardAttendanceQr />
       <div className={styles.kpiGrid}>
         <KpiCard
@@ -284,20 +289,24 @@ export default function TodayPage() {
               tone={pendingQnaCount > 0 ? "danger" : "primary"}
               onClick={() => navigate("/workspace/mobile/comms?tab=qna")}
             />
-            <QuickAction
-              icon={<Send size={ICON.md} />}
-              label="알림톡"
-              detail="학생 선택"
-              tone="primary"
-              onClick={() => navigate("/workspace/mobile/students", { state: { startSelectMode: true, preferredMessageTiming: "now" } })}
-            />
-            <QuickAction
-              icon={<Clock size={ICON.md} />}
-              label="예약 발송"
-              detail="시간 설정"
-              tone="neutral"
-              onClick={() => navigate("/workspace/mobile/students", { state: { startSelectMode: true, preferredMessageTiming: "scheduled" } })}
-            />
+            {canSend && (
+              <>
+                <QuickAction
+                  icon={<Send size={ICON.md} />}
+                  label="알림톡"
+                  detail="학생 선택"
+                  tone="primary"
+                  onClick={() => navigate("/workspace/mobile/students", { state: { startSelectMode: true, preferredMessageTiming: "now" } })}
+                />
+                <QuickAction
+                  icon={<Clock size={ICON.md} />}
+                  label="예약 발송"
+                  detail="시간 설정"
+                  tone="neutral"
+                  onClick={() => navigate("/workspace/mobile/students", { state: { startSelectMode: true, preferredMessageTiming: "scheduled" } })}
+                />
+              </>
+            )}
           </div>
 
           <SectionTitle

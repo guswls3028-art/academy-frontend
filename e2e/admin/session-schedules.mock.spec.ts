@@ -474,7 +474,7 @@ for (const width of [390, 1366]) test(`성적 탭이 열리는 중에 누른 수
   expect(state.reads).toContainEqual({ kind: 'scores', scope: '72' });
 });
 
-for (const width of [390, 1366]) test(`성적 초안을 읽는 중에도 수업일별 명단을 조회한다 ${width}px`, async ({ page }) => {
+for (const [width, action] of [[390, "manage"], [1366, "manage"], [390, "add"], [1366, "pencil"], [1366, "gear"]] as const) test(`성적 초안을 읽는 중에도 수업일별 명단을 조회한다 ${width}px ${action}`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 });
   const state = fixture(true); await install(page, state);
   const draftPath = '/api/v1/results/admin/sessions/9902/score-draft/';
@@ -498,7 +498,21 @@ for (const width of [390, 1366]) test(`성적 초안을 읽는 중에도 수업�
     await draftRead;
     await expect(page.getByRole('checkbox', { name: '김수연 선택', exact: true })).toBeVisible();
     expect(writes).toEqual([]);
-    const thursday = page.getByRole('region', { name: '수업일 선택', exact: true }).getByRole('button', { name: /^목요일반/ });
+    const strip = page.getByRole('region', { name: '수업일 선택', exact: true });
+    const manage = strip.getByRole('button', { name: '수업일 관리', exact: true });
+    const pending = strip.getByRole('status').filter({ hasText: '이전 성적 입력을 확인하는 중…' });
+    await expect(pending).toBeVisible();
+    const queued = strip.getByRole('status').filter({ hasText: '수업일 관리를 열기 전에 이전 성적 입력을 확인하는 중…' });
+    await expect(manage).toBeEnabled();
+    const add = strip.getByRole('button', { name: '수업일 추가', exact: true });
+    const pencil = strip.getByRole('button', { name: '수업일 수정 · 수요일반', exact: true });
+    await expect(add).toBeEnabled();
+    await expect(pencil).toBeEnabled();
+    const modal = page.getByRole('dialog', { name: '수업일 관리', exact: true });
+    await manage.click();
+    await expect(queued).toBeVisible();
+    await expect(modal).toBeHidden();
+    const thursday = strip.getByRole('button', { name: /^목요일반/ });
     await thursday.click();
     await expect(page).toHaveURL(/scores\?schedule=72$/);
     await expect(page.getByRole('checkbox', { name: '이목현 선택', exact: true })).toBeVisible();
@@ -506,11 +520,57 @@ for (const width of [390, 1366]) test(`성적 초안을 읽는 중에도 수업�
     expect(state.reads).toContainEqual({ kind: 'scores', scope: '72' });
     expect(writes).toEqual([]);
 
+    await expect(queued).toBeHidden();
+    await expect(manage).toBeEnabled();
+    if (action === 'gear') {
+      const openSettings = async (label: string) => {
+        const card = page.getByRole('region', { name: `${label} 차시 카드`, exact: true });
+        await card.getByRole('button', { name: '차시 설정', exact: true }).press('Enter');
+        await page.getByRole('menu', { name: '차시 설정 메뉴' }).getByRole('button', { name: '수정', exact: true }).click();
+        return page.getByRole('dialog', { name: '차시 설정 편집' });
+      };
+      const previous = await openSettings('1차시');
+      await expect(previous.getByRole('button', { name: '수업일 관리', exact: true })).toBeDisabled();
+      await previous.getByRole('button', { name: '취소', exact: true }).click();
+      const current = await openSettings('2차시');
+      await current.getByLabel('차시 이름 (선택)', { exact: true }).fill('저장하지 않은 이름');
+      await current.getByRole('button', { name: '수업일 관리', exact: true }).click();
+      const discard = page.getByRole('alertdialog', { name: '저장하지 않은 차시 수정이 있습니다', exact: true });
+      await expect(discard).toBeVisible();
+      await discard.getByRole('button', { name: '취소', exact: true }).click();
+      await expect(current.getByLabel('차시 이름 (선택)', { exact: true })).toHaveValue('저장하지 않은 이름');
+      await expect(queued).toHaveCount(0);
+      await current.getByRole('button', { name: '수업일 관리', exact: true }).click();
+      await discard.getByRole('button', { name: '수업일 관리 열기', exact: true }).click();
+    } else {
+      await (action === 'add' ? add : action === 'pencil' ? pencil : manage).click();
+    }
+    await expect(queued).toBeVisible();
+    await expect(modal).toBeHidden();
     const draftResponse = page.waitForResponse(response => new URL(response.url()).pathname === draftPath && response.request().method() === 'GET');
     releaseDraft();
     expect((await draftResponse).status()).toBe(200);
     await expect(thursday).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByRole('checkbox', { name: '이목현 선택', exact: true })).toBeVisible();
+    await expect(pending).toBeHidden();
+    await expect(modal).toBeVisible();
+    if (action === 'add') {
+      const name = modal.getByLabel('수업일 3 이름', { exact: true });
+      await expect(name).toHaveValue('');
+      await name.click();
+      await expect(name).toBeFocused();
+      await page.keyboard.insertText('새 수업일');
+      await expect(name).toHaveValue('새 수업일');
+    } else {
+      if (action !== 'pencil') {
+        await expect(modal.getByLabel('수업일 2 이름', { exact: true })).toHaveValue('목요일반');
+        await modal.getByRole('region', { name: '수업일 목록', exact: true }).getByRole('button', { name: /^수요일반/ }).click();
+      }
+      const name = modal.getByLabel('수업일 1 이름', { exact: true });
+      await expect(name).toHaveValue('수요일반');
+      await name.fill('수요일 편집 중');
+      await expect(name).toHaveValue('수요일 편집 중');
+    }
     expect(writes).toEqual([]);
   } finally {
     releaseDraft();
@@ -571,12 +631,19 @@ for (const width of [390, 1366]) test(`다른 반의 성적 초안은 전체 성
     await expect(page).toHaveURL(/scores\?schedule=72$/);
     await expect(thu).toBeVisible();
     await expect(wed).toHaveCount(0);
+    const strip = page.getByRole('region', { name: '수업일 선택', exact: true });
+    const management = page.getByRole('dialog', { name: '수업일 관리', exact: true });
+    await strip.getByRole('button', { name: '수업일 관리', exact: true }).click();
+    const queued = strip.getByRole('status').filter({ hasText: '수업일 관리를 열기 전에 이전 성적 입력을 확인하는 중…' });
+    await expect(queued).toBeVisible();
     releaseDraft();
 
     const review = page.getByRole('dialog', { name: /임시저장된 변경 2건/ });
     const values = review.getByRole('list', { name: '복원할 성적 변경' });
     const restore = review.getByRole('button', { name: '복원 후 수정', exact: true });
     await expect(review).toBeVisible();
+    await expect(queued).toBeHidden();
+    await expect(management).toBeHidden();
     expect(writes).toEqual([]);
     await expect(restore).toHaveCount(0);
     await review.getByRole('button', { name: '전체 성적에서 초안 확인', exact: true }).click();

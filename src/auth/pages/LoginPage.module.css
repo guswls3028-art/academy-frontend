@@ -134,6 +134,15 @@
   margin-top: 0.25rem;
 }
 
+.fieldLabel {
+  display: block;
+  margin-bottom: 0.45rem;
+  color: var(--auth-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: left;
+}
+
 /* 스크린리더 전용 라벨 */
 .srOnly {
   position: absolute;

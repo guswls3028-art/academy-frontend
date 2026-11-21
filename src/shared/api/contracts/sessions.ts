@@ -1,4 +1,5 @@
 import api from "@/shared/api/axios";
+import type { SessionScheduleDate } from "@/shared/product/sessions/sessionScheduleDisplay";
 import {
   sortSessionsByDateDesc,
   sortSessionsByDisplayOrder,
@@ -39,6 +40,7 @@ export interface Session {
   display_label?: string | null;
   title: string;
   date?: string | null;
+  schedule_dates?: SessionScheduleDate[];
   created_at: string;
   updated_at: string;
 }

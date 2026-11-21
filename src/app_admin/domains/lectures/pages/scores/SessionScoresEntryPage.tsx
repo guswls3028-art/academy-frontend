@@ -9,7 +9,7 @@
  * 2026-05-12: 범용 발송 버튼 제거 — 학원장 임근혁 보고. 단일 알림톡 경로로 통일.
  */
 
-import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { lazy, Suspense, useState, useMemo, useRef, useEffect, useCallback, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, ChartColumn, ChevronDown, ClipboardCheck, FileText, HeartPulse, LayoutGrid, LockKeyhole, Pencil, Plus, Printer, ScanLine, Trophy, Upload, UserRound, Users } from "lucide-react";
@@ -140,7 +140,8 @@ const OmrReviewWorkspace = lazy(() => import("@admin/domains/results/components/
 export default function SessionScoresEntryPage({
   onOpenCreateExam,
   onOpenCreateHomework,
-}: SessionScoresEntryPageProps = {}) {
+  sessionPicker,
+}: SessionScoresEntryPageProps & { sessionPicker?: ReactNode } = {}) {
   const { sessionId: sessionIdParam, lectureId: lectureIdParam } = useParams<{ lectureId: string; sessionId: string }>();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -804,11 +805,16 @@ export default function SessionScoresEntryPage({
       setIsSaving(false);
     }
   };
+  const hasRecoveryBlock = draft.recoveryCheckFailed || draft.editLockConflict || draft.hasDraftToRestore;
+  const managementReadiness = draft.isRecoveryCheckPending
+    ? "pending"
+    : hasRecoveryBlock || isSaving || draft.isStartingEdit || isEditMode || draft.hasPendingChanges
+      ? "blocked"
+      : "ready";
   useBeforeScheduleChange(async (action) => {
     const canViewWhileCheckingDraft = action === "view" && !isEditMode && !draft.hasPendingChanges
       && draft.draftStatus !== "saving" && draft.draftStatus !== "error";
-    const recoveryBlocksChange = draft.recoveryCheckFailed || draft.editLockConflict || draft.hasDraftToRestore
-      || (draft.isRecoveryCheckPending && !canViewWhileCheckingDraft);
+    const recoveryBlocksChange = hasRecoveryBlock || (draft.isRecoveryCheckPending && !canViewWhileCheckingDraft);
     if (isSaving || draft.isStartingEdit || recoveryBlocksChange) {
       feedback.info("진행 중인 저장이나 복구를 마친 뒤 다시 시도해 주세요.");
       return false;
@@ -820,7 +826,7 @@ export default function SessionScoresEntryPage({
     setShowBulkScoreModal(false);
     setShowStudentReport(false);
     return true;
-  });
+  }, managementReadiness);
   const selectedHasSubjectivePending = (data?.rows ?? []).some((row) => (
     selectedEnrollmentIds.includes(row.enrollment_id)
     && isScoreAlimtalkAttendance(row, includeVideoInScoreAlimtalk)
@@ -1657,6 +1663,8 @@ export default function SessionScoresEntryPage({
     </div>
   );
 
+  const useCompactToolbar = isMobile && hasExamsOrHomeworks;
+
   return (
     <div className="scores-entry-page flex flex-col gap-3">
       {!isLoading && !isError && !hasExamsOrHomeworks && (
@@ -1691,9 +1699,10 @@ export default function SessionScoresEntryPage({
           />
         }
         filterSlot={null}
-        primaryAction={primaryAction}
+        compactMobile={useCompactToolbar}
+        primaryAction={useCompactToolbar ? null : primaryAction}
         belowSlot={<div className="scores-toolbar-body">
-          <div className="scores-toolbar-actions" role="group" aria-label="성적 편집과 출력">
+          <div className="scores-toolbar-actions" data-compact={useCompactToolbar || undefined} role="group" aria-label="성적 편집과 출력">
             {editAction}
             {isEditMode && <>
               <Button type="button" intent="secondary" size="sm" disabled={isSaving || recoveryBlocked}
@@ -1701,6 +1710,14 @@ export default function SessionScoresEntryPage({
               <Button type="button" intent="secondary" size="sm" disabled={isSaving || recoveryBlocked}
                 aria-label="성적 변경 다시 실행" onClick={() => changeScoreHistory(true, true)}>다시 실행</Button>
             </>}
+            {(useCompactToolbar || sessionPicker) && (
+              <details className="scores-management">
+                <summary>{useCompactToolbar ? "차시·성적 작업" : "차시·수업일 선택"}</summary>
+                {sessionPicker}
+                {useCompactToolbar && primaryAction}
+                {useCompactToolbar && outputActions}
+              </details>
+            )}
             <span className="scores-draft-status text-xs text-[var(--color-text-muted)]" role="status" aria-live="polite">
               {!isEditMode ? (
                 draft.editLockConflict ? (
@@ -1784,7 +1801,7 @@ export default function SessionScoresEntryPage({
                 </>
               )}
             </span>
-            {outputActions}
+            {!useCompactToolbar && outputActions}
           </div>
           {selectionBar}
         </div>}

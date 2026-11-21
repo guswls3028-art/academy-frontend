@@ -67,6 +67,8 @@ export interface NotificationLogItem {
   amount_deducted: string;
   /** 수신자 수 또는 요약 */
   recipient_summary?: string;
+  /** 동일 학원의 현재 연락처. 과거 실제 발송 번호를 뜻하지 않는다. */
+  current_recipient_phone?: string;
   /** 템플릿/제목 요약 */
   template_summary?: string;
   /** 실패 시 사유 */

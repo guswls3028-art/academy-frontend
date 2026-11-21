@@ -304,6 +304,7 @@ async function installApi(
   options: {
     studentPoints?: TrendPoint[];
     beforeAnalytics?: () => boolean | Promise<boolean>;
+    beforeSummary?: () => Promise<void>;
     reportLayout?: unknown;
     analyticsRequests?: string[];
     lectureOptions?: LectureOption[];
@@ -410,6 +411,7 @@ async function installApi(
     }
     if (path.endsWith("/student/grades/")) {
       selectedHeaders.push(rawSelectedId ?? "missing");
+      await options.beforeSummary?.();
       await route.fulfill({
         json: {
           ...gradesFor(selectedPoints),
@@ -434,6 +436,98 @@ async function installApi(
 test.describe("학생·학부모 회차별 누적 성적", () => {
   test.skip(!isLocalBase(BASE), "Local route-mock visual contract spec.");
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
+
+  test("공개 풀이 기록과 과제 점수·온라인 제출 상태를 구분한다", async ({ page }) => {
+    const inspection: MyHomeworkGradeSummary = {
+      ...unscoredHomework, lecture_id: 501, title: "현장 풀이 기록", grading_mode: "SCORE",
+      achievement: "NOT_SUBMITTED", passed: false, submission_state: "needs_submission",
+      practice_inspection: { solved: 3, total: 5, feedback: "두 문제를 더 확인해요." },
+    };
+    const rows: MyHomeworkGradeSummary[] = [
+      inspection,
+      { ...inspection, homework_id: 903, title: "통과형 제출물", grading_mode: "COMPLETION",
+        submission_state: "awaiting_review", achievement: null, passed: null },
+      { ...inspection, homework_id: 904, title: "영상 보강 풀이", inspection_status: "VIDEO_MAKEUP" },
+      { ...inspection, homework_id: 905, title: "채점된 풀이", score: 0, achievement: "FAIL" },
+    ];
+    await installApi(page, "student", { studentPoints: [], gradeSummary: { exams: [], homeworks: rows } });
+    await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: /과제 검사 결과 4건 보기/ }).click();
+    const card = (title: string) => page.locator(".stu-panel[data-session-type]").filter({
+      has: page.getByText(title, { exact: true }),
+    });
+    const practice = card("현장 풀이 기록");
+    await expect(practice.getByRole("region", { name: "과제 검사 결과" })).toContainText("3/5문제 풀이");
+    await expect(practice).toContainText("점수 미입력");
+    await expect(practice).toContainText("온라인 제출 필요");
+    await expect(practice).not.toContainText("미제출");
+    await expect(practice.getByRole("progressbar")).toHaveCount(0);
+    await expect(card("통과형 제출물")).toContainText("통과 판정 미입력");
+    await expect(card("통과형 제출물")).toContainText("온라인 제출물 확인 대기");
+    await expect(card("영상 보강 풀이")).toContainText("영상 보강 검사 대기");
+    await expect(card("영상 보강 풀이")).not.toContainText("온라인 제출 필요");
+    await expect(card("채점된 풀이")).toContainText("0/100");
+    await expect(card("채점된 풀이").getByRole("progressbar")).toHaveAttribute("value", "0");
+  });
+
+  for (const viewer of ["student", "parent"] as const) {
+    for (const width of [1366, 390]) {
+      for (const entry of ["tab", "link"] as const) {
+        test(`@grade-stats-intent ${viewer} ${width}px ${entry} 분석 파일만 요약 응답과 병렬로 읽는다`, async ({ page }, testInfo) => {
+          await page.setViewportSize({ width, height: 900 });
+          let releaseSummary!: () => void;
+          const held = new Promise<void>(resolve => { releaseSummary = resolve; });
+          const analyticsRequests: string[] = [];
+          const summaryHeaders: string[] = [];
+          const staticRequests: string[] = [];
+          page.on("request", request => {
+            const path = new URL(request.url()).pathname;
+            if (path.endsWith("/GradesStatsTab.tsx") || /\/GradesStatsTab-[^/]+\.js$/.test(path)) {
+              staticRequests.push(path);
+            }
+            if (path.endsWith("/student/grades/")) {
+              summaryHeaders.push(request.headers()["x-student-id"] ?? "missing");
+            }
+          });
+          const selectedHeaders = await installApi(page, viewer, {
+            analyticsRequests, beforeSummary: () => held,
+          });
+          try {
+            await page.goto(`${BASE}/student/grades${entry === "link" ? "?tab=stats" : ""}`, { waitUntil: "domcontentloaded" });
+            if (viewer === "parent") {
+              await expect(page.getByRole("heading", { name: "확인할 자녀를 선택해 주세요" })).toBeVisible();
+              expect(summaryHeaders).toEqual([]);
+              expect(staticRequests).toEqual([]);
+              // Restore the normal tenant+parent-scoped saved choice without
+              // detouring through Dashboard (which also reads grades).
+              await page.evaluate(() => localStorage.setItem("parent_selected_student_id_ymath_2", "11"));
+              await page.reload({ waitUntil: "domcontentloaded" });
+            }
+            await expect.poll(() => summaryHeaders.length).toBe(1);
+            if (entry === "tab") {
+              // Ordinary summary entry must not fetch the optional module.
+              expect(staticRequests).toEqual([]);
+              await page.getByRole("tab", { name: "추이 분석", exact: true }).click();
+            }
+            // This must happen while the real summary request is still held.
+            await expect.poll(() => staticRequests.length).toBe(1);
+            expect(analyticsRequests).toEqual([]);
+            expect(summaryHeaders).toEqual([viewer === "parent" ? "11" : "missing"]);
+          } finally {
+            releaseSummary();
+          }
+          await expect(page.getByTestId("student-score-trend")).toBeVisible();
+          await expect.poll(() => analyticsRequests.length).toBe(1);
+          expect(summaryHeaders).toHaveLength(1);
+          expect(selectedHeaders).toEqual(viewer === "parent" ? ["11", "11"] : ["missing", "missing"]);
+          await testInfo.attach("stats-intent-order", { contentType: "application/json", body: JSON.stringify({
+            viewer, width, entry, staticBeforeSummary: true, summaryRequests: summaryHeaders.length,
+            analyticsRequests: analyticsRequests.length, selectedHeaders,
+          }) });
+        });
+      }
+    }
+  }
 
   for (const viewer of ["student", "parent"] as const) {
     for (const width of [1366, 390]) {

@@ -86,7 +86,8 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
                   <div className={styles.title}>{e.title}</div>
                   <div className={`stu-muted ${styles.meta}`}>
                     {e.session_title && `${e.session_title} · `}
-                    {examScoreLabel(e)}
+                    <strong>{examScoreLabel(e)}</strong>
+                    {hasQuestionAnalysis && e.correct_count != null && ` · 정답 ${e.correct_count}/${e.total_questions}문항`}
                   </div>
                   {provisional && (
                     <Badge size="xs" tone="warning">{subjectivePending ? "서술형 채점 중" : "채점 확인 중"}</Badge>
@@ -127,11 +128,6 @@ export default function LectureExamGroup({ group, labels }: { group: ExamGroup; 
                     )}
                     {!provisional && e.cohort_size != null && e.cohort_size > 0 && e.meta_status !== "NOT_SUBMITTED" && (
                       <span className={styles.cohortBadge}>{e.cohort_size}명 응시</span>
-                    )}
-                    {!provisional && e.total_score != null && e.max_score > 0 && (
-                      <span className={styles.scorePercent}>
-                        {Math.round((e.total_score / e.max_score) * 100)}%
-                      </span>
                     )}
                   </div>
                 </div>

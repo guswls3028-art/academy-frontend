@@ -71,6 +71,34 @@ test("Cloudflare public guide supports direct reading URLs and canonical metadat
   }
 });
 
+test("정성원영어 serves its share card and both role manifests on apex and www without program metadata", async () => {
+  const indexHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("{}", { status: 404 });
+  try {
+    for (const host of ["xn--oj4bo6fugp3an0c.com", "www.xn--oj4bo6fugp3an0c.com"]) {
+      const getDocument = (path: string) => onRequestGet({
+        request: new Request(`https://${host}${path}`),
+        env: { ASSETS: { fetch: async () => new Response(indexHtml, {
+          headers: { "Content-Type": "text/html; charset=utf-8" },
+        }) } },
+      } as never);
+      const html = await (await getDocument("/login/jeongseongwon-lab")).text();
+      expect(html).toContain("<title>정성원영어</title>");
+      expect(html).toContain('<meta property="og:title" content="정성원영어"');
+      expect(html).toContain('<meta property="og:description" content="정성원영어의 수업 일정, 과제와 성적을 확인하는 학습 공간입니다."');
+      expect(html).toContain("/tenants/jeongseongwon-lab/og-image.png");
+      for (const role of ["teacher", "student"]) {
+        const manifest = await getDocument(`/${role}-manifest.json`);
+        expect(manifest.status).toBe(200);
+        expect(await manifest.json()).toMatchObject({ short_name: "정성원영어" });
+      }
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5174";
 
 test("feature books contain 5/43 complete hashed image pages and optional valid PDFs", () => {
@@ -192,6 +220,27 @@ test("Cloudflare guide videos preserve byte ranges and missing media never retur
     expect(await missing.text()).not.toContain("<html>");
   }
 });
+test("old guide links open the current edition while embedded recordings keep their byte ranges", async () => {
+  const previous = "https://hakwonplus.com/guide-media/admin-attendance-3fb37f672430";
+  const current = "https://hakwonplus.com/guide-media/admin-attendance-3b3138750a56";
+  const assets = { ASSETS: { fetch: async () => new Response("ftyp", {
+    status: 206, headers: { "Content-Type": "video/mp4", "Content-Range": "bytes 4-7/100" },
+  }) } };
+  const still = await onRequestGet({ request: new Request(previous + "/01.jpg"), env: assets } as never);
+  expect(still.headers.get("Location")).toBe(current + "/01.jpg");
+  const video = previous + "/walkthrough.mp4";
+  const bookmark = await onRequestGet({
+    request: new Request(video, { headers: { "Sec-Fetch-Mode": "navigate" } }), env: assets,
+  } as never);
+  expect(bookmark.status).toBe(307);
+  expect(bookmark.headers.get("Location")).toBe(current + "/walkthrough.mp4");
+  const playback = await onRequestGet({
+    request: new Request(video, { headers: { Range: "bytes=4-7" } }), env: assets,
+  } as never);
+  expect(playback.status).toBe(206);
+  expect(playback.headers.get("Content-Range")).toBe("bytes 4-7/100");
+});
+
 const GUIDES = [
   { role: "admin", label: "관리자·선생님", articles: ADMIN_WORKFLOWS },
   { role: "teacher", label: "직원·강사", articles: TEACHER_WORKFLOWS },

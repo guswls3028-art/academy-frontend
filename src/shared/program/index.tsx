@@ -59,11 +59,15 @@ function plainOptional(value: string | undefined): string | undefined {
 }
 
 function normalizeProgramDisplay(program: Program): Program {
+  const logo = program.ui_config?.logo_url;
+  const isBuiltInLogo = program.tenantCode === "hakwonplus" && logo &&
+    /^(?:https:\/\/(?:www\.)?hakwonplus\.com)?\/tenants\/hakwonplus\/logo\.png(?:\?[^#]*)?$/.test(logo);
   return {
     ...program,
     display_name: richHtmlToPlainText(program.display_name),
     ui_config: {
       ...program.ui_config,
+      logo_url: isBuiltInLogo ? getTenantBranding(1).logoUrl : logo,
       login_title: plainOptional(program.ui_config?.login_title),
       login_subtitle: plainOptional(program.ui_config?.login_subtitle),
       window_title: plainOptional(program.ui_config?.window_title),

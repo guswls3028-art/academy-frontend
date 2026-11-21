@@ -32,7 +32,7 @@ export default function QrScanPage() {
   const [cameraReady, setCameraReady] = useState(false);
   const [pending, setPending] = useState("");
   const [error, setError] = useState("");
-  const [token, setToken] = useState("");
+  const [scanLink, setScanLink] = useState("");
   const [resolution, setResolution] = useState<QrResolution | null>(null);
   const [receipt, setReceipt] = useState<QrReceipt | null>(null);
   const [savedLabel, setSavedLabel] = useState("");
@@ -61,16 +61,21 @@ export default function QrScanPage() {
     busyRef.current = true;
     scanner.current?.stop();
     setCamera(false);
-    setError(""); setReceipt(null); setResolution(null); setToken("");
+    setError(""); setReceipt(null); setResolution(null); setScanLink("");
     setPending("오늘의 수업·예약을 확인하고 있습니다…");
     try {
-      const qrToken = parseQrUrl(raw);
-      setToken(qrToken);
-      const result = await resolveAttendanceQr(qrToken);
+      const { token, sessionId } = parseQrUrl(raw);
+      setScanLink(raw);
+      const result = await resolveAttendanceQr(token);
       if (!mounted.current || (fromLink && window.location.href !== raw)) return;
-      setResolution(result);
-      if (result.point.kind === "class" && result.choices.length === 1 && result.choices[0].can_check_in) {
-        await save(qrToken, result.choices[0], "check_in");
+      const choices = sessionId === null ? result.choices
+        : result.choices.filter(choice => result.point.kind === "class" && choice.id === sessionId);
+      if (sessionId !== null && !choices.length) {
+        throw new Error("이 QR의 차시는 오늘 내 출석 대상이 아닙니다. 수업 일정을 확인하거나 해당 차시의 QR을 다시 스캔해 주세요.");
+      }
+      setResolution({ ...result, choices });
+      if (result.point.kind === "class" && choices.length === 1 && choices[0].can_check_in) {
+        await save(token, choices[0], "check_in");
       }
     } catch (err) {
       if (mounted.current) setError(extractApiError(err, err instanceof Error ? err.message : "QR 확인에 실패했습니다. 다시 시도해 주세요."));
@@ -129,14 +134,18 @@ export default function QrScanPage() {
   const submit = async (choice: QrChoice, action: QrAction) => {
     if (busyRef.current) return;
     busyRef.current = true; setError("");
-    try { await save(token, choice, action); }
+    try { await save(parseQrUrl(scanLink).token, choice, action); }
     catch (err) { if (mounted.current) setError(extractApiError(err, "저장을 확인하지 못했습니다. 같은 버튼을 다시 눌러 확인해 주세요. 중복 기록되지 않습니다.")); }
     finally { busyRef.current = false; if (mounted.current) setPending(""); }
   };
 
+  const clearScan = () => {
+    setError(""); setReceipt(null); setResolution(null); setScanLink("");
+  };
+
   const readPhoto = async (file?: File) => {
     if (!file || busyRef.current) return;
-    setCamera(false); setError("");
+    setCamera(false); clearScan();
     if (file.size > 20 * 1024 * 1024) { setError("20MB 이하의 QR 사진을 선택해 주세요."); return; }
     busyRef.current = true; setPending("QR 사진을 읽고 있습니다…");
     let raw: string | null = null;
@@ -160,7 +169,7 @@ export default function QrScanPage() {
         <h2>{receipt.detail}</h2><p>{savedLabel}</p><strong>{timeLabel(receipt.recorded_at)}</strong>
         <p>저장된 기록은 새로고침해도 유지됩니다.</p>
         <Link to={receipt.kind === "clinic" ? "/student/clinic" : "/student/attendance"}>내 {receipt.kind === "clinic" ? "클리닉" : "출결"} 기록 보기</Link>
-        <button type="button" className={styles.secondary} onClick={() => { setReceipt(null); setResolution(null); setError(""); setCamera(true); }}>다른 QR 스캔</button>
+        <button type="button" className={styles.secondary} onClick={() => { clearScan(); setCamera(true); }}>다른 QR 스캔</button>
       </section> : <>
         <section className={styles.camera} aria-label="QR 카메라">
           <video ref={video} playsInline muted aria-label="카메라 미리보기" className={camera ? styles.video : styles.hiddenVideo} />
@@ -168,7 +177,7 @@ export default function QrScanPage() {
           {camera && !cameraReady && <p className={styles.cameraStatus} role="status">카메라를 여는 중…</p>}
         </section>
         <div className={styles.controls}>
-          <button type="button" className={styles.primary} disabled={Boolean(pending)} onClick={() => { setError(""); setCamera(!camera); }}>
+          <button type="button" className={styles.primary} disabled={Boolean(pending)} onClick={() => { clearScan(); setCamera(!camera); }}>
             <Camera size={ICON.md} aria-hidden="true" />{camera ? "카메라 끄기" : "카메라로 QR 스캔"}
           </button>
           <label className={styles.photo}>QR 사진 촬영·선택<input type="file" accept="image/*" capture="environment" disabled={Boolean(pending)} onChange={(event) => { void readPhoto(event.target.files?.[0]); event.target.value = ""; }} /></label>
@@ -193,7 +202,7 @@ export default function QrScanPage() {
           <form onSubmit={(event) => { event.preventDefault(); void decode(paste); }}><label>출결 QR 링크<input type="url" value={paste} onChange={(event) => setPaste(event.target.value)} required placeholder="https://…/student/attendance/scan#qr=…" /></label><button className={styles.secondary} disabled={Boolean(pending)}>링크 확인</button></form>
         </details>
       </>}
-      {error && <div role="alert" className={styles.error}><p>{error}</p>{token && <button type="button" className={styles.secondary} disabled={Boolean(pending)} onClick={() => { void decode(`${window.location.origin}/student/attendance/scan#qr=${token}`); }}>같은 QR 다시 확인</button>}</div>}
+      {error && <div role="alert" className={styles.error}><p>{error}</p>{scanLink && <button type="button" className={styles.secondary} disabled={Boolean(pending)} onClick={() => { void decode(scanLink); }}>같은 QR 다시 확인</button>}</div>}
     </div>
   </StudentPageShell>;
 }

@@ -7,6 +7,7 @@ import MobileWorkspaceRedirect, {
 } from "./MobileWorkspaceRedirect";
 import ErrorBoundary from "@/shared/ui/ErrorBoundary";
 import RouteFallback from "./RouteFallback";
+import { renderLazyRoute } from "./renderLazyRoute";
 import ExternalRedirect from "./ExternalRedirect";
 import { ProductAnalyticsProvider } from "@/shared/productAnalytics";
 import {
@@ -31,8 +32,6 @@ import AuthRouter from "./AuthRouter";
 
 import TenantRequiredPage from "@/auth/pages/TenantRequiredPage";
 import MaintenancePage from "@admin/domains/maintenance/pages/MaintenancePage";
-import TermsPage from "@admin/domains/legal/pages/TermsPage";
-const PrivacyPage = lazy(() => import("@admin/domains/legal/pages/PrivacyPage"));
 import useAuth from "@/auth/hooks/useAuth";
 import { useProgram } from "@/shared/program";
 import { resolveTenantCode } from "@/shared/tenant";
@@ -48,6 +47,8 @@ import {
 } from "@/shared/constants/origins";
 
 const FullWorkspaceRouter = lazy(() => import("@admin/app/AdminRouter"));
+const TermsPage = lazy(() => import("@admin/domains/legal/pages/TermsPage"));
+const PrivacyPage = lazy(() => import("@admin/domains/legal/pages/PrivacyPage"));
 const DevAppRouter = lazy(() => import("@dev/app/DevAppRouter"));
 const PromoRouter = lazy(() => import("@promo/app/PromoRouter"));
 const LandingRouter = lazy(() => import("@/landing/app/LandingRouter"));
@@ -175,10 +176,8 @@ export default function AppRouter() {
     <ProductAnalyticsProvider>
       <Routes>
       <Route path="/login/*" element={<AuthRouter />} />
-      <Route path="/terms" element={<TermsPage />} />
-      <Route path="/privacy" element={
-        <Suspense fallback={<RouteFallback fullPage />}><PrivacyPage /></Suspense>
-      } />
+      <Route path="/terms" element={renderLazyRoute(TermsPage)} />
+      <Route path="/privacy" element={renderLazyRoute(PrivacyPage)} />
       <Route path="/support-preview-ended" element={<SupportPreviewEndedPage />} />
       <Route element={<PromoGuard />}>
         <Route

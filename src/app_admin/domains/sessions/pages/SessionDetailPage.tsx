@@ -144,10 +144,12 @@ export default function SessionDetailPage() {
   }
 
   const assessmentRemoteKind = SESSION_ASSESSMENT_REMOTE_KIND_BY_TAB[activeTab];
+  const useCompactScoreEntry = isMobile && activeTab === "scores"
+    && !searchParams.has("schedule") && !controls?.blockedNotice;
   const hasAttendanceChooser = activeTab === "attendance" && searchParams.get("view") === "sessions";
   const showSessionStrip =
     (activeTab === "attendance" && !isMobile && !hasAttendanceChooser) ||
-    activeTab === "scores" ||
+    (activeTab === "scores" && !useCompactScoreEntry) ||
     activeTab === "exams" ||
     activeTab === "assignments";
 
@@ -160,7 +162,7 @@ export default function SessionDetailPage() {
         </div>
       )}
 
-      {!showSessionStrip && (!hasAttendanceChooser || controls?.blockedNotice) && (
+      {!showSessionStrip && !useCompactScoreEntry && (!hasAttendanceChooser || controls?.blockedNotice) && (
         <div className="session-detail-session-strip">
           <CompactSessionScheduleCard />
         </div>
@@ -218,6 +220,7 @@ export default function SessionDetailPage() {
             {activeTab === "scores" && (
               <SessionScoresEntryPage
                 key={sId}
+                sessionPicker={useCompactScoreEntry ? <SessionBlock lectureId={lecId} currentSessionId={sId} /> : undefined}
                 onOpenCreateExam={() => setOpenCreateExam(true)}
                 onOpenCreateHomework={() => setOpenCreateHomework(true)}
               />

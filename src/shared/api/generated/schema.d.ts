@@ -1925,6 +1925,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/core/dev/agent-sessions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Read-only coding-session metadata for tenant 1's admin97. Impersonation and support previews are denied. */
+        get: operations["core_dev_agent_sessions_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/core/dev/audit/": {
         parameters: {
             query?: never;
@@ -9092,6 +9109,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/results/admin/sessions/{session_id}/homework/{homework_id}/inspection/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["results_admin_sessions_homework_inspection_retrieve"];
+        put?: never;
+        post: operations["results_admin_sessions_homework_inspection_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/admin/sessions/{session_id}/homework/{homework_id}/inspection/workbook/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["results_admin_sessions_homework_inspection_workbook_retrieve"];
+        put?: never;
+        post: operations["results_admin_sessions_homework_inspection_workbook_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/results/admin/sessions/{session_id}/reorder/": {
         parameters: {
             query?: never;
@@ -9723,6 +9772,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/staffs/board/posts/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["staffs_board_posts_list"];
+        put?: never;
+        post: operations["staffs_board_posts_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staffs/board/posts/{id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["staffs_board_posts_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["staffs_board_posts_partial_update"];
+        trace?: never;
+    };
+    "/api/v1/staffs/board/posts/{id}/attachment/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["staffs_board_posts_attachment_retrieve"];
+        put?: never;
+        post?: never;
+        delete: operations["staffs_board_posts_attachment_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staffs/board/posts/{id}/replies/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["staffs_board_posts_replies_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/staffs/currently-working/": {
         parameters: {
             query?: never;
@@ -9781,7 +9894,7 @@ export interface paths {
         };
         get: operations["staffs_me_retrieve"];
         put?: never;
-        post?: never;
+        post: operations["staffs_me_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -10398,7 +10511,7 @@ export interface paths {
          *     학생 본인(또는 학부모 대리 계정)이 "내 일정" 휴지통을 눌렀을 때 호출.
          *     오늘 이전(어제까지) 차시/클리닉 예약을 화면에서 모두 숨김.
          *     실제 차시/예약 데이터는 학원/선생 소유이므로 절대 삭제하지 않고,
-         *     Student.schedule_hidden_before 컷오프만 갱신.
+         *     학생의 숨김 컷오프와 그 이후에 숨긴 일정 목록을 저장한다.
          */
         post: operations["student_sessions_clear_past_create"];
         delete?: never;
@@ -15134,6 +15247,59 @@ export interface components {
          * @enum {string}
          */
         InitialAccountNoticeStateSchemaStatusEnum: "not_pending" | "awaiting_enrollment" | "action_required";
+        InspectionBatchRequest: {
+            rows: components["schemas"]["InspectionChangeRequest"][];
+        };
+        InspectionChange: {
+            enrollment_id: number;
+            feedback?: string;
+            solved?: number | null;
+            total?: number | null;
+            version: number;
+        };
+        InspectionChangeRequest: {
+            enrollment_id: number;
+            feedback?: string;
+            solved?: number | null;
+            total?: number | null;
+            version: number;
+        };
+        InspectionPreview: {
+            errors: string[];
+            rows: components["schemas"]["InspectionPreviewRow"][];
+        };
+        InspectionPreviewRow: {
+            before: components["schemas"]["InspectionRosterRow"];
+            change: components["schemas"]["InspectionChange"];
+            line: number;
+            name: string;
+            status: components["schemas"]["InspectionPreviewRowStatusEnum"];
+        };
+        /**
+         * @description * `변경` - 변경
+         *     * `새 입력` - 새 입력
+         *     * `동일` - 동일
+         * @enum {string}
+         */
+        InspectionPreviewRowStatusEnum: "변경" | "새 입력" | "동일";
+        InspectionResult: {
+            changed: number;
+        };
+        InspectionRoster: {
+            items: components["schemas"]["InspectionRosterRow"][];
+        };
+        InspectionRosterRow: {
+            enrollment_id: number;
+            feedback: string;
+            solved: number | null;
+            student_name: string;
+            total: number | null;
+            version: number;
+        };
+        InspectionUploadRequest: {
+            /** Format: binary */
+            file: string;
+        };
         /**
          * @description * `30` - 30
          *     * `60` - 60
@@ -16685,6 +16851,21 @@ export interface components {
             previous?: string | null;
             results: components["schemas"]["Sheet"][];
         };
+        PaginatedStaffBoardSummaryList: {
+            /** @example 123 */
+            count: number;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=4
+             */
+            next?: string | null;
+            /**
+             * Format: uri
+             * @example http://api.example.org/accounts/?page=2
+             */
+            previous?: string | null;
+            results: components["schemas"]["StaffBoardSummary"][];
+        };
         PaginatedStaffExpenseRecordList: {
             /** @example 123 */
             count: number;
@@ -17623,6 +17804,10 @@ export interface components {
             name?: string;
             /** Format: int64 */
             total_questions?: number;
+        };
+        PatchedStaffBoardEditRequest: {
+            body?: string;
+            title?: string;
         };
         PatchedStaffExpenseRecordRequest: {
             /** Format: int64 */
@@ -19816,6 +20001,75 @@ export interface components {
          * @enum {string}
          */
         SourceTypeEnum: "s3" | "youtube";
+        /**
+         * @description * `notice` - 공지사항
+         *     * `resource` - 자료실
+         *     * `free` - 자유게시글
+         * @enum {string}
+         */
+        StaffBoardCategory: "notice" | "resource" | "free";
+        StaffBoardDetail: {
+            readonly attachment_name: string;
+            readonly author_name: string;
+            body: string;
+            readonly can_edit: boolean;
+            readonly can_remove_attachment: boolean;
+            category: components["schemas"]["StaffBoardCategory"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: number;
+            readonly replies: components["schemas"]["StaffBoardReply"][];
+            /** @default 0 */
+            readonly reply_count: number;
+            title: string;
+        };
+        StaffBoardError: {
+            detail: string;
+        };
+        StaffBoardPost: {
+            readonly attachment_name: string;
+            readonly author_name: string;
+            body: string;
+            readonly can_edit: boolean;
+            readonly can_remove_attachment: boolean;
+            category: components["schemas"]["StaffBoardCategory"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: number;
+            /** @default 0 */
+            readonly reply_count: number;
+            title: string;
+        };
+        StaffBoardPostRequest: {
+            body: string;
+            category: components["schemas"]["StaffBoardCategory"];
+            /** Format: binary */
+            file?: string;
+            title: string;
+        };
+        StaffBoardReply: {
+            readonly author_name: string;
+            body: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: number;
+        };
+        StaffBoardReplyRequest: {
+            body: string;
+        };
+        StaffBoardSummary: {
+            readonly attachment_name: string;
+            readonly author_name: string;
+            readonly can_edit: boolean;
+            readonly can_remove_attachment: boolean;
+            category: components["schemas"]["StaffBoardCategory"];
+            /** Format: date-time */
+            readonly created_at: string;
+            readonly id: number;
+            /** @default 0 */
+            readonly reply_count: number;
+            title: string;
+        };
         StaffDetail: {
             readonly account_role: string;
             readonly can_manage_staff: boolean;
@@ -19911,6 +20165,29 @@ export interface components {
             readonly staff_work_types: components["schemas"]["StaffWorkType"][];
             /** Format: date-time */
             readonly updated_at: string;
+        };
+        StaffMe: {
+            assigned_work_types?: components["schemas"]["StaffMeAssignedWorkType"][];
+            default_work_type_id?: number;
+            is_authenticated: boolean;
+            is_owner: boolean;
+            is_payroll_manager: boolean;
+            is_staff: boolean;
+            is_superuser: boolean;
+            owner_display_name: string | null;
+            owner_phone: string | null;
+            /** @description 대표의 기존 자동 연결 준비가 필요하면 true. 명시적인 POST /staffs/me/로 준비합니다. */
+            owner_setup_required: boolean;
+            staff_id?: number;
+        };
+        StaffMeAssignedWorkType: {
+            hourly_wage: number;
+            id: number;
+            name: string;
+        };
+        StaffMeError: {
+            code?: string;
+            detail: string;
         };
         StaffPayrollOverview: {
             /** Format: date */
@@ -20644,6 +20921,10 @@ export interface components {
             is_active?: boolean;
             student: number;
         };
+        StudentHomeSchedule: {
+            has_any_sessions: boolean;
+            items: components["schemas"]["StudentSession"][];
+        };
         StudentHomeworkOpenSchemaRequest: {
             homework_id: number;
         };
@@ -20790,6 +21071,26 @@ export interface components {
             user: number;
             /** @description True면 학생 전화 없음, 식별자(010+8자리)로 가입. 표시 시 '식별자 XXXX-XXXX' */
             uses_identifier?: boolean;
+        };
+        StudentScheduleListOrHome: components["schemas"]["StudentSession"][] | components["schemas"]["StudentHomeSchedule"];
+        StudentSession: {
+            /** Format: date */
+            date?: string | null;
+            display_label?: string | null;
+            exam_ids?: number[] | null;
+            id: number;
+            order?: number | null;
+            regular_order?: number | null;
+            /** @default false */
+            schedule_configured: boolean;
+            schedule_label?: string | null;
+            session_type?: string | null;
+            /** Format: time */
+            start_time?: string | null;
+            status?: string | null;
+            title: string;
+            /** @default session */
+            type: string;
         };
         /** @description 강의/수강 맥락에서 노출하는 학생 최소 정보. Student 모델 스펙과 정합성 유지. */
         StudentShort: {
@@ -24564,6 +24865,59 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    core_dev_agent_sessions_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: date-time */
+                        collected_at: string | null;
+                        nodes: {
+                            /** @enum {string} */
+                            evidence: "runtime" | "last_turn" | "closed" | "unknown";
+                            id: string;
+                            parent_id: string | null;
+                            /** @enum {string} */
+                            provider: "codex" | "claude";
+                            role: string;
+                            /** @enum {string} */
+                            status: "running" | "waiting" | "completed" | "interrupted" | "unknown";
+                            title: string;
+                            /** Format: date-time */
+                            updated_at: string | null;
+                        }[];
+                        /** @enum {integer} */
+                        schema: 1;
+                        source_errors: ("codex" | "claude")[];
+                        /** @enum {string} */
+                        source_status: "connected" | "stale" | "unavailable";
+                        stale_after_seconds: number;
+                        truncated: boolean;
+                    };
+                };
+            };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        detail: string;
+                    };
+                };
             };
         };
     };
@@ -36308,6 +36662,107 @@ export interface operations {
             };
         };
     };
+    results_admin_sessions_homework_inspection_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                homework_id: number;
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionRoster"];
+                };
+            };
+        };
+    };
+    results_admin_sessions_homework_inspection_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                homework_id: number;
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InspectionBatchRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["InspectionBatchRequest"];
+                "multipart/form-data": components["schemas"]["InspectionBatchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionResult"];
+                };
+            };
+        };
+    };
+    results_admin_sessions_homework_inspection_workbook_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Optional shared problem count for the template. */
+                total?: number;
+            };
+            header?: never;
+            path: {
+                homework_id: number;
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+        };
+    };
+    results_admin_sessions_homework_inspection_workbook_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                homework_id: number;
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["InspectionUploadRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionPreview"];
+                };
+            };
+        };
+    };
     results_admin_sessions_reorder_create: {
         parameters: {
             query?: never;
@@ -37295,6 +37750,230 @@ export interface operations {
             };
         };
     };
+    staffs_board_posts_list: {
+        parameters: {
+            query?: {
+                category?: "free" | "notice" | "resource";
+                /** @description 페이지네이션된 결과 집합 내의 페이지 번호. */
+                page?: number;
+                /** @description 페이지당 반환할 결과 수. */
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedStaffBoardSummaryList"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffBoardPostRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StaffBoardPostRequest"];
+                "multipart/form-data": components["schemas"]["StaffBoardPostRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardPost"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardPost"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardError"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardDetail"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedStaffBoardEditRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedStaffBoardEditRequest"];
+                "multipart/form-data": components["schemas"]["PatchedStaffBoardEditRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardPost"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_attachment_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardError"];
+                };
+            };
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardError"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_attachment_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    staffs_board_posts_replies_create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StaffBoardReplyRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StaffBoardReplyRequest"];
+                "multipart/form-data": components["schemas"]["StaffBoardReplyRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardReply"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardReply"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardError"];
+                };
+            };
+        };
+    };
     staffs_currently_working_list: {
         parameters: {
             query?: never;
@@ -37474,7 +38153,62 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StaffWrite"];
+                    "application/json": components["schemas"]["StaffMe"];
+                };
+            };
+        };
+    };
+    staffs_me_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMe"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMeError"];
+                };
+            };
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMeError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMeError"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffMeError"];
                 };
             };
         };
@@ -38592,19 +39326,23 @@ export interface operations {
     };
     student_sessions_me_retrieve: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description home은 오늘 포함 최근 28일과 모든 미래 일정, 전체 표시 일정 존재 여부를 반환한다. 생략하면 기존 전체 이력 배열을 반환한다. */
+                scope?: "home";
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["StudentScheduleListOrHome"];
+                };
             };
         };
     };
