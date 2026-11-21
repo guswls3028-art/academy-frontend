@@ -65,13 +65,16 @@ function SessionGearMenu({
   sections,
   onDone,
   onOpenSchedules,
+  canQueueManagement,
 }: {
   session: SessionItem;
   sections?: SectionType[];
   onDone: (action: "updated" | "deleted") => void;
   onOpenSchedules: () => void;
+  canQueueManagement: boolean;
 }) {
-  const managementPending = useContext(SessionScheduleControlsContext)?.managementPending;
+  const scheduleControls = useContext(SessionScheduleControlsContext);
+  const managementPending = scheduleControls?.managementPending;
   const supplement = isSupplementSession(session);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -271,7 +274,7 @@ function SessionGearMenu({
             )}
             <label htmlFor={`session-date-${session.id}`} className="text-xs font-medium text-[var(--color-text-muted)]">기본 날짜</label>
             <input id={`session-date-${session.id}`} type="date" className="ds-input text-sm" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
-            <button type="button" className={styles.scheduleEditLink} onClick={() => void handleOpenSchedules()} disabled={busy || managementPending}>
+            <button type="button" className={styles.scheduleEditLink} onClick={() => void handleOpenSchedules()} disabled={busy || scheduleControls?.managementQueued || (managementPending && !canQueueManagement)}>
               <CalendarDays size={16} aria-hidden />
               수업일 관리
             </button>
@@ -715,7 +718,7 @@ function SessionCard({ session, sections, lectureId, currentSessionId, navigate,
         className={supplement || title !== `${session.regular_order ?? session.order}차시` ? styles.namedCard : undefined}
         onClick={() => navigate(target)}
       />
-      <SessionGearMenu session={session} sections={sections}
+      <SessionGearMenu session={session} sections={sections} canQueueManagement={expanded}
         onOpenSchedules={() => { if (expanded) controls.openManager(); else openSchedules(target); }}
         onDone={(action) => { invalidate(); if (action === "deleted" && active) navigate(`/workspace/lectures/${lectureId}`); }} />
       {expanded && controls.content}
