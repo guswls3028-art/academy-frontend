@@ -271,6 +271,14 @@
 .adminRosterEditor > * { min-width:0; }
 .adminRosterEditor > p { margin:0; }
 .adminRosterEditor > :global(.lecture-enroll-picker__body) { height:clamp(225px,47dvh,450px); }
+.adminRosterEditor :global(.lecture-enroll-picker__selection > .lecture-enroll-picker__toolbar) {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+.adminRosterEditor :global(.lecture-enroll-picker__selection > .lecture-enroll-picker__toolbar) > button {
+  flex: none;
+  white-space: nowrap;
+}
 .adminRosterEditor :global(.lecture-enroll-picker__chips) { max-height:140px; overflow-y:auto; }
 @media(min-width:740px) {
   .adminRosterEditor:has(> :global(.lecture-enroll-picker__body)) { grid-template-columns:minmax(0,1fr) minmax(190px,29%); }
