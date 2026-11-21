@@ -32,7 +32,7 @@ export function AdminRosterPicker({ candidateUrl, roster, selected, busy, onChan
   useEffect(() => { if (list.current) list.current.scrollTop = 0; }, [search, grade, offset]);
 
   const query = useQuery({
-    queryKey: [...dawonQueryKeys.candidates(candidateUrl, search, offset), "admin-page", grade],
+    queryKey: dawonQueryKeys.adminCandidates(candidateUrl,search,offset,grade),
     enabled: Boolean(candidateUrl),
     queryFn: async ({ signal }) => (await api.get<{results: RosterStudent[]; count: number}>(candidateUrl!, {
       params: { search, grade: grade || undefined, offset, limit: size, page_info: 1 }, signal,

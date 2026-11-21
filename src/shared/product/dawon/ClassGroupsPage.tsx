@@ -196,7 +196,7 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
     void client.invalidateQueries({ queryKey: admin ? dawonQueryKeys.adminGroups : dawonQueryKeys.groups, exact: true });
     if (admin) void client.invalidateQueries({queryKey:dawonQueryKeys.adminOperations});
     void client.invalidateQueries({ queryKey: dawonQueryKeys.roster });
-    if (admin) { void client.invalidateQueries({queryKey:["dawon","admin","students"]}); void client.invalidateQueries({queryKey:["dawon","admin","student"]}); }
+    if (admin) { void client.invalidateQueries({queryKey:dawonQueryKeys.adminStudents}); void client.invalidateQueries({queryKey:dawonQueryKeys.adminStudentRoot}); }
     setNotice(mode === "add" ? `${ids.length}명을 배정했습니다.` : `${ids.length}명을 반 명단에서 제외했습니다.`);
     stopEditing();
   };

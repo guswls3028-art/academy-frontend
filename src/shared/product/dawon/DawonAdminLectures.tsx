@@ -61,7 +61,7 @@ function LectureRegister() {
           <button className={styles.rowAction} onClick={()=>setAdding(r)} aria-label={r.title+" 수강생 등록"}>수강생 등록</button>},
       ]}/>}
     {adding && <DawonLectureEnrollment lectureId={adding.id} lectureTitle={adding.title} group={{group_id:adding.group.id,name:adding.group.name,school:""}} onClose={()=>setAdding(null)}
-      onSaved={()=>{void client.invalidateQueries({queryKey:dawonQueryKeys.adminOperations});void client.invalidateQueries({queryKey:dawonQueryKeys.groups});void client.invalidateQueries({queryKey:["dawon","admin","course-roster",adding.id]});void client.invalidateQueries({queryKey:["dawon","admin","student"]});}}/>}
+      onSaved={()=>{void client.invalidateQueries({queryKey:dawonQueryKeys.adminOperations});void client.invalidateQueries({queryKey:dawonQueryKeys.groups});void client.invalidateQueries({queryKey:dawonQueryKeys.courseRoster(adding.id)});void client.invalidateQueries({queryKey:dawonQueryKeys.adminStudentRoot});}}/>}
     {creating && <AdminModal open onClose={()=>setCreating(false)} noMinimize trapFocus width={460}><ModalHeader title="수업을 개설할 반 선택"/>
       <ModalBody>{classes.isPending ? <p role="status">반 조회 중…</p> : classes.isError ? <p role="alert">반을 불러오지 못했습니다. <Button onClick={()=>void classes.refetch()}>다시 시도</Button></p> :
         eligible.length ? <label>개설 반 <select className="ds-select" value={classId} onChange={e=>setClassId(e.target.value)}><option value="">반 선택</option>{eligible.map(c=><option key={c.id} value={c.id}>{c.name} · {c.instructor_name}</option>)}</select></label> :

@@ -27,9 +27,9 @@ export default function DawonAdminStudents() {
   const filters = {view:"students", search:term, grade, group, offset:(page-1)*pageSize, limit:pageSize};
   const groups = useQuery({queryKey:dawonQueryKeys.adminGroups,queryFn:async({signal})=>
     (await api.get<{id:number;name:string}[]>(endpoint,{signal})).data});
-  const people = useQuery({queryKey:["dawon","admin","students",filters],queryFn:async({signal})=>
+  const people = useQuery({queryKey:dawonQueryKeys.studentPage(filters),queryFn:async({signal})=>
     (await api.get<Page>(endpoint,{params:filters,signal})).data});
-  const person = useQuery({queryKey:["dawon","admin","student",selected],enabled:!!selected,queryFn:async({signal})=>
+  const person = useQuery({queryKey:dawonQueryKeys.studentDetail(selected),enabled:!!selected,queryFn:async({signal})=>
     (await api.get<Page>(endpoint,{params:{view:"students",id:selected},signal})).data.results[0] ?? null});
   const update = (key:string,value:string) => {
     const next = new URLSearchParams(params);

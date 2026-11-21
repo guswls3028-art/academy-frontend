@@ -5,7 +5,17 @@ const alerts = ["dawon", "teacher-alerts"] as const;
 const operations = ["dawon", "admin", "operations"] as const;
 const learning = ["dawon", "admin", "learning-review"] as const;
 
+const students = ["dawon","admin","students"] as const;
+const individual = ["dawon","admin","student"] as const;
+const courseRoster = (course:number) => ["dawon","admin","course-roster",course] as const;
 export const dawonQueryKeys = {
+  adminStudents:students,
+  adminStudentRoot:individual,
+  studentPage:(filters:Record<string,string|number>)=>[...students,filters] as const,
+  studentDetail:(id:string|null)=>[...individual,id] as const,
+  courseRoster,
+  courseRosterPage:(course:number, search:string, offset:number)=>[...courseRoster(course),search,offset] as const,
+  adminCandidates:(url:string|undefined,search:string,offset:number,grade:string)=>[...roster,url,search,offset,"admin-page",grade] as const,
   adminOperations: operations,
   operationsOverview: (lecture?: string) => [...operations,lecture??"all"] as const,
   adminLearningRoot: learning,

@@ -22,15 +22,15 @@ export default function DawonCourseRoster({course, title, groupId, groupName}: {
   const [offset,setOffset] = useState(0);
   const [adding,setAdding] = useState(false);
   const search = useDebouncedValue(input.trim());
-  const key = ["dawon","admin","course-roster",course] as const;
-  const roster = useQuery({queryKey:[...key,search,offset],queryFn:async ({signal}) =>
+  const key = dawonQueryKeys.courseRoster(course);
+  const roster = useQuery({queryKey:dawonQueryKeys.courseRosterPage(course,search,offset),queryFn:async ({signal}) =>
     (await api.get<{count:number;results:Member[]}>("/students/class-groups/",{
       params:{view:"students", lecture:course,search,offset,limit},signal
     })).data});
   function saved() {
     void client.invalidateQueries({queryKey:key});
     void client.invalidateQueries({queryKey:dawonQueryKeys.adminOperations});
-    void client.invalidateQueries({queryKey:["dawon","admin","student"]});
+    void client.invalidateQueries({queryKey:dawonQueryKeys.adminStudentRoot});
     void client.invalidateQueries({queryKey:dawonQueryKeys.groups});
   }
   return <section aria-label="강의 수강 명단">
