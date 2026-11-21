@@ -1,8 +1,9 @@
 import DawonSearchInput from "./DawonSearchInput";
 import { StaffRoleAvatar, type StaffRoleType } from "@/shared/ui/avatars";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { AdminModal, ModalBody, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useSearchParams } from "react-router";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import api from "@/shared/api/axios";
 import DomainTable from "@/shared/ui/domain/DomainTable";
 import DawonDirectoryTable from "./DawonDirectoryTable";
@@ -37,7 +38,7 @@ function MonthDetail({staff, month, onMonth}: {staff: Staff; month: string; onMo
     onSuccess: () => client.invalidateQueries({queryKey: directoryKey, exact: true})});
   const data = query.data;
   return <>
-    <h2 className={styles.employeeHeading}><StaffRoleAvatar role={avatarRoles[staff.position]} aria-label={labels[staff.position]} size={24}/>{staff.name}</h2>
+    {!onMonth && <h2 className={styles.employeeHeading}><StaffRoleAvatar role={avatarRoles[staff.position]} aria-label={labels[staff.position]} size={24}/>{staff.name}</h2>}
     {onMonth && ["INSTRUCTOR","ASSISTANT"].includes(staff.position) ? <form onSubmit={e => {e.preventDefault();mutation.mutate();}}>
       <label>직위 <select value={position} onChange={e => {setPosition(e.target.value as Position);mutation.reset();}}>
         <option value="INSTRUCTOR">강사</option><option value="ASSISTANT">조교</option></select></label>
@@ -88,13 +89,24 @@ function StaffMaster() {
   const position = params.get("position") ?? "";
   const query = useQuery({queryKey: directoryKey, queryFn: async ({signal}) => (await api.get<{staff: Staff[]}>(endpoint,{signal})).data.staff});
   const selected = params.get("employee");
+  const location = useLocation();
+  const move = useNavigate();
+  const directory = useRef<HTMLElement>(null);
+  const priorSelection = useRef<string | null>(null);
+  useEffect(() => {
+    const prior = priorSelection.current;
+    priorSelection.current = selected;
+    if (!prior || selected) return;
+    const row = directory.current?.querySelector<HTMLAnchorElement>(`[data-employee-id="${CSS.escape(prior)}"]`);
+    (row ?? directory.current?.querySelector<HTMLInputElement>("input"))?.focus({preventScroll:true});
+  }, [selected]);
   const monthValue = params.get("month") ?? "";
   const month = /^\d{4}-(0[1-9]|1[012])$/.test(monthValue) ? monthValue : currentMonth();
   function navigate(key: string, value: string | null) {
     const next = new URLSearchParams(params);
     if (value === null) next.delete(key); else next.set(key,value);
     if (key === "q" || key === "position") next.delete("employee");
-    setParams(next, {replace: key !== "employee", preventScrollReset: true});
+    setParams(next, {replace: true, preventScrollReset: true, state: location.state});
   }
   if (query.isPending) return <p role="status">직원 목록을 불러오는 중입니다.</p>;
   if (query.isError) return <p role="alert">직원 목록을 불러오지 못했습니다. {retryButton(() => void query.refetch())}</p>;
@@ -109,8 +121,15 @@ function StaffMaster() {
     return {search: next.toString()};
   };
 
-  return <div className={styles.staffDesk} data-detail={selected ? "open" : undefined}>
-    <section className={styles.directory} aria-label="직원 검색 및 목록">
+  function closeEmployee() {
+    if (location.state?.dawonStaffList && window.history.state?.idx > 0) {
+      void move(-1);
+    } else {
+      setParams(employeeUrl(null).search, {replace:true, preventScrollReset:true});
+    }
+  }
+  return <div className={styles.staffDesk}>
+    <section ref={directory} className={styles.directory} aria-label="직원 검색 및 목록">
       <div className={styles.directoryTools}>
         <label className="sr-only" htmlFor="dawon-employee-search">직원 찾기</label>
         <DawonSearchInput id="dawon-employee-search" className="ds-input" placeholder="이름 · 직위 · 담당 반 검색"
@@ -126,16 +145,20 @@ function StaffMaster() {
         columns={[
           {key:"name",label:"이름",defaultWidth:125,minWidth:90,value:row=>row.name,
             render:row=><Link aria-label={row.name} className={styles.employeeLink} to={employeeUrl(row.id)} preventScrollReset
+              state={{dawonStaffList:true}} data-employee-id={row.id} aria-haspopup="dialog"
               aria-current={String(row.id) === selected ? "true" : undefined}><StaffRoleAvatar role={avatarRoles[row.position]} aria-label={labels[row.position]} size={17}/>{row.name}</Link>},
           {key:"position",label:"직위",defaultWidth:78,minWidth:58,value:row=>labels[row.position]},
           {key:"classes",label:"담당 반",defaultWidth:205,minWidth:114,value:row=>row.classes.join(", "),
             render:row=>row.classes.join(", ") || <span className={styles.muted}>담당 반 없음</span>},
         ]}/>
     </section>
-    {selected && <section className={styles.staffDetail} aria-label="직원 상세">
-      <Link className={styles.backLink} to={employeeUrl(null)} preventScrollReset>직원 목록</Link>
-      {person ? <MonthDetail key={person.id} staff={person} month={month} onMonth={v=>navigate("month",v)} /> :
-        <p role="status">조회할 수 없는 직원입니다.</p>}
-    </section>}
+    {selected && <AdminModal open type="inspect" width={MODAL_WIDTH.lg} noMinimize trapFocus onClose={closeEmployee}>
+      <ModalHeader type="inspect" title={person?.name ?? "직원 상세"} description={person ? labels[person.position] : undefined}/>
+      <ModalBody><div className={styles.employeeModalBody}>
+        {person && <p>담당 반 · {person.classes.join(", ") || "없음"}</p>}
+        {person ? <MonthDetail key={person.id} staff={person} month={month} onMonth={v=>navigate("month",v)} /> :
+          <p role="status">조회할 수 없는 직원입니다.</p>}
+      </div></ModalBody>
+    </AdminModal>}
   </div>;
 }
