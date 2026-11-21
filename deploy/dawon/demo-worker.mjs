@@ -330,7 +330,7 @@ function installLearnerBridge(chrome, mountMenu) {
   const home = () => guardian() ? '/guardian' : '/student';
   const destination = topic => {
     if (topic === 'home') return home();
-    if (topic === 'profile') return '/profile';
+    if (topic === 'profile') return '/profile' + (guardian() ? '?preview=guardian' : '');
     return '/learn/' + topic + (guardian() ? '?preview=guardian' : '');
   };
   function genericDestination(raw) {
@@ -638,7 +638,7 @@ export async function handle(request, env, fetcher = fetch, context) {
       }
       const upstreamUrl = isLearnerVideo || isLearnerIntake ? new URL('/login/dawon', url) : url;
       let upstream = await forward(upstreamUrl, request, env, fetcher);
-      for (const previous of ['r33', 'r32', 'r31', 'r30', 'r29', 'r28', 'r25', 'r24', 'r23', 'r22', 'r20', 'r14', 'r12', 'r11', 'r10', 'r9', 'r8', 'r7', 'r4', 'r3'].map(suffix => 'dawon-review-20261119-orange-' + suffix)) {
+      for (const previous of ['r34', 'r33', 'r32', 'r31', 'r30', 'r29', 'r28', 'r25', 'r24', 'r23', 'r22', 'r20', 'r14', 'r12', 'r11', 'r10', 'r9', 'r8', 'r7', 'r4', 'r3'].map(suffix => 'dawon-review-20261119-orange-' + suffix)) {
         if (upstream.status !== 404 || !pathname.startsWith('/assets/')) break;
         if (previous === env.ADMIN_VERSION) continue;
         await upstream.body?.cancel();
@@ -699,7 +699,11 @@ export async function handle(request, env, fetcher = fetch, context) {
     headers.set('cache-control', 'no-store');
     headers.append('set-cookie', consoleCookieExpired);
     const html = labelLegacySamples(await response.text()).replace('</head>', `${brandStyle(env.ADMIN_VERSION)}<style>.bottomnav [data-route=schedule],.bottomnav #tab-schedule{display:none!important}.bottomnav{grid-template-columns:repeat(4,minmax(0,1fr))!important}</style>${reloadScript(env.UI_VERSION || env.ADMIN_VERSION)}<script src="${linkedNavPath}" defer></script></head>`);
-    return new Response(insertDemoSwitcher(html, url, false), {status: response.status, headers});
+    // Let the legacy profile's brand use a real role-specific href, including open-in-new-tab.
+    const brandHome = url.searchParams.get('preview') === 'guardian' ? '/?preview=guardian' : '/';
+    const branded = html.replace('<a href="/" data-route="home">다원수학</a>',
+      '<a data-dawon-profile-home href="' + brandHome + '" aria-label="다원수학 홈">다원수학</a>');
+    return new Response(insertDemoSwitcher(branded, url, false), {status: response.status, headers});
   } catch {
     return secureResponse('{"detail":"다원 데모를 잠시 후 다시 열어 주세요."}', 503);
   }

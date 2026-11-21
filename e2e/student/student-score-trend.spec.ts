@@ -529,7 +529,7 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
         await expect(page).toHaveURL(homeworkSummaryUrl);
         await expect(page.getByText("확인할 과제가 없습니다.", { exact: true })).toBeVisible();
         await expect(page.getByText(/모든 과제를 완료했습니다/)).toBeVisible();
-        await page.getByRole("link", { name: "학생 대시보드로 이동", exact: true }).click();
+        await page.getByTestId("stu-topbar-brand-home").click();
         await expect(page).toHaveURL(/\/student\/dashboard/);
         await page.goBack();
         await expect(page).toHaveURL(homeworkSummaryUrl);

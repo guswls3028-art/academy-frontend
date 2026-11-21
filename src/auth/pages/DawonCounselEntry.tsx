@@ -25,7 +25,9 @@ export default function DawonCounselEntry({ search, pending, error, onEnter }: {
   const title = new URLSearchParams(search).get("panel") === "form" ? "상담 신청" : "상담 내역";
   return (
     <main className={styles.counselEntry}>
-      <a href="/guardian">학부모 홈</a>
+      <a className={styles.counselBrand} href="/guardian" aria-label="다원수학 학부모 홈">
+        <img src="/dawon-brand.svg" width="32" height="32" alt="" />다원수학
+      </a>
       <section aria-labelledby="guardian-counsel-entry">
         <h1 id="guardian-counsel-entry">{title}</h1>
         {error ? <p role="alert">{error}</p> : pending || fromFamilyMenu ? <p role="status">학부모 상담을 여는 중입니다.</p> : <p>다원수학 학부모 체험 계정으로 들어갑니다.</p>}

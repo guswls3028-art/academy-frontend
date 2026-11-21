@@ -159,8 +159,8 @@ jobs:
       - name: Build
         run: |
           if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" == "refs/heads/codex/dawon-admin-reuse-1119-frontend-20261119-055133" ]]; then
-            env -u GITHUB_SHA VITE_BUILD_VERSION=dawon-review-20261119-orange-r33 VITE_API_BASE_URL=' ' pnpm build
-            node -e 'const v = require("./dist/version.json").version; if (v !== "dawon-review-20261119-orange-r33") throw Error(v)'
+            env -u GITHUB_SHA VITE_BUILD_VERSION=dawon-review-20261119-orange-r35 VITE_API_BASE_URL=' ' pnpm build
+            node -e 'const v = require("./dist/version.json").version; if (v !== "dawon-review-20261119-orange-r35") throw Error(v)'
           elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" == "refs/heads/codex/dawon-staff-01a1f768-frontend-20261120-161101" ]]; then
             env -u GITHUB_SHA VITE_BUILD_VERSION=dawon-review-20261119-orange-r34 VITE_API_BASE_URL=' ' pnpm build
             node -e 'if (require("./dist/version.json").version !== "dawon-review-20261119-orange-r34") throw Error("Dawon demo version mismatch")'

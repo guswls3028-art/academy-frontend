@@ -115,7 +115,7 @@ export default function LoginPage() {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const { refreshMe } = useAuth();
+  const { user, refreshMe } = useAuth();
 
   // 진입 시 username에 자동 포커스
   useEffect(() => {
@@ -182,6 +182,19 @@ export default function LoginPage() {
     ? new URL(learnerPath, window.location.origin) : null;
   const parentReportEntry = examReturn?.searchParams.get("preview") === "guardian";
   const guardianEntry = parentReportEntry || previewSearch.get("demo") === "guardian" || (!previewSearch.has("demo") && learnerPath.startsWith("/student/community?tab=counsel"));
+  let brandHome = location.pathname;
+  if (isDawonDemo) {
+    if (user?.tenantRole === "parent") brandHome = "/guardian";
+    else if (user?.tenantRole === "student") brandHome = "/student";
+    else if (user?.tenantRole) brandHome = "/workspace/dashboard";
+    else brandHome = guardianEntry ? "/guardian" : "/";
+  } else if (user) {
+    brandHome = "/";
+  } else if (tenantCode === "hakwonplus" || tenantCode === "9999") {
+    brandHome = "/promo";
+  } else if (hasLanding || tenantCode === "godmin") {
+    brandHome = "/landing";
+  }
   const explicitVideo = previewSearch.get("session") ?? "";
   const videoPath = previewSearch.get("view") === "video" && /^[1-9]\d{0,9}$/.test(explicitVideo)
     ? `/student/video/sessions/${explicitVideo}` : "";
@@ -278,16 +291,16 @@ export default function LoginPage() {
       )}
       <main className={styles.center} data-auth-part="card">
         <section className={styles.brandStage} data-auth-part="brand-stage">
-          <div className={styles.brandArtwork} data-auth-part="brand-artwork">
+          <Link to={brandHome} reloadDocument={isDawonDemo} className={styles.brandArtwork} data-auth-part="brand-artwork" aria-label={title + " 홈"}>
             {logoUrl ? (
-              <img src={logoUrl} alt={title} className={styles.logo} />
+              <img src={logoUrl} alt="" className={styles.logo} />
             ) : (
               <CommonLogoIcon height={64} className={styles.logo} />
             )}
             <div className={styles.typography}>
               <h1 className={styles.title}>{title}</h1>
             </div>
-          </div>
+          </Link>
         </section>
         <section className={styles.loginPanel} data-auth-part="login-panel">
           {hasBrandedScene && (

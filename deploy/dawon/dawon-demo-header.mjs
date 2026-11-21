@@ -45,7 +45,7 @@ function mountDemoSwitcher() {
   const roleLinks = Array.from(nav.querySelectorAll("a[data-demo-app]"));
   const edits = new Set();
   function currentRole() {
-    if (nav.dataset.shell === "learner") return document.body.dataset.role === "guardian" || location.pathname === "/guardian" ? "guardian" : "student";
+    if (nav.dataset.shell === "learner") return document.body.dataset.role === "guardian" || location.pathname === "/guardian" || new URLSearchParams(location.search).get("preview") === "guardian" ? "guardian" : "student";
     const demoRole = new URLSearchParams(location.search).get("demo");
     if (["admin","teacher","guardian","student"].includes(demoRole)) return demoRole;
     if (!location.pathname.startsWith("/student/")) {
@@ -60,6 +60,8 @@ function mountDemoSwitcher() {
   }
   function markRole() {
     const role = currentRole();
+    const profileHome = document.querySelector('.breadcrumbs a[data-dawon-profile-home]');
+    if (profileHome) profileHome.href = role === 'guardian' ? '/?preview=guardian' : '/';
     for (const link of roleLinks) {
       if (link.dataset.demoApp === role) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");

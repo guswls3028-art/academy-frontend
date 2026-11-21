@@ -47,6 +47,7 @@ const style = [
   .dw-header{position:sticky;top:var(--dawon-demo-bar-height,0px);z-index:4;padding:0}
   .dw-headerInner{min-height:56px;display:flex;align-items:center;justify-content:space-between;gap:12px}
   .dw-brand{min-width:0}.dw-brand>a{color:var(--dw-ink);white-space:nowrap;font-weight:750}.dw-brand>span{color:#a39891}.dw-brand>strong{font-size:14px;color:var(--dw-muted);font-weight:600}
+  .dw-brandHome{display:inline-flex;align-items:center;gap:8px;min-height:44px;border-radius:6px}.dw-brandHome img{display:block;width:32px;height:32px}
   .dw-brand button,.dw-drawerHead button{display:grid;place-items:center;border:0;background:transparent;color:var(--dw-muted);width:44px;height:44px;border-radius:8px;cursor:pointer}
   .dw-brand button:hover,.dw-drawerHead button:hover{background:#f4efeb}.dw-brand>[data-dw-menu]{margin-inline-start:-8px}
   .dw-drawerPanel{position:fixed;inset:0 auto 0 0;box-sizing:border-box;margin:0;padding:0;width:min(312px,calc(100vw - 40px));height:100dvh;max-height:none;max-width:none;border:0;border-right:1px solid var(--dw-line);background:#fff;color:var(--dw-ink);overflow:hidden}
@@ -210,7 +211,7 @@ export function renderDawonLearner(url, chromeOnly = false) {
     '<button type="button" data-dw-menu aria-label="학습 메뉴 열기" aria-haspopup="dialog" aria-controls="dw-navigation" aria-expanded="false">' + icon('menu') + '</button>' +
     '<dialog id="dw-navigation" class="dw-drawerPanel" aria-labelledby="dw-menu-heading"><div class="dw-drawerHead"><h2 id="dw-menu-heading">학습 메뉴</h2>' +
     '<form method="dialog"><button autofocus aria-label="메뉴 닫기">' + icon('close') + '</button></form></div><nav aria-label="학습 메뉴">' + drawerLinks + '</nav></dialog>' +
-    '<a href="' + homeUrl + '" aria-label="다원수학 학습 홈">다원수학</a><span aria-hidden="true">/</span><strong>' +
+    '<a class="dw-brandHome" href="' + homeUrl + '" aria-label="다원수학 ' + (guardian ? '학부모 홈' : '학생 홈') + '"><img src="/dawon-brand.svg" width="32" height="32" alt="">다원수학</a><span aria-hidden="true">/</span><strong>' +
     (home ? title : guardian ? '자녀 학습' : '학생 학습') + '</strong></div><div class="dw-headerActions">' +
     (!guardian ? '<a href="/login/dawon?demo=student" aria-label="QR 출석">' + icon('qr') + '<span>QR 출석</span></a>' : '') + '</div></div></header>';
   if (chromeOnly) return {header, footer, drawerLinks, css:style.replace(':root{',':host{')};
