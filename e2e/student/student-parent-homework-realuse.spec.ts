@@ -52,6 +52,7 @@ type HomeworkSummary = {
   score: number | null;
   passed: boolean;
   achievement: string;
+  teacher_accepted?: boolean;
   inspection_status?: "VIDEO_MAKEUP" | null;
   submission_state?: "needs_submission" | "awaiting_review" | "reviewed";
   lecture_active?: boolean;
@@ -951,7 +952,7 @@ async function verifyStudentHomeworkFiles(
   const region = staffPage.getByRole("region", { name: "온라인 과제 제출물", exact: true });
   const card = region.getByRole("article").filter({ hasText: uploadName });
   const fileTile = (filename: string) => region.getByRole("button", { name: "미리보기", exact: true }).filter({
-    has: region.getByText(filename, { exact: true }),
+    has: staffPage.getByText(filename, { exact: true }),
   });
   const pcPath = `${QA_BASE}/workspace/students/${studentId}`;
   const mobilePath = `${QA_BASE}/workspace/mobile/students/${studentId}`;
@@ -986,7 +987,7 @@ async function verifyStudentHomeworkFiles(
     }
     await expect(fileTile(videoUploadName)).toBeVisible();
     await fileTile(uploadName).click();
-    const enlarged = staffPage.getByRole("dialog").filter({ has: staffPage.getByText(uploadName, { exact: true }) });
+    const enlarged = staffPage.getByRole("dialog").filter({ has: staffPage.getByRole("img", { name: `${uploadName} 과제 제출 미리보기`, exact: true }) });
     const fullPhoto = enlarged.getByRole("img", { name: `${uploadName} 과제 제출 미리보기`, exact: true });
     await expect(fullPhoto).toBeVisible();
     await expect.poll(() => fullPhoto.evaluate(image => (image as HTMLImageElement).naturalWidth)).toBe(640);
@@ -998,19 +999,19 @@ async function verifyStudentHomeworkFiles(
     if (!mobile) {
       await changeAcceptance(true);
       await expect(card.getByRole("status").filter({ hasText: "통과 인정됨" })).toBeVisible();
-      const passed = (row: HomeworkSummary) => row.score === 0 && row.passed === true && row.submission_media_locked === true;
+      const passed = (row: HomeworkSummary) => row.score === 0 && row.teacher_accepted === true && row.passed === true && row.submission_media_locked === true;
       await waitForHomeworkSummary(request, studentAccess, passed);
       await waitForHomeworkSummary(request, parentAccess, passed, studentId);
       await parentPage.goto(`${QA_BASE}/student/grades?view=homework&homework_status=all`, { waitUntil: "domcontentloaded" });
       const grade = parentPage.locator(".stu-panel[data-session-type]").filter({ has: parentPage.getByText(homeworkTitle, { exact: true }) });
-      await expect(grade).toContainText("교사 확인 완료");
+      await expect(grade).toContainText("과제 통과 인정");
       await expect(grade).toContainText("0/100");
     } else {
       await staffPage.reload({ waitUntil: "domcontentloaded" });
       await expect(card.getByRole("status").filter({ hasText: "통과 인정됨" })).toBeVisible();
       await changeAcceptance(false);
       await expect(card.getByRole("button", { name: "통과", exact: true })).toBeVisible();
-      const reverted = (row: HomeworkSummary) => row.score === 0 && row.passed === false && row.submission_media_locked === false;
+      const reverted = (row: HomeworkSummary) => row.score === 0 && row.teacher_accepted === false && row.passed === false && row.submission_media_locked === false;
       await waitForHomeworkSummary(request, studentAccess, reverted);
       await waitForHomeworkSummary(request, parentAccess, reverted, studentId);
       await staffPage.reload({ waitUntil: "domcontentloaded" });
@@ -1308,8 +1309,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       // or manual reload after the student's successful submission.
       await staffPage.bringToFront();
       await expect(fileRow).toBeVisible({ timeout: 30_000 });
-      await staffPage.getByRole("button", { name: /^알림(?:$| \d+건| 일부 확인 필요)/ }).click();
-      await staffPage.getByRole("button", { name: /확인 대기 과제 제출/ }).click({ timeout: 40_000 });
+      await staffPage.getByRole("link", { name: /^확인 대기 과제 제출 [0-9]+건 열기$/ }).click({ timeout: 40_000 });
       await expect(mobileHomeworkChoice).toContainText("확인 대기 1건");
       await expect(staffPage.getByRole("link").filter({ hasText: otherTitle })).toHaveCount(0);
       await assertNoHorizontalOverflow(staffPage);
@@ -1317,6 +1317,14 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await mobileHomeworkChoice.click();
       await expect(fileRow).toBeVisible();
       await applyHomeworkPreviewCsp(staffPage);
+      await expect.poll(() => fileRow.locator("img").evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+      await staffPage.getByRole("button", { name: "통과", exact: true }).click();
+      await expect(staffPage.getByText("통과 인정됨", { exact: true })).toBeVisible();
+      await expect.poll(pendingForHomework).toBe(0);
+      await waitForHomeworkSummary(request, studentTokens.access, row => row.score === null && row.passed === true && row.teacher_accepted === true);
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await staffPage.getByRole("button", { name: "통과 인정 취소", exact: true }).click();
+      await expect.poll(pendingForHomework).toBe(1);
       await staffPage.getByRole("button", { name: "제출물 확인" }).click();
       const preview = staffPage.getByRole("dialog", { name: `${student.name} 제출 확인` });
       const image = preview.getByRole("img", { name: /과제 제출 미리보기/ });

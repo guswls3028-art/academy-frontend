@@ -44,7 +44,7 @@ export default function AdminPrimaryNavigation({ compact = false, onExpandSideba
   return (
     <nav className="nav" aria-label="주요 메뉴">
       {primary.filter(item => !item.to.endsWith("/guide")).map(primaryLink)}
-      <PendingHomeworkLink count={counts.homeworkReviewPending} to="/workspace/results/submissions?homework=pending" compact={compact} />
+      <PendingHomeworkLink count={counts.homeworkReviewPending} to="/workspace/results/submissions?homework=pending" compact={compact} onNavigate={onNavigate} />
       {WORKSPACE_SECTIONS.map(section => {
         const group = groups.find(item => item.title === section.title);
         if (!group) return null;

@@ -12,5 +12,6 @@
   text-decoration: none;
 }
 .compact { width: 44px; justify-content: center; padding: 4px; }
+.count { border-radius: 999px; }
 .compact .count { position: absolute; top: 0; right: 0; }
 .link:focus-visible, .compact:focus-visible { outline: 2px solid var(--color-primary); }

@@ -11,7 +11,7 @@ export default function StudentHomeworkFiles({ studentId }: { studentId: number 
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<{ homeworkId: number; file: HomeworkSubmissionMediaFile; fingerprint: string | null } | null>(null);
   const list = useQuery({
-    queryKey: [...assessmentQueryKeys.studentHomeworkFiles(studentId), page],
+    queryKey: assessmentQueryKeys.studentHomeworkFilesPage(studentId, page),
     queryFn: ({ signal }) => fetchStudentHomeworkFiles(studentId, page, signal),
   });
   if (list.isPending) return <EmptyState scope="panel" tone="loading" title="제출물을 불러오는 중…" />;
