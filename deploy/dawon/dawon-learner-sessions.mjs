@@ -112,7 +112,7 @@ const style = [
   .dw-questionRow{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;font-weight:650}.dw-questionRow span{color:var(--dw-muted);font-size:13px;font-weight:600;white-space:nowrap}.dw-questionText{line-height:1.65;margin-block:8px}.dw-questionNote~h2,.dw-questionNote~h3{margin:14px 0 4px}.dw-questionForm [type=file]{max-width:100%}
   body[data-learner-menu=questions]:has(.dw-questionForm,.dw-questionTools) .dw-content{max-width:760px}
   @media(max-width:580px){.dw-questionForm button[type=submit]{justify-self:stretch}.dw-legend{gap:5px}.dw-headerInner{min-height:52px}}
-  .dw-spotlight strong{flex:none}
+  .dw-spotlight strong{flex:none}.dw-spotlight span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .dw-action[aria-current=page]{background:#fff1e6;border-color:#dbab84;color:#843008}
   @media(max-width:580px){
     .dw-calendarHeader{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding-bottom:10px;margin-bottom:8px}
@@ -587,7 +587,7 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu) {
   }
 
   const recordKind = {
-    notices:'공지', attendance:'출결 기록', video:'수업 영상·자료', exam:'테스트 결과',
+    home:'수업', notices:'공지', attendance:'출결 기록', video:'수업 영상·자료', exam:'테스트 결과',
     homework:'과제', curriculum:'수업 진도', clinic:'클리닉 일정',
     questions: guardian ? '상담 기록' : '질문', grades:'학교 성적',
   }[topic];
@@ -672,7 +672,7 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu) {
       const noticeDate = topic === 'notices' && date === params.get('noticeDate');
       cell.toggleAttribute('data-last-viewed',isLastViewed || noticeDate);
       cell.setAttribute('aria-label',[format(date,{month:'long',day:'numeric',weekday:'long'}), isToday && '오늘',
-        isLastViewed && '마지막으로 본 날짜', noticeDate && '선택한 공지 날짜', items ? topic === 'attendance' ? attendanceLabels.join(' · ') : recordKind + ' ' + items + '건' : '기록 없음'].filter(Boolean).join(' · '));
+        isLastViewed && (studentHome ? '선택한 날짜' : '마지막으로 본 날짜'), noticeDate && '선택한 공지 날짜', items ? topic === 'attendance' ? attendanceLabels.join(' · ') : recordKind + ' ' + items + '건' : '기록 없음'].filter(Boolean).join(' · '));
       if (isToday) cell.setAttribute('aria-current','date');
       const label = element('span',String(Number(date.slice(8))),'dw-dayNumber');
       const hint = element('span',null,'dw-dayHint');

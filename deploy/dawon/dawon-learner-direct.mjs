@@ -1,6 +1,7 @@
 export function renderStudentMenu(ctx) {
   const {topic,payload,view,params,key,today,format,shift,element,link,status,recordsFor} = ctx;
   if (!['notices','attendance','video','exam'].includes(topic) || params.get('preview') === 'guardian' || params.get('view') === 'day') return false;
+  if (!Array.isArray(topic === 'notices' ? payload.notices : payload.sessions)) throw new Error('student-menu-data');
   const id = value => Number.isSafeInteger(value) && value > 0;
   const dated = value => typeof value === 'string' && /^\d{4}-\d\d-\d\d$/.test(value) && !Number.isNaN(Date.parse(value));
   const dateLabel = value => dated(value) ? format(value,{year:'numeric',month:'long',day:'numeric',weekday:'short'}) : '날짜 미정';
