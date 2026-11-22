@@ -8,7 +8,14 @@ const legacyRevision = 'fd6d5e6e1db1ff9fb1dd03903416dbf3789acf590073b806f65cf15f
 const linkedNavPath = '/dawon-preview-navigation.js';
 const nativeAssetDirectories = ['/assets/', '/tenants/', '/feature-guides/', '/guide-media/', '/teacher-icons/', '/licenses/'];
 const nativeFiles = new Set(['/dawon-brand.svg', '/dawon-brand.css', '/dawon-release.js', '/manifest.json', '/teacher-manifest.json', '/student-manifest.json', '/dev-manifest.json', '/omr-default-logo.svg', '/omr-sheet.html']);
-const brandStyle = (version) => `<link rel="stylesheet" href="/dawon-brand.css?v=${encodeURIComponent(version)}"><style>body:not([data-role="student"]) .dawon-native-exams { display:none!important }</style>`;
+const brandStyle = (version) => `<link rel="stylesheet" href="/dawon-brand.css?v=${encodeURIComponent(version)}"><style>
+body:not([data-role="student"]) .dawon-native-exams { display:none!important }
+@media(max-width:480px) {
+  .student-page-shell__section article [role="region"] table {word-break:keep-all;overflow-wrap:normal}
+  .student-page-shell__section article [role="region"] th[scope="col"],
+  .student-page-shell__section table[aria-label="회차별 성적 추이"] td {white-space:nowrap}
+}
+</style>`;
 const formerTeacherRoutes = /^\/learn\/(?:teacher(?:[-/]|$)|grade-collection(?:\/|$)|class-qr(?:\/|$))/;
 const consoleCookie = 'dawon_console=1; Path=/; SameSite=Lax; HttpOnly; Secure';
 const consoleCookieExpired = 'dawon_console=; Path=/; SameSite=Lax; HttpOnly; Secure; Max-Age=0';
