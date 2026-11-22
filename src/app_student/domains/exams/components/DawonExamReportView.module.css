@@ -20,7 +20,7 @@
 .chart { margin: .5rem 0 .8rem; padding: .6rem; border: 1px solid var(--stu-border); border-radius: var(--stu-radius); }
 .chart figcaption { font-size: .85rem; font-weight: 650; }
 .chart svg { display: block; width: min(100%, 500px); margin: 0 auto; }
-.chart text { fill: var(--stu-text-muted); font-size: 8px; }
+.chart text { fill: var(--stu-text-muted); font-size: 10px; }
 .gridLine { stroke: var(--stu-border); stroke-width: 1px; }
 .score { color: var(--stu-primary); }
 .average { color: var(--stu-text-secondary, #595f67); }

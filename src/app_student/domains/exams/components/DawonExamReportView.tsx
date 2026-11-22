@@ -64,7 +64,7 @@ function TrendChart({rows, school}: {rows: DawonExamReport["trend"]; school: boo
           <path d={points.map(p => p ? p.command + p.x + " " + p.y : "").join(" ")}
             fill="none" stroke="currentColor" strokeWidth={2} strokeDasharray={dash} />
           {points.map((p, i) => p && <circle key={i} cx={p.x} cy={p.y} r={2.4} fill="currentColor">
-            <title>{rounds[i].label} · {label} {value(p.raw, key === "percentile" ? "%" : "점")}</title>
+            <title>{rounds[i].label + " · " + label + " " + value(p.raw, key === "percentile" ? "%" : "점")}</title>
           </circle>)}
         </g>;
       })}
