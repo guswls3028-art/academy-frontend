@@ -66,7 +66,7 @@ type IdcardMockControl = {
   responseReady?: Promise<void>;
   noEnrollment?: "forbidden" | "legacy" | "other-denial";
   studentHeaders?: Array<string | undefined>;
-  verdictPatch?: { current_result?: unknown; passcard_state?: unknown };
+  verdictPatch?: { current_result?: unknown; passcard_state?: unknown; today_assessments_passed?: unknown };
 };
 
 type ProgramMockOptions = {
@@ -1677,6 +1677,25 @@ test.describe("학생 클리닉 예약 UX", () => {
     await expect(page.getByRole("heading", { name: "대상자" })).toBeVisible();
     await expect(page.getByRole("region", { name: "클리닉 예약 상태" })).toContainText("승인 대기");
   });
+
+  for (const width of [390, 1366]) {
+    test(`이전 보강 예약과 오늘 수업 통과가 겹치면 합격자와 예약 일정을 표시한다 ${width}px`, async ({ page }) => {
+      const state = createState();
+      state.bookings[0] = { ...state.bookings[0], status: "booked" };
+      const control: IdcardMockControl = { verdictPatch: { today_assessments_passed: true } };
+      await seed(page);
+      await page.setViewportSize({ width, height: 844 });
+      await installApi(page, state, "FAIL", control);
+      await page.goto(`${BASE}/student/idcard`, { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "합격자", exact: true })).toBeVisible();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByText("오늘 수업 통과", { exact: true })).toBeVisible();
+      await expect(page.getByRole("region", { name: "클리닉 예약 상태" })).toContainText("예약 확정");
+      await expect(page.getByRole("link", { name: "예약 일정 확인하기" })).toBeVisible();
+      control.verdictPatch = { today_assessments_passed: false };
+      await expect(page.getByRole("heading", { name: "예약완료", exact: true })).toBeVisible();
+    });
+  }
 
   test("확정 예약은 수강완료까지 예약완료이고 미해결 완료 뒤에는 대상자로 돌아온다", async ({ page }) => {
     const state = createState();
