@@ -348,7 +348,7 @@ function installLearnerBridge(chrome, mountMenu) {
     }
     return true;
   }
-  const isNative = path => /^\/student\/(?:video\/(?:sessions\/[1-9]\d*\/?$|play\/?$)|clinic(?:\/|$)|community(?:\/|$)|exams(?:\/|$)|attendance(?:\/|$)|submit\/school-report(?:\/|$))/.test(path);
+  const isNative = path => /^\/student\/(?:video\/(?:sessions\/[1-9]\d*\/?$|play\/?$)|notices\/[1-9]\d*\/?$|clinic(?:\/|$)|community(?:\/|$)|exams(?:\/|$)|attendance(?:\/|$)|submit\/school-report(?:\/|$))/.test(path);
   const generic = {
     dashboard:'home', home:'home', videos:'video', video:'video', calendar:'home', schedule:'home',
     notifications:'alerts', community:'questions', qna:'questions', grades:'exam', homework:'homework',
@@ -653,7 +653,7 @@ export async function handle(request, env, fetcher = fetch, context) {
     const isConsoleLogin = pathname === '/login/dawon' ||
       (pathname === '/login' && (roleLogin || /(?:^|;\s*)dawon_console=1(?:;|$)/.test(request.headers.get('cookie') ?? '')));
     const isLearnerVideo = /^\/student\/video\/(?:sessions\/[1-9]\d*|play)\/?$/.test(pathname);
-    const isLearnerIntake = /^\/student\/(?:clinic|community)\/?$/.test(pathname);
+    const isLearnerIntake = /^\/student\/(?:clinic|community|notices\/[1-9]\d*)\/?$/.test(pathname);
     const isNative = isConsoleLogin || isLearnerVideo || isLearnerIntake || /^\/(?:workspace|student\/(?:attendance|exams|submit\/school-report))(?:\/|$)/.test(pathname) || ['/terms', '/privacy'].includes(pathname)
       || nativeFiles.has(pathname) || nativeAssetDirectories.some(prefix => pathname.startsWith(prefix));
     if (isNative) {
@@ -668,7 +668,7 @@ export async function handle(request, env, fetcher = fetch, context) {
       }
       const upstreamUrl = isLearnerVideo || isLearnerIntake ? new URL('/login/dawon', url) : url;
       let upstream = await forward(upstreamUrl, request, env, fetcher);
-      for (const previous of ['r34', 'r33', 'r32', 'r31', 'r30', 'r29', 'r28', 'r25', 'r24', 'r23', 'r22', 'r20', 'r14', 'r12', 'r11', 'r10', 'r9', 'r8', 'r7', 'r4', 'r3'].map(suffix => 'dawon-review-20261119-orange-' + suffix)) {
+      for (const previous of ['r37', 'r36', 'r34', 'r33', 'r32', 'r31', 'r30', 'r29', 'r28', 'r25', 'r24', 'r23', 'r22', 'r20', 'r14', 'r12', 'r11', 'r10', 'r9', 'r8', 'r7', 'r4', 'r3'].map(suffix => 'dawon-review-20261119-orange-' + suffix)) {
         if (upstream.status !== 404 || !pathname.startsWith('/assets/')) break;
         if (previous === env.ADMIN_VERSION) continue;
         await upstream.body?.cancel();

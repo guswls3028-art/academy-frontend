@@ -1,3 +1,4 @@
+import { dawonStudyReturn } from "@/shared/product/dawon/learnerReturn";
 // PATH: src/app_student/domains/video/pages/VideoPlayerPage.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
@@ -279,6 +280,7 @@ export default function VideoPlayerPage() {
     && playbackQuery.data?.playback_token,
   );
   const effectiveEnrollmentId = isDirectAccess ? null : (video?.enrollment_id ?? enrollmentId);
+  const studyReturn = dawonStudyReturn("video");
   const videoListUrl = sessionId
     ? `/student/video/sessions/${sessionId}${effectiveEnrollmentId ? `?enrollment=${effectiveEnrollmentId}` : ""}`
     : "/student/video";
@@ -719,7 +721,7 @@ export default function VideoPlayerPage() {
       ) : (loadError || fatalError) ? (
         <VideoPlaybackError message={fatalError || loadError} error={playbackQuery.error}
           summary={playbackData?.review_watch_summary ?? playbackData?.video.review_watch_summary}
-          onRetry={() => { void retryPlayback(); }} onBack={() => nav(videoListUrl)} />
+          onRetry={() => { void retryPlayback(); }} onBack={() => studyReturn ? window.location.assign(studyReturn) : nav(videoListUrl)} />
       ) : video && boot ? (
         <>
           {/* ─── 플레이어 ─── */}
@@ -757,7 +759,7 @@ export default function VideoPlayerPage() {
             {/* 액션: 좋아요 · 목록 · 다음 */}
             <div className="vpp-info-row">
               <div className="vpp-primary-actions">
-                <button type="button" className="vpp-back-link" onClick={() => nav(videoListUrl)} aria-label="목록으로">
+                <button type="button" className="vpp-back-link" onClick={() => studyReturn ? window.location.assign(studyReturn) : nav(videoListUrl)} aria-label="목록으로">
                   <IconChevronRight className="vpp-icon-back-sm" aria-hidden="true" />
                   <span>목록으로</span>
                 </button>

@@ -1,3 +1,4 @@
+import { dawonStudyReturn } from "@/shared/product/dawon/learnerReturn";
 /**
  * PATH: src/app_student/domains/community/pages/CommunityPage.tsx
  * 학생 커뮤니티 — QnA | 게시판 | 자료실
@@ -385,6 +386,10 @@ export default function CommunityPage() {
   }
 
   // ─── Sub-views ───
+  const material = params.get("material") ?? "";
+  if (isDawonCounselPreview() && params.get("tab") === "materials" && /^[1-9]\d{0,9}$/.test(material)) {
+    return <MaterialsDetail id={Number(material)} onBack={() => window.location.assign(dawonStudyReturn("video", params) ?? "/learn/video")} />;
+  }
   if (view.kind === "notice-detail") return <NoticeDetail id={view.id} onBack={back} />;
   if (view.kind === "qna-form") return <QnaForm onBack={back} onSuccess={back} />;
   if (view.kind === "qna-detail") return <QnaDetail id={view.id} cached={view.cached} onBack={back} />;

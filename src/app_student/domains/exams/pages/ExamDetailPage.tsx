@@ -1,3 +1,4 @@
+import { dawonStudyReturn } from "@/shared/product/dawon/learnerReturn";
 // src/app_student/domains/exams/pages/ExamDetailPage.tsx
 /**
  * ✅ ExamDetailPage (학생)
@@ -17,6 +18,7 @@ import styles from "./ExamDetailPage.module.css";
 
 export default function ExamDetailPage() {
   const { examId } = useParams();
+  const returnUrl = dawonStudyReturn("exam");
   const safeId = Number(examId);
   const examQ = useStudentExam(Number.isFinite(safeId) ? safeId : undefined);
 
@@ -73,7 +75,7 @@ export default function ExamDetailPage() {
       description="제출 / 결과 조회"
       descriptionMode="help"
       actions={
-        <Link to="/student/exams" className="stu-cta-link">
+        returnUrl ? <a href={returnUrl} className="stu-cta-link">돌아가기</a> : <Link to="/student/exams" className="stu-cta-link">
           목록
         </Link>
       }

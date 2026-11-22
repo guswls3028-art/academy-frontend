@@ -1,3 +1,4 @@
+import { dawonStudyReturn } from "@/shared/product/dawon/learnerReturn";
 /**
  * 공지 상세 페이지
  */
@@ -37,6 +38,7 @@ export default function NoticeDetailPage() {
     listParams.set("tab", "lecture");
     listParams.set("lecture", String(lecture));
   }
+  const studyReturn = dawonStudyReturn("notices");
   const listPath = `/student/notices${listParams.size ? `?${listParams}` : ""}`;
   const noticeId = id ? Number(id) : null;
 
@@ -48,7 +50,7 @@ export default function NoticeDetailPage() {
 
   if (isLoading) {
     return (
-      <StudentPageShell title="공지사항" onBack={() => navigate(listPath)}>
+      <StudentPageShell title="공지사항" onBack={() => studyReturn ? window.location.assign(studyReturn) : navigate(listPath)}>
         <div className={styles.loadingStack}>
           <div className={`stu-skel ${styles.skelTitle}`} />
           <div className={`stu-skel ${styles.skelMeta}`} />
@@ -61,7 +63,7 @@ export default function NoticeDetailPage() {
 
   if (isError || !notice || noticeId == null) {
     return (
-      <StudentPageShell title="공지사항" onBack={() => navigate(listPath)}>
+      <StudentPageShell title="공지사항" onBack={() => studyReturn ? window.location.assign(studyReturn) : navigate(listPath)}>
         <EmptyState
           title="공지를 불러오지 못했습니다."
           description="잠시 후 다시 시도해주세요."
@@ -75,7 +77,7 @@ export default function NoticeDetailPage() {
   const lectureTitle = firstNode?.lecture_title;
 
   return (
-    <StudentPageShell title="공지사항" onBack={() => navigate(listPath)}>
+    <StudentPageShell title="공지사항" onBack={() => studyReturn ? window.location.assign(studyReturn) : navigate(listPath)}>
       <div>
         <div className={styles.stack}>
           {/* 제목 */}
@@ -111,7 +113,8 @@ export default function NoticeDetailPage() {
           {/* 목록으로 돌아가기 */}
           <div className={styles.footer}>
             <Link
-              to={listPath}
+              to={studyReturn ?? listPath}
+              reloadDocument={Boolean(studyReturn)}
               className={`stu-btn stu-btn--secondary stu-btn--sm ${styles.backLink}`}
             >
               목록으로 돌아가기

@@ -1,3 +1,4 @@
+import { dawonStudyReturn } from "@/shared/product/dawon/learnerReturn";
 /**
  * ExamResultPage — 시험 결과 상세
  * 대표 Result + ResultItem(문항별) 렌더링
@@ -49,7 +50,7 @@ export default function ExamResultPage() {
   const [params] = useSearchParams();
   const isDawon = resolveTenantCodeString() === "dawon";
   const parent = user?.tenantRole === "parent";
-  if (isDawon && params.get("from") === "day" && parent !== (params.get("preview") === "guardian")) {
+  if (isDawon && ["day", "menu", "home"].includes(params.get("from") ?? "") && parent !== (params.get("preview") === "guardian")) {
     return <ReportRoleLogin />;
   }
   return <ExamResultContent isDawon={isDawon} parent={parent} />;
@@ -58,8 +59,9 @@ export default function ExamResultPage() {
 function ExamResultContent({isDawon, parent}: {isDawon: boolean; parent: boolean}) {
   const { examId } = useParams();
   const [params] = useSearchParams();
-  const day = isDawon ? dayReturnUrl(params) : null;
-  const resultBack = day ? <a href={day} className="stu-cta-link">날짜별 시험</a> :
+  const studyReturn = dawonStudyReturn("exam", params);
+  const day = isDawon ? studyReturn ?? dayReturnUrl(params) : null;
+  const resultBack = day ? <a href={day} className="stu-cta-link">{studyReturn ? (params.get("from") === "home" ? "선택한 날짜로" : "테스트 결과 목록") : "날짜별 시험"}</a> :
     <Link to="/student/exams" className="stu-cta-link">시험 목록</Link>;
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const safeId = Number(examId);

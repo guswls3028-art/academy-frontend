@@ -199,11 +199,15 @@ export default function LoginPage() {
   const videoPath = previewSearch.get("view") === "video" && /^[1-9]\d{0,9}$/.test(explicitVideo)
     ? `/student/video/sessions/${explicitVideo}` : "";
   const nativeVideoEntry = /^\/student\/video\/sessions\/[1-9]\d*\/?$/.test(learnerPath);
-  const videoEntry = Boolean(videoPath) || nativeVideoEntry;
-  const fromLearnerPage = nativeVideoEntry || /^\/student\/(attendance|clinic|exams|submit\/school-report)(?:[/?#]|$)/.test(learnerPath);
+  const nativePlayer = /^\/student\/video\/play\?/.test(learnerPath);
+  const nativeNotice = /^\/student\/notices\/[1-9]\d*(?:\?|$)/.test(learnerPath);
+  const nativeMaterial = learnerPath.startsWith("/student/community?") &&
+    new URLSearchParams(learnerPath.split("?")[1]).get("tab") === "materials";
+  const videoEntry = Boolean(videoPath) || nativeVideoEntry || nativePlayer;
+  const fromLearnerPage = nativeVideoEntry || nativePlayer || nativeNotice || nativeMaterial || /^\/student\/(attendance|clinic|exams|submit\/school-report)(?:[/?#]|$)/.test(learnerPath);
   const learnerEntry = !staffEntry && (fromLearnerPage || previewSearch.get("demo") === "student");
   const reportEntry = previewSearch.get("view") === "school-report" || learnerPath.split(/[?#]/)[0] === reportPath;
-  const qrEntry = learnerEntry && !clinicEntry && !videoEntry && !reportEntry && !(previewSearch.get("view") === "exams" || learnerPath.startsWith("/student/exams"));
+  const qrEntry = learnerEntry && !clinicEntry && !videoEntry && !reportEntry && !nativeNotice && !nativeMaterial && !(previewSearch.get("view") === "exams" || learnerPath.startsWith("/student/exams"));
 
   async function onDemoEntry() {
     if (pending) return;
@@ -313,7 +317,7 @@ export default function LoginPage() {
             {isDawonDemo && (
               <div className={styles.demoEntry}>
                 <button type="button" className={styles.btnPrimary} onClick={() => void onDemoEntry()} disabled={pending}>
-                  {adminEntry ? "관리자 데모 로그인" : staffEntry ? "선생님 데모 로그인" : parentReportEntry ? "학부모 데모로 성적표 보기" : guardianEntry ? "학부모 데모로 상담 신청" : clinicEntry ? "학생 데모로 클리닉 신청" : videoEntry ? "학생 데모로 수업 영상 보기" : qrEntry ? "학생 데모로 QR 출석" : reportEntry ? "학생 데모로 학교 성적 입력" : learnerEntry ? "학생 데모로 시험 결과 보기" : "데모 계정으로 시작"}
+                  {adminEntry ? "관리자 데모 로그인" : staffEntry ? "선생님 데모 로그인" : parentReportEntry ? "학부모 데모로 성적표 보기" : guardianEntry ? "학부모 데모로 상담 신청" : clinicEntry ? "학생 데모로 클리닉 신청" : videoEntry ? "학생 데모로 수업 영상 보기" : nativeMaterial ? "학생 데모로 수업 자료 보기" : nativeNotice ? "학생 데모로 공지 보기" : qrEntry ? "학생 데모로 QR 출석" : reportEntry ? "학생 데모로 학교 성적 입력" : learnerEntry ? "학생 데모로 시험 결과 보기" : "데모 계정으로 시작"}
                 </button>
                 <span>{adminEntry ? "예시 학원의 반 운영, 직원, 시험 결과를 관리합니다." : guardianEntry ? "예시 학부모로 체험합니다." : learnerEntry ? "예시 학생으로 체험합니다." : "선생님 업무는 PC에서 보기를 권장합니다."}</span>
               </div>
