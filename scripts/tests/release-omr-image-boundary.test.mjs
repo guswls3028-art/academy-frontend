@@ -29,6 +29,7 @@ async function exercise(options = {}) {
     exposeBinding: async () => {}, addInitScript: async () => {}, on() {},
     route: async (_pattern, callback) => { handler = callback; } };
   const guard = await installReleaseContextGuard(context, options.boundary ?? boundary);
+  if (options.original) guard.registerOmrOriginalPng(123, options.original.key, options.original.bytes);
   const headers = options.headers ?? { referer: `${boundary.webOrigin}/workspace/private`, accept: "image/*" };
   const request = { url: () => options.url ?? url, method: () => options.method ?? "GET",
     resourceType: () => options.resourceType ?? "image", allHeaders: async () => headers,
@@ -50,6 +51,22 @@ async function exercise(options = {}) {
     }, fulfill: async (response) => { fulfilled.push(response); } });
   return { guard, context, fetched, fulfilled, aborted };
 }
+
+test("original OMR preview serves only the exact registered synthetic PNG", async () => {
+  const key = "tenants/352/ai/submissions/123/" + "a".repeat(32) + ".png";
+  const bytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 10, 11]);
+  const originalUrl = origin + "/academy-development-artifacts/" + key + "?" + query;
+  const options = { original: { key, bytes }, url: originalUrl, contentType: "image/png", body: bytes };
+  const result = await exercise(options);
+  result.guard.assertClean();
+  assert.deepEqual(result.fulfilled[0].body, bytes);
+  assertRejected(await exercise({ ...options, original: undefined }));
+  assertRejected(await exercise({ ...options, url: originalUrl.replace("/123/", "/124/") }));
+  assertRejected(await exercise({ ...options, url: originalUrl.replace("/352/", "/353/") }));
+  assertRejected(await exercise({ ...options, headers: { authorization: "private" } }));
+  assertRejected(await exercise({ ...options, body: Buffer.concat([bytes, Buffer.from([0])]) }), 1);
+  await assert.rejects(exercise({ ...options, original: { key: key.replace("/352/", "/353/"), bytes } }));
+});
 
 function assertRejected(result, expectedFetches = 0) {
   assert.equal(result.fetched.length, expectedFetches);

@@ -433,6 +433,12 @@ Set-Cookie·Location 등 upstream header는 전달하지 않는다. direct APIRe
 검증하므로 IAM/SSM 변경은 없다. `release-omr-image-boundary.test.mjs`를 공식 canary 계약
 suite가 실행하며, 실제 이미지 decode와 OMR 흐름·cleanup zero는 별도 실사용 gate로 남는다.
 
+회전 재판독 실사용 검증은 격리 시험의 합성 PNG 한 장을 사용한다. 테스트가 접수한
+제출 번호, 개발 테넌트의 원본 객체 경로, 업로드한 바이트의 길이와 SHA-256을
+고정한다. 이 원본의 서명된 이미지 GET에서 응답 형식과 바이트가 일치해야
+미리보기를 표시한다. 270도 재판독 후 새 제출의 워커 답안을 재조회하고 원본
+보존을 확인한다. 두 제출과 임시 시험은 기존 시나리오의 정리 대상에 포함한다.
+
 배정 전 OMR 원본 PDF의 미리보기·새 창은 격리 staff의 해당 제출물 preview GET에서
 실제 200 JSON, `Cache-Control: no-store`, tenant·CORS 확인을 거쳐 받은 단일 URL로
 검증한다. 해당 Setup tenant/제출물의 `ai/submissions/<id>/<32 hex>.pdf`, 개발 bucket,
