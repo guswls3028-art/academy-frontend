@@ -220,16 +220,16 @@ export default function OmrReviewWorkspace({
     enabled: open && initialSubmissionId != null,
   });
   const rows = useMemo(() => {
-    const seen = new Set<number>();
-    return [
+    // Keep focused/issues rows first, but use the polled status for recent scans.
+    const byId = new Map<number, OmrReviewRow>();
+    for (const row of [
       ...(focusedIssue.data?.items ?? []),
       ...(issues.data?.pages.flatMap((page) => page.items) ?? []),
       ...recentRows,
-    ].filter((row) => {
-      if (seen.has(row.id)) return false;
-      seen.add(row.id);
-      return true;
-    });
+    ]) {
+      byId.set(row.id, row);
+    }
+    return Array.from(byId.values());
   }, [focusedIssue.data, issues.data, recentRows]);
 
   // 상세
@@ -251,6 +251,20 @@ export default function OmrReviewWorkspace({
   const detail = detailMatchesSelection ? loadedDetail : undefined;
   const detailError = detailQueryError || !detailMatchesSelection;
   const selectedRow = rows.find((row) => row.id === selectedId);
+  const detailStatus = detail?.submission_status;
+  const listStatus = selectedRow?.status;
+  useEffect(() => {
+    if (open && !editDirty && detailStatus && listStatus && detailStatus !== listStatus) {
+      void refetchDetail();
+    }
+  }, [open, editDirty, detailStatus, listStatus, refetchDetail, selectedId]);
+
+  const refreshReview = () => {
+    void refetchList();
+    void issues.refetch();
+    if (initialSubmissionId != null) void focusedIssue.refetch();
+    if (selectedId != null && !editDirty) void refetchDetail();
+  };
   const selectedArchived = Boolean(
     (selectedId != null && selectedId === retiredId)
     || (selectedRow && isArchivedOmrReviewRow(selectedRow))
@@ -346,7 +360,7 @@ export default function OmrReviewWorkspace({
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [open, editDirty]);
 
-  const requestSelection = async (submissionId: number, pane?: MobilePane) => {
+  const requestSelection = async (submissionId: number, pane?: MobilePane, resetFilters = false) => {
     if (navigationPromptOpen.current) return;
     const current = selectionState.current;
     if (submissionId !== current.selectedId && current.editDirty) {
@@ -359,6 +373,10 @@ export default function OmrReviewWorkspace({
         danger: true,
       }).finally(() => { navigationPromptOpen.current = false; });
       if (!confirmed || selectionState.current.selectedId !== current.selectedId) return;
+    }
+    if (resetFilters) {
+      setFilter("all");
+      setSearch("");
     }
     setSelectedId(submissionId);
     if (pane) setMobilePane(pane);
@@ -417,7 +435,7 @@ export default function OmrReviewWorkspace({
         </header>
 
         <div className="orw-toolbar">
-          <Button intent="secondary" size="sm" onClick={() => { void refetchList(); void issues.refetch(); }}>
+          <Button intent="secondary" size="sm" onClick={refreshReview}>
             검토 현황 새로고침
           </Button>
           <input
@@ -475,7 +493,7 @@ export default function OmrReviewWorkspace({
               <div className="orw-list-empty orw-list-empty--first">
                 <strong>OMR 답안 목록을 불러오지 못했습니다.</strong>
                 <span>기존 답안을 빈 목록으로 처리하지 않았습니다.</span>
-                <Button intent="secondary" size="sm" onClick={() => { void refetchList(); void issues.refetch(); void focusedIssue.refetch(); }}>다시 시도</Button>
+                <Button intent="secondary" size="sm" onClick={refreshReview}>다시 시도</Button>
               </div>
             ) : visibleRows.length === 0 ? (
               rows.length === 0 && filter === "all" && search.trim() === "" ? (
@@ -542,11 +560,14 @@ export default function OmrReviewWorkspace({
             createdAt={visibleRows.find((r) => r.id === selectedId)?.created_at ?? null}
             focusedQid={focusedQid}
             onPickQuestion={setFocusedQid}
-            onRescanCreated={(submissionId) => {
-              void requestSelection(submissionId);
-              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewList(examId) });
-              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewIssues(examId) });
-              qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewDetail(submissionId) });
+            onRescanCreated={async (submissionId, sourceId) => {
+              await Promise.all([
+                qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewList(examId) }),
+                qc.invalidateQueries({ queryKey: adminResultsQueryKeys.omrReviewIssues(examId) }),
+              ]);
+              if (selectionState.current.selectedId === sourceId) {
+                await requestSelection(submissionId, undefined, true);
+              }
             }}
             onImageLoadError={() => {
               // presigned URL 만료 등으로 이미지 실패 시 상세 재조회 → 새 URL 받기
@@ -677,7 +698,7 @@ function ScanPane({
   createdAt: string | null;
   focusedQid: number | null;
   onPickQuestion: (qid: number) => void;
-  onRescanCreated: (submissionId: number) => void;
+  onRescanCreated: (submissionId: number, sourceId: number) => Promise<void>;
   onImageLoadError?: () => void;
 }) {
   const [imgLoading, setImgLoading] = useState(false);
@@ -688,22 +709,26 @@ function ScanPane({
   const bodyRef = useRef<HTMLDivElement>(null);
   const rotateRequestRef = useRef<{ key: string; id: string } | null>(null);
   const confirm = useConfirm();
+  // When the preview is the original, the API signs it only once.
+  const originalUrl = detail?.original_scan_image_url ||
+    (detail?.scan_image_is_aligned === false ? detail.scan_image_url : undefined);
 
   const rotateRescan = useMutation({
     mutationFn: async ({
+      sourceId,
       rotationDegrees,
       clientRequestId,
     }: {
+      sourceId: number;
       rotationDegrees: 90 | 180 | 270;
       clientRequestId: string;
     }) => {
-      if (!detail) throw new Error("no detail");
-      return rotateRescanApi(detail.submission_id, rotationDegrees, clientRequestId);
+      return rotateRescanApi(sourceId, rotationDegrees, clientRequestId);
     },
-    onSuccess: (result) => {
+    onSuccess: (result, { sourceId }) => {
       rotateRequestRef.current = null;
       feedback.success("원본을 지정한 방향으로 다시 읽기 시작했습니다.");
-      onRescanCreated(result.submission_id);
+      return onRescanCreated(result.submission_id, sourceId);
     },
     onError: (error: unknown) => {
       const err = error as { response?: { data?: { detail?: string } }; message?: string };
@@ -712,7 +737,7 @@ function ScanPane({
   });
 
   const requestRotateRescan = async () => {
-    if (!detail || archived || rotation === 0 || rotateRescan.isPending) return;
+    if (!detail || !originalUrl || archived || rotation === 0 || rotateRescan.isPending) return;
     const ok = await confirm({
       title: "이 방향으로 다시 읽기",
       message: `원본 답안지를 오른쪽 기준 ${rotation}° 회전해 새 판독 건을 만듭니다. 기존 답안지는 비교를 위해 그대로 보존됩니다.`,
@@ -726,6 +751,7 @@ function ScanPane({
       : createRandomUuid();
     rotateRequestRef.current = { key: requestKey, id: clientRequestId };
     rotateRescan.mutate({
+      sourceId: detail.submission_id,
       rotationDegrees: rotation,
       clientRequestId,
     });
@@ -754,8 +780,8 @@ function ScanPane({
     return () => observer.disconnect();
   }, []);
 
-  const activeImageUrl = rotation !== 0 && detail?.original_scan_image_url
-    ? detail.original_scan_image_url
+  const activeImageUrl = rotation !== 0 && originalUrl
+    ? originalUrl
     : detail?.scan_image_url;
   useEffect(() => {
     setNaturalSize(null);
@@ -858,7 +884,7 @@ function ScanPane({
               type="button"
               intent="primary"
               size="sm"
-              disabled={!detail?.original_scan_image_url || rotateRescan.isPending}
+              disabled={!originalUrl || rotateRescan.isPending}
               onClick={() => void requestRotateRescan()}
             >
               {rotateRescan.isPending ? "다시 읽는 중…" : "이 방향으로 다시 읽기"}
@@ -1544,7 +1570,11 @@ function EditPane({
 
         <div>
           {detail.answers.length === 0 ? (
-            <div className="orw-loading">문항이 없습니다.</div>
+            <div className="orw-loading">
+              {["submitted", "dispatched", "extracting"].includes(detail.submission_status)
+                ? "답안지를 판독하고 있습니다. 판독이 끝나면 문항이 표시됩니다."
+                : "문항이 없습니다."}
+            </div>
           ) : (
             detail.answers.map((a) => (
               <AnswerRow
@@ -1681,6 +1711,10 @@ function EditPane({
 function statusLabel(s: string | undefined | null): string {
   const v = String(s || "").toLowerCase();
   if (v === "done") return "완료";
+  if (v === "submitted") return "접수";
+  if (v === "dispatched") return "판독 대기";
+  if (v === "extracting") return "판독 중";
+  if (v === "grading") return "채점 중";
   if (v === "needs_identification") return "식별 대기";
   if (v === "answers_ready") return "채점 대기";
   if (v === "failed") return "실패";

@@ -858,6 +858,7 @@ function safeTransportMethod(method: string): RequestTransportDiagnostic["method
 }
 
 export type ReleaseContextGuard = {
+  registerOmrOriginalPng: (submissionId: number, key: string, bytes: Buffer) => void;
   omrPreviewReads: (submissionId: number) => Array<{ sizeBytes: number; sha256: string }>;
   observations: ObservationCounts;
   authentication: ObservationCounts;
@@ -1276,6 +1277,7 @@ export async function installReleaseContextGuard(
   const communityFileUrls = new Map<string, { contentType: string; sizeBytes: number; disposition: string }>();
   const resourceDownloadUrls = new Set<string>();
   const omrPreviewPdfs = new Map<string, { url: string; reads: Array<{ sizeBytes: number; sha256: string }> }>();
+  let omrOriginalPng: { path: string; size: number; sha256: string } | undefined;
   const resourceReaderUrls = new Map<string, string>();
   const acceptedPptJobs = new Set<string>();
   const acceptedPayrollJobs = new Map<string, string>();
@@ -1747,7 +1749,12 @@ export async function installReleaseContextGuard(
       const communityImageType = communityImage?.contentType;
       const heic = homeworkImageType === "image/heic" || homeworkImageType === "image/heif" || communityImageType === "image/heic";
       const matchupImageType = isExactDevelopmentMatchupImage(boundary, upstream, request.method()) ? "image/png" : undefined;
-      if (((homeworkImageType && homeworkImageType !== "video/mp4") || communityImageType || matchupImageType || isExactDevelopmentOmrImage(boundary, upstream, request.method()))
+      const originalTarget = omrOriginalPng && request.method() === "GET" ? new URL(upstream) : undefined;
+      const originalPng = originalTarget && omrOriginalPng && originalTarget.origin === DEVELOPMENT_OMR_R2_ORIGIN
+        && upstream === DEVELOPMENT_OMR_R2_ORIGIN + omrOriginalPng.path + originalTarget.search
+        && originalTarget.searchParams.get("X-Amz-Expires") === "21600" && hasExactHostSignature(originalTarget, 21600)
+        ? omrOriginalPng : undefined;
+      if (((homeworkImageType && homeworkImageType !== "video/mp4") || communityImageType || matchupImageType || originalPng || isExactDevelopmentOmrImage(boundary, upstream, request.method()))
         && (request.resourceType() === "image" || (heic && request.resourceType() === "xhr"))) {
         const headers = await request.allHeaders();
         if (bodyBytes > 0 || ["authorization", "proxy-authorization", "cookie", "x-tenant-code", "x-student-id", "x-api-key"]
@@ -1757,7 +1764,7 @@ export async function installReleaseContextGuard(
         }
         // Only this signed development object URL is forwarded. Never send app
         // credentials/referrer or follow redirects; never report the signed URL.
-        const contentType = communityImageType || homeworkImageType || matchupImageType || "image/jpeg";
+        const contentType = communityImageType || homeworkImageType || matchupImageType || (originalPng ? "image/png" : "image/jpeg");
         const response = await route.fetch({ url: upstream, method: "GET", headers: { accept: contentType,
           ...(heic ? { origin: boundary.webOrigin } : {}) }, maxRedirects: 0 });
         if (response.status() >= 300 && response.status() < 400) throw new Error("Release API redirect refused");
@@ -1770,6 +1777,7 @@ export async function installReleaseContextGuard(
           || (heic && (body.subarray(4, 8).toString("ascii") !== "ftyp"
             || !["*", boundary.webOrigin].includes(response.headers()["access-control-allow-origin"] ?? "")))
           || (communityImage?.sizeBytes !== undefined && body.length !== communityImage.sizeBytes)
+          || (originalPng && (body.length !== originalPng.size || createHash("sha256").update(body).digest("hex") !== originalPng.sha256))
           || (contentType === "image/webp" && body.subarray(8, 12).toString("ascii") !== "WEBP")) {
           await reject("transport");
           return;
@@ -2135,6 +2143,18 @@ export async function installReleaseContextGuard(
     await route.continue();
   };
   const guard: ReleaseContextGuard = {
+    registerOmrOriginalPng(submissionId, key, bytes) {
+      const prefix = `tenants/${boundary.omrR2TenantId}/ai/submissions/${submissionId}/`;
+      if (omrOriginalPng || boundary.mode !== "development" || !boundary.tenantCode.startsWith("qa-")
+        || !Number.isSafeInteger(boundary.omrR2TenantId) || Number(boundary.omrR2TenantId) < 1
+        || !Number.isSafeInteger(submissionId) || submissionId < 1 || !key.startsWith(prefix)
+        || !/^[a-f0-9]{32}\.png$/.test(key.slice(prefix.length)) || bytes.length < 8
+        || !bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+        throw new Error("Invalid isolated OMR original fixture");
+      }
+      omrOriginalPng = { path: `/academy-development-artifacts/${key}`, size: bytes.length,
+        sha256: createHash("sha256").update(bytes).digest("hex") };
+    },
     omrPreviewReads: submissionId => omrPreviewPdfs.get(String(submissionId))?.reads.map(read => ({ ...read })) ?? [],
     observations,
     authentication,
