@@ -4,13 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import {
   fetchHomeworkMediaPreview,
   type HomeworkSubmissionMediaFile,
-} from "@admin/domains/submissions/api/adminHomeworkSubmissions.api";
+} from "@/shared/api/contracts/staffHomeworkFiles";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
 import PhotoPreview from "@/shared/ui/media/PhotoPreview";
 import HomeworkMediaVideo from "@/shared/ui/media/HomeworkMediaVideo";
-import { QUERY_KEYS } from "../queryKeys";
-import styles from "../panels/HomeworkSubmissionsPanel.module.css";
+import { assessmentQueryKeys } from "@/shared/api/queryKeys/assessments";
+import styles from "./HomeworkMediaPreviewModal.module.css";
 
 type Props = {
   open: boolean;
@@ -18,10 +18,11 @@ type Props = {
   file: HomeworkSubmissionMediaFile | null;
   mediaSetFingerprint: string | null;
   onClose: () => void;
+  aboveStudentDetail?: boolean;
   onViewed?: (fileId: string) => void;
 };
 
-export default function HomeworkMediaPreviewModal({ open, homeworkId, file, mediaSetFingerprint, onClose, onViewed }: Props) {
+export default function HomeworkMediaPreviewModal({ open, homeworkId, file, mediaSetFingerprint, onClose, onViewed, aboveStudentDetail }: Props) {
   const [openedPdfId, setOpenedPdfId] = useState<string | null>(null);
   const [failedMediaKey, setFailedMediaKey] = useState<string | null>(null);
   const close = () => {
@@ -29,7 +30,7 @@ export default function HomeworkMediaPreviewModal({ open, homeworkId, file, medi
     onClose();
   };
   const previewQ = useQuery({
-    queryKey: QUERY_KEYS.HOMEWORK_MEDIA_PREVIEW(homeworkId, file?.id, mediaSetFingerprint),
+    queryKey: assessmentQueryKeys.homeworkMediaPreview(homeworkId, file?.id, mediaSetFingerprint),
     queryFn: () => fetchHomeworkMediaPreview(homeworkId, file!.id),
     enabled: open && file != null && file.status === "uploaded" && !file.removed_at,
     staleTime: 8 * 60 * 1000,
@@ -45,7 +46,8 @@ export default function HomeworkMediaPreviewModal({ open, homeworkId, file, medi
   };
 
   return (
-    <AdminModal open={open} onClose={close} type="inspect" width={MODAL_WIDTH.xwide}>
+    <AdminModal open={open} onClose={close} type="inspect" width={MODAL_WIDTH.xwide}
+      zIndex={aboveStudentDetail ? Number.parseInt(getComputedStyle(document.documentElement).getPropertyValue("--z-panel-overlay"), 10) + 2 : undefined}>
       <ModalHeader
         type="inspect"
         title={file?.original_filename || "과제 파일 미리보기"}
@@ -74,9 +76,9 @@ export default function HomeworkMediaPreviewModal({ open, homeworkId, file, medi
               >
                 PDF 원본 열기
               </a>
-              <Button type="button" intent="secondary" size="sm" disabled={openedPdfId !== file.id} onClick={() => onViewed?.(file.id)}>
+              {onViewed && <Button type="button" intent="secondary" size="sm" disabled={openedPdfId !== file.id} onClick={() => onViewed?.(file.id)}>
                 열람 확인
-              </Button>
+              </Button>}
             </div>
           )}
           {previewAvailable && file?.media_kind === "image" && file.mime_type !== "application/pdf" && (

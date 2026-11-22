@@ -1214,3 +1214,70 @@ test("저장 실패 후 뒤로 이동해도 같은 학생을 다시 열면 메�
   await page.getByRole("button", { name: "저장", exact: true }).click();
   await expect.poll(() => savedMemo).toBe("돌아와서 복구할 메모");
 });
+
+test("학생 제출물에서 파일 없는 상태와 조회 오류를 구분하고 같은 이름 사진 11장을 확인한다", async ({ page }) => {
+  await prepareDetail(page);
+  await page.setViewportSize({ width: 1366, height: 900 });
+  let mode: "error" | "empty" | "files" = "error";
+  let fingerprint = "a".repeat(64);
+  let accepted = false;
+  let attempts = 0;
+  const files = Array.from({ length: 11 }, (_, position) => ({
+    id: String(800 + position), position, original_filename: "image.jpg", file_size: 1024,
+    media_kind: "image", mime_type: "image/jpeg", status: "uploaded", removed_at: null,
+  }));
+  await page.route("**/submissions/submissions/students/1001/homework/**", route => {
+    if (mode === "error") return route.fulfill({ status: 400, json: { detail: "조회 오류" } });
+    const results = mode === "empty" ? [] : [{
+      id: 4, homework_id: 21, session_id: 22, enrollment_id: 23, homework_title: "연습 문제",
+      lecture_title: "검증 강의", session_title: "1차시", submitted_at: "2026-10-11T00:00:00Z",
+      files, teacher_accepted: accepted, teacher_accepted_updated_at: null, media_set_fingerprint: fingerprint,
+    }];
+    return route.fulfill({ json: { count: results.length, next: null, previous: null, results } });
+  });
+  await page.route("**/homework/21/media/*/preview/", route => route.fulfill({ json: {
+    url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='75'%3E%3Crect width='100' height='75' fill='navy'/%3E%3C/svg%3E",
+    mime_type: "image/jpeg", media_kind: "image", expires_in: 600,
+  } }));
+  await page.route("**/homework/21/acceptance/", route => {
+    attempts += 1;
+    expect(route.request().postDataJSON()).toEqual({
+      enrollment_id: 23, accepted: true, expected_updated_at: null, expected_media_set_fingerprint: fingerprint,
+    });
+    if (attempts === 1) {
+      fingerprint = "b".repeat(64);
+      return route.fulfill({ status: 409, json: { detail: "제출 파일이 변경되었습니다. 최신 파일을 다시 확인해 주세요." } });
+    }
+    accepted = true;
+    return route.fulfill({ json: { teacher_accepted: true, teacher_accepted_updated_at: "2026-10-12T00:00:00Z" } });
+  });
+
+  await gotoAndSettle(page, BASE + "/workspace/students/1001");
+  const detail = page.getByTestId("student-detail-overlay");
+  const tab = detail.getByRole("tab", { name: "제출물", exact: true });
+  await tab.click();
+  await expect(detail.getByText("제출물을 불러오지 못했습니다")).toBeVisible();
+  mode = "empty";
+  await detail.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(detail.getByText("제출한 과제 파일이 없습니다")).toBeVisible();
+  mode = "files";
+  await page.reload();
+  await tab.click();
+  const gallery = detail.getByRole("group", { name: "제출 파일" });
+  const tiles = gallery.getByRole("button", { name: "미리보기", exact: true });
+  await expect(tiles).toHaveCount(11);
+  await expect.poll(() => gallery.getByRole("img", { name: "1번 제출 사진", exact: true }).evaluate(image => (image as HTMLImageElement).naturalWidth)).toBe(100);
+  await tiles.nth(10).click();
+  const viewer = page.getByRole("dialog").filter({ has: page.getByRole("img", { name: "image.jpg 과제 제출 미리보기" }) });
+  await expect(viewer).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(viewer).toHaveCount(0);
+  await expect(detail).toBeVisible();
+  expect(attempts).toBe(0);
+  const pass = detail.getByRole("button", { name: "통과", exact: true });
+  await pass.click();
+  await expect(detail.getByRole("alert")).toContainText("제출 파일이 변경되었습니다");
+  await pass.click();
+  await expect(detail.getByText("통과 인정됨", { exact: true })).toBeVisible();
+  expect(attempts).toBe(2);
+});

@@ -19,7 +19,7 @@ import {
   resolveTenantCode,
 } from "@/shared/tenant";
 import { GuideBookLauncher, getGuideBookPreset } from "@/shared/ui/guide";
-import { useHomeworkReviewForegroundAlert } from "@/shared/hooks/useHomeworkReviewForegroundAlert";
+import PendingHomeworkLink from "@/shared/ui/submissions/PendingHomeworkLink";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Menu, Bell, BellRing, Search } from "@teacher/shared/ui/Icons";
 import CompactStaffClockButton from "@/features/staff-clock/CompactStaffClockButton";
@@ -42,12 +42,7 @@ export default function TeacherTopBar({
   const { program } = useProgram();
   const { user } = useAuth();
   const productUpdate = useProductUpdateAwareness(user?.id);
-  const { counts, failures, isLoading, isError, dataUpdatedAt } = useTeacherPendingCounts();
-  useHomeworkReviewForegroundAlert(
-    counts.homeworkReviewByHomework,
-    dataUpdatedAt,
-    "/workspace/mobile/submissions?homework=pending",
-  );
+  const { counts, failures, isLoading, isError } = useTeacherPendingCounts();
   const tenantName = program?.display_name?.trim() || "";
   const tenantResult = resolveTenantCode();
   const tenantId = tenantResult.ok ? getTenantIdFromCode(tenantResult.code) : null;
@@ -179,6 +174,7 @@ export default function TeacherTopBar({
 
       {/* Right: 기능 검색·가이드·알림. 홈은 좌측 브랜드 버튼 하나가 소유한다. */}
       <div style={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0 }}>
+        <PendingHomeworkLink count={counts.homeworkReviewPending} to="/workspace/mobile/submissions?homework=pending" compact />
         <CompactStaffClockButton />
         <button
           type="button"

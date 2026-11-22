@@ -489,6 +489,8 @@ jobs:
             test-results/**/real-homework-report-390.png
             test-results/**/student-submission-shortcut-390.png
             test-results/**/student-submission-shortcut-1366.png
+            test-results/**/student-homework-files-1366.png
+            test-results/**/student-homework-files-390.png
             test-results/**/assistant-homework-finder-390.png
             test-results/**/assistant-homework-finder-1366.png
             test-results/**/attendance-export-1366.png

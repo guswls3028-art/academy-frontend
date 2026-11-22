@@ -158,85 +158,6 @@
   color: var(--color-primary);
 }
 
-.fileList {
-  display: grid;
-}
-
-.fileRow {
-  display: grid;
-  grid-template-columns: 24px 38px minmax(180px, 1fr) auto auto;
-  align-items: center;
-  gap: 12px;
-  min-height: 70px;
-  padding: 10px 16px;
-  border-top: 1px solid var(--color-border-divider);
-}
-
-.fileRow[data-status="failed"] {
-  background: color-mix(in srgb, var(--color-danger) 4%, var(--color-bg-surface));
-}
-
-.fileRow[data-removed="true"] {
-  opacity: 0.62;
-}
-
-.fileOrder {
-  color: var(--color-text-muted);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-.fileIcon {
-  display: inline-flex;
-  width: 38px;
-  height: 38px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 11px;
-  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-bg-surface-soft));
-  color: var(--color-primary);
-}
-
-.fileRow[data-status="failed"] .fileIcon {
-  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-bg-surface));
-  color: var(--color-danger);
-}
-
-.fileIcon svg {
-  width: 17px;
-  height: 17px;
-}
-
-.fileRow[data-status="uploading"] .fileIcon svg {
-  animation: spin 1s linear infinite;
-}
-
-.fileCopy {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-}
-
-.fileCopy strong {
-  overflow: hidden;
-  color: var(--color-text-primary);
-  font-size: 13px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.fileCopy span {
-  color: var(--color-text-muted);
-  font-size: 11px;
-}
-
-.fileCopy em {
-  color: var(--color-danger);
-  font-size: 11px;
-  font-style: normal;
-}
-
 .noFiles {
   padding: 18px;
   border-top: 1px solid var(--color-border-divider);
@@ -272,53 +193,6 @@
   flex-shrink: 0;
 }
 
-.previewBody {
-  display: flex;
-  min-height: 420px;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border: 1px solid var(--color-border-divider);
-  border-radius: 12px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 4%, transparent), transparent 58%),
-    var(--color-bg-surface-soft);
-}
-
-.previewBody img,
-.previewBody video {
-  display: block;
-  max-width: 100%;
-  max-height: min(70vh, 680px);
-  object-fit: contain;
-}
-
-.pdfLink {
-  color: var(--color-primary);
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.previewBody video {
-  width: 100%;
-  background: #111827;
-}
-
-.previewState {
-  display: grid;
-  justify-items: center;
-  gap: 12px;
-  padding: 40px 20px;
-  color: var(--color-text-muted);
-  font-size: 13px;
-  text-align: center;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
 @media (max-width: 760px) {
   .header,
   .studentHeader {
@@ -352,24 +226,7 @@
     justify-content: flex-start;
   }
 
-  .fileRow {
-    grid-template-columns: 22px 36px minmax(0, 1fr) auto;
-    gap: 9px;
-    padding-inline: 12px;
-  }
-
-  .fileRow > button {
-    grid-column: 3 / -1;
-    justify-self: start;
-  }
-
-  .previewBody {
-    min-height: 300px;
-  }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .fileRow[data-status="uploading"] .fileIcon svg {
-    animation: none;
-  }
-}
+.acceptance:not(:empty) { padding: 10px 14px 0; }
+.studentCard > [role="group"] { padding-inline: 12px; }

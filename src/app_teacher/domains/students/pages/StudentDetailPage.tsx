@@ -31,6 +31,7 @@ import { teacherToast } from "@teacher/shared/ui/teacherToast";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import { MonitorSmartphone } from "lucide-react";
+import StudentHomeworkFiles from "@/shared/product/students/StudentHomeworkFiles";
 import StudentActivityPanel from "@/shared/studentSupport/StudentActivityPanel";
 import { openStudentSupportPreview } from "@/shared/studentSupport/studentSupport.api";
 import styles from "./StudentDetailPage.module.css";
@@ -40,7 +41,8 @@ import { currentSchoolReportPeriod, parseSchoolReportPeriod, schoolReportParams 
 import SchoolReportStudentPanel from "@teacher/domains/results/components/SchoolReportStudentPanel";
 
 const STUDENT_TABS = [
-  { key: "enrollments", label: "수강" }, { key: "exams", label: "시험" },
+  { key: "enrollments", label: "수강" }, { key: "submissions", label: "제출물" },
+  { key: "exams", label: "시험" },
   { key: "school-report", label: "학교 성적표" },
   { key: "homework", label: "과제" }, { key: "clinic", label: "클리닉" },
   { key: "questions", label: "질문" }, { key: "activity", label: "활동" },
@@ -315,6 +317,7 @@ export default function StudentDetailPage() {
           <SchoolReportStudentPanel studentId={sid} period={reportPeriod} />
         </section>
       )}
+      {tab === "submissions" && <StudentHomeworkFiles key={sid} studentId={sid} />}
       {tab === "homework" && (
         <HomeworkList
           results={homeworks}

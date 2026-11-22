@@ -1,0 +1,48 @@
+.previewBody {
+  display: flex;
+  min-height: 420px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--color-primary) 4%, transparent), transparent 58%),
+    var(--color-bg-surface-soft);
+}
+
+.previewBody img,
+.previewBody video {
+  display: block;
+  max-width: 100%;
+  max-height: min(70vh, 680px);
+  object-fit: contain;
+}
+
+.pdfLink {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.previewBody video {
+  width: 100%;
+  background: #111827;
+}
+
+.previewState {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 40px 20px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .previewBody {
+    min-height: 300px;
+  }
+}
