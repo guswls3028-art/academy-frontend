@@ -25,37 +25,54 @@ const trendSeries = [
   {key: "highest", label: "최고점", dash: "1 3"},
 ] as const;
 
-function TrendChart({rows}: {rows: DawonExamReport["trend"]}) {
-  if (!rows.some(row => row.maximum != null && row.maximum > 0 && trendSeries.some(({key}) => row[key] != null))) return null;
-  const x = (i: number) => rows.length === 1 ? 165 : 31 + i * 267 / (rows.length - 1);
-  const point = (row: typeof rows[number], key: typeof trendSeries[number]["key"]) =>
-    row.maximum != null && row.maximum > 0 && row[key] != null
-      ? 108 - Math.min(1, Math.max(0, row[key] / row.maximum)) * 95 : null;
+const schoolSeries = [
+  {key: "score", label: "내 원점수", dash: undefined},
+  {key: "average", label: "응시생 평균", dash: "5 3"},
+  {key: "percentile", label: "내 백분위", dash: "2 3"},
+] as const;
+
+function TrendChart({rows, school}: {rows: DawonExamReport["trend"]; school: boolean}) {
+  const series = school ? schoolSeries : trendSeries;
+  const rounds = school ? rows.filter(row => row.score != null).slice(-8) : rows;
+  if (!rounds.some(row => series.some(({key}) => row[key] != null))) return null;
+  const scoreCeiling = school ? Math.max(1, ...rounds.map(row => Math.max(row.maximum ?? 0, row.score ?? 0, row.average ?? 0))) : 100;
+  const end = school ? 282 : 299;
+  const x = (i: number) => rounds.length === 1 ? (31 + end) / 2 : 31 + i * (end - 31) / (rounds.length - 1);
+  const caption = school ? "최근 응시 회차 성적 추이 (최대 8회)" : "회차별 점수 · 만점 대비 비율";
   return <figure className={styles.chart}>
-    <figcaption>회차별 점수 · 만점 대비 비율</figcaption>
-    <svg viewBox="0 0 310 132" role="img" aria-label="회차별 내 점수·평균·최고점 추이. 수치는 아래 표에서 확인할 수 있습니다.">
+    <figcaption>{caption}</figcaption>
+    <svg viewBox="0 0 316 132" role="img" aria-label={school
+      ? "왼쪽은 원점수와 평균(점), 오른쪽은 학생 백분위(%)입니다. 회차별 값은 아래 표에서 확인할 수 있습니다."
+      : "회차별 내 점수·평균·최고점 추이. 수치는 아래 표에서 확인할 수 있습니다."}>
       {[0, 50, 100].map(n => <g key={n}>
-        <line x1={30} x2={299} y1={108 - .95 * n} y2={108 - .95 * n} className={styles.gridLine} />
-        <text x={25} y={111 - .95 * n} textAnchor="end">{n}%</text>
+        <line x1={30} x2={end} y1={108 - .95 * n} y2={108 - .95 * n} className={styles.gridLine} />
+        <text x={25} y={111 - .95 * n} textAnchor="end">{school ? value(scoreCeiling * n / 100, "점") : n + "%"}</text>
+        {school && <text x={end + 5} y={111 - .95 * n}>{n}%</text>}
       </g>)}
-      {trendSeries.map(({key, dash}) => {
+      {series.map(({key, dash, label}) => {
         let nextStartsLine = true;
-        const points = rows.map((row, i) => {
-          const y = point(row, key);
-          if (y === null) { nextStartsLine = true; return null; }
+        const points = rounds.map((row, i) => {
+          const raw = row[key];
+          const scale = school ? (key === "percentile" ? 100 : scoreCeiling) : row.maximum;
+          if (raw == null || !scale) { nextStartsLine = true; return null; }
+          const y = 108 - Math.min(1, Math.max(0, raw / scale)) * 95;
           const command = nextStartsLine ? "M" : "L";
           nextStartsLine = false;
-          return {x: x(i), y, command};
+          return {x: x(i), y, command, raw};
         });
-        return <g key={key} className={styles[key]}>
+        return <g key={key} className={styles[key]} data-series={key}>
           <path d={points.map(p => p ? p.command + p.x + " " + p.y : "").join(" ")}
             fill="none" stroke="currentColor" strokeWidth={2} strokeDasharray={dash} />
-          {points.map((p, i) => p && <circle key={i} cx={p.x} cy={p.y} r={2.4} fill="currentColor" />)}
+          {points.map((p, i) => p && <circle key={i} cx={p.x} cy={p.y} r={2.4} fill="currentColor">
+            <title>{rounds[i].label} · {label} {value(p.raw, key === "percentile" ? "%" : "점")}</title>
+          </circle>)}
         </g>;
       })}
-      <text x={31} y={126}>첫 회차</text><text x={299} y={126} textAnchor="end">최근 회차</text>
+      {school ? rounds.map((row, i) => <text key={i} x={x(i)} y={126} textAnchor="middle">
+        {row.sequence != null ? row.sequence + "회" : row.label.match(/\d+회$/)?.[0] ?? row.label}
+      </text>) : <><text x={31} y={126}>첫 회차</text><text x={299} y={126} textAnchor="end">최근 회차</text></>}
     </svg>
-    <div className={styles.legend}>{trendSeries.map(series =>
+    <div className={styles.legend}>{series.map(series =>
       <span key={series.key} className={styles[series.key]}>{series.label}</span>)}</div>
   </figure>;
 }
@@ -97,6 +114,7 @@ export default function DawonExamReportView({report}: {report: DawonExamReport})
       <p>{[report.course_title, report.lesson_title, report.date].filter(Boolean).join(" · ")}</p>
       <h2>{report.title}</h2>
       {report.scope && <p>시험 범위 · {report.scope}</p>}
+      {report.characteristics && <p>테스트 특성 · {report.characteristics}</p>}
     </header>
     {report.sections.map(section => <section key={section.exam_id}>
       <h3>{section.title}</h3>
@@ -120,11 +138,11 @@ export default function DawonExamReportView({report}: {report: DawonExamReport})
           <dd>{value(total.sum / total.count,"점")}</dd>
         </div>)}
       </dl>
-      <TrendChart rows={report.trend} />
+      <TrendChart rows={report.trend} school={report.kind === "school_mock"} />
       <ReportTable label="회차별 성적 추이" columns={["회차", "내 점수", "평균", "최고점", ...(hasPercentile ? ["백분위"] : [])]}
         rows={report.trend.map(row => [row.exam_id && location.pathname !== `/student/exams/${row.exam_id}/result`
           ? <Link to={`/student/exams/${row.exam_id}/result${location.search}`} aria-label={row.label+" 성적표 보기"}>{row.label}</Link>
-          : row.label, score(row.score, row.maximum), value(row.average, "점"),
+          : row.label, row.attempt_status === "absent" ? "미응시" : row.attempt_status === "pending" ? "채점 대기" : score(row.score, row.maximum), value(row.average, "점"),
           value(row.highest, "점"), ...(hasPercentile ? [value(row.percentile,"%")] : [])])} />
     </section>}
     {report.homework.length > 0 && <section>

@@ -25,10 +25,12 @@
 .score { color: var(--stu-primary); }
 .average { color: var(--stu-text-secondary, #595f67); }
 .highest { color: #227563; }
+.percentile { color: #236779; }
 .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; font-size: .8rem; }
 .legend span::before { display: inline-block; width: 14px; margin-right: 4px; vertical-align: middle; border-top: 2px solid currentColor; content: ""; }
 .legend .average::before { border-top-style: dashed; }
 .legend .highest::before { border-top-style: dotted; }
+.legend .percentile::before { border-top-style: dotted; }
 
 .questions { display:grid; gap:.5rem; }
 .questionHead { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.5rem; }

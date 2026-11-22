@@ -35,11 +35,12 @@ export type DawonExamReport = {
   lesson_title: string;
   date: string | null;
   scope: string;
+  characteristics?: string;
   sections: (ReportScore & {
     exam_id: number; title: string; scope: string;
     questions: {number: number; topic: string; correct: boolean | null; correct_rate: number | null}[];
   })[];
-  trend: (ReportScore & {label: string; exam_id?: number})[];
+  trend: (ReportScore & {label: string; exam_id?: number; sequence?: number; attempt_status?: "absent" | "pending"})[];
   homework: {title: string; completion: number | null; wrong: number[]; unfinished: number[]}[];
   next_homework: string;
   clinic: string;
