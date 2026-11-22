@@ -217,14 +217,16 @@ export default function HomeworkDetailPage() {
               )}
               <HomeworkFileGallery homeworkId={hid} files={s.files} fingerprint={s.media_set_fingerprint}
                 onOpen={file => setPreview({ file, fingerprint: s.media_set_fingerprint })} />
-              <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
-                {!s.teacher_accepted && <Badge tone={s.teacher_reviewed ? "success" : "warning"} size="xs">
-                  {reviewLabel(s, hasRecordedScore(s))}
-                </Badge>}
-                <button type="button" className={styles.reviewButton} onClick={() => setReviewSubmissionId(s.id)}>
-                  제출물 확인
-                </button>
-              </div>
+              {!s.teacher_accepted && (
+                <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
+                  <Badge tone={s.teacher_reviewed ? "success" : "warning"} size="xs">
+                    {reviewLabel(s, hasRecordedScore(s))}
+                  </Badge>
+                  <button type="button" className={styles.reviewButton} onClick={() => setReviewSubmissionId(s.id)}>
+                    제출물 확인
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </Section>

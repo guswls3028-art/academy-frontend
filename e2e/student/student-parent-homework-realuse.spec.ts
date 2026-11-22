@@ -1309,7 +1309,11 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       // or manual reload after the student's successful submission.
       await staffPage.bringToFront();
       await expect(fileRow).toBeVisible({ timeout: 30_000 });
-      await staffPage.getByRole("link", { name: /^확인 대기 과제 제출 [0-9]+건 열기$/ }).click({ timeout: 40_000 });
+      const pendingBadge = staffPage.getByRole("link", { name: /^확인 대기 과제 제출 [0-9]+건 열기$/ });
+      await expect(pendingBadge).toBeVisible({ timeout: 40_000 });
+      const startingCount = Number((await pendingBadge.getAttribute("aria-label"))?.match(/(\d+)건/)?.[1]);
+      expect(startingCount).toBeGreaterThan(0);
+      await pendingBadge.click();
       await expect(mobileHomeworkChoice).toContainText("확인 대기 1건");
       await expect(staffPage.getByRole("link").filter({ hasText: otherTitle })).toHaveCount(0);
       await assertNoHorizontalOverflow(staffPage);
@@ -1321,10 +1325,13 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await staffPage.getByRole("button", { name: "통과", exact: true }).click();
       await expect(staffPage.getByText("통과 인정됨", { exact: true })).toBeVisible();
       await expect.poll(pendingForHomework).toBe(0);
+      if (startingCount === 1) await expect(pendingBadge).toHaveCount(0);
+      else await expect(pendingBadge).toHaveAttribute("aria-label", `확인 대기 과제 제출 ${startingCount - 1}건 열기`);
       await waitForHomeworkSummary(request, studentTokens.access, row => row.score === null && row.passed === true && row.teacher_accepted === true);
       await staffPage.reload({ waitUntil: "domcontentloaded" });
       await staffPage.getByRole("button", { name: "통과 인정 취소", exact: true }).click();
       await expect.poll(pendingForHomework).toBe(1);
+      await expect(pendingBadge).toHaveAttribute("aria-label", `확인 대기 과제 제출 ${startingCount}건 열기`);
       await staffPage.getByRole("button", { name: "제출물 확인" }).click();
       const preview = staffPage.getByRole("dialog", { name: `${student.name} 제출 확인` });
       const image = preview.getByRole("img", { name: /과제 제출 미리보기/ });
