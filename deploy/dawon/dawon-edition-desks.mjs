@@ -295,13 +295,21 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
     };
     wide.addEventListener('change',responsive);
     clean = () => wide.removeEventListener('change',responsive);
-    search.oninput = () => { responsive(); filter(); };
+    let searchLocation;
+    search.oninput = () => { searchLocation = location.href; responsive(); filter(); };
     form.className='ed-search';
-    form.onsubmit = event => { event.preventDefault(); const first=grid.querySelector('section:not([hidden]) a:not([hidden])'); if (!shelf.hidden && first && canLeave()) navigate(first.href); };
+    form.onsubmit = event => {
+      event.preventDefault();
+      if (!search.value.trim() || shelf.hidden) return;
+      filter();
+      const first=grid.querySelector('section:not([hidden]) a:not([hidden])');
+      if (first && canLeave()) navigate(first.href);
+    };
     shelf.append(grid,status);
     root.append(title,form,shelf);
     update = url => {
-      search.value=''; responsive(); filter();
+      if (searchLocation !== url.href) search.value='';
+      responsive(); filter();
     };
   }
   const sessionPicker = makePicker({role,root,node:n,api,urlOf,navigate,canLeave});
