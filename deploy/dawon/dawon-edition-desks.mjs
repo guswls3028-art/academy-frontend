@@ -82,9 +82,46 @@ html[data-dawon-edition=C] [data-dawon-staff]:not([data-collapsed]) > main{grid-
 [data-edition-desk=B] .ed-recent a{min-height:38px}
 .ed-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.ed-tiles a{min-height:42px;align-content:center}.ed-directory{padding:0 10px}
 }
+[data-edition-desk] :is(select,input,button){font-variant-numeric:tabular-nums}
+[data-edition-desk] :is(a,button,summary){transition:background-color .14s ease,border-color .14s ease}
+@media(prefers-reduced-motion:reduce){[data-edition-desk] :is(a,button,summary){transition:none}}
+html[data-dawon-edition=A] [data-dawon-staff] main .ds-table th{font-weight:650}
+html[data-dawon-edition=A] [data-dawon-staff] main .ds-table tbody :is(td,th){border-block-end:1px solid #dce4e9;font-variant-numeric:tabular-nums}
+html[data-dawon-edition=A] [data-dawon-staff] main .ds-table tbody tr:focus-within{background:#edf4f8}
+.ed-index .ed-matches,.ed-mobile-index .ed-matches{display:grid;gap:4px}
+.ed-index .ed-matches a,.ed-mobile-index .ed-matches a{font:600 14px/1.4 system-ui,sans-serif;background:white;border:1px solid var(--ed-line);border-radius:5px;text-decoration:none;color:var(--ed-ink);padding:10px;display:block}
+.ed-index [hidden],.ed-mobile-index [hidden]{display:none!important}
+.ed-mobile-index{display:none}
+.ed-search{display:flex;gap:8px;margin:8px 0;align-items:center}
+.ed-search button{min-height:40px;flex:none;padding:0 12px;font:600 14px system-ui,sans-serif;color:var(--ed-ink);border:1px solid var(--ed-line);background:white;border-radius:6px;cursor:pointer}
+.ed-search button::after{content:'▾';margin-inline-start:6px}.ed-search button[aria-expanded=true]::after{content:'▴'}
+.ed-directory .ed-tiles{margin-block:12px}
+.ed-search input,.ed-mobile-index input{box-sizing:border-box;width:min(100%,460px);min-height:40px;padding:7px 12px;font:inherit;font-size:14px;border:1px solid var(--ed-line);border-radius:6px;background:white;color:var(--ed-ink)}
+[data-edition-desk=C] .ed-caption{gap:10px}.ed-directory form{margin:0}
+.ed-session-picker{margin:12px 0;border:1px solid var(--ed-line);border-radius:8px;background:white;color:var(--ed-ink);padding:clamp(12px,2vw,22px)}
+.ed-session-picker header{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.ed-session-picker h2{font-size:18px;margin:0}.ed-session-picker header a{color:var(--ed-accent);font-size:13px;text-underline-offset:3px}
+.ed-picker-field label{display:grid;gap:6px;font-size:13px;color:var(--ed-ink);font-weight:650;margin-top:12px}
+[data-edition-desk] .ed-picker-field select{width:min(100%,460px);max-width:100%;min-height:42px}
+.ed-picker-list ul{list-style:none;padding:0;margin:14px 0 0;border-block-start:1px solid var(--ed-line)}
+.ed-picker-list a{display:grid;grid-template-columns:minmax(48px,max-content) minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 4px;min-height:44px;color:var(--ed-ink);text-decoration:none;border-bottom:1px solid var(--ed-line)}
+.ed-picker-list a:is(:hover,:focus-visible){background:var(--ed-tint)}.ed-picker-list a strong{font-size:14px}.ed-picker-list :is(span,small,p){font-size:13px}
+.ed-picker-list small{font-variant-numeric:tabular-nums}.ed-picker-list button{cursor:pointer;min-height:40px;background:white;border:1px solid var(--ed-line);border-radius:4px;color:var(--ed-ink);padding:5px 16px}
+[data-dawon-staff] main:has([data-edition-desk] .ed-session-picker) > div:not([data-edition-desk]){display:none}
+@media(max-width:1023px){.ed-mobile-index{display:block;margin-top:6px}.ed-mobile-index input{width:100%}.ed-mobile-index .ed-matches{grid-template-columns:repeat(2,minmax(0,1fr));margin-block-start:4px}}
+@media(max-width:700px){
+[data-edition-desk=C] .ed-caption{margin-bottom:4px}
+[data-edition-desk=C] .ed-search{margin:0;gap:6px}
+[data-edition-desk=C] .ed-search input{flex:1;min-width:0}
+[data-edition-desk=C] .ed-directory{padding:0 8px;margin-top:5px}
+.ed-tiles{margin:6px 0}.ed-tiles a{min-height:40px}
+[data-edition-desk=C] .ed-session-picker,[data-edition-desk=C] .dawon-staff-context{grid-column:1/-1}
+.ed-picker-list a{gap:6px}.ed-picker-list a small{font-size:11px}
+}
+
 `;
 
-export function createDesk(edition, role, groups, n, navigate, canLeave, main) {
+export function createDesk(edition, role, groups, n, navigate, canLeave, main, makePicker, api) {
   const root = n('section',null,{'data-staff-rail':'','data-edition-desk':edition});
   const names = {A:'학원 행정 콘솔',B:'업무 데스크',C:'업무 포털'};
   const title = n('div',null,{class:'ed-caption'});
@@ -92,6 +129,12 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main) {
   const context = n('span',role === 'teacher' ? '선생님' : '관리자');
   title.append(context,titleText);
   const links = groups.flatMap(([group,items]) => items.map(([label,path])=>({label,path,group})));
+  const tasks = [
+    {label:'출결 입력',path:'lectures?work=attendance',keys:'출결 출석 지각 동영상 결석 출석부'},
+    {label:'과제 확인',path:'lectures?work=assignments',keys:'과제 숙제 제출 확인 과제 관리'},
+  ];
+  const compact = term => term.trim().replace(/\s/g,'').toLowerCase();
+  const matchesTerm = (item,term) => compact(item.label + ' ' + (item.group || '') + ' ' + (item.keys || '')).includes(term);
   const urlOf = path => {
     const url = new URL('/workspace/' + path,location.origin);
     url.searchParams.set('edition',edition);
@@ -108,6 +151,9 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main) {
       for (const [label,path] of items) options.append(n('option',label,{value:path}));
       select.append(options);
     }
+    const fast = n('optgroup',null,{label:'차시 업무'});
+    for (const task of tasks) fast.append(n('option',task.label,{value:task.path}));
+    select.append(fast);
     select.onchange = () => {
       const path = select.value;
       select.value = '';
@@ -123,24 +169,56 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main) {
     action.append(picker());
     bar.append(title,current,action);
     root.append(bar);
-    update = (_url,item) => { current.textContent = [item?.group,item?.label].filter(Boolean).join('  /  '); };
+    update = (url,item) => {
+      const setting = {'/workspace/settings/profile':'내 프로필','/workspace/settings/appearance':'화면 설정'}[url.pathname];
+      current.textContent = [item?.group,setting || item?.label].filter(Boolean).join('  /  ');
+    };
   } else if (edition === 'B') {
     const header = n('div',null,{class:'ed-bar'});
     const jumps = n('nav',null,{class:'ed-recent','aria-label':'최근 연 업무'});
     const selector = picker();
     header.append(title,selector); root.append(header,jumps);
-    const storageKey = 'dawon:desk:recent:' + role;
+    const storageKey = 'dawon:desk:recent:v2:' + role;
+    const generation = localStorage.getItem('academy:auth-active-generation:v1');
+    const known = [...tasks,...links];
+    function recentItem(path) {
+      const item = known.find(it=>it.path === path);
+      if (item) return item;
+      const session = /^lectures\/[1-9]\d*\/sessions\/[1-9]\d*\/(attendance|assignments)(?:\?schedule=[1-9]\d*)?$/.exec(path);
+      if (session) return {path,label:session[1] === 'attendance' ? '차시 출결 이어서' : '차시 과제 이어서'};
+      return null;
+    }
     let recent = [];
-    try { const saved = JSON.parse(sessionStorage.getItem(storageKey)); if (Array.isArray(saved)) recent = saved.filter(p => links.some(it => it.path === p)).slice(0,4); } catch {}
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(storageKey));
+      if (generation && saved?.generation === generation && Array.isArray(saved.paths))
+        recent = saved.paths.filter(path=>typeof path === 'string' && recentItem(path)).slice(0,4);
+    } catch {}
     const side = main.parentElement.querySelector(':scope > aside');
     const searchBox = n('div',null,{class:'ed-index'});
     const search = n('input',null,{type:'search',placeholder:'메뉴 검색','aria-label':'업무 목록 검색'});
     const none = n('small','일치하는 메뉴가 없습니다.',{hidden:'',role:'status'});
     searchBox.append(n('strong','업무 목록'),search,none);
+    const matches = n('div',null,{class:'ed-matches',hidden:''});
+    searchBox.append(matches);
     side?.prepend(searchBox);
+    function results(box,items) {
+      box.replaceChildren(...items.map(makeLink)); box.hidden = !items.length;
+    }
+    const mobile = n('div',null,{class:'ed-mobile-index'});
+    const mobileSearch = n('input',null,{type:'search',placeholder:'업무 검색','aria-label':'모바일 업무 검색'});
+    const mobileResults = n('div',null,{class:'ed-matches',hidden:''});
+    const mobileEmpty = n('small','일치하는 업무가 없습니다.',{role:'status',hidden:''});
+    mobile.append(mobileSearch,mobileResults,mobileEmpty); header.after(mobile);
+    mobileSearch.oninput = () => {
+      const term=compact(mobileSearch.value);
+      const items=term ? [...tasks,...links].filter(it=>matchesTerm(it,term)) : [];
+      results(mobileResults,items); mobileEmpty.hidden=!term || !!items.length;
+    };
+    mobileSearch.onkeydown = e => { if(e.key==='Enter') mobileResults.querySelector('a')?.click(); };
     const opened = new Map();
     function filter() {
-      const term = search.value.trim().replace(/\s/g,'');
+      const term = compact(search.value);
       let count = 0;
       for (const group of side?.querySelectorAll('nav[aria-label="업무 메뉴"] > section, nav[aria-label="업무 메뉴"] > details') || []) {
         let visible = 0;
@@ -157,36 +235,49 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main) {
           else if (opened.has(group)) { group.open = opened.get(group); opened.delete(group); }
         }
       }
-      none.hidden = !term || count > 0;
+      const work = term ? tasks.filter(task=>matchesTerm(task,term)) : [];
+      results(matches,work);
+      none.hidden = !term || count + work.length > 0;
     }
     search.oninput = filter;
-    update = (_url,item) => {
-      if (item) recent = [item.path,...recent.filter(p => p !== item.path)].slice(0,4);
-      try { sessionStorage.setItem(storageKey,JSON.stringify(recent)); } catch {}
-      jumps.replaceChildren(n('span','최근 업무'),...recent.map(p=>makeLink(links.find(it=>it.path === p))));
+    search.onkeydown = e => {
+      if (e.key==='Enter') (matches.querySelector('a') || side?.querySelector('nav a:not([hidden])'))?.click();
+    };
+    update = (url,item) => {
+      mobileSearch.value=''; mobileSearch.oninput();
+      const route = url.pathname.slice('/workspace/'.length);
+      const schedule = url.searchParams.get('schedule') || '';
+      const detail = recentItem(route + (/^[1-9]\d*$/.test(schedule) ? '?schedule='+schedule : ''));
+      const path = detail?.path.includes('/sessions/') ? detail.path : item?.path;
+      if (path && recentItem(path)) recent = [path,...recent.filter(p => p !== path)].slice(0,4);
+      try { if (generation) sessionStorage.setItem(storageKey,JSON.stringify({generation,paths:recent})); } catch {}
+      jumps.replaceChildren(n('span','최근 업무'),...recent.map(p=>makeLink(recentItem(p))));
       if (search.value) filter();
     };
     clean = () => { search.value=''; filter(); searchBox.remove(); };
   } else {
-    const shelf = n('details',null,{class:'ed-directory'});
-    const summary = n('summary','전체 업무');
+    const shelf = n('section',null,{class:'ed-directory',id:'ed-directory-items','aria-label':'업무 검색 결과'});
+    const toggle = n('button','전체 업무',{type:'button','aria-controls':'ed-directory-items'});
     const form = n('form',null,{role:'search'});
     const search = n('input',null,{type:'search',placeholder:'학생, 강의, 상담 등 업무 검색','aria-label':'전체 업무 검색',autocomplete:'off'});
-    form.append(search);
+    form.append(search,toggle);
     const grid = n('div',null,{class:'ed-tiles'});
     for (const [group,items] of groups) {
       const section = n('section');
       section.append(n('h3',group),...items.map(([label,path])=>makeLink({label,path})));
       grid.append(section);
     }
+    const workGroup = n('section');
+    workGroup.append(n('h3','차시 업무'),...tasks.map(makeLink)); grid.prepend(workGroup);
     const status = n('p',null,{role:'status',hidden:''});
     function filter() {
-      const term = search.value.trim().replace(/\s/g,'');
+      const term = compact(search.value);
       let total = 0;
       for (const section of grid.children) {
         let visible = 0;
         for (const a of section.querySelectorAll('a')) {
-          const match = (section.firstChild.textContent + a.textContent).replace(/\s/g,'').includes(term);
+          const task = tasks.find(item=>item.path===a.dataset.editionPath);
+          const match = task ? matchesTerm({...task,group:'차시 업무'},term) : compact(section.firstChild.textContent + a.textContent).includes(term);
           a.hidden = !match; if (match) visible++;
         }
         section.hidden = !visible; total += visible;
@@ -194,24 +285,39 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main) {
       status.hidden = !!total;
       status.textContent = total ? '' : '일치하는 업무가 없습니다.';
     }
-    search.oninput = filter;
-    form.onsubmit = event => { event.preventDefault(); const first=grid.querySelector('section:not([hidden]) a:not([hidden])'); if (first && canLeave()) navigate(first.href); };
-    shelf.append(summary,form,grid,status);
-    root.append(title,shelf);
+    const wide = window.matchMedia('(min-width:701px)');
+    const preferredOpen = () => wide.matches && location.pathname === '/workspace/dashboard' && !new URL(location.href).searchParams.has('panel');
+    function open(value) { shelf.hidden = !value; toggle.setAttribute('aria-expanded',String(value)); }
+    const responsive = () => open(!!search.value || preferredOpen());
+    toggle.onclick = () => open(shelf.hidden);
+    search.onkeydown = event => {
+      if (event.key === 'Escape') { search.value=''; filter(); open(false); }
+    };
+    wide.addEventListener('change',responsive);
+    clean = () => wide.removeEventListener('change',responsive);
+    search.oninput = () => { responsive(); filter(); };
+    form.className='ed-search';
+    form.onsubmit = event => { event.preventDefault(); const first=grid.querySelector('section:not([hidden]) a:not([hidden])'); if (!shelf.hidden && first && canLeave()) navigate(first.href); };
+    shelf.append(grid,status);
+    root.append(title,form,shelf);
     update = url => {
-      shelf.open = url.pathname === '/workspace/dashboard' && !url.searchParams.has('panel');
-      search.value=''; filter();
+      search.value=''; responsive(); filter();
     };
   }
+  const sessionPicker = makePicker({role,root,node:n,api,urlOf,navigate,canLeave});
   function route(url) {
     const relative = url.pathname.replace(/^\/workspace\//,'');
     const matches = links.filter(it=>{
       const [path,query] = it.path.split('?');
+      if (path === 'settings/profile' && relative.startsWith('settings/')) return true;
       if (!(relative === path || relative.startsWith(path + '/'))) return false;
       const panel = new URLSearchParams(query).get('panel');
       return !panel || url.searchParams.get('panel') === panel;
     }).sort((a,b)=>b.path.length-a.path.length);
-    const active = matches[0];
+    const task = tasks.find(it=>relative==='lectures' && url.searchParams.get('work')===it.path.split('=')[1]);
+    const session = /^lectures\/\d+\/sessions\/\d+\/(attendance|assignments)$/.exec(relative);
+    const active = task ? {...task,group:'차시 업무'} : session ? {group:'강의 · 차시',label:session[1] === 'attendance' ? '출결 입력' : '과제 확인',path:relative} : matches[0];
+    void sessionPicker.show(url);
     update(url,active);
     for (const a of root.querySelectorAll('a[data-edition-path]')) {
       if (a.dataset.editionPath === active?.path) a.setAttribute('aria-current','page');
@@ -219,5 +325,5 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main) {
     }
   }
   main.prepend(root);
-  return {root,route,clean};
+  return {root,route,clean(){sessionPicker.clear(); clean();}};
 }

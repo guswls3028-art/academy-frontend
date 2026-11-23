@@ -1,7 +1,7 @@
 import { dawonLearnerScript, renderDawonLearner, mountLearnerMenu } from './dawon-learner-sessions.mjs';
 import learnerDemo from './baseline-worker.mjs';
 import { insertDemoSwitcher, demoSwitcherScript } from './dawon-demo-header.mjs';
-import { editionResponse } from './dawon-editions.mjs';
+import { editionResponse, legacyEditionRedirect } from './dawon-editions.mjs';
 
 const productionHost = 'demo.hakwonplus.com';
 const originHost = 'https://dawon-review-origin.hakwonplus.com';
@@ -17,7 +17,6 @@ body:not([data-role="student"]) .dawon-native-exams { display:none!important }
   .student-page-shell__section table[aria-label="회차별 성적 추이"] td {white-space:nowrap}
 }
 </style>`;
-const formerTeacherRoutes = /^\/learn\/(?:teacher(?:[-/]|$)|grade-collection(?:\/|$)|class-qr(?:\/|$))/;
 const consoleCookie = 'dawon_console=1; Path=/; SameSite=Lax; HttpOnly; Secure';
 const consoleCookieExpired = 'dawon_console=; Path=/; SameSite=Lax; HttpOnly; Secure; Max-Age=0';
 const workspaceStyle = `<style>
@@ -602,18 +601,9 @@ export async function handle(request, env, fetcher = fetch, context) {
   const url = new URL(request.url);
   const { pathname } = url;
   if (url.hostname !== productionHost) return secureResponse(null, 404);
-  const editionPage = editionResponse(request,url);
+  const editionPage = editionResponse(request,url) || legacyEditionRedirect(url);
   if (editionPage) return editionPage;
 
-  if (pathname === '/teacher' || formerTeacherRoutes.test(pathname) || url.searchParams.get('preview') === 'teacher') {
-    return Response.redirect(url.origin + '/login/dawon?demo=teacher', 302);
-  }
-  if (pathname === '/admin' || url.searchParams.get('preview') === 'admin') {
-    return Response.redirect(url.origin + '/login/dawon?demo=admin', 302);
-  }
-  if (pathname === '/learn/schedule' || (pathname === '/learn/grades' && url.searchParams.get('preview') === 'guardian')) {
-    return Response.redirect(url.origin + (url.searchParams.get('preview') === 'guardian' ? '/?preview=guardian' : '/'), 302);
-  }
   // The public demo shares a browser across roles. Fetch pages and records online
   // so a previously viewed user's cached shell or response cannot take precedence.
   if (pathname === '/sw.js' || pathname === '/teacher-sw.js') {

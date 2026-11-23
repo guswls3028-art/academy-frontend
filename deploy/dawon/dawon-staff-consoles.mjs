@@ -1,3 +1,4 @@
+import {createTaskPicker} from './dawon-task-picker.mjs';
 import {catalog, createDesk, deskStyle} from './dawon-edition-desks.mjs';
 
 const style = `
@@ -46,7 +47,7 @@ td:has(>[data-staff-attendance])>select:focus,td:has(>[data-staff-more][open])>s
 @media(prefers-reduced-motion:reduce){[data-staff-rail] nav a{transition:none}}
 `;
 
-function mountStaffConsole(makeDesk, menus, css) {
+function mountStaffConsole(makeDesk, menus, css, makePicker) {
   if (document.querySelector('#dawon-demo-switcher')?.dataset.shell !== 'native') return;
   const codes = {PRESENT:'출석', LATE:'지각', ONLINE:'동영상', ABSENT:'결석'};
   const origin = location.origin;
@@ -291,7 +292,7 @@ function mountStaffConsole(makeDesk, menus, css) {
       activeRole = null; lastLocation = null;
       if (!mounted) return;
       activeRole = role; edition = view;
-      desk = makeDesk(view,role,menus[role],node,go,guarded,main);
+      desk = makeDesk(view,role,menus[role],node,go,guarded,main,makePicker,roleApi);
       rail = desk.root;
     }
     const current = href(url);
@@ -351,4 +352,4 @@ function mountStaffConsole(makeDesk, menus, css) {
 }
 
 export const staffConsoleScript = '(' + mountStaffConsole.toString() + ')(' + createDesk.toString() + ','
-  + JSON.stringify(catalog) + ',' + JSON.stringify(style + deskStyle) + ');';
+  + JSON.stringify(catalog) + ',' + JSON.stringify(style + deskStyle) + ',' + createTaskPicker.toString() + ');';

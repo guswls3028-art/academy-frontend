@@ -1,5 +1,5 @@
 import { staffConsoleScript } from './dawon-staff-consoles.mjs';
-import { installEdition, editions } from './dawon-editions.mjs';
+import { installEdition, installStaffReturn, staffReturnPath, editions } from './dawon-editions.mjs';
 
 // Only the dedicated public review Worker imports this module.
 const apps = [
@@ -36,7 +36,7 @@ body:has([data-app=auth]) #dawon-preview-scope{display:block}
 
 export function insertDemoSwitcher(html, url, native) {
   const path = url.pathname;
-  const role = url.searchParams.get("demo") === "admin" || path.startsWith("/workspace/dawon-operations") ? "admin" : path === "/guardian" || url.searchParams.get("preview") === "guardian" || url.searchParams.get("demo") === "guardian" ? "guardian" :
+  const role = /^\/workspace(?:\/|$)/.test(path) ? null : url.searchParams.get("demo") === "admin" ? "admin" : path === "/guardian" || url.searchParams.get("preview") === "guardian" || url.searchParams.get("demo") === "guardian" ? "guardian" :
     native && !path.startsWith("/student/") && url.searchParams.get("demo") !== "student" ? "teacher" : "student";
   const links = apps.map(([key, name, href]) =>
     `<a href="${href}" data-demo-app="${key}"${key === role ? ' aria-current="page"' : ''}>${name}</a>`).join("");
@@ -54,12 +54,14 @@ function mountDemoSwitcher() {
   const edits = new Set();
   function currentRole() {
     if (nav.dataset.shell === "learner") return document.body.dataset.role === "guardian" || location.pathname === "/guardian" || new URLSearchParams(location.search).get("preview") === "guardian" ? "guardian" : "student";
+    if (/^\/workspace(?:\/|$)/.test(location.pathname)) {
+      const role = document.querySelector('[data-workspace-shell] [data-dawon-staff]')?.dataset.dawonStaff;
+      return role === 'admin' || role === 'teacher' ? role : null;
+    }
     const demoRole = new URLSearchParams(location.search).get("demo");
     if (["admin","teacher","guardian","student"].includes(demoRole)) return demoRole;
     if (!location.pathname.startsWith("/student/")) {
-      if (location.pathname.startsWith("/workspace/dawon-operations")) return "admin";
-      try { if (sessionStorage.getItem("dawon-workspace-role") === "admin") return "admin"; } catch {}
-      return "teacher";
+      return null;
     }
     try {
       if (sessionStorage.getItem("dawon-room-role") === "guardian") return "guardian";
@@ -77,7 +79,7 @@ function mountDemoSwitcher() {
   }
   const sync = () => { markRole(); };
   markRole();
-  new MutationObserver(sync).observe(document.body, {attributes:true,attributeFilter:["data-role"]});
+  new MutationObserver(sync).observe(document.body, {childList:true,subtree:true,attributes:true,attributeFilter:["data-role","data-dawon-staff"]});
   window.addEventListener("popstate",sync);
   for (const method of ["pushState", "replaceState"]) {
     const original=history[method];
@@ -105,4 +107,4 @@ function mountDemoSwitcher() {
     } catch {}
   });
 }
-export const demoSwitcherScript = "(" + installEdition.toString() + ")();\n(" + mountDemoSwitcher.toString() + ")();\n" + staffConsoleScript;
+export const demoSwitcherScript = "(" + installEdition.toString() + ")();\n(" + installStaffReturn.toString() + ")(" + staffReturnPath.toString() + ");\n(" + mountDemoSwitcher.toString() + ")();\n" + staffConsoleScript;
