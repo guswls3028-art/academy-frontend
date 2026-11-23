@@ -203,7 +203,8 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
             if (mountedRef.current) setUploadItems(prev => prev.filter(row => row.id !== item.id));
           }, error => {
             failed.set(item.id, init);
-            const stage = init.completion ? "완료 확인 실패" : "파일 전송 실패";
+            const stage = init.completion?.encodingRejected ? "영상 저장 완료 · 인코딩 시작 실패"
+              : init.completion ? "완료 확인 실패" : "파일 전송 실패";
             errors.push(`${item.file.name} · ${stage} · ${extractApiError(error, "다시 시도해 주세요.")}`);
           }).finally(() => { active.delete(transfer); });
           active.add(transfer);

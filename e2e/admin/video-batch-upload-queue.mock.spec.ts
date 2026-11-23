@@ -482,3 +482,31 @@ test("혼합 선택에서 MIME 없는 영상과 제외한 파일을 구분하고
   expect(puts).toBe(3);
   expect(attempts).toBe(2);
 });
+
+test("저장 후 인코딩 접수가 거절되면 같은 영상의 인코딩만 다시 시작한다", async ({ page }) => {
+  const evidence = await installApp(page);
+  let puts = 0;
+  let completions = 0;
+  let retries = 0;
+  await page.route("**/e2e-video-upload/**", route => { puts++; return route.fallback(); });
+  await page.route("**/media/videos/9201/upload/complete/", route => {
+    completions++;
+    return route.fulfill({ status: 503, json: { code: "VIDEO_BATCH_SUBMIT_FAILED", detail: "인코딩 접수 실패" } });
+  });
+  await page.route("**/media/videos/9201/", route => route.fulfill({ json: { id: 9201, status: "FAILED" } }));
+  await page.route("**/media/videos/9201/retry/", route => {
+    retries++;
+    return route.fulfill({ status: 202, json: { detail: "queued" } });
+  });
+  await gotoAndSettle(page, `${BASE}/workspace/videos/tree`, { timeout: 45_000 });
+  await page.locator('[title="영상 추가"]').click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByTestId("video-batch-file-input").setInputFiles({ name: "lesson.mp4", mimeType: "video/mp4", buffer: Buffer.from("lesson") });
+  await dialog.getByRole("button", { name: "업로드 (1개)" }).click();
+  await expect(dialog.getByText(/lesson.mp4 · 영상 저장 완료 · 인코딩 시작 실패/)).toBeVisible();
+  await dialog.getByRole("button", { name: "다시 시도 (1개)" }).click();
+  await expect(dialog).toBeHidden();
+  expect({ registrations: evidence.initRequests.length, puts, completions, retries }).toEqual({
+    registrations: 1, puts: 1, completions: 1, retries: 1,
+  });
+});

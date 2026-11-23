@@ -2,7 +2,7 @@
 // 영상 업로드 유틸리티 — 모달 밖에서 실행되어 작업 박스에서 진행률 표시
 // 100MB 이하: 단일 PUT / 100MB 초과: R2 multipart upload
 
-import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import api, { isApiError, type ApiRequestConfig } from "@/shared/api/axios";
 import { captureVideoUploadConfig, completeVideoUpload } from "@/shared/api/videoUploadCompletion";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import type { UploadInitResponse } from "../api/videos.api";
@@ -40,7 +40,7 @@ export interface InitVideoResult {
   tempId: string;
   contentType: string;
   config: ApiRequestConfig;
-  completion?: { multipart?: Parameters<typeof completeVideoUpload>[2] };
+  completion?: { multipart?: Parameters<typeof completeVideoUpload>[2]; encodingRejected?: boolean };
 }
 
 let activeBrowserUploadCount = 0;
@@ -400,6 +400,15 @@ export async function uploadFileToR2AndComplete(
   const { tempId } = initResult;
   try {
     if (retry) asyncStatusStore.retryTask(tempId);
+    if (initResult.completion?.encodingRejected) {
+      const path = `/media/videos/${initResult.videoId}/`;
+      const { data } = await api.get<{ status: string }>(path, initResult.config);
+      if (data.status === "FAILED") await api.post(`${path}retry/`, {}, initResult.config);
+      else if (!["UPLOADED", "PROCESSING", "READY"].includes(data.status)) {
+        throw new Error("영상 상태가 바뀌었습니다. 영상 목록에서 최신 처리 상태를 확인해 주세요.");
+      }
+      return initResult.videoId;
+    }
     if (initResult.completion) {
       await completeVideoUpload(initResult.videoId, initResult.config, initResult.completion.multipart);
       return initResult.videoId;
@@ -411,6 +420,10 @@ export async function uploadFileToR2AndComplete(
       return await multipartUploadAndComplete(initResult, file);
     }
   } catch (error) {
+    if (initResult.completion && isApiError(error) &&
+        (error.response?.data as { code?: string } | undefined)?.code === "VIDEO_BATCH_SUBMIT_FAILED") {
+      initResult.completion.encodingRejected = true;
+    }
     asyncStatusStore.completeTask(tempId, "error", uploadErrorMessage(error));
     throw error;
   }
