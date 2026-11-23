@@ -70,6 +70,32 @@ test('cold guard offers a role choice; signed-in tab invalidation keeps ordinary
   assert.deepEqual(warm.replaced,[]);
 });
 
+test('cold task pickers and native session schedules survive role selection and sign-in',() => {
+  const targets = [
+    '/workspace/lectures?work=attendance&course=7',
+    '/workspace/lectures?work=assignments&course=7',
+    '/workspace/lectures/7/sessions/12/scores?schedule=9',
+    '/workspace/lectures/7/sessions/12?schedule=9',
+    '/workspace/sessions/12/attendance?schedule=9',
+  ];
+  for (const role of ['admin','teacher']) for (const target of targets) {
+    const cold=tab(target); cold.go('/login?edition=C');
+    const chooser=new URL(cold.replaced[0]);
+    assert.equal(chooser.searchParams.get('work'),target);
+    chooser.pathname += '/'+role;
+    const login=new URL(editionResponse(new Request(chooser),chooser).headers.get('location'));
+    assert.equal(login.searchParams.get('work'),target);
+    const p=tab(login.href);
+    p.go('/login?demo='+role+'&edition=C'); p.authenticate('fresh');
+    p.go('/workspace/dashboard?edition=C'); p.mount(role);
+    const restored=new URL(p.replaced[0]); restored.searchParams.delete('edition');
+    assert.equal(restored.pathname+restored.search,target);
+  }
+  assert.equal(staffReturnPath('/workspace/lectures?work=unknown&schedule=9','teacher'),'/workspace/lectures');
+  assert.equal(staffReturnPath('/workspace/students/home?work=attendance','admin'),'/workspace/students/home');
+  assert.equal(staffReturnPath('/workspace/lectures/7/sessions/12/scores?schedule=unknown','admin'),'/workspace/lectures/7/sessions/12/scores');
+});
+
 function pending() {
   const login=url('/login/dawon?demo=admin&edition=C');
   login.searchParams.set('work',desired);

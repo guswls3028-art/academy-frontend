@@ -30,7 +30,7 @@ export function staffReturnPath(value, role) {
   const url = new URL(value,'https://demo.hakwonplus.com');
   const path = url.pathname.slice('/workspace/'.length).replace(/\/$/,'');
   // AdminRouter has a separate, intentionally smaller route tree for the admin demo.
-  const admin = /^(?:dashboard|staff|results(?:\/students)?|settings(?:\/(?:profile|appearance))?|students\/(?:home|class-groups|surveys\/school-reports)|clinic\/operations|community\/counsel|lectures(?:\/\d+(?:\/sessions(?:\/\d+\/(?:attendance|scores|exams|assignments|notice|clinic|videos(?:\/\d+)?))?)?)?|sessions\/\d+\/[a-z-]+|exams\/\d+|videos\/\d+(?:\/logs(?:\/\d+)?)?)$/.test(path);
+  const admin = /^(?:dashboard|staff|results(?:\/students)?|settings(?:\/(?:profile|appearance))?|students\/(?:home|class-groups|surveys\/school-reports)|clinic\/operations|community\/counsel|lectures(?:\/\d+(?:\/sessions(?:\/\d+(?:\/(?:attendance|scores|exams|assignments|notice|clinic|videos(?:\/\d+)?))?)?)?)?|sessions\/\d+\/[a-z-]+|exams\/\d+|videos\/\d+(?:\/logs(?:\/\d+)?)?)$/.test(path);
   const teacher = /^(?:dashboard|lectures|students|clinic|community|teacher-alerts|exams|results|videos|sessions|surveys|homework|submissions)(?:\/|$)/.test(path) ||
     /^settings(?:\/(?:profile|appearance))?$/.test(path);
   const teacherAllowed = teacher && !(path === 'dashboard' && url.searchParams.has('panel'));
@@ -38,7 +38,12 @@ export function staffReturnPath(value, role) {
   // Carry native view and filter parameters only, never auth, role or redirects.
   const filters = new Set('assign attention class course create date direction employee exam examTab from grade gradingExamId group kind lecture_id month order origin page panel paySearch payState period position profile q record rule scope section session_id sessionId sort status student tab to track trend view'.split(' '));
   const params = new URLSearchParams();
-  for (const [key,item] of url.searchParams) if (filters.has(key)) params.append(key,item);
+  const session = /^(?:lectures\/\d+\/)?sessions\/\d+(?:\/|$)/.test(path);
+  for (const [key,item] of url.searchParams) {
+    const picker = key === 'work' && path === 'lectures' && ['attendance','assignments'].includes(item);
+    const schedule = key === 'schedule' && session && /^[1-9]\d*$/.test(item);
+    if (filters.has(key) || picker || schedule) params.append(key,item);
+  }
   return url.pathname + (params.size ? '?' + params : '') + url.hash;
 }
 
