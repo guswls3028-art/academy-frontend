@@ -51,8 +51,9 @@ export async function fetchStudentHomeworkFiles(studentId: number, page: number,
 
 export async function setHomeworkAcceptance(homeworkId: number, enrollmentId: number, accepted: boolean,
   expectedUpdatedAt: string | null, fingerprint: string, config?: ApiRequestConfig) {
-  await api.patch(`/submissions/submissions/homework/${homeworkId}/acceptance/`, {
+  const { data } = await api.patch<components["schemas"]["HomeworkFileAcceptance"]>(`/submissions/submissions/homework/${homeworkId}/acceptance/`, {
     enrollment_id: enrollmentId, accepted, expected_updated_at: expectedUpdatedAt,
     expected_media_set_fingerprint: fingerprint,
   } satisfies Required<components["schemas"]["PatchedHomeworkFileAcceptanceUpdateRequest"]>, config);
+  if (data?.teacher_accepted !== accepted) throw new Error("저장한 통과 판정을 확인할 수 없습니다. 최신 상태를 확인해 주세요.");
 }

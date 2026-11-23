@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 import { gotoAndSettle } from "../helpers/wait";
@@ -234,8 +235,9 @@ for (const mobile of [false, true]) {
     const calls: number[] = [];
     await page.route(/\/submissions\/submissions\/homework\/71\/\?/, route =>
       route.fulfill({ json: { count: rows.length, results: rows, next: null } }));
+    const picture = await readFile(new URL("../fixtures/documents/public-resource-bars.png", import.meta.url));
     await page.route("**/submissions/submissions/homework/71/media/*/preview/", route =>
-      route.fulfill({ json: { url: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aPZkAAAAASUVORK5CYII=", expires_in: 600, media_kind: "image" } }));
+      route.fulfill({ json: { url: `data:image/png;base64,${picture.toString("base64")}`, expires_in: 600, media_kind: "image" } }));
     await page.route("**/submissions/submissions/homework/71/acceptance/", route => {
       const body = route.request().postDataJSON();
       const row = rows.find(item => item.enrollment_id === body.enrollment_id)!;
