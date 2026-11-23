@@ -171,7 +171,7 @@ function putToStorage(
 ): Promise<XMLHttpRequest> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    let idleTimer: ReturnType<typeof setTimeout>;
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
     let sentBytes = 0;
     const armIdleTimeout = () => {
       clearTimeout(idleTimer);
