@@ -56,3 +56,17 @@ test('both role home pages contain a calendar; guardian return uses the selected
   const record=renderDawonLearner(new URL('/learn/attendance?preview=guardian&view=day&date=2026-11-19&from=home',origin));
   assert.match(record,/href="\/\?preview=guardian&amp;view=month&amp;date=2026-11-19#dw-home-calendar"/);
 });
+
+test('both family roles see the identical customer-supplied lesson sequence independently of enrolled sessions',() => {
+  const rows=role=>{
+    const html=renderDawonLearner(new URL('/learn/curriculum?preview='+role,origin));
+    const table=html.match(/<section[^>]+data-customer-progress>([\s\S]*?)<\/section>/)[1];
+    return [...table.matchAll(/<th scope="row">(\d+)회차<\/th><td>([^<]+)<\/td>/g)].map(m=>[Number(m[1]),m[2]]);
+  };
+  const student=rows('student');
+  assert.deepEqual(rows('guardian'),student);
+  assert.deepEqual(student.map(row=>row[0]),Array.from({length:14},(_,i)=>i+1));
+  assert.match(student[4][1],/극심화 문제 풀이 1차$/);
+  assert.match(student[8][1],/극심화 문제 풀이 2차$/);
+  assert.equal(student[13][1],'12 위치와 속도');
+});

@@ -14,11 +14,12 @@ test('legacy aliases retain valid editions at their real destinations',() => {
     ['/learn/teacher-portal?edition=A','/login/dawon?demo=teacher&edition=A'],
     ['/?preview=admin&edition=C','/login/dawon?demo=admin&edition=C'],
     ['/admin?edition=C','/login/dawon?demo=admin&edition=C'],
-    ['/learn/schedule?edition=B&preview=guardian','/?preview=guardian&edition=B'],
-    ['/learn/grades?preview=guardian&edition=C','/?preview=guardian&edition=C'],
+    ['/learn/schedule?edition=B&preview=guardian','/?preview=guardian'],
+    ['/learn/grades?preview=guardian&edition=C','/?preview=guardian'],
     ['/admin?edition=invalid','/login/dawon?demo=admin'],
   ]) assert.equal(legacyEditionRedirect(url(path)).headers.get('location'),url(dest).href);
-  assert.equal(legacyEditionRedirect(url('/learn/grades?edition=C')),null);
+  assert.equal(legacyEditionRedirect(url('/learn/grades?edition=C')).headers.get('location'),url('/learn/grades').href);
+  assert.equal(legacyEditionRedirect(url('/learn/attendance?edition=B&date=2026-11-19&preview=guardian')).headers.get('location'),url('/learn/attendance?date=2026-11-19&preview=guardian').href);
 });
 
 test('only permitted staff entrances carry local work and native filters',async () => {
@@ -32,7 +33,8 @@ test('only permitted staff entrances carry local work and native filters',async 
   const entry=url('/c'); entry.searchParams.set('work','/workspace/staff?month=2026-11');
   const chooser=await editionResponse(new Request(entry),entry).text();
   assert.ok(chooser.includes('href="/c/admin?work='));
-  for (const role of ['teacher','guardian','student']) assert.ok(chooser.includes('href="/c/'+role+'"'));
+  assert.ok(chooser.includes('href="/c/teacher"'));
+  for (const role of ['guardian','student']) assert.ok(!chooser.includes('href="/c/'+role+'"'));
   for (const role of ['admin','teacher','guardian','student']) {
     const input=url('/c/'+role); input.searchParams.set('work',desired);
     const dest=new URL(editionResponse(new Request(input),input).headers.get('location'));
@@ -134,4 +136,18 @@ test('role mismatch, other-tab sign-in, browser Back, or missing successful logi
 test('a workspace response waits for native staff identity before highlighting a role',() => {
   const shell=insertDemoSwitcher('<html><head></head><body></body></html>',url('/workspace/dashboard?demo=admin&edition=C'),true);
   assert.doesNotMatch(shell,/<a[^>]*data-demo-app="[^"]+"[^>]*aria-current=/);
+});
+
+test('the public role switcher contains exactly the roles of the entered program',() => {
+  const base='<html><head></head><body></body></html>';
+  for (const path of ['/?preview=guardian','/learn/curriculum','/student/video/play','/login/dawon?demo=guardian']) {
+    const html=insertDemoSwitcher(base,url(path),path.startsWith('/student/')||path.startsWith('/login/'));
+    assert.deepEqual([...html.matchAll(/data-demo-app="([^"]+)"/g)].map(m=>m[1]),['student','guardian']);
+    assert.doesNotMatch(html,/<html[^>]*data-dawon-edition|<a[^>]*data-edition-home/);
+  }
+  for (const key of ['A','B','C']) {
+    const html=insertDemoSwitcher(base,url('/workspace/dashboard?edition='+key),true);
+    assert.deepEqual([...html.matchAll(/data-demo-app="([^"]+)"/g)].map(m=>m[1]),['teacher','admin']);
+    assert.ok(html.includes('data-edition-home href="/'+key.toLowerCase()+'"'));
+  }
 });

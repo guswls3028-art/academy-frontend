@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {test} from 'node:test';
 import {runInNewContext} from 'node:vm';
-import {editionResponse, installEdition} from '../../deploy/dawon/dawon-editions.mjs';
+import {editionResponse, installEdition, staffProgramUrl} from '../../deploy/dawon/dawon-editions.mjs';
 import {catalog} from '../../deploy/dawon/dawon-edition-desks.mjs';
 import {demoSwitcherScript} from '../../deploy/dawon/dawon-demo-header.mjs';
 import {staffConsoleScript} from '../../deploy/dawon/dawon-staff-consoles.mjs';
@@ -12,22 +12,23 @@ function request(path,method='GET') {
   const url = new URL(path,origin);
   return editionResponse(new Request(url,{method}),url);
 }
-test('each stable entrance exposes all four roles, with no writes or role grants',async()=>{
+test('each standalone candidate exposes both staff roles and redirects former family entrances to the shared app',async()=>{
   for (const key of ['A','B','C']) {
     const path = '/' + key.toLowerCase();
     assert.equal(request(path,'HEAD').status,200);
     assert.equal(await request(path,'HEAD').text(),'');
     assert.equal(request(path,'POST').status,405);
     const index = await request(path).text();
+    assert.deepEqual([...index.matchAll(/<a href="([^"]+)"/g)].map(m=>m[1]).sort(),[path+'/admin',path+'/teacher']);
     for (const role of ['admin','teacher','student','guardian']) {
-      assert.ok(index.includes('href="' + path + '/' + role + '"'));
+      assert.equal(index.includes('href="' + path + '/' + role + '"'), ['admin','teacher'].includes(role));
       const result = request(path + '/' + role);
       const dest = new URL(result.headers.get('location'));
       assert.equal(result.status,302);
       assert.equal(dest.origin,origin);
       assert.equal(dest.pathname,['admin','teacher'].includes(role) ? '/login/dawon' : '/');
       assert.equal(dest.searchParams.get('demo') || dest.searchParams.get('preview'),role);
-      assert.equal(dest.searchParams.get('edition'),key);
+      assert.equal(dest.searchParams.get('edition'),['admin','teacher'].includes(role) ? key : null);
       assert.equal(result.headers.get('set-cookie'),null);
     }
   }
@@ -51,7 +52,7 @@ function tab(initial, stored) {
   const history={state:{idx:1},replaceState(state,_title,path){location.href=new URL(path,location).href;this.state=state;},pushState(...args){this.replaceState(...args);}};
   const context={location,history,URL,document:{documentElement,querySelector:()=>null,querySelectorAll:()=>[],addEventListener(){}},
     window:{addEventListener:(type,fn)=>listeners.set(type,fn)},sessionStorage:{getItem:()=>pref,setItem:(_key,value)=>{pref=value;}}};
-  runInNewContext('('+installEdition.toString()+')()',context);
+  runInNewContext('('+installEdition.toString()+')('+staffProgramUrl.toString()+')',context);
   return {location,history,documentElement,back(path){location.href=new URL(path,origin).href;listeners.get('popstate')();}};
 }
 test('new tabs, role links, reload and browser history keep their own edition and native filters',()=>{
@@ -119,4 +120,13 @@ test('opening the version chooser respects a visible unsaved form',()=>{
   clicks({target,button:0,preventDefault(){blocked=true;}});
   assert.equal(asked,1);
   assert.equal(blocked,true);
+});
+
+test('a shared family screen never takes on a saved staff edition',() => {
+  for (const path of ['/?preview=student','/?preview=guardian','/learn/curriculum','/login/dawon?demo=guardian','/student/video/play']) {
+    const family=tab(path,'C');
+    assert.equal(family.documentElement.dataset.dawonEdition,undefined);
+    family.history.pushState({},'','/learn/attendance?date=2026-11-19');
+    assert.equal(family.location.searchParams.has('edition'),false);
+  }
 });

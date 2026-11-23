@@ -601,7 +601,8 @@ export async function handle(request, env, fetcher = fetch, context) {
   const url = new URL(request.url);
   const { pathname } = url;
   if (url.hostname !== productionHost) return secureResponse(null, 404);
-  const editionPage = editionResponse(request,url) || legacyEditionRedirect(url);
+  const editionPage = editionResponse(request,url) ||
+    (['GET','HEAD'].includes(request.method) && legacyEditionRedirect(url));
   if (editionPage) return editionPage;
 
   // The public demo shares a browser across roles. Fetch pages and records online

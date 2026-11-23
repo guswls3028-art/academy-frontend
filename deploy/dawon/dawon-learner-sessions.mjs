@@ -125,6 +125,7 @@ const style = [
 
 
 const studentDayCss = [
+  '[data-customer-progress] table{width:100%;border-collapse:collapse;font-size:15px;line-height:1.55}[data-customer-progress] :is(th,td){padding:9px 10px;text-align:left;vertical-align:top;border-bottom:1px solid var(--dw-line)}[data-customer-progress] thead{background:#f4f1ee}[data-customer-progress] tbody th{width:20%;white-space:nowrap;font-weight:650}[data-customer-progress] tr:last-child td,[data-customer-progress] tbody tr:last-child th{border-bottom:0}',
   '.dw-guide{margin-bottom:16px}.dw-guide h2,.dw-courseProgress h2,.dw-recordHeading{font-size:1.15rem;margin:0 0 8px}.dw-guide h3{font-size:1rem;margin:0}.dw-guide p{margin:4px 0;line-height:1.6}.dw-guide article+article,.dw-courseProgress+.dw-courseProgress{border-top:1px solid var(--dw-line);margin-top:16px;padding-top:16px}.dw-courseProgress ul{list-style:none;padding:0;margin:0}.dw-courseProgress li{display:flex;gap:14px;padding:9px 0;overflow-wrap:anywhere}.dw-courseProgress li strong{flex:none;color:var(--dw-accent)}',
   '.dw-homeCalendar{margin:10px 0 16px}.dw-homeDay{margin-top:14px;border-top:1px solid var(--dw-line);padding-top:12px;min-width:0}.dw-homeDay>h2{font-size:18px}',
   '.dw-dayGroup{margin-top:12px;padding-top:10px;border-top:1px solid var(--dw-line)}.dw-dayGroup h3{font-size:15px;margin:0 0 4px;display:flex;align-items:center;gap:6px}.dw-dayGroup h3 small{font-size:12px;color:var(--dw-muted);font-weight:550}',
@@ -186,6 +187,32 @@ function learnerBackLink(url, topic, role) {
   return {href:parent.pathname + parent.search, text:'달력', label:'월간 달력으로'};
 }
 
+// Customer-supplied example. Enrolled course sessions remain API-owned.
+const progressExample = [
+  '1 함수의 극한',
+  '2 함수의 연속성',
+  '3 함수의 극한과 연속의 활용',
+  '4 미분계수와 미분가능성',
+  '대단원 복습 및 오답 정리와 극심화 문제 풀이 1차',
+  '5 삼사차함수의 특성과 비율',
+  '6 접선과 평균값 정리',
+  '7 방정식과 부등식',
+  '대단원 복습 및 오답 정리와 극심화 문제 풀이 2차',
+  '8 여러 가지 넓이의 공식',
+  '9 정적분과 넓이의 관계',
+  '10 부정적분과 정적분으로 정의된 함수',
+  '11 정적분으로 정의된 함수의 그래프',
+  '12 위치와 속도',
+];
+
+function renderProgressExample() {
+  const rows = progressExample.map((text,index) => '<tr><th scope="row">' + (index + 1) +
+    '회차</th><td>' + escapeHtml(text) + '</td></tr>').join('');
+  return '<section class="dw-card dw-guide" data-customer-progress><h2>수업 진도 예시</h2>' +
+    '<table aria-label="14회차 수업 진도 예시"><thead><tr><th scope="col">회차</th><th scope="col">진도 내용</th></tr></thead><tbody>' +
+    rows + '</tbody></table></section>';
+}
+
 export function renderDawonLearner(url, chromeOnly = false) {
   const role = getRole(url);
   const guardian = role === 'guardian';
@@ -243,7 +270,7 @@ export function renderDawonLearner(url, chromeOnly = false) {
       '<nav class="dw-homeMenu" aria-label="홈 메뉴">' + menuLinks +
       '</nav><p class="dw-footnote">다원수학 체험판 · 예시 학생과 수업입니다.</p>'
     : '<div class="dw-title"><a class="dw-back" id="dw-back" href="' + escapeHtml(back.href) + '" aria-label="' + back.label + '">' + icon('left') +
-      '<span>' + back.text + '</span></a><h1>' + escapeHtml(title) + '</h1></div>' + clinicGuide + videoLink + '<section class="dw-card" aria-label="' +
+      '<span>' + back.text + '</span></a><h1>' + escapeHtml(title) + '</h1></div>' + clinicGuide + videoLink + (topic === 'curriculum' ? renderProgressExample() : '') + '<section class="dw-card" aria-label="' +
       escapeHtml(title) + '" id="dw-view"><p class="dw-state" role="status">불러오는 중입니다.</p></section>';
   return '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">' +
     '<link rel="icon" type="image/svg+xml" href="/dawon-brand.svg"><title>' + escapeHtml(title) + ' | 다원수학</title><style>' + style + studentMenuCss + studentDayCss +

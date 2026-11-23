@@ -1,11 +1,18 @@
-// Stable entrances for the three complete Dawon review editions.
+// Each candidate is a complete staff program with its own public entrance.
 export const editions = {
   A: {name:'학원 행정 콘솔', color:'#183650', accent:'#98c9dc', surface:'#eff3f6'},
   B: {name:'업무 데스크', color:'#173f39', accent:'#abd8c6', surface:'#eef5f1'},
   C: {name:'업무 포털', color:'#493c70', accent:'#decef4', surface:'#f5f3fa'},
 };
 
-const roles = {admin:'관리자', teacher:'선생님', student:'학생', guardian:'학부모'};
+const roles = {teacher:'선생님', admin:'관리자'};
+
+export function staffProgramUrl(url) {
+  if (/^\/workspace(?:\/|$)/.test(url.pathname)) return true;
+  if (['/teacher','/admin'].includes(url.pathname)) return true;
+  return /^\/login(?:\/dawon)?\/?$/.test(url.pathname) &&
+    !['student','guardian'].includes(url.searchParams.get('demo'));
+}
 
 export function legacyEditionRedirect(url) {
   const path = url.pathname, preview = url.searchParams.get('preview');
@@ -16,10 +23,22 @@ export function legacyEditionRedirect(url) {
     target = '/login/dawon?demo=admin';
   } else if (path === '/learn/schedule' || (path === '/learn/grades' && preview === 'guardian')) {
     target = preview === 'guardian' ? '/?preview=guardian' : '/';
+  } else if (url.searchParams.has('edition') && (
+    /^\/(?:$|guardian\/?$|student(?:\/|$)|learn\/)/.test(path) ||
+    (/^\/login(?:\/dawon)?\/?$/.test(path) && !staffProgramUrl(url))
+  )) {
+    const dest = new URL(url);
+    dest.searchParams.delete('edition');
+    return Response.redirect(dest.href,302);
   } else return null;
   const dest = new URL(target,url.origin);
   const edition = url.searchParams.get('edition');
-  if (Object.hasOwn(editions,edition)) dest.searchParams.set('edition',edition);
+  if (staffProgramUrl(dest) && Object.hasOwn(editions,edition)) dest.searchParams.set('edition',edition);
+  if (dest.pathname === '/') {
+    for (const key of ['date','view']) {
+      if (url.searchParams.has(key)) dest.searchParams.set(key,url.searchParams.get(key));
+    }
+  }
   return Response.redirect(dest.href,302);
 }
 
@@ -57,7 +76,11 @@ export function editionResponse(request, url) {
   if (role) {
     const dest = new URL(role === 'admin' || role === 'teacher' ? '/login/dawon' : '/',url.origin);
     dest.searchParams.set(dest.pathname === '/' ? 'preview' : 'demo',role);
-    dest.searchParams.set('edition',key);
+    if (dest.pathname === '/') {
+      for (const name of ['date','view']) {
+        if (url.searchParams.has(name)) dest.searchParams.set(name,url.searchParams.get(name));
+      }
+    } else dest.searchParams.set('edition',key);
     if (work) dest.searchParams.set('work',work);
     return new Response(null,{status:302,headers:{...headers,location:dest.href}});
   }
@@ -66,11 +89,10 @@ export function editionResponse(request, url) {
     const next = staffReturnPath(work,id);
     return '<a href="' + base + '/' + id + (next ? '?work=' + encodeURIComponent(next) : '') + '"><span>' + label + '</span><span aria-hidden="true">→</span></a>';
   }).join('');
-  const alternatives = Object.entries(editions).map(([id,info]) => '<a href="/' + id.toLowerCase() + '"' + (id === key ? ' aria-current="page"' : '') + '>' + id + '안 · ' + info.name + '</a>').join('');
   const returnHint = work ? '<p>' + ['admin','teacher'].filter(id => staffReturnPath(work,id)).map(id => roles[id]).join(' 또는 ') + '로 로그인하면 열려던 업무로 이동합니다.</p>' : '';
   const body = `<!doctype html><html lang="ko" data-dawon-edition="${key}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>다원수학 ${key}안 · ${name}</title>
-<style>*{box-sizing:border-box}body{margin:0;background:${surface};color:${color};font:16px/1.5 system-ui,"Malgun Gothic",sans-serif;word-break:keep-all}header,main,footer{max-width:940px;margin:auto;padding:24px clamp(20px,5vw,56px)}header{font-weight:750;display:flex;gap:12px;align-items:center}header img{width:34px;height:34px}main{margin-top:clamp(8px,8vh,90px)}section{border:1px solid ${color};background:white;overflow:hidden;border-radius:${key === 'A' ? '4' : '18'}px}.title{padding:clamp(22px,5vw,48px);background:${color};color:white}.title span{color:${accent};font-weight:700}h1{font-size:clamp(30px,6vw,54px);margin:6px 0;line-height:1.15;letter-spacing:-.04em}h2{font-size:16px;margin:0 0 12px}.body{padding:clamp(18px,4vw,36px)}.roles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.roles a{padding:16px;display:flex;justify-content:space-between;align-items:center;border:1px solid #c7d0d5;color:inherit;text-decoration:none;font-weight:700}.roles a:hover,.roles a:focus-visible{background:${surface};border-color:${color}}footer nav{display:flex;gap:6px 20px;flex-wrap:wrap}footer a{display:inline-flex;align-items:center;min-height:44px;color:inherit;text-underline-offset:4px}footer a[aria-current]{font-weight:750}a:focus-visible{outline:2px solid currentColor;outline-offset:2px}</style>
-<header><img src="/dawon-brand.svg" alt="">다원수학</header><main><section><div class="title"><span>${key}안</span><h1>${name}</h1></div><div class="body"><h2>역할 선택</h2>${returnHint}<nav class="roles" aria-label="역할 선택">${rolesHTML}</nav></div></section></main><footer><nav aria-label="프로그램 버전">${alternatives}</nav></footer></html>`;
+<style>*{box-sizing:border-box}body{margin:0;background:${surface};color:${color};font:16px/1.5 system-ui,"Malgun Gothic",sans-serif;word-break:keep-all}header,main{max-width:940px;margin:auto;padding:24px clamp(20px,5vw,56px)}header{font-weight:750;display:flex;gap:12px;align-items:center}header img{width:34px;height:34px}main{margin-top:clamp(8px,8vh,90px)}section{border:1px solid ${color};background:white;overflow:hidden;border-radius:${key === 'A' ? '4' : '18'}px}.title{padding:clamp(22px,5vw,48px);background:${color};color:white}.title span{color:${accent};font-weight:700}h1{font-size:clamp(30px,6vw,54px);margin:6px 0;line-height:1.15;letter-spacing:-.04em}h2{font-size:16px;margin:0 0 12px}.body{padding:clamp(18px,4vw,36px)}.roles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.roles a{padding:16px;display:flex;justify-content:space-between;align-items:center;border:1px solid #c7d0d5;color:inherit;text-decoration:none;font-weight:700}.roles a:hover,.roles a:focus-visible{background:${surface};border-color:${color}}a:focus-visible{outline:2px solid currentColor;outline-offset:2px}</style>
+<header><img src="/dawon-brand.svg" alt="">다원수학</header><main><section><div class="title"><span>${key}안</span><h1>${name}</h1></div><div class="body"><h2>교직원 역할 선택</h2>${returnHint}<nav class="roles" aria-label="역할 선택">${rolesHTML}</nav></div></section></main></html>`;
   return new Response(request.method === 'HEAD' ? null : body,{headers:{...headers,'content-type':'text/html; charset=utf-8','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'"}});
 }
 
@@ -78,6 +100,7 @@ export function installStaffReturn(allowedPath) {
   if (document.getElementById('dawon-demo-switcher')?.dataset.shell !== 'native') return;
   const entry = new URL(location.href);
   const edition = document.documentElement.dataset.dawonEdition;
+  if (!edition) return;
   const role = entry.searchParams.get('demo');
   const loginPath = path => path === '/login' || path === '/login/dawon';
   const login = loginPath(entry.pathname) && ['admin','teacher'].includes(role);
@@ -146,12 +169,14 @@ export function installStaffReturn(allowedPath) {
 
 // The edition is a presentation preference. Authentication and API calls use the
 // original role boundary. A URL takes precedence over the tab preference on reload/back.
-export function installEdition() {
+export function installEdition(isStaffUrl) {
+  // A learner document never adopts a staff tab's stored candidate.
+  if (!isStaffUrl(new URL(location.href))) return;
   const valid = value => ['A','B','C'].includes(value);
   const key = 'dawon-review:edition:v2';
   const current = () => new URL(location.href).searchParams.get('edition');
   const wasSelected = () => { try { return sessionStorage.getItem(key); } catch { return null; } };
-  const relevant = url => url.origin === location.origin && /^\/(?:$|login(?:\/dawon)?\/?$|(?:teacher|admin|guardian|student)\/?$|(?:workspace|student|learn)\/)/.test(url.pathname);
+  const relevant = url => url.origin === location.origin && isStaffUrl(url);
   let edition = valid(current()) ? current() : (valid(wasSelected()) ? wasSelected() : 'A');
   function mark() {
     document.documentElement.dataset.dawonEdition = edition;
