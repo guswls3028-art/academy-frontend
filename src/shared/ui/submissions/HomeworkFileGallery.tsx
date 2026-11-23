@@ -15,7 +15,7 @@ function FileTile({ homeworkId, fingerprint, file, onOpen }: {
 }) {
   const descriptionId = useId();
   const tile = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(() => typeof IntersectionObserver === "undefined");
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const ready = file.status === "uploaded" && !file.removed_at;
   const pdf = file.mime_type === "application/pdf";
@@ -24,7 +24,7 @@ function FileTile({ homeworkId, fingerprint, file, onOpen }: {
     if (!ready || !photo || !tile.current || visible) return;
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) setVisible(true);
-    }, { rootMargin: "100px" });
+    }, { rootMargin: "450px 0px" });
     observer.observe(tile.current);
     return () => observer.disconnect();
   }, [ready, photo, visible]);
@@ -50,6 +50,7 @@ function FileTile({ homeworkId, fingerprint, file, onOpen }: {
           {ready && photo && url && !broken
             ? <PhotoPreview src={url} filename={file.original_filename} mimeType={file.mime_type}
                 alt={`${file.position + 1}번 제출 사진`} thumbnail onError={() => setFailedUrl(url)} />
+            : ready && photo && !broken ? <span className={styles.photoLoading}>사진 불러오는 중…</span>
             : <Icon aria-hidden="true" size={25} />}
           <span id={descriptionId + "-number"} className={styles.number}>{file.position + 1}</span>
         </span>

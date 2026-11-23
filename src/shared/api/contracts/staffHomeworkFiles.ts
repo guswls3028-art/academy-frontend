@@ -1,4 +1,4 @@
-import api from "@/shared/api/axios";
+import api, { type ApiRequestConfig } from "@/shared/api/axios";
 
 import type { components } from "@/shared/api/generated/schema";
 
@@ -50,9 +50,9 @@ export async function fetchStudentHomeworkFiles(studentId: number, page: number,
 }
 
 export async function setHomeworkAcceptance(homeworkId: number, enrollmentId: number, accepted: boolean,
-  expectedUpdatedAt: string | null, fingerprint: string) {
+  expectedUpdatedAt: string | null, fingerprint: string, config?: ApiRequestConfig) {
   await api.patch(`/submissions/submissions/homework/${homeworkId}/acceptance/`, {
     enrollment_id: enrollmentId, accepted, expected_updated_at: expectedUpdatedAt,
     expected_media_set_fingerprint: fingerprint,
-  } satisfies Required<components["schemas"]["PatchedHomeworkFileAcceptanceUpdateRequest"]>);
+  } satisfies Required<components["schemas"]["PatchedHomeworkFileAcceptanceUpdateRequest"]>, config);
 }

@@ -24,6 +24,7 @@ import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
 import { QUERY_KEYS } from "../queryKeys";
 import HomeworkFileGallery from "@/shared/ui/submissions/HomeworkFileGallery";
+import HomeworkBulkAcceptance from "@/shared/ui/submissions/HomeworkBulkAcceptance";
 import HomeworkAcceptanceButton from "@/shared/ui/submissions/HomeworkAcceptanceButton";
 import HomeworkMediaPreviewModal from "@/shared/ui/media/HomeworkMediaPreviewModal";
 import styles from "./HomeworkSubmissionsPanel.module.css";
@@ -233,14 +234,16 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
       )}
 
       {rows.length > 0 && (
-        <div className={styles.studentList}>
-          {rows.map((row) => {
+        <HomeworkBulkAcceptance key={homeworkId} homeworkId={homeworkId} sessionId={sessionId} rows={rows}>
+          {(visibleRows, checkbox) => <div className={styles.studentList}>
+          {visibleRows.map((row) => {
             const readyFiles = row.files.filter((file) => file.status === "uploaded" && !file.removed_at);
             const viewedCount = readyFiles.filter((file) => viewedFiles.get(file.id) === row.media_set_fingerprint).length;
             const scoreLocked = hasRecordedScore(scoreQ.data, row, homeworkId);
             const canSave = sessionId > 0 && row.enrollment_id > 0 && scoreQ.isSuccess && !scoreLocked && !reviewMut.isPending && !reviewConfirming;
             return <article className={styles.studentCard} key={row.id}>
               <header className={styles.studentHeader}>
+                {checkbox(row)}
                 <StudentDetailLink studentId={row.student_id} studentName={row.student_name}>
                   <StudentNameWithLectureChip
                     name={row.student_name}
@@ -312,7 +315,8 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
               )}
             </article>
           })}
-        </div>
+          </div>}
+        </HomeworkBulkAcceptance>
       )}
     </div>
   );

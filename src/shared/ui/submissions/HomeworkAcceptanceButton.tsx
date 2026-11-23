@@ -1,8 +1,6 @@
+import { refreshHomeworkDecisions } from "./refreshHomeworkDecisions";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
-import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
-import { assessmentQueryKeys } from "@/shared/api/queryKeys/assessments";
-import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { setHomeworkAcceptance } from "@/shared/api/contracts/staffHomeworkFiles";
 import { extractApiError } from "@/shared/utils/extractApiError";
 
@@ -24,14 +22,7 @@ export default function HomeworkAcceptanceButton({ homeworkId, sessionId, studen
       await setHomeworkAcceptance(homeworkId, enrollmentId, !accepted, updatedAt, fingerprint);
     },
     onSettled: async () => {
-      const keys: ReadonlyArray<readonly unknown[]> = [
-        notificationQueryKeys.operationalCounts,
-        scoresQueryKeys.sessionScores(sessionId),
-        assessmentQueryKeys.adminHomeworkSubmissions(homeworkId),
-        assessmentQueryKeys.teacherHomeworkSubmissions(homeworkId),
-        ...(studentId ? [assessmentQueryKeys.studentHomeworkFiles(studentId), ["student", studentId, "grades"], ["student-exams", studentId]] : []),
-      ];
-      await Promise.all(keys.map(queryKey => client.invalidateQueries({ queryKey })));
+      await refreshHomeworkDecisions(client, homeworkId, sessionId, studentId ? [studentId] : []);
     },
   });
   if (accepted == null || !fingerprint) return null;

@@ -11,6 +11,7 @@ import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { formatCompactFileSize } from "@/shared/utils/fileSize";
 import HomeworkFileGallery from "@/shared/ui/submissions/HomeworkFileGallery";
+import HomeworkBulkAcceptance from "@/shared/ui/submissions/HomeworkBulkAcceptance";
 import HomeworkAcceptanceButton from "@/shared/ui/submissions/HomeworkAcceptanceButton";
 import HomeworkMediaPreviewModal from "@/shared/ui/media/HomeworkMediaPreviewModal";
 import type { HomeworkSubmissionMediaFile } from "@/shared/api/contracts/staffHomeworkFiles";
@@ -200,9 +201,11 @@ export default function HomeworkDetailPage() {
       {submitted.length > 0 && (
         <Section title={`제출 확인 (${submitted.length})`}>
           <p className={styles.reviewGuide}>사진을 눌러 확대할 수 있습니다. 통과를 누르면 기존 점수를 유지하고 과제를 통과로 인정합니다.</p>
-          {submitted.map((s) => (
+          <HomeworkBulkAcceptance key={hid} homeworkId={hid} sessionId={sessionId} rows={submitted}>
+          {(visibleRows, checkbox) => visibleRows.map((s) => (
             <div key={s.id} className={`${styles.row} py-2`}>
               <div className="flex justify-between items-center gap-2">
+                {checkbox(s)}
                 <span className={`${styles.title} text-sm`}>
                   {s.student_name}
                 </span>
@@ -229,6 +232,7 @@ export default function HomeworkDetailPage() {
               )}
             </div>
           ))}
+          </HomeworkBulkAcceptance>
         </Section>
       )}
 
