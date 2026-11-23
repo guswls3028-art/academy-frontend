@@ -252,7 +252,7 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
       if (path && recentItem(path)) recent = [path,...recent.filter(p => p !== path)].slice(0,4);
       try { if (generation) sessionStorage.setItem(storageKey,JSON.stringify({generation,paths:recent})); } catch {}
       jumps.replaceChildren(n('span','최근 업무'),...recent.map(p=>makeLink(recentItem(p))));
-      if (search.value) filter();
+      if (search.value) { search.value=''; filter(); }
     };
     clean = () => { search.value=''; filter(); searchBox.remove(); };
   } else {
