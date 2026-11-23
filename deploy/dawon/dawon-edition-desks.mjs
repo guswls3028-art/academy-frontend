@@ -104,7 +104,7 @@ html[data-dawon-edition=A] [data-dawon-staff] main .ds-table tbody tr:focus-with
 .ed-picker-field label{display:grid;gap:6px;font-size:13px;color:var(--ed-ink);font-weight:650;margin-top:12px}
 [data-edition-desk] .ed-picker-field select{width:min(100%,460px);max-width:100%;min-height:42px}
 .ed-picker-list ul{list-style:none;padding:0;margin:14px 0 0;border-block-start:1px solid var(--ed-line)}
-.ed-picker-list a{display:grid;grid-template-columns:minmax(48px,max-content) minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 4px;min-height:44px;color:var(--ed-ink);text-decoration:none;border-bottom:1px solid var(--ed-line)}
+.ed-picker-list a{display:grid;grid-template-columns:5.5ch minmax(0,1fr) max-content;gap:12px;align-items:center;padding:10px 4px;min-height:44px;color:var(--ed-ink);text-decoration:none;border-bottom:1px solid var(--ed-line)}
 .ed-picker-list a:is(:hover,:focus-visible){background:var(--ed-tint)}.ed-picker-list a strong{font-size:14px}.ed-picker-list :is(span,small,p){font-size:13px}
 .ed-picker-list small{font-variant-numeric:tabular-nums}.ed-picker-list button{cursor:pointer;min-height:40px;background:white;border:1px solid var(--ed-line);border-radius:4px;color:var(--ed-ink);padding:5px 16px}
 [data-dawon-staff] main:has([data-edition-desk] .ed-session-picker) > div:not([data-edition-desk]){display:none}

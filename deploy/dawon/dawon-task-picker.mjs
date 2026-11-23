@@ -13,6 +13,9 @@ export function createTaskPicker({role, root, node, api, urlOf, navigate, canLea
     if (url.pathname !== '/workspace/lectures' || !Object.hasOwn(actions,work)) { clear(); return; }
     const course = url.searchParams.get('course') || '';
     if (key === work + '/' + course) return;
+    const doc = root.ownerDocument;
+    const trigger = doc?.activeElement;
+    const focusOnArrival = trigger?.closest('[data-edition-desk],.ed-index');
     clear(); key = work + '/' + course;
     controller = new AbortController();
     const {signal} = controller;
@@ -38,6 +41,9 @@ export function createTaskPicker({role, root, node, api, urlOf, navigate, canLea
       select.value = scope.some(row=>String(row.id) === course) ? course : '';
       const label = node('label',role === 'teacher' ? '담당 강의' : '편성 강의');
       label.append(select); fields.append(label);
+      if (focusOnArrival && (doc.activeElement === trigger || (!trigger.isConnected && doc.activeElement === doc.body))) {
+        select.focus({preventScroll:true});
+      }
       select.onchange = () => {
         if (canLeave()) navigate(urlOf(base(work,select.value)));
         else select.value = course;
@@ -56,8 +62,9 @@ export function createTaskPicker({role, root, node, api, urlOf, navigate, canLea
       for (const row of rows) {
         const route = 'lectures/' + course + '/sessions/' + row.id + '/' + work;
         const a = node('a',null,{href:urlOf(route),'data-staff-link':'','data-edition-path':route});
-        a.append(node('span',row.display_label || (row.order != null ? row.order + '차시' : '차시')),
-          node('strong',row.title || '제목 미등록'),node('small',row.date || '날짜 미정'));
+        const number = Number.isInteger(row.order) ? row.order + '회차' : '회차 미정';
+        a.append(node('span',number),node('strong',row.title || row.display_label || '제목 미등록'),
+          node('small',row.date || '날짜 미정'));
         const li = node('li'); li.append(a); list.append(li);
       }
       body.replaceChildren(list);

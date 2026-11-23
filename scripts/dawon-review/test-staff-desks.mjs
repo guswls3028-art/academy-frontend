@@ -18,7 +18,7 @@ function setup(fetch) {
 test('both session jobs open only a selected, assigned lecture and matching session',async()=>{
   for (const work of ['attendance','assignments']) {
     const {root,requests,show}=setup(path=>path.startsWith('students/')?{lectures:[{id:7,title:'수학'}]}:
-      [{id:11,lecture:7,title:'함수의 극한',order:1},{id:999,lecture:8,title:'다른 강의'}]);
+      [{id:11,lecture:7,title:'함수의 극한',display_label:'함수의 극한',order:1},{id:999,lecture:8,title:'다른 강의'}]);
     await show('work='+work+'&course=8');
     assert.equal(requests.length,1);
     await show('work='+work+'&course=7');
@@ -26,6 +26,9 @@ test('both session jobs open only a selected, assigned lecture and matching sess
     assert.ok(requests.every(it=>it.role==='teacher'));
     const urls=all(root.children.at(-1)).filter(el=>el.tag==='a').map(el=>el.attrs.href);
     assert.deepEqual(urls,['/workspace/lectures','/workspace/lectures/7/sessions/11/'+work]);
+    const labels=all(root.children.at(-1)).map(el=>el.text);
+    assert.ok(labels.includes('1회차'));
+    assert.equal(labels.filter(text=>text==='함수의 극한').length,1);
   }
 });
 test('an interrupted request cannot replace a new selection and a failed read can retry',async()=>{
