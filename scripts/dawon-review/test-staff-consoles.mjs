@@ -98,6 +98,16 @@ for (const role of ['admin','teacher']) {
     page.replace('/workspace/dashboard',null);
     assert.equal(page.active(),'C');
     assert.equal(page.location.pathname,'/workspace/students/home');
+    page.replace('/workspace/dashboard',null);
+    assert.equal(page.active(),'A','native dashboard selects A');
+    page.replace(role==='admin'?'/workspace/dashboard?panel=alerts':'/workspace/teacher-alerts',null);
+    assert.equal(page.active(),'B','native alerts select B');
+    page.replace('/workspace/lectures/7',null);
+    assert.equal(page.active(),'B','nested work preserves B');
+    page.click('C');
+    page.replace('/login/dawon?demo='+role+'&console=A',null);
+    page.replace('/workspace/dashboard',null);
+    assert.equal(page.active(),'A','explicit login A overrides saved C');
   });
 }
 test('requested login console, failure recovery and public learner boundary',async()=>{

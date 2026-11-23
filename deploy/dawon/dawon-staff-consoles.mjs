@@ -346,13 +346,14 @@ function mountStaffConsole(home, isHome, css) {
       const requested = entry.searchParams.get('demo') === role ? entry.searchParams.get('console') : null;
       const preferred = Object.hasOwn(choices,requested) ? requested : get(role + ':mode');
       entry = null;
-      if (Object.hasOwn(choices,preferred) && preferred !== 'A') {
+      if (Object.hasOwn(choices,preferred) && (Object.hasOwn(choices,requested) || preferred !== 'A')) {
         const destination = getHome(role,preferred);
         go(destination.path,destination.usr,true); return;
       }
     }
     const queryMode = url.searchParams.get('console');
-    const choice = Object.hasOwn(choices,queryMode) ? queryMode : (history.state?.dawonMode || (role === activeRole && mode) || get(role + ':mode') || 'A');
+    const nativeHome = Object.keys(choices).find(key => isHome(url,home(role,key)));
+    const choice = Object.hasOwn(choices,queryMode) ? queryMode : (nativeHome || history.state?.dawonMode || (role === activeRole && mode) || get(role + ':mode') || 'A');
     if (Object.hasOwn(choices,queryMode) && url.pathname === '/workspace/dashboard' && [...url.searchParams.keys()].every(key => key === 'console') && !isHome(url,home(role,choice))) {
       const destination = getHome(role,choice); go(destination.path,destination.usr,true); return;
     }
