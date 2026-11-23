@@ -216,6 +216,11 @@ test("동적 모바일 경로는 현재 executable canonical route만 가리킨�
     ["/workspace/mobile/staff/8", "/workspace/staff/8"],
     ["/workspace/mobile/profile", "/workspace/settings/profile"],
     ["/workspace/mobile/my-records", "/workspace/profile/attendance"],
+    ["/workspace/mobile/staff-board", "/workspace/staff-board"],
+    ["/workspace/mobile/staff-board/resource/49?q=%EC%B6%9C%EA%B2%B0+%EC%9E%90%EB%A3%8C&page=2",
+      "/workspace/staff-board/resource/49?q=%EC%B6%9C%EA%B2%B0+%EC%9E%90%EB%A3%8C&page=2"],
+    [`/workspace/mobile/staff-board/resource?q=${encodeURIComponent("가".repeat(100))}`,
+      `/workspace/staff-board/resource?q=${encodeURIComponent("가".repeat(100))}`],
   ];
   const rejected = [
     "/workspace/mobile/menu?group=unknown",
@@ -238,6 +243,12 @@ test("동적 모바일 경로는 현재 executable canonical route만 가리킨�
     "/workspace/mobile/comms?tab=qna&id=5&extra=1",
     "/workspace/mobile/desktop-only?next=https://evil.example",
     "/workspace/mobile/guide?next=/workspace/students",
+    "/workspace/mobile/staff-board/resource?q=worksheet&q=handover",
+    "/workspace/mobile/staff-board/notice?page=0",
+    "/workspace/mobile/staff-board/free/9007199254740992",
+    "/workspace/mobile/staff-board/notice?q=%00",
+    "/workspace/mobile/staff-board/%2e%2e",
+    "/workspace/mobile/staff-board/resource?q=%GG",
     "/workspace/mobile/unknown-feature",
   ];
 

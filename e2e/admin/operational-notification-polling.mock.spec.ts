@@ -59,7 +59,7 @@ async function installApi(page: Page) {
     }
     if (path === "/results/admin/teacher-dashboard-counts/") {
       videoFailedRequests += 1;
-      return json({ video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 0 });
+      return json({ video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 0, homework_review_pending: 0, homework_review_by_homework: {} });
     }
     if (path === "/lectures/attendance/arrival-overview/") {
       return json({

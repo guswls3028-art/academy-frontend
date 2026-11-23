@@ -49,7 +49,7 @@ async function setup(page: Page, role: string, superuser: boolean, failure?: "te
     if (path === "/core/landing/admin/consult/") { state.consultReads += 1; return json({ items: [], summary: { total: 3, unread: 3 } }); }
     if (path === "/students/account-password-settings/") return json({ student_mode: "phone", parent_mode: "phone", student_fixed_password: "", parent_fixed_password: "" });
     if (path === "/core/student-grade-report-layout/") return json({ version: 2, sections: [] });
-    if (path === "/results/admin/teacher-dashboard-counts/") return json({ video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 0 });
+    if (path === "/results/admin/teacher-dashboard-counts/") return json({ video_failed: 0, qna_pending: 0, counsel_pending: 0, submission_pending: 0, homework_review_pending: 0, homework_review_by_homework: {} });
     if (path === "/lectures/attendance/arrival-overview/") return json({ generated_at: "2026-10-09T09:00:00+09:00", soon_window_minutes: 60, today: "2026-10-09", tomorrow: "2026-10-10", range_end: "2026-10-15", range_days: 7, summary: { soon: 0, today: 0, tomorrow: 0, upcoming: 0, time_unset: 0, overdue: 0 }, items: [] });
     if (path.includes("pending-count") || path.includes("unread-count")) return json({ count: 0 });
     return json({ count: 0, results: [] });

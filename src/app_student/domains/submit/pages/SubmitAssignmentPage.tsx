@@ -5,12 +5,12 @@ import { Link, useLocation, useSearchParams } from "react-router";
 
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
-import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
+import { useMyGradeRows } from "@student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
 import type { HomeworkMediaFile } from "@student/domains/submit/api/homeworkMedia.api";
 import { fetchHomeworkMedia, removeHomeworkMedia } from "@student/domains/submit/api/homeworkMedia.api";
 import studentApi from "@student/shared/api/student.api";
-import { IconChevronRight, IconExam, IconClipboard, IconImage, IconVideo } from "@student/shared/ui/icons/Icons";
+import { IconExam, IconClipboard, IconImage, IconVideo } from "@student/shared/ui/icons/Icons";
 import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { useTrackedTask } from "@/shared/productAnalytics";
@@ -128,7 +128,7 @@ export default function SubmitAssignmentPage() {
   const [error, setError] = useState<string | null>(null);
   const [reviewLocked, setReviewLocked] = useState(false);
   const [previewFile, setPreviewFile] = useState<HomeworkMediaFile | null>(null);
-  const gradesQ = useMyGradesSummary();
+  const gradesQ = useMyGradeRows();
   const grades = gradesQ.data;
 
   const unfinishedHomeworks = useMemo(
@@ -513,7 +513,13 @@ export default function SubmitAssignmentPage() {
         : `파일 ${retryableCount}개 제출하기`;
 
   return (
-    <StudentPageShell title="과제 제출" description="풀이 사진과 동영상을 제출하고 선생님 확인 결과를 학습 현황에서 확인하세요." descriptionMode="help" onBack={() => window.history.back()}>
+    <StudentPageShell
+      title="과제 제출"
+      description="과제를 선택하면 이미 제출한 파일을 보거나 새 파일을 올릴 수 있어요."
+      descriptionMode="help"
+      onBack={() => window.history.back()}
+      actions={<Link className="stu-btn stu-btn--secondary" to="/student/grades?view=homework&homework_status=all">과제 확인 결과</Link>}
+    >
       <div className={`stu-section stu-section--nested ${styles.section}`}>
         {!selectionOutsideRoute && (uploadMut.isError || error) && <div role="alert" className={styles.errorMessage}>{error || apiErrorMessage(uploadMut.error)}</div>}
         {!selectionOutsideRoute && reviewLocked && <div className={styles.scopeNotice}>
@@ -527,7 +533,7 @@ export default function SubmitAssignmentPage() {
           </div>
         )}
         {!selectionOutsideRoute && uploadMut.isSuccess && uploadMut.data?.failed.length === 0 && !uploadMut.data.paused && uploadMut.data.reviewLocked !== true && (
-          <div className={styles.successMessage}><span><span>선택한 파일을 모두 제출했습니다.</span> 확인 결과는 학습 현황에서 확인하세요.</span><Link to="/student/grades" className={styles.successLink}>학습 현황<IconChevronRight className={styles.successLinkIcon} aria-hidden="true" /></Link></div>
+          <div role="status" className={styles.successMessage}>선택한 파일을 모두 제출했습니다.</div>
         )}
 
         <div data-guide="submit-target">

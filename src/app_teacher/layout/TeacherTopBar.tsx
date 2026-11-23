@@ -19,6 +19,7 @@ import {
   resolveTenantCode,
 } from "@/shared/tenant";
 import { GuideBookLauncher, getGuideBookPreset } from "@/shared/ui/guide";
+import { useHomeworkReviewForegroundAlert } from "@/shared/hooks/useHomeworkReviewForegroundAlert";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Menu, Bell, BellRing, Search } from "@teacher/shared/ui/Icons";
 import CompactStaffClockButton from "@/features/staff-clock/CompactStaffClockButton";
@@ -41,7 +42,12 @@ export default function TeacherTopBar({
   const { program } = useProgram();
   const { user } = useAuth();
   const productUpdate = useProductUpdateAwareness(user?.id);
-  const { counts, failures, isLoading, isError } = useTeacherPendingCounts();
+  const { counts, failures, isLoading, isError, dataUpdatedAt } = useTeacherPendingCounts();
+  useHomeworkReviewForegroundAlert(
+    counts.homeworkReviewByHomework,
+    dataUpdatedAt,
+    "/workspace/mobile/submissions?homework=pending",
+  );
   const tenantName = program?.display_name?.trim() || "";
   const tenantResult = resolveTenantCode();
   const tenantId = tenantResult.ok ? getTenantIdFromCode(tenantResult.code) : null;

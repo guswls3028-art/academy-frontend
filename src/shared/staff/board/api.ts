@@ -1,21 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import useAuth from "@/auth/hooks/useAuth";
 import api from "@/shared/api/axios";
-import type { components } from "@/shared/api/generated/schema";
+import type { components, operations } from "@/shared/api/generated/schema";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { downloadBlob } from "@/shared/utils/safeDownload";
 
-export const boardRoot = "/workspace/staff-board";
 export const boardLabels = { notice: "공지사항", resource: "자료실", free: "자유게시글" } as const;
 export type Category = components["schemas"]["StaffBoardCategory"];
-export const boardTabs = (Object.keys(boardLabels) as Category[]).map(key => ({
-  key, label: boardLabels[key], path: `${boardRoot}/${key}`,
-}));
+export const boardWriteLabels = { notice: "공지 작성", resource: "자료 올리기", free: "글쓰기" } as const;
 
 export type PostRow = components["schemas"]["StaffBoardSummary"];
 export type Reply = components["schemas"]["StaffBoardReply"];
 export type Post = components["schemas"]["StaffBoardDetail"];
 type PostPage = components["schemas"]["PaginatedStaffBoardSummaryList"];
+type BoardListParams = operations["staffs_board_posts_list"]["parameters"]["query"];
 const endpoint = "/staffs/board/posts/";
 
 export function useBoardScope() {
@@ -25,17 +23,20 @@ export function useBoardScope() {
 export type BoardScope = ReturnType<typeof useBoardScope>;
 
 export const boardKeys = {
-  list: (scope: BoardScope, category: Category, page: number, pageSize: number) =>
-    [...scope, "list", category, page, pageSize] as const,
+  list: (scope: BoardScope, category: Category, page: number, pageSize: number, q: string) =>
+    [...scope, "list", category, page, pageSize, q] as const,
   detail: (scope: BoardScope, id: number) => [...scope, "detail", id] as const,
 };
 
-export function useBoardList(scope: BoardScope, category: Category, page = 1, pageSize = 20, refreshInterval?: number) {
+export function useBoardList(scope: BoardScope, category: Category, {
+  page = 1, pageSize = 20, refreshInterval, q = "",
+}: { page?: number; pageSize?: number; refreshInterval?: number; q?: string } = {}) {
   return useQuery({
-    queryKey: boardKeys.list(scope, category, page, pageSize),
+    queryKey: boardKeys.list(scope, category, page, pageSize, q),
     enabled: Boolean(scope[1] && scope[2]),
     queryFn: async ({ signal }) => {
-      const { data } = await api.get<PostPage>(endpoint, { params: { category, page, page_size: pageSize }, signal });
+      const params: BoardListParams = { category, page, page_size: pageSize, q: q || undefined };
+      const { data } = await api.get<PostPage>(endpoint, { params, signal });
       if (!Array.isArray(data?.results) || !Number.isInteger(data.count) || !data.results.every(row =>
         row?.category === category && Number.isSafeInteger(row.id) && typeof row.title === "string"
         && typeof row.created_at === "string" && Number.isFinite(Date.parse(row.created_at))

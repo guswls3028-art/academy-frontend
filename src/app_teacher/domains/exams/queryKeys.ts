@@ -1,7 +1,9 @@
 // PATH: src/app_teacher/domains/exams/queryKeys.ts
+import { assessmentQueryKeys } from "@/shared/api/queryKeys/assessments";
+
 export const teacherExamsQueryKeys = {
   exams: ["teacher-exams"] as const,
-  homeworks: ["teacher-homeworks"] as const,
+  homeworks: assessmentQueryKeys.staffHomeworks,
   exam: (examId: number) => ["teacher-exam", examId] as const,
   examResults: (examId: number) => ["teacher-exam-results", examId] as const,
   examEnrollmentRows: (examId: number, sessionIds: readonly number[]) =>

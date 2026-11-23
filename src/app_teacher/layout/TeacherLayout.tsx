@@ -8,6 +8,7 @@ import { setPreferFullWorkspace } from "@/core/router/MobileWorkspaceRedirect";
 import { App as AntdApp } from "antd";
 import { FeedbackBridge } from "@/shared/ui/feedback";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import { mobileBoardRoot } from "@/core/router/workspaceRoutes";
 import { useFavicon } from "@/shared/hooks/useFavicon";
 import { useDocumentTitle } from "@/shared/hooks/useDocumentTitle";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
@@ -39,7 +40,10 @@ export default function TeacherLayout() {
   const mainRef = useRef<HTMLElement>(null);
   const previousPath = useRef(location.pathname);
   useLayoutEffect(() => {
-    if (location.pathname === "/workspace/mobile/menu" || previousPath.current === "/workspace/mobile/menu") {
+    const paths = [previousPath.current, location.pathname];
+    const boardRouteChanged = previousPath.current !== location.pathname
+      && paths.some(path => path === mobileBoardRoot || path.startsWith(`${mobileBoardRoot}/`));
+    if (boardRouteChanged || paths.includes("/workspace/mobile/menu")) {
       mainRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
     }
     previousPath.current = location.pathname;

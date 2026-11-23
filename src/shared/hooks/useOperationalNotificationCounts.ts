@@ -52,6 +52,7 @@ export function useOperationalNotificationCounts() {
     isLoading: q.isLoading,
     isError: q.isError,
     isFetching: q.isFetching,
+    dataUpdatedAt: q.dataUpdatedAt,
     refetch: q.refetch,
   };
 }

@@ -536,7 +536,7 @@ async function markThirtyQuestionOmrPdf(
   return Buffer.from(await pdf.save());
 }
 
-async function renderOmrScanImage(markedPdf: Buffer): Promise<Buffer> {
+async function renderOmrScanImage(markedPdf: Buffer, clockwise = 0): Promise<Buffer> {
   const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const standardFontDataUrl = createRequire(import.meta.url).resolve("pdfjs-dist/package.json")
     .replaceAll("\\", "/").replace(/package\.json$/, "standard_fonts/");
@@ -545,7 +545,7 @@ async function renderOmrScanImage(markedPdf: Buffer): Promise<Buffer> {
     const document = await task.promise;
     expect(document.numPages).toBe(1);
     const page = await document.getPage(1);
-    const viewport = page.getViewport({ scale: 300 / 72 });
+    const viewport = page.getViewport({ scale: 300 / 72, rotation: (page.rotate + clockwise) % 360 });
     const surface = document.canvasFactory.create(Math.ceil(viewport.width), Math.ceil(viewport.height));
     try {
       await page.render({ canvas: surface.canvas, canvasContext: surface.context, viewport }).promise;
@@ -555,6 +555,97 @@ async function renderOmrScanImage(markedPdf: Buffer): Promise<Buffer> {
     }
   } finally {
     await task.destroy();
+  }
+}
+
+async function verifyOriginalOnlyRescan(page: Page, request: APIRequestContext, markedPdf: Buffer) {
+  requireIsolatedScenario();
+  const token = created.adminAccess!;
+  const title = `원본 회전 판독 검증 ${TS}`;
+  const exam = await expectApi<{ id: number }>(request, "POST", "/exams/", token, {
+    title, exam_type: "regular", session_id: created.sessionId, grading_mode: "mixed",
+    manual_grading_method: "score", choice_question_count: 30, max_score: 50,
+  });
+  created.extraExamIds.push(exam.id);
+  // A new exam has no sheet until question initialization. This yields a real
+  // original-only upload without racing, pausing or mocking the worker.
+  const png = await renderOmrScanImage(markedPdf, 90);
+  const uploaded = await request.post(`${API}/api/v1/submissions/submissions/`, {
+    headers: { Authorization: `Bearer ${token}`, "X-Tenant-Code": CODE },
+    multipart: { target_type: "exam", target_id: String(exam.id), source: "omr_scan",
+      file: { name: "qa-omr-sideways.png", mimeType: "image/png", buffer: png } },
+  });
+  expect(uploaded.status()).toBe(201);
+  const listPath = `/submissions/submissions/exams/${exam.id}/?session_id=${created.sessionId}`;
+  const rows = await expectApi<Array<{ id: number; status: string }>>(request, "GET", listPath, token);
+  expect(rows).toHaveLength(1);
+  const source = rows[0].id;
+  created.submissionIds.push(source);
+  expect(rows[0].status).toBe("failed");
+  const detailPath = (id: number) => `/submissions/submissions/${id}/manual-edit/`;
+  const initial = await expectApi(request, "GET", detailPath(source), token);
+  expect(initial).toMatchObject({ submission_id: source, target_id: exam.id, original_scan_image_url: "",
+    scan_image_is_aligned: false, answers: [] });
+  expect(Boolean(initial.scan_image_url)).toBe(true);
+  const sourcePath = `/submissions/submissions/${source}/`;
+  const original = await expectApi<{ file_key: string }>(request, "GET", sourcePath, token);
+  const guard = await installQaStudentParentBoundary(page, request);
+  guard.registerOmrOriginalPng(source, original.file_key, png);
+  const questions = await expectApi<Array<{ id: number; number: number }>>(request, "POST",
+    `/exams/${exam.id}/questions/init/`, token, {
+      choice_count: 30, choice_score: 1, essay_count: 2, essay_score: 10,
+      question_types: [...Array<string>(30).fill("choice"), "essay", "essay"],
+    });
+  await expectApi(request, "POST", "/exams/answer-keys/", token, { exam: exam.id,
+    answers: Object.fromEntries(questions.map(q => [String(q.id), EXPECTED_ANSWERS[q.number - 1] ?? "0"])) });
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await loginBrowserAsRealUser(page,
+    `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${exam.id}`,
+    { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
+  const open = async () => {
+    await page.getByRole("tab", { name: "채점·결과" }).click();
+    await page.locator(".omr-entry").getByRole("button", { name: /처리하기|OMR 다시 보기/ }).click();
+    return page.getByRole("dialog", { name: "OMR 검토", exact: true });
+  };
+  const review = await open();
+  await expectDecodedOmrScan(review);
+  await review.getByRole("button", { name: "왼쪽으로 90도 회전" }).click();
+  await expect(review.getByText("방향 270°", { exact: true })).toBeVisible();
+  await review.getByRole("button", { name: "이 방향으로 다시 읽기" }).click();
+  const rotatePath = `/submissions/submissions/${source}/rotate-rescan/`;
+  const requests: Request[] = [];
+  const count = (req: Request) => {
+    if (req.method() === "POST" && new URL(req.url()).pathname === "/api/v1" + rotatePath) requests.push(req);
+  };
+  page.on("request", count);
+  try {
+    const selected = page.waitForResponse(res => res.request().method() === "GET"
+      && /\/submissions\/submissions\/\d+\/manual-edit\/$/.test(new URL(res.url()).pathname)
+      && !matchesApiResponse(res, "GET", detailPath(source)));
+    const [response] = await Promise.all([page.waitForResponse(res => matchesApiResponse(res, "POST", rotatePath)),
+      page.locator("[data-confirm-dialog]").getByRole("button", { name: "다시 읽기", exact: true }).click()]);
+    expect(response.status()).toBe(201);
+    const next = await response.json() as { submission_id: number; created: boolean; rotation_degrees: number };
+    created.submissionIds.push(next.submission_id);
+    expect(next).toMatchObject({ created: true, rotation_degrees: 270 });
+    expect(next.submission_id).not.toBe(source);
+    expect((await (await selected).json()).submission_id).toBe(next.submission_id);
+    await expect(review.getByText("방향 0°", { exact: true })).toBeVisible();
+    const result = await waitForOmrAnswers(request, token, next.submission_id, 30);
+    expect(result.answers.find((a: { question_no: number }) => a.question_no === 1)?.answer).toBe("2");
+    expect(requests).toHaveLength(1);
+    expect(requests[0].postDataJSON()).toMatchObject({ rotation_degrees: 270, client_request_id: expect.any(String) });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    const reopened = await open();
+    await expect(reopened.locator(".orw-list-row")).toHaveCount(2);
+    expect((await expectApi(request, "GET", sourcePath, token)).file_key === original.file_key).toBe(true);
+    expect((await expectApi(request, "GET", detailPath(source), token)).answers).toHaveLength(0);
+    expect((await expectApi(request, "GET", detailPath(next.submission_id), token)).answers).toHaveLength(30);
+    await reopened.getByRole("button", { name: "닫기", exact: true }).click();
+    await page.waitForLoadState("networkidle", { timeout: 20_000 });
+  } finally {
+    page.off("request", count);
   }
 }
 
@@ -581,7 +672,7 @@ async function waitForOmrAnswers(
 
   throw new Error(
     `OMR worker did not persist ${expectedCount} answers for submission ${submissionId}. ` +
-    `latest=${JSON.stringify(latest?.body ?? null).slice(0, 1200)}`,
+    `HTTP ${latest?.status}, state ${latest?.body?.submission_status}, answers ${latest?.body?.answers?.length ?? 0}`,
   );
 }
 
@@ -2171,17 +2262,29 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await picker.click();
     const studentPicker = page.getByRole("dialog", { name: "학생 선택" });
     const phoneSuffix = CONTROLLED_PHONE.slice(-4);
+    const filteredResponse = page.waitForResponse((response) => {
+      if (!matchesApiResponse(response, "GET", `/submissions/submissions/exams/${created.examId}/candidates/`)) return false;
+      const params = new URL(response.url()).searchParams;
+      return params.get("session_id") === String(created.sessionId) && params.get("q") === phoneSuffix
+        && params.get("unmatched_only") === "1";
+    });
+    await studentPicker.getByRole("textbox", { name: "학생 검색" }).fill(phoneSuffix);
+    const filtered = await filteredResponse;
+    expect(filtered.status()).toBe(200);
+    expect(await filtered.json()).toMatchObject({ session_id: created.sessionId, candidates: [] });
+    await expect(studentPicker.getByText("일치하는 학생이 없습니다.")).toBeVisible();
     const candidates = page.waitForResponse((response) => {
       if (!matchesApiResponse(response, "GET", `/submissions/submissions/exams/${created.examId}/candidates/`)) return false;
       const params = new URL(response.url()).searchParams;
-      return params.get("session_id") === String(created.sessionId) && params.get("q") === phoneSuffix;
+      return params.get("session_id") === String(created.sessionId) && params.get("q") === phoneSuffix
+        && !params.has("unmatched_only");
     });
-    await studentPicker.getByRole("textbox", { name: "학생 검색" }).fill(phoneSuffix);
+    await studentPicker.getByRole("checkbox", { name: "매칭된 학생도 보기" }).check();
     const candidateResponse = await candidates;
     expect(candidateResponse.status()).toBe(200);
     expect(await candidateResponse.json()).toMatchObject({
       session_id: created.sessionId,
-      candidates: [expect.objectContaining({ enrollment_id: created.enrollmentId })],
+      candidates: [expect.objectContaining({ enrollment_id: created.enrollmentId, already_matched: true })],
     });
     await studentPicker.getByRole("button", { name: new RegExp(STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) }).click();
     await expect(studentPicker).toBeHidden();
@@ -2238,6 +2341,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     // teardown blocks new requests. An unfinished reload must still fail here.
     await page.waitForLoadState("networkidle", { timeout: 20_000 });
     await expect(page.getByRole("link").filter({ hasText: EXAM_TITLE })).toContainText(`${EXPECTED_SCORE - 1}/50점`);
+    await verifyOriginalOnlyRescan(page, request, markedPdf);
   });
 
   test("3·5·3+5를 실제 제출하고 수기 보정 재채점의 확인 경로를 연다", async ({ page, request }) => {

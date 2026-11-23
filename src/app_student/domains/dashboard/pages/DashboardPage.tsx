@@ -23,7 +23,7 @@ import { useFeesEnabled } from "@/shared/hooks/useFeesEnabled";
 import { useStudentDashboard } from "../hooks/useStudentDashboard";
 import type { StudentDashboardResponse } from "../api/dashboard.api";
 import { useHomeSessions } from "@student/domains/sessions/hooks/useStudentSessions";
-import { useMyGradesSummary } from "@student/domains/grades/hooks/useMyGradesSummary";
+import { useMyGradeRows } from "@student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
 import { getExamPassStatus } from "@student/domains/grades/public/examPassStatus";
 import { calculateHomeworkStats } from "@student/domains/grades/public/homeworkStats";
@@ -156,7 +156,7 @@ const CountdownCard = memo(function CountdownCard({
  * ========================================================================== */
 
 function QuickAction({
-  to, state, icon, label, detail, badge, primary = false,
+  to, state, icon, label, detail, badge, primary = false, wideOnMobile = false,
 }: {
   to: string;
   state?: unknown;
@@ -165,12 +165,13 @@ function QuickAction({
   detail: string;
   badge?: number;
   primary?: boolean;
+  wideOnMobile?: boolean;
 }) {
   return (
     <Link
       to={to}
       state={state}
-      className={`${styles.quickAction} ${primary ? styles.quickActionPrimary : ""}`}
+      className={`${styles.quickAction} ${primary ? styles.quickActionPrimary : ""} ${wideOnMobile ? styles.quickActionWide : ""}`}
     >
       <span className={styles.quickActionIcon}>
         {icon}
@@ -201,7 +202,7 @@ export default function DashboardPage() {
   const feesEnabled = useFeesEnabled();
   const dashboardQ = useStudentDashboard();
   const sessionsQ = useHomeSessions();
-  const gradesQ = useMyGradesSummary({ reuseFreshData: true });
+  const gradesQ = useMyGradeRows({ reuseFreshData: true });
   const examsQ = useStudentExams({ include_upcoming: true });
   const notificationCountsQ = useNotificationCounts();
   const dashboard = dashboardQ.data;
@@ -604,7 +605,7 @@ export default function DashboardPage() {
         </section>
       )}
 
-      <section className={`${styles.quickSection} ${styles.contentShortcuts}`} aria-label="게시판과 자료실">
+      <section className={styles.quickSection} aria-label="게시판과 자료실">
         <div className={styles.sectionLabel}>학원 소식·자료</div>
         <div className={styles.quickGrid}>
           <QuickAction
@@ -625,6 +626,7 @@ export default function DashboardPage() {
       <section className={styles.quickSection} aria-label="자주 쓰는 일">
         <div className={styles.sectionLabel}>자주 쓰는 일</div>
         <div className={styles.quickGrid}>
+          <QuickAction to="/student/submit" icon={<IconClipboard />} label="자료 제출·확인" detail="과제·성적표·설문" wideOnMobile />
           <QuickAction
             to="/student/qna"
             state={{ openQnaForm: true }}
@@ -799,6 +801,7 @@ function ParentDashboardView({
       <section className={styles.quickSection} aria-label="학부모 주요 확인">
         <div className={styles.sectionLabel}>바로 확인</div>
         <div className={styles.quickGrid}>
+          <QuickAction to="/student/submit" icon={<IconClipboard />} label="자료 제출·확인" detail="자녀의 과제·성적표·설문" wideOnMobile />
           <QuickAction
             to="/student/qna"
             state={{ openQnaForm: true }}
@@ -970,7 +973,7 @@ function LearningStatusCard({
   now,
   wrongCompletionOnly,
 }: {
-  gradesQ: ReturnType<typeof useMyGradesSummary>;
+  gradesQ: ReturnType<typeof useMyGradeRows>;
   sessionsQ: ReturnType<typeof useHomeSessions>;
   now: number;
   wrongCompletionOnly: boolean;

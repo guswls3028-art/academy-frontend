@@ -9109,6 +9109,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/results/admin/sessions/{session_id}/homework/{homework_id}/inspection/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["results_admin_sessions_homework_inspection_retrieve"];
+        put?: never;
+        post: operations["results_admin_sessions_homework_inspection_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/admin/sessions/{session_id}/homework/{homework_id}/inspection/workbook/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["results_admin_sessions_homework_inspection_workbook_retrieve"];
+        put?: never;
+        post: operations["results_admin_sessions_homework_inspection_workbook_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/results/admin/sessions/{session_id}/reorder/": {
         parameters: {
             query?: never;
@@ -10479,7 +10511,7 @@ export interface paths {
          *     학생 본인(또는 학부모 대리 계정)이 "내 일정" 휴지통을 눌렀을 때 호출.
          *     오늘 이전(어제까지) 차시/클리닉 예약을 화면에서 모두 숨김.
          *     실제 차시/예약 데이터는 학원/선생 소유이므로 절대 삭제하지 않고,
-         *     Student.schedule_hidden_before 컷오프만 갱신.
+         *     학생의 숨김 컷오프와 그 이후에 숨긴 일정 목록을 저장한다.
          */
         post: operations["student_sessions_clear_past_create"];
         delete?: never;
@@ -15198,6 +15230,59 @@ export interface components {
          * @enum {string}
          */
         InitialAccountNoticeStateSchemaStatusEnum: "not_pending" | "awaiting_enrollment" | "action_required";
+        InspectionBatchRequest: {
+            rows: components["schemas"]["InspectionChangeRequest"][];
+        };
+        InspectionChange: {
+            enrollment_id: number;
+            feedback?: string;
+            solved?: number | null;
+            total?: number | null;
+            version: number;
+        };
+        InspectionChangeRequest: {
+            enrollment_id: number;
+            feedback?: string;
+            solved?: number | null;
+            total?: number | null;
+            version: number;
+        };
+        InspectionPreview: {
+            errors: string[];
+            rows: components["schemas"]["InspectionPreviewRow"][];
+        };
+        InspectionPreviewRow: {
+            before: components["schemas"]["InspectionRosterRow"];
+            change: components["schemas"]["InspectionChange"];
+            line: number;
+            name: string;
+            status: components["schemas"]["InspectionPreviewRowStatusEnum"];
+        };
+        /**
+         * @description * `변경` - 변경
+         *     * `새 입력` - 새 입력
+         *     * `동일` - 동일
+         * @enum {string}
+         */
+        InspectionPreviewRowStatusEnum: "변경" | "새 입력" | "동일";
+        InspectionResult: {
+            changed: number;
+        };
+        InspectionRoster: {
+            items: components["schemas"]["InspectionRosterRow"][];
+        };
+        InspectionRosterRow: {
+            enrollment_id: number;
+            feedback: string;
+            solved: number | null;
+            student_name: string;
+            total: number | null;
+            version: number;
+        };
+        InspectionUploadRequest: {
+            /** Format: binary */
+            file: string;
+        };
         /**
          * @description * `30` - 30
          *     * `60` - 60
@@ -20811,6 +20896,10 @@ export interface components {
             is_active?: boolean;
             student: number;
         };
+        StudentHomeSchedule: {
+            has_any_sessions: boolean;
+            items: components["schemas"]["StudentSession"][];
+        };
         StudentHomeworkOpenSchemaRequest: {
             homework_id: number;
         };
@@ -20957,6 +21046,26 @@ export interface components {
             user: number;
             /** @description True면 학생 전화 없음, 식별자(010+8자리)로 가입. 표시 시 '식별자 XXXX-XXXX' */
             uses_identifier?: boolean;
+        };
+        StudentScheduleListOrHome: components["schemas"]["StudentSession"][] | components["schemas"]["StudentHomeSchedule"];
+        StudentSession: {
+            /** Format: date */
+            date?: string | null;
+            display_label?: string | null;
+            exam_ids?: number[] | null;
+            id: number;
+            order?: number | null;
+            regular_order?: number | null;
+            /** @default false */
+            schedule_configured: boolean;
+            schedule_label?: string | null;
+            session_type?: string | null;
+            /** Format: time */
+            start_time?: string | null;
+            status?: string | null;
+            title: string;
+            /** @default session */
+            type: string;
         };
         /** @description 강의/수강 맥락에서 노출하는 학생 최소 정보. Student 모델 스펙과 정합성 유지. */
         StudentShort: {
@@ -21421,6 +21530,10 @@ export interface components {
         };
         TeacherDashboardCounts: {
             counsel_pending: number;
+            homework_review_by_homework: {
+                [key: string]: number;
+            };
+            homework_review_pending: number;
             qna_pending: number;
             submission_pending: number;
             video_failed: number;
@@ -36520,6 +36633,107 @@ export interface operations {
             };
         };
     };
+    results_admin_sessions_homework_inspection_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                homework_id: number;
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionRoster"];
+                };
+            };
+        };
+    };
+    results_admin_sessions_homework_inspection_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                homework_id: number;
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InspectionBatchRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["InspectionBatchRequest"];
+                "multipart/form-data": components["schemas"]["InspectionBatchRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionResult"];
+                };
+            };
+        };
+    };
+    results_admin_sessions_homework_inspection_workbook_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Optional shared problem count for the template. */
+                total?: number;
+            };
+            header?: never;
+            path: {
+                homework_id: number;
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": string;
+                };
+            };
+        };
+    };
+    results_admin_sessions_homework_inspection_workbook_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                homework_id: number;
+                session_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["InspectionUploadRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectionPreview"];
+                };
+            };
+        };
+    };
     results_admin_sessions_reorder_create: {
         parameters: {
             query?: never;
@@ -37515,6 +37729,8 @@ export interface operations {
                 page?: number;
                 /** @description 페이지당 반환할 결과 수. */
                 page_size?: number;
+                /** @description 제목·본문·첨부 파일명에 포함된 검색어. 앞뒤 공백을 제외하고 최대 100자. */
+                q?: string;
             };
             header?: never;
             path?: never;
@@ -38915,7 +39131,10 @@ export interface operations {
     };
     student_grades_retrieve: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Use rows for exam/homework rows with Home todo eligibility; otherwise returns the full grade board. */
+                scope?: string;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -39083,19 +39302,23 @@ export interface operations {
     };
     student_sessions_me_retrieve: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description home은 오늘 포함 최근 28일과 모든 미래 일정, 전체 표시 일정 존재 여부를 반환한다. 생략하면 기존 전체 이력 배열을 반환한다. */
+                scope?: "home";
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["StudentScheduleListOrHome"];
+                };
             };
         };
     };

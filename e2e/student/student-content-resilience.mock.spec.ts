@@ -5,6 +5,7 @@ import { assertReleaseRequestSafe } from "../helpers/releaseApiBoundary";
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 const IS_LOCAL_BASE = /^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE);
 const matchesSessionsApi = (url: URL) => url.pathname === "/api/v1/student/sessions/me/";
+const matchesGradesApi = (url: URL) => url.pathname === "/api/v1/student/grades/";
 
 function fakeJwt(): string {
   const payload = Buffer.from(JSON.stringify({
@@ -701,11 +702,16 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         let releaseGrades!: () => void;
         const gradesReady = new Promise<void>((resolve) => { releaseGrades = resolve; });
         const grades = emptyGrades(701);
+        const gradeScopes: (string | null)[] = [];
         // Old results remain part of the explicitly labelled whole-history rate.
         grades.exams[0].submitted_at = "2025-01-01T09:00:00+09:00";
-        await page.route("**/api/v1/student/grades/", async (route) => {
+        await page.route(matchesGradesApi, async (route) => {
+          const scope = new URL(route.request().url()).searchParams.get("scope");
+          gradeScopes.push(scope);
           await gradesReady;
-          await route.fulfill({ json: grades });
+          await route.fulfill({ json: scope === "rows" && width < 1366
+            ? { exams: grades.exams, homeworks: grades.homeworks }
+            : grades });
         });
         const schedule = [
           { id: 21, title: "기간 밖 수업", date: "2026-09-23" },
@@ -733,6 +739,8 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         await expect(exams).toContainText("100%");
         await expect(exams).toContainText("전체 판정 결과");
         await expect(card.getByRole("link", { name: /과제 통과/ })).toContainText("기록 없음");
+        await expect(page.getByRole("link", { name: "알림", exact: true }).first()).toBeVisible();
+        expect(gradeScopes).toEqual(["rows"]);
         await assertNoRenderedHtmlLeak(page);
         const screenshotPath = testInfo.outputPath(`learning-status-${width}-${parentDashboard}.png`);
         await card.evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
@@ -740,6 +748,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         await testInfo.attach("learning-status", { path: screenshotPath, contentType: "image/png" });
         await verifyStudentLearningSummary(page, BASE);
         expect(scopes).toContain(null);
+        expect(gradeScopes).toContain(null);
         await page.reload();
         await expect(exams).toContainText("100%");
         await expect(sessions).toContainText("2회");
@@ -908,7 +917,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       page.on("request", (request) => {
         if (new URL(request.url()).pathname.endsWith("/core/me/")) meReads += 1;
       });
-      await page.route(source === "grades" ? "**/api/v1/student/grades/" : matchesSessionsApi, async (route) => {
+      await page.route(source === "grades" ? matchesGradesApi : matchesSessionsApi, async (route) => {
         dataReads += 1;
         if (retryArmed && !recovered) {
           recovered = await page.evaluate(() => document.documentElement.dataset.qaLearningStatusRetry === "true");
@@ -959,7 +968,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     const grades = emptyGrades(701);
     grades.exams[0].is_pass = false;
     grades.exams[0].achievement = "FAIL";
-    await page.route("**/api/v1/student/grades/", (route) => route.fulfill({ json: {
+    await page.route(matchesGradesApi, (route) => route.fulfill({ json: {
       ...grades,
       exams: grades.exams,
       homeworks: [{ homework_id: 801, enrollment_id: 301, title: "제출할 과제", passed: false, achievement: "FAIL" }],
@@ -969,7 +978,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("0%");
     await expect(card.getByRole("link", { name: /과제 통과/ })).toContainText("0%");
     await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
-    await page.route("**/api/v1/student/grades/", (route) => route.fulfill({ json: {
+    await page.route(matchesGradesApi, (route) => route.fulfill({ json: {
       ...grades,
       exams: [
         ...grades.exams,
@@ -979,7 +988,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     } }));
     await page.reload();
     await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("50%");
-    await page.route("**/api/v1/student/grades/", (route) => route.fulfill({ json: {
+    await page.route(matchesGradesApi, (route) => route.fulfill({ json: {
       ...grades, exams: [{ ...grades.exams[0], is_pass: null, achievement: null }],
     } }));
     await page.reload();
@@ -994,17 +1003,23 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         homework_id: 801, enrollment_id: 301, title: "판정 대기 과제",
         score: null, max_score: 100, passed: null, achievement: null,
       };
-      let homeworks: object[] = [unjudged];
+      let homeworks: object[] = [{
+        ...unjudged,
+        practice_inspection: { solved: 0, total: 15, feedback: "다음 풀이 방법을 확인하세요." },
+      }];
       const selections: string[] = [];
-      await page.route("**/api/v1/student/grades/", (route) => {
+      await page.route(matchesGradesApi, (route) => {
+        const scope = new URL(route.request().url()).searchParams.get("scope");
         selections.push(route.request().headers()["x-student-id"] ?? "");
-        return route.fulfill({ json: { ...emptyGrades(), homeworks } });
+        return route.fulfill({ json: scope === "rows" ? { exams: [], homeworks } : { ...emptyGrades(), homeworks } });
       });
       const openDashboard = () => page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
-      const passRate = page.getByRole("region", { name: "학습 현황", exact: true })
-        .getByRole("link", { name: /과제 통과/ });
+      const learningStatus = page.getByRole("region", { name: "학습 현황", exact: true });
+      const passRate = learningStatus.getByRole("link", { name: /과제 통과/ });
       await openDashboard();
       await expect(passRate).toContainText("결과 대기");
+      await expect(learningStatus.getByRole("link", { name: "과제 검사 결과 1건 보기" }))
+        .toHaveAttribute("href", "/student/grades?view=homework&homework_status=inspection");
       homeworks = [unjudged, { ...unjudged, homework_id: 802, title: "교사 확인 과제", teacher_resolved: true }];
       await page.reload();
       await expect(passRate).toContainText("100%");
@@ -1047,7 +1062,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await installStudentApi(page, { parentDashboard: true, completedFollowupExam: "correction" });
     const grades = emptyGrades(701);
-    await page.route("**/api/v1/student/grades/", (route) => route.fulfill({ json: {
+    await page.route(matchesGradesApi, (route) => route.fulfill({ json: {
       ...grades,
       exams: [
         { ...grades.exams[0], correction_status: "COMPLETED" },
@@ -1078,7 +1093,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       route.request().headers()["x-student-id"] === "11"
         ? [{ id: 21, title: "첫째만의 수업", date: "2026-10-21" }] : [],
     }));
-    await page.route("**/api/v1/student/grades/", (route) => {
+    await page.route(matchesGradesApi, (route) => {
       const selectedId = route.request().headers()["x-student-id"];
       selectedReads.push(selectedId);
       const grades = emptyGrades(701);
@@ -1176,7 +1191,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         max_score: 10, passed: false, achievement: "NOT_SUBMITTED", submission_state: "needs_submission",
         session_title: "1차시", lecture_title: "현재 수학", lecture_active: true,
       };
-      await page.route("**/api/v1/student/grades/", (route) => route.fulfill({ json: {
+      await page.route(matchesGradesApi, (route) => route.fulfill({ json: {
         ...emptyGrades(),
         exams: [
           { ...exam, title: "현재 확인 시험", learning_todo_eligible: true },
@@ -1239,7 +1254,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       });
       let failed = true;
       let recoveredReads = 0;
-      await page.route("**/api/v1/student/grades/", (route) => {
+      await page.route(matchesGradesApi, (route) => {
         if (failed) return route.fulfill({ status: 503, json: { detail: "temporary grade failure" } });
         recoveredReads += 1;
         return route.fulfill({ json: emptyGrades() });

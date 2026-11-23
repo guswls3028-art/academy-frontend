@@ -88,10 +88,13 @@ export type MyHomeworkGradeSummary = {
   learning_todo_eligible?: boolean;
 };
 
-export type MyGradesSummary = {
-  session_totals?: SessionAssessmentTotals[];
+export type MyGradeRows = {
   exams: MyExamGradeSummary[];
   homeworks: MyHomeworkGradeSummary[];
+};
+
+export type MyGradesSummary = MyGradeRows & {
+  session_totals?: SessionAssessmentTotals[];
   exam_trend: StudentExamTrendPoint[];
   exam_summary: StudentExamSummary;
   lecture_options: StudentScoreLectureOption[];
@@ -190,13 +193,24 @@ export type MyGradesAnalytics = {
   };
 };
 
+function normalizeGradeRows(data: Partial<MyGradeRows>): MyGradeRows {
+  return {
+    exams: Array.isArray(data.exams) ? data.exams.map(normalizeExamGrade) : [],
+    homeworks: Array.isArray(data.homeworks) ? data.homeworks.map(normalizeHomeworkGrade) : [],
+  };
+}
+
+export async function fetchMyGradeRows(): Promise<MyGradeRows> {
+  const { data } = await api.get<Partial<MyGradeRows>>("/student/grades/", { params: { scope: "rows" } });
+  return normalizeGradeRows(data ?? {});
+}
+
 export async function fetchMyGradesSummary(): Promise<MyGradesSummary> {
   const res = await api.get<Partial<MyGradesSummary>>("/student/grades/");
   const data = res.data ?? {};
   return {
-    exams: Array.isArray(data.exams) ? data.exams.map(normalizeExamGrade) : [],
+    ...normalizeGradeRows(data),
     session_totals: data.session_totals ?? [],
-    homeworks: Array.isArray(data.homeworks) ? data.homeworks.map(normalizeHomeworkGrade) : [],
     exam_trend: Array.isArray(data.exam_trend)
       ? data.exam_trend.map((point) => ({
           ...point,

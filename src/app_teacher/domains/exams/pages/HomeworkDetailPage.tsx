@@ -1,12 +1,13 @@
 // PATH: src/app_teacher/domains/exams/pages/HomeworkDetailPage.tsx
 // 과제 상세 — 제출 파일 직접 검수와 미제출 현황
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { useParams, useNavigate } from "react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useLocation, useParams, useNavigate, useSearchParams } from "react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import HomeworkInspectionEntry from "@/shared/ui/assessment/HomeworkInspectionEntry";
 import { EmptyState } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { fetchSessionScores, patchAssessmentCorrection } from "@/shared/api/contracts/sessionScores";
+import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { formatCompactFileSize } from "@/shared/utils/fileSize";
 import PhotoPreview from "@/shared/ui/media/PhotoPreview";
@@ -49,7 +50,12 @@ function reviewLabel(submission: HomeworkSubmission, hasScore = false): string {
 export default function HomeworkDetailPage() {
   const { homeworkId } = useParams<{ homeworkId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const origin = searchParams.get("from");
+  const fromInbox = origin === "submissions" || origin === "pending";
   const confirm = useConfirm();
+  const queryClient = useQueryClient();
   const [reviewSubmissionId, setReviewSubmissionId] = useState<number | null>(null);
   const hid = Number(homeworkId);
 
@@ -97,6 +103,7 @@ export default function HomeworkDetailPage() {
       });
     },
     onSuccess: async (_, variables) => {
+      void queryClient.invalidateQueries({ queryKey: notificationQueryKeys.operationalCounts });
       const refreshed = await submissionsQ.refetch();
       if (refreshed.isError) {
         teacherToast.error("저장됐지만 최신 제출 상태를 불러오지 못했습니다. 다시 시도해 주세요.");
@@ -131,13 +138,39 @@ export default function HomeworkDetailPage() {
     if (accepted) reviewMut.mutate({ submission, completed });
   };
 
-  if (homeworkQ.isLoading || submissionsQ.isLoading) {
-    return <EmptyState scope="panel" tone="loading" title="불러오는 중…" />;
+  function goBack() {
+    if (fromInbox && location.state?.fromHomeworkInbox !== true) {
+      navigate(`/workspace/mobile/submissions?homework=${origin === "pending" ? "pending" : "all"}`, { replace: true });
+    } else {
+      navigate(-1);
+    }
   }
-  if (homeworkQ.isError || submissionsQ.isError) {
-    return <EmptyState scope="panel" tone="error" title="과제 상세를 불러오지 못했습니다" description="제출 현황을 빈 목록으로 표시하지 않았습니다." actions={<EmptyActionButton onClick={() => { void homeworkQ.refetch(); void submissionsQ.refetch(); }}>다시 시도</EmptyActionButton>} />;
+
+  function renderBackHeader(title: string) {
+    return (
+      <div className="flex items-center gap-2 py-0.5">
+        <BackBtn onClick={goBack} />
+        <h1 className={`${styles.title} text-[17px] font-bold flex-1 truncate`}>{title}</h1>
+      </div>
+    );
   }
-  if (!hw) return <EmptyState scope="panel" tone="error" title="과제를 찾을 수 없습니다" />;
+
+  if (homeworkQ.isLoading || submissionsQ.isLoading || homeworkQ.isError || submissionsQ.isError || !hw) {
+    return (
+      <div className="flex flex-col gap-3">
+        {renderBackHeader("과제 제출 확인")}
+        {homeworkQ.isLoading || submissionsQ.isLoading ? (
+          <EmptyState scope="panel" tone="loading" title="불러오는 중…" />
+        ) : homeworkQ.isError || submissionsQ.isError ? (
+          <EmptyState scope="panel" tone="error" title="과제 상세를 불러오지 못했습니다" actions={
+            <EmptyActionButton onClick={() => { void homeworkQ.refetch(); void submissionsQ.refetch(); }}>다시 시도</EmptyActionButton>
+          } />
+        ) : (
+          <EmptyState scope="panel" tone="error" title="과제를 찾을 수 없습니다" />
+        )}
+      </div>
+    );
+  }
 
   const dueDate = hw.due_date;
   const maxScore = hw.max_score;
@@ -148,10 +181,7 @@ export default function HomeworkDetailPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2 py-0.5">
-        <BackBtn onClick={() => navigate(-1)} />
-        <h1 className={`${styles.title} text-[17px] font-bold flex-1 truncate`}>{hw.title}</h1>
-      </div>
+      {renderBackHeader(hw.title)}
 
       <div className={`${styles.panel} rounded-xl flex flex-col gap-2`}>
         {hw.session_title && <InfoRow label="수업" value={hw.session_title} />}
@@ -224,7 +254,7 @@ export default function HomeworkDetailPage() {
       )}
 
       {submissionRows.length === 0 && (
-        <EmptyState scope="panel" tone="empty" title="제출 현황이 없습니다" description="수강생이 과제를 제출하면 이 화면에서 파일을 직접 확인할 수 있습니다." actions={<EmptyActionButton variant="secondary" onClick={() => navigate(-1)}>차시로 돌아가기</EmptyActionButton>} />
+        <EmptyState scope="panel" tone="empty" title="제출 현황이 없습니다" description="수강생이 과제를 제출하면 이 화면에서 파일을 직접 확인할 수 있습니다." actions={<EmptyActionButton variant="secondary" onClick={goBack}>{fromInbox ? "과제 목록으로 돌아가기" : "돌아가기"}</EmptyActionButton>} />
       )}
 
       <HomeworkReviewSheet
