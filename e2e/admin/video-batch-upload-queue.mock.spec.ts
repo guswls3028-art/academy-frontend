@@ -438,6 +438,7 @@ test("작은 영상 두 건의 저장 응답이 끊겨도 새 URL로 복구하�
     );
     await dialog.getByRole("button", { name: "업로드 (3개)" }).click();
     await expect.poll(() => held.size).toBe(2);
+    expect(evidence.initRequests).toHaveLength(2);
     expect(evidence.completedVideoIds).toEqual([]);
     await page.clock.fastForward(91_000);
     await page.clock.fastForward(4_000);

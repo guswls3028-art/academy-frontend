@@ -416,37 +416,6 @@ export async function uploadFileToR2AndComplete(
   }
 }
 
-// ── Concurrency-limited batch upload ──
-
-/**
- * 동시 업로드 제한 실행기.
- * 대역폭 포화 방지를 위해 최대 concurrency개만 동시 R2 PUT.
- */
-export async function uploadFilesWithLimit(
-  items: { init: InitVideoResult; file: File; retry?: boolean }[],
-  concurrency = 2,
-): Promise<PromiseSettledResult<number>[]> {
-  const results: PromiseSettledResult<number>[] = new Array(items.length);
-  let cursor = 0;
-
-  async function runNext(): Promise<void> {
-    while (cursor < items.length) {
-      const idx = cursor++;
-      const { init, file, retry } = items[idx];
-      try {
-        const videoId = await uploadFileToR2AndComplete(init, file, retry);
-        results[idx] = { status: "fulfilled", value: videoId };
-      } catch (reason) {
-        results[idx] = { status: "rejected", reason };
-      }
-    }
-  }
-
-  const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => runNext());
-  await Promise.all(workers);
-  return results;
-}
-
 /**
  * 영상 업로드 전체 실행 — init + R2 + complete (기존 단일 호출용)
  * @returns videoId

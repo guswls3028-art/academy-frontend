@@ -21,7 +21,7 @@ import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/
 import { Button } from "@/shared/ui/ds";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { initVideoUpload, runWithVideoUploadGuard, uploadFilesWithLimit, videoContentType, videoFileAccept, type InitVideoResult } from "@admin/domains/videos/utils/videoUpload";
+import { initVideoUpload, runWithVideoUploadGuard, uploadFileToR2AndComplete, videoContentType, videoFileAccept, type InitVideoResult } from "@admin/domains/videos/utils/videoUpload";
 import { captureVideoUploadConfig } from "@/shared/api/videoUploadCompletion";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import { adminVideoQueryKeys } from "@admin/domains/videos/queryKeys";
@@ -174,40 +174,48 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
     try {
       await runWithVideoUploadGuard(async () => {
         const config = captureVideoUploadConfig();
-        const initialized: { id: string; file: File; init: InitVideoResult; retry: boolean }[] = [];
         const errors: string[] = [];
         const failed = new Map<string, InitVideoResult>();
+        const completed = new Set<string>();
+        const active = new Set<Promise<void>>();
+        const key = adminVideoQueryKeys.sessionVideosScoped(sessionId);
+        let notified = false;
         for (const item of items) {
+          // Wait for transfer capacity before reserving a row and a signed URL.
+          // Serial init also preserves the requested playback order.
+          if (active.size >= 2) await Promise.race(active);
+          let init: InitVideoResult;
           try {
-            const init = item.init ?? await initVideoUpload({
+            init = item.init ?? await initVideoUpload({
               sessionId, file: item.file, title: item.title, reviewLimit: item.reviewLimit,
               description, folderId, showWatermark, allowSkip, maxSpeed,
             }, config);
-            initialized.push({ id: item.id, file: item.file, init, retry: Boolean(item.init) });
           } catch (error) {
             errors.push(`${item.file.name} · 등록 실패 · ${extractApiError(error, "영상을 등록할 수 없습니다.")}`);
+            continue;
           }
+          if (!notified) {
+            notified = true;
+            void qc.invalidateQueries({ queryKey: key });
+          }
+          const transfer = uploadFileToR2AndComplete(init, item.file, Boolean(item.init)).then(() => {
+            completed.add(item.id);
+            if (mountedRef.current) setUploadItems(prev => prev.filter(row => row.id !== item.id));
+          }, error => {
+            failed.set(item.id, init);
+            const stage = init.completion ? "완료 확인 실패" : "파일 전송 실패";
+            errors.push(`${item.file.name} · ${stage} · ${extractApiError(error, "다시 시도해 주세요.")}`);
+          }).finally(() => { active.delete(transfer); });
+          active.add(transfer);
         }
-        const key = adminVideoQueryKeys.sessionVideosScoped(sessionId);
-        if (initialized.length) void qc.invalidateQueries({ queryKey: key });
-        const results = await uploadFilesWithLimit(initialized, 2);
-        const completed = new Set<string>();
-        results.forEach((result, index) => {
-          const item = initialized[index];
-          if (result.status === "fulfilled") completed.add(item.id);
-          else {
-            failed.set(item.id, item.init);
-            const stage = item.init.completion ? "완료 확인 실패" : "파일 전송 실패";
-            errors.push(`${item.file.name} · ${stage} · ${extractApiError(result.reason, "다시 시도해 주세요.")}`);
-          }
-        });
+        await Promise.all(active);
         if (completed.size) {
           feedback.success(`${completed.size}개 영상 업로드 완료. 인코딩 진행 상황은 작업박스에서 확인할 수 있습니다.`);
           void qc.invalidateQueries({ queryKey: key });
         }
         if (errors.length) feedback.error(errors.join(" / "));
         if (!mountedRef.current) return;
-        setUploadItems(prev => prev.filter(item => !completed.has(item.id)).map(item => ({
+        setUploadItems(prev => prev.map(item => ({
           ...item, init: failed.get(item.id) ?? item.init,
         })));
         setInitErrorMessages(errors);
