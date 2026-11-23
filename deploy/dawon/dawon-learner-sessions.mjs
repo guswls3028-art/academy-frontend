@@ -570,7 +570,7 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu) {
 
   function attendanceLabel(value) {
     const state = value?.trim();
-    if (state === '영상') return '동영상';
+    if (state === '영상' || state === '온라인') return '동영상';
     if (state === '현장') return '출석';
     return state;
   }

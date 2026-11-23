@@ -209,7 +209,7 @@ function mountStaffConsole(home, isHome, css) {
         if (table.querySelector('thead th:last-child')?.textContent !== '출결 상태') continue;
         for (const cell of table.querySelectorAll('tbody td:last-child')) {
           if (cell.textContent === '현장') cell.textContent = '출석';
-          else if (cell.textContent === '영상') cell.textContent = '동영상';
+          else if (cell.textContent === '영상' || cell.textContent === '온라인') cell.textContent = '동영상';
         }
       }
     }
