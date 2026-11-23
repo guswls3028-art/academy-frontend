@@ -89,11 +89,12 @@ function mountDemoSwitcher() {
         field.closest("form,dialog,[role=dialog]") && !field.matches('[role=searchbox]')) edits.add(field);
   },true);
   nav.addEventListener("click", event=>{
-    const link=event.target.closest("a[data-demo-app]");
+    const link=event.target.closest("a[data-demo-app],a[data-edition-home]");
     if(!link || event.button!==0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const editing=[...edits].some(field=>field.isConnected && field.getClientRects().length);
-    if(editing && !window.confirm("작성 중인 내용을 두고 앱을 전환할까요?")) { event.preventDefault(); return; }
+    if(editing && !window.confirm("작성 중인 내용을 두고 화면을 전환할까요?")) { event.preventDefault(); return; }
     const next = link.dataset.demoApp;
+    if (!next) return;
     try {
       if (next === "teacher" || next === "admin") {
         sessionStorage.removeItem("session_return_path");

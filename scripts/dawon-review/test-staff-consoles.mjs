@@ -98,3 +98,25 @@ test('searching the edition directory permits navigation and edited business for
   events.input({target:business});click();
   assert.equal(promptCount,1);
 });
+
+test('opening the version chooser respects a visible unsaved form',()=>{
+  const events={},location=new URL('/login/dawon?demo=teacher&edition=B',origin);
+  let clicks,asked=0,blocked=false;
+  const nav={dataset:{shell:'learner'},querySelectorAll:()=>[],addEventListener:(_type,fn)=>{clicks=fn;}};
+  class Field {
+    matches(selector){return selector.startsWith('input:not');}
+    closest(){return this;}
+    get isConnected(){return true;}
+    getClientRects(){return [1];}
+  }
+  const document={documentElement:{dataset:{}},body:{dataset:{}},getElementById:()=>nav,querySelector:()=>null,querySelectorAll:()=>[],
+    addEventListener:(type,fn)=>{events[type]=fn;}};
+  const window={addEventListener(){},confirm(){asked++;return false;}};
+  const history={state:null,pushState(){},replaceState(){}};
+  runInNewContext(demoSwitcherScript,{location,document,window,history,URL,URLSearchParams,sessionStorage:{setItem(){}},HTMLElement:Field,MutationObserver:class{observe(){}}});
+  events.input({target:new Field()});
+  const target={closest:selector=>selector.includes('a[data-edition-home]')?{dataset:{}}:null};
+  clicks({target,button:0,preventDefault(){blocked=true;}});
+  assert.equal(asked,1);
+  assert.equal(blocked,true);
+});
