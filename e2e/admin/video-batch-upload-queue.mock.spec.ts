@@ -411,3 +411,73 @@ test("두 대용량 업로드가 멈추면 해당 파트만 다시 보내고 대
     releaseRequests.resolve();
   }
 });
+
+test("작은 영상 두 건의 저장 응답이 끊겨도 새 URL로 복구하고 대기 파일을 완료한다", async ({ page }) => {
+  test.setTimeout(120_000);
+  const evidence = await installApp(page);
+  const held = new Set<string>();
+  const refreshed: string[] = [];
+  const release = Promise.withResolvers<void>();
+  await page.route(/\/e2e-video-upload\/920[12]$/, async route => {
+    held.add(new URL(route.request().url()).pathname);
+    await release.promise;
+    await route.abort().catch(() => {});
+  });
+  await page.route(/\/media\/videos\/(920[12])\/upload\/refresh-url\/$/, route => {
+    const id = new URL(route.request().url()).pathname.split("/").at(-4)!;
+    refreshed.push(id);
+    return route.fulfill({ json: { upload_url: `${BASE}/e2e-video-upload/${id}?renewed=1` } });
+  });
+  try {
+    await page.clock.install();
+    await gotoAndSettle(page, `${BASE}/workspace/videos/tree`, { timeout: 45_000 });
+    await page.locator('[title="영상 추가"]').click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByTestId("video-batch-file-input").setInputFiles(
+      ["첫째", "둘째", "셋째"].map(name => ({ name: `${name}.mp4`, mimeType: "video/mp4", buffer: Buffer.from(name) })),
+    );
+    await dialog.getByRole("button", { name: "업로드 (3개)" }).click();
+    await expect.poll(() => held.size).toBe(2);
+    expect(evidence.completedVideoIds).toEqual([]);
+    await page.clock.fastForward(91_000);
+    await page.clock.fastForward(4_000);
+    await expect.poll(() => evidence.completedVideoIds.slice().sort()).toEqual([9201, 9202, 9203]);
+    expect(refreshed.sort()).toEqual(["9201", "9202"]);
+    expect(evidence.initRequests).toHaveLength(3);
+  } finally {
+    release.resolve();
+  }
+});
+
+test("혼합 선택에서 MIME 없는 영상과 제외한 파일을 구분하고 실패한 완료 요청만 재시도한다", async ({ page }) => {
+  const evidence = await installApp(page);
+  let attempts = 0;
+  let puts = 0;
+  await page.route("**/e2e-video-upload/**", route => { puts++; return route.fallback(); });
+  await page.route("**/media/videos/9202/upload/complete/", route => {
+    attempts++;
+    return attempts === 1
+      ? route.fulfill({ status: 429, json: { detail: "잠시 뒤 다시 시도해 주세요." } })
+      : route.fallback();
+  });
+  await gotoAndSettle(page, `${BASE}/workspace/videos/tree`, { timeout: 45_000 });
+  await page.locator('[title="영상 추가"]').click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "영상 파일 추가" }).evaluate(node => {
+    const transfer = new DataTransfer();
+    for (const [name, type] of [["one.mp4", "video/mp4"], ["two.MOV", ""], ["notes.pdf", "application/pdf"], ["three.mkv", "application/octet-stream"]]) {
+      transfer.items.add(new File(["video"], name, { type }));
+    }
+    node.dispatchEvent(new DragEvent("drop", { bubbles: true, dataTransfer: transfer }));
+  });
+  await expect(dialog.getByRole("alert")).toContainText("notes.pdf");
+  await dialog.getByRole("button", { name: "업로드 (3개)" }).click();
+  await expect(dialog.getByText(/two.MOV · 완료 확인 실패/)).toBeVisible();
+  await expect(dialog.getByLabel("1번째 영상 제목")).toHaveValue("two");
+  await dialog.getByRole("button", { name: "다시 시도 (1개)" }).click();
+  await expect(dialog).toBeHidden();
+  expect(evidence.initRequests.map(row => row.filename)).toEqual(["one.mp4", "two.MOV", "three.mkv"]);
+  expect(evidence.completedVideoIds.slice().sort()).toEqual([9201, 9202, 9203]);
+  expect(puts).toBe(3);
+  expect(attempts).toBe(2);
+});
