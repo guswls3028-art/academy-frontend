@@ -1,28 +1,7 @@
-// Public Dawon review Worker only. Each console opens the authenticated native role's workflow.
-export function staffHome(role, mode) {
-  if (!['admin', 'teacher'].includes(role)) return null;
-  const root = '/workspace/';
-  if (mode === 'A') return root + 'dashboard?console=A';
-  if (mode === 'B') return root + (role === 'admin' ? 'dashboard?panel=alerts&' : 'teacher-alerts?') + 'console=B';
-  if (mode === 'C') return root + 'students/home?console=C';
-  return null;
-}
-
-export function isStaffHome(url, target) {
-  if (!target) return false;
-  const home = new URL(target, url.origin);
-  if (url.pathname !== home.pathname || url.searchParams.get('panel') !== home.searchParams.get('panel')) return false;
-  return !url.searchParams.has('student') && !url.searchParams.has('course');
-}
+import {catalog, createDesk, deskStyle} from './dawon-edition-desks.mjs';
 
 const style = `
 [data-staff-rail]{margin:0 auto;max-width:1520px;box-sizing:border-box;padding:12px 22px 0;font:inherit;color:var(--color-text-primary,#302820)}
-[data-staff-rail] nav{display:flex;align-items:stretch;gap:3px;width:fit-content;max-width:100%;background:#f6f0eb;border:1px solid #e6dace;border-radius:8px;padding:3px}
-[data-staff-rail] nav a{display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 16px;min-height:36px;color:#624f41;text-decoration:none;font-size:14px;font-weight:600;white-space:nowrap;border-radius:5px;box-sizing:border-box;transition:background-color .15s,color .15s}
-[data-staff-rail] nav a span{font-size:12px;color:#755a44}
-[data-staff-rail] nav a:hover{background:#fffaf6}
-[data-staff-rail] nav a[aria-current=page]{color:#71390e;background:white;box-shadow:0 1px 4px #462d141d}
-[data-staff-rail] nav a[aria-current=page] span{color:#8f400f}
 [data-staff-rail] a:focus-visible,[data-staff-rail] button:focus-visible,[data-staff-attendance] button:focus-visible{outline:2px solid #934308;outline-offset:2px}
 .dawon-staff-care,.dawon-staff-context{background:#fffcf8;border:1px solid #e7d9cc;border-radius:7px;padding:12px 16px;margin:10px 0 0;line-height:1.45;font-size:14px}
 .dawon-staff-care header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
@@ -67,33 +46,26 @@ td:has(>[data-staff-attendance])>select:focus,td:has(>[data-staff-more][open])>s
 @media(prefers-reduced-motion:reduce){[data-staff-rail] nav a{transition:none}}
 `;
 
-function mountStaffConsole(home, isHome, css) {
+function mountStaffConsole(makeDesk, menus, css) {
   if (document.querySelector('#dawon-demo-switcher')?.dataset.shell !== 'native') return;
-  const choices = {A:'반 운영', B:'학습 경보', C:'학생 상담'};
   const codes = {PRESENT:'출석', LATE:'지각', ONLINE:'동영상', ABSENT:'결석'};
-  const storagePrefix = 'dawon-staff-console:v1:';
   const origin = location.origin;
-  let entry = location.pathname === '/login/dawon' ? new URL(location.href) : null;
-  let rail, activeRole, mode, pendingFrame, appointments, detailKey;
+  let desk, rail, activeRole, edition, lastLocation, pendingFrame, appointments, detailKey;
   let contextRequest, scheduleRequest;
   let nextEvidence;
   const edited = new WeakSet();
-  function get(key) {
-    try { return JSON.parse(sessionStorage.getItem(storagePrefix + key)); } catch { return null; }
-  }
-  function put(key, value) {
-    try {
-      const text = JSON.stringify(value);
-      if (sessionStorage.getItem(storagePrefix + key) !== text) sessionStorage.setItem(storagePrefix + key, text);
-    } catch {}
-  }
   function node(tag, text, attributes = {}) {
     const el = document.createElement(tag);
     if (text !== undefined && text !== null) el.textContent = text;
     for (const [key,value] of Object.entries(attributes)) el.setAttribute(key, value);
     return el;
   }
-  function href(url) { return url.pathname + url.search; }
+  function href(url) {
+    const params = new URLSearchParams(url.search);
+    params.delete('edition');
+    params.delete('console');
+    return url.pathname + (params.size ? '?' + params : '');
+  }
   function roleApi(role, path, signal) {
     const generation = localStorage.getItem('academy:auth-active-generation:v1');
     const auth = JSON.parse(localStorage.getItem('academy:auth-tokens:v1:' + generation) || '{}');
@@ -115,42 +87,15 @@ function mountStaffConsole(home, isHome, css) {
     window.dispatchEvent(new PopStateEvent('popstate',{state:history.state}));
     document.querySelector('[data-dawon-staff] main')?.scrollTo(0,0);
   }
-  function getHome(role, choice) {
-    const saved = get(role + ':' + choice);
-    if (typeof saved?.path === 'string' && saved.path.startsWith('/workspace/')) {
-      const url = new URL(saved.path, origin);
-      if (url.origin === origin && isHome(url,home(role,choice))) {
-        url.searchParams.set('console',choice);
-        return {path:href(url),usr:typeof saved.term === 'string' ? {directoryTerm:saved.term} : null};
-      }
-    }
-    return {path:home(role,choice),usr:null};
-  }
-  function remember(role, choice, url) {
-    if (!isHome(url,home(role,choice))) return;
-    const state = history.state?.usr;
-    put(role + ':' + choice,{path:href(url),term:choice === 'C' ? state?.directoryTerm : undefined});
-  }
   function guarded() {
     const editing = [...document.querySelectorAll('form input,form textarea,form select,[role=dialog] input,[role=dialog] textarea,[role=dialog] select')].some(field => edited.has(field) && field.getClientRects().length);
     return !editing || window.confirm('작성 중인 내용을 두고 다른 업무를 열까요?');
-  }
-  function buildRail(main) {
-    rail = node('section',null,{'data-staff-rail':''});
-    const nav = node('nav',null,{'aria-label':'업무 콘솔'});
-    for (const [key,label] of Object.entries(choices)) {
-      const anchor = node('a',null,{'data-console':key});
-      anchor.append(node('span',key),document.createTextNode(label));
-      nav.append(anchor);
-    }
-    rail.append(nav);
-    main.prepend(rail);
   }
   function scheduleList() {
     if (appointments?.isConnected) return;
     appointments = node('section',null,{class:'dawon-staff-care','aria-label':'상담 예정'});
     const header = node('header');
-    header.append(node('h2','상담 예정'),node('a','상담 신청·답변',{href:'/workspace/community/counsel?console=C','data-staff-link':''}));
+    header.append(node('h2','상담 예정'),node('a','상담 신청·답변',{href:'/workspace/community/counsel','data-staff-link':''}));
     const content = node('div');
     appointments.append(header,content);
     rail.append(appointments);
@@ -169,7 +114,7 @@ function mountStaffConsole(home, isHome, css) {
         const list = node('ul'), rest = node('ul');
         for (const [index,row] of rows.entries()) {
           const li = node('li');
-          const link = node('a',row.student,{href:home(activeRole,'C'),'data-staff-student-search':row.student});
+          const link = node('a',row.student,{href:'/workspace/students/home','data-staff-student-search':row.student});
           li.append(link,document.createTextNode(' · ' + row.day),node('small',row.course));
           (index < 3 ? list : rest).append(li);
         }
@@ -297,7 +242,7 @@ function mountStaffConsole(home, isHome, css) {
         const list = node('ul');
         for (const post of matches) {
           const li = node('li');
-          li.append(node('a',post.title,{href:'/workspace/community/counsel?console=C&id=' + encodeURIComponent(post.id),'data-staff-link':''}));
+          li.append(node('a',post.title,{href:'/workspace/community/counsel?id=' + encodeURIComponent(post.id),'data-staff-link':''}));
           list.append(li);
         }
         content.replaceChildren(list);
@@ -335,39 +280,23 @@ function mountStaffConsole(home, isHome, css) {
   function sync() {
     pendingFrame = 0;
     const url = new URL(location.href);
-    if (url.pathname === '/login/dawon') entry = url;
     const layout = document.querySelector('[data-workspace-shell] [data-dawon-staff]');
     const main = layout?.querySelector('main');
     const role = layout?.dataset.dawonStaff;
-    if (!main || !['admin','teacher'].includes(role) || !url.pathname.startsWith('/workspace/')) {
-      rail?.remove(); rail = null; activeRole = null; return;
+    const view = document.documentElement.dataset.dawonEdition || 'A';
+    const mounted = main && Object.hasOwn(menus,role) && url.pathname.startsWith('/workspace/');
+    if (!mounted || activeRole !== role || edition !== view || !rail?.isConnected) {
+      desk?.clean(); rail?.remove(); appointments?.remove(); appointments = null;
+      scheduleRequest?.abort(); contextRequest?.abort(); desk = null; rail = null;
+      activeRole = null; lastLocation = null;
+      if (!mounted) return;
+      activeRole = role; edition = view;
+      desk = makeDesk(view,role,menus[role],node,go,guarded,main);
+      rail = desk.root;
     }
-    if (entry && url.pathname === '/workspace/dashboard') {
-      const requested = entry.searchParams.get('demo') === role ? entry.searchParams.get('console') : null;
-      const preferred = Object.hasOwn(choices,requested) ? requested : get(role + ':mode');
-      entry = null;
-      if (Object.hasOwn(choices,preferred) && (Object.hasOwn(choices,requested) || preferred !== 'A')) {
-        const destination = getHome(role,preferred);
-        go(destination.path,destination.usr,true); return;
-      }
-    }
-    const queryMode = url.searchParams.get('console');
-    const nativeHome = Object.keys(choices).find(key => isHome(url,home(role,key)));
-    const choice = Object.hasOwn(choices,queryMode) ? queryMode : (nativeHome || history.state?.dawonMode || (role === activeRole && mode) || get(role + ':mode') || 'A');
-    if (Object.hasOwn(choices,queryMode) && url.pathname === '/workspace/dashboard' && [...url.searchParams.keys()].every(key => key === 'console') && !isHome(url,home(role,choice))) {
-      const destination = getHome(role,choice); go(destination.path,destination.usr,true); return;
-    }
-    if (activeRole !== role || !rail?.isConnected) { rail?.remove(); buildRail(main); }
-    const changed = activeRole !== role || mode !== choice;
-    activeRole = role; mode = choice;
-    if (changed || get(role + ':mode') !== choice) put(role + ':mode',choice);
-    remember(role,choice,url);
-    for (const anchor of rail.querySelectorAll('[data-console]')) {
-      const key = anchor.dataset.console;
-      anchor.href = getHome(role,key).path;
-      if (key === choice) anchor.setAttribute('aria-current','page'); else anchor.removeAttribute('aria-current');
-    }
-    if (choice === 'C' && isHome(url,home(role,choice))) {
+    const current = href(url);
+    if (lastLocation !== current) { lastLocation = current; desk.route(url); }
+    if (url.pathname === '/workspace/students/home' && !url.searchParams.has('student')) {
       scheduleList();
       const filters = main.querySelector('[aria-label="학생 조회 조건"]');
       if (filters && filters.nextElementSibling !== appointments) filters.after(appointments);
@@ -391,7 +320,7 @@ function mountStaffConsole(home, isHome, css) {
         const to = new URL(path,location.href);
         if (activeRole && to.pathname.startsWith('/workspace/')) {
           const source = nextEvidence?.to === href(to) ? nextEvidence : history.state?.dawonEvidence;
-          state = {...state,dawonMode:to.searchParams.get('console') || mode,...(source?.to === href(to) ? {dawonEvidence:source} : {})};
+          if (source?.to === href(to)) state = {...state,dawonEvidence:source};
         }
         nextEvidence = null;
       }
@@ -403,12 +332,10 @@ function mountStaffConsole(home, isHome, css) {
     if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     const a = event.target.closest?.('a');
     if (!a) return;
-    if (!a.matches('[data-console],[data-staff-student-search],[data-staff-link]')) { captureEvidence(a); return; }
+    if (!a.matches('[data-staff-student-search],[data-staff-link]')) { captureEvidence(a); return; }
     event.preventDefault();
     if (!guarded()) return;
-    if (a.hasAttribute('data-console')) {
-      const dest = getHome(activeRole,a.dataset.console); go(dest.path,dest.usr);
-    } else if (a.hasAttribute('data-staff-student-search')) go(a.href,{directoryTerm:a.dataset.staffStudentSearch});
+    if (a.hasAttribute('data-staff-student-search')) go(a.href,{directoryTerm:a.dataset.staffStudentSearch});
     else go(a.href);
   },true);
   document.addEventListener('input',e => { if(e.target instanceof HTMLElement) edited.add(e.target); },true);
@@ -421,5 +348,5 @@ function mountStaffConsole(home, isHome, css) {
   queue();
 }
 
-export const staffConsoleScript = '(' + mountStaffConsole.toString() + ')(' + staffHome.toString() + ','
-  + isStaffHome.toString() + ',' + JSON.stringify(style) + ');';
+export const staffConsoleScript = '(' + mountStaffConsole.toString() + ')(' + createDesk.toString() + ','
+  + JSON.stringify(catalog) + ',' + JSON.stringify(style + deskStyle) + ');';

@@ -1,6 +1,7 @@
 import { dawonLearnerScript, renderDawonLearner, mountLearnerMenu } from './dawon-learner-sessions.mjs';
 import learnerDemo from './baseline-worker.mjs';
 import { insertDemoSwitcher, demoSwitcherScript } from './dawon-demo-header.mjs';
+import { editionResponse } from './dawon-editions.mjs';
 
 const productionHost = 'demo.hakwonplus.com';
 const originHost = 'https://dawon-review-origin.hakwonplus.com';
@@ -601,6 +602,8 @@ export async function handle(request, env, fetcher = fetch, context) {
   const url = new URL(request.url);
   const { pathname } = url;
   if (url.hostname !== productionHost) return secureResponse(null, 404);
+  const editionPage = editionResponse(request,url);
+  if (editionPage) return editionPage;
 
   if (pathname === '/teacher' || formerTeacherRoutes.test(pathname) || url.searchParams.get('preview') === 'teacher') {
     return Response.redirect(url.origin + '/login/dawon?demo=teacher', 302);
