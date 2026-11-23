@@ -7,7 +7,7 @@ const menus = [
   ["exam", "테스트 결과", "chart"],
   ["homework", "과제 현황", "clipboard"],
   ["curriculum", "수업 진도", "book"],
-  ["clinic", "클리닉", "calendar"],
+  ["clinic", "클리닉 안내", "calendar"],
   ["questions", "질문하기", "message"],
   ["grades", "학교 성적", "clipboard"],
 ];
@@ -67,17 +67,15 @@ const style = [
   '.dw-title{display:flex;align-items:center;gap:6px;margin-bottom:14px}.dw-title h1{font-size:clamp(23px,3vw,31px);letter-spacing:-.04em}.dw-back{display:grid;place-items:center;width:44px;height:44px;border:1px solid var(--dw-line);border-radius:8px;background:#fff;flex:none}',
   `
   .dw-card{background:#fff;border:1px solid var(--dw-line);border-radius:12px;box-shadow:0 2px 5px #31251d0b;padding:clamp(12px,2.5vw,22px)}
-  .dw-action,.dw-step,.dw-todayLink,.dw-controls a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;border-radius:8px;font-size:14px;font-weight:650;line-height:1.35}
+  .dw-action,.dw-step,.dw-todayLink{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;border-radius:8px;font-size:14px;font-weight:650;line-height:1.35}
   .dw-action,.dw-step,.dw-todayLink{padding:6px 12px;border:1px solid var(--dw-line);background:#fff;color:var(--dw-ink)}
   .dw-action{color:var(--dw-accent);cursor:pointer}.dw-action:hover,.dw-step:hover,.dw-todayLink:hover{background:#fff5ee}
   .dw-calendarHeader,.dw-detailHead{display:flex;align-items:center;justify-content:space-between;gap:12px}
   .dw-calendarHeader{padding-bottom:14px;border-bottom:1px solid var(--dw-line);margin-bottom:12px;flex-wrap:wrap}
-  .dw-period,.dw-calendarOptions,.dw-controls{display:flex;align-items:center}.dw-period{gap:12px}
+  .dw-period,.dw-calendarOptions{display:flex;align-items:center}.dw-period{gap:12px}
   .dw-period h2,.dw-detailDate{font-size:clamp(17px,2vw,21px);font-weight:730;letter-spacing:-.035em;line-height:1.4}
   .dw-period h2{margin:0;text-align:center;font-variant-numeric:tabular-nums}.dw-year{display:block;color:var(--dw-muted);font-size:12px;line-height:1.4;font-weight:600}
   .dw-step{padding:0;font-size:22px;color:#45413e}.dw-calendarOptions{gap:10px}
-  .dw-modeSwitch{border-radius:10px;padding:2px;background:#f1eeeb}.dw-modeSwitch a{padding:5px 12px;color:var(--dw-muted);border:1px solid transparent}
-  .dw-modeSwitch [aria-current=true]{background:white;border-color:#dfd7cf;color:var(--dw-accent);box-shadow:0 1px 3px #34251113}
   .dw-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}
   .dw-weekday{padding:4px 0 6px;color:var(--dw-muted);font-size:13px;font-weight:650}
   .dw-day{min-width:0;min-height:52px;display:grid;grid-template-rows:22px 11px;align-content:center;justify-items:center;align-items:center;border:1px solid #ebe8e5;border-radius:8px;color:var(--dw-cell);font-variant-numeric:tabular-nums}
@@ -115,11 +113,11 @@ const style = [
   .dw-spotlight strong{flex:none}.dw-spotlight span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .dw-action[aria-current=page]{background:#fff1e6;border-color:#dbab84;color:#843008}
   @media(max-width:580px){
-    .dw-calendarHeader{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;padding-bottom:10px;margin-bottom:8px}
-    .dw-period,.dw-calendarOptions{justify-content:space-between}.dw-day{min-height:48px}
+    .dw-calendarHeader{gap:10px;padding-bottom:10px;margin-bottom:8px}
+    .dw-period{gap:10px}.dw-day{min-height:48px}
     .dw-record{padding:12px 0}.dw-taskRow{padding:0}.dw-recordText{flex-basis:180px}.dw-detailHead{gap:8px}
   }
-  @media(prefers-reduced-motion:no-preference){.dw-day,.dw-rowLink,.dw-recordAction,.dw-modeSwitch a{transition:background-color .12s,border-color .12s}}
+  @media(prefers-reduced-motion:no-preference){.dw-day,.dw-rowLink,.dw-recordAction{transition:background-color .12s,border-color .12s}}
   `,
   '.dw-questionForm,.dw-questionForm label{display:grid;gap:8px}.dw-questionForm{gap:16px;margin-top:16px}.dw-questionForm input,.dw-questionForm textarea{font:inherit;border:1px solid var(--dw-line);border-radius:8px;padding:10px;width:100%}.dw-questionForm textarea{min-height:8em}.dw-questionPhoto{max-width:min(100%,480px);max-height:450px;object-fit:contain}.dw-questionRow{padding:14px 0;border-bottom:1px solid var(--dw-line)}.dw-questionText{white-space:pre-wrap;overflow-wrap:anywhere}.dw-questionForm [hidden]{display:none}',
   '@media(max-width:580px){.dw-wrap{width:calc(100% - 28px)}.dw-header{padding:0;gap:6px}.dw-brand,.dw-headerActions{gap:6px}.dw-brand strong{font-size:15px}.dw-hero{padding:26px 0 28px}.dw-hero .dw-wrap{display:grid;gap:4px}.dw-hero p{font-size:17px}.dw-content{padding-top:16px}.dw-homeMenu section+section{margin-top:16px}.dw-homeMenu ul{gap:5px}.dw-rowLink{min-height:49px;padding:9px 12px}.dw-spotlight{margin-bottom:12px;padding-inline:10px}.dw-bottom a{font-size:12px}}',
@@ -127,6 +125,7 @@ const style = [
 
 
 const studentDayCss = [
+  '.dw-guide{margin-bottom:16px}.dw-guide h2,.dw-courseProgress h2,.dw-recordHeading{font-size:1.15rem;margin:0 0 8px}.dw-guide h3{font-size:1rem;margin:0}.dw-guide p{margin:4px 0;line-height:1.6}.dw-guide article+article,.dw-courseProgress+.dw-courseProgress{border-top:1px solid var(--dw-line);margin-top:16px;padding-top:16px}.dw-courseProgress ul{list-style:none;padding:0;margin:0}.dw-courseProgress li{display:flex;gap:14px;padding:9px 0;overflow-wrap:anywhere}.dw-courseProgress li strong{flex:none;color:var(--dw-accent)}',
   '.dw-homeCalendar{margin:10px 0 16px}.dw-homeDay{margin-top:14px;border-top:1px solid var(--dw-line);padding-top:12px;min-width:0}.dw-homeDay>h2{font-size:18px}',
   '.dw-dayGroup{margin-top:12px;padding-top:10px;border-top:1px solid var(--dw-line)}.dw-dayGroup h3{font-size:15px;margin:0 0 4px;display:flex;align-items:center;gap:6px}.dw-dayGroup h3 small{font-size:12px;color:var(--dw-muted);font-weight:550}',
   '.dw-dayAction{display:flex;min-height:44px;align-items:center;gap:8px;padding:5px 0}.dw-dayAction:hover,.dw-dayAction:focus-visible{background:#fff7ef}.dw-dayWords{flex:1;min-width:0;display:grid;gap:2px;overflow-wrap:anywhere}.dw-dayWords strong{font-size:14px}.dw-dayWords small,.dw-dayEmpty{font-size:13px;color:var(--dw-muted)}.dw-dayValue{font-size:13px;font-weight:650;color:var(--dw-accent)}.dw-chevron{color:var(--dw-muted)}',
@@ -172,20 +171,19 @@ function learnerBackLink(url, topic, role) {
   }
   if (role === 'student' && params.get('from') === 'home') {
     const date = normalizeLearnerDay(params.get('date'), '');
-    const period = params.get('period') === 'month' ? 'month' : 'week';
-    if (date) return {href:'/?view='+period+'&date='+date+'#dw-home-calendar',text:'학습 홈',label:'선택한 날짜로 돌아가기'};
+    if (date) return {href:'/?view=month&date='+date+'#dw-home-calendar',text:'학습 홈',label:'선택한 날짜로 돌아가기'};
   }
   if (params.get('view') !== 'day' || topic === 'alerts') return home;
   if (params.get('from') === 'alerts') return {href:learnerHref('alerts', role), text:'알림', label:'알림으로'};
   const today = new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(new Date());
   const selected = normalizeLearnerDay(params.get('date'), today);
   const date = normalizeLearnerDay(params.get('originDate'), selected);
-  const period = params.get('period') === 'month' ? 'month' : 'week';
+  if (topic === 'clinic' || topic === 'curriculum') return home;
   const parent = new URL(learnerHref(topic, role), url);
-  parent.searchParams.set('view', period);
+  parent.searchParams.set('view', 'month');
   parent.searchParams.set('date', date);
   parent.searchParams.set('selected', selected);
-  return {href:parent.pathname + parent.search, text:'달력', label:period === 'month' ? '월간 달력으로' : '주간 달력으로'};
+  return {href:parent.pathname + parent.search, text:'달력', label:'월간 달력으로'};
 }
 
 export function renderDawonLearner(url, chromeOnly = false) {
@@ -203,9 +201,9 @@ export function renderDawonLearner(url, chromeOnly = false) {
     name: guardian && keys.includes('grades') ? '신청·문의' : name,
     items: keys.map(key => visibleMenus.find(menu => menu[0] === key)).filter(Boolean),
   }));
-  const menuLinks = sections.map(({name,items}) => '<section><h2>' + name + '</h2><ul>' +
-    items.map(([key,label,image]) => '<li><a class="dw-rowLink" href="' + learnerHref(key,role) +
-      '" id="tile-' + key + '">' + icon(image) + '<span>' + label + '</span>' + icon('right') + '</a></li>').join('') + '</ul></section>').join('');
+  const menuLinks = '<ul>' + visibleMenus.filter(([key]) => key !== 'notices')
+    .map(([key,label]) => '<li><a class="dw-rowLink" href="' + learnerHref(key,role) +
+      '" id="tile-' + key + '"><span>' + label + '</span>' + icon('right') + '</a></li>').join('') + '</ul>';
   const menuLink = ([key, label, image]) => '<a href="' + learnerHref(key,role) + '" data-dw-menu-key="' + key + '"' +
     (topic === key ? ' aria-current="page"' : '') + '>' + icon(image) + '<span>' + label + '</span></a>';
   const drawerLinks = '<div class="dw-drawerHome">' + menuLink(['home','학습 홈','home']) + menuLink(['alerts','알림','bell']) + '</div>' + sections.map(({name,items}) => {
@@ -232,6 +230,12 @@ export function renderDawonLearner(url, chromeOnly = false) {
     (!guardian ? '<a href="/login/dawon?demo=student" aria-label="QR 출석">' + icon('qr') + '<span>QR 출석</span></a>' : '') + '</div></div></header>';
   if (chromeOnly) return {header, footer, drawerLinks, css:style.replace(':root{',':host{')};
   const back = home ? null : learnerBackLink(url, topic, role);
+  const clinicGuide = topic === 'clinic' ? '<section class="dw-card dw-guide" aria-label="임단규 선생님 클리닉 안내"><h2>임단규 선생님 클리닉</h2>' +
+    '<article><h3>정규 클리닉</h3><p>REPETITION 테스트 클리닉지 수행 · 과제 질의응답</p><p>닥공 독서실 5층 · 시간 미정</p></article>' +
+    '<article><h3>상시 클리닉</h3><p>확률과 통계 문제 풀이, 학교 기출 풀이, 미완성 과제 마무리</p><p>닥공 독서실 5층</p>' +
+    '<p>토요일 13:00–17:00<br>일요일 13:00–22:00</p></article></section>' : '';
+  const videoLink = topic === 'video' ? '<section class="dw-card dw-guide"><h2>임단규 선생님 수업 영상</h2>' +
+    '<a class="dw-directLink" href="https://www.youtube.com/live/XSied-_bGJ0" target="_blank" rel="noopener noreferrer" aria-label="YouTube에서 수업 영상 보기 (새 창)">YouTube에서 수업 영상 보기 ↗</a></section>' : '';
   const content = home ? '<a class="dw-spotlight" href="' + learnerHref('notices',role) +
       '" hidden><strong>공지</strong><span id="dw-latest-notice"></span><time></time>' + icon('right') +
       '</a><p class="dw-homeNoticeError" hidden></p>' +
@@ -239,7 +243,7 @@ export function renderDawonLearner(url, chromeOnly = false) {
       '<nav class="dw-homeMenu" aria-label="홈 메뉴">' + menuLinks +
       '</nav><p class="dw-footnote">다원수학 체험판 · 예시 학생과 수업입니다.</p>'
     : '<div class="dw-title"><a class="dw-back" id="dw-back" href="' + escapeHtml(back.href) + '" aria-label="' + back.label + '">' + icon('left') +
-      '<span>' + back.text + '</span></a><h1>' + escapeHtml(title) + '</h1></div><section class="dw-card" aria-label="' +
+      '<span>' + back.text + '</span></a><h1>' + escapeHtml(title) + '</h1></div>' + clinicGuide + videoLink + '<section class="dw-card" aria-label="' +
       escapeHtml(title) + '" id="dw-view"><p class="dw-state" role="status">불러오는 중입니다.</p></section>';
   return '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">' +
     '<link rel="icon" type="image/svg+xml" href="/dawon-brand.svg"><title>' + escapeHtml(title) + ' | 다원수학</title><style>' + style + studentMenuCss + studentDayCss +
@@ -297,11 +301,10 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu) {
   const shift = (date, days) => iso(new Date(+fromDate(date) + days * 86400000));
   const format = (date, options) => new Intl.DateTimeFormat('ko-KR',{ timeZone:'UTC', ...options }).format(fromDate(date));
   const studentHome = topic === 'home' && !guardian;
-  let mode = ['month','day'].includes(params.get('view')) ? params.get('view') : 'week';
-  if (studentHome && mode === 'day') mode = 'week';
+  const mode = !studentHome && params.get('view') === 'day' ? 'day' : 'month';
   let key = normalize(params.get('date'));
   let currentPayload = null;
-  const period = params.get('period') === 'month' ? 'month' : 'week';
+  const period = 'month';
 
   function element(tag, content, classes) {
     const node = document.createElement(tag);
@@ -542,7 +545,7 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu) {
       const base = { date:row.date, title:row.title, lecture:row.lecture, sessionId:row.id };
       switch (topic) {
         case 'attendance': {
-          const state = row.attendance?.trim();
+          const state = attendanceLabel(row.attendance);
           const pending = !state || state === '미입력';
           return [{...base, detail:row.lecture, attendanceState:pending ? '입력 대기' : state, pending}];
         }
@@ -563,6 +566,13 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu) {
         default: return [];
       }
     });
+  }
+
+  function attendanceLabel(value) {
+    const state = value?.trim();
+    if (state === '영상') return '동영상';
+    if (state === '현장') return '출석';
+    return state;
   }
 
   function dayActions() {
@@ -612,13 +622,11 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu) {
   }
 
   function renderCalendar(records) {
-    const monthly = mode === 'month';
-    const current = fromDate(key);
     const first = fromDate(key.slice(0,7) + '-01');
-    const start = monthly ? shift(iso(first),-first.getUTCDay()) : shift(key,-current.getUTCDay());
+    const start = shift(iso(first),-first.getUTCDay());
     const monthLength = new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0)).getUTCDate();
-    const count = monthly ? 7 * Math.ceil((first.getUTCDay() + monthLength) / 7) : 7;
-    const adjacent = offset => monthly ? iso(new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+offset,1))) : shift(key,offset*7);
+    const count = 7 * Math.ceil((first.getUTCDay() + monthLength) / 7);
+    const adjacent = offset => iso(new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+offset,1)));
     const heading = element('header',null,'dw-calendarHeader');
     const dates = element('nav',null,'dw-period');
     dates.setAttribute('aria-label','기간 이동');
@@ -627,24 +635,11 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu) {
       control.setAttribute('aria-label',name);
       return control;
     };
-    const end = shift(start,6);
-    const periodLabel = monthly ? format(key,{month:'long'}) : format(start,{month:'long',day:'numeric'}) +
-      ' – ' + format(end,start.slice(0,7) === end.slice(0,7) ? {day:'numeric'} : {month:'long',day:'numeric'});
     const title = element('h2');
-    const yearLabel = monthly || start.slice(0,4) === end.slice(0,4) ? format(key,{year:'numeric'}) :
-      format(start,{year:'numeric'}) + ' – ' + format(end,{year:'numeric'});
-    title.append(element('span',yearLabel,'dw-year'),document.createTextNode(periodLabel));
+    title.append(element('span',format(key,{year:'numeric'}),'dw-year'),document.createTextNode(format(key,{month:'long'})));
     dates.append(periodStep(-1,'‹','이전 기간'),title,periodStep(1,'›','다음 기간'));
     const tools = element('div',null,'dw-calendarOptions');
-    const modes = element('nav',null,'dw-controls dw-modeSwitch');
-    modes.setAttribute('aria-label','달력 보기');
-    for (const [id,label] of [['week','주간'],['month','월간']]) {
-      const control = link(label,dateUrl(id,key));
-      control.id = 'dw-mode-' + id;
-      if (id === mode) control.setAttribute('aria-current','true');
-      modes.append(control);
-    }
-    tools.append(link('오늘',dateUrl(mode,today),'dw-todayLink'),modes);
+    tools.append(link('오늘',dateUrl(mode,today),'dw-todayLink'));
     heading.append(dates,tools);
     const byDate = new Map();
     const pendingByDate = new Map();
@@ -664,7 +659,7 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu) {
       visibleCount += items;
       const cell = link(null,dateUrl('day',date),'dw-day');
       cell.id = 'dw-cal-' + date;
-      cell.dataset.outside = String(monthly && date.slice(0,7) !== key.slice(0,7));
+      cell.dataset.outside = String(date.slice(0,7) !== key.slice(0,7));
       cell.toggleAttribute('data-records',items > pending);
       cell.toggleAttribute('data-only-pending',pending > 0 && pending === items);
       const isToday = date === today;
@@ -695,7 +690,7 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu) {
       } else legend.append(element('span',null,'dw-marker'),document.createTextNode(recordKind + ' 있음'));
       view.append(legend);
     } else {
-      showEmpty(records,monthly ? '이 달에는' : '이 주에는');
+      showEmpty(records,'이 달에는');
     }
   }
 
@@ -732,7 +727,8 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu) {
     for (const s of lessons) {
       const context = [s.lecture,s.title].filter(Boolean).join(' · ');
       const add = (kind,title,value,path) => rows[kind].push({title,context,lecture:s.lecture,value,path});
-      add('attendance',s.title,!s.attendance || s.attendance==='미입력' ? '입력 대기' : s.attendance,localDetail('attendance',s.id));
+      const attendance = attendanceLabel(s.attendance);
+      add('attendance',s.title,!attendance || attendance==='미입력' ? '입력 대기' : attendance,localDetail('attendance',s.id));
       if (!Array.isArray(s.video_items) || !Array.isArray(s.materials)) missing.add('video');
       for (const v of s.video_items || []) add('video',v.title,'재생','/student/video/play?video='+v.id+'&session='+s.id+'&'+origin);
       for (const m of s.materials || []) add('video',m.title,'자료 보기','/student/community?tab=materials&material='+m.id+'&'+origin);
@@ -794,8 +790,8 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu) {
         retry.onclick = () => { retry.disabled = true; void load(true); };
         noticeError.replaceChildren(element('span','최신 공지를 불러오지 못했습니다.'),retry);
       }
-      spotlight.hidden = !notice?.title;
-      headline.textContent = notice?.title || '';
+      spotlight.hidden = !Array.isArray(payload.notices);
+      headline.textContent = notice?.title || '등록된 공지가 없습니다.';
       const stamp = spotlight.querySelector('time');
       stamp.textContent = '';
       stamp.removeAttribute('datetime');
@@ -813,6 +809,38 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu) {
     if (!view) return;
     view.replaceChildren();
     if (studentHome) { renderHomeDay(payload); return; }
+    if (topic === 'curriculum') {
+      if (!Array.isArray(payload.sessions)) throw new Error('learning-data');
+      const groups = new Map();
+      for (const session of payload.sessions) {
+        const group = session.lecture_id ?? session.lecture;
+        if (!groups.has(group)) groups.set(group, []);
+        groups.get(group).push(session);
+      }
+      if (!groups.size) view.append(status('등록된 수업 진도가 없습니다.'));
+      for (const sessions of groups.values()) {
+        const section = element('section',null,'dw-courseProgress');
+        section.append(element('h2',sessions[0].lecture));
+        const rows = element('ul');
+        for (const session of sessions.sort((a,b) => (a.order ?? Infinity) - (b.order ?? Infinity) || String(a.date).localeCompare(String(b.date)))) {
+          const row = element('li');
+          const order = Number.isInteger(session.order) ? session.order + '회차' : '회차 미정';
+          row.append(element('strong',order), element('span',session.session_label || session.title || '수업 내용 미등록'));
+          rows.append(row);
+        }
+        section.append(rows);
+        view.append(section);
+      }
+      return;
+    }
+    if (topic === 'clinic') {
+      if (!Array.isArray(payload.clinics)) throw new Error('learning-data');
+      const bookings = payload.clinics.filter(row => row.booked);
+      view.append(element('h2','내 예약 일정','dw-recordHeading'));
+      renderList(bookings.map(row => ({...row,detail:[row.date,row.detail].filter(Boolean).join(' · ')})), '예약한 클리닉이 없습니다.');
+      dayActions();
+      return;
+    }
     if (!guardian && renderStudentMenu({topic,payload,view,params,key,today,format,shift,element,link,status,recordsFor,recordList,dayActions,dateUrl})) return;
     if (topic === 'alerts') {
       const alerts = [
@@ -871,7 +899,6 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu) {
 
   function updateHome(focus) {
     params=new URLSearchParams(location.search);
-    mode=params.get('view') === 'month' ? 'month' : 'week';
     key=normalize(params.get('date'));
     if (currentPayload) render(currentPayload);
     if (focus) document.getElementById(focus)?.focus({preventScroll:true});
@@ -884,7 +911,7 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu) {
       if(dest.origin!==location.origin || dest.pathname!==location.pathname || dest.hash!=='#dw-home-calendar')return;
       event.preventDefault();
       if(dest.href!==location.href)history.pushState(null,'',dest.href);
-      updateHome(control.id?.startsWith('dw-mode-') ? control.id : 'dw-cal-'+dest.searchParams.get('date'));
+      updateHome('dw-cal-'+dest.searchParams.get('date'));
     });
     window.addEventListener('popstate',()=>updateHome(null));
   }

@@ -1,0 +1,396 @@
+// Public Dawon review Worker only. Each console opens the authenticated native role's workflow.
+export function staffHome(role, mode) {
+  if (!['admin', 'teacher'].includes(role)) return null;
+  const root = '/workspace/';
+  if (mode === 'A') return root + 'dashboard?console=A';
+  if (mode === 'B') return root + (role === 'admin' ? 'dashboard?panel=alerts&' : 'teacher-alerts?') + 'console=B';
+  if (mode === 'C') return root + 'students/home?console=C';
+  return null;
+}
+
+export function isStaffHome(url, target) {
+  if (!target) return false;
+  const home = new URL(target, url.origin);
+  if (url.pathname !== home.pathname || url.searchParams.get('panel') !== home.searchParams.get('panel')) return false;
+  return !url.searchParams.has('student') && !url.searchParams.has('course');
+}
+
+const style = `
+[data-staff-rail]{margin:0 auto;max-width:1520px;box-sizing:border-box;padding:12px 22px 0;font:inherit;color:var(--color-text-primary,#302820)}
+[data-staff-rail] nav{display:flex;align-items:stretch;gap:3px;width:fit-content;max-width:100%;background:#f6f0eb;border:1px solid #e6dace;border-radius:8px;padding:3px}
+[data-staff-rail] nav a{display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 16px;min-height:36px;color:#624f41;text-decoration:none;font-size:14px;font-weight:600;white-space:nowrap;border-radius:5px;box-sizing:border-box;transition:background-color .15s,color .15s}
+[data-staff-rail] nav a span{font-size:12px;color:#755a44}
+[data-staff-rail] nav a:hover{background:#fffaf6}
+[data-staff-rail] nav a[aria-current=page]{color:#71390e;background:white;box-shadow:0 1px 4px #462d141d}
+[data-staff-rail] nav a[aria-current=page] span{color:#8f400f}
+[data-staff-rail] a:focus-visible,[data-staff-rail] button:focus-visible,[data-staff-attendance] button:focus-visible{outline:2px solid #934308;outline-offset:2px}
+.dawon-staff-care,.dawon-staff-context{background:#fffcf8;border:1px solid #e7d9cc;border-radius:7px;padding:12px 16px;margin:10px 0 0;line-height:1.45;font-size:14px}
+.dawon-staff-care header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.dawon-staff-care h2,.dawon-staff-context strong{font-weight:700;font-size:15px;line-height:1.4;margin:0}
+.dawon-staff-care a,.dawon-staff-context a{color:#87410e;text-decoration:underline;text-underline-offset:3px}
+.dawon-staff-care p,.dawon-staff-context p{margin:5px 0 0}
+.dawon-staff-care summary{cursor:pointer;width:fit-content;padding:6px 0;color:#71390e}
+.dawon-staff-care ul{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px 18px;list-style:none;padding:0;margin:8px 0 0}
+.dawon-staff-care li{min-width:0;overflow-wrap:anywhere}
+.dawon-staff-care li small{display:block;color:#615346}
+.dawon-staff-care button,.dawon-staff-context button{font:inherit;color:#71390e;text-decoration:underline;background:none;border:0;padding:4px;cursor:pointer}
+[data-staff-attendance]{display:flex;align-items:center;gap:3px;flex-wrap:wrap}
+[data-staff-attendance] button{color:#514439;background:white;min-height:34px;padding:3px 6px;white-space:nowrap;border:1px solid #d8cec5;border-radius:4px;font:inherit;font-size:13px;cursor:pointer}
+[data-staff-attendance] button[aria-pressed=true]{color:#71390e;border-color:#a7581a;font-weight:700;background:#fff0e4}
+[data-staff-attendance] button:disabled{opacity:.6}
+td:has(>[data-staff-attendance])>[role=group]:not([data-staff-attendance]),td:has(>[data-staff-attendance])>select{display:none!important}
+[data-staff-attendance] small{flex-basis:100%;color:#615346}
+td:has(>[data-staff-attendance])>select:focus,td:has(>[data-staff-more][open])>select{display:block!important}
+[data-staff-more] summary{width:fit-content;color:#69594c;font-size:12px;cursor:pointer;padding:3px 0}
+@media(max-width:700px){
+  [data-staff-rail]{padding:8px 10px 0}[data-staff-rail] nav{width:100%;box-sizing:border-box}[data-staff-rail] nav a{min-width:0;flex:1;padding:6px 2px;min-height:40px;font-size:13px;gap:3px}
+  .dawon-staff-care,.dawon-staff-context{padding:9px 11px}.dawon-staff-care ul{grid-template-columns:1fr}
+  [data-staff-attendance]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px}[data-staff-attendance] button{min-height:35px;font-size:12px;padding:2px 0}[data-staff-attendance] small{grid-column:1/-1}
+  [data-dawon-staff] .domain-list-toolbar:has(input[aria-label="반 또는 담당 강사 검색"]) div:has(>label>input[type=date]){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 8px;margin-block:0}
+  [data-dawon-staff] .domain-list-toolbar:has(input[aria-label="반 또는 담당 강사 검색"]) label{display:grid;gap:2px;min-width:0;font-size:12px}
+  [data-dawon-staff] .domain-list-toolbar:has(input[aria-label="반 또는 담당 강사 검색"]) label :is(input,select){width:100%;min-width:0}
+  [aria-label="학습 경보 처리"] table{display:block;width:100%;min-width:0!important}
+  [aria-label="학습 경보 처리"] thead{position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden}
+  [aria-label="학습 경보 처리"] tbody{display:block}
+  [aria-label="학습 경보 처리"] tbody tr{display:grid;grid-template-columns:minmax(0,1fr) auto;border-bottom:1px solid #eee4dc;padding:8px 4px}
+  [aria-label="학습 경보 처리"] tbody :is(th,td){width:auto!important;white-space:normal!important;padding:3px 6px!important;border:0!important}
+  [aria-label="학습 경보 처리"] tbody :is(th,td):first-child{grid-area:1/1}
+  [aria-label="학습 경보 처리"] tbody td:nth-child(3){grid-area:2/1/3/-1}
+  [aria-label="학습 경보 처리"] tbody td:nth-child(2){grid-area:3/1/4/-1;color:#6d6157;font-size:12px}
+  [aria-label="학습 경보 처리"] tbody td:last-child{grid-area:1/2}
+}
+@media print{[data-staff-rail]{display:none}}
+@media(prefers-reduced-motion:reduce){[data-staff-rail] nav a{transition:none}}
+`;
+
+function mountStaffConsole(home, isHome, css) {
+  if (document.querySelector('#dawon-demo-switcher')?.dataset.shell !== 'native') return;
+  const choices = {A:'반 운영', B:'학습 경보', C:'학생 상담'};
+  const codes = {PRESENT:'출석', LATE:'지각', ONLINE:'동영상', ABSENT:'결석'};
+  const storagePrefix = 'dawon-staff-console:v1:';
+  const origin = location.origin;
+  let entry = location.pathname === '/login/dawon' ? new URL(location.href) : null;
+  let rail, activeRole, mode, pendingFrame, appointments, detailKey;
+  let contextRequest, scheduleRequest;
+  let nextEvidence;
+  const edited = new WeakSet();
+  function get(key) {
+    try { return JSON.parse(sessionStorage.getItem(storagePrefix + key)); } catch { return null; }
+  }
+  function put(key, value) {
+    try {
+      const text = JSON.stringify(value);
+      if (sessionStorage.getItem(storagePrefix + key) !== text) sessionStorage.setItem(storagePrefix + key, text);
+    } catch {}
+  }
+  function node(tag, text, attributes = {}) {
+    const el = document.createElement(tag);
+    if (text !== undefined && text !== null) el.textContent = text;
+    for (const [key,value] of Object.entries(attributes)) el.setAttribute(key, value);
+    return el;
+  }
+  function href(url) { return url.pathname + url.search; }
+  function roleApi(role, path, signal) {
+    const generation = localStorage.getItem('academy:auth-active-generation:v1');
+    const auth = JSON.parse(localStorage.getItem('academy:auth-tokens:v1:' + generation) || '{}');
+    if (!generation || auth.generation !== generation || !auth.access) throw Error('session');
+    const claim = JSON.parse(atob(auth.access.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    if (claim.tenant_id !== 719 || claim.dawon_demo_role !== role) throw Error('role');
+    return fetch('/api/v1/' + path,{headers:{authorization:'Bearer ' + auth.access,'x-tenant-code':'dawon'},
+      cache:'no-store',redirect:'error',signal}).then(response => {
+      if (!response.ok || localStorage.getItem('academy:auth-active-generation:v1') !== generation) throw Error('role');
+      return response.json();
+    });
+  }
+  function go(path, userState = null, replace = false) {
+    const dest = new URL(path, origin);
+    if (dest.origin !== origin || !dest.pathname.startsWith('/workspace/')) return;
+    const idx = (Number(history.state?.idx) || 0) + (replace ? 0 : 1);
+    const state = {idx,key:crypto.randomUUID(),usr:userState};
+    history[replace ? 'replaceState' : 'pushState'](state,'',href(dest));
+    window.dispatchEvent(new PopStateEvent('popstate',{state:history.state}));
+    document.querySelector('[data-dawon-staff] main')?.scrollTo(0,0);
+  }
+  function getHome(role, choice) {
+    const saved = get(role + ':' + choice);
+    if (typeof saved?.path === 'string' && saved.path.startsWith('/workspace/')) {
+      const url = new URL(saved.path, origin);
+      if (url.origin === origin && isHome(url,home(role,choice))) {
+        url.searchParams.set('console',choice);
+        return {path:href(url),usr:typeof saved.term === 'string' ? {directoryTerm:saved.term} : null};
+      }
+    }
+    return {path:home(role,choice),usr:null};
+  }
+  function remember(role, choice, url) {
+    if (!isHome(url,home(role,choice))) return;
+    const state = history.state?.usr;
+    put(role + ':' + choice,{path:href(url),term:choice === 'C' ? state?.directoryTerm : undefined});
+  }
+  function guarded() {
+    const editing = [...document.querySelectorAll('form input,form textarea,form select,[role=dialog] input,[role=dialog] textarea,[role=dialog] select')].some(field => edited.has(field) && field.getClientRects().length);
+    return !editing || window.confirm('작성 중인 내용을 두고 다른 업무를 열까요?');
+  }
+  function buildRail(main) {
+    rail = node('section',null,{'data-staff-rail':''});
+    const nav = node('nav',null,{'aria-label':'업무 콘솔'});
+    for (const [key,label] of Object.entries(choices)) {
+      const anchor = node('a',null,{'data-console':key});
+      anchor.append(node('span',key),document.createTextNode(label));
+      nav.append(anchor);
+    }
+    rail.append(nav);
+    main.prepend(rail);
+  }
+  function scheduleList() {
+    if (appointments?.isConnected) return;
+    appointments = node('section',null,{class:'dawon-staff-care','aria-label':'상담 예정'});
+    const header = node('header');
+    header.append(node('h2','상담 예정'),node('a','상담 신청·답변',{href:'/workspace/community/counsel?console=C','data-staff-link':''}));
+    const content = node('div');
+    appointments.append(header,content);
+    rail.append(appointments);
+    async function load() {
+      scheduleRequest?.abort();
+      const request = new AbortController();
+      scheduleRequest = request;
+      content.replaceChildren(node('p','상담 일정을 불러오는 중…',{role:'status'}));
+      try {
+        const feed = await roleApi(activeRole,'students/teacher-alerts/?settings=1',request.signal);
+        if (request.signal.aborted || !content.isConnected) return;
+        if (!Array.isArray(feed.followups)) throw Error('shape');
+        const today = new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(new Date());
+        const rows = feed.followups.filter(row => row.kind === 'counsel' && row.day >= today).sort((a,b) => a.day.localeCompare(b.day));
+        if (!rows.length) { content.replaceChildren(node('p','예정된 상담이 없습니다.')); return; }
+        const list = node('ul'), rest = node('ul');
+        for (const [index,row] of rows.entries()) {
+          const li = node('li');
+          const link = node('a',row.student,{href:home(activeRole,'C'),'data-staff-student-search':row.student});
+          li.append(link,document.createTextNode(' · ' + row.day),node('small',row.course));
+          (index < 3 ? list : rest).append(li);
+        }
+        content.replaceChildren(list);
+        if (rows.length > 3) {
+          const more = node('details');
+          more.append(node('summary','상담 일정 ' + (rows.length - 3) + '건 더 보기'),rest);
+          content.append(more);
+        }
+      } catch {
+        if (request.signal.aborted || !content.isConnected) return;
+        const retry = node('button','다시 시도',{type:'button'});
+        retry.onclick = load;
+        content.replaceChildren(node('p','상담 일정을 불러오지 못했습니다.',{role:'alert'}),retry);
+      }
+    }
+    void load();
+  }
+  function captureEvidence(anchor) {
+    const row = anchor.closest('[aria-label="학습 경보 처리"] tbody tr');
+    if (!row || !row.cells[2]) return;
+    nextEvidence = {role:activeRole,to:href(new URL(anchor.href)),group:row.cells[1].innerText.trim(),cause:row.cells[2].innerText.trim()};
+  }
+  function enhanceAttendance(main) {
+    if (!/\/sessions\/\d+\/attendance\/?$/.test(location.pathname)) return;
+    for (const select of main.querySelectorAll('td>select[aria-label$=" 출결 상태"]')) {
+      if (!Object.keys(codes).every(code => [...select.options].some(option => option.value === code))) continue;
+      const cell = select.parentElement;
+      const name = select.getAttribute('aria-label').replace(/ 출결 상태$/,'');
+      let actions = cell.querySelector('[data-staff-attendance]');
+      if (!actions) {
+        actions = node('div',null,{'data-staff-attendance':'',role:'group','aria-label':name + ' 출결 기록'});
+        for (const [code,label] of Object.entries(codes)) {
+          const button = node('button',label,{type:'button','data-attendance-status':code,'aria-label':name + ' ' + label});
+          button.onclick = () => {
+            if (select.disabled || select.value === code) return;
+            select.value = code;
+            select.dispatchEvent(new Event('change',{bubbles:true}));
+          };
+          actions.append(button);
+        }
+        cell.append(actions);
+        const more = node('details',null,{'data-staff-more':''});
+        more.append(node('summary','기타 상태'));
+        cell.append(more);
+        for (const option of select.options) {
+          if (codes[option.value]) option.textContent = codes[option.value];
+        }
+      }
+      for (const button of actions.querySelectorAll('button')) {
+        if (button.disabled !== select.disabled) button.disabled = select.disabled;
+        button.setAttribute('aria-pressed',String(button.dataset.attendanceStatus === select.value));
+      }
+      let previous = actions.querySelector('small');
+      if (!codes[select.value]) {
+        if (!previous) { previous = node('small'); actions.append(previous); }
+        const text = '현재 ' + (select.selectedOptions[0]?.textContent || '미입력');
+        if (previous.textContent !== text) previous.textContent = text;
+      } else previous?.remove();
+    }
+  }
+  function showEvidence(source, target) {
+    if (!source || source.role !== activeRole || source.to !== href(new URL(location.href)) || target.querySelector('[data-staff-evidence]')) return;
+    const block = node('aside',null,{class:'dawon-staff-context','data-staff-evidence':'','aria-label':'경보 발생 근거'});
+    block.append(node('strong','경보 발생 근거'),node('p',source.cause),node('p',source.group));
+    target.prepend(block);
+  }
+  function selectedProfile(role, url) {
+    const params = url.searchParams;
+    const id = params.get('student');
+    if (!/^\d+$/.test(id || '')) return;
+    const links = document.querySelector('[role=dialog] nav[aria-label="관련 기록"]');
+    if (!links) return;
+    showEvidence(history.state?.dawonEvidence,links.parentElement);
+    const course = links.querySelector('a[href^="/workspace/lectures/"]')?.pathname.match(/^\/workspace\/lectures\/(\d+)$/)?.[1];
+    if (role !== 'teacher' || !course) return;
+    const recordKey = id + '/' + course;
+    const previous = links.parentElement.querySelector('[data-staff-counsel-posts]');
+    if (previous?.dataset.staffCounselPosts === recordKey) return;
+    previous?.remove();
+    // Only a native resolved student profile can open this. Match server student IDs exactly.
+    const box = node('section',null,{class:'dawon-staff-context','data-staff-counsel-posts':recordKey,'aria-label':'학생 상담 내역'});
+    const content = node('div');
+    box.append(node('strong','학생 상담 내역'),content);
+    links.after(box);
+    async function load() {
+      contextRequest?.abort();
+      const request = new AbortController();
+      contextRequest = request;
+      content.replaceChildren(node('p','상담 기록을 확인하는 중…',{role:'status'}));
+      try {
+        const matches = [];
+        for (let page = 1; ; page++) {
+          const result = await roleApi(role,'community/admin/posts/?post_type=counsel&lecture_id=' + course + '&page_size=100&page=' + page,request.signal);
+          if (request.signal.aborted || !box.isConnected) return;
+          if (!Array.isArray(result.results) || !Number.isFinite(result.count)) throw Error('shape');
+          matches.push(...result.results.filter(post => String(post.created_by) === id && !post.created_by_deleted));
+          if (page * 100 >= result.count || !result.results.length) break;
+        }
+        if (!matches.length) { content.replaceChildren(node('p','이 강의에서 접수한 학생 상담이 없습니다.')); return; }
+        const list = node('ul');
+        for (const post of matches) {
+          const li = node('li');
+          li.append(node('a',post.title,{href:'/workspace/community/counsel?console=C&id=' + encodeURIComponent(post.id),'data-staff-link':''}));
+          list.append(li);
+        }
+        content.replaceChildren(list);
+      } catch {
+        if (request.signal.aborted || !box.isConnected) return;
+        const retry = node('button','다시 시도',{type:'button'});
+        retry.onclick = load;
+        content.replaceChildren(node('p','학생 상담 내역을 불러오지 못했습니다.',{role:'alert'}),retry);
+      }
+    }
+    void load();
+  }
+  function adjustTrend(main) {
+    for (const svg of main.querySelectorAll('svg[aria-label^="시간순 시험 득점률 추이"]')) {
+      const dots = svg.querySelectorAll('circle');
+      let label = svg.previousElementSibling;
+      if (dots.length !== 1 || !dots[0].querySelector('title')) {
+        if (label?.hasAttribute('data-staff-score')) { label.remove(); svg.style.removeProperty('display'); }
+        continue;
+      }
+      const value = '최근 시험 ' + dots[0].querySelector('title').textContent + '점 · 응시 1회';
+      if (!label?.hasAttribute('data-staff-score')) { label = node('p',null,{'data-staff-score':''}); svg.before(label); }
+      if (label.textContent !== value) label.textContent = value;
+      svg.style.display = 'none';
+    }
+    for (const trend of document.querySelectorAll('[role=dialog] [aria-label="성적 추이"]')) {
+      const summary = trend.querySelector('p:has(>strong)');
+      if (!summary) continue;
+      const scored = [...trend.querySelectorAll('tbody tr')].filter(tr => /^\s*\d+(?:\.\d+)?\s*\/\s*\d/.test(tr.lastElementChild?.textContent || ''));
+      const label = summary.querySelector('[data-staff-attempt-count]');
+      if (scored.length === 1 && !label) summary.append(node('span',' · 응시 1회',{'data-staff-attempt-count':''}));
+      else if (scored.length !== 1) label?.remove();
+    }
+  }
+  function sync() {
+    pendingFrame = 0;
+    const url = new URL(location.href);
+    if (url.pathname === '/login/dawon') entry = url;
+    const layout = document.querySelector('[data-workspace-shell] [data-dawon-staff]');
+    const main = layout?.querySelector('main');
+    const role = layout?.dataset.dawonStaff;
+    if (!main || !['admin','teacher'].includes(role) || !url.pathname.startsWith('/workspace/')) {
+      rail?.remove(); rail = null; activeRole = null; return;
+    }
+    if (entry && url.pathname === '/workspace/dashboard') {
+      const requested = entry.searchParams.get('demo') === role ? entry.searchParams.get('console') : null;
+      const preferred = Object.hasOwn(choices,requested) ? requested : get(role + ':mode');
+      entry = null;
+      if (Object.hasOwn(choices,preferred) && preferred !== 'A') {
+        const destination = getHome(role,preferred);
+        go(destination.path,destination.usr,true); return;
+      }
+    }
+    const queryMode = url.searchParams.get('console');
+    const choice = Object.hasOwn(choices,queryMode) ? queryMode : (history.state?.dawonMode || (role === activeRole && mode) || get(role + ':mode') || 'A');
+    if (Object.hasOwn(choices,queryMode) && url.pathname === '/workspace/dashboard' && [...url.searchParams.keys()].every(key => key === 'console') && !isHome(url,home(role,choice))) {
+      const destination = getHome(role,choice); go(destination.path,destination.usr,true); return;
+    }
+    if (activeRole !== role || !rail?.isConnected) { rail?.remove(); buildRail(main); }
+    const changed = activeRole !== role || mode !== choice;
+    activeRole = role; mode = choice;
+    if (changed || get(role + ':mode') !== choice) put(role + ':mode',choice);
+    remember(role,choice,url);
+    for (const anchor of rail.querySelectorAll('[data-console]')) {
+      const key = anchor.dataset.console;
+      anchor.href = getHome(role,key).path;
+      if (key === choice) anchor.setAttribute('aria-current','page'); else anchor.removeAttribute('aria-current');
+    }
+    if (choice === 'C' && isHome(url,home(role,choice))) {
+      scheduleList();
+      const filters = main.querySelector('[aria-label="학생 조회 조건"]');
+      if (filters && filters.nextElementSibling !== appointments) filters.after(appointments);
+    }
+    else { appointments?.remove(); appointments = null; scheduleRequest?.abort(); }
+    if (detailKey !== role + ':' + href(url)) { contextRequest?.abort(); detailKey = role + ':' + href(url); }
+    if (url.searchParams.has('student')) {
+      selectedProfile(role,url);
+      if (url.searchParams.get('panel') === 'student') showEvidence(history.state?.dawonEvidence,rail);
+    } else rail.querySelector('[data-staff-evidence]')?.remove();
+    enhanceAttendance(main);
+    adjustTrend(main);
+  }
+  function queue() { if (!pendingFrame) pendingFrame = requestAnimationFrame(sync); }
+  const sheet = node('style',css,{'data-staff-console-style':''});
+  document.head.append(sheet);
+  for (const method of ['pushState','replaceState']) {
+    const original = history[method];
+    history[method] = function(state,title,path) {
+      if (state && typeof state === 'object' && path != null) {
+        const to = new URL(path,location.href);
+        if (activeRole && to.pathname.startsWith('/workspace/')) {
+          const source = nextEvidence?.to === href(to) ? nextEvidence : history.state?.dawonEvidence;
+          state = {...state,dawonMode:to.searchParams.get('console') || mode,...(source?.to === href(to) ? {dawonEvidence:source} : {})};
+        }
+        nextEvidence = null;
+      }
+      const value = original.call(this,state,title,path);
+      queue(); return value;
+    };
+  }
+  document.addEventListener('click',event => {
+    if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    const a = event.target.closest?.('a');
+    if (!a) return;
+    if (!a.matches('[data-console],[data-staff-student-search],[data-staff-link]')) { captureEvidence(a); return; }
+    event.preventDefault();
+    if (!guarded()) return;
+    if (a.hasAttribute('data-console')) {
+      const dest = getHome(activeRole,a.dataset.console); go(dest.path,dest.usr);
+    } else if (a.hasAttribute('data-staff-student-search')) go(a.href,{directoryTerm:a.dataset.staffStudentSearch});
+    else go(a.href);
+  },true);
+  document.addEventListener('input',e => { if(e.target instanceof HTMLElement) edited.add(e.target); },true);
+  window.addEventListener('popstate',queue);
+  window.addEventListener('pageshow',queue);
+  window.addEventListener('storage',e => {
+    if (e.key === 'academy:auth-active-generation:v1') { scheduleRequest?.abort(); contextRequest?.abort(); rail?.remove(); queue(); }
+  });
+  new MutationObserver(queue).observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['data-dawon-staff','aria-busy','disabled']});
+  queue();
+}
+
+export const staffConsoleScript = '(' + mountStaffConsole.toString() + ')(' + staffHome.toString() + ','
+  + isStaffHome.toString() + ',' + JSON.stringify(style) + ');';

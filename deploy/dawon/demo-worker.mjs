@@ -630,9 +630,10 @@ export async function handle(request, env, fetcher = fetch, context) {
     return secureResponse(JSON.stringify({
       name: 'dawon-learning-room',
       revision: legacyRevision,
-      version: env.ADMIN_VERSION,
+      version: env.UI_VERSION || env.ADMIN_VERSION,
       teacherVersion: env.UI_VERSION || env.ADMIN_VERSION,
-      bundleVersion: env.ADMIN_VERSION,
+      bundleVersion: env.UI_VERSION || env.ADMIN_VERSION,
+      originVersion: env.ADMIN_VERSION,
       roles: ['teacher', 'student', 'guardian', 'admin'],
       productionApi: false,
     }), 200);

@@ -1,3 +1,5 @@
+import { staffConsoleScript } from './dawon-staff-consoles.mjs';
+
 // Only the dedicated public review Worker imports this module.
 const apps = [
   ["teacher", "선생님용", "/login/dawon?demo=teacher"],
@@ -96,4 +98,4 @@ function mountDemoSwitcher() {
     } catch {}
   });
 }
-export const demoSwitcherScript = "(" + mountDemoSwitcher.toString() + ")();";
+export const demoSwitcherScript = "(" + mountDemoSwitcher.toString() + ")();\n" + staffConsoleScript;
