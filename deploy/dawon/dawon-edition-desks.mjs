@@ -140,6 +140,7 @@ html[data-dawon-edition=A] [data-dawon-staff] main .ds-table tbody tr:focus-with
 .ed-picker-list a{box-sizing:border-box}.ed-picker-list strong{min-width:0;overflow-wrap:anywhere}.ed-picker-list small{white-space:nowrap}
 @media(max-width:700px){
  [data-dawon-staff] a[data-ledger-score],[data-edition-desk=A] a[data-ledger-return],.ed-resume-heading button{min-height:44px}
+ [data-dawon-staff] [aria-label="학습 경보 처리"] tbody th a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:44px;vertical-align:middle}
  [data-edition-desk] :is(select,input[type=search],.ed-search button,.ed-picker-list button){min-height:44px}
  [data-edition-desk] nav.ed-work-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;width:100%}
  [data-edition-desk] nav.ed-work-links a{font-size:13px;padding:5px 4px;min-height:44px}
