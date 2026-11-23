@@ -6,6 +6,30 @@ export function createTaskPicker({role, root, node, api, urlOf, navigate, canLea
   const sessionLabels = new Map();
   const validId = id => Number.isSafeInteger(id) && id > 0;
   const base = (work,course) => 'lectures?work=' + work + (course ? '&course=' + course : '');
+  async function courseScope(signal) {
+    if (scope) return scope;
+    const feed = await api(role,'students/teacher-alerts/?settings=1',signal);
+    if (signal.aborted || !Array.isArray(feed?.lectures)) throw Error('courses');
+    scope = feed.lectures.filter(row=>validId(row.id) && typeof row.title === 'string');
+    return scope;
+  }
+  function labelFor(row,courseTitle) {
+    const order = Number.isInteger(row.order) ? row.order + '회차' : '회차 미정';
+    return {title:row.title || row.display_label || order,course:courseTitle,order};
+  }
+  async function resolveSessionLabel(path,signal) {
+    if (sessionLabels.has(path)) return sessionLabels.get(path);
+    const match = /^lectures\/([1-9]\d*)\/sessions\/([1-9]\d*)$/.exec(path);
+    if (!match) return null;
+    const courses = await courseScope(signal);
+    const course = courses.find(c=>String(c.id) === match[1]);
+    if (!course || signal.aborted) return null;
+    const row = await api(role,'lectures/sessions/' + match[2] + '/',signal);
+    if (signal.aborted || String(row?.id) !== match[2] || row.lecture !== course.id) return null;
+    const label = labelFor(row,course.title);
+    sessionLabels.set(path,label);
+    return label;
+  }
   function clear() {
     controller?.abort(); panel?.remove(); panel = null; key = null;
   }
@@ -30,10 +54,8 @@ export function createTaskPicker({role, root, node, api, urlOf, navigate, canLea
     try {
       if (!scope) {
         status('강의를 불러오는 중입니다.');
-        const feed = await api(role,'students/teacher-alerts/?settings=1',signal);
+        await courseScope(signal);
         if (signal.aborted) return;
-        if (!Array.isArray(feed.lectures)) throw Error('courses');
-        scope = feed.lectures.filter(row=>validId(row.id) && typeof row.title === 'string');
       }
       if (!scope.length) { status('선택할 수 있는 편성 강의가 없습니다.'); return; }
       const select = node('select',null,{'aria-label':'업무 강의 선택'});
@@ -75,13 +97,9 @@ export function createTaskPicker({role, root, node, api, urlOf, navigate, canLea
         const sessionPath = 'lectures/' + course + '/sessions/' + row.id;
         const route = sessionPath + '/' + work;
         const a = node('a',null,{href:urlOf(route),'data-staff-link':'','data-edition-path':route});
-        const number = Number.isInteger(row.order) ? row.order + '회차' : '회차 미정';
-        sessionLabels.set(sessionPath, {
-          title: row.title || row.display_label || number,
-          course: courseTitle,
-          order: number,
-        });
-        a.append(node('span',number),node('strong',row.title || row.display_label || '제목 미등록'),
+        const label = labelFor(row,courseTitle);
+        sessionLabels.set(sessionPath,label);
+        a.append(node('span',label.order),node('strong',row.title || row.display_label || '제목 미등록'),
           node('small',row.date || '날짜 미정'));
         const li = node('li'); li.append(a); list.append(li);
       }
@@ -93,5 +111,5 @@ export function createTaskPicker({role, root, node, api, urlOf, navigate, canLea
       body.replaceChildren(node('p','목록을 불러오지 못했습니다.',{role:'alert'}),retry);
     }
   }
-  return {show,clear,sessionLabel:path => sessionLabels.get(path)};
+  return {show,clear,sessionLabel:path => sessionLabels.get(path),resolveSessionLabel};
 }

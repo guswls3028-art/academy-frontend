@@ -54,7 +54,7 @@ function mountStaffConsole(makeDesk, menus, css, makePicker, makeStatistics) {
   const origin = location.origin;
   let desk, statistics, rail, activeRole, edition, lastLocation, pendingFrame, appointments, detailKey;
   let contextRequest, scheduleRequest;
-  let nextEvidence;
+  let nextEvidence, pendingAlertRow;
   const edited = new WeakSet();
   function node(tag, text, attributes = {}) {
     const el = document.createElement(tag);
@@ -138,7 +138,53 @@ function mountStaffConsole(makeDesk, menus, css, makePicker, makeStatistics) {
   function captureEvidence(anchor) {
     const row = anchor.closest('[aria-label="학습 경보 처리"] tbody tr');
     if (!row || !row.cells[2]) return;
-    nextEvidence = {role:activeRole,to:href(new URL(anchor.href)),group:row.cells[1].innerText.trim(),cause:row.cells[2].innerText.trim()};
+    nextEvidence = {role:activeRole,edition,from:href(new URL(location.href)),to:href(new URL(anchor.href)),group:row.cells[1].innerText.trim(),cause:row.cells[2].innerText.trim()};
+    history.replaceState({...history.state,dawonAlertRow:nextEvidence},'');
+  }
+  function restoreAlertFocus(main,current) {
+    const target = pendingAlertRow;
+    if (!target || target.from !== current || target.role !== activeRole || target.edition !== edition) return;
+    const links = main.querySelectorAll('[aria-label="학습 경보 처리"] tbody th a');
+    for (const link of links) {
+      const cells = link.closest('tr').cells;
+      if (href(new URL(link.href)) !== target.to || cells[1]?.innerText.trim() !== target.group || cells[2]?.innerText.trim() !== target.cause) continue;
+      pendingAlertRow = null;
+      if (document.activeElement === document.body || document.activeElement === main) {
+        link.focus({preventScroll:true});
+        link.setAttribute('data-alert-resumed','');
+        link.addEventListener('blur',()=>link.removeAttribute('data-alert-resumed'),{once:true});
+        link.closest('tr').scrollIntoView({block:'nearest',inline:'nearest',behavior:'instant'});
+      }
+      break;
+    }
+  }
+  function ledgerScores(main,url) {
+    const isClass = edition === 'A' && url.pathname === '/workspace/lectures' && /^[1-9]\d*$/.test(url.searchParams.get('class'));
+    if (isClass) {
+      for (const course of main.querySelectorAll('[aria-label="반별 강의"] tbody td:first-child > a:not([data-ledger-score])')) {
+        const target = new URL(course.href);
+        const match = /^\/workspace\/lectures\/([1-9]\d*)$/.exec(target.pathname);
+        if (!match || target.origin !== origin || target.searchParams.get('group') !== url.searchParams.get('class')) continue;
+        const path = '/workspace/results?statsCourse=' + match[1] + '&edition=A';
+        let score = course.parentElement.querySelector('[data-ledger-score]');
+        if (!score) {
+          score = node('a','성적 통계',{href:path,'data-staff-link':'','data-ledger-score':''});
+          course.after(score);
+        }
+        if (score.getAttribute('href') !== path) score.setAttribute('href',path);
+        const title = (course.querySelector('strong')?.textContent || course.getAttribute('aria-label') || course.textContent).trim() + ' 성적 통계';
+        if (score.getAttribute('aria-label') !== title) score.setAttribute('aria-label',title);
+      }
+    } else main.querySelectorAll('[data-ledger-score]').forEach(link=>link.remove());
+    const from = history.state?.usr?.dawonClassList;
+    const saved = typeof from === 'string' && from.startsWith('/workspace/lectures?') ? new URL(from,origin) : null;
+    const valid = edition === 'A' && url.pathname === '/workspace/results' && saved?.origin === origin &&
+      saved.pathname === '/workspace/lectures' && /^[1-9]\d*$/.test(saved.searchParams.get('class'));
+    const back = rail.querySelector('[data-ledger-return]');
+    if (valid && !back) {
+      const link=node('a','반별 강의로 돌아가기',{href:saved.pathname+saved.search,'data-ledger-return':'','data-staff-link':''});
+      rail.querySelector('.ed-bar')?.after(link);
+    } else if (!valid) back?.remove();
   }
   function enhanceAttendance(main) {
     for (const summary of main.querySelectorAll('[aria-label^="차시 출결 집계"]')) {
@@ -206,6 +252,12 @@ function mountStaffConsole(makeDesk, menus, css, makePicker, makeStatistics) {
     if (!source || source.role !== activeRole || source.to !== href(new URL(location.href)) || target.querySelector('[data-staff-evidence]')) return;
     const block = node('aside',null,{class:'dawon-staff-context','data-staff-evidence':'','aria-label':'경보 발생 근거'});
     block.append(node('strong','경보 발생 근거'),node('p',source.cause),node('p',source.group));
+    if (activeRole === 'teacher' && source.edition === edition && typeof source.from === 'string' &&
+        source.from.split('?')[0] === '/workspace/teacher-alerts') {
+      const back = new URL(source.from,origin);
+      back.searchParams.set('edition',edition);
+      block.append(node('a','경보 목록으로 돌아가기',{href:back.pathname + back.search,'data-staff-link':'','data-alert-return':''}));
+    }
     target.prepend(block);
   }
   function selectedProfile(role, url) {
@@ -301,10 +353,13 @@ function mountStaffConsole(makeDesk, menus, css, makePicker, makeStatistics) {
     const current = href(url);
     if (lastLocation !== current) {
       lastLocation = current;
+      pendingAlertRow = history.state?.dawonAlertRow;
       desk.route(url);
       if (url.pathname === '/workspace/results') void statistics.show(url);
       else statistics.clear();
     }
+    if (edition === 'A' || main.querySelector('[data-ledger-score],[data-ledger-return]')) ledgerScores(main,url);
+    if (pendingAlertRow) restoreAlertFocus(main,current);
     if (url.pathname === '/workspace/students/home' && !url.searchParams.has('student')) {
       scheduleList();
       const filters = main.querySelector('[aria-label="학생 조회 조건"]');
@@ -330,6 +385,7 @@ function mountStaffConsole(makeDesk, menus, css, makePicker, makeStatistics) {
         if (activeRole && to.pathname.startsWith('/workspace/')) {
           const source = nextEvidence?.to === href(to) ? nextEvidence : history.state?.dawonEvidence;
           if (source?.to === href(to)) state = {...state,dawonEvidence:source};
+          if (source?.from === href(to) && source.role === activeRole && source.edition === edition) state = {...state,dawonAlertRow:source};
         }
         nextEvidence = null;
       }
@@ -344,7 +400,10 @@ function mountStaffConsole(makeDesk, menus, css, makePicker, makeStatistics) {
     if (!a.matches('[data-staff-student-search],[data-staff-link]')) { captureEvidence(a); return; }
     event.preventDefault();
     if (!guarded()) return;
-    if (a.hasAttribute('data-staff-student-search')) go(a.href,{directoryTerm:a.dataset.staffStudentSearch});
+    if (a.hasAttribute('data-ledger-score')) go(a.href,{dawonClassList:location.pathname + location.search,dawonClassIndex:history.state?.idx});
+    else if (a.hasAttribute('data-alert-return')) go(a.href,null,true);
+    else if (a.hasAttribute('data-ledger-return') && Number.isInteger(history.state?.usr?.dawonClassIndex) && history.state.idx === history.state.usr.dawonClassIndex + 1) history.back();
+    else if (a.hasAttribute('data-staff-student-search')) go(a.href,{directoryTerm:a.dataset.staffStudentSearch});
     else go(a.href);
   },true);
   document.addEventListener('input',e => {

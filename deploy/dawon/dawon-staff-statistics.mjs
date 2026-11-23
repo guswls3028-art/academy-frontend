@@ -39,7 +39,7 @@ export function createStaffStatistics({root,role,api,node}) {
   const bands=['0–20%','20% 초과–40%','40% 초과–60%','60% 초과–80%','80% 초과–100%'];
   const cache=new Map();
   let section,flow,trendFlow,signature,stage,choices,studentRows,summary,seriesRows,seriesView;
-  let filters,body,trend,questionBox,collapsed=false;
+  let filters,body,studentPanel,trend,questionBox,questionRevision=0,collapsed=false;
   function clear() {
     flow?.abort(); trendFlow?.abort(); section?.remove(); section=null; signature=null; cache.clear();
     seriesRows=null; seriesView=null; stage=null; collapsed=false;
@@ -67,6 +67,25 @@ export function createStaffStatistics({root,role,api,node}) {
       }
     }
     return all;
+  }
+  const examsOf=(session,signal)=>rows('results/admin/sessions/'+session.id+'/exams/',signal);
+  async function latestExamSession(sessions,signal){
+    const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format();
+    const past=sessions.filter(s=>s.date&&s.date<=today).reverse();
+    const future=sessions.filter(s=>s.date>today);
+    const groups=[past,future,sessions.filter(s=>!s.date)];
+    // Usually one request. Only inspect scheduled exams when no dated past exam was found.
+    for(const group of groups){
+      for(let i=0;i<group.length;){
+        const batch=group.slice(i,i+(i?3:1));
+        const links=await Promise.all(batch.map(s=>examsOf(s,signal)));
+        if(signal.aborted)throw Error('cancelled');
+        const found=links.findIndex(exams=>exams.some(e=>id(e.exam_id)));
+        if(found>=0)return batch[found];
+        i+=batch.length;
+      }
+    }
+    return past[0]||future[0]||sessions[0];
   }
   function note(text,kind='status'){return node('p',text,{role:kind});}
   function retry(target,text,action){
@@ -172,11 +191,11 @@ export function createStaffStatistics({root,role,api,node}) {
       // Work backwards only on demand, stopping after ten distinct linked exams.
       const available=local.sessions.slice(0,local.sessions.findIndex(s=>s.id===local.session.id)+1).reverse();
       for(const session of available){
-        const exams=await rows('results/admin/sessions/'+session.id+'/exams/',signal);
+        const exams=await examsOf(session,signal);
         const until=session.id===local.session.id?exams.findIndex(e=>e.exam_id===local.exam.id):exams.length-1;
         for(const e of exams.slice(0,until+1).reverse()){
           if(!id(e.exam_id)||seen.has(e.exam_id))continue;
-          seen.add(e.exam_id);found.push({id:e.exam_id,title:(session.display_label||session.title)+' · '+e.title});
+          seen.add(e.exam_id);found.push({id:e.exam_id,title:[session.date,e.title].filter(Boolean).join(' · ')});
           if(found.length===10) break;
         }
         if(found.length===10)break;
@@ -189,12 +208,14 @@ export function createStaffStatistics({root,role,api,node}) {
   async function questionMarks(course,exam,enrollment,signal){
     const path=full('results/admin/exams/'+exam+'/enrollments/'+enrollment+'/',course),key='marks:'+path;
     if(cache.has(key))return cache.get(key);
-    const detail=await api(role,path,signal);
-    if(signal.aborted||detail?.enrollment_id!==enrollment||detail?.target_id!==exam||!Array.isArray(detail.items))throw Error('question scope');
-    const marks=detail.is_provisional?[]:detail.items.filter(q=>id(q.question_id)).map(q=>({
-      question_id:q.question_id,question_number:q.question_number,is_correct:q.is_correct
-    }));
-    cache.set(key,marks);return marks;
+    const reading=api(role,path,signal).then(detail=>{
+      if(signal.aborted||detail?.enrollment_id!==enrollment||detail?.target_id!==exam||!Array.isArray(detail.items))throw Error('question scope');
+      return detail.is_provisional?[]:detail.items.filter(q=>id(q.question_id)).map(q=>({
+        question_id:q.question_id,question_number:q.question_number,is_correct:q.is_correct
+      }));
+    });
+    cache.set(key,reading);
+    try{return await reading;}catch(error){if(cache.get(key)===reading)cache.delete(key);throw error;}
   }
   async function aggregateMarks(course,exam,members,signal){
     const counts=new Map();
@@ -213,7 +234,8 @@ export function createStaffStatistics({root,role,api,node}) {
   }
   async function drawQuestions(){
     if(!questionBox.open)return;
-    const target=questionBox.lastElementChild,owner=activeStudent(),signal=flow.signal;
+    const target=questionBox.lastElementChild,owner=activeStudent(),signal=flow.signal,revision=++questionRevision;
+    const current=()=>!signal.aborted&&revision===questionRevision;
     target.replaceChildren(note('문항 기록을 불러오는 중…'));
     try{
       const exam=stage.exam.id,course=stage.course.id;
@@ -222,7 +244,7 @@ export function createStaffStatistics({root,role,api,node}) {
         rows('exams/'+exam+'/questions/',signal),
         owner&&complete(owner)?questionMarks(course,exam,owner.enrollment_id,signal):[]
       ]);
-      if(signal.aborted)return;
+      if(!current())return;
       if(statsResult.status==='rejected')throw Error('question statistics');
       let stats=statsResult.value;
       const structure=structureResult.status==='fulfilled'?structureResult.value:[],marks=detailResult.status==='fulfilled'?detailResult.value:[];
@@ -231,7 +253,7 @@ export function createStaffStatistics({root,role,api,node}) {
         target.replaceChildren(note('강의의 채점 완료 학생 '+graded.length+'명에 대한 문항 정오를 집계하는 중…'));
         stats=await aggregateMarks(course,exam,graded,signal);
       }
-      if(signal.aborted)return;
+      if(!current())return;
       const byId=new Map(structure.map(q=>[q.id,q])),byStat=new Map(stats.map(q=>[q.question_id,q])),answers=new Map(marks.map(q=>[q.question_id,q]));
       const ids=[...new Set([...byId.keys(),...byStat.keys(),...answers.keys()])];
       const values=ids.map(id=>{const q=byId.get(id),s=byStat.get(id),a=answers.get(id);return {number:q?.number??s?.question_number??a?.question_number,topic:q?.region_meta?.topic||'—',
@@ -241,27 +263,49 @@ export function createStaffStatistics({root,role,api,node}) {
       if(structureResult.status==='rejected'||detailResult.status==='rejected'){
         const partial=node('div');retry(partial,'일부 문항의 주제 또는 학생 결과를 불러오지 못했습니다.',drawQuestions);target.append(partial);
       }
-    }catch{if(!signal.aborted)retry(target,'문항 기록을 불러오지 못했습니다.',drawQuestions);}
+    }catch{if(current())retry(target,'문항 기록을 불러오지 못했습니다.',drawQuestions);}
   }
   function detail(label){
     const box=node('details');box.append(node('summary',label),node('div'));return box;
   }
-  function renderResults(){
+  function statusOf(row){
+    if(complete(row))return 'done';
+    if(row.result_status==='ABSENT'||row.result_status==='NOT_SUBMITTED')return 'absent';
+    if(row.result_status==='FAILED')return 'failed';
+    if(row.is_provisional||['PARTIAL','PROCESSING','PENDING'].includes(row.result_status))return 'pending';
+    return 'unknown';
+  }
+  function unconfirmedText(){
+    const counts={absent:0,pending:0,failed:0},total=summary.data.score_summary.unscored_count;
+    if(!Number.isInteger(total)||total<=0)return '';
+    for(const row of studentRows){const status=statusOf(row);if(Object.hasOwn(counts,status))counts[status]++;}
+    const known=counts.absent+counts.pending+counts.failed;
+    if(known>total)return '상세 상태를 확인할 수 없습니다.';
+    const labels=[['미응시·미제출',counts.absent],['채점 대기·진행',counts.pending],['처리 실패',counts.failed],['상태 미확인',total-known]];
+    return labels.filter(([,n])=>n>0).map(([label,n])=>label+' '+n+'명').join(' · ');
+  }
+  function renderStudent(){
+    studentPanel.replaceChildren();
     const {data}=summary,s=data.score_summary,owner=activeStudent();
-    body.replaceChildren(node('h3',stage.exam.title,{class:'dsx-exam-title'}),metric([['채점 완료',fmt(data.scored_count,'명')],['미채점',fmt(s.unscored_count,'명')],['평균 원점수',fmt(s.average,'점')],['최고 원점수',fmt(s.highest,'점')],
-      [numeric(s.top_reference_percent)?'상위 '+fmt(s.top_reference_percent,'%')+' 평균 득점률':'상위 집단 평균 득점률',fmt(s.top_reference_average,'%')]]));
-    if(data.scored_count)body.append(node('h3','득점률 분포'),bars(s));
-    else body.append(note('아직 채점 완료된 결과가 없습니다.'));
     if(owner){
       const confirmed=complete(owner),score=confirmed?owner.ranking_score:null;
       const ownRate=rate(owner);
       const cohort=studentRows.filter(complete);
       const percentile=confirmed && cohort.length===data.scored_count && cohort.length?100*cohort.filter(r=>r.ranking_score<=score).length/cohort.length:null;
       const ref=numeric(ownRate)&&numeric(s.top_reference_average)&&s.top_reference_average>0?100*ownRate/s.top_reference_average:null;
-      body.append(node('h3',owner.student_name+' · 시험 결과'),metric([['원점수',fmt(score,'점')],['득점률',fmt(ownRate,'%')],['강의 내 백분위',fmt(percentile)],['상위 집단 평균 대비',fmt(ref,'%')]]));
-      if(!confirmed)body.append(note(['NOT_SUBMITTED','ABSENT'].includes(owner.result_status)?'미응시 기록입니다.':'확정된 점수가 없습니다.'));
-      else body.append(node('p','백분위는 같은 강의 응시생 중 이 원점수 이하인 학생의 비율입니다. 상위 집단 평균 대비는 학생 득점률을 상위 집단 평균 득점률로 나눈 값입니다.'));
+      studentPanel.append(node('h3',owner.student_name+' · 시험 결과'),metric([['원점수',fmt(score,'점')],['득점률',fmt(ownRate,'%')],['강의 내 백분위',fmt(percentile)],['상위 집단 평균 대비',fmt(ref,'%')]]));
+      if(!confirmed)studentPanel.append(note(statusOf(owner)==='absent'?'미응시·미제출 기록입니다.':statusOf(owner)==='failed'?'채점 처리에 실패했습니다. 기본 성적 업무에서 기록을 확인하세요.':'확정된 점수가 없습니다.'));
+      else studentPanel.append(node('p','백분위는 같은 강의 응시생 중 이 원점수 이하인 학생의 비율입니다. 상위 집단 평균 대비는 학생 득점률을 상위 집단 평균 득점률로 나눈 값입니다.'));
     }
+  }
+  function renderResults(){
+    const {data}=summary,s=data.score_summary;
+    body.replaceChildren(node('h3',stage.exam.title,{class:'dsx-exam-title'}),metric([['채점 완료',fmt(data.scored_count,'명')],['점수 미확정',fmt(s.unscored_count,'명')],['평균 원점수',fmt(s.average,'점')],['최고 원점수',fmt(s.highest,'점')],
+      [numeric(s.top_reference_percent)?'상위 '+fmt(s.top_reference_percent,'%')+' 평균 득점률':'상위 집단 평균 득점률',fmt(s.top_reference_average,'%')]]));
+    const status=unconfirmedText();if(status)body.append(node('p',status));
+    if(data.scored_count)body.append(node('h3','득점률 분포'),bars(s));
+    else body.append(note('아직 채점 완료된 결과가 없습니다.'));
+    studentPanel=node('div');body.append(studentPanel);renderStudent();
     trend=detail('최근 시험 득점률 추이 · 최대 10회');seriesView=trend.lastElementChild;trend.ontoggle=loadTrend;
     questionBox=detail('문항별 정답률과 주제');questionBox.ontoggle=drawQuestions;body.append(trend,questionBox);
   }
@@ -269,8 +313,20 @@ export function createStaffStatistics({root,role,api,node}) {
     if(url.pathname!=='/workspace/results'||url.searchParams.has('panel')){clear();return;}
     const signatureNow=JSON.stringify(params.map(k=>url.searchParams.get(k)));
     if(signature===signatureNow && section?.isConnected)return;
+    const next=new URLSearchParams(url.search);
+    const selected=next.get('statsStudent');
+    const scope=stage&&[stage.course,stage.session,stage.exam];
+    if(scope&&scope.every((entry,i)=>next.get(params[i])===String(entry.id)||next.get(params[i])===choices.get(params[i]))&&
+      (!selected||studentRows.some(r=>String(r.enrollment_id)===selected))){
+      choices=next;signature=signatureNow;
+      filters.querySelector('[data-stat-choice="statsStudent"]').value=selected||'';
+      renderStudent();
+      if(trend.open&&seriesRows)drawTrend();
+      if(questionBox.open)await drawQuestions();
+      return;
+    }
     signature=signatureNow;flow?.abort();trendFlow?.abort();const request=flow=new AbortController(),signal=request.signal;
-    choices=new URLSearchParams(url.search);seriesRows=null;studentRows=null;stage=null;
+    choices=next;seriesRows=null;studentRows=null;stage=null;
     const focused=document.activeElement?.dataset?.statChoice;
     if(!section){section=node('section',null,{'data-staff-statistics':'','aria-label':'시험 성적 통계'});root.append(section);}
     const head=node('div',null,{class:'dsx-head'}),main=node('div',null,{class:'dsx-main',id:'dawon-statistics-body'});
@@ -292,9 +348,11 @@ export function createStaffStatistics({root,role,api,node}) {
       const sessions=(await rows('lectures/sessions/?lecture='+course.id,signal)).filter(s=>s.lecture===course.id && id(s.id)).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')) || a.order-b.order || a.id-b.id);
       if(signal.aborted)return;
       if(!sessions.length){body.replaceChildren(note('등록된 차시가 없습니다.'));return;}
-      const session=valueFrom(sessions,'statsSession',sessions.at(-1));if(!session){missing(1,'차시');return;}
+      const session=choices.has('statsSession')?valueFrom(sessions,'statsSession'):await latestExamSession(sessions,signal);
+      if(signal.aborted)return;
+      if(!session){missing(1,'차시');return;}
       pick('차시',sessions.map(s=>({id:s.id,title:[s.date,s.display_label||s.title].filter(Boolean).join(' · ')})),session.id,1);
-      const links=await rows('results/admin/sessions/'+session.id+'/exams/',signal);if(signal.aborted)return;
+      const links=await examsOf(session,signal);if(signal.aborted)return;
       const exams=links.filter(e=>id(e.exam_id)).map(e=>({id:e.exam_id,title:e.title}));
       if(!exams.length){body.replaceChildren(note('이 차시에 연결된 시험이 없습니다.'));return;}
       const exam=valueFrom(exams,'statsExam',exams[0]);if(!exam){missing(2,'시험');return;}pick('시험',exams,exam.id,2);

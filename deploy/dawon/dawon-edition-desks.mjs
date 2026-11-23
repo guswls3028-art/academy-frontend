@@ -120,6 +120,13 @@ html[data-dawon-edition=A] [data-dawon-staff] main .ds-table tbody tr:focus-with
 }
 
 [data-edition-desk] [hidden]{display:none!important}
+[data-dawon-staff] a[data-ledger-score],[data-edition-desk=A] a[data-ledger-return]{display:inline-flex;align-items:center;min-height:36px;line-height:1.4;color:#175579;text-decoration:underline;text-underline-offset:3px;font-weight:650}
+[data-dawon-staff] a[data-ledger-score]{position:relative;z-index:1;margin-inline:6px;white-space:nowrap;font-size:13px}
+[data-edition-desk=A] a[data-ledger-return]{width:fit-content;margin:4px 0}
+[aria-label="학습 경보 처리"] tbody tr{scroll-margin-block:110px 16px}
+[data-alert-resumed]:focus{outline:2px solid currentColor;outline-offset:3px;border-radius:2px}
+[data-staff-evidence] a[data-alert-return]{display:inline-flex;align-items:center;min-height:44px;color:var(--ed-accent,#175579);font-weight:650;text-underline-offset:3px}
+.ed-resume-heading button{min-height:36px;width:fit-content;border:1px solid var(--ed-line);background:white;color:var(--ed-ink);border-radius:4px;padding:4px 12px;cursor:pointer}
 [data-edition-desk] nav.ed-work-links{display:flex;align-items:stretch;justify-content:flex-start;gap:6px;flex-wrap:wrap;border:0;background:transparent;padding:0;margin:0;width:auto}
 [data-edition-desk] nav.ed-work-links a,.ed-queue-link{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-width:0;min-height:44px;padding:6px 14px;border:1px solid var(--ed-line);border-radius:4px;background:white;color:var(--ed-ink);font:650 14px/1.35 system-ui,sans-serif;text-decoration:none;word-break:keep-all}
 [data-edition-desk] nav.ed-work-links a:is(:hover,:focus-visible),.ed-queue-link:hover{background:var(--ed-tint);border-color:var(--ed-accent)}
@@ -132,6 +139,7 @@ html[data-dawon-edition=A] [data-dawon-staff] main .ds-table tbody tr:focus-with
 [data-edition-desk=C] nav.ed-work-links{margin-top:6px}.ed-directory{margin-top:8px}
 .ed-picker-list a{box-sizing:border-box}.ed-picker-list strong{min-width:0;overflow-wrap:anywhere}.ed-picker-list small{white-space:nowrap}
 @media(max-width:700px){
+ [data-dawon-staff] a[data-ledger-score],[data-edition-desk=A] a[data-ledger-return],.ed-resume-heading button{min-height:44px}
  [data-edition-desk] :is(select,input[type=search],.ed-search button,.ed-picker-list button){min-height:44px}
  [data-edition-desk] nav.ed-work-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;width:100%}
  [data-edition-desk] nav.ed-work-links a{font-size:13px;padding:5px 4px;min-height:44px}
@@ -236,7 +244,7 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
       if (session) return {path,label:session[1] === 'attendance' ? '차시 출결 이어서' : '차시 과제 이어서'};
       return null;
     }
-    let recent = [], lastSession, labels = Object.create(null);
+    let recent = [], lastSession, lastAttendance, labelRequest, labels = Object.create(null);
     const sessionBase = path => /^(lectures\/[1-9]\d*\/sessions\/[1-9]\d*)\/(?:attendance|assignments)(?:\?schedule=[1-9]\d*)?$/.exec(path)?.[1];
     function displayLabel(value) {
       return value && typeof value.title === 'string' && typeof value.course === 'string' &&
@@ -247,6 +255,9 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
       if (generation && saved?.generation === generation && Array.isArray(saved.paths)) {
         recent = saved.paths.filter(path=>typeof path === 'string' && path!=='dashboard' && recentItem(path)).slice(0,4);
         lastSession = typeof saved.lastSession === 'string' && sessionBase(saved.lastSession) ? saved.lastSession : recent.find(sessionBase);
+        const attendance = [saved.lastAttendance,lastSession,...recent].find(path=>typeof path==='string' &&
+          sessionBase(path) && sessionBase(path)===sessionBase(lastSession) && path.split('?')[0].endsWith('/attendance'));
+        lastAttendance = attendance;
         for (const path of [lastSession,...recent]) {
           const base = path && sessionBase(path);
           const label = base && displayLabel(saved.labels?.[base]);
@@ -311,6 +322,7 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
       if (e.key==='Enter' && search.value.trim()) (matches.querySelector('a') || side?.querySelector('nav a:not([hidden])'))?.click();
     };
     update = (url,item) => {
+      labelRequest?.abort();
       mobileSearch.value=''; mobileSearch.oninput();
       const route = url.pathname.slice('/workspace/'.length);
       const schedule = url.searchParams.get('schedule') || '';
@@ -319,13 +331,15 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
       if (path && path!=='dashboard' && recentItem(path)) recent = [path,...recent.filter(p => p !== path)].slice(0,4);
       const base = path && sessionBase(path);
       if (base) {
+        if (path.split('?')[0].endsWith('/attendance')) lastAttendance = path;
+        else if (sessionBase(lastAttendance) !== base) lastAttendance = undefined;
         lastSession = path;
         const label = displayLabel(sessionPicker.sessionLabel(base));
         if (label) labels[base] = label;
       }
       const keep = new Set([lastSession,...recent].filter(Boolean).map(sessionBase));
       for (const key of Object.keys(labels)) if (!keep.has(key)) delete labels[key];
-      try { if (generation) sessionStorage.setItem(storageKey,JSON.stringify({generation,paths:recent,lastSession,labels})); } catch {}
+      try { if (generation) sessionStorage.setItem(storageKey,JSON.stringify({generation,paths:recent,lastSession,lastAttendance,labels})); } catch {}
       jumps.hidden = !recent.length;
       jumps.replaceChildren(n('span','최근 업무'),...recent.map(p=>{
         const item = recentItem(p), label = labels[sessionBase(p)], a = makeLink(item);
@@ -342,17 +356,32 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
         const last = lastSession && sessionBase(lastSession), meta = labels[last];
         const heading = n('div',null,{class:'ed-resume-heading'});
         heading.append(n('span',last?'마지막으로 연 차시':'차시 업무 시작'));
-        if (last) heading.append(n('strong',meta?.title || '최근 차시'),n('small',meta?[meta.course,meta.order].filter(Boolean).join(' · '):''));
+        if (last) heading.append(n('strong',meta?.title || '차시 확인 중…'),n('small',meta?[meta.course,meta.order].filter(Boolean).join(' · '):''));
         const items = tasks.map((task,i)=>{
           const tab = i===0?'attendance':'assignments';
-          const destination = lastSession?.split('?')[0] === last+'/'+tab ? lastSession : last+'/'+tab;
+          const destination = i===0 && lastAttendance ? lastAttendance : last+'/'+tab;
           return {label:task.label,path:last ? destination : task.path};
         });
-        sessionDesk.replaceChildren(heading,workLinks('차시 작업 선택',items));
+        const actions = workLinks('차시 작업 선택',items);
+        sessionDesk.replaceChildren(heading,actions);
+        if (last && !meta) {
+          const request = labelRequest = new AbortController();
+          sessionPicker.resolveSessionLabel(last,request.signal).then(label=>{
+            if (request.signal.aborted) return;
+            if (label) { labels[last] = label; update(url,item); return; }
+            heading.replaceChildren(n('strong','이 차시는 현재 강의 목록에서 찾을 수 없습니다.'));
+            actions.replaceChildren(...tasks.map(makeLink));
+          }).catch(()=>{
+            if (request.signal.aborted) return;
+            const retry = n('button','다시 조회',{type:'button'});
+            retry.onclick = ()=>update(url,item);
+            heading.replaceChildren(n('span','최근 차시 이름을 불러오지 못했습니다.'),retry);
+          });
+        }
       }
       if (search.value) { search.value=''; filter(); }
     };
-    clean = () => { search.value=''; filter(); searchBox.remove(); };
+    clean = () => { labelRequest?.abort(); search.value=''; filter(); searchBox.remove(); };
   } else {
     const shelf = n('section',null,{class:'ed-directory',id:'ed-directory-items','aria-label':'업무 검색 결과'});
     const toggle = n('button','전체 업무',{type:'button','aria-controls':'ed-directory-items'});

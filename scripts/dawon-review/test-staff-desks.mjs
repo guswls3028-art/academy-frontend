@@ -58,6 +58,20 @@ test('the next session page keeps the selected lecture and returns its resumable
   assert.equal(requests.at(-1).path,'lectures/sessions/?lecture=7&page=2');
   assert.deepEqual(picker.sessionLabel('lectures/7/sessions/31'),{title:'위치와 속도',course:'미적분',order:'14회차'});
 });
+test('direct session resumption checks the assigned lecture and session, then reuses its title',async()=>{
+  const {picker,requests}=setup(path=>{
+    if(path.startsWith('students/'))return {lectures:[{id:7,title:'미적분'}]};
+    return {id:12,lecture:7,order:2,title:'함수의 연속성'};
+  });
+  const signal=new AbortController().signal;
+  assert.equal(await picker.resolveSessionLabel('lectures/8/sessions/12',signal),null);
+  assert.equal(requests.length,1);
+  assert.equal(await picker.resolveSessionLabel('lectures/7/sessions/13',signal),null);
+  const base='lectures/7/sessions/12';
+  assert.deepEqual(await picker.resolveSessionLabel(base,signal),{title:'함수의 연속성',course:'미적분',order:'2회차'});
+  await picker.resolveSessionLabel(base,signal);
+  assert.equal(requests.filter(r=>r.path==='lectures/sessions/12/').length,1);
+});
 test('both role home pages contain a calendar; guardian return uses the selected day and role',()=>{
   for (const role of ['student','guardian']) {
     const html=renderDawonLearner(new URL('/?preview='+role,origin));
