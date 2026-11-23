@@ -1016,6 +1016,25 @@ async function verifyStudentHomeworkFiles(
       await waitForHomeworkSummary(request, parentAccess, reverted, studentId);
       await staffPage.reload({ waitUntil: "domcontentloaded" });
       await expect(card.getByRole("button", { name: "통과", exact: true })).toBeVisible();
+
+      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/mobile/homeworks/${created.homeworkId}`);
+      const selectedStudent = created.family!.students[0];
+      await staffPage.getByLabel(`${selectedStudent.name} 통과 대상 선택`, { exact: true }).check();
+      await staffPage.getByRole("button", { name: "선택 1명 통과", exact: true }).click();
+      const saving = staffPage.waitForResponse(res => res.request().method() === "PATCH" && new URL(res.url()).pathname === path);
+      await staffPage.getByRole("alertdialog").getByRole("button", { name: "1명 통과 처리", exact: true }).click();
+      const saved = await saving;
+      expect(saved.status()).toBe(200);
+      expect(saved.request().postDataJSON()).toMatchObject({ enrollment_id: created.enrollmentId, accepted: true });
+      const bulkPassed = (row: HomeworkSummary) => row.score === 0 && row.teacher_accepted === true && row.passed;
+      await waitForHomeworkSummary(request, studentAccess, bulkPassed);
+      await waitForHomeworkSummary(request, parentAccess, bulkPassed, studentId);
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(staffPage.getByText("통과 인정됨", { exact: true })).toBeVisible();
+      await assertNoHorizontalOverflow(staffPage);
+      await staffPage.getByRole("button", { name: "통과 인정 취소", exact: true }).click();
+      await waitForHomeworkSummary(request, studentAccess, reverted);
+      await waitForHomeworkSummary(request, parentAccess, reverted, studentId);
     }
   }
 }
