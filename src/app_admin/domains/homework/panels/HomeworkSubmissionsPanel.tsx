@@ -259,7 +259,6 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
                   />
                 </StudentDetailLink>
                 <div className={styles.studentMeta}>
-                  <span>{homeworkTitle || "과제"}</span>
                   <time dateTime={row.created_at}>{formatSubmissionDate(row.created_at)}</time>
                   <b>{row.files.filter((file) => !file.removed_at).length}개 파일</b>
                 </div>

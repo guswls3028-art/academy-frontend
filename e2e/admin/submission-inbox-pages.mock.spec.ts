@@ -260,7 +260,14 @@ for (const mobile of [false, true]) {
     await expect.poll(() => photo.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
     await page.getByLabel(/통과 대상 전체 선택/).check();
     await expect(page.getByLabel("QA 학생 13 통과 대상 선택")).toHaveCount(0);
+    if (!mobile) {
+      const first = await page.locator("article").filter({ has: page.getByLabel("QA 학생 11 통과 대상 선택") }).boundingBox();
+      const second = await page.locator("article").filter({ has: page.getByLabel("QA 학생 12 통과 대상 선택") }).boundingBox();
+      expect(first && second && second.x > first.x && Math.abs(second.y - first.y) < 2).toBe(true);
+    }
     await testInfo.attach("homework-bulk-selection", { body: await page.screenshot(), contentType: "image/png" });
+    await page.getByText("QA 학생 13", { exact: true }).scrollIntoViewIfNeeded();
+    await expect(page.getByRole("group", { name: "과제 일괄 통과" })).toBeInViewport();
     await page.getByRole("button", { name: "선택 2명 통과" }).click();
     await page.getByRole("alertdialog").getByRole("button", { name: "2명 통과 처리" }).click();
     await expect(page.getByText("통과 1명 · 저장 실패 1명")).toBeVisible();

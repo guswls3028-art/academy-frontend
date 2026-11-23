@@ -113,6 +113,8 @@
 
 .studentList {
   display: grid;
+  align-items: start;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
   gap: 12px;
 }
 
@@ -128,13 +130,14 @@
   display: flex;
   min-height: 64px;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 16px;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 8px 12px;
   background: color-mix(in srgb, var(--color-bg-surface-soft) 76%, var(--color-bg-surface));
 }
 
 .studentMeta {
+  margin-inline-start: auto;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -194,8 +197,7 @@
 }
 
 @media (max-width: 760px) {
-  .header,
-  .studentHeader {
+  .header {
     align-items: stretch;
     flex-direction: column;
   }

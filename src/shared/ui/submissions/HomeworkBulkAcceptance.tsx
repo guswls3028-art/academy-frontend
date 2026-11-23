@@ -7,6 +7,7 @@ import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import { useConfirm } from "@/shared/ui/confirm";
 import { Button } from "@/shared/ui/ds";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import styles from "./HomeworkBulkAcceptance.module.css";
 import { refreshHomeworkDecisions } from "./refreshHomeworkDecisions";
 
 type ReviewRow = {
@@ -97,12 +98,12 @@ export default function HomeworkBulkAcceptance<Row extends ReviewRow>({ homework
   }
 
   return <>
-    {(eligible.length > 0 || eligibleOnly) && <div className="flex flex-wrap items-center gap-3 py-2">
-      <label className="inline-flex min-h-10 items-center gap-2">
+    {(eligible.length > 0 || eligibleOnly) && <div className={styles.toolbar} role="group" aria-label="과제 일괄 통과">
+      <label className={styles.control}>
         <input type="checkbox" checked={eligibleOnly} onChange={event => setEligibleOnly(event.currentTarget.checked)} />
         통과 대상만 보기
       </label>
-      <label className="inline-flex min-h-10 items-center gap-2">
+      <label className={styles.control}>
         <input type="checkbox" checked={allSelected} disabled={busy}
           ref={el => { if (el) el.indeterminate = selected.length > 0 && !allSelected; }}
           onChange={() => setSelection(allSelected ? new Map() : new Map(eligible.map(row => [row.enrollment_id, version(row)])))} />
