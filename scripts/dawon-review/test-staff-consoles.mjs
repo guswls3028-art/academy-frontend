@@ -5,6 +5,7 @@ import {runInNewContext} from 'node:vm';
 import {editionResponse, installEdition} from '../../deploy/dawon/dawon-editions.mjs';
 import {catalog} from '../../deploy/dawon/dawon-edition-desks.mjs';
 import {demoSwitcherScript} from '../../deploy/dawon/dawon-demo-header.mjs';
+import {staffConsoleScript} from '../../deploy/dawon/dawon-staff-consoles.mjs';
 
 const origin = 'https://demo.hakwonplus.com';
 function request(path,method='GET') {
@@ -72,4 +73,28 @@ test('new tabs, role links, reload and browser history keep their own edition an
 });
 test('the exact bundled demo script parses in its own browser realm',()=>{
   assert.doesNotThrow(()=>new Function(demoSwitcherScript));
+});
+
+test('searching the edition directory permits navigation and edited business forms still prompt',()=>{
+  const origin='https://demo.hakwonplus.com',events={},location=new URL('/workspace/dashboard?edition=C',origin);
+  let promptCount=0;
+  class Field {
+    constructor(isSearch){this.isSearch=isSearch;}
+    closest(){return this.isSearch ? this : null;}
+    getClientRects(){return [1];}
+  }
+  const search=new Field(true),business=new Field(false);
+  const document={head:{append(){}},body:{},querySelector:s=>s==='#dawon-demo-switcher'?{dataset:{shell:'native'}}:null,
+    querySelectorAll:()=>[search,business],createElement:()=>({setAttribute(){}}),addEventListener:(type,fn)=>{events[type]=fn;}};
+  const history={state:{idx:0},replaceState(){},pushState(_state,_title,url){location.href=new URL(url,origin).href;}};
+  const window={confirm(){promptCount++;return false;},addEventListener(){},dispatchEvent(){}};
+  runInNewContext(staffConsoleScript,{location,window,document,URL,URLSearchParams,history,HTMLElement:Field,
+    MutationObserver:class{observe(){}},PopStateEvent:class{},requestAnimationFrame:()=>1,crypto:{randomUUID:()=>'key'}});
+  const anchor={href:origin+'/workspace/students/home',matches:()=>true,hasAttribute:()=>false};
+  const click=()=>events.click({button:0,target:{closest:()=>anchor},preventDefault(){}});
+  events.input({target:search});click();
+  assert.equal(promptCount,0);
+  assert.equal(location.pathname,'/workspace/students/home');
+  events.input({target:business});click();
+  assert.equal(promptCount,1);
 });

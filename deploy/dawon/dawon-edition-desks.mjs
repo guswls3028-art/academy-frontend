@@ -63,6 +63,7 @@ html[data-dawon-edition=B] .sidebar nav[aria-label="업무 메뉴"] a[aria-curre
 .ed-tiles a{display:block;padding:4px 3px;color:var(--ed-ink);font-size:14px;text-decoration:none;font-weight:560}
 .ed-tiles a:is(:hover,[aria-current]){text-decoration:underline;text-underline-offset:3px}
 @media(min-width:1024px){
+html:is([data-dawon-edition=B],[data-dawon-edition=C]) [data-dawon-staff] > aside.sidebar{width:100%;min-width:0;max-width:none}
 html[data-dawon-edition=B] [data-dawon-staff]:not([data-collapsed]){grid-template-columns:clamp(215px,20vw,292px) minmax(0,1fr)}
 html[data-dawon-edition=C] [data-dawon-staff]:not([data-collapsed]){grid-template-columns:minmax(0,1fr) clamp(175px,16vw,230px)}
 html[data-dawon-edition=C] [data-dawon-staff]:not([data-collapsed]) > aside{grid-column:2;border:0;border-inline-start:1px solid var(--ed-line);background:#fcfbfe}

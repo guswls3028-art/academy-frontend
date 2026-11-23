@@ -338,7 +338,9 @@ function mountStaffConsole(makeDesk, menus, css) {
     if (a.hasAttribute('data-staff-student-search')) go(a.href,{directoryTerm:a.dataset.staffStudentSearch});
     else go(a.href);
   },true);
-  document.addEventListener('input',e => { if(e.target instanceof HTMLElement) edited.add(e.target); },true);
+  document.addEventListener('input',e => {
+    if (e.target instanceof HTMLElement && !e.target.closest('[data-edition-desk],form[role=search]')) edited.add(e.target);
+  },true);
   window.addEventListener('popstate',queue);
   window.addEventListener('pageshow',queue);
   window.addEventListener('storage',e => {
