@@ -60,7 +60,7 @@ function browser(role, start = '/workspace/dashboard') {
   let fail = false;
   const fetch = async (path,init) => { calls.push({path,init});
     return {ok:!fail,json:async()=>({followups:[{kind:'counsel',day:'2099-01-10',student:'예시 학생',course:'예시 강의'}]})}; };
-  const realm = {document,window,history,location,sessionStorage,localStorage,fetch,URL,AbortController,atob,crypto:{randomUUID},HTMLElement:Tag,
+  const realm = {document,window,history,location,sessionStorage,localStorage,fetch,URL,URLSearchParams,AbortController,atob,crypto:{randomUUID},HTMLElement:Tag,
     PopStateEvent:class { constructor(type,options){this.type=type;Object.assign(this,options);} },
     MutationObserver:class { observe(){} },requestAnimationFrame:fn=>frames.push(fn)};
   runInNewContext(staffConsoleScript,realm);

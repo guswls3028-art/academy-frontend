@@ -42,6 +42,10 @@ td:has(>[data-staff-attendance])>[role=group]:not([data-staff-attendance]),td:ha
 [data-staff-attendance] small{flex-basis:100%;color:#615346}
 td:has(>[data-staff-attendance])>select:focus,td:has(>[data-staff-more][open])>select{display:block!important}
 [data-staff-more] summary{width:fit-content;color:#69594c;font-size:12px;cursor:pointer;padding:3px 0}
+@container(max-width:809px){
+  td:has(>[data-staff-attendance])>select{display:block!important}
+  td>[data-staff-attendance],td>[data-staff-more]{display:none!important}
+}
 @media(max-width:700px){
   [data-staff-rail]{padding:8px 10px 0}[data-staff-rail] nav{width:100%;box-sizing:border-box}[data-staff-rail] nav a{min-width:0;flex:1;padding:6px 2px;min-height:40px;font-size:13px;gap:3px}
   .dawon-staff-care,.dawon-staff-context{padding:9px 11px}.dawon-staff-care ul{grid-template-columns:1fr}
@@ -190,6 +194,25 @@ function mountStaffConsole(home, isHome, css) {
     nextEvidence = {role:activeRole,to:href(new URL(anchor.href)),group:row.cells[1].innerText.trim(),cause:row.cells[2].innerText.trim()};
   }
   function enhanceAttendance(main) {
+    for (const summary of main.querySelectorAll('[aria-label^="차시 출결 집계"]')) {
+      for (const tag of summary.querySelectorAll('[data-status]')) {
+        const label = codes[tag.dataset.status.toUpperCase()];
+        const text = tag.querySelector('span:not([aria-hidden])');
+        if (label && text && text.textContent !== label) text.textContent = label;
+      }
+      const previous = summary.getAttribute('aria-label');
+      const current = previous.replace(/현장 (?=\d+명)/g,'출석 ').replace(/(^|[: ,])영상 (?=\d+명)/g,'$1동영상 ');
+      if (current !== previous) summary.setAttribute('aria-label',current);
+    }
+    if (location.pathname === '/workspace/dashboard' && new URLSearchParams(location.search).get('panel') === 'attendance') {
+      for (const table of main.querySelectorAll('table')) {
+        if (table.querySelector('thead th:last-child')?.textContent !== '출결 상태') continue;
+        for (const cell of table.querySelectorAll('tbody td:last-child')) {
+          if (cell.textContent === '현장') cell.textContent = '출석';
+          else if (cell.textContent === '영상') cell.textContent = '동영상';
+        }
+      }
+    }
     if (!/\/sessions\/\d+\/attendance\/?$/.test(location.pathname)) return;
     for (const select of main.querySelectorAll('td>select[aria-label$=" 출결 상태"]')) {
       if (!Object.keys(codes).every(code => [...select.options].some(option => option.value === code))) continue;
@@ -211,9 +234,14 @@ function mountStaffConsole(home, isHome, css) {
         const more = node('details',null,{'data-staff-more':''});
         more.append(node('summary','기타 상태'));
         cell.append(more);
-        for (const option of select.options) {
-          if (codes[option.value]) option.textContent = codes[option.value];
-        }
+        const selected = select.value;
+        const first = Object.entries(codes).map(([code,label]) => {
+          const option = [...select.options].find(item => item.value === code);
+          option.textContent = label;
+          return option;
+        });
+        select.prepend(...first);
+        select.value = selected;
       }
       for (const button of actions.querySelectorAll('button')) {
         if (button.disabled !== select.disabled) button.disabled = select.disabled;
