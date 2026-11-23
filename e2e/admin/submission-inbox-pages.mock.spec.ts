@@ -172,7 +172,7 @@ for (const teacher of [false, true]) {
 }
 
 for (const teacher of [false, true]) {
-  test(`확인 대기 과제는 기존 알림에 집계되고 새 증가만 전면에서 한 번 알린다 ${teacher ? "staff" : "owner"}`, async ({ page }) => {
+  test(`확인 대기 과제의 빨간 배지가 첫 방문·새로고침·처리 후 건수를 반영한다 ${teacher ? "staff" : "owner"}`, async ({ page }) => {
     await page.setViewportSize({ width: teacher ? 390 : 1366, height: 900 });
     await page.clock.install();
     const state = await setup(page, teacher ? "staff" : "owner");
@@ -184,8 +184,10 @@ for (const teacher of [false, true]) {
     state.pendingHomework = 1;
     await page.clock.fastForward(31_000);
     const toast = page.getByText("확인 대기 과제 제출 1건 추가", { exact: true });
-    await expect(toast).toHaveCount(1);
-    await page.getByRole("button", { name: "확인 대기 과제 보기", exact: true }).click();
+    await expect(toast).toHaveCount(0);
+    const badge = page.getByRole("link", { name: "확인 대기 과제 제출 1건 열기", exact: true });
+    await expect(badge).toBeVisible();
+    await badge.click();
     const math = page.getByRole("link", { name: /QA 워크북.*QA 수학/ });
     await expect(math).toContainText("확인 대기 1건");
     await expect(page.getByRole("link", { name: /QA 워크북.*QA 영어/ })).toHaveCount(0);
@@ -193,6 +195,7 @@ for (const teacher of [false, true]) {
 
     await page.reload();
     await expect(math).toBeVisible();
+    await expect(badge).toBeVisible();
     await expect(toast).toHaveCount(0);
     if (teacher) {
       await page.getByRole("button", { name: "알림 1건", exact: true }).click();
@@ -213,5 +216,6 @@ for (const teacher of [false, true]) {
     state.pendingHomework = 0;
     await page.clock.fastForward(31_000);
     await expect(page.getByText("확인 대기 과제가 없습니다", { exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: /확인 대기 과제 제출 .*건 열기/ })).toHaveCount(0);
   });
 }

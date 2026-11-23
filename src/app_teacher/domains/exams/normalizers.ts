@@ -66,6 +66,9 @@ export type HomeworkSubmission = {
   teacher_review_note: string;
   teacher_reviewed_at: string | null;
   teacher_review_updated_at: string | null;
+  teacher_accepted: boolean | null;
+  teacher_accepted_updated_at: string | null;
+  media_set_fingerprint: string | null;
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -241,6 +244,9 @@ function normalizeHomeworkSubmission(value: unknown): HomeworkSubmission | null 
     teacher_review_note: toStringValue(record.teacher_review_note) ?? "",
     teacher_reviewed_at: toStringValue(record.teacher_reviewed_at),
     teacher_review_updated_at: toStringValue(record.teacher_review_updated_at),
+    teacher_accepted: typeof record.teacher_accepted === "boolean" ? record.teacher_accepted : null,
+    teacher_accepted_updated_at: toStringValue(record.teacher_accepted_updated_at),
+    media_set_fingerprint: toStringValue(record.media_set_fingerprint),
   };
 }
 

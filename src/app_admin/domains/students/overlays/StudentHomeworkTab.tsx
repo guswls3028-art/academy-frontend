@@ -342,9 +342,9 @@ export default function StudentHomeworkTab({
                     <Badge
                       variant="solid"
                       size="sm"
-                      tone={homework.achievement ? (ACHIEVEMENT_TONE[homework.achievement] || "muted") : "muted"}
+                      tone={homework.teacher_accepted ? "success" : homework.achievement ? (ACHIEVEMENT_TONE[homework.achievement] || "muted") : "muted"}
                     >
-                      {homework.achievement ? (ACHIEVEMENT_LABEL[homework.achievement] || homework.achievement) : "검사 전"}
+                      {homework.teacher_accepted ? "과제 통과 인정" : homework.achievement ? (ACHIEVEMENT_LABEL[homework.achievement] || homework.achievement) : "검사 전"}
                     </Badge>
                     <Button
                       type="button"

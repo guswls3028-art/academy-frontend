@@ -19,7 +19,6 @@ import {
   Check as CheckIcon,
   Search as SearchIcon,
 } from "lucide-react";
-import { useHomeworkReviewForegroundAlert } from "@/shared/hooks/useHomeworkReviewForegroundAlert";
 import { useAdminNotificationCounts, type AdminNotificationItem } from "@admin/domains/admin-notifications";
 import { useProgram } from "@/shared/program";
 import { useAdminLayout } from "@admin/layout/useAdminLayout";
@@ -173,14 +172,8 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
     items: adminNotificationItems,
     failures: adminNotificationFailures,
     isFetching: adminNotificationsFetching,
-    dataUpdatedAt: notificationDataUpdatedAt,
     refetch: refetchAdminNotifications,
   } = useAdminNotificationCounts();
-  useHomeworkReviewForegroundAlert(
-    adminCounts.homeworkReviewByHomework,
-    notificationDataUpdatedAt,
-    "/workspace/results/submissions?homework=pending",
-  );
   const unreadCount = adminCounts.total;
   const hasNotificationFailures = adminNotificationFailures.length > 0;
 
