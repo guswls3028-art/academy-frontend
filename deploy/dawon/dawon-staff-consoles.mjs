@@ -1,5 +1,6 @@
 import {createTaskPicker} from './dawon-task-picker.mjs';
 import {catalog, createDesk, deskStyle} from './dawon-edition-desks.mjs';
+import {createStaffStatistics, staffStatisticsStyle} from './dawon-staff-statistics.mjs';
 
 const style = `
 [data-staff-rail]{margin:0 auto;max-width:1520px;box-sizing:border-box;padding:12px 22px 0;font:inherit;color:var(--color-text-primary,#302820)}
@@ -47,11 +48,11 @@ td:has(>[data-staff-attendance])>select:focus,td:has(>[data-staff-more][open])>s
 @media(prefers-reduced-motion:reduce){[data-staff-rail] nav a{transition:none}}
 `;
 
-function mountStaffConsole(makeDesk, menus, css, makePicker) {
+function mountStaffConsole(makeDesk, menus, css, makePicker, makeStatistics) {
   if (document.querySelector('#dawon-demo-switcher')?.dataset.shell !== 'native') return;
   const codes = {PRESENT:'출석', LATE:'지각', ONLINE:'동영상', ABSENT:'결석'};
   const origin = location.origin;
-  let desk, rail, activeRole, edition, lastLocation, pendingFrame, appointments, detailKey;
+  let desk, statistics, rail, activeRole, edition, lastLocation, pendingFrame, appointments, detailKey;
   let contextRequest, scheduleRequest;
   let nextEvidence;
   const edited = new WeakSet();
@@ -287,6 +288,7 @@ function mountStaffConsole(makeDesk, menus, css, makePicker) {
     const view = document.documentElement.dataset.dawonEdition || 'A';
     const mounted = main && Object.hasOwn(menus,role) && url.pathname.startsWith('/workspace/');
     if (!mounted || activeRole !== role || edition !== view || !rail?.isConnected) {
+      statistics?.clear(); statistics = null;
       desk?.clean(); rail?.remove(); appointments?.remove(); appointments = null;
       scheduleRequest?.abort(); contextRequest?.abort(); desk = null; rail = null;
       activeRole = null; lastLocation = null;
@@ -294,9 +296,15 @@ function mountStaffConsole(makeDesk, menus, css, makePicker) {
       activeRole = role; edition = view;
       desk = makeDesk(view,role,menus[role],node,go,guarded,main,makePicker,roleApi);
       rail = desk.root;
+      statistics = makeStatistics({root:rail,role,api:roleApi,node});
     }
     const current = href(url);
-    if (lastLocation !== current) { lastLocation = current; desk.route(url); }
+    if (lastLocation !== current) {
+      lastLocation = current;
+      desk.route(url);
+      if (url.pathname === '/workspace/results') void statistics.show(url);
+      else statistics.clear();
+    }
     if (url.pathname === '/workspace/students/home' && !url.searchParams.has('student')) {
       scheduleList();
       const filters = main.querySelector('[aria-label="학생 조회 조건"]');
@@ -352,4 +360,5 @@ function mountStaffConsole(makeDesk, menus, css, makePicker) {
 }
 
 export const staffConsoleScript = '(' + mountStaffConsole.toString() + ')(' + createDesk.toString() + ','
-  + JSON.stringify(catalog) + ',' + JSON.stringify(style + deskStyle) + ',' + createTaskPicker.toString() + ');';
+  + JSON.stringify(catalog) + ',' + JSON.stringify(style + deskStyle + staffStatisticsStyle) + ',' +
+  createTaskPicker.toString() + ',' + createStaffStatistics.toString() + ');';

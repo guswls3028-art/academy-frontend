@@ -61,7 +61,8 @@ export function staffReturnPath(value, role) {
   for (const [key,item] of url.searchParams) {
     const picker = key === 'work' && path === 'lectures' && ['attendance','assignments'].includes(item);
     const schedule = key === 'schedule' && session && /^[1-9]\d*$/.test(item);
-    if (filters.has(key) || picker || schedule) params.append(key,item);
+    const statistics = path === 'results' && ['statsCourse','statsSession','statsExam','statsStudent'].includes(key) && /^[1-9]\d*$/.test(item);
+    if (filters.has(key) || picker || schedule || statistics) params.append(key,item);
   }
   return url.pathname + (params.size ? '?' + params : '') + url.hash;
 }

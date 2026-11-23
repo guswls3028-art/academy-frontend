@@ -119,6 +119,37 @@ html[data-dawon-edition=A] [data-dawon-staff] main .ds-table tbody tr:focus-with
 .ed-picker-list a{gap:6px}.ed-picker-list a small{font-size:11px}
 }
 
+[data-edition-desk] [hidden]{display:none!important}
+[data-edition-desk] nav.ed-work-links{display:flex;align-items:stretch;justify-content:flex-start;gap:6px;flex-wrap:wrap;border:0;background:transparent;padding:0;margin:0;width:auto}
+[data-edition-desk] nav.ed-work-links a,.ed-queue-link{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-width:0;min-height:44px;padding:6px 14px;border:1px solid var(--ed-line);border-radius:4px;background:white;color:var(--ed-ink);font:650 14px/1.35 system-ui,sans-serif;text-decoration:none;word-break:keep-all}
+[data-edition-desk] nav.ed-work-links a:is(:hover,:focus-visible),.ed-queue-link:hover{background:var(--ed-tint);border-color:var(--ed-accent)}
+[data-edition-desk=A] nav.ed-work-links{border:1px solid var(--ed-line);border-top:0;padding:0 12px;gap:0;background:white}
+[data-edition-desk=A] nav.ed-work-links a{border:0;border-radius:0;padding-inline:16px;color:var(--ed-accent)}
+[data-edition-desk=B] .ed-resume{display:flex;align-items:center;justify-content:space-between;gap:12px 18px;flex-wrap:wrap;border:1px solid var(--ed-line);border-left:4px solid var(--ed-accent);border-radius:5px;background:white;margin-top:8px;padding:12px 16px}
+.ed-resume-heading{display:grid;gap:2px;min-width:0;overflow-wrap:anywhere}.ed-resume-heading>span{font-size:13px;font-weight:700;color:var(--ed-accent)}.ed-resume-heading>strong{font-size:17px}.ed-resume-heading>small{font-size:13px}
+[data-edition-desk=B] .ed-recent a{display:inline-flex;align-items:center;min-height:40px;max-width:100%;overflow-wrap:anywhere;line-height:1.4}
+[data-edition-desk=C] .ed-caption{align-items:center}.ed-queue-link{margin-inline-start:auto;min-height:44px;padding:4px 8px;border:0;background:transparent;color:var(--ed-accent);text-decoration:underline;text-underline-offset:3px}
+[data-edition-desk=C] nav.ed-work-links{margin-top:6px}.ed-directory{margin-top:8px}
+.ed-picker-list a{box-sizing:border-box}.ed-picker-list strong{min-width:0;overflow-wrap:anywhere}.ed-picker-list small{white-space:nowrap}
+@media(max-width:700px){
+ [data-edition-desk] :is(select,input[type=search],.ed-search button,.ed-picker-list button){min-height:44px}
+ [data-edition-desk] nav.ed-work-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;width:100%}
+ [data-edition-desk] nav.ed-work-links a{font-size:13px;padding:5px 4px;min-height:44px}
+ [data-edition-desk=A] nav.ed-work-links{padding:0}
+ [data-edition-desk=B] .ed-resume{padding:9px 11px;gap:6px 12px}
+ [data-edition-desk=B] .ed-resume nav{width:auto;grid-template-columns:repeat(2,minmax(0,1fr))}
+ [data-edition-desk=B] .ed-resume nav a{padding-inline:10px}
+ [data-edition-desk=B] .ed-recent{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;overflow:visible;margin-top:6px;padding:6px 0}
+ [data-edition-desk=B] .ed-recent span{grid-column:1/-1}
+ [data-edition-desk=B] .ed-recent a{display:flex;min-height:44px;white-space:normal;line-height:1.35;justify-content:flex-start;padding:5px 8px;text-align:left}
+ [data-edition-desk=C] .ed-caption{margin:0}.ed-queue-link{font-size:13px}
+ [data-dawon-staff] main:has([data-ed-home]) :is(input[type=date],select){min-height:44px}
+ [data-dawon-staff] main:has([data-ed-home]) table:has(a[href*="lectures?class="]) :is(th button,td a){display:inline-flex;align-items:center;min-height:44px;min-width:44px}
+ [data-dawon-staff] main:has([data-ed-home]) table:has(a[href*="lectures?class="]) td:has(>a){padding-block:2px}
+ [data-dawon-staff] main:has([data-ed-home]) table:has(a[href*="lectures?class="]) td small{margin-top:-3px;padding-bottom:3px}
+ [data-dawon-staff] main:has([data-ed-home]) a[href*="/sessions/"],[data-dawon-staff] main:has([data-ed-home]) a[href*="panel=alerts"]{min-height:44px;display:inline-flex;align-items:center}
+}
+
 `;
 
 export function createDesk(edition, role, groups, n, navigate, canLeave, main, makePicker, api) {
@@ -133,8 +164,16 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
     {label:'출결 입력',path:'lectures?work=attendance',keys:'출결 출석 지각 동영상 결석 출석부'},
     {label:'과제 확인',path:'lectures?work=assignments',keys:'과제 숙제 제출 확인 과제 관리'},
   ];
+  const aliases = {
+    results:'성적 통계 시험 통계 성적표 점수 분포 백분위 회차별 추이 시험 결과',
+    'students/home':'학생 명단 학생 조회 학생 검색',
+    'students/surveys/school-reports':'학교 성적 내신 성적 취합 중간 기말',
+    'community/counsel':'상담 신청 상담 내역',
+    'teacher-alerts':'학습 경보 학습 알림',
+  };
   const compact = term => term.trim().replace(/\s/g,'').toLowerCase();
-  const matchesTerm = (item,term) => compact(item.label + ' ' + (item.group || '') + ' ' + (item.keys || '')).includes(term);
+  const matchesTerm = (item,term) => compact([item.label,item.group,item.keys,aliases[item.path]].filter(Boolean).join(' ')).includes(term);
+  const isOverview = url => url.pathname === '/workspace/dashboard' && !url.searchParams.has('panel');
   const urlOf = path => {
     const url = new URL('/workspace/' + path,location.origin);
     url.searchParams.set('edition',edition);
@@ -142,6 +181,11 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
   };
   function makeLink(item) {
     return n('a',item.label,{href:urlOf(item.path),'data-staff-link':'','data-edition-path':item.path});
+  }
+  function workLinks(label,items) {
+    const nav = n('nav',null,{class:'ed-work-links','aria-label':label});
+    nav.append(...items.map(makeLink));
+    return nav;
   }
   function picker() {
     const select = n('select',null,{'aria-label':'전체 업무 이동'});
@@ -168,8 +212,10 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
     const action = n('label','업무 이동',{class:'ed-select'});
     action.append(picker());
     bar.append(title,current,action);
-    root.append(bar);
+    const quick = workLinks('대장 바로가기',[...tasks,{label:'성적 통계',path:'results'}]);
+    root.append(bar,quick);
     update = (url,item) => {
+      quick.hidden = !isOverview(url);
       const setting = {'/workspace/settings/profile':'내 프로필','/workspace/settings/appearance':'화면 설정'}[url.pathname];
       current.textContent = [item?.group,setting || item?.label].filter(Boolean).join('  /  ');
     };
@@ -178,6 +224,8 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
     const jumps = n('nav',null,{class:'ed-recent','aria-label':'최근 연 업무'});
     const selector = picker();
     header.append(title,selector); root.append(header,jumps);
+    const sessionDesk = n('section',null,{class:'ed-resume','aria-label':'차시 작업대'});
+    root.append(sessionDesk);
     const storageKey = 'dawon:desk:recent:v2:' + role;
     const generation = localStorage.getItem('academy:auth-active-generation:v1');
     const known = [...tasks,...links];
@@ -188,11 +236,23 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
       if (session) return {path,label:session[1] === 'attendance' ? '차시 출결 이어서' : '차시 과제 이어서'};
       return null;
     }
-    let recent = [];
+    let recent = [], lastSession, labels = Object.create(null);
+    const sessionBase = path => /^(lectures\/[1-9]\d*\/sessions\/[1-9]\d*)\/(?:attendance|assignments)(?:\?schedule=[1-9]\d*)?$/.exec(path)?.[1];
+    function displayLabel(value) {
+      return value && typeof value.title === 'string' && typeof value.course === 'string' &&
+        typeof value.order === 'string' ? {title:value.title.slice(0,180),course:value.course.slice(0,120),order:value.order.slice(0,24)} : null;
+    }
     try {
       const saved = JSON.parse(sessionStorage.getItem(storageKey));
-      if (generation && saved?.generation === generation && Array.isArray(saved.paths))
-        recent = saved.paths.filter(path=>typeof path === 'string' && recentItem(path)).slice(0,4);
+      if (generation && saved?.generation === generation && Array.isArray(saved.paths)) {
+        recent = saved.paths.filter(path=>typeof path === 'string' && path!=='dashboard' && recentItem(path)).slice(0,4);
+        lastSession = typeof saved.lastSession === 'string' && sessionBase(saved.lastSession) ? saved.lastSession : recent.find(sessionBase);
+        for (const path of [lastSession,...recent]) {
+          const base = path && sessionBase(path);
+          const label = base && displayLabel(saved.labels?.[base]);
+          if (label) labels[base] = label;
+        }
+      }
     } catch {}
     const side = main.parentElement.querySelector(':scope > aside');
     const searchBox = n('div',null,{class:'ed-index'});
@@ -215,7 +275,11 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
       const items=term ? [...tasks,...links].filter(it=>matchesTerm(it,term)) : [];
       results(mobileResults,items); mobileEmpty.hidden=!term || !!items.length;
     };
-    mobileSearch.onkeydown = e => { if(e.key==='Enter') mobileResults.querySelector('a')?.click(); };
+    mobileSearch.onkeydown = e => {
+      if (e.isComposing || e.keyCode===229) return;
+      if (e.key==='Escape') { mobileSearch.value=''; mobileSearch.oninput(); }
+      if (e.key==='Enter' && mobileSearch.value.trim()) mobileResults.querySelector('a')?.click();
+    };
     const opened = new Map();
     function filter() {
       const term = compact(search.value);
@@ -224,7 +288,8 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
         let visible = 0;
         const heading = group.querySelector('h2,summary')?.textContent || '';
         for (const a of group.querySelectorAll('a')) {
-          const match = (heading + a.textContent).replace(/\s/g,'').includes(term);
+          const route = new URL(a.href,location.href).pathname.slice('/workspace/'.length);
+          const match = matchesTerm({label:a.textContent,group:heading,path:route},term);
           a.hidden = !match;
           if (match) visible++;
         }
@@ -241,7 +306,9 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
     }
     search.oninput = filter;
     search.onkeydown = e => {
-      if (e.key==='Enter') (matches.querySelector('a') || side?.querySelector('nav a:not([hidden])'))?.click();
+      if (e.isComposing || e.keyCode===229) return;
+      if (e.key==='Escape') { search.value=''; filter(); }
+      if (e.key==='Enter' && search.value.trim()) (matches.querySelector('a') || side?.querySelector('nav a:not([hidden])'))?.click();
     };
     update = (url,item) => {
       mobileSearch.value=''; mobileSearch.oninput();
@@ -249,9 +316,40 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
       const schedule = url.searchParams.get('schedule') || '';
       const detail = recentItem(route + (/^[1-9]\d*$/.test(schedule) ? '?schedule='+schedule : ''));
       const path = detail?.path.includes('/sessions/') ? detail.path : item?.path;
-      if (path && recentItem(path)) recent = [path,...recent.filter(p => p !== path)].slice(0,4);
-      try { if (generation) sessionStorage.setItem(storageKey,JSON.stringify({generation,paths:recent})); } catch {}
-      jumps.replaceChildren(n('span','최근 업무'),...recent.map(p=>makeLink(recentItem(p))));
+      if (path && path!=='dashboard' && recentItem(path)) recent = [path,...recent.filter(p => p !== path)].slice(0,4);
+      const base = path && sessionBase(path);
+      if (base) {
+        lastSession = path;
+        const label = displayLabel(sessionPicker.sessionLabel(base));
+        if (label) labels[base] = label;
+      }
+      const keep = new Set([lastSession,...recent].filter(Boolean).map(sessionBase));
+      for (const key of Object.keys(labels)) if (!keep.has(key)) delete labels[key];
+      try { if (generation) sessionStorage.setItem(storageKey,JSON.stringify({generation,paths:recent,lastSession,labels})); } catch {}
+      jumps.hidden = !recent.length;
+      jumps.replaceChildren(n('span','최근 업무'),...recent.map(p=>{
+        const item = recentItem(p), label = labels[sessionBase(p)], a = makeLink(item);
+        if (label) {
+          a.textContent = label.title + ' · ' + (p.split('?')[0].endsWith('/attendance') ? '출결' : '과제');
+          a.title = [label.course,label.order,label.title,item.label].filter(Boolean).join(' · ');
+          a.setAttribute('aria-label',a.title);
+        }
+        return a;
+      }));
+      const onHome = isOverview(url);
+      sessionDesk.hidden = !onHome;
+      if (onHome) {
+        const last = lastSession && sessionBase(lastSession), meta = labels[last];
+        const heading = n('div',null,{class:'ed-resume-heading'});
+        heading.append(n('span',last?'마지막으로 연 차시':'차시 업무 시작'));
+        if (last) heading.append(n('strong',meta?.title || '최근 차시'),n('small',meta?[meta.course,meta.order].filter(Boolean).join(' · '):''));
+        const items = tasks.map((task,i)=>{
+          const tab = i===0?'attendance':'assignments';
+          const destination = lastSession?.split('?')[0] === last+'/'+tab ? lastSession : last+'/'+tab;
+          return {label:task.label,path:last ? destination : task.path};
+        });
+        sessionDesk.replaceChildren(heading,workLinks('차시 작업 선택',items));
+      }
       if (search.value) { search.value=''; filter(); }
     };
     clean = () => { search.value=''; filter(); searchBox.remove(); };
@@ -277,7 +375,7 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
         let visible = 0;
         for (const a of section.querySelectorAll('a')) {
           const task = tasks.find(item=>item.path===a.dataset.editionPath);
-          const match = task ? matchesTerm({...task,group:'차시 업무'},term) : compact(section.firstChild.textContent + a.textContent).includes(term);
+          const match = matchesTerm(task ? {...task,group:'차시 업무'} : {label:a.textContent,group:section.firstChild.textContent,path:a.dataset.editionPath},term);
           a.hidden = !match; if (match) visible++;
         }
         section.hidden = !visible; total += visible;
@@ -285,18 +383,17 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
       status.hidden = !!total;
       status.textContent = total ? '' : '일치하는 업무가 없습니다.';
     }
-    const wide = window.matchMedia('(min-width:701px)');
-    const preferredOpen = () => wide.matches && location.pathname === '/workspace/dashboard' && !new URL(location.href).searchParams.has('panel');
     function open(value) { shelf.hidden = !value; toggle.setAttribute('aria-expanded',String(value)); }
-    const responsive = () => open(!!search.value || preferredOpen());
     toggle.onclick = () => open(shelf.hidden);
     search.onkeydown = event => {
+      if (event.isComposing || event.keyCode===229) {
+        if (event.key==='Enter') event.preventDefault();
+        return;
+      }
       if (event.key === 'Escape') { search.value=''; filter(); open(false); }
     };
-    wide.addEventListener('change',responsive);
-    clean = () => wide.removeEventListener('change',responsive);
     let searchLocation;
-    search.oninput = () => { searchLocation = location.href; responsive(); filter(); };
+    search.oninput = () => { searchLocation = location.href; open(!!search.value); filter(); };
     form.className='ed-search';
     form.onsubmit = event => {
       event.preventDefault();
@@ -306,14 +403,24 @@ export function createDesk(edition, role, groups, n, navigate, canLeave, main, m
       if (first && canLeave()) navigate(first.href);
     };
     shelf.append(grid,status);
-    root.append(title,form,shelf);
+    const alertRoute = role === 'teacher' ? 'teacher-alerts?status=pending' : 'dashboard?panel=alerts&status=pending';
+    const triage = workLinks('사유별 미처리 학습 경보',[
+      {label:'연속 결석',path:alertRoute+'&rule=absence_streak'},
+      {label:'과제 미제출',path:alertRoute+'&rule=homework_missing'},
+      {label:'시험 점수 하락',path:alertRoute+'&rule=exam_drop'},
+    ]);
+    const queue = makeLink({label:'미처리 학습 경보',path:alertRoute});
+    queue.className='ed-queue-link';title.append(queue);
+    root.append(title,form,triage,shelf);
     update = url => {
+      triage.hidden = queue.hidden = !isOverview(url);
       if (searchLocation !== url.href) search.value='';
-      responsive(); filter();
+      open(!!search.value); filter();
     };
   }
   const sessionPicker = makePicker({role,root,node:n,api,urlOf,navigate,canLeave});
   function route(url) {
+    root.toggleAttribute('data-ed-home',isOverview(url));
     const relative = url.pathname.replace(/^\/workspace\//,'');
     const matches = links.filter(it=>{
       const [path,query] = it.path.split('?');

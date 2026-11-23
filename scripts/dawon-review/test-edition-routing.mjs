@@ -23,6 +23,11 @@ test('legacy aliases retain valid editions at their real destinations',() => {
 });
 
 test('only permitted staff entrances carry local work and native filters',async () => {
+  for (const actor of ['teacher','admin']) {
+    assert.equal(staffReturnPath('/workspace/results?statsCourse=7&statsSession=3&statsExam=9&statsStudent=11',actor),'/workspace/results?statsCourse=7&statsSession=3&statsExam=9&statsStudent=11');
+    assert.equal(staffReturnPath('/workspace/results?statsCourse=-2&statsExam=no',actor),'/workspace/results');
+    assert.equal(staffReturnPath('/workspace/lectures?statsCourse=7',actor),'/workspace/lectures');
+  }
   for (const invalid of ['https://example.test','//example.test','/workspace/../login','/workspace/%2e%2e/login','/api/v1/me','/workspace/mobile/students'])
     assert.equal(staffReturnPath(invalid,'teacher'),null);
   assert.equal(staffReturnPath('/workspace/staff?month=2026-11','teacher'),null);

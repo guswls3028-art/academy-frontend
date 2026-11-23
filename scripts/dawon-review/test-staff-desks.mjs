@@ -48,6 +48,16 @@ test('an interrupted request cannot replace a new selection and a failed read ca
   assert.ok(button);button.onclick();await new Promise(r=>setImmediate(r));
   assert.ok(all(root.children.at(-1)).some(el=>el.text==='이 강의에 등록된 차시가 없습니다.'));
 });
+test('the next session page keeps the selected lecture and returns its resumable label',async()=>{
+  const {picker,requests,show}=setup(path=>{
+    if(path.startsWith('students/')) return {lectures:[{id:7,title:'미적분'}]};
+    if(!path.includes('&page=')) return {results:[],next:'?page=2&lecture=8'};
+    return {results:[{id:31,lecture:7,order:14,title:'위치와 속도'}],next:null};
+  });
+  await show('work=attendance&course=7');
+  assert.equal(requests.at(-1).path,'lectures/sessions/?lecture=7&page=2');
+  assert.deepEqual(picker.sessionLabel('lectures/7/sessions/31'),{title:'위치와 속도',course:'미적분',order:'14회차'});
+});
 test('both role home pages contain a calendar; guardian return uses the selected day and role',()=>{
   for (const role of ['student','guardian']) {
     const html=renderDawonLearner(new URL('/?preview='+role,origin));

@@ -3,6 +3,7 @@
 export function createTaskPicker({role, root, node, api, urlOf, navigate, canLeave}) {
   const actions = {attendance:'출결 입력',assignments:'과제 확인'};
   let panel, controller, scope, key;
+  const sessionLabels = new Map();
   const validId = id => Number.isSafeInteger(id) && id > 0;
   const base = (work,course) => 'lectures?work=' + work + (course ? '&course=' + course : '');
   function clear() {
@@ -51,18 +52,35 @@ export function createTaskPicker({role, root, node, api, urlOf, navigate, canLea
       if (!course) { body.replaceChildren(); return; }
       if (!select.value) { status('이 강의는 조회할 수 없습니다. 다른 강의를 선택해 주세요.'); return; }
       status('차시를 불러오는 중입니다.');
-      const result = await api(role,'lectures/sessions/?lecture=' + course,signal);
-      if (signal.aborted) return;
-      const sessions = Array.isArray(result) ? result : result?.results;
-      if (!Array.isArray(sessions)) throw Error('sessions');
+      const sessions = [];
+      const endpoint = 'lectures/sessions/?lecture=' + course;
+      let page = 1;
+      for (;;) {
+        const result = await api(role,endpoint + (page === 1 ? '' : '&page=' + page),signal);
+        if (signal.aborted) return;
+        const items = Array.isArray(result) ? result : result?.results;
+        if (!Array.isArray(items)) throw Error('sessions');
+        sessions.push(...items);
+        if (!result.next) break;
+        const next = Number(new URL(result.next,url).searchParams.get('page'));
+        if (!validId(next) || next <= page) throw Error('pagination');
+        page = next;
+      }
       const rows = sessions.filter(row=>validId(row.id) && String(row.lecture) === course)
         .sort((a,b)=>(a.order ?? Infinity)-(b.order ?? Infinity) || a.id-b.id);
       if (!rows.length) { status('이 강의에 등록된 차시가 없습니다.'); return; }
       const list = node('ul');
+      const courseTitle = scope.find(item => String(item.id) === course)?.title || '';
       for (const row of rows) {
-        const route = 'lectures/' + course + '/sessions/' + row.id + '/' + work;
+        const sessionPath = 'lectures/' + course + '/sessions/' + row.id;
+        const route = sessionPath + '/' + work;
         const a = node('a',null,{href:urlOf(route),'data-staff-link':'','data-edition-path':route});
         const number = Number.isInteger(row.order) ? row.order + '회차' : '회차 미정';
+        sessionLabels.set(sessionPath, {
+          title: row.title || row.display_label || number,
+          course: courseTitle,
+          order: number,
+        });
         a.append(node('span',number),node('strong',row.title || row.display_label || '제목 미등록'),
           node('small',row.date || '날짜 미정'));
         const li = node('li'); li.append(a); list.append(li);
@@ -75,5 +93,5 @@ export function createTaskPicker({role, root, node, api, urlOf, navigate, canLea
       body.replaceChildren(node('p','목록을 불러오지 못했습니다.',{role:'alert'}),retry);
     }
   }
-  return {show,clear};
+  return {show,clear,sessionLabel:path => sessionLabels.get(path)};
 }
