@@ -13,8 +13,6 @@ import {
 import { fetchSessionScores, patchAssessmentCorrection, type SessionScoresResponse } from "@/shared/api/contracts/sessionScores";
 import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
-import useAuth from "@/auth/hooks/useAuth";
-import { canSendManualAlimtalk } from "@/shared/messaging/messagePermissions";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -23,7 +21,7 @@ import { formatSubmissionDate } from "@admin/domains/submissions/statusMaps";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import { Badge, Button, EmptyState } from "@/shared/ui/ds";
-import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
+import HomeworkMissingNoticeButton from "@/shared/ui/submissions/HomeworkMissingNoticeButton";
 import { QUERY_KEYS } from "../queryKeys";
 import HomeworkFileGallery from "@/shared/ui/submissions/HomeworkFileGallery";
 import HomeworkBulkAcceptance from "@/shared/ui/submissions/HomeworkBulkAcceptance";
@@ -43,12 +41,10 @@ function hasRecordedScore(scores: SessionScoresResponse | undefined, row: Homewo
 
 export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: number }) {
   const confirm = useConfirm();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const hwQ = useAdminHomework(homeworkId);
   const sessionId = Number(hwQ.data?.session_id);
   const reviewActionRef = useRef(false);
-  const [notSubmittedNotif, setNotSubmittedNotif] = useState(false);
   const [previewFile, setPreviewFile] = useState<HomeworkSubmissionMediaFile | null>(null);
   const [previewFingerprint, setPreviewFingerprint] = useState<string | null>(null);
   const [viewedFiles, setViewedFiles] = useState<Map<string, string>>(() => new Map());
@@ -171,11 +167,7 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
           <p>제출 사진을 눌러 확대할 수 있습니다. 통과를 누르면 기존 점수를 유지하고 과제를 통과로 인정합니다.</p>
         </div>
         <div className={styles.headerActions}>
-          {canSendManualAlimtalk(user?.tenantRole) && (
-            <Button type="button" intent="ghost" size="sm" onClick={() => setNotSubmittedNotif(true)}>
-              미제출 알림 발송
-            </Button>
-          )}
+          <HomeworkMissingNoticeButton key={homeworkId} homeworkId={homeworkId} />
           <Button type="button" intent="ghost" size="sm" onClick={() => { void q.refetch(); void scoreQ.refetch(); }}>
             새로고침
           </Button>
@@ -191,15 +183,6 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
         <div data-tone="success"><span>확인 완료</span><strong>{summary.reviewed}</strong><small>명</small></div>
       </div>
 
-      <NotificationPreviewModal
-        open={notSubmittedNotif}
-        onClose={() => setNotSubmittedNotif(false)}
-        mode="manual"
-        trigger="assignment_not_submitted"
-        contextSource={{ type: "assignment_not_submitted", homework_id: homeworkId }}
-        label="과제 미제출 알림"
-        sendTo="parent"
-      />
       <HomeworkMediaPreviewModal
         open={previewFile != null}
         homeworkId={homeworkId}

@@ -147,6 +147,7 @@ const HOMEWORK_FAILURE_PHASES = new Set([
   "feedback-restore-order", "feedback-criteria", "feedback-post-criteria", "criteria-setup", "criteria-open", "criteria-invalid-input",
   "criteria-save", "criteria-reload", "criteria-api", "criteria-parent", "criteria-preview",
   "preview-compose", "preview-preflight", "preview-personalization", "preview-final",
+  "notice-inbox", "notice-preview", "notice-grade", "notice-student",
 ]);
 const SAFE_FAILURE_STATIC_ENDPOINTS = new Set([
   "/api/v1/clinic/idcard/",
@@ -712,7 +713,7 @@ export function observeReleaseTestResult(stdout) {
                   destination = "homeworkFlowFailures";
                   const setup = value?.phase === "feedback-setup";
                   const noThreshold = typeof value?.phase === "string"
-                    && (value.phase.startsWith("feedback-") || value.phase === "criteria-setup");
+                    && (value.phase.startsWith("feedback-") || value.phase.startsWith("notice-") || value.phase === "criteria-setup");
                   valid &&= file === "student-parent-homework-realuse.spec.ts"
                     && exactKeys(value, ["schema", "phase", "viewport", "threshold", "kind"])
                     && value.schema === "homework-flow-failure/v1"
