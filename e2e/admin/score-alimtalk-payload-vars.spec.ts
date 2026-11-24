@@ -9,6 +9,7 @@ import {
   buildScoreVars,
   collectUnenteredScoreItems,
   generateScoreReport,
+  scoreMessageStudentVars,
   substituteScoreVars,
 } from "../../src/shared/scoring/scoreReport";
 import { buildAnonymousBillboardDocument } from "../../src/app_admin/domains/scores/utils/anonymousBillboardPdfGenerator";
@@ -537,3 +538,33 @@ for (const gradingMode of ["SCORE", "COMPLETION"] as const) {
     });
   }
 }
+
+test("성적 문구가 실제 참조한 학생별 과제 슬롯의 판정만 전송한다", () => {
+  const row = scoreRow("NOT_SUBMITTED");
+  const hw = row.homeworks[0];
+  row.homeworks = [
+    { ...hw, homework_id: 24, block: { ...hw.block, score: 0 } },
+    { ...hw, homework_id: 23, block: { ...hw.block, teacher_accepted: true } },
+    hw,
+  ];
+  const meta = { ...scoreMeta, homeworks: [21, 22, 23, 24].map(homework_id => ({ ...scoreMeta.homeworks[0], homework_id })) };
+  const values = buildScoreVars(row, meta);
+  const compact = (body: string) => compactGradesPerStudentPayloadVars(body, { 101: scoreMessageStudentVars(body, row, meta, values) })![101];
+  const expected = [[1, 21, "missing"], [3, 23, "accepted"], [4, 24, "other"]];
+  for (const key of ["과제목록", "시험성적", "선생님메모", "전체요약", "숙제완성도"]) {
+    expect(JSON.parse(compact(`#{${key}}`)._homework_notice_states)).toEqual(expected);
+  }
+  expect(JSON.parse(compact("#{과제4결과} #{과제1} #{과제4}")._homework_notice_states)).toEqual([expected[0], expected[2]]);
+  for (const body of ["안녕하세요", "#{과제2결과}", "#{과제1명} #{과제1만점} #{과제1최고점} #{시험목록}"]) {
+    expect(compact(body)).not.toHaveProperty("_homework_notice_states");
+  }
+  const alternate = scoreRow(null);
+  const body = "#{과제1결과}";
+  const multiple = compactGradesPerStudentPayloadVars(body, {
+    101: scoreMessageStudentVars(body, row, meta, values),
+    102: scoreMessageStudentVars(body, alternate, meta, buildScoreVars(alternate, meta)),
+  })!;
+  expect(JSON.parse(multiple[101]._homework_notice_states)).toEqual([expected[0]]);
+  expect(JSON.parse(multiple[102]._homework_notice_states)).toEqual([[1, 21, "other"]]);
+  expect(multiple[101]._body_subst).toBe("미제출");
+});

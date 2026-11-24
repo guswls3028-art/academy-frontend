@@ -34,7 +34,7 @@ import { submitClinicRetake, updateClinicRetake } from "@admin/domains/clinic/ap
 import { patchExamTotalScoreQuick } from "../api/patchExamTotalQuick";
 import type { SaveDrawerHomeworkScore } from "../api/patchHomeworkQuick";
 import HomeworkScoreEditor from "./HomeworkScoreEditor";
-import { buildScoreVars, buildScoreDetail, collectHighestScores, substituteScoreVars, collectUnenteredScoreItems, usesVideoHomeworkLabelInScoreAlimtalk } from "@/shared/scoring/scoreReport";
+import { buildScoreVars, buildScoreDetail, collectHighestScores, scoreMessageStudentVars, collectUnenteredScoreItems, usesVideoHomeworkLabelInScoreAlimtalk } from "@/shared/scoring/scoreReport";
 import { useProgram } from "@/shared/program";
 import {
   getSessionRowAttentionCountLabel,
@@ -276,10 +276,7 @@ export default function StudentScoresDrawer({
     const scoreVars = buildScoreVars(currentRow, currentMeta, reportOptions);
     const recomputePerStudentVars = sid != null
       ? (currentBody: string) => ({
-          [sid]: {
-            ...scoreVars,
-            _body_subst: substituteScoreVars(currentBody, currentRow, currentMeta, reportOptions),
-          },
+          [sid]: scoreMessageStudentVars(currentBody, currentRow, currentMeta, scoreVars),
         })
       : undefined;
     openSendMessageModal({

@@ -86,6 +86,8 @@ export async function verifyAcceptedHomeworkNotices(origin: Page, request: APIRe
       await composer.getByRole("button", { name: `${scenario.homeworkTitle} 넣기`, exact: true }).click();
       const grade = await gradeResponse;
       expect(grade.status()).toBe(200);
+      const renderedVars = grade.request().postDataJSON().alimtalk_extra_vars_per_student[scenario.student.id];
+      expect(JSON.parse(renderedVars._homework_notice_states)).toEqual([[expect.any(Number), scenario.homeworkId, "accepted"]]);
       const preflight = await grade.json() as SendPreflightResponse;
       expect(preflight.blockers).toEqual([]);
       expect(preflight.preview_recipients.map(row => row.student_id)).toEqual([scenario.student.id]);

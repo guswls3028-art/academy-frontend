@@ -704,10 +704,7 @@ export function buildScoreVars(
   const completedHomeworks = homeworks.filter(({ block }) => (
     block.teacher_accepted || block.correction_status === "COMPLETED" || block.correction_status === "NOT_REQUIRED"
   )).length;
-  const homeworkSlots = [
-    ...(meta?.homeworks ?? []),
-    ...homeworks.filter(hw => !homeworkMetaById.has(hw.homework_id)),
-  ];
+  const homeworkSlots = homeworkReportSlots(homeworks, meta);
   for (let i = 0; i < homeworkSlots.length; i++) {
     const slot = homeworkSlots[i];
     const hw = homeworksById.get(slot.homework_id);
@@ -825,6 +822,31 @@ export function buildScoreVars(
   vars["사이트링크"] = vars["사이트링크"] ?? "";
 
   return vars;
+}
+
+function homeworkReportSlots(homeworks: SessionScoreRow["homeworks"], meta: SessionScoreMeta | null) {
+  const slots = meta?.homeworks ?? [];
+  const metaIds = new Set(slots.map(hw => hw.homework_id));
+  return [...slots, ...homeworks.filter(hw => !metaIds.has(hw.homework_id))];
+}
+
+const HOMEWORK_RESULT_AGGREGATES = new Set(["과제목록", "시험성적", "선생님메모", "전체요약", "숙제완성도"]);
+
+export function scoreMessageStudentVars(body: string, row: SessionScoreRow, meta: SessionScoreMeta | null, values: Record<string, string>) {
+  const result = { ...values, _body_subst: substituteScoreValues(body, values) } as Record<string, string>;
+  const referenced = new Set(Array.from(body.matchAll(/#\{([^}]+)\}/g), match => match[1]));
+  const all = [...referenced].some(name => HOMEWORK_RESULT_AGGREGATES.has(name));
+  if (!all && ![...referenced].some(name => /^과제[1-9]\d*(?:결과)?$/.test(name))) return result;
+  const byId = new Map(row.homeworks.map(hw => [hw.homework_id, hw.block]));
+  const states = homeworkReportSlots(row.homeworks, meta).flatMap(({ homework_id }, index) => {
+    const slot = index + 1;
+    const block = byId.get(homework_id);
+    if (!block || (!all && !referenced.has(`과제${slot}`) && !referenced.has(`과제${slot}결과`))) return [];
+    const state = block.teacher_accepted ? "accepted" : block.score == null && isExplicitNotSubmitted(block.meta?.status) ? "missing" : "other";
+    return [[slot, homework_id, state]];
+  });
+  if (states.length) result._homework_notice_states = JSON.stringify(states);
+  return result;
 }
 
 export function substituteScoreVars(
