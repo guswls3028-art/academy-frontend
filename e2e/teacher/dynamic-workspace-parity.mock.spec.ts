@@ -317,7 +317,7 @@ test("모바일 직원 근태도 과거 월 날짜를 추측하지 않고 현재
   await expect(page.locator('input[type="date"]').last()).toHaveValue("");
 });
 
-test("390px 선생님은 학생 상세를 PC canonical로 열고 선택한 모바일 정보 탭으로 한 번만 돌아온다", async ({ page }) => {
+test("390px 선생님은 PC 학생 상세를 닫고 간편 업무로 선택한 모바일 정보 탭을 복원한다", async ({ page }) => {
   const apiRequests = await installWorkspaceMocks(page, { role: "teacher", userId: 3 });
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoAndSettle(page, `${BASE}/workspace/mobile/students/41`, { timeout: 20_000 });
@@ -326,8 +326,14 @@ test("390px 선생님은 학생 상세를 PC canonical로 열고 선택한 모�
   await page.getByRole("navigation", { name: "학생 기록" }).getByRole("button", { name: "정보", exact: true }).click();
   await openContextualPcVersion(page);
   await expect(page).toHaveURL(/\/workspace\/students\/41$/);
+  const detail = page.getByRole("dialog", { name: "학생 상세" });
+  await expect(detail.getByRole("heading", { name: "패리티 학생" })).toBeVisible();
   await expectNoHorizontalOverflow(page);
+  await detail.getByRole("button", { name: "닫기" }).click();
+  await expect(detail).toBeHidden();
+  await expect(page).toHaveURL(/\/workspace\/mobile\/students\/41\?tab=info$/);
 
+  await gotoAndSettle(page, `${BASE}/workspace/dashboard`, { timeout: 20_000 });
   await returnToMobileVersion(page);
   await expect(page).toHaveURL(/\/workspace\/mobile\/students\/41\?tab=info$/);
   await expect(page.getByRole("navigation", { name: "학생 기록" }).getByRole("button", { name: "정보", exact: true })).toHaveAttribute("aria-pressed", "true");

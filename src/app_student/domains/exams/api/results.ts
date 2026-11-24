@@ -76,11 +76,8 @@ export type MyExamResultItem = {
 
 export async function fetchMyExamResult(examId: number): Promise<MyExamResult> {
   const res = await api.get(`/student/results/me/exams/${examId}/`);
-  try {
-    await api.post("/students/me/activity/exam-result-open/", { exam_id: examId });
-  } catch {
-    // Activity telemetry must never prevent the student from seeing a valid result.
-  }
+  // The activity acknowledgement is independent of displaying the result.
+  void api.post("/students/me/activity/exam-result-open/", { exam_id: examId }).catch(() => undefined);
   return res.data as MyExamResult;
 }
 
