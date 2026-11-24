@@ -1907,6 +1907,13 @@ test("달력에서 날짜를 고른 뒤 일정별 학생 관리로 추가·해�
   });
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.locator(".clinic-ops__card").filter({ hasText: "달력진입 학생" })).toHaveCount(0);
+  const timeRail = page.getByRole("group", { name: "시간대 필터" });
+  await expect(timeRail.getByRole("button", { name: "17:00 0명", exact: true })).toBeVisible();
+  await expect(page.locator(".clinic-ops__header-meta-item--count")).toHaveText(/학생\s*0명/);
+  await timeRail.getByRole("button", { name: "전체 시간 0명", exact: true }).click();
+  await expect(page.getByText("선택한 범위에 등록된 학생이 없습니다.")).toBeVisible();
+  await page.getByRole("button", { name: /취소·거절 이력\s*1/ }).click();
+  await expect(page.locator(".clinic-ops__card").filter({ hasText: "달력진입 학생" })).toContainText("취소된 일정");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -2713,6 +2720,11 @@ test("오늘 전체 복수 일정은 유일한 처리 대상을 노출하고 모
         session_location: "1층", status: "cancelled", checked_in_at: null, checked_out_at: null,
       },
       {
+        id: 830, session: 706, student: 527, student_name: "거절 일정 학생",
+        enrollment_id: 1027, session_date: today, session_start_time: "18:00:00",
+        session_location: "3층", status: "rejected", checked_in_at: null, checked_out_at: null,
+      },
+      {
         id: 828, session: 705, student: 526, student_name: "복수 일정 학생",
         enrollment_id: 1026, session_date: today, session_start_time: "17:00:00",
         session_location: "2층", status: "booked", checked_in_at: null, checked_out_at: null,
@@ -2738,9 +2750,19 @@ test("오늘 전체 복수 일정은 유일한 처리 대상을 노출하고 모
   await expect(uniqueRow).toContainText("20:00 · 2층");
 
   const cancelledRow = page.locator(".clinic-ops__card").filter({ hasText: "취소 일정 학생" });
+  const timeRail = page.getByRole("group", { name: "시간대 필터" });
+  await expect(timeRail.getByRole("button", { name: "전체 시간 2명", exact: true })).toBeVisible();
+  await expect(timeRail.getByRole("button", { name: "16:00 0명", exact: true })).toBeVisible();
+  await expect(timeRail.getByRole("button", { name: "18:00 1명", exact: true })).toBeVisible();
+  await expect(page.locator(".clinic-ops__card")).toHaveCount(2);
+  await expect(cancelledRow).toHaveCount(0);
+  await page.getByRole("button", { name: /취소·거절 이력\s*3/ }).click();
+  await expect(page.locator(".clinic-ops__card")).toHaveCount(3);
+  await expect(page.locator(".clinic-ops__card").filter({ hasText: "거절 일정 학생" })).toContainText("거절된 일정");
   await expect(cancelledRow).toContainText("취소된 일정이라 출결 처리할 수 없습니다.");
   await expect(cancelledRow.getByRole("button", { name: "등원", exact: true })).toHaveCount(0);
   await expect(cancelledRow.getByLabel("클리닉 진행 상태")).toHaveCount(0);
+  await page.locator(".clinic-ops__filters").getByRole("button", { name: /^전체\s*2$/ }).click();
 
   const ambiguousRow = page.locator(".clinic-ops__card").filter({ hasText: "복수 일정 학생" });
   await expect(ambiguousRow).toContainText("처리할 시간대를 선택하세요.");

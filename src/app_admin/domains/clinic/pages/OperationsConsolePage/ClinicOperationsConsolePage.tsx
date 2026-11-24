@@ -14,6 +14,7 @@ import { CalendarDays, Clock3, Users, X } from "lucide-react";
 import { fetchClinicSessionTree, deleteClinicSession } from "../../api/clinicSessions.api";
 import type { ClinicSessionDetail } from "../../api/clinicSessions.api";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
+import { countStudents, isActiveRosterParticipant, participantStudentKey } from "../../utils/clinicRoster";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import OngoingClinicSessions from "./OngoingClinicSessions";
@@ -38,12 +39,6 @@ function todayISO() {
 }
 
 type ConsoleScope = "onsite" | "day";
-
-function participantStudentKey(participant: ClinicParticipant): string {
-  return Number.isInteger(participant.student) && participant.student > 0
-    ? `student:${participant.student}`
-    : `participant:${participant.id}`;
-}
 
 export default function ClinicOperationsConsolePage() {
   const location = useLocation();
@@ -259,34 +254,26 @@ export default function ClinicOperationsConsolePage() {
     () => (participants.listQ.data ?? []) as ClinicParticipant[],
     [participants.listQ.data],
   );
+  const activeRows = useMemo(() => allRows.filter(isActiveRosterParticipant), [allRows]);
   const allStudentCount = useMemo(
-    () => new Set(allRows.map(participantStudentKey)).size,
-    [allRows],
+    () => countStudents(activeRows),
+    [activeRows],
   );
   const activeAssignmentStudentKeysBySession = useMemo(() => {
     const grouped = new Map<number, Set<string>>();
-    for (const participant of allRows) {
-      if (participant.status === "cancelled" || participant.status === "rejected") continue;
+    for (const participant of activeRows) {
       const students = grouped.get(participant.session) ?? new Set<string>();
       students.add(participantStudentKey(participant));
       grouped.set(participant.session, students);
     }
     return grouped;
-  }, [allRows]);
+  }, [activeRows]);
   const activeAssignmentStudentCount = useMemo(
     () => {
       const visibleSessionIds = new Set(sessionsForDay.map((candidate) => candidate.id));
-      return new Set(
-        allRows
-          .filter((participant) => (
-            visibleSessionIds.has(participant.session)
-            && participant.status !== "cancelled"
-            && participant.status !== "rejected"
-          ))
-          .map(participantStudentKey),
-      ).size;
+      return countStudents(activeRows.filter((participant) => visibleSessionIds.has(participant.session)));
     },
-    [allRows, sessionsForDay],
+    [activeRows, sessionsForDay],
   );
   const rows = useMemo(
     () => selectedSessionId == null
@@ -296,27 +283,16 @@ export default function ClinicOperationsConsolePage() {
   );
 
   const timeOptions = useMemo(() => {
-    const grouped = new Map<number, { id: number; time: string; students: Set<string> }>();
+    const timesBySession = new Map<number, string>();
     for (const participant of allRows) {
-      const current = grouped.get(participant.session);
-      if (current) {
-        current.students.add(participantStudentKey(participant));
-      } else {
-        grouped.set(participant.session, {
-          id: participant.session,
-          time: participant.session_start_time?.slice(0, 5) || "시간 미정",
-          students: new Set([participantStudentKey(participant)]),
-        });
-      }
+      timesBySession.set(participant.session, participant.session_start_time?.slice(0, 5) || "시간 미정");
     }
-    return [...grouped.values()].map((option) => ({
-      id: option.id,
-      time: option.time,
-      count: option.students.size,
-    })).sort((a, b) =>
-      a.time.localeCompare(b.time) || a.id - b.id
-    );
-  }, [allRows]);
+    return [...timesBySession].map(([id, time]) => ({
+      id,
+      time,
+      count: activeAssignmentStudentKeysBySession.get(id)?.size ?? 0,
+    })).sort((a, b) => a.time.localeCompare(b.time) || a.id - b.id);
+  }, [allRows, activeAssignmentStudentKeysBySession]);
 
   useEffect(() => {
     if (

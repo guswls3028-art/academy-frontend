@@ -287,6 +287,10 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
       id: participant.id,
       status: "cancelled",
     }));
+    const timeRail = adminPage.getByRole("group", { name: "시간대 필터" });
+    await expect(timeRail.getByRole("button", { name: "14:00 0명", exact: true })).toBeVisible();
+    await expect(timeRail.getByRole("button", { name: "전체 시간 0명", exact: true })).toBeVisible();
+    await expect(adminPage.locator(".clinic-ops__header-meta-item--count")).toHaveText(/학생\s*0명/);
     await expect(adminPage.locator(".clinic-ops__card").filter({ hasText: primaryStudent?.name })).toHaveCount(0);
     expect(await adminPage.locator("html").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 
