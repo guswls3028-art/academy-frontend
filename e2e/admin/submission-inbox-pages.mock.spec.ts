@@ -157,6 +157,22 @@ for (const teacher of [false, true]) {
     await expect(page.getByText("QA 과제 제출 학생", { exact: true })).toBeVisible();
     await page.reload();
     await expect(page.getByText("QA 과제 제출 학생", { exact: true })).toBeVisible();
+    const missingNotice = page.getByRole("button", { name: "미제출 알림 발송", exact: true });
+    if (teacher) {
+      // This mobile fixture is an assistant with submission review permission only.
+      await expect(missingNotice).toHaveCount(0);
+    } else {
+      await page.route("**/messaging/manual-notification/preview/", route => {
+        expect(route.request().postDataJSON()).toMatchObject({
+          trigger: "assignment_not_submitted", context_source: { type: "assignment_not_submitted", homework_id: 71 },
+        });
+        expect(route.request().postDataJSON()).not.toHaveProperty("student_ids");
+        return route.fulfill({ json: { preview_token: null, recipients: [], total_count: 0, excluded_count: 0 } });
+      });
+      await missingNotice.click();
+      await expect(page.getByText("발송 가능한 대상이 없습니다. 제외 사유를 확인해 주세요.")).toBeVisible();
+      await page.getByRole("dialog").getByRole("button", { name: "취소", exact: true }).click();
+    }
     expect(new Set(state.homeworkSubmissionRequests)).toEqual(new Set([71]));
     await page.goBack();
     await expect(math).toBeVisible();

@@ -8,6 +8,7 @@ import {
   buildScoreDetail,
   buildScoreVars,
   collectUnenteredScoreItems,
+  generateScoreReport,
   substituteScoreVars,
 } from "../../src/shared/scoring/scoreReport";
 import { buildAnonymousBillboardDocument } from "../../src/app_admin/domains/scores/utils/anonymousBillboardPdfGenerator";
@@ -504,3 +505,35 @@ test("@alimtalk-order 전체 성적 블록과 목록은 차시 순서를 사용�
   expect(sparse["시험목록"]).not.toContain("먼저 보는 시험");
   expect(sparse["과제목록"]).not.toContain("먼저 보는 과제");
 });
+
+for (const gradingMode of ["SCORE", "COMPLETION"] as const) {
+  for (const score of [null, 0]) {
+    test(`교사 접수는 이전 미제출을 대체하고 원점수를 유지한다 (${gradingMode}, ${score})`, () => {
+      const row = scoreRow("NOT_SUBMITTED");
+      row.exams = [];
+      row.attendance_status = "ONLINE";
+      const hw = row.homeworks[0];
+      hw.block = { ...hw.block, score, passed: true, teacher_accepted: true };
+      const meta = { ...scoreMeta, homeworks: [{ ...scoreMeta.homeworks[0], grading_mode: gradingMode }] };
+      const options = { showVideoHomeworkLabel: true };
+      const vars = buildScoreVars(row, meta, options);
+      const result = score === 0 && gradingMode === "SCORE" ? "0/10 (0%) 통과 (교사 확인)" : "통과 (교사 확인)";
+      expect(vars["과제1결과"]).toBe(result);
+      expect(vars["과제1"]).toBe(score === 0 && gradingMode === "SCORE" ? "0" : result);
+      expect(vars["과제목록"]).toContain(result);
+      expect(vars["시험성적"]).toContain(result);
+      expect(generateScoreReport(row, meta, options)).toContain(result);
+      expect(vars["숙제완성도"]).toBe("1/1 완료");
+      expect(vars["전체요약"]).toContain("최종: 합격");
+      expect(substituteScoreVars("#{과제1명}: #{과제1결과}", row, meta, options)).toBe(`연습과제: ${result}`);
+      expect(collectUnenteredScoreItems(row)).toEqual([]);
+
+      row.homeworks.push({ ...hw, homework_id: 22, title: "다른 과제",
+        block: { ...hw.block, score: null, passed: false, teacher_accepted: false } });
+      expect(buildScoreVars(row, meta)["과제2결과"]).toBe("미제출");
+      hw.block.meta = { status: null };
+      row.homeworks[1].block.meta = { status: null };
+      expect(collectUnenteredScoreItems(row)).toEqual(["과제: 다른 과제"]);
+    });
+  }
+}

@@ -1,3 +1,6 @@
+import { prepareScoreAlimtalkVariables } from "@/app_admin/domains/lectures/pages/scores/sessionScoreAlimtalk";
+import { compactGradesPerStudentPayloadVars } from "@/app_admin/domains/messages/components/scorePayloadVars";
+import type { SessionScoresResponse } from "@/shared/api/contracts/sessionScores";
 import { revealScoreManagement } from "../helpers/revealScoreManagement";
 /**
  * Student homework media submission -> assistant discovery/preview and UI grading
@@ -941,6 +944,32 @@ async function gradeHomework(
   });
 }
 
+function missingHomeworkPreview(request: APIRequestContext) {
+  return expectApi<{ total_count: number; preview_token: string | null; recipients: Array<{ student_id: number }> }>(
+    request, "POST", "/messaging/manual-notification/preview/", created.adminAccess!,
+    { trigger: "assignment_not_submitted", send_to: "parent",
+      context_source: { type: "assignment_not_submitted", homework_id: created.homeworkId } },
+  );
+}
+
+async function verifyAcceptedHomeworkNotice(request: APIRequestContext, studentId: number) {
+  const snapshot = await expectApi<SessionScoresResponse>(request, "GET",
+    `/results/admin/sessions/${created.sessionId}/scores/`, created.adminAccess!);
+  const row = snapshot.rows.find(item => item.student_id === studentId)!;
+  const homework = row.homeworks.find(item => item.homework_id === created.homeworkId)!;
+  expect(homework.block).toMatchObject({ teacher_accepted: true, passed: true, score: 0 });
+  const body = "#{과제목록}";
+  const perStudent = prepareScoreAlimtalkVariables([row], snapshot.meta, {}).recomputePerStudentVars(body);
+  const result = await expectApi<SendPreflightResponse>(request, "POST", "/messaging/send/preflight/", created.adminAccess!, {
+    raw_body: body, message_mode: "alimtalk", block_category: "grades", send_to: "parent", student_ids: [studentId],
+    alimtalk_extra_vars_per_student: compactGradesPerStudentPayloadVars(body, perStudent),
+  });
+  const preview = result.preview_recipients.find(recipient => recipient.student_id === studentId);
+  expect(preview?.full_message_body).toContain(`${homeworkTitle}: 0/100 (0%) 통과 (교사 확인)`);
+  expect(preview?.full_message_body).not.toContain("미제출");
+  expect((await missingHomeworkPreview(request)).recipients).toEqual([]);
+}
+
 async function verifyStudentHomeworkFiles(
   staffPage: Page,
   parentPage: Page,
@@ -1029,6 +1058,7 @@ async function verifyStudentHomeworkFiles(
       const bulkPassed = (row: HomeworkSummary) => row.score === 0 && row.teacher_accepted === true && row.passed;
       await waitForHomeworkSummary(request, studentAccess, bulkPassed);
       await waitForHomeworkSummary(request, parentAccess, bulkPassed, studentId);
+      await verifyAcceptedHomeworkNotice(request, studentId);
       await staffPage.reload({ waitUntil: "domcontentloaded" });
       await expect(staffPage.getByText("통과 인정됨", { exact: true })).toBeVisible();
       await assertNoHorizontalOverflow(staffPage);
@@ -1268,6 +1298,9 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       const originalUpload = page.waitForResponse((response) =>
         response.request().method() === "POST" && new URL(response.url()).pathname === uploadPath(created.homeworkId!),
       );
+      const initiallyMissing = await missingHomeworkPreview(request);
+      expect(initiallyMissing.recipients.map(row => row.student_id)).toEqual([student.id]);
+      expect(initiallyMissing.preview_token).toBeTruthy();
       await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
       expect((await originalUpload).status()).toBe(201);
       await expect(page.getByText("선택한 파일을 모두 제출했습니다.")).toBeVisible({ timeout: 45_000 });
@@ -1307,6 +1340,11 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await page.getByRole("link", { name: "과제 확인 결과", exact: true }).click();
       const allHomework = page.getByRole("group", { name: "과제 상태 필터" }).getByRole("button", { name: /^전체/ });
       await expect(allHomework).toHaveAttribute("aria-pressed", "true");
+      expect((await missingHomeworkPreview(request)).recipients).toEqual([]);
+      // The isolated qa-* runner uses the mock provider. An obsolete reviewed set must create no batch.
+      const changed = await expectApi<{ code: string }>(request, "POST", "/messaging/manual-notification/confirm/",
+        admin.access, { preview_token: initiallyMissing.preview_token }, [409]);
+      expect(changed.code).toBe("preview_changed");
       const submittedCard = page.locator(".stu-panel[data-session-type]").filter({ has: page.getByText(homeworkTitle, { exact: true }) });
       await expect(submittedCard).toContainText("온라인 제출물 확인 대기");
       const studentHomeRows = await openHomeWithGradeRows(page);

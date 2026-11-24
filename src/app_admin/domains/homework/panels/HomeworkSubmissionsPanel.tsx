@@ -13,6 +13,8 @@ import {
 import { fetchSessionScores, patchAssessmentCorrection, type SessionScoresResponse } from "@/shared/api/contracts/sessionScores";
 import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
+import useAuth from "@/auth/hooks/useAuth";
+import { canSendManualAlimtalk } from "@/shared/messaging/messagePermissions";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
@@ -33,12 +35,6 @@ function isNotSubmittedStatus(status: HomeworkSubmissionRow["status"]): boolean 
   return status === "not_submitted" || status === "NOT_SUBMITTED";
 }
 
-function getNotSubmittedStudentId(row: HomeworkSubmissionRow): number | null {
-  if (!isNotSubmittedStatus(row.status)) return null;
-  const studentId = Number(row.student_id);
-  return Number.isFinite(studentId) && studentId > 0 ? studentId : null;
-}
-
 function hasRecordedScore(scores: SessionScoresResponse | undefined, row: HomeworkSubmissionRow, homeworkId: number): boolean {
   return scores?.rows.some((scoreRow) => scoreRow.enrollment_id === row.enrollment_id &&
     scoreRow.homeworks.some((homework) => homework.homework_id === homeworkId &&
@@ -47,9 +43,9 @@ function hasRecordedScore(scores: SessionScoresResponse | undefined, row: Homewo
 
 export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: number }) {
   const confirm = useConfirm();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const hwQ = useAdminHomework(homeworkId);
-  const homeworkTitle = hwQ.data?.title ?? "";
   const sessionId = Number(hwQ.data?.session_id);
   const reviewActionRef = useRef(false);
   const [notSubmittedNotif, setNotSubmittedNotif] = useState(false);
@@ -151,9 +147,6 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
     return next;
   });
   const rows = useMemo(() => q.data ?? [], [q.data]);
-  const notSubmittedIds = rows
-    .map(getNotSubmittedStudentId)
-    .filter((studentId): studentId is number => studentId != null);
   const summary = useMemo(() => {
     const activeFiles = rows.flatMap((row) => row.files).filter((file) => !file.removed_at);
     return {
@@ -178,7 +171,7 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
           <p>제출 사진을 눌러 확대할 수 있습니다. 통과를 누르면 기존 점수를 유지하고 과제를 통과로 인정합니다.</p>
         </div>
         <div className={styles.headerActions}>
-          {notSubmittedIds.length > 0 && (
+          {canSendManualAlimtalk(user?.tenantRole) && (
             <Button type="button" intent="ghost" size="sm" onClick={() => setNotSubmittedNotif(true)}>
               미제출 알림 발송
             </Button>
@@ -203,10 +196,9 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
         onClose={() => setNotSubmittedNotif(false)}
         mode="manual"
         trigger="assignment_not_submitted"
-        studentIds={notSubmittedIds}
+        contextSource={{ type: "assignment_not_submitted", homework_id: homeworkId }}
         label="과제 미제출 알림"
         sendTo="parent"
-        context={{ 과제명: homeworkTitle }}
       />
       <HomeworkMediaPreviewModal
         open={previewFile != null}
