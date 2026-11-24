@@ -136,11 +136,12 @@ for (const teacher of [false, true]) {
   }
 }
 
-for (const teacher of [false, true]) {
-  test(`제출함에서 다른 강의의 과제를 찾아 검토 화면으로 바로 연다 ${teacher ? "teacher" : "admin"}`, async ({ page }) => {
-    await page.setViewportSize({ width: teacher ? 390 : 1366, height: 900 });
-    const state = await setup(page, teacher ? "staff" : "owner");
-    const path = teacher ? "/workspace/mobile/submissions" : "/workspace/results/submissions";
+for (const role of ["owner", "teacher", "staff"] as const) {
+  const mobile = role !== "owner";
+  test(`제출함에서 다른 강의의 과제를 찾아 검토 화면으로 바로 연다 ${role}`, async ({ page }) => {
+    await page.setViewportSize({ width: mobile ? 390 : 1366, height: 900 });
+    const state = await setup(page, role);
+    const path = mobile ? "/workspace/mobile/submissions" : "/workspace/results/submissions";
     await gotoAndSettle(page, `${BASE}${path}?page=5`);
     state.failHomeworkList = true;
     await page.getByRole("button", { name: "과제 제출 확인", exact: true }).click();
@@ -158,8 +159,7 @@ for (const teacher of [false, true]) {
     await page.reload();
     await expect(page.getByText("QA 과제 제출 학생", { exact: true })).toBeVisible();
     const missingNotice = page.getByRole("button", { name: "미제출 알림 발송", exact: true });
-    if (teacher) {
-      // This mobile fixture is an assistant with submission review permission only.
+    if (role === "staff") {
       await expect(missingNotice).toHaveCount(0);
     } else {
       await page.route("**/messaging/manual-notification/preview/", route => {
@@ -167,10 +167,22 @@ for (const teacher of [false, true]) {
           trigger: "assignment_not_submitted", context_source: { type: "assignment_not_submitted", homework_id: 71 },
         });
         expect(route.request().postDataJSON()).not.toHaveProperty("student_ids");
-        return route.fulfill({ json: { preview_token: null, recipients: [], total_count: 0, excluded_count: 0 } });
+        const recipients = mobile ? [{
+          student_id: 91, student_name: "QA 미제출 학생", full_message_body: "QA 워크북 미제출 안내",
+          phone_masked: "010-****-0091", excluded: false,
+        }] : [];
+        return route.fulfill({ json: { preview_token: recipients.length ? "qa-preview" : null,
+          recipients, total_count: recipients.length, sendable_count: recipients.length, excluded_count: 0 } });
       });
       await missingNotice.click();
-      await expect(page.getByText("발송 가능한 대상이 없습니다. 제외 사유를 확인해 주세요.")).toBeVisible();
+      if (mobile) {
+        const dialog = page.getByRole("dialog");
+        await expect(dialog.getByRole("radio")).toHaveCount(1);
+        await expect(dialog.getByRole("radio")).toContainText("QA 미제출 학생");
+        await expect(dialog.locator(".kakao-alimtalk-preview__body")).toHaveText("QA 워크북 미제출 안내");
+      } else {
+        await expect(page.getByText("발송 가능한 대상이 없습니다. 제외 사유를 확인해 주세요.")).toBeVisible();
+      }
       await page.getByRole("dialog").getByRole("button", { name: "취소", exact: true }).click();
     }
     expect(new Set(state.homeworkSubmissionRequests)).toEqual(new Set([71]));
@@ -178,7 +190,7 @@ for (const teacher of [false, true]) {
     await expect(math).toBeVisible();
     await page.getByRole("button", { name: "제출함으로 돌아가기", exact: true }).click();
     await expect(page.getByText("QA 학생 001", { exact: true })).toBeVisible();
-    if (teacher) {
+    if (mobile) {
       await gotoAndSettle(page, `${BASE}/workspace/mobile/notifications`);
       await page.getByRole("button", { name: "과제 제출 확인", exact: true }).click();
       await expect(math).toBeVisible();

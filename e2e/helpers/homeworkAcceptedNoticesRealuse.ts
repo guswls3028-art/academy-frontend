@@ -1,6 +1,7 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import type { SendPreflightResponse } from "@/app_admin/domains/messages/api/messages.api";
 import { acknowledgeInitialAccountPromptsIfVisible } from "./firstLoginGuide";
+import { emitHomeworkFlowFailure, type HomeworkFlowCheckpoint } from "./homeworkCriteriaRealuse";
 import {
   assertNoHorizontalOverflow, installQaStudentParentBoundary, QA_BASE, seedBrowserAuth,
   type QaStudent, type QaTokens,
@@ -23,6 +24,7 @@ export async function verifyAcceptedHomeworkNotices(origin: Page, request: APIRe
   const browser = origin.context().browser()!;
   const teacherContext = await browser.newContext({ serviceWorkers: "block" });
   const studentContext = await browser.newContext({ serviceWorkers: "block" });
+  let checkpoint: HomeworkFlowCheckpoint | undefined;
   try {
     const teacher = await teacherContext.newPage();
     const student = await studentContext.newPage();
@@ -36,12 +38,20 @@ export async function verifyAcceptedHomeworkNotices(origin: Page, request: APIRe
       return route.abort("blockedbyclient");
     });
 
-    for (const width of [1366, 390]) {
+    for (const width of [1366, 390] as const) {
+      checkpoint = { phase: "notice-inbox", viewport: width, threshold: null };
       await teacher.setViewportSize({ width, height: 900 });
       await student.setViewportSize({ width, height: 900 });
-      const inboxPath = width === 390 ? "/workspace/mobile/submissions" : "/workspace/results/submissions";
-      await gotoAndSettle(teacher, `${QA_BASE}${inboxPath}?homework=${scenario.homeworkId}`);
-      if (width === 1366) {
+      if (width === 390) {
+        await gotoAndSettle(teacher, `${QA_BASE}/workspace/mobile/submissions`);
+        await teacher.getByRole("button", { name: "과제 제출 확인", exact: true }).click();
+        const assignment = teacher.getByRole("list", { name: "검토할 과제" })
+          .getByRole("link").filter({ hasText: scenario.homeworkTitle });
+        await expect(assignment).toHaveAttribute("href", `/workspace/mobile/homeworks/${scenario.homeworkId}?from=submissions`);
+        await assignment.click();
+        await expect(teacher.getByRole("heading", { level: 1, name: scenario.homeworkTitle, exact: true })).toBeVisible();
+      } else {
+        await gotoAndSettle(teacher, `${QA_BASE}/workspace/results/submissions?homework=${scenario.homeworkId}`);
         await acknowledgeInitialAccountPromptsIfVisible(teacher);
         await teacher.getByLabel(`${scenario.student.name} 통과 대상 선택`, { exact: true }).check();
         await teacher.getByRole("button", { name: "선택 1명 통과", exact: true }).click();
@@ -52,6 +62,7 @@ export async function verifyAcceptedHomeworkNotices(origin: Page, request: APIRe
       }
       await teacher.reload({ waitUntil: "domcontentloaded" });
       await expect(teacher.getByText("통과 인정됨", { exact: true })).toBeVisible();
+      checkpoint.phase = "notice-preview";
       const previewed = teacher.waitForResponse(res => res.request().method() === "POST"
         && new URL(res.url()).pathname.endsWith("/messaging/manual-notification/preview/"));
       await teacher.getByRole("button", { name: "미제출 알림 발송", exact: true }).click();
@@ -71,6 +82,7 @@ export async function verifyAcceptedHomeworkNotices(origin: Page, request: APIRe
       await teacher.screenshot({ path: test.info().outputPath(`homework-message-criteria-missing-${width}.png`) });
       await inbox.getByRole("button", { name: "취소", exact: true }).click();
 
+      checkpoint.phase = "notice-grade";
       await gotoAndSettle(teacher, `${QA_BASE}/workspace/lectures/${scenario.lectureId}/sessions/${scenario.sessionId}/scores`);
       await revealScoreManagement(teacher);
       await teacher.getByRole("checkbox", { name: `${scenario.student.name} 선택`, exact: true }).check();
@@ -101,6 +113,7 @@ export async function verifyAcceptedHomeworkNotices(origin: Page, request: APIRe
       await assertNoHorizontalOverflow(teacher);
       await teacher.screenshot({ path: test.info().outputPath(`homework-message-criteria-accepted-${width}.png`) });
 
+      checkpoint.phase = "notice-student";
       await gotoAndSettle(student, `${QA_BASE}/student/grades?view=homework&homework_status=all`);
       await student.reload({ waitUntil: "domcontentloaded" });
       const gradeCard = student.locator(".stu-panel[data-session-type]").filter({ has: student.getByText(scenario.homeworkTitle, { exact: true }) });
@@ -109,9 +122,13 @@ export async function verifyAcceptedHomeworkNotices(origin: Page, request: APIRe
       await assertNoHorizontalOverflow(student);
       await student.screenshot({ path: test.info().outputPath(`homework-criteria-student-accepted-${width}.png`) });
     }
+    checkpoint = undefined;
     expect(deliveryAttempts).toEqual([]);
     teacherBoundary.assertClean();
     studentBoundary.assertClean();
+  } catch (error) {
+    if (checkpoint) emitHomeworkFlowFailure(error, checkpoint);
+    throw error;
   } finally {
     await Promise.all([teacherContext.close(), studentContext.close()]);
   }

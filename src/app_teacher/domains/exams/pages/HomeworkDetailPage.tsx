@@ -10,6 +10,7 @@ import { fetchSessionScores, patchAssessmentCorrection } from "@/shared/api/cont
 import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { formatCompactFileSize } from "@/shared/utils/fileSize";
+import HomeworkMissingNoticeButton from "@/shared/ui/submissions/HomeworkMissingNoticeButton";
 import HomeworkFileGallery from "@/shared/ui/submissions/HomeworkFileGallery";
 import HomeworkBulkAcceptance from "@/shared/ui/submissions/HomeworkBulkAcceptance";
 import HomeworkAcceptanceButton from "@/shared/ui/submissions/HomeworkAcceptanceButton";
@@ -195,6 +196,7 @@ export default function HomeworkDetailPage() {
         {maxScore != null && <InfoRow label="만점" value={`${maxScore}점`} />}
         <InfoRow label="제출" value={`${submitted.length} / ${submissionRows.length}`} accent />
         <InfoRow label="선생님 확인" value={`${reviewedCount} / ${submitted.length}`} accent />
+        <HomeworkMissingNoticeButton key={hid} homeworkId={hid} />
         {sessionId > 0 && <HomeworkInspectionEntry sessionId={sessionId} homeworkId={hid} title={hw.title} />}
       </div>
 
