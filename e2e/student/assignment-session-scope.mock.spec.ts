@@ -63,6 +63,11 @@ async function installApi(page: Page, beforeUploadResponse?: () => Promise<void>
     if (path.endsWith("/student/me/")) {
       return fulfill({ id: 12, name: "김하늘", displayName: "김하늘", is_student: true });
     }
+    if (path.endsWith("/results/parent/assessment-comments/")) {
+      expect(gradeFixture?.role).toBe("parent");
+      expect(request.headers()["x-student-id"]).toBe("12");
+      return fulfill({ items: [] });
+    }
     if (path.endsWith("/student/grades/")) {
       return fulfill({
         exams: [
