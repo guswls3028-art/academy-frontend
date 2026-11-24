@@ -209,19 +209,74 @@ test("only verified skipped runtime jobs admit an existing successfully promoted
   const value = snapshot();
   value.manifestRun = value.releaseRun;
   value.releaseRun = { ...value.releaseRun, id: 124, head_sha: "c".repeat(40) };
-  value.noopJobs = [
+  value.attemptJobs = [
     "Assemble and scan release candidate",
     "Verify candidate on persistent isolated development runtime",
     "Verify deployment",
   ].map(name => ({ name, run_id: 124, run_attempt: 1, head_sha: value.releaseRun.head_sha, status: "completed", conclusion: "skipped" }));
   assert.equal(backendReadiness(value), "ready");
-  assert.throws(() => backendReadiness({ ...value, noopJobs: value.noopJobs.slice(1) }), /noop_jobs/);
+  assert.throws(() => backendReadiness({ ...value, attemptJobs: value.attemptJobs.slice(1) }), /noop_jobs/);
   for (const field of [{ run_id: 123 }, { run_attempt: 2 }, { head_sha: "d".repeat(40) }, { conclusion: "success" }]) {
-    const noopJobs = value.noopJobs.map((job, index) => index === 2 ? { ...job, ...field } : job);
-    assert.throws(() => backendReadiness({ ...value, noopJobs }), /noop_jobs/);
+    const attemptJobs = value.attemptJobs.map((job, index) => index === 2 ? { ...job, ...field } : job);
+    assert.throws(() => backendReadiness({ ...value, attemptJobs }), /noop_jobs/);
   }
   for (const field of [{ id: 122 }, { run_attempt: 2 }, { head_sha: "d".repeat(40) }, { conclusion: "failure" }]) {
     assert.throws(() => backendReadiness({ ...value, manifestRun: { ...value.manifestRun, ...field } }), /manifest_origin/);
+  }
+});
+
+test("a failed image scan leaves the prior verified runtime available only with the complete bound receipt", async () => {
+  const value = snapshot();
+  value.manifestRun = value.releaseRun;
+  value.revision = "c".repeat(40);
+  value.releaseRun = { ...value.releaseRun, id: 124, head_sha: value.revision, conclusion: "failure" };
+  value.manifestComparison = { status: "ahead", merge_base_commit: { sha: value.manifestRun.head_sha } };
+  value.workflowBlobs = { prior: "e".repeat(40), current: "e".repeat(40) };
+  const job = (name, conclusion, steps = []) => ({
+    name, run_id: 124, run_attempt: 1, head_sha: value.revision, status: "completed", conclusion, steps,
+  });
+  value.attemptJobs = [
+    job("Assemble and scan release candidate", "failure", [{
+      name: "Gate all candidate images on completed ECR critical scan", status: "completed", conclusion: "failure",
+    }]),
+    job("Release shared production mutation lock", "success"),
+    ...[
+      "Verify candidate on persistent isolated development runtime",
+      "Verify candidate on isolated API preprod server",
+      "Run database migrations",
+      "Deploy API (ASG refresh)",
+      "Deploy AI Worker (ASG refresh)",
+      "Deploy Messaging Worker (ASG refresh)",
+      "Deploy Tools Worker (ASG refresh)",
+      "Deploy video worker (Batch job defs)",
+      "Restore account admission after runtime convergence",
+      "Verify deployment",
+    ].map(name => job(name, "skipped")),
+  ];
+  const evidence = [];
+  await waitForBackend({ readSnapshot: async () => value, persist: (receipt) => evidence.push(receipt) });
+  assert.equal(evidence[0].state, "ready");
+  assert.equal(evidence[0].baselineMode, "verified_prior_before_runtime");
+  assert.equal(evidence[0].blockedCandidateRunId, 124);
+  assert.equal(evidence[0].verifiedRuntimeRunId, 123);
+  assert.equal(value.releaseRun.conclusion, "failure");
+
+  for (const change of [
+    invalid => invalid.attemptJobs.pop(),
+    invalid => invalid.attemptJobs[0].steps[0].conclusion = "success",
+    invalid => invalid.attemptJobs[1].conclusion = "skipped",
+    invalid => invalid.attemptJobs[2].conclusion = "success",
+    invalid => invalid.attemptJobs[3].run_attempt = 2,
+    invalid => invalid.attemptJobs.push(job("Unknown mutation", "success")),
+    invalid => invalid.manifestRun.conclusion = "failure",
+    invalid => invalid.workflowBlobs.current = "f".repeat(40),
+    invalid => invalid.manifestComparison.status = "diverged",
+    invalid => invalid.revision = "d".repeat(40),
+    invalid => invalid.instances[0].Tags.find(tag => tag.Key === "VerifiedReleaseId").Value = "stale",
+  ]) {
+    const invalid = structuredClone(value);
+    change(invalid);
+    assert.throws(() => backendReadiness(invalid));
   }
 });
 
