@@ -1,6 +1,4 @@
-import { prepareScoreAlimtalkVariables } from "@/app_admin/domains/lectures/pages/scores/sessionScoreAlimtalk";
-import { compactGradesPerStudentPayloadVars } from "@/app_admin/domains/messages/components/scorePayloadVars";
-import type { SessionScoresResponse } from "@/shared/api/contracts/sessionScores";
+import { verifyAcceptedHomeworkNotices } from "../helpers/homeworkAcceptedNoticesRealuse";
 import { revealScoreManagement } from "../helpers/revealScoreManagement";
 /**
  * Student homework media submission -> assistant discovery/preview and UI grading
@@ -73,6 +71,8 @@ type CreatedState = {
   homeworkId?: number;
   completionHomeworkId?: number;
   staffId?: number;
+  noticeTeacherId?: number;
+  previewAttendanceId?: number;
   enrollmentId?: number;
   duplicateLectureId?: number;
   duplicateSessionId?: number;
@@ -152,27 +152,8 @@ async function verifyHomeworkFeedback(
       }, [201]);
       created.completionHomeworkId = completion.id;
       expect(completion.grading_mode).toBe("COMPLETION");
-      // A separate disposable parent avoids phone deduplication hiding a student's preview.
-      created.previewFamily = await createQaFamily(request, admin.access, "homework-preview", 2);
-      const [previewStudent, unenteredStudent] = created.previewFamily.students;
-      const previewEnrollments = await expectApi<Array<{ id: number }>>(request, "POST", "/enrollments/bulk_create/", admin.access, {
-        lecture: created.lectureId, students: [previewStudent.id],
-      });
-      created.previewEnrollmentId = previewEnrollments[0].id;
-      const previewSessionEnrollments = await expectApi<Array<{ id: number }>>(request, "POST", "/enrollments/session-enrollments/bulk_create/", admin.access, {
-        session: created.sessionId, enrollments: [created.previewEnrollmentId],
-      });
-      created.sessionEnrollmentIds.push(...previewSessionEnrollments.map(row => row.id));
-      // The preview must use two eligible parents; an unmarked student is
-      // deliberately excluded by the class score message attendance rule.
-      let previewAttendanceId = 0;
-      for (const [studentId, status] of [[created.family!.students[0].id, "PRESENT"], [previewStudent.id, "LATE"]] as const) {
-        const attendance = await expectApi<Array<{ id: number }>>(request, "POST", "/lectures/attendance/bulk_create/",
-          admin.access, { session: created.sessionId, students: [studentId] }, [201]);
-        expect(attendance).toHaveLength(1);
-        await expectApi(request, "PATCH", `/lectures/attendance/${attendance[0].id}/`, admin.access, { status });
-        if (studentId === previewStudent.id) previewAttendanceId = attendance[0].id;
-      }
+      const [previewStudent, unenteredStudent] = created.previewFamily!.students;
+      const previewAttendanceId = created.previewAttendanceId!;
       for (const homeworkId of [created.homeworkId, completion.id]) {
         await expectApi(request, "PUT", `/homework/assignments/?homework_id=${homeworkId}`, admin.access,
           { enrollment_ids: [created.enrollmentId, created.previewEnrollmentId] }, [200]);
@@ -680,6 +661,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (created.duplicateSessionId) await remove("DELETE", `/lectures/sessions/${created.duplicateSessionId}/`);
   if (created.lectureId) await remove("DELETE", `/lectures/lectures/${created.lectureId}/`);
   if (created.duplicateLectureId) await remove("DELETE", `/lectures/lectures/${created.duplicateLectureId}/`);
+  if (created.noticeTeacherId) await remove("DELETE", `/staffs/${created.noticeTeacherId}/`);
   if (created.staffId) await remove("DELETE", `/staffs/${created.staffId}/`);
   // Staff deletion deactivates membership; the exact qa-* tenant teardown owns
   // the remaining synthetic User/token/audit cleanup and its zero-residue proof.
@@ -695,6 +677,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     ...(created.duplicateHomeworkId ? [["duplicate homework", `/homeworks/${created.duplicateHomeworkId}/`] as const] : []),
     ...(created.duplicateSessionId ? [["duplicate session", `/lectures/sessions/${created.duplicateSessionId}/`] as const] : []),
     ...(created.duplicateLectureId ? [["duplicate lecture", `/lectures/lectures/${created.duplicateLectureId}/`] as const] : []),
+    ...(created.noticeTeacherId ? [[`notice teacher ${created.noticeTeacherId}`, `/staffs/${created.noticeTeacherId}/`] as const] : []),
     ...(created.staffId ? [[`staff ${created.staffId}`, `/staffs/${created.staffId}/`] as const] : []),
   ]) {
     const residue = await api(request, "GET", path, created.adminAccess);
@@ -952,22 +935,29 @@ function missingHomeworkPreview(request: APIRequestContext) {
   );
 }
 
-async function verifyAcceptedHomeworkNotice(request: APIRequestContext, studentId: number) {
-  const snapshot = await expectApi<SessionScoresResponse>(request, "GET",
-    `/results/admin/sessions/${created.sessionId}/scores/`, created.adminAccess!);
-  const row = snapshot.rows.find(item => item.student_id === studentId)!;
-  const homework = row.homeworks.find(item => item.homework_id === created.homeworkId)!;
-  expect(homework.block).toMatchObject({ teacher_accepted: true, passed: true, score: 0 });
-  const body = "#{과제목록}";
-  const perStudent = prepareScoreAlimtalkVariables([row], snapshot.meta, {}).recomputePerStudentVars(body);
-  const result = await expectApi<SendPreflightResponse>(request, "POST", "/messaging/send/preflight/", created.adminAccess!, {
-    raw_body: body, message_mode: "alimtalk", block_category: "grades", send_to: "parent", student_ids: [studentId],
-    alimtalk_extra_vars_per_student: compactGradesPerStudentPayloadVars(body, perStudent),
+async function prepareHomeworkNoticeRoster(request: APIRequestContext) {
+  // A separate disposable parent avoids phone deduplication hiding a student's preview.
+  created.previewFamily = await createQaFamily(request, created.adminAccess, "homework-preview", 2);
+  const [previewStudent] = created.previewFamily.students;
+  const previewEnrollments = await expectApi<Array<{ id: number }>>(request, "POST", "/enrollments/bulk_create/", created.adminAccess, {
+    lecture: created.lectureId, students: [previewStudent.id],
   });
-  const preview = result.preview_recipients.find(recipient => recipient.student_id === studentId);
-  expect(preview?.full_message_body).toContain(`${homeworkTitle}: 0/100 (0%) 통과 (교사 확인)`);
-  expect(preview?.full_message_body).not.toContain("미제출");
-  expect((await missingHomeworkPreview(request)).recipients).toEqual([]);
+  created.previewEnrollmentId = previewEnrollments[0].id;
+  const previewSessionEnrollments = await expectApi<Array<{ id: number }>>(request, "POST", "/enrollments/session-enrollments/bulk_create/", created.adminAccess, {
+    session: created.sessionId, enrollments: [created.previewEnrollmentId],
+  });
+  created.sessionEnrollmentIds.push(...previewSessionEnrollments.map(row => row.id));
+  // The preview must use two eligible parents; an unmarked student is
+  // deliberately excluded by the class score message attendance rule.
+  for (const [studentId, status] of [[created.family!.students[0].id, "PRESENT"], [previewStudent.id, "LATE"]] as const) {
+    const attendance = await expectApi<Array<{ id: number }>>(request, "POST", "/lectures/attendance/bulk_create/",
+      created.adminAccess, { session: created.sessionId, students: [studentId] }, [201]);
+    expect(attendance).toHaveLength(1);
+    await expectApi(request, "PATCH", `/lectures/attendance/${attendance[0].id}/`, created.adminAccess, { status });
+    if (studentId === previewStudent.id) created.previewAttendanceId = attendance[0].id;
+  }
+  await expectApi(request, "PUT", `/homework/assignments/?homework_id=${created.homeworkId}`, created.adminAccess,
+    { enrollment_ids: [created.enrollmentId, created.previewEnrollmentId] });
 }
 
 async function verifyStudentHomeworkFiles(
@@ -1058,13 +1048,36 @@ async function verifyStudentHomeworkFiles(
       const bulkPassed = (row: HomeworkSummary) => row.score === 0 && row.teacher_accepted === true && row.passed;
       await waitForHomeworkSummary(request, studentAccess, bulkPassed);
       await waitForHomeworkSummary(request, parentAccess, bulkPassed, studentId);
-      await verifyAcceptedHomeworkNotice(request, studentId);
+
       await staffPage.reload({ waitUntil: "domcontentloaded" });
       await expect(staffPage.getByText("통과 인정됨", { exact: true })).toBeVisible();
       await assertNoHorizontalOverflow(staffPage);
       await staffPage.getByRole("button", { name: "통과 인정 취소", exact: true }).click();
       await waitForHomeworkSummary(request, studentAccess, reverted);
       await waitForHomeworkSummary(request, parentAccess, reverted, studentId);
+      await prepareHomeworkNoticeRoster(request);
+      const teacherName = `qa-homework-teacher-${runStamp}`;
+      const teacher = await expectApi<{ id: number }>(request, "POST", "/staffs/", created.adminAccess, {
+        name: `QA 과제 강사 ${runStamp}`, role: "TEACHER", username: teacherName,
+        password: selectedStudent.password, is_manager: false,
+      }, [201]);
+      created.noticeTeacherId = teacher.id;
+      const teacherTokens = await loginApi(request, teacherName, selectedStudent.password);
+      expect(await expectApi(request, "GET", "/core/me/", teacherTokens.access)).toMatchObject({ tenantRole: "teacher" });
+      const studentTokens = await loginApi(request, selectedStudent.ps_number, selectedStudent.password);
+      await verifyAcceptedHomeworkNotices(staffPage, request, {
+        teacherTokens, studentTokens, student: selectedStudent, control: created.previewFamily!.students[0],
+        homeworkId: created.homeworkId!, homeworkTitle, lectureId: created.lectureId!, sessionId: created.sessionId!,
+      });
+      await waitForHomeworkSummary(request, parentAccess, bulkPassed, studentId);
+      await parentPage.reload({ waitUntil: "domcontentloaded" });
+      const parentGrade = parentPage.locator(".stu-panel[data-session-type]").filter({ has: parentPage.getByText(homeworkTitle, { exact: true }) });
+      await expect(parentGrade).toContainText("과제 통과 인정");
+      await expect(parentGrade).toContainText("0/100");
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await staffPage.getByRole("button", { name: "통과 인정 취소", exact: true }).click();
+      await waitForHomeworkSummary(request, studentAccess, reverted);
+
     }
   }
 }
