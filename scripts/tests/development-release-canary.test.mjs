@@ -1948,11 +1948,15 @@ test("production promotion requires the non-skipped isolated development canary"
 
 test("expanded development real-use suite keeps time to report and clean up", () => {
   const runner = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
-  assert.match(runner, /const REAL_USE_SUITE_TIMEOUT_MS = 85 \* 60_000;/);
-  assert.doesNotMatch(runner, /REAL_USE_SUITE_TIMEOUT_MS = 20 \* 60_000/);
+  const suiteMinutes = Number(runner.match(/const REAL_USE_SUITE_TIMEOUT_MS = (\d+) \* 60_000;/)?.[1]);
+  const tunnelMargin = Number(runner.match(/const TUNNEL_TIMEOUT_MS = REAL_USE_SUITE_TIMEOUT_MS \+ (\d+) \* 60_000;/)?.[1]);
+  const jobMinutes = Number(job("development-canary").match(/timeout-minutes: (\d+)/)?.[1]);
+  const credentialSeconds = Number(job("development-canary").match(/role-duration-seconds: (\d+)/)?.[1]);
+  assert.equal(suiteMinutes, 95);
+  assert.equal(tunnelMargin, 5);
+  assert.equal(jobMinutes - suiteMinutes - tunnelMargin, 20);
+  assert.equal(credentialSeconds, jobMinutes * 60);
   assert.match(runner, /}, REAL_USE_SUITE_TIMEOUT_MS\);/);
-  assert.match(job("development-canary"), /timeout-minutes: 100/);
-  assert.match(job("development-canary"), /role-duration-seconds: 6000/);
 });
 
 test("the SSM tunnel outlives the real-use suite it serves", () => {
@@ -1963,6 +1967,7 @@ test("the SSM tunnel outlives the real-use suite it serves", () => {
   const runner = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
   assert.match(runner, /const TUNNEL_TIMEOUT_MS = REAL_USE_SUITE_TIMEOUT_MS \+ 5 \* 60_000;/);
   assert.match(runner, /name === PORT_DOCUMENT \? TUNNEL_TIMEOUT_MS : 240_000/);
+  assert.match(runner, /assert\.equal\(expected\.inputs\?\.maxSessionDuration, String\(TUNNEL_TIMEOUT_MS \/ 60_000\),/);
 });
 
 test("production canary cannot create temporary business rows", () => {

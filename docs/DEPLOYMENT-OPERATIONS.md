@@ -99,7 +99,7 @@ service worker 차단을 사용하며, 전체 성공을 PR 집계 게이트가 �
    AWS/QA 전에 `preflight_failed`로 종료한다. 진단 실행은 `diagnosticOnly:true`를 기록하고,
    실제 통과·실패·미실행 수와 cleanup 결과를 보존하되 모두 통과해도 최종 `passed:false`,
    non-promotable failure와 비영 종료 코드를 강제한다. 배포 workflow도 진단 실행의 승격을 차단한다.
-   재시도 0·strict 경계·85분 suite/100분 job·cleanup 기준은 바뀌지 않는다. 이전 실행의
+   재시도 0·strict 경계·95분 suite/120분 job·cleanup 기준을 적용한다. 이전 실행의
    cleanup 완료를 확인한 뒤 단일 QA 소유자가 직렬 실행하며, 수집 결과는 보충 증거로만 쓴다.
    YouTube bot challenge를 우회하거나 해소하는 모드가 아니며, 운영 승격에는 정상 모드의
    동일 산출물 42건 통과와 cleanup0이 계속 필요하다.
@@ -637,7 +637,7 @@ successful manifest·active development host를 읽는다. 진행 중인 release
 대신 선택하거나 개발 QA를 시작하지 않는다. 목록 재조회도 기존 45분 제한을 따르며,
 불일치가 계속되거나 응답 형식·권한·버전·manifest·host 검증이 잘못되면 실패한다.
 재조회 횟수와 고정 오류 코드는 동일한 관측 증거에 남긴다. 대기는 별도 job과 임시 인증으로
-수행해 real-use의 100분 job/인증 예산을 소모하지 않는다. 준비 완료 뒤 기존 QA가
+수행해 real-use의 120분 job/인증 예산을 소모하지 않는다. 준비 완료 뒤 기존 QA가
 최신 immutable backend revision, IAM, SSM 문서, host를 다시 검사하므로 대기 중
 성공한 관측으로 이후 검증을 생략하지 않는다. 관측은 PII 없는
 `backend-readiness-evidence`에 남긴다. 실패 시 고정된 단계·오류 코드와 해당되는 HTTP 상태만 추가한다. 대기 이후 새 release가 시작되어 다시
@@ -751,8 +751,8 @@ scoped state에만 기존 영상 1개, 접근/PROCTORED 접근/진도 각 2개, 
 기존 비지정 범위 계약을 유지한다. 서버 query와 fixture identity 규칙은 backend의
 `docs/operations/persistent-development-runtime.md`가 소유한다.
 계정·학습·수강·영상 시나리오 전체를 한 worker에서 순차 실행하므로 Playwright 자식
-프로세스에는 85분을 허용한다. 100분 개발 카나리 job 안에서 결과 JSON 생성과 exact
-Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 85분을 넘기면 기존처럼 실패
+프로세스에는 95분을 허용한다. 120분 개발 카나리 job 안에서 결과 JSON 생성과 exact
+Cleanup/Inspect 및 세션 종료 확인 시간을 별도로 남기며, 95분을 넘기면 실패
 폐쇄하고 cleanup 0이 증명되기 전에는 운영 승격하지 않는다.
 
 별도 `SyntheticMultipartVideo=true` 진단은 같은 개발 artifact와 고정 SSM Setup이
@@ -880,9 +880,10 @@ runner는 Setup 전부터 `passed:false`/`cleanup:null`인 미완료 증거를 �
 실패/timeout은 finally로 들어가 test process를 먼저 stop/reap한 뒤 Cleanup을 시도하고,
 소유 SSM session들의 종료 API와 Active/History readback 후 최종 증거를 쓴다. Cleanup
 실패·소유 session ID/종료 readback 누락은 각각 실패 분류로 남아 승격을 차단한다.
-전체 실사용 child 한도는 85분, 이를 제공하는 로컬·서버 SSM 터널은 90분, CI job은
-설치·정리와 증거 업로드 여유를 포함해 100분이다. QA OIDC 요청은 6000초(100분)로,
-backend 소유 QA 역할의 MaxSessionDuration=6000초와 맞춰 정리 중 인증 만료를 막는다.
+전체 실사용 child 한도는 95분, 이를 제공하는 로컬·서버 SSM 터널은 100분, CI job은
+설치·정리와 증거 업로드 여유를 포함해 120분이다. QA OIDC 요청은 7200초(120분)로,
+backend 소유 QA 역할의 MaxSessionDuration=7200초와 맞춰 정리 중 인증 만료를 막는다.
+실행 전 로컬 터널과 backend 기준 문서의 수명, 그리고 설치된 SSM 문서의 전체 내용을 대조한다.
 별도 backend-readiness job의 50분·3600초 계약은 유지한다. 역할의 trust·action·resource,
 고정 포트와 5분 idle 제한은 바꾸지 않는다. 서버 문서·역할의 실제 적용과 readback은
 backend `docs/operations/persistent-development-runtime.md`를 따른다.
@@ -890,8 +891,10 @@ backend `docs/operations/persistent-development-runtime.md`를 따른다.
 timeout으로 중단됐다. 부분 진행은 성공 보고서가 아니며, 당시 양쪽 tenant/user/R2/
 process/listener 정리 0은 확인됐지만 운영 승격은 차단됐다. 이후 실행40168553418은
 기존 36건에 47.79분이 걸려 60분 한도로 마지막 영상을 완료하지 못했다. 마지막 영상의
-17분과 추가 사진 흐름 2건의 각 7분 한도를 더한 78.79분에 여유를 둬 전체 85분으로
-맞춘다. 같은 산출물의 새 전체 실행으로 검증한다. OMR 각 10분,
+17분과 추가 사진 흐름 2건의 각 7분 한도를 더한 78.79분을 기준으로 당시 85분을 설정했다.
+실행45431752643에서는 41건이 71분31초에 통과했고 85분 한도에서 마지막 영상이 중단됐다.
+마지막 영상의 개별 17분과 앞선 검사 소요 편차를 반영해 전체 95분을 적용한다.
+양쪽 테스트 학원의 정리는 0으로 확인됐다. 운영 승격은 같은 산출물의 새 전체 실행에서만 판단한다. OMR 각 10분,
 영상 test 17분, 단일 worker·재시도 0·필수 42건·690초 재생 및 cleanup0 요구는 유지한다.
 `development-release-progress.json`은 테스트 시작/종료마다 허용 spec 파일명·행·상태·
 소요 시간만 저장해 child timeout 시 마지막 진행 지점을 보존한다. 제목·오류 원문·
@@ -1135,7 +1138,7 @@ parser 테스트가 소유한다. snapshot 복사·중복/역순 교체·상한�
 두 종료 순서·listener 해제, canonical clinic/OPTIONS, mutation 재전송 0 및 기존
 500ms 조회 재시도 정책을 검증한다. 로컬 선택 테스트는 공식 real-use gate가 아니다.
 
-로컬 child 제한은 QA operation 240초, tests 85분, tunnel은 tests보다 5분 긴 90분이다. timeout은 TERM 후
+로컬 child 제한은 QA operation 240초, tests 95분, tunnel은 tests보다 5분 긴 100분이다. timeout은 TERM 후
 5초 뒤 KILL로 강제 종료하고 reap한다(Linux는 소유 process group). AWS metadata CLI도
 20초 제한이다. SIGINT/SIGTERM은 작업 중 child를 중단하여 finally를 시도하고 무조건
 실패 처리한다. 정리 중 추가 신호는 새 작업을 시작하지 않으며 cleanup 완료를 기다린다.
@@ -1149,7 +1152,7 @@ test child를 기다리는 동안 runner는 60초마다 내용 없는 진행 신
 stop reason, 경과 시간만 보존한다. 미종료 상태는 null이며 raw 출력·세션 식별자는
 포함하지 않는다. 최종 cleanup 뒤 기존 evidence 쓰기에서 함께 저장하며, 관측 callback은
 성공 여부나 gate 조건을 변경하지 않는다.
-job timeout은 100분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다. 한국어 글꼴 준비 단계는 5분으로 제한한다.
+job timeout은 120분이며 main의 후속 push에 의한 자동 취소는 꺼져 있다. 한국어 글꼴 준비 단계는 5분으로 제한한다.
 미러 다운로드가 지연되면 QA 데이터 생성 전에 실패하여 실사용 검사와 cleanup 시간을
 잠식하지 않게 한다. 글꼴 존재 확인과 전체 실사용·cleanup0 승격 조건은 그대로 유지한다.
 

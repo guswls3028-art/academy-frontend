@@ -26,12 +26,11 @@ const PASSWORD_PARAMETER = "/academy/api/development/ymath-realuse-password";
 // requests, surfacing as unexplained transport failures indistinguishable
 // from a stale-socket drop. 5 minutes of margin covers tunnel startup
 // (before the tests start) and the tests' own teardown (after they finish).
-// Run 40168553418 completed 36 cases in 47.79min, then the 60min parent
-// deadline interrupted the final video test (17min individual deadline).
-// The two added photo journeys each allow 7min: 47.79 + 17 + 14 < 85min.
-// Keep room for UI timing variation without shortening playback, skipping
-// cases or retrying mutations. The server tunnel and CI credentials match.
-const REAL_USE_SUITE_TIMEOUT_MS = 85 * 60_000;
+// Run 45431752643 completed 41 cases in 71.5 minutes before the
+// 85-minute parent deadline interrupted the final 17-minute video case.
+// Allow the full video budget and variation in the preceding cases. The
+// backend-owned tunnel lifetime and CI credential duration are checked separately.
+const REAL_USE_SUITE_TIMEOUT_MS = 95 * 60_000;
 const TUNNEL_TIMEOUT_MS = REAL_USE_SUITE_TIMEOUT_MS + 5 * 60_000;
 const WEB_ORIGIN = "http://localhost:4173";
 const API_ORIGIN = "http://127.0.0.1:18000";
@@ -1453,6 +1452,10 @@ export async function run() {
       expectedDocuments = new Map();
       for (const [name, file] of documents) {
         const expected = await publicJson(`${raw}scripts/v1/templates/ssm/${file}`);
+        if (name === PORT_DOCUMENT) {
+          assert.equal(expected.inputs?.maxSessionDuration, String(TUNNEL_TIMEOUT_MS / 60_000),
+            "Backend SSM port lifetime must match the local tunnel deadline");
+        }
         const actual = aws(["ssm", "get-document", "--name", name, "--document-format", "JSON"]);
         assert.equal(actual.DocumentType, "Session");
         assert.equal(actual.Status, "Active");
