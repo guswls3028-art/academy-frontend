@@ -2739,7 +2739,13 @@ test("오늘 전체 복수 일정은 유일한 처리 대상을 노출하고 모
   };
 
   await seed(page);
-  await installApi(page, undefined, state);
+  await installApi(page, undefined, state, {
+    sessions: ["16:00", "17:00", "18:00", "20:00"].map((time, index) => ({
+      ...sessions[0], id: 704 + index, date: today, start_time: time + ":00",
+      participant_count: state.participants.filter((row) => row.session === 704 + index).length,
+    })),
+    createPayloads: [], updatePayloads: [],
+  });
   await page.setViewportSize({ width: 1366, height: 850 });
   await gotoAndSettle(page, `${BASE}/workspace/clinic/operations?scope=day&date=${today}`, { timeout: 45_000 });
 
@@ -2754,6 +2760,16 @@ test("오늘 전체 복수 일정은 유일한 처리 대상을 노출하고 모
   await expect(timeRail.getByRole("button", { name: "전체 시간 2명", exact: true })).toBeVisible();
   await expect(timeRail.getByRole("button", { name: "16:00 0명", exact: true })).toBeVisible();
   await expect(timeRail.getByRole("button", { name: "18:00 1명", exact: true })).toBeVisible();
+  const sessionButtons = page.getByRole("complementary", { name: "날짜와 클리닉 수업" });
+  await expect(sessionButtons.getByRole("button", { name: /16:00.*0명/ })).toBeVisible();
+  const sixOClock = sessionButtons.getByRole("button", { name: /18:00.*1명/ });
+  await expect(sixOClock.locator("progress")).toHaveAttribute("aria-label", "처리율 0%");
+  await timeRail.getByRole("button", { name: "18:00 1명", exact: true }).click();
+  await expect(page).toHaveURL(/session=706/);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(timeRail.getByRole("button", { name: "18:00 1명", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".clinic-ops__card")).toHaveCount(1);
+  await timeRail.getByRole("button", { name: "전체 시간 2명", exact: true }).click();
   await expect(page.locator(".clinic-ops__card")).toHaveCount(2);
   await expect(cancelledRow).toHaveCount(0);
   await page.getByRole("button", { name: /취소·거절 이력\s*3/ }).click();
