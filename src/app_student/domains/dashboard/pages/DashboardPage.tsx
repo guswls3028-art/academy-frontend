@@ -27,7 +27,7 @@ import { useMyGradeRows } from "@student/domains/grades/hooks/useMyGradesSummary
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
 import { getExamPassStatus } from "@student/domains/grades/public/examPassStatus";
 import { calculateHomeworkStats } from "@student/domains/grades/public/homeworkStats";
-import { homeworkSubmissionHref } from "@student/domains/grades/utils/homeworkSubmission";
+import { homeworkSubmissionHref } from "@student/domains/grades/public/homeworkSubmission";
 import { useStudentExams } from "@student/domains/exams/hooks/useStudentExams";
 import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import {

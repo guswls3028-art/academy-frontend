@@ -7,7 +7,7 @@ import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import { useMyGradeRows } from "@student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
-import { acceptsHomeworkFiles } from "@student/domains/grades/utils/homeworkSubmission";
+import { acceptsHomeworkFiles } from "@student/domains/grades/public/homeworkSubmission";
 import type { HomeworkMediaFile } from "@student/domains/submit/api/homeworkMedia.api";
 import { fetchHomeworkMedia, removeHomeworkMedia } from "@student/domains/submit/api/homeworkMedia.api";
 import studentApi from "@student/shared/api/student.api";

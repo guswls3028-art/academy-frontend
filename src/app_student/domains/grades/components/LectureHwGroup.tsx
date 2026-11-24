@@ -3,7 +3,7 @@
  */
 import { Link } from "react-router";
 import { useAuthContext } from "@/auth/context/AuthContext";
-import { homeworkSubmissionHref } from "../utils/homeworkSubmission";
+import { homeworkSubmissionHref } from "../public/homeworkSubmission";
 import { IconClipboard } from "@student/shared/ui/icons/Icons";
 import GradeBadge from "./GradeBadge";
 import { ParentAssessmentComment } from "./ParentAssessmentComments";
