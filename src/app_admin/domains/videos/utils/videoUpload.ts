@@ -43,6 +43,10 @@ export interface InitVideoResult {
   completion?: { multipart?: Parameters<typeof completeVideoUpload>[2]; encodingRejected?: boolean };
 }
 
+export type VideoTransferPhase = "uploading" | "retrying" | "confirming";
+export type VideoTransferProgress = { phase: VideoTransferPhase; bytes: number };
+type ReportTransfer = (bytes: number, phase?: VideoTransferPhase) => void;
+
 let activeBrowserUploadCount = 0;
 let removeBrowserUploadBeforeUnload: (() => void) | null = null;
 
@@ -167,7 +171,7 @@ function uploadErrorMessage(error: unknown): string {
 
 /** Abort stalled transfers, including a missing response after the last byte. */
 function putToStorage(
-  url: string, blob: Blob, headers: Record<string, string>, onProgress?: (percent: number) => void,
+  url: string, blob: Blob, headers: Record<string, string>, onProgress: (bytes: number) => void,
 ): Promise<XMLHttpRequest> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -184,7 +188,7 @@ function putToStorage(
       if (event.loaded <= sentBytes) return;
       sentBytes = event.loaded;
       armIdleTimeout();
-      if (event.lengthComputable && event.total > 0) onProgress?.(Math.round(100 * sentBytes / event.total));
+      onProgress(Math.min(sentBytes, blob.size));
     });
     xhr.addEventListener("loadend", () => clearTimeout(idleTimer));
     xhr.addEventListener("load", () => {
@@ -209,18 +213,19 @@ function putToStorage(
 async function singlePutAndComplete(
   initResult: InitVideoResult,
   file: File,
+  report: ReportTransfer,
 ): Promise<number> {
-  const { videoId, putHeaders, tempId, contentType, config } = initResult;
+  const { videoId, putHeaders, contentType, config } = initResult;
   let currentUrl = initResult.uploadUrl;
 
   for (let attempt = 0; ; attempt++) {
     try {
       if (attempt > 0) {
+        report(0, "retrying");
         await new Promise((resolve) => setTimeout(resolve, RETRY_BASE_DELAY_MS * 2 ** (attempt - 1)));
         currentUrl = await refreshPresignedUrl(videoId, contentType, config);
-        asyncStatusStore.updateProgress(tempId, 0);
       }
-      await putToStorage(currentUrl, file, putHeaders, (percent) => asyncStatusStore.updateProgress(tempId, percent));
+      await putToStorage(currentUrl, file, putHeaders, report);
       break;
     } catch (error) {
       if (attempt >= MAX_R2_RETRIES) throw error;
@@ -228,6 +233,7 @@ async function singlePutAndComplete(
   }
 
   initResult.completion = {};
+  report(file.size, "confirming");
   await completeVideoUpload(videoId, config);
 
   return videoId;
@@ -269,8 +275,9 @@ type MultipartPresignResponse = {
 async function multipartUploadAndComplete(
   initResult: InitVideoResult,
   file: File,
+  report: ReportTransfer,
 ): Promise<number> {
-  const { videoId, tempId, contentType, config } = initResult;
+  const { videoId, contentType, config } = initResult;
 
   // 1. Multipart upload 생성
   const mpInitRes = await api.post<MultipartInitResponse>(
@@ -284,7 +291,14 @@ async function multipartUploadAndComplete(
   const partSize = calculatePartSize(file.size);
   const totalParts = Math.ceil(file.size / partSize);
   const completedParts: { ETag: string; PartNumber: number }[] = [];
-  let uploadedBytes = 0;
+  const partBytes = new Map<number, number>();
+  const retryingParts = new Set<number>();
+  let transferredBytes = 0;
+  function updatePartBytes(part: number, bytes: number) {
+    transferredBytes += bytes - (partBytes.get(part) ?? 0);
+    partBytes.set(part, bytes);
+    report(transferredBytes, retryingParts.size ? "retrying" : "uploading");
+  }
 
   // 3. presigned URL 일괄 발급 (배치 단위)
   const allPartUrls: Record<number, string> = {};
@@ -334,12 +348,14 @@ async function multipartUploadAndComplete(
             try {
               // 재시도 시 새 presigned URL 발급
               if (retry > 0) {
+                retryingParts.add(partNumber);
+                updatePartBytes(partNumber, 0);
                 await new Promise((r) => setTimeout(r, RETRY_BASE_DELAY_MS * Math.pow(2, retry - 1)));
                 delete allPartUrls[partNumber];
                 await ensurePresignedUrls([partNumber]);
               }
 
-              const response = await putToStorage(allPartUrls[partNumber], blob, {});
+              const response = await putToStorage(allPartUrls[partNumber], blob, {}, bytes => updatePartBytes(partNumber, bytes));
               etag = response.getResponseHeader("ETag");
               if (!etag) throw new Error("파트 업로드 성공했으나 ETag 없음");
               break;
@@ -353,9 +369,8 @@ async function multipartUploadAndComplete(
 
           if (etag) {
             completedParts.push({ ETag: etag, PartNumber: partNumber });
-            uploadedBytes += blob.size;
-            const percent = Math.round((uploadedBytes / file.size) * 100);
-            asyncStatusStore.updateProgress(tempId, percent);
+            retryingParts.delete(partNumber);
+            updatePartBytes(partNumber, blob.size);
           }
         }
       }
@@ -380,6 +395,7 @@ async function multipartUploadAndComplete(
   // 완료 요청 중 연결이 끊겨도 저장소에서 조립이 진행 중일 수 있다.
   const orderedParts = completedParts.sort((left, right) => left.PartNumber - right.PartNumber);
   initResult.completion = { multipart: { upload_id: uploadId, parts: orderedParts } };
+  report(file.size, "confirming");
   await completeVideoUpload(videoId, config, initResult.completion.multipart);
   return videoId;
 }
@@ -396,10 +412,31 @@ export async function uploadFileToR2AndComplete(
   initResult: InitVideoResult,
   file: File,
   retry = false,
+  onProgress?: (value: VideoTransferProgress) => void,
 ): Promise<number> {
   const { tempId } = initResult;
+  let lastPhase: VideoTransferPhase | undefined;
+  let lastPercent = -1;
+  let lastBytes = 0;
+  let lastUpdate = 0;
+  const report: ReportTransfer = (bytes, phase = "uploading") => {
+    const percent = file.size ? Math.floor(100 * bytes / file.size) : 0;
+    const now = Date.now();
+    // Multiple part streams feed one row. Keep the first movement visible and
+    // avoid persisting the global task list for every browser progress event.
+    if (percent === lastPercent && phase === lastPhase &&
+        (bytes === lastBytes || (lastBytes > 0 && now - lastUpdate < 500))) return;
+    if (percent !== lastPercent) asyncStatusStore.updateProgress(tempId, percent);
+    lastPhase = phase;
+    lastBytes = bytes;
+    lastPercent = percent;
+    lastUpdate = now;
+    onProgress?.({ phase, bytes });
+  };
   try {
     if (retry) asyncStatusStore.retryTask(tempId);
+    if (initResult.completion) report(file.size, "confirming");
+    else report(0);
     if (initResult.completion?.encodingRejected) {
       const path = `/media/videos/${initResult.videoId}/`;
       const { data } = await api.get<{ status: string }>(path, initResult.config);
@@ -415,9 +452,9 @@ export async function uploadFileToR2AndComplete(
     }
     if (file.size <= MULTIPART_THRESHOLD) {
       if (retry) initResult.uploadUrl = await refreshPresignedUrl(initResult.videoId, initResult.contentType, initResult.config);
-      return await singlePutAndComplete(initResult, file);
+      return await singlePutAndComplete(initResult, file, report);
     } else {
-      return await multipartUploadAndComplete(initResult, file);
+      return await multipartUploadAndComplete(initResult, file, report);
     }
   } catch (error) {
     if (initResult.completion && isApiError(error) &&
