@@ -14,7 +14,10 @@ function fakeJwt(): string {
   })}.sig`;
 }
 
-async function installApi(page: Page, beforeUploadResponse?: () => Promise<void>) {
+async function installApi(page: Page, beforeUploadResponse?: () => Promise<void>, gradeFixture?: {
+  role?: "student" | "parent";
+  homeworks: Record<string, unknown>[];
+}) {
   test.skip(
     !/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE),
     "학생 제출 route-mock 검증은 로컬 dev 서버 전용",
@@ -48,13 +51,13 @@ async function installApi(page: Page, beforeUploadResponse?: () => Promise<void>
     }
     if (path.endsWith("/core/me/")) {
       return fulfill({
-        id: 12,
-        username: "student-12",
+        id: gradeFixture?.role === "parent" ? 920 : 12,
+        username: gradeFixture?.role === "parent" ? "parent-920" : "student-12",
         name: "김하늘",
         is_staff: false,
         is_superuser: false,
-        tenantRole: "student",
-        linkedStudents: [],
+        tenantRole: gradeFixture?.role ?? "student",
+        linkedStudents: gradeFixture?.role === "parent" ? [{ id: 12, name: "김하늘" }] : [],
       });
     }
     if (path.endsWith("/student/me/")) {
@@ -92,7 +95,7 @@ async function installApi(page: Page, beforeUploadResponse?: () => Promise<void>
             submitted_at: null,
           },
         ],
-        homeworks: [
+        homeworks: gradeFixture?.homeworks ?? [
           {
             homework_id: 501,
             enrollment_id: 401,
@@ -427,4 +430,76 @@ test("교사 완료 과제는 원점수 없이도 완료로 표시되고 재제�
   await expect(card).toContainText("교사 확인 완료");
   await expect(page.getByRole("button", { name: /완료/ })).toContainText("1");
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+});
+
+for (const width of [390, 1366]) {
+  test(`성적 보드에서 같은 이름의 과제 중 선택한 행만 온라인 제출한다 ${width}px`, async ({ page }, testInfo) => {
+    const base = {
+      enrollment_id: 401, session_type: "REGULAR", lecture_active: true,
+      session_id: SESSION_ID, session_title: "3차시", lecture_title: "고1 수학", title: "필수 연습",
+      score: null, max_score: 100, passed: false, achievement: "NOT_SUBMITTED", submission_state: "needs_submission",
+    };
+    const homeworks = [
+      { ...base, homework_id: 501 }, { ...base, homework_id: 502, session_id: 8811, session_title: "4차시" },
+      { ...base, homework_id: 503, title: "보완 가능", achievement: "FAIL", score: 0 },
+      { ...base, homework_id: 504, title: "제출 후 확인 중", submission_state: "awaiting_review" },
+      { ...base, homework_id: 505, title: "보강 과제", session_type: "SUPPLEMENT" },
+      { ...base, homework_id: 506, title: "확인 완료", passed: true, achievement: "PASS", submission_state: "reviewed", submission_media_locked: true },
+      { ...base, homework_id: 507, title: "차시 없음", session_id: null },
+      { ...base, homework_id: 508, title: "미인정 출결", learning_todo_eligible: false },
+      { ...base, homework_id: 509, title: "종강 과제", lecture_active: false },
+    ];
+    await installApi(page, undefined, { homeworks });
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${BASE}/student/grades?view=homework&homework_status=all`);
+    const card = (text: string) => page.locator('[class*="homeworkCard"]').filter({ hasText: text });
+    await expect(card("보완 가능")).toContainText("0/100");
+    await expect(card("보완 가능")).not.toContainText("미제출");
+    await expect(card("3차시").filter({ hasText: "필수 연습" })).toContainText("미제출");
+    const submit = card("필수 연습").filter({ hasText: "4차시" }).getByRole("link", { name: "온라인 제출" });
+    await expect(submit).toHaveAttribute("href", "/student/submit/assignment?sessionId=8811&homeworkId=502");
+    await expect(card("제출 후 확인 중").getByRole("link", { name: "제출 파일 확인·추가" })).toBeVisible();
+    // Homework registration can remain open in a supplementary session or outside dashboard todos.
+    for (const title of ["보강 과제", "미인정 출결", "보완 가능"]) {
+      await expect(card(title).getByRole("link", { name: "온라인 제출" })).toBeVisible();
+    }
+    await page.getByText("종료된 강의 과제", { exact: true }).click();
+    for (const title of ["확인 완료", "차시 없음", "종강 과제"]) {
+      await expect(card(title)).toBeVisible();
+      await expect(card(title).getByRole("link")).toHaveCount(0);
+    }
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await submit.scrollIntoViewIfNeeded();
+    await testInfo.attach(`student-grade-online-homework-${width}`, {
+      body: await page.screenshot(), contentType: "image/png",
+    });
+    await submit.click();
+    await expect(page).toHaveURL(/sessionId=8811&homeworkId=502$/);
+    await expect(page.locator('[class*="submitSummary"]')).toContainText("필수 연습");
+    await expect(page.getByRole("button", { name: /필수 연습/ })).toHaveAttribute("data-selected", "true");
+    const camera = page.getByRole("button", { name: "사진 찍기", exact: true });
+    await expect(camera).toBeEnabled();
+    await camera.scrollIntoViewIfNeeded();
+    await expect(camera).toBeInViewport();
+    await testInfo.attach(`student-selected-homework-camera-${width}`, {
+      body: await page.screenshot(), contentType: "image/png",
+    });
+    await page.reload();
+    await expect(page.getByRole("button", { name: /필수 연습/ })).toHaveAttribute("data-selected", "true");
+    await page.goto(`${BASE}/student/submit/assignment?sessionId=8811&homeworkId=501`);
+    await expect(page.getByRole("button", { name: /필수 연습/ })).not.toHaveAttribute("data-selected", "true");
+    await expect(page.locator('[class*="submitSummary"]')).toHaveCount(0);
+  });
+}
+
+test("학부모 성적 보드는 선택한 자녀의 점수와 제출 상태를 읽기 전용으로 표시한다", async ({ page }) => {
+  await installApi(page, undefined, { role: "parent", homeworks: [{
+    homework_id: 501, enrollment_id: 401, session_id: SESSION_ID, title: "자녀 과제",
+    session_title: "3차시", lecture_title: "고1 수학", score: 0, max_score: 100,
+    achievement: "FAIL", passed: false, submission_state: "needs_submission",
+  }] });
+  await page.goto(`${BASE}/student/grades?view=homework`);
+  const card = page.locator('[class*="homeworkCard"]').filter({ hasText: "자녀 과제" });
+  await expect(card).toContainText("0/100");
+  await expect(card.getByRole("link")).toHaveCount(0);
 });

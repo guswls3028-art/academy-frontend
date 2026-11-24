@@ -27,6 +27,7 @@ import { useMyGradeRows } from "@student/domains/grades/hooks/useMyGradesSummary
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
 import { getExamPassStatus } from "@student/domains/grades/public/examPassStatus";
 import { calculateHomeworkStats } from "@student/domains/grades/public/homeworkStats";
+import { homeworkSubmissionHref } from "@student/domains/grades/utils/homeworkSubmission";
 import { useStudentExams } from "@student/domains/exams/hooks/useStudentExams";
 import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import {
@@ -532,7 +533,7 @@ export default function DashboardPage() {
               const more = failedHomeworks.length - 2 > 0 ? ` 외 ${failedHomeworks.length - 2}건` : "";
               return (
                 <TodoRow
-                  to="/student/grades?view=homework"
+                  to={(failedHomeworks.length === 1 && homeworkSubmissionHref(failedHomeworks[0])) || "/student/grades?view=homework"}
                   icon={<IconClipboard />}
                   iconBg="var(--stu-warn-bg)"
                   label={`과제 제출 필요 ${failedHomeworks.length}건`}
@@ -626,7 +627,8 @@ export default function DashboardPage() {
       <section className={styles.quickSection} aria-label="자주 쓰는 일">
         <div className={styles.sectionLabel}>자주 쓰는 일</div>
         <div className={styles.quickGrid}>
-          <QuickAction to="/student/submit" icon={<IconClipboard />} label="자료 제출·확인" detail="과제·성적표·설문" wideOnMobile />
+          <QuickAction to="/student/submit/assignment" icon={<IconClipboard />} label="과제 사진 제출" detail="사진 찍기·앨범에서 선택" primary />
+          <QuickAction to="/student/submit" icon={<IconFolder />} label="자료 제출·확인" detail="과제·성적표·설문" wideOnMobile />
           <QuickAction
             to="/student/qna"
             state={{ openQnaForm: true }}

@@ -1,6 +1,9 @@
 /**
  * 강좌별 과제 성적 그룹 — GradesPage에서 추출
  */
+import { Link } from "react-router";
+import { useAuthContext } from "@/auth/context/AuthContext";
+import { homeworkSubmissionHref } from "../utils/homeworkSubmission";
 import { IconClipboard } from "@student/shared/ui/icons/Icons";
 import GradeBadge from "./GradeBadge";
 import { ParentAssessmentComment } from "./ParentAssessmentComments";
@@ -18,6 +21,7 @@ export type HwGroup = {
 const HOMEWORK_SCORE_NUMBER = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 });
 
 export default function LectureHwGroup({ group }: { group: HwGroup }) {
+  const { user } = useAuthContext();
   const wrongCompletionOnly = useWrongCompletionDisplay();
   return (
     <div>
@@ -31,6 +35,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
       </div>
       <div className={styles.list}>
         {group.homeworks.map((h, idx) => {
+          const submissionHref = user?.tenantRole === "student" ? homeworkSubmissionHref(h) : null;
           const gradingMode = h.grading_mode ?? "SCORE";
           const score = typeof h.score === "number" && Number.isFinite(h.score) ? h.score : null;
           const maxScore = typeof h.max_score === "number" && Number.isFinite(h.max_score) && h.max_score > 0
@@ -63,7 +68,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                   <IconClipboard className={styles.itemIcon} />
                 </div>
                 <div className={styles.content}>
-                  <div className={styles.title}>{h.title}</div>
+                  <div id={`grade-homework-${h.homework_id}-${h.enrollment_id}`} className={styles.title}>{h.title}</div>
                   <div className={`stu-muted ${styles.meta}`}>
                     {h.session_title ?? "차시 미지정"}
                     <span aria-hidden> · </span>
@@ -105,6 +110,9 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                   aria-label={`${h.title} 진행 ${score == null ? "검사 전" : `${HOMEWORK_SCORE_NUMBER.format(score)}/${HOMEWORK_SCORE_NUMBER.format(maxScore)}`}`}
                 />
               )}
+              {submissionHref && <Link to={submissionHref} aria-describedby={`grade-homework-${h.homework_id}-${h.enrollment_id}`} className={`stu-btn stu-btn--primary ${styles.submissionLink}`}>
+                {awaitingReview ? "제출 파일 확인·추가" : "온라인 제출"}
+              </Link>}
             </div>
           );
         })}

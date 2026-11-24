@@ -1006,7 +1006,12 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       }
     };
     page.on("request", observeUpload);
-    await gotoAndSettle(page, scopedSubmission, { timeout: 30_000 });
+    await expect(page.getByRole("link", { name: /^과제 사진 제출/ })).toHaveAttribute("href", "/student/submit/assignment");
+    await pendingHomework.click();
+    const assignmentLink = page.locator(`a[href="${new URL(scopedSubmission).pathname}${new URL(scopedSubmission).search}"]`);
+    await expect(assignmentLink).toBeVisible();
+    await assignmentLink.click();
+    await expect(page).toHaveURL(scopedSubmission);
     await expect(page.getByRole("heading", { name: "과제 제출" })).toBeVisible();
     await expect(submissionSummary).toContainText(homeworkTitle);
     const submitDocument = await page.evaluate(() => performance.timeOrigin);
@@ -1050,7 +1055,13 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await page.setViewportSize({ width: 390, height: 844 });
 
     await applyHomeworkPreviewCsp(page);
-    await page.locator("input[type='file']").first().setInputFiles({
+    const [camera] = await Promise.all([
+      page.waitForEvent("filechooser"),
+      page.getByRole("button", { name: "사진 찍기", exact: true }).click(),
+    ]);
+    expect(camera.isMultiple()).toBe(false);
+    expect(await camera.element().getAttribute("capture")).toBe("environment");
+    await camera.setFiles({
       name: uploadName,
       mimeType: "image/heic",
       buffer: homeworkHeic,

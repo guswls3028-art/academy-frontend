@@ -7,6 +7,7 @@ import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import { useMyGradeRows } from "@student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
+import { acceptsHomeworkFiles } from "@student/domains/grades/utils/homeworkSubmission";
 import type { HomeworkMediaFile } from "@student/domains/submit/api/homeworkMedia.api";
 import { fetchHomeworkMedia, removeHomeworkMedia } from "@student/domains/submit/api/homeworkMedia.api";
 import studentApi from "@student/shared/api/student.api";
@@ -35,13 +36,6 @@ type SelectedTarget = { type: "homework"; id: number; title: string; enrollmentI
 function positiveId(value: string | null): number | null {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
-function acceptsHomeworkFiles(homework: MyHomeworkGradeSummary): boolean {
-  return homework.lecture_active !== false && homework.submission_state !== "reviewed"
-    && (homework.submission_media_locked == null
-      ? homework.teacher_resolved !== true && homework.passed !== true
-      : homework.submission_media_locked !== true);
 }
 
 function isSupportedSubmissionFile(file: File): boolean {
@@ -357,12 +351,23 @@ export default function SubmitAssignmentPage() {
     onError: (removeError) => setError(apiErrorMessage(removeError, "파일을 변경하지 못했습니다.")),
   });
 
+  const filePickerDisabled = draftStatus === "loading" || reviewLocked || uploadMut.isPending || isPreparingFiles || mediaQ.isFetching || mediaQ.isError;
+  const openFilePicker = (source: "camera" | "library") => {
+    const input = fileInputRef.current;
+    if (!input || input.disabled) return;
+    input.multiple = source === "library";
+    input.accept = source === "camera" ? "image/*" : ACCEPT;
+    if (source === "camera") input.setAttribute("capture", "environment");
+    else input.removeAttribute("capture");
+    input.click();
+  };
+
   const onFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const incoming = Array.from(event.target.files ?? []);
     event.target.value = "";
+    if (incoming.length === 0) return;
     setError(null);
     uploadMut.reset();
-    if (incoming.length === 0) return;
     setIsPreparingFiles(true);
     try {
       if (await awaitRestoredFiles() === null) return;
@@ -540,6 +545,9 @@ export default function SubmitAssignmentPage() {
           <div className={styles.stepLabel}>1. 제출 대상 선택</div>
           {gradesQ.isLoading && <div className={`stu-muted ${styles.loadingText}`}>불러오는 중…</div>}
           {gradesQ.isError && <EmptyState title="제출 대상을 불러오지 못했습니다." description="제출 상태를 확인할 수 없습니다." onRetry={() => void gradesQ.refetch()} />}
+          {requestedHomeworkId != null && gradesQ.isSuccess && !unfinishedHomeworks.some((homework) => homework.homework_id === requestedHomeworkId) && (
+            <div className={styles.scopeNotice} role="status">이 과제는 현재 파일을 제출할 수 없습니다. 과제 확인 결과에서 상태를 확인해 주세요.</div>
+          )}
           {!gradesQ.isLoading && !gradesQ.isError && unfinishedHomeworks.length === 0 && unfinishedExams.length === 0 && <div className={styles.emptyTarget}>{requestedSessionId == null ? "제출할 미완료 과제·시험이 없습니다." : "이 차시에 제출할 미완료 과제·시험이 없습니다."}</div>}
           {!gradesQ.isError && <div className={styles.targetList}>
             {unfinishedHomeworks.map((homework) => (
@@ -561,8 +569,12 @@ export default function SubmitAssignmentPage() {
               <div><div className={styles.stepLabel}>2. 사진·동영상 준비</div><p>한 번에 최대 {limits.max_files}개 · 파일당 {formatCompactFileSize(limits.max_file_size_bytes)} · 전체 {formatCompactFileSize(limits.max_total_size_bytes)}</p></div>
               <span className={styles.fileCount}>{visibleServerFiles.length + pendingFiles.length}/{limits.max_files}</span>
             </div>
-            <input ref={fileInputRef} type="file" accept={ACCEPT} multiple onChange={onFileChange} className={styles.hiddenInput} disabled={draftStatus === "loading" || reviewLocked || uploadMut.isPending || isPreparingFiles || mediaQ.isFetching || mediaQ.isError} />
-            <button type="button" className={`stu-btn stu-btn--secondary ${styles.fileButton}`} onClick={() => fileInputRef.current?.click()} disabled={draftStatus === "loading" || reviewLocked || uploadMut.isPending || isPreparingFiles || mediaQ.isFetching || mediaQ.isError}>사진·동영상 여러 개 선택</button>
+            <input ref={fileInputRef} type="file" accept={ACCEPT} multiple onChange={onFileChange} className={styles.hiddenInput} disabled={filePickerDisabled} />
+            <div className={styles.fileActions}>
+              <button type="button" className="stu-btn stu-btn--primary" onClick={() => openFilePicker("camera")} disabled={filePickerDisabled}>사진 찍기</button>
+              <button type="button" className="stu-btn stu-btn--secondary" onClick={() => openFilePicker("library")} disabled={filePickerDisabled}>사진·동영상 여러 개 선택</button>
+            </div>
+            <p className={styles.pickerHelp}>찍거나 선택한 사진을 확인한 뒤 아래 제출 버튼을 눌러 주세요.</p>
             {draftStatus === "loading" && <div className={styles.mediaLoading} role="status">이전에 선택한 파일을 확인하는 중…</div>}
             {!online && <div className={styles.draftNotice} role="status">인터넷 연결을 기다리고 있습니다. 선택한 파일은 유지됩니다.</div>}
             {(isPreparingFiles || mediaQ.isFetching) && <div className={styles.mediaLoading}>현재 제출 파일을 최신 상태로 확인하는 중…</div>}
