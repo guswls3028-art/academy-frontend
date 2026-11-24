@@ -630,8 +630,17 @@ successful manifest·active development host를 읽는다. 진행 중인 release
 완료된 release는 성공 결과와 manifest의 source SHA, run ID, attempt 및 active host가
 일치해야 한다. 성공한 V1 실행이 runtime 후보 조립, 격리 개발 검증, 배포 검증을 모두
 건너뛴 경우에만 해당 attempt의 공식 job 기록과 이전 manifest를 발행한 성공 attempt를
-별도로 확인하고 기존 host를 사용한다. 잘못된 host identity/IAM, 실패·취소된 release,
-읽기 오류와 버전·manifest 검증 불일치는 즉시 실패한다.
+별도로 확인하고 기존 host를 사용한다.
+
+현재 backend main의 실행이 이미지 보안 검사 단계에서 종료된 경우에는 이전에 검증된
+runtime으로 프런트 실사용을 계속할 수 있다. GitHub의 같은 실행 ID·attempt·source에
+속하는 전체 job 기록에서 실제 이미지 보안 검사 실패, 개발·preprod·마이그레이션·배포·
+배포 검증 미실행과 공유 lock 반환 성공을 확인한다. 현재 main과 이전 검증 성공 commit의
+조상 관계 및 V1 workflow 일치 여부, 이전 manifest의 발행 실행과 활성 개발 host도 대조한다.
+증거에는 `verified_prior_before_runtime`과 양쪽 run ID를 남긴다. 이미지 검사에 실패한
+후보의 서버 배포는 기존 보안 검사와 검증을 거쳐야 한다. 프런트 승격은 이 runtime에서
+검증한 새 동일 산출물의 필수 42건 및 양쪽 테스트 학원 정리를 요구한다.
+취소, runtime 진입 후 실패, 버전·manifest·host 불일치, 불완전한 job 기록과 읽기 오류는 즉시 실패한다.
 응답 형식이 유효한 active 실행 목록에서 건수와 실제 항목 수만 다르면
 전체 active 상태 목록을 1초·2초 후 최대 두 번 다시 조회한다. 그동안 최신 실행을
 대신 선택하거나 개발 QA를 시작하지 않는다. 목록 재조회도 기존 45분 제한을 따르며,
