@@ -607,7 +607,16 @@ test.describe("OMR durable batch progress", () => {
       await page.screenshot({ path: testInfo.outputPath(`omr-grading-attention-${width}.png`), fullPage: true });
       await expect(page.getByRole("button", { name: "완료된 항목 지우기", exact: true })).toBeDisabled();
       await expect(task).toBeVisible();
-      await task.getByRole("button", { name: "OMR 검토", exact: true }).click();
+      const reviewButton = task.getByRole("button", { name: "OMR 검토", exact: true });
+      const reviewSize = await reviewButton.evaluate((button) => ({
+        width: button.clientWidth, height: button.clientHeight,
+      }));
+      if (width === 390) {
+        const removeButton = task.getByRole("button", { name: "목록에서 제거", exact: true });
+        expect(await removeButton.evaluate((button) => Math.min(button.clientWidth, button.clientHeight))).toBeGreaterThanOrEqual(44);
+      }
+      // The adjacent remove button must not intercept the review button's right edge.
+      await reviewButton.click({ position: { x: reviewSize.width - 2, y: reviewSize.height / 2 } });
       await expect(page.getByRole("dialog", { name: "OMR 검토" })).toBeVisible();
       // Teacher completion is server-owned. The existing Workbox refresh must
       // consume its new canonical state, not infer it from opening review.
@@ -681,6 +690,7 @@ test.describe("OMR durable batch progress", () => {
         await expect(task.getByRole("button", { name: "OMR 검토", exact: true })).toBeVisible();
         if (mode === "failed" || mode === "mixed") {
           await expect(task.getByRole("button", { name: "재처리 요청", exact: true })).toBeEnabled();
+          await expect(task.getByRole("button", { name: "목록에서 제거", exact: true })).toHaveAttribute("title", "목록에서 제거");
           await expect(task).toContainText(`실패 ${batch.counts.failed}`);
         }
         if (mode === "mixed") await expect(task).toContainText("채점 확인 필요 21");
