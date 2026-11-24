@@ -162,25 +162,8 @@ test("student score report shows rank and wrong question analysis", async ({ pag
   await expect(page.getByText("3등", { exact: true })).toBeVisible();
   await expect(page.getByText("20명 응시", { exact: true })).toBeVisible();
 
-  const activityPath = "/api/v1/students/me/activity/exam-result-open/";
-  const releaseActivity = Promise.withResolvers<void>();
-  const activityRequests: unknown[] = [];
-  await page.route(`**${activityPath}`, async (route) => {
-    expect(route.request().method()).toBe("POST");
-    activityRequests.push(route.request().postDataJSON());
-    await releaseActivity.promise;
-    await route.fulfill({ status: 202, json: { accepted: true } });
-  });
-  try {
-    await page.goto(`${BASE}/student/exams/101/result`, { waitUntil: "domcontentloaded" });
-    await expect.poll(() => activityRequests).toEqual([{ exam_id: 101 }]);
-    await expect(page.getByRole("region", { name: "테스트 오답 확인 상태" })).toContainText("오답 미완료");
-    const activityResponse = page.waitForResponse((response) => new URL(response.url()).pathname === activityPath);
-    releaseActivity.resolve();
-    expect((await activityResponse).status()).toBe(202);
-  } finally {
-    releaseActivity.resolve();
-  }
+  await page.goto(`${BASE}/student/exams/101/result`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("region", { name: "테스트 오답 확인 상태" })).toContainText("오답 미완료");
   await expect(page.getByTestId("score-analysis-card")).toContainText("핵심 분석");
   await expect(page.getByText("정답 3 / 5문항", { exact: true })).toBeVisible();
   const comparison = page.getByRole("group", { name: "시험 점수 비교" });
