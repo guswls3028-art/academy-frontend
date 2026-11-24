@@ -38,7 +38,7 @@ export default function ExamListPage() {
       activeTab={tab}
       onTabChange={setTab}
     >
-      {isLoading && (
+      {tab === "home" && isLoading && (
         <div className="stu-skel-stack">
           <div className="stu-skel stu-skel--lg" />
           <div className="stu-skel stu-skel--lg" />
@@ -46,7 +46,7 @@ export default function ExamListPage() {
         </div>
       )}
 
-      {isError && (
+      {tab === "home" && isError && (
         <EmptyState
           title="시험을 불러오지 못했습니다"
           description="네트워크 연결을 확인하고 잠시 후 다시 시도해 주세요."
@@ -58,7 +58,7 @@ export default function ExamListPage() {
         <ExamHomeTab items={items} />
       )}
 
-      {!isLoading && !isError && tab === "stats" && (
+      {tab === "stats" && (
         <Suspense fallback={<p role="status">결과 분석을 불러오는 중…</p>}>
           <ExamStatsTab />
         </Suspense>
