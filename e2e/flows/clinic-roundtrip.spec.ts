@@ -287,6 +287,10 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
       id: participant.id,
       status: "cancelled",
     }));
+    const timeRail = adminPage.getByRole("group", { name: "시간대 필터" });
+    await expect(timeRail.getByRole("button", { name: "14:00 0명", exact: true })).toBeVisible();
+    await expect(timeRail.getByRole("button", { name: "전체 시간 0명", exact: true })).toBeVisible();
+    await expect(adminPage.locator(".clinic-ops__header-meta-item--count")).toHaveText(/학생\s*0명/);
     await expect(adminPage.locator(".clinic-ops__card").filter({ hasText: primaryStudent?.name })).toHaveCount(0);
     expect(await adminPage.locator("html").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 
@@ -401,6 +405,22 @@ test.describe.serial("클리닉 왕복: 선생→학생→선생", () => {
       adminPage.request, "GET", `/clinic/participants/${completionParticipant.id}/`, adminAccess,
     );
     expect(undone).toMatchObject({ status: "attended", completed_at: null });
+
+    const finalAssignments = await openDateAggregateFromCalendar(adminPage, sessionDate);
+    await expect(finalAssignments).toContainText("2개 일정 · 배정 1명");
+    const sidebar = adminPage.getByRole("complementary", { name: "날짜와 클리닉 수업" });
+    await expect(sidebar.getByRole("button", { name: /14:00.*0명/ })).toBeVisible();
+    await expect(sidebar.getByRole("button", { name: /23:00.*1명/ }).locator("progress"))
+      .toHaveAttribute("aria-label", "처리율 100%");
+    await expect(timeRail.getByRole("button", { name: "전체 시간 1명", exact: true })).toBeVisible();
+    await expect(timeRail.getByRole("button", { name: "14:00 0명", exact: true })).toBeVisible();
+    await expect(timeRail.getByRole("button", { name: "23:00 1명", exact: true })).toBeVisible();
+    await adminPage.getByRole("button", { name: /취소·거절 이력\s*1/ }).click();
+    const historyCard = adminPage.locator(".clinic-ops__card").filter({ hasText: primaryStudent?.name });
+    await expect(historyCard).toContainText("취소된 일정");
+    await adminPage.reload({ waitUntil: "domcontentloaded" });
+    await expect(historyCard).toContainText("23:00");
+    await expect(adminPage.locator(".clinic-ops__header-meta-item--count")).toHaveText(/학생\s*1명/);
     expect(await adminPage.locator("html").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   });
 

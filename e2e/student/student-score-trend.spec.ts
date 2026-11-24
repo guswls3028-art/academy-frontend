@@ -437,6 +437,43 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
   test.skip(!isLocalBase(BASE), "Local route-mock visual contract spec.");
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
 
+  for (const viewer of ["student", "parent"] as const) {
+    test(`${viewer}: 열람 기록 응답 전에 시험 결과가 표시된다`, async ({ page }) => {
+      const isParent = viewer === "parent";
+      await page.setViewportSize({ width: isParent ? 1366 : 390, height: 900 });
+      await installApi(page, viewer);
+      const activityPath = "/api/v1/students/me/activity/exam-result-open/";
+      const activityRequests: Array<{ child?: string; body: unknown }> = [];
+      const releaseActivity = Promise.withResolvers<void>();
+      await page.route(`**${activityPath}`, async (route) => {
+        const request = route.request();
+        if (request.method() === "OPTIONS") return route.fallback();
+        expect(request.method()).toBe("POST");
+        activityRequests.push({ child: request.headers()["x-student-id"], body: request.postDataJSON() });
+        await releaseActivity.promise;
+        await route.fulfill({ status: 202, json: { accepted: !isParent } });
+      });
+      try {
+        await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+        if (isParent) {
+          await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김첫째" }).click();
+          await expect(page).toHaveURL(/\/student\/dashboard/);
+          await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+        }
+        await page.getByRole("link", { name: /Ymath 주간 테스트 2회/ }).click();
+        await expect.poll(() => activityRequests).toEqual([{ child: isParent ? "11" : undefined, body: { exam_id: 302 } }]);
+        await expect(page.getByText("정답 17 / 20문항", { exact: true })).toBeVisible();
+        const activityResponse = page.waitForResponse((response) =>
+          new URL(response.url()).pathname === activityPath && response.request().method() === "POST"
+        );
+        releaseActivity.resolve();
+        expect((await activityResponse).status()).toBe(202);
+      } finally {
+        releaseActivity.resolve();
+      }
+    });
+  }
+
   test("공개 풀이 기록과 과제 점수·온라인 제출 상태를 구분한다", async ({ page }) => {
     const inspection: MyHomeworkGradeSummary = {
       ...unscoredHomework, lecture_id: 501, title: "현장 풀이 기록", grading_mode: "SCORE",

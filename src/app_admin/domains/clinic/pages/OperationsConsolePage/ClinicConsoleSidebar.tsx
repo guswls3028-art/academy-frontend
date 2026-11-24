@@ -10,6 +10,7 @@ import "dayjs/locale/ko";
 import { Clock, MapPin, Plus, Copy, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { cx } from "@/shared/utils/cx";
 import { isClinicSessionFull } from "@/shared/utils/clinicSessionCapacity";
+import type { ClinicSessionRosterCounts } from "../../utils/clinicRoster";
 import type { ClinicSessionTreeNode } from "../../api/clinicSessions.api";
 
 dayjs.locale("ko");
@@ -46,6 +47,8 @@ function moveCalendarFocus(event: KeyboardEvent<HTMLDivElement>) {
 
 type Props = {
   sessions: ClinicSessionTreeNode[];
+  rosterCounts: ReadonlyMap<number, ClinicSessionRosterCounts> | null;
+  onRetryCounts?: () => void;
   selectedDay: string;
   todayISO: string;
   year: number;
@@ -70,6 +73,8 @@ type Props = {
 
 export default function ClinicConsoleSidebar({
   sessions,
+  rosterCounts,
+  onRetryCounts,
   selectedDay,
   todayISO,
   year,
@@ -272,6 +277,9 @@ export default function ClinicConsoleSidebar({
             </div>
           )}
         </div>
+        {onRetryCounts && sessionsForDay.length > 0 && (
+          <button type="button" className="clinic-console__empty-cta" onClick={onRetryCounts}>인원 다시 조회</button>
+        )}
         {sessionsForDay.length === 0 ? (
           <p
             className="clinic-empty-state__text clinic-sidebar__empty-text"
@@ -283,15 +291,11 @@ export default function ClinicConsoleSidebar({
             {sessionsForDay.map((s) => {
               const time = (s.start_time || "").slice(0, 5) || "—";
               const isActive = selectedSessionId === s.id;
-              const reserved = s.booked_count ?? 0;
-              const approvalPending = s.pending_count ?? 0;
-              const booked = s.booked_confirmed_count ?? Math.max(0, reserved - approvalPending);
-              const total = s.participant_count ?? reserved;
-              const noShow = s.no_show_count ?? 0;
-              const attended = Math.max(0, total - booked - approvalPending - noShow);
-              const progressPct =
-                total > 0 ? ((attended + noShow) / total) * 100 : 0;
-              const progressValue = Math.min(100, progressPct);
+              const counts = rosterCounts?.get(s.id);
+              const total = counts?.total ?? 0;
+              const booked = counts?.booked ?? 0;
+              const approvalPending = counts?.pending ?? 0;
+              const progressValue = total > 0 ? ((counts?.processed ?? 0) / total) * 100 : 0;
 
               return (
                 <li key={s.id}>
@@ -352,7 +356,7 @@ export default function ClinicConsoleSidebar({
                           />
                         )}
                         <span className="clinic-console__sidebar-session-badge">
-                          {total}명
+                          {rosterCounts ? `${total}명` : onRetryCounts ? "인원 확인 불가" : "확인 중"}
                         </span>
                       </div>
                     </button>

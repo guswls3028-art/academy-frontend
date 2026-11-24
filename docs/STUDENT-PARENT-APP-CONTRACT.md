@@ -531,9 +531,9 @@ frontend를 반영한다. 새 frontend는 POST가 실패하면 bootstrap을 실�
 
 시험 성적 목록과 결과 상세는 원점수와 만점, 문항별 채점이 있는 확정 결과의 정답 문항 수를 먼저 표시한다. 결과 상세의 전체 평균·상위 10% 평균·최고점은 서버가 공개한 강좌 내 원시험 비교값을 사용한다. 미응시·채점 중·미공개 상태는 각각 안내한다.
 
-시험 결과 본문은 GET으로 먼저 표시한 뒤
-`POST /students/me/activity/exam-result-open/`으로 대상 열람 증거를 별도 기록한다.
-활동 기록 실패는 유효한 성적 화면을 막지 않는다. 학부모의 선택 자녀 결과 GET은
+시험 결과 GET이 성공하면 `POST /students/me/activity/exam-result-open/`으로 대상 열람
+증거를 별도 기록하며, 그 응답을 기다리지 않고 결과 본문을 표시한다.
+활동 기록이 지연되거나 실패해도 유효한 성적 화면은 표시한다. 학부모의 선택 자녀 결과 GET은
 동일하게 허용하지만 학생 본인의 활동으로 기록하지 않으며, 서버의
 `accepted:false`를 재시도 오류로 표시하지 않는다. 백엔드의 공통 읽기 무변경
 경계는 `backend/docs/architecture/safe-http-mutation-boundary.md`가 소유한다.
