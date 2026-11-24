@@ -143,6 +143,15 @@ for (const width of [390, 1366]) {
     await page.goto(`${BASE}/workspace/mobile/homeworks/${HOMEWORK_ID}`);
     await expect(page.getByRole("button", { name: "제출물 확인" })).toBeVisible();
     await applyHomeworkPreviewCsp(page);
+    const gallery = page.getByRole("group", { name: "제출 파일" });
+    const tile = gallery.getByRole("button", { name: "미리보기", exact: true });
+    const retry = gallery.getByRole("button", { name: "사진 다시 불러오기" });
+    await expect(retry).toBeVisible();
+    const tileBox = await tile.boundingBox();
+    const retryBox = await retry.boundingBox();
+    if (!tileBox || !retryBox) throw new Error("제출 사진 타일과 재시도 버튼이 보여야 합니다");
+    expect(retryBox.y).toBeGreaterThanOrEqual(tileBox.y);
+    expect(retryBox.y + retryBox.height).toBeLessThanOrEqual(tileBox.y + tileBox.height);
     await page.getByRole("button", { name: "제출물 확인" }).click();
     const sheet = page.getByRole("dialog").filter({ hasText: "김하늘 제출 확인" });
     await expect(sheet.getByRole("alert")).toContainText("제출된 파일은 유지됩니다");

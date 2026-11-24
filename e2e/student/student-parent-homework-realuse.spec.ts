@@ -1,3 +1,4 @@
+import { verifyAcceptedHomeworkNotices } from "../helpers/homeworkAcceptedNoticesRealuse";
 import { revealScoreManagement } from "../helpers/revealScoreManagement";
 /**
  * Student homework media submission -> assistant discovery/preview and UI grading
@@ -52,6 +53,7 @@ type HomeworkSummary = {
   score: number | null;
   passed: boolean;
   achievement: string;
+  teacher_accepted?: boolean;
   inspection_status?: "VIDEO_MAKEUP" | null;
   submission_state?: "needs_submission" | "awaiting_review" | "reviewed";
   lecture_active?: boolean;
@@ -69,6 +71,8 @@ type CreatedState = {
   homeworkId?: number;
   completionHomeworkId?: number;
   staffId?: number;
+  noticeTeacherId?: number;
+  previewAttendanceId?: number;
   enrollmentId?: number;
   duplicateLectureId?: number;
   duplicateSessionId?: number;
@@ -148,27 +152,8 @@ async function verifyHomeworkFeedback(
       }, [201]);
       created.completionHomeworkId = completion.id;
       expect(completion.grading_mode).toBe("COMPLETION");
-      // A separate disposable parent avoids phone deduplication hiding a student's preview.
-      created.previewFamily = await createQaFamily(request, admin.access, "homework-preview", 2);
-      const [previewStudent, unenteredStudent] = created.previewFamily.students;
-      const previewEnrollments = await expectApi<Array<{ id: number }>>(request, "POST", "/enrollments/bulk_create/", admin.access, {
-        lecture: created.lectureId, students: [previewStudent.id],
-      });
-      created.previewEnrollmentId = previewEnrollments[0].id;
-      const previewSessionEnrollments = await expectApi<Array<{ id: number }>>(request, "POST", "/enrollments/session-enrollments/bulk_create/", admin.access, {
-        session: created.sessionId, enrollments: [created.previewEnrollmentId],
-      });
-      created.sessionEnrollmentIds.push(...previewSessionEnrollments.map(row => row.id));
-      // The preview must use two eligible parents; an unmarked student is
-      // deliberately excluded by the class score message attendance rule.
-      let previewAttendanceId = 0;
-      for (const [studentId, status] of [[created.family!.students[0].id, "PRESENT"], [previewStudent.id, "LATE"]] as const) {
-        const attendance = await expectApi<Array<{ id: number }>>(request, "POST", "/lectures/attendance/bulk_create/",
-          admin.access, { session: created.sessionId, students: [studentId] }, [201]);
-        expect(attendance).toHaveLength(1);
-        await expectApi(request, "PATCH", `/lectures/attendance/${attendance[0].id}/`, admin.access, { status });
-        if (studentId === previewStudent.id) previewAttendanceId = attendance[0].id;
-      }
+      const [previewStudent, unenteredStudent] = created.previewFamily!.students;
+      const previewAttendanceId = created.previewAttendanceId!;
       for (const homeworkId of [created.homeworkId, completion.id]) {
         await expectApi(request, "PUT", `/homework/assignments/?homework_id=${homeworkId}`, admin.access,
           { enrollment_ids: [created.enrollmentId, created.previewEnrollmentId] }, [200]);
@@ -676,6 +661,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (created.duplicateSessionId) await remove("DELETE", `/lectures/sessions/${created.duplicateSessionId}/`);
   if (created.lectureId) await remove("DELETE", `/lectures/lectures/${created.lectureId}/`);
   if (created.duplicateLectureId) await remove("DELETE", `/lectures/lectures/${created.duplicateLectureId}/`);
+  if (created.noticeTeacherId) await remove("DELETE", `/staffs/${created.noticeTeacherId}/`);
   if (created.staffId) await remove("DELETE", `/staffs/${created.staffId}/`);
   // Staff deletion deactivates membership; the exact qa-* tenant teardown owns
   // the remaining synthetic User/token/audit cleanup and its zero-residue proof.
@@ -691,6 +677,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     ...(created.duplicateHomeworkId ? [["duplicate homework", `/homeworks/${created.duplicateHomeworkId}/`] as const] : []),
     ...(created.duplicateSessionId ? [["duplicate session", `/lectures/sessions/${created.duplicateSessionId}/`] as const] : []),
     ...(created.duplicateLectureId ? [["duplicate lecture", `/lectures/lectures/${created.duplicateLectureId}/`] as const] : []),
+    ...(created.noticeTeacherId ? [[`notice teacher ${created.noticeTeacherId}`, `/staffs/${created.noticeTeacherId}/`] as const] : []),
     ...(created.staffId ? [[`staff ${created.staffId}`, `/staffs/${created.staffId}/`] as const] : []),
   ]) {
     const residue = await api(request, "GET", path, created.adminAccess);
@@ -830,6 +817,7 @@ async function emitHomeworkGradingState(page: Page, phase: HomeworkGradingPhase,
 async function gradeHomework(
   page: Page, request: APIRequestContext, username: string, password: string, staffAccess: string,
   studentName: string,
+  verifyFileAcceptance: (staffPage: Page) => Promise<void>,
 ): Promise<void> {
   const context = await page.context().browser()!.newContext({ serviceWorkers: "block" });
   const staffPage = await context.newPage();
@@ -852,7 +840,7 @@ async function gradeHomework(
       await expect(clockInChoice).toBeVisible();
       await clockInChoice.getByRole("button", { name: /^출근하지 않고 로그인/ }).click();
       await expect(clockInChoice).toBeHidden();
-      for (const [width, value, previousScore] of [[390, 91, null], [1366, 92, 91]] as const) {
+      for (const [width, value, previousScore] of [[390, 0, null], [1366, 92, 0]] as const) {
         gradingPhase = "navigation";
         await staffPage.setViewportSize({ width, height: 900 });
         await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
@@ -903,7 +891,7 @@ async function gradeHomework(
         await commitScore();
         const response = await saved;
         expect(response.status()).toBe(200);
-        expect(await response.json()).toMatchObject({ score: value, passed: true });
+        expect(await response.json()).toMatchObject({ score: value, passed: value === 92 });
         if (width !== 390) await finishEditing.click();
         await expect(staffPage.getByRole("button", { name: "수정", exact: true })).toBeVisible();
         if (width === 390) {
@@ -921,6 +909,7 @@ async function gradeHomework(
         await test.info().attach(`assistant-homework-grading-${width}`, {
           body: await staffPage.screenshot({ fullPage: true }), contentType: "image/png",
         });
+        if (width === 390) await verifyFileAcceptance(staffPage);
       }
       await gotoAndSettle(staffPage, `${QA_BASE}/workspace/mobile/homeworks/${created.homeworkId}`);
       await expect(staffPage.getByText("점수 입력 완료", { exact: true })).toBeVisible();
@@ -936,6 +925,161 @@ async function gradeHomework(
       throw error;
     }
   });
+}
+
+function missingHomeworkPreview(request: APIRequestContext) {
+  return expectApi<{ total_count: number; preview_token: string | null; recipients: Array<{ student_id: number }> }>(
+    request, "POST", "/messaging/manual-notification/preview/", created.adminAccess!,
+    { trigger: "assignment_not_submitted", send_to: "parent",
+      context_source: { type: "assignment_not_submitted", homework_id: created.homeworkId } },
+  );
+}
+
+async function prepareHomeworkNoticeRoster(request: APIRequestContext) {
+  // A separate disposable parent avoids phone deduplication hiding a student's preview.
+  created.previewFamily = await createQaFamily(request, created.adminAccess, "homework-preview", 2);
+  const [previewStudent] = created.previewFamily.students;
+  const previewEnrollments = await expectApi<Array<{ id: number }>>(request, "POST", "/enrollments/bulk_create/", created.adminAccess, {
+    lecture: created.lectureId, students: [previewStudent.id],
+  });
+  created.previewEnrollmentId = previewEnrollments[0].id;
+  const previewSessionEnrollments = await expectApi<Array<{ id: number }>>(request, "POST", "/enrollments/session-enrollments/bulk_create/", created.adminAccess, {
+    session: created.sessionId, enrollments: [created.previewEnrollmentId],
+  });
+  created.sessionEnrollmentIds.push(...previewSessionEnrollments.map(row => row.id));
+  // The preview must use two eligible parents; an unmarked student is
+  // deliberately excluded by the class score message attendance rule.
+  for (const [studentId, status] of [[created.family!.students[0].id, "PRESENT"], [previewStudent.id, "LATE"]] as const) {
+    const attendance = await expectApi<Array<{ id: number }>>(request, "POST", "/lectures/attendance/bulk_create/",
+      created.adminAccess, { session: created.sessionId, students: [studentId] }, [201]);
+    expect(attendance).toHaveLength(1);
+    await expectApi(request, "PATCH", `/lectures/attendance/${attendance[0].id}/`, created.adminAccess, { status });
+    if (studentId === previewStudent.id) created.previewAttendanceId = attendance[0].id;
+  }
+  await expectApi(request, "PUT", `/homework/assignments/?homework_id=${created.homeworkId}`, created.adminAccess,
+    { enrollment_ids: [created.enrollmentId, created.previewEnrollmentId] });
+}
+
+async function verifyStudentHomeworkFiles(
+  staffPage: Page,
+  parentPage: Page,
+  request: APIRequestContext,
+  studentId: number,
+  studentAccess: string,
+  parentAccess: string,
+) {
+  const region = staffPage.getByRole("region", { name: "온라인 과제 제출물", exact: true });
+  const card = region.getByRole("article").filter({ hasText: uploadName });
+  const fileTile = (filename: string) => region.getByRole("button", { name: "미리보기", exact: true }).filter({
+    has: staffPage.getByText(filename, { exact: true }),
+  });
+  const pcPath = `${QA_BASE}/workspace/students/${studentId}`;
+  const mobilePath = `${QA_BASE}/workspace/mobile/students/${studentId}`;
+  const path = `/api/v1/submissions/submissions/homework/${created.homeworkId}/acceptance/`;
+  const changeAcceptance = async (accepted: boolean) => {
+    const expectedButton = accepted ? "통과" : "통과 인정 취소";
+    const saved = staffPage.waitForResponse(response => response.request().method() === "PATCH"
+      && new URL(response.url()).pathname === path);
+    await card.getByRole("button", { name: expectedButton, exact: true }).click();
+    const response = await saved;
+    expect(response.status()).toBe(200);
+    expect(response.request().postDataJSON()).toMatchObject({ enrollment_id: created.enrollmentId, accepted });
+    expect(await response.json()).toMatchObject({ teacher_accepted: accepted });
+  };
+
+  for (const width of [1366, 390]) {
+    const mobile = width === 390;
+    await staffPage.setViewportSize({ width, height: 900 });
+    await staffPage.goto(mobile ? mobilePath : pcPath, { waitUntil: "domcontentloaded" });
+    const tab = staffPage.getByRole(mobile ? "button" : "tab", { name: "제출물", exact: true });
+    await expect(tab).toBeVisible();
+    await applyHomeworkPreviewCsp(staffPage);
+    await tab.click();
+    await expect(card.getByRole("heading", { name: homeworkTitle, exact: true })).toBeVisible();
+    await expect(card.getByRole("group", { name: "제출 파일", exact: true })).toBeVisible();
+    for (const fileName of [uploadName, parentUploadName]) {
+      const tile = fileTile(fileName);
+      await tile.scrollIntoViewIfNeeded();
+      const thumbnail = tile.getByRole("img", { name: /^\d+번 제출 사진$/ });
+      await expect(thumbnail).toBeVisible();
+      await expect.poll(() => thumbnail.evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    }
+    await expect(fileTile(videoUploadName)).toBeVisible();
+    await fileTile(uploadName).click();
+    const enlarged = staffPage.getByRole("dialog").filter({ has: staffPage.getByRole("img", { name: `${uploadName} 과제 제출 미리보기`, exact: true }) });
+    const fullPhoto = enlarged.getByRole("img", { name: `${uploadName} 과제 제출 미리보기`, exact: true });
+    await expect(fullPhoto).toBeVisible();
+    await expect.poll(() => fullPhoto.evaluate(image => (image as HTMLImageElement).naturalWidth)).toBe(640);
+    await assertNoHorizontalOverflow(staffPage);
+    await enlarged.getByRole("button", { name: "닫기", exact: true }).last().click();
+    await expect(enlarged).toBeHidden();
+    await staffPage.screenshot({ path: test.info().outputPath(`student-homework-files-${width}.png`) });
+
+    if (!mobile) {
+      await changeAcceptance(true);
+      await expect(card.getByRole("status").filter({ hasText: "통과 인정됨" })).toBeVisible();
+      const passed = (row: HomeworkSummary) => row.score === 0 && row.teacher_accepted === true && row.passed === true && row.submission_media_locked === true;
+      await waitForHomeworkSummary(request, studentAccess, passed);
+      await waitForHomeworkSummary(request, parentAccess, passed, studentId);
+      await parentPage.goto(`${QA_BASE}/student/grades?view=homework&homework_status=all`, { waitUntil: "domcontentloaded" });
+      const grade = parentPage.locator(".stu-panel[data-session-type]").filter({ has: parentPage.getByText(homeworkTitle, { exact: true }) });
+      await expect(grade).toContainText("과제 통과 인정");
+      await expect(grade).toContainText("0/100");
+    } else {
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(card.getByRole("status").filter({ hasText: "통과 인정됨" })).toBeVisible();
+      await changeAcceptance(false);
+      await expect(card.getByRole("button", { name: "통과", exact: true })).toBeVisible();
+      const reverted = (row: HomeworkSummary) => row.score === 0 && row.teacher_accepted === false && row.passed === false && row.submission_media_locked === false;
+      await waitForHomeworkSummary(request, studentAccess, reverted);
+      await waitForHomeworkSummary(request, parentAccess, reverted, studentId);
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(card.getByRole("button", { name: "통과", exact: true })).toBeVisible();
+
+      await gotoAndSettle(staffPage, `${QA_BASE}/workspace/mobile/homeworks/${created.homeworkId}`);
+      const selectedStudent = created.family!.students[0];
+      await staffPage.getByLabel(`${selectedStudent.name} 통과 대상 선택`, { exact: true }).check();
+      await staffPage.getByRole("button", { name: "선택 1명 통과", exact: true }).click();
+      const saving = staffPage.waitForResponse(res => res.request().method() === "PATCH" && new URL(res.url()).pathname === path);
+      await staffPage.getByRole("alertdialog").getByRole("button", { name: "1명 통과 처리", exact: true }).click();
+      const saved = await saving;
+      expect(saved.status()).toBe(200);
+      expect(saved.request().postDataJSON()).toMatchObject({ enrollment_id: created.enrollmentId, accepted: true });
+      const bulkPassed = (row: HomeworkSummary) => row.score === 0 && row.teacher_accepted === true && row.passed;
+      await waitForHomeworkSummary(request, studentAccess, bulkPassed);
+      await waitForHomeworkSummary(request, parentAccess, bulkPassed, studentId);
+
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(staffPage.getByText("통과 인정됨", { exact: true })).toBeVisible();
+      await assertNoHorizontalOverflow(staffPage);
+      await staffPage.getByRole("button", { name: "통과 인정 취소", exact: true }).click();
+      await waitForHomeworkSummary(request, studentAccess, reverted);
+      await waitForHomeworkSummary(request, parentAccess, reverted, studentId);
+      await prepareHomeworkNoticeRoster(request);
+      const teacherName = `qa-homework-teacher-${runStamp}`;
+      const teacher = await expectApi<{ id: number }>(request, "POST", "/staffs/", created.adminAccess, {
+        name: `QA 과제 강사 ${runStamp}`, role: "TEACHER", username: teacherName,
+        password: selectedStudent.password, is_manager: false,
+      }, [201]);
+      created.noticeTeacherId = teacher.id;
+      const teacherTokens = await loginApi(request, teacherName, selectedStudent.password);
+      expect(await expectApi(request, "GET", "/core/me/", teacherTokens.access)).toMatchObject({ tenantRole: "teacher" });
+      const studentTokens = await loginApi(request, selectedStudent.ps_number, selectedStudent.password);
+      await verifyAcceptedHomeworkNotices(staffPage, request, {
+        teacherTokens, studentTokens, student: selectedStudent, control: created.previewFamily!.students[0],
+        homeworkId: created.homeworkId!, homeworkTitle, lectureId: created.lectureId!, sessionId: created.sessionId!,
+      });
+      await waitForHomeworkSummary(request, parentAccess, bulkPassed, studentId);
+      await parentPage.reload({ waitUntil: "domcontentloaded" });
+      const parentGrade = parentPage.locator(".stu-panel[data-session-type]").filter({ has: parentPage.getByText(homeworkTitle, { exact: true }) });
+      await expect(parentGrade).toContainText("과제 통과 인정");
+      await expect(parentGrade).toContainText("0/100");
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await staffPage.getByRole("button", { name: "통과 인정 취소", exact: true }).click();
+      await waitForHomeworkSummary(request, studentAccess, reverted);
+
+    }
+  }
 }
 
 test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
@@ -1006,7 +1150,12 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       }
     };
     page.on("request", observeUpload);
-    await gotoAndSettle(page, scopedSubmission, { timeout: 30_000 });
+    await expect(page.getByRole("link", { name: /^과제 사진 제출/ })).toHaveAttribute("href", "/student/submit/assignment");
+    await pendingHomework.click();
+    const assignmentLink = page.locator(`a[href="${new URL(scopedSubmission).pathname}${new URL(scopedSubmission).search}"]`);
+    await expect(assignmentLink).toBeVisible();
+    await assignmentLink.click();
+    await expect(page).toHaveURL(scopedSubmission);
     await expect(page.getByRole("heading", { name: "과제 제출" })).toBeVisible();
     await expect(submissionSummary).toContainText(homeworkTitle);
     const submitDocument = await page.evaluate(() => performance.timeOrigin);
@@ -1050,7 +1199,13 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await page.setViewportSize({ width: 390, height: 844 });
 
     await applyHomeworkPreviewCsp(page);
-    await page.locator("input[type='file']").first().setInputFiles({
+    const [camera] = await Promise.all([
+      page.waitForEvent("filechooser"),
+      page.getByRole("button", { name: "사진 찍기", exact: true }).click(),
+    ]);
+    expect(camera.isMultiple()).toBe(false);
+    expect(await camera.element().getAttribute("capture")).toBe("environment");
+    await camera.setFiles({
       name: uploadName,
       mimeType: "image/heic",
       buffer: homeworkHeic,
@@ -1167,6 +1322,9 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       const originalUpload = page.waitForResponse((response) =>
         response.request().method() === "POST" && new URL(response.url()).pathname === uploadPath(created.homeworkId!),
       );
+      const initiallyMissing = await missingHomeworkPreview(request);
+      expect(initiallyMissing.recipients.map(row => row.student_id)).toEqual([student.id]);
+      expect(initiallyMissing.preview_token).toBeTruthy();
       await page.getByRole("button", { name: "파일 1개 제출하기" }).click();
       expect((await originalUpload).status()).toBe(201);
       await expect(page.getByText("선택한 파일을 모두 제출했습니다.")).toBeVisible({ timeout: 45_000 });
@@ -1206,6 +1364,11 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await page.getByRole("link", { name: "과제 확인 결과", exact: true }).click();
       const allHomework = page.getByRole("group", { name: "과제 상태 필터" }).getByRole("button", { name: /^전체/ });
       await expect(allHomework).toHaveAttribute("aria-pressed", "true");
+      expect((await missingHomeworkPreview(request)).recipients).toEqual([]);
+      // The isolated qa-* runner uses the mock provider. An obsolete reviewed set must create no batch.
+      const changed = await expectApi<{ code: string }>(request, "POST", "/messaging/manual-notification/confirm/",
+        admin.access, { preview_token: initiallyMissing.preview_token }, [409]);
+      expect(changed.code).toBe("preview_changed");
       const submittedCard = page.locator(".stu-panel[data-session-type]").filter({ has: page.getByText(homeworkTitle, { exact: true }) });
       await expect(submittedCard).toContainText("온라인 제출물 확인 대기");
       const studentHomeRows = await openHomeWithGradeRows(page);
@@ -1227,8 +1390,11 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       // or manual reload after the student's successful submission.
       await staffPage.bringToFront();
       await expect(fileRow).toBeVisible({ timeout: 30_000 });
-      await staffPage.getByRole("button", { name: /^알림(?:$| \d+건| 일부 확인 필요)/ }).click();
-      await staffPage.getByRole("button", { name: /확인 대기 과제 제출/ }).click({ timeout: 40_000 });
+      const pendingBadge = staffPage.getByRole("link", { name: /^확인 대기 과제 제출 [0-9]+건 열기$/ });
+      await expect(pendingBadge).toBeVisible({ timeout: 40_000 });
+      const startingCount = Number((await pendingBadge.getAttribute("aria-label"))?.match(/(\d+)건/)?.[1]);
+      expect(startingCount).toBeGreaterThan(0);
+      await pendingBadge.click();
       await expect(mobileHomeworkChoice).toContainText("확인 대기 1건");
       await expect(staffPage.getByRole("link").filter({ hasText: otherTitle })).toHaveCount(0);
       await assertNoHorizontalOverflow(staffPage);
@@ -1236,6 +1402,17 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await mobileHomeworkChoice.click();
       await expect(fileRow).toBeVisible();
       await applyHomeworkPreviewCsp(staffPage);
+      await expect.poll(() => fileRow.locator("img").evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+      await staffPage.getByRole("button", { name: "통과", exact: true }).click();
+      await expect(staffPage.getByText("통과 인정됨", { exact: true })).toBeVisible();
+      await expect.poll(pendingForHomework).toBe(0);
+      if (startingCount === 1) await expect(pendingBadge).toHaveCount(0);
+      else await expect(pendingBadge).toHaveAttribute("aria-label", `확인 대기 과제 제출 ${startingCount - 1}건 열기`);
+      await waitForHomeworkSummary(request, studentTokens.access, row => row.score === null && row.passed === true && row.teacher_accepted === true);
+      await staffPage.reload({ waitUntil: "domcontentloaded" });
+      await staffPage.getByRole("button", { name: "통과 인정 취소", exact: true }).click();
+      await expect.poll(pendingForHomework).toBe(1);
+      await expect(pendingBadge).toHaveAttribute("aria-label", `확인 대기 과제 제출 ${startingCount}건 열기`);
       await staffPage.getByRole("button", { name: "제출물 확인" }).click();
       const preview = staffPage.getByRole("dialog", { name: `${student.name} 제출 확인` });
       const image = preview.getByRole("img", { name: /과제 제출 미리보기/ });
@@ -1508,7 +1685,8 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     await page.getByRole("button", { name: "미리보기 닫기", exact: true }).click();
     await assertNoHorizontalOverflow(page);
 
-    await gradeHomework(page, request, staffUsername, student.password, staffTokens.access, student.name);
+    await gradeHomework(page, request, staffUsername, student.password, staffTokens.access, student.name,
+      staffPage => verifyStudentHomeworkFiles(staffPage, page, request, student.id, studentTokens.access, parentTokens.access));
     await waitForHomeworkSummary(request, parentTokens.access, (row) => row.score === 92, student.id);
     await gotoAndSettle(page, `${QA_BASE}/student/grades`, { timeout: 30_000 });
     await showAllHomeworkGrades(page);

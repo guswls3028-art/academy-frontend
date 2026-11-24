@@ -2,7 +2,7 @@ import type { SessionScoreMeta, SessionScoreRow } from "@/shared/api/contracts/s
 import {
   buildScoreVars,
   collectUnenteredScoreItems,
-  substituteScoreValues,
+  scoreMessageStudentVars,
   type ScoreReportOptions,
 } from "@/shared/scoring/scoreReport";
 
@@ -66,10 +66,7 @@ export function prepareScoreAlimtalkVariables(
       for (const row of rows) {
         if (row.student_id == null) continue;
         const scoreVars = getScoreValues(row);
-        result[row.student_id] = {
-          ...scoreVars,
-          _body_subst: substituteScoreValues(currentBody, scoreVars),
-        };
+        result[row.student_id] = scoreMessageStudentVars(currentBody, row, meta, scoreVars);
       }
       return result;
     },

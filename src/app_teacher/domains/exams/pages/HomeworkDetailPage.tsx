@@ -10,6 +10,11 @@ import { fetchSessionScores, patchAssessmentCorrection } from "@/shared/api/cont
 import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { formatCompactFileSize } from "@/shared/utils/fileSize";
+import HomeworkFileGallery from "@/shared/ui/submissions/HomeworkFileGallery";
+import HomeworkBulkAcceptance from "@/shared/ui/submissions/HomeworkBulkAcceptance";
+import HomeworkAcceptanceButton from "@/shared/ui/submissions/HomeworkAcceptanceButton";
+import HomeworkMediaPreviewModal from "@/shared/ui/media/HomeworkMediaPreviewModal";
+import type { HomeworkSubmissionMediaFile } from "@/shared/api/contracts/staffHomeworkFiles";
 import PhotoPreview from "@/shared/ui/media/PhotoPreview";
 import HomeworkMediaVideo from "@/shared/ui/media/HomeworkMediaVideo";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
@@ -57,6 +62,7 @@ export default function HomeworkDetailPage() {
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [reviewSubmissionId, setReviewSubmissionId] = useState<number | null>(null);
+  const [preview, setPreview] = useState<{ file: HomeworkSubmissionMediaFile; fingerprint: string | null } | null>(null);
   const hid = Number(homeworkId);
 
   const homeworkQ = useQuery({
@@ -177,7 +183,7 @@ export default function HomeworkDetailPage() {
   const submissionRows = submissions ?? [];
   const submitted = submissionRows.filter(isSubmittedSubmission);
   const pending = submissionRows.filter((submission) => !isSubmittedSubmission(submission));
-  const reviewedCount = submitted.filter((submission) => submission.teacher_reviewed).length;
+  const reviewedCount = submitted.filter((submission) => submission.teacher_accepted || submission.teacher_reviewed).length;
 
   return (
     <div className="flex flex-col gap-3">
@@ -194,10 +200,12 @@ export default function HomeworkDetailPage() {
 
       {submitted.length > 0 && (
         <Section title={`제출 확인 (${submitted.length})`}>
-          <p className={styles.reviewGuide}>자동검사 대신 제출 파일을 직접 보고 확인 완료를 기록합니다.</p>
-          {submitted.map((s) => (
+          <p className={styles.reviewGuide}>사진을 눌러 확대할 수 있습니다. 통과를 누르면 기존 점수를 유지하고 과제를 통과로 인정합니다.</p>
+          <HomeworkBulkAcceptance key={hid} homeworkId={hid} sessionId={sessionId} rows={submitted}>
+          {(visibleRows, checkbox) => visibleRows.map((s) => (
             <div key={s.id} className={`${styles.row} py-2`}>
               <div className="flex justify-between items-center gap-2">
+                {checkbox(s)}
                 <span className={`${styles.title} text-sm`}>
                   {s.student_name}
                 </span>
@@ -205,27 +213,26 @@ export default function HomeworkDetailPage() {
                   {formatDate(s.submitted_at)}
                 </span>
               </div>
-              <div className={styles.files}>
-                {s.files.map((file) => (
-                  <div key={file.id} className={styles.fileRow}>
-                    <div className={styles.fileName}>
-                      <strong>{file.original_filename}</strong>
-                      <span>{file.removed_at || file.status === "removed" ? "교체됨" : file.status === "failed" ? "업로드 실패" : file.status === "uploading" ? "저장 중" : "미리보기 가능"}</span>
-                      {file.error_message && <span className={styles.dangerText}>{file.error_message}</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
-                <Badge tone={s.teacher_reviewed ? "success" : "warning"} size="xs">
-                  {reviewLabel(s, hasRecordedScore(s))}
-                </Badge>
-                <button type="button" className={styles.reviewButton} onClick={() => setReviewSubmissionId(s.id)}>
-                  제출물 확인
-                </button>
-              </div>
+              {s.files.some(file => file.status === "uploaded" && !file.removed_at) && (
+                <HomeworkAcceptanceButton homeworkId={hid} sessionId={sessionId} studentId={s.student_id}
+                  enrollmentId={s.enrollment_id} accepted={s.teacher_accepted} updatedAt={s.teacher_accepted_updated_at}
+                  fingerprint={s.media_set_fingerprint} />
+              )}
+              <HomeworkFileGallery homeworkId={hid} files={s.files} fingerprint={s.media_set_fingerprint}
+                onOpen={file => setPreview({ file, fingerprint: s.media_set_fingerprint })} />
+              {!s.teacher_accepted && (
+                <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
+                  <Badge tone={s.teacher_reviewed ? "success" : "warning"} size="xs">
+                    {reviewLabel(s, hasRecordedScore(s))}
+                  </Badge>
+                  <button type="button" className={styles.reviewButton} onClick={() => setReviewSubmissionId(s.id)}>
+                    제출물 확인
+                  </button>
+                </div>
+              )}
             </div>
           ))}
+          </HomeworkBulkAcceptance>
         </Section>
       )}
 
@@ -257,6 +264,8 @@ export default function HomeworkDetailPage() {
         <EmptyState scope="panel" tone="empty" title="제출 현황이 없습니다" description="수강생이 과제를 제출하면 이 화면에서 파일을 직접 확인할 수 있습니다." actions={<EmptyActionButton variant="secondary" onClick={goBack}>{fromInbox ? "과제 목록으로 돌아가기" : "돌아가기"}</EmptyActionButton>} />
       )}
 
+      {preview && <HomeworkMediaPreviewModal open homeworkId={hid} file={preview.file}
+        mediaSetFingerprint={preview.fingerprint} onClose={() => setPreview(null)} />}
       <HomeworkReviewSheet
         key={reviewSubmission?.id ?? "closed"}
         homeworkId={hid}

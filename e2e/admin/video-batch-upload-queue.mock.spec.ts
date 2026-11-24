@@ -412,6 +412,57 @@ test("두 대용량 업로드가 멈추면 해당 파트만 다시 보내고 대
   }
 });
 
+test("MTS 3개에서 첫 파트 응답 전의 전송량과 대기 파일을 구분한다", async ({ page }, testInfo) => {
+  const evidence = await installApp(page);
+  await gotoAndSettle(page, `${BASE}/workspace/videos/tree`, { timeout: 45_000 });
+  await page.locator('[title="영상 추가"]').click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "영상 파일 추가" }).evaluate(dropZone => {
+    const data = new DataTransfer();
+    for (const name of ["first.MTS", "second.MTS", "third.MTS"]) {
+      const file = new File([new Uint8Array(2 * 1024 * 1024)], name, { type: "" });
+      Object.defineProperty(file, "size", { value: 101 * 1024 * 1024 });
+      data.items.add(file);
+    }
+    dropZone.dispatchEvent(new DragEvent("drop", { bubbles: true, dataTransfer: data }));
+    const send = XMLHttpRequest.prototype.send;
+    const held: Array<() => void> = [];
+    XMLHttpRequest.prototype.send = function (body) {
+      if (!(body instanceof Blob) || body.size === 0) return send.call(this, body);
+      held.push(() => send.call(this, body));
+      this.upload.dispatchEvent(new ProgressEvent("progress", { loaded: 1024 * 1024, total: body.size, lengthComputable: true }));
+    };
+    window.addEventListener("release-test-video-parts", () => {
+      XMLHttpRequest.prototype.send = send;
+      held.forEach(resume => resume());
+    }, { once: true });
+  });
+  try {
+    await dialog.getByRole("button", { name: "업로드 (3개)" }).click();
+    const rows = dialog.getByRole("listitem");
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      for (const index of [0, 1]) {
+        await expect(rows.nth(index)).toContainText("1.0MB / 101.0MB");
+        await expect(rows.nth(index).getByRole("progressbar")).toBeVisible();
+      }
+      await expect(rows.nth(2)).toContainText("전송 순서 대기");
+      await expect(dialog.getByRole("button", { name: "저장 완료 0/3개" })).toBeDisabled();
+      expect(evidence.initRequests).toHaveLength(2);
+      expect(evidence.multipartCompletedVideoIds).toHaveLength(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+      const path = testInfo.outputPath(`mts-upload-progress-${width}.png`);
+      await page.screenshot({ path });
+      await testInfo.attach(`mts-upload-progress-${width}`, { path, contentType: "image/png" });
+    }
+  } finally {
+    await page.evaluate(() => window.dispatchEvent(new Event("release-test-video-parts")));
+  }
+  await expect.poll(() => evidence.multipartCompletedVideoIds.length).toBe(3);
+  expect(new Set(evidence.multipartCompletedVideoIds).size).toBe(3);
+  await expect(dialog).toBeHidden();
+});
+
 test("작은 영상 두 건의 저장 응답이 끊겨도 새 URL로 복구하고 대기 파일을 완료한다", async ({ page }) => {
   test.setTimeout(120_000);
   const evidence = await installApp(page);

@@ -418,6 +418,31 @@ test.describe("성적 알림톡 학생별 개인화", () => {
   test.setTimeout(120_000);
   test.use({ viewport: { width: 1366, height: 900 }, serviceWorkers: "block" });
 
+  test("과제 판정이 마지막 확인 뒤 바뀌면 오래된 발송을 닫고 최신 성적표에서 다시 확인한다", async ({ page }) => {
+    const previews: SendPayload[] = [];
+    const sends: SendPayload[] = [];
+    await openPersonalizedScores(page, "success", previews, sends);
+    await selectBothStudentsAndOpen(page, true);
+    const modal = page.getByRole("dialog", { name: "알림톡 발송" });
+    await modal.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
+    await modal.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
+    const confirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
+    const reviewed = previews.at(-1)?.alimtalk_extra_vars_per_student?.["9301"];
+    expect(JSON.parse(reviewed?._homework_notice_states ?? "[]")).toEqual([[1, 9151, "other"]]);
+    let refused = 0;
+    await page.route("**/api/v1/messaging/send/", route => {
+      refused++;
+      return route.fulfill({ status: 409, json: { code: "grade_homework_review_changed", detail: "과제 상태가 변경되었습니다." } });
+    });
+    await confirm.getByRole("button", { name: "발송하기", exact: true }).click();
+    await expect(modal).toBeHidden();
+    await expect(page.getByText(/최신 성적표에서 대상과 발송 문구를 다시 확인/)).toBeVisible();
+    expect(refused).toBe(1);
+    expect(sends).toHaveLength(0);
+    await selectBothStudentsAndOpen(page);
+    await expect(modal).toBeVisible();
+  });
+
   for (const width of [1366, 390]) {
     test(`${width}px 임근혁 영어 영상 학생의 저장된 미제출만 영상보강으로 발송한다`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 900 });

@@ -48,6 +48,7 @@ import {
   type SendToType,
   type SendMessagePayload,
 } from "../api/messages.api";
+import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { messageQueryKeys } from "../queryKeys";
 import {
   TEMPLATE_CATEGORY_LABELS,
@@ -641,6 +642,9 @@ export default function SendMessageModal({
           reviewedPayloads.map((payload) => preflightSendMessage(payload, signal)),
         );
         if (signal.aborted) return;
+        if (sessionId && results.some(result => result.blockers.some(issue => issue.code === "grade_homework_review_changed"))) {
+          void queryClient.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+        }
         setPreflightResults(results);
         setPreflightResultKey(preflightKey);
       } catch (error: unknown) {
@@ -657,7 +661,7 @@ export default function SendMessageModal({
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [frontendReady, open, preflightKey, preflightRetry, reviewedPayloads, reviewPendingSend, sending, videoHomeworkAttempt]);
+  }, [frontendReady, open, preflightKey, preflightRetry, queryClient, reviewedPayloads, reviewPendingSend, sending, sessionId, videoHomeworkAttempt]);
 
   // 양식 선택 팝업의 정보 블록 예시에만 사용한다. 발송 문구는 서버 preflight가 조립한다.
   const getPreviewData = useCallback((currentBody: string): Record<string, string> => {
@@ -1278,6 +1282,14 @@ export default function SendMessageModal({
       const detail = extractApiError(error, "발송 응답을 확인하지 못했습니다.");
       const errorData = isAxiosError<{ accepted_count?: number; request_id?: string; code?: string }>(error)
         ? error.response?.data : undefined;
+      if (errorData?.code === "grade_homework_review_changed") {
+        if (sessionId) void queryClient.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
+        const prefix = totalAccepted > 0 ? `이미 접수된 ${totalAccepted}건을 제외하고 ` : "";
+        feedback.warning(`과제 상태가 변경되었습니다. ${prefix}최신 성적표에서 대상과 발송 문구를 다시 확인해 주세요.`);
+        asyncStatusStore.completeTask(taskId, "error", detail);
+        onClose();
+        return;
+      }
       const pending = attempt.payloads[received.length];
       if (errorData?.request_id === pending?.client_request_id && typeof errorData?.accepted_count === "number") {
         totalAccepted += errorData.accepted_count;

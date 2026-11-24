@@ -8,6 +8,8 @@ import {
   buildScoreDetail,
   buildScoreVars,
   collectUnenteredScoreItems,
+  generateScoreReport,
+  scoreMessageStudentVars,
   substituteScoreVars,
 } from "../../src/shared/scoring/scoreReport";
 import { buildAnonymousBillboardDocument } from "../../src/app_admin/domains/scores/utils/anonymousBillboardPdfGenerator";
@@ -503,4 +505,66 @@ test("@alimtalk-order 전체 성적 블록과 목록은 차시 순서를 사용�
   expect(sparse["과제1결과"]).toBe("미배정");
   expect(sparse["시험목록"]).not.toContain("먼저 보는 시험");
   expect(sparse["과제목록"]).not.toContain("먼저 보는 과제");
+});
+
+for (const gradingMode of ["SCORE", "COMPLETION"] as const) {
+  for (const score of [null, 0]) {
+    test(`교사 접수는 이전 미제출을 대체하고 원점수를 유지한다 (${gradingMode}, ${score})`, () => {
+      const row = scoreRow("NOT_SUBMITTED");
+      row.exams = [];
+      row.attendance_status = "ONLINE";
+      const hw = row.homeworks[0];
+      hw.block = { ...hw.block, score, passed: true, teacher_accepted: true };
+      const meta = { ...scoreMeta, homeworks: [{ ...scoreMeta.homeworks[0], grading_mode: gradingMode }] };
+      const options = { showVideoHomeworkLabel: true };
+      const vars = buildScoreVars(row, meta, options);
+      const result = score === 0 && gradingMode === "SCORE" ? "0/10 (0%) 통과 (교사 확인)" : "통과 (교사 확인)";
+      expect(vars["과제1결과"]).toBe(result);
+      expect(vars["과제1"]).toBe(score === 0 && gradingMode === "SCORE" ? "0" : result);
+      expect(vars["과제목록"]).toContain(result);
+      expect(vars["시험성적"]).toContain(result);
+      expect(generateScoreReport(row, meta, options)).toContain(result);
+      expect(vars["숙제완성도"]).toBe("1/1 완료");
+      expect(vars["전체요약"]).toContain("최종: 합격");
+      expect(substituteScoreVars("#{과제1명}: #{과제1결과}", row, meta, options)).toBe(`연습과제: ${result}`);
+      expect(collectUnenteredScoreItems(row)).toEqual([]);
+
+      row.homeworks.push({ ...hw, homework_id: 22, title: "다른 과제",
+        block: { ...hw.block, score: null, passed: false, teacher_accepted: false } });
+      expect(buildScoreVars(row, meta)["과제2결과"]).toBe("미제출");
+      hw.block.meta = { status: null };
+      row.homeworks[1].block.meta = { status: null };
+      expect(collectUnenteredScoreItems(row)).toEqual(["과제: 다른 과제"]);
+    });
+  }
+}
+
+test("성적 문구가 실제 참조한 학생별 과제 슬롯의 판정만 전송한다", () => {
+  const row = scoreRow("NOT_SUBMITTED");
+  const hw = row.homeworks[0];
+  row.homeworks = [
+    { ...hw, homework_id: 24, block: { ...hw.block, score: 0 } },
+    { ...hw, homework_id: 23, block: { ...hw.block, teacher_accepted: true } },
+    hw,
+  ];
+  const meta = { ...scoreMeta, homeworks: [21, 22, 23, 24].map(homework_id => ({ ...scoreMeta.homeworks[0], homework_id })) };
+  const values = buildScoreVars(row, meta);
+  const compact = (body: string) => compactGradesPerStudentPayloadVars(body, { 101: scoreMessageStudentVars(body, row, meta, values) })![101];
+  const expected = [[1, 21, "missing"], [3, 23, "accepted"], [4, 24, "other"]];
+  for (const key of ["과제목록", "시험성적", "선생님메모", "전체요약", "숙제완성도"]) {
+    expect(JSON.parse(compact(`#{${key}}`)._homework_notice_states)).toEqual(expected);
+  }
+  expect(JSON.parse(compact("#{과제4결과} #{과제1} #{과제4}")._homework_notice_states)).toEqual([expected[0], expected[2]]);
+  for (const body of ["안녕하세요", "#{과제2결과}", "#{과제1명} #{과제1만점} #{과제1최고점} #{시험목록}"]) {
+    expect(compact(body)).not.toHaveProperty("_homework_notice_states");
+  }
+  const alternate = scoreRow(null);
+  const body = "#{과제1결과}";
+  const multiple = compactGradesPerStudentPayloadVars(body, {
+    101: scoreMessageStudentVars(body, row, meta, values),
+    102: scoreMessageStudentVars(body, alternate, meta, buildScoreVars(alternate, meta)),
+  })!;
+  expect(JSON.parse(multiple[101]._homework_notice_states)).toEqual([expected[0]]);
+  expect(JSON.parse(multiple[102]._homework_notice_states)).toEqual([[1, 21, "other"]]);
+  expect(multiple[101]._body_subst).toBe("미제출");
 });
