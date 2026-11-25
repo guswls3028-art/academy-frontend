@@ -38,17 +38,17 @@ export function usesVideoHomeworkLabelInScoreAlimtalk(tenantCode?: string): bool
 export function collectHighestScores(snapshot: SessionScoresResponse | null | undefined) {
   const examScores = new Map<number, number>();
   const homeworkScores = new Map<number, number>();
-  const record = (scores: Map<number, number>, id: number, block: ScoreBlock) => {
+  const record = (scores: Map<number, number>, id: number, block: ScoreBlock, teacherAccepted = false) => {
     const score = block.score;
     if (score == null || !Number.isFinite(score) || score < 0
       || block.is_provisional || isSubjectivePendingScoreBlock(block) || block.lock_reason === "GRADING"
-      || block.meta?.manual_review_required || block.meta?.status === "NOT_SUBMITTED") return;
+      || block.meta?.manual_review_required || (!teacherAccepted && block.meta?.status === "NOT_SUBMITTED")) return;
     scores.set(id, Math.max(scores.get(id) ?? score, score));
   };
 
   for (const row of snapshot?.rows ?? []) {
     for (const exam of row.exams ?? []) record(examScores, exam.exam_id, exam.block);
-    for (const homework of row.homeworks ?? []) record(homeworkScores, homework.homework_id, homework.block);
+    for (const homework of row.homeworks ?? []) record(homeworkScores, homework.homework_id, homework.block, homework.block.teacher_accepted);
   }
 
   return { examScores, homeworkScores };
@@ -109,6 +109,12 @@ function missingScoreLabel(
   return showVideoHomeworkLabel ? VIDEO_HOMEWORK_LABEL : "미제출";
 }
 
+function acceptedHomeworkResult(block: ScoreBlock, completion: boolean, maxScore?: number | null): string | undefined {
+  if (!block.teacher_accepted) return undefined;
+  if (completion || block.score == null) return "통과 (교사 확인)";
+  return `${formatCompactScore(block.score, block.max_score ?? maxScore, "")} 통과 (교사 확인)`;
+}
+
 function displaysVideoHomework(row: SessionScoreRow, enabled?: boolean): boolean {
   return enabled === true && row.attendance_status === "ONLINE";
 }
@@ -123,7 +129,7 @@ export function collectUnenteredScoreItems(row: SessionScoreRow): string[] {
       ))
       .map((exam) => `시험: ${exam.title}`),
     ...(row.homeworks ?? [])
-      .filter((homework) => homework.block.score == null
+      .filter((homework) => !homework.block.teacher_accepted && homework.block.score == null
         && homework.block.meta?.status !== "VIDEO_MAKEUP"
         && !isExplicitNotSubmitted(homework.block.meta?.status))
       .map((homework) => `과제: ${homework.title}`),
@@ -290,8 +296,12 @@ function collectStats(row: SessionScoreRow, meta: SessionScoreMeta | null): Summ
         s.hwSumScore += hw.block.score;
         s.hwSumMax += max;
       }
-      if (hw.block.passed === true) s.hwPassed++;
     }
+    if (hw.block.teacher_accepted) {
+      s.hwPassed++;
+      continue;
+    }
+    if (hw.block.score != null && hw.block.passed === true) s.hwPassed++;
     if (hw.block.score == null && hw.block.meta?.status === "VIDEO_MAKEUP") continue;
     if (hw.block.score == null && !isExplicitNotSubmitted(hw.block.meta?.status)) {
       s.pendingItems.push(hw.title);
@@ -317,6 +327,11 @@ function renderHomeworkLines(row: SessionScoreRow, meta: SessionScoreMeta | null
   const lines = ["[과제]"];
   for (const hw of row.homeworks) {
     const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
+    const accepted = acceptedHomeworkResult(hw.block, metaHw?.grading_mode === "COMPLETION", metaHw?.max_score);
+    if (accepted) {
+      lines.push(`- ${hw.title}: ${accepted}`);
+      continue;
+    }
     if (metaHw?.grading_mode === "COMPLETION") {
       lines.push(`- ${hw.title}: ${hw.block.score == null ? missingScoreLabel("homework", hw.block.meta?.status) : hw.block.passed ? "통과 (O)" : "미통과 (X)"}`);
       continue;
@@ -475,6 +490,11 @@ function renderScoreDetailHomeworkLines(
   for (const hw of row.homeworks) {
     const missingLabel = missingScoreLabel("homework", hw.block.meta?.status, videoHomework);
     const metaHw = meta?.homeworks?.find((h) => h.homework_id === hw.homework_id);
+    const accepted = acceptedHomeworkResult(hw.block, metaHw?.grading_mode === "COMPLETION", metaHw?.max_score);
+    if (accepted) {
+      appendScoreCard(lines, hw.title, accepted);
+      continue;
+    }
     if (metaHw?.grading_mode === "COMPLETION") {
       appendScoreCard(lines, hw.title, hw.block.score == null ? missingLabel : hw.block.passed ? "통과 (O)" : "미통과 (X)");
       continue;
@@ -682,12 +702,9 @@ export function buildScoreVars(
   const videoHomework = displaysVideoHomework(row, options.showVideoHomeworkLabel);
   // 완료 여부는 서버의 교사 확인/자동 완료 상태를 따른다. 점수 입력·합격과는 별개다.
   const completedHomeworks = homeworks.filter(({ block }) => (
-    block.correction_status === "COMPLETED" || block.correction_status === "NOT_REQUIRED"
+    block.teacher_accepted || block.correction_status === "COMPLETED" || block.correction_status === "NOT_REQUIRED"
   )).length;
-  const homeworkSlots = [
-    ...(meta?.homeworks ?? []),
-    ...homeworks.filter(hw => !homeworkMetaById.has(hw.homework_id)),
-  ];
+  const homeworkSlots = homeworkReportSlots(homeworks, meta);
   for (let i = 0; i < homeworkSlots.length; i++) {
     const slot = homeworkSlots[i];
     const hw = homeworksById.get(slot.homework_id);
@@ -708,6 +725,13 @@ export function buildScoreVars(
     const missingLabel = missingScoreLabel("homework", hw.block.meta?.status, videoHomework);
     vars[`과제${n}만점`] = metaHw?.grading_mode === "COMPLETION" ? "" : String(max);
     vars[`과제${n}명`] = hw.title || "";
+    const completion = metaHw?.grading_mode === "COMPLETION";
+    const accepted = acceptedHomeworkResult(hw.block, completion, metaHw?.max_score);
+    if (accepted) {
+      vars[`과제${n}`] = !completion && hw.block.score != null ? String(hw.block.score) : accepted;
+      vars[`과제${n}결과`] = accepted;
+      continue;
+    }
     vars[`과제${n}`] = hw.block.score != null
       ? metaHw?.grading_mode === "COMPLETION" ? (hw.block.score >= 1 ? "통과" : "미통과") : String(hw.block.score)
       : missingLabel;
@@ -749,6 +773,11 @@ export function buildScoreVars(
       const metaHw = homeworkMetaById.get(hw.homework_id);
       const max = hw.block.max_score ?? metaHw?.max_score ?? 0;
       const completion = metaHw?.grading_mode === "COMPLETION";
+      const accepted = acceptedHomeworkResult(hw.block, completion, metaHw?.max_score);
+      if (accepted) {
+        lines.push(`- ${hw.title}: ${accepted}`);
+        continue;
+      }
       const scoreStr = hw.block.score != null
         ? completion ? (hw.block.score >= 1 ? "통과" : "미통과") : `${hw.block.score}/${max}`
         : missingScoreLabel("homework", hw.block.meta?.status, videoHomework);
@@ -793,6 +822,31 @@ export function buildScoreVars(
   vars["사이트링크"] = vars["사이트링크"] ?? "";
 
   return vars;
+}
+
+function homeworkReportSlots(homeworks: SessionScoreRow["homeworks"], meta: SessionScoreMeta | null) {
+  const slots = meta?.homeworks ?? [];
+  const metaIds = new Set(slots.map(hw => hw.homework_id));
+  return [...slots, ...homeworks.filter(hw => !metaIds.has(hw.homework_id))];
+}
+
+const HOMEWORK_RESULT_AGGREGATES = new Set(["과제목록", "시험성적", "선생님메모", "전체요약", "숙제완성도"]);
+
+export function scoreMessageStudentVars(body: string, row: SessionScoreRow, meta: SessionScoreMeta | null, values: Record<string, string>) {
+  const result = { ...values, _body_subst: substituteScoreValues(body, values) } as Record<string, string>;
+  const referenced = new Set(Array.from(body.matchAll(/#\{([^}]+)\}/g), match => match[1]));
+  const all = [...referenced].some(name => HOMEWORK_RESULT_AGGREGATES.has(name));
+  if (!all && ![...referenced].some(name => /^과제[1-9]\d*(?:결과)?$/.test(name))) return result;
+  const byId = new Map(row.homeworks.map(hw => [hw.homework_id, hw.block]));
+  const states = homeworkReportSlots(row.homeworks, meta).flatMap(({ homework_id }, index) => {
+    const slot = index + 1;
+    const block = byId.get(homework_id);
+    if (!block || (!all && !referenced.has(`과제${slot}`) && !referenced.has(`과제${slot}결과`))) return [];
+    const state = block.teacher_accepted ? "accepted" : block.score == null && isExplicitNotSubmitted(block.meta?.status) ? "missing" : "other";
+    return [[slot, homework_id, state]];
+  });
+  if (states.length) result._homework_notice_states = JSON.stringify(states);
+  return result;
 }
 
 export function substituteScoreVars(

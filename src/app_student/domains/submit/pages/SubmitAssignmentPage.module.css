@@ -179,8 +179,21 @@
   display: none;
 }
 
-.fileButton {
-  align-self: flex-start;
+.fileActions {
+  display: flex;
+  gap: var(--stu-space-2);
+  flex-wrap: wrap;
+}
+
+.fileActions button {
+  min-height: 44px;
+}
+
+.pickerHelp {
+  margin: 0;
+  font-size: 13px;
+  color: var(--stu-text-muted);
+  line-height: 1.5;
 }
 
 .mediaWorkspace {
@@ -579,8 +592,8 @@
     align-items: flex-start;
   }
 
-  .fileButton {
-    width: 100%;
+  .fileActions button {
+    flex: 1 1 auto;
   }
 
   .pendingGrid {

@@ -1307,7 +1307,7 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         target_type: "exam",
         target_id: EXAM_ID,
         identifier: null,
-        answers: [{
+        answers: selectedRow?.status === "dispatched" ? [] : [{
           question_id: QUESTION_IDS[0],
           question_no: 1,
           answer: "2",
@@ -1320,8 +1320,8 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
           },
         }],
         scan_image_url: `data:image/svg+xml,${scanSvg}`,
-        original_scan_image_url: `data:image/svg+xml,${scanSvg}`,
-        scan_image_is_aligned: true,
+        original_scan_image_url: selectedRow?.original_only ? "" : `data:image/svg+xml,${scanSvg}`,
+        scan_image_is_aligned: !selectedRow?.original_only,
         scan_image_size: { width: 800, height: 600 },
         meta: {
           identifier_status: String(
@@ -1348,9 +1348,15 @@ async function installApi(page: Page, options: InstallApiOptions = {}) {
         await json({ detail: "synthetic rotate response timeout" }, 504);
         return;
       }
+      const sourceId = Number(rotateRescanMatch[1]);
+      const submissionId = sourceId + 10_000;
+      const source = options.submissionRows?.find((row) => row.id === sourceId);
+      if (source) {
+        options.submissionRows?.unshift({ ...source, id: submissionId, status: "dispatched", score: null });
+      }
       await json({
-        submission_id: Number(rotateRescanMatch[1]) + 10_000,
-        status: "pending",
+        submission_id: submissionId,
+        status: "dispatched",
         rotation_degrees: payload.rotation_degrees,
         created: true,
       }, 201);
@@ -3513,6 +3519,40 @@ test.describe("문항별 직접 채점", () => {
     expect(apiState.manualEditPostCount).toBe(0);
     expect(apiState.inventoryPresignCount).toBe(0);
   });
+
+  for (const width of [1280, 390]) {
+    test(`원본만 있는 처리 중 OMR을 270도 다시 읽고 완료 답안을 확인한다 (${width}px)`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 844 });
+      const submissionRows: Array<Record<string, unknown>> = [{
+        id: DONE_SUBMISSION_ID, enrollment_id: ENROLLMENT_ID, student_name: "판독 학생",
+        source: "omr_scan", status: "dispatched", has_file: true, original_only: true,
+        created_at: "2026-11-22T18:37:00+09:00", score: null, manual_review_required: false,
+        manual_review_reasons: [], identifier_status: "matched",
+      }];
+      const state = await installApi(page, { gradingMode: "choice", editable: false, submissionRows });
+      await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
+      await chooseExamHeaderAction(page, "OMR 검토");
+      const review = page.getByRole("dialog", { name: "OMR 검토" });
+      await review.locator(".orw-list-row").filter({ hasText: "판독 학생" }).click();
+      await expect(review.getByText(/답안지를 판독하고 있습니다/)).toBeVisible();
+      if (width === 390) await review.getByRole("tab", { name: "원본" }).click();
+      await review.getByRole("button", { name: "왼쪽으로 90도 회전" }).click();
+      await review.getByRole("button", { name: "이 방향으로 다시 읽기" }).click();
+      await page.getByRole("button", { name: "다시 읽기", exact: true }).click();
+      const newId = DONE_SUBMISSION_ID + 10_000;
+      await expect.poll(() => state.manualEditGetIds.at(-1)).toBe(newId);
+      expect(state.rotateRescanBodies).toEqual([
+        expect.objectContaining({ rotation_degrees: 270, client_request_id: expect.any(String) }),
+      ]);
+      Object.assign(submissionRows.find((row) => row.id === newId)!, { status: "done", score: 85 });
+      await review.getByRole("button", { name: "검토 현황 새로고침" }).click();
+      if (width === 390) await review.getByRole("tab", { name: "확인" }).click();
+      await expect(review.locator(".orw-edit-pane__status")).toHaveText("상태 완료");
+      await expect(review.getByText(/답안지를 판독하고 있습니다/)).toHaveCount(0);
+      expect(submissionRows.find((row) => row.id === DONE_SUBMISSION_ID)?.status).toBe("dispatched");
+      expect(state.manualEditPostCount).toBe(0);
+    });
+  }
 
   test("제출관리 OMR 원장은 선택한 10장의 실패 상태와 재접수 경로를 유지한다", async ({ page }) => {
     const batchId = "11111111-2222-4333-8444-555555555555";

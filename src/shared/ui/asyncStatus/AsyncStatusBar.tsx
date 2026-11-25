@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from "re
 import { useLocation, useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
-import { Download, RefreshCw } from "lucide-react";
+import { Download, RefreshCw, Trash2 } from "lucide-react";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { fetchInProgressVideos, getRetryErrorMessage, fetchVideoDetail } from "@/shared/api/contracts/videos";
 import {
@@ -155,14 +155,6 @@ function StatusIcon({ status, attention = false }: { status: AsyncTaskStatus; at
   return (
     <svg className="async-status-bar__item-icon async-status-bar__item-icon--error" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M18 6L6 18M6 6l12 12" />
-    </svg>
-  );
-}
-
-function TrashIcon({ className, size = 16 }: { className?: string; size?: number }) {
-  return (
-    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-      <path d="M3 6h18v2l-2 14H5L3 8V6zm4 2v12h10V8H7zm2 2h2v8H9v-8zm4 0h2v8h-2v-8zM8 4h8v2H8V4z" />
     </svg>
   );
 }
@@ -551,7 +543,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                     onClick={handleDelete}
                     disabled={deleting}
                   >
-                    <TrashIcon size={ICON.sm} />
+                    <Trash2 size={ICON.md} aria-hidden="true" />
                     <span>{deleting ? "삭제 중…" : "삭제"}</span>
                   </button>
                 </div>
@@ -600,36 +592,20 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                 서술형 입력
               </button>
             )}
-          {/* ✅ 실패(error) 작업: 재시도 + 목록에서 제거 */}
           {canRetry && (
-            <>
-              <button
-                type="button"
-                className="async-status-bar__item-btn async-status-bar__item-btn--retry"
-                onClick={handleRetry}
-                disabled={retrying}
-                title="재처리 요청"
-                aria-label="재처리 요청"
-              >
-                <RetryIcon size={ICON.sm} />
-                <span>{retrying ? "요청 중…" : "재시도"}</span>
-              </button>
-              <button
-                type="button"
-                className="async-status-bar__item-btn async-status-bar__item-btn--delete"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  asyncStatusStore.removeTask(task.id);
-                }}
-                title="삭제"
-                aria-label="삭제"
-              >
-                <TrashIcon size={ICON.sm} />
-              </button>
-            </>
+            <button
+              type="button"
+              className="async-status-bar__item-btn async-status-bar__item-btn--retry"
+              onClick={handleRetry}
+              disabled={retrying}
+              title="재처리 요청"
+              aria-label="재처리 요청"
+            >
+              <RetryIcon size={ICON.sm} />
+              <span>{retrying ? "요청 중…" : "재시도"}</span>
+            </button>
           )}
-          {/* ✅ 완료된 작업: 휴지통만 표시 (목록에서 제거, 파일 삭제 아님) */}
-          {!canCancel && !canRetry && (
+          {!canCancel && (
             <button
               type="button"
               className="async-status-bar__item-btn async-status-bar__item-btn--delete"
@@ -640,7 +616,7 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
               title="목록에서 제거"
               aria-label="목록에서 제거"
             >
-              <TrashIcon size={ICON.sm} />
+              <Trash2 size={ICON.md} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -849,7 +825,7 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
             title="완료된 항목 지우기"
             aria-label="완료된 항목 지우기"
           >
-            <TrashIcon size={18} />
+              <Trash2 size={ICON.md} aria-hidden="true" />
           </button>
           <button
             type="button"

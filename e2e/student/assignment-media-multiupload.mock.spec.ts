@@ -1191,20 +1191,48 @@ test("desktop에서 정상 파일은 유지하고 빈 파일·비지원 형식�
 });
 
 for (const width of [390, 1366]) {
-  test(`확장자 없는 HEIC 휴대폰 사진을 MIME으로 제출하고 reload한다 ${width}px`, async ({ page }) => {
+  test(`학생이 촬영 취소·재촬영과 갤러리 선택 후 확장자 없는 HEIC까지 제출하고 다시 확인한다 ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     const state = await installApi(page, 0);
     await page.goto(`${BASE}/student/submit/assignment`);
     await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
-    await expect(page.getByRole("button", { name: "사진·동영상 여러 개 선택" })).toBeEnabled();
-    await page.locator('input[type="file"]').setInputFiles({ name: "camera-capture", mimeType: "image/heic", buffer: homeworkHeic });
-    await expect(page.getByRole("region", { name: "이번에 제출할 파일" })).toContainText("camera-capture");
-    await page.getByRole("button", { name: "파일 1개 제출하기", exact: true }).click();
+    const pending = page.getByRole("region", { name: "이번에 제출할 파일" });
+    const choose = async (camera: boolean) => {
+      const opened = page.waitForEvent("filechooser");
+      await page.getByRole("button", { name: camera ? "사진 찍기" : "사진·동영상 여러 개 선택", exact: true }).click();
+      const chooser = await opened;
+      expect(chooser.isMultiple()).toBe(!camera);
+      expect(await chooser.element().getAttribute("capture")).toBe(camera ? "environment" : null);
+      const accept = (await chooser.element().getAttribute("accept"))?.split(",");
+      if (camera) expect(accept).toEqual(["image/*"]);
+      else expect(accept).toEqual(expect.arrayContaining(["image/*", "video/*"]));
+      return chooser;
+    };
+    await (await choose(true)).setFiles({ name: "first-shot.png", mimeType: "image/png", buffer: RESTORE_RACE_PNG });
+    await expect(pending.getByText("first-shot.png", { exact: true })).toBeVisible();
+    const cancelled = await choose(true);
+    // A native camera cancellation returns to the page with no new file.
+    await cancelled.element().dispatchEvent("cancel", { bubbles: true });
+    await expect(pending.locator("article")).toHaveCount(1);
+    await (await choose(false)).setFiles(["gallery-1.png", "gallery-2.png"].map(name => ({
+      name, mimeType: "image/png", buffer: RESTORE_RACE_PNG,
+    })));
+    await expect(pending.locator("article")).toHaveCount(3);
+    await pending.locator("article").filter({ hasText: "first-shot.png" }).getByRole("button", { name: "선택 취소" }).click();
+    await (await choose(true)).setFiles({ name: "camera-capture", mimeType: "image/heic", buffer: homeworkHeic });
+    await expect(pending.getByText("camera-capture", { exact: true })).toBeVisible();
+    expect(state.getUploadAttempts()).toBe(0);
+    await page.getByRole("button", { name: "파일 3개 제출하기", exact: true }).click();
     await expect(page.getByText("선택한 파일을 모두 제출했습니다.", { exact: true })).toBeVisible();
-    expect(state.getUploadAttempts()).toBe(1);
+    expect(state.getUploadAttempts()).toBe(3);
     await page.reload();
     await page.getByRole("button", { name: /도형 풀이 인증/ }).click();
-    await expect(page.getByRole("region", { name: "이미 제출한 파일" })).toContainText("camera-capture");
+    const saved = page.getByRole("region", { name: "이미 제출한 파일" });
+    for (const filename of ["기존 제출.jpg", "gallery-1.png", "gallery-2.png", "camera-capture"]) {
+      await expect(saved.getByText(filename, { exact: true })).toBeVisible();
+    }
+    await expect(saved.getByText("first-shot.png", { exact: true })).toHaveCount(0);
+    expect(state.getUploadAttempts()).toBe(3);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: `test-results/homework-camera-recovery-${width}.png`, fullPage: true });
   });

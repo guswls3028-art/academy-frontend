@@ -1,5 +1,6 @@
 // PATH: src/app_admin/domains/homework/queryKeys.ts
 
+import { assessmentQueryKeys } from "@/shared/api/queryKeys/assessments";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 
 export const QUERY_KEYS = {
@@ -10,11 +11,7 @@ export const QUERY_KEYS = {
   ADMIN_HOMEWORK: (homeworkId: number) =>
     ["admin-homework", homeworkId] as const,
 
-  HOMEWORK_SUBMISSIONS: (homeworkId: number) =>
-    ["homework-submissions", homeworkId] as const,
-
-  HOMEWORK_MEDIA_PREVIEW: (homeworkId: number, fileId: string | undefined, mediaSetFingerprint: string | null) =>
-    ["homework-media-preview", homeworkId, fileId, mediaSetFingerprint] as const,
+  HOMEWORK_SUBMISSIONS: assessmentQueryKeys.adminHomeworkSubmissions,
 
   HOMEWORK_ASSIGNMENTS: (homeworkId: number) =>
     ["homework-assignments", homeworkId] as const,

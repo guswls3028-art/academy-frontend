@@ -181,6 +181,7 @@ test("closed workflow failure observations reject private fields and impossible 
       { ...sample, viewport: null }, { ...sample, phase: "criteria-invalid-input", threshold: 90 },
       { ...sample, phase: "criteria-setup" }, { ...sample, phase: "feedback-score-edit" }, { ...sample, phase: "feedback-correction" },
       { ...sample, phase: "feedback-setup", threshold: null },
+      { ...sample, phase: "notice-inbox" }, { ...sample, phase: "notice-preview", threshold: null, viewport: null },
     );
     for (const value of invalid) {
       const observed = observeReleaseTestResult(JSON.stringify(contextReport([{ [marker]: value }], spec)));
@@ -519,7 +520,7 @@ test("actual workflow producer phases and transport kinds survive the official d
   const learning = stripTypeScriptTypes(learningBody).replace(/^export /gm, "");
   const homework = stripTypeScriptTypes(homeworkBody).replace(/^export /gm, "");
   const phases = [...homeworkSource.slice(homeworkSource.indexOf("export type HomeworkFlowFailurePhase"), homeworkSource.indexOf("export type HomeworkFlowCheckpoint")).matchAll(/"([^"]+)"/g)].map(match => match[1]);
-  assert.equal(new Set(phases).size, 21);
+  assert.equal(new Set(phases).size, 25);
   const output = [];
   const learningApi = new Function("safeNativeTransportKind", "console", learning + "; return { phases: LEARNING_FLOW_PHASES, emit: emitLearningFlowFailure };")(
     policyModule.safeNativeTransportKind, { info: value => output.push(JSON.parse(value)) });
@@ -541,7 +542,7 @@ test("actual workflow producer phases and transport kinds survive the official d
     }
     for (const phase of phases) {
       for (const viewport of phase === "feedback-setup" ? [null] : [390, 1366]) {
-        const thresholds = phase.startsWith("feedback-") || phase === "criteria-setup" ? [null]
+        const thresholds = phase.startsWith("feedback-") || phase.startsWith("notice-") || phase === "criteria-setup" ? [null]
           : phase === "criteria-invalid-input" ? [95] : [95, 90];
         for (const threshold of thresholds) {
           output.length = 0;

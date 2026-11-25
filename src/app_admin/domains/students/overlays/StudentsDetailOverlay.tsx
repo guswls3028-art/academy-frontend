@@ -44,6 +44,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
 import { adminStudentsQueryKeys } from "../queryKeys";
 import StudentWrongNoteBuilder from "@admin/domains/results/public/StudentWrongNoteBuilder";
+import StudentHomeworkFiles from "@/shared/product/students/StudentHomeworkFiles";
 import StudentHomeworkTab from "./StudentHomeworkTab";
 import AccountGuidanceModal from "../components/AccountGuidanceModal";
 import PasswordResetModal, { type PwResetTarget } from "../components/PasswordResetModal";
@@ -61,7 +62,7 @@ const DeleteConfirmModal = lazy(() => import("../components/DeleteConfirmModal")
 const StudentEnrollmentMatrixDrawer = lazy(() => import("../components/StudentEnrollmentMatrixDrawer"));
 const StudentStorageExplorer = lazy(() => import("@admin/domains/storage/components/StudentStorageExplorer"));
 
-type StatTabKey = "enroll" | "score" | "homework" | "wrong-note" | "clinic" | "question" | "activity";
+type StatTabKey = "enroll" | "submissions" | "score" | "homework" | "wrong-note" | "clinic" | "question" | "activity";
 type ExamSessionScope = "all" | "REGULAR" | "SUPPLEMENT";
 
 const EXAM_SESSION_SCOPE_OPTIONS: Array<{
@@ -613,6 +614,7 @@ function StudentDetailContent({
 
             <div className="ds-record-content" role="tabpanel" id={tabId + "-panel"} aria-labelledby={tabId + "-" + tab} tabIndex={0}>
               {tab === "enroll" && <EnrollmentsTab studentId={id} studentName={student.name || ""} enrollments={student.enrollments} onNavigate={onNavigate} />}
+              {tab === "submissions" && <StudentHomeworkFiles key={id} studentId={id} />}
               {tab === "score" && (
                 <ScoreTab
                   studentId={id}
@@ -889,6 +891,7 @@ function StudentStatTabs({
 
   const tabs: { key: StatTabKey; label: string; count?: string }[] = [
     { key: "enroll", label: "수강", count: `${activeEnrollments}건` },
+    { key: "submissions", label: "제출물" },
     { key: "score", label: "시험", count: countLabel(examGrades.length, gradesLoading, gradesError) },
     { key: "homework", label: "과제", count: countLabel(homeworkCount, gradesLoading, gradesError) },
     { key: "wrong-note", label: "오답노트" },

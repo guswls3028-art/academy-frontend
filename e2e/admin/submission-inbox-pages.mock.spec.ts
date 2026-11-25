@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 import { gotoAndSettle } from "../helpers/wait";
@@ -135,11 +136,12 @@ for (const teacher of [false, true]) {
   }
 }
 
-for (const teacher of [false, true]) {
-  test(`제출함에서 다른 강의의 과제를 찾아 검토 화면으로 바로 연다 ${teacher ? "teacher" : "admin"}`, async ({ page }) => {
-    await page.setViewportSize({ width: teacher ? 390 : 1366, height: 900 });
-    const state = await setup(page, teacher ? "staff" : "owner");
-    const path = teacher ? "/workspace/mobile/submissions" : "/workspace/results/submissions";
+for (const role of ["owner", "teacher", "staff"] as const) {
+  const mobile = role !== "owner";
+  test(`제출함에서 다른 강의의 과제를 찾아 검토 화면으로 바로 연다 ${role}`, async ({ page }) => {
+    await page.setViewportSize({ width: mobile ? 390 : 1366, height: 900 });
+    const state = await setup(page, role);
+    const path = mobile ? "/workspace/mobile/submissions" : "/workspace/results/submissions";
     await gotoAndSettle(page, `${BASE}${path}?page=5`);
     state.failHomeworkList = true;
     await page.getByRole("button", { name: "과제 제출 확인", exact: true }).click();
@@ -156,12 +158,39 @@ for (const teacher of [false, true]) {
     await expect(page.getByText("QA 과제 제출 학생", { exact: true })).toBeVisible();
     await page.reload();
     await expect(page.getByText("QA 과제 제출 학생", { exact: true })).toBeVisible();
+    const missingNotice = page.getByRole("button", { name: "미제출 알림 발송", exact: true });
+    if (role === "staff") {
+      await expect(missingNotice).toHaveCount(0);
+    } else {
+      await page.route("**/messaging/manual-notification/preview/", route => {
+        expect(route.request().postDataJSON()).toMatchObject({
+          trigger: "assignment_not_submitted", context_source: { type: "assignment_not_submitted", homework_id: 71 },
+        });
+        expect(route.request().postDataJSON()).not.toHaveProperty("student_ids");
+        const recipients = mobile ? [{
+          student_id: 91, student_name: "QA 미제출 학생", full_message_body: "QA 워크북 미제출 안내",
+          phone_masked: "010-****-0091", excluded: false,
+        }] : [];
+        return route.fulfill({ json: { preview_token: recipients.length ? "qa-preview" : null,
+          recipients, total_count: recipients.length, sendable_count: recipients.length, excluded_count: 0 } });
+      });
+      await missingNotice.click();
+      if (mobile) {
+        const dialog = page.getByRole("dialog");
+        await expect(dialog.getByRole("radio")).toHaveCount(1);
+        await expect(dialog.getByRole("radio")).toContainText("QA 미제출 학생");
+        await expect(dialog.locator(".kakao-alimtalk-preview__body")).toHaveText("QA 워크북 미제출 안내");
+      } else {
+        await expect(page.getByText("발송 가능한 대상이 없습니다. 제외 사유를 확인해 주세요.")).toBeVisible();
+      }
+      await page.getByRole("dialog").getByRole("button", { name: "취소", exact: true }).click();
+    }
     expect(new Set(state.homeworkSubmissionRequests)).toEqual(new Set([71]));
     await page.goBack();
     await expect(math).toBeVisible();
     await page.getByRole("button", { name: "제출함으로 돌아가기", exact: true }).click();
     await expect(page.getByText("QA 학생 001", { exact: true })).toBeVisible();
-    if (teacher) {
+    if (mobile) {
       await gotoAndSettle(page, `${BASE}/workspace/mobile/notifications`);
       await page.getByRole("button", { name: "과제 제출 확인", exact: true }).click();
       await expect(math).toBeVisible();
@@ -172,7 +201,7 @@ for (const teacher of [false, true]) {
 }
 
 for (const teacher of [false, true]) {
-  test(`확인 대기 과제는 기존 알림에 집계되고 새 증가만 전면에서 한 번 알린다 ${teacher ? "staff" : "owner"}`, async ({ page }) => {
+  test(`확인 대기 과제의 빨간 배지가 첫 방문·새로고침·처리 후 건수를 반영한다 ${teacher ? "staff" : "owner"}`, async ({ page }) => {
     await page.setViewportSize({ width: teacher ? 390 : 1366, height: 900 });
     await page.clock.install();
     const state = await setup(page, teacher ? "staff" : "owner");
@@ -184,8 +213,10 @@ for (const teacher of [false, true]) {
     state.pendingHomework = 1;
     await page.clock.fastForward(31_000);
     const toast = page.getByText("확인 대기 과제 제출 1건 추가", { exact: true });
-    await expect(toast).toHaveCount(1);
-    await page.getByRole("button", { name: "확인 대기 과제 보기", exact: true }).click();
+    await expect(toast).toHaveCount(0);
+    const badge = page.getByRole("link", { name: "확인 대기 과제 제출 1건 열기", exact: true });
+    await expect(badge).toBeVisible();
+    await badge.click();
     const math = page.getByRole("link", { name: /QA 워크북.*QA 수학/ });
     await expect(math).toContainText("확인 대기 1건");
     await expect(page.getByRole("link", { name: /QA 워크북.*QA 영어/ })).toHaveCount(0);
@@ -193,6 +224,7 @@ for (const teacher of [false, true]) {
 
     await page.reload();
     await expect(math).toBeVisible();
+    await expect(badge).toBeVisible();
     await expect(toast).toHaveCount(0);
     if (teacher) {
       await page.getByRole("button", { name: "알림 1건", exact: true }).click();
@@ -213,5 +245,68 @@ for (const teacher of [false, true]) {
     state.pendingHomework = 0;
     await page.clock.fastForward(31_000);
     await expect(page.getByText("확인 대기 과제가 없습니다", { exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: /확인 대기 과제 제출 .*건 열기/ })).toHaveCount(0);
+  });
+}
+
+for (const mobile of [false, true]) {
+  test(`과제 사진 자동 표시와 일괄 통과의 일부 충돌 복구 ${mobile ? "390px" : "desktop"}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: mobile ? 390 : 1366, height: 900 });
+    await setup(page, mobile ? "teacher" : "owner");
+    const rows = [11, 12, 13].map((id, i) => ({
+      id, enrollment_id: id, student_id: id + 30, student_name: `QA 학생 ${id}`,
+      status: "submitted", submitted_at: "2026-10-09T00:00:00Z", teacher_accepted: false,
+      teacher_accepted_updated_at: null, media_set_fingerprint: "a".repeat(64),
+      files: [{ id: String(id), position: 0, media_kind: "image", mime_type: "image/png",
+        original_filename: "풀이.png", status: i === 2 ? "uploading" : "uploaded" }],
+    }));
+    const calls: number[] = [];
+    await page.route(/\/submissions\/submissions\/homework\/71\/\?/, route =>
+      route.fulfill({ json: { count: rows.length, results: rows, next: null } }));
+    const picture = await readFile(new URL("../fixtures/documents/public-resource-bars.png", import.meta.url));
+    await page.route("**/submissions/submissions/homework/71/media/*/preview/", route =>
+      route.fulfill({ json: { url: `data:image/png;base64,${picture.toString("base64")}`, expires_in: 600, media_kind: "image" } }));
+    await page.route("**/submissions/submissions/homework/71/acceptance/", route => {
+      const body = route.request().postDataJSON();
+      const row = rows.find(item => item.enrollment_id === body.enrollment_id)!;
+      calls.push(row.enrollment_id);
+      expect(body.accepted).toBe(true);
+      expect(body.expected_media_set_fingerprint).toBe(row.media_set_fingerprint);
+      if (row.enrollment_id === 12 && calls.filter(id => id === 12).length === 1) {
+        row.media_set_fingerprint = "b".repeat(64);
+        return route.fulfill({ status: 409, json: { detail: "제출 파일이 변경되었습니다." } });
+      }
+      row.teacher_accepted = true;
+      return route.fulfill({ json: { teacher_accepted: true } });
+    });
+    const path = mobile ? "/workspace/mobile/submissions" : "/workspace/results/submissions";
+    await gotoAndSettle(page, `${BASE}${path}`);
+    await page.getByRole("button", { name: "과제 제출 확인", exact: true }).click();
+    await page.getByRole("link", { name: /QA 워크북.*QA 수학/ }).click();
+    const photo = page.getByRole("img", { name: "1번 제출 사진" }).first();
+    await expect(photo).toBeVisible();
+    await expect.poll(() => photo.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    await page.getByLabel(/통과 대상 전체 선택/).check();
+    await expect(page.getByLabel("QA 학생 13 통과 대상 선택")).toHaveCount(0);
+    if (!mobile) {
+      const first = await page.locator("article").filter({ has: page.getByLabel("QA 학생 11 통과 대상 선택") }).boundingBox();
+      const second = await page.locator("article").filter({ has: page.getByLabel("QA 학생 12 통과 대상 선택") }).boundingBox();
+      expect(first && second && second.x > first.x && Math.abs(second.y - first.y) < 2).toBe(true);
+    }
+    await testInfo.attach("homework-bulk-selection", { body: await page.screenshot(), contentType: "image/png" });
+    await page.getByText("QA 학생 13", { exact: true }).scrollIntoViewIfNeeded();
+    await expect(page.getByRole("group", { name: "과제 일괄 통과" })).toBeInViewport();
+    await page.getByRole("button", { name: "선택 2명 통과" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "2명 통과 처리" }).click();
+    await expect(page.getByText("통과 1명 · 저장 실패 1명")).toBeVisible();
+    await expect(page.getByLabel("QA 학생 12 통과 대상 선택")).not.toBeChecked();
+    await page.getByLabel("QA 학생 12 통과 대상 선택").check();
+    await page.getByRole("button", { name: "선택 1명 통과" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "1명 통과 처리" }).click();
+    await expect(page.getByText("통과 인정됨", { exact: true })).toHaveCount(2);
+    await page.reload();
+    await expect(page.getByText("통과 인정됨", { exact: true })).toHaveCount(2);
+    expect(calls.slice().sort()).toEqual([11, 12, 12]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   });
 }

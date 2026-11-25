@@ -12,7 +12,8 @@ export type HomeworkFlowFailurePhase =
   | "feedback-results" | "feedback-restore-order" | "feedback-criteria" | "feedback-post-criteria"
   | "criteria-setup" | "criteria-open" | "criteria-invalid-input" | "criteria-save"
   | "criteria-reload" | "criteria-api" | "criteria-parent" | "criteria-preview"
-  | "preview-compose" | "preview-preflight" | "preview-personalization" | "preview-final";
+  | "preview-compose" | "preview-preflight" | "preview-personalization" | "preview-final"
+  | "notice-inbox" | "notice-preview" | "notice-grade" | "notice-student";
 
 export type HomeworkFlowCheckpoint = {
   phase: HomeworkFlowFailurePhase;

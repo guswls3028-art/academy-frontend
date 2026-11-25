@@ -9,9 +9,7 @@ import { clinicQueryKeys } from "../queryKeys";
 
 type PatchClinicParticipantPayload = Parameters<typeof patchClinicParticipantStatus>[1];
 
-export function useClinicParticipants(params: ClinicParticipantListParams) {
-  const qc = useQueryClient();
-
+export function useClinicParticipantList(params: ClinicParticipantListParams) {
   // ✅ Home / Reports 에서 날짜 기반 조회 허용; 예약 신청 목록은 status=pending 만으로 조회 가능(날짜 무관)
   const enabled =
     !!params.session ||
@@ -19,7 +17,7 @@ export function useClinicParticipants(params: ClinicParticipantListParams) {
     (!!params.session_date_from && !!params.session_date_to) ||
     params.status === "pending";
 
-  const listQ = useQuery({
+  return useQuery({
     queryKey: clinicQueryKeys.participantsList(params),
     queryFn: ({ signal }) => fetchClinicParticipants(params, signal),
     enabled,
@@ -30,7 +28,11 @@ export function useClinicParticipants(params: ClinicParticipantListParams) {
     refetchInterval: enabled ? 10_000 : false,
     refetchIntervalInBackground: false,
   });
+}
 
+export function useClinicParticipants(params: ClinicParticipantListParams) {
+  const qc = useQueryClient();
+  const listQ = useClinicParticipantList(params);
   const patchM = useMutation({
     mutationFn: ({ id, payload }: { id: number; payload: PatchClinicParticipantPayload }) =>
       patchClinicParticipantStatus(id, payload),
