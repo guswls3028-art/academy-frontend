@@ -1394,6 +1394,11 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
     await expect.poll(() => state.omrPreviewPosts ?? 0).toBeGreaterThan(previewsBefore);
     await expect(dialog.getByText("15점 = 7+8", { exact: false })).toBeVisible();
     await expect(dialog.getByText(/문항별 점수 입력에서 OMR 제안을 확인하고 확정하세요/)).toBeVisible();
+    const pdf = page.waitForRequest(request => request.url().endsWith("/omr/pdf/"));
+    const download = page.waitForEvent("download");
+    await dialog.getByRole("button", { name: "OMR PDF 다운로드" }).click();
+    expect((await pdf).postDataJSON().essay_score_grid).toBe("exam");
+    expect((await download).suggestedFilename()).toMatch(/\.pdf$/);
     expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     await dialog.screenshot({ path: testInfo.outputPath(`omr-essay-strip-option-${viewport.width}.png`) });
 
@@ -1403,7 +1408,7 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
   });
 }
 
-test("OMR 교사 채점란을 넣을 수 없는 시험은 이유를 보여 주고 켜지 않는다", async ({ page }) => {
+test("서술형 배점이 없는 시험도 스캔 설정을 바꾸지 않고 수기 채점란을 인쇄한다", async ({ page }) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉",
     patchTitles: [],
@@ -1429,8 +1434,15 @@ test("OMR 교사 채점란을 넣을 수 없는 시험은 이유를 보여 주�
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("tab", { name: "OMR 답안지" }).click();
   const option = dialog.getByRole("radiogroup", { name: "서술형 교사 채점란" });
-  await expect(dialog.getByText("배점이 없는 서술형 문항이 있습니다.")).toBeVisible();
-  await expect(option.getByRole("radio", { name: "사용", exact: true })).toBeDisabled();
+  await expect(dialog.getByText(/배점이 없는 서술형 문항이 있습니다/)).toBeVisible();
+  const preview = page.waitForRequest(request => request.url().endsWith("/omr/preview/") && request.postDataJSON()?.essay_score_grid === "paper");
+  await option.getByRole("radio", { name: "사용", exact: true }).click();
+  await preview;
+  const pdf = page.waitForRequest(request => request.url().endsWith("/omr/pdf/"));
+  const download = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "OMR PDF 다운로드" }).click();
+  expect((await pdf).postDataJSON().essay_score_grid).toBe("paper");
+  expect((await download).suggestedFilename()).toMatch(/\.pdf$/);
   expect(state.essayScoreMarks?.patches).toEqual([]);
 });
 
