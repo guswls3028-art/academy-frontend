@@ -54,7 +54,7 @@ concurrency:
 jobs:
   e2e:
     name: E2E production read-only
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     # Dependabot PR은 아래 closed-proxy route-mock job만 실행한다.
     if: >-
@@ -77,7 +77,7 @@ jobs:
         run: pnpm install --frozen-lockfile --shamefully-hoist
 
       - name: Install Playwright
-        run: npx playwright install chromium --with-deps
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Guard production E2E safety boundaries
         run: pnpm guard:e2e-safety
@@ -328,7 +328,7 @@ jobs:
       && needs.e2e.result == 'success'
       && needs.pr-route-mocks.result == 'success'
     needs: [e2e, pr-route-mocks]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 240
 
     steps:
