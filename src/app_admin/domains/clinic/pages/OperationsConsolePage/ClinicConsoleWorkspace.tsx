@@ -1,3 +1,4 @@
+import { countStudents, isActiveRosterParticipant, participantStudentKey } from "../../utils/clinicRoster";
 import { clinicBookingRangeText } from "@/shared/ui/clinic/clinicTimeRange";
 /**
  * PATH: src/features/clinic/pages/OperationsConsolePage/ClinicConsoleWorkspace.tsx
@@ -291,22 +292,12 @@ function scoreWidthStyle(score: number, cutline: number): CSSProperties {
   return widthPercentStyle(Math.min(100, (score / cutline) * 100));
 }
 
-type StatusFilter = "all" | "requests" | "pending" | "attended" | "no_show";
-
-function isActiveRosterParticipant(participant: ClinicParticipant): boolean {
-  return participant.status !== "cancelled" && participant.status !== "rejected";
-}
+type StatusFilter = "all" | "requests" | "pending" | "attended" | "no_show" | "history";
 
 type ClinicStudentGroup = {
   key: string;
   participants: ClinicParticipant[];
 };
-
-function participantStudentKey(participant: ClinicParticipant): string {
-  return Number.isInteger(participant.student) && participant.student > 0
-    ? `student:${participant.student}`
-    : `participant:${participant.id}`;
-}
 
 function groupParticipantsByStudent(participants: ClinicParticipant[]): ClinicStudentGroup[] {
   const groups = new Map<string, ClinicStudentGroup>();
@@ -320,10 +311,6 @@ function groupParticipantsByStudent(participants: ClinicParticipant[]): ClinicSt
     }
   }
   return [...groups.values()];
-}
-
-function countStudents(participants: ClinicParticipant[]): number {
-  return groupParticipantsByStudent(participants).length;
 }
 
 function participantForTarget(
@@ -482,7 +469,7 @@ export default function ClinicConsoleWorkspace({
 
   // 세션 변경 시 로컬 상태 전체 초기화 (메시지 선택 포함)
   const sessionId = session?.id;
-  const workspaceContextKey = isAggregate ? `aggregate:${workspaceMode}` : `session:${sessionId ?? "none"}`;
+  const workspaceContextKey = isAggregate ? `aggregate:${workspaceMode}:${selectedDate}` : `session:${sessionId ?? "none"}`;
   const prevWorkspaceContextRef = useRef(workspaceContextKey);
   useEffect(() => {
     if (prevWorkspaceContextRef.current === workspaceContextKey) return;
@@ -586,8 +573,14 @@ export default function ClinicConsoleWorkspace({
   const timeLabel = hhmmText(session?.start_time, "—");
   const dateLabel = dayjs(selectedDate).format("M월 D일 (dd)");
   const rosterParticipants = useMemo(
-    () => (isAggregate ? participants : participants.filter(isActiveRosterParticipant)),
-    [isAggregate, participants],
+    () => participants.filter(isActiveRosterParticipant),
+    [participants],
+  );
+  const historyParticipants = useMemo(
+    () => isAggregate && workspaceMode === "day"
+      ? participants.filter((participant) => !isActiveRosterParticipant(participant))
+      : [],
+    [isAggregate, workspaceMode, participants],
   );
   const remindableRows = useMemo(() => rosterParticipants.filter((row) =>
     row.status === "booked" && row.student > 0 && !row.checked_in_at && !row.checked_out_at && !mutatingIds.has(row.id)
@@ -595,12 +588,11 @@ export default function ClinicConsoleWorkspace({
   const remindableCount = new Set(remindableRows.map((row) => row.student)).size;
   const changeNoticeStudentIds = useMemo(() => {
     const ids = new Set<number>();
-    for (const participant of participants) {
-      if (participant.status === "cancelled" || participant.status === "rejected") continue;
+    for (const participant of rosterParticipants) {
       if (participant.student) ids.add(participant.student);
     }
     return [...ids];
-  }, [participants]);
+  }, [rosterParticipants]);
   const changeNoticeContextSource = useMemo(
     () => {
       if (!session) return undefined;
@@ -642,7 +634,8 @@ export default function ClinicConsoleWorkspace({
   /* ── filtered list — 미확인 우선, 불참 다음, 출석 마지막 ── */
   const filteredParticipants = useMemo(() => {
     let list: ClinicParticipant[];
-    if (statusFilter === "all") list = [...rosterParticipants];
+    if (statusFilter === "history") list = [...historyParticipants];
+    else if (statusFilter === "all") list = [...rosterParticipants];
     else if (statusFilter === "requests")
       list = rosterParticipants.filter((p) => isApprovalPending(p.status));
     else if (statusFilter === "attended")
@@ -663,22 +656,23 @@ export default function ClinicConsoleWorkspace({
     const ORDER: Record<string, number> = { pending: 0, booked: 1, no_show: 2, attended: 3 };
     list.sort((a, b) => (ORDER[a.status] ?? 0) - (ORDER[b.status] ?? 0));
     return list;
-  }, [rosterParticipants, statusFilter, workspaceMode]);
+  }, [rosterParticipants, historyParticipants, statusFilter, workspaceMode]);
   const filteredParticipantGroups = useMemo(
     () => groupParticipantsByStudent(filteredParticipants),
     [filteredParticipants],
   );
 
   /* ── Drawer: derive from live participants ── */
+  const drawerRows = statusFilter === "history" ? historyParticipants : rosterParticipants;
   const drawerParticipant = useMemo(
-    () => (drawerParticipantId != null ? rosterParticipants.find((p) => p.id === drawerParticipantId) ?? null : null),
-    [drawerParticipantId, rosterParticipants]
+    () => (drawerParticipantId != null ? drawerRows.find((p) => p.id === drawerParticipantId) ?? null : null),
+    [drawerParticipantId, drawerRows]
   );
   const drawerParticipantGroup = useMemo(() => {
     if (!drawerParticipant) return [];
     const key = participantStudentKey(drawerParticipant);
-    return rosterParticipants.filter((participant) => participantStudentKey(participant) === key);
-  }, [drawerParticipant, rosterParticipants]);
+    return drawerRows.filter((participant) => participantStudentKey(participant) === key);
+  }, [drawerParticipant, drawerRows]);
   const drawerContextRequired = drawerParticipantGroup.length > 1 && !drawerParticipantContextConfirmed;
   const participantNotificationQ = useQuery({
     queryKey: clinicQueryKeys.participantNotifications(drawerParticipantId),
@@ -1466,6 +1460,7 @@ export default function ClinicConsoleWorkspace({
     pending: progress.pending,
     attended: progress.attended,
     no_show: progress.noShow,
+    history: countStudents(historyParticipants),
   };
 
   const filters: { key: StatusFilter; label: string }[] = [
@@ -1475,6 +1470,9 @@ export default function ClinicConsoleWorkspace({
     { key: "attended", label: "등원" },
     { key: "no_show", label: "결석" },
   ];
+  if (historyParticipants.length > 0 || statusFilter === "history") {
+    filters.push({ key: "history", label: "취소·거절 이력" });
+  }
 
   return (
     <>
@@ -1846,7 +1844,7 @@ export default function ClinicConsoleWorkspace({
         )}
 
         {/* ═══ B. 상태 필터 칩 — 미확인 우선 강조 ═══ */}
-        {!isLoading && !isError && workspaceMode === "day" && rosterParticipants.length > 0 && (
+        {!isLoading && !isError && workspaceMode === "day" && (rosterParticipants.length > 0 || historyParticipants.length > 0) && (
           <div className="clinic-ops__filters">
             {filters.map((f) => (
               <button
@@ -1855,6 +1853,7 @@ export default function ClinicConsoleWorkspace({
                 className={`clinic-ops__filter-chip ${
                   statusFilter === f.key ? "clinic-ops__filter-chip--active" : ""
                 } ${f.key !== "all" ? `clinic-ops__filter-chip--${f.key}` : ""}`}
+                aria-pressed={statusFilter === f.key}
                 onClick={() => setStatusFilter(f.key)}
               >
                 {f.key === "requests" && filterCounts.requests > 0 && (
@@ -1982,7 +1981,7 @@ export default function ClinicConsoleWorkspace({
             다시 시도
           </button>
         </div>
-      ) : rosterParticipants.length === 0 ? (
+      ) : rosterParticipants.length === 0 && statusFilter !== "history" ? (
         <div className="clinic-console__empty-session">
           <p className="clinic-console__empty-session-text">
             {workspaceMode === "onsite"
@@ -2006,6 +2005,7 @@ export default function ClinicConsoleWorkspace({
       ) : filteredParticipantGroups.length === 0 ? (
         <div className="clinic-ops__empty-filter">
           <p className="clinic-ops__empty-filter-text">
+            {statusFilter === "history" && "취소·거절 이력이 없습니다."}
             {statusFilter === "requests" && "승인 대기 신청이 없습니다."}
             {statusFilter === "pending" && "미확인 학생이 없습니다."}
             {statusFilter === "attended" && "출석 처리된 학생이 없습니다."}

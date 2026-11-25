@@ -6,6 +6,7 @@ import { WORKSPACE_SECTIONS, workspaceSectionForPath } from "@/core/navigation/w
 import { useOperationalNotificationCounts } from "@/shared/hooks/useOperationalNotificationCounts";
 import { NavIcon } from "./adminNavConfig";
 import { useAdminNavigationState } from "./useAvailableAdminNavigation";
+import PendingHomeworkLink from "@/shared/ui/submissions/PendingHomeworkLink";
 import styles from "./Sidebar.module.css";
 
 type SectionId = (typeof WORKSPACE_SECTIONS)[number]["id"];
@@ -43,6 +44,7 @@ export default function AdminPrimaryNavigation({ compact = false, onExpandSideba
   return (
     <nav className="nav" aria-label="주요 메뉴">
       {primary.filter(item => !item.to.endsWith("/guide")).map(primaryLink)}
+      <PendingHomeworkLink count={counts.homeworkReviewPending} to="/workspace/results/submissions?homework=pending" compact={compact} onNavigate={onNavigate} />
       {WORKSPACE_SECTIONS.map(section => {
         const group = groups.find(item => item.title === section.title);
         if (!group) return null;

@@ -9,7 +9,7 @@ import { useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
 import useAuth from "@/auth/hooks/useAuth";
-import { canSendManualAlimtalk } from "@teacher/shared/messagePermissions";
+import { canSendManualAlimtalk } from "@/shared/messaging/messagePermissions";
 import { useTeacherPendingCounts } from "@teacher/shared/hooks/useTeacherPendingCounts";
 import { Card, KpiCard, SectionTitle } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";

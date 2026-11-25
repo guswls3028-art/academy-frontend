@@ -51,6 +51,7 @@ export type StudentHomeworkGrade = {
   achievement?: StudentAchievement | null;
   /** 원점수·제출 여부와 독립적인 교사 완료 확인. */
   teacher_resolved?: boolean;
+  teacher_accepted?: boolean;
   retake_count?: number | null;
   display_order?: number;
   session_id?: number | null;

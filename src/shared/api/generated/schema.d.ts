@@ -12017,6 +12017,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/submissions/submissions/homework/{homework_id}/acceptance/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["submissions_submissions_homework_acceptance_partial_update"];
+        trace?: never;
+    };
     "/api/v1/submissions/submissions/homework/{homework_id}/candidates/": {
         parameters: {
             query?: never;
@@ -12116,6 +12132,22 @@ export interface paths {
          *       (default)        — same as 'all'
          */
         get: operations["submissions_submissions_pending_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/submissions/submissions/students/{student_id}/homework/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["submissions_submissions_students_homework_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -15058,6 +15090,11 @@ export interface components {
          * @enum {string}
          */
         HomeworkCutlineModeEnum: "PERCENT" | "COUNT";
+        HomeworkFileAcceptance: {
+            teacher_accepted: boolean;
+            /** Format: date-time */
+            teacher_accepted_updated_at: string | null;
+        };
         /**
          * @description * `SCORE` - 점수형
          *     * `COMPLETION` - 완료형
@@ -15953,6 +15990,12 @@ export interface components {
             scheduled: number;
             skipped_no_phone: number;
         };
+        /**
+         * @description * `image` - Image
+         *     * `video` - Video
+         * @enum {string}
+         */
+        MediaKindEnum: "image" | "video";
         /**
          * @description * `alimtalk` - 알림톡만
          * @enum {string}
@@ -17384,6 +17427,13 @@ export interface components {
             memo?: string;
             /** @description 비목 이름 */
             name?: string;
+        };
+        PatchedHomeworkFileAcceptanceUpdateRequest: {
+            accepted?: boolean;
+            enrollment_id?: number;
+            expected_media_set_fingerprint?: string;
+            /** Format: date-time */
+            expected_updated_at?: string | null;
         };
         PatchedHomeworkPolicyRequest: {
             clinic_enabled?: boolean;
@@ -20924,6 +20974,63 @@ export interface components {
         StudentHomeSchedule: {
             has_any_sessions: boolean;
             items: components["schemas"]["StudentSession"][];
+        };
+        StudentHomeworkFile: {
+            /** Format: uuid */
+            client_file_id: string | null;
+            /** Format: date-time */
+            created_at: string | null;
+            error_message: string;
+            /** Format: date-time */
+            failed_at: string | null;
+            file_size: number;
+            id: string;
+            legacy: boolean;
+            media_kind: components["schemas"]["MediaKindEnum"];
+            mime_type: string;
+            original_filename: string;
+            position: number;
+            /** Format: date-time */
+            removed_at: string | null;
+            status: components["schemas"]["StudentHomeworkFileStatusEnum"];
+            /** Format: uuid */
+            upload_batch_id: string | null;
+            /** Format: date-time */
+            upload_started_at: string | null;
+            /** Format: date-time */
+            uploaded_at: string | null;
+        };
+        StudentHomeworkFilesPage: {
+            count: number;
+            /** Format: uri */
+            next: string | null;
+            /** Format: uri */
+            previous: string | null;
+            results: components["schemas"]["StudentHomeworkFileSubmission"][];
+        };
+        /**
+         * @description * `uploading` - Uploading
+         *     * `uploaded` - Uploaded
+         *     * `failed` - Failed
+         *     * `removed` - Removed
+         * @enum {string}
+         */
+        StudentHomeworkFileStatusEnum: "uploading" | "uploaded" | "failed" | "removed";
+        StudentHomeworkFileSubmission: {
+            enrollment_id: number;
+            files: components["schemas"]["StudentHomeworkFile"][];
+            homework_id: number;
+            homework_title: string;
+            id: number;
+            lecture_title: string;
+            media_set_fingerprint: string;
+            session_id: number;
+            session_title: string;
+            /** Format: date-time */
+            submitted_at: string;
+            teacher_accepted: boolean;
+            /** Format: date-time */
+            teacher_accepted_updated_at: string | null;
         };
         StudentHomeworkOpenSchemaRequest: {
             homework_id: number;
@@ -41746,6 +41853,33 @@ export interface operations {
             };
         };
     };
+    submissions_submissions_homework_acceptance_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                homework_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedHomeworkFileAcceptanceUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedHomeworkFileAcceptanceUpdateRequest"];
+                "multipart/form-data": components["schemas"]["PatchedHomeworkFileAcceptanceUpdateRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeworkFileAcceptance"];
+                };
+            };
+        };
+    };
     submissions_submissions_homework_candidates_retrieve: {
         parameters: {
             query?: never;
@@ -41885,6 +42019,30 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    submissions_submissions_students_homework_retrieve: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path: {
+                student_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudentHomeworkFilesPage"];
+                };
             };
         };
     };

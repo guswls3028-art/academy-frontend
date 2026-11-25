@@ -3,7 +3,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, CheckCircle2, FileImage, FileText, LoaderCircle, Video } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 
 import {
   fetchHomeworkSubmissions,
@@ -17,23 +17,20 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { useAdminHomework } from "../hooks/useAdminHomework";
-import { formatSubmissionDate, formatSubmissionFileSize } from "@admin/domains/submissions/statusMaps";
+import { formatSubmissionDate } from "@admin/domains/submissions/statusMaps";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
-import { Badge, Button, EmptyState, type BadgeTone } from "@/shared/ui/ds";
-import NotificationPreviewModal from "@/shared/ui/notifications/NotificationPreviewModal";
+import { Badge, Button, EmptyState } from "@/shared/ui/ds";
+import HomeworkMissingNoticeButton from "@/shared/ui/submissions/HomeworkMissingNoticeButton";
 import { QUERY_KEYS } from "../queryKeys";
-import HomeworkMediaPreviewModal from "../components/HomeworkMediaPreviewModal";
+import HomeworkFileGallery from "@/shared/ui/submissions/HomeworkFileGallery";
+import HomeworkBulkAcceptance from "@/shared/ui/submissions/HomeworkBulkAcceptance";
+import HomeworkAcceptanceButton from "@/shared/ui/submissions/HomeworkAcceptanceButton";
+import HomeworkMediaPreviewModal from "@/shared/ui/media/HomeworkMediaPreviewModal";
 import styles from "./HomeworkSubmissionsPanel.module.css";
 
 function isNotSubmittedStatus(status: HomeworkSubmissionRow["status"]): boolean {
   return status === "not_submitted" || status === "NOT_SUBMITTED";
-}
-
-function getNotSubmittedStudentId(row: HomeworkSubmissionRow): number | null {
-  if (!isNotSubmittedStatus(row.status)) return null;
-  const studentId = Number(row.student_id);
-  return Number.isFinite(studentId) && studentId > 0 ? studentId : null;
 }
 
 function hasRecordedScore(scores: SessionScoresResponse | undefined, row: HomeworkSubmissionRow, homeworkId: number): boolean {
@@ -42,34 +39,12 @@ function hasRecordedScore(scores: SessionScoresResponse | undefined, row: Homewo
       ((homework.attempt_count ?? 0) > 0 || homework.block.score != null))) ?? false;
 }
 
-function fileStatus(file: HomeworkSubmissionMediaFile): { label: string; tone: BadgeTone } {
-  if (file.removed_at || file.status === "removed") return { label: "교체됨", tone: "neutral" };
-  if (file.status === "failed") return { label: "업로드 실패", tone: "danger" };
-  if (file.status === "uploading") return { label: "저장 중", tone: "warning" };
-  return { label: "검수 가능", tone: "success" };
-}
-
-function FileStateIcon({ file }: { file: HomeworkSubmissionMediaFile }) {
-  if (file.status === "failed") return <AlertCircle aria-hidden="true" />;
-  if (file.status === "uploading") return <LoaderCircle aria-hidden="true" />;
-  if (file.mime_type === "application/pdf") return <FileText aria-hidden="true" />;
-  if (file.media_kind === "video") return <Video aria-hidden="true" />;
-  return <FileImage aria-hidden="true" />;
-}
-
-function fileKindLabel(file: HomeworkSubmissionMediaFile): string {
-  if (file.mime_type === "application/pdf") return "PDF";
-  return file.media_kind === "video" ? "동영상" : "사진";
-}
-
 export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: number }) {
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const hwQ = useAdminHomework(homeworkId);
-  const homeworkTitle = hwQ.data?.title ?? "";
   const sessionId = Number(hwQ.data?.session_id);
   const reviewActionRef = useRef(false);
-  const [notSubmittedNotif, setNotSubmittedNotif] = useState(false);
   const [previewFile, setPreviewFile] = useState<HomeworkSubmissionMediaFile | null>(null);
   const [previewFingerprint, setPreviewFingerprint] = useState<string | null>(null);
   const [viewedFiles, setViewedFiles] = useState<Map<string, string>>(() => new Map());
@@ -168,9 +143,6 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
     return next;
   });
   const rows = useMemo(() => q.data ?? [], [q.data]);
-  const notSubmittedIds = rows
-    .map(getNotSubmittedStudentId)
-    .filter((studentId): studentId is number => studentId != null);
   const summary = useMemo(() => {
     const activeFiles = rows.flatMap((row) => row.files).filter((file) => !file.removed_at);
     return {
@@ -178,8 +150,8 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
       files: activeFiles.length,
       ready: activeFiles.filter((file) => file.status === "uploaded").length,
       failed: activeFiles.filter((file) => file.status === "failed").length,
-      reviewed: rows.filter((row) => !isNotSubmittedStatus(row.status) && row.teacher_reviewed).length,
-      pending: rows.filter((row) => !isNotSubmittedStatus(row.status) && !row.teacher_reviewed).length,
+      reviewed: rows.filter((row) => !isNotSubmittedStatus(row.status) && (row.teacher_reviewed || row.teacher_accepted)).length,
+      pending: rows.filter((row) => !isNotSubmittedStatus(row.status) && !row.teacher_reviewed && !row.teacher_accepted).length,
     };
   }, [rows]);
 
@@ -191,16 +163,11 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
     <div className={styles.panel}>
       <div className={styles.header}>
         <div>
-          <p className={styles.eyebrow}>SUBMISSION REVIEW</p>
           <h3>과제 제출 검수</h3>
-          <p>제출 파일을 모두 열어본 뒤 학생별 확인 완료를 기록합니다.</p>
+          <p>제출 사진을 눌러 확대할 수 있습니다. 통과를 누르면 기존 점수를 유지하고 과제를 통과로 인정합니다.</p>
         </div>
         <div className={styles.headerActions}>
-          {notSubmittedIds.length > 0 && (
-            <Button type="button" intent="ghost" size="sm" onClick={() => setNotSubmittedNotif(true)}>
-              미제출 알림 발송
-            </Button>
-          )}
+          <HomeworkMissingNoticeButton key={homeworkId} homeworkId={homeworkId} />
           <Button type="button" intent="ghost" size="sm" onClick={() => { void q.refetch(); void scoreQ.refetch(); }}>
             새로고침
           </Button>
@@ -216,16 +183,6 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
         <div data-tone="success"><span>확인 완료</span><strong>{summary.reviewed}</strong><small>명</small></div>
       </div>
 
-      <NotificationPreviewModal
-        open={notSubmittedNotif}
-        onClose={() => setNotSubmittedNotif(false)}
-        mode="manual"
-        trigger="assignment_not_submitted"
-        studentIds={notSubmittedIds}
-        label="과제 미제출 알림"
-        sendTo="parent"
-        context={{ 과제명: homeworkTitle }}
-      />
       <HomeworkMediaPreviewModal
         open={previewFile != null}
         homeworkId={homeworkId}
@@ -252,14 +209,16 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
       )}
 
       {rows.length > 0 && (
-        <div className={styles.studentList}>
-          {rows.map((row) => {
+        <HomeworkBulkAcceptance key={homeworkId} homeworkId={homeworkId} sessionId={sessionId} rows={rows}>
+          {(visibleRows, checkbox) => <div className={styles.studentList}>
+          {visibleRows.map((row) => {
             const readyFiles = row.files.filter((file) => file.status === "uploaded" && !file.removed_at);
             const viewedCount = readyFiles.filter((file) => viewedFiles.get(file.id) === row.media_set_fingerprint).length;
             const scoreLocked = hasRecordedScore(scoreQ.data, row, homeworkId);
             const canSave = sessionId > 0 && row.enrollment_id > 0 && scoreQ.isSuccess && !scoreLocked && !reviewMut.isPending && !reviewConfirming;
             return <article className={styles.studentCard} key={row.id}>
               <header className={styles.studentHeader}>
+                {checkbox(row)}
                 <StudentDetailLink studentId={row.student_id} studentName={row.student_name}>
                   <StudentNameWithLectureChip
                     name={row.student_name}
@@ -275,49 +234,23 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
                   />
                 </StudentDetailLink>
                 <div className={styles.studentMeta}>
-                  <span>{homeworkTitle || "과제"}</span>
                   <time dateTime={row.created_at}>{formatSubmissionDate(row.created_at)}</time>
                   <b>{row.files.filter((file) => !file.removed_at).length}개 파일</b>
                 </div>
               </header>
 
+              {readyFiles.length > 0 && <div className={styles.acceptance}>
+                <HomeworkAcceptanceButton homeworkId={homeworkId} sessionId={sessionId} studentId={row.student_id}
+                  enrollmentId={row.enrollment_id} accepted={row.teacher_accepted} updatedAt={row.teacher_accepted_updated_at}
+                  fingerprint={row.media_set_fingerprint} />
+              </div>}
               {row.files.length === 0 ? (
                 <div className={styles.noFiles}>제출 파일이 없습니다.</div>
               ) : (
-                <div className={styles.fileList}>
-                  {row.files.map((file) => {
-                    const state = fileStatus(file);
-                    const canPreview = file.status === "uploaded" && !file.removed_at;
-                    return (
-                      <div className={styles.fileRow} key={file.id} data-status={file.status} data-removed={Boolean(file.removed_at)}>
-                        <span className={styles.fileOrder}>{file.position + 1}</span>
-                        <span className={styles.fileIcon}><FileStateIcon file={file} /></span>
-                        <div className={styles.fileCopy}>
-                          <strong title={file.original_filename}>{file.original_filename}</strong>
-                          <span>{fileKindLabel(file)} · {formatSubmissionFileSize(file.file_size) || "용량 미상"}</span>
-                          {file.error_message && <em>{file.error_message}</em>}
-                        </div>
-                        <Badge variant="solid" tone={state.tone}>{state.label}</Badge>
-                        <Button
-                          type="button"
-                          intent="ghost"
-                          size="sm"
-                          disabled={!canPreview}
-                          onClick={(event) => {
-                            // WebKit does not focus buttons on pointer clicks; give the modal a return target.
-                            event.currentTarget.focus({ preventScroll: true });
-                            setPreviewFile(file);
-                            setPreviewFingerprint(row.media_set_fingerprint);
-                          }}
-                        >
-                          미리보기
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
+                <HomeworkFileGallery homeworkId={homeworkId} files={row.files} fingerprint={row.media_set_fingerprint}
+                  onOpen={file => { setPreviewFile(file); setPreviewFingerprint(row.media_set_fingerprint); }} />
               )}
-              {!isNotSubmittedStatus(row.status) && (
+              {!isNotSubmittedStatus(row.status) && !row.teacher_accepted && (
                 <div className={styles.reviewBar}>
                   <div className={styles.reviewCopy}>
                     <Badge variant="soft" tone={row.teacher_reviewed ? "success" : "warning"}>
@@ -356,7 +289,8 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
               )}
             </article>
           })}
-        </div>
+          </div>}
+        </HomeworkBulkAcceptance>
       )}
     </div>
   );

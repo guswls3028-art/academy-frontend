@@ -19,8 +19,10 @@ import {
 } from "lucide-react";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Button } from "@/shared/ui/ds";
+import { extractApiError } from "@/shared/utils/extractApiError";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { initVideoUpload, runWithVideoUploadGuard, uploadFilesWithLimit } from "@admin/domains/videos/utils/videoUpload";
+import { initVideoUpload, runWithVideoUploadGuard, uploadFileToR2AndComplete, videoContentType, videoFileAccept, type InitVideoResult, type VideoTransferProgress } from "@admin/domains/videos/utils/videoUpload";
+import { formatCompactFileSize } from "@/shared/utils/fileSize";
 import { captureVideoUploadConfig } from "@/shared/api/videoUploadCompletion";
 import AttendanceStatusBadge from "@/shared/ui/badges/AttendanceStatusBadge";
 import { adminVideoQueryKeys } from "@admin/domains/videos/queryKeys";
@@ -28,13 +30,14 @@ import { createYoutubeVideo } from "@admin/domains/videos/api/videos.api";
 import { extractYouTubeVideoId, youtubeThumbnailUrl } from "@/shared/media/video/youtube";
 import "./VideoUploadModal.css";
 
-const VIDEO_ACCEPT = "video/*";
 type UploadMode = "file" | "youtube";
 type UploadItem = {
   id: string;
   file: File;
   title: string;
   reviewLimit: boolean;
+  init?: InitVideoResult;
+  progress?: VideoTransferProgress | "preparing" | "failed";
 };
 type Props = {
   sessionId: number;
@@ -47,19 +50,33 @@ function titleFromFilename(filename: string): string {
   const withoutExtension = filename.replace(/\.[^./\\]+$/, "").trim();
   return withoutExtension || filename.trim() || "영상";
 }
-
-
+function FileTransferStatus({ item }: { item: UploadItem }) {
+  const { progress, file } = item;
+  if (!progress) return <span className="video-upload-modal__transfer">전송 순서 대기 · {formatCompactFileSize(file.size)}</span>;
+  if (progress === "preparing") return <span className="video-upload-modal__transfer">영상 등록 중</span>;
+  if (progress === "failed") return <span className="video-upload-modal__transfer">업로드 실패</span>;
+  const waiting = progress.bytes === file.size && file.size > 0;
+  const label = progress.phase === "confirming" ? "저장 확인 · 인코딩 접수 중"
+    : progress.phase === "retrying" ? "전송 재시도 중" : waiting ? "저장소 응답 대기" : "파일 전송 중";
+  const percent = file.size ? Math.floor(progress.bytes * 100 / file.size) : 0;
+  return <div className="video-upload-modal__transfer">
+    <span>{label} · {progress.bytes > 0 && percent === 0 ? "<1" : percent}% · {formatCompactFileSize(progress.bytes)} / {formatCompactFileSize(file.size)}</span>
+    <progress aria-label={`${file.name} 전송률`} max={100} value={percent} />
+  </div>;
+}
 
 export default function VideoUploadModal({ sessionId, folderId = null, isOpen, onClose }: Props) {
   const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const nextItemIdRef = useRef(0);
   const mountedRef = useRef(true);
+  const uploadLock = useRef(false);
 
   const [uploadMode, setUploadMode] = useState<UploadMode>("file");
   const [baseTitle, setBaseTitle] = useState("");
   const [description, setDescription] = useState("");
   const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
+  const [excludedNames, setExcludedNames] = useState<string[]>([]);
   const [isFileDragOver, setIsFileDragOver] = useState(false);
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -67,6 +84,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
   const [youtubeLimit, setYoutubeLimit] = useState(false);
   const originalDuration = originalDurationSeconds(originalLength);
   const [isUploading, setIsUploading] = useState(false);
+  const [batchTotal, setBatchTotal] = useState(0);
 
   const [showWatermark, setShowWatermark] = useState(true);
   const [allowSkip, setAllowSkip] = useState(false);
@@ -83,11 +101,12 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
   }, []);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || uploadLock.current) return;
     setUploadMode("file");
     setBaseTitle("");
     setDescription("");
     setUploadItems([]);
+    setExcludedNames([]);
     setIsFileDragOver(false);
     setDraggedItemIndex(null);
     setYoutubeUrl("");
@@ -113,11 +132,9 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
   );
 
   const addFiles = useCallback((files: File[]) => {
-    const videos = files.filter((file) => file.type.startsWith("video/"));
-    if (files.length > 0 && videos.length === 0) {
-      feedback.error("영상 파일만 추가할 수 있습니다.");
-      return;
-    }
+    const videos = files.filter(file => videoContentType(file));
+    setExcludedNames(files.filter(file => !videoContentType(file)).map(file => file.name));
+    if (!videos.length) return;
     setUploadItems((prev) => [
       ...prev,
       ...videos.map((file) => ({
@@ -164,104 +181,76 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
     setInitErrorMessages([]);
 
     const items = uploadItems.map((item) => ({ ...item, title: item.title.trim() }));
-    if (items.length === 0) return;
+    if (items.length === 0 || uploadLock.current) return;
+    uploadLock.current = true;
 
+    setBatchTotal(items.length);
+    setUploadItems(prev => prev.map(item => ({ ...item, progress: undefined })));
     setIsUploading(true);
+    const updateProgress = (id: string, progress: UploadItem["progress"]) => {
+      if (mountedRef.current) setUploadItems(prev => prev.map(item => item.id === id ? { ...item, progress } : item));
+    };
 
     try {
       await runWithVideoUploadGuard(async () => {
         const config = captureVideoUploadConfig();
-        const initResults: { init: Awaited<ReturnType<typeof initVideoUpload>>; file: File }[] = [];
-        const successItemIds: string[] = [];
-        const errorMsgs: string[] = [];
-
-        // 서버가 init 시 order를 배정하므로 큐 순서대로 직렬화한다.
-        // 실제 R2 전송은 아래에서 기존처럼 동시 2개를 유지한다.
-        for (const { id, file, title, reviewLimit } of items) {
+        const errors: string[] = [];
+        const failed = new Map<string, InitVideoResult>();
+        const completed = new Set<string>();
+        const active = new Set<Promise<void>>();
+        const key = adminVideoQueryKeys.sessionVideosScoped(sessionId);
+        let notified = false;
+        for (const item of items) {
+          // Wait for transfer capacity before reserving a row and a signed URL.
+          // Serial init also preserves the requested playback order.
+          if (active.size >= 2) await Promise.race(active);
+          let init: InitVideoResult;
           try {
-            const init = await initVideoUpload({
-              sessionId,
-              file,
-              title,
-              description,
-              folderId,
-              reviewLimit,
-              showWatermark,
-              allowSkip,
-              maxSpeed,
+            updateProgress(item.id, "preparing");
+            init = item.init ?? await initVideoUpload({
+              sessionId, file: item.file, title: item.title, reviewLimit: item.reviewLimit,
+              description, folderId, showWatermark, allowSkip, maxSpeed,
             }, config);
-            initResults.push({ init, file });
-            successItemIds.push(id);
           } catch (error) {
-            const err = error as { response?: { status?: number; data?: { detail?: string } }; message?: string };
-            const rawMsg =
-              err?.response?.data?.detail ||
-              err?.message ||
-              "업로드 시작에 실패했습니다.";
-            let userMsg = rawMsg;
-            if (err?.response?.status === 403 && !err?.response?.data?.detail) {
-              userMsg = "권한이 없습니다.";
-            } else if (err?.response?.status === 413 || /too large|용량|size/i.test(rawMsg)) {
-              userMsg = "파일이 너무 큽니다.";
-            } else if (err?.response?.status === 401) {
-              userMsg = "로그인 상태를 확인할 수 없습니다.";
-            } else if (/network|fetch|timeout/i.test(rawMsg)) {
-              userMsg = "네트워크 오류 — 인터넷 연결을 확인해 주세요.";
-            }
-            errorMsgs.push(`${file.name}: ${userMsg}`);
+            updateProgress(item.id, "failed");
+            errors.push(`${item.file.name} · 등록 실패 · ${extractApiError(error, "영상을 등록할 수 없습니다.")}`);
+            continue;
           }
-        }
-
-        if (initResults.length > 0) {
-          qc.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideosScoped(sessionId) });
-        }
-
-        // 성공한 항목만 큐에서 제거하고 실패 항목의 커스텀 제목과 순서를 보존한다.
-        if (successItemIds.length > 0) {
-          setUploadItems((prev) => prev.filter((item) => !successItemIds.includes(item.id)));
-        }
-
-        if (errorMsgs.length > 0) {
-          // 모달 내 띠로 영구 노출 + 토스트로 즉시 환기
-          setInitErrorMessages(errorMsgs);
-          feedback.error(
-            errorMsgs.length === 1
-              ? errorMsgs[0]
-              : `${errorMsgs.length}개 파일 실패. 모달의 빨간색 안내를 확인하고 ‘다시 시도’를 눌러 주세요.`
-          );
-          if (initResults.length === 0) return; // 전부 실패 → 모달 유지
-          // 부분 성공: 모달 유지 + 우하단으로 진행 상황 안내
-        } else {
-          onClose();
-        }
-
-        // 동시 업로드 2개로 제한 — 대역폭 포화 + presigned URL 만료 방지
-        const uploadResults = await uploadFilesWithLimit(initResults, 2);
-        const successCount = uploadResults.filter((r) => r.status === "fulfilled").length;
-        const r2Errors: string[] = [];
-        uploadResults.forEach((r, idx) => {
-          if (r.status === "rejected") {
-            r2Errors.push(`${initResults[idx].file.name}: ${(r.reason as Error)?.message || "업로드 실패"}`);
+          if (!notified) {
+            notified = true;
+            void qc.invalidateQueries({ queryKey: key });
           }
-        });
-
-        if (successCount > 0) {
-          feedback.success(
-            r2Errors.length > 0
-              ? `${successCount}개 업로드 완료. ${r2Errors.length}개 실패. 우상단 작업박스에서 확인하세요.`
-              : `${successCount}개 업로드 완료. 처리는 우상단 작업박스에서 이어서 진행됩니다.`
-          );
-          qc.invalidateQueries({ queryKey: adminVideoQueryKeys.sessionVideosScoped(sessionId) });
+          const transfer = uploadFileToR2AndComplete(init, item.file, Boolean(item.init), value => updateProgress(item.id, value)).then(() => {
+            completed.add(item.id);
+            if (mountedRef.current) setUploadItems(prev => prev.filter(row => row.id !== item.id));
+          }, error => {
+            failed.set(item.id, init);
+            updateProgress(item.id, "failed");
+            const stage = init.completion?.encodingRejected ? "영상 저장 완료 · 인코딩 시작 실패"
+              : init.completion ? "완료 확인 실패" : "파일 전송 실패";
+            errors.push(`${item.file.name} · ${stage} · ${extractApiError(error, "다시 시도해 주세요.")}`);
+          }).finally(() => { active.delete(transfer); });
+          active.add(transfer);
         }
-        if (r2Errors.length > 0) {
-          feedback.error(r2Errors.join(" / "));
+        await Promise.all(active);
+        if (completed.size) {
+          feedback.success(`${completed.size}개 영상 업로드 완료. 인코딩 진행 상황은 작업박스에서 확인할 수 있습니다.`);
+          void qc.invalidateQueries({ queryKey: key });
         }
+        if (errors.length) feedback.error(errors.join(" / "));
+        if (!mountedRef.current) return;
+        setUploadItems(prev => prev.map(item => ({
+          ...item, init: failed.get(item.id) ?? item.init,
+        })));
+        setInitErrorMessages(errors);
+        if (!errors.length) onClose();
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "업로드를 시작하지 못했습니다.";
       setInitErrorMessages([message]);
       feedback.error(message);
     } finally {
+      uploadLock.current = false;
       if (mountedRef.current) {
         setIsUploading(false);
       }
@@ -379,6 +368,9 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
             </button>
           </div>
 
+          {excludedNames.length > 0 && <p className="video-upload-modal__error-banner" role="alert">
+            영상 형식을 확인할 수 없어 제외한 파일 · {excludedNames.join(", ")}
+          </p>}
           {/* 직전 시도에서 실패한 파일 사유 — 제목과 순서를 보존한 채 다시 시도 가능 */}
           {uploadMode === "file" && initErrorMessages.length > 0 && (
             <div
@@ -430,7 +422,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
                 <input
                   ref={inputRef}
                   type="file"
-                  accept={VIDEO_ACCEPT}
+                  accept={videoFileAccept}
                   multiple
                   className="hidden"
                   data-testid="video-batch-file-input"
@@ -485,16 +477,16 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
                               aria-invalid={item.title.trim().length === 0}
                               placeholder={titleFromFilename(item.file.name)}
                               maxLength={255}
-                              value={item.title}
+                              value={item.title} readOnly={Boolean(item.init)}
                               onChange={(e) => updateItemTitle(item.id, e.target.value)}
                               disabled={isUploading}
                             />
                           </label>
-                          <label><input type="checkbox" checked={item.reviewLimit} disabled={isUploading}
+                          <label><input type="checkbox" checked={item.reviewLimit} disabled={isUploading || Boolean(item.init)}
                             aria-label={`${index + 1}번째 영상 복습시간 1.4배 제한`}
                             onChange={event => { const checked = event.target.checked; setUploadItems(prev => prev.map(row => row.id === item.id ? { ...row, reviewLimit: checked } : row)); }} /> 복습시간 1.4배 제한</label>
                         </div>
-                        <div className="video-upload-modal__queue-actions" aria-label={`${index + 1}번째 영상 순서와 삭제`}>
+                        {isUploading ? <FileTransferStatus item={item} /> : <div className="video-upload-modal__queue-actions" aria-label={`${index + 1}번째 영상 순서와 삭제`}>
                           <button
                             type="button"
                             className="video-upload-modal__grip"
@@ -538,7 +530,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
                           >
                             <Trash2 size={16} aria-hidden />
                           </button>
-                        </div>
+                        </div>}
                       </li>
                     ))}
                   </ol>
@@ -694,7 +686,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
       <ModalFooter
         left={
           <span className="modal-hint video-upload-modal__footer-hint">
-            {uploadMode === "youtube" ? "링크 영상은 인코딩 없이 바로 시청 가능 상태로 추가됩니다." : "업로드는 우상단 작업박스에서 진행되며, 이 창을 닫아도 이어집니다."}
+            {uploadMode === "youtube" ? "링크 영상은 인코딩 없이 바로 시청 가능 상태로 추가됩니다." : "이 창을 닫아도 전송은 이어집니다. 전송이 끝날 때까지 브라우저 탭은 열어 두세요."}
           </span>
         }
         right={
@@ -713,7 +705,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
                   ? "추가 중…"
                   : "링크 추가"
                 : isUploading
-                  ? "업로드 중…"
+                  ? `저장 완료 ${batchTotal - uploadItems.length}/${batchTotal}개`
                   : initErrorMessages.length > 0
                     ? `다시 시도 (${filledCount}개)`
                     : `업로드 (${filledCount}개)`}

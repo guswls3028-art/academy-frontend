@@ -31,11 +31,14 @@ export function compactGradesPerStudentPayloadVars(
   const compact = Object.fromEntries(
     Object.entries(vars).map(([studentId, studentVars]) => {
       const substitutedBody = studentVars._body_subst;
-      const compactStudentVars = substitutedBody
+      const compactStudentVars: Record<string, string> = substitutedBody
         ? { _body_subst: substitutedBody }
         : Object.fromEntries(
             Object.entries(studentVars).filter(([key]) => requiredKeys.has(key)),
           );
+      if (studentVars._homework_notice_states) {
+        compactStudentVars._homework_notice_states = studentVars._homework_notice_states;
+      }
       return [studentId, compactStudentVars];
     }),
   ) as Record<number, Record<string, string>>;

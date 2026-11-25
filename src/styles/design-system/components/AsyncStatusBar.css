@@ -297,17 +297,6 @@
   transition: background 0.15s, color 0.15s;
 }
 
-/* P3-7: 모바일 터치 hit-area 44pt — 시각 크기는 28px 유지하고 pseudo로 invisible hit-area 확장 */
-@media (max-width: 1023px) {
-  .async-status-bar__item-btn::before {
-    content: "";
-    position: absolute;
-    inset: -8px;
-    border-radius: 8px;
-    /* 투명 hit-area — 44pt(44x44px) 확보 */
-  }
-}
-
 .async-status-bar__item-btn:hover {
   background: rgba(0, 0, 0, 0.06);
   color: var(--color-text-primary);
@@ -583,6 +572,14 @@
   font-size: 13px;
 }
 
+@media (max-width: 1023px) {
+  .async-status-bar__item-btn {
+    width: auto;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 @media (max-width: 480px) {
   .async-status-bar__item-row {
     gap: 8px;
@@ -591,7 +588,7 @@
   .async-status-bar__item-actions {
     flex-wrap: wrap;
     justify-content: flex-end;
-    max-width: 98px;
+    max-width: 120px;
   }
 }
 
