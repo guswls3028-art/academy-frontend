@@ -70,6 +70,9 @@ async function installApi(page: Page) {
     if (path === "/tools/omr/preview/") {
       return route.fulfill({ status: 200, contentType: "text/html", body: OMR_PREVIEW_HTML });
     }
+    if (path === "/tools/omr/pdf/") {
+      return route.fulfill({ status: 200, contentType: "application/pdf", body: "%PDF-1.4\n%%EOF\n" });
+    }
     return json({ count: 0, results: [] });
   });
 }
@@ -151,3 +154,24 @@ test("OMR 미리보기는 데스크톱과 모바일에서 A4 전체를 한 화�
     }
   }
 });
+
+for (const width of [1366, 390]) {
+  test(`${width}px 독립 생성기에서 수기 채점란을 선택하고 같은 구성의 PDF를 받는다`, async ({ page }) => {
+    await seed(page);
+    await installApi(page);
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`${BASE}/workspace/tools/omr`);
+    await page.getByRole("radio", { name: "서술형만" }).click();
+    const option = page.getByRole("radiogroup", { name: "서술형 교사 채점란" });
+    const preview = page.waitForRequest(request => request.url().endsWith("/tools/omr/preview/") && request.postDataJSON()?.essay_score_grid === "paper");
+    await option.getByRole("radio", { name: "사용", exact: true }).click();
+    const params = (await preview).postDataJSON();
+    const pdf = page.waitForRequest(request => request.url().endsWith("/tools/omr/pdf/"));
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: "OMR PDF 다운로드" }).click();
+    expect((await pdf).postDataJSON()).toEqual(params);
+    expect((await download).suggestedFilename()).toMatch(/\.pdf$/);
+    await option.getByRole("radio", { name: "사용 안 함", exact: true }).click();
+    await expect(option.getByRole("radio", { name: "사용 안 함" })).toBeChecked();
+  });
+}

@@ -11,6 +11,7 @@ import {
 } from "@admin/domains/exams/api/omr.api";
 
 import OmrEssayScoreMarksOption from "./OmrEssayScoreMarksOption";
+import { useOmrEssayScoreMarks } from "./useOmrEssayScoreMarks";
 import styles from "./OmrSheetBuilder.module.css";
 
 const PREVIEW_ERROR_HTML = "<html><body><p>미리보기를 불러올 수 없습니다.</p></body></html>";
@@ -80,6 +81,8 @@ export default function OmrSheetBuilder({
   const targetType = target.type;
   const essayLabel = "서술형";
   const targetExamId = target.type === "exam" ? target.examId : undefined;
+  const marks = useOmrEssayScoreMarks(targetExamId, essayCount > 0);
+  const scoreGrid = marks.grid;
   const requestTarget = useMemo<OMRTarget>(() => (
     targetType === "exam" && targetExamId
       ? { type: "exam", examId: targetExamId }
@@ -149,6 +152,7 @@ export default function OmrSheetBuilder({
     session_name: sessionName,
     mc_count: mcCount,
     essay_count: essayCount,
+    ...(scoreGrid ? { essay_score_grid: scoreGrid } : {}),
     ...(targetType === "tool" ? { essay_numbering: essayNumbering } : {}),
     include_optional_essay_area: includeOptionalEssayArea,
     n_choices: 5,
@@ -162,7 +166,7 @@ export default function OmrSheetBuilder({
             .filter((number): number is number => number !== null),
         }
       : {}),
-  }), [examTitle, lectureName, sessionName, mcCount, essayCount, essayNumbering, targetType, includeOptionalEssayArea, initialQuestionTypes, totalCount]);
+  }), [examTitle, lectureName, sessionName, mcCount, essayCount, scoreGrid, essayNumbering, targetType, includeOptionalEssayArea, initialQuestionTypes, totalCount]);
 
   const loadPreview = useCallback(async () => {
     if (totalCount < 1) return;
@@ -234,7 +238,7 @@ export default function OmrSheetBuilder({
   };
 
   const downloadButton = (
-    <Button type="button" intent="primary" size="md" className="w-full" leftIcon={<Download size={16} />} onClick={handleDownload} disabled={pdfLoading || totalCount < 1}>
+    <Button type="button" intent="primary" size="md" className="w-full" leftIcon={<Download size={16} />} onClick={handleDownload} disabled={pdfLoading || marks.busy || totalCount < 1}>
       {pdfLoading ? "다운로드 중..." : "OMR PDF 다운로드"}
     </Button>
   );
@@ -400,12 +404,7 @@ export default function OmrSheetBuilder({
               <span className={styles.areaStatus}>{essayCount > 0 ? "포함" : "없음"}</span>
             )}
           </div>
-          {targetType === "exam" && targetExamId && essayCount > 0 && (
-            <OmrEssayScoreMarksOption
-              examId={targetExamId}
-              onChanged={() => { void loadPreview(); }}
-            />
-          )}
+          {essayCount > 0 && <OmrEssayScoreMarksOption marks={marks} />}
         </div>
 
         <div className={styles.selectionSummary} aria-live="polite">
