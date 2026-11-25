@@ -39,7 +39,6 @@ type NotificationLog = {
 };
 
 const marker = `[required-cancel-${Date.now()}]`;
-const todayKst = kstYmd(0);
 const previousClassDate = kstYmd(-1);
 const clinicDate = kstYmd(1);
 const created = {
@@ -501,8 +500,12 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
       const family = created.family!;
       await expectApi(request, "POST", "/enrollments/bulk_create/", admin.access,
         { lecture: created.lectureId, students: [family.students[1].id] }, [201]);
+      const { server_date: classDate } = await expectApi<{ server_date: string }>(
+        request, "GET", "/clinic/idcard/", studentTokens.access,
+      );
+      expect(classDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       const session = await expectApi<{ id: number }>(request, "POST", "/lectures/sessions/", admin.access,
-        { lecture: created.lectureId, title: `${marker} 오늘 수업`, date: todayKst, order: 2 }, [201]);
+        { lecture: created.lectureId, title: `${marker} 오늘 수업`, date: classDate, order: 2 }, [201]);
       created.todaySessionId = session.id;
       await expectApi(request, "POST", "/enrollments/session-enrollments/bulk_create/", admin.access,
         { session: session.id, enrollments: [created.enrollmentId] }, [201]);
@@ -526,7 +529,7 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
         return result.status === 200 ? result.body : null;
       }, { timeout: 60_000 }).toMatchObject({ total_score: 100, is_pass: true });
       await verifyClinicDayPass(page, request, {
-        family, adminAccess: admin.access, sessionId: session.id, enrollmentId: created.enrollmentId,
+        family, classDate, adminAccess: admin.access, sessionId: session.id, enrollmentId: created.enrollmentId,
         homeworkId: homework.id, clinicLinkId, participantId: participant.id,
         examTitle: `${marker} 필수 대상 시험`, clinicTitle: `${marker} 18시`,
       });

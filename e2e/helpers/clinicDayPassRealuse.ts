@@ -1,12 +1,14 @@
-import type { APIRequestContext, Page } from "@playwright/test";
+import type { APIRequestContext, Frame, Page } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
 import {
   assertQaStudentParentRuntime, expectApi, installQaStudentParentBoundary, loginApi, loginThroughUi,
   QA_ADMIN_PASSWORD, QA_API, QA_BASE, QA_TENANT, selectParentStudentThroughUi, type QaFamily,
 } from "./qaStudentParentScenario";
+import { gotoAndSettle } from "./wait";
 
 type ClinicDayFixture = {
   family: QaFamily;
+  classDate: string;
   adminAccess: string;
   sessionId: number;
   enrollmentId: number;
@@ -18,24 +20,46 @@ type ClinicDayFixture = {
 };
 
 type Card = {
+  server_date: string;
   current_targets: Array<{ clinic_link_id: number }>;
   valid_bookings: Array<{ participant_id: number }>;
 };
+
+async function openPasscard(page: Page) {
+  const url = `${QA_BASE}/student/idcard`;
+  let committed = false;
+  const onNavigation = (frame: Frame) => {
+    if (frame === page.mainFrame() && frame.url() === url) committed = true;
+  };
+  await page.bringToFront();
+  page.on("framenavigated", onNavigation);
+  try {
+    // Subscribe before navigating. Only a GET started by the newly committed
+    // main frame can supply this readback, even if an old poll responds later.
+    const [read] = await Promise.all([
+      page.waitForRequest(req => committed && req.frame() === page.mainFrame() && req.method() === "GET"
+        && new URL(req.url()).pathname === "/api/v1/clinic/idcard/"),
+      gotoAndSettle(page, url),
+    ]);
+    const response = await read.response();
+    if (!response) throw new Error("The new passcard document's GET did not receive a response");
+    return response;
+  } finally {
+    page.off("framenavigated", onNavigation);
+  }
+}
 
 async function visitCard(page: Page, fixture: ClinicDayFixture, viewer: "student" | "parent" | "sibling",
   passed: boolean, wrongCompletion = false) {
   const sibling = viewer === "sibling";
   const child = fixture.family.students[sibling ? 1 : 0];
-  // Listen on the new document. The previous passcard may still have a poll in flight.
-  await page.bringToFront();
-  await page.goto(`${QA_BASE}/student/idcard`, { waitUntil: "commit" });
-  const response = await page.waitForResponse(res => res.request().method() === "GET"
-    && new URL(res.url()).pathname === "/api/v1/clinic/idcard/");
+  const response = await openPasscard(page);
   expect(response.status()).toBe(200);
   const headers = await response.request().allHeaders();
   expect(headers["x-tenant-code"]).toBe(QA_TENANT);
   expect(headers["x-student-id"]).toBe(viewer === "student" ? undefined : String(child.id));
   const card = await response.json() as Card;
+  expect(card.server_date, "The server's Korean date changed during the same-day passcard proof").toBe(fixture.classDate);
   expect(card).toMatchObject({
     student_name: child.name, today_assessments_passed: passed,
     current_result: sibling ? "SUCCESS" : "FAIL",
