@@ -7,6 +7,22 @@ export const editions = {
 
 const roles = {teacher:'선생님', admin:'관리자'};
 
+const workflows = {
+  A:'반 운영표에서 출결과 과제를 확인하고 성적 통계를 엽니다.',
+  B:'최근 수업을 열어 같은 차시의 출결과 과제를 이어서 처리합니다.',
+  C:'업무를 검색하거나 결석·미제출·성적 하락 학생부터 확인합니다.',
+};
+
+function staffEntryPage(role) {
+  const title = roles[role] + '용 프로그램 선택';
+  const choices = Object.entries(editions).map(([key,{name}]) =>
+    `<a class="choice" href="/${key.toLowerCase()}/${role}"><strong>${key}안 · ${name}</strong><span>${workflows[key]}</span><b aria-hidden="true">›</b></a>`
+  ).join('');
+  return `<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} | 다원수학</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#faf9f7;color:#242b32;font:16px/1.5 system-ui,"Malgun Gothic",sans-serif;word-break:keep-all}main{max-width:44rem;margin:clamp(16px,7vh,64px) auto;padding:0 clamp(16px,4vw,40px)}.home{display:inline-flex;align-items:center;min-height:44px;color:#834115;text-underline-offset:3px}h1{margin:20px 0 8px;font-size:clamp(24px,5vw,34px);letter-spacing:-.04em}p{margin:0 0 24px;color:#525960}nav{display:grid;gap:12px}.choice{position:relative;display:grid;gap:4px;padding:18px 48px 18px 20px;border:1px solid #d7d4d0;border-radius:10px;background:white;color:inherit;text-decoration:none}.choice span{color:#505962}.choice strong{font-size:18px}.choice b{position:absolute;right:18px;top:50%;transform:translateY(-50%);color:#824015;font-size:22px}.choice:hover{background:#fff7f0;border-color:#bb8d71}a:focus-visible{outline:3px solid #97491c;outline-offset:3px}</style>
+<main><a class="home" href="/">‹ 다원수학 데모 홈</a><h1>${title}</h1><p>세 안 모두 같은 업무를 지원합니다. 체험할 화면을 선택하세요.</p><nav aria-label="교직원 프로그램">${choices}</nav></main></html>`;
+}
+
 export function staffProgramUrl(url) {
   if (/^\/workspace(?:\/|$)/.test(url.pathname)) return true;
   if (['/teacher','/admin'].includes(url.pathname)) return true;
@@ -68,10 +84,13 @@ export function staffReturnPath(value, role) {
 }
 
 export function editionResponse(request, url) {
+  const entry = /^\/staff\/(admin|teacher)\/?$/.exec(url.pathname);
   const match = /^\/([abc])(?:\/(admin|teacher|student|guardian))?\/?$/.exec(url.pathname);
-  if (!match) return null;
+  if (!entry && !match) return null;
   const headers = {'cache-control':'no-store','x-content-type-options':'nosniff'};
   if (!['GET','HEAD'].includes(request.method)) return new Response(null,{status:405,headers:{...headers,allow:'GET, HEAD'}});
+  const htmlHeaders = {...headers,'content-type':'text/html; charset=utf-8','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'"};
+  if (entry) return new Response(request.method === 'HEAD' ? null : staffEntryPage(entry[1]),{headers:htmlHeaders});
   const key = match[1].toUpperCase(), role = match[2], base = '/' + match[1];
   const work = staffReturnPath(url.searchParams.get('work'),role);
   if (role) {
@@ -94,7 +113,7 @@ export function editionResponse(request, url) {
   const body = `<!doctype html><html lang="ko" data-dawon-edition="${key}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>다원수학 ${key}안 · ${name}</title>
 <style>*{box-sizing:border-box}body{margin:0;background:${surface};color:${color};font:16px/1.5 system-ui,"Malgun Gothic",sans-serif;word-break:keep-all}header,main{max-width:940px;margin:auto;padding:24px clamp(20px,5vw,56px)}header{font-weight:750;display:flex;gap:12px;align-items:center}header img{width:34px;height:34px}main{margin-top:clamp(8px,8vh,90px)}section{border:1px solid ${color};background:white;overflow:hidden;border-radius:${key === 'A' ? '4' : '18'}px}.title{padding:clamp(22px,5vw,48px);background:${color};color:white}.title span{color:${accent};font-weight:700}h1{font-size:clamp(30px,6vw,54px);margin:6px 0;line-height:1.15;letter-spacing:-.04em}h2{font-size:16px;margin:0 0 12px}.body{padding:clamp(18px,4vw,36px)}.roles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.roles a{padding:16px;display:flex;justify-content:space-between;align-items:center;border:1px solid #c7d0d5;color:inherit;text-decoration:none;font-weight:700}.roles a:hover,.roles a:focus-visible{background:${surface};border-color:${color}}a:focus-visible{outline:2px solid currentColor;outline-offset:2px}</style>
 <header><img src="/dawon-brand.svg" alt="">다원수학</header><main><section><div class="title"><span>${key}안</span><h1>${name}</h1></div><div class="body"><h2>교직원 역할 선택</h2>${returnHint}<nav class="roles" aria-label="역할 선택">${rolesHTML}</nav></div></section></main></html>`;
-  return new Response(request.method === 'HEAD' ? null : body,{headers:{...headers,'content-type':'text/html; charset=utf-8','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'"}});
+  return new Response(request.method === 'HEAD' ? null : body,{headers:htmlHeaders});
 }
 
 export function installStaffReturn(allowedPath) {

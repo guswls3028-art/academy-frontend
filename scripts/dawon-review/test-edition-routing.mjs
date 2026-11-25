@@ -143,11 +143,12 @@ test('a workspace response waits for native staff identity before highlighting a
   assert.doesNotMatch(shell,/<a[^>]*data-demo-app="[^"]+"[^>]*aria-current=/);
 });
 
-test('the public role switcher contains exactly the roles of the entered program',() => {
+test('family pages expose all four entrances and staff desks retain their own roles',() => {
   const base='<html><head></head><body></body></html>';
   for (const path of ['/?preview=guardian','/learn/curriculum','/student/video/play','/login/dawon?demo=guardian']) {
     const html=insertDemoSwitcher(base,url(path),path.startsWith('/student/')||path.startsWith('/login/'));
-    assert.deepEqual([...html.matchAll(/data-demo-app="([^"]+)"/g)].map(m=>m[1]),['student','guardian']);
+    assert.deepEqual([...html.matchAll(/data-demo-app="([^"]+)"/g)].map(m=>m[1]),['teacher','admin','student','guardian']);
+    for (const role of ['teacher','admin']) assert.ok(html.includes('href="/staff/'+role+'"'));
     assert.doesNotMatch(html,/<html[^>]*data-dawon-edition|<a[^>]*data-edition-home/);
   }
   for (const key of ['A','B','C']) {
@@ -155,4 +156,22 @@ test('the public role switcher contains exactly the roles of the entered program
     assert.deepEqual([...html.matchAll(/data-demo-app="([^"]+)"/g)].map(m=>m[1]),['teacher','admin']);
     assert.ok(html.includes('data-edition-home href="/'+key.toLowerCase()+'"'));
   }
+});
+
+test('each public staff role can enter every complete program before signing in',async () => {
+  for (const role of ['teacher','admin']) {
+    const route = url('/staff/' + role);
+    const page = await editionResponse(new Request(route),route).text();
+    assert.ok(page.includes('href="/"'));
+    for (const edition of ['a','b','c']) {
+      const path = '/' + edition + '/' + role;
+      assert.ok(page.includes('href="' + path + '"'));
+      const target = url(path);
+      assert.equal(editionResponse(new Request(target),target).headers.get('location'),
+        origin + '/login/dawon?demo=' + role + '&edition=' + edition.toUpperCase());
+    }
+    assert.equal(await editionResponse(new Request(route,{method:'HEAD'}),route).text(),'');
+    assert.equal(editionResponse(new Request(route,{method:'POST'}),route).status,405);
+  }
+  assert.equal(editionResponse(new Request(url('/staff/guardian')),url('/staff/guardian')),null);
 });

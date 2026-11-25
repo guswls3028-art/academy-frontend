@@ -14,6 +14,7 @@ const style = `<style id="dawon-demo-switcher-style">
 body{padding-block-start:var(--dawon-demo-bar-height)!important}
 #dawon-demo-switcher{position:fixed;inset:0 0 auto;z-index:100001;height:var(--dawon-demo-bar-height);box-sizing:border-box;padding:env(safe-area-inset-top,0px) 12px 0;display:flex;align-items:stretch;justify-content:center;background:#fffcfa;border-bottom:1px solid #e6ded8;font:650 14px/1.2 system-ui,sans-serif;color:#514940}
 .dawon-demo-roles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:min(100%,240px)}
+.dawon-demo-roles[data-family]{grid-template-columns:repeat(4,minmax(0,1fr));width:min(100%,480px)}
 #dawon-demo-switcher .dawon-edition-home{flex:none;align-self:center;min-height:32px;padding:0 12px;border-inline-end:1px solid #c8c5c1;font-size:13px}
 @media(max-width:600px){#dawon-demo-switcher:has(.dawon-edition-home){padding-inline:4px}#dawon-demo-switcher .dawon-edition-home{padding-inline:7px}}
 #dawon-demo-switcher a{position:relative;display:grid;place-items:center;min-width:0;padding:0 4px;color:inherit;text-decoration:none;white-space:nowrap}
@@ -39,13 +40,17 @@ export function insertDemoSwitcher(html, url, native) {
   const role = /^\/workspace(?:\/|$)/.test(path) ? null : url.searchParams.get("demo") === "admin" ? "admin" : path === "/guardian" || url.searchParams.get("preview") === "guardian" || url.searchParams.get("demo") === "guardian" ? "guardian" :
     native && !path.startsWith("/student/") && url.searchParams.get("demo") !== "student" ? "teacher" : "student";
   const choice = Object.hasOwn(editions,url.searchParams.get('edition')) ? url.searchParams.get('edition') : 'A';
-  const links = apps.filter(([key]) => staff === ['teacher','admin'].includes(key)).map(([key, name, href]) =>
-    `<a href="${href}${staff ? '&amp;edition=' + choice : ''}" data-demo-app="${key}"${key === role ? ' aria-current="page"' : ''}>${name}</a>`).join("");
+  const links = apps.flatMap(([key, name, href]) => {
+    const employee = key === 'teacher' || key === 'admin';
+    if (staff && !employee) return [];
+    const target = staff ? href + '&amp;edition=' + choice : employee ? '/staff/' + key : href;
+    return [`<a href="${target}" data-demo-app="${key}"${key === role ? ' aria-current="page"' : ''}>${name}</a>`];
+  }).join("");
   const editionHome = staff ? '<a class="dawon-edition-home" data-edition-home href="/' + choice.toLowerCase() +
     '" aria-label="' + choice + '안 교직원 홈">' + choice + '안</a>' : '';
   const page = staff ? html.replace(/<html\b/i,'<html data-dawon-edition="' + choice + '"') : html;
   return page.replace("</head>", style + '<script src="/dawon-demo-role.js" defer></script></head>')
-    .replace(/<body\b[^>]*>/i, tag => tag + `<nav id="dawon-demo-switcher" aria-label="데모 앱 전환" data-shell="${native ? "native" : "learner"}">${editionHome}<div class="dawon-demo-roles">${links}</div></nav>`);
+    .replace(/<body\b[^>]*>/i, tag => tag + `<nav id="dawon-demo-switcher" aria-label="데모 앱 전환" data-shell="${native ? "native" : "learner"}">${editionHome}<div class="dawon-demo-roles"${staff ? '' : ' data-family'}>${links}</div></nav>`);
 }
 
 function mountDemoSwitcher() {
