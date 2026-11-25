@@ -10,6 +10,7 @@ import { revealScoreManagement } from "../helpers/revealScoreManagement";
 import { test, expect } from "../fixtures/strictTest";
 import type { APIRequestContext, Locator, Page, Request, Response } from "@playwright/test";
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { PDFDocument, rgb } from "pdf-lib";
 import { setTimeout as delay } from "node:timers/promises";
@@ -477,6 +478,16 @@ async function downloadOmrPdf(
   });
   expect(resp.status(), `OMR PDF generation -> ${resp.status()} ${await resp.text().catch(() => "")}`).toBe(200);
   return await resp.body();
+}
+
+async function downloadDisplayedSheet(page: Page): Promise<Buffer> {
+  const downloaded = page.waitForEvent("download", { timeout: 180_000 });
+  await page.getByRole("button", { name: "OMR PDF 다운로드", exact: true }).click();
+  const file = await downloaded;
+  expect(await file.failure()).toBeNull();
+  const path = await file.path();
+  if (!path) throw new Error("다운로드한 OMR PDF를 열 수 없습니다.");
+  return readFile(path);
 }
 
 async function markThirtyQuestionOmrPdf(
@@ -2122,27 +2133,21 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const answerDialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
     await expect(answerDialog.locator(".answer-key-row--essay .answer-key-row__num"))
       .toHaveText(["서술형 1번", "서술형 2번"]);
-    await answerDialog.getByRole("button", { name: "취소", exact: true }).click();
+    await answerDialog.getByRole("tab", { name: "OMR 답안지" }).click();
+    const marks = answerDialog.getByRole("radiogroup", { name: "서술형 교사 채점란" });
+    const savedMarks = page.waitForResponse(response => matchesApiResponse(response, "PATCH", `/exams/${created.examId}/omr/essay-score-marks/`));
+    await marks.getByRole("radio", { name: "사용", exact: true }).click();
+    expect((await savedMarks).status()).toBe(200);
+    await expect(answerDialog.frameLocator("iframe").locator(".essay-score-bubble")).toHaveCount(18);
+    const examPdf = await downloadDisplayedSheet(page);
 
     const defaults = await expectApi<{ essay_numbering: string; essay_question_numbers: number[] }>(
       request, "GET", `/exams/${created.examId}/omr/defaults/`, adminAccess,
     );
     expect(defaults.essay_numbering).toBe("separate");
     expect(defaults.essay_question_numbers).toEqual([31, 32]);
-    await setEssayScorePrinting(request, adminAccess, created.examId!, true);
-    const preview = await request.post(`${API}/api/v1/exams/${created.examId}/omr/preview/`, {
-      headers: { ...headers(adminAccess), Accept: "text/html" },
-      data: {
-        exam_title: EXAM_TITLE, lecture_name: LECTURE_TITLE, session_name: SESSION_TITLE,
-        mc_count: 30, essay_count: 2, essay_numbering: "separate",
-        include_optional_essay_area: false, n_choices: 5,
-        choice_question_numbers: Array.from({ length: 30 }, (_, index) => index + 1),
-        essay_question_numbers: [31, 32],
-      },
-      timeout: 90_000,
-    });
-    expect(preview.status()).toBe(200);
-    const previewHtml = await preview.text();
+    const previewHtml = await answerDialog.locator("iframe").getAttribute("srcdoc");
+    if (!previewHtml) throw new Error("시험 OMR 미리보기가 비어 있습니다.");
     const previewEssay = await page.evaluate((html) => {
       const document = new DOMParser().parseFromString(html, "text/html");
       return {
@@ -2153,6 +2158,15 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     expect(previewEssay).toEqual({ labels: ["서술형 2문항"], numbers: ["1", "2"] });
 
     await page.setViewportSize({ width: 390, height: 844 });
+    await gotoAndSettle(page, `${BASE}/workspace/tools/omr`);
+    await page.getByRole("radio", { name: "서술형만", exact: true }).click();
+    await page.getByRole("radiogroup", { name: "서술형 교사 채점란" })
+      .getByRole("radio", { name: "사용", exact: true }).click();
+    const paperPreview = page.frameLocator('iframe[title="OMR 답안지 미리보기"]');
+    await expect(paperPreview.locator("[data-essay-score-question]").first().locator(".essay-score-bubble"))
+      .toHaveText(Array.from("012345678"));
+    await expect(paperPreview.locator(".es-a")).toHaveCount(0);
+    expect((await PDFDocument.load(await downloadDisplayedSheet(page))).getPageCount()).toBe(1);
     await loginBrowserAsRealUser(page, "/student/grades",
       { role: "student", username: STUDENT_USER, password: STUDENT_PASS });
     const studentCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
@@ -2169,7 +2183,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       [0], [0, 2],
     ]);
     const markedPdf = await markThirtyQuestionOmrPdf(
-      await downloadOmrPdf(request, adminAccess, created.examId!), answers, CONTROLLED_PHONE.slice(-8), replacementBubbles,
+      examPdf, answers, CONTROLLED_PHONE.slice(-8), replacementBubbles,
     );
     const scanImage = await renderOmrScanImage(markedPdf);
     await loginBrowserAsRealUser(page,
