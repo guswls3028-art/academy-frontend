@@ -117,8 +117,9 @@ export default function ClinicIDCardPage() {
   }
 
   const { data } = query;
-  const isClinicTarget = data.current_result === "FAIL";
-  const isBookingConfirmed = data.passcard_state === "BOOKING_CONFIRMED";
+  const todayPassed = !wrongCompletionOnly && data.passcard_state === "BOOKING_CONFIRMED" && data.today_assessments_passed;
+  const isClinicTarget = data.current_result === "FAIL" && !todayPassed;
+  const isBookingConfirmed = data.passcard_state === "BOOKING_CONFIRMED" && !todayPassed;
   const isClinicRequired = data.passcard_state === "CLINIC_REQUIRED";
   const isPendingApproval = isClinicTarget && data.booking_status === "pending";
   const style: PasscardStyle = isClinicTarget ? {} : {
@@ -169,14 +170,16 @@ export default function ClinicIDCardPage() {
         <section className="clinic-idcard__verdict" aria-label={wrongCompletionOnly ? "현재 오답 상태" : "현재 클리닉 상태"}>
           <span className="clinic-idcard__verdict-mark" aria-hidden>{isBookingConfirmed || !isClinicTarget ? "✓" : "!"}</span>
           <div>
-            <p>{isBookingConfirmed
+            <p>{todayPassed ? "오늘 수업 통과" : isBookingConfirmed
               ? (data.booking_status === "booked" ? "다음 클리닉 예약됨" : data.booking_status_label)
               : wrongCompletionOnly
                 ? (isPendingApproval ? "오답 미완료 · 승인 대기" : isClinicTarget ? "오답 확인 필요" : "오답 확인 완료")
                 : isPendingApproval ? "클리닉 대상 · 승인 대기" : isClinicTarget ? "과락 요소 있음" : "과락 요소 없음"}</p>
             <h1>{isBookingConfirmed ? "예약완료" : wrongCompletionOnly ? (isClinicTarget ? "오답 미완료" : "오답 완료") : isClinicTarget ? "대상자" : "합격자"}</h1>
             <span>
-              {isBookingConfirmed
+              {todayPassed
+                ? "이전 차시의 보강 예약은 아래에서 확인해 주세요."
+                : isBookingConfirmed
                 ? "다음 클리닉 수강완료 처리 전까지 예약완료 상태를 유지합니다."
                 : isPendingApproval
                   ? "예약 승인을 기다리고 있습니다. 승인되면 예약완료로 바뀝니다."
