@@ -156,6 +156,64 @@ test("OMR 미리보기는 데스크톱과 모바일에서 A4 전체를 한 화�
 });
 
 for (const width of [1366, 390]) {
+  test(`${width}px 이전 미리보기 응답을 버리고 최신 선택으로 출력·재시도한다`, async ({ page }) => {
+    await seed(page);
+    await installApi(page);
+    type PreviewParams = { mc_count: number; essay_count: number; essay_score_grid?: string; exam_title: string };
+    type Match = (params: PreviewParams) => boolean;
+    const holds: Array<{ match: Match; receive: (route: Route) => void }> = [];
+    const hold = (match: Match) => new Promise<Route>(receive => holds.push({ match, receive }));
+    const show = (route: Route, label: string) => route.fulfill({ contentType: "text/html", body: `<p>${label}</p>` });
+    await page.route("**/tools/omr/preview/", async route => {
+      const index = holds.findIndex(item => item.match(route.request().postDataJSON()));
+      if (index >= 0) holds.splice(index, 1)[0].receive(route);
+      else await show(route, "현재 답안지");
+    });
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`${BASE}/workspace/tools/omr`);
+    const frame = page.locator('iframe[title="OMR 답안지 미리보기"]');
+    const sheet = frame.contentFrame();
+    await expect(sheet.getByText("현재 답안지")).toBeVisible();
+
+    const previous = hold(params => params.essay_count === 0);
+    await page.getByRole("radio", { name: "객관식만", exact: true }).click();
+    await expect(frame).toHaveCount(0);
+    const oldRoute = await previous;
+    const latest = hold(params => params.mc_count === 0 && params.essay_score_grid === "paper");
+    await page.getByRole("radio", { name: "서술형만", exact: true }).click();
+    await page.getByRole("radiogroup", { name: "서술형 교사 채점란" }).getByRole("radio", { name: "사용", exact: true }).click();
+    await show(oldRoute, "폐기된 이전 구성");
+    await (await oldRoute.request().response())?.finished();
+    const latestRoute = await latest;
+    await expect(frame).toHaveCount(0);
+
+    const pdf = page.waitForRequest(request => request.url().endsWith("/tools/omr/pdf/"));
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: "OMR PDF 다운로드" }).click();
+    expect((await pdf).postDataJSON()).toEqual(latestRoute.request().postDataJSON());
+    expect(await (await download).failure()).toBeNull();
+    await latestRoute.fulfill({ status: 400, contentType: "application/json", body: "{}" });
+    await expect(sheet.getByText("미리보기를 불러올 수 없습니다.")).toBeVisible();
+    const retry = hold(() => true);
+    await page.getByRole("button", { name: "미리보기 새로고침" }).click();
+    const retryRoute = await retry;
+    expect(retryRoute.request().postDataJSON()).toEqual(latestRoute.request().postDataJSON());
+    await expect(frame).toHaveCount(0);
+    await show(retryRoute, "다시 불러온 답안지");
+    await expect(sheet.getByText("다시 불러온 답안지")).toBeVisible();
+
+    const leaving = hold(params => params.exam_title === "이전 화면");
+    await page.getByRole("textbox", { name: "시험명" }).fill("이전 화면");
+    const leavingRoute = await leaving;
+    await page.getByRole("tab", { name: "타이머", exact: true }).click();
+    await expect(page).toHaveURL(/\/tools\/stopwatch$/);
+    await page.getByRole("tab", { name: "OMR 생성", exact: true }).click();
+    await expect(sheet.getByText("현재 답안지")).toBeVisible();
+    await show(leavingRoute, "닫은 화면의 답안지");
+    await (await leavingRoute.request().response())?.finished();
+    await expect(sheet.getByText("현재 답안지")).toBeVisible();
+  });
+
   test(`${width}px 독립 생성기에서 수기 채점란을 선택하고 같은 구성의 PDF를 받는다`, async ({ page }) => {
     await seed(page);
     await installApi(page);

@@ -71,11 +71,15 @@ export default function OmrSheetBuilder({
   const [essayNumbering, setEssayNumbering] = useState(initialEssayNumbering);
   const [format, setFormat] = useState<OmrFormat>(() => getInitialFormat(initialMcCount, initialEssayCount));
   const [includeOptionalEssayArea, setIncludeOptionalEssayArea] = useState(true);
-  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
+  const [preview, setPreview] = useState<{
+    target: OMRTarget;
+    params: OMRParams;
+    html: string | null;
+  } | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const previewRef = useRef<HTMLElement>(null);
   const previewRequestRef = useRef(0);
+  const previewTimerRef = useRef<number | undefined>(undefined);
   const lastMcCountRef = useRef(initialMcCount > 0 ? clampInt(initialMcCount, 1, MAX_MC_COUNT) : 20);
   const lastEssayCountRef = useRef(initialEssayCount > 0 ? clampInt(initialEssayCount, 1, MAX_ESSAY_COUNT) : 5);
   const targetType = target.type;
@@ -109,12 +113,6 @@ export default function OmrSheetBuilder({
     if (essayCount > 0) lastEssayCountRef.current = essayCount;
   }, [essayCount]);
 
-  useEffect(() => {
-    return () => {
-      previewRequestRef.current += 1;
-    };
-  }, []);
-
   useLayoutEffect(() => {
     const preview = previewRef.current;
     if (!preview) return;
@@ -146,7 +144,7 @@ export default function OmrSheetBuilder({
     : canIncludeOptionalEssayArea
       ? includeOptionalEssayArea ? "서술형 작성칸 표시" : "서술형 작성칸 숨김"
       : `${essayLabel} 작성칸 없음`;
-  const params = useCallback((): OMRParams => ({
+  const params = useMemo((): OMRParams => ({
     exam_title: examTitle,
     lecture_name: lectureName,
     session_name: sessionName,
@@ -168,38 +166,43 @@ export default function OmrSheetBuilder({
       : {}),
   }), [examTitle, lectureName, sessionName, mcCount, essayCount, scoreGrid, essayNumbering, targetType, includeOptionalEssayArea, initialQuestionTypes, totalCount]);
 
+  const currentPreview = preview?.target === requestTarget && preview.params === params ? preview : null;
+  const previewHtml = currentPreview?.html;
+  const previewLoading = currentPreview?.html === null;
+
   const loadPreview = useCallback(async () => {
     if (totalCount < 1) return;
 
+    window.clearTimeout(previewTimerRef.current);
     const requestId = previewRequestRef.current + 1;
     previewRequestRef.current = requestId;
-    setPreviewLoading(true);
+    setPreview({ target: requestTarget, params, html: null });
+    let html: string;
     try {
-      const html = await fetchOMRPreviewForTarget(requestTarget, params());
-      if (previewRequestRef.current === requestId) setPreviewHtml(html);
+      html = await fetchOMRPreviewForTarget(requestTarget, params);
     } catch {
-      if (previewRequestRef.current === requestId) setPreviewHtml(PREVIEW_ERROR_HTML);
-    } finally {
-      if (previewRequestRef.current === requestId) setPreviewLoading(false);
+      html = PREVIEW_ERROR_HTML;
+    }
+    if (previewRequestRef.current === requestId) {
+      setPreview({ target: requestTarget, params, html });
     }
   }, [params, requestTarget, totalCount]);
 
   useEffect(() => {
-    if (totalCount < 1) {
-      previewRequestRef.current += 1;
-      setPreviewHtml(null);
-      setPreviewLoading(false);
-      return;
+    if (totalCount > 0) {
+      previewTimerRef.current = window.setTimeout(loadPreview, layout === "modal" ? 250 : 550);
     }
-    const timer = window.setTimeout(() => { void loadPreview(); }, layout === "modal" ? 250 : 550);
-    return () => window.clearTimeout(timer);
-  }, [examTitle, lectureName, sessionName, mcCount, essayCount, layout, loadPreview, totalCount]);
+    return () => {
+      window.clearTimeout(previewTimerRef.current);
+      previewRequestRef.current += 1;
+    };
+  }, [layout, loadPreview, totalCount]);
 
   const handleDownload = async () => {
     if (totalCount < 1) return;
     setPdfLoading(true);
     try {
-      await downloadOMRPdfForTarget(requestTarget, params(), examTitle || "OMR");
+      await downloadOMRPdfForTarget(requestTarget, params, examTitle || "OMR");
       feedback.success("PDF 다운로드 완료");
       onDownloaded?.();
     } catch {
