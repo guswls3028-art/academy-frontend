@@ -58,7 +58,7 @@ function requireIsolatedScenario(): void {
 }
 
 type Tokens = { access: string; refresh: string };
-type RealUseRole = "admin" | "staff" | "student" | "parent";
+type RealUseRole = "admin" | "teacher" | "staff" | "student" | "parent";
 type BrowserAccountExpectation = {
   role: RealUseRole;
   username: string;
@@ -2129,6 +2129,9 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(page.locator("#assessment-policy")).toContainText("서술형 별도 번호");
     const exam = await expectApi<{ essay_numbering: string }>(request, "GET", `/exams/${created.examId}/`, adminAccess);
     expect(exam.essay_numbering).toBe("separate");
+    await loginBrowserAsRealUser(page, setupPath, {
+      role: "teacher", username: "ymath-qa-resource-publisher", password: ADMIN_PASS,
+    });
     await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
     const answerDialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
     await expect(answerDialog.locator(".answer-key-row--essay .answer-key-row__num"))
