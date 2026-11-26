@@ -163,11 +163,6 @@ export async function deleteSession(sessionId: number) {
 }
 
 /* ─── Enrollment management ─── */
-export async function bulkCreateEnrollments(lectureId: number, studentIds: number[]) {
-  const res = await api.post("/enrollments/bulk_create/", { lecture: lectureId, students: studentIds });
-  return res.data;
-}
-
 export async function deleteEnrollment(enrollmentId: number) {
   await api.delete(`/enrollments/${enrollmentId}/`);
 }

@@ -14,6 +14,7 @@ import type { AttendanceMatrixStudent } from "@/shared/api/contracts/attendance"
 import { fetchAttendanceMatrix, downloadAttendanceExcel } from "@admin/domains/lectures/api/attendance";
 import { sortSessionsByDateDesc } from "@admin/domains/lectures/api/sessions";
 import LectureEnrollStudentModal from "@admin/domains/lectures/components/LectureEnrollStudentModal";
+import EnrollmentNoticeResults from "@/shared/ui/enrollment/EnrollmentNoticeResults";
 import LectureEnrollExcelModal from "@admin/domains/lectures/components/LectureEnrollExcelModal";
 
 import { adminLectureQueryKeys } from "@admin/domains/lectures/queryKeys";
@@ -320,6 +321,7 @@ export default function LectureStudentsPage() {
           }
           belowSlot={selectionBar}
         />
+        <EnrollmentNoticeResults lecture={lectureIdNum} />
 
         <div>
           {isLoading ? (

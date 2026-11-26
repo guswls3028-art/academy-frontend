@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { bulkCreateEnrollments, fetchLectureEnrollments } from "@/shared/api/contracts/enrollments";
+import { fetchLectureEnrollments } from "@/shared/api/contracts/enrollments";
 import { fetchStudents, type ClientStudent } from "@/shared/api/contracts/students";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Badge, Button, EmptyState } from "@/shared/ui/ds";
@@ -10,6 +10,8 @@ import { formatPhone } from "@/shared/utils/formatPhone";
 import { useSchoolLevelMode, type SchoolType } from "@/shared/hooks/useSchoolLevelMode";
 import { adminStudentsQueryKeys } from "@admin/domains/students/public/queryKeys";
 import { adminLectureQueryKeys } from "../queryKeys";
+import { useNoticeRegistration } from "@/shared/ui/enrollment/useNoticeRegistration";
+import EnrollmentNoticeOptions, { EnrollmentNoticeSummary } from "@/shared/ui/enrollment/EnrollmentNoticeOptions";
 import "./LectureEnrollStudentModal.css";
 
 interface Props {
@@ -42,11 +44,9 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
   const [grade, setGrade] = useState(0);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Map<number, ClientStudent>>(new Map());
-  const [saving, setSaving] = useState(false);
-  const savingRef = useRef(false);
-  const [saveError, setSaveError] = useState("");
+  const notice = useNoticeRegistration(lectureId);
+  const saving = notice.busy;
   const [selectionMessage, setSelectionMessage] = useState("");
-  const [confirmationIds, setConfirmationIds] = useState<number[] | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const normalizedSearch = normalizeSearch(searchInput);
@@ -91,17 +91,18 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
   const loading = studentsQ.isPending || enrollmentsQ.isPending;
   const loadError = studentsQ.isError || enrollmentsQ.isError;
   const searching = normalizedSearch !== search || studentsQ.isPlaceholderData;
-  const selectionLocked = saving || confirmationIds !== null;
+  const selectedIds = notice.pending ? new Set(notice.pending.students) : new Set(selected.keys());
+  const selectionLocked = notice.locked;
   const busy = selectionLocked || loading || loadError || searching || enrollmentsQ.isFetching;
   // A failed or slow student search must not strand an already selected roster.
-  const saveBlocked = saving || (!confirmationIds && (enrollmentsQ.isPending || enrollmentsQ.isError || enrollmentsQ.isFetching));
+  const saveBlocked = saving || (!notice.pending && (enrollmentsQ.isPending || enrollmentsQ.isError || enrollmentsQ.isFetching));
   const rows = studentsQ.data?.data ?? [];
-  const eligible = rows.filter((student) => !student.deletedAt && enrollmentStatus.get(student.id) !== "ACTIVE");
+  const eligible = rows.filter((student) => !student.deletedAt && (notice.explicit || enrollmentStatus.get(student.id) !== "ACTIVE"));
   const pageSelected = eligible.length > 0 && eligible.every((student) => selected.has(student.id));
   const totalPages = Math.max(1, Math.ceil((studentsQ.data?.count ?? 0) / (studentsQ.data?.pageSize ?? 50)));
 
   const toggle = (student: ClientStudent) => {
-    if (busy || savingRef.current) return;
+    if (busy) return;
     if (!selected.has(student.id) && selected.size >= MAX_SELECTION) {
       setSelectionMessage("한 번에 200명까지 등록할 수 있습니다. 선택한 학생을 등록한 뒤 이어서 추가해 주세요.");
       return;
@@ -116,7 +117,7 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
   };
 
   const selectPage = () => {
-    if (busy || savingRef.current) return;
+    if (busy) return;
     if (pageSelected) {
       setSelected((previous) => {
         const next = new Map(previous);
@@ -136,12 +137,10 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
   };
 
   const leave = async (next: () => void) => {
-    if (savingRef.current) return;
-    if (selected.size && !await confirm({
-      title: saveError ? "등록 결과 확인을 종료할까요?" : "선택한 학생을 등록하지 않고 나갈까요?",
-      message: saveError
-        ? "등록 여부가 불확실할 수 있습니다. 나간 뒤 강의 명단에서 등록 결과를 확인해 주세요."
-        : `선택한 ${selected.size}명은 아직 이 강의에 등록되지 않았습니다.`,
+    if (saving) return;
+    if (!notice.pending && selected.size && !await confirm({
+      title: "선택한 학생을 등록하지 않고 나갈까요?",
+      message: `선택한 ${selected.size}명은 아직 이 강의에 등록되지 않았습니다.`,
       confirmText: "선택 취소하고 나가기",
       danger: true,
     })) return;
@@ -149,19 +148,10 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
   };
 
   const save = async () => {
-    if (savingRef.current || saveBlocked || !selected.size) return;
-    savingRef.current = true;
-    setSaving(true);
-    setSaveError("");
-    const studentIds = confirmationIds ?? [...selected.keys()];
-    let submitted = confirmationIds !== null;
-    try {
+    if (saveBlocked) return;
+    const count = notice.pending?.students.length ?? selected.size;
+    const complete = await notice.submit([...selected.keys()], async studentIds => {
       await qc.cancelQueries({ queryKey: adminLectureQueryKeys.lectureEnrollments(lectureId) });
-      if (!submitted) {
-        await bulkCreateEnrollments(lectureId, studentIds);
-        submitted = true;
-        setConfirmationIds(studentIds);
-      }
       const saved = await fetchLectureEnrollments(lectureId);
       const active = new Set(saved.filter((row) => row.status === "ACTIVE").map((row) => row.student?.id));
       if (studentIds.some((id) => !active.has(id))) throw new Error("incomplete-readback");
@@ -176,16 +166,11 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
         qc.invalidateQueries({ queryKey: adminStudentsQueryKeys.student }),
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollModalStudents }),
       ]);
-      feedback.success(`${studentIds.length}명을 강의에 등록했습니다.`);
+    });
+    if (complete) {
+      feedback.success(`${count}명의 수강 등록을 확인했습니다.`);
       onSuccess?.();
       onClose();
-    } catch {
-      setSaveError(submitted
-        ? "등록 요청은 완료됐지만 저장된 명단을 확인하지 못했습니다. 아래 버튼으로 결과만 다시 확인해 주세요."
-        : "등록을 완료하지 못했습니다. 선택은 유지됩니다. 학생의 현재 상태와 연결을 확인한 뒤 다시 시도해 주세요.");
-    } finally {
-      savingRef.current = false;
-      setSaving(false);
     }
   };
 
@@ -242,9 +227,9 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
                     const enrolled = status === "ACTIVE";
                     return (
                       <label key={student.id} className="lecture-enroll-picker__row"
-                        data-selected={selected.has(student.id)} data-enrolled={enrolled}>
-                        <input type="checkbox" checked={selected.has(student.id)}
-                          disabled={busy || enrolled || !!student.deletedAt}
+                        data-selected={selectedIds.has(student.id)} data-enrolled={enrolled && !notice.explicit}>
+                        <input type="checkbox" checked={selectedIds.has(student.id)}
+                          disabled={busy || (enrolled && !notice.explicit) || !!student.deletedAt}
                           aria-describedby={`lecture-student-identity-${student.id} lecture-student-contact-${student.id}`}
                           aria-label={`${student.name} 선택`} onChange={() => toggle(student)} />
                         <span id={`lecture-student-identity-${student.id}`} className="lecture-enroll-picker__identity">
@@ -269,7 +254,7 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
           </nav>
           <section className="lecture-enroll-picker__selection" aria-label="선택한 학생">
             <div className="lecture-enroll-picker__toolbar">
-              <span><strong role="status">{selected.size}명 선택</strong><span className="lecture-enroll-picker__limit"> / 최대 200명</span></span>
+              <span><strong role="status">{selectedIds.size}명 선택</strong><span className="lecture-enroll-picker__limit"> / 최대 200명</span></span>
               <Button size="sm" intent="ghost" disabled={selectionLocked || !selected.size}
                 onClick={() => { setSelected(new Map()); setSelectionMessage(""); }}>전체 선택 해제</Button>
             </div>
@@ -280,19 +265,26 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
                   setSelected((previous) => { const next = new Map(previous); next.delete(student.id); return next; });
                   setSelectionMessage("");
                 }}>{student.name}<span aria-hidden> ×</span></button>)}
-            </div> : <p>이름을 눌러 선택하세요.<br />검색·조건·페이지를 바꿔도 선택은 유지됩니다.</p>}
+            </div> : notice.pending ? <p>이 탭에 저장된 이전 요청의 선택입니다.</p> : <p>이름을 눌러 선택하세요.<br />검색·조건·페이지를 바꿔도 선택은 유지됩니다.</p>}
           </section>
           {selectionMessage && <p role="status" className="lecture-enroll-picker__notice">{selectionMessage}</p>}
-          {saveError && <p role="alert" className="lecture-enroll-picker__error">{saveError}</p>}
-          <p className="lecture-enroll-picker__hint">출결 대상은 차시에서 별도로 배정합니다. 최초 수강 시 계정 안내가 발송될 수 있습니다.</p>
+          {notice.error && <p role="alert" className="lecture-enroll-picker__error">{notice.error}</p>}
+          {notice.pending && !notice.error && !saving && <p>이전 {notice.pending.students.length}명 등록 요청의 결과를 확인해 주세요.</p>}
+          <EnrollmentNoticeOptions choices={notice.choices} disabled={selectionLocked} onChange={next => {
+            notice.setChoices(next);
+            if (next.student_notice !== "send" && next.parent_notice !== "send") {
+              setSelected(previous => new Map([...previous].filter(([id]) => enrollmentStatus.get(id) !== "ACTIVE")));
+            }
+          }} />
         </div>
       </ModalBody>
       <ModalFooter left={onChooseExcelUpload ? <Button intent="ghost" disabled={saving} onClick={() => {
         void leave(() => { onClose(); onChooseExcelUpload(); });
       }}>엑셀로 일괄 등록</Button> : <span className="lecture-enroll-picker__hint">한 번에 최대 200명</span>} right={<>
+        <EnrollmentNoticeSummary choices={notice.choices} />
         <Button intent="secondary" disabled={saving} onClick={() => { void leave(onClose); }}>취소</Button>
-        <Button intent="primary" disabled={saveBlocked || !selected.size} loading={saving} onClick={() => { void save(); }}>
-          {saving ? "등록 확인 중…" : confirmationIds ? "등록 결과 다시 확인" : selected.size ? `${selected.size}명 강의에 추가` : "학생을 선택하세요"}
+        <Button intent="primary" disabled={saveBlocked || (!selected.size && !notice.pending)} loading={saving} onClick={() => { void save(); }}>
+          {saving ? "등록 확인 중…" : notice.pending ? notice.retryLabel : selected.size ? notice.explicit ? `${selected.size}명 등록 및 안내 요청` : `${selected.size}명 강의에 추가` : "학생을 선택하세요"}
         </Button>
       </>} />
     </AdminModal>

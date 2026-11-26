@@ -1,0 +1,40 @@
+.options, .results {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border-divider, var(--tc-border-subtle));
+  border-radius: 8px;
+  color: var(--color-text-primary, var(--tc-text));
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.summary { min-width: 0; color: var(--color-text-primary, var(--tc-text)); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.summary p { margin: 3px 0 0; }
+.options { background: var(--color-bg-surface-soft, var(--tc-surface-soft)); }
+.options p, .results p, .heading h3 { margin: 0; }
+.options summary { width: fit-content; cursor: pointer; padding: 3px 0; }
+.fields { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 6px 0; }
+.fields label { display: grid; gap: 2px; flex: 1 1 140px; }
+.fields select {
+  width: 100%; min-height: 40px; border-radius: 6px; padding: 4px 8px;
+  border: 1px solid var(--color-border-divider, var(--tc-border-subtle));
+  background: var(--color-bg-surface, var(--tc-surface)); color: inherit;
+}
+.chosen { color: var(--color-primary, var(--tc-primary)); }
+.heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px 8px; }
+.heading h3 { font-size: 15px; }
+.rows {
+  list-style: none; padding: 0; margin: 4px 0 0; max-height: 18rem;
+  overflow-y: auto; overscroll-behavior: contain;
+}
+.row { display: grid; grid-template-columns: minmax(80px, .75fr) repeat(2, minmax(0, 1fr)); gap: 8px; padding: 8px 0; border-top: 1px solid var(--color-border-divider, var(--tc-border-subtle)); }
+.recipient { display: flex; align-items: flex-start; flex-direction: column; gap: 2px; }
+.recipient > span { color: var(--color-text-secondary, var(--tc-text-secondary)); }
+.results { animation: show-result 160ms ease-out; }
+@keyframes show-result { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 600px) {
+  .row { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .row > b { grid-column: 1 / -1; }
+  .fields select { min-height: 44px; font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .results { animation: none; } }

@@ -368,6 +368,11 @@ async function installApi(page: Page, state: MockState) {
         updated_at: "2026-08-01T00:00:00Z",
       }] : []);
     }
+    if (path === "/enrollments/registration-notices/" && method === "GET") {
+      const lecture = Number(url.searchParams.get("lecture"));
+      return [LECTURE_ID, SECOND_LECTURE_ID].includes(lecture)
+        ? route.fulfill({ status: 204 }) : json({ detail: "강의를 찾을 수 없습니다." }, 404);
+    }
     if (path === "/enrollments/") return json([]);
     if (path === "/enrollments/session-enrollments/") {
       state.examSessionEnrollmentReads = (state.examSessionEnrollmentReads ?? 0) + 1;
@@ -2028,6 +2033,7 @@ test("수업 목록 조회 실패는 기존 화면을 비우지 않고 다시 �
 
   const error = page.getByRole("alert");
   await expect(error).toContainText("수업 목록을 불러오지 못했습니다.");
+  await expect(page.getByRole("region", { name: "최근 등록 알림톡 결과" })).toHaveCount(0);
   state.sessionListFailures = 0;
   await error.getByRole("button", { name: "다시 불러오기" }).click();
 

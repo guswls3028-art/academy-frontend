@@ -3134,6 +3134,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/enrollments/register-with-notices/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["enrollments_register_with_notices_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/enrollments/registration-notices/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["enrollments_registration_notices_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/enrollments/session-enrollments/": {
         parameters: {
             query?: never;
@@ -3176,6 +3208,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["enrollments_session_enrollments_bulk_create_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/enrollments/verify-registration-notice/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["enrollments_verify_registration_notice_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -9517,6 +9565,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/results/wrong-notes/batches/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["results_wrong_notes_batches_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/wrong-notes/batches/{batch_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["results_wrong_notes_batches_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/wrong-notes/batches/{batch_id}/download/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["results_wrong_notes_batches_download_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/wrong-notes/batches/{batch_id}/retry/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["results_wrong_notes_batches_retry_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/results/wrong-notes/documents/": {
         parameters: {
             query?: never;
@@ -9635,6 +9747,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["results_wrong_notes_preview_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/wrong-notes/range/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["results_wrong_notes_range_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -9798,7 +9926,7 @@ export interface paths {
         get: operations["staffs_board_posts_retrieve"];
         put?: never;
         post?: never;
-        delete?: never;
+        delete: operations["staffs_board_posts_destroy"];
         options?: never;
         head?: never;
         patch: operations["staffs_board_posts_partial_update"];
@@ -9834,6 +9962,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staffs/board/posts/{id}/replies/{reply_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["staffs_board_posts_replies_destroy"];
+        options?: never;
+        head?: never;
+        patch: operations["staffs_board_posts_replies_partial_update"];
         trace?: never;
     };
     "/api/v1/staffs/currently-working/": {
@@ -13503,6 +13647,29 @@ export interface components {
          * @enum {string}
          */
         BankTransferNoticeStatusEnum: "SUBMITTED" | "CONFIRMED" | "REJECTED";
+        BatchDownload: {
+            filename: string;
+            /** Format: uri */
+            url: string;
+        };
+        BatchInputRequest: {
+            from_session_order: number;
+            lecture_id: number;
+            students: components["schemas"]["StudentSelectionRequest"][];
+            to_session_order: number;
+        };
+        BatchResponse: {
+            detail: string;
+            id: number;
+            status: components["schemas"]["WrongNoteDocumentStatus"];
+            students: components["schemas"]["BatchStudentStatus"][];
+        };
+        BatchStudentStatus: {
+            enrollment_id: number;
+            error_message: string;
+            name: string;
+            status: components["schemas"]["WrongNoteDocumentStatus"];
+        };
         /**
          * @description * `MONTHLY` - 월납
          *     * `ONE_TIME` - 일시납
@@ -14326,6 +14493,44 @@ export interface components {
             file: string;
             lecture_id: number;
             session_id?: number;
+        };
+        EnrollmentNoticeDelivery: {
+            log_id: number | null;
+            status: string;
+        };
+        /**
+         * @description * `auto` - auto
+         *     * `send` - send
+         *     * `skip` - skip
+         * @enum {string}
+         */
+        EnrollmentNoticeMode: "auto" | "send" | "skip";
+        EnrollmentNoticeProvider: {
+            /** Format: date-time */
+            provider_delivery_checked_at: string;
+            provider_delivery_failure_reason: string;
+            provider_delivery_status: string;
+            /** Format: date-time */
+            provider_delivery_updated_at: string | null;
+            provider_status_code: string;
+        };
+        EnrollmentNoticeResult: {
+            lecture: number;
+            /** Format: uuid */
+            request_id: string;
+            students: components["schemas"]["EnrollmentNoticeStudentResult"][];
+        };
+        EnrollmentNoticeStudentResult: {
+            id: number;
+            name: string;
+            parent: components["schemas"]["EnrollmentNoticeDelivery"];
+            student: components["schemas"]["EnrollmentNoticeDelivery"];
+        };
+        EnrollmentNoticeVerifyRequest: {
+            lecture: number;
+            log_id: number;
+            /** Format: uuid */
+            request_id: string;
         };
         EnrollmentRequest: {
             lecture: number;
@@ -17842,6 +18047,9 @@ export interface components {
             body?: string;
             title?: string;
         };
+        PatchedStaffBoardReplyRequest: {
+            body?: string;
+        };
         PatchedStaffExpenseRecordRequest: {
             /** Format: int64 */
             amount?: number;
@@ -18953,6 +19161,21 @@ export interface components {
             /** Format: double */
             score?: number;
         };
+        RangeSource: {
+            enrollment_ids: number[];
+            id: number;
+            question_numbers: number[];
+            ready: boolean;
+            session_order: number;
+            title: string;
+            type: components["schemas"]["TypeEnum"];
+            unavailable_numbers: number[];
+        };
+        RangeStudent: {
+            enrollment_id: number;
+            name: string;
+            student_id: number;
+        };
         /**
          * @description * `CARD` - CARD
          *     * `BANK_TRANSFER` - BANK_TRANSFER
@@ -18974,6 +19197,14 @@ export interface components {
             payment_method: components["schemas"]["RecordPaymentPaymentMethodEnum"];
             /** @default  */
             receipt_note: string;
+        };
+        RegisterWithNoticesRequest: {
+            lecture: number;
+            parent_notice: components["schemas"]["EnrollmentNoticeMode"];
+            /** Format: uuid */
+            request_id: string;
+            student_notice: components["schemas"]["EnrollmentNoticeMode"];
+            students: number[];
         };
         RegistrationRequestAvailability: {
             available: boolean;
@@ -20020,6 +20251,11 @@ export interface components {
          * @enum {string}
          */
         SourceGroupEnum: "school";
+        SourceSelectionRequest: {
+            id: number;
+            numbers: number[];
+            type: components["schemas"]["TypeEnum"];
+        };
         /**
          * @description * `s3` - 직접 업로드
          *     * `youtube` - YouTube 링크
@@ -20037,6 +20273,7 @@ export interface components {
             readonly attachment_name: string;
             readonly author_name: string;
             body: string;
+            readonly can_delete: boolean;
             readonly can_edit: boolean;
             readonly can_remove_attachment: boolean;
             category: components["schemas"]["StaffBoardCategory"];
@@ -20055,6 +20292,7 @@ export interface components {
             readonly attachment_name: string;
             readonly author_name: string;
             body: string;
+            readonly can_delete: boolean;
             readonly can_edit: boolean;
             readonly can_remove_attachment: boolean;
             category: components["schemas"]["StaffBoardCategory"];
@@ -20075,6 +20313,8 @@ export interface components {
         StaffBoardReply: {
             readonly author_name: string;
             body: string;
+            readonly can_delete: boolean;
+            readonly can_edit: boolean;
             /** Format: date-time */
             readonly created_at: string;
             readonly id: number;
@@ -20085,6 +20325,7 @@ export interface components {
         StaffBoardSummary: {
             readonly attachment_name: string;
             readonly author_name: string;
+            readonly can_delete: boolean;
             readonly can_edit: boolean;
             readonly can_remove_attachment: boolean;
             category: components["schemas"]["StaffBoardCategory"];
@@ -21155,6 +21396,10 @@ export interface components {
             uses_identifier?: boolean;
         };
         StudentScheduleListOrHome: components["schemas"]["StudentSession"][] | components["schemas"]["StudentHomeSchedule"];
+        StudentSelectionRequest: {
+            enrollment_id: number;
+            sources: components["schemas"]["SourceSelectionRequest"][];
+        };
         StudentSession: {
             /** Format: date */
             date?: string | null;
@@ -21912,6 +22157,14 @@ export interface components {
             year: number;
         };
         /**
+         * @description * `PENDING` - Pending
+         *     * `RUNNING` - Running
+         *     * `DONE` - Done
+         *     * `FAILED` - Failed
+         * @enum {string}
+         */
+        WrongNoteDocumentStatus: "PENDING" | "RUNNING" | "DONE" | "FAILED";
+        /**
          * @description 오답노트 단일 문항 아이템
          *
          *     ✅ 의도:
@@ -21945,6 +22198,13 @@ export interface components {
             session_order?: number | null;
             session_title?: string;
             student_answer?: string;
+        };
+        WrongNoteRangeResponse: {
+            from_session_order: number;
+            lecture_id: number;
+            sources: components["schemas"]["RangeSource"][];
+            students: components["schemas"]["RangeStudent"][];
+            to_session_order: number;
         };
         WrongNoteSelectedPreviewRequestRequest: {
             source_selection: components["schemas"]["WrongNoteSourceSelectionRequest"][];
@@ -26663,6 +26923,60 @@ export interface operations {
             };
         };
     };
+    enrollments_register_with_notices_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterWithNoticesRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["RegisterWithNoticesRequest"];
+                "multipart/form-data": components["schemas"]["RegisterWithNoticesRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentNoticeResult"];
+                };
+            };
+        };
+    };
+    enrollments_registration_notices_retrieve: {
+        parameters: {
+            query: {
+                lecture: number;
+                request_id?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentNoticeResult"];
+                };
+            };
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     enrollments_session_enrollments_list: {
         parameters: {
             query?: {
@@ -26826,6 +27140,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionEnrollment"];
+                };
+            };
+        };
+    };
+    enrollments_verify_registration_notice_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnrollmentNoticeVerifyRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["EnrollmentNoticeVerifyRequest"];
+                "multipart/form-data": components["schemas"]["EnrollmentNoticeVerifyRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrollmentNoticeProvider"];
                 };
             };
         };
@@ -37419,6 +37758,94 @@ export interface operations {
             };
         };
     };
+    results_wrong_notes_batches_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchInputRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["BatchInputRequest"];
+                "multipart/form-data": components["schemas"]["BatchInputRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchResponse"];
+                };
+            };
+        };
+    };
+    results_wrong_notes_batches_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchResponse"];
+                };
+            };
+        };
+    };
+    results_wrong_notes_batches_download_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchDownload"];
+                };
+            };
+        };
+    };
+    results_wrong_notes_batches_retry_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchResponse"];
+                };
+            };
+        };
+    };
     results_wrong_notes_documents_create: {
         parameters: {
             query?: never;
@@ -37516,6 +37943,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WrongNoteSelectedPreviewResponse"];
+                };
+            };
+        };
+    };
+    results_wrong_notes_range_retrieve: {
+        parameters: {
+            query: {
+                from_session_order: number;
+                lecture_id: number;
+                to_session_order: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WrongNoteRangeResponse"];
                 };
             };
         };
@@ -37920,6 +38370,27 @@ export interface operations {
             };
         };
     };
+    staffs_board_posts_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     staffs_board_posts_partial_update: {
         parameters: {
             query?: never;
@@ -38050,6 +38521,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaffBoardError"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_replies_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+                reply_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    staffs_board_posts_replies_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+                reply_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedStaffBoardReplyRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedStaffBoardReplyRequest"];
+                "multipart/form-data": components["schemas"]["PatchedStaffBoardReplyRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardReply"];
                 };
             };
         };
