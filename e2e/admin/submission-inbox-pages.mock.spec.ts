@@ -323,3 +323,83 @@ for (const mobile of [false, true]) {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
   });
 }
+for (const mobile of [false, true]) {
+  test(`같은 이름 과제의 학생별 제출물과 다음 제출·목록 위치를 유지한다 ${mobile ? "390px" : "desktop"}`, async ({ page }) => {
+    await page.setViewportSize({ width: mobile ? 390 : 1366, height: 900 });
+    const state = await setup(page, mobile ? "staff" : "owner");
+    state.pendingHomework = 32;
+    state.submissionPending = 0;
+    const submittedAt = "2026-10-09T00:00:00Z";
+    const queue = Array.from({ length: 32 }, (_, index) => ({
+      homework_id: index === 31 ? 72 : 71,
+      enrollment_id: 100 + index,
+      student_name: `QA 대기 학생 ${index + 1}`,
+      homework_title: "QA 워크북",
+      lecture_title: index === 31 ? "QA 영어" : "QA 수학",
+      session_title: "첫 차시",
+      submitted_at: submittedAt,
+      file_count: 1,
+    }));
+    await page.route(/\/homework\/review-queue\/\?/, route => {
+      const current = Number(new URL(route.request().url()).searchParams.get("page"));
+      return route.fulfill({ json: { page: current, pages: 2, count: 32, results: queue.slice((current - 1) * 30, current * 30) } });
+    });
+    await page.route("**/homeworks/72/", route => route.fulfill({ json: {
+      id: 72, title: "QA 워크북", homework_type: "regular", session: 32,
+    } }));
+    const scopedRequests: string[] = [];
+    await page.route(/\/submissions\/submissions\/homework\/(71|72)\/\?/, route => {
+      const url = new URL(route.request().url());
+      const homework = Number(url.pathname.split("/").at(-2));
+      const enrollment = Number(url.searchParams.get("enrollment_id"));
+      scopedRequests.push(`${homework}/${enrollment}`);
+      const matching = queue.filter(row => row.homework_id === homework && row.enrollment_id === enrollment);
+      const results = matching.map(row => ({
+        ...row, id: row.enrollment_id, student_id: row.enrollment_id + 200, status: "submitted",
+        created_at: submittedAt, homework_lecture_title: row.lecture_title, teacher_accepted: false,
+        media_set_fingerprint: "a".repeat(64), files: [{
+          id: String(row.enrollment_id), position: 0, media_kind: "image", mime_type: "application/pdf",
+          original_filename: `${row.student_name} 풀이.pdf`, status: "uploaded", file_size: 1024,
+        }],
+      }));
+      return route.fulfill({ json: { count: results.length, results, next: null } });
+    });
+
+    const path = mobile ? "/workspace/mobile/submissions" : "/workspace/results/submissions";
+    await gotoAndSettle(page, `${BASE}${path}`);
+    await page.getByRole("link", { name: "확인 대기 과제 제출 32건 열기", exact: true }).click();
+    await page.getByRole("navigation", { name: "제출 목록 페이지" }).getByRole("button", { name: "다음", exact: true }).click();
+    const list = page.getByRole("list", { name: "확인 대기 학생 제출물" });
+    const math = list.getByRole("link").filter({ hasText: "QA 수학" });
+    const english = list.getByRole("link").filter({ hasText: "QA 영어" });
+    await expect(math).toContainText("QA 대기 학생 31");
+    await expect(english).toContainText("QA 대기 학생 32");
+    await expect(math).toContainText("QA 워크북");
+    await expect(english).toContainText("QA 워크북");
+    await math.click();
+
+    async function expectFocused(index: number) {
+      const row = queue[index];
+      await expect(page).toHaveURL(new RegExp(`reviewEnrollment=${row.enrollment_id}.*queuePage=2`));
+      await expect(page.getByText(`${row.student_name} 풀이.pdf`, { exact: true })).toBeVisible();
+      await expect(page.getByText(`${row.lecture_title} · ${row.session_title}`, { exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "미리보기", exact: true })).toHaveCount(1);
+      await expect(page.getByRole("group", { name: "과제 일괄 통과" })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "전체 과제 보기", exact: true })).toBeVisible();
+      expect(scopedRequests).toContain(`${row.homework_id}/${row.enrollment_id}`);
+    }
+
+    await expectFocused(30);
+    await page.getByRole("link", { name: "다음 대기 제출 · QA 대기 학생 32", exact: true }).click();
+    await expectFocused(31);
+    await expect(page.getByText("QA 대기 학생 31 풀이.pdf", { exact: true })).toHaveCount(0);
+    await page.reload();
+    await expectFocused(31);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.getByRole("button", { name: mobile ? "뒤로 가기" : "과제 목록으로 돌아가기", exact: true }).click();
+    await expect(page).toHaveURL(/homework=pending.*queuePage=2|queuePage=2.*homework=pending/);
+    await expect(math).toBeVisible();
+    await expect(english).toBeVisible();
+    expect(state.mutations).toEqual([]);
+  });
+}
