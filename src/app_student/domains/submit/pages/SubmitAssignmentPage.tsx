@@ -16,6 +16,9 @@ import { studentToast } from "@student/shared/ui/feedback/studentToast";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import { useTrackedTask } from "@/shared/productAnalytics";
 import { useAuthContext } from "@/auth/context/AuthContext";
+import { setTenantUserLocalItem } from "@/shared/utils/safeLocalStorage";
+import { getStudentSupportSessionInfo } from "@/shared/auth/supportPreviewSession";
+import { learningDate } from "@student/shared/hooks/useLearningClock";
 import { formatCompactFileSize } from "@/shared/utils/fileSize";
 import { createRandomUuid as uuid } from "@/shared/utils/randomUuid";
 import PhotoPreview from "@/shared/ui/media/PhotoPreview";
@@ -297,6 +300,9 @@ export default function SubmitAssignmentPage() {
     },
     onSuccess: async ({ succeeded, failed, reviewLocked, paused }, target) => {
       if (selectedRef.current !== target) return;
+      if (succeeded.length && recordsStudentActivity && !getStudentSupportSessionInfo()) {
+        setTenantUserLocalItem("student-last-submitted-homework", user?.id, `${learningDate(Date.now())}:${target.enrollmentId}:${target.id}`);
+      }
       setPendingFiles((current) => current.filter((item) => !succeeded.includes(item.clientFileId)));
       void qc.invalidateQueries({ queryKey: studentQueryKeys.gradesSummary });
       if (paused) {

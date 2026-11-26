@@ -1,6 +1,7 @@
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
+import { openStudentLearningFromHome } from "../helpers/studentLearningSummary";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
 const CHILDREN = {
@@ -137,6 +138,7 @@ for (const { width, role } of [
     await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
 
     const expectedScope = role === "parent" ? "11" : "self";
+    if (role === "student") await openStudentLearningFromHome(page);
     const card = page.getByRole("region", { name: "학습 현황", exact: true });
     await expect(card).toBeVisible();
     await expect(card).not.toContainText(/확인 중|확인 필요/);
@@ -147,6 +149,7 @@ for (const { width, role } of [
     await expect(page).toHaveURL(/\/student\/grades$/);
     await expect.poll(() => gradeScopes).toEqual([expectedScope, expectedScope]);
     await page.locator('.stu-tabbar a[href="/student/dashboard"]').click();
+    if (role === "student") await openStudentLearningFromHome(page);
     await expect(card).toBeVisible();
     await expect(card).not.toContainText(/확인 중|확인 필요/);
     expect(gradeScopes).toEqual([expectedScope, expectedScope]);

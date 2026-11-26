@@ -1,0 +1,26 @@
+.trigger { min-width: 44px; min-height: 44px; }
+.backdrop { position: fixed; inset: 0; z-index: 9100; display: grid; place-items: center; padding: 16px; background: var(--stu-backdrop); }
+.dialog { width: min(100%, 480px); max-height: 85vh; max-height: 85dvh; display: flex; flex-direction: column; background: var(--stu-surface-1); color: var(--stu-text); border-radius: 16px; overflow: hidden; box-shadow: var(--stu-shadow-3); }
+.bar { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 16px; border-bottom: 1px solid var(--stu-border); }
+.bar strong { flex: 1; }
+.bar button { width: 44px; height: 44px; display: grid; place-items: center; border: 0; background: none; color: inherit; cursor: pointer; }
+.body { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 20px; }
+.body h2 { margin: 0; font-size: 20px; }
+.body a { color: var(--stu-primary); }
+.list { display: grid; margin: 12px 0 20px; }
+.category { display: block; color: var(--stu-text-muted); font-size: 13px; font-weight: 600; }
+.list h3 { margin: 16px 0 2px; }
+.list h3:first-child { margin-top: 0; }
+.list button { min-height: 46px; background: none; border: 0; border-bottom: 1px solid var(--stu-border); text-align: left; color: inherit; display: flex; align-items: center; justify-content: space-between; gap: 10px; font: inherit; cursor: pointer; }
+.article { display: grid; gap: 18px; line-height: 1.6; overflow-wrap: anywhere; }
+.article h3 { margin: 0 0 4px; font-size: 14px; color: var(--stu-primary); }
+.article p, .article ol, .article figure { margin: 0; }
+.article section ol { list-style: decimal outside; padding-left: 1.5em; }
+.article li::marker { font-weight: 600; }
+.article li + li { margin-top: 5px; }
+.article img { display: block; width: 100%; height: auto; border: 1px solid var(--stu-border); border-radius: 8px; }
+.article figcaption { margin-top: 4px; font-size: 12px; color: var(--stu-text-muted); }
+@media (prefers-reduced-motion: no-preference) {
+  .dialog { animation: enter .16s ease-out; }
+  @keyframes enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+}

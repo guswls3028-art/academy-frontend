@@ -1122,16 +1122,34 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     const otherTitle = `QA 동명 강좌 과제 ${runStamp}`;
     const pendingHomework = todo.getByRole("link", { name: /^과제 제출 필요 2건/ });
     await expect(pendingHomework).toBeVisible();
+    const shortcuts = page.getByText("자주 쓰는 일", { exact: true });
     const submitShortcut = page.getByRole("link", { name: /^자료 제출·확인/ });
     for (const width of [1366, 390]) {
       await page.setViewportSize({ width, height: 844 });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      const help = page.getByRole("button", { name: "학생 사용 가이드", exact: true });
+      const profile = page.getByRole("button", { name: "프로필 메뉴", exact: true });
+      await expect(profile).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`student-home-${width}.png`), animations: "disabled" });
+      await help.click();
+      const guide = page.getByRole("dialog", { name: "학생 사용 가이드", exact: true });
+      await guide.getByRole("button", { name: "풀이 사진 제출하기" }).click();
+      const picture = guide.getByRole("img");
+      await expect.poll(() => picture.evaluate(node => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+      await expect(guide.getByRole("heading", { name: "완료 확인" })).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`student-help-${width}.png`) });
+      await guide.getByRole("button", { name: "가이드 닫기" }).click();
+      await expect(help).toBeFocused();
+      await shortcuts.click();
       await submitShortcut.scrollIntoViewIfNeeded();
       await expect(submitShortcut).toBeInViewport();
       const label = submitShortcut.getByText("자료 제출·확인", { exact: true });
       expect(await label.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
       await assertNoHorizontalOverflow(page);
       await page.screenshot({ path: testInfo.outputPath(`student-submission-shortcut-${width}.png`) });
+      await shortcuts.click();
     }
+    await shortcuts.click();
     await expect(pendingHomework).toContainText(homeworkTitle);
     await expect(pendingHomework).toContainText(otherTitle);
     const scopedSubmission = `${QA_BASE}/student/submit/assignment?sessionId=${created.sessionId}&homeworkId=${created.homeworkId}`;
@@ -1175,6 +1193,11 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
     });
     await expect(page.getByText(otherDraftName, { exact: true })).toBeVisible();
     await expect(page.getByText(/이 기기에 임시 보관했습니다/)).toBeVisible();
+    await page.getByRole("button", { name: "학생 사용 가이드", exact: true }).click();
+    await page.getByRole("dialog", { name: "학생 사용 가이드" }).getByRole("button", { name: "풀이 사진 제출하기" }).click();
+    await page.getByRole("button", { name: "가이드 닫기" }).click();
+    await expect(page.getByText(otherDraftName, { exact: true })).toBeVisible();
+    expect(uploadRequests).toEqual([]);
     await page.goBack();
     await expect(page).toHaveURL(scopedSubmission);
     expect(await page.evaluate(() => performance.timeOrigin)).toBe(submitDocument);
@@ -1377,7 +1400,8 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
         submission_state: "awaiting_review",
         score: null,
       }));
-      const remainingHomework = todo.getByRole("link", { name: /^과제 제출 필요 1건/ });
+      const remainingHomework = todo.getByRole("link", { name: "사진 제출하기" }).locator("..");
+      await expect(page.getByRole("region", { name: "제출 확인" }).getByRole("link", { name: "낸 파일 보기" })).toHaveAttribute("href", new URL(scopedSubmission).pathname + new URL(scopedSubmission).search);
       await expect(remainingHomework).toBeVisible();
       await expect(remainingHomework).toContainText(otherTitle);
       await expect(remainingHomework).not.toContainText(homeworkTitle);
@@ -1447,6 +1471,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
         enrollment_id: created.enrollmentId, teacher_reviewed: true, teacher_review_source: "manual",
       })]));
       await waitForHomeworkSummary(request, studentTokens.access, (row) => row.score === null && row.submission_media_locked === true);
+      await page.getByText("자주 쓰는 일", { exact: true }).click();
       await page.getByRole("link", { name: /^자료 제출·확인/ }).click();
       await page.getByRole("link", { name: "과제 확인 결과", exact: true }).click();
       await expect(submittedCard).toContainText("교사 확인 완료");

@@ -1,21 +1,9 @@
 /* eslint-disable no-restricted-syntax */
-/**
- * 학생 홈 — 모바일 우선
- *
- * 정보 우선순위:
- *   1) 다음 일정 카운트다운
- *   2) 오늘 할 일 (긍정/중립/부정 혼합, 비어 있으면 응원 메시지)
- *   3) 오늘 수업
- *   4) 학습 현황 (집계 범위·조회 상태와 상세 진입)
- *   5) 공지 (긴급 1건+ 또는 신규 있을 때만 강조, 비어 있으면 1행 라인 링크)
- *   6) 전체 메뉴로 이동 + 퇴실용 상태 카드
- *   7) 학원문의 (1행 압축, 분점 다수일 때만 펼침)
- *
- * 부분 실패: 한쪽 쿼리만 실패해도 가능한 섹션 노출.
- */
+/** 학생 홈은 오늘의 행동, 학부모 홈은 선택한 자녀의 현황을 보여 준다. */
 import { useState, useEffect, useMemo, useRef, memo } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
+import HomeResumeVideo from "@student/domains/video/components/HomeResumeVideo";
 import { useAuthContext } from "@/auth/context/AuthContext";
 import QrScanLink from "@student/shared/ui/attendance/QrScanLink";
 import { Badge, Button } from "@/shared/ui/ds";
@@ -30,6 +18,8 @@ import { calculateHomeworkStats } from "@student/domains/grades/public/homeworkS
 import { homeworkSubmissionHref } from "@student/domains/grades/public/homeworkSubmission";
 import { useStudentExams } from "@student/domains/exams/hooks/useStudentExams";
 import { getParentStudentId } from "@/shared/api/parentStudentSelection";
+import { getTenantUserLocalItem } from "@/shared/utils/safeLocalStorage";
+import { getStudentSupportSessionInfo } from "@/shared/auth/supportPreviewSession";
 import {
   IconCalendar, IconGrade, IconExam, IconNotice,
   IconClipboard, IconClinic, IconFolder, IconChevronRight, IconCheck, IconBell, IconBoard,
@@ -198,6 +188,7 @@ function QuickAction({
  * ========================================================================== */
 
 export default function DashboardPage() {
+  const [search] = useSearchParams();
   const { user } = useAuthContext();
   const wrongCompletionOnly = useWrongCompletionDisplay();
   const feesEnabled = useFeesEnabled();
@@ -437,49 +428,58 @@ export default function DashboardPage() {
     );
   }
 
+  if (search.get("view") === "learning") return (
+    <div className={styles.page}>
+      <Link to="/student/dashboard">홈으로</Link>
+      {learningStatus}
+    </div>
+  );
+
+  const firstHomework = failedHomeworks.find(row => homeworkSubmissionHref(row));
+  const firstHref = firstHomework && homeworkSubmissionHref(firstHomework);
+  const pendingReviews = (grades?.homeworks ?? []).filter(row =>
+    row.lecture_active !== false && row.submission_state === "awaiting_review" && homeworkSubmissionHref(row));
+  const lastSubmission = !getStudentSupportSessionInfo() && getTenantUserLocalItem("student-last-submitted-homework", user?.id);
+  const submittedToday = pendingReviews.find(row => `${today}:${row.enrollment_id}:${row.homework_id}` === lastSubmission);
+  const submitted = submittedToday ?? pendingReviews[0];
+  const receipt = submitted && (
+    <section className={styles.homeReceipt} aria-label="제출 확인">
+      <div className={styles.actionLabel}>제출 완료</div>
+      <h2>{submitted.title}</h2><p>선생님 확인 대기</p>
+      <Link className={styles.receiptLink} to={homeworkSubmissionHref(submitted)!}>낸 파일 보기</Link>
+      {pendingReviews.length > 1 && <Link to="/student/grades?view=homework">확인 대기 과제 {pendingReviews.length}건 보기</Link>}
+    </section>
+  );
+
   return (
     <div className={styles.page}>
-      <QrScanLink />
+      <div className={styles.todayHeading}>
+        <div><h1>오늘</h1><time dateTime={today}>{new Intl.DateTimeFormat("ko-KR", {
+          timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "long",
+        }).format(now)}</time></div>
+        <QrScanLink compact />
+      </div>
       {partialFailureBanner}
       {hasUrgentNotice && (
         <UrgentNotice notices={(dashboard?.notices ?? []).filter((n) => n.is_urgent)} />
       )}
 
-      <section className={styles.hero} data-guide="dash-todo">
-        <div className={styles.heroTop}>
-          <div>
-            <div className={styles.heroEyebrow}>확인할 일</div>
-            <h2 className={styles.heroTitle}>
-              {todoDataError
-                ? "일부 할 일을 확인하지 못했어요"
-                : todoDataPending
-                  ? "할 일을 확인하고 있어요"
-                  : todoCount > 0
-                    ? "확인할 일이 있어요"
-                    : "오늘은 급한 일이 없어요"}
-            </h2>
-            <p className={styles.heroDescription}>
-              {todoDataError
-                ? "시험, 답변, 클리닉 조회를 다시 시도해 정확한 할 일을 확인해 주세요."
-                : todoDataPending
-                ? "새 답변과 클리닉, 성적 알림을 확인하는 중입니다."
-                : todoCount > 0
-                ? "현재 수강 중인 강의의 미완료 학습과 새 답변, 7일 이내 예정 일정을 모았어요."
-                : "수업과 영상 학습 흐름만 차근차근 이어가면 됩니다."}
-            </p>
-          </div>
-          <div className={styles.heroPill}>
-            {todoDataError ? "확인 필요" : todoDataPending ? "확인 중" : todoCount > 0 ? `${todoCount}건` : "정리됨"}
-          </div>
-        </div>
-
-        {nextSession && (
-          <div data-guide="dash-countdown">
-            <CountdownCard session={nextSession.session} dt={nextSession.dt} />
+      <section className={styles.todayTasks} data-guide="dash-todo" aria-label="오늘 할 일">
+        {(todoDataError || todoDataPending) && <h2 className={styles.quietState}>
+          {todoDataError ? "일부 할 일을 확인하지 못했어요" : "할 일을 확인하고 있어요"}
+        </h2>}
+        {!todoDataError && !todoDataPending && todoCount > 0 && (!firstHref || todoCount > 1) && <div className={styles.taskOverview}>
+          <h2>확인할 일이 있어요</h2><span>{todoCount}건</span>
+        </div>}
+        {firstHomework && firstHref && (
+          <div className={styles.homeAction}>
+            <div className={styles.actionLabel}>지금 할 일</div>
+            <h2>{firstHomework.title}</h2>
+            <p>{[firstHomework.lecture_title, firstHomework.session_title].filter(Boolean).join(" · ")}</p>
+            <Link className={styles.actionLink} to={firstHref}>사진 제출하기</Link>
           </div>
         )}
-
-        {todoCount > 0 ? (
+        {todoCount > (failedHomeworks.length === 1 && firstHref ? 1 : 0) ? (
           <div className={`stu-panel ${styles.todoPanel}`}>
             {upcomingExams.length > 0 && (() => {
               const preview = upcomingExams.slice(0, 2).map((x) => x.exam.title);
@@ -528,7 +528,7 @@ export default function DashboardPage() {
               />
             )}
 
-            {failedHomeworks.length > 0 && (() => {
+            {(failedHomeworks.length > 1 || (!firstHref && failedHomeworks.length > 0)) && (() => {
               const preview = failedHomeworks.slice(0, 2).map((h) => h.title);
               const more = failedHomeworks.length - 2 > 0 ? ` 외 ${failedHomeworks.length - 2}건` : "";
               return (
@@ -572,8 +572,14 @@ export default function DashboardPage() {
               <div className={styles.heroDoneText}>조회가 끝난 뒤 오늘 할 일을 정확히 보여 드립니다.</div>
             </div>
           </div>
+        ) : !firstHref && !submitted && !todoCount ? (
+          <h2 className={styles.quietState}>오늘은 급한 일이 없어요</h2>
         ) : null}
       </section>
+      {submittedToday && receipt}
+      <HomeResumeVideo />
+      {!submittedToday && receipt}
+      {!todaySessions.length && nextSession && <CountdownCard session={nextSession.session} dt={nextSession.dt} />}
 
       {todaySessions.length > 0 && (
         <section className={styles.section}>
@@ -606,78 +612,30 @@ export default function DashboardPage() {
         </section>
       )}
 
-      <section className={styles.quickSection} aria-label="게시판과 자료실">
-        <div className={styles.sectionLabel}>학원 소식·자료</div>
-        <div className={styles.quickGrid}>
-          <QuickAction
-            to="/student/community?tab=board"
-            icon={<IconBoard />}
-            label="게시판"
-            detail="학원 게시글 보기"
-          />
-          <QuickAction
-            to="/student/community?tab=materials"
-            icon={<IconFolder />}
-            label="자료실"
-            detail="수업 자료 받기"
-          />
-        </div>
-      </section>
-
-      <section className={styles.quickSection} aria-label="자주 쓰는 일">
-        <div className={styles.sectionLabel}>자주 쓰는 일</div>
-        <div className={styles.quickGrid}>
-          <QuickAction to="/student/submit/assignment" icon={<IconClipboard />} label="과제 사진 제출" detail="사진 찍기·앨범에서 선택" primary />
-          <QuickAction to="/student/submit" icon={<IconFolder />} label="자료 제출·확인" detail="과제·성적표·설문" wideOnMobile />
-          <QuickAction
-            to="/student/qna"
-            state={{ openQnaForm: true }}
-            icon={<IconBoard />}
-            label="질문하기"
-            detail="선생님께 바로 질문"
-            primary
-          />
-          <QuickAction
-            to="/student/community"
-            state={{ tab: replyCount > 0 && (notificationCounts?.counsel ?? 0) > (notificationCounts?.qna ?? 0) ? "counsel" : "qna" }}
-            icon={<IconBell />}
-            label="답변 보기"
-            detail={countsLoading ? "확인 중" : countsError ? "확인 실패" : "답변 확인"}
-            badge={!countsLoading && !countsError ? replyCount : undefined}
-          />
-          <QuickAction
-            to="/student/clinic"
-            icon={<IconClinic />}
-            label="클리닉"
-            detail={countsLoading ? "알림 확인 중" : countsError ? "알림 확인 실패" : "예약·일정"}
-            badge={!countsLoading && !countsError ? notificationCounts?.clinic : undefined}
-          />
-          <QuickAction
-            to="/student/grades"
-            icon={<IconGrade />}
-            label="성적"
-            detail={countsLoading ? "알림 확인 중" : countsError ? "알림 확인 실패" : "결과 보기"}
-            badge={!countsLoading && !countsError ? notificationCounts?.grade : undefined}
-          />
-        </div>
-      </section>
-
-      <div data-guide="dash-stats">
-        {learningStatus}
-      </div>
-
-      {!hasUrgentNotice && (
+      {!hasUrgentNotice && <section className={styles.section} aria-label="학원 소식">
+        <SectionLabel>학원 소식</SectionLabel>
         <NoticeStrip notices={dashboard?.notices ?? []} hasNotices={hasNotices} />
-      )}
-
-      <section className={styles.quickSection} data-guide="dash-apps" aria-label="전체 메뉴와 상태 카드">
+      </section>}
+      <details className={styles.otherActions}>
+        <summary>자주 쓰는 일</summary>
         <div className={styles.quickGrid}>
-          <QuickAction to="/student/menu" icon={<IconFolder />} label="전체 메뉴" detail="학습·학원 소식·내 계정" />
+          <QuickAction to="/student/submit/assignment" icon={<IconClipboard />} label="과제 사진 제출" detail="사진 찍기·앨범에서 선택" />
+          <QuickAction to="/student/submit" icon={<IconFolder />} label="자료 제출·확인" detail="과제·성적표·설문" wideOnMobile />
+          <QuickAction to="/student/qna" icon={<IconBoard />} state={{ openQnaForm: true }} label="질문하기" detail="선생님께 질문" />
+          <QuickAction to="/student/community" icon={<IconBell />}
+            state={{ tab: (notificationCounts?.counsel ?? 0) > (notificationCounts?.qna ?? 0) ? "counsel" : "qna" }}
+            label="답변 보기" detail={countsLoading ? "확인 중" : countsError ? "확인 실패" : "답변 확인"}
+            badge={countsLoading || countsError ? undefined : replyCount} />
+          <QuickAction to="/student/clinic" icon={<IconClinic />} label="클리닉" detail="예약·일정"
+            badge={countsLoading || countsError ? undefined : notificationCounts?.clinic} />
+          <QuickAction to="/student/grades" icon={<IconGrade />} label="성적" detail="시험·과제 결과"
+            badge={countsLoading || countsError ? undefined : notificationCounts?.grade} />
+          <QuickAction to="/student/community?tab=materials" icon={<IconFolder />} label="자료실" detail="수업 자료 받기" />
+          <QuickAction to="/student/community?tab=board" icon={<IconBoard />} label="게시판" detail="학원 게시글 보기" />
           <QuickAction to="/student/idcard" icon={<IconClinic />}
             label={wrongCompletionOnly ? "오답 상태 카드" : "클리닉 패스카드"} detail="선생님께 상태 보여 드리기" />
         </div>
-      </section>
-
+      </details>
       {dashboard?.tenant_info && <AcademyContact tenantInfo={dashboard.tenant_info} />}
     </div>
   );

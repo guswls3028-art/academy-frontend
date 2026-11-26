@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
-import { verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
+import { openStudentLearningFromHome, verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
 import { assertReleaseRequestSafe } from "../helpers/releaseApiBoundary";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
@@ -611,6 +611,50 @@ function imageNotice() {
 test.describe("알림·공지 이어보기", () => {
   test.skip(!IS_LOCAL_BASE, "Local route-mock contract spec.");
   test.use({ serviceWorkers: "block" });
+  for (const width of [1366, 390]) {
+    test(`학생 홈에서 그림 가이드와 기존 프로필, 메뉴를 독립적으로 사용한다 ${width}px`, async ({ page }, testInfo) => {
+      await installStudentApi(page);
+      await page.setViewportSize({ width, height: 844 });
+      await page.route(matchesGradesApi, route => route.fulfill({ json: {
+        ...emptyGrades(),
+        homeworks: [{ homework_id: 801, enrollment_id: 301, session_id: 24, title: "이차함수 연습문제",
+          session_title: "3차시", lecture_title: "수학", passed: false, achievement: "NOT_SUBMITTED",
+          submission_state: "needs_submission", lecture_active: true, learning_todo_eligible: true }],
+      } }));
+      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("link", { name: "사진 제출하기" })).toBeVisible();
+      await expect(page.getByRole("link", { name: "QR 출석" })).toBeVisible();
+      await expect(page.getByRole("link", { name: "전체 메뉴 보기" })).toHaveCount(0);
+      const help = page.getByRole("button", { name: "학생 사용 가이드" });
+      const profile = page.getByRole("button", { name: "프로필 메뉴" });
+      await expect(profile).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`student-home-${width}.png`), animations: "disabled" });
+      await help.click();
+      const guide = page.getByRole("dialog", { name: "학생 사용 가이드" });
+      const topics = guide.locator("button[data-topic]");
+      await expect(guide.getByRole("heading", { level: 3 })).toHaveText(["처음 시작", "등원과 수업", "과제", "영상", "메뉴와 도움말"]);
+      await expect(topics).toHaveCount(8);
+      for (let index = 0; index < 8; index++) {
+        await topics.nth(index).click();
+        await expect(guide.getByRole("heading", { name: "막혔을 때" })).toBeAttached();
+        await expect.poll(() => guide.getByRole("img").evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+        if (index === 3) await page.screenshot({ path: testInfo.outputPath(`student-guide-${width}.png`), animations: "disabled" });
+        await guide.getByRole("button", { name: "목차로 돌아가기" }).click();
+      }
+      await page.keyboard.press("Escape");
+      await expect(help).toBeFocused();
+      await profile.click();
+      await expect(page.getByRole("button", { name: "내 정보", exact: true })).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`student-profile-${width}.png`), animations: "disabled" });
+      await page.getByRole("button", { name: "내 정보", exact: true }).click();
+      await expect(page).toHaveURL(/\/student\/profile$/);
+      await page.getByRole("button", { name: "메뉴 열기" }).click();
+      const drawer = page.getByRole("navigation", { name: "학생 메뉴" });
+      await expect(drawer.getByRole("link", { name: "학습 현황" })).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`student-menu-${width}.png`), animations: "disabled" });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+  }
   for (const width of [390, 1366]) {
     test(`공지 탭과 강의 범위를 상세·새로고침·목록 복귀까지 유지한다 ${width}px`, async ({ page }, testInfo) => {
       await installStudentApi(page, { lectureNotices: true });
@@ -727,7 +771,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
             ? { items: schedule.slice(1), has_any_sessions: true }
             : schedule });
         });
-        await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+        await page.goto(`${BASE}/student/dashboard?view=learning`, { waitUntil: "domcontentloaded", timeout: 120_000 });
         const card = page.getByRole("region", { name: "학습 현황", exact: true });
         const sessions = card.getByRole("link", { name: /수업·클리닉/ });
         const exams = card.getByRole("link", { name: /시험 합격/ });
@@ -820,7 +864,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         selectedHidden.delete(id);
         return route.fulfill({ json: { hidden_ids: [...selectedHidden] } });
       });
-      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      await page.goto(`${BASE}/student/dashboard?view=learning`, { waitUntil: "domcontentloaded" });
       const selectChild = (id: number) => page.getByRole("tab", { name: `학생 ${id}`, exact: true });
       if (switchChild) await selectChild(11).click();
       const card = page.getByRole("region", { name: "학습 현황", exact: true });
@@ -857,6 +901,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         expect(undoPosts).toEqual([]);
         if (mode === "홈") {
           await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
+          await openStudentLearningFromHome(page);
           await expect(schedule).toContainText("0회");
           await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
         }
@@ -884,6 +929,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         await expect(row(recent.id)).toBeVisible();
         await expect(row(other.id)).toHaveCount(0);
         await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
+        await openStudentLearningFromHome(page);
         await expect(schedule).toContainText("1회");
         return;
       }
@@ -895,6 +941,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         await expect(row(other.id)).toBeVisible();
         expect(undoPosts).toEqual([other.id]);
         await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
+        await openStudentLearningFromHome(page);
         await expect(schedule).toContainText("2회");
         return;
       }
@@ -926,7 +973,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
           ? { json: source === "grades" ? emptyGrades() : [] }
           : { status: 400, json: { detail: "temporary read failure" } });
       });
-      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      await page.goto(`${BASE}/student/dashboard?view=learning`, { waitUntil: "domcontentloaded" });
       const card = page.getByRole("region", { name: "학습 현황", exact: true });
       await expect(card.getByRole("alert")).toContainText(source === "grades" ? "성적을 불러오지 못했어요" : "일정을 불러오지 못했어요");
       await expect(card.getByText("확인 필요", { exact: true }).first()).toBeVisible();
@@ -973,7 +1020,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       exams: grades.exams,
       homeworks: [{ homework_id: 801, enrollment_id: 301, title: "제출할 과제", passed: false, achievement: "FAIL" }],
     } }));
-    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/student/dashboard?view=learning`, { waitUntil: "domcontentloaded" });
     const card = page.getByRole("region", { name: "학습 현황", exact: true });
     await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("0%");
     await expect(card.getByRole("link", { name: /과제 통과/ })).toContainText("0%");
@@ -1013,7 +1060,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         selections.push(route.request().headers()["x-student-id"] ?? "");
         return route.fulfill({ json: scope === "rows" ? { exams: [], homeworks } : { ...emptyGrades(), homeworks } });
       });
-      const openDashboard = () => page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      const openDashboard = () => page.goto(`${BASE}/student/dashboard?view=learning`, { waitUntil: "domcontentloaded" });
       const learningStatus = page.getByRole("region", { name: "학습 현황", exact: true });
       const passRate = learningStatus.getByRole("link", { name: /과제 통과/ });
       await openDashboard();
@@ -1046,7 +1093,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         items: date === "2026-10-22" ? [{ id: 21, title: "기간 밖 수업", date }] : [],
         has_any_sessions: true,
       } }));
-      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      await page.goto(`${BASE}/student/dashboard?view=learning`, { waitUntil: "domcontentloaded" });
       const card = page.getByRole("region", { name: "학습 현황", exact: true });
       await expect(card.getByRole("link", { name: /수업·클리닉/ })).toContainText("0회");
       await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("기록 없음");
@@ -1072,7 +1119,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         { ...grades.exams[0], exam_id: 705, correction_status: "PENDING", achievement: "NOT_SUBMITTED", meta_status: "NOT_SUBMITTED" },
       ],
     } }));
-    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/student/dashboard?view=learning`, { waitUntil: "domcontentloaded" });
     const card = page.getByRole("region", { name: "학습 현황", exact: true });
     await expect(card.getByRole("link", { name: /오답 완료/ })).toContainText("67%");
     await page.reload();
@@ -1512,7 +1559,8 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
-    const shortcuts = page.getByRole("region", { name: "게시판과 자료실" });
+    const shortcuts = page.locator("details").filter({ has: page.locator("summary", { hasText: "자주 쓰는 일" }) });
+    await shortcuts.locator("summary").click();
     await expect(shortcuts).toBeVisible();
     const boardLink = shortcuts.getByRole("link", { name: /게시판/ });
     const materialsLink = shortcuts.getByRole("link", { name: /자료실/ });
@@ -1785,7 +1833,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
           await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
           const failure = page.getByRole("alert").filter({ hasText: "일부 정보를 확인하지 못했어요" });
           await expect(failure).toBeVisible();
-          const learning = page.getByRole("region", { name: "학습 현황" });
+          const learning = parentDashboard ? page.getByRole("region", { name: "학습 현황" }) : page.getByRole("link", { name: /QR 출석/ });
           await expect(learning).toBeVisible();
           expect(Object.fromEntries(healthyReads)).toEqual(Object.fromEntries([...paths, "qna"].map((path) => [path, 1])));
           const failedReads = counselSelections.length;
@@ -1890,6 +1938,47 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await expect(page.getByRole("link", { name: "알림 수 확인 실패" }), { timeout: 15_000 }).toBeVisible();
     await expect(page.getByText("일부 할 일을 확인하지 못했어요", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("오늘은 급한 일이 없어요", { exact: true })).toHaveCount(0);
+  });
+
+  test("홈은 이 학생의 재생 가능한 영상만 이어보기로 열고 완료·접근 변경을 반영한다", async ({ page }) => {
+    await installStudentApi(page);
+    let completed = false;
+    let blocked = false;
+    const playbackMethods: string[] = [];
+    page.on("request", request => {
+      if (new URL(request.url()).pathname.endsWith("/501/playback/")) playbackMethods.push(request.method());
+    });
+    await page.route("**/student/video/sessions/24/videos/**", route => route.fulfill({ json: { items: [{
+      id: 501, title: "이어볼 강의", session_id: 24, enrollment_id: 301, duration: 420,
+      last_position: 82, completed, status: "READY", access_mode: blocked ? "BLOCKED" : "FREE_REVIEW",
+    }] } }));
+    await page.goto(`${BASE}/student/dashboard`);
+    const resume = page.getByRole("region", { name: "이어서 보기" });
+    await page.evaluate(() => {
+      const raw = JSON.stringify({ videoId: 501, sessionId: 24, enrollmentId: 301, position: 82, savedAt: Date.now() });
+      localStorage.setItem("student-recent-lesson-video:hakwonplus:user:99", raw);
+    });
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "오늘", exact: true })).toBeVisible();
+    await expect(resume).toHaveCount(0);
+    await page.evaluate(() => localStorage.setItem("student-recent-lesson-video:hakwonplus:user:11",
+      localStorage.getItem("student-recent-lesson-video:hakwonplus:user:99")!));
+    await page.reload();
+    await expect(resume).toContainText("1:22");
+    expect(playbackMethods).toEqual([]);
+    await resume.getByRole("link", { name: "이어서 재생" }).click();
+    await expect(page).toHaveURL(/video\/play\?video=501&session=24&enrollment=301$/);
+    await expect.poll(() => playbackMethods).toContain("GET");
+    expect(playbackMethods.filter(method => method === "POST")).toHaveLength(1);
+    for (const state of ["completed", "blocked"]) {
+      completed = state === "completed";
+      blocked = state === "blocked";
+      const loaded = page.waitForResponse(r => new URL(r.url()).pathname.endsWith("/sessions/24/videos/"));
+      await page.goto(`${BASE}/student/dashboard`);
+      await loaded;
+      await expect(page.getByRole("heading", { name: "오늘", exact: true })).toBeVisible();
+      await expect(resume).toHaveCount(0);
+    }
   });
 
   test("강의 탭에서 공지를 발견하고 선택한 강의 범위로 바로 연다", async ({ page }, testInfo) => {

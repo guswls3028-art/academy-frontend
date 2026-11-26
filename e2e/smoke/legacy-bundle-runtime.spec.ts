@@ -198,7 +198,7 @@ async function login(page: Page, role: "student" | "parent" = "student") {
     await expect(page.getByRole("heading", { name: "확인할 자녀를 선택해 주세요" })).toBeVisible();
     return;
   }
-  await expect(page.getByRole("region", { name: "자주 쓰는 일" })).toBeVisible({ timeout: 45_000 });
+  await expect(page.getByRole("heading", { name: "오늘", exact: true })).toBeVisible({ timeout: 45_000 });
   await expect(page.getByRole("heading", { name: "오늘은 급한 일이 없어요" })).toBeVisible();
   const studentStyle = await page.locator(".student-layout").evaluate((element) => {
     const style = getComputedStyle(element);
@@ -251,12 +251,10 @@ for (const profile of profiles) {
     expect(api.loginBodies).toEqual([{ username: "student.legacy", password: "Case-Sensitive-Pw", tenant_code: "godmin" }]);
     await expectNoOverflow(page);
 
-    const fullMenu = page.getByRole("link", { name: /전체 메뉴/ });
-    await expect(fullMenu).toHaveAttribute("href", "/student/menu");
-    await fullMenu.click();
-    await expect(page).toHaveURL(/\/student\/menu$/);
-    await expect(page.getByRole("heading", { name: "전체 메뉴", exact: true })).toBeInViewport({ ratio: 1 });
-    const noticeMenu = page.getByRole("link", { name: /^공지사항/ });
+    await page.getByRole("button", { name: "메뉴 열기" }).click();
+    const menu = page.getByRole("dialog", { name: "메뉴" });
+    await expect(menu).toBeInViewport();
+    const noticeMenu = menu.getByRole("link", { name: "공지사항", exact: true });
     await expect(noticeMenu).toHaveCount(1);
     await expect(noticeMenu).toHaveAttribute("href", "/student/notices");
     await noticeMenu.click();
@@ -417,6 +415,8 @@ test("legacy student lists load analysis and HLS code only where needed", async 
     try { await route.abort(); } catch { /* Request closes with the page. */ }
   });
   await login(page);
+  await page.getByRole("button", { name: "메뉴 열기" }).click();
+  await page.getByRole("dialog", { name: "메뉴" }).getByRole("link", { name: "학습 현황" }).click();
   const learningSummary = page.getByRole("region", { name: "학습 현황", exact: true });
   await learningSummary.locator('a[href="/student/grades"]').click();
   await expect(page.getByText("시험 결과가 아직 없습니다.", { exact: true })).toBeVisible();

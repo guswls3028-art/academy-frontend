@@ -847,6 +847,13 @@ async function finishStudent(
     expect(state.allowedMasterUrls.size).toBe(2);
     expect([...state.allowedMasterUrls].every((url) => new URL(url).pathname === `/${hlsPath}`)).toBe(true);
     expect(state.allowedPosterUrls.size).toBeGreaterThanOrEqual(1);
+    await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
+    const resume = page.getByRole("region", { name: "이어서 보기", exact: true });
+    await expect(resume.getByRole("link", { name: "이어서 재생" })).toHaveAttribute("href", new RegExp(`[?&]video=${videoId}(&|$)`));
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(resume).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath(`student-resume-home-${state.viewport}.png`), animations: "disabled" });
+    expect(state.bootstraps).toHaveLength(2);
     emitLongVideoCheckpoint(state.viewport, "completed");
   });
 }
