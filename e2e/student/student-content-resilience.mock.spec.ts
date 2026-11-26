@@ -1940,9 +1940,9 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await installStudentApi(page);
     let completed = false;
     let blocked = false;
-    let playbackRequests = 0;
+    const playbackMethods: string[] = [];
     page.on("request", request => {
-      if (new URL(request.url()).pathname.endsWith("/501/playback/")) playbackRequests++;
+      if (new URL(request.url()).pathname.endsWith("/501/playback/")) playbackMethods.push(request.method());
     });
     await page.route("**/student/video/sessions/24/videos/**", route => route.fulfill({ json: { items: [{
       id: 501, title: "이어볼 강의", session_id: 24, enrollment_id: 301, duration: 420,
@@ -1961,10 +1961,11 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       localStorage.getItem("student-recent-lesson-video:hakwonplus:user:99")!));
     await page.reload();
     await expect(resume).toContainText("1:22");
-    expect(playbackRequests).toBe(0);
+    expect(playbackMethods).toEqual([]);
     await resume.getByRole("link", { name: "이어서 재생" }).click();
     await expect(page).toHaveURL(/video\/play\?video=501&session=24&enrollment=301$/);
-    await expect.poll(() => playbackRequests).toBe(1);
+    await expect.poll(() => playbackMethods).toContain("GET");
+    expect(playbackMethods.filter(method => method === "POST")).toHaveLength(1);
     for (const state of ["completed", "blocked"]) {
       completed = state === "completed";
       blocked = state === "blocked";
