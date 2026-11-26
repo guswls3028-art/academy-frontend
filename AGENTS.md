@@ -125,6 +125,17 @@ these supported paths. Never copy production personal data or bypass a tool deni
 - Verify long Korean text, keyboard access, desktop 1100/1366 and 390px where
   exposed. Browser evidence requires DOM assertions and persisted state.
 
+Before changing a shared UI action, trace where the result becomes final. For
+an asynchronous action, distinguish request acceptance from the saved result
+produced by its consumer. Keep the default path usable when the optional
+feature or its data is absent.
+
+For a changed UI/API or worker boundary, use the same frontend artifact in
+isolated development with its actual backend. Exercise the ordinary action and
+the changed branch with synthetic data. Follow a queued action to the result
+visible after reload, including what the user sees on failure or retry. Reuse
+the existing journey check and add coverage at the first unverified boundary.
+
 Prove each affected role's ordinary successful journey: CTA → API → saved state
 → reload → consuming screens, plus visible failure/recovery. Guards, notices,
 swallowed errors, empty-success fallbacks, screenshots, and green CI alone are

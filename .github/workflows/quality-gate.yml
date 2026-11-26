@@ -950,7 +950,7 @@ jobs:
   # ── 운영 synthetic business writes 0: 기존 계정 인증/관측은 별도 계수 ──
   e2e-roundtrip:
     name: Production read-only user flow + tenant availability
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [deploy]
     if: >-

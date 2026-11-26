@@ -21,6 +21,7 @@ export type OMRDefaults = {
 };
 
 export type OMRParams = {
+  essay_score_grid?: "auto" | "paper" | "exam";
   exam_title?: string;
   lecture_name?: string;
   session_name?: string;
@@ -67,8 +68,7 @@ function toStaticPreviewHtml(html: string): string {
 }
 
 /**
- * Beta: 서술형 교사 채점란 설정. 켜면 서술형 칸마다 점수(십·일·소수 첫째 자리)
- * 마킹칸이 인쇄되고, 스캔에서 읽은 점수가 채점표 제안으로 채워진다.
+ * 시험에 저장하는 0~8 배점 버블과 스캔 제안 설정.
  */
 export type OMREssayScoreMarksState = {
   enabled: boolean;
