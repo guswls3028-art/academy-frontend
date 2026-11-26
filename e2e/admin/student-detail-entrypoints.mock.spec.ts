@@ -845,6 +845,10 @@ test("학생 상세는 1366·1100·390px에서 주요 작업과 전체 탭에 �
     if (width === 390) {
       await expect(toggle).toHaveAttribute("aria-expanded", "false");
       await expect(memo).toBeHidden();
+      const toggleBox = (await toggle.boundingBox())!;
+      const filesBox = (await overlay.getByRole("button", { name: "학생 자료" }).boundingBox())!;
+      expect(Math.abs(toggleBox.y - filesBox.y)).toBeLessThan(2);
+      expect(filesBox.height).toBeGreaterThanOrEqual(44);
     } else {
       await expect(toggle).toBeHidden();
       await expect(memo).toBeInViewport();

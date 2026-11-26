@@ -33,6 +33,11 @@
   border-bottom: 1px solid var(--color-border-divider);
 }
 
+.profileTools :global(.ds-button) {
+  gap: var(--ds-space-1);
+  padding-inline: var(--ds-space-2);
+}
+
 .profileTools button[aria-expanded] svg {
   transition: transform var(--ds-motion-base);
 }
@@ -122,6 +127,11 @@
   display: block;
   overflow-wrap: anywhere;
   word-break: keep-all;
+}
+.infoRow :global(.ds-overlay-info-row__copy-icon) {
+  display: inline-block;
+  margin-inline-start: var(--ds-space-1);
+  vertical-align: middle;
 }
 .profilePanel :global(.ds-overlay-sidebar-section__title) { font-size: 12px; }
 .profilePanel :global(.ds-overlay-info-row):focus-visible {

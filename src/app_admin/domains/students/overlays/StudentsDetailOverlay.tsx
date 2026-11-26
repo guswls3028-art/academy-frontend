@@ -447,7 +447,7 @@ function StudentDetailContent({
             {isMobile && <div className={profileStyles.profileTools}>
               <Button
                 intent="secondary"
-                size="md"
+                size="sm"
                 aria-expanded={showProfile}
                 aria-controls={tabId + "-profile"}
                 rightIcon={<ChevronDown size={ICON.sm} aria-hidden />}
