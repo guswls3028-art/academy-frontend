@@ -339,6 +339,24 @@ function examResultState(essayNumbering: "continuous" | "separate"): MockState {
   };
 }
 
+test("대상 미배정·원본 검수·일반 시험의 첫 단계와 수동 선택을 보존한다", async ({ page }) => {
+  const state = recoveryExamState();
+  state.selectedEnrollmentIds = [];
+  await openExamRoute(page, state, `?examId=${EXAM_ID}`);
+  await expect(page.getByTestId("assessment-step-audience")).toHaveAttribute("aria-expanded", "true");
+  state.selectedEnrollmentIds = [601];
+  state.exam.segmentation_status = "review_required";
+  await page.reload();
+  await expect(page.getByTestId("assessment-step-materials")).toHaveAttribute("aria-expanded", "true");
+  state.exam.segmentation_status = "ready";
+  await page.reload();
+  await expect(page.getByTestId("assessment-step-submissions")).toHaveAttribute("aria-expanded", "true");
+  await openAssessmentWorkAction(page, "policy", "settings");
+  await reconnectWithStaleQuery(page);
+  await expect(page.getByTestId("assessment-action-settings")).toHaveAttribute("aria-pressed", "true");
+  expect(state.examPatchPayloads).toEqual([]);
+});
+
 const resultSearch = `?examId=${EXAM_ID}&examTab=results`;
 
 function waitForExamQuestionRead(page: Page) {

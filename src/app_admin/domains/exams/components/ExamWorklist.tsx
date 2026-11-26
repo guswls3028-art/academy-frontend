@@ -4,7 +4,6 @@ import SessionAnswerKeyModal from "./SessionAnswerKeyModal";
 import AssessmentWorklist, { type WorkStage } from "@/shared/ui/assessment/AssessmentWorklist";
 import type { WorkSelection } from "@/shared/ui/assessment/useAssessmentWorklist";
 import { assessmentMaterialStatus } from "@/shared/ui/assessment/assessmentMaterialStatus";
-import { useExamEnrollmentRows } from "../hooks/useExamEnrollments";
 import type { Exam } from "../types";
 import ExamSetupPanel from "../panels/setup/ExamSetupPanel";
 import ExamEnrollmentPanel from "../panels/setup/ExamEnrollmentPanel";
@@ -14,8 +13,9 @@ import ExamAssetsPanel from "../panels/ExamAssetsPanel";
 import ExamSubmissionsPanel from "../panels/ExamSubmissionsPanel";
 import ExamResultsViewerPanel from "../panels/ExamResultsViewerPanel";
 
-export default function ExamWorklist({ exam, sessionId, lectureId, selection, select, wrongCompletionOnly, focusAnalysis }: {
+export default function ExamWorklist({ exam, audience, sessionId, lectureId, selection, select, wrongCompletionOnly, focusAnalysis }: {
   exam: Exam;
+  audience: string;
   sessionId?: number | null;
   lectureId: number;
   selection: WorkSelection;
@@ -25,9 +25,6 @@ export default function ExamWorklist({ exam, sessionId, lectureId, selection, se
 }) {
   const examId = exam.id;
   const [printOpen, setPrintOpen] = useState(false);
-  const enrollment = useExamEnrollmentRows(examId, sessionId ?? undefined);
-  const audience = enrollment.isPending ? "대상 학생 확인 중"
-    : !enrollment.isError && Array.isArray(enrollment.data?.items) ? `응시 대상 ${enrollment.data.items.filter(row => row.is_selected).length}명` : "대상 학생 조회 실패";
   const openPolicy = () => select({ step: "policy", action: "settings" });
   const openReadinessItem = (target: string) => {
     if (target === "assessment-audience") select({ step: "audience", action: "students" });

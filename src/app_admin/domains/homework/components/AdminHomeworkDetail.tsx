@@ -3,7 +3,8 @@ import type { HomeworkTabKey, HomeworkSummary } from "../types";
 
 import HomeworkHeader from "./common/HomeworkHeader";
 import HomeworkWorklist from "./HomeworkWorklist";
-import { useAssessmentWorklist } from "@/shared/ui/assessment/useAssessmentWorklist";
+import { useHomeworkAssignments } from "../hooks/useHomeworkAssignments";
+import { initialAssessmentStep, useAssessmentWorklist } from "@/shared/ui/assessment/useAssessmentWorklist";
 import HomeworkTabs from "./common/HomeworkTabs";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { useAdminHomework } from "../hooks/useAdminHomework";
@@ -27,9 +28,14 @@ export default function AdminHomeworkDetail({
 }) {
   const [activeTab, setActiveTab] = useState<HomeworkTabKey>("setup");
   const { confirmDiscard } = useAssessmentEditGuard();
-  const worklist = useAssessmentWorklist(String(homeworkId), { step: "submissions" });
   const readErrorRef = useRef<HTMLDivElement>(null);
   const { data, isLoading, isError, isFetching, refetch } = useAdminHomework(homeworkId);
+  const assignments = useHomeworkAssignments(mode === "operate" ? homeworkId : 0);
+  const audienceCount = assignments.isSuccess && Array.isArray(assignments.data?.selected_ids)
+    ? assignments.data.selected_ids.length : undefined;
+  const audienceSummary = audienceCount !== undefined ? `배정 학생 ${audienceCount}명`
+    : assignments.isPending ? "대상 학생 확인 중" : "대상 학생 조회 실패";
+  const worklist = useAssessmentWorklist(String(homeworkId), initialAssessmentStep(audienceCount, data?.source_status));
 
   // homeworkId 변경 시 탭 리셋
   useEffect(() => { setActiveTab("setup"); }, [homeworkId]);
@@ -89,7 +95,7 @@ export default function AdminHomeworkDetail({
         primaryAction={primaryAction}
       />
       {mode === "operate" ? (
-        <HomeworkWorklist homework={data} selection={worklist.selection} select={worklist.select} />
+        <HomeworkWorklist homework={data} audience={audienceSummary} selection={worklist.selection} select={worklist.select} />
       ) : <>
         <HomeworkTabs activeTab={activeTab} onChange={changeTab} mode={mode} />
         {activeTab === "setup" && <HomeworkSetupPanel homeworkId={homeworkId} />}

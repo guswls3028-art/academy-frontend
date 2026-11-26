@@ -26,7 +26,7 @@ export default function AssessmentWorklist({ label, stages, selection, select }:
     const { step, action } = selection;
     if (previous.current.step === step && previous.current.action === action) return;
     previous.current = selection;
-    if (!step) return;
+    if (!step || !selection.focus) return;
     const row = listRef.current?.querySelector<HTMLElement>(`[data-stage="${step}"]`);
     if (!row || row.contains(document.activeElement)) return;
     const target = row.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')

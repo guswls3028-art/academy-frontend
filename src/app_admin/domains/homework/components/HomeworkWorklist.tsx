@@ -4,21 +4,18 @@ import { assessmentMaterialStatus } from "@/shared/ui/assessment/assessmentMater
 import HomeworkInspectionEntry from "@/shared/ui/assessment/HomeworkInspectionEntry";
 import type { AdminHomeworkDetail } from "../api/adminHomework";
 import HomeworkEnrollmentPanel from "../panels/setup/HomeworkEnrollmentPanel";
-import { useHomeworkAssignments } from "../hooks/useHomeworkAssignments";
 import HomeworkSetupPanel from "../panels/HomeworkSetupPanel";
 import HomeworkAssetsPanel from "../panels/HomeworkAssetsPanel";
 import HomeworkSubmissionsPanel from "../panels/HomeworkSubmissionsPanel";
 import HomeworkResultsPanel from "../panels/HomeworkResultsPanel";
 
-export default function HomeworkWorklist({ homework, selection, select }: {
+export default function HomeworkWorklist({ homework, audience, selection, select }: {
   homework: AdminHomeworkDetail;
+  audience: string;
   selection: WorkSelection;
   select: (next: WorkSelection) => void;
 }) {
   const homeworkId = homework.id;
-  const assignments = useHomeworkAssignments(homeworkId);
-  const audience = assignments.isPending ? "대상 학생 확인 중"
-    : !assignments.isError && Array.isArray(assignments.data?.selected_ids) ? `배정 학생 ${assignments.data.selected_ids.length}명` : "대상 학생 조회 실패";
   const maxScore = homework.max_score ?? homework.default_max_score;
   const inspect = homework.homework_type !== "template" && homework.session_id
     ? <HomeworkInspectionEntry sessionId={homework.session_id} homeworkId={homeworkId} title={homework.title} />

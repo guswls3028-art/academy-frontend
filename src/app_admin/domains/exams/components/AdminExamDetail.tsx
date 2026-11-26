@@ -4,7 +4,8 @@ import { useAdminExam } from "../hooks/useAdminExam";
 import type { ExamTabKey } from "../types";
 
 import ExamWorklist from "./ExamWorklist";
-import { useAssessmentWorklist } from "@/shared/ui/assessment/useAssessmentWorklist";
+import { useExamEnrollmentRows } from "../hooks/useExamEnrollments";
+import { initialAssessmentStep, useAssessmentWorklist } from "@/shared/ui/assessment/useAssessmentWorklist";
 import ExamTabs from "./common/ExamTabs";
 import ExamHeader from "./common/ExamHeader";
 import { Button, EmptyState } from "@/shared/ui/ds";
@@ -36,11 +37,17 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
   const { hash } = useLocation();
   const { lectureId } = useLectureSessionParams();
   const focusAnalysis = linkedTab === "results" && hash.slice(1) === EXAM_ANALYSIS_ANCHOR;
-  const worklist = useAssessmentWorklist(`${examId}:${linkedTab ?? ""}:${hash}`,
+  const enrollment = useExamEnrollmentRows(mode === "operate" ? examId : undefined, sessionId ?? undefined);
+  const audienceCount = enrollment.isSuccess && Array.isArray(enrollment.data?.items)
+    ? enrollment.data.items.filter(row => row.is_selected).length : undefined;
+  const audienceSummary = audienceCount !== undefined ? `응시 대상 ${audienceCount}명`
+    : enrollment.isPending ? "대상 학생 확인 중" : "대상 학생 조회 실패";
+  const worklist = useAssessmentWorklist(`${examId}:${linkedTab ?? ""}:${focusAnalysis}`,
     linkedTab === "results" ? { step: "results", action: focusAnalysis ? "analysis" : "results" }
       : linkedTab === "setup" ? { step: "policy", action: "settings" }
       : linkedTab === "assets" ? { step: "materials", action: "source" }
-      : { step: "submissions", action: linkedTab === "submissions" ? "submissions" : undefined });
+      : linkedTab === "submissions" ? { step: "submissions", action: "submissions" }
+      : initialAssessmentStep(audienceCount, exam?.segmentation_status));
   const [tab, setTab] = useState<ExamTabKey>(linkedTab === "results" ? "results" : "setup");
 
   useEffect(() => {
@@ -122,7 +129,7 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
       )}
 
       {mode === "operate" ? (
-        <ExamWorklist exam={exam} sessionId={sessionId} lectureId={lectureId ?? 0}
+        <ExamWorklist exam={exam} audience={audienceSummary} sessionId={sessionId} lectureId={lectureId ?? 0}
           selection={worklist.selection} select={worklist.select} wrongCompletionOnly={wrongCompletionOnly}
           focusAnalysis={focusAnalysis} />
       ) : <>
