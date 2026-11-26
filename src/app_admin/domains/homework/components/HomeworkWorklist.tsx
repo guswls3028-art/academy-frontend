@@ -28,7 +28,7 @@ export default function HomeworkWorklist({ homework, selection, select }: {
     { id: "audience", title: "과제 대상", summary: audience, actions: [
       { id: "students", label: "대상 학생", content: <HomeworkEnrollmentPanel homeworkId={homeworkId} /> },
     ] },
-    { id: "materials", title: "과제 자료", summary: assessmentMaterialStatus(homework.source_status), actions: [
+    { id: "materials", title: "과제 자료", summary: homework.source_filename || "워크북 원본 · 문항과 해설", status: assessmentMaterialStatus(homework.source_status), actions: [
       { id: "source", label: "워크북·문항 관리", content: <HomeworkAssetsPanel homeworkId={homeworkId} /> },
     ] },
     { id: "policy", title: "제출기한·평가 기준", summary: [typeof due === "string" && due ? "제출기한 " + due : "기한 없이 운영",
@@ -36,11 +36,11 @@ export default function HomeworkWorklist({ homework, selection, select }: {
       { id: "settings", label: "기한·점수 설정", content: <HomeworkSetupPanel homeworkId={homeworkId} policyOnly
         onNavigate={target => select(target === "assessment-audience" ? { step: "audience", action: "students" } : { step: "policy", action: "settings" })} /> },
     ] },
-    { id: "submissions", title: "과제 제출 확인", summary: "제출물 검수 · 미제출 안내 · 과제 검사", actions: [
-      { id: "submissions", label: "제출 현황 보기", content: <div className="space-y-4">{inspect}<HomeworkSubmissionsPanel homeworkId={homeworkId} /></div> },
+    { id: "submissions", title: "과제 제출 확인", summary: "제출물 검수 · 미제출 안내 · 과제 검사", tools: inspect, actions: [
+      { id: "submissions", label: "제출 현황 보기", content: <HomeworkSubmissionsPanel homeworkId={homeworkId} /> },
     ] },
-    { id: "results", title: "평가·결과", summary: "학생별 결과 · 점수와 통과 여부", actions: [
-      { id: "results", label: "학생별 결과 보기", content: <div className="space-y-4">{inspect}<HomeworkResultsPanel homeworkId={homeworkId} /></div> },
+    { id: "results", title: "평가·결과", summary: "학생별 결과 · 점수와 통과 여부", tools: inspect, actions: [
+      { id: "results", label: "학생별 결과 보기", content: <HomeworkResultsPanel homeworkId={homeworkId} /> },
     ] },
   ];
   return <AssessmentWorklist label="과제 업무 흐름" stages={stages} selection={selection} select={select} />;

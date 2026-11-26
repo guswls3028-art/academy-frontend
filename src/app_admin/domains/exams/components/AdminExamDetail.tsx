@@ -70,7 +70,7 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
   const primaryAction = mode === "operate"
     ? worklist.selection.step === "results"
       ? { label: "운영 설정 보기", onClick: () => worklist.select({ step: "policy", action: "settings" }) }
-      : worklist.selection.action === "submissions"
+      : worklist.selection.step === "submissions" && worklist.selection.action
         ? { label: "채점·결과 보기", onClick: () => worklist.select({ step: "results", action: "results" }) }
         : { label: "제출 현황 보기", onClick: () => worklist.select({ step: "submissions", action: "submissions" }) }
     : undefined;

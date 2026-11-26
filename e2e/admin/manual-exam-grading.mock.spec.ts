@@ -2589,6 +2589,7 @@ test.describe("문항별 직접 채점", () => {
       { waitUntil: "domcontentloaded" },
     );
     await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
+    await openAssessmentWorkAction(page, "materials", "source");
     await page.getByRole("button", { name: "시험 자료 업로드", exact: true }).click();
 
     const dialog = page.getByRole("dialog").filter({ hasText: "시험 자료 올리기" });
@@ -2632,6 +2633,7 @@ test.describe("문항별 직접 채점", () => {
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
       { waitUntil: "domcontentloaded" },
     );
+    await openAssessmentWorkAction(page, "materials", "source");
     const input = page.getByLabel("OMR 답안지 파일 선택");
     await expect(input).toBeVisible();
     expect(await input.getAttribute("accept")).toBeNull();
@@ -2653,6 +2655,7 @@ test.describe("문항별 직접 채점", () => {
       { waitUntil: "domcontentloaded" },
     );
     await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
+    await openAssessmentWorkAction(page, "materials", "source");
     const uploadButton = page.getByRole("button", { name: "시험 자료 업로드", exact: true });
     await uploadButton.scrollIntoViewIfNeeded();
     await uploadButton.click();

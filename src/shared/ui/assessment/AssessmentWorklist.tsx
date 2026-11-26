@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
-import { Button, ICON } from "@/shared/ui/ds";
+import { Badge, Button, ICON } from "@/shared/ui/ds";
 import type { WorkSelection, WorkStep } from "./useAssessmentWorklist";
 import styles from "./AssessmentWorklist.module.css";
 
@@ -8,6 +8,8 @@ export type WorkStage = {
   id: WorkStep;
   title: string;
   summary: string;
+  status?: { label: string; tone: "success" | "info" | "warning" | "danger" | "neutral" };
+  tools?: ReactNode;
   actions: { id: string; label: string; content: ReactNode }[];
 };
 
@@ -47,7 +49,7 @@ export default function AssessmentWorklist({ label, stages, selection, select }:
                   onClick={() => select({ step: open ? null : stage.id })}>
                   <span className={styles.number} aria-hidden>{index + 1}</span>
                   <span className={styles.copy}>
-                    <span className={styles.name}>{stage.title}<ChevronDown size={ICON.sm} aria-hidden /></span>
+                    <span className={styles.name}>{stage.title}{stage.status && <Badge size="sm" tone={stage.status.tone}>{stage.status.label}</Badge>}<ChevronDown size={ICON.sm} aria-hidden /></span>
                     <span className={styles.summary}>{stage.summary}</span>
                   </span>
                 </button>
@@ -64,6 +66,7 @@ export default function AssessmentWorklist({ label, stages, selection, select }:
                         {action.label}
                       </Button>
                     ))}
+                    {stage.tools}
                   </div>
                   {active && <div className={styles.detail}>{active.content}</div>}
                 </>}

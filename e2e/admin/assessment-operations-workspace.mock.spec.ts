@@ -710,6 +710,13 @@ for (const width of [1366, 1100, 390]) {
     await openExam(page, state);
     const workflow = page.getByRole("navigation", { name: "시험 업무 흐름" });
     await expect(workflow.locator("ol > li > h3 > button")).toHaveCount(5);
+    await page.getByTestId("assessment-step-materials").click();
+    await workflow.getByRole("button", { name: "OMR 답안지", exact: true }).click();
+    const print = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "OMR 답안지", exact: true }) });
+    await expect(print.getByRole("tab", { name: "OMR 답안지", exact: true })).toHaveAttribute("aria-selected", "true");
+    await print.getByRole("button", { name: "취소", exact: true }).click();
+    await openAssessmentWorkAction(page, "submissions", "ledger");
+    await expect(page.getByRole("region", { name: "OMR 업로드 원장", exact: true })).toBeFocused();
     await openAssessmentWorkAction(page, "results", "analysis");
     const analysis = page.getByRole("region", { name: "시험 성적 분석", exact: true });
     await expect(analysis.getByRole("heading", { name: "시험 성적 분석", exact: true })).toBeVisible();

@@ -1,3 +1,4 @@
+import { openAssessmentWorkAction } from "../helpers/openAssessmentWorkAction";
 import type { Page } from "@playwright/test";
 
 import { test, expect } from "../fixtures/strictTest";
@@ -100,6 +101,7 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
 
       await expect(page.getByRole("heading", { name: examTitle, level: 2, exact: true })).toBeVisible({ timeout: 15_000 });
+      await openAssessmentWorkAction(page, "policy", "answers");
       await page.getByRole("button", { name: "문항·답안 등록" }).click();
 
       const modal = page.locator(".admin-modal__inner").filter({ hasText: "답안 등록" }).last();
@@ -188,6 +190,7 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
 
       await expect(page.getByRole("heading", { name: examTitle, level: 2, exact: true })).toBeVisible({ timeout: 15_000 });
+      await openAssessmentWorkAction(page, "policy", "answers");
       await page.getByRole("button", { name: "문항·답안 등록" }).click();
 
       const modal = page.locator(".admin-modal__inner").filter({ hasText: "답안 등록" }).last();
@@ -320,6 +323,7 @@ test.describe("운영 회귀: 답안등록 대문항 안정성", () => {
       await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
 
       await expect(page.getByRole("heading", { name: examTitle, level: 2, exact: true })).toBeVisible({ timeout: 15_000 });
+      await openAssessmentWorkAction(page, "policy", "answers");
       await page.getByRole("button", { name: "문항·답안 등록" }).click();
 
       const modal = page.locator(".admin-modal__inner").filter({ hasText: "답안 등록" }).last();

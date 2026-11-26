@@ -9,7 +9,6 @@ import { isStaleResourceConflict } from "@/shared/api/optimisticConcurrency";
 import { useAssessmentDirtyRegistration } from "@/shared/ui/assessment/AssessmentEditGuard";
 import { useAssessmentPolicyDraft } from "@/shared/ui/assessment/useAssessmentPolicyDraft";
 import formStyles from "@/shared/ui/assessment/AssessmentSetupForm.module.css";
-import { fetchLectures, fetchSessions } from "@/shared/api/contracts/sessions";
 
 import { useAdminExam } from "../../hooks/useAdminExam";
 import { updateAdminExam } from "../../api/adminExam";
@@ -22,7 +21,7 @@ import type {
   EssayNumbering,
   ManualGradingMethod,
 } from "../../types";
-import AnswerKeyRegisterModal from "../../components/AnswerKeyRegisterModal";
+import SessionAnswerKeyModal from "../../components/SessionAnswerKeyModal";
 
 type ExamPolicyForm = {
   title: string;
@@ -217,19 +216,6 @@ export default function ExamPolicyPanel({
     enabled: examId > 0,
   });
   const questions = questionsQuery.data ?? [];
-
-  const { data: lectureData } = useQuery({
-    queryKey: adminExamsQueryKeys.lecturesForOmr,
-    queryFn: () => fetchLectures(),
-    enabled: lectureId > 0,
-  });
-  const { data: sessionData } = useQuery({
-    queryKey: adminExamsQueryKeys.sessionsForOmr(lectureId),
-    queryFn: () => fetchSessions(lectureId),
-    enabled: lectureId > 0,
-  });
-  const resolvedLectureName = lectureData?.find((lecture) => lecture.id === lectureId)?.title ?? "";
-  const resolvedSessionName = sessionData?.find((session) => session.id === sessionId)?.title ?? "";
 
   const dirty = useMemo(() => {
     if (!form || !baseFormRef.current) return false;
@@ -797,14 +783,14 @@ export default function ExamPolicyPanel({
         </div>
       </section>}
 
-      <AnswerKeyRegisterModal
+      <SessionAnswerKeyModal
         open={answerModalOpen}
         onClose={() => setAnswerModalOpen(false)}
         examId={examId}
         structureOwnerId={structureOwnerId}
         canEditQuestions={exam.can_edit_structure}
-        lectureName={resolvedLectureName}
-        sessionName={resolvedSessionName}
+        lectureId={lectureId}
+        sessionId={sessionId}
       />
     </>
   );
