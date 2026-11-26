@@ -24,6 +24,10 @@ import { HOSTNAME_TO_TENANT_CODE } from "./config";
 
 export const TENANT_STORAGE_KEY = "tenant_code";
 
+export function isOriginalComparison(): boolean {
+  return typeof window !== "undefined" && window.location.origin === "https://original-demo.hakwonplus.com";
+}
+
 export type TenantResolveResult =
   | { ok: true; code: string; source: "path" | "storage" | "env" | "hostname" }
   | { ok: false; reason: "missing" | "invalid_host" };
@@ -179,6 +183,8 @@ export function getTenantCodeForHeader(): string | null {
 export function getTenantCodeForApiRequest(): string | null {
   try {
     if (typeof window === "undefined") return null;
+    // The original UI and the Dawon UI work with the same isolated demo academy.
+    if (isOriginalComparison()) return "dawon";
     const hostname = (window.location.hostname || "").trim().toLowerCase();
     const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
     const isPreview =

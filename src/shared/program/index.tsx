@@ -2,7 +2,7 @@
 // PATH: src/shared/program/index.tsx
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
-import { getTenantBranding, getTenantIdFromCode, resolveTenantCode } from "@/shared/tenant";
+import { getTenantBranding, getTenantIdFromCode, isOriginalComparison, resolveTenantCode } from "@/shared/tenant";
 import { richHtmlToPlainText } from "@/shared/utils/richHtml";
 
 export type Program = {
@@ -59,6 +59,21 @@ function plainOptional(value: string | undefined): string | undefined {
 }
 
 function normalizeProgramDisplay(program: Program): Program {
+  if (isOriginalComparison()) {
+    const branding = getTenantBranding(1);
+    return {
+      ...program,
+      display_name: branding.loginTitle,
+      ui_config: {
+        ...program.ui_config,
+        logo_url: branding.logoUrl,
+        login_title: branding.loginTitle,
+        login_subtitle: branding.loginSubtitle,
+        window_title: branding.windowTitle,
+        primary_color: branding.headerPalette?.accent,
+      },
+    };
+  }
   const logo = program.ui_config?.logo_url;
   const isBuiltInLogo = program.tenantCode === "hakwonplus" && logo &&
     /^(?:https:\/\/(?:www\.)?hakwonplus\.com)?\/tenants\/hakwonplus\/logo\.png(?:\?[^#]*)?$/.test(logo);
