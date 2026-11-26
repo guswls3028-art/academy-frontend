@@ -233,6 +233,8 @@ async function dawonParity(page, width, guard) {
         }
       }
     }
+    const screenText = {scores:/학생 이름 검색|이름 검색|성적 편집|성적 입력|성적표|성적 데이터/, exams:/시험 추가|묶음 불러오기|시험 정보/, assignments:/과제 추가|묶음 불러오기|과제 정보/, notice:/공지사항/, videos:/영상 추가|등록된 영상/};
+    if(screenText[path]) await check(root).toContainText(screenText[path]);
     await page.screenshot({path:phase+'-dawon-'+path+'-'+width+'.png',animations:'disabled'});
     steps.push(path);
   }
@@ -247,6 +249,24 @@ async function dawonParity(page, width, guard) {
       const load=page.waitForResponse(r=>sameApi(r,dawon,(u,m)=>u.pathname==='/api/v1/clinic/settings/'&&m==='GET'));
       await root.getByText('패스카드',{exact:true}).first().click();
       assert.equal((await load).status(),200);
+      const mode=root.getByRole('checkbox',{name:/매일 자동으로 색상 바꾸기/});
+      await visible(mode);
+      if(isPrivate && width===1366) {
+        const old=await mode.isChecked();
+        guard.passcard=true;
+        async function apply(value) {
+          await mode.setChecked(value);
+          const save=page.waitForResponse(r=>sameApi(r,dawon,(u,m)=>m==='PATCH' && u.pathname==='/api/v1/clinic/settings/'));
+          await root.getByRole('button',{name:'학생 화면에 적용',exact:true}).click();
+          assert.equal((await save).status(),200);
+        }
+        await apply(!old);
+        await page.reload({waitUntil:'domcontentloaded'});
+        await check.poll(()=>mode.isChecked()).toBe(!old);
+        await apply(old);
+        guard.passcard=false;
+      }
+
     }
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),name+' page overflows viewport');
   }
@@ -275,7 +295,7 @@ async function widthProof(browser,width) {
         if(payload && Object.keys(payload).length===1 && guard.allowedMemos.has(payload.memo)) return route.continue();
       }
       if(isPrivate && url.origin===dawon && method==='PATCH' &&
-          (guard.course===url.pathname || (guard.attendance && /^\/api\/v1\/lectures\/attendance\/\d+\/$/.test(url.pathname)))) return route.continue();
+          (guard.course===url.pathname || (guard.passcard && url.pathname==='/api/v1/clinic/settings/') || (guard.attendance && /^\/api\/v1\/lectures\/attendance\/\d+\/$/.test(url.pathname)))) return route.continue();
       guard.blockedWrites++;
       return route.abort();
     });
