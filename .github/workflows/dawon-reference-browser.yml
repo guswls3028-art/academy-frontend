@@ -62,7 +62,7 @@ jobs:
       - if: steps.target.outputs.phase == 'private'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: 7431b3688c750bdbe9d3a975bc51bbb34c355401
+          ref: e62fb67d4f876b2eb7bd1a314ca948ff5e7da0fb
           path: worker-source
           persist-credentials: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
