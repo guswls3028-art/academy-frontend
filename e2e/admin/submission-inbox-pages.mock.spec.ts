@@ -64,6 +64,7 @@ async function setup(page: Page, role: "owner" | "teacher" | "staff") {
       }));
       return json({ count: results.length, page: 1, pages: 1, results });
     }
+    if (path === "/results/admin/sessions/32/scores/") return json({ meta: { exams: [], homeworks: [] }, rows: [] });
     if (path === "/results/admin/sessions/31/scores/") return json({
       meta: { exams: [], homeworks: [] },
       rows: [{ enrollment_id: 10, student_name: "QA 과제 제출 학생", exams: [], homeworks: [] }],
@@ -368,7 +369,10 @@ for (const mobile of [false, true]) {
     const path = mobile ? "/workspace/mobile/submissions" : "/workspace/results/submissions";
     await gotoAndSettle(page, `${BASE}${path}`);
     await page.getByRole("link", { name: "확인 대기 과제 제출 32건 열기", exact: true }).click();
-    await page.getByRole("navigation", { name: "제출 목록 페이지" }).getByRole("button", { name: "다음", exact: true }).click();
+    const pager = page.getByRole("navigation", { name: "제출 목록 페이지" });
+    await pager.getByRole("button", { name: "다음", exact: true }).click();
+    await expect(page).toHaveURL(/[?&]queuePage=2(?:&|$)/);
+    await expect(pager).toContainText("2 / 2");
     const list = page.getByRole("list", { name: "확인 대기 학생 제출물" });
     const math = list.getByRole("link").filter({ hasText: "QA 수학" });
     const english = list.getByRole("link").filter({ hasText: "QA 영어" });
