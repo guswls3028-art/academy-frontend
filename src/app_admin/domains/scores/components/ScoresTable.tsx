@@ -1046,7 +1046,9 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
 
   /** contenteditable 셀 포커스 시 전체 선택 — 엑셀처럼 입력하면 기존 값이 바로 대체되도록 */
   const selectAllScoreCell = useCallback((el: HTMLElement | null) => {
-    if (!el) return;
+    // A queued selection can run after keyboard navigation. In Chromium,
+    // selecting an inactive contenteditable moves focus back and blurs its neighbor.
+    if (!el || el.ownerDocument.activeElement !== el) return;
     const sel = window.getSelection();
     if (!sel) return;
     sel.removeAllRanges();
@@ -2535,6 +2537,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 const el = event.currentTarget;
                                 const raw = el.innerText.trim();
                                 const wasLiveChange = liveHistoryKeyRef.current === cellKey;
+                                if (!wasLiveChange && raw === el.dataset.focusValue) return;
                                 const serverValue: PendingChange = isNotSubmitted
                                   ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
                                   : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null };

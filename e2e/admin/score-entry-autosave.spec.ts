@@ -2723,6 +2723,22 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       await expect(firstHomework).toHaveText("미제출");
       await expect.poll(() => currentHomeworkMetaStatuses[0]).toBe("NOT_SUBMITTED");
 
+      // Move twice before the next paint. A deferred text selection on the old
+      // editor must not move focus back or trigger a second blur/save.
+      await expect(firstExam).toBeFocused();
+      const staleFocusEvents = await secondHomework.evaluate(async (previous) => {
+        const destination = document.activeElement as HTMLElement;
+        previous.focus();
+        destination.focus();
+        let focusEvents = 0;
+        const countFocus = () => { focusEvents += 1; };
+        previous.addEventListener("focus", countFocus);
+        await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        previous.removeEventListener("focus", countFocus);
+        return focusEvents;
+      });
+      expect(staleFocusEvents).toBe(0);
+
       await secondHomework.fill("/");
       await secondHomework.press("ArrowUp");
       await expect(firstHomework).toBeFocused();
