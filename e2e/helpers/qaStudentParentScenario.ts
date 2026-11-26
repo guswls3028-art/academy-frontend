@@ -61,6 +61,7 @@ export type QaFamilyCleanupObservation =
 
 type QaFamilyOptions = {
   withStudentPhones?: boolean;
+  highSchool?: string;
 };
 
 type ApiResult<T> = { status: number; body: T };
@@ -263,7 +264,7 @@ export async function createQaFamily(
         school_type: "HIGH",
         grade: index,
         gender: index % 2 ? "F" : "M",
-        high_school: "QA 격리고등학교",
+        high_school: options.highSchool ?? "QA 격리고등학교",
         memo: `qa-* student/parent real-use ${scenarioKey}`,
       }, [201]);
       expect(createdStudent.id).toBeGreaterThan(0);
