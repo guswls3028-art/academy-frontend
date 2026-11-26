@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import { expect, test } from "../fixtures/strictTest";
 import { dismissDevelopmentFirstLoginGuide } from "../helpers/auth";
 import { gotoAndSettle } from "../helpers/wait";
@@ -513,6 +514,29 @@ test.describe("업무별 AtoZ 가이드", () => {
         await gotoAndSettle(page, BASE + scenario.path);
         const imageReader = page.getByRole("region", { name: "기능 둘러보기", exact: true });
         if (scenario.role !== "student") {
+          const handbook = page.getByRole("region", { name: "그림으로 보는 사용 가이드" });
+          await expect(handbook.getByRole("heading", { name: "학생 한 명 등록하기" })).toBeVisible();
+          await expect.poll(() => handbook.getByRole("img").evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+          await testInfo.attach(`handbook-${scenario.role}-${width}`, {
+            body: await handbook.screenshot(), contentType: "image/png",
+          });
+          await handbook.getByRole("button", { name: "다음 쪽 →" }).click();
+          await expect(handbook.getByRole("heading", { name: "첫 강의 만들기" })).toBeFocused();
+          await handbook.getByRole("button", { name: "학생앱 가이드", exact: true }).click();
+          await handbook.getByRole("button", { name: "다음 쪽 →" }).click();
+          await page.reload();
+          await expect(handbook.getByRole("heading", { name: "교실 QR로 출석하기" })).toBeVisible();
+          await expect(handbook.getByRole("img")).toBeVisible();
+          for (const id of ["학생앱 가이드", "관리자앱 가이드"]) {
+            await handbook.getByRole("button", { name: id, exact: true }).click();
+            const link = handbook.getByRole("link", { name: id + " PDF 다운로드" });
+            const [download] = await Promise.all([page.waitForEvent("download"), link.click()]);
+            expect(download.suggestedFilename()).toMatch(/가이드\.pdf$/);
+            const saved = testInfo.outputPath(id + ".pdf");
+            await download.saveAs(saved);
+            expect((await readFile(saved)).subarray(0, 5).toString()).toBe("%PDF-");
+          }
+          await page.getByText("알림톡·영상·엑셀·정오표 상세 설명서", { exact: true }).click();
           await expect(imageReader).toBeVisible();
           await imageReader.getByRole("button", { name: "다음 쪽 →" }).click();
           await expect(imageReader.getByLabel("설명서 페이지")).toHaveValue("2");

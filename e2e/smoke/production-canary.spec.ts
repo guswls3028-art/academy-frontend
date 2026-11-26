@@ -120,6 +120,7 @@ async function verifyGuideJourney(
     await expect(article).toBeVisible();
     await expect(photo).toHaveAttribute("src", firstPhoto!);
     if (guide.scope !== "student") {
+      await page.getByText("알림톡·영상·엑셀·정오표 상세 설명서", { exact: true }).click();
       await verifyFeatureGuideImages(page, testInfo, `live-guide-${guide.scope}-${width}-feature-reader`);
     }
   }
