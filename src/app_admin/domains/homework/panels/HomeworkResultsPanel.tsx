@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAdminHomework } from "../hooks/useAdminHomework";
 import { EmptyState, Badge, Button } from "@/shared/ui/ds";
 import { fetchSessionScores, type SessionScoreHomeworkEntry } from "@/shared/api/contracts/sessionScores";
@@ -66,7 +66,12 @@ function StatusBadge({ status, completion = false }: { status: HomeworkStatus; c
   );
 }
 
-export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: number }) {
+export default function HomeworkResultsPanel({ homeworkId, focusSection }: {
+  homeworkId: number;
+  focusSection?: "statistics" | "ledger";
+}) {
+  const statisticsRef = useRef<HTMLDetailsElement>(null);
+  const ledgerRef = useRef<HTMLDetailsElement>(null);
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<number | null>(null);
   const [hasOpenedLedger, setHasOpenedLedger] = useState(false);
   const [studentSearch, setStudentSearch] = useState("");
@@ -191,6 +196,15 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
   }, [scoresForHistogram]);
   const maxHist = Math.max(1, ...histogram.map((h) => h.count));
 
+  useEffect(() => {
+    const target = focusSection === "statistics" ? statisticsRef.current : focusSection === "ledger" ? ledgerRef.current : null;
+    if (!target) return;
+    target.open = true;
+    const heading = target.querySelector("summary");
+    heading?.focus({ preventScroll: true });
+    heading?.scrollIntoView({ block: "nearest" });
+  }, [focusSection, hwLoading, scoresLoading, scoresQ.isError, homeworkQ.isError, homework?.source_status, summary.assigned]);
+
   if (!Number.isFinite(homeworkId) || homeworkId <= 0) {
     return <EmptyState scope="panel" tone="error" title="과제 ID가 올바르지 않습니다." />;
   }
@@ -219,6 +233,9 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
   const cutlineValue = homework.effective_cutline_value;
   const cutlineLabel = cutlineMode === "COUNT" ? `최소 ${cutlineValue}점` : `${cutlineValue}%`;
   const hasData = summary.assigned > 0;
+  if (focusSection === "statistics" && !hasData) {
+    return <EmptyState scope="panel" tone="empty" title="집계할 과제 결과가 없습니다." />;
+  }
 
   return (
     <div className="space-y-4">
@@ -235,7 +252,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
         )}
 
         {hasData && (
-          <details className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]">
+          <details ref={statisticsRef} className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]">
             <summary className="min-h-11 cursor-pointer px-5 py-3 text-sm font-semibold">과제 통계</summary>
             <div className="space-y-4 px-5 pb-5 text-sm text-[var(--color-text-secondary)]">
               <p>미입력 {summary.unset}명 · 미제출 처리 {summary.notSubmitted}명 · {completion ? "판정 입력" : "채점 입력"} {summary.graded}명</p>
@@ -271,7 +288,7 @@ export default function HomeworkResultsPanel({ homeworkId }: { homeworkId: numbe
         )}
 
         {homework.source_status === "ready" && (
-          <details
+          <details ref={ledgerRef}
             className="rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)]"
             onToggle={(event) => {
               if (event.currentTarget.open) setHasOpenedLedger(true);

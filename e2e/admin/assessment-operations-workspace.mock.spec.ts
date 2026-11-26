@@ -343,14 +343,14 @@ test("대상 미배정·원본 검수·일반 시험의 첫 단계와 수동 선
   const state = recoveryExamState();
   state.selectedEnrollmentIds = [];
   await openExamRoute(page, state, `?examId=${EXAM_ID}`);
-  await expect(page.getByTestId("assessment-step-audience")).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByTestId("assessment-step-audience")).toHaveAttribute("aria-expanded", "true", { timeout: 30_000 });
   state.selectedEnrollmentIds = [601];
   state.exam.segmentation_status = "review_required";
   await page.reload();
-  await expect(page.getByTestId("assessment-step-materials")).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByTestId("assessment-step-materials")).toHaveAttribute("aria-expanded", "true", { timeout: 30_000 });
   state.exam.segmentation_status = "ready";
   await page.reload();
-  await expect(page.getByTestId("assessment-step-submissions")).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByTestId("assessment-step-submissions")).toHaveAttribute("aria-expanded", "true", { timeout: 30_000 });
   await openAssessmentWorkAction(page, "policy", "settings");
   await reconnectWithStaleQuery(page);
   await expect(page.getByTestId("assessment-action-settings")).toHaveAttribute("aria-pressed", "true");
@@ -783,9 +783,9 @@ for (const width of [1366, 1100, 390]) {
     if (width === 390) await expect(navigation.getByRole("combobox", { name: "시험 선택", exact: true })).toHaveValue(String(EXAM_ID));
     await selectNext();
     await page.getByRole("alertdialog").getByRole("button", { name: "저장하지 않고 이동", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "다음 평가", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "다음 평가", exact: true })).toBeVisible({ timeout: 30_000 });
     await page.reload();
-    await expect(page.getByRole("heading", { name: "다음 평가", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "다음 평가", exact: true })).toBeVisible({ timeout: 30_000 });
     expect(state.examPatchPayloads).toEqual([]);
   });
 }

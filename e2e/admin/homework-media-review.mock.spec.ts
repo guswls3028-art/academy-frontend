@@ -666,7 +666,7 @@ test("@homework-results 점수형 소수점 경계는 분포에서 누락되지 
   await openAssessmentWorkAction(page, "results", "results");
   const distributionTitle = page.getByText("점수 분포 (%)", { exact: true });
   await expect(distributionTitle).toBeHidden();
-  await page.getByText("과제 통계", { exact: true }).click();
+  await openAssessmentWorkAction(page, "results", "statistics");
   await expect(distributionTitle).toBeVisible();
   for (const label of ["0-20", "20초과-40", "40초과-60", "60초과-80", "80초과-100"]) {
     await expect(page.getByTitle(`${label}: 2명`, { exact: true })).toBeVisible();
@@ -726,7 +726,7 @@ test("@homework-results 워크북 채점표를 열고 저장한 표시를 다시
   await expect(ledger).toBeVisible();
   await expect(mark).toHaveCount(0);
   expect(readCount).toBe(0);
-  await ledger.click();
+  await openAssessmentWorkAction(page, "results", "ledger");
   await expect(mark).toHaveValue("unset");
   expect(readCount).toBe(1);
   await mark.selectOption("wrong");

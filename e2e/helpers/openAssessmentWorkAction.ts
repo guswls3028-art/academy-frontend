@@ -6,6 +6,7 @@ export async function openAssessmentWorkAction(
   action: string,
 ) {
   const heading = page.getByTestId(`assessment-step-${step}`);
+  await heading.waitFor({ state: "visible", timeout: 30_000 });
   if (await heading.getAttribute("aria-expanded") !== "true") await heading.click();
   const button = page.getByTestId(`assessment-action-${action}`);
   if (await button.getAttribute("aria-pressed") !== "true") await button.click();

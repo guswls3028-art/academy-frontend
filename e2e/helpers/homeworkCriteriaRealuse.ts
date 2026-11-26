@@ -244,6 +244,7 @@ export async function verifyHomeworkCriteria(
       await expect(save).toBeDisabled();
       checkpoint.phase = "criteria-reload";
       await page.reload();
+      await openAssessmentWorkAction(page, "policy", "settings");
       await expect(criterion).toHaveValue(String(threshold));
       await expect(policy.getByRole("button", { name: new RegExp(modeLabel) })).toHaveAttribute("aria-pressed", "true");
       checkpoint.phase = "criteria-api";

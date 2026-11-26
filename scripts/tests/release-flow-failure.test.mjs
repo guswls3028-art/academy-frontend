@@ -387,11 +387,15 @@ test("actual homework flow retains primary failures through cleanup and closed d
       if (stage === 'criteria-api' && reloaded && path === '/homeworks/4/') throw primary;
       return path.endsWith('/scores/') ? scoreRows : {};
     };
-    const fn = new Function('expect', 'test', 'QA_BASE', 'expectApi', 'gotoAndSettle', 'assertNoHorizontalOverflow', 'reloadStudentApp', 'verifyFinalHomeworkPreview', 'emitHomeworkFlowFailure',
+    const openPolicy = async (target, step, action) => {
+      assert.equal(target, page);
+      assert.deepEqual([step, action], ['policy', 'settings']);
+    };
+    const fn = new Function('expect', 'test', 'QA_BASE', 'expectApi', 'gotoAndSettle', 'openAssessmentWorkAction', 'assertNoHorizontalOverflow', 'reloadStudentApp', 'verifyFinalHomeworkPreview', 'emitHomeworkFlowFailure',
       `${extract(helper, 'export async function verifyHomeworkCriteria(')}; return verifyHomeworkCriteria;`)(
       noExpect, test, 'https://private.invalid', expectApi,
       async (_page, url) => { if (stage === 'criteria-preview' && url.endsWith('/scores')) throw primary; },
-      async () => {}, async () => {}, async () => {}, emit);
+      openPolicy, async () => {}, async () => {}, async () => {}, emit);
     await assert.rejects(fn(page, parent, {}, 'secret-token', scenario, 1366), error => error === primary);
     assert.equal(logs.length, 1);
     assert.deepEqual(logs[0].releaseHomeworkFlowFailure, { schema: 'homework-flow-failure/v1', phase: stage, viewport: 1366, threshold: 95, kind: 'assertion' });
