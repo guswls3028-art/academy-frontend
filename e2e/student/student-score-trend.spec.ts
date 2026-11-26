@@ -681,6 +681,11 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
           const selectedChild = page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김첫째" });
           await expect(selectedChild).toHaveAttribute("aria-selected", "true");
         }
+        if (width === 390) {
+          const actionLabel = page.getByText(viewer === "parent" ? "내 질문·답변" : "과제 사진 제출", { exact: true });
+          await expect(actionLabel).toBeVisible();
+          expect(await actionLabel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+        }
         await testInfo.attach(`branded-home-${viewer}-${width}.png`, {
           body: await page.screenshot({ animations: "disabled" }),
           contentType: "image/png",

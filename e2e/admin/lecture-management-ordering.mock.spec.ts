@@ -357,7 +357,7 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     expect(await modal.locator(".modal-footer__actions .ds-button").evaluateAll((buttons) =>
       buttons.map((button) => button.getBoundingClientRect().height),
     )).toEqual([44, 44]);
-    await page.screenshot({ path: test.info().outputPath("lecture-modal-1100.png") });
+    await page.screenshot({ path: test.info().outputPath("lecture-modal-1100.png"), animations: "disabled" });
 
     await page.getByRole("button", { name: "시작 시간 선택", exact: true }).click();
     const popover = page.getByRole("dialog", { name: "시간 선택" });
@@ -385,7 +385,7 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     expect(await modal.locator(".modal-footer__actions .ds-button").evaluateAll((buttons) =>
       buttons.map((button) => button.getBoundingClientRect().height),
     )).toEqual([44, 44]);
-    await page.screenshot({ path: test.info().outputPath("lecture-modal-390.png") });
+    await page.screenshot({ path: test.info().outputPath("lecture-modal-390.png"), animations: "disabled" });
     await page.getByRole("button", { name: "시작 시간 선택", exact: true }).click();
     const popover = page.getByRole("dialog", { name: "시간 선택" });
     const bounds = await popover.evaluate((element) => {
