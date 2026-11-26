@@ -422,6 +422,9 @@ test.describe("생애 첫 접속 계정 안내", () => {
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("button", { name: "확인", exact: true })).toBeFocused();
     await expect(dialog.getByText("dlehdgnl0728", { exact: true })).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "계정 안내" })).toHaveCSS("font-size", "16px");
+    await expect(dialog.getByRole("button", { name: "계정 안내 닫기" })).toHaveCSS("height", "44px");
+    await expect(dialog.getByRole("button", { name: "확인", exact: true })).toHaveCSS("height", "44px");
     await expect(dialog.getByText("필요할 때 내 정보에서 언제든 변경할 수 있습니다.")).toBeVisible();
     await expect(dialog.getByRole("textbox")).toHaveCount(0);
     await testInfo.attach("student-dark-390-first-login-guide", {

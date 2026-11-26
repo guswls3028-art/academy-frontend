@@ -147,11 +147,14 @@
 }
 
 .stu-topbar__profileDropdownOverlay .stu-topbar__profileDropdownItem {
-  display: block;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: var(--ds-control-md);
   width: 100%;
   padding: var(--stu-space-4) var(--stu-space-6);
   font-size: var(--stu-font-size-14);
-  font-weight: 600;
+  font-weight: 500;
   color: var(--stu-text);
   background: transparent;
   border: none;
