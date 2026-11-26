@@ -100,6 +100,17 @@
   }
 }
 
+@media (min-width: 380px) and (max-width: 500px) {
+  .profileTools {
+    display: grid;
+    grid-template-columns: max-content repeat(2, minmax(0, 1fr));
+  }
+
+  .profileTools .studentTools {
+    display: contents;
+  }
+}
+
 @keyframes profileReveal {
   from { opacity: 0; transform: translateY(-3px); }
   to { opacity: 1; transform: translateY(0); }

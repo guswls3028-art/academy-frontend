@@ -348,6 +348,7 @@ function StudentDetailContent({
         intent="ghost"
         size="sm"
         disabled={supportOpening}
+        aria-label={supportOpening ? "여는 중…" : "학생 화면 보기"}
         leftIcon={<MonitorSmartphone size={ICON.sm} aria-hidden />}
         onClick={async () => {
           setSupportOpening(true);
@@ -360,7 +361,7 @@ function StudentDetailContent({
           }
         }}
       >
-        {supportOpening ? "여는 중…" : "학생 화면 보기"}
+        {supportOpening ? "여는 중…" : isMobile ? "학생 화면" : "학생 화면 보기"}
       </Button>
       <Button
         intent="ghost"
