@@ -11,6 +11,8 @@
 
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import api from "@/shared/api/axios";
+import { AssessmentNumberInput } from "@/shared/ui/assessment/AssessmentNumberInput";
+import { parseAssessmentNumber } from "@/shared/ui/assessment/parseAssessmentNumber";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import { Badge, Button } from "@/shared/ui/ds";
 import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
@@ -67,10 +69,12 @@ function ImeSafeTitleInput({
   value,
   onCommit,
   index,
+  autoFocus,
 }: {
   value: string;
   onCommit: (value: string) => void;
   index: number;
+  autoFocus: boolean;
 }) {
   const [draft, setDraft] = useState(value);
   const composingRef = useRef(false);
@@ -100,7 +104,7 @@ function ImeSafeTitleInput({
       }}
       onBlur={() => onCommit(draft)}
       placeholder={`예: ${index + 1}주차 전자기유도`}
-      autoFocus={index === 0}
+      autoFocus={autoFocus}
       aria-label={`과제 ${index + 1} 제목`}
     />
   );
@@ -186,7 +190,12 @@ export default function CreateHomeworkModal({
   }, [sessionId]);
 
   // ── Bulk row helpers ──
-  const addRow = () => setRows((prev) => [...prev, makeRow()]);
+  const [newRowFocusId, setNewRowFocusId] = useState<number | null>(null);
+  const addRow = () => {
+    const row = makeRow();
+    setNewRowFocusId(row.key);
+    setRows((prev) => [...prev, row]);
+  };
 
   const removeRow = (key: number) =>
     setRows((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.key !== key)));
@@ -228,7 +237,7 @@ export default function CreateHomeworkModal({
 
     const scoreRows = validRows.filter((row) => row.gradingMode === "SCORE");
     const invalidMaxRow = scoreRows.find((row) => {
-      const value = Number(row.maxScore);
+      const value = parseAssessmentNumber(row.maxScore);
       return !Number.isFinite(value) || value <= 0;
     });
     if (invalidMaxRow) {
@@ -237,10 +246,10 @@ export default function CreateHomeworkModal({
       return;
     }
     const invalidCutlineRow = scoreRows.find((row) => {
-      const value = Number(row.cutline);
+      const value = parseAssessmentNumber(row.cutline);
       if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) return true;
       if (cutlineMode === "PERCENT") return value > 100;
-      return value > Number(row.maxScore);
+      return value > parseAssessmentNumber(row.maxScore);
     });
     if (invalidCutlineRow) {
       setSubmitting(false);
@@ -256,8 +265,8 @@ export default function CreateHomeworkModal({
 
     for (const row of validRows) {
       try {
-        const maxScore = Number(row.maxScore);
-        const cutlineValue = Number(row.cutline);
+        const maxScore = parseAssessmentNumber(row.maxScore);
+        const cutlineValue = parseAssessmentNumber(row.cutline);
         const res = await api.post("/homeworks/", {
           session_id: sessionId,
           title: row.title.trim(),
@@ -663,6 +672,7 @@ export default function CreateHomeworkModal({
                         value={row.title}
                         onCommit={(next) => updateRow(row.key, "title", next)}
                         index={idx}
+                        autoFocus={idx === 0 || row.key === newRowFocusId}
                       />
                     </label>
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -702,10 +712,7 @@ export default function CreateHomeworkModal({
                       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_150px]">
                       <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                         커트라인 ({cutlineMode === "PERCENT" ? "%" : "점"})
-                        <input
-                          type="number"
-                          min={0}
-                          max={cutlineMode === "PERCENT" ? 100 : Number(row.maxScore) || undefined}
+                        <AssessmentNumberInput
                           className="ds-input w-full"
                           value={row.cutline}
                           onChange={(e) => updateRow(row.key, "cutline", e.target.value)}
@@ -714,9 +721,7 @@ export default function CreateHomeworkModal({
                       </label>
                       <label className="grid gap-1 text-xs font-semibold text-[var(--color-text-muted)]">
                         만점
-                        <input
-                          type="number"
-                          min={1}
+                        <AssessmentNumberInput
                           className="ds-input w-full"
                           value={row.maxScore}
                           onChange={(e) => updateRow(row.key, "maxScore", e.target.value)}
