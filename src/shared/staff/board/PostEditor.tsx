@@ -3,34 +3,35 @@ import { useMutation } from "@tanstack/react-query";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
-import { boardWriteLabels, savePost, type Category, type Post, type PostRow } from "./api";
+import { boardLabels, boardWriteLabels, savePost, type BoardFilter, type Category, type Post, type PostRow } from "./api";
 import styles from "./StaffBoard.module.css";
 import { createRandomUuid } from "@/shared/utils/randomUuid";
 
-export default function PostEditor({ category, post, onClose, onSaved }: {
-  category: Category; post?: Post; onClose: () => void; onSaved: (row: PostRow) => void;
+export default function PostEditor({ category: initialCategory, post, onClose, onSaved }: {
+  category: BoardFilter; post?: Post; onClose: () => void; onSaved: (row: PostRow) => void;
 }) {
   const formId = useId();
+  const [category, setCategory] = useState<Category>(post?.category ?? (initialCategory === "all" ? "free" : initialCategory));
   const [title, setTitle] = useState(post?.title ?? "");
   const [body, setBody] = useState(post?.body ?? "");
   const [file, setFile] = useState<File | null>(null);
   const [validation, setValidation] = useState("");
   const [discard, setDiscard] = useState(false);
   const canAttach = category === "resource" && !post;
-  const attempt = useRef<{ title: string; body: string; file: File | null; key: string } | null>(null);
+  const attempt = useRef<{ category: Category; title: string; body: string; file: File | null; key: string } | null>(null);
   const save = useMutation({
-    mutationFn: (draft: NonNullable<typeof attempt.current>) => savePost(category, draft, draft.key, post?.id),
+    mutationFn: (draft: NonNullable<typeof attempt.current>) => savePost(draft.category, draft, draft.key, post?.id),
     onSuccess: onSaved,
   });
   function submit(event: FormEvent) {
     event.preventDefault();
     if (save.isPending) return;
-    const draft = { title: title.trim(), body: body.trim(), file };
+    const draft = { category, title: title.trim(), body: body.trim(), file };
     if (!draft.title || !draft.body) { setValidation("제목과 내용을 입력해 주세요."); return; }
     if (file && file.size > 10 * 1024 * 1024) { setValidation("10 MB 이하의 파일을 선택해 주세요."); return; }
     setValidation("");
     const previous = attempt.current;
-    const submission = previous?.title === draft.title && previous.body === draft.body && previous.file === draft.file
+    const submission = previous?.category === category && previous.title === draft.title && previous.body === draft.body && previous.file === draft.file
       ? previous
       : { ...draft, key: createRandomUuid() };
     attempt.current = submission;
@@ -46,6 +47,14 @@ export default function PostEditor({ category, post, onClose, onSaved }: {
       <ModalHeader title={post ? "글 수정" : boardWriteLabels[category]} description="같은 학원의 강사와 조교 등 직원에게 보입니다." noIcon />
       <ModalBody>
         <form id={formId} className={styles.form} onSubmit={submit}>
+          {initialCategory === "all" && !post && <label>게시판
+            <select value={category} disabled={save.isPending} onChange={event => {
+              setCategory(event.target.value as Category);
+              setFile(null);
+            }}>
+              {Object.entries(boardLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+            </select>
+          </label>}
           {canAttach && (
             <label>첨부파일 <small>선택 · 최대 10 MB</small>
               <input type="file" onChange={e => setFile(e.target.files?.[0] ?? null)} disabled={save.isPending} />

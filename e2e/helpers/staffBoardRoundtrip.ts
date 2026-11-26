@@ -52,6 +52,9 @@ export async function verifyStaffBoard(page: Page, request: APIRequestContext, a
     return { id: Number((await response.json()).id), key: key! };
   }
   const noticeBody = "금요일 수업 전 교무실에서 만나요.";
+  await expect(page.getByRole("tab", { name: "전체 글" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("button", { name: "글쓰기", exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "공지사항" }).click();
   const { id, key } = await create("공지 작성", title, noticeBody);
   const replayedNotice = await request.post(`${QA_API}/api/v1${path}`, {
     headers: replayHeaders(key), data: { category: "notice", title, body: noticeBody },
@@ -90,21 +93,28 @@ export async function verifyStaffBoard(page: Page, request: APIRequestContext, a
     await mobile.getByRole("button", { name: "메뉴", exact: true }).click();
     await mobile.getByRole("navigation", { name: "선생님 메뉴" }).getByRole("button", { name: /오늘 업무/ }).click();
     await mobile.getByRole("button", { name: "교직원 게시판", exact: true }).click();
-    await expect(mobile).toHaveURL(url => url.pathname === "/workspace/mobile/staff-board/notice");
+    await expect(mobile).toHaveURL(url => url.pathname === "/workspace/mobile/staff-board/all");
     await expect(home).toBeVisible();
     await searchBoard(mobile, keyword);
     await mobile.getByRole("link", { name: updated, exact: false }).click();
-    await expect(mobile).toHaveURL(url => url.pathname === `/workspace/mobile/staff-board/notice/${id}` && url.searchParams.get("q") === keyword);
+    await expect(mobile).toHaveURL(url => url.pathname === `/workspace/mobile/staff-board/all/${id}` && url.searchParams.get("q") === keyword);
     await expect(mobile.getByRole("button", { name: "글 수정" })).toHaveCount(0);
+    await expect(mobile.getByRole("button", { name: "글 삭제" })).toHaveCount(0);
     await mobile.getByLabel("댓글 내용").fill("조교도 참석합니다.");
     const created = mobile.waitForResponse(r => new URL(r.url()).pathname.endsWith(`${path}${id}/replies/`) && r.request().method() === "POST");
     await mobile.getByRole("button", { name: "댓글 등록" }).click();
     expect((await created).status()).toBe(201);
     await mobile.reload();
     await expect(mobile.getByText("조교도 참석합니다.", { exact: true })).toHaveCount(1);
+    await mobile.getByRole("button", { name: "댓글 수정", exact: true }).click();
+    await mobile.getByLabel("댓글 수정 내용").fill("조교는 수업 후 참석합니다.");
+    await mobile.getByRole("button", { name: "댓글 수정 저장" }).click();
+    await expect(mobile.getByText("조교는 수업 후 참석합니다.", { exact: true })).toBeVisible();
+    await mobile.reload();
+    await expect(mobile.getByText("조교는 수업 후 참석합니다.", { exact: true })).toBeVisible();
     await expect(home).toBeVisible();
     await captureBoard(mobile, "assistant-detail-390");
-    await mobile.getByRole("link", { name: "공지사항 목록" }).click();
+    await mobile.getByRole("link", { name: "전체 글 목록" }).click();
     await expect(mobile.getByRole("searchbox", { name: "게시글 검색어" })).toHaveValue(keyword);
     await captureBoard(mobile, "assistant-search-390");
     await home.click();
@@ -121,7 +131,7 @@ export async function verifyStaffBoard(page: Page, request: APIRequestContext, a
     await expect(panel.getByRole("link", { name: updated, exact: false })).toBeVisible();
     await captureBoard(page, `dashboard-${width}`);
     await panel.getByRole("link", { name: updated, exact: false }).click();
-    await expect(page.getByText("조교도 참석합니다.", { exact: true })).toBeVisible();
+    await expect(page.getByText("조교는 수업 후 참석합니다.", { exact: true })).toBeVisible();
     await captureBoard(page, `detail-${width}`);
   }
   const replyBody = "회의 후 자료실에 올려 주세요.";
@@ -141,6 +151,16 @@ export async function verifyStaffBoard(page: Page, request: APIRequestContext, a
   expect(await replayedReply.json()).toMatchObject({ id: (await replyResponse.json()).id });
   await page.reload();
   await expect(page.getByText(replyBody, { exact: true })).toHaveCount(1);
+  const ownReply = page.getByRole("listitem").filter({ hasText: replyBody });
+  await ownReply.getByRole("button", { name: "댓글 삭제" }).click();
+  await page.getByRole("alertdialog", { name: "댓글 삭제" }).getByRole("button", { name: "취소" }).click();
+  await expect(ownReply).toBeVisible();
+  await ownReply.getByRole("button", { name: "댓글 삭제" }).click();
+  await page.getByRole("alertdialog", { name: "댓글 삭제" }).getByRole("button", { name: "댓글 삭제" }).click();
+  await expect(ownReply).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByText("조교는 수업 후 참석합니다.", { exact: true })).toBeVisible();
+  await expect(ownReply).toHaveCount(0);
   await page.getByRole("tab", { name: "자료실" }).click();
   const resourceTitle = `회의 자료 ${stamp}`;
   const resourceBody = "조교용 회의 메모입니다.";
@@ -186,8 +206,15 @@ export async function verifyStaffBoard(page: Page, request: APIRequestContext, a
   await expect(page.getByRole("heading", { name: resourceTitle })).toBeVisible();
   await expect(page.getByRole("button", { name: staffBoardQaFile.name + " 다운로드" })).toHaveCount(0);
   expect((await api(request, "GET", attachmentPath, assistant)).status).toBe(404);
-  await page.getByRole("tab", { name: "자유게시글" }).click();
+  await page.getByRole("tab", { name: "전체 글" }).click();
   const { id: free } = await create("글쓰기", `수업 인수인계 ${stamp}`, "다음 수업 준비 내용을 남깁니다.");
   const read = await expectApi<{ body: string; can_edit: boolean }>(request, "GET", `${path}${free}/`, assistant);
   expect(read).toMatchObject({ body: "다음 수업 준비 내용을 남깁니다.", can_edit: false });
+  await page.getByRole("button", { name: "글 삭제", exact: true }).click();
+  await page.getByRole("alertdialog", { name: "글 삭제" }).getByRole("button", { name: "글 삭제" }).click();
+  await expect(page.getByRole("button", { name: "글쓰기", exact: true })).toBeVisible();
+  await page.reload();
+  await searchBoard(page, `수업 인수인계 ${stamp}`);
+  await expect(page.getByText("검색 결과가 없습니다.", { exact: true })).toBeVisible();
+  expect((await api(request, "GET", `${path}${free}/`, assistant)).status).toBe(404);
 }
