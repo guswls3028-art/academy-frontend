@@ -44,7 +44,7 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
     : enrollment.isPending ? "대상 학생 확인 중" : "대상 학생 조회 실패";
   const worklist = useAssessmentWorklist(`${examId}:${linkedTab ?? ""}:${focusAnalysis}`,
     linkedTab === "results" ? { step: "results", action: focusAnalysis ? "analysis" : "results" }
-      : linkedTab === "setup" ? { step: "policy", action: "settings" }
+      : linkedTab === "setup" ? { step: "policy", action: "answers" }
       : linkedTab === "assets" ? { step: "materials", action: "source" }
       : linkedTab === "submissions" ? { step: "submissions", action: "submissions" }
       : initialAssessmentStep(audienceCount, exam?.segmentation_status));

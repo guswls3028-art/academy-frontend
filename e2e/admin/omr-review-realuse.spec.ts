@@ -774,7 +774,7 @@ async function recoverMissingOmrConfiguration(
   expect(normalizedAnswers(assignedDetail.answers)).toEqual(originalAnswers);
   await row.getByTestId(`submission-setup-${submissionId}`).click();
   await expect(page).toHaveURL(`${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?exam_id=${created.examId}&examTab=setup`);
-  await openAssessmentWorkAction(page, "policy", "answers");
+  await expect(page.getByTestId("assessment-action-answers")).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
   const answerDialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
   const choiceRows = answerDialog.locator(".answer-key-row--choice");

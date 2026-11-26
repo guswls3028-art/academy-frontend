@@ -357,6 +357,12 @@ test("대상 미배정·원본 검수·일반 시험의 첫 단계와 수동 선
   expect(state.examPatchPayloads).toEqual([]);
 });
 
+test("OMR 복구 링크에서 문항과 정답을 바로 확인한다", async ({ page }) => {
+  await openExamRoute(page, recoveryExamState(), `?exam_id=${EXAM_ID}&examTab=setup`);
+  await expect(page.getByTestId("assessment-action-answers")).toHaveAttribute("aria-pressed", "true", { timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "문항·답안 확인", exact: true })).toBeVisible();
+});
+
 const resultSearch = `?examId=${EXAM_ID}&examTab=results`;
 
 function waitForExamQuestionRead(page: Page) {

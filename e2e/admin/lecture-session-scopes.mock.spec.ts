@@ -1764,6 +1764,7 @@ test("같은 차시에서도 과제마다 숫자 채점과 완료 체크를 선�
 
 test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에만 반영한다", async ({ page }, testInfo) => {
   const state: MockState = {
+    homeworkAssignmentIds: [501],
     supplementTitle: "토요일 심화 클리닉",
     patchTitles: [],
     createdHomeworkPayloads: [
@@ -1810,13 +1811,16 @@ test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에�
     expect(actionBox.x + actionBox.width).toBeLessThanOrEqual(rowBox.x + rowBox.width + 1);
     expect(actionBox.y + actionBox.height).toBeLessThanOrEqual(rowBox.y + rowBox.height + 1);
     await worklist.scrollIntoViewIfNeeded();
-    await page.screenshot({ path: testInfo.outputPath(`homework-worklist-${width}.png`), fullPage: true });
+    await worklist.screenshot({ path: testInfo.outputPath(`homework-worklist-${width}.png`), animations: "disabled" });
   }
   await openAssessmentWorkAction(page, "policy", "settings");
   await expect(page.locator('[aria-label="과제 운영 준비"]')).toBeVisible();
   await page.setViewportSize({ width: 1366, height: 900 });
   const assessmentNavigation = page.getByTestId("session-assessment-remote");
   const assessmentWorkspace = page.locator(".session-assessment-workspace");
+  await assessmentNavigation.evaluate(element => {
+    for (let parent = element.parentElement; parent; parent = parent.parentElement) parent.scrollTop = 0;
+  });
   const navigationBox = await assessmentNavigation.boundingBox();
   const workspaceBox = await assessmentWorkspace.boundingBox();
   expect(navigationBox!.x + navigationBox!.width).toBeLessThanOrEqual(workspaceBox!.x);
