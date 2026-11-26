@@ -7,7 +7,7 @@ const env = { REFERENCE_STATIC_ORIGIN: "https://abcd1234.dawon-original-referenc
 
 test("the comparison serves the original artifact and links back to all three Dawon roles", async () => {
   const res = await serveReference(new Request(origin + "/workspace/lectures"), env, async (url, options) => {
-    assert.equal(url, env.REFERENCE_STATIC_ORIGIN + "/index.html");
+    assert.equal(url, env.REFERENCE_STATIC_ORIGIN + "/");
     assert.equal(options.headers, undefined);
     return new Response("<html><head></head><body>원본</body></html>", { headers: { "content-type": "text/html" } });
   });

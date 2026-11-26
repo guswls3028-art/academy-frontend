@@ -20,7 +20,7 @@ export async function serveReference(request, env, fetcher = fetch) {
   if (!/^https:\/\/[a-f0-9]{8,32}\.dawon-original-reference\.pages\.dev$/.test(staticOrigin)) return reply(null, 503);
   const document = url.pathname === "/" || /^\/(?:login|workspace|terms|privacy)(?:\/|$)/.test(url.pathname) ||
     (request.headers.get("accept")?.includes("text/html") && !url.pathname.includes("."));
-  const path = document ? "/index.html" : url.pathname;
+  const path = document ? "/" : url.pathname;
   try {
     const upstream = await fetcher(staticOrigin + path, { method: request.method, redirect: "manual" });
     const type = upstream.headers.get("content-type") || "";
