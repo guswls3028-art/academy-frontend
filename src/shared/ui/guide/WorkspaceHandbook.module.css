@@ -57,7 +57,7 @@
 .help { color: var(--quiet); font-size: 14px; line-height: 1.6; }
 .help summary { padding: 6px 0; width: fit-content; }
 .help p { margin: 3px 0; }
-.pager { justify-content: space-between; gap: 8px; padding-top: 14px; margin-top: 12px; border-top: 1px solid var(--rule); }
+.pager { position: sticky; top: 0; z-index: 1; justify-content: space-between; gap: 8px; padding: 4px 0 10px; margin-bottom: 14px; border-bottom: 1px solid var(--rule); background: var(--paper); }
 .pager span { font-size: 14px; color: var(--quiet); font-variant-numeric: tabular-nums; }
 .pager button:disabled { opacity: .45; }
 .more { margin: 0 0 18px; }

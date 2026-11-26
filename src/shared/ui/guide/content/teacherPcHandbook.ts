@@ -1,15 +1,18 @@
 import { findGuideMedia } from "../guideMediaData";
+import registrationFields from "./pc-images/registration-fields.jpg";
+import sessionSchedule from "./pc-images/session-schedule.jpg";
+import homeworkSettings from "./pc-images/homework-settings.jpg";
 
-function screenshot(topic: string, frame: number) {
+function screenshot(topic: string, frame: number, alt: string, detail?: string) {
   const shot = findGuideMedia("admin", topic)?.screens[frame - 1];
   if (!shot) throw new Error(`Missing handbook illustration: ${topic}/${frame}`);
-  return { image: shot.src, alt: shot.alt };
+  return { image: detail ?? shot.src, fullImage: shot.src, alt };
 }
 
 export const teacherPcHandbook = [
   {
     title: "학생 한 명 등록하기", start: "학생 → 학생 추가 → 1명만 등록",
-    ...screenshot("register-student", 2),
+    ...screenshot("register-student", 2, "이름 아래에 학부모 전화번호를 입력하세요. 학생 번호 입력란은 그 아래에 있습니다.", registrationFields),
     steps: ["학생 목록에서 이름을 검색하세요. 같은 이름이 있으면 학부모 연락처까지 비교하세요.",
       "새 학생이면 ‘학생 추가’에서 ‘1명만 등록’을 고르세요. 학생 이름과 학부모 전화번호를 입력하세요. 학생 전화번호는 비워 둘 수 있습니다.",
       "‘등록’을 누르면 최종 확인창이 열립니다. 학생·학부모의 초기 비밀번호 방식을 각각 확인하고 ‘확인하고 등록’을 누르세요."],
@@ -36,7 +39,7 @@ export const teacherPcHandbook = [
   },
   {
     title: "첫 차시와 출석부 준비하기", start: "강의 → 해당 강의 → 차시 → 출결",
-    ...screenshot("create-lecture", 3),
+    ...screenshot("create-lecture", 3, "강의에서 가져온 날짜·시간을 확인하세요. 다른 날에 수업한다면 날짜를 직접 선택하세요.", sessionSchedule),
     steps: ["차시는 실제 수업 한 번을 뜻합니다. 강의에서 수업 날짜를 찾아보세요. 이미 같은 날 차시가 있으면 그 차시를 여세요.",
       "새 수업은 차시 추가에서 정규 차시 또는 보강을 고르세요. 날짜·시간을 넣고 최종 확인창에서 ‘확인하고 추가’를 누르세요.",
       "해당 차시의 출결을 열고 ‘수강생 등록’에서 그날 참석할 학생을 선택해 배정하세요."],
@@ -45,7 +48,7 @@ export const teacherPcHandbook = [
   },
   {
     title: "수업 중 출결 기록하기", start: "강의 → 해당 차시 → 출결",
-    ...screenshot("attendance", 2),
+    ...screenshot("attendance", 2, "출석부에서 학생 이름과 같은 줄에 있는 출결 상태를 선택하세요."),
     steps: ["출석부 위의 강의 이름과 수업 날짜를 확인하세요.",
       "학생 이름 옆에서 실제 출결 상태를 고르세요. 아직 확인하지 못한 학생은 미입력으로 두세요.",
       "차시를 다시 열어 학생별 상태와 남은 미입력 인원을 확인하세요."],
@@ -54,7 +57,7 @@ export const teacherPcHandbook = [
   },
   {
     title: "과제를 내고 제출물 확인하기", start: "강의 → 해당 차시 → 과제",
-    ...screenshot("homework", 2),
+    ...screenshot("homework", 2, "과제 제목 아래에서 채점 방식과 제출 기한을 정한 뒤 ‘1개 과제 만들기’를 누르세요.", homeworkSettings),
     steps: ["과제에서 ‘과제 추가’를 누르고 학생이 알아볼 제목을 입력하세요. 만점, 통과 기준과 제출 기한을 확인하세요.",
       "만들기 버튼을 누른 뒤 해당 차시의 과제와 대상 학생을 확인하세요.",
       "학생이 파일을 내면 과제 제출 현황에서 강의·차시와 학생을 맞춰 파일을 여세요. 내용을 확인한 뒤 판정을 저장하세요."],
@@ -63,7 +66,7 @@ export const teacherPcHandbook = [
   },
   {
     title: "시험을 만들고 답안 준비하기", start: "강의 → 해당 차시 → 성적 → 시험 추가",
-    ...screenshot("create-exam", 4),
+    ...screenshot("create-exam", 4, "문항별 정답과 배점을 입력한 뒤 합계가 시험지 총점과 맞는지 확인하세요."),
     steps: ["‘시험 추가’에서 시험 이름과 채점 방식을 정하고 시험을 만드세요.",
       "실제 시험에 맞춰 문항 수와 유형을 저장한 뒤 각 문항의 정답과 배점을 입력하세요.",
       "배점 합계를 원본 시험지와 비교하고 응시 대상 학생을 확인하세요. OMR을 쓰는 수업이면 답안지도 준비하세요."],
@@ -72,7 +75,7 @@ export const teacherPcHandbook = [
   },
   {
     title: "학생 답안을 채점하고 점수 확인하기", start: "시험 → 해당 시험 → 직접 채점",
-    ...screenshot("grade-exam", 4),
+    ...screenshot("grade-exam", 4, "선택한 학생의 점수와 저장 상태를 함께 확인하세요."),
     steps: ["시험과 응시 학생을 선택하고 원본 답안을 옆에 두세요.",
       "직접 채점 화면에서 학생 답안과 서술형 점수를 확인하며 입력하세요. 비어 있는 문항이 있는지 확인하세요.",
       "저장 표시를 본 뒤 같은 학생을 다시 열고 문항별 점수와 총점을 대조하세요."],
@@ -81,7 +84,7 @@ export const teacherPcHandbook = [
   },
   {
     title: "알림톡이 전달됐는지 확인하기", start: "발송 업무 화면 → 알림톡 → 발송 내역",
-    ...screenshot("send-message", 5),
+    ...screenshot("send-message", 5, "발송 내역에서 대상별 처리 결과를 확인하세요. 대기는 발송이 진행 중인 상태입니다."),
     steps: ["안내할 학생과 수신자(학생 또는 학부모)를 고르세요. 연락처와 승인된 알림톡 양식의 내용을 확인하세요.",
       "최종 확인창에서 대상 인원을 확인한 뒤 한 번만 발송하세요.",
       "발송 내역에서 같은 대상과 시각을 찾아 결과를 확인하세요. 대기 중이면 최종 상태가 나올 때까지 기다리세요."],

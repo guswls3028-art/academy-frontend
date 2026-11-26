@@ -7,7 +7,7 @@ export type HandbookPage = {
   steps: string[];
   done: string;
   recovery: string;
-} & ({ image: string; alt: string } | { example: { title: string; rows: string[][] } });
+} & ({ image: string; fullImage?: string; alt: string } | { example: { title: string; rows: string[][] } });
 
 export const handbooks: Record<"teacher" | "student", { title: string; pages: HandbookPage[] }> = {
   teacher: { title: "관리자앱 가이드", pages: teacherPcHandbook },

@@ -16,7 +16,7 @@ function HandbookIllustration({ page }: { page: HandbookPage }) {
   return <figure className={styles.figure}>
     {failed ? <div role="status">화면 예시를 불러오지 못했습니다. 아래 순서로 계속 읽을 수 있습니다.{" "}
       <button type="button" onClick={() => { setAttempt(attempt + 1); setFailed(false); }}>그림 다시 보기</button>
-    </div> : <a href={page.image} target="_blank" rel="noreferrer" aria-label={`${page.title} 그림 크게 보기 (새 창)`}>
+    </div> : <a href={page.fullImage ?? page.image} target="_blank" rel="noreferrer" aria-label={`${page.title} 그림 크게 보기 (새 창)`}>
       <img src={attempt ? `${page.image}?retry=${attempt}` : page.image} alt={page.alt} onError={() => setFailed(true)} />
       <span aria-hidden="true">그림 크게 보기 ↗</span>
     </a>}
@@ -91,6 +91,11 @@ export default function WorkspaceHandbook({ mobileTeacher = false }: { mobileTea
               {book.pages.map((entry, i) => <option value={i} key={entry.title}>{i + 1}. {entry.title}</option>)}
             </select>
           </label>
+          <nav className={styles.pager} aria-label="가이드 쪽 이동">
+            <button type="button" disabled={index === 0} onClick={() => step(-1)}>← 이전 쪽</button>
+            <span aria-live="polite">{index + 1} / {book.pages.length}쪽</span>
+            <button type="button" disabled={index === book.pages.length - 1} onClick={() => step(1)}>다음 쪽 →</button>
+          </nav>
           <div className={styles.spread} key={key + index}>
             <p className={styles.route}>{page.start}</p>
             <h3 ref={sheetHeading} tabIndex={-1}>{page.title}</h3>
@@ -101,11 +106,6 @@ export default function WorkspaceHandbook({ mobileTeacher = false }: { mobileTea
             <p className={styles.done}><strong>완료 확인</strong> {page.done}</p>
             <details className={styles.help}><summary>막혔을 때</summary><p>{page.recovery}</p></details>
           </div>
-          <nav className={styles.pager} aria-label="가이드 쪽 이동">
-            <button type="button" disabled={index === 0} onClick={() => step(-1)}>← 이전 쪽</button>
-            <span aria-live="polite">{index + 1} / {book.pages.length}쪽</span>
-            <button type="button" disabled={index === book.pages.length - 1} onClick={() => step(1)}>다음 쪽 →</button>
-          </nav>
         </div>
       </div>
     </section>
