@@ -24,7 +24,7 @@ function HandbookIllustration({ page }: { page: HandbookPage }) {
   </figure>;
 }
 
-function selection(params: URLSearchParams) {
+function selection(params: URLSearchParams): { key: keyof typeof handbooks; index: number } {
   const key = params.get("handbook") === "student" ? "student" : "teacher";
   const number = Number(params.get("sheet"));
   const total = handbooks[key].pages.length;

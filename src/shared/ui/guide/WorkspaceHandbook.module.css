@@ -20,7 +20,7 @@
 .switcher { padding: 4px; background: color-mix(in srgb, var(--accent) 7%, var(--paper)); border-radius: 8px; }
 .switcher button, .download, .pager button, .figure button { min-height: 40px; padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 650; }
 .switcher button { border: 0; background: transparent; color: var(--quiet); }
-.switcher button[aria-pressed="true"] { color: var(--paper); background: var(--accent); }
+.switcher button[aria-pressed="true"] { color: var(--color-brand-primary-contrast, #fff); background: var(--accent); }
 .download, .figure button, .pager button { display: inline-flex; align-items: center; justify-content: center; color: var(--ink); border: 1px solid var(--rule); background: var(--paper); text-decoration: none; }
 .paper { display: grid; grid-template-columns: minmax(190px, 23%) minmax(0, 1fr); overflow: clip; border: 1px solid var(--rule); background: var(--paper); border-radius: 10px; }
 .contents { padding: 24px 14px; border-inline-end: 1px solid var(--rule); background: color-mix(in srgb, var(--accent) 4%, var(--paper)); }
