@@ -60,7 +60,7 @@ with transaction.atomic():
     Teacher.objects.create(tenant=t, name=teacher.name, subject="수학")
     Staff.objects.create(tenant=t, user=teacher, name=teacher.name, position="INSTRUCTOR")
     home = ClassGroup.objects.create(tenant=t, name="QA-R47 출결반", kind="union", track="SKY", assigned_teacher=teacher)
-    course = Lecture.objects.create(tenant=t, title="QA-R47 수학", name=teacher.name, subject="수학")
+    course = Lecture.objects.create(tenant=t, title="QA-R47 수학", name=teacher.name, subject="수학", start_date=timezone.localdate(), lecture_time="13:00~15:00")
     ClassGroupLecture.objects.create(group=home, lecture=course, period="vacation", reference_teacher=teacher)
     today = timezone.localdate()
     sessions = [Session.objects.create(lecture=course, order=i, title=f"QA-R47 수업 {i}", date=today) for i in (1, 2)]

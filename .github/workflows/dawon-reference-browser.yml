@@ -1,15 +1,15 @@
-name: Dawon original comparison browser
+name: Dawon admin parity browser
 
 on:
   push:
-    branches: [codex/dawon-compare-r49-browser]
+    branches: [codex/dawon-parity-r50-browser]
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: dawon-compare-r49-browser
+  group: dawon-parity-r50-browser
   cancel-in-progress: false
 
 jobs:
@@ -56,13 +56,14 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: guswls3028-art/academy-backend
-          ref: 2684bbba5cb5760acbdfb02cc7b09ad7a8d46f34
+          ref: ce0a2e6d73615b4bc89ab3fbd4a2051e6e27cf1b
           path: backend
+          fetch-depth: 2
           persist-credentials: false
       - if: steps.target.outputs.phase == 'private'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: acf5fa06e5025e04bcf0e013dbf080ed26415603
+          ref: 3bdc2c707c19513e6c177bca962cdee6d81f614d
           path: worker-source
           persist-credentials: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413

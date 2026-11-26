@@ -61,8 +61,7 @@ phase=sys.argv[1]
 assert phase in ("private","stage","live")
 assert target["phase"]==phase
 original=acquire(target["originalFrontend"],target["originalRun"],"reference-compiled")
-dawon=acquire(target["dawonFrontend"],target["dawonRun"],"compiled",
-              json.loads((ROOT/"r48-pins.json").read_text()))
+dawon=acquire(target["dawonFrontend"],target["dawonRun"],"compiled")
 assert dawon["version"]==target["adminVersion"]
 assert original["version"]==target["originalFrontend"]
 assert original["entry"]!=dawon["entry"]

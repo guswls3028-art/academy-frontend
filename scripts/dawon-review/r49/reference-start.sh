@@ -2,7 +2,7 @@
 set -euo pipefail
 test -n "${RUNNER_TEMP:-}"
 backend="$GITHUB_WORKSPACE/backend-reference"
-git -C "$GITHUB_WORKSPACE/backend" worktree add --detach "$backend" HEAD
+git -C "$GITHUB_WORKSPACE/backend" worktree add --detach "$backend" 2684bbba5cb5760acbdfb02cc7b09ad7a8d46f34
 code="$GITHUB_WORKSPACE/worker-source/deploy/dawon/reference-api/standalone"
 test -d "$code/backend-patch/apps"
 cp -R "$code/backend-patch/apps/." "$backend/apps/"

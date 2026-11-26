@@ -30,8 +30,8 @@ function referenceAsset(address,opts) {
   if(origin.headers.get('x-dawon-qa-fixture')!=='staff-r47-disposable')throw Error('Fixture identity mismatch');
   const {handle}=await import('./worker/demo-worker.mjs');
   const env={
-    ORIGIN_KEY:'isolated-fixture',ADMIN_VERSION:'dawon-review-20261126-admin-r48',
-    UI_VERSION:'dawon-review-20261127-compare-r49',REFERENCE_STATIC_ORIGIN:originalStatic,
+    ORIGIN_KEY:'isolated-fixture',ADMIN_VERSION:target.adminVersion,
+    UI_VERSION:target.uiVersion,REFERENCE_STATIC_ORIGIN:originalStatic,
   };
   const dir=process.env.RUNNER_TEMP;
   const server=https.createServer({key:fs.readFileSync(dir+'/r49-tls.key'),cert:fs.readFileSync(dir+'/r49-tls.crt')},async(req,res)=>{

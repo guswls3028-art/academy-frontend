@@ -160,6 +160,99 @@ async function nativeLecture(page, width) {
   return {availableCourses:courses.length,layout:await inspect(page,width,'attendance')};
 }
 
+async function dawonParity(page, width, guard) {
+  const root = page.locator('main').first();
+  const links = page.getByRole('navigation',{name:'업무 메뉴'});
+  async function staffMenu(name, expectedPath) {
+    let link = links.getByRole('link', {name,exact:true}).filter({visible:true}).first();
+    if (!await link.isVisible()) await page.getByRole('button',{name:/메뉴 열기|사이드바 열기/}).filter({visible:true}).first().click();
+    await link.click();
+    await check(page).toHaveURL(expectedPath);
+    await visible(root);
+  }
+  await staffMenu('강의 관리',/\/workspace\/lectures/);
+  await root.getByRole('link').filter({hasText: isPrivate ? 'QA-R47 출결반' : '하이퍼1'}).first().click();
+  await root.getByRole('link').filter({hasText: isPrivate ? 'QA-R47 수학' : '샘플고 2학기 중간고사'}).first().click();
+  await check(page).toHaveURL(/\/workspace\/lectures\/\d+/);
+  const courseUrl = page.url();
+  const id = new URL(courseUrl).pathname.match(/\/lectures\/(\d+)/)[1];
+  const settings = page.getByRole('button',{name:'강의 설정',exact:true});
+  await (await visible(settings)).click();
+  const modal = page.getByRole('dialog').last();
+  const description = modal.locator('#lecture-description');
+  await visible(description);
+  assert.equal(await modal.locator('#lecture-instructor').getAttribute('readonly'),'');
+  const originalText = await description.inputValue();
+  if (isPrivate && width===1366) {
+    const endpoint = '/api/v1/lectures/lectures/'+id+'/';
+    guard.course = endpoint;
+    async function save(value) {
+      await description.fill(value);
+      const saved=page.waitForResponse(r=>sameApi(r,dawon,(url,m)=>url.pathname===endpoint && m==='PATCH'));
+      await modal.getByRole('button',{name:'수정',exact:true}).click();
+      const result=await saved;
+      assert.equal(result.status(),200,'course settings save');
+      assert.equal((await result.json()).description,value);
+      await check(modal).toHaveCount(0);
+    }
+    await save('QA-R50 강의 설정 검수');
+    await page.reload({waitUntil:'domcontentloaded'});
+    await settings.click();
+    await check(description).toHaveValue('QA-R50 강의 설정 검수');
+    await save(originalText);
+    guard.course=null;
+  } else await modal.getByRole('button',{name:'취소',exact:true}).click();
+  const cards = page.getByRole('region',{name:/차시 카드$/});
+  const card = isPrivate ? cards.filter({hasText:'QA-R47 수업 1'}).first() : cards.first();
+  await card.getByRole('button').first().click();
+  await check(page).toHaveURL(/\/sessions\/\d+\/attendance/);
+  const sessionPath = new URL(page.url()).pathname.split('/').slice(0,-1).join('/');
+  const tabs = [['출결','attendance'],['성적','scores'],['시험','exams'],['과제','assignments'],['공지·게시판','notice'],['영상','videos']];
+  const steps=[];
+  for (const [label,path] of tabs) {
+    await page.getByRole('tab',{name:label,exact:true}).click();
+    await check.poll(()=>new URL(page.url()).pathname).toBe(sessionPath+'/'+path);
+    await check(root).not.toContainText(/페이지를 찾을 수 없|강의 목록을 불러오지 못/);
+    if(path==='attendance') {
+      await check(root).not.toContainText('차시·수업일 선택');
+      if (width===1366) {
+        const options=page.getByRole('group',{name:isPrivate?'QA-R47 학생 1 출결 상태 선택':/출결 상태 선택/}).first();
+        await visible(options);
+        if (isPrivate) {
+          async function mark(name) {
+            const saved=page.waitForResponse(r=>sameApi(r,dawon,(u,m)=>m==='PATCH' && /^\/api\/v1\/lectures\/attendance\/\d+\/$/.test(u.pathname)));
+            await options.getByRole('button',{name,exact:true}).click();
+            assert.equal((await saved).status(),200,'attendance status save');
+          }
+          guard.attendance=true;
+          await mark('지각');
+          await page.reload({waitUntil:'domcontentloaded'});
+          await check(options.getByRole('button',{name:'지각',exact:true})).toHaveAttribute('aria-pressed','true');
+          await mark('미입력');
+          guard.attendance=false;
+        }
+      }
+    }
+    await page.screenshot({path:phase+'-dawon-'+path+'-'+width+'.png',animations:'disabled'});
+    steps.push(path);
+  }
+  const destinations=[['시험 관리',/\/workspace\/exams/],['시험 결과·통계',/\/workspace\/results/],['영상',/\/workspace\/videos/],['클리닉',/\/workspace\/clinic/],['가이드',/\/workspace\/guide/]];
+  for (const [name,pattern] of destinations) {
+    await staffMenu(name,pattern);
+    if(name==='시험 결과·통계') {
+      await root.getByText('강의별 탐색',{exact:true}).first().click();
+      await check(page).toHaveURL(/\/results\/tree/);
+    }
+    if(name==='클리닉') {
+      const load=page.waitForResponse(r=>sameApi(r,dawon,(u,m)=>u.pathname==='/api/v1/clinic/settings/'&&m==='GET'));
+      await root.getByText('패스카드',{exact:true}).first().click();
+      assert.equal((await load).status(),200);
+    }
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),name+' page overflows viewport');
+  }
+  return {tabs:steps,courseSettings:true,reloadedAndRestored:isPrivate && width===1366,menus:destinations.map(([name])=>name)};
+}
+
 async function widthProof(browser,width) {
   const privateSample = width===390 ? '예시 학생 02' : '예시 학생 01';
   const guard={phase,studentId:null,allowedMemos:new Set(),blockedWrites:0};
@@ -181,6 +274,8 @@ async function widthProof(browser,width) {
         const payload=request.postDataJSON();
         if(payload && Object.keys(payload).length===1 && guard.allowedMemos.has(payload.memo)) return route.continue();
       }
+      if(isPrivate && url.origin===dawon && method==='PATCH' &&
+          (guard.course===url.pathname || (guard.attendance && /^\/api\/v1\/lectures\/attendance\/\d+\/$/.test(url.pathname)))) return route.continue();
       guard.blockedWrites++;
       return route.abort();
     });
@@ -235,6 +330,7 @@ async function widthProof(browser,width) {
     await (await visible(page.getByRole('button',{name:'관리자 데모 로그인',exact:true}))).click();
     await visible(page.locator('[data-dawon-staff="admin"]').first());
     roles=await bar(page,'관리자');
+    const parity=await dawonParity(page,width,guard);
     for(const role of ['학생','학부모']){
       await roles.getByRole('link',{name:role,exact:true}).click();
       await check(page.locator('#dw-home-calendar .dw-day')).toHaveCount(7);
@@ -244,7 +340,7 @@ async function widthProof(browser,width) {
     await visible(page.getByRole('heading',{name:'대시보드',exact:true}).first());
     await bar(page,compareLabel);
     assert.deepEqual(errors,[],'Uncaught browser errors');
-    return {width,identity,dashboard,roster,detailImage,nativeRosterPage:rows.length,lecture,write,
+    return {width,parity,identity,dashboard,roster,detailImage,nativeRosterPage:rows.length,lecture,write,
             openedStaffNotice:true,roleRoundTrip:true,blockedWrites:guard.blockedWrites};
   } catch(error) {
     const failed=context.pages().at(-1);

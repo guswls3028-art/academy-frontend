@@ -1,15 +1,15 @@
 {
-  "phase": "live",
-  "candidateVersion": "1e2938e6-5213-4e64-814b-e92507b8fbd9",
+  "phase": "private",
+  "candidateVersion": null,
   "service": "student-planning-demo-01a17d9b",
   "workerRevision": "fd6d5e6e1db1ff9fb1dd03903416dbf3789acf590073b806f65cf15f7d7e0458",
-  "workerSource": "acf5fa06e5025e04bcf0e013dbf080ed26415603",
-  "workerRun": 45860889660,
-  "uiVersion": "dawon-review-20261127-compare-r49",
-  "adminVersion": "dawon-review-20261126-admin-r48",
+  "workerSource": "3bdc2c707c19513e6c177bca962cdee6d81f614d",
+  "workerRun": 45887002816,
+  "uiVersion": "dawon-review-20261127-parity-r50",
+  "adminVersion": "dawon-review-20261127-parity-r50",
   "originalFrontend": "8ef4bd3a02f62a5a0c0b7d6bb2a6d75fbc3c6c77",
   "originalRun": 45852921534,
-  "dawonFrontend": "054a25d20d0f67d35c04365a830d8f75a3169ef6",
-  "dawonRun": 45840270210,
-  "backend": "2684bbba5cb5760acbdfb02cc7b09ad7a8d46f34"
+  "dawonFrontend": "3bdc2c707c19513e6c177bca962cdee6d81f614d",
+  "dawonRun": 45887002816,
+  "backend": "ce0a2e6d73615b4bc89ab3fbd4a2051e6e27cf1b"
 }

@@ -2,7 +2,7 @@ set -euo pipefail
 fixture=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 repo=${GITHUB_WORKSPACE:-$(pwd)}
 backend="$repo/backend"
-expected=2684bbba5cb5760acbdfb02cc7b09ad7a8d46f34
+expected=ce0a2e6d73615b4bc89ab3fbd4a2051e6e27cf1b
 test "$(git -C "$backend" rev-parse HEAD)" = "$expected"
 test -n "${RUNNER_TEMP:-}"
 export R47_QA_HOSTED=1
