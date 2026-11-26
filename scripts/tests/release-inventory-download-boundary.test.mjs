@@ -12,7 +12,18 @@ const boundary = releaseBoundaryFromEnv({ E2E_RELEASE_API_MODE: "development", E
   E2E_TENANT_CODE: "qa-ymath-realuse-inventory", E2E_OMR_R2_TENANT_ID: "352" });
 const origin = "https://af4f2937d73db240e99864b8518265c5.r2.cloudflarestorage.com";
 const encode = (value) => encodeURIComponent(value).replace(/[!'()*]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase());
-function fixture(hwpx = false, survey = false) {
+function fixture(hwpx = false, survey = false, wrongNotes = false) {
+  if (wrongNotes) {
+    const name = "1-2차시_학생별_오답노트.zip", contentType = "application/zip";
+    const r2Key = "tenants/352/results/wrong-notes/batches/123-456.zip";
+    const disposition = 'attachment; filename="download"; filename*=UTF-8' + "''" + encode(name);
+    const url = new URL(fixture().url);
+    url.pathname = "/academy-development-artifacts/" + r2Key;
+    url.searchParams.set("response-content-type", contentType);
+    url.searchParams.set("response-content-disposition", disposition);
+    url.searchParams.set("X-Amz-Expires", "600");
+    return { name, r2Key, contentType, disposition, url: url.href, body: Buffer.from([0x50, 0x4b, 3, 4]) };
+  }
   if (survey) {
     const name = "시험범위.png", contentType = "image/png";
     const body = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=", "base64");
@@ -39,7 +50,7 @@ function fixture(hwpx = false, survey = false) {
 }
 
 async function exercise(options = {}) {
-  const file = fixture(options.hwpx, options.survey);
+  const file = fixture(options.hwpx, options.survey, options.wrongNotes);
   let handler;
   const context = { request: { fetch: async () => assert.fail("No direct API transport") },
     exposeBinding: async () => {}, addInitScript: async () => {}, on() {},
@@ -57,7 +68,13 @@ async function exercise(options = {}) {
       "access-control-allow-origin": boundary.webOrigin, "access-control-allow-credentials": "true" }),
       json: async () => payload }), fulfill: async () => {},
   });
-  if (options.survey) {
+  if (options.wrongNotes) {
+    if (options.register !== false) await api("results/wrong-notes/batches/", {
+      students: [{ enrollment_id: 1 }, { enrollment_id: 2 }], from_session_order: 1, to_session_order: 2,
+    }, { id: 123, students: [{ enrollment_id: 1 }, { enrollment_id: 2 }] }, options.registerStatus ?? 202);
+    if (options.presign !== false) await api("results/wrong-notes/batches/123/download/", null,
+      { filename: file.name, url: options.registerUrl ?? file.url }, options.presignStatus ?? 200, "GET");
+  } else if (options.survey) {
     if (options.register !== false) await api("surveys/123/responses/?filter=all", null, { survey: { id: 123 }, results: [{
       student_id: 17, answered: true, response: {
         survey_id: 123, student_id: 17, student_ps: "01012345678",
@@ -68,7 +85,7 @@ async function exercise(options = {}) {
   } else if (options.upload !== false) {
     await api("storage/inventory/upload/", {}, { ...file, ...options.metadata }, options.uploadStatus ?? 201);
   }
-  if (options.presign !== false) await api("storage/inventory/presign/", { r2_key: file.r2Key, download: true,
+  if (!options.wrongNotes && options.presign !== false) await api("storage/inventory/presign/", { r2_key: file.r2Key, download: true,
     ...(options.survey ? { expires_in: 300 } : {}), ...options.presignData },
     { url: options.registerUrl ?? file.url }, options.presignStatus ?? 200);
   const fetched = [], fulfilled = [];
@@ -178,4 +195,22 @@ test("survey read fails closed on missing provenance, altered signature, other a
     { status: 302 }, { allowOrigin: "https://foreign.invalid" }, { disposition: "inline" },
     { body: Buffer.concat([body.subarray(0, -1), Buffer.from([0])]) },
   ]) rejected(await exercise({ survey: true, ...options }), 1);
+});
+
+
+test("class archive is restricted to the authenticated synthetic batch and its exact signed attachment", async () => {
+  const options = { wrongNotes: true };
+  const passed = await exercise(options);
+  passed.guard.assertClean();
+  assert.equal(passed.fulfilled.length, 1);
+  assert.deepEqual(passed.fulfilled[0].body, passed.file.body);
+  const { url } = passed.file;
+  for (const change of [
+    { register: false }, { registerStatus: 400 }, { presign: false }, { presignStatus: 409 },
+    { apiHeaders: { authorization: "" } }, { apiHeaders: { "x-tenant-code": "qa-other" } },
+    { apiHeaders: { "x-student-id": "123" } }, { boundary: { ...boundary, mode: "readonly" } },
+    { registerUrl: url.replace("/352/", "/353/") }, { registerUrl: url.replace("/123-456", "/124-456") },
+    { registerUrl: url.replace("Expires=600", "Expires=601") }, { registerUrl: url + "&extra=1" },
+    { headers: { authorization: "Bearer private" } },
+  ]) rejected(await exercise({ ...options, ...change }));
 });

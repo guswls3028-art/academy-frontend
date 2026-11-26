@@ -219,6 +219,7 @@ export const controlledWriteSpecs = [
 // Relative to the development config's e2e testDir. This is the shared
 // inventory for collection, executed-result acceptance and safe progress.
 export const developmentRealUseCases = Object.freeze({
+  "admin/lecture-range-wrong-notes.realuse.spec.ts": 1,
   "flows/survey-collection.realuse.spec.ts": 1,
   "teacher/teacher-score-parent-realuse.spec.ts": 1,
   "admin/problem-conversion-realuse.spec.ts": 1,
