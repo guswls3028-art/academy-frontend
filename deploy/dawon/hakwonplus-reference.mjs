@@ -7,6 +7,30 @@ function reply(body, status, type = "application/json; charset=utf-8") {
   return new Response(body, { status, headers: { "content-type": type, "cache-control": "no-store", "x-content-type-options": "nosniff" } });
 }
 
+// The WSGI service uses Content-Length when reading normal JSON and form updates.
+// Give fetch a fixed-size body, including when the browser sent it chunked.
+const maxFormBytes = 2621440;
+async function formBody(request) {
+  if (!request.body) return undefined;
+  if (Number(request.headers.get("content-length")) > maxFormBytes) throw new RangeError();
+  const reader = request.body.getReader();
+  const chunks = [];
+  let size = 0;
+  try {
+    while (true) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxFormBytes) {
+        await reader.cancel();
+        throw new RangeError();
+      }
+      chunks.push(value);
+    }
+    return new Blob(chunks);
+  } finally { reader.releaseLock(); }
+}
+
 export async function serveReferenceApi(request, env, fetcher = fetch) {
   const url = new URL(request.url);
   if (url.origin !== referenceOrigin || !url.pathname.startsWith("/api/v1/")) return reply(null, 404);
@@ -22,8 +46,16 @@ export async function serveReferenceApi(request, env, fetcher = fetch) {
     if (value) headers.set(name, value);
   }
   try {
+    let body;
+    if (!read) {
+      try { body = await formBody(request); }
+      catch (error) {
+        if (error instanceof RangeError) return reply('{"detail":"한 번에 저장하는 입력량을 줄여 다시 시도해 주세요."}', 413);
+        throw error;
+      }
+    }
     const upstream = await fetcher(privateApi + url.pathname + url.search, {
-      method: request.method, headers, body: read ? undefined : request.body, redirect: "manual", cache: "no-store",
+      method: request.method, headers, body, redirect: "manual", cache: "no-store",
     });
     if (upstream.status >= 300 && upstream.status < 400) return reply(null, 502);
     if (upstream.ok && upstream.headers.get("x-tenant-id") !== "849") return reply(null, 502);

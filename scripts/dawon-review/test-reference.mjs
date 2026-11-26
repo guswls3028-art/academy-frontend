@@ -5,6 +5,24 @@ import { serveReference, serveReferenceApi } from "../../deploy/dawon/hakwonplus
 const origin = "https://original-demo.hakwonplus.com";
 const env = { REFERENCE_STATIC_ORIGIN: "https://abcd1234.dawon-original-reference.pages.dev" };
 
+test("browser form writes reach WSGI with an exact byte length", async () => {
+  const body = JSON.stringify({memo:"수업 메모"});
+  const request = new Request(origin + "/api/v1/students/1/", {
+    method:"PATCH", headers:{origin,"content-type":"application/json"}, body,
+  });
+  const result = await serveReferenceApi(request, {ORIGIN_KEY:"fixture"}, async (_url, opts) => {
+    assert.ok(opts.body instanceof Blob);
+    assert.equal(opts.body.size, Buffer.byteLength(body));
+    assert.equal(await opts.body.text(), body);
+    return Response.json({memo:"수업 메모"}, {headers:{"x-tenant-id":"849"}});
+  });
+  assert.equal(result.status, 200);
+  const oversized = new Request(origin + "/api/v1/students/1/", {
+    method:"PATCH", headers:{origin}, body:new Uint8Array(2621441),
+  });
+  assert.equal((await serveReferenceApi(oversized, {ORIGIN_KEY:"fixture"}, () => assert.fail())).status, 413);
+});
+
 test("the original uses only its own demo database and ordinary bearer session", async () => {
   const session = new Request(origin + "/api/v1/reference/session/", {method: "POST", headers: {origin, "x-tenant-code":"hakwonplus"}});
   const runtime = {ORIGIN_KEY: "fixture-only"};
