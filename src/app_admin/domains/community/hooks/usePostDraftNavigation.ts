@@ -10,9 +10,10 @@ export function usePostDraftNavigation() {
   const states = useRef<Record<string, { dirty: boolean; busy: boolean }>>({});
   const confirming = useRef(false);
   const hasPending = useCallback(() => Object.values(states.current).some((state) => state.dirty || state.busy), []);
+  const hasBusy = useCallback(() => Object.values(states.current).some((state) => state.busy), []);
   const callbacks = useMemo(() => {
     const forPart = (part: string): PostDraftStateChange => (dirty, busy) => { states.current[part] = { dirty, busy }; };
-    return { onCreateStateChange: forPart("create"), onContentStateChange: forPart("content"), onAttachmentStateChange: forPart("attachments") };
+    return { onCreateStateChange: forPart("create"), onContentStateChange: forPart("content"), onAttachmentStateChange: forPart("attachments"), onTitleStateChange: forPart("title") };
   }, []);
   const run = useCallback(async (navigate: () => void) => {
     if (confirming.current) return;
@@ -36,5 +37,5 @@ export function usePostDraftNavigation() {
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, []);
-  return { ...callbacks, run, hasPending };
+  return { ...callbacks, run, hasPending, hasBusy };
 }

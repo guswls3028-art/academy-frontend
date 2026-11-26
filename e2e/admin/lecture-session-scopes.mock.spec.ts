@@ -696,6 +696,85 @@ async function openLecture(page: Page, state: MockState) {
   await expect(page.getByRole("group", { name: "수업 보기 방식" })).toBeVisible();
 }
 
+for (const width of [1366, 390]) {
+  test(`강의 출결과 커뮤니티를 전환하고 같은 강의 공지를 저장·재조회한다 ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    await openLecture(page, { supplementTitle: "심화 수업", patchTitles: [] });
+    const node = { id: 51, level: "COURSE", lecture: LECTURE_ID, lecture_title: "고1 Hyper 정규반",
+      session: null, session_title: null };
+    const otherNode = { ...node, id: 52, lecture: SECOND_LECTURE_ID, lecture_title: "다른 강의" };
+    const post = { id: 991, title: "단원 복습 안내", content: "<p>다음 차시에 복습합니다.</p>", post_type: "notice",
+      mappings: [{ id: 1, post: 991, node: node.id, node_detail: node }], attachments: [],
+      created_at: "2026-08-20T10:00:00Z", status: "published" };
+    let saved = false;
+    let scopeAvailable = false;
+    const requestedBoards: string[] = [];
+    const writes: unknown[] = [];
+    const detailIds: number[] = [];
+    await page.route("**/api/v1/community/**", async route => {
+      const url = new URL(route.request().url());
+      const path = url.pathname.slice("/api/v1/community/".length);
+      if (route.request().method() === "OPTIONS") return route.fulfill({ status: 204 });
+      if (path === "admin/posts/") {
+        expect(url.searchParams.get("lecture_id")).toBe(String(LECTURE_ID));
+        const board = url.searchParams.get("post_type")!;
+        requestedBoards.push(board);
+        const results = board === "notice" && saved ? [post] : [];
+        return route.fulfill({ json: { count: results.length, results } });
+      }
+      if (path === "scope-nodes/") return route.fulfill({ json: scopeAvailable ? [otherNode, node] : [otherNode] });
+      if (path === "posts/" && route.request().method() === "POST") {
+        writes.push(route.request().postDataJSON());
+        saved = true;
+        return route.fulfill({ status: 201, json: post });
+      }
+      if (/^posts\/\d+\/$/.test(path)) {
+        detailIds.push(Number(path.split("/")[1]));
+        return route.fulfill({ json: post });
+      }
+      return route.fallback();
+    });
+    const attendance = page.getByRole("tab", { name: "출결", exact: true });
+    const community = page.getByRole("tab", { name: "커뮤니티", exact: true });
+    await expect(attendance).toHaveAttribute("aria-selected", "true");
+    await community.click();
+    const notices = page.getByRole("tab", { name: "공지사항", exact: true });
+    await expect(notices).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("group", { name: "수업 보기 방식" })).toHaveCount(0);
+    await page.getByRole("tab", { name: "자료실", exact: true }).click();
+    await expect(page.getByText("이 강의에 등록된 자료가 없습니다.")).toBeVisible();
+    await notices.click();
+    await page.getByRole("button", { name: "공지 작성", exact: true }).click();
+    const form = page.getByRole("region", { name: "공지 작성" });
+    await expect(form.getByText("이 강의의 게시 대상을 확인할 수 없습니다.")).toBeVisible();
+    expect(writes).toHaveLength(0);
+    scopeAvailable = true;
+    await form.getByRole("button", { name: "다시 시도" }).click();
+    const title = form.getByPlaceholder("공지 제목을 입력하세요");
+    await title.fill(post.title);
+    await attendance.click();
+    await page.getByRole("button", { name: "계속 편집" }).click();
+    await expect(title).toHaveValue(post.title);
+    await form.locator(".ProseMirror").fill("다음 차시에 복습합니다.");
+    await form.getByRole("button", { name: "등록", exact: true }).click();
+    const detail = page.getByRole("region", { name: "공지 상세" });
+    await expect(detail.getByText(post.title, { exact: true })).toBeVisible();
+    expect(writes).toEqual([expect.objectContaining({ title: post.title, post_type: "notice", node_ids: [node.id] })]);
+    await page.reload();
+    await expect(detail.getByText(post.title, { exact: true })).toBeVisible();
+    await expect(community).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+    await attendance.click();
+    await expect(page.getByRole("group", { name: "수업 보기 방식" })).toBeVisible();
+    await page.goBack();
+    await expect(detail.getByText(post.title, { exact: true })).toBeVisible();
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/community?board=materials&post=${post.id + 1}`);
+    await expect(page.getByText("이 강의에서 게시글을 찾을 수 없습니다.")).toBeVisible();
+    expect(detailIds).not.toContain(post.id + 1);
+    expect(requestedBoards).toEqual(expect.arrayContaining(["notice", "materials"]));
+  });
+}
+
 test("출석 관리는 정규 차시만 기본 표시하고 보강·전체 범위를 전환한다", async ({ page }) => {
   const state: MockState = {
     supplementTitle: "토요일 심화 클리닉",

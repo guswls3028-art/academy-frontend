@@ -419,14 +419,36 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
   );
   created.videoId = Number(videoResponse.video.id);
 
-  const material = await expectApi<{ id: number }>(request, "POST", "/community/posts/", adminAccess, {
-    post_type: "materials",
-    title: materialTitle,
-    content: materialBody,
-    node_ids: [],
-    status: "published",
-  }, [201]);
-  created.materialId = Number(material.id);
+  await test.step("강의 커뮤니티에서 수강생·학부모에게 공개할 자료를 등록한다", async () => {
+    await gotoAndSettle(enrollmentPage, `${QA_BASE}/workspace/lectures/${created.lectureId}`);
+    await expect(enrollmentPage.getByRole("tab", { name: "출결", exact: true })).toHaveAttribute("aria-selected", "true");
+    await enrollmentPage.getByRole("tab", { name: "커뮤니티", exact: true }).click();
+    await enrollmentPage.getByRole("tab", { name: "자료실", exact: true }).click();
+    await enrollmentPage.getByRole("button", { name: "자료 등록", exact: true }).click();
+    const form = enrollmentPage.getByRole("region", { name: "자료 작성" });
+    await form.getByPlaceholder("자료 제목을 입력하세요").fill(materialTitle);
+    await form.locator(".ProseMirror").fill(materialBody);
+    const [saved] = await Promise.all([
+      enrollmentPage.waitForResponse(response => response.request().method() === "POST"
+        && new URL(response.url()).pathname === "/api/v1/community/posts/"),
+      form.getByRole("button", { name: "등록", exact: true }).click(),
+    ]);
+    expect(saved.status()).toBe(201);
+    created.materialId = Number((await saved.json()).id);
+    const persisted = await expectApi<{ mappings: { node_detail: { level: string; lecture: number } }[] }>(
+      request, "GET", `/community/posts/${created.materialId}/`, adminAccess);
+    expect(persisted.mappings.map(({ node_detail }) => [node_detail.level, node_detail.lecture]))
+      .toEqual([["COURSE", created.lectureId]]);
+    const detail = enrollmentPage.getByRole("region", { name: "자료 상세" });
+    await expect(detail.getByText(materialBody, { exact: true })).toBeVisible();
+    for (const width of [1366, 390]) {
+      await enrollmentPage.setViewportSize({ width, height: 844 });
+      await enrollmentPage.reload({ waitUntil: "domcontentloaded" });
+      await expect(detail.getByText(materialTitle, { exact: true })).toBeVisible();
+      await assertNoHorizontalOverflow(enrollmentPage);
+      await enrollmentPage.screenshot({ path: testInfo.outputPath(`lecture-community-material-${width}.png`) });
+    }
+  });
 }
 
 test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {

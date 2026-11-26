@@ -1,5 +1,5 @@
 // PATH: src/app_admin/domains/lectures/layout/LectureLayout.tsx
-import { Outlet, useParams, useNavigate } from "react-router";
+import { Outlet, useMatch, useParams, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { lazy, Suspense, useMemo, useState } from "react";
 import { Settings, Trophy, Users } from "lucide-react";
@@ -18,10 +18,12 @@ function safeStr(v: unknown) {
 
 export default function LectureLayout() {
   const { lectureId } = useParams<{ lectureId: string }>();
+  const isOverview = useMatch("/workspace/lectures/:lectureId");
+  const isCommunity = useMatch("/workspace/lectures/:lectureId/community");
   const navigate = useNavigate();
   const { sectionMode } = useSectionMode();
   const lectureIdNum = Number(lectureId);
-  const hasValidLectureId = Number.isFinite(lectureIdNum);
+  const hasValidLectureId = /^[1-9]\d*$/.test(lectureId ?? "") && Number.isSafeInteger(lectureIdNum);
   const [settingsLectureId, setSettingsLectureId] = useState<number | null>(null);
 
   const lectureQ = useQuery({
@@ -112,9 +114,15 @@ export default function LectureLayout() {
     );
   }
 
+  const base = `/workspace/lectures/${lectureIdNum}`;
+  const tabs = isOverview || isCommunity ? [
+    { key: "attendance", label: "출결", path: base, exact: true },
+    { key: "community", label: "커뮤니티", path: `${base}/community` },
+  ] : undefined;
+
   return (
-    <DomainLayout title={title} description={desc} breadcrumbs={breadcrumbs} headerActions={headerActions}>
-      <SessionBlock lectureId={lectureIdNum} />
+    <DomainLayout title={title} description={desc} breadcrumbs={breadcrumbs} headerActions={headerActions} tabs={tabs}>
+      {!isCommunity && <SessionBlock lectureId={lectureIdNum} />}
       <Outlet />
       {settingsLectureId === lectureIdNum && (
         <Suspense fallback={null}>

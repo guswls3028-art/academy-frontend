@@ -40,6 +40,7 @@ const LecturesLayout = lazy(() => import("@admin/domains/lectures/LecturesLayout
 const LecturesPage = lazy(() => import("@admin/domains/lectures/pages/lectures/LecturesPage"));
 const LectureLayout = lazy(() => import("@admin/domains/lectures/LectureLayout"));
 const LectureStudentsPage = lazy(() => import("@admin/domains/lectures/pages/lectures/LectureStudentsPage"));
+const LectureCommunityPage = lazy(() => import("@admin/domains/lectures/pages/lectures/LectureCommunityPage"));
 const LectureSessionsPage = lazy(() => import("@admin/domains/lectures/pages/sessions/LectureSessionsPage"));
 const LectureRankingsPage = lazy(() => import("@admin/domains/lectures/pages/rankings/LectureRankingsPage"));
 const SectionManagementPage = lazy(() => import("@admin/domains/lectures/pages/sections/SectionManagementPage"));
@@ -208,6 +209,7 @@ export default function AdminRouter() {
         {/* 강의 상세 — 수강생 + 차시 */}
         <Route path="lectures/:lectureId" element={renderLazyRoute(LectureLayout)}>
           <Route index element={renderLazyRoute(LectureStudentsPage)} />
+          <Route path="community" element={renderLazyRoute(LectureCommunityPage)} />
           <Route path="sessions" element={renderLazyRoute(LectureSessionsPage)} />
           <Route path="rankings" element={renderLazyRoute(LectureRankingsPage)} />
         </Route>

@@ -24,7 +24,7 @@ import { useTreeCounts } from "../hooks/useTreeCounts";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 import { adminCommunityQueryKeys } from "../queryKeys";
 import { fetchLectures, fetchSessions, type Lecture, type Session } from "@/shared/api/contracts/sessions";
-import { getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
+import { isHttpStatus, getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 import CmsTreeNav from "../components/CmsTreeNav";
 import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
@@ -304,7 +304,7 @@ export default function MaterialsBoardPage() {
 }
 
 /* ─── Post Card ──────────────────────────────────────── */
-function MatPostCard({ post, isActive, onClick }: { post: PostEntity; isActive: boolean; onClick: () => void }) {
+export function MatPostCard({ post, isActive, onClick }: { post: PostEntity; isActive: boolean; onClick: () => void }) {
   const plainText = stripHtml(post.content ?? "");
   const snippet = plainText.length > SNIPPET_LEN ? plainText.slice(0, SNIPPET_LEN).trim() + "…" : plainText;
   const authorName = post.created_by_deleted ? "삭제된 사용자" : (post.created_by_display ?? "관리자");
@@ -340,10 +340,32 @@ function MatPostCard({ post, isActive, onClick }: { post: PostEntity; isActive: 
 }
 
 /* ─── Detail View ────────────────────────────────────── */
-function MatDetailView({ postId, onClose, onDeleted, onContentStateChange, onAttachmentStateChange }: { postId: number; onClose: () => void; onDeleted: () => void; onContentStateChange: PostDraftStateChange; onAttachmentStateChange: PostDraftStateChange }) {
+type MaterialsDetailActions = {
+  onClose: () => void;
+  onDeleted: () => void;
+  onContentStateChange: PostDraftStateChange;
+  onAttachmentStateChange: PostDraftStateChange;
+  onTitleStateChange?: PostDraftStateChange;
+};
+
+function MatDetailView({ postId, ...actions }: MaterialsDetailActions & { postId: number }) {
+  const { data: post, isLoading, isError, error, refetch } = useQuery({
+    queryKey: adminCommunityQueryKeys.post(postId),
+    queryFn: () => fetchPost(postId),
+  });
+  if (isError && (!post || isHttpStatus(error, 403) || isHttpStatus(error, 401))) return <CommunityEmptyState variant="error" postType="materials" title="자료를 불러오지 못했습니다"
+    action={<Button intent="secondary" onClick={() => void refetch()}>다시 시도</Button>} />;
+  if (isLoading || !post) return <div className="qna-inbox__empty"><p className="qna-inbox__empty-title">
+    {isLoading ? "불러오는 중…" : "자료를 찾을 수 없습니다."}
+  </p></div>;
+  return <MaterialsPostDetail post={post} {...actions} />;
+}
+
+export function MaterialsPostDetail({ post, onClose, onDeleted, onContentStateChange, onAttachmentStateChange, onTitleStateChange }:
+  MaterialsDetailActions & { post: PostEntity }) {
+  const postId = post.id;
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const { data: post, isLoading } = useQuery({ queryKey: adminCommunityQueryKeys.post(postId), queryFn: () => fetchPost(postId), enabled: postId != null });
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -383,7 +405,12 @@ function MatDetailView({ postId, onClose, onDeleted, onContentStateChange, onAtt
     onError: (e: unknown) => { feedback.error((e as Error)?.message ?? "삭제에 실패했습니다."); },
   });
 
-  if (isLoading || !post) return <div className="qna-inbox__empty"><p className="qna-inbox__empty-title">{isLoading ? "불러오는 중…" : "자료를 찾을 수 없습니다."}</p></div>;
+  const titleDirty = editingTitle && editTitle !== post?.title;
+  const busy = updateMut.isPending || deleteMut.isPending;
+  useEffect(() => {
+    onTitleStateChange?.(titleDirty, busy);
+    return () => onTitleStateChange?.(false, false);
+  }, [titleDirty, busy, onTitleStateChange]);
 
   const authorName = post.created_by_deleted ? "삭제된 사용자" : (post.created_by_display ?? "관리자");
 

@@ -2,6 +2,11 @@
 
 export const adminCommunityQueryKeys = {
   scopeNodes: ["community-scope-nodes"] as const,
+  lectureScopeNodes: (tenant: string | null) => ["community-scope-nodes", tenant] as const,
+  lectureBoardPosts: (type: "notice" | "materials", tenant: string | null, lectureId: number, page: number) =>
+    [type === "notice" ? "community-notice-posts" : "community-materials-posts-all", "lecture", tenant, lectureId, page] as const,
+  lectureBoardPost: (type: "notice" | "materials", tenant: string | null, lectureId: number, postId: number | null) =>
+    ["community-post", postId, "lecture", tenant, lectureId, type] as const,
   lecturesList: ["lectures-list"] as const,
   lectureSessions: (lectureId: number | null | undefined) => ["lecture-sessions", lectureId] as const,
 
