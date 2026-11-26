@@ -19,7 +19,7 @@ test.describe("학생 대시보드 다크 모드", () => {
 
     await loginViaUI(page, "student");
     await page.evaluate((key) => localStorage.setItem(key, "dark"), STORAGE_KEY);
-    await page.goto("https://hakwonplus.com/student/dashboard", { waitUntil: "load" });
+    await page.goto(`${(process.env.E2E_BASE_URL || "https://hakwonplus.com").replace(/\/$/, "")}/student/dashboard`, { waitUntil: "load" });
     await page.waitForLoadState("networkidle", { timeout: 12_000 }).catch(() => {});
 
     /* data-student-dark 속성 확인 */

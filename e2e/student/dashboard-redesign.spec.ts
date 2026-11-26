@@ -2,8 +2,8 @@
  * 학생 대시보드 개편 — 지정된 후보 환경 검증.
  *
  * 점검 항목:
- *   - 새 섹션 골격 (오늘 할 일, 학습 현황, 전체 메뉴와 상태 카드)
- *   - 전체 메뉴로 이동하는 링크와 상태 카드 진입이 유지되는지
+ *   - 오늘 할 일과 QR 출석이 보이는지
+ *   - 그림 가이드와 프로필 메뉴를 각각 열 수 있는지
  *   - 페이지 로드 시 console error 0건
  *   - 모바일 뷰포트 (390x844) 풀페이지 스크린샷
  *
@@ -15,7 +15,7 @@ import { loginViaUI } from "../helpers/auth";
 test.describe("학생 대시보드 개편", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("새 레이아웃 — 섹션 골격 + 전체 메뉴 이동 + 중복 제거", async ({ page }, testInfo) => {
+  test("학생 홈에서 QR 출석, 그림 가이드, 프로필 메뉴를 찾을 수 있다", async ({ page }, testInfo) => {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
     page.on("console", (m) => {

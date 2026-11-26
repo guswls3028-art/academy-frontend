@@ -979,7 +979,7 @@
 .actionLabel { font-size: 13px; font-weight: 600; color: var(--stu-primary); }
 .homeReceipt .actionLabel { color: var(--stu-success-text); }
 .actionLink, .receiptLink { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 14px; border-radius: 9px; font-weight: 600; text-decoration: none; }
-.actionLink { background: var(--stu-primary); color: var(--stu-primary-contrast); }
+.homeAction .actionLink { background: var(--stu-primary); color: var(--stu-primary-contrast); }
 .receiptLink { color: var(--stu-text); border: 1px solid var(--stu-border); background: var(--stu-surface-1); }
 .quietState, .resumeRecovery { margin: 0; font-size: 14px; font-weight: 500; color: var(--stu-text-muted); }
 .otherActions { border-top: 1px solid var(--stu-border); }
@@ -989,3 +989,9 @@
 .taskOverview { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .taskOverview h2 { font-size: 16px; margin: 0; }
 .taskOverview span { font-size: 13px; color: var(--stu-text-muted); }
+@media (min-width: 720px) {
+  .homeAction { grid-template-columns: minmax(0, 1fr) auto; }
+  .homeAction > :not(.actionLink) { grid-column: 1; }
+  .homeAction .actionLink { grid-area: 1 / 2 / span 3; align-self: center; min-width: 148px; }
+  .homeReceipt .receiptLink { justify-self: start; min-width: 148px; }
+}
