@@ -192,7 +192,7 @@ export default function LoginPage() {
             </div>
           )}
           {comparison ? <form onSubmit={onSubmit} className={styles.form} aria-label="학원플러스 원본 열기">
-            <p>다원 관리자와 같은 예시 학생과 강의를 학원플러스 화면에서 확인할 수 있습니다.</p>
+            <p>예시 학생의 상세 기록을 열거나 강의를 골라 차시별 출결을 확인해 보세요.</p>
             {error && <div className={styles.error} role="alert">{error}</div>}
             <button type="submit" className={styles.btnPrimary} disabled={pending}>
               {pending ? "여는 중…" : "학원플러스 원본 열기"}
