@@ -1,5 +1,6 @@
 .lecture-enroll-picker .admin-modal__inner { height: min(760px, calc(100vh - 96px)); height: min(760px, calc(100dvh - 96px)); }
-.lecture-enroll-picker .modal-body { overflow: hidden; }
+.lecture-enroll-picker .modal-body { overflow-y: auto; }
+.lecture-enroll-picker__body:has(details[open]) { min-height: min-content; }
 .lecture-enroll-picker__body { display: flex; flex: 1; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
 .lecture-enroll-picker__body > :not(.lecture-enroll-picker__list) { flex-shrink: 0; }
 .lecture-enroll-picker__search { display: flex; align-items: center; gap: 4px; }

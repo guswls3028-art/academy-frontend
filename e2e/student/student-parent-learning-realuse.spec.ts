@@ -293,19 +293,29 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
   expect(await picker.locator(".modal-body").evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
   await picker.screenshot({ path: testInfo.outputPath("lecture-enrollment-390.png") });
   const enrollmentResponse = enrollmentPage.waitForResponse((response) =>
-    response.url().endsWith("/enrollments/bulk_create/") && response.request().method() === "POST",
+    response.url().endsWith("/enrollments/register-with-notices/") && response.request().method() === "POST",
   );
   await picker.getByRole("button", { name: "2명 강의에 추가", exact: true }).click();
   const saved = await enrollmentResponse;
-  expect(saved.status()).toBe(201);
-  const enrollments = await saved.json() as Array<{ id: number; student: { id: number }; status: string }>;
+  expect(saved.ok()).toBe(true);
+  const receipt = await saved.json();
+  expect(receipt.students.map((row: { id: number }) => row.id).sort()).toEqual(family.students.map(row => row.id).sort());
+  type Enrollment = { id: number; student: { id: number }; status: string };
+  const roster = await expectApi<Enrollment[] | { results: Enrollment[] }>(request, "GET", `/enrollments/?lecture=${created.lectureId}&page_size=500`, adminAccess);
+  const enrollments = Array.isArray(roster) ? roster : roster.results;
   created.enrollmentIds = enrollments.map((row) => Number(row.id));
   expect(enrollments).toHaveLength(2);
   expect(enrollments.every((row) => row.status === "ACTIVE")).toBe(true);
   created.enrollmentIds = family.students.map((student) => enrollments.find((row) => row.student.id === student.id)!.id);
   await expect(picker).toHaveCount(0);
   await enrollmentPage.reload({ waitUntil: "domcontentloaded" });
-  for (const student of family.students) await expect(enrollmentPage.getByText(student.name, { exact: true }).first()).toBeVisible();
+  const report = enrollmentPage.getByRole("region", { name: "최근 등록 알림톡 결과" });
+  for (const student of family.students) {
+    const result = report.getByRole("listitem", { name: student.name, exact: true });
+    await expect(result.getByRole("group", { name: "학생", exact: true })).toBeVisible();
+    await expect(result.getByRole("group", { name: "학부모", exact: true })).toBeVisible();
+    await expect(enrollmentPage.getByRole("table").getByText(student.name, { exact: true }).first()).toBeVisible();
+  }
   await enrollmentPage.setViewportSize({ width: 1366, height: 900 });
   await enrollmentPage.getByRole("button", { name: "수강생 등록", exact: true }).first().click();
   const desktopSearch = picker.getByRole("textbox", { name: "학생 검색" });

@@ -20,6 +20,7 @@ for (const surface of ["enrollment", "inventory"] as const) {
       const searches: string[] = [];
       let failing = true;
       let enrolled = false;
+      let receipt: import("../../src/shared/api/contracts/registrationNotices").RegistrationReceipt | null = null;
       await page.route("**/api/v1/**", async (route) => {
         const request = route.request();
         const url = new URL(request.url());
@@ -30,11 +31,15 @@ for (const surface of ["enrollment", "inventory"] as const) {
         if (path === "/core/me/") return json({ id: 12, name: "검색 담당자", username: "search-owner", is_staff: true, tenantRole: "owner", must_change_password: false, first_login_guide_required: false });
         if (path === "/core/subscription/") return json({ plan: "all", subscription_status: "active", is_subscription_active: true, days_remaining: 30 });
         if (path === "/lectures/lectures/9965/") return json({ id: 9965, title: "검색 검증 강의", is_active: true });
-        if (path === "/enrollments/bulk_create/" && request.method() === "POST") {
-          expect(request.postDataJSON()).toEqual({ lecture: 9965, students: [901] });
+        if (path === "/enrollments/register-with-notices/" && request.method() === "POST") {
+          const body = request.postDataJSON();
+          expect(body).toEqual({ lecture: 9965, students: [901], request_id: expect.any(String), student_notice: "auto", parent_notice: "auto" });
+          receipt = { lecture: 9965, request_id: body.request_id, students: [{ id: 901, name: student.name,
+            student: { status: "no_recipient", log_id: null }, parent: { status: "queued", log_id: null } }] };
           enrolled = true;
-          return json([{ id: 9901, student, status: "ACTIVE" }], 201);
+          return json(receipt, 201);
         }
+        if (path === "/enrollments/registration-notices/") return receipt ? json(receipt) : route.fulfill({ status: 204 });
         if (path === "/enrollments/") return json(enrolled ? [{ id: 9901, student, status: "ACTIVE" }] : []);
         if (path === "/students/") {
           const search = url.searchParams.get("search") || "";
@@ -81,7 +86,10 @@ for (const surface of ["enrollment", "inventory"] as const) {
         await expect(panel).toHaveCount(0);
         expect(enrolled).toBe(true);
         await page.reload();
-        await expect(page.getByRole("main").getByText("김학생", { exact: true })).toBeVisible();
+        const results = page.getByRole("region", { name: "최근 등록 알림톡 결과" });
+        await expect(results.getByRole("group", { name: "학생", exact: true })).toContainText("연락처 없음");
+        await expect(results.getByRole("group", { name: "학부모", exact: true })).toContainText("발송 대기");
+        await expect(page.getByRole("main").getByText("김학생", { exact: true }).last()).toBeVisible();
       } else {
         await expect(panel.getByText("배포된 자료가 없습니다", { exact: true })).toBeVisible();
         await expect(panel.getByRole("button", { name: "파일 업로드", exact: true })).toBeVisible();

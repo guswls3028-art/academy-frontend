@@ -17,6 +17,7 @@ import { extractApiError } from "@/shared/utils/extractApiError";
 import { useConfirm } from "@/shared/ui/confirm";
 import LectureFormSheet from "../components/LectureFormSheet";
 import SessionFormSheet from "../components/SessionFormSheet";
+import EnrollmentNoticeResults from "@/shared/ui/enrollment/EnrollmentNoticeResults";
 import EnrollStudentSheet from "../components/EnrollStudentSheet";
 import SectionManageSheet from "../components/SectionManageSheet";
 import { formatSessionLabel, getRegularOrder, isSupplementSession } from "@/shared/product/sessions/sessionOrdering";
@@ -303,6 +304,7 @@ export default function LectureDetailPage() {
           style={{ padding: "6px 12px", borderRadius: "var(--tc-radius)", border: "none", background: "var(--tc-primary)", color: "var(--tc-primary-contrast)" }}>
           <Plus size={ICON.xs} /> 수강생 등록
         </button>
+        <EnrollmentNoticeResults lecture={lid} />
         {enrollmentsError ? (
           <EmptyState
             scope="panel"
@@ -390,7 +392,7 @@ export default function LectureDetailPage() {
       {lecture && <LectureFormSheet open={editOpen} onClose={() => setEditOpen(false)} editData={lecture} />}
       <SessionFormSheet open={sessionFormOpen} onClose={() => setSessionFormOpen(false)} lectureId={lid} editData={editSession} />
       <EnrollStudentSheet open={enrollOpen} onClose={() => setEnrollOpen(false)} lectureId={lid}
-        enrolledStudentIds={(enrollments ?? []).map((e: any) => e.student_id ?? e.student?.id).filter(Boolean)} />
+        enrolledStudentIds={(enrollments ?? []).filter(e => e.status === "ACTIVE").map((e: any) => e.student_id ?? e.student?.id).filter(Boolean)} />
       <SectionManageSheet open={sectionOpen} onClose={() => setSectionOpen(false)} lectureId={lid} />
     </div>
   );

@@ -1,3 +1,4 @@
+import type { NoticeRegistration, RegistrationReceipt, RecipientNotice } from "../../src/shared/api/contracts/registrationNotices";
 import type { Page } from "@playwright/test";
 import { expect, test } from "../fixtures/strictTest";
 import { installTenantOneInitScript } from "../helpers/localAuthApiStubs";
@@ -14,7 +15,11 @@ const students = Array.from({ length: 205 }, (_, index) => ({
 
 type State = {
   statuses: Map<number, string>;
-  posts: Array<{ lecture: number; students: number[] }>;
+  posts: NoticeRegistration[];
+  receipt: RegistrationReceipt | null;
+  loseResponse: boolean;
+  loseBeforeCommit: boolean;
+  verifications: number;
   unexpectedWrites: string[];
   failRoster: boolean;
   failSave: boolean;
@@ -31,7 +36,7 @@ async function openPicker(page: Page, names: Record<number, string> = {},
   const roster = students.map((student) => ({ ...student, name: names[student.id] ?? student.name, ...options.schools?.[student.id] }));
   const state: State = {
     statuses: new Map([[1, "ACTIVE"], [2, "INACTIVE"], [3, "PENDING"]]),
-    posts: [], unexpectedWrites: [], failRoster: false, failSave: false, failReadback: false, saveGate: null,
+    posts: [], receipt: null, loseResponse: false, loseBeforeCommit: false, verifications: 0, unexpectedWrites: [], failRoster: false, failSave: false, failReadback: false, saveGate: null,
     searchGate: null, searchRequests: [], failSearch: false, matrixGate: null,
   };
   await installTenantOneInitScript(page);
@@ -51,13 +56,33 @@ async function openPicker(page: Page, names: Record<number, string> = {},
     if (path === "/core/me/") return json({ id: 12, username: "admin", name: "관리자", is_staff: true, is_superuser: true, tenantRole: "admin", must_change_password: false });
     if (path === "/staffs/currently-working/") return json([]);
     if (path === `/lectures/lectures/${LECTURE}/`) return json({ id: LECTURE, title: "기말고사 새 강의", name: "기말고사 새 강의", is_active: true });
-    if (path === "/enrollments/bulk_create/" && request.method() === "POST") {
-      const body = request.postDataJSON() as { lecture: number; students: number[] };
+    if (path === "/enrollments/register-with-notices/" && request.method() === "POST") {
+      const body = request.postDataJSON() as NoticeRegistration;
       state.posts.push(body);
       if (state.saveGate) await state.saveGate;
       if (state.failSave) return json({ detail: "일시적인 등록 실패" }, 400);
+      if (state.loseBeforeCommit) return json({ detail: "연결 일시 오류" }, 503);
+      const recipient = (mode: string, id: number, parent: boolean): RecipientNotice =>
+        mode === "skip" ? { status: "skipped", log_id: null }
+          : mode === "auto" && state.statuses.get(id) === "ACTIVE" ? { status: "not_first", log_id: null }
+          : { status: "accepted", log_id: id * 10 + (parent ? 2 : 1) };
+      state.receipt = { request_id: body.request_id, lecture: LECTURE, students: body.students.map(id => ({
+        id, name: roster[id - 1].name, student: recipient(body.student_notice, id, false), parent: recipient(body.parent_notice, id, true),
+      })) };
       body.students.forEach((id) => state.statuses.set(id, "ACTIVE"));
-      return json(body.students.map((id) => ({ id: 1000 + id, status: "ACTIVE", student: roster[id - 1] })), 201);
+      if (state.loseResponse) return json({ detail: "결과 응답 중단" }, 503);
+      return json(state.receipt, 201);
+    }
+    if (path === "/enrollments/registration-notices/") {
+      const id = url.searchParams.get("request_id");
+      return state.receipt && (!id || id === state.receipt.request_id)
+        ? json(state.receipt) : route.fulfill({ status: 204 });
+    }
+    if (path === "/enrollments/verify-registration-notice/" && request.method() === "POST") {
+      expect(request.postDataJSON()).toEqual({ lecture: LECTURE, request_id: state.receipt?.request_id, log_id: 11 });
+      state.verifications++;
+      if (state.receipt) state.receipt.students[0].student.status = "delivered";
+      return json({ provider_delivery_status: "delivered", provider_status_code: "", provider_delivery_failure_reason: "", provider_delivery_checked_at: new Date().toISOString(), provider_delivery_updated_at: null });
     }
     if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) {
       if (/^\/(?:lectures|enrollments|students)\//.test(path)) state.unexpectedWrites.push(`${request.method()} ${path}`);
@@ -131,7 +156,7 @@ for (const width of [1366, 390]) {
     await expect(dialog.getByRole("checkbox", { name: "기존학생054 선택", exact: true })).not.toBeChecked();
     await dialog.getByRole("button", { name: "3명 강의에 추가", exact: true }).click();
     await expect(dialog).toHaveCount(0);
-    expect(state.posts).toEqual([{ lecture: LECTURE, students: [2, 52, 53] }]);
+    expect(state.posts).toMatchObject([{ lecture: LECTURE, students: [2, 52, 53], student_notice: "auto", parent_notice: "auto", request_id: expect.any(String) }]);
     expect(state.unexpectedWrites).toEqual([]);
     await waitForRenderSettled(page);
     await page.reload();
@@ -196,7 +221,7 @@ for (const width of [1366, 1100, 390]) {
     await expect.poll(() => dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     await dialog.getByRole("button", { name: "4명 강의에 추가", exact: true }).click();
     await expect(dialog).toHaveCount(0);
-    expect(state.posts).toEqual([{ lecture: LECTURE, students: [2, 3, 51, 52] }]);
+    expect(state.posts).toMatchObject([{ lecture: LECTURE, students: [2, 3, 51, 52], student_notice: "auto", parent_notice: "auto", request_id: expect.any(String) }]);
     expect(state.unexpectedWrites).toEqual([]);
     // Let the roster refresh and shell reads finish before crossing documents.
     // WebKit can report a canceled in-flight mock as an access-control error.
@@ -251,7 +276,7 @@ test("명단 불완전 응답과 등록 실패를 표시하고 선택을 보존�
   const { state, dialog } = await openPicker(page);
   await dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true }).check();
   state.failSave = true;
-  const failure = page.waitForResponse((response) => response.url().endsWith("/enrollments/bulk_create/") && response.status() === 400);
+  const failure = page.waitForResponse((response) => response.url().endsWith("/enrollments/register-with-notices/") && response.status() === 400);
   await dialog.getByRole("button", { name: "1명 강의에 추가", exact: true }).click();
   await failure;
   await expect(dialog.getByRole("alert")).toContainText("등록을 완료하지 못했습니다");
@@ -444,8 +469,66 @@ test("동명이인은 연락처로 구분하고 검색해도 선택한 학생의
   await expect(dialog.getByRole("button", { name: /김학생, .*010-8000-0003 선택 해제/ })).toBeVisible();
   await dialog.getByRole("button", { name: "2명 강의에 추가", exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  expect(state.posts).toEqual([{ lecture: LECTURE, students: [2, 3] }]);
+  expect(state.posts).toMatchObject([{ lecture: LECTURE, students: [2, 3], student_notice: "auto", parent_notice: "auto", request_id: expect.any(String) }]);
   await page.getByPlaceholder("이름 / 전화번호 검색", { exact: true }).fill("김학생2");
   await expect(page.getByText("김학생2", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("김학생1", { exact: true })).toHaveCount(0);
 });
+
+for (const width of [1366, 390]) {
+  test(`${width}px 수신자별 중복 발송 확인과 실제 최종 전달을 구분한다`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    const { dialog, state } = await openPicker(page);
+    await expect(dialog.getByText(/첫 수강 확정 시 학생·학부모에게/)).toBeInViewport();
+    await dialog.getByText("수신자별 발송 설정", { exact: true }).click();
+    await dialog.getByRole("combobox", { name: "학생 안내 발송", exact: true }).selectOption("send");
+    await dialog.getByRole("combobox", { name: "학부모 안내 발송", exact: true }).selectOption("skip");
+    await dialog.getByRole("checkbox", { name: "기존학생001 선택", exact: true }).check();
+    await dialog.getByRole("button", { name: "1명 등록 및 안내 요청" }).click();
+    const confirm = page.getByRole("alertdialog");
+    await confirm.getByRole("button", { name: "취소", exact: true }).click();
+    expect(state.posts).toHaveLength(0);
+    await dialog.getByRole("button", { name: "1명 등록 및 안내 요청" }).click();
+    await confirm.getByRole("button", { name: "중복 발송 가능성 확인 후 진행" }).click();
+    const results = page.getByRole("region", { name: "최근 등록 알림톡 결과" });
+    const student = results.getByRole("group", { name: "학생", exact: true });
+    await expect(student).toContainText("발송 접수 · 최종 전달 대기");
+    await expect(results.getByRole("group", { name: "학부모", exact: true })).toContainText("선택에 따라 미발송");
+    expect(state.posts).toMatchObject([{ students: [1], student_notice: "send", parent_notice: "skip" }]);
+    expect(state.verifications).toBe(0);
+    await student.getByRole("button", { name: "최종 전달 확인" }).click();
+    await expect(student).toContainText("최종 전달 성공");
+    await page.reload();
+    await expect(student).toContainText("최종 전달 성공");
+    expect(state.verifications).toBe(1);
+    expect(await results.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  });
+}
+
+for (const committed of [true, false]) {
+  test(`응답 유실 후 새로고침에서 ${committed ? "등록 결과만 복구" : "같은 요청 번호로 다시 제출"}한다`, async ({ page }) => {
+    const { state, dialog } = await openPicker(page);
+    state.loseResponse = committed;
+    state.loseBeforeCommit = !committed;
+    await dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true }).check();
+    await dialog.getByText("수신자별 발송 설정", { exact: true }).click();
+    for (const role of ["학생", "학부모"]) await dialog.getByRole("combobox", { name: `${role} 안내 발송` }).selectOption("skip");
+    await dialog.getByRole("button", { name: "1명 강의에 추가" }).click();
+    await expect(dialog.getByRole("alert")).toContainText("등록 결과를 확인하지 못했습니다");
+    const firstRequest = state.posts[0];
+    expect(firstRequest).toMatchObject({ student_notice: "skip", parent_notice: "skip" });
+    state.loseResponse = false;
+    state.loseBeforeCommit = false;
+    await page.reload();
+    await page.getByRole("button", { name: "수강생 등록", exact: true }).first().click();
+    await dialog.getByRole("button", { name: "등록 결과 다시 확인" }).click();
+    if (!committed) {
+      await expect(dialog.getByRole("alert")).toContainText("이전 등록 요청을 아직 찾지 못했습니다");
+      expect(state.posts).toHaveLength(1);
+      await dialog.getByRole("button", { name: "같은 요청으로 다시 시도" }).click();
+    }
+    await expect(dialog).toHaveCount(0);
+    expect(state.posts).toEqual(committed ? [firstRequest] : [firstRequest, firstRequest]);
+    await expect(page.getByRole("region", { name: "최근 등록 알림톡 결과" }).getByText("선택에 따라 미발송")).toHaveCount(2);
+  });
+}
