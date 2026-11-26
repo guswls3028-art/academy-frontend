@@ -17,7 +17,7 @@ const overrides = phase === 'stage' ? {
 const check = expect.configure({timeout:35000});
 const rolebar = '#dawon-demo-switcher';
 const compareLabel = '학원플러스 원본';
-const privateSample = 'QA-R47 학생 등록검수';
+const privateSample = '예시 학생 01';
 const expectedRoles = [compareLabel,'관리자','학생','학부모'];
 
 const go = (page,url) => page.goto(url,{waitUntil:'domcontentloaded'});
@@ -71,12 +71,18 @@ async function bar(page, active) {
   return nav;
 }
 
+async function menu(page, name) {
+  const drawer = page.getByRole('button', {name:'메뉴 열기',exact:true});
+  if (await drawer.isVisible()) await drawer.click();
+  await page.getByRole('link',{name,exact:true}).filter({visible:true}).first().click();
+}
+
 async function nativeRoster(page) {
   const list = page.waitForResponse(r => sameApi(r,original,(u,m)=>m==='GET' && u.pathname==='/api/v1/students/'));
-  await go(page,original+'/workspace/students/home');
+  await menu(page,'학생');
   const response = await list;
   assert.equal(response.status(),200,'native /students/ must load');
-  assert.equal((await response.request().allHeaders())['x-tenant-code'],'dawon');
+  assert.equal((await response.request().allHeaders())['x-tenant-code'],'hakwonplus');
   const rows = dataRows(await response.json());
   assert.ok(rows.length>0,'native roster empty');
   await visible(page.locator('tbody tr').first());
@@ -132,18 +138,18 @@ async function persistMemo(page, guard, before, dialog) {
 
 async function nativeLecture(page, width) {
   const response=page.waitForResponse(r=>sameApi(r,original,(u,m)=>m==='GET' && u.pathname==='/api/v1/lectures/lectures/'));
-  await go(page,original+'/workspace/lectures');
+  await menu(page,'강의');
   const query=await response;
   assert.equal(query.status(),200,'native lectures must load');
   const courses=dataRows(await query.json());
   assert.ok(courses.length>0,'no native lectures');
   const select=page.locator('a[href^="/workspace/lectures/"]').filter({hasNotText:/지난 강의|강의 생성/});
-  const courseLink=await visible(select.filter({hasText:isPrivate ? 'QA-R47' : /.+/}).first());
+  const courseLink=await visible(select.filter({hasText:'공통수학 정규반'}).first());
   const lecturePath=await courseLink.getAttribute('href');
   assert.match(lecturePath,/^\/workspace\/lectures\/\d+$/);
   await courseLink.click();
   await check(page).toHaveURL(/\/workspace\/lectures\/\d+(\/|$)/);
-  const lessonCard=await visible(page.getByRole('region',{name:isPrivate ? /QA-R47.*차시 카드/ : /차시 카드$/}).first());
+  const lessonCard=await visible(page.getByRole('region',{name:/차시 카드$/}).first());
   const lesson=await visible(lessonCard.getByRole('button').first());
   const attendance = page.waitForResponse(r=>sameApi(r,original,(u,m)=>m==='GET' && /\/api\/v1\/(lectures\/attendance|enrollments\/session-enrollments)/.test(u.pathname)));
   await lesson.click();
@@ -168,7 +174,7 @@ async function widthProof(browser,width) {
       if (!url.pathname.startsWith('/api/v1/')) return route.continue();
       const method=request.method();
       if (['GET','HEAD','OPTIONS'].includes(method)) return route.continue();
-      if (method==='POST' && ['/api/v1/students/demo-session/','/api/v1/token/refresh/'].includes(url.pathname)) return route.continue();
+      if (method==='POST' && ['/api/v1/reference/session/','/api/v1/students/demo-session/','/api/v1/token/refresh/'].includes(url.pathname)) return route.continue();
       if (isPrivate && url.origin===original && guard.studentId &&
         url.pathname==='/api/v1/students/'+guard.studentId+'/' && method==='PATCH') {
         const payload=request.postDataJSON();
@@ -188,7 +194,7 @@ async function widthProof(browser,width) {
     const modules = await page.locator("script[type=module][src]").evaluateAll(elements => elements.map(el => new URL(el.src).pathname));
     assert.ok(modules.includes(builds.original.entry),"exact native original entry was not served");
     const launchButton=await visible(page.getByRole('button',{name:'학원플러스 원본 열기'}));
-    const session=page.waitForResponse(r=>sameApi(r,original,(u,m)=>u.pathname==='/api/v1/students/demo-session/' && m==='POST'));
+    const session=page.waitForResponse(r=>sameApi(r,original,(u,m)=>u.pathname==='/api/v1/reference/session/' && m==='POST'));
     await launchButton.click();
     assert.equal((await session).status(),200);
     await check(page).toHaveURL(/\/workspace\/dashboard/);
@@ -208,19 +214,34 @@ async function widthProof(browser,width) {
     const {detail,dialog}=await nativeStudent(page,student,guard);
     const detailImage=await inspect(page,width,'student');
     const write=isPrivate ? await persistMemo(page,guard,detail,dialog) : null;
+    await page.keyboard.press('Escape');
+    await check(page.getByRole('dialog')).toHaveCount(0);
     const lecture=await nativeLecture(page,width);
     let roles=await bar(page,compareLabel);
     await roles.getByRole('link',{name:'관리자',exact:true}).click();
     await check(page).toHaveURL(/^https:\/\/demo\.hakwonplus\.com\//);
+    roles=await bar(page,'관리자');
+    await (await visible(page.getByRole('button',{name:'관리자 데모 로그인',exact:true}))).click();
+    await visible(page.locator('[data-dawon-staff="admin"]').first());
     roles=await bar(page,'관리자');
     for(const role of ['학생','학부모']){
       await roles.getByRole('link',{name:role,exact:true}).click();
       await check(page.locator('#dw-home-calendar .dw-day')).toHaveCount(7);
       roles=await bar(page,role);
     }
+    await roles.getByRole('link',{name:compareLabel,exact:true}).click();
+    await visible(page.getByRole('heading',{name:'대시보드',exact:true}).first());
+    await bar(page,compareLabel);
     assert.deepEqual(errors,[],'Uncaught browser errors');
     return {width,identity,dashboard,roster,detailImage,nativeRosterPage:rows.length,lecture,write,
             roleRoundTrip:true,blockedWrites:guard.blockedWrites};
+  } catch(error) {
+    const failed=context.pages().at(-1);
+    if(failed) {
+      console.error('Browser stopped at',new URL(failed.url()).pathname,'viewport',width);
+      await failed.screenshot({path:phase+'-last-view-'+width+'.png',timeout:5000}).catch(()=>{});
+    }
+    throw error;
   } finally { await context.close(); }
 }
 

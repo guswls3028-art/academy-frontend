@@ -64,6 +64,7 @@ original=acquire(target["originalFrontend"],target["originalRun"],"reference-com
 dawon=acquire(target["dawonFrontend"],target["dawonRun"],"compiled",
               json.loads((ROOT/"r48-pins.json").read_text()))
 assert dawon["version"]==target["adminVersion"]
+assert original["version"]==target["originalFrontend"]
 assert original["entry"]!=dawon["entry"]
 receipt={"original":original,"dawon":dawon,"worker":target["workerSource"],"backend":target["backend"]}
 (ROOT/"sealed-builds.json").write_text(json.dumps(receipt,indent=2)+"\n")

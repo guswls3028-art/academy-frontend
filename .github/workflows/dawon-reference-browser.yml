@@ -19,6 +19,15 @@ jobs:
     env:
       QA_DIR: scripts/dawon-review/r49
     services:
+      referencepg:
+        image: pgvector/pgvector:0.8.2-pg16-bookworm
+        env:
+          POSTGRES_DB: qa_hakwonplus_reference
+          POSTGRES_USER: reference_qa
+          POSTGRES_PASSWORD: fixture-reference-db
+        options: --health-cmd "pg_isready -U reference_qa" --health-interval 3s --health-timeout 5s --health-retries 20
+      referencecache:
+        image: redis:8
       database:
         image: pgvector/pgvector:0.8.2-pg16-bookworm
         ports: ['127.0.0.1:5432:5432']
@@ -53,7 +62,7 @@ jobs:
       - if: steps.target.outputs.phase == 'private'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: 69abced2f19cb63c081bcd242c47bdc0e8b5a297
+          ref: e2ba16cd35881452bd318013ee4c694ac1b41787
           path: worker-source
           persist-credentials: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
@@ -82,7 +91,10 @@ jobs:
           set -euo pipefail
           python -m pip install --quiet -r backend/requirements/test.txt
           echo '127.0.0.1 qa-r47-db review-redis review-moto' | sudo tee -a /etc/hosts >/dev/null
+          echo "$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${{ job.services.referencepg.id }}") comparison-db" | sudo tee -a /etc/hosts >/dev/null
+          echo "$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${{ job.services.referencecache.id }}") comparison-cache" | sudo tee -a /etc/hosts >/dev/null
           bash "$QA_DIR/fixture/start.sh"
+          bash "$QA_DIR/reference-start.sh"
           node "$QA_DIR/fixture-origin.cjs" > "$RUNNER_TEMP/dawon-assets.log" 2>&1 &
           curl --retry 15 --retry-connrefused --retry-delay 1 -fsS http://127.0.0.1:18747/version.json >/dev/null
       - name: Exercise original and Dawon roles

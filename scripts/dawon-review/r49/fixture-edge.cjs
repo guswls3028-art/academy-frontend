@@ -14,7 +14,8 @@ function referenceAsset(address,opts) {
   const name=decodeURIComponent(address.pathname);
   let file=path.resolve(root,'.'+name);
   if(!file.startsWith(root+'/')&&file!==root)return new Response(null,{status:404});
-  if(!path.extname(file))file=path.join(root,'index.html');
+  if(name==='/omr-sheet')file=path.join(root,'omr-sheet.html');
+  else if(!path.extname(file))file=path.join(root,'index.html');
   if(!fs.existsSync(file)||!fs.statSync(file).isFile())return new Response(null,{status:404});
   const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8',
     '.css':'text/css; charset=utf-8','.json':'application/json','.svg':'image/svg+xml','.css':'text/css; charset=utf-8',
@@ -53,6 +54,13 @@ function referenceAsset(address,opts) {
           if(address.origin!==dawonOrigin) throw Error('Unexpected isolated upstream '+address.origin);
           const headers=new Headers(opts.headers);
           for(const name of ['host','accept-encoding','content-length','connection'])headers.delete(name);
+          if(address.pathname.startsWith('/__reference/api/v1/')){
+            if(headers.get('x-dawon-review-origin')!=='isolated-fixture')throw Error('Private origin authorization missing');
+            headers.delete('x-dawon-review-origin');
+            headers.set('host','reference.hakwonplus.localhost');
+            headers.set('x-forwarded-host','reference.hakwonplus.localhost');
+            return fetch('http://127.0.0.1:18849'+address.pathname.slice('/__reference'.length)+address.search,{...opts,headers,duplex:'half',redirect:'manual'});
+          }
           return fetch('http://127.0.0.1:18747'+address.pathname+address.search,{...opts,headers,duplex:'half',redirect:'manual'});
         });
       const headers=Object.fromEntries(response.headers);
