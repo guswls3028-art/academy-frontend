@@ -1,3 +1,4 @@
+import PublicBrandLink from "@/shared/ui/PublicBrandLink";
 // PATH: src/app_admin/domains/landing/pages/LandingSamplesPage.tsx
 // 1번 tenant 프로모 내 랜딩 샘플 갤러리.
 // PromoLayout 바깥에서 렌더링되므로 자체 헤더/네비 제공.
@@ -248,10 +249,10 @@ export default function LandingSamplesPage() {
     <div className={styles.page}>
       <div className={styles.topbar}>
         <div className={styles.topbarInner}>
-          <Link to="/promo" className={styles.brandLink}>
+          <PublicBrandLink to="/promo" className={styles.brandLink}>
             <ArrowLeft size={18} aria-hidden />
             학원플러스
-          </Link>
+          </PublicBrandLink>
           <span className={styles.headerTitle}>랜딩 페이지 샘플</span>
           <Link to="/promo/demo" className={styles.smallPrimaryLink}>
             데모 요청
