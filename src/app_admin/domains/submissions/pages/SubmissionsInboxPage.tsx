@@ -200,13 +200,17 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
     }, { replace: true });
   }, [q.data, q.isError, page, setSearchParams]);
 
+  const [sessionSelections, setSessionSelections] = useState<Record<number, number>>({});
   const rows = useMemo(() => {
     const data = q.isError ? [] : q.data?.results ?? [];
     const sorted = [...data].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime() || b.id - a.id,
     );
-    return clientFilter(sorted, filter, failedSub);
-  }, [q.data, q.isError, filter, failedSub]);
+    return clientFilter(sorted, filter, failedSub).map((row) => {
+      const selected = row.session_choices?.find((choice) => choice.session_id === sessionSelections[row.id]);
+      return selected ? { ...row, ...selected } : row;
+    });
+  }, [q.data, q.isError, filter, failedSub, sessionSelections]);
 
   // failed 탭에서 sub-filter 카운트
   const failedCounts = useMemo(() => {
@@ -445,7 +449,7 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
     }
     if (row.target_type === "exam") {
       navigate(
-        `/workspace/lectures/${row.lecture_id}/sessions/${row.session_id}/exams?exam_id=${row.target_id}`,
+        `/workspace/lectures/${row.lecture_id}/sessions/${row.session_id}/exams?exam_id=${row.target_id}&examTab=results${row.enrollment_id ? `&enrollmentId=${row.enrollment_id}` : ""}`,
       );
     } else {
       navigate(
@@ -684,6 +688,7 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
               <SubmissionRow
                 key={r.id}
                 row={r}
+                onSessionChange={(id) => setSessionSelections((previous) => ({ ...previous, [r.id]: id }))}
                 selected={selectedIds.has(r.id)}
                 selectable={isSelectable(r)}
                 busy={
@@ -758,6 +763,7 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
 
 function SubmissionRow({
   row,
+  onSessionChange,
   selected,
   selectable,
   busy,
@@ -770,6 +776,7 @@ function SubmissionRow({
   onDiscard,
 }: {
   row: PendingSubmissionRow;
+  onSessionChange: (id: number) => void;
   selected: boolean;
   selectable: boolean;
   busy: boolean;
@@ -865,6 +872,13 @@ function SubmissionRow({
         >
           {targetTitleDisplay}
         </p>
+        {row.session_choices?.length ? (
+          <select aria-label="열어볼 강의·차시" value={row.session_id ?? ""} onChange={(event) => onSessionChange(Number(event.target.value))}
+            className="max-w-full text-xs">
+            <option value="">열어볼 강의·차시 선택</option>
+            {row.session_choices.map((choice) => <option key={choice.session_id} value={choice.session_id}>{choice.lecture_title} · {choice.session_title}</option>)}
+          </select>
+        ) : row.session_title && <p className="truncate text-xs text-[var(--color-text-secondary)]">{row.session_title}</p>}
         {setupPath && (
           <p className="mt-1 text-xs text-[var(--color-text-secondary)]" data-testid={`submission-readiness-${row.id}`}>
             {CONFIGURATION_REASON}
@@ -949,7 +963,7 @@ function SubmissionRow({
             대체됨
           </span>
         )}
-        {(isDone || isAnswersReady) && resolved && !setupPath && (
+        {(isDone || isAnswersReady) && resolved && row.session_id != null && !setupPath && (
           <Button type="button" intent="primary" size="sm" onClick={onNavigate} className="shrink-0">
             결과 보기
           </Button>

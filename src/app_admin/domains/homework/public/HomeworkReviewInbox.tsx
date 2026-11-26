@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { useSearchParams } from "react-router";
 import { Button, EmptyState } from "@/shared/ui/ds";
+import HomeworkReviewQueue, { NextHomeworkReview } from "@/shared/ui/submissions/HomeworkReviewQueue";
 import HomeworkReviewPicker from "@/shared/ui/submissions/HomeworkReviewPicker";
 import { useAdminHomework } from "../hooks/useAdminHomework";
 
@@ -13,10 +14,14 @@ export default function HomeworkReviewInbox({ selection: homework }: { selection
   const pendingOnly = homework === "pending";
   const returnList = searchParams.get("homeworkList") === "pending" ? "pending" : "all";
 
+  const focused = !showingList && searchParams.has("reviewEnrollment");
+  const enrollmentId = focused ? Number(searchParams.get("reviewEnrollment")) : undefined;
+
   function homeworkSearch(value?: string) {
     const next = new URLSearchParams(searchParams);
     if (value) next.set("homework", value);
     else next.delete("homework");
+    next.delete("reviewEnrollment");
     next.delete("homeworkList");
     if (pendingOnly && value && /^\d+$/.test(value)) next.set("homeworkList", "pending");
     return next;
@@ -27,6 +32,11 @@ export default function HomeworkReviewInbox({ selection: homework }: { selection
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-base font-semibold">과제 제출 확인</h2>
         <div className="flex flex-wrap gap-2">
+          {focused && <Button intent="ghost" size="sm" onClick={() => {
+            const next = new URLSearchParams(searchParams);
+            next.delete("reviewEnrollment");
+            setSearchParams(next);
+          }}>전체 과제 보기</Button>}
           {showingList && <Button intent="ghost" size="sm" onClick={() => setSearchParams(homeworkSearch(pendingOnly ? "all" : "pending"))}>
             {pendingOnly ? "전체 과제 보기" : "확인 대기만 보기"}
           </Button>}
@@ -36,9 +46,9 @@ export default function HomeworkReviewInbox({ selection: homework }: { selection
         </div>
       </div>
       {showingList ? (
-        <HomeworkReviewPicker pendingOnly={pendingOnly} homeworkPath={(id) => ({ search: homeworkSearch(String(id)).toString() })} />
+        pendingOnly ? <HomeworkReviewQueue mobile={false} /> : <HomeworkReviewPicker homeworkPath={(id) => ({ search: homeworkSearch(String(id)).toString() })} />
       ) : Number.isSafeInteger(homeworkId) && homeworkId > 0 ? (
-        <HomeworkReview key={homeworkId} homeworkId={homeworkId} />
+        <HomeworkReview key={`${homeworkId}:${enrollmentId}`} homeworkId={homeworkId} enrollmentId={enrollmentId} />
       ) : (
         <EmptyState scope="panel" tone="error" title="과제를 찾을 수 없습니다" />
       )}
@@ -46,7 +56,7 @@ export default function HomeworkReviewInbox({ selection: homework }: { selection
   );
 }
 
-function HomeworkReview({ homeworkId }: { homeworkId: number }) {
+function HomeworkReview({ homeworkId, enrollmentId }: { homeworkId: number; enrollmentId?: number }) {
   const details = useAdminHomework(homeworkId);
 
   if (details.isPending) return <EmptyState scope="panel" tone="loading" title="과제 불러오는 중…" />;
@@ -63,8 +73,9 @@ function HomeworkReview({ homeworkId }: { homeworkId: number }) {
     <div className="space-y-4">
       <h3 className="break-words text-lg font-semibold">{details.data.title}</h3>
       <Suspense fallback={<EmptyState scope="panel" tone="loading" title="제출 목록 불러오는 중…" />}>
-        <HomeworkSubmissionsPanel homeworkId={homeworkId} />
+        <HomeworkSubmissionsPanel homeworkId={homeworkId} enrollmentId={enrollmentId} />
       </Suspense>
+      {enrollmentId !== undefined && <NextHomeworkReview mobile={false} homeworkId={homeworkId} enrollmentId={enrollmentId} />}
     </div>
   );
 }

@@ -25,6 +25,8 @@ export type HomeworkSubmissionRow = {
   file_size?: number | null;
   files: HomeworkSubmissionMediaFile[];
   lecture_title?: string | null;
+  session_title?: string | null;
+  homework_lecture_title?: string | null;
   lecture_color?: string | null;
   lecture_chip_label?: string | null;
   name_highlight_clinic_target?: boolean;
@@ -120,6 +122,8 @@ function normalizeHomeworkSubmission(raw: unknown): HomeworkSubmissionRow {
       .map(normalizeMediaFile)
       .filter((file): file is HomeworkSubmissionMediaFile => file != null),
     lecture_title: asNullableString(record.lecture_title),
+    session_title: asNullableString(record.session_title),
+    homework_lecture_title: asNullableString(record.homework_lecture_title),
     lecture_color: asNullableString(record.lecture_color),
     lecture_chip_label: asNullableString(record.lecture_chip_label),
     name_highlight_clinic_target: record.name_highlight_clinic_target === true,
@@ -136,7 +140,8 @@ function normalizeHomeworkSubmission(raw: unknown): HomeworkSubmissionRow {
 }
 
 /** Both staff surfaces publish a list only after every page is accounted for. */
-export async function fetchHomeworkSubmissionRecords(homeworkId: number): Promise<unknown[]> {
+export async function fetchHomeworkSubmissionRecords(homeworkId: number, enrollmentId?: number): Promise<unknown[]> {
+  if (enrollmentId !== undefined && (!Number.isSafeInteger(enrollmentId) || enrollmentId <= 0)) return [];
   const session = readAuthTokenEnvelopeSafely();
   const tenant = getTenantCodeForApiRequest();
   if (!session || !tenant) throw new Error("로그인과 학원 정보를 확인한 뒤 다시 조회해 주세요.");
@@ -146,7 +151,7 @@ export async function fetchHomeworkSubmissionRecords(homeworkId: number): Promis
   let expectedCount: number | undefined;
   for (let page = 1; ; page += 1) {
     const { data } = await api.get<unknown>(`/submissions/submissions/homework/${homeworkId}/`, {
-      ...config, params: { page, page_size: 200 },
+      ...config, params: { page, page_size: 200, enrollment_id: enrollmentId },
     });
     const record = asRecord(data);
     const items = Array.isArray(data) ? data : record.results;
@@ -171,7 +176,11 @@ export async function fetchHomeworkSubmissionRecords(homeworkId: number): Promis
       if (expectedCount !== undefined && rows.length !== expectedCount) {
         throw new Error("제출 목록 전체를 불러오지 못했습니다. 다시 조회해 주세요.");
       }
-      return rows;
+      if (enrollmentId === undefined) return rows;
+      // During a rolling upgrade the previous API may still return the entire class.
+      const matching = rows.map(asRecord).filter(row => row.enrollment_id === enrollmentId && row.status !== "superseded");
+      if (!matching.length) return [];
+      return [{ ...matching[0], files: matching.flatMap(row => Array.isArray(row.files) ? row.files : []) }];
     }
     if (!items.length || expectedCount === undefined || rows.length >= expectedCount) {
       throw new Error("제출 목록 전체를 불러오지 못했습니다. 다시 조회해 주세요.");
@@ -179,6 +188,6 @@ export async function fetchHomeworkSubmissionRecords(homeworkId: number): Promis
   }
 }
 
-export async function fetchHomeworkSubmissions(homeworkId: number): Promise<HomeworkSubmissionRow[]> {
-  return (await fetchHomeworkSubmissionRecords(homeworkId)).map(normalizeHomeworkSubmission);
+export async function fetchHomeworkSubmissions(homeworkId: number, enrollmentId?: number): Promise<HomeworkSubmissionRow[]> {
+  return (await fetchHomeworkSubmissionRecords(homeworkId, enrollmentId)).map(normalizeHomeworkSubmission);
 }

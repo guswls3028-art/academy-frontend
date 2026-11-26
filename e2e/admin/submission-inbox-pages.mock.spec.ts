@@ -54,6 +54,16 @@ async function setup(page: Page, role: "owner" | "teacher" | "staff") {
       return json({ results: [homework, otherHomework], count: 2, next: null });
     }
     if (path === "/homeworks/71/") return json(homework);
+    if (path === "/submissions/submissions/homework/review-queue/") {
+      if (state.pendingHomework === null) return json({ detail: "QA 제출 목록 조회 실패" }, 503);
+      const results = Array.from({ length: state.pendingHomework }, (_, index) => ({
+        homework_id: index ? 72 : 71, enrollment_id: 10 + index,
+        student_name: `QA 제출 학생 ${index + 1}`, homework_title: "QA 워크북",
+        lecture_title: index ? "QA 영어" : "QA 수학", session_title: "첫 차시",
+        submitted_at: "2026-10-09T00:00:00Z", file_count: 2,
+      }));
+      return json({ count: results.length, page: 1, pages: 1, results });
+    }
     if (path === "/results/admin/sessions/31/scores/") return json({
       meta: { exams: [], homeworks: [] },
       rows: [{ enrollment_id: 10, student_name: "QA 과제 제출 학생", exams: [], homeworks: [] }],
@@ -218,7 +228,9 @@ for (const teacher of [false, true]) {
     await expect(badge).toBeVisible();
     await badge.click();
     const math = page.getByRole("link", { name: /QA 워크북.*QA 수학/ });
-    await expect(math).toContainText("확인 대기 1건");
+    await expect(math).toContainText("QA 제출 학생 1");
+    await expect(math).toContainText("파일 2개");
+    await expect(math).toHaveAttribute("href", /reviewEnrollment=10/);
     await expect(page.getByRole("link", { name: /QA 워크북.*QA 영어/ })).toHaveCount(0);
     expect(state.homeworkSubmissionRequests).toEqual([]);
 
@@ -237,10 +249,11 @@ for (const teacher of [false, true]) {
     await expect(math).toBeVisible();
     state.pendingHomework = null;
     await page.clock.fastForward(31_000);
-    await expect(page.getByText("확인 대기 과제를 불러오지 못했습니다", { exact: true })).toBeVisible();
+    await expect(page.getByText("확인 대기 제출물을 불러오지 못했습니다", { exact: true })).toBeVisible();
     state.pendingHomework = 2;
     await page.getByRole("button", { name: "다시 시도", exact: true }).click();
-    await expect(math).toContainText("확인 대기 2건");
+    await expect(page.getByText("확인 대기 2건", { exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: /QA 제출 학생 2.*QA 영어/ })).toBeVisible();
     await expect(page.getByText(/확인 대기 과제 제출 \d건 추가/)).toHaveCount(0);
     state.pendingHomework = 0;
     await page.clock.fastForward(31_000);

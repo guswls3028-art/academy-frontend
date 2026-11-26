@@ -30,9 +30,10 @@ function version(row: ReviewRow) {
   return `${row.media_set_fingerprint}/${row.teacher_accepted_updated_at ?? ""}`;
 }
 
-export default function HomeworkBulkAcceptance<Row extends ReviewRow>({ homeworkId, sessionId, rows, children }: {
+export default function HomeworkBulkAcceptance<Row extends ReviewRow>({ homeworkId, sessionId, rows, children, individual }: {
   homeworkId: number;
   sessionId: number;
+  individual?: boolean;
   rows: Row[];
   children: (visibleRows: Row[], checkbox: (row: ReviewRow) => ReactNode) => ReactNode;
 }) {
@@ -96,6 +97,8 @@ export default function HomeworkBulkAcceptance<Row extends ReviewRow>({ homework
       setBusy(false);
     }
   }
+
+  if (individual) return <>{children(rows, () => null)}</>;
 
   return <>
     {(eligible.length > 0 || eligibleOnly) && <div className={styles.toolbar} role="group" aria-label="과제 일괄 통과">

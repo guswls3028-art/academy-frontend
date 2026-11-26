@@ -21,6 +21,7 @@ import { formatSubmissionDate } from "@admin/domains/submissions/statusMaps";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import { Badge, Button, EmptyState } from "@/shared/ui/ds";
+import { assessmentQueryKeys } from "@/shared/api/queryKeys/assessments";
 import HomeworkMissingNoticeButton from "@/shared/ui/submissions/HomeworkMissingNoticeButton";
 import { QUERY_KEYS } from "../queryKeys";
 import HomeworkFileGallery from "@/shared/ui/submissions/HomeworkFileGallery";
@@ -39,7 +40,9 @@ function hasRecordedScore(scores: SessionScoresResponse | undefined, row: Homewo
       ((homework.attempt_count ?? 0) > 0 || homework.block.score != null))) ?? false;
 }
 
-export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: number }) {
+export default function HomeworkSubmissionsPanel({ homeworkId, enrollmentId }: { homeworkId: number; enrollmentId?: number }) {
+  const focused = enrollmentId !== undefined;
+  const [previewContext, setPreviewContext] = useState("");
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const hwQ = useAdminHomework(homeworkId);
@@ -51,8 +54,8 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
   const [reviewConfirming, setReviewConfirming] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   const q = useQuery({
-    queryKey: QUERY_KEYS.HOMEWORK_SUBMISSIONS(homeworkId),
-    queryFn: () => fetchHomeworkSubmissions(homeworkId),
+    queryKey: focused ? [...QUERY_KEYS.HOMEWORK_SUBMISSIONS(homeworkId), enrollmentId] : QUERY_KEYS.HOMEWORK_SUBMISSIONS(homeworkId),
+    queryFn: () => fetchHomeworkSubmissions(homeworkId, enrollmentId),
     refetchInterval: 5000,
   });
   const scoreQ = useQuery({
@@ -66,7 +69,7 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
       if (!(sessionId > 0 && row.enrollment_id > 0)) {
         throw new Error("과제 차시 또는 학생 수강 정보를 확인할 수 없습니다.");
       }
-      const latestRow = (await fetchHomeworkSubmissions(homeworkId)).find((item) => item.id === row.id);
+      const latestRow = (await fetchHomeworkSubmissions(homeworkId, enrollmentId)).find((item) => item.id === row.id);
       if (!latestRow || latestRow.teacher_review_updated_at !== row.teacher_review_updated_at) {
         throw new Error("제출 상태가 다른 화면에서 바뀌었습니다. 새로고침 후 다시 확인해 주세요.");
       }
@@ -96,6 +99,7 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
     },
     onSuccess: async (_, { row, completed }) => {
       void queryClient.invalidateQueries({ queryKey: notificationQueryKeys.operationalCounts });
+      void queryClient.invalidateQueries({ queryKey: assessmentQueryKeys.homeworkReviewQueue });
       const [freshSubmissions, freshScores] = await Promise.all([q.refetch(), scoreQ.refetch()]);
       const current = freshSubmissions.data?.find((item) => item.id === row.id);
       if (freshSubmissions.isError || freshScores.isError || !current) {
@@ -163,27 +167,28 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
     <div className={styles.panel}>
       <div className={styles.header}>
         <div>
-          <h3>과제 제출 검수</h3>
+          <h3>{focused ? "학생 제출 확인" : "과제 제출 검수"}</h3>
           <p>제출 사진을 눌러 확대할 수 있습니다. 통과를 누르면 기존 점수를 유지하고 과제를 통과로 인정합니다.</p>
         </div>
         <div className={styles.headerActions}>
-          <HomeworkMissingNoticeButton key={homeworkId} homeworkId={homeworkId} />
+          {!focused && <HomeworkMissingNoticeButton key={homeworkId} homeworkId={homeworkId} />}
           <Button type="button" intent="ghost" size="sm" onClick={() => { void q.refetch(); void scoreQ.refetch(); }}>
             새로고침
           </Button>
         </div>
       </div>
 
-      <div className={styles.summary} aria-label="제출 요약">
+      {!focused && <div className={styles.summary} aria-label="제출 요약">
         <div><span>제출 학생</span><strong>{summary.students}</strong><small>명</small></div>
         <div><span>전체 파일</span><strong>{summary.files}</strong><small>개</small></div>
         <div data-tone="success"><span>검수 가능</span><strong>{summary.ready}</strong><CheckCircle2 aria-hidden="true" /></div>
         <div data-tone={summary.failed > 0 ? "danger" : "neutral"}><span>업로드 오류</span><strong>{summary.failed}</strong><AlertCircle aria-hidden="true" /></div>
         <div data-tone="warning"><span>확인 대기</span><strong>{summary.pending}</strong><small>명</small></div>
         <div data-tone="success"><span>확인 완료</span><strong>{summary.reviewed}</strong><small>명</small></div>
-      </div>
+      </div>}
 
       <HomeworkMediaPreviewModal
+        context={previewContext}
         open={previewFile != null}
         homeworkId={homeworkId}
         file={previewFile}
@@ -205,18 +210,20 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
         </div>
       )}
       {rows.length === 0 && !q.isError && (
-        <EmptyState scope="panel" tone="empty" title="아직 제출된 과제가 없습니다." />
+        <EmptyState scope="panel" tone="empty" title={focused ? "선택한 학생의 제출물을 찾을 수 없습니다" : "아직 제출된 과제가 없습니다."} />
       )}
 
       {rows.length > 0 && (
-        <HomeworkBulkAcceptance key={homeworkId} homeworkId={homeworkId} sessionId={sessionId} rows={rows}>
+        <HomeworkBulkAcceptance individual={focused} key={homeworkId} homeworkId={homeworkId} sessionId={sessionId} rows={rows}>
           {(visibleRows, checkbox) => <div className={styles.studentList}>
           {visibleRows.map((row) => {
             const readyFiles = row.files.filter((file) => file.status === "uploaded" && !file.removed_at);
             const viewedCount = readyFiles.filter((file) => viewedFiles.get(file.id) === row.media_set_fingerprint).length;
             const scoreLocked = hasRecordedScore(scoreQ.data, row, homeworkId);
             const canSave = sessionId > 0 && row.enrollment_id > 0 && scoreQ.isSuccess && !scoreLocked && !reviewMut.isPending && !reviewConfirming;
+            const context = [row.homework_lecture_title || row.lecture_title, row.session_title, hwQ.data?.title, row.student_name].filter(Boolean).join(" · ");
             return <article className={styles.studentCard} key={row.id}>
+              {focused && <p>{[row.homework_lecture_title || row.lecture_title, row.session_title].filter(Boolean).join(" · ")}</p>}
               <header className={styles.studentHeader}>
                 {checkbox(row)}
                 <StudentDetailLink studentId={row.student_id} studentName={row.student_name}>
@@ -248,7 +255,7 @@ export default function HomeworkSubmissionsPanel({ homeworkId }: { homeworkId: n
                 <div className={styles.noFiles}>제출 파일이 없습니다.</div>
               ) : (
                 <HomeworkFileGallery homeworkId={homeworkId} files={row.files} fingerprint={row.media_set_fingerprint}
-                  onOpen={file => { setPreviewFile(file); setPreviewFingerprint(row.media_set_fingerprint); }} />
+                  onOpen={file => { setPreviewContext(context); setPreviewFile(file); setPreviewFingerprint(row.media_set_fingerprint); }} />
               )}
               {!isNotSubmittedStatus(row.status) && !row.teacher_accepted && (
                 <div className={styles.reviewBar}>

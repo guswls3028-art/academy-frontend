@@ -1,6 +1,7 @@
 const studentHomeworkFiles = (studentId: number) => ["staff-student-homework-files", studentId] as const;
 
 export const assessmentQueryKeys = {
+  homeworkReviewQueue: ["homework-review-queue"] as const,
   homeworkMediaPreview: (homeworkId: number, fileId: string | undefined, mediaSetFingerprint: string | null) =>
     ["homework-media-preview", homeworkId, fileId, mediaSetFingerprint] as const,
 
