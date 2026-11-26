@@ -1,7 +1,7 @@
 import type { Page } from "@playwright/test";
 import { getBaseUrl } from "./auth";
 
-function createLocalJwt() {
+export function createLocalJwt() {
   const encode = (payload: unknown) => Buffer.from(JSON.stringify(payload)).toString("base64url");
   const now = Math.floor(Date.now() / 1000);
   return `${encode({ alg: "none", typ: "JWT" })}.${encode({ exp: now + 3600, tenant_code: "hakwonplus", user_id: 12 })}.sig`;

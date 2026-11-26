@@ -73,7 +73,7 @@ function inventoryDisposition(name: string): string {
     + (ascii ? "" : "; filename*=UTF-8''" + encodeRfc3986(safeName));
 }
 
-function isExactInventoryOriginalDownload(boundary: ReleaseBoundary, rawUrl: string, file: InventoryOriginal, exactExpiry?: number): boolean {
+function isExactInventoryOriginalDownload(boundary: ReleaseBoundary, rawUrl: string, file: Pick<InventoryOriginal, "r2Key" | "name" | "contentType">, exactExpiry?: number): boolean {
   if (boundary.mode !== "development" || !URL.canParse(rawUrl)) return false;
   const target = new URL(rawUrl);
   if (target.origin !== DEVELOPMENT_OMR_R2_ORIGIN || target.username || target.password || target.hash
@@ -1282,6 +1282,7 @@ export async function installReleaseContextGuard(
   const acceptedPptJobs = new Set<string>();
   const acceptedPayrollJobs = new Map<string, string>();
   const acceptedAttendanceJobs = new Map<string, number>();
+  const acceptedWrongNoteBatches = new Map<string, string>();
   const documentDownloadUrls = new Map<string, { url: string; filename: string; contentType: string; contentDisposition: string;
     inventoryOriginal?: InventoryOriginal }>();
   const inventoryOriginals = new Map<string, InventoryOriginal>();
@@ -1926,6 +1927,35 @@ export async function installReleaseContextGuard(
         }
         const pptSubmission = request.method() === "POST"
           && pptTarget.pathname === "/api/v1/tools/ppt/generate/" && !pptTarget.search;
+        if (boundary.mode === "development" && !pptTarget.search
+          && /^Bearer \S+$/.test(headers.authorization ?? "") && headers["x-tenant-code"] === boundary.tenantCode
+          && !headers["x-student-id"] && response.headers()["content-type"]?.split(";")[0].trim().toLowerCase() === "application/json") {
+          if (request.method() === "POST" && response.status() === 202
+            && pptTarget.pathname === "/api/v1/results/wrong-notes/batches/"
+            && isRecord(data) && Array.isArray(data.students) && data.students.length === 2
+            && data.from_session_order === 1 && data.to_session_order === 2) {
+            const batch = await response.json();
+            if (acceptedWrongNoteBatches.size === 0 && Number.isSafeInteger(batch?.id) && batch.id > 0 && batch.students?.length === 2) {
+              acceptedWrongNoteBatches.set(String(batch.id), "1-2차시_학생별_오답노트.zip");
+            }
+          }
+          const batchDownload = /^\/api\/v1\/results\/wrong-notes\/batches\/([1-9][0-9]*)\/download\/$/.exec(pptTarget.pathname);
+          const name = batchDownload && acceptedWrongNoteBatches.get(batchDownload[1]);
+          if (request.method() === "GET" && response.status() === 200 && batchDownload && name
+            && Number.isSafeInteger(boundary.omrR2TenantId) && Number(boundary.omrR2TenantId) > 0) {
+            const result = await response.json();
+            if (result?.filename === name && typeof result.url === "string" && URL.canParse(result.url)) {
+              const file = new URL(result.url).pathname.split("/").at(-1) ?? "";
+              const match = /^([1-9][0-9]*)-([1-9][0-9]*)\.zip$/.exec(file);
+              const r2Key = `tenants/${boundary.omrR2TenantId}/results/wrong-notes/batches/${file}`;
+              if (match?.[1] === batchDownload[1] && isExactInventoryOriginalDownload(boundary, result.url,
+                { r2Key, name, contentType: "application/zip" }, 600)) {
+                documentDownloadUrls.set("wrong-note:" + batchDownload[1], { url: result.url, filename: name,
+                  contentType: "application/zip", contentDisposition: inventoryDisposition(name) });
+              }
+            }
+          }
+        }
         const payrollSubmission = request.method() === "POST"
           && pptTarget.pathname === "/api/v1/staffs/payroll-snapshots/export-excel/" && !pptTarget.search;
         const attendanceSubmission = request.method() === "POST"
