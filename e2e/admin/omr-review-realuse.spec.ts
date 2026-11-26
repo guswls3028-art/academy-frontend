@@ -2121,6 +2121,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
     expect((await numberingSaved).status()).toBe(200);
     await page.reload({ waitUntil: "domcontentloaded" });
+    await openAssessmentWorkAction(page, "policy", "settings");
     await expect(page.locator("#assessment-policy")).toContainText("서술형 별도 번호");
     const exam = await expectApi<{ essay_numbering: string }>(request, "GET", `/exams/${created.examId}/`, adminAccess);
     expect(exam.essay_numbering).toBe("separate");

@@ -2185,6 +2185,7 @@ for (const width of [1366, 390]) {
     await expect(page.getByText("과제 정보를 불러오지 못했습니다.", { exact: true })).toBeVisible();
     state.failHomeworkRead = false;
     await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+    await openAssessmentWorkAction(page, "policy", "settings");
     const input = page.getByLabel("합격 기준 (점)", { exact: true });
     await expect(input).toHaveValue("15");
     await input.fill("17");
@@ -2222,6 +2223,7 @@ for (const width of [1366, 390]) {
     await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
     await expect.poll(() => state.createdHomeworkPayloads![0].cutline_value).toBe(18);
     await page.reload({ waitUntil: "domcontentloaded" });
+    await openAssessmentWorkAction(page, "policy", "settings");
     await expect(input).toHaveValue("18");
     expect(state.homeworkPatchPayloads).toHaveLength(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
@@ -2261,6 +2263,7 @@ test("@policy-recovery 열린 워크북 업로드는 과제 조회 실패 뒤 �
     createdHomeworkPayloads: [{ title: "원본 복구 과제", max_score: 20, cutline_mode: "COUNT", cutline_value: 15, source_exam_id: 9988, source_status: "none" }] };
   await openLecture(page, state);
   await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/assignments?assessment=homework%3A9961`, { waitUntil: "domcontentloaded" });
+  await openAssessmentWorkAction(page, "materials", "source");
   await page.getByRole("button", { name: "워크북 자료 올리기", exact: true }).click();
   const modal = page.getByRole("dialog").filter({ has: page.getByRole("button", { name: "닫기", exact: true }) });
   await modal.locator('input[type="file"]').first().setInputFiles({ name: "보존할-워크북.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n%%EOF") });

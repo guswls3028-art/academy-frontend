@@ -2696,6 +2696,7 @@ test.describe("문항별 직접 채점", () => {
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
       { waitUntil: "domcontentloaded" },
     );
+    await openAssessmentWorkAction(page, "materials", "source");
     const slider = page.getByRole("slider", { name: "3번 문제 영역 높이" });
     await expect(slider).toBeVisible();
     await expect(slider).toHaveValue("30");
@@ -2717,6 +2718,7 @@ test.describe("문항별 직접 채점", () => {
       { waitUntil: "domcontentloaded" },
     );
 
+    await openAssessmentWorkAction(page, "materials", "source");
     await expect(page.getByText("한글 본문·미주 분리", { exact: true })).toBeVisible();
     await expect(page.getByRole("slider", { name: "3번 문제 영역 높이" })).toHaveCount(0);
     await expect(page.getByAltText("3번 문제 후보")).toBeVisible();
