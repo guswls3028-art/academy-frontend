@@ -202,8 +202,15 @@ async function widthProof(browser,width) {
     await visible(page.getByRole('heading',{name:'대시보드',exact:true}).first());
     await visible(page.locator('#arrival-overview-title'));
     await visible(page.getByText('발송 준비를 확인해 주세요',{exact:true}));
-    await check(page.getByText('공지를 불러오는 중입니다.')).toHaveCount(0);
+    const notice=page.getByRole('region',{name:'학원 내부 공지'}).locator('a[href*="/notice/"]').first();
+    await visible(notice);
+    const title=(await notice.locator('span').first().innerText()).trim();
+    assert.ok(title.length>0);
     const dashboard=await inspect(page,width,'dashboard');
+    await notice.click();
+    await visible(page.getByRole('heading',{name:title,exact:true}).first());
+    await page.goBack();
+    await visible(page.locator('#arrival-overview-title'));
     const rows=await nativeRoster(page);
     const roster=await inspect(page,width,'roster');
     let student=rows[0];
@@ -238,7 +245,7 @@ async function widthProof(browser,width) {
     await bar(page,compareLabel);
     assert.deepEqual(errors,[],'Uncaught browser errors');
     return {width,identity,dashboard,roster,detailImage,nativeRosterPage:rows.length,lecture,write,
-            roleRoundTrip:true,blockedWrites:guard.blockedWrites};
+            openedStaffNotice:true,roleRoundTrip:true,blockedWrites:guard.blockedWrites};
   } catch(error) {
     const failed=context.pages().at(-1);
     if(failed) {

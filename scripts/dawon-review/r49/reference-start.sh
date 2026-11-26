@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 test -n "${RUNNER_TEMP:-}"
-backend="$GITHUB_WORKSPACE/backend"
+backend="$GITHUB_WORKSPACE/backend-reference"
+git -C "$GITHUB_WORKSPACE/backend" worktree add --detach "$backend" HEAD
 code="$GITHUB_WORKSPACE/worker-source/deploy/dawon/reference-api/standalone"
+test -d "$code/backend-patch/apps"
+cp -R "$code/backend-patch/apps/." "$backend/apps/"
 export PYTHONPATH="$code:$backend"
 export DJANGO_SETTINGS_MODULE=reference_settings HAKWONPLUS_COMPARISON_BOUNDARY=isolated-reference-849
 export DB_HOST=comparison-db DB_USER=reference_qa DB_PASSWORD=fixture-reference-db TEST_DB_NAME=qa_hakwonplus_reference
@@ -14,5 +17,6 @@ cd "$backend"
 python -m django migrate --noinput --verbosity=0
 python -m django migrate --check
 python "$code/seed.py"
+python "$code/seed-board.py"
 python -m django runserver 127.0.0.1:18849 --noreload >"$RUNNER_TEMP/isolated-reference.log" 2>&1 &
 curl -fsS --retry 20 --retry-delay 1 --retry-connrefused --max-time 8 -H 'Host: reference.hakwonplus.localhost' http://127.0.0.1:18849/healthz >/dev/null
