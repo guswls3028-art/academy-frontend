@@ -14,7 +14,7 @@ function reviewPath(mobile: boolean, row: HomeworkReviewItem, page: number) {
 
 function queueQuery(page: number) {
   return {
-    queryKey: [...assessmentQueryKeys.homeworkReviewQueue, page],
+    queryKey: assessmentQueryKeys.homeworkReviewPage(page),
     queryFn: ({ signal }: { signal: AbortSignal }) => fetchHomeworkReviewQueue(page, signal),
     refetchInterval: 30_000, retry: false,
   };

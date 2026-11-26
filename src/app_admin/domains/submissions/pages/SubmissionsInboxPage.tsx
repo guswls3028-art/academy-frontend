@@ -1,26 +1,8 @@
 // PATH: src/app_admin/domains/submissions/pages/SubmissionsInboxPage.tsx
-/**
- * Submissions Inbox (제출함)
- * - 학생이 제출한 시험/과제를 한 곳에서 확인하고 1-click 으로 처리
- * - 필터 탭: 대기 중 | 완료 | 실패 | 전체
- * - 5초 자동 새로고침
- *
- * 행 액션 매트릭스 (status × target_resolved):
- *   needs_identification + target_resolved        → 학생 지정 (in-place picker, exam/homework 양쪽)
- *   needs_identification + !target_resolved       → 폐기만 가능 (원본 결손)
- *   failed                                        → 재처리 / 폐기
- *   submitted/dispatched/extracting/grading       → 처리 중 (액션 없음)
- *   answers_ready / done + target_resolved         → 결과 보기 (세션 페이지 이동)
- *   answers_ready / done + !target_resolved        → 결과 진입 불가 표시
- *   superseded                                     → 대체됨 (terminal, action 없음)
- *
- * 일괄 처리:
- *   row 별 체크박스 + 상단 일괄 폐기 (사유 picker 모달).
- *
- * 직접 navigate 시 lecture/session 결손 가드 → SessionLayout "잘못된 세션 접근" 회피.
- */
+/** 시험 답안 처리는 이 화면에서, 과제 파일 검수는 HomeworkReviewInbox에서 담당한다. */
 
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import ExamSessionSelect from "@/shared/ui/submissions/ExamSessionSelect";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileSearch } from "lucide-react";
@@ -873,11 +855,8 @@ function SubmissionRow({
           {targetTitleDisplay}
         </p>
         {row.session_choices?.length ? (
-          <select aria-label="열어볼 강의·차시" value={row.session_id ?? ""} onChange={(event) => onSessionChange(Number(event.target.value))}
-            className="max-w-full text-xs">
-            <option value="">열어볼 강의·차시 선택</option>
-            {row.session_choices.map((choice) => <option key={choice.session_id} value={choice.session_id}>{choice.lecture_title} · {choice.session_title}</option>)}
-          </select>
+          <ExamSessionSelect label="열어볼 강의·차시" choices={row.session_choices} selectedId={row.session_id}
+            onSelect={choice => onSessionChange(choice?.session_id ?? 0)} />
         ) : row.session_title && <p className="truncate text-xs text-[var(--color-text-secondary)]">{row.session_title}</p>}
         {setupPath && (
           <p className="mt-1 text-xs text-[var(--color-text-secondary)]" data-testid={`submission-readiness-${row.id}`}>
