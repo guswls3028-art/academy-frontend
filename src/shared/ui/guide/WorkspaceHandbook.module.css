@@ -42,13 +42,14 @@
 .figure, .example { margin: 0 0 16px; }
 .figure a { display: block; padding: 8px; background: color-mix(in srgb, var(--accent) 5%, var(--paper)); border: 1px solid var(--rule); border-radius: 6px; }
 .figure img { display: block; width: 100%; height: clamp(190px, 33cqw, 360px); object-fit: contain; cursor: zoom-in; }
+.figure a span { display: block; padding-top: 4px; color: var(--accent); text-align: end; font-size: 13px; }
 .figure figcaption { margin-top: 6px; color: var(--quiet); font-size: 13px; line-height: 1.45; }
 .example { padding: clamp(14px, 2cqw, 24px); background: color-mix(in srgb, var(--accent) 5%, var(--paper)); border: 1px solid var(--rule); border-radius: 6px; }
 .example dl { margin: 12px 0 0; }
 .example dl div { display: grid; grid-template-columns: minmax(85px, 32%) 1fr; align-items: baseline; padding: 8px 0; gap: 12px; border-top: 1px solid var(--rule); }
 .example dt { font-weight: 650; color: var(--accent); }
 .example dd { margin: 0; }
-.steps { margin: 0; padding-inline-start: 1.65em; font-size: 15px; line-height: 1.65; }
+.steps { list-style: decimal outside; margin: 0; padding-inline-start: 1.65em; font-size: 15px; line-height: 1.65; }
 .steps li { padding-inline-start: .25em; margin: 6px 0; }
 .steps li::marker { font-weight: 750; color: var(--accent); }
 .done { padding: 12px 14px; margin: 16px 0 8px; border-inline-start: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--paper)); font-size: 14px; line-height: 1.65; }

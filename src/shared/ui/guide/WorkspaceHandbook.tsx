@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { handbooks, type HandbookPage } from "./handbookData";
 import teacherPdf from "./documents/teacher-pc.pdf?url";
@@ -18,6 +18,7 @@ function HandbookIllustration({ page }: { page: HandbookPage }) {
       <button type="button" onClick={() => { setAttempt(attempt + 1); setFailed(false); }}>그림 다시 보기</button>
     </div> : <a href={page.image} target="_blank" rel="noreferrer" aria-label={`${page.title} 그림 크게 보기 (새 창)`}>
       <img src={attempt ? `${page.image}?retry=${attempt}` : page.image} alt={page.alt} onError={() => setFailed(true)} />
+      <span aria-hidden="true">그림 크게 보기 ↗</span>
     </a>}
     <figcaption>{page.alt}</figcaption>
   </figure>;
@@ -38,20 +39,26 @@ export default function WorkspaceHandbook({ mobileTeacher = false }: { mobileTea
   const page = book.pages[index];
   const headingId = useId();
   const sheetHeading = useRef<HTMLHeadingElement>(null);
+  const focusAfterTurn = useRef(false);
   const [featureOpen, setFeatureOpen] = useState(false);
   const legacyLink = params.has("guideBook") || params.has("guidePage");
   const legacyOpen = legacyLink || featureOpen;
 
+  useLayoutEffect(() => {
+    if (!focusAfterTurn.current) return;
+    focusAfterTurn.current = false;
+    const heading = sheetHeading.current;
+    heading?.focus({ preventScroll: true });
+    if (heading && heading.getBoundingClientRect().top < 0) heading.scrollIntoView({ block: "start" });
+  }, [key, index]);
+
   function turn(nextKey: keyof typeof handbooks, nextIndex: number) {
+    if (nextKey === key && nextIndex === index) return;
     const next = new URLSearchParams(window.location.search);
     next.set("handbook", nextKey);
     next.set("sheet", String(nextIndex + 1));
+    focusAfterTurn.current = true;
     setParams(next, { preventScrollReset: true });
-    requestAnimationFrame(() => {
-      const heading = sheetHeading.current;
-      heading?.focus({ preventScroll: true });
-      if (heading && heading.getBoundingClientRect().top < 0) heading.scrollIntoView({ block: "start" });
-    });
   }
 
   function step(offset: number) {
