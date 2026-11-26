@@ -2718,16 +2718,10 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       const firstHomework = page.getByRole("textbox", { name: "자동저장학생1 · 단원 복습 점수 입력" });
       const secondHomework = page.getByRole("textbox", { name: "자동저장학생2 · 단원 복습 점수 입력" });
 
-      await firstHomework.fill("/");
-      await firstExam.click();
-      await expect(firstHomework).toHaveText("미제출");
-      await expect.poll(() => currentHomeworkMetaStatuses[0]).toBe("NOT_SUBMITTED");
-
       // Move twice before the next paint. A deferred text selection on the old
       // editor must not move focus back or trigger a second blur/save.
-      await expect(firstExam).toBeFocused();
-      const staleFocusEvents = await secondHomework.evaluate(async (previous) => {
-        const destination = document.activeElement as HTMLElement;
+      const destinationCell = await firstExam.evaluateHandle(element => element);
+      const focusResult = await secondHomework.evaluate(async (previous, destination) => {
         previous.focus();
         destination.focus();
         let focusEvents = 0;
@@ -2735,9 +2729,15 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
         previous.addEventListener("focus", countFocus);
         await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
         previous.removeEventListener("focus", countFocus);
-        return focusEvents;
-      });
-      expect(staleFocusEvents).toBe(0);
+        return { focusEvents, atDestination: document.activeElement === destination };
+      }, destinationCell);
+      await destinationCell.dispose();
+      expect(focusResult).toEqual({ focusEvents: 0, atDestination: true });
+
+      await firstHomework.fill("/");
+      await firstExam.click();
+      await expect(firstHomework).toHaveText("미제출");
+      await expect.poll(() => currentHomeworkMetaStatuses[0]).toBe("NOT_SUBMITTED");
 
       await secondHomework.fill("/");
       await secondHomework.press("ArrowUp");
