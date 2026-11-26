@@ -1145,6 +1145,10 @@ test.describe("학생별 회차 누적 성적 추이", () => {
 
     await expect(detailOverlay.getByText("Ymath 주간 테스트 미응시", { exact: true })).toBeVisible();
     await expect(detailOverlay.getByTestId("student-score-trend")).toBeHidden();
+    const profile = detailOverlay.getByRole("complementary", { name: "연락처·메모" });
+    const memo = profile.getByRole("textbox", { name: "학생 공통 메모" });
+    await expect(memo).toBeInViewport();
+    await detailOverlay.screenshot({ path: "test-results/student-score-trend/admin-exams-sidebar-1366.png" });
     await detailOverlay.getByRole("button", { name: "성적 추이 보기" }).click();
     await expect(detailOverlay.getByText("합격 100%", { exact: true })).toBeVisible();
     const component = page.getByTestId("student-score-trend");
