@@ -28,12 +28,18 @@ test.describe("학생 대시보드 다크 모드", () => {
     });
     expect(isDark).toBe(true);
 
-    /* 핵심 섹션 가시성 — 다크 모드에서도 텍스트 보여야 함 */
-    await expect(page.getByText("확인할 일", { exact: true })).toBeVisible({ timeout: 8_000 });
-    await expect(page.getByText("나의 학습 현황", { exact: true })).toBeVisible();
-    for (const label of ["성적", "시험", "과제", "클리닉", "출결", "공지", "보관함", "클리닉 패스카드"]) {
-      await expect(page.getByText(label, { exact: true }).first()).toBeVisible();
-    }
+    await expect(page.getByRole("heading", { name: "오늘", exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "학습 현황", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /^전체 메뉴/ })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /QR 출석/ })).toBeVisible();
+    await page.getByRole("button", { name: "학생 사용 가이드", exact: true }).click();
+    await page.getByRole("button", { name: "프로필에서 내 정보와 설정 찾기" }).click();
+    await expect(page.getByRole("dialog").getByRole("img")).toBeVisible();
+    await page.getByRole("button", { name: "가이드 닫기" }).click();
+    await page.getByRole("button", { name: "프로필 메뉴", exact: true }).click();
+    await expect(page.getByRole("button", { name: "내 정보", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "프로필 메뉴", exact: true }).click();
+    await expect(page.getByRole("tablist", { name: "자녀 선택" })).toHaveCount(0);
 
     await page.screenshot({ path: "e2e/screenshots/dashboard-dark.png", fullPage: true });
 

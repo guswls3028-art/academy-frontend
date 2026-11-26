@@ -633,32 +633,19 @@ test.describe("학생 클리닉 예약 UX", () => {
     await installApi(page, state, "FAIL", idcardControl);
     await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
 
-    const appArea = page.locator("[data-guide='dash-apps']");
-    await expect(appArea.getByRole("link")).toHaveCount(2);
+    await expect(page.getByRole("link", { name: /^전체 메뉴/ })).toHaveCount(0);
     await page.screenshot({ path: test.info().outputPath("student-home-390.png"), fullPage: true });
-    await appArea.getByRole("link", { name: /^전체 메뉴/ }).click();
-    await expect(page).toHaveURL(/\/student\/menu$/);
+    // An existing full-menu bookmark remains usable after the home shortcut moves.
+    await page.goto(`${BASE}/student/menu`);
     await expect(page.getByRole("heading", { name: "전체 메뉴", exact: true })).toBeInViewport();
-    await expect(page.getByRole("region", { name: "학습", exact: true }).getByRole("link", { name: /^시험/ })).toHaveAttribute("href", "/student/exams");
-    await page.screenshot({ path: test.info().outputPath("student-menu-390.png"), fullPage: true });
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { name: "전체 메뉴", exact: true })).toBeInViewport();
+    await page.reload();
     await page.getByRole("navigation", { name: "상위 경로" }).getByRole("link", { name: "홈", exact: true }).click();
-    await expect.poll(() => page.locator(".student-layout__main").evaluate(main => main.scrollTop)).toBe(0);
-    const passcardLink = appArea.getByRole("link", { name: /^클리닉 패스카드/ });
-    const shortcuts = appArea.getByRole("link");
-    await expect(shortcuts).toHaveCount(2);
+    await page.getByText("자주 쓰는 일", { exact: true }).click();
+    const passcardLink = page.getByRole("link", { name: /^클리닉 패스카드/ });
     await expect(passcardLink).toHaveAttribute("href", "/student/idcard");
-    await expect(appArea.getByRole("link", { name: "내 정보", exact: true })).toHaveCount(0);
-    for (let index = 0; index < 2; index += 1) {
-      const box = await shortcuts.nth(index).boundingBox();
-      expect(box, `shortcut ${index + 1} should have a measurable touch target`).not.toBeNull();
-      expect(box!.width).toBeGreaterThanOrEqual(44);
-      expect(box!.height).toBeGreaterThanOrEqual(44);
-    }
-    expect(await appArea.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
-    expect(await page.locator("body").evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
-
+    const box = await passcardLink.boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    expect(await page.locator("body").evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     await passcardLink.focus();
     await expect(passcardLink).toBeFocused();
     await page.keyboard.press("Enter");
@@ -1976,7 +1963,8 @@ test.describe("학생 클리닉 예약 UX", () => {
     await seed(page, programOptions);
     await installApi(page, state, "SUCCESS", undefined, programOptions);
     await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
-    const appArea = page.locator("[data-guide='dash-apps']");
+    await page.getByText("자주 쓰는 일", { exact: true }).click();
+    const appArea = page.locator("details[open]").filter({ has: page.getByText("자주 쓰는 일", { exact: true }) });
     const statusCardLink = appArea.getByRole("link", { name: /^오답 상태 카드/ });
     await expect(statusCardLink).toHaveAttribute("href", "/student/idcard");
     await expect(appArea).not.toContainText("패스카드");

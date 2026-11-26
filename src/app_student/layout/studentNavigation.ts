@@ -34,18 +34,14 @@ export const STUDENT_NAV_GROUPS: NavGroup[] = [
       { label: "성적", to: "/student/grades", Icon: IconGrade },
       { label: "시험", to: "/student/exams", Icon: IconExam },
       { label: "과제", to: "/student/submit/assignment", Icon: IconClipboard },
+      { label: "학습 현황", to: "/student/dashboard?view=learning", Icon: IconGrade },
     ],
   },
   {
-    category: "클리닉",
+    category: "학원생활",
     items: [
       { label: "클리닉", to: "/student/clinic", Icon: IconClinic },
       { label: "클리닉 패스카드", to: "/student/idcard", Icon: IconClinic },
-    ],
-  },
-  {
-    category: "학원",
-    items: [
       { label: "일정", to: "/student/sessions", Icon: IconCalendar },
       { label: "공지사항", to: "/student/notices", Icon: IconNotice },
       { label: "커뮤니티", to: "/student/community", Icon: IconBoard },
@@ -55,7 +51,7 @@ export const STUDENT_NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    category: "나",
+    category: "내 정보",
     items: [
       { label: "제출", to: "/student/submit", Icon: IconClipboard },
       { label: "내 인벤토리", to: "/student/inventory", Icon: IconFolder },

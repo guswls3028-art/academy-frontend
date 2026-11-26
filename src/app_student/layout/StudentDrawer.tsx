@@ -2,7 +2,7 @@
  * 좌측 사이드 드로어 - 더보기 메뉴 (모바일 슬라이드)
  */
 import { useEffect, useRef } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 
 import { logout } from "@/auth/api/auth.api";
 import { cx } from "@/shared/utils/cx";
@@ -23,6 +23,7 @@ type DrawerProps = {
 export default function StudentDrawer({ open, onClose }: DrawerProps) {
   const confirm = useConfirm();
   const wrongCompletionOnly = useWrongCompletionDisplay();
+  const location = useLocation();
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -97,7 +98,8 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
             <section key={group.category} className={styles.group}>
               <div className={styles.groupLabel}>{group.category}</div>
               {group.items.map(({ label, to, Icon }) => (
-                <Link key={to} to={to} className={styles.navLink} onClick={onClose}>
+                <Link key={to} to={to} className={styles.navLink} onClick={onClose}
+                  aria-current={location.pathname + location.search === to ? "page" : undefined}>
                   <Icon className={styles.navIcon} aria-hidden="true" />
                   <span>{to === "/student/idcard" && wrongCompletionOnly ? "오답 상태 카드" : label}</span>
                 </Link>

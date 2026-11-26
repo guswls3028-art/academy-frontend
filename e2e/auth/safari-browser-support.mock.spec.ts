@@ -119,7 +119,7 @@ async function stubStudentLogin(page: Page): Promise<void> {
 async function expectStudentShell(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/student(?:\/|$)/);
   await expect(page.locator(".student-layout")).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByRole("region", { name: "자주 쓰는 일" })).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("heading", { name: "오늘", exact: true })).toBeVisible({ timeout: 60_000 });
   await expect(page.getByRole("button", { name: "프로필 메뉴", exact: true }))
     .toHaveText(STUDENT_PROFILE_NAME.slice(0, 1));
   await page.waitForLoadState("networkidle", { timeout: 30_000 });
