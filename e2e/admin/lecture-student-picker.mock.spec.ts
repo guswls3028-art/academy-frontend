@@ -430,14 +430,20 @@ test("저장 후 강의 명단의 한글·숫자 포함 이름과 전화번호 �
   await dialog.getByRole("button", { name: "2명 강의에 추가", exact: true }).click();
   await expect(dialog).toHaveCount(0);
   const input = page.getByPlaceholder("이름 / 전화번호 검색", { exact: true });
+  const roster = page.getByRole("table").filter({ has: page.getByRole("checkbox", { name: "전체 선택", exact: true }) });
+  const receipt = page.getByRole("region", { name: "최근 등록 알림톡 결과" });
   await input.fill("없는학생");
   await expect(page.getByText("검색 결과가 없습니다.", { exact: true })).toBeVisible();
+  await expect(roster).toHaveCount(0);
+  for (const name of ["기존학생002", "기존학생003"]) {
+    await expect(receipt.getByRole("listitem", { name, exact: true })).toBeVisible();
+  }
   await input.fill("기존학생002");
-  await expect(page.getByText("기존학생002", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("기존학생003", { exact: true })).toHaveCount(0);
+  await expect(roster.getByText("기존학생002", { exact: true })).toBeVisible();
+  await expect(roster.getByText("기존학생003", { exact: true })).toHaveCount(0);
   await input.fill("010-8000-0003");
-  await expect(page.getByText("기존학생003", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("기존학생002", { exact: true })).toHaveCount(0);
+  await expect(roster.getByText("기존학생003", { exact: true })).toBeVisible();
+  await expect(roster.getByText("기존학생002", { exact: true })).toHaveCount(0);
 });
 
 test("낮은 모바일 화면·다크 테마에서도 선택과 저장 버튼에 접근한다", async ({ page }, info) => {
