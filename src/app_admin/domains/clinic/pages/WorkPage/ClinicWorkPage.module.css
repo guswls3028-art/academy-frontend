@@ -72,7 +72,11 @@
 @media (max-width: 520px) {
   .switcher { padding: 14px; }
   .switcherButtons { width: 100%; }
-  .switcherButtons button { flex: 1; }
+  .switcherButtons button { flex: 1; word-break: keep-all; }
+  .switcherButtons:has(> button:nth-child(4)) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
