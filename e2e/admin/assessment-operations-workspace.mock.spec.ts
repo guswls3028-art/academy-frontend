@@ -622,13 +622,13 @@ test("0점 합격 기준을 저장하고 서버 필드 오류를 입력값과 �
 
   await openExam(page, state);
   await expect(page.getByLabel("합격 기준")).toHaveValue("0");
-  await page.getByLabel("만점").fill("16");
+  await page.getByLabel("만점", { exact: true }).fill("16");
   await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
 
   await expect.poll(() => state.examPatchPayloads.length).toBe(1);
   expect(state.examPatchPayloads[0]).toEqual({ max_score: 16 });
   expect(state.exam.pass_score).toBe(0);
-  await expect(page.getByLabel("만점")).toHaveValue("16");
+  await expect(page.getByLabel("만점", { exact: true })).toHaveValue("16");
   await openAssessmentWorkAction(page, "results", "regrade");
   await expect(page.getByRole("button", { name: "전체 재채점", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
@@ -652,13 +652,13 @@ test("0점 합격 기준을 저장하고 서버 필드 오류를 입력값과 �
   };
   await openAssessmentWorkAction(page, "policy", "settings");
   await page.locator("#assessment-policy > details > summary").click();
-  await page.getByLabel("만점").fill("17");
+  await page.getByLabel("만점", { exact: true }).fill("17");
   await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
 
   const fieldError = page.locator("#assessment-policy").getByRole("alert");
   await expect(fieldError).toHaveText("문항 배점 합계와 만점이 일치하지 않습니다.");
   await expect(fieldError).toBeInViewport({ ratio: 1 });
-  await expect(page.getByLabel("만점")).toHaveValue("17");
+  await expect(page.getByLabel("만점", { exact: true })).toHaveValue("17");
   expect(state.exam.max_score).toBe(16);
 });
 

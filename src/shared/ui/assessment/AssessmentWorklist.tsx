@@ -44,13 +44,13 @@ export default function AssessmentWorklist({ label, stages, selection, select }:
           return (
             <li key={stage.id} data-stage={stage.id} className={styles.row} data-open={open}>
               <h3 className={styles.heading}>
-                <button type="button" id={headingId} className={styles.toggle}
+                <button type="button" className={styles.toggle} aria-labelledby={headingId} aria-describedby={headingId + "-summary"}
                   data-testid={"assessment-step-" + stage.id} aria-expanded={open} aria-controls={headingId + "-body"}
                   onClick={() => select({ step: open ? null : stage.id })}>
                   <span className={styles.number} aria-hidden>{index + 1}</span>
                   <span className={styles.copy}>
-                    <span className={styles.name}>{stage.title}{stage.status && <Badge size="sm" tone={stage.status.tone}>{stage.status.label}</Badge>}<ChevronDown size={ICON.sm} aria-hidden /></span>
-                    <span className={styles.summary}>{stage.summary}</span>
+                    <span id={headingId} className={styles.name}>{stage.title}{stage.status && <Badge size="sm" tone={stage.status.tone}>{stage.status.label}</Badge>}<ChevronDown size={ICON.sm} aria-hidden /></span>
+                    <span id={headingId + "-summary"} className={styles.summary}>{stage.summary}</span>
                   </span>
                 </button>
               </h3>
