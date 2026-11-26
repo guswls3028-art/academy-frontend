@@ -858,7 +858,7 @@ test.describe("student video playback grant renewal continuity", () => {
     await cycleDocumentVisibility(page);
     await expect.poll(() => refreshedTokens).toContain("renewed-playback-token");
 
-    await page.getByRole("link", { name: "학생 대시보드로 이동" }).click();
+    await page.getByTestId("stu-topbar-brand-home").click();
     await expect(page).toHaveURL(/\/student\/dashboard$/);
     await expect(page.locator(".vpp-root")).toHaveCount(0);
     const staleGrantGcEndsAt = Date.now() + 100;
@@ -880,7 +880,7 @@ test.describe("student video playback grant renewal continuity", () => {
       },
     );
 
-    await page.getByRole("link", { name: "학생 대시보드로 이동" }).click();
+    await page.getByTestId("stu-topbar-brand-home").click();
     await expect(page).toHaveURL(/\/student\/dashboard$/);
     await expect(page.locator(".vpp-root")).toHaveCount(0);
     const failedGrantGcEndsAt = Date.now() + 100;

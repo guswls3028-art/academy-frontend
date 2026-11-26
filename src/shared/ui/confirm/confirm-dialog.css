@@ -3,11 +3,6 @@
   to { opacity: 1; }
 }
 
-@keyframes confirm-scale-in {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
 /* 드래그 핸들 */
 .confirm-drag-handle {
   cursor: grab;
@@ -43,15 +38,16 @@
   padding: var(--space-6, 24px);
   background: var(--color-bg-surface, #fff);
   border-radius: var(--radius-lg, 14px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
-  animation: confirm-scale-in 150ms ease-out;
+  border: 1px solid var(--color-border-divider);
+  box-shadow: var(--ds-shadow-lg);
+  animation: confirm-fade-in 150ms ease-out;
 }
 
 .confirm-dialog__title {
   margin: 0;
   color: var(--color-text-primary, #111);
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: var(--font-semibold);
   line-height: 1.4;
 }
 
@@ -76,7 +72,7 @@
   flex: 0 0 42px;
   color: var(--color-brand-primary, #6366f1);
   border: 1px solid color-mix(in srgb, var(--color-brand-primary, #6366f1) 28%, transparent);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--color-brand-primary, #6366f1) 8%, var(--color-bg-surface, #fff));
 }
 
@@ -85,7 +81,7 @@
   margin-bottom: 2px;
   color: var(--color-brand-primary, #6366f1);
   font-size: 11px;
-  font-weight: 750;
+  font-weight: var(--font-semibold);
   line-height: 1.35;
   letter-spacing: 0.06em;
 }
@@ -110,7 +106,7 @@
   overflow: hidden;
   margin: 0;
   border: 1px solid var(--color-border-divider, #e5e7eb);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--color-bg-surface-soft, #f8fafc);
 }
 
@@ -148,7 +144,7 @@
 
 .confirm-dialog__review-row[data-tone="accent"] dd {
   color: var(--color-brand-primary, #6366f1);
-  font-weight: 750;
+  font-weight: var(--font-semibold);
 }
 
 .confirm-dialog__review-row[data-tone="warning"] dd {
@@ -185,7 +181,10 @@
 .confirm-dialog__actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: var(--space-2, 8px);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border-divider);
 }
 
 .confirm-dialog__button {
@@ -196,7 +195,9 @@
   font-weight: 600;
   line-height: 1.4;
   text-align: center;
-  white-space: nowrap;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
   border: 0;
   border-radius: var(--radius-md, 8px);
   cursor: pointer;

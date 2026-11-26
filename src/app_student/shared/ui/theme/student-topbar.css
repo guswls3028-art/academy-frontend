@@ -2,7 +2,7 @@
  * 학생앱 상단바 프로필 드롭다운 — stu-* 토큰 기준
  */
 
-/* 헤더 아이콘 액션 버튼 SSOT (햄버거 / 홈 / 알림 종)
+/* 헤더 아이콘 액션 버튼 SSOT (햄버거 / 알림 종)
  * — width/height 토큰화하여 inline 사이즈 박지 않도록 */
 .stu-topbar__iconBtn {
   width: 44px;
@@ -45,18 +45,30 @@
   line-height: 1;
 }
 
-/* 좌측 아이콘 그룹 (햄버거 + 홈) — 로고와 시각적 분리 */
-.stu-topbar__iconGroup {
-  display: inline-flex;
+.stu-topbar__brandGroup {
+  display: flex;
   align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: var(--stu-space-2);
 }
 
 .stu-topbar__home-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex: 1 1 auto;
   min-width: 0;
+  min-height: 44px;
+  max-width: min(44vw, 240px);
   overflow: hidden;
+  color: var(--stu-text);
+  text-decoration: none;
+}
+
+.stu-topbar__home-link:focus-visible {
+  outline: 2px solid var(--stu-primary);
+  outline-offset: -2px;
 }
 
 .stu-topbar__home-link .stu-topbar__logo {
@@ -75,7 +87,7 @@
       var(--tenant-header-surface-soft) 70%,
       var(--tenant-header-edge, transparent) 100%
     );
-  border-radius: 11px;
+  border-radius: var(--stu-radius-sm);
   color: var(--tenant-header-foreground);
   isolation: isolate;
 }
@@ -129,7 +141,7 @@
   max-width: calc(100vw - 32px);
   padding: var(--stu-space-2);
   background: var(--stu-surface-1);
-  border-radius: var(--stu-radius-xl);
+  border-radius: var(--stu-radius-md);
   box-shadow: var(--stu-shadow-2);
   border: 1px solid var(--stu-border);
 }

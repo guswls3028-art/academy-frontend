@@ -10,11 +10,11 @@
   --ds-space-8: 32px;
   --ds-space-10: 40px;
   --ds-space-12: 48px;
-  --ds-radius-sm: 6px;
-  --ds-radius-md: 10px;
-  --ds-radius-lg: 14px;
-  --ds-radius-xl: 20px;
-  --ds-radius-2xl: 22px;
+  --ds-radius-sm: 4px;
+  --ds-radius-md: 6px;
+  --ds-radius-lg: 8px;
+  --ds-radius-xl: 10px;
+  --ds-radius-2xl: 12px;
   --ds-radius-full: 9999px;
   --ds-text-xs: 12px;
   --ds-text-sm: 13px;

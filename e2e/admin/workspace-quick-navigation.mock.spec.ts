@@ -313,6 +313,8 @@ test.describe("업무 화면 기능 검색", () => {
       if (width === 390) await mobileMenu.click();
       await expect(learning).toHaveAttribute("aria-expanded", "true");
       await expect(exam).toHaveAttribute("aria-current", "page");
+      await expect(menu.locator(".nav-item.active:visible")).toHaveCount(1);
+      await expect(exam).toHaveClass(/active/);
       if (width === 390) await page.keyboard.press("Escape");
       await page.getByRole("navigation", { name: "상위 경로" }).getByRole("link", { name: "학습·운영", exact: true }).click();
       await expect(page).toHaveURL(/\/workspace\/learning$/);

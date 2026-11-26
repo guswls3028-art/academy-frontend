@@ -1,6 +1,6 @@
 .preview {
   display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px;
-  margin: 10px 0; padding: 8px 12px; border: 1px solid var(--stu-border); border-radius: 12px;
+  margin: 10px 0; padding: 8px 12px; border: 1px solid var(--stu-border); border-radius: var(--stu-radius-md);
   background: var(--stu-surface); color: var(--stu-text); text-align: left; cursor: pointer;
 }
 .previewHeading { display: flex; align-items: center; gap: 5px; flex: none; font-weight: 700; }
@@ -9,8 +9,8 @@
 .overlay[hidden] { display: none; }
 .section {
   width: min(100%, 720px); max-height: 76dvh; overflow-y: auto; overscroll-behavior: contain;
-  padding: 0 16px calc(16px + env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0;
-  background: var(--stu-surface); color: var(--stu-text); box-shadow: 0 -8px 30px rgb(0 0 0 / 16%);
+  padding: 0 16px calc(16px + env(safe-area-inset-bottom)); border-radius: var(--stu-radius-lg) var(--stu-radius-lg) 0 0;
+  background: var(--stu-surface); color: var(--stu-text); box-shadow: var(--stu-shadow-2);
 }
 .close { display: grid; width: 44px; height: 44px; place-items: center; color: inherit; border: 0; background: transparent; cursor: pointer; }
 .preview:focus-visible, .close:focus-visible { outline: 2px solid var(--stu-primary); outline-offset: -2px; }
@@ -25,7 +25,8 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--stu-space-3);
-  margin-bottom: 14px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--stu-border);
 }
 
 .headerTitleGroup {
@@ -50,8 +51,9 @@
 .title {
   margin: 0;
   color: var(--stu-text);
-  font-size: 17px;
-  font-weight: 850;
+  font-size: 16px;
+  line-height: 1.4;
+  font-weight: 700;
   letter-spacing: 0;
 }
 
@@ -64,14 +66,13 @@
   padding: 0 8px;
   color: var(--stu-primary);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 700;
   background: color-mix(in srgb, var(--stu-primary) 9%, transparent);
   border-radius: 999px;
 }
 
 .commentList {
   margin-top: 2px;
-  border-top: 1px solid color-mix(in srgb, var(--stu-primary) 8%, var(--stu-border));
 }
 
 .commentRow {
@@ -136,7 +137,7 @@
 .avatarInitial {
   color: var(--stu-primary);
   font-size: 14px;
-  font-weight: 850;
+  font-weight: 700;
 }
 
 .avatarCompact .avatarInitial {
@@ -165,7 +166,7 @@
   padding: 2px 7px;
   color: var(--stu-primary-contrast);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 600;
   background: var(--stu-primary);
   border-radius: 999px;
 }
@@ -207,7 +208,7 @@
   resize: vertical;
   background: color-mix(in srgb, var(--stu-surface-soft) 82%, white);
   border: 1px solid color-mix(in srgb, var(--stu-primary) 12%, var(--stu-border));
-  border-radius: 12px;
+  border-radius: var(--stu-radius-md);
 }
 
 .section .editInput:focus {
@@ -227,11 +228,11 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 32px;
+  min-height: var(--ds-control-sm);
   padding: 6px 11px;
   font-size: 12px;
-  font-weight: 800;
-  border-radius: 999px;
+  font-weight: 600;
+  border-radius: var(--stu-radius-sm);
   cursor: pointer;
 }
 
@@ -300,7 +301,7 @@
   gap: 4px;
   color: var(--stu-primary);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
   padding: 4px 9px;
   border-radius: 999px;
 }
@@ -320,7 +321,7 @@
   padding: 6px 8px 6px 10px;
   color: var(--stu-primary);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
   background: color-mix(in srgb, var(--stu-primary) 8%, transparent);
   border: 1px solid color-mix(in srgb, var(--stu-primary) 14%, transparent);
   border-radius: 999px;
@@ -356,7 +357,7 @@
   place-items: center;
   color: var(--stu-primary);
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 700;
   background: color-mix(in srgb, var(--stu-primary) 8%, var(--stu-surface));
   border: 1px solid color-mix(in srgb, var(--stu-primary) 14%, var(--stu-border));
   border-radius: 50%;
@@ -368,7 +369,7 @@
   overflow: hidden;
   background: color-mix(in srgb, var(--stu-surface-soft) 72%, white);
   border: 1px solid color-mix(in srgb, var(--stu-primary) 12%, var(--stu-border));
-  border-radius: 14px;
+  border-radius: var(--stu-radius-md);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.68) inset;
 }
 
@@ -413,14 +414,14 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  min-height: 34px;
+  min-height: var(--ds-control-md);
   padding: 7px 12px;
   color: var(--stu-text-subtle);
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 700;
   background: color-mix(in srgb, var(--stu-text-subtle) 8%, transparent);
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--stu-radius-sm);
   opacity: 0.62;
   cursor: pointer;
 }
@@ -458,9 +459,14 @@
 }
 
 @media (max-width: 480px) {
+  .section .textarea,
+  .section .editInput {
+    font-size: var(--ds-field-font);
+  }
+
   .section {
     padding-inline: 12px;
-    border-radius: 14px 14px 0 0;
+    border-radius: var(--stu-radius-lg) var(--stu-radius-lg) 0 0;
   }
 
   .composerBody {

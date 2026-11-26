@@ -660,8 +660,31 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
         await expect(page).toHaveURL(homeworkSummaryUrl);
         await expect(page.getByText("확인할 과제가 없습니다.", { exact: true })).toBeVisible();
         await expect(page.getByText(/모든 과제를 완료했습니다/)).toBeVisible();
-        await page.getByRole("link", { name: "학생 대시보드로 이동", exact: true }).click();
+        const brandHome = page.getByTestId("stu-topbar-brand-home");
+        await expect(page.locator('.stu-topbar a[href="/student/dashboard"]')).toHaveCount(1);
+        await expect(brandHome).toHaveAccessibleName(/.+ 홈$/);
+        await expect(brandHome).toHaveAttribute("href", "/student/dashboard");
+        const target = await brandHome.boundingBox();
+        expect(target?.height).toBeGreaterThanOrEqual(44);
+        if (width === 390) {
+          await brandHome.click();
+        } else {
+          await brandHome.focus();
+          await brandHome.press("Enter");
+        }
         await expect(page).toHaveURL(/\/student\/dashboard/);
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(brandHome).toBeVisible();
+        const learning = page.getByRole("region", { name: "학습 현황", exact: true });
+        await expect(learning.getByRole("link", { name: /과제 통과/ })).toHaveAttribute("href", "/student/grades?view=homework");
+        if (viewer === "parent") {
+          const selectedChild = page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김첫째" });
+          await expect(selectedChild).toHaveAttribute("aria-selected", "true");
+        }
+        await testInfo.attach(`branded-home-${viewer}-${width}.png`, {
+          body: await page.screenshot({ animations: "disabled" }),
+          contentType: "image/png",
+        });
         await page.goBack();
         await expect(page).toHaveURL(homeworkSummaryUrl);
         await expect(page.getByRole("tab", { name: "요약", exact: true })).toHaveAttribute("aria-selected", "true");
