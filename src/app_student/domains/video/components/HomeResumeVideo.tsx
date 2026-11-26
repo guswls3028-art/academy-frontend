@@ -7,7 +7,7 @@ import { studentVideoQueryScope, studentVideoQueryKeys } from "../queryKeys";
 import { readRecentStudentVideo } from "../utils/recentStudentVideo";
 import { canPlayStudentVideo, isStudentVideoComplete } from "../utils/videoAccess";
 import { getVideoResumePosition } from "../utils/videoPlaybackStorage";
-import { formatDuration } from "../utils/format";
+import { formatDurationDetailed } from "../utils/format";
 import styles from "../../dashboard/pages/DashboardPage.module.css";
 
 export default function HomeResumeVideo() {
@@ -33,7 +33,7 @@ export default function HomeResumeVideo() {
   if (last.enrollmentId !== null) query.set("enrollment", String(last.enrollmentId));
   return <section className={styles.homeAction} aria-label="이어서 보기">
     <div className={styles.actionLabel}>이어서 보기</div>
-    <h2>{video.title}</h2><p>{formatDuration(position)}부터{video.duration ? ` · 전체 ${formatDuration(video.duration)}` : ""}</p>
+    <h2>{video.title}</h2><p>{formatDurationDetailed(position)}부터{video.duration ? ` · 전체 ${formatDurationDetailed(video.duration)}` : ""}</p>
     <Link className={styles.actionLink} to={`/student/video/play?${query}`}>이어서 재생</Link>
   </section>;
 }

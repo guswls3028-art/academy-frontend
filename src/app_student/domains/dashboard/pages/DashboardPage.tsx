@@ -619,6 +619,14 @@ export default function DashboardPage() {
           <QuickAction to="/student/submit/assignment" icon={<IconClipboard />} label="과제 사진 제출" detail="사진 찍기·앨범에서 선택" />
           <QuickAction to="/student/submit" icon={<IconFolder />} label="자료 제출·확인" detail="과제·성적표·설문" wideOnMobile />
           <QuickAction to="/student/qna" icon={<IconBoard />} state={{ openQnaForm: true }} label="질문하기" detail="선생님께 질문" />
+          <QuickAction to="/student/community" icon={<IconBell />}
+            state={{ tab: (notificationCounts?.counsel ?? 0) > (notificationCounts?.qna ?? 0) ? "counsel" : "qna" }}
+            label="답변 보기" detail={countsLoading ? "확인 중" : countsError ? "확인 실패" : "답변 확인"}
+            badge={countsLoading || countsError ? undefined : replyCount} />
+          <QuickAction to="/student/clinic" icon={<IconClinic />} label="클리닉" detail="예약·일정"
+            badge={countsLoading || countsError ? undefined : notificationCounts?.clinic} />
+          <QuickAction to="/student/grades" icon={<IconGrade />} label="성적" detail="시험·과제 결과"
+            badge={countsLoading || countsError ? undefined : notificationCounts?.grade} />
           <QuickAction to="/student/community?tab=materials" icon={<IconFolder />} label="자료실" detail="수업 자료 받기" />
           <QuickAction to="/student/community?tab=board" icon={<IconBoard />} label="게시판" detail="학원 게시글 보기" />
           <QuickAction to="/student/idcard" icon={<IconClinic />}

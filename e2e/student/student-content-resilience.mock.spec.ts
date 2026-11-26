@@ -1893,6 +1893,46 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
     await expect(page.getByText("오늘은 급한 일이 없어요", { exact: true })).toHaveCount(0);
   });
 
+  test("홈은 이 학생의 재생 가능한 영상만 이어보기로 열고 완료·접근 변경을 반영한다", async ({ page }) => {
+    await installStudentApi(page);
+    let completed = false;
+    let blocked = false;
+    let playbackRequests = 0;
+    page.on("request", request => {
+      if (new URL(request.url()).pathname.endsWith("/501/playback/")) playbackRequests++;
+    });
+    await page.route("**/student/video/sessions/24/videos/**", route => route.fulfill({ json: { items: [{
+      id: 501, title: "이어볼 강의", session_id: 24, enrollment_id: 301, duration: 420,
+      last_position: 82, completed, status: "READY", access_mode: blocked ? "BLOCKED" : "FREE_REVIEW",
+    }] } }));
+    await page.goto(`${BASE}/student/dashboard`);
+    const resume = page.getByRole("region", { name: "이어서 보기" });
+    await page.evaluate(() => {
+      const raw = JSON.stringify({ videoId: 501, sessionId: 24, enrollmentId: 301, position: 82, savedAt: Date.now() });
+      localStorage.setItem("student-recent-lesson-video:hakwonplus:user:99", raw);
+    });
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "오늘", exact: true })).toBeVisible();
+    await expect(resume).toHaveCount(0);
+    await page.evaluate(() => localStorage.setItem("student-recent-lesson-video:hakwonplus:user:11",
+      localStorage.getItem("student-recent-lesson-video:hakwonplus:user:99")!));
+    await page.reload();
+    await expect(resume).toContainText("1:22");
+    expect(playbackRequests).toBe(0);
+    await resume.getByRole("link", { name: "이어서 재생" }).click();
+    await expect(page).toHaveURL(/video\/play\?video=501&session=24&enrollment=301$/);
+    await expect.poll(() => playbackRequests).toBe(1);
+    for (const state of ["completed", "blocked"]) {
+      completed = state === "completed";
+      blocked = state === "blocked";
+      const loaded = page.waitForResponse(r => new URL(r.url()).pathname.endsWith("/sessions/24/videos/"));
+      await page.goto(`${BASE}/student/dashboard`);
+      await loaded;
+      await expect(page.getByRole("heading", { name: "오늘", exact: true })).toBeVisible();
+      await expect(resume).toHaveCount(0);
+    }
+  });
+
   test("강의 탭에서 공지를 발견하고 선택한 강의 범위로 바로 연다", async ({ page }, testInfo) => {
     test.setTimeout(5 * 60_000);
     await installStudentApi(page, { lectureNotices: true });
