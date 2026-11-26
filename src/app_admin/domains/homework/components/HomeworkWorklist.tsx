@@ -17,8 +17,8 @@ export default function HomeworkWorklist({ homework, selection, select }: {
 }) {
   const homeworkId = homework.id;
   const assignments = useHomeworkAssignments(homeworkId);
-  const audience = assignments.isError ? "대상 학생 조회 실패"
-    : assignments.data ? `배정 학생 ${assignments.data.selected_ids.length}명` : "대상 학생 확인 중";
+  const audience = assignments.isPending ? "대상 학생 확인 중"
+    : !assignments.isError && Array.isArray(assignments.data?.selected_ids) ? `배정 학생 ${assignments.data.selected_ids.length}명` : "대상 학생 조회 실패";
   const maxScore = homework.max_score ?? homework.default_max_score;
   const inspect = homework.homework_type !== "template" && homework.session_id
     ? <HomeworkInspectionEntry sessionId={homework.session_id} homeworkId={homeworkId} title={homework.title} />

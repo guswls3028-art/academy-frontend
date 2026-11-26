@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { Button, ICON } from "@/shared/ui/ds";
 import type { WorkSelection, WorkStep } from "./useAssessmentWorklist";
@@ -18,9 +18,23 @@ export default function AssessmentWorklist({ label, stages, selection, select }:
   select: (next: WorkSelection) => void;
 }) {
   const id = useId();
+  const listRef = useRef<HTMLOListElement>(null);
+  const previous = useRef(selection);
+  useEffect(() => {
+    const { step, action } = selection;
+    if (previous.current.step === step && previous.current.action === action) return;
+    previous.current = selection;
+    if (!step) return;
+    const row = listRef.current?.querySelector<HTMLElement>(`[data-stage="${step}"]`);
+    if (!row || row.contains(document.activeElement)) return;
+    const target = row.querySelector<HTMLButtonElement>('button[aria-pressed="true"]')
+      ?? row.querySelector<HTMLButtonElement>("h3 button");
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView({ block: "nearest" });
+  }, [selection]);
   return (
     <nav aria-label={label} className={styles.workspace}>
-      <ol className={styles.list}>
+      <ol ref={listRef} className={styles.list}>
         {stages.map((stage, index) => {
           const open = selection.step === stage.id;
           const active = open ? stage.actions.find(action => action.id === selection.action) : undefined;

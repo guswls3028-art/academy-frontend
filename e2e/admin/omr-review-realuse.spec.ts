@@ -958,6 +958,7 @@ async function verifyChangedAnswerAndMaximum(
     }
     await loginBrowserAsRealUser(page, setupPath, { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
 
+    await openAssessmentWorkAction(page, "results", "regrade");
     await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
     const recalculated = page.waitForResponse((response) => matchesApiResponse(response, "POST", `/exams/${created.examId}/recalculate/`), { timeout: 90_000 });
     await page.getByRole("alertdialog", { name: "시험 전체 재채점" }).getByRole("button", { name: "재채점 실행", exact: true }).click();
@@ -1995,6 +1996,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await gotoAndSettle(page,
       `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`,
       { timeout: 30_000 });
+    await openAssessmentWorkAction(page, "results", "regrade");
     await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
     const recalculateResponse = page.waitForResponse((response) =>
       response.request().method() === "POST" &&

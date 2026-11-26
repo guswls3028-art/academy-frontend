@@ -213,6 +213,14 @@ async function installApi(page: Page, state: MockState) {
     if (state.secondExam && path === `/exams/${EXAM_ID + 1}/questions/`) {
       return json(examQuestions);
     }
+    if (state.examResult && path === `/results/admin/exams/${EXAM_ID}/analysis-insights/`) {
+      return json({ scored_count: 1, recommended_cutoff: 85, below_recommended_count: 0, trends: [], trend_threshold_pp: 10,
+        score_summary: { average: 85, median: 85, top_ten_average: 85, highest: 85, std_dev: 0, std_rate: 0,
+          unscored_count: 0, pass_criterion_count: 1, pass_count: 1, remediated_count: 0, distribution_counts: [0, 0, 0, 0, 1] } });
+    }
+    if (state.examResult && path === `/results/admin/exams/${EXAM_ID}/questions/`) {
+      return json([{ question_id: 1, question_number: 1, attempts: 1, correct: 1, avg_score: 5, accuracy: 1 }]);
+    }
     if (state.examResult && path === `/results/admin/exams/${EXAM_ID}/results/`) {
       return json([state.examResult]);
     }
@@ -696,13 +704,18 @@ for (const width of [1366, 1100, 390]) {
   test(`@assessment-workspace-layout ${width}px 시험 목록과 작업 영역을 배치하고 선택을 복원한다`, async ({ page }, testInfo) => {
     const state = recoveryExamState();
     state.exam.title = "수학 기초 개념과 서술형 풀이 과정을 함께 확인하는 평가";
+    state.examResult = examResultState("continuous").examResult;
     state.secondExam = { ...state.exam, id: EXAM_ID + 1, title: "다음 평가", pass_score: 65 };
     await page.setViewportSize({ width, height: 900 });
     await openExam(page, state);
     const workflow = page.getByRole("navigation", { name: "시험 업무 흐름" });
     await expect(workflow.locator("ol > li > h3 > button")).toHaveCount(5);
     await openAssessmentWorkAction(page, "results", "analysis");
-    await expect(page.getByRole("heading", { name: "시험 성적 분석", exact: true })).toBeVisible();
+    const analysis = page.getByRole("region", { name: "시험 성적 분석", exact: true });
+    await expect(analysis.getByRole("heading", { name: "시험 성적 분석", exact: true })).toBeVisible();
+    await expect(analysis).toContainText("85.0점");
+    await analysis.getByText("전체 문항 통계 보기", { exact: true }).click();
+    await expect(analysis.getByRole("cell", { name: "100.0%", exact: true })).toBeVisible();
     await expect(page.getByRole("region", { name: "시험 학생별 결과" })).toBeVisible();
     await page.getByTestId("assessment-step-submissions").click();
     await expect(page.getByTestId("assessment-action-submissions")).toBeVisible();

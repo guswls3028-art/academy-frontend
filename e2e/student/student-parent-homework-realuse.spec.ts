@@ -326,7 +326,7 @@ async function verifyHomeworkFeedback(
         checkpoint.phase = "feedback-results";
         await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/assignments?homeworkId=${completion.id}`);
         await expect(staffPage.getByRole("heading", { name: completionTitle, exact: true })).toBeVisible();
-        await staffPage.getByRole("tab", { name: "결과", exact: true }).click();
+        await openAssessmentWorkAction(staffPage, "results", "results");
         const resultTable = staffPage.getByRole("table");
         const resultRow = resultTable.getByRole("row").filter({ hasText: studentName });
         const completionMark = width === 1366 ? "O" : "X";
@@ -341,7 +341,7 @@ async function verifyHomeworkFeedback(
         await assertNoHorizontalOverflow(staffPage);
         await staffPage.screenshot({ path: test.info().outputPath(`real-homework-result-${width}.png`), animations: "disabled" });
         await staffPage.reload();
-        await staffPage.getByRole("tab", { name: "결과", exact: true }).click();
+        await openAssessmentWorkAction(staffPage, "results", "results");
         await expect(completionCell).toBeVisible();
         checkpoint.phase = "feedback-restore-order";
         await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);

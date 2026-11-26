@@ -22,8 +22,8 @@ export default function ExamWorklist({ exam, sessionId, lectureId, selection, se
 }) {
   const examId = exam.id;
   const enrollment = useExamEnrollmentRows(examId, sessionId ?? undefined);
-  const audience = enrollment.isError ? "대상 학생 조회 실패"
-    : enrollment.data ? `응시 대상 ${enrollment.data.items.filter(row => row.is_selected).length}명` : "대상 학생 확인 중";
+  const audience = enrollment.isPending ? "대상 학생 확인 중"
+    : !enrollment.isError && Array.isArray(enrollment.data?.items) ? `응시 대상 ${enrollment.data.items.filter(row => row.is_selected).length}명` : "대상 학생 조회 실패";
   const openPolicy = () => select({ step: "policy", action: "settings" });
   const openReadinessItem = (target: string) => {
     if (target === "assessment-audience") select({ step: "audience", action: "students" });
@@ -42,8 +42,8 @@ export default function ExamWorklist({ exam, sessionId, lectureId, selection, se
       { id: "source", label: "시험지·해설 관리", content: <ExamAssetsPanel examId={examId} /> },
     ] },
     { id: "policy", title: "문항·채점 기준", summary: `만점 ${exam.max_score}점 · 합격 ${exam.pass_score}점 · 학생 성적 ${exam.student_results_published ? "공개" : "비공개"}`, actions: [
-      { id: "settings", label: "점수·공개 설정", content: <ExamSetupPanel examId={examId} section="policy" onNavigate={openReadinessItem} /> },
-      { id: "answers", label: "문항·정답표", content: <ExamSetupPanel examId={examId} section="answers" /> },
+      { id: "settings", label: "점수·공개 설정", content: <ExamSetupPanel key="settings" examId={examId} section="policy" onNavigate={openReadinessItem} /> },
+      { id: "answers", label: "문항·정답표", content: <ExamSetupPanel key="answers" examId={examId} section="answers" /> },
     ] },
     { id: "submissions", title: "답안 제출 확인", summary: "학생별 제출 현황 · OMR 업로드 내역", actions: [
       { id: "submissions", label: "제출 현황 보기", content: <ExamSubmissionsPanel examId={examId} sessionId={sessionId} /> },

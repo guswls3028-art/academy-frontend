@@ -582,7 +582,7 @@ for (const width of [1366, 1100, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await installApi(page, "submitted", false, { resultMode: "COMPLETION", resultScores: [1, 0, null, null] });
     await openSubmissionReview(page);
-    await page.getByRole("tab", { name: "결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     const table = page.getByRole("table");
     await expect(table.getByRole("columnheader", { name: "O/X", exact: true })).toBeVisible();
     await expect(page.getByText("점수 분포 (%)", { exact: true })).toHaveCount(0);
@@ -621,7 +621,7 @@ for (const width of [1366, 1100, 390]) {
     await expect(detailButton).toBeFocused();
     await page.reload({ waitUntil: "domcontentloaded" });
     await waitForRenderSettled(page, { timeout: 20_000 });
-    await page.getByRole("tab", { name: "결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     await expect(page.getByRole("table").getByRole("row").filter({ hasText: "결과학생2" }).locator("td").nth(2)).toHaveText("X");
   });
 }
@@ -637,7 +637,7 @@ test("@homework-results 390px 과제 상세를 열어도 화면에 가로 스크
   await installApi(page, "submitted", false, { resultMode: "COMPLETION", resultScores: [0, 1], resultTitles, resultNames });
   await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/assignments?homeworkId=${HOMEWORK_ID}`);
   await expect(page.getByRole("heading", { name: resultTitles.homework, exact: true })).toBeVisible();
-  await page.getByRole("tab", { name: "결과", exact: true }).click();
+  await openAssessmentWorkAction(page, "results", "results");
   const student = resultNames[0];
   const detailButton = page.getByRole("button", { name: `${student} 결과 상세`, exact: true });
   const detail = page.getByRole("dialog", { name: `${student} 과제 결과`, exact: true });
@@ -663,7 +663,7 @@ test("@homework-results 점수형 소수점 경계는 분포에서 누락되지 
   await page.setViewportSize({ width: 390, height: 900 });
   await installApi(page, "submitted", false, { resultMode: "SCORE", resultScores: [0, 20, 20.5, 40, 40.5, 60, 60.5, 80, 80.5, 100] });
   await openSubmissionReview(page);
-  await page.getByRole("tab", { name: "결과", exact: true }).click();
+  await openAssessmentWorkAction(page, "results", "results");
   const distributionTitle = page.getByText("점수 분포 (%)", { exact: true });
   await expect(distributionTitle).toBeHidden();
   await page.getByText("과제 통계", { exact: true }).click();
@@ -689,7 +689,7 @@ test("@homework-results 점수형 소수점 경계는 분포에서 누락되지 
 test("@homework-results 전원 미입력은 제출률100% 대신 실제 입력 현황을 표시한다", async ({ page }) => {
   await installApi(page, "submitted", false, { resultMode: "SCORE", resultScores: [null, null, null] });
   await openSubmissionReview(page);
-  await page.getByRole("tab", { name: "결과", exact: true }).click();
+  await openAssessmentWorkAction(page, "results", "results");
   await page.getByText("과제 통계", { exact: true }).click();
   await expect(page.getByText("미입력 3명 · 미제출 처리 0명 · 채점 입력 0명", { exact: true })).toBeVisible();
   await expect(page.getByText(/제출률/)).toHaveCount(0);
@@ -720,7 +720,7 @@ test("@homework-results 워크북 채점표를 열고 저장한 표시를 다시
     } });
   });
   await openSubmissionReview(page);
-  await page.getByRole("tab", { name: "결과", exact: true }).click();
+  await openAssessmentWorkAction(page, "results", "results");
   const ledger = page.locator("summary").filter({ hasText: "워크북 문항 채점표" });
   const mark = page.getByRole("combobox", { name: "결과학생1 1번 채점", exact: true });
   await expect(ledger).toBeVisible();
@@ -738,7 +738,7 @@ test("@homework-results 워크북 채점표를 열고 저장한 표시를 다시
   expect(readCount).toBe(1);
   await page.reload({ waitUntil: "domcontentloaded" });
   await waitForRenderSettled(page, { timeout: 20_000 });
-  await page.getByRole("tab", { name: "결과", exact: true }).click();
+  await openAssessmentWorkAction(page, "results", "results");
   await expect(mark).toHaveCount(0);
   await ledger.click();
   await expect(mark).toHaveValue("wrong");

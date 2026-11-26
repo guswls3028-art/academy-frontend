@@ -1790,6 +1790,28 @@ test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에�
     { waitUntil: "domcontentloaded" },
   );
 
+  const worklist = page.getByRole("navigation", { name: "과제 업무 흐름" });
+  const selector = page.getByTestId("session-assessment-remote");
+  for (const width of [1366, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    const rows = worklist.getByRole("heading", { level: 3 });
+    await expect(rows).toHaveCount(5);
+    await expect(rows).toHaveText([/과제 대상/, /과제 자료/, /제출기한·평가 기준/, /과제 제출 확인/, /평가·결과/]);
+    const submissionRow = worklist.locator('[data-stage="submissions"]');
+    const submissionAction = submissionRow.getByTestId("assessment-action-submissions");
+    await expect(submissionAction).toHaveAttribute("aria-pressed", "false");
+    const pickerBox = (await selector.boundingBox())!;
+    const listBox = (await worklist.boundingBox())!;
+    const rowBox = (await submissionRow.boundingBox())!;
+    const actionBox = (await submissionAction.boundingBox())!;
+    if (width === 1366) expect(pickerBox.x + pickerBox.width).toBeLessThanOrEqual(listBox.x);
+    else expect(pickerBox.y + pickerBox.height).toBeLessThanOrEqual(listBox.y);
+    expect(actionBox.x).toBeGreaterThanOrEqual(rowBox.x);
+    expect(actionBox.x + actionBox.width).toBeLessThanOrEqual(rowBox.x + rowBox.width + 1);
+    expect(actionBox.y + actionBox.height).toBeLessThanOrEqual(rowBox.y + rowBox.height + 1);
+    await worklist.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath(`homework-worklist-${width}.png`), fullPage: true });
+  }
   await openAssessmentWorkAction(page, "policy", "settings");
   await expect(page.locator('[aria-label="과제 운영 준비"]')).toBeVisible();
   await page.setViewportSize({ width: 1366, height: 900 });
@@ -1832,6 +1854,7 @@ test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에�
   await homeworkPicker.selectOption("9961");
   await page.reload();
   await expect(homeworkPicker).toHaveValue("9961");
+  await openAssessmentWorkAction(page, "policy", "settings");
   await expect(page.getByLabel("합격 기준 (점)")).toHaveValue("17");
   await expect.poll(() => primaryAction.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
   expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)).toBe(false);
