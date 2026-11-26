@@ -24,6 +24,11 @@ export default function OmrEssayScoreMarksOption({ marks }: {
           </button>
         ))}
       </div>
+      {marks.grid === "exam" && <details className={styles.optionHelp}>
+        <summary>9점 이상 표시하는 법</summary>
+        합이 되도록 숫자를 칠하세요(15점 = 7+8). 소수나 {marks.maxScore}점을 넘는 점수는 채점표에 직접 입력하세요.
+      </details>}
+      {marks.enableScanning && <Button type="button" disabled={marks.busy} onClick={marks.enableScanning}>스캔 점수 제안 켜기</Button>}
       {marks.readError && <Button type="button" onClick={marks.retry}>다시 불러오기</Button>}
       {marks.canPrintOnce && <Button type="button" onClick={marks.printOnce}>이번 답안지에만 인쇄</Button>}
       {marks.clearSaved && <Button type="button" disabled={marks.busy} onClick={marks.clearSaved}>저장된 스캔 설정 끄기</Button>}

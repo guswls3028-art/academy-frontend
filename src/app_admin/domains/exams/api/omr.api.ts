@@ -21,7 +21,7 @@ export type OMRDefaults = {
 };
 
 export type OMRParams = {
-  essay_score_grid?: "paper" | "exam";
+  essay_score_grid?: "auto" | "paper" | "exam";
   exam_title?: string;
   lecture_name?: string;
   session_name?: string;
@@ -72,6 +72,7 @@ function toStaticPreviewHtml(html: string): string {
  */
 export type OMREssayScoreMarksState = {
   enabled: boolean;
+  print_by_default?: boolean;
   available: boolean;
   printed: boolean;
   reason: string;
