@@ -426,7 +426,8 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
     await enrollmentPage.getByRole("tab", { name: "자료실", exact: true }).click();
     await enrollmentPage.getByRole("button", { name: "자료 등록", exact: true }).click();
     const form = enrollmentPage.getByRole("region", { name: "자료 작성" });
-    await form.getByPlaceholder("자료 제목을 입력하세요").fill(materialTitle);
+    const initialTitle = `${materialTitle} 초안`;
+    await form.getByPlaceholder("자료 제목을 입력하세요").fill(initialTitle);
     await form.locator(".ProseMirror").fill(materialBody);
     const [saved] = await Promise.all([
       enrollmentPage.waitForResponse(response => response.request().method() === "POST"
@@ -441,10 +442,20 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
       .toEqual([["COURSE", created.lectureId]]);
     const detail = enrollmentPage.getByRole("region", { name: "자료 상세" });
     await expect(detail.getByText(materialBody, { exact: true })).toBeVisible();
+    const titleButton = detail.getByRole("heading", { name: initialTitle }).getByRole("button");
+    await titleButton.focus();
+    await titleButton.press("Enter");
+    await detail.getByRole("textbox").fill(materialTitle);
+    const [renamed] = await Promise.all([
+      enrollmentPage.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === `/api/v1/community/posts/${created.materialId}/`),
+      detail.getByRole("button", { name: "저장", exact: true }).click(),
+    ]);
+    expect(renamed.status()).toBe(200);
     for (const width of [1366, 390]) {
       await enrollmentPage.setViewportSize({ width, height: 844 });
       await enrollmentPage.reload({ waitUntil: "domcontentloaded" });
-      await expect(detail.getByText(materialTitle, { exact: true })).toBeVisible();
+      await expect(detail.getByRole("heading", { name: materialTitle })).toBeVisible();
       await assertNoHorizontalOverflow(enrollmentPage);
       await enrollmentPage.screenshot({ path: testInfo.outputPath(`lecture-community-material-${width}.png`) });
     }

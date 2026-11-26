@@ -556,12 +556,10 @@ export function NoticePostDetail({ post, onClose, onDeleted, onDraftStateChange 
               </div>
             ) : (
               <h1 className="qna-inbox__thread-title">
-                <button type="button" className="notice-title-edit"
-                onClick={() => { setEditingTitle(post.title ?? ""); setIsEditingTitle(true); }}
-                title="클릭하여 제목 수정"
-              >
-                {post.title}
-                <span className="qna-inbox__thread-title-edit-mark">✎</span>
+                <button type="button" className="cms-detail__title-button" title="클릭하여 제목 수정"
+                  onClick={() => { setEditingTitle(post.title ?? ""); setIsEditingTitle(true); }}>
+                  {post.title}
+                  <span className="qna-inbox__thread-title-edit-mark" aria-hidden="true">✎</span>
                 </button>
               </h1>
             )}

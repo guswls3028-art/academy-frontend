@@ -426,7 +426,13 @@ export function MaterialsPostDetail({ post, onClose, onDeleted, onContentStateCh
                 <Button size="sm" intent="secondary" onClick={() => setEditingTitle(false)}>취소</Button>
               </div>
             ) : (
-              <h1 className="qna-inbox__thread-title cms-detail__title-clickable" title="클릭하여 제목 수정" onClick={() => setEditingTitle(true)}>{post.title}</h1>
+              <h1 className="qna-inbox__thread-title">
+                <button type="button" className="cms-detail__title-button" title="클릭하여 제목 수정"
+                  onClick={() => { setEditTitle(post.title); setEditingTitle(true); }}>
+                  {post.title}
+                  <span className="qna-inbox__thread-title-edit-mark" aria-hidden="true">✎</span>
+                </button>
+              </h1>
             )}
             <div className="qna-inbox__thread-meta">
               <ScopeBadge post={post} />
