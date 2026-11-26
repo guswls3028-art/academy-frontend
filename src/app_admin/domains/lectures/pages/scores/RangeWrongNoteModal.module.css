@@ -1,10 +1,10 @@
 .workspace, .section { display: grid; gap: 16px; min-width: 0; overflow-wrap: anywhere; }
 .workspace h3, .workspace p { margin: 0; }
 .range { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; padding: 0; border: 0; min-width: 0; }
-.range legend { margin-bottom: 8px; font-weight: 700; }
+.range legend { margin-bottom: 8px; font-size: var(--ds-text-md); font-weight: var(--font-semibold); }
 .range label, .material { display: grid; gap: 5px; min-width: 0; }
-.range label, .hint, .muted, .footer p { color: var(--color-text-muted); font-size: 13px; }
-.material { font-weight: 700; }
+.range label, .hint, .muted { color: var(--color-text-muted); font-size: var(--ds-text-sm); }
+.material { font-weight: var(--font-semibold); }
 .workspace select, .workspace input {
   width: 100%; min-width: 0; min-height: 40px; padding: 7px 10px; box-sizing: border-box;
   border: 1px solid var(--color-border-divider); border-radius: 6px; background: var(--color-bg-surface);
@@ -17,7 +17,7 @@
 .rows { border-top: 1px solid var(--color-border-divider); }
 .row { display: grid; grid-template-columns: minmax(80px, 1fr) minmax(0, 2fr) auto; gap: 12px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--color-border-divider); }
 .error { color: var(--color-error); font-size: 13px; }
-.footer, .actions, .results li { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.actions, .results li { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .actions { justify-content: flex-start; }
 .results { margin: 0; padding: 0; list-style: none; }
 .results li { padding-block: 8px; border-bottom: 1px solid var(--color-border-divider); }
@@ -25,7 +25,6 @@
   .row { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 8px; }
   .row strong { grid-column: 1 / -1; }
   .workspace select, .workspace input { min-height: 44px; font-size: 16px; }
-  .footer { align-items: stretch; flex-direction: column; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .section { animation: reveal 140ms ease-out; }

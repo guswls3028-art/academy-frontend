@@ -5,6 +5,7 @@
 
 .admin-modal {
   --modal-gutter: var(--space-5);
+  --modal-header-control: var(--control-sm);
 }
 
 .admin-modal .ant-modal-container {
@@ -32,14 +33,14 @@
 .admin-modal .ant-modal-close {
   inset-inline-end: var(--space-3);
   top: var(--space-3);
-  width: var(--control-md);
-  height: var(--control-md);
+  width: var(--modal-header-control);
+  height: var(--modal-header-control);
   padding: 0;
-  border: 1px solid var(--color-border-divider);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: var(--color-bg-surface);
+  background: transparent;
   color: var(--color-text-secondary);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: none;
 }
 .admin-modal .ant-modal-close:hover {
   color: var(--color-text-primary);
@@ -57,20 +58,16 @@
 }
 
 .admin-modal:has(.ant-modal-close) .modal-header {
-  min-height: calc(var(--control-md) + 2 * var(--space-3));
-  padding-inline-end: calc(var(--space-3) + var(--control-md) + var(--space-2));
+  min-height: calc(var(--modal-header-control) + 2 * var(--space-3));
+  padding-inline-end: calc(var(--space-3) + var(--modal-header-control) + var(--space-2));
 }
 
 .admin-modal:has(.modal-minimize-btn) .modal-header {
-  padding-inline-end: calc(var(--space-3) + 2 * (var(--control-md) + var(--space-2)));
+  padding-inline-end: calc(var(--space-3) + 2 * (var(--modal-header-control) + var(--space-2)));
 }
 
 .modal-header--confirm {
   background: color-mix(in srgb, var(--color-error) 6%, var(--color-modal-bg));
-}
-
-.modal-header--inspect {
-  background: color-mix(in srgb, var(--color-text-muted) 6%, var(--color-modal-bg));
 }
 
 .modal-header__accent {
@@ -131,7 +128,7 @@
 
 .modal-header__title {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--ds-text-lg);
   font-weight: var(--font-semibold);
   line-height: 1.4;
   overflow-wrap: anywhere;
@@ -244,7 +241,7 @@
   justify-content: space-between;
   padding: var(--space-3) var(--modal-gutter, var(--space-5));
   border-top: 1px solid var(--color-border-divider);
-  background: color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-modal-bg));
+  background: var(--color-modal-bg);
   position: relative;
   z-index: 1;
   flex-shrink: 0; /* flex 레이아웃에서 고정 크기 유지 */
@@ -262,6 +259,11 @@
   min-width: 0;
   flex: 1 1 auto;
 }
+
+.modal-footer__side:empty,
+.modal-footer__actions:empty { display: none; }
+
+.modal-footer__actions { margin-inline-start: auto; }
 
 @media (max-width: 640px) {
   .admin-modal { --modal-gutter: var(--space-4); }

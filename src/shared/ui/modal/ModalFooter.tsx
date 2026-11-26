@@ -10,8 +10,8 @@ export default function ModalFooter({
   right?: React.ReactNode;
 }) {
   return (
-    <ControlSizeContext.Provider value="lg">
-      <div className="modal-footer" data-control-size="lg">
+    <ControlSizeContext.Provider value="md">
+      <div className="modal-footer" data-control-size="md">
         <div className="modal-footer__side">{left}</div>
         <div className="modal-footer__actions">{right}</div>
       </div>

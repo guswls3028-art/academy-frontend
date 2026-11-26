@@ -471,7 +471,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
   );
 
   return (
-    <AdminModal open={true} onClose={onClose} closeDisabled={isPending} type="action" width={760} className="lecture-create-modal" onEnterConfirm={!isPending && formReady ? submit : undefined}>
+    <AdminModal open={true} onClose={onClose} closeDisabled={isPending} type="action" size="wide" className="lecture-create-modal" onEnterConfirm={!isPending && formReady ? submit : undefined}>
       <ModalHeader type="action" title={modalTitle} />
 
       <ModalBody>

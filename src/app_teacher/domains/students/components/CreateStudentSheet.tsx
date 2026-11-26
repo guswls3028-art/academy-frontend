@@ -136,7 +136,7 @@ export default function CreateStudentSheet({ open, onClose }: Props) {
   return (
     <BottomSheet open={open} onClose={() => void requestClose()} title="학생 추가"
       closeDisabled={mutation.isPending || confirming}
-      footer={!createdStudent && <Button intent="primary" className="w-full" size="lg"
+      footer={!createdStudent && <Button intent="primary" className="w-full"
         onClick={() => void submit()} disabled={!formReady || confirming} loading={mutation.isPending}>
         {mutation.isPending ? "등록 중..." : "등록"}
       </Button>}>

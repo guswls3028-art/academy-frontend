@@ -29,7 +29,7 @@ export default function ModalHeader({
   description,
   subtitle,
   type = "action",
-  noIcon = false,
+  noIcon = type !== "confirm",
 }: ModalHeaderProps) {
   const isConfirm = type === "confirm";
   const resolvedDescription = description ?? subtitle;
@@ -38,7 +38,7 @@ export default function ModalHeader({
     <div
       className={`modal-header modal-header--${type}`}
     >
-      <div aria-hidden className="modal-header__accent" />
+      {isConfirm && <div aria-hidden className="modal-header__accent" />}
 
       <div className="modal-header__row">
         {!noIcon && (

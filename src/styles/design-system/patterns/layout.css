@@ -123,7 +123,14 @@
 .nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
+}
+
+@media (min-width: 1024px) and (pointer: fine) {
+  .sidebar {
+    --workspace-nav-row-height: 34px;
+    --workspace-nav-heading-height: 26px;
+  }
 }
 
 .sidebar-group {
@@ -145,12 +152,12 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: var(--ds-touch-target);
-  padding: var(--space-2) var(--space-3);
+  min-height: var(--workspace-nav-row-height, var(--ds-touch-target));
+  padding: var(--space-1) 10px;
   border-radius: var(--radius-sm);
   text-decoration: none;
   color: var(--sidebar-muted);
-  font-weight: var(--font-title);
+  font-weight: var(--font-medium);
   transition:
     background-color 0.16s ease,
     color 0.16s ease;
@@ -163,8 +170,9 @@
 
 /* ✅ Location clarity: active state must be readable in 1 second */
 .nav-item.active {
-  background: var(--sidebar-item-active-bg);
+  background: color-mix(in srgb, var(--sidebar-item-active-bg) 54%, var(--sidebar-bg));
   color: var(--sidebar-item-active-text);
+  font-weight: var(--font-semibold);
 }
 
 /* ✅ Active indicator bar (works for collapsed too) */
@@ -172,8 +180,8 @@
   content: "";
   position: absolute;
   inset-inline-start: 0;
-  top: 4px;
-  bottom: 4px;
+  top: 0;
+  bottom: 0;
   width: 3px;
   border-radius: 2px;
   background: var(--color-brand-primary);

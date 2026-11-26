@@ -291,8 +291,8 @@ export default function InventoryHomeTab({ ps, folders, files, queryKey, selecte
               {confirmDelete.type === "folder" && <div className={styles.deleteHint}>비어있는 폴더만 삭제할 수 있습니다.</div>}
             </div>
             <div className={styles.deleteActions}>
-              <button type="button" className="stu-btn stu-btn--secondary stu-btn--sm" onClick={() => setConfirmDelete(null)}>취소</button>
-              <button type="button" className="stu-btn stu-btn--danger stu-btn--sm" disabled={deleteMut.isPending}
+              <button type="button" className="stu-btn stu-btn--secondary" data-size="md" onClick={() => setConfirmDelete(null)}>취소</button>
+              <button type="button" className="stu-btn stu-btn--danger" data-size="md" disabled={deleteMut.isPending}
                 onClick={() => deleteMut.mutate({ type: confirmDelete.type, id: confirmDelete.id })}>
                 {deleteMut.isPending ? "삭제 중…" : "삭제"}
               </button>

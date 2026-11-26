@@ -304,7 +304,11 @@ test.describe("업무 화면 기능 검색", () => {
       await expect(exam).toHaveCount(0);
       await learning.click();
       await expect(exam).toBeVisible();
-      expect((await exam.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await expect(menu.getByText("운영 현황", { exact: true })).toBeVisible();
+      await expect(menu.getByText("학생·수업", { exact: true })).toBeVisible();
+      const denseRows = await page.evaluate(() => matchMedia("(min-width: 1024px) and (pointer: fine)").matches);
+      expect((await exam.boundingBox())!.height).toBe(denseRows ? 34 : 44);
+      await expect(exam.locator("svg")).toHaveCSS("width", "16px");
       await page.screenshot({ path: info.outputPath(`sidebar-expanded-${width}.png`), fullPage: true });
       await exam.click();
       await expect(page).toHaveURL(/\/workspace\/exams$/);

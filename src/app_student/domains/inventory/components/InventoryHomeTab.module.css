@@ -50,8 +50,11 @@
 
 .deleteDialog {
   width: min(100%, 340px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   overflow-wrap: anywhere;
-  padding: var(--stu-space-5);
+  padding: var(--ds-space-4);
   background: var(--stu-surface);
   border: 1px solid var(--stu-border);
   border-radius: var(--stu-radius-lg);
@@ -59,15 +62,15 @@
 }
 
 .deleteTitle {
-  font-size: 16px;
+  font-size: var(--ds-text-lg);
   line-height: 1.4;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .deleteDescription {
   margin-block: 8px 16px;
   color: var(--stu-text-muted);
-  font-size: 14px;
+  font-size: var(--ds-text-md);
   line-height: 1.5;
 }
 
@@ -79,6 +82,7 @@
 .deleteActions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
   padding-top: 12px;
   border-top: 1px solid var(--stu-border);

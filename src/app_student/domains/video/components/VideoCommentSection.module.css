@@ -51,9 +51,9 @@
 .title {
   margin: 0;
   color: var(--stu-text);
-  font-size: 16px;
+  font-size: var(--ds-text-lg);
   line-height: 1.4;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0;
 }
 
@@ -203,7 +203,7 @@
   padding: 10px 12px;
   color: var(--stu-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--ds-field-font);
   line-height: 1.5;
   resize: vertical;
   background: color-mix(in srgb, var(--stu-surface-soft) 82%, white);
@@ -262,6 +262,7 @@
 
 .section .actionButton,
 .section .replyToggle {
+  min-height: var(--ds-control-sm);
   padding: 0;
   font: inherit;
   background: none;
@@ -275,9 +276,9 @@
   gap: 4px;
   color: var(--stu-text-subtle);
   font-size: 12px;
-  font-weight: 760;
+  font-weight: 600;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: var(--stu-radius-sm);
 }
 
 .section .actionButton:hover,
@@ -303,7 +304,7 @@
   font-size: 12px;
   font-weight: 600;
   padding: 4px 9px;
-  border-radius: 999px;
+  border-radius: var(--stu-radius-sm);
 }
 
 .composer {
@@ -329,8 +330,8 @@
 
 .section .replyCancelButton {
   display: grid;
-  width: 22px;
-  height: 22px;
+  width: var(--ds-control-sm);
+  height: var(--ds-control-sm);
   place-items: center;
   color: inherit;
   cursor: pointer;
@@ -389,7 +390,7 @@
   padding: 12px 14px 8px;
   color: var(--stu-text);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--ds-field-font);
   line-height: 1.5;
   resize: vertical;
   background: transparent;
@@ -459,10 +460,6 @@
 }
 
 @media (max-width: 480px) {
-  .section .textarea,
-  .section .editInput {
-    font-size: var(--ds-field-font);
-  }
 
   .section {
     padding-inline: 12px;
