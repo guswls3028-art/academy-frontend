@@ -31,7 +31,7 @@ def call(path, expected=200, *, method="GET", body=None, token=None, extra=None,
             return None
         if auth_bound:
             assert response.headers.get("X-Tenant-Id")=="849",path
-        return json.load(response)
+        return None if method=="HEAD" else json.load(response)
 
 def claims(raw):
     segment=raw.split(".")[1]
@@ -55,6 +55,12 @@ calls=("/api/v1/core/program/","/api/v1/core/me/","/api/v1/clinic/settings/","/a
        "/api/v1/exams/?exam_type=regular&page_size=1","/api/v1/clinic/participants/")
 for path in calls:
     call(path,token=token)
+info=call("/api/v1/messaging/info/",token=token)
+call("/api/v1/messaging/info/",method="HEAD",token=token)
+assert info["alimtalk_available"] is False and info["custom_channel_status"]=="not_configured"
+assert not any(info[key] for key in ("own_solapi_api_key","own_solapi_api_secret","own_ppurio_api_key","own_ppurio_account","resolved_pf_id"))
+call("/api/v1/messaging/info/",expected=404,method="PATCH",body={"tenant_messaging_enabled":True},token=token)
+call("/api/v1/messaging/send/",expected=404,token=token)
 students=rows(call("/api/v1/students/",token=token))
 lectures=rows(call("/api/v1/lectures/lectures/",token=token))
 assert len(students)==8 and len(lectures)==2
@@ -100,7 +106,7 @@ call(lecture_path,expected=403,method="DELETE",token=token)
 evidence={"passed":True,"kind":"protected-origin" if protected else "isolated-api",
           "tenantId":849,"referenceUserId":session_id,"referenceStudentId":student_id,
           "counts":{"students":8,"lectures":2,"lessons":6,"sampleAttendance":4},
-          "validRefreshedTenant":True,"wrongTokenDenied":True,"mutationsScoped":True,
+          "messagingUnconfiguredRead":True,"messagingWriteAndSiblingDenied":True,"validRefreshedTenant":True,"wrongTokenDenied":True,"mutationsScoped":True,
           "nativeMemoSavedReloadedAndRestored":True,"nativeLectureEditRestored":True,"qualifiedNativeReads":list(calls)}
 if not protected:
     import django

@@ -57,6 +57,8 @@ class ReferenceBoundary:
             return self.get_response(request)
         if request.get_host()!=HOST or request.headers.get("X-Tenant-Code") not in ("hakwonplus",None):
             return reject()
+        if path == "/api/v1/messaging/info/" and method in {"GET", "HEAD"}:
+            return self.get_response(request)
         if not path.startswith("/api/v1/") or path.startswith(EXCLUDED):
             return reject()
         if path in {"/api/v1/token/","/api/v1/students/demo-session/"}:

@@ -22,9 +22,11 @@ The memo and normal synthetic work data survive an API restart.
 
 The shared synthetic administrator has already completed the first-login
 account tour. Native credential guidance applies to individually issued
-accounts. For R49 the active API package is recorded at commit `e2ba16cd3`.
-The fresh-install manifest in this directory changes only the seed. The
-existing comparison account received the same onboarding state in place.
+accounts. Fresh installations use the same onboarding state. The dashboard
+reads its actual messaging configuration from the isolated database. It shows
+the channel as unconfigured. The comparison account cannot activate a channel
+or enqueue real messages. The staged package hash and individual source
+hashes are recorded in `standalone-manifest.json`.
 
 The reserved protected route is `/__reference/api/v1/*`. The existing origin
 key authenticates the route. A bodyless `POST /api/v1/reference/session/`
