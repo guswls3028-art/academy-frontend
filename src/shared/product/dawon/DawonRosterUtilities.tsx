@@ -159,6 +159,7 @@ export default function DawonRosterUtilities({ onChanged }: { onChanged?: () => 
 
   return <>
     <Button intent="primary" onClick={() => { go("profile"); setDeleted(false); setOpen(true); }}>학생 등록</Button>
+    <Button onClick={() => { go("list"); setDeleted(false); setOpen(true); }}>등록 명단</Button>
     {open && <AdminModal open noMinimize trapFocus width={MODAL_WIDTH.wide} onClose={() => {
       if (!change.isPending && !savingCredential) { ++fileVersion.current; setSecret(""); setOpen(false); }
     }} closeDisabled={change.isPending || savingCredential}>

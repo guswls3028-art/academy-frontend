@@ -1,3 +1,4 @@
+import { resolveTenantCodeString } from "@/shared/tenant";
 import { SelectionButton } from "@/shared/ui/ds";
 import {
   ATTENDANCE_META,
@@ -13,6 +14,7 @@ type Props = {
 };
 
 export default function AttendanceStatusOptions({ studentName, value, pending, onChange }: Props) {
+  const dawon = resolveTenantCodeString() === "dawon";
   return (
     <div
       className="attendance-status-options"
@@ -21,7 +23,9 @@ export default function AttendanceStatusOptions({ studentName, value, pending, o
       onClick={(event) => event.stopPropagation()}
     >
       {ORDERED_ATTENDANCE_STATUS.map((code) => {
-        const { label, tone } = ATTENDANCE_META[code];
+        const { tone } = ATTENDANCE_META[code];
+        const label = dawon && code === "PRESENT" ? "출석"
+          : dawon && code === "ONLINE" ? "동영상" : ATTENDANCE_META[code].label;
         const selected = value === code;
         return (
           <SelectionButton

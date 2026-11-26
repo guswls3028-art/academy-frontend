@@ -3,7 +3,7 @@ import {createStaffStatistics, staffStatisticsStyle} from './dawon-staff-statist
 const style = `
 [data-staff-rail]:empty{display:none}
 [data-staff-rail]{margin:0 auto;max-width:1520px;box-sizing:border-box;padding:12px 22px 0;font:inherit;color:var(--color-text-primary,#302820)}
-[data-staff-rail] a:focus-visible,[data-staff-rail] button:focus-visible,[data-staff-attendance] button:focus-visible{outline:2px solid #934308;outline-offset:2px}
+[data-staff-rail] a:focus-visible,[data-staff-rail] button:focus-visible{outline:2px solid #934308;outline-offset:2px}
 .dawon-staff-care,.dawon-staff-context{background:#fffcf8;border:1px solid #e7d9cc;border-radius:7px;padding:12px 16px;margin:10px 0 0;line-height:1.45;font-size:14px}
 .dawon-staff-care header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .dawon-staff-care h2,.dawon-staff-context strong{font-weight:700;font-size:15px;line-height:1.4;margin:0}
@@ -14,22 +14,9 @@ const style = `
 .dawon-staff-care li{min-width:0;overflow-wrap:anywhere}
 .dawon-staff-care li small{display:block;color:#615346}
 .dawon-staff-care button,.dawon-staff-context button{font:inherit;color:#71390e;text-decoration:underline;background:none;border:0;padding:4px;cursor:pointer}
-[data-staff-attendance]{display:flex;align-items:center;gap:3px;flex-wrap:wrap}
-[data-staff-attendance] button{color:#514439;background:white;min-height:34px;padding:3px 6px;white-space:nowrap;border:1px solid #d8cec5;border-radius:4px;font:inherit;font-size:13px;cursor:pointer}
-[data-staff-attendance] button[aria-pressed=true]{color:#71390e;border-color:#a7581a;font-weight:700;background:#fff0e4}
-[data-staff-attendance] button:disabled{opacity:.6}
-td:has(>[data-staff-attendance])>[role=group]:not([data-staff-attendance]),td:has(>[data-staff-attendance])>select{display:none!important}
-[data-staff-attendance] small{flex-basis:100%;color:#615346}
-td:has(>[data-staff-attendance])>select:focus,td:has(>[data-staff-more][open])>select{display:block!important}
-[data-staff-more] summary{width:fit-content;color:#69594c;font-size:12px;cursor:pointer;padding:3px 0}
-@container(max-width:809px){
-  td:has(>[data-staff-attendance])>select{display:block!important}
-  td>[data-staff-attendance],td>[data-staff-more]{display:none!important}
-}
 @media(max-width:700px){
   [data-staff-rail]{padding:8px 10px 0}[data-staff-rail] nav{width:100%;box-sizing:border-box}[data-staff-rail] nav a{min-width:0;flex:1;padding:6px 2px;min-height:40px;font-size:13px;gap:3px}
   .dawon-staff-care,.dawon-staff-context{padding:9px 11px}.dawon-staff-care ul{grid-template-columns:1fr}
-  [data-staff-attendance]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px}[data-staff-attendance] button{min-height:35px;font-size:12px;padding:2px 0}[data-staff-attendance] small{grid-column:1/-1}
   [data-dawon-staff] .domain-list-toolbar:has(input[aria-label="반 또는 담당 강사 검색"]) div:has(>label>input[type=date]){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 8px;margin-block:0}
   [data-dawon-staff] .domain-list-toolbar:has(input[aria-label="반 또는 담당 강사 검색"]) label{display:grid;gap:2px;min-width:0;font-size:12px}
   [data-dawon-staff] .domain-list-toolbar:has(input[aria-label="반 또는 담당 강사 검색"]) label :is(input,select){width:100%;min-width:0}
@@ -205,47 +192,7 @@ function mountStaffConsole(css, makeStatistics) {
         }
       }
     }
-    if (!/\/sessions\/\d+\/attendance\/?$/.test(location.pathname)) return;
-    for (const select of main.querySelectorAll('td>select[aria-label$=" 출결 상태"]')) {
-      if (!Object.keys(codes).every(code => [...select.options].some(option => option.value === code))) continue;
-      const cell = select.parentElement;
-      const name = select.getAttribute('aria-label').replace(/ 출결 상태$/,'');
-      let actions = cell.querySelector('[data-staff-attendance]');
-      if (!actions) {
-        actions = node('div',null,{'data-staff-attendance':'',role:'group','aria-label':name + ' 출결 기록'});
-        for (const [code,label] of Object.entries(codes)) {
-          const button = node('button',label,{type:'button','data-attendance-status':code,'aria-label':name + ' ' + label});
-          button.onclick = () => {
-            if (select.disabled || select.value === code) return;
-            select.value = code;
-            select.dispatchEvent(new Event('change',{bubbles:true}));
-          };
-          actions.append(button);
-        }
-        cell.append(actions);
-        const more = node('details',null,{'data-staff-more':''});
-        more.append(node('summary','기타 상태'));
-        cell.append(more);
-        const selected = select.value;
-        const first = Object.entries(codes).map(([code,label]) => {
-          const option = [...select.options].find(item => item.value === code);
-          option.textContent = label;
-          return option;
-        });
-        select.prepend(...first);
-        select.value = selected;
-      }
-      for (const button of actions.querySelectorAll('button')) {
-        if (button.disabled !== select.disabled) button.disabled = select.disabled;
-        button.setAttribute('aria-pressed',String(button.dataset.attendanceStatus === select.value));
-      }
-      let previous = actions.querySelector('small');
-      if (!codes[select.value]) {
-        if (!previous) { previous = node('small'); actions.append(previous); }
-        const text = '현재 ' + (select.selectedOptions[0]?.textContent || '미입력');
-        if (previous.textContent !== text) previous.textContent = text;
-      } else previous?.remove();
-    }
+
   }
   function showEvidence(source, target) {
     if (!source || source.role !== activeRole || source.to !== href(new URL(location.href)) || target.querySelector('[data-staff-evidence]')) return;

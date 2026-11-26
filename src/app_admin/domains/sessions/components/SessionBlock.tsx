@@ -1,4 +1,3 @@
-import { teacherTodayQueryKeys } from "@/shared/api/queryKeys/sessionSchedules";
 // PATH: src/app_admin/domains/sessions/components/SessionBlock.tsx
 // 차시 = 세션. 강의 홈 / 차시 상세에서 공용. 반 편성 모드일 때는 반별 row로 그룹.
 
@@ -35,7 +34,6 @@ interface Props {
   lectureId: number;
   /** 현재 세션 ID (SessionLayout일 때 활성 표시용) */
   currentSessionId?: number;
-  workflowEntry?: boolean;
   autoAssignRegular?: boolean;
 }
 
@@ -68,12 +66,16 @@ function SessionGearMenu({
   sections,
   onDone,
   onOpenSchedules,
+  canQueueManagement,
 }: {
   session: SessionItem;
   sections?: SectionType[];
   onDone: (action: "updated" | "deleted") => void;
   onOpenSchedules: () => void;
+  canQueueManagement: boolean;
 }) {
+  const scheduleControls = useContext(SessionScheduleControlsContext);
+  const managementPending = scheduleControls?.managementPending;
   const supplement = isSupplementSession(session);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -273,10 +275,11 @@ function SessionGearMenu({
             )}
             <label htmlFor={`session-date-${session.id}`} className="text-xs font-medium text-[var(--color-text-muted)]">기본 날짜</label>
             <input id={`session-date-${session.id}`} type="date" className="ds-input text-sm" value={editDate} onChange={(e) => setEditDate(e.target.value)} />
-            <button type="button" className={styles.scheduleEditLink} onClick={() => void handleOpenSchedules()} disabled={busy}>
+            <button type="button" className={styles.scheduleEditLink} onClick={() => void handleOpenSchedules()} disabled={busy || scheduleControls?.managementQueued || (managementPending && !canQueueManagement)}>
               <CalendarDays size={16} aria-hidden />
               수업일 관리
             </button>
+            {managementPending && <p className={styles.scopeHelp} role="status">이전 성적 입력을 확인하는 중…</p>}
             <div className="flex justify-end gap-1 mt-1">
               <button type="button" className="px-2.5 py-1 text-xs rounded bg-[var(--color-bg-surface-hover)] text-[var(--color-text-secondary)]" onClick={() => { setEditing(false); setOpen(false); }}>취소</button>
               <button type="button" className="px-2.5 py-1 text-xs rounded bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)] font-medium" onClick={handleSaveEdit} disabled={busy}>저장</button>
@@ -298,9 +301,7 @@ function SessionGearMenu({
   );
 }
 
-export default function SessionBlock({
-  lectureId, currentSessionId, workflowEntry = false, autoAssignRegular = false,
-}: Props) {
+export default function SessionBlock({ lectureId, currentSessionId, autoAssignRegular = false }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
@@ -348,8 +349,7 @@ export default function SessionBlock({
     qc.invalidateQueries({ queryKey: adminSessionQueryKeys.lectureSessions(lectureId) });
     qc.invalidateQueries({ queryKey: adminSessionQueryKeys.lectureSections(lectureId) });
     qc.invalidateQueries({ queryKey: adminSessionQueryKeys.session });
-    if (workflowEntry) qc.invalidateQueries({ queryKey: teacherTodayQueryKeys.all });
-  }, [qc, lectureId, workflowEntry]);
+  }, [qc, lectureId]);
 
   const handleClose = () => {
     setCreateForSection(null);
@@ -361,8 +361,6 @@ export default function SessionBlock({
   const scopeControls = useContext(SessionScheduleControlsContext);
   const showCompactCard = scopeControls != null && currentSessionId != null;
   const firstSessionObject = formatFirstSessionObject(createSessionType);
-  const addSession = () => setCreateForSection({ id: null, label: null, sessionType: createSessionType });
-  const created = (id: number) => navigate(`/workspace/lectures/${lectureId}/sessions/${id}/attendance`);
 
   const openSchedules = (target: string) => {
     const openTarget = () => navigate(target, { state: { openSessionSchedule: true } });
@@ -514,12 +512,12 @@ export default function SessionBlock({
         {showCreate && (
           <Suspense fallback={null}>
             <SessionCreateModal
+              autoAssignRegular={autoAssignRegular}
               lectureId={lectureId}
               sectionId={createForSection?.id}
               sectionLabel={createForSection?.label}
               initialSessionType={createForSection?.sessionType}
               onClose={handleClose}
-              onCreated={workflowEntry ? created : undefined}
             />
           </Suspense>
         )}
@@ -530,12 +528,6 @@ export default function SessionBlock({
   // --- 렌더: 기존 (section_mode OFF) ---
   return (
     <>
-      {workflowEntry && <div className={styles.workflowHeader}>
-        <h2>차시 운영</h2>
-        {!isLoading && !isError && <button type="button" className="ds-btn ds-btn--primary" onClick={addSession}>
-          <Plus size={16} aria-hidden /> {rawSessions.length ? "차시 추가" : "첫 차시 추가"}
-        </button>}
-      </div>}
       <SessionViewControls
         viewMode={viewMode}
         onViewModeChange={setViewMode}
@@ -559,7 +551,7 @@ export default function SessionBlock({
               <SessionCard key={session.id} session={session} lectureId={lectureId} currentSessionId={currentSessionId}
                 navigate={navigate} target={getSessionTargetPath(session.id)} invalidate={invalidate} openSchedules={openSchedules} />
             ))}
-            {workflowEntry ? (sessions.length === 0 && <p className={styles.loadingText}>등록된 차시가 없습니다.</p>) : sessions.length === 0 ? (
+            {sessions.length === 0 ? (
               <button
                 type="button"
                 className={styles.scopeEmptyButton}
@@ -588,13 +580,12 @@ export default function SessionBlock({
       {showCreate && (
         <Suspense fallback={null}>
           <SessionCreateModal
+            autoAssignRegular={autoAssignRegular}
             lectureId={lectureId}
             sectionId={createForSection?.id}
             sectionLabel={createForSection?.label}
             initialSessionType={createForSection?.sessionType}
             onClose={handleClose}
-            onCreated={workflowEntry ? created : undefined}
-            autoAssignRegular={autoAssignRegular}
           />
         </Suspense>
       )}
@@ -730,7 +721,7 @@ function SessionCard({ session, sections, lectureId, currentSessionId, navigate,
         className={supplement || title !== `${session.regular_order ?? session.order}차시` ? styles.namedCard : undefined}
         onClick={() => navigate(target)}
       />
-      <SessionGearMenu session={session} sections={sections}
+      <SessionGearMenu session={session} sections={sections} canQueueManagement={expanded}
         onOpenSchedules={() => { if (expanded) controls.openManager(); else openSchedules(target); }}
         onDone={(action) => { invalidate(); if (action === "deleted" && active) navigate(`/workspace/lectures/${lectureId}`); }} />
       {expanded && controls.content}

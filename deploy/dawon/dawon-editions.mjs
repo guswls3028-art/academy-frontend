@@ -56,13 +56,13 @@ export function staffReturnPath(value, role) {
   const url = new URL(value,'https://demo.hakwonplus.com');
   const path = url.pathname.slice('/workspace/'.length).replace(/\/$/,'');
   // AdminRouter has a separate, intentionally smaller route tree for the admin demo.
-  const admin = /^(?:dashboard|staff(?:\/(?:home|attendance|payroll-snapshot))?|results(?:\/students)?|settings(?:\/(?:profile|appearance|organization))?|students\/(?:home|class-groups|surveys\/school-reports)|clinic\/operations|community\/counsel|lectures(?:\/\d+(?:\/sessions(?:\/\d+(?:\/(?:attendance|scores|exams|assignments|notice|clinic|videos(?:\/\d+)?))?)?)?)?|sessions\/\d+\/[a-z-]+|exams\/\d+|videos\/\d+(?:\/logs(?:\/\d+)?)?)$/.test(path);
+  const admin = /^(?:dashboard|guide|staff(?:\/(?:home|attendance|payroll-snapshot))?|results(?:\/(?:students|tree))?|settings(?:\/(?:profile|appearance|organization))?|students(?:\/(?:home|class-groups|surveys\/school-reports))?|clinic(?:\/(?:operations|settings))?|counsel|community\/counsel|lectures(?:\/\d+(?:\/sessions(?:\/\d+(?:\/(?:attendance|scores|exams|assignments|notice|clinic|videos(?:\/\d+)?))?)?)?)?|sessions\/\d+\/[a-z-]+|exams(?:\/(?:templates|bundles|\d+))?|videos(?:\/(?:tree|\d+(?:\/logs(?:\/\d+)?)?))?)$/.test(path);
   const teacher = /^(?:dashboard|lectures|students|clinic|community|teacher-alerts|exams|results|videos|sessions|surveys|homework|submissions)(?:\/|$)/.test(path) ||
     /^settings(?:\/(?:profile|appearance|organization))?$/.test(path);
   const teacherAllowed = teacher && !(path === 'dashboard' && url.searchParams.has('panel'));
   if (!(role === 'admin' ? admin : role === 'teacher' ? teacherAllowed : role == null && (admin || teacherAllowed))) return null;
   // Carry native view and filter parameters only, never auth, role or redirects.
-  const filters = new Set('assign area attention class classType course create date direction employee exam examTab from grade gradingExamId group kind lecture_id month order origin page panel paySearch payState period position profile q record rule scope section session_id sessionId sort status student tab to track trend view'.split(' '));
+  const filters = new Set('assign area attention class classType course create date direction employee exam examTab from grade gradingExamId group kind lecture_id month order origin page panel paySearch payState period position profile q record rule scope section session_id sessionId sort status student tab to topic track trend view'.split(' '));
   const params = new URLSearchParams();
   const session = /^(?:lectures\/\d+\/)?sessions\/\d+(?:\/|$)/.test(path);
   for (const [key,item] of url.searchParams) {

@@ -4,10 +4,10 @@ import { useAlertSummary } from "./alertQueue";
 import styles from "./DawonStaffNavigation.module.css";
 
 import { staffMenus } from "./staffMenu";
-import { BookOpen, CalendarCheck, ClipboardList, GraduationCap, LayoutDashboard, Settings, UserRound, UsersRound } from "lucide-react";
+import { BookOpen, CalendarCheck, ClipboardList, GraduationCap, LayoutDashboard, Settings, UserRound, UsersRound, Video } from "lucide-react";
 
 const icons = { dashboard: LayoutDashboard, lectures: BookOpen, "students/class-groups": UsersRound, "students/home": UserRound,
-  staff: UsersRound, results: ClipboardList, exams: GraduationCap, "settings/profile": Settings } as const;
+  staff: UsersRound, results: ClipboardList, exams: GraduationCap, videos: Video, guide: BookOpen, "settings/profile": Settings } as const;
 
 export function DawonStaffNavigation({role, onNavigate}: {role: "admin" | "teacher"; onNavigate?: () => void}) {
   const {pathname, search} = useLocation();
@@ -25,6 +25,7 @@ export function DawonStaffNavigation({role, onNavigate}: {role: "admin" | "teach
           const panel = new URLSearchParams(filter).get("panel");
           const active = base === "dashboard" ? pathname === "/workspace/dashboard" && (current === panel || (!panel && current === "attendance")) :
             base === "students/home" ? ["/workspace/students/home","/workspace/students/class-groups"].includes(pathname) :
+            base === "clinic/operations" ? pathname.startsWith("/workspace/clinic/") :
             base === "settings/profile" ? pathname.startsWith("/workspace/settings/") :
             pathname === "/workspace/"+base || pathname.startsWith("/workspace/"+base+"/");
           const Icon = icons[path as keyof typeof icons] ?? CalendarCheck;

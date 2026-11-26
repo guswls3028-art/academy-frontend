@@ -8,16 +8,18 @@ const teacher = [
 const admin = [
   { label: "운영 현황", items: [["대시보드", "dashboard"], ["학습 경보", "dashboard?panel=alerts"]] },
   { label: "학생·수업", items: [["학생 명단", "students/home"], ["강의 관리", "lectures"]] },
-  { label: "학습 관리", items: [["시험 결과·통계", "results"], ["학교 성적 취합", "students/surveys/school-reports"], ["클리닉", "clinic/operations"], ["상담", "community/counsel"]] },
+  { label: "학습 관리", items: [["시험 관리", "exams"], ["시험 결과·통계", "results"], ["학교 성적 취합", "students/surveys/school-reports"], ["영상", "videos"], ["클리닉", "clinic/operations"], ["상담", "community/counsel"]] },
   { label: "직원 관리", items: [["직원·근태·급여", "staff"]] },
 ];
 const settings = { label: "환경 설정", items: [["설정", "settings/profile"]] };
+const adminSettings = { ...settings, items: [...settings.items, ["가이드", "guide"]] };
 
-export const staffMenus = { teacher: [...teacher, settings], admin: [...admin, settings] };
+export const staffMenus = { teacher: [...teacher, settings], admin: [...admin, adminSettings] };
 export const staffGuide = (role: StaffRoom) => ({
   title: role === "admin" ? "관리자 이용 안내" : "선생님용 이용 안내",
   subtitle: role === "admin" ? "반별 현황과 담당 직원의 기록을 확인합니다." : "담당 반을 선택해 수업을 시작합니다.",
-  fullGuidePath: "/workspace/dashboard", fullGuideLabel: "대시보드 열기",
+  fullGuidePath: role === "admin" ? "/workspace/guide" : "/workspace/dashboard",
+  fullGuideLabel: role === "admin" ? "전체 가이드 열기" : "대시보드 열기",
   sections: [{ title: "주요 업무", items: role === "admin" ? [
     {title: "반별 학습 알림", description: "반을 선택해 성적과 과제 현황을 확인합니다.", path: "/workspace/dashboard?panel=alerts"},
     {title: "직원 근태·급여", description: "담당 직원을 검색하고 조회할 월을 선택합니다.", path: "/workspace/staff"},
@@ -30,4 +32,5 @@ export const staffGuide = (role: StaffRoom) => ({
 export const resultTabs = [
   {key:"exams",label:"시험별",path:"/workspace/results",exact:true},
   {key:"students",label:"학생별",path:"/workspace/results/students",exact:true},
+  {key:"tree",label:"강의별 탐색",path:"/workspace/results/tree",exact:true},
 ];

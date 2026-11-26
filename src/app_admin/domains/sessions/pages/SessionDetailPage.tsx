@@ -17,6 +17,7 @@ import { useLocation, useSearchParams, Navigate, useNavigate } from "react-route
 import { BarChart3, ClipboardList, FileText, Plus } from "lucide-react";
 
 import api from "@/shared/api/axios";
+import { useDawonLecture } from "@/shared/product/dawon/useDawonLecture";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useLectureParams } from "@admin/domains/lectures/hooks/useLectureParams";
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
@@ -30,7 +31,6 @@ import { adminSessionQueryKeys } from "../queryKeys";
 import { readAssessmentItemId } from "@/shared/lib/assessmentQueryParams";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { CompactSessionScheduleCard } from "../components/SessionScheduleControls";
-import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 import { SessionScheduleControlsContext } from "../components/sessionScheduleControlsContext";
 import "./SessionDetailPage.css";
 
@@ -76,6 +76,7 @@ export default function SessionDetailPage() {
 
   const lecId = Number(lectureId);
   const sId = Number(sessionId);
+  const { data: group } = useDawonLecture(lecId);
 
   const examId = useMemo(() => {
     return readAssessmentItemId(searchParams, "exam");
@@ -145,27 +146,25 @@ export default function SessionDetailPage() {
   }
 
   const assessmentRemoteKind = SESSION_ASSESSMENT_REMOTE_KIND_BY_TAB[activeTab];
+  const useCompactScoreEntry = isMobile && activeTab === "scores"
+    && !searchParams.has("schedule") && !controls?.blockedNotice;
   const hasAttendanceChooser = activeTab === "attendance" && searchParams.get("view") === "sessions";
-  const compactAttendance = activeTab === "attendance" && Boolean(dawonStaffPreviewRole()) && !hasAttendanceChooser;
   const showSessionStrip =
     (activeTab === "attendance" && !isMobile && !hasAttendanceChooser) ||
-    activeTab === "scores" ||
+    (activeTab === "scores" && !useCompactScoreEntry) ||
     activeTab === "exams" ||
     activeTab === "assignments";
 
   return (
     <AssessmentEditGuardProvider>
       <Suspense fallback={<RouteFallback />}>
-      {compactAttendance ? <details key={sId} open={controls?.blockedNotice ? true : undefined} className="dawon-session-picker">
-        <summary>차시 · 수업일 선택</summary>
-        <SessionBlock lectureId={lecId} currentSessionId={sId} />
-      </details> : showSessionStrip && (
+      {showSessionStrip && (
         <div className="session-detail-session-strip">
-          <SessionBlock lectureId={lecId} currentSessionId={sId} />
+          <SessionBlock lectureId={lecId} currentSessionId={sId} autoAssignRegular={Boolean(group?.group_id)} />
         </div>
       )}
 
-      {!compactAttendance && !showSessionStrip && (!hasAttendanceChooser || controls?.blockedNotice) && (
+      {!showSessionStrip && !useCompactScoreEntry && (!hasAttendanceChooser || controls?.blockedNotice) && (
         <div className="session-detail-session-strip">
           <CompactSessionScheduleCard />
         </div>
@@ -194,7 +193,7 @@ export default function SessionDetailPage() {
                 lectureId={lecId}
                 sessionType={session.session_type}
                 sessionDate={session.date}
-                sessionSelector={<SessionBlock lectureId={lecId} currentSessionId={sId} />}
+                sessionSelector={<SessionBlock lectureId={lecId} currentSessionId={sId} autoAssignRegular={Boolean(group?.group_id)} />}
                 onOpenEnrollModal={() => setShowEnrollModal(true)}
               />
             )}
@@ -223,6 +222,7 @@ export default function SessionDetailPage() {
             {activeTab === "scores" && (
               <SessionScoresEntryPage
                 key={sId}
+                sessionPicker={useCompactScoreEntry ? <SessionBlock lectureId={lecId} currentSessionId={sId} autoAssignRegular={Boolean(group?.group_id)} /> : undefined}
                 onOpenCreateExam={() => setOpenCreateExam(true)}
                 onOpenCreateHomework={() => setOpenCreateHomework(true)}
               />

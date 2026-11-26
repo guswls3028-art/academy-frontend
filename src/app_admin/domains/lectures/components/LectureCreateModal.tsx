@@ -12,6 +12,7 @@ import { ColorPickerField, getDefaultColorForPicker } from "@/shared/ui/domain";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { normalizeLectureChipText } from "@/shared/ui/chips/lectureChipText";
 import { StaffRoleAvatar } from "@/shared/ui/avatars";
+import { dawonQueryKeys } from "@/shared/product/dawon/queryKeys";
 import { createLecture, fetchLecture, fetchLectureInstructorOptions, updateLecture } from "@admin/domains/lectures/api/sessions";
 import { fetchStaffMe } from "@/shared/staff/api";
 import { staffWorkQueryKeys } from "@/shared/staff/queryKeys";
@@ -61,6 +62,7 @@ interface Props {
   usedColors?: string[];
   /** 있으면 수정 모드: 해당 강의 로드 후 같은 폼으로 수정 */
   lectureId?: number;
+  keepAssignedInstructor?: boolean;
   classGroup?: {
     instructor?: string;
     name: string;
@@ -88,7 +90,7 @@ export default function LectureCreateModal(props: Props) {
   return <LectureForm key={props.lectureId ?? "create"} {...props} />;
 }
 
-function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup }: Props) {
+function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup, keepAssignedInstructor = false }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const isEditMode = lectureId != null;
@@ -119,10 +121,11 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup }
 
   const modalTitle = classGroup ? "수업 개설" : isEditMode ? "강의 수정" : "강의 추가";
 
+  const instructorLocked = keepAssignedInstructor || Boolean(classGroup?.instructor);
   const instructorQ = useQuery({
     queryKey: adminLectureQueryKeys.lectureInstructorOptions,
     queryFn: fetchLectureInstructorOptions,
-    enabled: isOpen && !classGroup?.instructor,
+    enabled: isOpen && !instructorLocked,
   });
   const instructorOptions = useMemo(() => instructorQ.data ?? [], [instructorQ.data]);
   const selectedInstructor = instructorOptions.find((option) => option.name === name)
@@ -131,7 +134,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup }
   const { data: staffMe } = useQuery({
     queryKey: staffWorkQueryKeys.identity,
     queryFn: fetchStaffMe,
-    enabled: isOpen && !classGroup?.instructor,
+    enabled: isOpen && !instructorLocked,
   });
   const isPayrollManager = !!staffMe?.is_payroll_manager;
 
@@ -144,9 +147,9 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup }
   });
   const existingLecture = existingLectureQ.data;
   const isLoadingLecture = existingLectureQ.isLoading;
-  const requiredDataError = (!classGroup?.instructor && instructorQ.isError && !instructorQ.data)
+  const requiredDataError = (!instructorLocked && instructorQ.isError && !instructorQ.data)
     || (isEditMode && existingLectureQ.isError && !hydrated);
-  const formReady = !requiredDataError && (!instructorQ.isLoading || !!classGroup?.instructor) && (!isEditMode || hydrated);
+  const formReady = !requiredDataError && (!instructorQ.isLoading || instructorLocked) && (!isEditMode || hydrated);
 
   useEffect(() => {
     // A modal session owns its draft. Cache refreshes must never replace user input.
@@ -182,7 +185,9 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup }
   const { mutate, isPending } = useMutation({
     mutationFn: async (payload: CreateLecturePayload) => {
       if (isEditMode && lectureId != null) {
-        await updateLecture(lectureId, payload);
+        const settings: Partial<CreateLecturePayload> = { ...payload };
+        if (keepAssignedInstructor) delete settings.name;
+        await updateLecture(lectureId, settings);
       } else if (classGroup) {
         await classGroup.create(payload);
       } else {
@@ -195,6 +200,10 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup }
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lecture(lectureId) });
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectureSessions });
         invalidateLectureStatusCaches(qc);
+        if (keepAssignedInstructor) {
+          void qc.invalidateQueries({ queryKey: dawonQueryKeys.groups });
+          void qc.invalidateQueries({ queryKey: dawonQueryKeys.adminOperations });
+        }
       }
       feedback.success(isEditMode ? "강의가 수정되었습니다." : "강의가 등록되었습니다.");
       onClose();
@@ -231,7 +240,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup }
     setHasAttemptedSubmit(true);
     const err = validateRequiredFields([
       { value: title, label: "강의 이름" },
-      { value: name, label: "담당 강사" },
+      ...(!keepAssignedInstructor ? [{ value: name, label: "담당 강사" }] : []),
       { value: subject, label: "과목" },
       { value: startDate, label: "시작일" },
       ...(classGroup ? [{ value: endDate, label: "종료일" }] : []),
@@ -572,8 +581,8 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup }
               {/* 담당 강사 · 과목 */}
               <div className="lecture-create-field-grid">
                 <div className="modal-form-group">
-              <label className="lecture-field-label" htmlFor="lecture-instructor">담당 강사 <span>필수</span></label>
-              {classGroup?.instructor ? <input id="lecture-instructor" className="ds-input" readOnly value={classGroup.instructor}/> : (<Popover
+              <label className="lecture-field-label" htmlFor="lecture-instructor">담당 강사 {!keepAssignedInstructor && <span>필수</span>}</label>
+              {instructorLocked ? <input id="lecture-instructor" className="ds-input" readOnly value={classGroup?.instructor || name || "미배정 · 반에서 배정"} title="담당 강사는 반에서 배정합니다" /> : (<Popover
                 open={instructorPopoverOpen}
                 onOpenChange={(open) => {
                   setInstructorPopoverOpen(open);

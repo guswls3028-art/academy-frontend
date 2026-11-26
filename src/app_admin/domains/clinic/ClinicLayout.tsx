@@ -7,6 +7,7 @@ import { Outlet, useLocation } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import AttendanceQrManager from "@/shared/ui/attendance/AttendanceQrManager";
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 
 const CLINIC_TABS = [
   { key: "home", label: "오늘 요약", path: "/workspace/clinic/home" },
@@ -24,6 +25,7 @@ const DESCRIPTIONS: Record<string, string> = {
 export default function ClinicLayout() {
   const { clinicMode } = useSectionMode();
   const location = useLocation();
+  const isDawonAdmin = dawonStaffPreviewRole() === "admin";
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -45,10 +47,10 @@ export default function ClinicLayout() {
     <DomainLayout
       className="clinic-domain-layout"
       title="클리닉"
-      description={DESCRIPTIONS[clinicMode] ?? DESCRIPTIONS.remediation}
-      tabs={CLINIC_TABS}
+      description={isDawonAdmin ? undefined : DESCRIPTIONS[clinicMode] ?? DESCRIPTIONS.remediation}
+      tabs={isDawonAdmin ? CLINIC_TABS.filter(({key}) => key === "operations" || key === "settings") : CLINIC_TABS}
     >
-      <div className="flex justify-end pb-3"><AttendanceQrManager kind="clinic" /></div>
+      {!isDawonAdmin && <div className="flex justify-end pb-3"><AttendanceQrManager kind="clinic" /></div>}
       <Outlet />
     </DomainLayout>
   );

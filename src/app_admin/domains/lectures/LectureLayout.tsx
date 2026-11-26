@@ -35,7 +35,6 @@ export default function LectureLayout() {
   const lecture = lectureQ.data;
   const isLoading = lectureQ.isLoading;
   const isDawon = resolveTenantCodeString() === "dawon";
-  const canEditLecture = !isDawon || dawonStaffPreviewRole() !== "admin";
   const { data: group } = useDawonLecture(hasValidLectureId ? lectureIdNum : null);
 
   const title = isLoading ? "강의 불러오는 중…" : safeStr(lecture?.title) || "강의";
@@ -77,7 +76,7 @@ export default function LectureLayout() {
           반 편성
         </Button>
       )}
-      {canEditLecture && lecture && lecture.is_active !== false && (
+      {lecture && lecture.is_active !== false && (
         <Button intent="secondary" size="sm" onClick={() => setSettingsLectureId(lectureIdNum)} leftIcon={<Settings size={14} aria-hidden />}>
           강의 설정
         </Button>
@@ -118,11 +117,11 @@ export default function LectureLayout() {
 
   return (
     <DomainLayout title={title} description={desc} breadcrumbs={breadcrumbs} headerActions={headerActions}>
-      <SessionBlock lectureId={lectureIdNum} workflowEntry={isDawon} autoAssignRegular={Boolean(group?.group_id)} />
+      <SessionBlock lectureId={lectureIdNum} autoAssignRegular={Boolean(group?.group_id)} />
       <Outlet />
       {settingsLectureId === lectureIdNum && (
         <Suspense fallback={null}>
-          <LectureCreateModal isOpen lectureId={lectureIdNum} onClose={() => setSettingsLectureId(null)} />
+          <LectureCreateModal isOpen keepAssignedInstructor={isDawon && dawonStaffPreviewRole() === "admin"} lectureId={lectureIdNum} onClose={() => setSettingsLectureId(null)} />
         </Suspense>
       )}
     </DomainLayout>

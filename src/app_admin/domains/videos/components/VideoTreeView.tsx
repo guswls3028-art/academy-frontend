@@ -10,6 +10,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 import { useConfirm } from "@/shared/ui/confirm";
 import { FilePlus, Video, Folder, Eye, ArrowUpDown, Play } from "lucide-react";
 import { Button, EmptyState } from "@/shared/ui/ds";
@@ -58,6 +59,7 @@ import styles from "./VideoExplorer.module.css";
 type LectureWithSessions = Lecture & { sessions: Session[] };
 
 export default function VideoTreeView() {
+  const isDawonAdmin = dawonStaffPreviewRole() === "admin";
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -484,12 +486,12 @@ export default function VideoTreeView() {
                       : "이 차시에 등록된 영상이 없습니다"
                   }
                   description={
-                    isPublicSelection
+                    isPublicSelection && !isDawonAdmin
                       ? "아래 버튼으로 전체공개영상을 업로드하세요. 프로그램에 등록된 모든 학생이 시청할 수 있습니다."
-                      : "아래 버튼으로 이 차시에 영상을 추가하세요."
+                      : isPublicSelection ? undefined : "아래 버튼으로 이 차시에 영상을 추가하세요."
                   }
                   actions={
-                    isPublicSelection ? (
+                    isPublicSelection && !isDawonAdmin ? (
                       <>
                         <Button intent="primary" size="sm" disabled={publicSessionMutation.isPending} onClick={() => void startPublicUpload()}>
                           영상 추가
@@ -498,7 +500,7 @@ export default function VideoTreeView() {
                           폴더 생성
                         </Button>
                       </>
-                    ) : selectedSession ? (
+                    ) : !isPublicSelection && selectedSession ? (
                       <Button intent="primary" size="sm" onClick={() => openUploadModal(selectedSession.session.id)}>
                         영상 추가
                       </Button>
@@ -508,7 +510,7 @@ export default function VideoTreeView() {
               </div>
             ) : (
               <div className={styles.grid}>
-                {isPublicSelection && publicSession && (
+                {isPublicSelection && publicSession && !isDawonAdmin && (
                   <div
                     data-guide="videos-add"
                     className={styles.itemAdd}
@@ -573,7 +575,7 @@ export default function VideoTreeView() {
                       </div>
 
                       <div className={styles.cardActions}>
-                        {canShowRetryButton(v) && (
+                        {!isDawonAdmin && canShowRetryButton(v) && (
                           <Button
                             intent="primary"
                             size="sm"
@@ -605,7 +607,7 @@ export default function VideoTreeView() {
                         >
                           수정
                         </Button>
-                        <Button
+                        {!isDawonAdmin && <Button
                           intent="ghost"
                           size="sm"
                           disabled={deleteVideoMutation.isPending}
@@ -613,7 +615,7 @@ export default function VideoTreeView() {
                           title="삭제"
                         >
                           삭제
-                        </Button>
+                        </Button>}
                       </div>
                     </div>
                   );

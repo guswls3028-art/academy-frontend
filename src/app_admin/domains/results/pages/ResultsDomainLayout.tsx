@@ -8,6 +8,8 @@
 import { Outlet } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
 import type { DomainTab } from "@/shared/ui/domain";
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
+import { resultTabs } from "@/shared/product/dawon/staffMenu";
 
 const RESULTS_TABS: DomainTab[] = [
   { key: "inbox", label: "성적 콘솔", path: "/workspace/results", exact: true },
@@ -16,8 +18,9 @@ const RESULTS_TABS: DomainTab[] = [
 ];
 
 export default function ResultsDomainLayout() {
+  const isDawonAdmin = dawonStaffPreviewRole() === "admin";
   return (
-    <DomainLayout title="성적" tabs={RESULTS_TABS}>
+    <DomainLayout title={isDawonAdmin ? "시험 결과·통계" : "성적"} tabs={isDawonAdmin ? resultTabs : RESULTS_TABS}>
       <Outlet />
     </DomainLayout>
   );

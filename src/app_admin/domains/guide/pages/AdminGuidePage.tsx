@@ -4,11 +4,16 @@ import GuideCatalog from "@/shared/ui/guide/GuideCatalog";
 import FeatureGuideReader from "@/shared/ui/guide/FeatureGuideReader";
 import { useAvailableAdminNavigation } from "@admin/layout/useAvailableAdminNavigation";
 import { ADMIN_WORKFLOWS } from "../data/adminWorkflows";
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
+import { staffMenus } from "@/shared/product/dawon/staffMenu";
 
 export default function AdminGuidePage() {
   const location = useLocation();
+  const previewRole = dawonStaffPreviewRole();
   const navigation = useAvailableAdminNavigation();
-  const availablePaths = navigation.flatMap((group) => group.items.map((item) => item.to));
+  const availablePaths = previewRole
+    ? staffMenus[previewRole].flatMap((group) => group.items.map(([, path]) => `/workspace/${path.split("?")[0]}`))
+    : navigation.flatMap((group) => group.items.map((item) => item.to));
   const articles = ADMIN_WORKFLOWS.filter((article) =>
     availablePaths.some((path) => article.path === path || article.path.startsWith(`${path}/`)),
   );

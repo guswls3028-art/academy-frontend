@@ -7,6 +7,7 @@
 import { Outlet } from "react-router";
 import { DomainLayout } from "@/shared/ui/layout";
 import type { DomainTab } from "@/shared/ui/domain";
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 
 const VIDEO_TABS: DomainTab[] = [
   { key: "inbox", label: "오늘의 작업", path: "/workspace/videos", exact: true },
@@ -14,8 +15,9 @@ const VIDEO_TABS: DomainTab[] = [
 ];
 
 export default function VideoDomainLayout() {
+  const isDawonAdmin = dawonStaffPreviewRole() === "admin";
   return (
-    <DomainLayout title="영상" tabs={VIDEO_TABS}>
+    <DomainLayout title="영상" tabs={isDawonAdmin ? undefined : VIDEO_TABS}>
       <Outlet />
     </DomainLayout>
   );

@@ -85,6 +85,8 @@ const FeesTemplatesTab = lazy(() => import("@admin/domains/fees/components/FeesT
 
 /* ================= Lazy: Clinic ================= */
 const DawonClinicWork = lazy(() => import("@admin/domains/clinic/pages/WorkPage/ClinicWorkPage"));
+const DawonClinicLayout = lazy(() => import("@admin/domains/clinic/ClinicLayout"));
+const DawonClinicPasscard = lazy(() => import("@admin/domains/clinic/pages/PasscardPage/ClinicPasscardPage"));
 const ClinicRoutes = lazy(() => import("@admin/domains/clinic/ClinicRoutes"));
 
 /* ================= Lazy: Profile ================= */
@@ -239,18 +241,38 @@ export default function AdminRouter() {
       <Route element={<AppLayout overlay={studentDetailOverlay} />}>
         <Route path="settings" element={<Navigate to="/workspace/settings/profile" replace />} />
         {["settings/profile", "settings/appearance", "settings/organization"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonStaffSettings)} />)}
+        <Route path="students" element={<Navigate to="/workspace/students/home" replace />} />
         <Route path="students/home" element={renderLazyRoute(DawonAdminStudents)} />
         <Route path="students/class-groups" element={renderLazyRoute(ClassGroupsPage)} />
         {lectureRoutes({ dawonAdmin: true })}
         {sessionRoutes()}
+        <Route path="exams" element={renderLazyRoute(ExamDomainLayout)}>
+          <Route index element={renderLazyRoute(ExamExplorerPage)} />
+          <Route path="templates" element={renderLazyRoute(ExamTemplatesPage)} />
+          <Route path="bundles" element={renderLazyRoute(ExamBundlesPage)} />
+        </Route>
         <Route path="exams/:examId" element={renderLazyRoute(ExamIdToSessionRedirect)} />
+        <Route path="videos" element={renderLazyRoute(VideoDomainLayout)}>
+          <Route index element={<Navigate to="tree" replace />} />
+          <Route path="tree" element={renderLazyRoute(VideoTreePage)} />
+        </Route>
         <Route path="videos/:videoId" element={renderLazyRoute(VideoIdToSessionRedirect)} />
         <Route path="videos/:videoId/logs/:studentId?" element={renderLazyRoute(VideoWatchLogsPage)} />
         <Route path="students/surveys/school-reports" element={renderLazyRoute(DawonAdminSchoolReports)} />
-        <Route path="clinic/operations" element={renderLazyRoute(DawonClinicWork)} />
+        <Route path="clinic" element={renderLazyRoute(DawonClinicLayout)}>
+          <Route index element={<Navigate to="operations" replace />} />
+          <Route path="operations" element={renderLazyRoute(DawonClinicWork)} />
+          <Route path="settings" element={renderLazyRoute(DawonClinicPasscard)} />
+        </Route>
+        <Route path="counsel" element={<Navigate to="/workspace/community/counsel" replace />} />
         {["community/counsel", "results/students"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonAdminDirectories)} />)}
+        <Route path="results" element={renderLazyRoute(DawonOperations)} />
+        <Route path="results" element={renderLazyRoute(ResultsDomainLayout)}>
+          <Route path="tree" element={renderLazyRoute(ResultsTreePage)} />
+        </Route>
         {["staff","staff/home","staff/attendance","staff/payroll-snapshot"].map(path=><Route key={path} path={path} element={renderLazyRoute(DawonStaffPage)} />)}
-        {["dashboard", "results"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonOperations)} />)}
+        <Route path="dashboard" element={renderLazyRoute(DawonOperations)} />
+        <Route path="guide" element={renderLazyRoute(AdminGuidePage)} />
         <Route path="*" element={<Navigate to="/workspace/dashboard" replace />} />
       </Route>
     </Routes>

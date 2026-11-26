@@ -1,4 +1,3 @@
-import DomainLayout from "@/shared/ui/domain/DomainLayout";
 import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 import { useSearchParams } from "react-router";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
@@ -58,5 +57,5 @@ export default function ClinicWorkPage() {
       {renderLazyRoute(current.component)}
     </div>
   );
-  return role==="admin" ? <DomainLayout className="clinic-domain-layout" title="클리닉" breadcrumbs={[]}>{content}</DomainLayout> : content;
+  return content;
 }
