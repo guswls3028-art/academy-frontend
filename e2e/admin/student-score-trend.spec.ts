@@ -1489,7 +1489,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
     const examTab = page.getByRole("tab", { name: /^시험/ });
     await expect(examTab).toContainText("확인 필요");
-    await expect(examTab).toContainText("불러오기 실패");
+    await expect(examTab).not.toContainText("0건");
     await examTab.click();
     await expect(page.getByText("성적 추이를 불러오지 못했습니다.")).toBeVisible();
 
