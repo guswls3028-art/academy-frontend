@@ -1,7 +1,7 @@
 # Dedicated HakwonPlus reference origin R49
 
 Runtime files under `standalone/` are packed with an explicit SHA-256
-manifest by `seal-standalone.py`. The independent API reuses the verified
+manifest. `seal-board.py` seals the current package. The independent API reuses the verified
 Academy R47 image without editing its layers or active runtime. It starts
 `review-api-r49`, PostgreSQL, Redis, one persistent DB volume, and an
 internal Docker network. No host port, metadata path, production endpoint,
@@ -26,7 +26,13 @@ accounts. Fresh installations use the same onboarding state. The dashboard
 reads its actual messaging configuration from the isolated database. It shows
 the channel as unconfigured. The comparison account cannot activate a channel
 or enqueue real messages. The staged package hash and individual source
-hashes are recorded in `standalone-manifest.json`.
+hashes are recorded in `standalone-board-manifest.json`.
+
+The dashboard opens internal notices from the regular staff board. The
+reference service uses two additive staff migrations and the board source
+hashes recorded in `standalone/board-source.json`. The example academy has
+one seeded notice. Text posts and edits use the native board permissions
+and database. Provider-backed attachments are outside the comparison scope.
 
 The reserved protected route is `/__reference/api/v1/*`. The existing origin
 key authenticates the route. A bodyless `POST /api/v1/reference/session/`

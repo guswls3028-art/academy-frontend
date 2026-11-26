@@ -83,12 +83,15 @@ for i in $(seq 1 45); do
   sleep 2
 done
 docker exec "$db" pg_isready -U reference -d qa_hakwonplus_reference >/dev/null
-chmod -R a+rX app
-run=(--label "$label" --network "$net" --env-file private.env -v "$stage/app:/reference:ro" --read-only --memory 768m --tmpfs /tmp:rw,nosuid,size=96m)
+chmod -R a+rX app backend-patch
+source ./board-layer.sh
+reference_board_mounts "$stage"
+run=(--label "$label" --network "$net" --env-file private.env -v "$stage/app:/reference:ro" --read-only --memory 768m --tmpfs /tmp:rw,nosuid,size=96m "${board_mounts[@]}")
 docker run --rm "${run[@]}" "$expected_image" python -m django migrate --noinput --verbosity 0
 docker run --rm "${run[@]}" "$expected_image" python -m django migrate --check --noinput
 docker run --rm "${run[@]}" "$expected_image" python -B /reference/seed.py
 docker run --rm "${run[@]}" "$expected_image" python -B /reference/seed.py
+docker run --rm "${run[@]}" "$expected_image" python -B /reference/seed-board.py
 docker run -d --name "$api" "${run[@]}" "$expected_image" gunicorn --bind 0.0.0.0:8000 \
     --worker-class gthread --workers 1 --threads 3 --timeout 70 apps.api.config.wsgi:application >/dev/null
 for i in $(seq 1 30); do
@@ -100,5 +103,6 @@ test "$(docker network inspect -f '{{.Internal}} {{len .Containers}}' "$net")" =
 test "$(docker inspect -f '{{len .NetworkSettings.Networks}} {{.HostConfig.ReadonlyRootfs}}' "$api")" = "1 true"
 test "$(docker inspect -f '{{len .HostConfig.PortBindings}}' "$api")" = "0"
 docker exec "$api" python -B /reference/runtime-proof.py
+docker exec "$api" python -B /reference/board-proof.py
 trap - EXIT
 printf 'Reference API private stage complete: %s (%s), one independent DB/cache network.\n' "$api" "$marker_ref"

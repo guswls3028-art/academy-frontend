@@ -27,9 +27,12 @@ esac
 test "$(docker inspect -f '{{index .Config.Labels "hakwonplus.reference.r49"}} {{.Image}} {{.State.Running}}' "$current")" = "$old $image true"
 test ! -L "$credential_stage/private.env" && test "$(stat -c %a "$credential_stage/private.env")" = 600
 ! docker inspect "$archived" >/dev/null 2>&1
-chmod -R a+rX app
-run=(--network "$net" --env-file "$credential_stage/private.env" -v "$stage/app:/reference:ro" --read-only --memory 768m --tmpfs /tmp:rw,nosuid,size=96m)
+chmod -R a+rX app backend-patch
+source ./board-layer.sh
+reference_board_mounts "$stage"
+run=(--network "$net" --env-file "$credential_stage/private.env" -v "$stage/app:/reference:ro" --read-only --memory 768m --tmpfs /tmp:rw,nosuid,size=96m "${board_mounts[@]}")
 docker run --rm "${run[@]}" "$image" gunicorn --check-config apps.api.config.wsgi:application
+reference_board_migrate "${run[@]}" "$image"
 docker stop --time 30 "$current" >/dev/null
 docker rename "$current" "$archived"
 recover() {
@@ -53,6 +56,7 @@ for i in $(seq 1 35); do
   sleep 2
 done
 docker exec "$current" python -B /reference/runtime-proof.py
+docker exec "$current" python -B /reference/board-proof.py
 if [ -f "$existing/origin-before.Caddyfile" ]; then
   test -f "$existing/origin-after.Caddyfile"
   cmp "$existing/origin-after.Caddyfile" "$root/origin.Caddyfile"

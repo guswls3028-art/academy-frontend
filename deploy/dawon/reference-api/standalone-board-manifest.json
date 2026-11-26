@@ -1,0 +1,41 @@
+{
+  "packageSha256": "13c07dd153222b36bb501ca1d933838657d9bfea9766bcd8fe47c949aa789dac",
+  "stage": "/opt/dawon-review/reference-r49-standalone-13c07dd15322",
+  "bytes": 37338,
+  "files": {
+    "app/board-proof.py": "5fedf03c3ca7ea4a2ea2965d466f646b3ebad87b6aaa27815fdf3d2687f376ef",
+    "app/reference_boundary.py": "4baac1aaebd88909769bd9d50ca3519d5a69ad5592993a647a01d547a820686c",
+    "app/reference_session.py": "77a54bacf66a2ee273981e9c75486ac820adebf3e989526e18324948c73463b1",
+    "app/reference_settings.py": "4fc32bfcd82a5da4c1fd85050e178f366c5f78b2ecdeb23c48ac047fb5b09abb",
+    "app/reference_urls.py": "381095fb61e95f402ac88990539c156345a4da7bc9679f0ea8a24fc4b53ac0c3",
+    "app/runtime-proof.py": "ea6aa10eab7cd8ae21ddcdd06e4bc662353353b4aa6cdb31e6af65fdd3680c5a",
+    "app/seed-board.py": "48ef64bef3fa599ab3f0bfea198a4a540edfcd0d8c8a3904cbb8cace4df4aea4",
+    "app/seed.py": "3e66fa90788b942ae53b3a6d9d8c4c0db25c30e54323ef51a55e79422b48c492",
+    "backend-patch/apps/domains/staffs/migrations/0011_staffboardpost_staffboardreply_and_more.py": "90ae956844903831370c792155c650f946b0e8352984ae0ae7114ab5222751e8",
+    "backend-patch/apps/domains/staffs/migrations/0012_staffboardwritereceipt.py": "f67e3162f3399aaca5e6b64686fec8790a7572866729e3c5ed14bf02c3c4a443",
+    "backend-patch/apps/domains/staffs/models.py": "d8e0d8d4df144029184b0c22e92e7b79ce8ba639ae74b716727e1b7a75e5de86",
+    "backend-patch/apps/domains/staffs/services/board_writes.py": "dbfc72525af6689365a0e4ccfd577eb5038e3074efae83ea1c4ca7620710b948",
+    "backend-patch/apps/domains/staffs/urls.py": "0ab7a57f43c22033776654aebc0742a3a55e58ae052b4afb638aaccdd9c152a9",
+    "backend-patch/apps/domains/staffs/views/board.py": "bf7874a7d3345e4d9b1570294d8d7ea4f61984b6e0f17cb99a0713214d4c73ad",
+    "backend-patch/apps/domains/submissions/services/lifecycle.py": "2799e3852812b57b098e3e0f13a293114c1aebad28e7f75247ff9ba5f818fa85",
+    "backend-patch/apps/infrastructure/storage/r2.py": "ba10f05a4e2dfb272284a1ee97a7425b55b15218f775aa1f8b280cfdab111a9a",
+    "backend-patch/apps/support/inventory/storage_cleanup_dependencies.py": "d6c00079c83de31ef9c026eb66b2806102c974a19d0083eac63a7320a8060332",
+    "board-layer.sh": "6b8a33d4f523787a19fba4bff80f628ea591cc50c356fc3fcf24127209adb547",
+    "board-source.json": "f6a5614a0200bbea933b2e8c8a0f21cb4674728c16a4082c1416579418a2ba00",
+    "mount-protected.sh": "c5f77d2513b0b48d4332520fce16be1ec7c017ab327805c86cf68df106c0f816",
+    "reference.Caddyfile": "4d6bab2630d426706dda6c2354e42777ca7e31820d0dceeb6010e8e9e9472352",
+    "start-isolated.sh": "87c432bc64f4cdf6025c9602b9de7e4045e33c6585b095300e041bf68348c69e",
+    "upgrade-isolated.sh": "59ee5972ce257f3284f5337ae93feec18afdf3e98ccf9629af94902e1a4c8917"
+  },
+  "transferParts": [
+    "refboard-part-00",
+    "refboard-part-01",
+    "refboard-part-02",
+    "refboard-part-03",
+    "refboard-part-04"
+  ],
+  "image": "sha256:689551c1da73af1d35eb116acd84de6cff3306832710e2eef645f13ebc9095d5",
+  "base": "2684bbba5cb5760acbdfb02cc7b09ad7a8d46f34",
+  "productionBoardSource": "8b03f452dfa1d445c6eceeef8c53f27127056580",
+  "previousPackage": "d2b382d2512308f447f39853197730222a2a823fac9d02aaef6d7021d7d881d4"
+}

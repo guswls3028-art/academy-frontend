@@ -10,6 +10,8 @@ EXCLUDED = (
     "/api/v1/payments/","/api/v1/tenants/","/api/v1/platform/",
     "/api/v1/tools/","/api/v1/ai/",
 )
+BOARD_POSTS = "/api/v1/staffs/board/posts/"
+BOARD_POST = re.compile(r"/api/v1/staffs/board/posts/([1-9][0-9]{0,12})/")
 MEMO = re.compile(r"/api/v1/students/([1-9][0-9]{0,12})/")
 ORDINARY_WORK = (
     "/api/v1/lectures/","/api/v1/enrollments/","/api/v1/exams/","/api/v1/homeworks/",
@@ -45,6 +47,27 @@ def memo_only(request,student_id):
                                   ps_number__startswith="REF-",parent__isnull=True,deleted_at__isnull=True).only("phone","parent_phone").first()
     return sample is not None and not (sample.phone or sample.parent_phone)
 
+def board_text_only(request,path):
+    if request.content_type != "application/json":
+        return False
+    try:
+        size=int(request.META.get("CONTENT_LENGTH") or 0)
+        if not 0<size<=110000:
+            return False
+        body=json.loads(request.body)
+    except (ValueError,UnicodeError):
+        return False
+    if not isinstance(body,dict):
+        return False
+    if request.method=="POST" and path==BOARD_POSTS:
+        return set(body)=={"category","title","body"} and body.get("category")=="notice"
+    if request.method=="PATCH" and (post_id:=BOARD_POST.fullmatch(path)):
+        if not body or set(body)-{"title","body"}:
+            return False
+        from apps.domains.staffs.models import StaffBoardPost
+        return StaffBoardPost.objects.filter(pk=int(post_id[1]),tenant_id=849,category="notice").exists()
+    return False
+
 class ReferenceBoundary:
     def __init__(self,get_response):
         self.get_response=get_response
@@ -63,6 +86,12 @@ class ReferenceBoundary:
             return reject()
         if path in {"/api/v1/token/","/api/v1/students/demo-session/"}:
             return reject()
+        if path.startswith(BOARD_POSTS):
+            if "/attachment/" in path:
+                return reject(403)
+            if read or board_text_only(request,path):
+                return self.get_response(request)
+            return reject(403)
         if read or method=="POST" and path in PERMITTED_POST:
             return self.get_response(request)
         if method=="PATCH" and (match:=MEMO.fullmatch(path)):

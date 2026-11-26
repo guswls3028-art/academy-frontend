@@ -1,0 +1,53 @@
+{
+  "base": "2684bbba5cb5760acbdfb02cc7b09ad7a8d46f34",
+  "productionBoardSource": "8b03f452dfa1d445c6eceeef8c53f27127056580",
+  "oldFiles": {
+    "apps/domains/staffs/models.py": "cb19cc51c9c0f25f965e974a8f2d109f5a0a497a8bc50dc6ce85b163b287662b",
+    "apps/domains/staffs/urls.py": "347674e6ec99d86dbbb646fe26df716c8c16430439c3704af34b72477dfc6702",
+    "apps/domains/staffs/migrations/0011_staffboardpost_staffboardreply_and_more.py": null,
+    "apps/domains/staffs/migrations/0012_staffboardwritereceipt.py": null,
+    "apps/domains/staffs/services/board_writes.py": null,
+    "apps/domains/staffs/views/board.py": null,
+    "apps/domains/submissions/services/lifecycle.py": "bb51221c1290f410c3151894145db10866f666425d68ec804e9d83759b4d860a",
+    "apps/infrastructure/storage/r2.py": "565a0d7b3ae75e5287a0cf8ac2bfd1f01a81695eacb31d64a146c7fe3a6f0bf0",
+    "apps/support/inventory/storage_cleanup_dependencies.py": "a750194dea8d423dc8136f8ab2a7248e99d712c052d66b2c7cf88993cc57d72d"
+  },
+  "overlayFiles": {
+    "apps/domains/staffs/models.py": {
+      "commit": "e2cbed16f7727f54f067e87ef8a11a486cf2b5ce",
+      "sha256": "d8e0d8d4df144029184b0c22e92e7b79ce8ba639ae74b716727e1b7a75e5de86"
+    },
+    "apps/domains/staffs/urls.py": {
+      "commit": "e2cbed16f7727f54f067e87ef8a11a486cf2b5ce",
+      "sha256": "0ab7a57f43c22033776654aebc0742a3a55e58ae052b4afb638aaccdd9c152a9"
+    },
+    "apps/domains/staffs/migrations/0011_staffboardpost_staffboardreply_and_more.py": {
+      "commit": "e2cbed16f7727f54f067e87ef8a11a486cf2b5ce",
+      "sha256": "90ae956844903831370c792155c650f946b0e8352984ae0ae7114ab5222751e8"
+    },
+    "apps/domains/staffs/migrations/0012_staffboardwritereceipt.py": {
+      "commit": "e2cbed16f7727f54f067e87ef8a11a486cf2b5ce",
+      "sha256": "f67e3162f3399aaca5e6b64686fec8790a7572866729e3c5ed14bf02c3c4a443"
+    },
+    "apps/domains/staffs/services/board_writes.py": {
+      "commit": "e2cbed16f7727f54f067e87ef8a11a486cf2b5ce",
+      "sha256": "dbfc72525af6689365a0e4ccfd577eb5038e3074efae83ea1c4ca7620710b948"
+    },
+    "apps/domains/staffs/views/board.py": {
+      "commit": "8b03f452dfa1d445c6eceeef8c53f27127056580",
+      "sha256": "bf7874a7d3345e4d9b1570294d8d7ea4f61984b6e0f17cb99a0713214d4c73ad"
+    },
+    "apps/domains/submissions/services/lifecycle.py": {
+      "commit": "e2cbed16f7727f54f067e87ef8a11a486cf2b5ce",
+      "sha256": "2799e3852812b57b098e3e0f13a293114c1aebad28e7f75247ff9ba5f818fa85"
+    },
+    "apps/infrastructure/storage/r2.py": {
+      "commit": "e2cbed16f7727f54f067e87ef8a11a486cf2b5ce",
+      "sha256": "ba10f05a4e2dfb272284a1ee97a7425b55b15218f775aa1f8b280cfdab111a9a"
+    },
+    "apps/support/inventory/storage_cleanup_dependencies.py": {
+      "commit": "e2cbed16f7727f54f067e87ef8a11a486cf2b5ce",
+      "sha256": "d6c00079c83de31ef9c026eb66b2806102c974a19d0083eac63a7320a8060332"
+    }
+  }
+}
