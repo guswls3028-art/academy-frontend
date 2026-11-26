@@ -2000,7 +2000,7 @@ export default function SessionScoresEntryPage({
           setBulkScoreValue("");
         }}
         type="action"
-        width={420}
+        size="sm"
         onEnterConfirm={() => {
           if (!bulkScoreValue.trim()) return;
           applyBulkScore();

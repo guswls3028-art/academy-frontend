@@ -88,7 +88,7 @@ export default function AutoSendTemplateEditor({ trigger, onClose, viewOnly = fa
   });
 
   if (!source.data || source.isFetching || source.isError) {
-    return <AdminModal open onClose={onClose} width={560}>
+    return <AdminModal open onClose={onClose} size="md">
       <ModalHeader title={`${title} 문구`} />
       <ModalBody>
         {source.isError

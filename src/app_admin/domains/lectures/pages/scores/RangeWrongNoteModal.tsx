@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getRegularOrder } from "@/shared/product/sessions/sessionOrdering";
 import { Button } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
-import { AdminModal, ModalBody, ModalHeader } from "@/shared/ui/modal";
+import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import { getSessionItem, setSessionItem } from "@/shared/utils/safeSessionStorage";
 import { fetchSessions } from "../../api/sessions";
@@ -80,9 +80,10 @@ export default function RangeWrongNoteModal({ lectureId, sessionId, scope, onClo
   const total = selection?.students.length ?? 0;
   const invalid = Boolean(selection?.errors.size || selection?.stale.length);
   const totalStudents = catalog.data?.students.length ?? 0;
+  const showCreateAction = !draft.batchId && sessionList.isSuccess && valid && catalog.isSuccess && source && totalStudents > 0;
 
   return (
-    <AdminModal open width={740} onClose={onClose} closeDisabled={create.isPending} noMinimize trapFocus>
+    <AdminModal open size="wide" onClose={onClose} closeDisabled={create.isPending} noMinimize trapFocus>
       <ModalHeader title="차시별 오답노트" description="시험·과제에서 틀린 번호를 입력하면 학생마다 문제와 정답을 한 PDF로 묶습니다." noIcon />
       <ModalBody>
         <div className={styles.workspace}>
@@ -163,16 +164,20 @@ export default function RangeWrongNoteModal({ lectureId, sessionId, scope, onClo
                     setActiveKey(key.slice(key.indexOf(":") + 1));
                   }}>해당 자료 보기</Button></div>}
                   {create.error && <p role="alert" className={styles.error}>{extractApiError(create.error, "오답노트를 요청하지 못했습니다. 입력을 확인하고 다시 시도해 주세요.")}</p>}
-                  <div className={styles.footer}>
-                    <p>{total}명 출력 대상 · {totalStudents - total}명 제외</p>
-                    <Button intent="primary" loading={create.isPending} disabled={!total || invalid} onClick={() => create.mutate(selection.students)}>
-                      {total > 1 ? `${total}명 오답노트 묶음 만들기` : "오답노트 만들기"}
-                    </Button>
-                  </div>
                 </>}
             </>}
         </div>
       </ModalBody>
+      {showCreateAction && selection && (
+        <ModalFooter
+          left={<span className={styles.muted}>{total}명 출력 대상 · {totalStudents - total}명 제외</span>}
+          right={
+            <Button intent="primary" loading={create.isPending} disabled={!total || invalid} onClick={() => create.mutate(selection.students)}>
+              {total > 1 ? `${total}명 오답노트 묶음 만들기` : "오답노트 만들기"}
+            </Button>
+          }
+        />
+      )}
     </AdminModal>
   );
 }

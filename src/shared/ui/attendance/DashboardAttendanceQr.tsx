@@ -61,7 +61,7 @@ function ClassPicker({ onClose }: { onClose: () => void }) {
     </Suspense>;
   }
 
-  return <AdminModal open onClose={onClose} width={560} noMinimize trapFocus>
+  return <AdminModal open onClose={onClose} size="md" noMinimize trapFocus>
     <ModalHeader title="수업 출석 QR" noIcon />
     <ModalBody>
       <div className={styles.picker}>

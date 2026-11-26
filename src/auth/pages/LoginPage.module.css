@@ -314,13 +314,18 @@
 .overlayCard {
   position: relative;
   width: 100%;
-  max-width: 420px;
-  max-height: 90vh;
+  max-width: 400px;
+  box-sizing: border-box;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
   overflow-y: auto;
   background: #FFFFFF;
   color: #111827;
-  border-radius: 16px;
-  padding: 28px 28px 24px;
+  border-radius: var(--ds-radius-lg);
+  padding: var(--ds-space-4);
+  font-size: var(--ds-text-md);
   border: 1px solid #EEF1F4;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
   font-family: var(--app-font-sans, var(--font-sans, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif));
@@ -330,9 +335,8 @@
 
 /* 회원가입 모달은 필드가 많아 데스크탑에서 더 넓게 */
 .overlayCardWide {
-  max-width: 760px;
-  overscroll-behavior: contain;
-  scroll-padding-block: 24px 88px;
+  max-width: 720px;
+  scroll-padding-block: 16px 64px;
 }
 
 .signupFields {
@@ -368,10 +372,10 @@
 
 .overlayClose {
   position: absolute;
-  top: 14px;
-  right: 14px;
-  width: var(--control-md);
-  height: var(--control-md);
+  top: var(--ds-space-2);
+  right: var(--ds-space-2);
+  width: var(--ds-touch-target);
+  height: var(--ds-touch-target);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -395,12 +399,18 @@
 }
 
 .overlayTitle {
-  font-size: 1.375rem;
-  font-weight: 700;
+  font-size: var(--ds-text-lg);
+  font-weight: 600;
   letter-spacing: 0;
   line-height: 1.3;
   margin: 0 0 6px;
   color: var(--auth-text, #111827);
+}
+
+.overlayCard > .overlayTitle {
+  min-height: var(--ds-control-md);
+  padding-right: var(--ds-touch-target);
+  align-content: center;
 }
 
 .overlaySubtitle {
@@ -412,10 +422,11 @@
 }
 
 .signupTitleRow {
+  min-height: var(--ds-control-md);
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-right: calc(var(--control-md) + var(--space-2));
+  padding-right: var(--ds-touch-target);
   margin: 0 0 6px;
 }
 
@@ -496,10 +507,25 @@
 }
 
 .overlayActions {
-  margin-top: 1.25rem;
+  margin-top: var(--ds-space-4);
+  padding-top: var(--ds-space-3);
+  border-top: 1px solid #E5E7EB;
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+}
+
+.overlayCard .input {
+  height: var(--ds-control-md);
+  border-radius: var(--ds-radius-md);
+}
+
+.overlayActions .btnPrimary,
+.overlayActions .btnSecondary {
+  min-height: var(--ds-control-md);
+  padding: var(--ds-space-1) var(--ds-space-4);
+  font-size: var(--ds-text-md);
+  border-radius: var(--ds-radius-md);
 }
 
 .overlayActions .btnPrimary {
@@ -552,7 +578,7 @@
 .signupInput {
   display: block;
   width: 100%;
-  height: var(--control-lg);
+  height: var(--ds-control-md);
   padding: 0 12px;
   font-size: var(--ds-field-font);
   font-weight: 400;
@@ -627,9 +653,9 @@
 .signupPhoneRow {
   margin-bottom: 12px;
 }
-.signupPhoneBlock {
-  height: var(--control-lg);
-  min-height: var(--control-lg);
+.overlayCard .signupPhoneBlock {
+  height: var(--ds-control-md);
+  min-height: var(--ds-control-md);
   border-radius: 8px;
   background: #FAFBFC;
   border: 1px solid #E5E7EB;
@@ -637,8 +663,8 @@
   padding: 0 12px;
 }
 .signupPhoneBlockInput {
-  height: var(--control-lg) !important;
-  min-height: var(--control-lg) !important;
+  height: var(--ds-control-md) !important;
+  min-height: var(--ds-control-md) !important;
   border-radius: 8px !important;
   background: #FAFBFC !important;
   border: 1px solid #E5E7EB !important;
@@ -671,7 +697,7 @@
 }
 .signupSegmentBtn {
   flex: 1;
-  min-height: var(--control-lg);
+  min-height: var(--ds-control-md);
   font-size: 0.875rem;
   font-weight: 600;
   letter-spacing: 0;
@@ -694,8 +720,8 @@
 }
 
 .signupActions {
-  margin-top: 24px;
-  padding-top: 20px;
+  margin-top: var(--ds-space-4);
+  padding-top: var(--ds-space-3);
   border-top: 1px solid #E5E7EB;
   display: flex;
   gap: 12px;
@@ -703,15 +729,15 @@
   flex-wrap: wrap;
 }
 .signupBtnCancel {
-  height: var(--control-lg);
-  padding: 0 var(--space-5);
-  font-size: var(--ds-field-font);
+  min-height: var(--ds-control-md);
+  padding: var(--ds-space-1) var(--ds-space-4);
+  font-size: var(--ds-text-md);
   font-weight: 600;
   letter-spacing: 0;
   color: #374151;
   background: #F3F4F6;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--ds-radius-md);
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
 }
@@ -720,15 +746,15 @@
   color: #111827;
 }
 .signupBtnSubmit {
-  height: var(--control-lg);
-  padding: 0 var(--space-5);
-  font-size: var(--ds-field-font);
+  min-height: var(--ds-control-md);
+  padding: var(--ds-space-1) var(--ds-space-4);
+  font-size: var(--ds-text-md);
   font-weight: 600;
   letter-spacing: 0;
   color: #fff;
   background: var(--auth-gradient, linear-gradient(135deg, #2563EB, #10B981));
   border: none;
-  border-radius: 10px;
+  border-radius: var(--ds-radius-md);
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   transition: filter 0.2s ease, box-shadow 0.2s ease;

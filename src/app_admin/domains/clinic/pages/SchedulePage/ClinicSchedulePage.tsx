@@ -277,7 +277,7 @@ export default function ClinicSchedulePage() {
           </div>
         </header>
 
-        <AdminModal open={calendarOpen} onClose={() => setCalendarOpen(false)} width={760}>
+        <AdminModal open={calendarOpen} onClose={() => setCalendarOpen(false)} size="wide">
           <ModalHeader title="날짜 이동" description="날짜를 선택하면 해당 주의 예약 일정으로 이동합니다." />
         <section
           className={styles.monthOverview}
@@ -556,7 +556,7 @@ export default function ClinicSchedulePage() {
         open={!!createDate || !!editingSession}
         onClose={() => !editSaving && closeCreate()}
         closeDisabled={editSaving}
-        width={520}
+        size="default"
       >
         {(createDate || editingSession) && (
           <>

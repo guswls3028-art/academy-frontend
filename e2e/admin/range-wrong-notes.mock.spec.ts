@@ -100,7 +100,7 @@ async function open(page: Page) {
 
 for (const width of [390, 1366]) {
   test(`차시 범위의 학생별 시험·과제 오답 입력과 문서 복구 (${width}px)`, async ({ page }, info) => {
-    await page.setViewportSize({ width, height: 900 });
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     const api = await setup(page);
     let dialog = await open(page);
     await expect(dialog.getByLabel("시작 차시").locator("option")).toHaveCount(2);
@@ -114,8 +114,14 @@ for (const width of [390, 1366]) {
     await dialog.getByLabel("나래 오답 번호").fill("7");
     await material().selectOption("homework:61");
     await expect(dialog.getByLabel("나래 오답 번호")).toHaveCount(0);
-    await dialog.getByLabel("가온 오답 번호").fill("4");
+    const homeworkNumber = dialog.getByLabel("가온 오답 번호");
+    await homeworkNumber.fill("4");
+    await homeworkNumber.scrollIntoViewIfNeeded();
+    await expect(homeworkNumber).toBeInViewport({ ratio: 1 });
     await expect(dialog.getByText("2명 출력 대상 · 1명 제외")).toBeVisible();
+    const createBundle = dialog.getByRole("button", { name: "2명 오답노트 묶음 만들기" });
+    await createBundle.scrollIntoViewIfNeeded();
+    await expect(createBundle).toBeInViewport({ ratio: 1 });
     const bounds = await dialog.boundingBox();
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
@@ -129,7 +135,10 @@ for (const width of [390, 1366]) {
     dialog = await open(page);
     await dialog.getByRole("button", { name: "실패한 문서 다시 만들기" }).click();
     const zip = page.waitForEvent("download");
-    await dialog.getByRole("button", { name: "학생별 PDF 묶음 다운로드" }).click();
+    const downloadBundle = dialog.getByRole("button", { name: "학생별 PDF 묶음 다운로드" });
+    await downloadBundle.scrollIntoViewIfNeeded();
+    await expect(downloadBundle).toBeInViewport({ ratio: 1 });
+    await downloadBundle.click();
     expect((await zip).suggestedFilename()).toBe("학생별 오답노트.zip");
     const requested = [
       { enrollment_id: 21, sources: [{ type: "exam", id: 51, numbers: [1, 25] }, { type: "homework", id: 61, numbers: [4] }] },

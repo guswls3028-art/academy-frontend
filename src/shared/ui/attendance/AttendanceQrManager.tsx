@@ -114,7 +114,7 @@ export function QrManagerDialog({ kind, lectureId, lectureTitle, session, onBack
     if (accepted) mutation.mutate({ mode, point: selected });
   };
 
-  return <AdminModal open onClose={onClose} width={680} noMinimize trapFocus closeDisabled={mutation.isPending}>
+  return <AdminModal open onClose={onClose} size="wide" noMinimize trapFocus closeDisabled={mutation.isPending}>
     <ModalHeader title={session ? "차시 출석 QR" : "출결 QR 출력"} noIcon={Boolean(session)}
       description={session ? undefined : kind === "clinic" ? "확정된 클리닉 예약의 등원·하원을 학생이 직접 기록합니다." : "이 강의의 당일 등록 차시에 학생이 직접 출석합니다."} />
     <ModalBody><div className={styles.content}>

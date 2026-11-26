@@ -283,16 +283,16 @@ export default function InventoryHomeTab({ ps, folders, files, queryKey, selecte
 
       {/* 삭제 확인 모달 */}
       {confirmDelete && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "grid", placeItems: "center", padding: 16 }} onClick={() => setConfirmDelete(null)}>
-          <div role="alertdialog" aria-modal="true" aria-labelledby={deleteDialogTitleId} style={{ background: "var(--stu-bg)", borderRadius: "var(--stu-radius-md)", padding: "var(--stu-space-5)", maxWidth: 340, width: "100%", boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }} onClick={(e) => e.stopPropagation()}>
-            <div id={deleteDialogTitleId} style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>{confirmDelete.type === "folder" ? "폴더 삭제" : "파일 삭제"}</div>
-            <div style={{ fontSize: 14, color: "var(--stu-text-muted)", marginBottom: 16 }}>
+        <div className={styles.deleteBackdrop} onClick={() => setConfirmDelete(null)}>
+          <div role="alertdialog" aria-modal="true" aria-labelledby={deleteDialogTitleId} className={styles.deleteDialog} onClick={(e) => e.stopPropagation()}>
+            <div id={deleteDialogTitleId} className={styles.deleteTitle}>{confirmDelete.type === "folder" ? "폴더 삭제" : "파일 삭제"}</div>
+            <div className={styles.deleteDescription}>
               <strong>{confirmDelete.name}</strong>을(를) 삭제하시겠습니까?
-              {confirmDelete.type === "folder" && <div style={{ fontSize: 13, marginTop: 4 }}>비어있는 폴더만 삭제할 수 있습니다.</div>}
+              {confirmDelete.type === "folder" && <div className={styles.deleteHint}>비어있는 폴더만 삭제할 수 있습니다.</div>}
             </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button type="button" className="stu-btn stu-btn--secondary stu-btn--sm" onClick={() => setConfirmDelete(null)}>취소</button>
-              <button type="button" className="stu-btn stu-btn--danger stu-btn--sm" disabled={deleteMut.isPending}
+            <div className={styles.deleteActions}>
+              <button type="button" className="stu-btn stu-btn--secondary" data-size="md" onClick={() => setConfirmDelete(null)}>취소</button>
+              <button type="button" className="stu-btn stu-btn--danger" data-size="md" disabled={deleteMut.isPending}
                 onClick={() => deleteMut.mutate({ type: confirmDelete.type, id: confirmDelete.id })}>
                 {deleteMut.isPending ? "삭제 중…" : "삭제"}
               </button>

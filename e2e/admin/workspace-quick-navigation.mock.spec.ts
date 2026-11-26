@@ -304,7 +304,11 @@ test.describe("업무 화면 기능 검색", () => {
       await expect(exam).toHaveCount(0);
       await learning.click();
       await expect(exam).toBeVisible();
-      expect((await exam.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await expect(menu.getByText("운영 현황", { exact: true })).toBeVisible();
+      await expect(menu.getByText("학생·수업", { exact: true })).toBeVisible();
+      const denseRows = await page.evaluate(() => matchMedia("(min-width: 1024px) and (pointer: fine)").matches);
+      expect((await exam.boundingBox())!.height).toBe(denseRows ? 34 : 44);
+      await expect(exam.locator("svg")).toHaveCSS("width", "16px");
       await page.screenshot({ path: info.outputPath(`sidebar-expanded-${width}.png`), fullPage: true });
       await exam.click();
       await expect(page).toHaveURL(/\/workspace\/exams$/);
@@ -313,6 +317,8 @@ test.describe("업무 화면 기능 검색", () => {
       if (width === 390) await mobileMenu.click();
       await expect(learning).toHaveAttribute("aria-expanded", "true");
       await expect(exam).toHaveAttribute("aria-current", "page");
+      await expect(menu.locator(".nav-item.active:visible")).toHaveCount(1);
+      await expect(exam).toHaveClass(/active/);
       if (width === 390) await page.keyboard.press("Escape");
       await page.getByRole("navigation", { name: "상위 경로" }).getByRole("link", { name: "학습·운영", exact: true }).click();
       await expect(page).toHaveURL(/\/workspace\/learning$/);
