@@ -282,8 +282,7 @@ function normalizeSubmissionRow(value: unknown): ExamSubmissionRow | null {
 }
 
 export async function fetchPendingSubmissions(filter?: string): Promise<PendingSubmissionRow[]> {
-  const params = filter ? { filter } : {};
-  const res = await api.get("/submissions/submissions/pending/", { params });
+  const res = await api.get("/submissions/submissions/pending/", { params: { filter, session_choices: 1 } });
   return listFromApiResponse(res.data) as PendingSubmissionRow[];
 }
 
@@ -304,7 +303,7 @@ export async function fetchPendingSubmissionPage(filter: string, page: number, f
   if (!session || !tenant) throw new Error("로그인과 학원 정보를 확인한 뒤 다시 조회해 주세요.");
   const config = createAuthSessionBoundConfig(session.generation, undefined, tenant);
   const { data } = await api.get<PendingSubmissionPage | PendingSubmissionRow[]>("/submissions/submissions/pending/", {
-    ...config, params: { filter, page, page_size: 50, failed_type: failedType },
+    ...config, params: { filter, page, page_size: 50, failed_type: failedType, session_choices: 1 },
   });
   // Compatibility for complete small legacy responses; a capped list is not complete.
   if (Array.isArray(data)) {

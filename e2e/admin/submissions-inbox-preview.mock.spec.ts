@@ -108,6 +108,7 @@ async function installSubmissionApi(page: Page, options: {
       return;
     }
     if (path === "/submissions/submissions/pending/" && request.method() === "GET") {
+      if (options.sharedExam) expect(new URL(request.url()).searchParams.get("session_choices")).toBe("1");
       await json(route, [
         {
           id: 501,

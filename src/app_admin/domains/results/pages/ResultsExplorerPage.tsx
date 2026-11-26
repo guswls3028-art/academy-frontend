@@ -1343,7 +1343,19 @@ function OperationList({
   return (
     <div className={styles.operationList}>
       <h4>{title}</h4>
-      {rows.length === 0 ? <p>{empty}</p> : rows.slice(0, 4).map((submission) => (
+      {rows.length === 0 ? <p>{empty}</p> : rows.slice(0, 4).map((submission) => action === "결과 보기" && submission.session_choices?.length ? (
+        <label key={submission.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 py-2">
+          <span>{submission.target_title} · {submission.student_name || "학생 미식별"}</span>
+          <select aria-label={`${submission.target_title} 결과를 열 강의·차시`} value="" className="max-w-full"
+            onChange={event => {
+              const selected = submission.session_choices?.find(choice => choice.session_id === Number(event.target.value));
+              if (selected) onNavigate(`/workspace/lectures/${selected.lecture_id}/sessions/${selected.session_id}/exams?exam_id=${submission.target_id}&examTab=results${submission.enrollment_id ? `&enrollmentId=${submission.enrollment_id}` : ""}`);
+            }}>
+            <option value="">결과를 열 강의·차시 선택</option>
+            {submission.session_choices.map(choice => <option value={choice.session_id} key={choice.session_id}>{choice.lecture_title} · {choice.session_title}</option>)}
+          </select>
+        </label>
+      ) : (
         <button
           type="button"
           key={submission.id}
@@ -1352,7 +1364,7 @@ function OperationList({
               onNavigate(`/workspace/lectures/${submission.lecture_id}/sessions/${submission.session_id}/scores`);
               return;
             }
-            onNavigate("/workspace/results/submissions");
+            onNavigate(action === "결과 보기" ? "/workspace/results/submissions?filter=done" : "/workspace/results/submissions");
           }}
         >
           <span>
