@@ -76,7 +76,9 @@ test("선생님이 1~2차시 시험·과제에서 번호를 입력해 학생별 
   const tokens = await loginAdmin(request);
   scope.token = tokens.access;
   const stamp = String(Date.now());
-  const family = await createQaFamily(request, scope.token, `wrong-note-${stamp}`, 2);
+  const family = await createQaFamily(request, scope.token, `wrong-note-${stamp}`, 2, {
+    highSchool: `QA 오답노트고등학교 ${stamp}`,
+  });
   const lecture = await expectApi<{ id: number }>(request, "POST", "/lectures/lectures/", scope.token, {
     title: `QA 차시 오답노트 ${stamp}`, name: "QA Science", subject: "SCIENCE", start_date: "2026-01-01", is_active: true,
   });
