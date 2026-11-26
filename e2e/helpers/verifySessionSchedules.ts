@@ -160,9 +160,13 @@ export async function verifySessionSchedules(
     await gotoAndSettle(page, `${route}/attendance`);
     await acknowledgeInitialAccountPromptsIfVisible(page);
     const expand = page.getByRole('button', { name: '차시·수업일 펼치기', exact: true });
+    const collapse = page.getByRole('button', { name: '차시·수업일 접기', exact: true });
+    const strip = page.getByRole('region', { name: '수업일 선택', exact: true });
     await expect(expand).toHaveAttribute('aria-expanded', 'false');
-    await expand.click();
-    await expect(page.getByRole('region', { name: '수업일 선택', exact: true })).toBeVisible();
+    await expect(strip).toBeHidden();
+    await expand.press('Enter');
+    await expect(collapse).toHaveAttribute('aria-expanded', 'true');
+    await expect(strip).toBeVisible();
     phase = 'assessment-schedule-initial-create';
     await verifyInitialSchedules(page, request, admin, scope.lectureId, scope.sessionId, testInfo, cleanup);
     phase = 'assessment-schedule-admin-attendance';
@@ -190,7 +194,6 @@ export async function verifySessionSchedules(
     expect(wed).toMatchObject({ date: wedDate, enrollment_ids: [primaryId] });
     expect(thu).toMatchObject({ date: thuDate, enrollment_ids: [peerId] });
     await page.reload({ waitUntil: 'domcontentloaded' });
-    const strip = page.getByRole('region', { name: '수업일 선택' });
     await strip.getByRole('button', { name: /^수요일반/ }).click();
     await expect(page.getByText(`${wedDate} · 수요일반`, { exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: `${primary.name} 학생 상세 열기`, exact: true })).toBeVisible();
@@ -230,6 +233,17 @@ export async function verifySessionSchedules(
 
     phase = 'assessment-schedule-transfer';
     await page.setViewportSize({ width: 390, height: 844 });
+    await expect(collapse).toHaveAttribute('aria-expanded', 'true');
+    await collapse.press('Space');
+    await expect(expand).toBeFocused();
+    await expect(strip).toBeHidden();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(expand).toHaveAttribute('aria-expanded', 'false');
+    await expect(strip).toBeHidden();
+    await expect(page).toHaveURL(new RegExp(`scores\\?schedule=${thu.id}$`));
+    await expect(page.getByRole('checkbox', { name: `${peer.name} 선택`, exact: true })).toBeVisible();
+    await expect(page.getByRole('checkbox', { name: `${primary.name} 선택`, exact: true })).toHaveCount(0);
+    await assertNoHorizontalOverflow(page);
     await page.getByRole('tab', { name: '출결', exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`attendance\\?schedule=${thu.id}$`));
     await strip.getByRole('button', { name: /^수요일반/ }).click();
@@ -250,6 +264,14 @@ export async function verifySessionSchedules(
     expect(moved.schedules.find(day => day.id === thu.id)?.enrollment_ids).toEqual([]);
     await page.setViewportSize({ width: 1366, height: 900 });
     await page.getByRole('tab', { name: '성적', exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`scores\\?schedule=${wed.id}$`));
+    await expect(expand).toHaveAttribute('aria-expanded', 'false');
+    await expect(strip).toBeHidden();
+    await expect(page.getByRole('checkbox', { name: `${primary.name} 선택`, exact: true })).toBeVisible();
+    await expect(page.getByRole('checkbox', { name: `${peer.name} 선택`, exact: true })).toBeVisible();
+    await expand.press('Enter');
+    await expect(collapse).toHaveAttribute('aria-expanded', 'true');
+    await expect(strip.getByRole('button', { name: /^수요일반/ })).toHaveAttribute('aria-pressed', 'true');
     await strip.getByRole('button', { name: /^목요일반/ }).click();
     await expect(page).toHaveURL(new RegExp(`scores\\?schedule=${thu.id}$`));
 

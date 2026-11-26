@@ -1,6 +1,6 @@
 /** Parent selected-child QnA/counsel writes in the isolated qa-* development runtime. */
 import { expect, test } from "../fixtures/strictTest";
-import type { Page, TestInfo } from "@playwright/test";
+import type { Page, Response, Route, TestInfo } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import {
   api,
@@ -488,19 +488,58 @@ test.describe.serial("[real-use] 학부모 선택 자녀 질문·상담", () => 
       await expect(detail.getByText(qnaTitle, { exact: true })).toBeVisible();
       await expect(detail.getByText(counselTitle, { exact: true })).toHaveCount(0);
       const sharedMemo = "QA 학생 상세 저장·후속 화면 확인";
-      const memo = detail.getByRole("textbox", { name: "학생 공통 메모" });
+      const sidebar = detail.getByRole("complementary", { name: "연락처·메모" });
+      const memo = sidebar.getByRole("textbox", { name: "학생 공통 메모" });
+      const formattedPhone = primary.parent_phone.replace(/^(\d{3})(\d{4})(\d{4})$/, "$1-$2-$3");
+      const contact = sidebar.getByRole("button", { name: `학부모 전화 ${formattedPhone} 복사`, exact: true });
       await memo.fill(sharedMemo);
       const saved = adminPage.waitForResponse((response) => response.request().method() === "PATCH"
         && new URL(response.url()).pathname === "/api/v1/students/" + primary.id + "/");
       await detail.getByRole("tab", { name: /^수강/ }).click();
-      expect((await saved).status()).toBe(200);
+      const savedResponse = await saved;
+      expect(savedResponse.status()).toBe(200);
       await expect(detail.getByText("저장됨", { exact: true })).toBeVisible();
-      await adminPage.reload({ waitUntil: "domcontentloaded" });
+      const detailUrl = savedResponse.url();
+      const isDetailRead = (response: Response) => response.request().method() === "GET" && response.url() === detailUrl;
+      const failDetailRead = (route: Route) => {
+        if (route.request().method() !== "GET") return route.fallback();
+        return route.fulfill({
+          status: 503,
+          headers: { "access-control-allow-origin": new URL(QA_BASE).origin, "access-control-allow-credentials": "true" },
+          json: { detail: "QA 학생 상세 조회 일시 실패" },
+        });
+      };
+      await adminPage.route(detailUrl, failDetailRead);
+      try {
+        const [failed] = await Promise.all([
+          adminPage.waitForResponse((response) => isDetailRead(response) && response.status() === 503),
+          adminPage.reload({ waitUntil: "domcontentloaded" }),
+        ]);
+        expect(failed.status()).toBe(503);
+        await expect(detail.getByText("학생 정보를 불러오지 못했습니다", { exact: true })).toBeVisible({ timeout: 30_000 });
+      } finally {
+        await adminPage.unroute(detailUrl, failDetailRead);
+      }
+      const [recovered] = await Promise.all([
+        adminPage.waitForResponse(isDetailRead),
+        detail.getByRole("button", { name: "다시 불러오기", exact: true }).click(),
+      ]);
+      expect(recovered.status()).toBe(200);
+      expect(await recovered.json()).toMatchObject({ id: primary.id, parent_phone: primary.parent_phone, memo: sharedMemo });
+      await expect(detail.getByRole("heading", { name: primary.name, exact: true })).toBeVisible();
+      await expect(contact).toBeVisible();
       await expect(memo).toHaveValue(sharedMemo);
+      const sidebarBox = (await sidebar.boundingBox())!;
+      const tabsBox = (await detail.getByRole("tablist", { name: "학생 활동 요약" }).boundingBox())!;
+      expect(sidebarBox.x + sidebarBox.width).toBeLessThanOrEqual(tabsBox.x);
       await assertNoHorizontalOverflow(adminPage);
       await adminPage.screenshot({ path: testInfo.outputPath("student-detail-development-desktop.png") });
       await adminPage.setViewportSize({ width: 390, height: 844 });
-      await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
+      const openContacts = detail.getByRole("button", { name: "연락처·메모 보기", exact: true });
+      await expect(openContacts).toHaveAttribute("aria-expanded", "false");
+      await expect(sidebar).toBeHidden();
+      await openContacts.click();
+      await expect(contact).toBeVisible();
       await expect(memo).toHaveValue(sharedMemo);
       await assertNoHorizontalOverflow(adminPage);
       await adminPage.screenshot({ path: testInfo.outputPath("student-detail-development-mobile.png") });
