@@ -397,7 +397,15 @@ for (const mobile of [false, true]) {
     await page.getByRole("link", { name: "다음 대기 제출 · QA 대기 학생 32", exact: true }).click();
     await expectFocused(31);
     await expect(page.getByText("QA 대기 학생 31 풀이.pdf", { exact: true })).toHaveCount(0);
-    await page.reload();
+    const refreshedRow = queue[31];
+    await Promise.all([
+      page.waitForResponse(response => {
+        const url = new URL(response.url());
+        return response.ok() && url.pathname.endsWith(`/submissions/submissions/homework/${refreshedRow.homework_id}/`)
+          && url.searchParams.get("enrollment_id") === String(refreshedRow.enrollment_id);
+      }),
+      page.reload(),
+    ]);
     await expectFocused(31);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     await page.getByRole("button", { name: mobile ? "뒤로 가기" : "과제 목록으로 돌아가기", exact: true }).click();
