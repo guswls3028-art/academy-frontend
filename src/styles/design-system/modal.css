@@ -77,16 +77,8 @@
   width: 3px;
 }
 
-.modal-header--action .modal-header__accent {
-  background: var(--color-brand-primary);
-}
-
 .modal-header--confirm .modal-header__accent {
   background: var(--color-error);
-}
-
-.modal-header--inspect .modal-header__accent {
-  background: var(--color-text-muted);
 }
 
 .modal-header--action {

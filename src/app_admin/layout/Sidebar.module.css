@@ -88,6 +88,11 @@
   color: var(--sidebar-item-active-text);
 }
 
+.sectionLabel:hover:not(:global(.active)) {
+  background: transparent;
+  color: var(--sidebar-text);
+}
+
 .submenu .childLink[aria-current="page"] {
   font-weight: var(--font-semibold);
 }
