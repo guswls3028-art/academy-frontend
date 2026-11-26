@@ -3,13 +3,13 @@
   "candidateVersion": null,
   "service": "student-planning-demo-01a17d9b",
   "workerRevision": "fd6d5e6e1db1ff9fb1dd03903416dbf3789acf590073b806f65cf15f7d7e0458",
-  "workerSource": "ffed647edd759d76a27febd600de5c8b8aeddd12",
-  "workerRun": 45887443434,
+  "workerSource": "870be1977f5528e192e2564ff9c8db5b86c2d1d5",
+  "workerRun": 45887660065,
   "uiVersion": "dawon-review-20261127-parity-r50",
   "adminVersion": "dawon-review-20261127-parity-r50",
   "originalFrontend": "8ef4bd3a02f62a5a0c0b7d6bb2a6d75fbc3c6c77",
   "originalRun": 45852921534,
-  "dawonFrontend": "ffed647edd759d76a27febd600de5c8b8aeddd12",
-  "dawonRun": 45887443434,
+  "dawonFrontend": "870be1977f5528e192e2564ff9c8db5b86c2d1d5",
+  "dawonRun": 45887660065,
   "backend": "ce0a2e6d73615b4bc89ab3fbd4a2051e6e27cf1b"
 }
