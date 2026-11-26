@@ -447,7 +447,7 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
   const { video, state, writes, clearWrites } = await openMonitoredHlsPlayer(scenario);
   await clearWrites();
   const wrap = page.locator(".svpPlayerWrap");
-  const guide = page.getByRole("dialog", { name: "학생·학부모 가이드북", exact: true });
+  const guide = page.getByRole("dialog", { name: "학생 사용 가이드", exact: true });
   const audit = () => page.evaluate(() => (window as FullscreenAuditWindow).__qaFullscreenInputs);
   const revealControls = async (clockPaused = false) => {
     if (await wrap.evaluate(node => node.classList.contains("svpPlayerWrap--controlsHidden"))) {
@@ -768,7 +768,7 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
         expectedPairs++;
         if (input !== "touch") await verifyFocusedShortcuts(button);
         await assertPlaying();
-        expect((await audit()).filter(event => event.type === "click" && event.label === "가이드북")).toEqual([]);
+        expect((await audit()).filter(event => event.type === "click" && event.label === "학생 사용 가이드")).toEqual([]);
       }
     }
   } finally {
@@ -791,10 +791,10 @@ export async function verifyFullscreenControls(scenario: GestureScenario) {
   expect(inputs.every(event => event.trusted)).toBe(true);
   if (chromium) expect(inputs.filter(event => event.type === "pointercancel").length).toBeGreaterThanOrEqual(selectors.length);
   // A deliberate guide tap must still open the real popup after fullscreen exit.
-  await page.getByRole("button", { name: "가이드북", exact: true }).tap();
+  await page.getByRole("button", { name: "학생 사용 가이드", exact: true }).tap();
   await expect(guide).toBeVisible();
   await info.attach("fullscreen-intentional-guide", { contentType: "image/png", body: await page.screenshot() });
-  await guide.getByRole("button", { name: "가이드북 닫기", exact: true }).tap();
+  await guide.getByRole("button", { name: "가이드 닫기", exact: true }).tap();
   await assertPlaying();
   await info.attach("fullscreen-pointer-monitoring", { contentType: "application/json", body: JSON.stringify({
     ...state, expectedPairs, transitions, trustedCancelEngine: chromium ? "chromium" : null, inputs: await audit(), rateWrites: await writes(),

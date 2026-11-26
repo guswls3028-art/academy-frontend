@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
+import { openStudentLearningFromHome } from "../helpers/studentLearningSummary";
 import type { MyExamGradeSummary, MyGradesSummary, MyHomeworkGradeSummary } from "../../src/app_student/domains/grades/api/grades.api";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
@@ -683,6 +684,7 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
       if (viewer === "parent") {
         await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김첫째" }).click();
       }
+      if (viewer === "student") await openStudentLearningFromHome(page);
       const homeworkTile = page.getByRole("link", { name: /과제 완료/ });
       await expect(homeworkTile).toContainText(/50\s*%/);
       await expect(homeworkTile).toContainText("전체 과제");
