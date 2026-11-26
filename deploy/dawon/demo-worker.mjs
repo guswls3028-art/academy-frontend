@@ -101,27 +101,6 @@ body:has([data-dawon-staff]) .saved-list-field-popover-item {min-height:44px;lin
   body:has([data-dawon-staff]) .admin-modal .modal-footer {gap:8px}
   body:has([data-dawon-staff]) .admin-modal .modal-footer__actions {margin-inline-start:auto}
 }
-section[aria-label$="차시 카드"]:has(> .session-block) {
-  display:inline-flex; align-items:center; gap:2px; flex:0 0 auto;
-}
-section[aria-label$="차시 카드"]:has(> .session-block):has(> section[aria-label="수업일 선택"]) {
-  display:grid;grid-template-columns:minmax(0,1fr) 44px;row-gap:0;
-}
-section[aria-label$="차시 카드"]:has(> section[aria-label="수업일 선택"]) > .session-block {
-  min-width:0;
-}
-section[aria-label$="차시 카드"] > section[aria-label="수업일 선택"] {
-  grid-column:1/-1;min-width:0;
-}
-section[aria-label$="차시 카드"] > div:has(> .session-block__gear) {
-  position:static; flex:0 0 auto;
-}
-section[aria-label$="차시 카드"] .session-block__gear {
-  width:44px; height:44px; opacity:1; border-radius:8px;
-}
-section[aria-label$="차시 카드"] .session-block__gear:focus-visible {
-  outline:2px solid currentColor; outline-offset:-2px;
-}
 .ds-overlay-backdrop:has(+ .ds-overlay-wrap .ds-overlay-panel--student-detail),
 .ds-overlay-wrap:has(.ds-overlay-panel--student-detail) {
   left:0;
