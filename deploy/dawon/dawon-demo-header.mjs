@@ -2,7 +2,10 @@ import { staffConsoleScript } from './dawon-staff-consoles.mjs';
 import { installStaffReturn, staffReturnPath } from './dawon-editions.mjs';
 
 // Only the dedicated public review Worker imports this module.
+export const referenceOrigin = "https://original-demo.hakwonplus.com";
+const dawonOrigin = "https://demo.hakwonplus.com";
 const apps = [
+  ["original", "학원플러스 원본", referenceOrigin + "/workspace/dashboard"],
   ["admin", "관리자", "/login/dawon?demo=admin"],
   ["student", "학생", "/?preview=student"],
   ["guardian", "학부모", "/?preview=guardian"],
@@ -12,7 +15,7 @@ const style = `<style id="dawon-demo-switcher-style">
 :root{--dawon-demo-bar-height:calc(44px + env(safe-area-inset-top,0px));scroll-padding-top:var(--dawon-demo-bar-height)}
 body{padding-block-start:var(--dawon-demo-bar-height)!important}
 #dawon-demo-switcher{position:fixed;inset:0 0 auto;z-index:100001;height:var(--dawon-demo-bar-height);box-sizing:border-box;padding:env(safe-area-inset-top,0px) 12px 0;display:flex;align-items:stretch;justify-content:center;background:#fffcfa;border-bottom:1px solid #e6ded8;font:650 14px/1.2 system-ui,sans-serif;color:#514940}
-.dawon-demo-roles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:min(100%,390px)}
+.dawon-demo-roles{display:grid;grid-template-columns:minmax(max-content,1.4fr) repeat(3,minmax(0,1fr));width:min(100%,496px)}
 #dawon-demo-switcher a{position:relative;display:grid;place-items:center;min-width:0;padding:0 4px;color:inherit;text-decoration:none;white-space:nowrap}
 #dawon-demo-switcher a[aria-current=page]{color:#873b0e;background:#fff1e6;font-weight:750}
 #dawon-demo-switcher a[aria-current=page]::after{position:absolute;content:"";height:3px;bottom:0;inset-inline:20%;border-radius:3px 3px 0 0;background:#d25a12}
@@ -32,20 +35,22 @@ body:has([data-app=auth]) #dawon-preview-scope{display:block}
 
 export function insertDemoSwitcher(html, url, native) {
   const path = url.pathname;
-  const role = /^\/workspace(?:\/|$)/.test(path) ? null : url.searchParams.get("demo") === "admin" ? "admin" : path === "/guardian" || url.searchParams.get("preview") === "guardian" || url.searchParams.get("demo") === "guardian" ? "guardian" :
+  const original = url.origin === referenceOrigin;
+  const role = original ? "original" : /^\/workspace(?:\/|$)/.test(path) ? null : url.searchParams.get("demo") === "admin" ? "admin" : path === "/guardian" || url.searchParams.get("preview") === "guardian" || url.searchParams.get("demo") === "guardian" ? "guardian" :
     native && !path.startsWith("/student/") && url.searchParams.get("demo") !== "student" ? "admin" : "student";
   const links = apps.map(([key, name, href]) => {
-    const target = new URL(href, url.origin);
+    const target = new URL(href, original ? dawonOrigin : url.origin);
     // A bookmarked staff task survives an explicit sign-in with an authorized role.
-    if (key === "teacher" || key === "admin") {
+    if (!original && key === "admin") {
       const work = staffReturnPath(url.searchParams.get("work"),key);
       if (work) target.searchParams.set("work",work);
     }
-    const path = (target.pathname + target.search).replaceAll("&","&amp;");
-    return `<a href="${path}" data-demo-app="${key}"${key === role ? ' aria-current="page"' : ''}>${name}</a>`;
+    const external = target.origin !== url.origin;
+    const path = (external ? target.href : target.pathname + target.search).replaceAll("&","&amp;");
+    return `<a href="${path}"${external ? ' referrerpolicy="no-referrer"' : ''} data-demo-app="${key}"${key === role ? ' aria-current="page"' : ''}>${name}</a>`;
   }).join("");
   return html.replace("</head>", style + '<script src="/dawon-demo-role.js" defer></script></head>')
-    .replace(/<body\b[^>]*>/i, tag => tag + `<nav id="dawon-demo-switcher" aria-label="데모 앱 전환" data-shell="${native ? "native" : "learner"}"><div class="dawon-demo-roles">${links}</div></nav>`);
+    .replace(/<body\b[^>]*>/i, tag => tag + `<nav id="dawon-demo-switcher" aria-label="데모 앱 전환" data-shell="${original ? "original" : native ? "native" : "learner"}"><div class="dawon-demo-roles">${links}</div></nav>`);
 }
 
 function mountDemoSwitcher() {
@@ -54,6 +59,7 @@ function mountDemoSwitcher() {
   const roleLinks = Array.from(nav.querySelectorAll("a[data-demo-app]"));
   const edits = new Set();
   function currentRole() {
+    if (nav.dataset.shell === "original") return "original";
     if (nav.dataset.shell === "learner") return document.body.dataset.role === "guardian" || location.pathname === "/guardian" || new URLSearchParams(location.search).get("preview") === "guardian" ? "guardian" : "student";
     if (/^\/workspace(?:\/|$)/.test(location.pathname)) {
       const role = document.querySelector('[data-workspace-shell] [data-dawon-staff]')?.dataset.dawonStaff;
@@ -97,7 +103,7 @@ function mountDemoSwitcher() {
     const editing=[...edits].some(field=>field.isConnected && field.getClientRects().length);
     if(editing && !window.confirm("작성 중인 내용을 두고 화면을 전환할까요?")) { event.preventDefault(); return; }
     const next = link.dataset.demoApp;
-    if (!next) return;
+    if (!next || next === "original" || nav.dataset.shell === "original") return;
     try {
       if (next === "teacher" || next === "admin") {
         sessionStorage.removeItem("session_return_path");
@@ -108,4 +114,5 @@ function mountDemoSwitcher() {
     } catch {}
   });
 }
+export const referenceSwitcherScript = "(" + mountDemoSwitcher.toString() + ")();";
 export const demoSwitcherScript = "(" + installStaffReturn.toString() + ")(" + staffReturnPath.toString() + ");\n(" + mountDemoSwitcher.toString() + ")();\n" + staffConsoleScript;

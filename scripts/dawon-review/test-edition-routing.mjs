@@ -143,11 +143,20 @@ test('a workspace response waits for native staff identity before highlighting a
   assert.doesNotMatch(shell,/<a[^>]*data-demo-app="[^"]+"[^>]*aria-current=/);
 });
 
-test('staff and family pages share three manual role links without a variant chooser',() => {
+test('staff and family pages share an original comparison link followed by the three roles',() => {
   for (const [path,native] of [['/',false],['/workspace/lectures?class=7',true],['/login/dawon?demo=admin',true]]) {
     const shell = insertDemoSwitcher('<html><head></head><body></body></html>',url(path),native);
-    assert.deepEqual([...shell.matchAll(/data-demo-app="(.*?)"/g)].map(m => m[1]), ['admin','student','guardian']);
+    assert.deepEqual([...shell.matchAll(/data-demo-app="(.*?)"/g)].map(m => m[1]), ['original','admin','student','guardian']);
+    assert.match(shell,/href="https:\/\/original-demo\.hakwonplus\.com\/workspace\/dashboard" referrerpolicy="no-referrer" data-demo-app="original"/);
     assert.doesNotMatch(shell,/data-dawon-edition|data-edition-home|edition=|href="\/staff\//);
+  }
+});
+
+test('the original workspace highlights its own tab and returns to the dedicated demo', () => {
+  const shell = insertDemoSwitcher('<html><head></head><body></body></html>',new URL('https://original-demo.hakwonplus.com/workspace/lectures'),true);
+  assert.match(shell,/data-demo-app="original" aria-current="page"/);
+  for(const path of ['/login/dawon?demo=admin','/?preview=student','/?preview=guardian']){
+    assert.ok(shell.includes('href="https://demo.hakwonplus.com'+path+'"'));
   }
 });
 test('old bookmarks preserve class, lecture, filters and explicit role on the native route',() => {
