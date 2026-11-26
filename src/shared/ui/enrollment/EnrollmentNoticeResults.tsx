@@ -12,7 +12,7 @@ const labels: Record<RecipientNotice["status"], string> = {
   accepted: "발송 접수 · 최종 전달 대기", failed: "발송 실패", ambiguous: "발송 결과 확인 필요", delivered: "최종 전달 성공",
 };
 const verifiedLabels: Record<string, string> = {
-  unavailable: "최종 전달 확인 불가", provider_accepted: "발송 접수 · 최종 전달 대기",
+  provider_accepted: "발송 접수 · 최종 전달 대기",
   delivered: "최종 전달 성공", failed: "최종 전달 실패",
 };
 
@@ -20,14 +20,24 @@ function Recipient({ role, notice, lecture, requestId }: {
   role: string; notice: RecipientNotice; lecture: number; requestId: string;
 }) {
   const [checking, setChecking] = useState(false);
-  const [error, setError] = useState(false);
+  const [lookupMessage, setLookupMessage] = useState("");
   const [verified, setVerified] = useState<RegistrationDelivery | null>(null);
   async function verify() {
     if (!notice.log_id || checking) return;
     setChecking(true);
-    setError(false);
-    try { setVerified(await verifyRegistrationNotice(lecture, requestId, notice.log_id)); }
-    catch { setError(true); }
+    setLookupMessage("");
+    try {
+      const result = await verifyRegistrationNotice(lecture, requestId, notice.log_id);
+      if (result.provider_delivery_status === "delivered" || result.provider_delivery_status === "failed") {
+        setVerified(result);
+      } else if (result.provider_delivery_status === "provider_accepted") {
+        setVerified(previous => previous ?? result);
+      } else {
+        setLookupMessage(["최종 전달 확인 불가", result.provider_delivery_failure_reason].filter(Boolean).join(" · "));
+      }
+    } catch {
+      setLookupMessage("최종 결과를 불러오지 못했습니다. 다시 확인해 주세요.");
+    }
     finally { setChecking(false); }
   }
   const terminal = notice.status === "delivered" || notice.status === "failed";
@@ -40,7 +50,7 @@ function Recipient({ role, notice, lecture, requestId }: {
       {checking ? "확인 중…" : "최종 전달 확인"}
     </Button>}
     {final?.provider_delivery_failure_reason && <small>{final.provider_delivery_failure_reason}</small>}
-    {error && <small role="alert">최종 결과를 불러오지 못했습니다. 다시 확인해 주세요.</small>}
+    {lookupMessage && <small role="alert">{lookupMessage}</small>}
   </div>;
 }
 

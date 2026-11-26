@@ -524,6 +524,63 @@ for (const width of [1366, 390]) {
   });
 }
 
+test("수신자별 거절·접수·불명 상태와 조회 기록을 보존하고 조회만 재시도한다", async ({ page }) => {
+  const { state } = await openPicker(page);
+  const requestId = "7d5029ab-77f1-4149-b587-48b3f9f08217";
+  const rows: RegistrationReceipt["students"] = [
+    { id: 1, name: "거절 확인", student: { status: "failed", log_id: 11 }, parent: { status: "failed", log_id: null } },
+    { id: 2, name: "접수 확인", student: { status: "accepted", log_id: 21 }, parent: { status: "ambiguous", log_id: null } },
+    { id: 3, name: "결과 확인", student: { status: "skipped", log_id: null }, parent: { status: "ambiguous", log_id: 32 } },
+  ];
+  state.receipt = { lecture: LECTURE, request_id: requestId, students: rows };
+  const lookups: number[] = [];
+  await page.route("**/api/v1/enrollments/verify-registration-notice/", async route => {
+    const body = route.request().postDataJSON();
+    expect(route.request().method()).toBe("POST");
+    expect(body).toEqual({ lecture: LECTURE, request_id: requestId, log_id: expect.any(Number) });
+    lookups.push(body.log_id);
+    if (body.log_id === 32 && lookups.filter(id => id === 32).length === 1) {
+      return route.fulfill({ status: 503, json: { detail: "일시적인 조회 실패" } });
+    }
+    const rejected = body.log_id === 32;
+    if (rejected) rows[2].parent.status = "failed";
+    return route.fulfill({ json: {
+      provider_delivery_status: rejected ? "failed" : "unavailable", provider_status_code: "",
+      provider_delivery_failure_reason: rejected ? "공급사가 전달 실패를 확인했습니다." : "공급사 조회 결과가 없습니다.",
+      provider_delivery_checked_at: new Date().toISOString(), provider_delivery_updated_at: null,
+    } });
+  });
+
+  await page.reload();
+  const results = page.getByRole("region", { name: "최근 등록 알림톡 결과" });
+  const recipient = (name: string, role: string) =>
+    results.getByRole("listitem", { name, exact: true }).getByRole("group", { name: role, exact: true });
+  const verify = (group: ReturnType<typeof recipient>) => group.getByRole("button", { name: "최종 전달 확인" });
+  const rejected = recipient("거절 확인", "학생");
+  const accepted = recipient("접수 확인", "학생");
+  const ambiguous = recipient("결과 확인", "학부모");
+  await expect(recipient("거절 확인", "학부모")).toContainText("발송 실패");
+  await expect(verify(recipient("거절 확인", "학부모"))).toHaveCount(0);
+  await expect(recipient("접수 확인", "학부모")).toContainText("발송 결과 확인 필요");
+  await expect(verify(recipient("접수 확인", "학부모"))).toHaveCount(0);
+  expect(lookups).toEqual([]);
+  for (const [group, label] of [[rejected, "발송 실패"], [accepted, "발송 접수 · 최종 전달 대기"]] as const) {
+    await verify(group).click();
+    await expect(group.getByRole("alert")).toContainText("최종 전달 확인 불가 · 공급사 조회 결과가 없습니다.");
+    await expect(group.getByText(label, { exact: true })).toBeVisible();
+  }
+  await verify(ambiguous).click();
+  await expect(ambiguous.getByRole("alert")).toContainText("다시 확인해 주세요.");
+  await expect(ambiguous).toContainText("발송 결과 확인 필요");
+  await verify(ambiguous).click();
+  await expect(ambiguous).toContainText("최종 전달 실패");
+  await expect(ambiguous.getByRole("alert")).toHaveCount(0);
+  await page.reload();
+  await expect(ambiguous).toContainText("발송 실패");
+  expect(lookups).toEqual([11, 21, 32, 32]);
+  expect(state.posts).toEqual([]);
+});
+
 for (const committed of [true, false]) {
   test(`응답 유실 후 새로고침에서 ${committed ? "등록 결과만 복구" : "같은 요청 번호로 다시 제출"}한다`, async ({ page }) => {
     const { state, dialog } = await openPicker(page);
