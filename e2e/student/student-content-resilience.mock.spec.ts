@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "../fixtures/strictTest";
-import { verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
+import { openStudentLearningFromHome, verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
 import { assertReleaseRequestSafe } from "../helpers/releaseApiBoundary";
 
 const BASE = process.env.E2E_BASE_URL || "http://127.0.0.1:5173";
@@ -901,6 +901,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         expect(undoPosts).toEqual([]);
         if (mode === "홈") {
           await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
+          await openStudentLearningFromHome(page);
           await expect(schedule).toContainText("0회");
           await expect(card.getByText("아직 학습 기록이 없어요")).toHaveCount(0);
         }
@@ -928,6 +929,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         await expect(row(recent.id)).toBeVisible();
         await expect(row(other.id)).toHaveCount(0);
         await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
+        await openStudentLearningFromHome(page);
         await expect(schedule).toContainText("1회");
         return;
       }
@@ -939,6 +941,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         await expect(row(other.id)).toBeVisible();
         expect(undoPosts).toEqual([other.id]);
         await page.getByRole("navigation", { name: "하단 메뉴" }).getByRole("link", { name: "홈", exact: true }).click();
+        await openStudentLearningFromHome(page);
         await expect(schedule).toContainText("2회");
         return;
       }
