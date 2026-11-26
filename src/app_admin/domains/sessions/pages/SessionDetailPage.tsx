@@ -35,7 +35,7 @@ import { CompactSessionScheduleCard } from "../components/SessionScheduleControl
 import { SessionScheduleControlsContext } from "../components/sessionScheduleControlsContext";
 import "./SessionDetailPage.css";
 
-const SessionBlock = lazy(() => import("@admin/domains/sessions/components/SessionBlock"));
+const LazySessionBlock = lazy(() => import("@admin/domains/sessions/components/SessionBlock"));
 const SessionEnrollModal = lazy(() => import("@admin/domains/lectures/components/SessionEnrollModal"));
 const SessionVideosTab = lazy(() => import("@admin/domains/lectures/components/SessionVideosTab"));
 const SessionAssessmentSidePanel = lazy(() => import("../components/SessionAssessmentSidePanel"));
@@ -288,34 +288,35 @@ export default function SessionDetailPage() {
   );
 }
 
+function SessionBlock(props: { lectureId: number; currentSessionId: number }) {
+  return (
+    <Suspense fallback={<span role="status">차시를 불러오는 중…</span>}>
+      <LazySessionBlock {...props} />
+    </Suspense>
+  );
+}
+
 function SessionStripDisclosure({ preferenceKey, lectureId, sessionId }: {
   preferenceKey: string | null;
   lectureId: number;
   sessionId: number;
 }) {
   const controls = useContext(SessionScheduleControlsContext);
-  const [state, setState] = useState<"initial" | "open" | "closed">(
-    () => preferenceKey && getLocalItem(preferenceKey) === "1" ? "open" : "initial",
-  );
-  const expanded = state === "open";
+  const [expanded, setExpanded] = useState(() => !!preferenceKey && getLocalItem(preferenceKey) === "1");
   const panelId = "session-detail-session-picker";
 
   return (
     <div className="session-detail-session-strip">
       <button type="button" className="session-strip-toggle" aria-expanded={expanded} aria-controls={panelId}
         onClick={() => {
-          setState(expanded ? "closed" : "open");
+          setExpanded(!expanded);
           if (preferenceKey) setLocalItem(preferenceKey, expanded ? "0" : "1");
         }}>
         차시·수업일 {expanded ? "접기" : "펼치기"}
         <ChevronDown size={ICON_FOR_BUTTON.sm} aria-hidden />
       </button>
       <div id={panelId} hidden={!expanded}>
-        {state !== "initial" && (
-          <Suspense fallback={<span role="status">차시를 불러오는 중…</span>}>
-            <SessionBlock lectureId={lectureId} currentSessionId={sessionId} />
-          </Suspense>
-        )}
+        <SessionBlock lectureId={lectureId} currentSessionId={sessionId} />
       </div>
       {!expanded && controls?.needsScheduleRecovery && controls.content}
     </div>
