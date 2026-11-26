@@ -632,6 +632,7 @@ test.describe("알림·공지 이어보기", () => {
       await help.click();
       const guide = page.getByRole("dialog", { name: "학생 사용 가이드" });
       const topics = guide.locator("button[data-topic]");
+      await expect(guide.getByRole("heading", { level: 3 })).toHaveText(["처음 시작", "등원과 수업", "과제", "영상", "메뉴와 도움말"]);
       await expect(topics).toHaveCount(8);
       for (let index = 0; index < 8; index++) {
         await topics.nth(index).click();

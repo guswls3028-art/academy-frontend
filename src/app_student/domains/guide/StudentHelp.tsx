@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router";
 import { ArrowLeft, ChevronRight, HelpCircle, X } from "lucide-react";
@@ -47,7 +47,7 @@ export function StudentHelp() {
         </header>
         <div ref={body} className={styles.body}>
           {article ? <article className={styles.article}>
-            <h2 tabIndex={-1} ref={heading}>{article.title}</h2>
+            <div><small className={styles.category}>{article.group}</small><h2 tabIndex={-1} ref={heading}>{article.title}</h2></div>
             <section><h3>시작 위치</h3><p>{article.start}</p></section>
             <section><h3>따라 하기</h3><ol>{article.steps.map(step => <li key={step}>{step}</li>)}</ol></section>
             <figure><img src={article.image} alt={article.alt} /><figcaption>이용 예시 · {article.alt}</figcaption></figure>
@@ -55,8 +55,12 @@ export function StudentHelp() {
             <section><h3>막혔을 때</h3><p>{article.recovery}</p></section>
           </article> : <>
             <h2>무엇을 하려 하나요?</h2>
-            <div className={styles.list}>{studentQuickGuide.map((item, index) =>
-              <button key={item.title} type="button" data-topic={index} onClick={() => select(index)}>{item.title}<ChevronRight size={ICON.sm} /></button>)}</div>
+            <div className={styles.list}>{studentQuickGuide.map((item, index) => (
+              <Fragment key={item.title}>
+                {studentQuickGuide[index - 1]?.group !== item.group && <h3 className={styles.category}>{item.group}</h3>}
+                <button type="button" data-topic={index} onClick={() => select(index)}>{item.title}<ChevronRight size={ICON.sm} /></button>
+              </Fragment>
+            ))}</div>
             <Link to="/student/guide" onClick={close}>시험·클리닉 등 전체 가이드</Link>
           </>}
         </div>

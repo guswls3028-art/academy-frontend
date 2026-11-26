@@ -8,6 +8,9 @@
 .body h2 { margin: 0; font-size: 20px; }
 .body a { color: var(--stu-primary); }
 .list { display: grid; margin: 12px 0 20px; }
+.category { display: block; color: var(--stu-text-muted); font-size: 13px; font-weight: 600; }
+.list h3 { margin: 16px 0 2px; }
+.list h3:first-child { margin-top: 0; }
 .list button { min-height: 46px; background: none; border: 0; border-bottom: 1px solid var(--stu-border); text-align: left; color: inherit; display: flex; align-items: center; justify-content: space-between; gap: 10px; font: inherit; cursor: pointer; }
 .article { display: grid; gap: 18px; line-height: 1.6; overflow-wrap: anywhere; }
 .article h3 { margin: 0 0 4px; font-size: 14px; color: var(--stu-primary); }
