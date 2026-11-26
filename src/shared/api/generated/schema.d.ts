@@ -9926,7 +9926,7 @@ export interface paths {
         get: operations["staffs_board_posts_retrieve"];
         put?: never;
         post?: never;
-        delete?: never;
+        delete: operations["staffs_board_posts_destroy"];
         options?: never;
         head?: never;
         patch: operations["staffs_board_posts_partial_update"];
@@ -9962,6 +9962,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staffs/board/posts/{id}/replies/{reply_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["staffs_board_posts_replies_destroy"];
+        options?: never;
+        head?: never;
+        patch: operations["staffs_board_posts_replies_partial_update"];
         trace?: never;
     };
     "/api/v1/staffs/currently-working/": {
@@ -18031,6 +18047,9 @@ export interface components {
             body?: string;
             title?: string;
         };
+        PatchedStaffBoardReplyRequest: {
+            body?: string;
+        };
         PatchedStaffExpenseRecordRequest: {
             /** Format: int64 */
             amount?: number;
@@ -20254,6 +20273,7 @@ export interface components {
             readonly attachment_name: string;
             readonly author_name: string;
             body: string;
+            readonly can_delete: boolean;
             readonly can_edit: boolean;
             readonly can_remove_attachment: boolean;
             category: components["schemas"]["StaffBoardCategory"];
@@ -20272,6 +20292,7 @@ export interface components {
             readonly attachment_name: string;
             readonly author_name: string;
             body: string;
+            readonly can_delete: boolean;
             readonly can_edit: boolean;
             readonly can_remove_attachment: boolean;
             category: components["schemas"]["StaffBoardCategory"];
@@ -20292,6 +20313,8 @@ export interface components {
         StaffBoardReply: {
             readonly author_name: string;
             body: string;
+            readonly can_delete: boolean;
+            readonly can_edit: boolean;
             /** Format: date-time */
             readonly created_at: string;
             readonly id: number;
@@ -20302,6 +20325,7 @@ export interface components {
         StaffBoardSummary: {
             readonly attachment_name: string;
             readonly author_name: string;
+            readonly can_delete: boolean;
             readonly can_edit: boolean;
             readonly can_remove_attachment: boolean;
             category: components["schemas"]["StaffBoardCategory"];
@@ -38346,6 +38370,27 @@ export interface operations {
             };
         };
     };
+    staffs_board_posts_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     staffs_board_posts_partial_update: {
         parameters: {
             query?: never;
@@ -38476,6 +38521,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaffBoardError"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_replies_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+                reply_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    staffs_board_posts_replies_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+                reply_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedStaffBoardReplyRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedStaffBoardReplyRequest"];
+                "multipart/form-data": components["schemas"]["PatchedStaffBoardReplyRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardReply"];
                 };
             };
         };
