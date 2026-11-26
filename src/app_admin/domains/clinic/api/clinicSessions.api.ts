@@ -39,6 +39,7 @@ export type ClinicSessionTreeNode = {
   allow_time_preference?: boolean;
   /** 같은 날짜의 다른 허용 세션을 함께 예약할 수 있는지 */
   allow_multi_slot_booking: boolean;
+  notification_teacher_id?: number | null;
   booking_mode?: "fixed_slot" | "time_range";
   booking_interval_minutes?: 30 | 60;
   booking_max_stay_minutes?: number;
@@ -153,6 +154,7 @@ export async function fetchClinicSessionTree(params: ({
       no_show_count: toNumber(row.no_show_count),
       max_participants: toNullableNumber(row.max_participants),
       section: toNullableNumber(row.section),
+      notification_teacher_id: toNullableNumber(row.notification_teacher_id),
       section_label: row.section_label == null ? null : toStringValue(row.section_label),
       section_type: toSectionType(row.section_type),
       allow_time_preference: row.allow_time_preference === true,
@@ -199,6 +201,7 @@ export async function updateClinicSession(
     section?: number | null;
     allow_time_preference?: boolean;
     allow_multi_slot_booking?: boolean;
+    notification_teacher_id?: number | null;
     booking_mode?: "fixed_slot" | "time_range";
     booking_interval_minutes?: 30 | 60;
     booking_max_stay_minutes?: number;
@@ -237,6 +240,7 @@ export async function fetchClinicSessions(params: {
       pending_count: toNumber(row.pending_count),
       booked_confirmed_count: toNumber(row.booked_confirmed_count),
       section: toNullableNumber(row.section),
+      notification_teacher_id: toNullableNumber(row.notification_teacher_id),
       section_label: row.section_label == null ? null : toStringValue(row.section_label),
       section_type: toSectionType(row.section_type),
       allow_time_preference: row.allow_time_preference === true,
@@ -275,6 +279,7 @@ export type ClinicSessionDetail = {
   section_type?: "CLASS" | "CLINIC" | null;
   allow_time_preference?: boolean;
   allow_multi_slot_booking: boolean;
+  notification_teacher_id?: number | null;
   booking_mode?: "fixed_slot" | "time_range";
   booking_interval_minutes?: 30 | 60;
   booking_max_stay_minutes?: number;

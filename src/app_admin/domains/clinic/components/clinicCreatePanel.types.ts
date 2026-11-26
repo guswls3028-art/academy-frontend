@@ -13,6 +13,7 @@ type ClinicSessionFormSource = {
   section?: number | null;
   allow_time_preference?: boolean;
   allow_multi_slot_booking?: boolean;
+  notification_teacher_id?: number | null;
   booking_mode?: "fixed_slot" | "time_range";
   booking_interval_minutes?: 30 | 60;
   booking_max_stay_minutes?: number;

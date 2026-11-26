@@ -14,6 +14,8 @@ async function installApprovals(page: Page) {
     localStorage.setItem("refresh", `${access}-refresh`);
   }, token);
   const state = {
+    clinicPolicy: { booking_cutoff_mode: "none", booking_cutoff_time: "21:00", booking_cutoff_minutes: 120, allow_late_requests: false },
+    canEditClinicPolicy: true,
     signupAuto: false, clinicAuto: false, failSettings: false, failList: false,
     failApproval: false, moreRequests: false,
     settingsWrites: [] as Record<string, unknown>[], approvals: [] as number[],
@@ -33,8 +35,9 @@ async function installApprovals(page: Page) {
         if (state.failSettings) return route.fulfill({ status: 400, json: { detail: "설정을 저장하지 못했습니다. 다시 시도해 주세요." } });
         if ("auto_approve" in payload) state.signupAuto = payload.auto_approve;
         if ("auto_approve_booking" in payload) state.clinicAuto = payload.auto_approve_booking;
+        if ("booking_cutoff_mode" in payload) Object.assign(state.clinicPolicy, payload);
       }
-      return route.fulfill({ json: { auto_approve: state.signupAuto, auto_approve_booking: state.clinicAuto, colors: ["#ef4444", "#3b82f6", "#22c55e"] } });
+      return route.fulfill({ json: { ...state.clinicPolicy, capabilities: { booking_policy: { read: true, write: state.canEditClinicPolicy } }, auto_approve: state.signupAuto, auto_approve_booking: state.clinicAuto, colors: ["#ef4444", "#3b82f6", "#22c55e"] } });
     }
     if (path === "/students/registration_requests/bulk_approve/") {
       const ids: number[] = req.postDataJSON().ids;
@@ -86,6 +89,39 @@ for (const width of [1366, 390]) {
     await expect(page.getByText("오늘 예정된 클리닉이 없습니다.")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
     await page.screenshot({ path: info.outputPath(`clinic-approval-${width}.png`), fullPage: true });
+  });
+
+  test(`${width}px 학생 예약 마감 설정은 실패 후 입력을 유지하고 저장한 정책을 다시 표시한다`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = await installApprovals(page);
+    await page.goto(`${BASE}/workspace/clinic/home`);
+    const panel = page.locator("details").filter({ has: page.locator("summary", { hasText: "학생 예약 마감" }) });
+    await panel.locator("summary").click();
+    await panel.getByLabel("마감 기준").selectOption("previous_day");
+    await panel.getByLabel("전날 마감 시각").fill("19:30");
+    await panel.getByRole("checkbox").check();
+    state.failSettings = true;
+    await panel.getByRole("button", { name: "마감 설정 저장" }).click();
+    await expect(panel.getByRole("alert")).toBeVisible();
+    await expect(panel.getByLabel("전날 마감 시각")).toHaveValue("19:30");
+    state.failSettings = false;
+    await panel.getByRole("button", { name: "마감 설정 저장" }).click();
+    await expect(panel.getByRole("status")).toContainText("저장했습니다");
+    await page.reload();
+    await expect(panel.locator("summary")).toContainText("전날 19:30");
+    await panel.locator("summary").click();
+    await expect(panel.getByRole("checkbox")).toBeChecked();
+    await info.attach(`booking-cutoff-${width}`, { body: await panel.screenshot(), contentType: "image/png" });
+    await panel.getByLabel("마감 기준").selectOption("before_start");
+    await panel.getByRole("spinbutton").fill("90");
+    await panel.getByRole("button", { name: "마감 설정 저장" }).click();
+    await expect(panel.locator("summary")).toContainText("시작 90분 전");
+    state.canEditClinicPolicy = false;
+    await page.reload();
+    await panel.locator("summary").click();
+    await expect(panel.getByText(/변경 권한/)).toBeVisible();
+    await expect(panel.getByRole("button", { name: "마감 설정 저장" })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 
   for (const kind of ["signup", "clinic"] as const) {

@@ -29,6 +29,7 @@ type ClinicParticipantRaw = {
   session_location: string | null;
   status: ClinicBookingStatus | "approved" | "attended" | "no_show";
   student_request_memo?: string;
+  requested_after_cutoff?: boolean;
   preferred_start_time?: string | null;
   preferred_end_time?: string | null;
   booking_start_time?: string | null;
@@ -66,6 +67,11 @@ export type ClinicSession = {
   booking_mode?: "fixed_slot" | "time_range";
   booking_interval_minutes?: 30 | 60;
   booking_max_stay_minutes?: number;
+  booking_cutoff_mode?: "none" | "previous_day" | "before_start";
+  booking_cutoff_at?: string | null;
+  booking_cutoff_time?: string;
+  booking_cutoff_minutes?: number;
+  allow_late_requests?: boolean;
   target_lecture_names?: Array<{
     id: number;
     title: string;
@@ -90,6 +96,7 @@ export type ClinicBookingRequest = {
   session_location: string | null; // ✅ 세션이 없으면 null
   status: ClinicBookingStatus;
   student_request_memo?: string;
+  requested_after_cutoff?: boolean;
   preferred_start_time?: string | null;
   preferred_end_time?: string | null;
   booking_start_time?: string | null;
@@ -299,6 +306,7 @@ export async function fetchMyClinicBookingRequests(options?: { signal?: AbortSig
       session_duration_minutes: raw.session_duration_minutes,
       session_location: raw.session_location ?? null, // ✅ 세션이 없으면 null
       status,
+      requested_after_cutoff: raw.requested_after_cutoff === true,
       student_request_memo: raw.student_request_memo,
       preferred_start_time: raw.preferred_start_time,
       preferred_end_time: raw.preferred_end_time,
@@ -360,6 +368,7 @@ export async function createClinicBookingRequests(data: {
       session_duration_minutes: participant.session_duration_minutes,
       session_location: participant.session_location || null,
       status,
+      requested_after_cutoff: participant.requested_after_cutoff === true,
       student_request_memo: participant.student_request_memo,
       preferred_start_time: participant.preferred_start_time,
       preferred_end_time: participant.preferred_end_time,
@@ -433,6 +442,7 @@ export async function changeClinicBooking(
     session_duration_minutes: res.data.session_duration_minutes,
     session_location: res.data.session_location || null,
     status,
+    requested_after_cutoff: res.data.requested_after_cutoff === true,
     student_request_memo: res.data.student_request_memo,
     preferred_start_time: res.data.preferred_start_time,
     preferred_end_time: res.data.preferred_end_time,

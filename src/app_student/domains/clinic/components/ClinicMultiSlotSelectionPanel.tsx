@@ -1,3 +1,4 @@
+import { clinicCutoffForStart, describeClinicCutoff } from "../clinicBookingCutoff";
 import { clinicBookingRangeText } from "@/shared/ui/clinic/clinicTimeRange";
 import { hhmmText as formatTime } from "@/shared/ui/time/timeFormat";
 
@@ -7,6 +8,7 @@ import { ClinicActualTimePicker } from "@/shared/ui/clinic/ClinicActualTimePicke
 import type { RefObject } from "react";
 
 type Props = {
+  now: number;
   selectedSessions: ClinicSession[];
   selectedSession: ClinicSession | null;
   memo: string;
@@ -78,6 +80,7 @@ function selectedTimeSummary(selectedSessions: Pick<ClinicSession, "start_time" 
 }
 
 export default function ClinicMultiSlotSelectionPanel({
+  now,
   selectedSessions,
   selectedSession,
   memo,
@@ -102,6 +105,11 @@ export default function ClinicMultiSlotSelectionPanel({
   pickerHeadingRef,
 }: Props) {
   const isTimeRange = selectedSessions.length === 1 && selectedSession?.booking_mode === "time_range";
+  const cutoffForSlot = (time: string, date?: string) => selectedSession ? clinicCutoffForStart(selectedSession, now, time, date) : null;
+  const startDate = availability?.slots.find((slot) => slot.start_time === bookingStart)?.start_date;
+  const cutoffs = selectedSessions.map((session) => clinicCutoffForStart(session, now, isTimeRange ? bookingStart : session.start_time, isTimeRange ? startDate : undefined));
+  const blocked = cutoffs.some((cutoff) => cutoff?.blocked);
+  const late = cutoffs.some((cutoff) => cutoff?.pending);
   const sessionSummary = selectedTimeSummary(selectedSessions);
   const timeSummary = isTimeRange
     ? bookingStart && bookingEnd
@@ -143,6 +151,7 @@ export default function ClinicMultiSlotSelectionPanel({
           onRetry={onAvailabilityRetry}
           tone="student"
           headingRef={pickerHeadingRef}
+          startRestriction={(slot) => cutoffForSlot(slot.start_time, slot.start_date)}
         />
       )}
       {!isTimeRange && selectedSessions.length === 1 && selectedSession?.allow_time_preference && (
@@ -178,6 +187,9 @@ export default function ClinicMultiSlotSelectionPanel({
           </div>
         </fieldset>
       )}
+      {isTimeRange && cutoffs[0] && <p className={styles.selectionNotice} role="status">{describeClinicCutoff(cutoffs[0])}</p>}
+      {blocked && <p className={styles.errorText}>선택한 시간은 신청이 마감되었습니다. 다른 시간을 선택해 주세요.</p>}
+      {late && !blocked && <p className={styles.selectionNotice}>마감 후 신청한 시간대는 선생님이 승인하면 확정됩니다.</p>}
       <label className={styles.memoField}>
         <span>학원에 전할 내용 <small>(선택)</small></span>
         <textarea
@@ -192,13 +204,14 @@ export default function ClinicMultiSlotSelectionPanel({
       <button
         type="button"
         className={`stu-btn stu-btn--primary ${styles.selectionSubmit}`}
-        disabled={pending || !canSubmit || (isTimeRange && (
+        disabled={pending || blocked || !canSubmit || (isTimeRange && (
           !bookingStart || !bookingEnd || availabilityPending || availabilityError
         ))}
         onClick={onSubmit}
       >
         {pending
           ? "처리 중…"
+          : late && !blocked ? (changingBooking ? "승인 대기로 변경 신청" : "승인 대기로 신청하기")
           : changingBooking
             ? "이 일정으로 변경하기"
             : selectedSessions.length > 1

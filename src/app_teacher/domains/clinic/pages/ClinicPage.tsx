@@ -1,5 +1,7 @@
 import { isAxiosError } from "axios";
 import dayjs from "dayjs";
+import ClinicNotificationTeacherField from "@/shared/ui/clinic/ClinicNotificationTeacherField";
+import NotificationTeacherEditor from "../components/NotificationTeacherEditor";
 import { useClinicClock } from "@/shared/ui/clinic/useClinicClock";
 /* eslint-disable no-restricted-syntax */
 // PATH: src/app_teacher/domains/clinic/pages/ClinicPage.tsx
@@ -274,6 +276,7 @@ function SessionCard({
 
       {expanded && (
         <>
+          <NotificationTeacherEditor key={session.notification_teacher_id ?? "unassigned"} session={session} />
           <ParticipantList
             sessionId={session.id}
             sessionDate={session.date ?? todayISO()}
@@ -494,6 +497,7 @@ function ParticipantList({
                   }] : undefined}
                   className="text-sm"
                 />
+                {st === "pending" && p.requested_after_cutoff && <span className="text-xs">마감 후 신청</span>}
                 <StatusBadge status={st} isLate={!!p.is_late} checkedOut={!!p.checked_out_at} />
                 {p.preferred_start_time && p.preferred_end_time && (
                   <span className="text-[11px] font-semibold" style={{ color: "var(--tc-primary)" }}>
@@ -651,6 +655,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
   const [endTime, setEndTime] = useState("");
   const [location, setLocation] = useState("");
   const [capacity, setCapacity] = useState("10");
+  const [notificationTeacherId, setNotificationTeacherId] = useState<number | null>(null);
   const [sectionId, setSectionId] = useState<number | null>(null);
   const [allowMultiSlotBooking, setAllowMultiSlotBooking] = useState(false);
   const [allowTimePreference, setAllowTimePreference] = useState(false);
@@ -741,6 +746,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
       allow_multi_slot_booking: bookingMode === "fixed_slot" && allowMultiSlotBooking,
       allow_time_preference: bookingMode === "fixed_slot" && allowTimePreference,
       booking_mode: bookingMode,
+      notification_teacher_id: notificationTeacherId ?? undefined,
       booking_interval_minutes: bookingIntervalMinutes,
       booking_max_stay_minutes: bookingMaxStayMinutes,
       ...(showSectionPicker ? { section: sectionId } : {}),
@@ -750,6 +756,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
       teacherToast.success("클리닉이 만들어졌습니다.");
       setTitle(""); setStartTime(""); setEndTime(""); setLocation(""); setCapacity("10"); setSectionId(null);
       setAllowTimePreference(false);
+      setNotificationTeacherId(null);
       onClose();
     },
     onError: (e) => teacherToast.error(extractApiError(e, "클리닉을 만들지 못했습니다.")),
@@ -792,6 +799,7 @@ function ClinicSessionFormSheet({ open, onClose, defaultDate }: { open: boolean;
             )}
           </div>
         )}
+        <ClinicNotificationTeacherField value={notificationTeacherId} onChange={setNotificationTeacherId} />
         <Fld label="날짜 *" value={date} onChange={setDate} type="date" />
         <div className="flex gap-2">
           <Fld label="시작 *" value={startTime} onChange={setStartTime} type="time" />

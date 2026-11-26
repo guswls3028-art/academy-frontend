@@ -26,6 +26,7 @@ type Props = {
   onRetry: () => void;
   tone: "student" | "admin" | "teacher";
   selectionCount?: number;
+  startRestriction?: (slot: ClinicBookingAvailability["slots"][number]) => { blocked: boolean; pending: boolean } | null;
   headingRef?: RefObject<HTMLHeadingElement | null>;
 };
 
@@ -135,6 +136,7 @@ export function ClinicActualTimePicker({
   onRetry,
   tone,
   selectionCount,
+  startRestriction,
   headingRef,
 }: Props) {
   const allSlots = availability?.slots ?? EMPTY_SLOTS;
@@ -244,23 +246,25 @@ export function ClinicActualTimePicker({
             <div className={styles.slotGrid}>
               {allSlots.map((slot) => {
                 const hasCapacity = hasRequiredCapacity(slot.remaining_capacity);
+                const cutoff = startRestriction?.(slot);
+                const status = cutoff?.blocked ? "신청 마감" : cutoff?.pending && hasCapacity ? "승인 대기 신청" : null;
                 return (
                   <button
                     key={slot.start_time}
                     type="button"
                     className={bookingStart === slot.start_time ? styles.selected : ""}
                     aria-pressed={bookingStart === slot.start_time}
-                    aria-label={hasCapacity
+                    aria-label={status ? `${timeLabel(slot.start_time, slot.start_date)} 시작, ${status}` : hasCapacity
                       ? `${timeLabel(slot.start_time, slot.start_date)} 시작, 잔여 ${slot.remaining_capacity}자리`
                       : `${timeLabel(slot.start_time, slot.start_date)} 시작, ${requiredCapacity}명 선택에는 잔여 ${slot.remaining_capacity}자리로 부족`}
-                    disabled={!hasCapacity}
+                    disabled={!hasCapacity || cutoff?.blocked}
                     onClick={() => {
                       onBookingStartChange(slot.start_time);
                       onBookingEndChange("");
                     }}
                   >
                     <strong>{timeLabel(slot.start_time, slot.start_date)}</strong>
-                    <small>{hasCapacity ? `잔여 ${slot.remaining_capacity}자리` : `${requiredCapacity}명 선택에는 부족`}</small>
+                    <small>{status ?? (hasCapacity ? `잔여 ${slot.remaining_capacity}자리` : `${requiredCapacity}명 선택에는 부족`)}</small>
                   </button>
                 );
               })}

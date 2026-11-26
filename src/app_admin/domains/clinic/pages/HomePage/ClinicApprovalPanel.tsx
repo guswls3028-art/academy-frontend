@@ -10,6 +10,7 @@ import { fetchClinicSettings, updateClinicSettings } from "../../api/clinicSetti
 import { patchClinicParticipantStatus, type ClinicParticipant } from "../../api/clinicParticipants.api";
 import { clinicQueryKeys } from "../../queryKeys";
 import { hhmmText } from "@/shared/ui/time/timeFormat";
+import ClinicCutoffSettings from "./ClinicCutoffSettings";
 import styles from "./ClinicApprovalPanel.module.css";
 
 export default function ClinicApprovalPanel() {
@@ -59,12 +60,14 @@ export default function ClinicApprovalPanel() {
   };
   return <div className={styles.root}>
     <ApprovalPolicyPanel title="예약 자동 승인" enabled={settingsQ.data?.auto_approve_booking === true}
-      enabledDescription="학생이 예약을 신청하면 바로 확정됩니다."
+      enabledDescription={settingsQ.data?.booking_cutoff_mode && settingsQ.data.booking_cutoff_mode !== "none"
+        ? "마감 전에 신청한 예약은 바로 확정됩니다." : "학생이 예약을 신청하면 바로 확정됩니다."}
       disabledDescription="학생의 예약은 대기 상태로 접수되며, 선생님이 승인하면 확정됩니다."
       loading={settingsQ.isLoading} loadError={settingsQ.isError} saving={settingsM.isPending} saved={settingsM.isSuccess}
       saveError={settingsM.isError ? getApiErrorMessage(settingsM.error, "설정을 저장하지 못했습니다.") : null}
       onChange={(enabled) => settingsM.mutate(enabled)} onReload={() => void settingsQ.refetch()}
       onRetry={() => { if (settingsM.variables !== undefined) settingsM.mutate(settingsM.variables); }} />
+    {settingsQ.data?.capabilities.booking_policy?.read && <ClinicCutoffSettings settings={settingsQ.data} />}
     <section className={styles.queue} aria-labelledby="clinic-approval-title">
       <div className={styles.heading}>
         <h3 id="clinic-approval-title">예약 승인 대기 {!listQ.isLoading && !listQ.isError && <Badge tone={rows.length ? "warning" : "neutral"}>{rows.length}건</Badge>}</h3>
@@ -79,7 +82,7 @@ export default function ClinicApprovalPanel() {
       </div> : rows.length === 0 ? <p>대기 중인 예약이 없습니다. 확정된 예약은 오늘 운영에서 확인할 수 있습니다.</p>
         : <>
           <ul className={styles.preview}>{rows.slice(0, 3).map((row) => <li key={row.id}>
-            <strong>{row.student_name}</strong>
+            <strong>{row.student_name}{row.requested_after_cutoff && " · 마감 후 신청"}</strong>
             <span>{row.session_date} {hhmmText(row.session_start_time)}{row.session_location ? ` · ${row.session_location}` : ""}</span>
           </li>)}</ul>
           {rows.length > 3 && <p>외 {rows.length - 3}건 · 대기 신청 보기에서 모든 신청을 확인하세요.</p>}

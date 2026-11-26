@@ -23,6 +23,7 @@ import {
 } from "../api/clinicBooking.api";
 import { fetchStudentClinicSummary } from "../api/clinicSummary.api";
 import { hasNoActiveClinicEnrollment, retryClinicVerdict } from "@student/shared/api/clinicVerdict";
+import { clinicCutoffForStart, clinicSessionCutoff, describeClinicCutoff } from "../clinicBookingCutoff";
 import { clinicDateParts } from "../clinicDate";
 import { studentClinicQueryKeys } from "../queryKeys";
 import { bookingErrorMessage, useClinicBookingUpdates } from "../useClinicBookingUpdates";
@@ -354,6 +355,10 @@ export default function ClinicPage() {
   const mutationsPending =
     bookingMutation.isPending || cancelMutation.isPending || changeMutation.isPending;
 
+  const closedSelection = () => selectedSessions.some((session) => (
+    clinicCutoffForStart(session, Date.now(), session.booking_mode === "time_range" ? bookingStart : session.start_time)?.blocked
+  ));
+
   const submitBooking = () => {
     if (mutationLock.current || changingBookingId != null) return;
     if (selectedSessions.length === 0) {
@@ -380,6 +385,7 @@ export default function ClinicPage() {
       studentToast.info("실제 이용 시작과 종료 시간을 선택해 주세요.");
       return;
     }
+    if (closedSelection()) { setBookingError("선택한 시간의 학생 신청이 마감되었습니다. 다른 시간을 선택해 주세요."); return; }
     beginMutation();
     bookingMutation.mutate({
       session_ids: selectedSessions.map((session) => session.id),
@@ -419,6 +425,7 @@ export default function ClinicPage() {
       studentToast.info("실제 이용 시작과 종료 시간을 선택해 주세요.");
       return;
     }
+    if (closedSelection()) { setBookingError("선택한 시간의 학생 신청이 마감되었습니다. 다른 시간을 선택해 주세요."); return; }
     beginMutation();
     changeMutation.mutate({
       oldId: changingBooking.id,
@@ -460,6 +467,7 @@ export default function ClinicPage() {
     const onlySession = dateSessions.length === 1 ? dateSessions[0] : null;
     const openTimeRangeSession = onlySession?.booking_mode === "time_range"
       && !isSessionFull(onlySession)
+      && !clinicSessionCutoff(onlySession, now.valueOf())?.blocked
       && onlySession.id !== changingBooking?.session
       && !activeRequestsBySession.has(onlySession.id)
       && !conflictsWithExistingBooking(onlySession);
@@ -492,6 +500,7 @@ export default function ClinicPage() {
     const result = resolveClinicSessionSelection({
       session,
       changingBooking: !!changingBooking,
+      now: now.valueOf(),
       activeBookedSessions,
       groupSessions,
       rangeStartSessionId,
@@ -711,6 +720,7 @@ export default function ClinicPage() {
                 <ClinicListError description="열린 일정을 확인하려면 다시 시도해 주세요." onRetry={refetchSessions} />
               ) : (
                 <ClinicBookingCalendar
+                now={now.valueOf()}
                 sessions={orderedSessions}
                 bookings={myRequests}
                 selectedDate={selectedDate}
@@ -737,6 +747,7 @@ export default function ClinicPage() {
                       <div className={styles.dateSessions}>
                         {selectedSessionGroup.sessions.map((session) => {
                             const full = isSessionFull(session);
+                            const cutoff = clinicSessionCutoff(session, now.valueOf());
                             const selected = selectedSessionIds.includes(session.id);
                             const recommended = sessionMatchesTargets(
                               session,
@@ -754,7 +765,7 @@ export default function ClinicPage() {
                             );
                             const policyBlockedByExisting = conflictsWithExistingBooking(session);
                             const disabled = mutationsPending || (changingBookingId != null && !changingBooking)
-                              || full || currentChangingSession || !!activeRequest
+                              || full || (cutoff?.blocked && !selected) || currentChangingSession || !!activeRequest
                               || policyBlockedBySelection || policyBlockedByExisting;
                             const remaining = session.booking_mode === "time_range" || session.max_participants == null
                               ? null
@@ -787,6 +798,9 @@ export default function ClinicPage() {
                                       {session.title || "클리닉 수업"}
                                       {isOngoingPreviousClinic(session, now) ? " · 전날 시작·진행 중" : ""}
                                     </span>
+                                    {cutoff && <span className={styles.sessionLocation}>{session.booking_mode === "time_range" && !cutoff.blocked
+                                      ? (session.booking_cutoff_mode === "previous_day" ? `이용 전날 ${session.booking_cutoff_time?.slice(0, 5)} 마감` : `이용 시작 ${session.booking_cutoff_minutes}분 전 마감`)
+                                      : describeClinicCutoff(cutoff)}</span>}
                                     <span className={styles.sessionLocation}>
                                       {session.location || "장소 추후 안내"}
                                       {session.target_grade ? ` · ${session.target_grade}학년` : ""}
@@ -828,6 +842,10 @@ export default function ClinicPage() {
                                       <span className={styles.bookedBadge}>현재 예약</span>
                                     ) : full ? (
                                       <span className={styles.fullBadge}>정원 마감</span>
+                                    ) : cutoff?.blocked ? (
+                                      <span className={styles.fullBadge}>신청 마감</span>
+                                    ) : cutoff?.pending ? (
+                                      <span className={styles.selectHint}>승인 대기로 신청</span>
                                     ) : policyBlockedBySelection || policyBlockedByExisting ? (
                                       <span className={styles.fullBadge}>한 타임만 가능</span>
                                     ) : selected ? (
@@ -854,6 +872,7 @@ export default function ClinicPage() {
                         )}
                         {selectedSessions.length > 0 && (
                           <ClinicMultiSlotSelectionPanel
+                            now={now.valueOf()}
                             selectedSessions={selectedSessions}
                             selectedSession={selectedSession}
                             memo={memo}
@@ -916,7 +935,7 @@ export default function ClinicPage() {
                           {request.student_request_memo && (
                             <span className={styles.bookingRequestNote}>요청 · {request.student_request_memo}</span>
                           )}
-                          <span className={styles.pendingStatus}>승인 대기</span>
+                          <span className={styles.pendingStatus}>{request.requested_after_cutoff ? "마감 후 신청 · 승인 대기" : "승인 대기"}</span>
                         </div>
                         <ClinicSelfCancelControl
                           booking={request}

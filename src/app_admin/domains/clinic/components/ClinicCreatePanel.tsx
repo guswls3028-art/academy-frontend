@@ -8,6 +8,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetchClinicSessionTree, updateClinicSession } from "../api/clinicSessions.api";
+import ClinicNotificationTeacherField from "@/shared/ui/clinic/ClinicNotificationTeacherField";
 import { fetchClinicSettings } from "../api/clinicSettings.api";
 import {
   buildClinicCreateConfirmationMessage,
@@ -167,6 +168,7 @@ export default function ClinicCreatePanel({
     return `${st} ~ ${eh}:${em}`;
   });
   const [room, setRoom] = useState(sourceSession?.location ?? "");
+  const [notificationTeacherId, setNotificationTeacherId] = useState<number | null>(sourceSession?.notification_teacher_id ?? null);
   const [memo, setMemo] = useState("");
   const [maxParticipants, setMaxParticipants] = useState<number>(sourceSession?.max_participants ?? 10);
   const {
@@ -263,6 +265,7 @@ export default function ClinicCreatePanel({
       target_school_type?: string | null;
       target_lecture_ids?: number[];
       memo?: string;
+      notification_teacher_id?: number;
       section?: number | null;
       allow_time_preference?: boolean;
       allow_multi_slot_booking?: boolean;
@@ -349,6 +352,7 @@ export default function ClinicCreatePanel({
       try {
         await updateClinicSession(editSession.id, {
           title: title.trim() || undefined,
+          ...(notificationTeacherId !== (editSession.notification_teacher_id ?? null) ? { notification_teacher_id: notificationTeacherId } : {}),
           date: nextDate,
           start_time: nextStartTime,
           duration_minutes: duration,
@@ -428,6 +432,7 @@ export default function ClinicCreatePanel({
       const created = await createSessionM.mutateAsync({
         title: title.trim() || undefined,
         date: scheduledDate,
+        notification_teacher_id: notificationTeacherId ?? undefined,
         start_time: toHHmmss(start),
         duration_minutes: duration,
         location: room.trim(),
@@ -472,6 +477,7 @@ export default function ClinicCreatePanel({
       }
       setSelected([]);
       setMemo("");
+      setNotificationTeacherId(null);
       setTimeRange("");
       qc.invalidateQueries({ queryKey: clinicQueryKeys.participants });
       qc.invalidateQueries({ queryKey: clinicQueryKeys.sessionsTree });
@@ -691,6 +697,7 @@ export default function ClinicCreatePanel({
         timeRangeError={hasInvalidRange ? INVALID_CLINIC_RANGE_MESSAGE : undefined}
         showBookingModeSelector={Boolean(sourceSession)}
       />
+      <ClinicNotificationTeacherField value={notificationTeacherId} onChange={setNotificationTeacherId} />
       {/* 제목 + 정원 (한 행) */}
       <div className="clinic-create__row">
         <div className="clinic-create__field clinic-create__field--grow">

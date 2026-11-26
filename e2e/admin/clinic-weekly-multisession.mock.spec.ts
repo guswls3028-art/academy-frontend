@@ -199,6 +199,7 @@ async function installApi(
       });
     }
     if (path === "/staffs/currently-working/") return json([]);
+    if (path === "/clinic/sessions/notification-teachers/") return json([{ id: 71, name: "예약 담당" }]);
     if (path === "/clinic/settings/" && method === "GET") {
       await scheduleState?.settingsReadGate;
       return json({
@@ -1748,6 +1749,7 @@ test("빈 클리닉도 일정 카드에서 수정하고 최종 확인한 뒤에�
 
   const editDialog = page.getByRole("dialog", { name: "클리닉 일정 수정" });
   await expect(editDialog.getByRole("heading", { name: "클리닉 일정 수정" })).toBeVisible();
+  await editDialog.getByLabel("예약 알림을 받을 담당 선생님").selectOption("71");
   const multiSlotToggle = editDialog.getByRole("checkbox", { name: /같은 날 여러 시간대 예약/ });
   await expect(multiSlotToggle).toBeChecked();
   await multiSlotToggle.uncheck();
@@ -1776,6 +1778,7 @@ test("빈 클리닉도 일정 카드에서 수정하고 최종 확인한 뒤에�
   expect(state.updatePayloads[0]).toMatchObject({
     id: 702,
     payload: {
+      notification_teacher_id: 71,
       date: saturday,
       start_time: "17:00:00",
       duration_minutes: 30,
@@ -1788,6 +1791,9 @@ test("빈 클리닉도 일정 카드에서 수정하고 최종 확인한 뒤에�
   await expect(editDialog).toHaveCount(0);
   await expect(selectedDay.getByRole("article").filter({ hasText: "토요일 5시 클리닉" }))
     .toContainText("17:00–17:30");
+  await page.reload();
+  await selectedDay.getByRole("button", { name: "토요일 5시 클리닉 일정 수정" }).click();
+  await expect(editDialog.getByLabel("예약 알림을 받을 담당 선생님")).toHaveValue("71");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 

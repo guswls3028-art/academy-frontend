@@ -41,6 +41,7 @@ export type ClinicParticipant = {
   session_location: string;
 
   status: ClinicParticipantStatus;
+  requested_after_cutoff?: boolean;
   created_at?: string;
   preferred_start_time?: string | null;
   preferred_end_time?: string | null;

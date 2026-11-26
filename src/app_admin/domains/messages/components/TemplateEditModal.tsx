@@ -89,7 +89,11 @@ export default function TemplateEditModal({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [individualExpanded, setIndividualExpanded] = useState(false);
   const individualRegionId = useId();
+  const bookingNotice = selectedCategory === "clinic" && trigger === "clinic_reservation_created";
   const blocks = getBlocksForCategory(selectedCategory);
+  const insertableBlocks = bookingNotice
+    ? [...blocks, { id: "clinic_booking_status", label: "예약 상태", insertText: "#{예약상태}", previewValue: "승인 대기", description: "해당 예약의 현재 상태" }]
+    : blocks;
   const isSystem = !!initial?.is_system && !copy;
   const fixedAccount = (readOnly || isSystem) && selectedCategory === "signup" && !alimtalkType;
   const initialName = copy ? buildDuplicateTemplateName(initial?.name ?? "") : initial?.name ?? "";
@@ -192,7 +196,7 @@ export default function TemplateEditModal({
                     alimtalkType
                       ? renderAlimtalkFullPreview(alimtalkType, hideInternalAlimtalkMemoToken(body, ""), undefined, { 학원명: academyName })
                       : hideInternalAlimtalkMemoToken(body),
-                    { 학원명: academyName, 학원이름: academyName },
+                    { 학원명: academyName, 학원이름: academyName, ...(bookingNotice ? { 예약상태: "승인 대기" } : {}) },
                   )
                   : "본문을 입력하면 미리보기가 표시됩니다."}
               </KakaoAlimtalkPreview>}
@@ -283,7 +287,7 @@ export default function TemplateEditModal({
                       {(() => {
                         const autoIds = getAutoFillBlockIds(alimtalkType);
                         const bodyBlocks = bodyEditableInEnvelope
-                          ? blocks.filter((b) => !autoIds.has(b.id) && b.id !== "site_link")
+                          ? insertableBlocks.filter((b) => !autoIds.has(b.id) && b.id !== "site_link")
                           : [];
                         if (!bodyBlocks.length) return null;
                         const individual = (id: string) => /^(exam|hw)_\d+(?:_|$)|^class_[2-9]_/.test(id);

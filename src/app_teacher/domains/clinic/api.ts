@@ -17,6 +17,7 @@ export type TeacherClinicSession = {
   booked_count?: number | null;
   max_participants?: number | null;
   is_full?: boolean | null;
+  notification_teacher_id?: number | null;
   allow_multi_slot_booking?: boolean;
   allow_time_preference?: boolean;
   booking_mode?: "fixed_slot" | "time_range";
@@ -68,6 +69,7 @@ export type TeacherClinicParticipant = {
   booking_start_date?: string | null;
   booking_end_date?: string | null;
   student_request_memo?: string | null;
+  requested_after_cutoff?: boolean;
 };
 
 /** 오늘 날짜 기준 클리닉 세션 목록 */
@@ -202,6 +204,7 @@ export async function createClinicSession(payload: {
   target_grade?: number | null;
   target_school_type?: string | null;
   section?: number | null;
+  notification_teacher_id?: number;
   allow_multi_slot_booking: boolean;
   allow_time_preference: boolean;
   booking_mode: "fixed_slot" | "time_range";

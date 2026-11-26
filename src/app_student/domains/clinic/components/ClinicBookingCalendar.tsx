@@ -4,12 +4,14 @@ import type {
   ClinicBookingRequest,
   ClinicSession,
 } from "../api/clinicBooking.api";
+import { clinicSessionCutoff } from "../clinicBookingCutoff";
 import { CLINIC_WEEKDAYS, clinicDateParts } from "../clinicDate";
 import { isClinicSessionFull as isFull } from "@/shared/utils/clinicSessionCapacity";
 import styles from "./ClinicBookingCalendar.module.css";
 
 type Props = {
   sessions: ClinicSession[];
+  now: number;
   bookings: ClinicBookingRequest[];
   selectedDate: string | null;
   onDateSelect: (date: string) => void;
@@ -31,6 +33,7 @@ function toYmdLocal(date: Date): string {
 export default function ClinicBookingCalendar({
   sessions,
   bookings,
+  now,
   selectedDate,
   onDateSelect,
 }: Props) {
@@ -143,10 +146,11 @@ export default function ClinicBookingCalendar({
         ))}
         {days.map((day, index) => {
           const dateSessions = sessionsByDate.get(day.date) ?? [];
-          const hasOpen = dateSessions.some((session) => !isFull(session));
+          const closed = (session: ClinicSession) => isFull(session) || clinicSessionCutoff(session, now)?.blocked === true;
+          const hasOpen = dateSessions.some((session) => !closed(session));
           const bookingCount = bookingCountByDate.get(day.date) ?? 0;
           const hasBooked = bookingCount > 0;
-          const hasFull = dateSessions.some(isFull);
+          const hasFull = dateSessions.some(closed);
           const selectable = dateSessions.length > 0 || hasBooked;
           const isToday = day.date === today;
           const markers = [

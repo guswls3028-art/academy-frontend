@@ -50,6 +50,7 @@ type MockState = {
   availability?: Record<number, Record<string, unknown>>;
   availabilityReady?: Promise<void>;
   bookingResponse?: () => Promise<{ detail: string } | null>;
+  lateSessionId?: number;
   canSubmitHomeworkFiles?: boolean;
   changeBookingConflict?: boolean;
   cancelNotificationFailed?: number;
@@ -374,6 +375,7 @@ async function installApi(
         session_start_time: session.start_time,
         session_location: session.location,
         status: "pending",
+        requested_after_cutoff: session.id === state.lateSessionId,
         student_request_memo: payload.student_request_memo,
         preferred_start_time: payload.preferred_start_time,
         preferred_end_time: payload.preferred_end_time,
@@ -552,6 +554,7 @@ async function installApi(
         session_start_time: "17:00:00",
         session_location: "1층 세미나실",
         status: "pending",
+        requested_after_cutoff: session.id === state.lateSessionId,
         student_request_memo: payload.student_request_memo,
         created_at: new Date().toISOString(),
       }];
@@ -1246,6 +1249,55 @@ test.describe("학생 클리닉 예약 UX", () => {
       (element) => element.scrollWidth <= element.clientWidth,
     )).toBe(true);
   });
+
+  for (const width of [390, 1366]) {
+    test(`${width}px 학생 마감 이후 승인 대기와 익일 시작 시각의 마감 기준을 구분한다`, async ({ page }, info) => {
+      await page.setViewportSize({ width, height: 880 });
+      const state = createState();
+      const date = dateAfter(0);
+      const nextDate = dateAfter(1);
+      const previousDay = dateAfter(-1);
+      const base = { ...sessions[0], date, booking_cutoff_mode: "previous_day", booking_cutoff_time: "21:00", booking_cutoff_at: `${previousDay}T21:00:00+09:00`, is_full: false };
+      state.bookings = [];
+      state.lateSessionId = 212;
+      state.sessions = [
+        { ...base, id: 211, title: "마감 고정 일정", allow_late_requests: false },
+        { ...base, id: 212, title: "추가 신청 일정", allow_late_requests: true },
+        { ...base, id: 213, title: "밤 클리닉", start_time: "23:00:00", end_time: "01:00:00", end_date: nextDate,
+          booking_mode: "time_range", booking_interval_minutes: 60, allow_late_requests: false },
+      ];
+      state.availability = { 213: {
+        booking_mode: "time_range", interval_minutes: 60, max_stay_minutes: 120,
+        window: { start_date: date, start_time: "23:00", end_date: nextDate, end_time: "01:00" },
+        slots: [
+          { start_date: date, start_time: "23:00", end_date: nextDate, end_time: "00:00", remaining_capacity: 5 },
+          { start_date: nextDate, start_time: "00:00", end_date: nextDate, end_time: "01:00", remaining_capacity: 5 },
+        ],
+      } };
+      await page.clock.setFixedTime(new Date(`${previousDay}T21:00:00+09:00`));
+      await seed(page);
+      await installApi(page, state);
+      await page.goto(`${BASE}/student/clinic`);
+      await page.getByTestId(`clinic-calendar-day-${date}`).click();
+      await expect(page.getByRole("button", { name: /마감 고정 일정/ })).toBeDisabled();
+      await page.getByRole("button", { name: /밤 클리닉/ }).click();
+      const selection = page.getByRole("region", { name: "선택한 클리닉 시간" });
+      await expect(selection.getByRole("button", { name: "23:00 시작, 신청 마감" })).toBeDisabled();
+      await selection.getByRole("button", { name: `${nextDate} 00:00 시작, 잔여 5자리` }).click();
+      await selection.getByRole("button", { name: `${nextDate} 01:00 종료, 총 1시간` }).click();
+      await expect(selection.getByRole("button", { name: "이 일정 예약하기" })).toBeEnabled();
+      await page.getByRole("button", { name: /밤 클리닉/ }).click();
+      await page.getByRole("button", { name: /추가 신청 일정/ }).click();
+      await info.attach(`late-request-${width}`, { body: await selection.screenshot(), contentType: "image/png" });
+      await selection.getByRole("button", { name: "승인 대기로 신청하기" }).click();
+      await expect.poll(() => state.bookingPayloads).toEqual([{ session_ids: [212] }]);
+      await page.reload();
+      await page.getByRole("tab", { name: /내 일정/ }).click();
+      await expect(page.getByRole("article").filter({ hasText: "추가 신청 일정" })).toContainText("마감 후 신청 · 승인 대기");
+      await expect(page.getByRole("heading", { name: /승인 대기/ })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    });
+  }
 
   test("시간 범위 예약은 서버 잔여 정원과 최대 체류 안의 연속 구간만 제출한다", async ({ page }) => {
     const state = createState();
