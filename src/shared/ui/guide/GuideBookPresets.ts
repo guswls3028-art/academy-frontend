@@ -82,24 +82,24 @@ const GUIDE_BOOK_PRESETS: Record<GuideBookScope, GuideBookPreset> = {
   },
   "teacher": {
     "title": "선생님 가이드북",
-    "subtitle": "오늘 수업·학생·평가·소통을 한 흐름으로 확인하세요.",
+    "subtitle": "학생 등록부터 첫 수업까지, PC 화면과 학생앱 그림 가이드를 한 쪽씩 읽어 보세요.",
     "fullGuidePath": "/workspace/mobile/guide",
     "fullGuideLabel": "선생님 전체 가이드",
     "sections": [
       {
-        "title": "현장 업무",
+        "title": "그림 가이드",
         "items": [
           {
-            "title": "오늘 수업과 학생",
-            "description": "오늘 차시를 찾고 학생 상세와 메모를 확인합니다.",
-            "path": "/workspace/mobile/guide?topic=today",
-            "actionLabel": "오늘 업무"
+            "title": "PC에서 학생 한 명 등록하기",
+            "description": "명부 등록, 강의 수강, 첫 차시 출결을 순서대로 따라갑니다.",
+            "path": "/workspace/mobile/guide?handbook=teacher&sheet=1",
+            "actionLabel": "첫 쪽 열기"
           },
           {
-            "title": "출결과 성적",
-            "description": "차시에서 입력한 상태와 저장 결과를 확인합니다.",
-            "path": "/workspace/mobile/guide?topic=attendance",
-            "actionLabel": "출결 안내"
+            "title": "학생에게 보여 줄 사용법",
+            "description": "학생이 보는 화면으로 읽고 PDF를 내려받습니다.",
+            "path": "/workspace/mobile/guide?handbook=student&sheet=1",
+            "actionLabel": "학생앱 가이드"
           }
         ]
       },

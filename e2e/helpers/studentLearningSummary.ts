@@ -1,9 +1,14 @@
 import { expect, type Page } from "@playwright/test";
 import { assertInteractiveSurface } from "./assertInteractiveSurface";
 
+export async function openStudentLearningFromHome(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "메뉴 열기", exact: true }).click();
+  await page.getByRole("navigation", { name: "학생 메뉴" }).getByRole("link", { name: "학습 현황", exact: true }).click();
+}
+
 /** Read-only journey, shared by mock, isolated real-use and production canaries. */
 export async function verifyStudentLearningSummary(page: Page, baseUrl: string): Promise<void> {
-  const dashboard = new URL("/student/dashboard", baseUrl).href;
+  const dashboard = new URL("/student/dashboard?view=learning", baseUrl).href;
   await page.goto(dashboard, { waitUntil: "domcontentloaded" });
   const card = page.getByRole("region", { name: "학습 현황", exact: true });
   await expect(card).toBeVisible();

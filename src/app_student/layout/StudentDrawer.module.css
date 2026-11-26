@@ -42,7 +42,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--stu-space-4) var(--stu-space-4) var(--stu-space-3);
+  padding: 4px 10px 4px 16px;
   border-bottom: 1px solid var(--stu-border);
 }
 
@@ -55,8 +55,8 @@
 
 .closeButton {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   color: var(--stu-text-muted);
   cursor: pointer;
   background: transparent;
@@ -71,12 +71,13 @@
 }
 
 .nav {
+  --stu-icon-paint: currentColor;
   flex: 1;
-  padding: var(--stu-space-3);
+  padding: 12px;
 }
 
 .group {
-  margin-bottom: var(--stu-space-5);
+  margin-bottom: 16px;
 }
 
 .group:last-child {
@@ -85,36 +86,36 @@
 
 .groupLabel {
   margin-bottom: var(--stu-space-2);
-  padding: 0 var(--stu-space-2);
+  padding: 0 8px;
   color: var(--stu-text-muted);
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 .navLink {
   display: flex;
-  gap: var(--stu-space-3);
+  gap: 10px;
   align-items: center;
   min-height: 44px;
-  padding: 12px var(--stu-space-3);
+  padding: 8px;
   color: var(--stu-text);
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   text-decoration: none;
   border-radius: var(--stu-radius-md);
   transition: background 150ms ease;
 }
 
-.navLink:hover {
+.navLink:hover, .navLink[aria-current="page"] {
   background: var(--stu-surface-soft);
 }
 
 .navIcon {
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
+  color: var(--stu-text-muted);
 }
 
 .footer {
@@ -130,11 +131,11 @@
   width: 100%;
   min-height: 44px;
   padding: 10px;
-  color: var(--stu-danger-text);
+  color: var(--stu-text-muted);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  background: var(--stu-danger-bg);
+  background: transparent;
   border: 0;
   border-radius: var(--stu-radius-md);
 }

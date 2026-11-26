@@ -25,6 +25,7 @@ import CommonLogoIcon from "@/auth/assets/CommonLogoIcon";
 import TchulLogoIcon from "@/auth/assets/TchulLogoIcon";
 import NotificationBadge from "@student/shared/ui/components/NotificationBadge";
 import { GuideBookLauncher, getGuideBookPreset } from "@/shared/ui/guide";
+import { StudentHelp } from "@student/domains/guide/StudentHelp";
 import "@student/shared/ui/theme/student-topbar.css";
 
 type Props = { tenantCode: string | null; onMenuClick?: () => void };
@@ -339,17 +340,15 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <GuideBookLauncher
+        <NotificationBell onClick={() => navigate("/student/notifications")} />
+        {user?.tenantRole === "student" ? <StudentHelp /> : <GuideBookLauncher
           preset={STUDENT_GUIDE_BOOK}
           tone="student"
           buttonClassName="stu-topbar__iconBtn stu-topbar__iconBtn--muted"
           iconSize={20}
           ariaLabel="가이드북"
           onNavigate={navigate}
-        />
-        {/* 알림 종 아이콘 (#65 P2, 2026-05-12) — community UserNotification unread 카운터.
-            학생/학부모 둘 다 같은 endpoint(/community/notifications/unread-count/) 사용. */}
-        <NotificationBell onClick={() => navigate("/student/notifications")} />
+        />}
         <div ref={profileRef} style={{ position: "relative" }}>
           <button
             type="button"

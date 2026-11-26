@@ -120,6 +120,14 @@ async function verifyGuideJourney(
     await expect(article).toBeVisible();
     await expect(photo).toHaveAttribute("src", firstPhoto!);
     if (guide.scope !== "student") {
+      const handbook = page.getByRole("region", { name: "그림으로 보는 사용 가이드" });
+      await expect(handbook.getByRole("heading", { name: "학생 한 명 등록하기" })).toBeVisible();
+      await handbook.getByRole("button", { name: "학생앱 가이드", exact: true }).click();
+      await handbook.getByRole("button", { name: "다음 쪽 →" }).click();
+      await expect(handbook.getByRole("heading", { name: "교실 QR로 출석하기" })).toBeVisible();
+      await expect.poll(() => handbook.getByRole("img").evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+      await expect(handbook.getByRole("link", { name: "학생앱 가이드 PDF 다운로드" })).toHaveAttribute("download", /\.pdf$/);
+      await page.getByText("알림톡·영상·엑셀·정오표 상세 설명서", { exact: true }).click();
       await verifyFeatureGuideImages(page, testInfo, `live-guide-${guide.scope}-${width}-feature-reader`);
     }
   }

@@ -75,11 +75,11 @@ for (const width of [390, 1366, 1920]) {
           const values = [luminance(blended), luminance(background)];
           return (Math.max(...values) + 0.05) / (Math.min(...values) + 0.05);
         };
-        return { title: ratio(element.querySelector("strong")!), detail: ratio(element.querySelector("small")!), opaque: (background[3] ?? 1) === 1 };
+        return { label: ratio(element), icon: ratio(element.querySelector("svg")!), opaque: (background[3] ?? 1) === 1 };
       });
       expect(qrContrast.opaque).toBe(true);
-      expect(qrContrast.title).toBeGreaterThanOrEqual(4.5);
-      expect(qrContrast.detail).toBeGreaterThanOrEqual(4.5);
+      expect(qrContrast.label).toBeGreaterThanOrEqual(4.5);
+      expect(qrContrast.icon).toBeGreaterThanOrEqual(4.5);
       await expect(page.locator(".stu-tabbar a")).toHaveCount(5);
       const names = await page.locator(".stu-tabbar a").allTextContents();
       expect(names.map((name) => name.trim())).toEqual(["홈", "영상", "일정", "알림", "커뮤니티"]);
