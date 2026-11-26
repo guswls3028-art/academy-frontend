@@ -200,6 +200,9 @@ async function widthProof(browser,width) {
     assert.equal((await session).status(),200);
     await check(page).toHaveURL(/\/workspace\/dashboard/);
     await visible(page.getByRole('heading',{name:'대시보드',exact:true}).first());
+    await visible(page.locator('#arrival-overview-title'));
+    await visible(page.getByText('발송 준비를 확인해 주세요',{exact:true}));
+    await check(page.getByText('공지를 불러오는 중입니다.')).toHaveCount(0);
     const dashboard=await inspect(page,width,'dashboard');
     const rows=await nativeRoster(page);
     const roster=await inspect(page,width,'roster');
