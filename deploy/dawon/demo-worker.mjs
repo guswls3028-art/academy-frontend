@@ -2,7 +2,7 @@ import { dawonLearnerScript, renderDawonLearner, mountLearnerMenu } from './dawo
 import learnerDemo from './baseline-worker.mjs';
 import { insertDemoSwitcher, demoSwitcherScript, referenceOrigin } from './dawon-demo-header.mjs';
 import { editionResponse, legacyEditionRedirect } from './dawon-editions.mjs';
-import { serveReference } from './hakwonplus-reference.mjs';
+import { serveReference, serveReferenceApi } from './hakwonplus-reference.mjs';
 
 const productionHost = 'demo.hakwonplus.com';
 const originHost = 'https://dawon-review-origin.hakwonplus.com';
@@ -602,7 +602,7 @@ export async function handle(request, env, fetcher = fetch, context) {
   const url = new URL(request.url);
   const { pathname } = url;
   if (url.origin === referenceOrigin) {
-    if (pathname.startsWith('/api/')) return handleApi(request, url, env, fetcher);
+    if (pathname.startsWith('/api/')) return serveReferenceApi(request, env, fetcher);
     return serveReference(request, env, fetcher);
   }
   if (url.hostname !== productionHost) return secureResponse(null, 404);

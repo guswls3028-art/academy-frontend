@@ -1,9 +1,28 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { serveReference } from "../../deploy/dawon/hakwonplus-reference.mjs";
+import { serveReference, serveReferenceApi } from "../../deploy/dawon/hakwonplus-reference.mjs";
 
 const origin = "https://original-demo.hakwonplus.com";
 const env = { REFERENCE_STATIC_ORIGIN: "https://abcd1234.dawon-original-reference.pages.dev" };
+
+test("the original uses only its own demo database and ordinary bearer session", async () => {
+  const session = new Request(origin + "/api/v1/reference/session/", {method: "POST", headers: {origin, "x-tenant-code":"hakwonplus"}});
+  const runtime = {ORIGIN_KEY: "fixture-only"};
+  const result = await serveReferenceApi(session, runtime, async (url, options) => {
+    assert.equal(url, "https://dawon-review-origin.hakwonplus.com/__reference/api/v1/reference/session/");
+    assert.equal(options.headers.get("X-Dawon-Review-Origin"), runtime.ORIGIN_KEY);
+    assert.equal(options.headers.get("cookie"), null);
+    return Response.json({access:"sample", refresh:"sample"}, {headers:{"x-tenant-id":"849"}});
+  });
+  assert.equal(result.status, 200);
+  const roster = new Request(origin + "/api/v1/students/");
+  const mismatch = await serveReferenceApi(roster, runtime, async () => Response.json({}, {headers:{"x-tenant-id":"719"}}));
+  assert.equal(mismatch.status, 502);
+  for (const headers of [{origin:"https://demo.hakwonplus.com"},{origin,"x-tenant-code":"dawon"}]) {
+    const request = new Request(session.url, {method:"POST", headers});
+    assert.equal((await serveReferenceApi(request, runtime, () => assert.fail("foreign request sent"))).status, 403);
+  }
+});
 
 test("the comparison serves the original artifact and links back to all three Dawon roles", async () => {
   const res = await serveReference(new Request(origin + "/workspace/lectures"), env, async (url, options) => {

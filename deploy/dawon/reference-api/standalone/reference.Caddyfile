@@ -1,0 +1,35 @@
+# Imported exclusively inside the existing authenticated origin handler.
+(standalone_reference_r49) {
+    @reference_path path /__reference /__reference/*
+    handle @reference_path {
+        route {
+            @reference_api path /__reference/api/v1/*
+            handle @reference_api {
+                uri strip_prefix /__reference
+                reverse_proxy review-api-r49:8000 {
+                    header_up Host reference.hakwonplus.localhost
+                    header_up X-Forwarded-Host reference.hakwonplus.localhost
+                    header_up X-Tenant-Code hakwonplus
+                    header_up -X-Tenant-Id
+                    header_up -Forwarded
+                    header_up -Cookie
+                    header_up -X-Dawon-Review-Origin
+                    header_down -Set-Cookie
+                    header_down Cache-Control "private, no-store"
+                    @reference_849 header X-Tenant-Id 849
+                    handle_response @reference_849 {
+                        copy_response
+                    }
+                    @reference_denied status 4xx 5xx
+                    handle_response @reference_denied {
+                        copy_response
+                    }
+                    handle_response {
+                        respond 502
+                    }
+                }
+            }
+            respond 404
+        }
+    }
+}
