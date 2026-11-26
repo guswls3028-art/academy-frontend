@@ -172,6 +172,7 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
         title: sessionTitle,
         date: sessionDate,
         inlineActions: !!data && !query.isError && !hasDays,
+        needsScheduleRecovery: query.isError || (!query.isPending && unknown),
         blockedNotice: blocked ? <p className={styles.note} role="status">{query.isPending ? '선택한 수업일을 확인하는 중…' : '수업일을 확인한 뒤 명단을 표시합니다.'}</p> : null,
         managementPending,
         managementQueued: hasQueuedManagement,
