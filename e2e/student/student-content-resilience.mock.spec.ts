@@ -611,6 +611,49 @@ function imageNotice() {
 test.describe("알림·공지 이어보기", () => {
   test.skip(!IS_LOCAL_BASE, "Local route-mock contract spec.");
   test.use({ serviceWorkers: "block" });
+  for (const width of [1366, 390]) {
+    test(`학생 홈에서 그림 가이드와 기존 프로필, 메뉴를 독립적으로 사용한다 ${width}px`, async ({ page }, testInfo) => {
+      await installStudentApi(page);
+      await page.setViewportSize({ width, height: 844 });
+      await page.route(matchesGradesApi, route => route.fulfill({ json: {
+        ...emptyGrades(),
+        homeworks: [{ homework_id: 801, enrollment_id: 301, session_id: 24, title: "이차함수 연습문제",
+          session_title: "3차시", lecture_title: "수학", passed: false, achievement: "NOT_SUBMITTED",
+          submission_state: "needs_submission", lecture_active: true, learning_todo_eligible: true }],
+      } }));
+      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("link", { name: "사진 제출하기" })).toBeVisible();
+      await expect(page.getByRole("link", { name: "QR 출석" })).toBeVisible();
+      await expect(page.getByRole("link", { name: "전체 메뉴 보기" })).toHaveCount(0);
+      const help = page.getByRole("button", { name: "학생 사용 가이드" });
+      const profile = page.getByRole("button", { name: "프로필 메뉴" });
+      await expect(profile).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`student-home-${width}.png`), animations: "disabled" });
+      await help.click();
+      const guide = page.getByRole("dialog", { name: "학생 사용 가이드" });
+      const topics = guide.locator("button[data-topic]");
+      await expect(topics).toHaveCount(8);
+      for (let index = 0; index < 8; index++) {
+        await topics.nth(index).click();
+        await expect(guide.getByRole("heading", { name: "막혔을 때" })).toBeAttached();
+        await expect.poll(() => guide.getByRole("img").evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+        if (index === 3) await page.screenshot({ path: testInfo.outputPath(`student-guide-${width}.png`), animations: "disabled" });
+        await guide.getByRole("button", { name: "목차로 돌아가기" }).click();
+      }
+      await page.keyboard.press("Escape");
+      await expect(help).toBeFocused();
+      await profile.click();
+      await expect(page.getByRole("button", { name: "내 정보", exact: true })).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`student-profile-${width}.png`), animations: "disabled" });
+      await page.getByRole("button", { name: "내 정보", exact: true }).click();
+      await expect(page).toHaveURL(/\/student\/profile$/);
+      await page.getByRole("button", { name: "메뉴 열기" }).click();
+      const drawer = page.getByRole("navigation", { name: "학생 메뉴" });
+      await expect(drawer.getByRole("link", { name: "학습 현황" })).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`student-menu-${width}.png`), animations: "disabled" });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    });
+  }
   for (const width of [390, 1366]) {
     test(`공지 탭과 강의 범위를 상세·새로고침·목록 복귀까지 유지한다 ${width}px`, async ({ page }, testInfo) => {
       await installStudentApi(page, { lectureNotices: true });
