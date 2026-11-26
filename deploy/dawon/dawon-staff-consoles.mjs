@@ -1,8 +1,7 @@
-import {createTaskPicker} from './dawon-task-picker.mjs';
-import {catalog, createDesk, deskStyle} from './dawon-edition-desks.mjs';
 import {createStaffStatistics, staffStatisticsStyle} from './dawon-staff-statistics.mjs';
 
 const style = `
+[data-staff-rail]:empty{display:none}
 [data-staff-rail]{margin:0 auto;max-width:1520px;box-sizing:border-box;padding:12px 22px 0;font:inherit;color:var(--color-text-primary,#302820)}
 [data-staff-rail] a:focus-visible,[data-staff-rail] button:focus-visible,[data-staff-attendance] button:focus-visible{outline:2px solid #934308;outline-offset:2px}
 .dawon-staff-care,.dawon-staff-context{background:#fffcf8;border:1px solid #e7d9cc;border-radius:7px;padding:12px 16px;margin:10px 0 0;line-height:1.45;font-size:14px}
@@ -48,11 +47,11 @@ td:has(>[data-staff-attendance])>select:focus,td:has(>[data-staff-more][open])>s
 @media(prefers-reduced-motion:reduce){[data-staff-rail] nav a{transition:none}}
 `;
 
-function mountStaffConsole(makeDesk, menus, css, makePicker, makeStatistics) {
+function mountStaffConsole(css, makeStatistics) {
   if (document.querySelector('#dawon-demo-switcher')?.dataset.shell !== 'native') return;
   const codes = {PRESENT:'출석', LATE:'지각', ONLINE:'동영상', ABSENT:'결석'};
   const origin = location.origin;
-  let desk, statistics, rail, activeRole, edition, lastLocation, pendingFrame, appointments, detailKey;
+  let statistics, rail, activeRole, lastLocation, pendingFrame, appointments, detailKey;
   let contextRequest, scheduleRequest;
   let nextEvidence, pendingAlertRow;
   const edited = new WeakSet();
@@ -138,12 +137,12 @@ function mountStaffConsole(makeDesk, menus, css, makePicker, makeStatistics) {
   function captureEvidence(anchor) {
     const row = anchor.closest('[aria-label="학습 경보 처리"] tbody tr');
     if (!row || !row.cells[2]) return;
-    nextEvidence = {role:activeRole,edition,from:href(new URL(location.href)),to:href(new URL(anchor.href)),group:row.cells[1].innerText.trim(),cause:row.cells[2].innerText.trim()};
+    nextEvidence = {role:activeRole,from:href(new URL(location.href)),to:href(new URL(anchor.href)),group:row.cells[1].innerText.trim(),cause:row.cells[2].innerText.trim()};
     history.replaceState({...history.state,dawonAlertRow:nextEvidence},'');
   }
   function restoreAlertFocus(main,current) {
     const target = pendingAlertRow;
-    if (!target || target.from !== current || target.role !== activeRole || target.edition !== edition) return;
+    if (!target || target.from !== current || target.role !== activeRole) return;
     const links = main.querySelectorAll('[aria-label="학습 경보 처리"] tbody th a');
     for (const link of links) {
       const cells = link.closest('tr').cells;
@@ -159,13 +158,13 @@ function mountStaffConsole(makeDesk, menus, css, makePicker, makeStatistics) {
     }
   }
   function ledgerScores(main,url) {
-    const isClass = edition === 'A' && url.pathname === '/workspace/lectures' && /^[1-9]\d*$/.test(url.searchParams.get('class'));
+    const isClass = url.pathname === '/workspace/lectures' && /^[1-9]\d*$/.test(url.searchParams.get('class'));
     if (isClass) {
       for (const course of main.querySelectorAll('[aria-label="반별 강의"] tbody td:first-child > a:not([data-ledger-score])')) {
         const target = new URL(course.href);
         const match = /^\/workspace\/lectures\/([1-9]\d*)$/.exec(target.pathname);
         if (!match || target.origin !== origin || target.searchParams.get('group') !== url.searchParams.get('class')) continue;
-        const path = '/workspace/results?statsCourse=' + match[1] + '&edition=A';
+        const path = '/workspace/results?statsCourse=' + match[1];
         let score = course.parentElement.querySelector('[data-ledger-score]');
         if (!score) {
           score = node('a','성적 통계',{href:path,'data-staff-link':'','data-ledger-score':''});
@@ -178,12 +177,12 @@ function mountStaffConsole(makeDesk, menus, css, makePicker, makeStatistics) {
     } else main.querySelectorAll('[data-ledger-score]').forEach(link=>link.remove());
     const from = history.state?.usr?.dawonClassList;
     const saved = typeof from === 'string' && from.startsWith('/workspace/lectures?') ? new URL(from,origin) : null;
-    const valid = edition === 'A' && url.pathname === '/workspace/results' && saved?.origin === origin &&
+    const valid = url.pathname === '/workspace/results' && saved?.origin === origin &&
       saved.pathname === '/workspace/lectures' && /^[1-9]\d*$/.test(saved.searchParams.get('class'));
     const back = rail.querySelector('[data-ledger-return]');
     if (valid && !back) {
       const link=node('a','반별 강의로 돌아가기',{href:saved.pathname+saved.search,'data-ledger-return':'','data-staff-link':''});
-      rail.querySelector('.ed-bar')?.after(link);
+      rail.prepend(link);
     } else if (!valid) back?.remove();
   }
   function enhanceAttendance(main) {
@@ -252,10 +251,9 @@ function mountStaffConsole(makeDesk, menus, css, makePicker, makeStatistics) {
     if (!source || source.role !== activeRole || source.to !== href(new URL(location.href)) || target.querySelector('[data-staff-evidence]')) return;
     const block = node('aside',null,{class:'dawon-staff-context','data-staff-evidence':'','aria-label':'경보 발생 근거'});
     block.append(node('strong','경보 발생 근거'),node('p',source.cause),node('p',source.group));
-    if (activeRole === 'teacher' && source.edition === edition && typeof source.from === 'string' &&
+    if (activeRole === 'teacher' && typeof source.from === 'string' &&
         source.from.split('?')[0] === '/workspace/teacher-alerts') {
       const back = new URL(source.from,origin);
-      back.searchParams.set('edition',edition);
       block.append(node('a','경보 목록으로 돌아가기',{href:back.pathname + back.search,'data-staff-link':'','data-alert-return':''}));
     }
     target.prepend(block);
@@ -337,28 +335,26 @@ function mountStaffConsole(makeDesk, menus, css, makePicker, makeStatistics) {
     const layout = document.querySelector('[data-workspace-shell] [data-dawon-staff]');
     const main = layout?.querySelector('main');
     const role = layout?.dataset.dawonStaff;
-    const view = document.documentElement.dataset.dawonEdition || 'A';
-    const mounted = main && Object.hasOwn(menus,role) && url.pathname.startsWith('/workspace/');
-    if (!mounted || activeRole !== role || edition !== view || !rail?.isConnected) {
+    const mounted = main && (role === 'admin' || role === 'teacher') && url.pathname.startsWith('/workspace/');
+    if (!mounted || activeRole !== role || !rail?.isConnected) {
       statistics?.clear(); statistics = null;
-      desk?.clean(); rail?.remove(); appointments?.remove(); appointments = null;
-      scheduleRequest?.abort(); contextRequest?.abort(); desk = null; rail = null;
+      rail?.remove(); appointments?.remove(); appointments = null;
+      scheduleRequest?.abort(); contextRequest?.abort(); rail = null;
       activeRole = null; lastLocation = null;
       if (!mounted) return;
-      activeRole = role; edition = view;
-      desk = makeDesk(view,role,menus[role],node,go,guarded,main,makePicker,roleApi);
-      rail = desk.root;
+      activeRole = role;
+      rail = node('div',null,{'data-staff-rail':''});
+      main.prepend(rail);
       statistics = makeStatistics({root:rail,role,api:roleApi,node});
     }
     const current = href(url);
     if (lastLocation !== current) {
       lastLocation = current;
       pendingAlertRow = history.state?.dawonAlertRow;
-      desk.route(url);
       if (url.pathname === '/workspace/results') void statistics.show(url);
       else statistics.clear();
     }
-    if (edition === 'A' || main.querySelector('[data-ledger-score],[data-ledger-return]')) ledgerScores(main,url);
+    ledgerScores(main,url);
     if (pendingAlertRow) restoreAlertFocus(main,current);
     if (url.pathname === '/workspace/students/home' && !url.searchParams.has('student')) {
       scheduleList();
@@ -385,7 +381,7 @@ function mountStaffConsole(makeDesk, menus, css, makePicker, makeStatistics) {
         if (activeRole && to.pathname.startsWith('/workspace/')) {
           const source = nextEvidence?.to === href(to) ? nextEvidence : history.state?.dawonEvidence;
           if (source?.to === href(to)) state = {...state,dawonEvidence:source};
-          if (source?.from === href(to) && source.role === activeRole && source.edition === edition) state = {...state,dawonAlertRow:source};
+          if (source?.from === href(to) && source.role === activeRole) state = {...state,dawonAlertRow:source};
         }
         nextEvidence = null;
       }
@@ -407,7 +403,7 @@ function mountStaffConsole(makeDesk, menus, css, makePicker, makeStatistics) {
     else go(a.href);
   },true);
   document.addEventListener('input',e => {
-    if (e.target instanceof HTMLElement && !e.target.closest('[data-edition-desk],form[role=search]')) edited.add(e.target);
+    if (e.target instanceof HTMLElement && !e.target.closest('form[role=search]')) edited.add(e.target);
   },true);
   window.addEventListener('popstate',queue);
   window.addEventListener('pageshow',queue);
@@ -418,6 +414,5 @@ function mountStaffConsole(makeDesk, menus, css, makePicker, makeStatistics) {
   queue();
 }
 
-export const staffConsoleScript = '(' + mountStaffConsole.toString() + ')(' + createDesk.toString() + ','
-  + JSON.stringify(catalog) + ',' + JSON.stringify(style + deskStyle + staffStatisticsStyle) + ',' +
-  createTaskPicker.toString() + ',' + createStaffStatistics.toString() + ');';
+export const staffConsoleScript = '(' + mountStaffConsole.toString() + ')(' +
+  JSON.stringify(style + staffStatisticsStyle) + ',' + createStaffStatistics.toString() + ');';

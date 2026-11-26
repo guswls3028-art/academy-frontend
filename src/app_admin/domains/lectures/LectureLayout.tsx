@@ -9,6 +9,7 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import SessionBlock from "@admin/domains/sessions/components/SessionBlock";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { adminLectureQueryKeys } from "./queryKeys";
+import { dawonStaffPreviewRole } from "@/shared/product/dawon/staffPreview";
 import { useDawonLecture } from "@/shared/product/dawon/useDawonLecture";
 import { resolveTenantCodeString } from "@/shared/tenant";
 
@@ -34,6 +35,7 @@ export default function LectureLayout() {
   const lecture = lectureQ.data;
   const isLoading = lectureQ.isLoading;
   const isDawon = resolveTenantCodeString() === "dawon";
+  const canEditLecture = !isDawon || dawonStaffPreviewRole() !== "admin";
   const { data: group } = useDawonLecture(hasValidLectureId ? lectureIdNum : null);
 
   const title = isLoading ? "강의 불러오는 중…" : safeStr(lecture?.title) || "강의";
@@ -75,7 +77,7 @@ export default function LectureLayout() {
           반 편성
         </Button>
       )}
-      {lecture && lecture.is_active !== false && (
+      {canEditLecture && lecture && lecture.is_active !== false && (
         <Button intent="secondary" size="sm" onClick={() => setSettingsLectureId(lectureIdNum)} leftIcon={<Settings size={14} aria-hidden />}>
           강의 설정
         </Button>

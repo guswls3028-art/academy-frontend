@@ -34,7 +34,6 @@ const WorkspaceSectionPage = lazy(() => import("@admin/layout/WorkspaceSectionPa
 const StudentsLayout = lazy(() => import("@admin/domains/students/StudentsLayout"));
 const DawonTeacherAlertsPage = lazy(() => import("@/shared/product/dawon/DawonTeacherAlerts"));
 const ClassGroupsPage = lazy(() => import("@/shared/product/dawon/ClassGroupsPage"));
-const DawonAdminLectures = lazy(() => import("@/shared/product/dawon/DawonAdminLectures"));
 const DawonSchoolReportCohorts = lazy(() => import("@/shared/product/dawon/DawonSchoolReportCohorts"));
 const SurveysPage = lazy(() => import("@admin/domains/surveys/SurveysPage"));
 const SurveyEditorPage = lazy(() => import("@admin/domains/surveys/SurveysPage").then((module) => ({ default: module.SurveyEditorPage })));
@@ -154,6 +153,36 @@ function QnaReadRedirect() {
   return <Navigate to={id ? `/workspace/community/qna?id=${id}` : "/workspace/community/qna"} replace />;
 }
 
+function DawonLectureIndex() {
+  const { pathname, search } = useLocation();
+  const params = new URLSearchParams(search);
+  const section = params.get("section");
+  if (section === "lessons" || section === "exams" || section === "homework") {
+    params.delete("section");
+    return <Navigate to={{ pathname: pathname.replace(/\/$/, "") + "/sessions", search: params.toString() }} replace />;
+  }
+  return renderLazyRoute(LectureStudentsPage);
+}
+
+function lectureRoutes({ dawonAdmin = false } = {}) {
+  return <>
+        <Route path="lectures" element={renderLazyRoute(LecturesLayout)}>
+          <Route index element={renderLazyRoute(LecturesPage)} />
+          <Route path="past" element={<Suspense fallback={<RouteFallback />}>{(() => { const LP = LecturesPage as ComponentType<{ tab?: string }>; return <LP tab="past" />; })()}</Suspense>} />
+        </Route>
+
+        {/* 강의 상세 — 수강생 + 차시 */}
+        <Route path="lectures/:lectureId" element={renderLazyRoute(LectureLayout)}>
+          <Route index element={dawonAdmin ? <DawonLectureIndex /> : renderLazyRoute(LectureStudentsPage)} />
+          <Route path="sessions" element={renderLazyRoute(LectureSessionsPage)} />
+          <Route path="rankings" element={renderLazyRoute(LectureRankingsPage)} />
+        </Route>
+
+        {/* 반 편성 — 자체 헤더로 분리 (section_mode) */}
+        <Route path="lectures/:lectureId/sections" element={renderLazyRoute(SectionManagementPage)} />
+  </>;
+}
+
 function sessionRoutes() {
   return <>
         <Route
@@ -210,9 +239,7 @@ export default function AdminRouter() {
         {["settings/profile", "settings/appearance"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonStaffSettings)} />)}
         <Route path="students/home" element={renderLazyRoute(DawonAdminStudents)} />
         <Route path="students/class-groups" element={renderLazyRoute(ClassGroupsPage)} />
-        <Route path="lectures" element={renderLazyRoute(DawonAdminLectures)} />
-        <Route path="lectures/:lectureId" element={renderLazyRoute(DawonOperations)} />
-        <Route path="lectures/:lectureId/sessions" element={renderLazyRoute(DawonOperations)} />
+        {lectureRoutes({ dawonAdmin: true })}
         {sessionRoutes()}
         <Route path="exams/:examId" element={renderLazyRoute(ExamIdToSessionRedirect)} />
         <Route path="videos/:videoId" element={renderLazyRoute(VideoIdToSessionRedirect)} />
@@ -257,21 +284,7 @@ export default function AdminRouter() {
           />
         </Route>
 
-        {/* ================= Lectures (SSOT 동일 구조) ================= */}
-        <Route path="lectures" element={renderLazyRoute(LecturesLayout)}>
-          <Route index element={renderLazyRoute(LecturesPage)} />
-          <Route path="past" element={<Suspense fallback={<RouteFallback />}>{(() => { const LP = LecturesPage as ComponentType<{ tab?: string }>; return <LP tab="past" />; })()}</Suspense>} />
-        </Route>
-
-        {/* 강의 상세 — 수강생 + 차시 */}
-        <Route path="lectures/:lectureId" element={renderLazyRoute(LectureLayout)}>
-          <Route index element={renderLazyRoute(LectureStudentsPage)} />
-          <Route path="sessions" element={renderLazyRoute(LectureSessionsPage)} />
-          <Route path="rankings" element={renderLazyRoute(LectureRankingsPage)} />
-        </Route>
-
-        {/* 반 편성 — 자체 헤더로 분리 (section_mode) */}
-        <Route path="lectures/:lectureId/sections" element={renderLazyRoute(SectionManagementPage)} />
+        {lectureRoutes()}
 
         {/* ================= Sessions ================= */}
         {sessionRoutes()}

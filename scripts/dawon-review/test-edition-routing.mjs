@@ -8,12 +8,12 @@ const origin = 'https://demo.hakwonplus.com';
 const desired = '/workspace/students/home?student=2&scope=class&status=pending#record';
 const url = value => new URL(value,origin);
 
-test('legacy aliases retain valid editions at their real destinations',() => {
+test('retired aliases open their role on the native workspace',() => {
   for (const [path,dest] of [
-    ['/teacher?edition=B','/login/dawon?demo=teacher&edition=B'],
-    ['/learn/teacher-portal?edition=A','/login/dawon?demo=teacher&edition=A'],
-    ['/?preview=admin&edition=C','/login/dawon?demo=admin&edition=C'],
-    ['/admin?edition=C','/login/dawon?demo=admin&edition=C'],
+    ['/teacher?edition=B','/login/dawon?demo=teacher'],
+    ['/learn/teacher-portal?edition=A','/login/dawon?demo=teacher'],
+    ['/?preview=admin&edition=C','/login/dawon?demo=admin'],
+    ['/admin?edition=C','/login/dawon?demo=admin'],
     ['/learn/schedule?edition=B&preview=guardian','/?preview=guardian'],
     ['/learn/grades?preview=guardian&edition=C','/?preview=guardian'],
     ['/admin?edition=invalid','/login/dawon?demo=admin'],
@@ -36,10 +36,11 @@ test('only permitted staff entrances carry local work and native filters',async 
   assert.equal(staffReturnPath('/workspace/students/home?student=2&demo=admin&edition=B&returnTo=elsewhere','teacher'),'/workspace/students/home?student=2');
   for (const role of ['teacher','admin']) assert.equal(staffReturnPath(desired,role),desired);
   const entry=url('/c'); entry.searchParams.set('work','/workspace/staff?month=2026-11');
-  const chooser=await editionResponse(new Request(entry),entry).text();
-  assert.ok(chooser.includes('href="/c/admin?work='));
-  assert.ok(chooser.includes('href="/c/teacher"'));
-  for (const role of ['guardian','student']) assert.ok(!chooser.includes('href="/c/'+role+'"'));
+  const landing = new URL(editionResponse(new Request(entry),entry).headers.get('location'));
+  assert.equal(landing.pathname,'/');
+  const shell = insertDemoSwitcher('<html><head></head><body></body></html>',landing,false);
+  assert.match(shell,/href="\/login\/dawon\?demo=admin&amp;work=/);
+  assert.match(shell,/href="\/login\/dawon\?demo=teacher"/);
   for (const role of ['admin','teacher','guardian','student']) {
     const input=url('/c/'+role); input.searchParams.set('work',desired);
     const dest=new URL(editionResponse(new Request(input),input).headers.get('location'));
@@ -55,7 +56,7 @@ function tab(path, initialGeneration=null) {
     replaceState(_state,_title,next){if(next!=null) location.href = new URL(next,location).href;},
     pushState(_state,_title,next){if(next!=null) location.href = new URL(next,location).href;},
   };
-  const document={body:{},documentElement:{dataset:{dawonEdition:'C'}},
+  const document={body:{},documentElement:{dataset:{}},
     getElementById:()=>({dataset:{shell:'native'}}),querySelector:()=>mounted && {dataset:{dawonStaff:mounted}}};
   runInNewContext('('+installStaffReturn.toString()+')('+staffReturnPath.toString()+')',{
     history,location,document,URL,URLSearchParams,localStorage:{getItem:()=>active},
@@ -70,7 +71,7 @@ test('cold guard offers a role choice; signed-in tab invalidation keeps ordinary
   const cold=tab(desired);
   cold.go('/login?edition=C');
   const choice=new URL(cold.replaced[0]);
-  assert.equal(choice.pathname,'/c');
+  assert.equal(choice.pathname,'/');
   assert.equal(choice.searchParams.get('work'),desired);
   const warm=tab(desired,'active');
   warm.go('/login?edition=C');
@@ -89,13 +90,13 @@ test('cold task pickers and native session schedules survive role selection and 
     const cold=tab(target); cold.go('/login?edition=C');
     const chooser=new URL(cold.replaced[0]);
     assert.equal(chooser.searchParams.get('work'),target);
-    chooser.pathname += '/'+role;
+    chooser.pathname = '/staff/'+role;
     const login=new URL(editionResponse(new Request(chooser),chooser).headers.get('location'));
     assert.equal(login.searchParams.get('work'),target);
     const p=tab(login.href);
     p.go('/login?demo='+role+'&edition=C'); p.authenticate('fresh');
     p.go('/workspace/dashboard?edition=C'); p.mount(role);
-    const restored=new URL(p.replaced[0]); restored.searchParams.delete('edition');
+    const restored=new URL(p.replaced[0]); assert.equal(restored.searchParams.has('edition'),false);
     assert.equal(restored.pathname+restored.search,target);
   }
   assert.equal(staffReturnPath('/workspace/lectures?work=unknown&schedule=9','teacher'),'/workspace/lectures');
@@ -121,18 +122,17 @@ test('canonical login, refresh and a confirmed fresh matching session restore th
   p.mount('admin'); p.mount('admin');
   assert.equal(p.replaced.length,1);
   const dest=new URL(p.replaced[0]);
-  assert.equal(dest.searchParams.get('edition'),'C');
-  dest.searchParams.delete('edition');
+  assert.equal(dest.searchParams.has('edition'),false);
   assert.equal(dest.pathname+dest.search+dest.hash,desired);
 });
 
 test('role mismatch, other-tab sign-in, browser Back, or missing successful login cancel the return',() => {
-  for (const scenario of ['wrong-role','another-tab','back','unchanged','wrong-edition']) {
+  for (const scenario of ['wrong-role','another-tab','back','unchanged','different-page']) {
     const p=pending();
     if (scenario==='another-tab') p.events.storage({key:'academy:auth-active-generation:v1'});
     if (scenario==='back') p.events.popstate();
     if (scenario!=='unchanged') p.authenticate('fresh');
-    p.go('/workspace/dashboard?edition='+(scenario==='wrong-edition'?'B':'C'));
+    p.go(scenario==='different-page'?'/workspace/lectures':'/workspace/dashboard');
     p.mount(scenario==='wrong-role'?'teacher':'admin');
     assert.deepEqual(p.replaced,[],scenario);
   }
@@ -143,35 +143,21 @@ test('a workspace response waits for native staff identity before highlighting a
   assert.doesNotMatch(shell,/<a[^>]*data-demo-app="[^"]+"[^>]*aria-current=/);
 });
 
-test('family pages expose all four entrances and staff desks retain their own roles',() => {
-  const base='<html><head></head><body></body></html>';
-  for (const path of ['/?preview=guardian','/learn/curriculum','/student/video/play','/login/dawon?demo=guardian']) {
-    const html=insertDemoSwitcher(base,url(path),path.startsWith('/student/')||path.startsWith('/login/'));
-    assert.deepEqual([...html.matchAll(/data-demo-app="([^"]+)"/g)].map(m=>m[1]),['teacher','admin','student','guardian']);
-    for (const role of ['teacher','admin']) assert.ok(html.includes('href="/staff/'+role+'"'));
-    assert.doesNotMatch(html,/<html[^>]*data-dawon-edition|<a[^>]*data-edition-home/);
-  }
-  for (const key of ['A','B','C']) {
-    const html=insertDemoSwitcher(base,url('/workspace/dashboard?edition='+key),true);
-    assert.deepEqual([...html.matchAll(/data-demo-app="([^"]+)"/g)].map(m=>m[1]),['teacher','admin']);
-    assert.ok(html.includes('data-edition-home href="/'+key.toLowerCase()+'"'));
+test('staff and family pages share four manual role links without a variant chooser',() => {
+  for (const [path,native] of [['/',false],['/workspace/lectures?class=7',true],['/login/dawon?demo=admin',true]]) {
+    const shell = insertDemoSwitcher('<html><head></head><body></body></html>',url(path),native);
+    assert.deepEqual([...shell.matchAll(/data-demo-app="(.*?)"/g)].map(m => m[1]), ['teacher','admin','student','guardian']);
+    assert.doesNotMatch(shell,/data-dawon-edition|data-edition-home|edition=|href="\/staff\//);
   }
 });
-
-test('each public staff role can enter every complete program before signing in',async () => {
-  for (const role of ['teacher','admin']) {
-    const route = url('/staff/' + role);
-    const page = await editionResponse(new Request(route),route).text();
-    assert.ok(page.includes('href="/"'));
-    for (const edition of ['a','b','c']) {
-      const path = '/' + edition + '/' + role;
-      assert.ok(page.includes('href="' + path + '"'));
-      const target = url(path);
-      assert.equal(editionResponse(new Request(target),target).headers.get('location'),
-        origin + '/login/dawon?demo=' + role + '&edition=' + edition.toUpperCase());
+test('old bookmarks preserve class, lecture, filters and explicit role on the native route',() => {
+  for (const variant of ['a','b','c']) {
+    for (const role of ['teacher','admin','guardian','student']) {
+      const input=url('/'+variant+'/'+role), dest=editionResponse(new Request(input),input).headers.get('location');
+      assert.equal(new URL(dest).searchParams.get(['admin','teacher'].includes(role)?'demo':'preview'),role);
+      assert.ok(!dest.includes('edition'));
     }
-    assert.equal(await editionResponse(new Request(route,{method:'HEAD'}),route).text(),'');
-    assert.equal(editionResponse(new Request(route,{method:'POST'}),route).status,405);
   }
-  assert.equal(editionResponse(new Request(url('/staff/guardian')),url('/staff/guardian')),null);
+  const before=url('/workspace/lectures/7/sessions/9/scores?group=2&edition=B&schedule=3');
+  assert.equal(legacyEditionRedirect(before).headers.get('location'),url('/workspace/lectures/7/sessions/9/scores?group=2&schedule=3').href);
 });
