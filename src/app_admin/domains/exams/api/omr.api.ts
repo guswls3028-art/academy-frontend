@@ -21,7 +21,7 @@ export type OMRDefaults = {
 };
 
 export type OMRParams = {
-  essay_score_grid?: "paper" | "exam";
+  essay_score_grid?: "auto" | "paper" | "exam";
   exam_title?: string;
   lecture_name?: string;
   session_name?: string;

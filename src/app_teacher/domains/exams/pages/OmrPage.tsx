@@ -179,6 +179,11 @@ export default function OmrPage() {
 
   const downloadMut = useMutation({
     mutationFn: () => downloadOMRPdf(eid, {
+      ...(essayCount > 0 && defaults?.print_by_default !== undefined ? { essay_score_grid: "auto" } : {}),
+      ...(defaults && mcCount === defaults.mc_count && essayCount === defaults.essay_count ? {
+        choice_question_numbers: defaults.choice_question_numbers,
+        essay_question_numbers: defaults.essay_question_numbers,
+      } : {}),
       exam_title: defaults?.exam_title ?? exam?.title,
       lecture_name: defaults?.lecture_name,
       session_name: defaults?.session_name,

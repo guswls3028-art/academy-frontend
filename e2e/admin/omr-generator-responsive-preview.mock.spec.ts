@@ -181,7 +181,7 @@ for (const width of [1366, 390]) {
     const oldRoute = await previous;
     const latest = hold(params => params.mc_count === 0 && params.essay_score_grid === "paper");
     await page.getByRole("radio", { name: "서술형만", exact: true }).click();
-    await page.getByRole("radiogroup", { name: "서술형 교사 채점란" }).getByRole("radio", { name: "사용", exact: true }).click();
+    await expect(page.getByRole("radiogroup", { name: "서술형 교사 채점란" }).getByRole("radio", { name: "사용", exact: true })).toBeChecked();
     await show(oldRoute, "폐기된 이전 구성");
     await (await oldRoute.request().response())?.finished();
     const latestRoute = await latest;
@@ -214,15 +214,15 @@ for (const width of [1366, 390]) {
     await expect(sheet.getByText("현재 답안지")).toBeVisible();
   });
 
-  test(`${width}px 독립 생성기에서 수기 채점란을 선택하고 같은 구성의 PDF를 받는다`, async ({ page }) => {
+  test(`${width}px 독립 생성기에서 별도 선택 없이 수기 채점란 PDF를 받는다`, async ({ page }) => {
     await seed(page);
     await installApi(page);
     await page.setViewportSize({ width, height: 844 });
     await page.goto(`${BASE}/workspace/tools/omr`);
+    const preview = page.waitForRequest(request => request.url().endsWith("/tools/omr/preview/") && request.postDataJSON()?.mc_count === 0 && request.postDataJSON()?.essay_score_grid === "paper");
     await page.getByRole("radio", { name: "서술형만" }).click();
     const option = page.getByRole("radiogroup", { name: "서술형 교사 채점란" });
-    const preview = page.waitForRequest(request => request.url().endsWith("/tools/omr/preview/") && request.postDataJSON()?.essay_score_grid === "paper");
-    await option.getByRole("radio", { name: "사용", exact: true }).click();
+    await expect(option.getByRole("radio", { name: "사용", exact: true })).toBeChecked();
     const params = (await preview).postDataJSON();
     const pdf = page.waitForRequest(request => request.url().endsWith("/tools/omr/pdf/"));
     const download = page.waitForEvent("download");

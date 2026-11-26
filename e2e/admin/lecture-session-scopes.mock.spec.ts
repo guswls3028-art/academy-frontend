@@ -1392,8 +1392,7 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
     await expect(option.getByRole("radio", { name: "사용", exact: true })).toHaveAttribute("aria-checked", "true");
     await expect(page.getByText(/서술형 교사 채점란을 켰습니다/)).toBeVisible();
     await expect.poll(() => state.omrPreviewPosts ?? 0).toBeGreaterThan(previewsBefore);
-    await expect(dialog.getByText("15점 = 7+8", { exact: false })).toBeVisible();
-    await expect(dialog.getByText(/문항별 점수 입력에서 OMR 제안을 확인하고 확정하세요/)).toBeVisible();
+    await expect(dialog.getByText(/스캔 후 채점표에서 확인하세요/)).toBeVisible();
     const pdf = page.waitForRequest(request => request.url().endsWith("/omr/pdf/"));
     const download = page.waitForEvent("download");
     await dialog.getByRole("button", { name: "OMR PDF 다운로드" }).click();
@@ -1405,6 +1404,14 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
     await option.getByRole("radio", { name: "사용 안 함", exact: true }).click();
     await expect.poll(() => state.essayScoreMarks?.patches).toEqual([true, false]);
     await expect(option.getByRole("radio", { name: "사용 안 함", exact: true })).toHaveAttribute("aria-checked", "true");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "문항·답안 확인" }).click();
+    await dialog.getByRole("tab", { name: "OMR 답안지" }).click();
+    await expect(option.getByRole("radio", { name: "사용", exact: true })).toBeEnabled();
+    await expect(option.getByRole("radio", { name: "사용 안 함", exact: true })).toBeChecked();
+    const reprinted = page.waitForRequest(request => request.url().endsWith("/omr/pdf/"));
+    await dialog.getByRole("button", { name: "OMR PDF 다운로드" }).click();
+    expect((await reprinted).postDataJSON()).not.toHaveProperty("essay_score_grid");
   });
 }
 
@@ -1423,7 +1430,7 @@ test("서술형 배점이 없는 시험도 스캔 설정을 바꾸지 않고 수
     examSessionEnrollmentRows: [],
     answerKeySaves: [{ exam: 9971, answers: { "99711": "1", "99712": "2" } }],
     essayScoreMarks: {
-      enabled: false, available: false, reason: "배점이 없는 서술형 문항이 있습니다.", patches: [],
+      enabled: true, available: false, reason: "배점이 없는 서술형 문항이 있습니다.", patches: [],
     },
   };
   await openLecture(page, state);
@@ -1435,9 +1442,7 @@ test("서술형 배점이 없는 시험도 스캔 설정을 바꾸지 않고 수
   await dialog.getByRole("tab", { name: "OMR 답안지" }).click();
   const option = dialog.getByRole("radiogroup", { name: "서술형 교사 채점란" });
   await expect(dialog.getByText(/배점이 없는 서술형 문항이 있습니다/)).toBeVisible();
-  const preview = page.waitForRequest(request => request.url().endsWith("/omr/preview/") && request.postDataJSON()?.essay_score_grid === "paper");
-  await option.getByRole("radio", { name: "사용", exact: true }).click();
-  await preview;
+  await expect(option.getByRole("radio", { name: "사용", exact: true })).toBeChecked();
   const pdf = page.waitForRequest(request => request.url().endsWith("/omr/pdf/"));
   const download = page.waitForEvent("download");
   await dialog.getByRole("button", { name: "OMR PDF 다운로드" }).click();

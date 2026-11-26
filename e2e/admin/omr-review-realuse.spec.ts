@@ -466,20 +466,6 @@ async function setEssayScorePrinting(
   expect(setting).toMatchObject({ enabled, available: true, printed: enabled });
 }
 
-async function downloadOmrPdf(
-  request: APIRequestContext,
-  token: string,
-  examId: number,
-): Promise<Buffer> {
-  const resp = await request.post(`${API}/api/v1/exams/${examId}/omr/pdf/`, {
-    data: omrPrintOptions,
-    headers: headers(token),
-    timeout: 180_000,
-  });
-  expect(resp.status(), `OMR PDF generation -> ${resp.status()} ${await resp.text().catch(() => "")}`).toBe(200);
-  return await resp.body();
-}
-
 async function downloadDisplayedSheet(page: Page): Promise<Buffer> {
   const downloaded = page.waitForEvent("download", { timeout: 180_000 });
   await page.getByRole("button", { name: "OMR PDF 다운로드", exact: true }).click();
@@ -490,13 +476,13 @@ async function downloadDisplayedSheet(page: Page): Promise<Buffer> {
   return readFile(path);
 }
 
-async function markThirtyQuestionOmrPdf(
+async function markOmrPdf(
   pdfBuffer: Buffer,
   answers: string[],
   identifier: string | null,
   essayBubbles: readonly PrintedEssayBubble[] = [],
 ): Promise<Buffer> {
-  expect(answers).toHaveLength(30);
+  if (answers.length) expect(answers).toHaveLength(30);
   if (identifier !== null) expect(identifier).toMatch(/^\d{8}$/);
 
   const pdf = await PDFDocument.load(pdfBuffer);
@@ -1509,7 +1495,8 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       [200],
     );
 
-    await setEssayScorePrinting(request, adminTokens.access, created.examId, true);
+    await loginBrowserAsRealUser(page, `/workspace/mobile/exams/${created.examId}/omr`,
+      { role: "teacher", username: "ymath-qa-resource-publisher", password: ADMIN_PASS });
     const teacherPreview = await request.post(`${API}/api/v1/exams/${created.examId}/omr/preview/`, {
       headers: { ...headers(adminTokens.access), Accept: "text/html" },
       data: omrPrintOptions,
@@ -1519,10 +1506,10 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const teacherBubbles = await essayBubblesFromPreview(page, await teacherPreview.text(), [
       [8], [5, 4],
     ]);
-    const pdfBuffer = await downloadOmrPdf(request, adminTokens.access, created.examId);
+    const pdfBuffer = await downloadDisplayedSheet(page);
     // A sheet printed before the setting was turned off remains eligible for scanning.
     await setEssayScorePrinting(request, adminTokens.access, created.examId, false);
-    const markedPdfBuffer = await markThirtyQuestionOmrPdf(
+    const markedPdfBuffer = await markOmrPdf(
       pdfBuffer, EXPECTED_ANSWERS, null, teacherBubbles,
     );
 
@@ -2163,13 +2150,19 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAndSettle(page, `${BASE}/workspace/tools/omr`);
     await page.getByRole("radio", { name: "서술형만", exact: true }).click();
-    await page.getByRole("radiogroup", { name: "서술형 교사 채점란" })
-      .getByRole("radio", { name: "사용", exact: true }).click();
+    await page.getByRole("spinbutton", { name: /문항 수/ }).fill("2");
     const paperPreview = page.frameLocator('iframe[title="OMR 답안지 미리보기"]');
     await expect(paperPreview.locator("[data-essay-score-question]").first().locator(".essay-score-bubble"))
       .toHaveText(Array.from("012345678"));
     await expect(paperPreview.locator(".es-a")).toHaveCount(0);
-    expect((await PDFDocument.load(await downloadDisplayedSheet(page))).getPageCount()).toBe(1);
+    await expect(paperPreview.locator("[data-essay-score-question]")).toHaveCount(2);
+    const paperHtml = await paperPreview.locator("html").evaluate(element => element.outerHTML);
+    const paperBubbles = await essayBubblesFromPreview(page, paperHtml, [[0], [8]]);
+    const toolPdf = await downloadDisplayedSheet(page);
+    const markedToolPdf = await markOmrPdf(toolPdf, [], null, paperBubbles);
+    await test.info().attach("독립-OMR-0점-8점-가상마킹.pdf", { body: markedToolPdf, contentType: "application/pdf" });
+    const markedToolImage = await renderOmrScanImage(markedToolPdf);
+    await test.info().attach("독립-OMR-가상마킹.png", { body: markedToolImage, contentType: "image/png" });
     await loginBrowserAsRealUser(page, "/student/grades",
       { role: "student", username: STUDENT_USER, password: STUDENT_PASS });
     const studentCard = page.getByRole("link").filter({ hasText: EXAM_TITLE });
@@ -2185,7 +2178,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const replacementBubbles = await essayBubblesFromPreview(page, previewHtml, [
       [0], [0, 2],
     ]);
-    const markedPdf = await markThirtyQuestionOmrPdf(
+    const markedPdf = await markOmrPdf(
       examPdf, answers, CONTROLLED_PHONE.slice(-8), replacementBubbles,
     );
     const scanImage = await renderOmrScanImage(markedPdf);

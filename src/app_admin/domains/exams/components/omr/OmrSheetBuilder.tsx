@@ -86,7 +86,7 @@ export default function OmrSheetBuilder({
   const essayLabel = "서술형";
   const targetExamId = target.type === "exam" ? target.examId : undefined;
   const marks = useOmrEssayScoreMarks(targetExamId, essayCount > 0);
-  const scoreGrid = marks.grid;
+  const scoreGrid = marks.requestGrid;
   const requestTarget = useMemo<OMRTarget>(() => (
     targetType === "exam" && targetExamId
       ? { type: "exam", examId: targetExamId }
@@ -241,7 +241,7 @@ export default function OmrSheetBuilder({
   };
 
   const downloadButton = (
-    <Button type="button" intent="primary" size="md" className="w-full" leftIcon={<Download size={16} />} onClick={handleDownload} disabled={pdfLoading || marks.busy || totalCount < 1}>
+    <Button type="button" intent="primary" size="md" className="w-full" leftIcon={<Download size={16} />} onClick={handleDownload} disabled={pdfLoading || marks.saving || totalCount < 1}>
       {pdfLoading ? "다운로드 중..." : "OMR PDF 다운로드"}
     </Button>
   );
