@@ -18,7 +18,16 @@ for (const width of [390, 1366]) {
       return route.fulfill({ json: { username: { available: true } } });
     });
     await gotoAndSettle(page, `${BASE}/login/hakwonplus`);
-    await expect(page.locator('[data-auth-part="brand-artwork"] img')).toHaveAttribute("src", "/tenants/hakwonplus/logo.png?v=20261119");
+    const logo = page.locator('[data-auth-part="brand-artwork"] img');
+    await expect(logo).toHaveAttribute("src", "/tenants/hakwonplus/logo.png?v=20261119");
+    await expect.poll(() => logo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+    const logoBox = (await logo.boundingBox())!;
+    const panelBox = (await page.locator('[data-auth-part="login-panel"]').boundingBox())!;
+    expect(logoBox.y + logoBox.height).toBeLessThanOrEqual(panelBox.y);
+    expect(logoBox.x).toBeGreaterThanOrEqual(panelBox.x - 1);
+    expect(logoBox.x + logoBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width + 1);
+    expect(panelBox.width).toBeLessThanOrEqual(440);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     const trigger = page.getByRole("button", { name: "회원가입", exact: true });
     await trigger.click();
     const dialog = page.getByRole("dialog", { name: "학생 회원가입" });
