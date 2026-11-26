@@ -9,7 +9,8 @@ for (const surface of ["enrollment", "inventory"] as const) {
     test(`${surface} ${width}px 학생 검색은 입력을 모으고 오류 복구 후 작업을 이어간다`, async ({ page }, info) => {
       // Install before application timers exist; keep them running until typing starts.
       await page.clock.install();
-      await page.setViewportSize({ width, height: 900 });
+      const shortSheet = width === 390 && surface === "enrollment";
+      await page.setViewportSize({ width, height: shortSheet ? 600 : 900 });
       await installTenantOneInitScript(page);
       const payload = Buffer.from(JSON.stringify({ exp: 2_000_000_000, user_id: 12, tenant_code: "hakwonplus" })).toString("base64url");
       await page.addInitScript((token) => {
@@ -45,7 +46,10 @@ for (const surface of ["enrollment", "inventory"] as const) {
           const search = url.searchParams.get("search") || "";
           searches.push(search);
           if (search === "실패" && failing) return json({ detail: "검색 일시 실패" }, 400);
-          return json({ count: 1, page_size: 50, results: [student] });
+          const results = shortSheet && !search ? [student, ...Array.from({ length: 15 }, (_, i) => ({
+            ...student, id: 902 + i, ps_number: `qa-search-${902 + i}`, name: `검증 학생 ${i + 1}`,
+          }))] : [student];
+          return json({ count: results.length, page_size: 50, results });
         }
         if (path === "/storage/inventory/") return json({ files: [], folders: [] });
         return json({ count: 0, results: [], next: null });
@@ -82,7 +86,26 @@ for (const surface of ["enrollment", "inventory"] as const) {
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
       await panel.getByText("김학생", { exact: true }).click();
       if (surface === "enrollment") {
-        await panel.getByRole("button", { name: "1명 등록", exact: true }).click();
+        const save = panel.getByRole("button", { name: "1명 등록", exact: true });
+        if (shortSheet) {
+          await input.fill("");
+          await expect(panel.getByText("검증 학생 15", { exact: true })).toBeAttached();
+          const summary = panel.getByRole("group", { name: "등록 시 알림톡 안내" });
+          await expect(summary).toContainText("첫 수강 확정 시 학생·학부모에게");
+          await expect(summary).toBeInViewport({ ratio: 1 });
+          await expect(save).toBeInViewport({ ratio: 1 });
+          await panel.getByText("수신자별 발송 설정", { exact: true }).click();
+          const parentDelivery = panel.getByRole("combobox", { name: "학부모 안내 발송" });
+          await parentDelivery.selectOption("skip");
+          await expect(summary).toContainText("학부모 발송 안 함");
+          await input.scrollIntoViewIfNeeded();
+          await expect(input).toBeInViewport({ ratio: 1 });
+          await expect(summary).toBeInViewport({ ratio: 1 });
+          await expect(save).toBeInViewport({ ratio: 1 });
+          await info.attach("teacher-enrollment-short.png", { body: await panel.screenshot(), contentType: "image/png" });
+          await parentDelivery.selectOption("auto");
+        }
+        await save.click();
         await expect(panel).toHaveCount(0);
         expect(enrolled).toBe(true);
         await page.reload();

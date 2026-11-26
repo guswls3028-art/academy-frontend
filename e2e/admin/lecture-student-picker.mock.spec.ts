@@ -455,9 +455,22 @@ test("낮은 모바일 화면·다크 테마에서도 선택과 저장 버튼에
   await expect(dialog.locator(".modal-body")).toHaveCSS("background-color", "rgb(25, 33, 41)");
   await dialog.getByRole("checkbox", { name: "기존학생002 선택", exact: true }).check();
   const save = dialog.getByRole("button", { name: "1명 강의에 추가", exact: true });
-  await expect(save).toBeInViewport();
+  const summary = dialog.getByRole("group", { name: "등록 시 알림톡 안내" });
+  const body = dialog.locator(".modal-body");
+  await expect(summary).toContainText("첫 수강 확정 시 학생·학부모에게");
+  await expect(summary).toBeInViewport({ ratio: 1 });
+  await expect(save).toBeInViewport({ ratio: 1 });
   await expect.poll(() => dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
   await dialog.screenshot({ path: info.outputPath("lecture-picker-short-dark.png") });
+  await dialog.getByText("수신자별 발송 설정", { exact: true }).click();
+  await dialog.getByRole("combobox", { name: "학부모 안내 발송" }).selectOption("skip");
+  await expect(summary).toContainText("학부모 발송 안 함");
+  expect(await body.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
+  for (const end of [false, true]) {
+    await body.evaluate((el, bottom) => { el.scrollTop = bottom ? el.scrollHeight : 0; }, end);
+    await expect(summary).toBeInViewport({ ratio: 1 });
+    await expect(save).toBeInViewport({ ratio: 1 });
+  }
   await save.click();
   await expect(dialog).toHaveCount(0);
 });

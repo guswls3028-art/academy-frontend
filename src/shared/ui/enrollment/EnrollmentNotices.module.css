@@ -8,6 +8,8 @@
   font-size: 13px;
   line-height: 1.5;
 }
+.summary { min-width: 0; color: var(--color-text-primary, var(--tc-text)); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.summary p { margin: 3px 0 0; }
 .options { background: var(--color-bg-surface-soft, var(--tc-surface-soft)); }
 .options p, .results p, .heading h3 { margin: 0; }
 .options summary { width: fit-content; cursor: pointer; padding: 3px 0; }

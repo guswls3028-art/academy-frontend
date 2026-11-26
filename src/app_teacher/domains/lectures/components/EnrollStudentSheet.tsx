@@ -6,7 +6,7 @@ import { useState } from "react";
 import { ICON } from "@/shared/ui/ds";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchLectureEnrollments } from "../api";
-import EnrollmentNoticeOptions from "@/shared/ui/enrollment/EnrollmentNoticeOptions";
+import EnrollmentNoticeOptions, { EnrollmentNoticeSummary } from "@/shared/ui/enrollment/EnrollmentNoticeOptions";
 import { useNoticeRegistration } from "@/shared/ui/enrollment/useNoticeRegistration";
 import { fetchStudents } from "@teacher/domains/students/api";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
@@ -64,7 +64,14 @@ function EnrollStudents({ open, onClose, lectureId, enrolledStudentIds }: Props)
   };
 
   return (
-    <BottomSheet open={open} onClose={onClose} closeDisabled={notice.busy} title="수강생 등록">
+    <BottomSheet open={open} onClose={onClose} closeDisabled={notice.busy} title="수강생 등록" footer={<>
+        <EnrollmentNoticeSummary choices={notice.choices} />
+        <button onClick={() => void submit()} disabled={notice.busy || (!selected.length && !notice.pending)}
+          className="w-full text-sm font-bold cursor-pointer mt-1"
+          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: selected.length > 0 ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: selected.length > 0 ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)" }}>
+          {notice.busy ? "등록 확인 중…" : notice.pending ? notice.retryLabel : notice.explicit ? `${selected.length}명 등록 및 안내 요청` : `${selected.length}명 등록`}
+        </button>
+      </>}>
       <div className="flex flex-col gap-2" style={{ padding: "var(--tc-space-2) 0" }}>
         {/* Search */}
         <div className="flex items-center gap-2" style={{ padding: "0 0 var(--tc-space-2)", borderBottom: "1px solid var(--tc-border-subtle)" }}>
@@ -116,11 +123,6 @@ function EnrollStudents({ open, onClose, lectureId, enrolledStudentIds }: Props)
             setSelected(previous => previous.filter(id => !enrolledStudentIds.includes(id)));
           }
         }} />
-        <button onClick={() => void submit()} disabled={notice.busy || (!selected.length && !notice.pending)}
-          className="w-full text-sm font-bold cursor-pointer mt-1"
-          style={{ padding: "12px", borderRadius: "var(--tc-radius)", border: "none", background: selected.length > 0 ? "var(--tc-primary)" : "var(--tc-surface-soft)", color: selected.length > 0 ? "var(--tc-primary-contrast)" : "var(--tc-text-muted)" }}>
-          {notice.busy ? "등록 확인 중…" : notice.pending ? notice.retryLabel : notice.explicit ? `${selected.length}명 등록 및 안내 요청` : `${selected.length}명 등록`}
-        </button>
       </div>
     </BottomSheet>
   );

@@ -11,7 +11,7 @@ import { useSchoolLevelMode, type SchoolType } from "@/shared/hooks/useSchoolLev
 import { adminStudentsQueryKeys } from "@admin/domains/students/public/queryKeys";
 import { adminLectureQueryKeys } from "../queryKeys";
 import { useNoticeRegistration } from "@/shared/ui/enrollment/useNoticeRegistration";
-import EnrollmentNoticeOptions from "@/shared/ui/enrollment/EnrollmentNoticeOptions";
+import EnrollmentNoticeOptions, { EnrollmentNoticeSummary } from "@/shared/ui/enrollment/EnrollmentNoticeOptions";
 import "./LectureEnrollStudentModal.css";
 
 interface Props {
@@ -281,6 +281,7 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
       <ModalFooter left={onChooseExcelUpload ? <Button intent="ghost" disabled={saving} onClick={() => {
         void leave(() => { onClose(); onChooseExcelUpload(); });
       }}>엑셀로 일괄 등록</Button> : <span className="lecture-enroll-picker__hint">한 번에 최대 200명</span>} right={<>
+        <EnrollmentNoticeSummary choices={notice.choices} />
         <Button intent="secondary" disabled={saving} onClick={() => { void leave(onClose); }}>취소</Button>
         <Button intent="primary" disabled={saveBlocked || (!selected.size && !notice.pending)} loading={saving} onClick={() => { void save(); }}>
           {saving ? "등록 확인 중…" : notice.pending ? notice.retryLabel : selected.size ? notice.explicit ? `${selected.size}명 등록 및 안내 요청` : `${selected.size}명 강의에 추가` : "학생을 선택하세요"}
