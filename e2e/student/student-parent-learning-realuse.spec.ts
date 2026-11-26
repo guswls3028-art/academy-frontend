@@ -3,7 +3,8 @@
  * and the same child's parent. All records are synthetic and tenant-local.
  */
 import { expect, test } from "../fixtures/strictTest";
-import type { APIRequestContext, Page, TestInfo } from "@playwright/test";
+import type { RegistrationDelivery, RegistrationReceipt } from "../../src/shared/api/contracts/registrationNotices";
+import type { APIRequestContext, Locator, Page, TestInfo } from "@playwright/test";
 import {
   api,
   assertNoHorizontalOverflow,
@@ -202,6 +203,52 @@ async function verifyLectureMemo(page: Page, request: APIRequestContext, access:
   }
 }
 
+async function verifyManualEnrollmentNotice(
+  page: Page, picker: Locator, request: APIRequestContext, access: string, lecture: number, student: QaFamily["students"][number],
+) {
+  await picker.getByText("수신자별 발송 설정", { exact: true }).click();
+  await picker.getByRole("combobox", { name: "학생 안내 발송" }).selectOption("send");
+  await picker.getByRole("combobox", { name: "학부모 안내 발송" }).selectOption("skip");
+  await picker.getByRole("checkbox", { name: `${student.name} 선택`, exact: true }).check();
+  await picker.getByRole("button", { name: "1명 등록 및 안내 요청" }).click();
+  const confirmation = page.getByRole("alertdialog");
+  await expect(confirmation).toContainText("학생 연락처");
+  const submitted = page.waitForResponse(res => res.request().method() === "POST" && res.url().endsWith("/enrollments/register-with-notices/"));
+  await confirmation.getByRole("button", { name: "중복 발송 가능성 확인 후 진행" }).click();
+  const saved = await submitted;
+  expect(saved.ok()).toBe(true);
+  const receipt = await saved.json() as RegistrationReceipt;
+  expect(saved.request().postDataJSON()).toEqual({ lecture, students: [student.id], student_notice: "send", parent_notice: "skip", request_id: receipt.request_id });
+  await expect(picker).toHaveCount(0);
+  const exact = `/enrollments/registration-notices/?lecture=${lecture}&request_id=${encodeURIComponent(receipt.request_id)}`;
+  let logId: number | null = null;
+  await expect.poll(async () => {
+    const current = await expectApi<RegistrationReceipt>(request, "GET", exact, access);
+    const [row] = current.students;
+    logId = row?.student.log_id ?? null;
+    return { request: current.request_id, lecture: current.lecture, count: current.students.length, id: row?.id,
+      student: row?.student.status, parent: row?.parent, hasLog: Number(logId) > 0 };
+  }, { message: "학생 알림톡의 개발 작업자 접수와 학부모 미발송", timeout: 120_000, intervals: [1_000, 2_000, 4_000] }).toEqual({
+    request: receipt.request_id, lecture, count: 1, id: student.id, student: "accepted", parent: { status: "skipped", log_id: null }, hasLog: true,
+  });
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const result = page.getByRole("region", { name: "최근 등록 알림톡 결과" }).getByRole("listitem", { name: student.name, exact: true });
+  await expect(result.getByRole("group", { name: "학부모", exact: true })).toContainText("선택에 따라 미발송");
+  const recipient = result.getByRole("group", { name: "학생", exact: true });
+  await expect(recipient).toContainText("발송 접수 · 최종 전달 대기");
+  const verifying = page.waitForResponse(res => res.request().method() === "POST" && res.url().endsWith("/enrollments/verify-registration-notice/"));
+  await recipient.getByRole("button", { name: "최종 전달 확인" }).click();
+  const verified = await verifying;
+  expect(verified.ok()).toBe(true);
+  expect(verified.request().postDataJSON()).toEqual({ lecture, request_id: receipt.request_id, log_id: logId });
+  const provider = await verified.json() as RegistrationDelivery;
+  // The isolated provider records send acceptance without exposing a carrier delivery lookup.
+  expect(provider.provider_delivery_status).toBe("unavailable");
+  await expect(recipient).toContainText("최종 전달 확인 불가");
+  await expect(recipient.getByText("최종 전달 성공")).toHaveCount(0);
+}
+
 async function seedLearningGraph(request: APIRequestContext, adminAccess: string, family: QaFamily, enrollmentPage: Page, testInfo: TestInfo): Promise<void> {
   // Create through the teacher UI while an unrelated past-lecture search is active.
   // The saved lecture must become visible without asking the teacher to clear it.
@@ -327,7 +374,8 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
   await desktopSearch.dispatchEvent("compositionend");
   await assertNoHorizontalOverflow(enrollmentPage);
   await picker.screenshot({ path: testInfo.outputPath("lecture-enrollment-desktop.png") });
-  await picker.getByRole("button", { name: "취소", exact: true }).click();
+  await test.step("수강 중인 학생의 수동 안내 한 건을 개발 작업자 접수와 공급자 조회까지 확인", () =>
+    verifyManualEnrollmentNotice(enrollmentPage, picker, request, adminAccess, receipt.lecture, family.students[0]));
   const session = await expectApi<{ id: number }>(request, "POST", "/lectures/sessions/", adminAccess, {
     lecture: created.lectureId,
     title: sessionTitle,
