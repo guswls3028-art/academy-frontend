@@ -159,6 +159,10 @@ export async function verifySessionSchedules(
     await seedBrowserAuth(studentPage, student);
     await gotoAndSettle(page, `${route}/attendance`);
     await acknowledgeInitialAccountPromptsIfVisible(page);
+    const expand = page.getByRole('button', { name: '차시·수업일 펼치기', exact: true });
+    await expect(expand).toHaveAttribute('aria-expanded', 'false');
+    await expand.click();
+    await expect(page.getByRole('region', { name: '수업일 선택', exact: true })).toBeVisible();
     phase = 'assessment-schedule-initial-create';
     await verifyInitialSchedules(page, request, admin, scope.lectureId, scope.sessionId, testInfo, cleanup);
     phase = 'assessment-schedule-admin-attendance';

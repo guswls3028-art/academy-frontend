@@ -14,9 +14,11 @@
 import { lazy, Suspense, useState, useMemo, useContext } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useSearchParams, Navigate, useNavigate } from "react-router";
-import { BarChart3, ClipboardList, FileText, Plus } from "lucide-react";
+import { BarChart3, ChevronDown, ClipboardList, FileText, Plus } from "lucide-react";
 
 import api from "@/shared/api/axios";
+import useAuth from "@/auth/hooks/useAuth";
+import { getLocalItem, getTenantUserLocalKey, setLocalItem } from "@/shared/utils/safeLocalStorage";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useLectureParams } from "@admin/domains/lectures/hooks/useLectureParams";
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
@@ -66,6 +68,8 @@ async function fetchSession(id: number) {
 
 export default function SessionDetailPage() {
   const { lectureId, sessionId } = useLectureParams();
+  const { user } = useAuth();
+  const stripPreference = getTenantUserLocalKey("session-strip:expanded", user?.id);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const controls = useContext(SessionScheduleControlsContext);
@@ -157,9 +161,7 @@ export default function SessionDetailPage() {
     <AssessmentEditGuardProvider>
       <Suspense fallback={<RouteFallback />}>
       {showSessionStrip && (
-        <div className="session-detail-session-strip">
-          <SessionBlock lectureId={lecId} currentSessionId={sId} />
-        </div>
+        <SessionStripDisclosure key={stripPreference} preferenceKey={stripPreference} lectureId={lecId} sessionId={sId} />
       )}
 
       {!showSessionStrip && !useCompactScoreEntry && (!hasAttendanceChooser || controls?.blockedNotice) && (
@@ -283,6 +285,40 @@ export default function SessionDetailPage() {
       )}
       </Suspense>
     </AssessmentEditGuardProvider>
+  );
+}
+
+function SessionStripDisclosure({ preferenceKey, lectureId, sessionId }: {
+  preferenceKey: string | null;
+  lectureId: number;
+  sessionId: number;
+}) {
+  const controls = useContext(SessionScheduleControlsContext);
+  const [state, setState] = useState<"initial" | "open" | "closed">(
+    () => preferenceKey && getLocalItem(preferenceKey) === "1" ? "open" : "initial",
+  );
+  const expanded = state === "open";
+  const panelId = "session-detail-session-picker";
+
+  return (
+    <div className="session-detail-session-strip">
+      <button type="button" className="session-strip-toggle" aria-expanded={expanded} aria-controls={panelId}
+        onClick={() => {
+          setState(expanded ? "closed" : "open");
+          if (preferenceKey) setLocalItem(preferenceKey, expanded ? "0" : "1");
+        }}>
+        차시·수업일 {expanded ? "접기" : "펼치기"}
+        <ChevronDown size={ICON_FOR_BUTTON.sm} aria-hidden />
+      </button>
+      <div id={panelId} hidden={!expanded}>
+        {state !== "initial" && (
+          <Suspense fallback={<span role="status">차시를 불러오는 중…</span>}>
+            <SessionBlock lectureId={lectureId} currentSessionId={sessionId} />
+          </Suspense>
+        )}
+      </div>
+      {!expanded && controls?.needsScheduleRecovery && controls.content}
+    </div>
   );
 }
 
