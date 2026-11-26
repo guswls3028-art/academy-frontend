@@ -1,0 +1,15 @@
+{
+  "phase": "private",
+  "candidateVersion": null,
+  "service": "student-planning-demo-01a17d9b",
+  "workerRevision": "fd6d5e6e1db1ff9fb1dd03903416dbf3789acf590073b806f65cf15f7d7e0458",
+  "workerSource": "69abced2f19cb63c081bcd242c47bdc0e8b5a297",
+  "workerRun": 45851168181,
+  "uiVersion": "dawon-review-20261127-compare-r49",
+  "adminVersion": "dawon-review-20261126-admin-r48",
+  "originalFrontend": "de5a67323e56a31dfc178dbb5ab23f899577afa6",
+  "originalRun": 45850408713,
+  "dawonFrontend": "054a25d20d0f67d35c04365a830d8f75a3169ef6",
+  "dawonRun": 45840270210,
+  "backend": "2684bbba5cb5760acbdfb02cc7b09ad7a8d46f34"
+}
