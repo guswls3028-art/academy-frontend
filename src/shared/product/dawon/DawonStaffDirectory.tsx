@@ -13,6 +13,7 @@ import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
 import styles from "./DawonStaff.module.css";
 
+import DawonStaffClock from "./DawonStaffClock";
 import DawonPayroll from "./DawonPayroll";
 
 const endpoint = "/students/demo-staff/";
@@ -23,7 +24,7 @@ type Position = keyof typeof labels;
 const avatarRoles: Record<Position, StaffRoleType> = {DIRECTOR:"owner",INSTRUCTOR:"TEACHER",ASSISTANT:"ASSISTANT",STAFF:"ASSISTANT"};
 type Staff = {id: number; name: string; position: Position; classes: string[]};
 type Month = {
-  open_count: number;
+  can_clock: boolean; open_count: number;
   records: {id: number; date: string; start_time: string; end_date: string | null; end_time: string | null; work_hours: number | null; amount: number | null}[];
   payroll: {state: "confirmed" | "estimate" | "missing"; hours: number | null; work: number | null; expenses: number | null; total: number | null};
 };
@@ -55,6 +56,7 @@ function MonthDetail({staff, month, onMonth}: {staff: Staff; month: string; onMo
     {onMonth && <label className={styles.fields}>조회할 월 <input type="month" value={month} onChange={e => {if (e.target.value) onMonth(e.target.value);}} /></label>}
     {query.isPending ? <p role="status">근태·급여를 불러오는 중입니다.</p> : query.isError || !data ?
       <p role="alert">근태·급여를 불러오지 못했습니다. {retryButton(() => void query.refetch())}</p> : <>
+      {onMonth && month === currentMonth() && data.can_clock && <DawonStaffClock staff={staff}/>}
       <section aria-label="월 급여"><h3>월 급여</h3>
         <Badge tone={data.payroll.state === "confirmed" ? "success" : data.payroll.state === "estimate" ? "info" : "neutral"}>{data.payroll.state === "confirmed" ? "마감 확정" : data.payroll.state === "estimate" ? "예상 지급액" : "급여 내역 확인 필요"}</Badge> <strong>{won(data.payroll.total)}</strong>
         {data.payroll.state !== "missing" && <p>근무 {data.payroll.hours}시간 · 근무 수당 {won(data.payroll.work)} · 승인 경비 {won(data.payroll.expenses)}</p>}
