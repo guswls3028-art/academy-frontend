@@ -164,7 +164,10 @@ export default function DawonRosterUtilities({ onChanged }: { onChanged?: () => 
       <ModalHeader title={view === "credential" ? "체험 비밀번호" : view === "upload" ? "엑셀로 학생 등록" : view === "profile" ? student ? "학생 수정" : "학생 등록" : "데모 학생 관리"}/>
       <ModalBody>
         <p>예시 학생만 등록하세요. 데모에서 등록한 학생은 연락처와 로그인 계정을 사용하지 않습니다.</p>
-        {view !== "list" && <Button onClick={() => go("list")} disabled={change.isPending || savingCredential}>등록 명단으로</Button>}
+        {view !== "list" && <div className="flex flex-wrap gap-2 py-2">
+          <Button onClick={() => go("list")} disabled={change.isPending || savingCredential}>등록 명단으로</Button>
+          {view === "profile" && !student && <Button onClick={() => go("upload")} disabled={change.isPending}>엑셀 일괄 등록</Button>}
+        </div>}
         {notice && <p role="status">{notice}</p>}
         {change.isError && <p role="alert">{rosterError(change.error, "학생 정보를 처리하지 못했습니다.")}</p>}
         {view === "credential" && student && <form className="grid gap-3 py-3" onSubmit={event => {event.preventDefault(); void credential("set");}}>

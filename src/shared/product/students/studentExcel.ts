@@ -143,7 +143,7 @@ function findStudentHeader(rows: unknown[][], requireContacts: boolean): number 
 }
 
 /** Use the worker's worksheet ranking so preview and the uploaded file refer to the same roster. */
-async function readStudentWorksheetRows(file: File, requireContacts: boolean): Promise<unknown[][]> {
+async function readStudentWorksheetRows(file: File, requireContacts = true): Promise<unknown[][]> {
   const workbook = await readExcelWorkbook(file);
   const activeTab = workbook.views?.[0]?.activeTab ?? 0;
   const sheets = workbook.worksheets.map((sheet, index) => ({

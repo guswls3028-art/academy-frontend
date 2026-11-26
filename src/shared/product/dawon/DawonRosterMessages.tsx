@@ -49,6 +49,7 @@ export default function DawonRosterMessages({ students }: { students: { id: numb
         <p role="alert">발송 정보를 불러오지 못했습니다. <Button onClick={() => void mailbox.refetch()}>다시 시도</Button></p> :
         tab === "compose" ? <div className="grid gap-3">
           <p>{students.length ? students[0].name + (students.length > 1 ? " 외 " + (students.length - 1) + "명" : "") : "학생 명단에서 수신할 학생을 먼저 선택하세요."}</p>
+          {students.length > 100 && <p role="alert">한 번에 100명까지 발송할 수 있습니다. 명단에서 수신 대상을 줄여 주세요.</p>}
           <label>수신 대상<select className="ds-select" value={audience} onChange={e => setAudience(e.target.value as Audience)}><option value="parent">학부모</option><option value="student">학생</option></select></label>
           <label>알림톡 양식<select className="ds-select" value={template?.id ?? ""} onChange={e => setChoice(e.target.value)}>
             {mailbox.data.templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
@@ -62,7 +63,7 @@ export default function DawonRosterMessages({ students }: { students: { id: numb
         </div>}
         {send.isError && <p role="alert">{getApiErrorMessage(send.error, "발송 기록을 저장하지 못했습니다. 다시 시도하세요.")}</p>}
       </ModalBody>
-      <ModalFooter right={tab === "compose" && students.length > 0 ? <Button intent="primary" loading={send.isPending} disabled={!template || mailbox.isError} onClick={() => send.mutate()}>{students.length}명에게 데모 발송</Button> :
+      <ModalFooter right={tab === "compose" && students.length > 0 ? <Button intent="primary" loading={send.isPending} disabled={!template || mailbox.isError || students.length > 100} onClick={() => send.mutate()}>{students.length}명에게 데모 발송</Button> :
         <Button onClick={() => setOpen(false)}>{tab === "compose" ? "학생 선택하기" : "닫기"}</Button>}/>
     </AdminModal>}
   </>;

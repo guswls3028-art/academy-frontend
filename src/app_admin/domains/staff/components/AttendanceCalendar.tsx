@@ -9,7 +9,7 @@ const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 type Props = {
   year: number;
   month: number;
-  records: readonly { date: string; work_hours: string | number | null }[];
+  records: readonly { date: string; work_hours?: string | number | null }[];
   selectedDate: string | null;
   onSelectDate: (date: string) => void;
   /** true면 우측 패널용 작은 달력 */
