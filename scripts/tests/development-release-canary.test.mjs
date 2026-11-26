@@ -1410,7 +1410,7 @@ test("diagnostic preflight retains its closed mode through every stage without e
   }
 });
 
-test("diagnostic finalization and CLI fail closed even when all 42 cases and cleanup otherwise pass", async () => {
+test("diagnostic finalization and CLI fail closed even when all 43 cases and cleanup otherwise pass", async () => {
   const source = readFileSync(new URL("../run-development-release-canary.mjs", import.meta.url), "utf8");
   const cliCatch = source.split("\n").find((line) => line.trim().startsWith("run().catch("));
   assert.ok(cliCatch, "execute the real CLI failure exit path");
@@ -1453,7 +1453,7 @@ test("diagnostic targeted all-three-pass results retain truthful stats and clean
   const selected = targetedDiagnosticSpecs.map(file => file.split("/").at(-1));
   report.suites = report.suites.filter(suite => selected.includes(suite.file));
   report.stats = { expected: 3, unexpected: 0, skipped: 0, flaky: 0 };
-  assert.throws(() => assertReleaseSummary(report), "targeted success cannot satisfy the required 42-case release gate");
+  assert.throws(() => assertReleaseSummary(report), "targeted success cannot satisfy the required 43-case release gate");
   const observation = runner.observeReleaseTestResult(JSON.stringify(report));
   assert.deepEqual(observation.stats, report.stats);
   const fixture = runtimeEvidenceFixture(true, true, "excel-learning-homework");
@@ -2018,11 +2018,11 @@ test("assessment classification fails if a business write or skip is introduced"
 });
 
 function completeFlowReport() {
-  return { errors: [], stats: { expected: 42, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
+  return { errors: [], stats: { expected: 43, skipped: 0, unexpected: 0, flaky: 0 }, suites: [
     ...Object.entries({ "notice-roundtrip.spec.ts": 3, "qna-roundtrip.spec.ts": 4, "clinic-roundtrip.spec.ts": 4,
       "student-parent-account-realuse.spec.ts": 1, "student-parent-assessment-realuse.spec.ts": 1,
       "student-parent-registration-realuse.spec.ts": 8,
-      "teacher-score-parent-realuse.spec.ts": 1,
+      "teacher-score-parent-realuse.spec.ts": 1, "lecture-range-wrong-notes.realuse.spec.ts": 1,
       "survey-collection.realuse.spec.ts": 1,
       "student-parent-clinic-realuse.spec.ts": 1, "student-parent-community-realuse.spec.ts": 1,
       "student-clinic-required-cancel-realuse.spec.ts": 1,
@@ -2538,7 +2538,7 @@ test("manifest and instance identity must match uniquely before setup", () => {
 test("development config discovers every required case in normal and diagnostic modes without executing any API test", () => {
   const cwd = new URL("../../", import.meta.url);
   const targetInventory = Object.fromEntries(targetedDiagnosticSpecs.map(file => [file, 1]));
-  assert.equal(Object.values(developmentRealUseCases).reduce((sum, count) => sum + count, 0), 42);
+  assert.equal(Object.values(developmentRealUseCases).reduce((sum, count) => sum + count, 0), 43);
   for (const [flag, event, scope, maxFailures, inventory] of [
     ["0", "push", undefined, 1, developmentRealUseCases],
     ["1", "workflow_dispatch", "full-suite", 0, developmentRealUseCases],

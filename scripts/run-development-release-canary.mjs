@@ -1533,7 +1533,7 @@ export async function run() {
       scenarioTenantId = tenantId;
       if (action === "Cleanup") cleanupObservation = observed.observation;
       else if (context === "post-cleanup") postCleanupInspectOperationObservation = observed.observation;
-      else operationObservation = observed.observation;
+      else if (context !== "pre-cleanup") operationObservation = observed.observation;
       if (context === "post-playback") {
         postPlaybackInspectObservation = observePostPlaybackInspect(observed.payload,
           scenario?.tenant_id, scenario?.synthetic_long_video?.video_id, manifest);
@@ -1707,6 +1707,12 @@ export async function run() {
       if (!Number.isSafeInteger(scenarioTenantId) || scenarioTenantId < 1) {
         failures.push("development cleanup refused without exact Setup tenant id");
       } else {
+        if (primaryFailed && scenario && diagnosticScope === "full-suite") {
+          // A failed browser action can leave a paper's indexing or print job completing on its worker.
+          // The owned Inspect waits outside the tenant write lock. Cleanup independently checks ownership and leases.
+          try { await operation("Inspect", scenarioTenantId, "pre-cleanup"); }
+          catch { failures.push("development worker completion before cleanup was not proven"); }
+        }
         try {
           cleanup = await operation("Cleanup", scenarioTenantId);
           assertCleanup(cleanup, tenant, scenarioTenantId);
