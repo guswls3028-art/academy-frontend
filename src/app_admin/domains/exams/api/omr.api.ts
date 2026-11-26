@@ -72,7 +72,6 @@ function toStaticPreviewHtml(html: string): string {
  */
 export type OMREssayScoreMarksState = {
   enabled: boolean;
-  print_by_default?: boolean;
   available: boolean;
   printed: boolean;
   reason: string;

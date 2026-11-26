@@ -27,7 +27,7 @@ export function useOmrEssayScoreMarks(examId: number | undefined, hasEssays: boo
   });
   const state = settings.data;
   const paperOverride = paperChoice?.target === target ? paperChoice.enabled : undefined;
-  const paper = paperOverride ?? (examId === undefined || Boolean(state?.print_by_default));
+  const paper = paperOverride ?? (examId === undefined || Boolean(state?.enabled));
   const grid: OMRParams["essay_score_grid"] = !hasEssays ? undefined
     : state?.printed ? "exam" : paper ? "paper" : undefined;
   const busy = save.isPending || (examId !== undefined && settings.isLoading);
@@ -48,18 +48,16 @@ export function useOmrEssayScoreMarks(examId: number | undefined, hasEssays: boo
     saving: save.isPending,
     readError: examId !== undefined && settings.isError,
     canPrintOnce: save.isError && !state?.printed && !paper,
-    enableScanning: grid === "paper" && state?.available && examId !== undefined
-      ? () => save.mutate({ id: examId, enabled: true }) : undefined,
     retry: () => { void settings.refetch(); },
     printOnce: () => setPaperChoice({ target, enabled: true }),
     select: (enabled: boolean) => {
-      if (examId === undefined || !state?.available || (!state.printed && paperOverride !== undefined)) {
-        setPaperChoice({ target, enabled });
-      } else {
+      if (examId !== undefined && state && (
+        (!enabled && state.enabled) || (state.available && paperOverride === undefined)
+      )) {
         save.mutate({ id: examId, enabled });
+      } else {
+        setPaperChoice({ target, enabled });
       }
     },
-    clearSaved: examId !== undefined && state?.enabled && !state.available
-      ? () => save.mutate({ id: examId, enabled: false }) : undefined,
   };
 }
