@@ -6,6 +6,7 @@ import { STUDENT_NAV_GROUPS } from "./studentNavigation";
 import styles from "./StudentMenuPage.module.css";
 
 const descriptions: Record<string, string> = {
+  "/student/dashboard?view=learning": "수업 횟수와 시험·과제 판정 현황을 확인해요.",
   "/student/video": "수업 영상을 찾아 이어서 학습해요.",
   "/student/grades": "시험과 과제 결과, 남은 학습을 확인해요.",
   "/student/exams": "응시할 시험과 제출 상태를 확인해요.",

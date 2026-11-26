@@ -727,7 +727,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
             ? { items: schedule.slice(1), has_any_sessions: true }
             : schedule });
         });
-        await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+        await page.goto(`${BASE}/student/dashboard?view=learning`, { waitUntil: "domcontentloaded", timeout: 120_000 });
         const card = page.getByRole("region", { name: "학습 현황", exact: true });
         const sessions = card.getByRole("link", { name: /수업·클리닉/ });
         const exams = card.getByRole("link", { name: /시험 합격/ });
@@ -820,7 +820,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         selectedHidden.delete(id);
         return route.fulfill({ json: { hidden_ids: [...selectedHidden] } });
       });
-      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      await page.goto(`${BASE}/student/dashboard?view=learning`, { waitUntil: "domcontentloaded" });
       const selectChild = (id: number) => page.getByRole("tab", { name: `학생 ${id}`, exact: true });
       if (switchChild) await selectChild(11).click();
       const card = page.getByRole("region", { name: "학습 현황", exact: true });
@@ -926,7 +926,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
           ? { json: source === "grades" ? emptyGrades() : [] }
           : { status: 400, json: { detail: "temporary read failure" } });
       });
-      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      await page.goto(`${BASE}/student/dashboard?view=learning`, { waitUntil: "domcontentloaded" });
       const card = page.getByRole("region", { name: "학습 현황", exact: true });
       await expect(card.getByRole("alert")).toContainText(source === "grades" ? "성적을 불러오지 못했어요" : "일정을 불러오지 못했어요");
       await expect(card.getByText("확인 필요", { exact: true }).first()).toBeVisible();
@@ -973,7 +973,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
       exams: grades.exams,
       homeworks: [{ homework_id: 801, enrollment_id: 301, title: "제출할 과제", passed: false, achievement: "FAIL" }],
     } }));
-    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/student/dashboard?view=learning`, { waitUntil: "domcontentloaded" });
     const card = page.getByRole("region", { name: "학습 현황", exact: true });
     await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("0%");
     await expect(card.getByRole("link", { name: /과제 통과/ })).toContainText("0%");
@@ -1013,7 +1013,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         selections.push(route.request().headers()["x-student-id"] ?? "");
         return route.fulfill({ json: scope === "rows" ? { exams: [], homeworks } : { ...emptyGrades(), homeworks } });
       });
-      const openDashboard = () => page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      const openDashboard = () => page.goto(`${BASE}/student/dashboard?view=learning`, { waitUntil: "domcontentloaded" });
       const learningStatus = page.getByRole("region", { name: "학습 현황", exact: true });
       const passRate = learningStatus.getByRole("link", { name: /과제 통과/ });
       await openDashboard();
@@ -1046,7 +1046,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         items: date === "2026-10-22" ? [{ id: 21, title: "기간 밖 수업", date }] : [],
         has_any_sessions: true,
       } }));
-      await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+      await page.goto(`${BASE}/student/dashboard?view=learning`, { waitUntil: "domcontentloaded" });
       const card = page.getByRole("region", { name: "학습 현황", exact: true });
       await expect(card.getByRole("link", { name: /수업·클리닉/ })).toContainText("0회");
       await expect(card.getByRole("link", { name: /시험 합격/ })).toContainText("기록 없음");
@@ -1072,7 +1072,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
         { ...grades.exams[0], exam_id: 705, correction_status: "PENDING", achievement: "NOT_SUBMITTED", meta_status: "NOT_SUBMITTED" },
       ],
     } }));
-    await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${BASE}/student/dashboard?view=learning`, { waitUntil: "domcontentloaded" });
     const card = page.getByRole("region", { name: "학습 현황", exact: true });
     await expect(card.getByRole("link", { name: /오답 완료/ })).toContainText("67%");
     await page.reload();
@@ -1512,7 +1512,8 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
 
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
-    const shortcuts = page.getByRole("region", { name: "게시판과 자료실" });
+    const shortcuts = page.locator("details").filter({ has: page.locator("summary", { hasText: "자주 쓰는 일" }) });
+    await shortcuts.locator("summary").click();
     await expect(shortcuts).toBeVisible();
     const boardLink = shortcuts.getByRole("link", { name: /게시판/ });
     const materialsLink = shortcuts.getByRole("link", { name: /자료실/ });
@@ -1785,7 +1786,7 @@ test.describe("학생·학부모 콘텐츠 안정성", () => {
           await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded", timeout: 45_000 });
           const failure = page.getByRole("alert").filter({ hasText: "일부 정보를 확인하지 못했어요" });
           await expect(failure).toBeVisible();
-          const learning = page.getByRole("region", { name: "학습 현황" });
+          const learning = parentDashboard ? page.getByRole("region", { name: "학습 현황" }) : page.getByRole("link", { name: /QR 출석/ });
           await expect(learning).toBeVisible();
           expect(Object.fromEntries(healthyReads)).toEqual(Object.fromEntries([...paths, "qna"].map((path) => [path, 1])));
           const failedReads = counselSelections.length;

@@ -5,6 +5,7 @@ import { updateVideoProgress, type StudentSessionVideosResponse, type StudentVid
 import { studentVideoQueryKeys } from "../queryKeys";
 import { getVideoResumePosition, storeVideoPosition } from "../utils/videoPlaybackStorage";
 import { getStudentSupportSessionInfo } from "@/shared/auth/supportPreviewSession";
+import { rememberStudentVideo } from "../utils/recentStudentVideo";
 
 type ProgressPayload = Parameters<typeof updateVideoProgress>[1];
 
@@ -91,6 +92,10 @@ export function useVideoResume({
   const onLeaveProgress = useCallback(
     (data: ProgressPayload) => {
       if (!videoId || data.last_position == null || progressOwnerRef.current !== progressOwner) return;
+      if (data.last_position > 0 && sessionId && playbackData?.video.id === videoId
+          && !supportSessionId && !playbackData.support_preview && queryScope.startsWith("student:")) {
+        rememberStudentVideo(userId, videoId, sessionId, effectiveEnrollmentId ?? null, data.last_position);
+      }
       if (playbackData?.support_preview) {
         storeVideoPosition(videoId, data.last_position, resumeStorageScope, null);
       } else if (isDirectAccess) {
@@ -106,7 +111,7 @@ export function useVideoResume({
         } });
       }
     },
-    [effectiveEnrollmentId, enrollmentId, isDirectAccess, playbackData?.support_preview, playbackIdentity, progressOwner, queryClient, queryScope, resumeStorageScope, saveProgress, sessionId, videoId]
+    [effectiveEnrollmentId, enrollmentId, isDirectAccess, playbackData, playbackIdentity, progressOwner, queryClient, queryScope, resumeStorageScope, saveProgress, sessionId, supportSessionId, userId, videoId]
   );
 
   return { initialPosition, onLeaveProgress, playbackIdentity };
