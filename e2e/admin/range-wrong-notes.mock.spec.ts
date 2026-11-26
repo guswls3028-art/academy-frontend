@@ -2,6 +2,7 @@ import { expect, test, type Page } from "../fixtures/strictTest";
 import { getBaseUrl } from "../helpers/auth";
 import { createLocalJwt, installLocalAuthApiStubs, installTenantOneInitScript } from "../helpers/localAuthApiStubs";
 import { installWorkspaceReadApiStubs } from "../helpers/workspaceReadApiStubs";
+import { openRangeWrongNotes } from "../helpers/openRangeWrongNotes";
 
 const lecture = 7100;
 const sessions = [
@@ -83,7 +84,14 @@ async function setup(page: Page) {
     if (path.endsWith("/lectures/sessions/7111/")) return route.fulfill({ json: sessions[0] });
     if (path.endsWith("/lectures/lectures/7100/")) return route.fulfill({ json: { id: lecture, title: "합성 수업" } });
     if (path.endsWith("/7111/schedules/")) return route.fulfill({ json: { version: "1", schedules: [], roster: [], unassigned_enrollment_ids: [] } });
-    if (path.endsWith("/7111/scores/")) return route.fulfill({ json: { meta: { lecture_id: lecture, lecture_title: "합성 수업", session_title: "1차시", exams: [], homeworks: [] }, rows: [] } });
+    if (path.endsWith("/7111/scores/")) return route.fulfill({ json: {
+      meta: {
+        lecture_id: lecture, lecture_title: "합성 수업", session_title: "1차시",
+        exams: [{ exam_id: 51, title: sources[0].title, max_score: 100, pass_score: 60, display_order: 1 }],
+        homeworks: [],
+      },
+      rows: [],
+    } });
     if (path.endsWith("/7111/score-draft/")) return route.fulfill({ json: { changes: [], active_editors: [], stale: false } });
     if (path.endsWith("/lectures/attendance/") || path.endsWith("/enrollments/session-enrollments/")) return route.fulfill({ json: { count: 0, results: [] } });
     return route.fallback();
@@ -92,17 +100,11 @@ async function setup(page: Page) {
   return { payloads, otherWrites, retries: () => retries };
 }
 
-async function open(page: Page) {
-  await page.getByRole("button", { name: "성적 도구", exact: true }).click();
-  await page.getByRole("menuitem", { name: /차시별 오답노트/ }).click();
-  return page.getByRole("dialog", { name: "차시별 오답노트" });
-}
-
-for (const width of [390, 1366]) {
+for (const width of [390, 1366] as const) {
   test(`차시 범위의 학생별 시험·과제 오답 입력과 문서 복구 (${width}px)`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     const api = await setup(page);
-    let dialog = await open(page);
+    let dialog = await openRangeWrongNotes(page, width);
     await expect(dialog.getByLabel("시작 차시").locator("option")).toHaveCount(2);
     await dialog.getByLabel("끝 차시").selectOption("2");
     const material = () => dialog.getByLabel("오답을 입력할 자료");
@@ -127,12 +129,12 @@ for (const width of [390, 1366]) {
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
     await dialog.screenshot({ path: info.outputPath(`range-wrong-notes-${width}.png`) });
     await page.reload();
-    dialog = await open(page);
+    dialog = await openRangeWrongNotes(page, width);
     await expect(dialog.getByLabel("가온 오답 번호")).toHaveValue("25, 1, 25");
     await dialog.getByRole("button", { name: "2명 오답노트 묶음 만들기" }).click();
     await expect(dialog.getByText("완료하지 못한 문서가 있습니다")).toBeVisible();
     await page.reload();
-    dialog = await open(page);
+    dialog = await openRangeWrongNotes(page, width);
     await dialog.getByRole("button", { name: "실패한 문서 다시 만들기" }).click();
     const zip = page.waitForEvent("download");
     const downloadBundle = dialog.getByRole("button", { name: "학생별 PDF 묶음 다운로드" });
