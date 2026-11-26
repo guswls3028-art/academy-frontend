@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, Navigate, Link } from "react-router";
 import { Eye, EyeOff } from "lucide-react";
 import { login } from "@/auth/api/auth.api";
+import { openReferenceSession } from "@/auth/api/referenceSession";
 import type { AccountRecoveryMode } from "@/auth/api/recovery.api";
 import useAuth from "@/auth/hooks/useAuth";
 import { consumeReturnPath } from "@/shared/api/axios";
@@ -98,6 +99,7 @@ export default function LoginPage() {
   // 같은 테넌트면 URL을 깔끔하게, 다른 테넌트면 host 기준으로 강제 정규화 (브랜딩-인증 불일치 방지).
   const fromHost = getTenantCodeFromHostname();
   const hostname = window.location.hostname.trim().toLowerCase();
+  const comparison = hostname === "original-demo.hakwonplus.com";
   const isLocalOrPreview =
     hostname === "localhost" ||
     hostname === "127.0.0.1" ||
@@ -137,7 +139,8 @@ export default function LoginPage() {
     setPending(true);
     setError("");
     try {
-      await login(username, password);
+      if (comparison) await openReferenceSession();
+      else await login(username, password);
       const authenticatedUser = await refreshMe();
       if (authenticatedUser?.tenantRole === "staff") {
         markStaffClockInChoicePending();
@@ -184,11 +187,17 @@ export default function LoginPage() {
         <section className={styles.loginPanel} data-auth-part="login-panel">
           {(hasBrandedScene || isJeongseongwon) && (
             <div className={styles.loginIntro} data-auth-part="login-intro">
-              <h2>로그인</h2>
+              <h2>{comparison ? "학원플러스 원본" : "로그인"}</h2>
               {hasBrandedScene && !isHakwonplus && <p>아이디와 비밀번호를 입력해주세요.</p>}
             </div>
           )}
-          <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
+          {comparison ? <form onSubmit={onSubmit} className={styles.form} aria-label="학원플러스 원본 열기">
+            <p>예시 학원의 관리자 화면에서 수업과 학생 명단을 살펴보세요.</p>
+            {error && <div className={styles.error} role="alert">{error}</div>}
+            <button type="submit" className={styles.btnPrimary} disabled={pending}>
+              {pending ? "여는 중…" : "학원플러스 원본 열기"}
+            </button>
+          </form> : <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
             <label htmlFor="login-username" className={fieldLabelClass}>
               아이디 또는 학부모 휴대폰 번호
             </label>
@@ -267,7 +276,7 @@ export default function LoginPage() {
                 비밀번호 찾기
               </button>
             </div>
-          </form>
+          </form>}
         </section>
       </main>
 

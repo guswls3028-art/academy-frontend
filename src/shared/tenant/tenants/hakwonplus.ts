@@ -6,7 +6,7 @@ export const hakwonplus: TenantDef = {
   id: 1,
   code: "hakwonplus",
   name: "학원플러스",
-  hostnames: ["hakwonplus.com", "www.hakwonplus.com", "dev.hakwonplus.com"],
+  hostnames: ["hakwonplus.com", "www.hakwonplus.com", "dev.hakwonplus.com", "original-demo.hakwonplus.com"],
   loginPath: "/login/hakwonplus",
   branding: {
     loginTitle: "학원플러스",
