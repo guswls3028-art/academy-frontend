@@ -57,7 +57,7 @@ function counselEntrySearch(params: URLSearchParams): string | null {
 function isDawonDemoSearch(tenantCode: string | null, search: string) {
   const params = new URLSearchParams(search);
   if (tenantCode !== "dawon") return "";
-  if (["admin", "teacher"].includes(params.get("demo") ?? "")) return `?demo=${params.get("demo")}`;
+  if (["admin", "teacher"].includes(params.get("demo") ?? "")) return "?demo=admin";
   if (params.get("demo") === "guardian") return counselEntrySearch(params) ?? "?demo=guardian&view=counsel";
   if (params.get("demo") !== "student") return "";
   const view = params.get("view");
@@ -214,11 +214,11 @@ export default function LoginPage() {
     setPending(true);
     setError("");
     try {
-      const role = adminEntry ? "admin" : guardianEntry ? "guardian" : learnerEntry ? "student" : "teacher";
+      const role = guardianEntry ? "guardian" : learnerEntry ? "student" : "admin";
       await enterDawonDemo(role);
       const identity = await refreshMe();
       if (counselSearch && identity?.tenantRole !== "parent") throw new Error("학부모 계정을 확인할 수 없습니다.");
-      if (role === "admin" || role === "teacher") {
+      if (role === "admin") {
         setSessionItem("dawon-workspace-role", role);
         removeSessionItem("dawon-room-role");
       } else {
@@ -228,7 +228,7 @@ export default function LoginPage() {
       removeSessionItem("session_expired");
       const returnPath = consumeReturnPath();
       let destination = "/";
-      if (role === "admin" || role === "teacher") destination = "/workspace/dashboard";
+      if (role === "admin") destination = "/workspace/dashboard";
       else if (videoPath) destination = videoPath;
       else if (examReturn && returnPath === learnerPath) destination = returnPath;
       else if (guardianEntry) {
@@ -317,9 +317,9 @@ export default function LoginPage() {
             {isDawonDemo && (
               <div className={styles.demoEntry}>
                 <button type="button" className={styles.btnPrimary} onClick={() => void onDemoEntry()} disabled={pending}>
-                  {adminEntry ? "관리자 데모 로그인" : staffEntry ? "선생님 데모 로그인" : parentReportEntry ? "학부모 데모로 성적표 보기" : guardianEntry ? "학부모 데모로 상담 신청" : clinicEntry ? "학생 데모로 클리닉 신청" : videoEntry ? "학생 데모로 수업 영상 보기" : nativeMaterial ? "학생 데모로 수업 자료 보기" : nativeNotice ? "학생 데모로 공지 보기" : qrEntry ? "학생 데모로 QR 출석" : reportEntry ? "학생 데모로 학교 성적 입력" : learnerEntry ? "학생 데모로 시험 결과 보기" : "데모 계정으로 시작"}
+                  {staffEntry ? "관리자 데모 로그인" : parentReportEntry ? "학부모 데모로 성적표 보기" : guardianEntry ? "학부모 데모로 상담 신청" : clinicEntry ? "학생 데모로 클리닉 신청" : videoEntry ? "학생 데모로 수업 영상 보기" : nativeMaterial ? "학생 데모로 수업 자료 보기" : nativeNotice ? "학생 데모로 공지 보기" : qrEntry ? "학생 데모로 QR 출석" : reportEntry ? "학생 데모로 학교 성적 입력" : learnerEntry ? "학생 데모로 시험 결과 보기" : "관리자 데모 로그인"}
                 </button>
-                <span>{adminEntry ? "예시 학원의 반 운영, 직원, 시험 결과를 관리합니다." : guardianEntry ? "예시 학부모로 체험합니다." : learnerEntry ? "예시 학생으로 체험합니다." : "선생님 업무는 PC에서 보기를 권장합니다."}</span>
+                <span>{adminEntry ? "예시 학원의 반 운영, 직원, 시험 결과를 관리합니다." : guardianEntry ? "예시 학부모로 체험합니다." : learnerEntry ? "예시 학생으로 체험합니다." : "관리자 업무는 PC에서 보기를 권장합니다."}</span>
               </div>
             )}
             <label htmlFor="login-username" className={styles.srOnly}>아이디 또는 학부모 휴대폰 번호</label>

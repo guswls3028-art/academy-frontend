@@ -1,3 +1,4 @@
+import { DawonClassBadge, DawonClassSelect, DawonClassTypeSelect, matchesDawonClassType, readDawonClassType, type DawonClassOption } from "./DawonClassFilters";
 import DawonSearchInput from "./DawonSearchInput";
 import { Fragment } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -37,11 +38,14 @@ export default function DawonStudentResults() {
   const order=params.get("sort") || "recent";
   const page=Math.max(1,Number(params.get("page")) || 1);
   const selected=params.get("profile");
-  const filters={view:"student_results",group,status,trend,sort:order,q:query};
+  const classType=readDawonClassType(params.get("classType"));
+  const groups=useQuery({queryKey:dawonQueryKeys.adminGroups,queryFn:async ({signal})=>
+    (await api.get<DawonClassOption[]>("/students/class-groups/",{signal})).data});
+  const matchingGroups=(groups.data ?? []).filter((item)=>matchesDawonClassType(item,classType));
+  const selectedGroup=matchingGroups.find((item)=>String(item.id)===group);
+  const filters={view:"student_results",class_type:classType,group,status,trend,sort:order,q:query};
   const results=useQuery({queryKey:dawonQueryKeys.adminLearning({...filters,page:String(page)}),
     queryFn:async ({signal})=>(await api.get<Page>(endpoint,{params:{...filters,page},signal})).data});
-  const groups=useQuery({queryKey:dawonQueryKeys.adminGroups,queryFn:async ({signal})=>
-    (await api.get<{id:number;name:string}[]>("/students/class-groups/",{signal})).data});
   const excel=useMutation({mutationFn:async()=>{
     const {data}=await api.get<Page>(endpoint,{params:{...filters,export:1}});
     if(data.rows.length!==data.count) throw new Error("목록이 바뀌었습니다. 다시 조회해 주세요.");
@@ -58,6 +62,7 @@ export default function DawonStudentResults() {
     const next=new URLSearchParams(params);
     if(key!=="page" && key!=="profile") next.delete("page");
     if(key!=="profile") next.delete("profile");
+    if(key==="classType" && value && group && !matchesDawonClassType(selectedGroup,value)) next.delete("group");
     if(key!=="q" && value) next.set(key,value); else next.delete(key);
     setParams(next,{state:{resultSearch:key==="q" ? value : search},replace:key==="q",preventScrollReset:true});
   }
@@ -67,15 +72,17 @@ export default function DawonStudentResults() {
   return <DomainLayout title="시험 결과·통계" breadcrumbs={[]} tabs={resultTabs}><div className={desk.desk}>
     <div className={desk.resultTools} role="group" aria-label="학생별 성적 조건">
       <label>학생 이름<DawonSearchInput className="ds-input" value={search} maxLength={100} onSearch={text=>update("q",text)}/></label>
-      <label>반 범위<select value={group} onChange={e=>update("group",e.target.value)}><option value="">전체 반</option>
-        {groups.data?.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
+      <DawonClassTypeSelect value={classType} onChange={value=>update("classType",value)}/>
+      <DawonClassSelect groups={matchingGroups} value={group} onChange={value=>update("group",value)}/>
+      {selectedGroup && <DawonClassBadge group={selectedGroup}/>}
       <label>최근 응시 상태<select value={status} onChange={e=>update("status",e.target.value)}><option value="">전체</option>
         {Object.entries(statusLabels).map(([k,label])=><option key={k} value={k}>{label}</option>)}</select></label>
       <label>성적 변화<select value={trend} onChange={e=>update("trend",e.target.value)}><option value="">전체</option><option value="decline">직전보다 하락</option><option value="improvement">직전보다 상승</option></select></label>
       <label>정렬<select value={order} onChange={e=>update("sort",e.target.value)}>{Object.entries(sortLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
-      {(search || group || status || trend || order!=="recent") && <Button onClick={()=>setParams({}, {state:{resultSearch:""}})}>조건 초기화</Button>}
+      {(search || group || classType || status || trend || order!=="recent") && <Button onClick={()=>setParams({}, {state:{resultSearch:""}})}>조건 초기화</Button>}
     </div>
     {groups.isError && <p role="alert">반 목록을 불러오지 못했습니다. <Button onClick={()=>void groups.refetch()}>다시 시도</Button></p>}
+    <>
     <div className={desk.controls}><strong role="status">{results.data ? "학생 "+results.data.count+"명" : "학생별 성적"}</strong>
       <Button disabled={!results.data?.count || results.isFetching || query!==search.trim()} loading={excel.isPending} onClick={()=>excel.mutate()}>조회 결과 엑셀</Button></div>
     {excel.isError && <p role="alert">엑셀을 내려받지 못했습니다. 조회 결과 엑셀을 다시 눌러 주세요.</p>}
@@ -95,5 +102,6 @@ export default function DawonStudentResults() {
           {!rows.length && <tr><td colSpan={6}>조건에 맞는 학생이 없습니다.</td></tr>}</tbody></DomainTable>}
 
     {(pages>1 || page>1) && <nav className={desk.paging} aria-label="학생별 성적 페이지"><Button disabled={page<=1} onClick={()=>update("page",String(page-1))}>이전</Button><span>{page} / {Math.max(1,pages)}</span><Button disabled={page>=pages} onClick={()=>update("page",String(page+1))}>다음</Button></nav>}
+    </>
   </div></DomainLayout>;
 }

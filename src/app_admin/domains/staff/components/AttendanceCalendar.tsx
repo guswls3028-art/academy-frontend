@@ -2,7 +2,6 @@
 // Compact monthly calendar: cells show worked hours, click selects date
 
 import { useMemo } from "react";
-import type { WorkRecord } from "../api/workRecords.api";
 import "../styles/staff-area.css";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -10,7 +9,7 @@ const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 type Props = {
   year: number;
   month: number;
-  records: WorkRecord[];
+  records: readonly { date: string; work_hours: string | number | null }[];
   selectedDate: string | null;
   onSelectDate: (date: string) => void;
   /** true면 우측 패널용 작은 달력 */
@@ -67,6 +66,8 @@ export function AttendanceCalendar({
               className={`staff-calendar__cell ${
                 selected ? "staff-calendar__cell--selected" : worked ? "staff-calendar__cell--worked" : ""
               }`}
+              aria-label={worked ? `${date} · 근무 ${hours}시간` : date}
+              aria-pressed={selected}
               onClick={() => onSelectDate(date)}
             >
               <span className="day-num">{day}</span>

@@ -158,7 +158,10 @@ jobs:
       # 차단 게이트: 빌드 실패 = 서비스 장애
       - name: Build
         run: |
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" == "refs/heads/codex/dawon-r46-native-class-console" ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" == "refs/heads/codex/dawon-r47-admin-workspace" ]]; then
+            env -u GITHUB_SHA VITE_BUILD_VERSION=dawon-review-20261126-admin-r47 VITE_API_BASE_URL=' ' pnpm build
+            node -e 'if (require("./dist/version.json").version !== "dawon-review-20261126-admin-r47") throw Error("Dawon demo version mismatch")'
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" == "refs/heads/codex/dawon-r46-native-class-console" ]]; then
             env -u GITHUB_SHA VITE_BUILD_VERSION=dawon-review-20261126-native-r46 VITE_API_BASE_URL=' ' pnpm build
             node -e 'if (require("./dist/version.json").version !== "dawon-review-20261126-native-r46") throw Error("Dawon demo version mismatch")'
           elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" == "refs/heads/codex/dawon-admin-reuse-1119-frontend-20261119-055133" ]]; then

@@ -13,6 +13,11 @@ import styles from "./DawonAlertQueue.module.css";
 import { dawonUnionTracks, type DawonClassKind } from "./classTypes";
 import type { StaffRoom } from "./staffMenu";
 
+const areas = {"":"전체", attendance:"출결", exam:"시험·성적", homework:"과제", video:"영상"};
+const ruleArea:Record<string,string> = {
+  absence_streak:"attendance", exam_drop:"exam", recent_exam_drop:"exam", exam_rise:"exam",
+  top_reference_gap:"exam", homework_missing:"homework", homework_drop:"homework", video_watch:"video",
+};
 type Status = "pending" | "completed";
 type Option = {id:number|null; name:string;kind?:DawonClassKind;track?:string};
 type Alert = {key:string;student_id:number;student_name:string;group_id:number;group_name:string;lecture_id:number;
@@ -24,6 +29,7 @@ export default function DawonAlertQueue({role, groups, lectures}: {role:StaffRoo
   const location = useLocation();
   const status:Status = params.get("status") === "completed" ? "completed" : "pending";
   const group = params.get("group") ?? "", lecture = params.get("lecture_id") ?? "", rule = params.get("rule") ?? "";
+  const area = params.get("area") || "";
   const selectedGroup = groups?.find(g=>String(g.id) === group);
   const kind = params.get("kind") || selectedGroup?.kind || "";
   const track = kind === "union" ? params.get("track") || "" : "";
@@ -32,7 +38,7 @@ export default function DawonAlertQueue({role, groups, lectures}: {role:StaffRoo
   const q = useDebouncedValue(search.trim());
   const page = Math.max(1, Number(params.get("page")) || 1);
   const client = useQueryClient();
-  const filters = {queue:"list",status,group,kind,track,lecture_id:lecture,rule,q,page};
+  const filters = {queue:"list",status,group,kind,track,lecture_id:lecture,area,rule,q,page};
   const feed = useQuery({queryKey:dawonQueryKeys.alertPage(role,filters),queryFn:async ({signal})=>
     (await api.get<Page>(alertEndpoint,{params:filters,signal})).data});
   const change = useMutation({mutationFn:async (key:string) => api.patch(alertEndpoint, {key,status:status === "completed" ? "pending" : "completed"}),
@@ -44,6 +50,7 @@ export default function DawonAlertQueue({role, groups, lectures}: {role:StaffRoo
   function filter(key:string,value:string) {
     const next = new URLSearchParams(params);
     if(key !== "page") next.delete("page");
+    if(key === "area") next.delete("rule");
     if(key === "kind") next.delete("track");
     if(key === "kind" || key === "track") next.delete("group");
     if(value) next.set(key,value); else next.delete(key);
@@ -59,6 +66,10 @@ export default function DawonAlertQueue({role, groups, lectures}: {role:StaffRoo
       {(["pending","completed"] as const).map(item=><button type="button" key={item} aria-pressed={status===item}
         onClick={()=>filter("status",item)}>{item==="pending" ? "미처리" : "처리 완료"}{feed.data && <b>{feed.data.counts[item]}</b>}</button>)}
     </div>
+    <div className={styles.areas} role="group" aria-label="학습 경보 영역">
+      {Object.entries(areas).map(([id,label])=><button type="button" key={id} aria-pressed={area===id}
+        onClick={()=>filter("area",id)}>{label}</button>)}
+    </div>
     <div className={styles.filters} role="group" aria-label="경보 조회 조건">
       <DawonSearchInput aria-label="학습 경보 검색" className="ds-input" placeholder="학생 · 반 · 강의 검색" value={search} onSearch={v=>filter("q",v)}/>
       {groups && <select aria-label="반 유형" className="ds-select" value={kind} onChange={e=>filter("kind",e.target.value)}>
@@ -70,8 +81,8 @@ export default function DawonAlertQueue({role, groups, lectures}: {role:StaffRoo
       {lectures && <select aria-label="담당 강의" className="ds-select" value={lecture} onChange={e=>filter("lecture_id",e.target.value)}>
         <option value="">모든 담당 강의</option>{lectures.map(l=><option key={l.id} value={l.id}>{l.title}</option>)}</select>}
       <select aria-label="경보 사유" className="ds-select" value={rule} onChange={e=>filter("rule",e.target.value)}>
-        <option value="">전체 사유</option>{Object.entries(alertRules).map(([key,r])=><option key={key} value={key}>{r.label}</option>)}</select>
-      {(search||kind||group||lecture||rule) && <Button size="sm" intent="ghost" onClick={reset}>조건 초기화</Button>}
+        <option value="">전체 사유</option>{Object.entries(alertRules).filter(([key]) => !area || ruleArea[key] === area).map(([key,r])=><option key={key} value={key}>{r.label}</option>)}</select>
+      {(search||kind||group||lecture||rule||area) && <Button size="sm" intent="ghost" onClick={reset}>조건 초기화</Button>}
     </div>
     {feed.isError ? <p role="alert">학습 경보를 불러오지 못했습니다. <Button onClick={()=>void feed.refetch()}>다시 시도</Button></p> :
       feed.isPending ? <p role="status">경보를 조회하고 있습니다.</p> : !feed.data.alerts.length ?

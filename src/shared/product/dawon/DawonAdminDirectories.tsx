@@ -97,11 +97,18 @@ export function CareDirectory({teacher=false,embedded=false}:{teacher?:boolean;e
   const q=useDebouncedValue(search.trim());
   const page=Math.max(1,Number(params.get("page")) || 1);
   const filters:Record<string,string>={view:"care",kind,group,q,page:String(page)};
-  if (clinic && params.get("status")) filters.status=params.get("status")!;
+  if ((clinic || kind==="requests") && params.get("status")) filters.status=params.get("status")!;
+  if (!clinic) for (const key of ["from","to"]) {
+    const value=params.get(key);
+    if (value) filters[key]=value;
+  }
   if (teacher) filters.scope="assigned";
   const query=useDirectory<CareRow>(filters);
   function update(key:string,value:string) {
     const next=new URLSearchParams(params);
+    if (key==="kind") next.delete("status");
+    if (key==="from" && value && next.get("to") && value>next.get("to")!) next.set("to",value);
+    if (key==="to" && value && next.get("from") && value<next.get("from")!) next.set("from",value);
     if (key!=="record") next.delete("record");
     if (key!=="page" && key!=="record") next.delete("page");
     if (key!=="q" && value) next.set(key,value); else next.delete(key);
@@ -125,6 +132,14 @@ export function CareDirectory({teacher=false,embedded=false}:{teacher?:boolean;e
         searchSlot={<DawonSearchInput className="ds-input" aria-label="학생 이름 검색" placeholder="학생 이름 검색" maxLength={100} value={search} onSearch={text=>update("q",text)}/>}
         filterSlot={<>
           <AdminGroupSelect value={group} teacher={teacher} onChange={id=>update("group",id)}/>
+          {kind==="requests" && <label className={styles.field}>답변 상태
+            <select value={params.get("status") || ""} onChange={e=>update("status",e.target.value)}>
+              <option value="">전체</option><option value="waiting">답변 대기</option><option value="answered">답변 완료</option>
+            </select></label>}
+          {!clinic && <><label className={styles.field}>시작일<input className="ds-input" type="date"
+            value={params.get("from") || ""} onChange={e=>update("from",e.target.value)}/></label>
+            <label className={styles.field}>종료일<input className="ds-input" type="date"
+            value={params.get("to") || ""} onChange={e=>update("to",e.target.value)}/></label></>}
           {clinic && <label className={styles.field}>처리 상태
             <select value={params.get("status") || ""} onChange={e=>update("status",e.target.value)}>
               <option value="">전체 상태</option>

@@ -11,12 +11,14 @@ import { resolveTenantCodeString } from "@/shared/tenant";
 import { Button } from "@/shared/ui/ds";
 import LectureChip from "@/shared/ui/chips/LectureChip";
 import { teacherLectureQueryKeys } from "@/app_teacher/domains/lectures/queryKeys";
+import { studentDirectoryTabs } from "./studentDirectoryTabs";
 import DawonDirectoryTable, { type DirectorySort } from "./DawonDirectoryTable";
 import { DomainListToolbar, DomainTable } from "@/shared/ui/domain";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
 import ClassRosterModal, { type RosterStudent } from "./ClassRosterModal";
 import styles from "./ClassGroupsPage.module.css";
 import DawonClassRecords from "./DawonClassRecords";
+import { DawonClassLabel, DawonClassBadge, DawonClassTypeSelect, matchesDawonClassType, readDawonClassType } from "./DawonClassFilters";
 import { dawonUnionTracks, type DawonClassKind } from "./classTypes";
 
 const LectureCreateModal = lazy(() => import("@admin/domains/lectures/components/LectureCreateModal"));
@@ -134,6 +136,8 @@ function CourseList({ group, lectureRoot, onEnroll }: { onEnroll: (course:Lectur
 function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, assignOnOpen, afterInitialAssignment }: { admin: boolean; id: number; root: string; lectureRoot: string; rosterRoot: string; lectureEntry: boolean; assignOnOpen: boolean; afterInitialAssignment: () => void }) {
   const client = useQueryClient();
   const location = useLocation();
+  const classType = readDawonClassType(new URLSearchParams(location.search).get("classType"));
+  const listRoot = classType ? root + "?" + new URLSearchParams({classType}) : root;
   const requestedTab = new URLSearchParams(location.search).get("tab");
   const teacher = dawonStaffPreviewRole() === "teacher";
   const tab = teacher && (requestedTab === "attendance" || requestedTab === "exams" || requestedTab === "roster" || requestedTab === "courses")
@@ -209,7 +213,7 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
     setMode(next);
   };
   if (detail.isPending) return <p role="status">반 정보를 불러오는 중입니다.</p>;
-  if (detail.isError) return <div className={styles.panel}>{failure(detail.error)}<button onClick={() => void detail.refetch()}>다시 시도</button> <Link to={root}>반 목록</Link></div>;
+  if (detail.isError) return <div className={styles.panel}>{failure(detail.error)}<button onClick={() => void detail.refetch()}>다시 시도</button> <Link to={listRoot}>반 목록</Link></div>;
   const group = detail.data;
   const members = group.students;
   const visibleMembers = members.filter((student) => matches(query, student.name, student.school, student.phone, student.parent_phone));
@@ -220,7 +224,7 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
 
   return (
     <DomainLayout title={group.name} density="compact"
-      breadcrumbs={teacher ? [{label:"담당 반",to:root+"?view=list"}] : [{label:lectureEntry?"강의 관리":"반 편성",to:root}]}
+      breadcrumbs={teacher ? [{label:"담당 반",to:root+"?view=list"}] : [{label:lectureEntry?"강의 관리":"반 편성",to:listRoot}]}
       description={groupType(group)+" · 담당 강사 "+(group.assigned_teacher?.name || "미지정")} descriptionMode="visible"
       headerActions={<div className={styles.actions}>
         {admin && <Button onClick={()=>{
@@ -374,12 +378,18 @@ export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry
   if (admin && id && lectureEntry && params.get("assign") === "1") return <Navigate to={`${rosterRoot}?class=${id}&assign=1`} replace />;
   if (id) return <div className={styles.page}><GroupDetail admin={admin} key={`${root}-${id}`} id={id} rosterRoot={rosterRoot} lectureEntry={lectureEntry || (admin && params.get("view") === "courses")} root={root} lectureRoot={lectureRoot} assignOnOpen={params.get("assign") === "1"} afterInitialAssignment={() => setParams({ class: String(id) }, { replace: true })} /></div>;
   const all = groups.data ?? [];
-  const visible = all.filter((group) => matches(query, group.name, groupType(group), group.track, group.school, group.instructor_name));
+  const classType = readDawonClassType(params.get("classType"));
+  const visible = all.filter((group) => (!lectureEntry || matchesDawonClassType(group, classType)) && matches(query, group.name, groupType(group), group.track, group.school, group.instructor_name));
   return (
-    <DomainLayout title={lectureEntry?"반별 강의":admin?"반 편성":"담당 반 명단"} density="compact">
+    <DomainLayout title={lectureEntry?"반별 강의":admin?"학생":"담당 반 명단"} density="compact" tabs={admin && !lectureEntry ? studentDirectoryTabs : undefined}>
     <div className={styles.page}>
-      <DomainListToolbar totalLabel={`반 ${query.trim() ? visible.length + " / " : ""}${all.length}개`}
+      <DomainListToolbar totalLabel={`반 ${query.trim() || classType ? visible.length + " / " : ""}${all.length}개`}
         searchSlot={<ListSearch label="반 이름 · 학교 · 과정 · 담당 강사 검색" value={query} change={setQuery} />}
+        filterSlot={lectureEntry ? <DawonClassTypeSelect value={classType} onChange={(value) => setParams((current) => {
+          const next = new URLSearchParams(current);
+          if (value) next.set("classType",value); else next.delete("classType");
+          return next;
+        })}/> : undefined}
         primaryAction={<div className={styles.actions}>
 
           {admin && <Button intent="primary" onClick={() => setCreating(true)}>반 만들기</Button>}
@@ -396,8 +406,8 @@ export default function ClassGroupsPage({ lectureEntry = false }: { lectureEntry
         empty={all.length ? "검색 조건에 맞는 반이 없습니다." : "아직 편성한 반이 없습니다."}
         columns={[
           {key: "name", label: "반 이름", defaultWidth: 215, value: group => group.name,
-            render: group => <Link className={styles.rowLink} to={`${root}?class=${group.id}`}>{group.name}</Link>},
-          {key: "kind", label: "반 구분", defaultWidth: 150, value: groupType},
+            render: group => <Link className={styles.rowLink} to={root + "?" + new URLSearchParams({class:String(group.id), ...(classType ? {classType} : {})})}><DawonClassLabel group={group}/></Link>},
+          {key: "kind", label: "반 구분", defaultWidth: 150, value: groupType, render: group => <DawonClassBadge group={group}/>},
           {key:"instructor",label:"담당 강사",defaultWidth:150,value:group=>group.instructor_name || "미지정"},
           {key: "school", label: "학교", defaultWidth: 140, value: group => group.school},
           {key: "members", label: "학생 수", defaultWidth: 78, value: group => group.student_count, render: group => group.student_count + "명"},

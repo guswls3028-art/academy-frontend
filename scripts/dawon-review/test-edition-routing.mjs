@@ -10,8 +10,8 @@ const url = value => new URL(value,origin);
 
 test('retired aliases open their role on the native workspace',() => {
   for (const [path,dest] of [
-    ['/teacher?edition=B','/login/dawon?demo=teacher'],
-    ['/learn/teacher-portal?edition=A','/login/dawon?demo=teacher'],
+    ['/teacher?edition=B','/login/dawon?demo=admin'],
+    ['/learn/teacher-portal?edition=A','/login/dawon?demo=admin'],
     ['/?preview=admin&edition=C','/login/dawon?demo=admin'],
     ['/admin?edition=C','/login/dawon?demo=admin'],
     ['/learn/schedule?edition=B&preview=guardian','/?preview=guardian'],
@@ -40,7 +40,7 @@ test('only permitted staff entrances carry local work and native filters',async 
   assert.equal(landing.pathname,'/');
   const shell = insertDemoSwitcher('<html><head></head><body></body></html>',landing,false);
   assert.match(shell,/href="\/login\/dawon\?demo=admin&amp;work=/);
-  assert.match(shell,/href="\/login\/dawon\?demo=teacher"/);
+  assert.doesNotMatch(shell,/data-demo-app="teacher"/);
   for (const role of ['admin','teacher','guardian','student']) {
     const input=url('/c/'+role); input.searchParams.set('work',desired);
     const dest=new URL(editionResponse(new Request(input),input).headers.get('location'));
@@ -94,8 +94,8 @@ test('cold task pickers and native session schedules survive role selection and 
     const login=new URL(editionResponse(new Request(chooser),chooser).headers.get('location'));
     assert.equal(login.searchParams.get('work'),target);
     const p=tab(login.href);
-    p.go('/login?demo='+role+'&edition=C'); p.authenticate('fresh');
-    p.go('/workspace/dashboard?edition=C'); p.mount(role);
+    assert.equal(login.searchParams.get('demo'),'admin'); p.go('/login?demo=admin&edition=C'); p.authenticate('fresh');
+    p.go('/workspace/dashboard?edition=C'); p.mount('admin');
     const restored=new URL(p.replaced[0]); assert.equal(restored.searchParams.has('edition'),false);
     assert.equal(restored.pathname+restored.search,target);
   }
@@ -143,10 +143,10 @@ test('a workspace response waits for native staff identity before highlighting a
   assert.doesNotMatch(shell,/<a[^>]*data-demo-app="[^"]+"[^>]*aria-current=/);
 });
 
-test('staff and family pages share four manual role links without a variant chooser',() => {
+test('staff and family pages share three manual role links without a variant chooser',() => {
   for (const [path,native] of [['/',false],['/workspace/lectures?class=7',true],['/login/dawon?demo=admin',true]]) {
     const shell = insertDemoSwitcher('<html><head></head><body></body></html>',url(path),native);
-    assert.deepEqual([...shell.matchAll(/data-demo-app="(.*?)"/g)].map(m => m[1]), ['teacher','admin','student','guardian']);
+    assert.deepEqual([...shell.matchAll(/data-demo-app="(.*?)"/g)].map(m => m[1]), ['admin','student','guardian']);
     assert.doesNotMatch(shell,/data-dawon-edition|data-edition-home|edition=|href="\/staff\//);
   }
 });
@@ -154,7 +154,7 @@ test('old bookmarks preserve class, lecture, filters and explicit role on the na
   for (const variant of ['a','b','c']) {
     for (const role of ['teacher','admin','guardian','student']) {
       const input=url('/'+variant+'/'+role), dest=editionResponse(new Request(input),input).headers.get('location');
-      assert.equal(new URL(dest).searchParams.get(['admin','teacher'].includes(role)?'demo':'preview'),role);
+      assert.equal(new URL(dest).searchParams.get(['admin','teacher'].includes(role)?'demo':'preview'),role==='teacher'?'admin':role);
       assert.ok(!dest.includes('edition'));
     }
   }

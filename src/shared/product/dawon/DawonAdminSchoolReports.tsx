@@ -10,7 +10,9 @@ import DomainListToolbar from "@/shared/ui/domain/DomainListToolbar";
 import DomainTable from "@/shared/ui/domain/DomainTable";
 import { Button } from "@/shared/ui/ds";
 import { AdminModal, ModalBody, ModalHeader, MODAL_WIDTH } from "@/shared/ui/modal";
-import { AdminGroupSelect } from "./DawonAdminDirectories";
+import api from "@/shared/api/axios";
+import { DawonClassBadge, DawonClassSelect, DawonClassTypeSelect, matchesDawonClassType, type DawonClassOption } from "./DawonClassFilters";
+import { dawonQueryKeys } from "./queryKeys";
 import { Cohorts } from "./DawonSchoolReportCohorts";
 import styles from "./DawonOperations.module.css";
 
@@ -19,12 +21,22 @@ import desk from "./DawonAdminRecords.module.css";
 export default function DawonAdminSchoolReports() {
   const [period,setPeriod]=useState(currentSchoolReportPeriod);
   const [group,setGroup]=useState("");
+  const [classType,setClassType]=useState("");
+  const classes = useQuery({queryKey:dawonQueryKeys.adminGroups, queryFn:async({signal}) =>
+    (await api.get<DawonClassOption[]>("/students/class-groups/",{signal})).data});
+  const matchingClasses = (classes.data ?? []).filter((item) => matchesDawonClassType(item,classType));
+  const selectedClass = matchingClasses.find((item) => String(item.id) === group);
+  function changeClassType(value: string) {
+    setClassType(value);
+    if (group && !matchesDawonClassType(selectedClass,value)) setGroup("");
+    setPage(1);
+  }
   const [stats,setStats]=useState(false);
   const [search,setSearch]=useState("");
   const [status,setStatus]=useState<SchoolReportStatus>();
   const [page,setPage]=useState(1);
   const [student,setStudent]=useState<{id:number;name:string}|null>(null);
-  const filters={class_group:Number(group)||undefined,search:useDebouncedValue(search.trim()),page,status};
+  const filters={class_type:classType||undefined,class_group:Number(group)||undefined,search:useDebouncedValue(search.trim()),page,status};
   const roster=useQuery({queryKey:schoolReportKeys.roster(period,filters),enabled:!stats,
     queryFn:({signal})=>fetchSchoolReportRoster(period,filters,signal)});
   const data=roster.data;
@@ -32,13 +44,16 @@ export default function DawonAdminSchoolReports() {
     <div className={desk.desk}>
       <div className={desk.filters}>
         <SchoolReportPeriodPicker period={period} onChange={value=>{setPeriod(value);setPage(1);}}/>
-        <AdminGroupSelect value={group} onChange={value=>{setGroup(value);setPage(1);}}/>
+        <DawonClassTypeSelect value={classType} onChange={changeClassType}/>
+        <DawonClassSelect groups={matchingClasses} value={group} onChange={value=>{setGroup(value);setPage(1);}}/>
+        {selectedClass && <DawonClassBadge group={selectedClass}/>}
+        {classes.isError && <Button size="sm" onClick={()=>void classes.refetch()}>반 목록 다시 불러오기</Button>}
       </div>
       <div role="group" aria-label="성적 취합 보기" className={desk.switcher}>
         <Button aria-pressed={!stats} onClick={()=>setStats(false)}>제출 현황</Button>
         <Button aria-pressed={stats} onClick={()=>setStats(true)}>학교별 통계</Button>
       </div>
-      {stats ? <div className={desk.schools}><Cohorts ledger key={JSON.stringify([period,group])} period={period} classGroup={Number(group)||undefined}/></div> : <>
+      {stats ? <div className={desk.schools}><Cohorts ledger key={JSON.stringify([period,group,classType])} classType={classType} period={period} classGroup={Number(group)||undefined}/></div> : <>
         {data && <dl className={desk.metrics} aria-label="성적 제출 요약">
           <div><dt>대상 학생</dt><dd>{data.total_count}<small>명</small></dd></div>
           <div><dt>제출 완료</dt><dd>{data.submitted_count}<small>명</small></dd></div>

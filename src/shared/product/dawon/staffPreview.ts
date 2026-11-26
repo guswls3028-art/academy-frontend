@@ -13,6 +13,6 @@ export function dawonStaffPreviewRole(): "admin" | "teacher" | null {
 }
 
 export function isDawonTeachingPath(path: string) {
-  if (["/workspace/settings", "/workspace/settings/profile", "/workspace/settings/appearance"].includes(path)) return true;
+  if (["/workspace/settings", "/workspace/settings/profile", "/workspace/settings/appearance", "/workspace/settings/organization"].includes(path)) return true;
   return /^\/workspace\/(dashboard|lectures|students|clinic|community|teacher-alerts|exams|results|videos|sessions|surveys|homework|submissions)(?:\/|$)/.test(path);
 }

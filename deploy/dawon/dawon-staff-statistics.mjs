@@ -311,12 +311,12 @@ export function createStaffStatistics({root,role,api,node}) {
   }
   async function show(url){
     if(url.pathname!=='/workspace/results'||url.searchParams.has('panel')){clear();return;}
-    const signatureNow=JSON.stringify(params.map(k=>url.searchParams.get(k)));
+    const signatureNow=JSON.stringify([...params,"scope","classType"].map(k=>url.searchParams.get(k)));
     if(signature===signatureNow && section?.isConnected)return;
     const next=new URLSearchParams(url.search);
     const selected=next.get('statsStudent');
     const scope=stage&&[stage.course,stage.session,stage.exam];
-    if(scope&&scope.every((entry,i)=>next.get(params[i])===String(entry.id)||next.get(params[i])===choices.get(params[i]))&&
+    if(scope&&['scope','classType'].every(k=>next.get(k)===choices.get(k))&&scope.every((entry,i)=>next.get(params[i])===String(entry.id)||next.get(params[i])===choices.get(params[i]))&&
       (!selected||studentRows.some(r=>String(r.enrollment_id)===selected))){
       choices=next;signature=signatureNow;
       filters.querySelector('[data-stat-choice="statsStudent"]').value=selected||'';
@@ -340,7 +340,9 @@ export function createStaffStatistics({root,role,api,node}) {
     filters=node('div',null,{class:'dsx-filters'});body=node('div');main.append(filters,body);section.replaceChildren(head,main);
     body.append(note('성적 기록을 불러오는 중…'));
     try{
-      const feed=await get('students/teacher-alerts/?settings=1',signal);if(signal.aborted)return;
+      const cohortParams=new URLSearchParams({settings:'1'});
+      for(const key of ['scope','classType']) if(next.get(key))cohortParams.set(key,next.get(key));
+      const feed=await get('students/teacher-alerts/?'+cohortParams,signal);if(signal.aborted)return;
       if(!Array.isArray(feed?.lectures))throw Error('courses');
       const courses=feed.lectures.filter(c=>id(c.id)&&c.title);
       if(!courses.length){body.replaceChildren(note('조회할 수 있는 강의가 없습니다.'));return;}

@@ -31,7 +31,7 @@ function examContext(params:URLSearchParams) {
   return Object.fromEntries(examFilters.map(key => [key, params.get(key)]));
 }
 function listContext(params:URLSearchParams) {
-  return {q:params.get("q"),scope:params.get("scope"),status:params.get("status"),origin:params.get("origin")};
+  return {q:params.get("q"),scope:params.get("scope"),classType:params.get("classType"),status:params.get("status"),origin:params.get("origin")};
 }
 function usePanel<T>(params:Record<string,string>) {
   return useQuery({queryKey:panelKey(params), queryFn:async ({signal}) => (await api.get<T>(endpoint,{params,signal})).data});

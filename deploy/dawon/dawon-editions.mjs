@@ -2,8 +2,8 @@
 export function legacyEditionRedirect(url) {
   const {pathname, searchParams} = url;
   let target;
-  if (pathname === '/teacher' || /^\/learn\/(?:teacher(?:[-/]|$)|grade-collection(?:\/|$)|class-qr(?:\/|$))/.test(pathname) || searchParams.get('preview') === 'teacher') {
-    target = '/login/dawon?demo=teacher';
+  if ((['/login','/login/dawon'].includes(pathname) && searchParams.get('demo') === 'teacher') || pathname === '/teacher' || /^\/learn\/(?:teacher(?:[-/]|$)|grade-collection(?:\/|$)|class-qr(?:\/|$))/.test(pathname) || searchParams.get('preview') === 'teacher') {
+    target = '/login/dawon?demo=admin';
   } else if (pathname === '/admin' || searchParams.get('preview') === 'admin') {
     target = '/login/dawon?demo=admin';
   } else if (pathname === '/learn/schedule' || (pathname === '/learn/grades' && searchParams.get('preview') === 'guardian')) {
@@ -14,6 +14,10 @@ export function legacyEditionRedirect(url) {
     return Response.redirect(dest.href,302);
   } else return null;
   const dest = new URL(target,url.origin);
+  if (dest.pathname === '/login/dawon') {
+    const work = staffReturnPath(searchParams.get('work'),'admin');
+    if (work) dest.searchParams.set('work',work);
+  }
   if (dest.pathname === '/') {
     for (const key of ['date','view']) {
       if (searchParams.has(key)) dest.searchParams.set(key,searchParams.get(key));
@@ -32,9 +36,9 @@ export function editionResponse(request, url) {
   const role = (entry || legacy)[1];
   const staff = role === 'admin' || role === 'teacher';
   const dest = new URL(staff ? '/login/dawon' : '/',url.origin);
-  if (role) dest.searchParams.set(staff ? 'demo' : 'preview',role);
+  if (role) dest.searchParams.set(staff ? 'demo' : 'preview',staff ? 'admin' : role);
   if (!role || staff) {
-    const work = staffReturnPath(url.searchParams.get('work'),role);
+    const work = staffReturnPath(url.searchParams.get('work'),staff ? 'admin' : role);
     if (work) dest.searchParams.set('work',work);
   }
   if (!staff) {
@@ -52,13 +56,13 @@ export function staffReturnPath(value, role) {
   const url = new URL(value,'https://demo.hakwonplus.com');
   const path = url.pathname.slice('/workspace/'.length).replace(/\/$/,'');
   // AdminRouter has a separate, intentionally smaller route tree for the admin demo.
-  const admin = /^(?:dashboard|staff|results(?:\/students)?|settings(?:\/(?:profile|appearance))?|students\/(?:home|class-groups|surveys\/school-reports)|clinic\/operations|community\/counsel|lectures(?:\/\d+(?:\/sessions(?:\/\d+(?:\/(?:attendance|scores|exams|assignments|notice|clinic|videos(?:\/\d+)?))?)?)?)?|sessions\/\d+\/[a-z-]+|exams\/\d+|videos\/\d+(?:\/logs(?:\/\d+)?)?)$/.test(path);
+  const admin = /^(?:dashboard|staff(?:\/(?:home|attendance|payroll-snapshot))?|results(?:\/students)?|settings(?:\/(?:profile|appearance|organization))?|students\/(?:home|class-groups|surveys\/school-reports)|clinic\/operations|community\/counsel|lectures(?:\/\d+(?:\/sessions(?:\/\d+(?:\/(?:attendance|scores|exams|assignments|notice|clinic|videos(?:\/\d+)?))?)?)?)?|sessions\/\d+\/[a-z-]+|exams\/\d+|videos\/\d+(?:\/logs(?:\/\d+)?)?)$/.test(path);
   const teacher = /^(?:dashboard|lectures|students|clinic|community|teacher-alerts|exams|results|videos|sessions|surveys|homework|submissions)(?:\/|$)/.test(path) ||
-    /^settings(?:\/(?:profile|appearance))?$/.test(path);
+    /^settings(?:\/(?:profile|appearance|organization))?$/.test(path);
   const teacherAllowed = teacher && !(path === 'dashboard' && url.searchParams.has('panel'));
   if (!(role === 'admin' ? admin : role === 'teacher' ? teacherAllowed : role == null && (admin || teacherAllowed))) return null;
   // Carry native view and filter parameters only, never auth, role or redirects.
-  const filters = new Set('assign attention class course create date direction employee exam examTab from grade gradingExamId group kind lecture_id month order origin page panel paySearch payState period position profile q record rule scope section session_id sessionId sort status student tab to track trend view'.split(' '));
+  const filters = new Set('assign area attention class classType course create date direction employee exam examTab from grade gradingExamId group kind lecture_id month order origin page panel paySearch payState period position profile q record rule scope section session_id sessionId sort status student tab to track trend view'.split(' '));
   const params = new URLSearchParams();
   const session = /^(?:lectures\/\d+\/)?sessions\/\d+(?:\/|$)/.test(path);
   for (const [key,item] of url.searchParams) {

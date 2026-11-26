@@ -8,3 +8,8 @@
 .filters select { width:auto; max-width:100%; }
 .paging { justify-content:center; }
 @media(max-width:600px) { .filters { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); } .filters input { grid-column:1/-1; width:100%; } .filters select { width:100%; min-width:0; } }
+
+.areas { display:flex; flex-wrap:wrap; gap:6px; }
+.areas button { padding:5px 12px; min-height:36px; border:1px solid var(--color-border-divider); border-radius:20px; background:var(--color-bg-surface,white); }
+.areas button[aria-pressed=true] { color:var(--color-brand-primary-active); border-color:currentColor; font-weight:700; }
+@media(max-width:600px) { .areas button { min-height:44px; } }

@@ -29,7 +29,7 @@ type ModeBadgeTone = "primary" | "warning" | "success" | "muted";
 type EditableLegalConfig = Omit<LegalConfig, "terms_version" | "privacy_version" | "effective_date">;
 type LegalFieldKey = keyof EditableLegalConfig;
 
-function AcademyModeSection() {
+export function AcademyModeSection() {
   const { program } = useProgram();
   const ff = program?.feature_flags ?? {};
 

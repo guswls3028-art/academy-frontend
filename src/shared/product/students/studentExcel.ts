@@ -130,10 +130,10 @@ function buildHeaderMap(headers: string[]): Record<string, number> {
   return map;
 }
 
-function findStudentHeader(rows: unknown[][]): number {
+function findStudentHeader(rows: unknown[][], requireContacts: boolean): number {
   const strict = rows.slice(0, 100).findIndex((row) =>
     row.some((cell) => headerMatches(String(cell ?? ""), "name"))
-    && row.some((cell) => headerMatches(String(cell ?? ""), "parentPhone") || headerMatches(String(cell ?? ""), "studentPhone"))
+    && (!requireContacts || row.some((cell) => headerMatches(String(cell ?? ""), "parentPhone") || headerMatches(String(cell ?? ""), "studentPhone")))
   );
   if (strict >= 0) return strict;
   return rows.slice(0, 10).findIndex((row) => {
@@ -143,7 +143,7 @@ function findStudentHeader(rows: unknown[][]): number {
 }
 
 /** Use the worker's worksheet ranking so preview and the uploaded file refer to the same roster. */
-async function readStudentWorksheetRows(file: File): Promise<unknown[][]> {
+async function readStudentWorksheetRows(file: File, requireContacts: boolean): Promise<unknown[][]> {
   const workbook = await readExcelWorkbook(file);
   const activeTab = workbook.views?.[0]?.activeTab ?? 0;
   const sheets = workbook.worksheets.map((sheet, index) => ({
@@ -153,7 +153,7 @@ async function readStudentWorksheetRows(file: File): Promise<unknown[][]> {
     rows: readWorksheetRows(sheet, { preserveEmptyRows: true, sampleRows: 150 }),
   }));
   const candidates = sheets.flatMap((sheet) => {
-    const header = findStudentHeader(sheet.rows);
+    const header = findStudentHeader(sheet.rows, requireContacts);
     if (header < 0) return [];
     const headerRow = sheet.rows[header].map((cell) => String(cell ?? ""));
     const map = buildHeaderMap(headerRow);
@@ -180,7 +180,7 @@ async function readStudentWorksheetRows(file: File): Promise<unknown[][]> {
     return Number(right.active) - Number(left.active);
   });
   const best = candidates[0];
-  if (!best) throw new Error("양식이 맞지 않습니다. 첫 100행 안에 이름·전화번호 컬럼을 넣어 주세요.");
+  if (!best) throw new Error(requireContacts ? "양식이 맞지 않습니다. 첫 100행 안에 이름·전화번호 컬럼을 넣어 주세요." : "첫 100행 안에 이름 컬럼을 넣어 주세요.");
   const tied = candidates.filter((candidate) => candidate.score.every((value, index) => value === best.score[index]));
   if (tied.length > 1 && !best.active) {
     throw new Error(`명단으로 보이는 시트가 여러 개입니다. 등록할 시트를 Excel에서 활성화한 뒤 다시 업로드해 주세요: ${tied.map((sheet) => sheet.name).join(", ")}`);
@@ -325,9 +325,14 @@ export interface ParseStudentExcelResult {
 /**
  * 엑셀 파일 파싱 → 학생 행 + 엑셀 강의명(있을 경우)
  */
-export async function parseStudentExcel(file: File, validateProfile = true): Promise<ParseStudentExcelResult> {
+export async function parseStudentExcel(
+  file: File,
+  validateProfile = true,
+  options: { requireContacts?: boolean } = {},
+): Promise<ParseStudentExcelResult> {
+  const requireContacts = options.requireContacts ?? true;
   try {
-        const rows = await readStudentWorksheetRows(file);
+        const rows = await readStudentWorksheetRows(file, requireContacts);
         if (!rows.length) {
           throw new Error("데이터가 없습니다.");
         }
@@ -341,13 +346,13 @@ export async function parseStudentExcel(file: File, validateProfile = true): Pro
         let headerRowIndex = -1;
         for (let i = 0; i < rows.length; i++) {
           const row = rows[i] as unknown[];
-          if (hasName(row) && hasPhone(row)) {
+          if (hasName(row) && (!requireContacts || hasPhone(row))) {
             headerRowIndex = i;
             break;
           }
         }
         if (headerRowIndex < 0) {
-          throw new Error("양식이 맞지 않습니다. 이름·전화번호 컬럼이 있는 행을 찾을 수 없습니다.");
+          throw new Error(requireContacts ? "양식이 맞지 않습니다. 이름·전화번호 컬럼이 있는 행을 찾을 수 없습니다." : "이름 컬럼이 있는 행을 찾을 수 없습니다.");
         }
         const headerRow = rows[headerRowIndex] as string[];
         const map = buildHeaderMap(headerRow);
@@ -389,9 +394,9 @@ export async function parseStudentExcel(file: File, validateProfile = true): Pro
           if (!name && !rawStudent && !parentPhone) continue;
           const reason = !name
             ? "학생 이름을 입력해 주세요."
-            : !/^010[0-9]{8}$/.test(parentPhone)
+            : requireContacts && !/^010[0-9]{8}$/.test(parentPhone)
               ? "학부모 전화번호가 없거나 형식이 잘못되었습니다(010 포함 11자리)."
-              : rawStudent && !/^(?:010)?[0-9]{8}$/.test(rawStudent)
+              : requireContacts && rawStudent && !/^(?:010)?[0-9]{8}$/.test(rawStudent)
                 ? "학생 전화번호는 비우거나 010 포함 11자리로 입력해 주세요."
                 : "";
           if (reason) {

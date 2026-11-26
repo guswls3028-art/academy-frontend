@@ -14,12 +14,13 @@ import styles from "./AttendanceQrManager.module.css";
 type Props = { kind: QrKind; lectureId?: number };
 const endpoint = "/lectures/attendance-qr/";
 
-function isDawonTeacherPreview() {
+function isDawonStaffPreview() {
   if (resolveTenantCodeString() !== "dawon") return false;
   const payload = getAccessToken()?.split(".")[1];
   if (!payload) return false;
   try {
-    return JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))).dawon_demo_role === "teacher";
+    const role = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))).dawon_demo_role;
+    return role === "teacher" || role === "admin";
   } catch {
     return false;
   }
@@ -35,7 +36,7 @@ export default function AttendanceQrManager({ kind, lectureId }: Props) {
 
 export function QrManagerDialog({ kind, lectureId, lectureTitle, onClose }: Props & { lectureTitle?: string; onClose: () => void }) {
   const locationId = useId();
-  const canManagePoints = !isDawonTeacherPreview();
+  const canManagePoints = !isDawonStaffPreview();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
   const poster = useRef<HTMLDivElement>(null);

@@ -1,6 +1,7 @@
 // PATH: src/app_admin/domains/settings/SettingsLayout.tsx
 // Premium SaaS 설정 레이아웃 — 사이드바 네비게이션 + 콘텐츠 영역
 
+import type { ReactNode } from "react";
 import { NavLink, Outlet, Link } from "react-router";
 import { FiUser, FiHome, FiMonitor, FiCreditCard, FiGlobe, FiInbox } from "react-icons/fi";
 import styles from "./SettingsLayout.module.css";
@@ -23,7 +24,12 @@ const NAV: NavItem[] = [
   { key: "billing", label: "결제 / 구독", icon: FiCreditCard, path: "/workspace/settings/billing", roles: ["owner"] },
 ];
 
-export default function SettingsLayout() {
+type SettingsLayoutProps = {
+  allowedSections?: readonly string[];
+  children?: ReactNode;
+};
+
+export default function SettingsLayout({ allowedSections, children }: SettingsLayoutProps = {}) {
   const { user } = useAuth();
   const role = user?.tenantRole;
 
@@ -34,8 +40,8 @@ export default function SettingsLayout() {
         <p className={styles.sidebarLabel}>Settings</p>
         {NAV.filter(
           (item) =>
-            !item.roles ||
-            (role && item.roles.includes(role)),
+            (!allowedSections || allowedSections.includes(item.key)) &&
+            (!item.roles || (role && item.roles.includes(role))),
         ).map(({ key, label, icon: Icon, path }) => (
           <NavLink
             key={key}
@@ -58,7 +64,7 @@ export default function SettingsLayout() {
 
       {/* ── Main content ── */}
       <main className={styles.content}>
-        <Outlet />
+        {children ?? <Outlet />}
       </main>
     </div>
   );

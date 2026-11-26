@@ -22,7 +22,7 @@ export default function ClinicWorkPage() {
   const role=dawonStaffPreviewRole();
   const dedicated=role==="teacher" || role==="admin";
   const applications={key:"applications",label:"신청 현황",component:ClinicRequests};
-  const panels=dedicated ? [applications,...PANELS.filter(panel=>panel.key!=="unresolved")] : PANELS;
+  const panels=dedicated ? [applications,...(role==="admin" ? PANELS : PANELS.filter(panel=>panel.key!=="unresolved"))] : PANELS;
   const defaultPanel=dedicated && !searchParams.has("date") && !searchParams.has("session") && !searchParams.has("scope")
     ? applications : PANELS[0];
   const current=panels.find(({key})=>key===searchParams.get("panel")) ?? defaultPanel;

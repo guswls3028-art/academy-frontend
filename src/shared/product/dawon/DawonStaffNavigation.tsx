@@ -23,7 +23,8 @@ export function DawonStaffNavigation({role, onNavigate}: {role: "admin" | "teach
         {section.items.map(([label, path])=>{
           const [base, filter] = path.split("?");
           const panel = new URLSearchParams(filter).get("panel");
-          const active = base === "dashboard" ? pathname === "/workspace/dashboard" && current === panel :
+          const active = base === "dashboard" ? pathname === "/workspace/dashboard" && (current === panel || (!panel && current === "attendance")) :
+            base === "students/home" ? ["/workspace/students/home","/workspace/students/class-groups"].includes(pathname) :
             base === "settings/profile" ? pathname.startsWith("/workspace/settings/") :
             pathname === "/workspace/"+base || pathname.startsWith("/workspace/"+base+"/");
           const Icon = icons[path as keyof typeof icons] ?? CalendarCheck;

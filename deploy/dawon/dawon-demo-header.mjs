@@ -3,7 +3,6 @@ import { installStaffReturn, staffReturnPath } from './dawon-editions.mjs';
 
 // Only the dedicated public review Worker imports this module.
 const apps = [
-  ["teacher", "선생님용", "/login/dawon?demo=teacher"],
   ["admin", "관리자", "/login/dawon?demo=admin"],
   ["student", "학생", "/?preview=student"],
   ["guardian", "학부모", "/?preview=guardian"],
@@ -13,7 +12,7 @@ const style = `<style id="dawon-demo-switcher-style">
 :root{--dawon-demo-bar-height:calc(44px + env(safe-area-inset-top,0px));scroll-padding-top:var(--dawon-demo-bar-height)}
 body{padding-block-start:var(--dawon-demo-bar-height)!important}
 #dawon-demo-switcher{position:fixed;inset:0 0 auto;z-index:100001;height:var(--dawon-demo-bar-height);box-sizing:border-box;padding:env(safe-area-inset-top,0px) 12px 0;display:flex;align-items:stretch;justify-content:center;background:#fffcfa;border-bottom:1px solid #e6ded8;font:650 14px/1.2 system-ui,sans-serif;color:#514940}
-.dawon-demo-roles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:min(100%,480px)}
+.dawon-demo-roles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:min(100%,390px)}
 #dawon-demo-switcher a{position:relative;display:grid;place-items:center;min-width:0;padding:0 4px;color:inherit;text-decoration:none;white-space:nowrap}
 #dawon-demo-switcher a[aria-current=page]{color:#873b0e;background:#fff1e6;font-weight:750}
 #dawon-demo-switcher a[aria-current=page]::after{position:absolute;content:"";height:3px;bottom:0;inset-inline:20%;border-radius:3px 3px 0 0;background:#d25a12}
@@ -34,7 +33,7 @@ body:has([data-app=auth]) #dawon-preview-scope{display:block}
 export function insertDemoSwitcher(html, url, native) {
   const path = url.pathname;
   const role = /^\/workspace(?:\/|$)/.test(path) ? null : url.searchParams.get("demo") === "admin" ? "admin" : path === "/guardian" || url.searchParams.get("preview") === "guardian" || url.searchParams.get("demo") === "guardian" ? "guardian" :
-    native && !path.startsWith("/student/") && url.searchParams.get("demo") !== "student" ? "teacher" : "student";
+    native && !path.startsWith("/student/") && url.searchParams.get("demo") !== "student" ? "admin" : "student";
   const links = apps.map(([key, name, href]) => {
     const target = new URL(href, url.origin);
     // A bookmarked staff task survives an explicit sign-in with an authorized role.

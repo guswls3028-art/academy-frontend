@@ -20,6 +20,7 @@ import RouteFallback from "@/core/router/RouteFallback";
 import { renderLazyRoute } from "@/core/router/renderLazyRoute";
 
 /* ================= Lazy: Dashboard ================= */
+const DawonStaffPage = lazy(() => import("@/shared/product/dawon/DawonStaffDirectory").then(m=>({default:m.DawonStaffPage})));
 const DawonStaffSettings = lazy(() => import("@/shared/product/dawon/DawonStaffSettings"));
 const DawonStudentOverlay = lazy(() => import("@/shared/product/dawon/DawonAdminStudents").then(module=>({default:module.StudentProfileOverlay}))) as typeof import("@/shared/product/dawon/DawonAdminStudents").StudentProfileOverlay;
 const DawonAdminStudents = lazy(() => import("@/shared/product/dawon/DawonAdminStudents"));
@@ -232,11 +233,12 @@ export default function AdminRouter() {
       </Suspense>
     ) : undefined;
 
+  if (dawonStaffPreviewRole() === "teacher") return <Navigate replace to="/login/dawon?demo=admin" />;
   if (previewRole === "admin") return (
     <Routes location={backgroundLocation ?? location}>
       <Route element={<AppLayout overlay={studentDetailOverlay} />}>
         <Route path="settings" element={<Navigate to="/workspace/settings/profile" replace />} />
-        {["settings/profile", "settings/appearance"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonStaffSettings)} />)}
+        {["settings/profile", "settings/appearance", "settings/organization"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonStaffSettings)} />)}
         <Route path="students/home" element={renderLazyRoute(DawonAdminStudents)} />
         <Route path="students/class-groups" element={renderLazyRoute(ClassGroupsPage)} />
         {lectureRoutes({ dawonAdmin: true })}
@@ -247,7 +249,8 @@ export default function AdminRouter() {
         <Route path="students/surveys/school-reports" element={renderLazyRoute(DawonAdminSchoolReports)} />
         <Route path="clinic/operations" element={renderLazyRoute(DawonClinicWork)} />
         {["community/counsel", "results/students"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonAdminDirectories)} />)}
-        {["dashboard", "staff", "results"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonOperations)} />)}
+        {["staff","staff/home","staff/attendance","staff/payroll-snapshot"].map(path=><Route key={path} path={path} element={renderLazyRoute(DawonStaffPage)} />)}
+        {["dashboard", "results"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonOperations)} />)}
         <Route path="*" element={<Navigate to="/workspace/dashboard" replace />} />
       </Route>
     </Routes>
@@ -373,7 +376,7 @@ export default function AdminRouter() {
         {/* ================= 설정 — 사이드바 레이아웃 ================= */}
         {previewRole === "teacher" ? <>
           <Route path="settings" element={<Navigate to="/workspace/settings/profile" replace />} />
-          {["settings/profile", "settings/appearance"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonStaffSettings)} />)}
+          {["settings/profile", "settings/appearance", "settings/organization"].map(path => <Route key={path} path={path} element={renderLazyRoute(DawonStaffSettings)} />)}
         </> : <Route path="settings" element={renderLazyRoute(SettingsLayout)}>
           <Route index element={<Navigate to="profile" replace />} />
           <Route path="profile" element={renderLazyRoute(ProfileSettingsPage)} />

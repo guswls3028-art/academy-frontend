@@ -488,7 +488,7 @@ const navigation = `
 document.addEventListener('click', (event) => {
   if (!(event.target instanceof Element)) return;
   const target = event.target.closest('[data-route="qr"],[data-preview-role="teacher"],[data-signin="teacher"]');
-  let destination = target ? target.matches('[data-route="qr"]') ? '/login/dawon?demo=student' : '/login/dawon?demo=teacher' : null;
+  let destination = target ? target.matches('[data-route="qr"]') ? '/login/dawon?demo=student' : '/login/dawon?demo=admin' : null;
   if (!destination && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
     const route = event.target.closest('a[data-route]');
     const topic = route?.dataset.route;
@@ -628,7 +628,7 @@ export async function handle(request, env, fetcher = fetch, context) {
       teacherVersion: env.UI_VERSION || env.ADMIN_VERSION,
       bundleVersion: env.UI_VERSION || env.ADMIN_VERSION,
       originVersion: env.ADMIN_VERSION,
-      roles: ['teacher', 'student', 'guardian', 'admin'],
+      roles: ['admin', 'student', 'guardian'],
       productionApi: false,
     }), 200);
   }
