@@ -63,7 +63,7 @@ jobs:
       - if: steps.target.outputs.phase == 'private'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: 3bdc2c707c19513e6c177bca962cdee6d81f614d
+          ref: ffed647edd759d76a27febd600de5c8b8aeddd12
           path: worker-source
           persist-credentials: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
@@ -79,7 +79,7 @@ jobs:
           PHASE: ${{ steps.target.outputs.phase }}
         run: |
           set -euo pipefail
-          build=$(jq -er .originalRun "$QA_DIR/target.json")
+          build=$(jq -er .dawonRun "$QA_DIR/target.json")
           timeout 14m gh run watch "$build" --exit-status --interval 15
           python "$QA_DIR/verify-builds.py" "$PHASE"
       - name: Prepare previously approved hosted Chromium
