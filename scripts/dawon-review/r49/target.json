@@ -1,5 +1,5 @@
 {
-  "phase": "stage",
+  "phase": "live",
   "candidateVersion": "1e2938e6-5213-4e64-814b-e92507b8fbd9",
   "service": "student-planning-demo-01a17d9b",
   "workerRevision": "fd6d5e6e1db1ff9fb1dd03903416dbf3789acf590073b806f65cf15f7d7e0458",
