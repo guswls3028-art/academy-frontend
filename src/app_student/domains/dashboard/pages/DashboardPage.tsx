@@ -440,7 +440,16 @@ export default function DashboardPage() {
   const pendingReviews = (grades?.homeworks ?? []).filter(row =>
     row.lecture_active !== false && row.submission_state === "awaiting_review" && homeworkSubmissionHref(row));
   const lastSubmission = !getStudentSupportSessionInfo() && getTenantUserLocalItem("student-last-submitted-homework", user?.id);
-  const submitted = pendingReviews.find(row => `${row.enrollment_id}:${row.homework_id}` === lastSubmission) ?? pendingReviews[0];
+  const submittedToday = pendingReviews.find(row => `${today}:${row.enrollment_id}:${row.homework_id}` === lastSubmission);
+  const submitted = submittedToday ?? pendingReviews[0];
+  const receipt = submitted && (
+    <section className={styles.homeReceipt} aria-label="제출 확인">
+      <div className={styles.actionLabel}>제출 완료</div>
+      <h2>{submitted.title}</h2><p>선생님 확인 대기</p>
+      <Link className={styles.receiptLink} to={homeworkSubmissionHref(submitted)!}>낸 파일 보기</Link>
+      {pendingReviews.length > 1 && <Link to="/student/grades?view=homework">확인 대기 과제 {pendingReviews.length}건 보기</Link>}
+    </section>
+  );
 
   return (
     <div className={styles.page}>
@@ -468,14 +477,6 @@ export default function DashboardPage() {
             <h2>{firstHomework.title}</h2>
             <p>{[firstHomework.lecture_title, firstHomework.session_title].filter(Boolean).join(" · ")}</p>
             <Link className={styles.actionLink} to={firstHref}>사진 제출하기</Link>
-          </div>
-        )}
-        {submitted && (
-          <div className={styles.homeReceipt}>
-            <div className={styles.actionLabel}>제출 완료</div>
-            <h2>{submitted.title}</h2><p>선생님 확인 대기</p>
-            <Link className={styles.receiptLink} to={homeworkSubmissionHref(submitted)!}>낸 파일 보기</Link>
-            {pendingReviews.length > 1 && <Link to="/student/grades?view=homework">확인 대기 과제 {pendingReviews.length}건 보기</Link>}
           </div>
         )}
         {todoCount > (failedHomeworks.length === 1 && firstHref ? 1 : 0) ? (
@@ -575,7 +576,9 @@ export default function DashboardPage() {
           <h2 className={styles.quietState}>오늘은 급한 일이 없어요</h2>
         ) : null}
       </section>
+      {submittedToday && receipt}
       <HomeResumeVideo />
+      {!submittedToday && receipt}
       {!todaySessions.length && nextSession && <CountdownCard session={nextSession.session} dt={nextSession.dt} />}
 
       {todaySessions.length > 0 && (

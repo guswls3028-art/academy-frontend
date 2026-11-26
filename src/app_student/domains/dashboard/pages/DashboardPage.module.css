@@ -970,6 +970,7 @@
 .todayHeading h1 { margin: 0; color: var(--stu-text); font-size: 26px; line-height: 1.3; }
 .todayHeading time { color: var(--stu-text-muted); font-size: 13px; }
 .todayTasks { display: grid; gap: 12px; }
+.todayTasks:empty { display: none; }
 .homeAction, .homeReceipt { display: grid; gap: 8px; padding: 18px; border: 1px solid var(--stu-border); border-radius: 14px; background: var(--stu-surface-1); }
 .homeAction { background: color-mix(in srgb, var(--stu-primary) 7%, var(--stu-surface-1)); }
 .homeReceipt { background: var(--stu-success-bg, var(--stu-surface-soft)); }
