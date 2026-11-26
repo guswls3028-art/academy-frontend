@@ -16,7 +16,7 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import { AdminModal, ModalHeader, ModalBody, ModalFooter, MODAL_WIDTH } from "@/shared/ui/modal";
 import Breadcrumb from "@/shared/ui/navigation/PathBreadcrumb";
 import VideoExplorerTree, { type VideoFolderId } from "./VideoExplorerTree";
-import VideoUploadModal from "./features/video-detail/modals/VideoUploadModal";
+import { useVideoUploadDialogs } from "@/shared/media/video/videoUploadDialogs";
 import VideoThumbnail from "../ui/VideoThumbnail";
 import VideoStatusBadge from "../ui/VideoStatusBadge";
 import {
@@ -63,8 +63,7 @@ export default function VideoTreeView() {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
   const [selectedFolderId, setSelectedFolderId] = useState<VideoFolderId>(null);
-  const [uploadModalOpen, setUploadModalOpen] = useState(false);
-  const [uploadTargetSessionId, setUploadTargetSessionId] = useState<number | null>(null);
+  const uploads = useVideoUploadDialogs();
   const [newFolderName, setNewFolderName] = useState("");
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [addChoiceModalOpen, setAddChoiceModalOpen] = useState(false);
@@ -286,13 +285,7 @@ export default function VideoTreeView() {
   };
 
   const openUploadModal = (sessionId: number) => {
-    setUploadTargetSessionId(sessionId);
-    setUploadModalOpen(true);
-  };
-
-  const closeUploadModal = () => {
-    setUploadModalOpen(false);
-    setUploadTargetSessionId(null);
+    uploads.open(sessionId, isPublicSelection ? selectedPublicFolderId : null);
   };
 
   const publicSessionMutation = useMutation({
@@ -624,14 +617,6 @@ export default function VideoTreeView() {
         </div>
       </div>
 
-      {uploadTargetSessionId != null && (
-        <VideoUploadModal
-          sessionId={uploadTargetSessionId}
-          folderId={isPublicSelection ? selectedPublicFolderId : null}
-          isOpen={uploadModalOpen}
-          onClose={closeUploadModal}
-        />
-      )}
 
       {addChoiceModalOpen && (
         <AdminModal

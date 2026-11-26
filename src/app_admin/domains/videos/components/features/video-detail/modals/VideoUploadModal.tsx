@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router";
 import { originalDurationSeconds } from "@/shared/media/video/reviewDuration";
 import ReviewLimitOption from "@/shared/media/video/ReviewLimitOption";
 import {
@@ -43,7 +44,9 @@ type Props = {
   sessionId: number;
   folderId?: number | null;
   isOpen: boolean;
-  onClose: () => void;
+  batchId: string;
+  presentation: number;
+  onClose: (keepTransferring?: boolean) => void;
 };
 
 function titleFromFilename(filename: string): string {
@@ -65,8 +68,10 @@ function FileTransferStatus({ item }: { item: UploadItem }) {
   </div>;
 }
 
-export default function VideoUploadModal({ sessionId, folderId = null, isOpen, onClose }: Props) {
+export default function VideoUploadModal({ batchId, sessionId, folderId = null, isOpen, presentation, onClose }: Props) {
   const qc = useQueryClient();
+  const { pathname } = useLocation();
+  const previousPath = useRef(pathname);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const nextItemIdRef = useRef(0);
   const mountedRef = useRef(true);
@@ -101,23 +106,10 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
   }, []);
 
   useEffect(() => {
-    if (!isOpen || uploadLock.current) return;
-    setUploadMode("file");
-    setBaseTitle("");
-    setDescription("");
-    setUploadItems([]);
-    setExcludedNames([]);
-    setIsFileDragOver(false);
-    setDraggedItemIndex(null);
-    setYoutubeUrl("");
-    setOriginalLength("");
-    setYoutubeLimit(false);
-    setShowWatermark(true);
-    setAllowSkip(false);
-    setMaxSpeed(1);
-    setIsUploading(false);
-    setInitErrorMessages([]);
-  }, [isOpen]);
+    if (previousPath.current === pathname) return;
+    previousPath.current = pathname;
+    if (isOpen) onClose(uploadLock.current);
+  }, [pathname, isOpen, onClose]);
 
   const filledCount = uploadItems.length;
   const youtubeVideoId = useMemo(() => extractYouTubeVideoId(youtubeUrl), [youtubeUrl]);
@@ -209,7 +201,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
             updateProgress(item.id, "preparing");
             init = item.init ?? await initVideoUpload({
               sessionId, file: item.file, title: item.title, reviewLimit: item.reviewLimit,
-              description, folderId, showWatermark, allowSkip, maxSpeed,
+              description, folderId, showWatermark, allowSkip, maxSpeed, batchId,
             }, config);
           } catch (error) {
             updateProgress(item.id, "failed");
@@ -257,6 +249,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
     }
   }, [
     allowSkip,
+    batchId,
     description,
     folderId,
     maxSpeed,
@@ -328,13 +321,13 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
     if (isUploading) {
       feedback.info(uploadMode === "youtube" ? "링크 추가가 진행 중입니다." : "업로드는 작업박스에서 계속 진행됩니다.");
     }
-    onClose();
+    onClose(uploadLock.current);
   }, [isUploading, onClose, uploadMode]);
 
   if (!isOpen) return null;
 
   return (
-    <AdminModal open={isOpen} onClose={handleClose} type="action" width={MODAL_WIDTH.wide} onEnterConfirm={canSubmit && !isUploading ? handleSubmit : undefined}>
+    <AdminModal key={presentation} open={isOpen} onClose={handleClose} type="action" width={MODAL_WIDTH.wide} onEnterConfirm={canSubmit && !isUploading ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
         title="영상 추가"
@@ -686,7 +679,7 @@ export default function VideoUploadModal({ sessionId, folderId = null, isOpen, o
       <ModalFooter
         left={
           <span className="modal-hint video-upload-modal__footer-hint">
-            {uploadMode === "youtube" ? "링크 영상은 인코딩 없이 바로 시청 가능 상태로 추가됩니다." : "이 창을 닫아도 전송은 이어집니다. 전송이 끝날 때까지 브라우저 탭은 열어 두세요."}
+            {uploadMode === "youtube" ? "링크 영상은 인코딩 없이 바로 시청 가능 상태로 추가됩니다." : "창을 닫아도 전송은 계속됩니다. 작업박스에서 다시 볼 수 있습니다. 전송이 끝날 때까지 브라우저 탭은 열어 두세요."}
           </span>
         }
         right={

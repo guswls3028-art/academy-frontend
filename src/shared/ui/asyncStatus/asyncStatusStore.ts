@@ -57,6 +57,8 @@ export interface StudentImportResult {
 
 export interface AsyncTask {
   id: string;
+  /** Only resolves to a file queue in the originating staff workspace and browser tab. */
+  videoUploadBatchId?: string;
   label: string;
   status: AsyncTaskStatus;
   /** 0..100, 진행 중일 때만 사용 (워커 Redis progress) */
@@ -291,13 +293,14 @@ export const asyncStatusStore = {
   /**
    * 새 작업 추가 (일반)
    */
-  addTask(label: string, id?: string): string {
+  addTask(label: string, id?: string, detail?: Pick<AsyncTask, "videoUploadBatchId">): string {
     const taskId = id ?? generateId();
     const scope = this._getTenantScope() ?? "";
     tasks = [
       ...tasks.filter((t) => t.id !== taskId),
       {
         id: taskId,
+        ...detail,
         label,
         status: "pending" as const,
         createdAt: Date.now(),
