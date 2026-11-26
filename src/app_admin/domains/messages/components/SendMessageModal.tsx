@@ -125,6 +125,7 @@ type VarStatus = { name: string; status: "auto" | "provided" | "missing"; value?
 type SendTiming = "now" | "scheduled";
 type SendAttempt = {
   draftKey: string;
+  skippedBeforeSend: number;
   payloads: Array<SendMessagePayload & { client_request_id: string }>;
   /** Responses already received. Retries only repeat the unacknowledged request and the remaining requests. */
   responses: Awaited<ReturnType<typeof sendMessage>>[];
@@ -519,16 +520,18 @@ export default function SendMessageModal({
   const videoHomeworkTitles = [...new Set(videoHomeworkPreview?.recipients.flatMap((recipient) => recipient.homework_titles))];
   const unassignedVideoCount = videoHomeworkPreview?.excluded.filter((recipient) => recipient.reason === "no_homework").length ?? 0;
   const otherVideoExcludedCount = (videoHomeworkPreview?.excluded.length ?? 0) - unassignedVideoCount;
-  const canSkipUnavailableVideoRoute = preflightResults.some((result) => result.can_send && result.recipient.valid_phone > 0)
+  const canSkipMissingPhone = preflightResults.some((result) => result.can_send && result.recipient.valid_phone > 0)
     || (reviewPendingSend && Boolean(sendAttempt?.responses.length));
+  const skippedPhoneResults = preflightResults.filter((result) => canSkipMissingPhone
+    && result.recipient.valid_phone === 0 && result.blockers.length === 1 && result.blockers[0].code === "no_valid_phone");
   const eligiblePreflightResults = preflightResults.filter((result) => {
     const homework = result.video_makeup_homework_preview;
-    if (!homework) return true;
-    if ((!videoHomeworkOnly || reviewPendingSend) && homework.recipients.length === 0
+    if (homework && (!videoHomeworkOnly || reviewPendingSend) && homework.recipients.length === 0
       && homework.excluded.length === videoHomeworkStudentIds.length) return false;
-    return !(canSkipUnavailableVideoRoute && result.recipient.valid_phone === 0
-      && result.blockers.length === 1 && result.blockers[0].code === "no_valid_phone");
+    return !skippedPhoneResults.includes(result);
   });
+  const ordinaryPhoneExclusions = skippedPhoneResults.filter((result) => !result.video_makeup_homework_preview)
+    .map((result) => `${formatSendTargetLabel(result.send_to)} 번호 없음 ${result.recipient.skipped_no_phone}건 제외`);
   const videoHomeworkPhoneExclusions = preflightResults.flatMap((result) => {
     const count = result.recipient.skipped_no_phone;
     return result.video_makeup_homework_preview && count > 0
@@ -536,7 +539,10 @@ export default function SendMessageModal({
       : [];
   });
   const apiPreflightBlockers = eligiblePreflightResults.flatMap((result) => result.blockers);
-  const preflightWarnings = preflightResults.flatMap((result) => result.warnings);
+  const preflightWarnings = [
+    ...ordinaryPhoneExclusions.map((detail) => ({ code: "missing_phone", title: "전화번호 없음", detail })),
+    ...preflightResults.flatMap((result) => result.warnings),
+  ];
   const preflightRecipientStats = preflightResults.reduce(
     (acc, result) => {
       acc.validPhone += result.recipient.valid_phone;
@@ -1203,6 +1209,8 @@ export default function SendMessageModal({
     const responses = reviewPendingSend ? [...(sendAttempt?.responses ?? [])] : [];
     const attempt: SendAttempt = retryAttempt && sendAttempt ? sendAttempt : {
       draftKey: preflightKey,
+      skippedBeforeSend: (reviewPendingSend ? sendAttempt?.skippedBeforeSend ?? 0 : 0)
+        + skippedPhoneResults.reduce((count, result) => count + result.recipient.skipped_no_phone, 0),
       payloads: [...(sendAttempt?.payloads.slice(0, responses.length) ?? []), ...confirmedPayloads],
       responses,
       completed: false,
@@ -1220,7 +1228,7 @@ export default function SendMessageModal({
     const accepted = (result: SendAttempt["responses"][number]) => result.accepted_count ?? ((result.enqueued ?? 0) + (result.scheduled ?? 0));
     let totalAccepted = received.reduce((count, result) => count + accepted(result), 0);
     let totalScheduled = received.reduce((count, result) => count + (result.scheduled ?? 0), 0);
-    let totalSkipped = received.reduce((count, result) => count + (result.skipped_no_phone ?? 0), 0);
+    let totalSkipped = received.reduce((count, result) => count + (result.skipped_no_phone ?? 0), attempt.skippedBeforeSend);
     let totalEnqueueFailed = received.reduce((count, result) => count + (result.enqueue_failed ?? 0), 0);
     try {
       await runTrackedTask("messaging.alimtalk.request", async () => {
@@ -2001,6 +2009,9 @@ export default function SendMessageModal({
                   );
                 })}
               </div>
+            )}
+            {ordinaryPhoneExclusions.length > 0 && (
+              <p className="send-modal__confirm-note">{ordinaryPhoneExclusions.join(" · ")}</p>
             )}
             {sendsVideoHomework && (unassignedVideoCount > 0 || otherVideoExcludedCount > 0 || videoHomeworkPhoneExclusions.length > 0) && (
               <p className="send-modal__confirm-note">

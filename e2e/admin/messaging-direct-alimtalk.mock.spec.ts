@@ -1,4 +1,4 @@
-import type { Page, Route } from "@playwright/test";
+import type { Locator, Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { guideRecording } from "../helpers/guideRecording";
@@ -73,6 +73,7 @@ async function installMocks(
   page: Page,
   options: {
     available?: boolean;
+    missingStudentPhone?: boolean;
     failInfo?: boolean;
     channelStatus?: MessagingState["channelStatus"];
   } = {},
@@ -155,18 +156,19 @@ async function installMocks(
     if (path === "/messaging/send/preflight/" && request.method() === "POST") {
       const body = request.postDataJSON() as { send_to?: "student" | "parent" };
       const sendTo = body.send_to ?? "parent";
+      const missing = options.missingStudentPhone && sendTo === "student";
       return json(route, {
-        ok: true,
-        can_send: true,
+        ok: !missing,
+        can_send: !missing,
         mode: "now",
         send_to: sendTo,
         recipient: {
           selected: 1,
           resolved: 1,
-          valid_phone: 1,
-          skipped_no_phone: 0,
+          valid_phone: missing ? 0 : 1,
+          skipped_no_phone: missing ? 1 : 0,
           duplicate_phone: 0,
-          unique_phone: 1,
+          unique_phone: missing ? 0 : 1,
           invalid_or_deleted: 0,
           limit: 500,
         },
@@ -183,9 +185,9 @@ async function installMocks(
         preview_recipients: [{
           student_id: 41,
           student_name: "김알림",
-          phone: sendTo === "student" ? "010****2222" : "010****4444",
-          excluded: false,
-          exclude_reason: "",
+          phone: missing ? "" : sendTo === "student" ? "010****2222" : "010****4444",
+          excluded: Boolean(missing),
+          exclude_reason: missing ? "전화번호 없음" : "",
           full_message_body: "학원플러스입니다. 김알림 학생의 안내 사항입니다.",
         }],
         limits: {
@@ -193,7 +195,7 @@ async function installMocks(
           sent_last_hour: 0,
           remaining_this_hour: 500,
         },
-        blockers: [],
+        blockers: missing ? [{ code: "no_valid_phone", title: "전화번호 없음", detail: "발송 가능한 전화번호가 없습니다." }] : [],
         warnings: [],
       });
     }
@@ -496,16 +498,31 @@ async function openSendDraft(page: Page): Promise<void> {
   await expect(page.getByRole("button", { name: "보낼 내용 확인", exact: true })).toBeEnabled();
 }
 
-async function confirmSend(page: Page): Promise<void> {
+async function confirmSend(page: Page, review?: (confirmation: Locator) => Promise<void>): Promise<void> {
   const mockOnlyReason = realMessagingSkipReason(BASE, "", "0");
   test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?$/.test(BASE), mockOnlyReason ?? "발송 route-mock 검증은 로컬 서버 전용");
   await page.getByRole("button", { name: "보낼 내용 확인", exact: true }).click();
   const confirmation = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
   await expect(confirmation).toBeVisible();
+  await review?.(confirmation);
   await confirmation.getByRole("button", { name: "발송하기", exact: true }).click();
 }
 
 for (const width of [1366, 390]) {
+  test(`본인 번호가 없으면 보호자만 접수하고 제외 건수를 표시한다 ${width}px`, async ({ page }) => {
+    const state = await installMocks(page, { missingStudentPhone: true });
+    await page.setViewportSize({ width, height: 844 });
+    await openSendDraft(page);
+    await expect(page.getByText("학생 번호 없음 1건 제외", { exact: true })).toBeVisible();
+    await confirmSend(page, async (confirm) => {
+      await expect(confirm.getByText("학생 번호 없음 1건 제외", { exact: true })).toBeVisible();
+      await expect(confirm).toContainText("1건 발송 가능");
+      await expectNoHorizontalOverflow(page);
+    });
+    await expect(page.getByRole("button", { name: "이번 발송 결과 보기", exact: true })).toBeVisible();
+    expect(state.sends.map((send) => send.send_to)).toEqual(["parent"]);
+  });
+
   test(`이번 발송 ${width}px: 두 대상 한 UUID 접수 → 정확한 결과 → 새로고침`, async ({ page }, testInfo) => {
     const state = await installMocks(page);
     await page.setViewportSize({ width, height: 844 });
