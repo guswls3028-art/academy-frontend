@@ -1,3 +1,4 @@
+import { openAssessmentWorkAction } from "../helpers/openAssessmentWorkAction";
 import { verifyAcceptedHomeworkNotices } from "../helpers/homeworkAcceptedNoticesRealuse";
 import { revealScoreManagement } from "../helpers/revealScoreManagement";
 /**
@@ -1576,7 +1577,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await assertNoHorizontalOverflow(page);
       await page.getByRole("button", { name: "미리보기 닫기", exact: true }).click();
       await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/assignments?homeworkId=${created.homeworkId}`);
-      await staffPage.getByRole("tab", { name: "제출관리", exact: true }).click();
+      await openAssessmentWorkAction(staffPage, "submissions", "submissions");
       await staffPage.locator('[class*="fileRow"]').filter({ hasText: videoUploadName })
         .getByRole("button", { name: "미리보기", exact: true }).click();
       const staffVideo = staffPage.getByRole("dialog").filter({ hasText: videoUploadName });

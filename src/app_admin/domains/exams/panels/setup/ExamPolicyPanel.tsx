@@ -151,6 +151,7 @@ export default function ExamPolicyPanel({
   lectureId = 0,
   sessionId = 0,
   answerKeyMissing = false,
+  section,
   editing = false,
   onDirtyChange,
   onSavingChange,
@@ -163,6 +164,7 @@ export default function ExamPolicyPanel({
   lectureId?: number;
   sessionId?: number;
   answerKeyMissing?: boolean;
+  section?: "policy" | "answers";
   editing?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
   onSavingChange?: (saving: boolean) => void;
@@ -415,7 +417,7 @@ export default function ExamPolicyPanel({
 
   return (
     <>
-      <section id="assessment-policy" tabIndex={-1} className={`${formStyles.section} ${editing ? formStyles.modalSection : ""}`}>
+      {section !== "answers" && <section id="assessment-policy" tabIndex={-1} className={`${formStyles.section} ${editing ? formStyles.modalSection : ""}`}>
         {!editing && <div className={formStyles.header}>
           <div>
             <h2 className={formStyles.title}>시험 운영 설정</h2>
@@ -749,9 +751,9 @@ export default function ExamPolicyPanel({
         </fieldset>
         </form>
         </details>
-      </section>
+      </section>}
 
-      {!editing && <section id="assessment-answer-key" tabIndex={-1} className={formStyles.section}>
+      {!editing && section !== "policy" && <section id="assessment-answer-key" tabIndex={-1} className={formStyles.section}>
         <div className={formStyles.header}>
           <div>
             <h2 className={formStyles.title}>문항·답안 준비</h2>

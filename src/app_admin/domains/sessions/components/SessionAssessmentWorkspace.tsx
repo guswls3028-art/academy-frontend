@@ -56,6 +56,7 @@ export default function SessionAssessmentWorkspace({ mode }: Props) {
         <Suspense fallback={<RouteFallback />}>
           {mode === "exam" && (
             <AdminExamDetail
+              key={activeId}
               examId={activeId}
               sessionId={sessionId}
               mode={sessionId ? "operate" : "design"}
@@ -63,6 +64,7 @@ export default function SessionAssessmentWorkspace({ mode }: Props) {
           )}
           {mode === "homework" && (
             <AdminHomeworkDetail
+              key={activeId}
               homeworkId={activeId}
               sessionId={sessionId}
               mode="operate"

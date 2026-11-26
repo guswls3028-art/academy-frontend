@@ -1,3 +1,4 @@
+import { openAssessmentWorkAction } from "../helpers/openAssessmentWorkAction";
 import type { Page, Route } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
@@ -275,7 +276,7 @@ async function openSubmissionReview(page: Page) {
     { waitUntil: "domcontentloaded", timeout: 90_000 },
   );
   await expect(page.getByRole("heading", { name: "도형 풀이 인증", exact: true })).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+  await openAssessmentWorkAction(page, "submissions", "submissions");
   await expect(page.getByRole("heading", { name: "과제 제출 검수" })).toBeVisible({ timeout: 30_000 });
 }
 
@@ -319,7 +320,7 @@ for (const width of [1366, 390]) {
     expect(api.reviewPosts()).toBe(1);
     expect(preparePosts).toBe(1);
     await page.reload();
-    await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+    await openAssessmentWorkAction(page, "submissions", "submissions");
     await expect(page.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
@@ -348,7 +349,7 @@ for (const width of [1366, 390]) {
     await expect(page.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
     expect(api.reviewPosts()).toBe(1);
     await page.reload();
-    await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+    await openAssessmentWorkAction(page, "submissions", "submissions");
     await expect(page.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
   });
 }
@@ -366,7 +367,7 @@ test("관리자가 200건 뒤의 과제 파일을 PC와 모바일에서 열고 �
   await dialog.getByRole("button", { name: "닫기" }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+  await openAssessmentWorkAction(page, "submissions", "submissions");
   await expect(page.getByText("제출 학생").locator("..")).toContainText("201");
   await imageRow.getByRole("button", { name: "미리보기" }).click();
   await expect(dialog.getByRole("img", { name: /과제 제출 미리보기/ })).toBeVisible();
@@ -401,7 +402,7 @@ test("선생님이 학생별 제출 묶음에서 사진·동영상·오류를 �
   await testInfo.attach("teacher-homework-media-desktop", { path: desktopScreenshot, contentType: "image/png" });
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+  await openAssessmentWorkAction(page, "submissions", "submissions");
   const mobileVideo = page.getByText("풀이 설명.mp4", { exact: true });
   await expect(mobileVideo).toBeVisible();
   await mobileVideo.scrollIntoViewIfNeeded();
@@ -436,7 +437,7 @@ test("관리자 PC에서 모든 제출 파일 확인 후 저장·새로고침·�
   });
 
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+  await openAssessmentWorkAction(page, "submissions", "submissions");
   const cancel = page.getByRole("button", { name: "확인 완료 취소" });
   await expect(cancel).toBeEnabled();
   await cancel.click();

@@ -1,3 +1,4 @@
+import { openAssessmentWorkAction } from "../helpers/openAssessmentWorkAction";
 import ExcelJS from "exceljs";
 import type { Download, Page } from "@playwright/test";
 
@@ -263,8 +264,8 @@ test("Ymath 운영 오류 회귀: 실제 차시 시험·채점 결과와 출결 
   await page.goto(
     `https://ymath.co.kr/workspace/lectures/${target!.lectureId}/sessions/${target!.sessionId}/exams?examId=${target!.examId}`,
   );
-  await expect(page.getByRole("tab", { name: "운영" })).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("tab", { name: "채점·결과" }).click();
+  await expect(page.getByTestId("assessment-step-policy")).toBeVisible({ timeout: 30_000 });
+  await openAssessmentWorkAction(page, "results", "results");
   await expect(page.getByText("채점결과", { exact: true })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("오류가 발생했습니다. 페이지를 새로고침해 주세요.")).toHaveCount(0);
 

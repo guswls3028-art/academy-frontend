@@ -18,6 +18,7 @@ type Props = {
   description: string;
   items: AssessmentReadinessItem[];
   compactWhenReady?: boolean;
+  onNavigate?: (targetId: string) => void;
 };
 
 function moveToTarget(targetId: string) {
@@ -27,7 +28,7 @@ function moveToTarget(targetId: string) {
   target.focus({ preventScroll: true });
 }
 
-export default function AssessmentReadinessStrip({ title, description, items, compactWhenReady = false }: Props) {
+export default function AssessmentReadinessStrip({ title, description, items, compactWhenReady = false, onNavigate }: Props) {
   const readyCount = items.filter((item) => item.state === "ready").length;
   const attentionCount = items.length - readyCount;
 
@@ -60,7 +61,11 @@ export default function AssessmentReadinessStrip({ title, description, items, co
                 <button
                   type="button"
                   className={styles.itemButton}
-                  onClick={() => moveToTarget(item.targetId!)}
+                  onClick={() => {
+                    const target = item.targetId!;
+                    if (document.getElementById(target)) moveToTarget(target);
+                    else onNavigate?.(target);
+                  }}
                   aria-label={`${item.label}: ${item.summary}. 설정으로 이동`}
                 >
                   {content}

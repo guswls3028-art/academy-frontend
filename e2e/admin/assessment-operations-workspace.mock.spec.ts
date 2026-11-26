@@ -1,3 +1,4 @@
+import { openAssessmentWorkAction } from "../helpers/openAssessmentWorkAction";
 import type { Locator, Page, Route } from "@playwright/test";
 import type { ManualGradeSheet } from "../../src/app_admin/domains/results/api/manualExamGrading";
 import type { AdminExamResultRow } from "../../src/app_admin/domains/results/types/results.types";
@@ -305,6 +306,7 @@ async function openExam(page: Page, state: MockState, initialFailure = false) {
   await openExamRoute(page, state, `?assessment=exam%3A${EXAM_ID}`);
   await waitForRenderSettled(page, { timeout: 30_000 });
   if (initialFailure) return;
+  await openAssessmentWorkAction(page, "policy", "settings");
   await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible({ timeout: 30_000 });
   const settings = page.locator("#assessment-policy > details");
   await expect(settings).not.toHaveAttribute("open", "");
@@ -422,9 +424,11 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await openExam(page, state);
 
   await expect(page.getByText("정답표 등록 필요", { exact: true })).toBeVisible();
+  await openAssessmentWorkAction(page, "policy", "answers");
   await expect(page.getByText("2개 문항 · 정답표 없음", { exact: true })).toBeVisible();
   state.answerKeyPresent = true;
   await page.reload({ waitUntil: "domcontentloaded" });
+  await openAssessmentWorkAction(page, "policy", "settings");
   await page.locator("#assessment-policy > details > summary").click();
 
   await expect(page.getByText("시험 운영 준비 완료", { exact: true })).toBeVisible();
@@ -461,15 +465,17 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
     .toBe(true);
   await page.setViewportSize({ width: 1366, height: 900 });
   await primaryAction.click();
-  await expect(page.getByRole("tab", { name: "제출관리", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("assessment-step-submissions")).toHaveAttribute("aria-expanded", "true");
   await expect(primaryAction).toHaveText("채점·결과 보기");
   await primaryAction.click();
-  await expect(page.getByRole("tab", { name: "채점·결과", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("assessment-step-results")).toHaveAttribute("aria-expanded", "true");
+  await openAssessmentWorkAction(page, "results", "results");
   await expect(page.getByRole("region", { name: "주관식·서술형 채점 안내" })).toContainText("서술형 1문항");
   await expect(page.getByRole("button", { name: "서술형 채점 켜고 입력하기", exact: true })).toBeVisible();
   await expect(primaryAction).toHaveText("운영 설정 보기");
   await primaryAction.click();
-  await expect(page.getByRole("tab", { name: "운영", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("assessment-step-policy")).toHaveAttribute("aria-expanded", "true");
+  await openAssessmentWorkAction(page, "policy", "settings");
   await page.locator("#assessment-policy > details > summary").click();
 
   await gradingGroup.getByRole("button", { name: /^OMR \+ 직접 채점/ }).click();
@@ -509,6 +515,7 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   expect(state.examPatchPayloads[0].close_at).toEqual(expect.any(String));
 
   await page.reload({ waitUntil: "domcontentloaded" });
+  await openAssessmentWorkAction(page, "policy", "settings");
   await page.locator("#assessment-policy > details > summary").click();
   await expect(
     page.getByRole("group", { name: "시험 채점 방식" }).getByRole("button", { name: /^직접 정오 입력/ }),
@@ -525,6 +532,7 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   expect(state.examPatchPayloads[1]).toEqual({ student_cohort_size_published: false });
   expect(state.exam.student_rank_published).toBe(false);
   await page.reload({ waitUntil: "domcontentloaded" });
+  await openAssessmentWorkAction(page, "policy", "settings");
   await page.locator("#assessment-policy > details > summary").click();
   await expect(page.getByLabel("학생 등수 공개")).not.toBeChecked();
   await expect(page.getByLabel("학생 응시 인원 공개")).not.toBeChecked();
@@ -534,6 +542,7 @@ test("시험 준비 상태와 전체 운영 정책을 저장·재조회하고 �
   await expect(page.getByText("시험 운영 준비 완료", { exact: true })).toBeVisible();
   await expect(page.getByText("시험 운영 설정", { exact: true })).toBeVisible();
   if (await page.locator("#assessment-policy > details").getAttribute("open") === null) {
+    await openAssessmentWorkAction(page, "policy", "settings");
     await page.locator("#assessment-policy > details > summary").click();
   }
   await expect(page.getByRole("navigation", { name: "시험 업무 흐름" })).toBeVisible();
@@ -594,6 +603,7 @@ test("0점 합격 기준을 저장하고 서버 필드 오류를 입력값과 �
   expect(state.examPatchPayloads[0]).toEqual({ max_score: 16 });
   expect(state.exam.pass_score).toBe(0);
   await expect(page.getByLabel("만점")).toHaveValue("16");
+  await openAssessmentWorkAction(page, "results", "regrade");
   await expect(page.getByRole("button", { name: "전체 재채점", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
   const regradeDialog = page.getByRole("alertdialog", { name: "시험 전체 재채점" });
@@ -614,6 +624,8 @@ test("0점 합격 기준을 저장하고 서버 필드 오류를 입력값과 �
     status: 400,
     body: { max_score: ["문항 배점 합계와 만점이 일치하지 않습니다."] },
   };
+  await openAssessmentWorkAction(page, "policy", "settings");
+  await page.locator("#assessment-policy > details > summary").click();
   await page.getByLabel("만점").fill("17");
   await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
 
@@ -667,6 +679,7 @@ test("@assessment-edit 상세 운영 폼의 제목 수정은 기존 응시 시�
   expect(state.examPatchPayloads).toEqual([{ title: "시각과 정책을 유지한 시험" }]);
   await expect(page.getByRole("button", { name: "운영 설정 저장", exact: true })).toBeDisabled();
   await page.reload({ waitUntil: "domcontentloaded" });
+  await openAssessmentWorkAction(page, "policy", "settings");
   await page.locator("#assessment-policy > details > summary").click();
   await expect(title).toHaveValue("시각과 정책을 유지한 시험");
   expect(state.exam).toEqual({
@@ -686,6 +699,23 @@ for (const width of [1366, 1100, 390]) {
     state.secondExam = { ...state.exam, id: EXAM_ID + 1, title: "다음 평가", pass_score: 65 };
     await page.setViewportSize({ width, height: 900 });
     await openExam(page, state);
+    const workflow = page.getByRole("navigation", { name: "시험 업무 흐름" });
+    await expect(workflow.locator("ol > li > h3 > button")).toHaveCount(5);
+    await openAssessmentWorkAction(page, "results", "analysis");
+    await expect(page.getByRole("heading", { name: "시험 성적 분석", exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "시험 학생별 결과" })).toBeVisible();
+    await page.getByTestId("assessment-step-submissions").click();
+    await expect(page.getByTestId("assessment-action-submissions")).toBeVisible();
+    const row = page.getByTestId("assessment-step-submissions");
+    const buttons = page.getByTestId("assessment-action-submissions");
+    const rowBox = (await row.boundingBox())!;
+    const actionBox = (await buttons.boundingBox())!;
+    expect(actionBox.y).toBeGreaterThanOrEqual(rowBox.y + rowBox.height - 1);
+    expect(actionBox.x - rowBox.x).toBeLessThan(70);
+    await workflow.scrollIntoViewIfNeeded();
+    await workflow.screenshot({ path: testInfo.outputPath(`exam-five-steps-${width}.png`), animations: "disabled" });
+    await openAssessmentWorkAction(page, "policy", "settings");
+    await page.locator("#assessment-policy > details > summary").click();
     const navigation = page.getByTestId("session-assessment-remote");
     const workspace = page.locator(".session-assessment-workspace");
     // Opening settings may scroll the workspace while the list stays sticky.
@@ -744,6 +774,7 @@ for (const width of [1366, 1100, 390]) {
     state.savedAnswers = { "1": "1", "2": original };
     await page.setViewportSize({ width, height: 900 });
     await openExam(page, state);
+    await openAssessmentWorkAction(page, "policy", "answers");
     await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
     const modal = page.getByRole("dialog").filter({ has: page.getByRole("button", { name: "저장 (총 100점)", exact: true }) });
     const answer = modal.getByRole("textbox", { name: "2번 정답", exact: true });
@@ -786,7 +817,9 @@ for (const width of [1366, 1100, 390]) {
     await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
     await expect(save).toBeEnabled();
     await page.reload();
+    await openAssessmentWorkAction(page, "policy", "settings");
     await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible();
+    await openAssessmentWorkAction(page, "policy", "answers");
     await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
     await expect(answer).toHaveValue(edited);
     await expectWrittenAnswerFits(answer);
@@ -799,6 +832,7 @@ test("@essay-answer 수학 단답은 한 줄 숫자 입력과 저장을 유지�
   state.exam.subject = "수학";
   state.savedAnswers = { "1": "1", "2": "0" };
   await openExam(page, state);
+  await openAssessmentWorkAction(page, "policy", "answers");
   await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
   const answer = page.getByRole("textbox", { name: "2번 숫자 정답", exact: true });
   await expect(answer).toHaveValue("0");
@@ -812,7 +846,9 @@ test("@essay-answer 수학 단답은 한 줄 숫자 입력과 저장을 유지�
   await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
   await expect(save).toBeEnabled();
   await page.reload();
+  await openAssessmentWorkAction(page, "policy", "settings");
   await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible();
+  await openAssessmentWorkAction(page, "policy", "answers");
   await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
   await expect(answer).toHaveValue("999");
   await answer.fill("0");
@@ -822,7 +858,9 @@ test("@essay-answer 수학 단답은 한 줄 숫자 입력과 저장을 유지�
   await expect(page.getByText("저장되었습니다.", { exact: true })).toBeVisible();
   await expect(save).toBeEnabled();
   await page.reload();
+  await openAssessmentWorkAction(page, "policy", "settings");
   await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible();
+  await openAssessmentWorkAction(page, "policy", "answers");
   await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
   await expect(answer).toHaveValue("0");
 });
@@ -902,6 +940,7 @@ test(`@policy-recovery ${width}px 최신 시험 설정 조회 실패는 작성 �
   await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
   await expect.poll(() => state.exam.pass_score).toBe(76);
   await page.reload({ waitUntil: "domcontentloaded" });
+  await openAssessmentWorkAction(page, "policy", "settings");
   await page.locator("#assessment-policy > details > summary").click();
   await expect(input).toHaveValue("76");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
@@ -915,6 +954,7 @@ test("@policy-recovery 최초 시험 조회 실패도 재시도 후 설정을 �
   await expect(page.getByText("시험을 불러오지 못했습니다.", { exact: true })).toBeVisible();
   state.failExamRead = false;
   await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await openAssessmentWorkAction(page, "policy", "settings");
   await page.locator("#assessment-policy > details > summary").click();
   await page.getByLabel("합격 기준").fill("77");
   await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
@@ -956,7 +996,7 @@ test("미저장 시험 설정은 탭 이동 전에 확인하고 동시 수정은
   await openExam(page, state);
   await page.getByLabel("합격 기준").fill("79");
 
-  await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+  await page.getByTestId("assessment-step-results").click();
   const discardDialog = page.getByRole("alertdialog", { name: "저장하지 않은 설정이 있습니다" });
   await expect(discardDialog).toBeVisible();
   await discardDialog.getByRole("button", { name: "계속 편집", exact: true }).click();
@@ -969,11 +1009,12 @@ test("미저장 시험 설정은 탭 이동 전에 확인하고 동시 수정은
   ).toBeVisible();
   expect(state.examPatchPayloads).toHaveLength(0);
 
-  await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+  await page.getByTestId("assessment-step-results").click();
   await page.getByRole("alertdialog", { name: "저장하지 않은 설정이 있습니다" })
     .getByRole("button", { name: "저장하지 않고 이동", exact: true })
     .click();
-  await expect(page.getByRole("tab", { name: "채점·결과", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("assessment-step-results")).toHaveAttribute("aria-expanded", "true");
+  await openAssessmentWorkAction(page, "results", "results");
   await expect(page.getByRole("region", { name: "주관식·서술형 채점 안내" })).toContainText("서술형 1문항");
 });
 
@@ -1020,6 +1061,7 @@ test("브라우저가 종료되어도 같은 계정·같은 서버 버전의 시
   })).toBe("79");
 
   await page.reload({ waitUntil: "domcontentloaded" });
+  await openAssessmentWorkAction(page, "policy", "settings");
   await page.locator("#assessment-policy > details > summary").click();
   const recovery = page.getByTestId("assessment-draft-recovery");
   await expect(recovery).toContainText("저장되지 않은 시험 설정이 있습니다");
@@ -1029,6 +1071,7 @@ test("브라우저가 종료되어도 같은 계정·같은 서버 버전의 시
   });
   await page.setViewportSize({ width: 390, height: 844 });
   if (await page.locator("#assessment-policy > details").getAttribute("open") === null) {
+    await openAssessmentWorkAction(page, "policy", "settings");
     await page.locator("#assessment-policy > details > summary").click();
   }
   await expect(page.getByTestId("assessment-draft-recovery")).toBeVisible();
@@ -1054,6 +1097,7 @@ test("브라우저가 종료되어도 같은 계정·같은 서버 버전의 시
   )).toBe(true);
   state.exam = { ...state.exam, pass_score: 77, updated_at: "2026-08-03T02:00:00Z" };
   await page.reload({ waitUntil: "domcontentloaded" });
+  await openAssessmentWorkAction(page, "policy", "settings");
   await page.locator("#assessment-policy > details > summary").click();
   await expect(page.getByTestId("assessment-draft-recovery")).toHaveCount(0);
   await expect(page.getByLabel("합격 기준")).toHaveValue("77");
@@ -1069,6 +1113,7 @@ test("브라우저가 종료되어도 같은 계정·같은 서버 버전의 시
       candidate.startsWith("assessment-policy-draft:v1:exam:9972:")),
   )).toBe(false);
   await page.reload({ waitUntil: "domcontentloaded" });
+  await openAssessmentWorkAction(page, "policy", "settings");
   await page.locator("#assessment-policy > details > summary").click();
   await expect(page.getByTestId("assessment-draft-recovery")).toHaveCount(0);
 });
@@ -1109,6 +1154,7 @@ test("@policy-recovery 390px 열린 원본 업로드는 재조회 실패 동안 
   state.exam.segmentation_status = "none";
   await page.setViewportSize({ width: 390, height: 844 });
   await openExam(page, state);
+  await openAssessmentWorkAction(page, "materials", "source");
   await page.getByRole("button", { name: "시험 자료 업로드", exact: true }).click();
   const modal = page.getByRole("dialog").filter({ has: page.getByRole("button", { name: "닫기", exact: true }) });
   await modal.locator('input[type="file"]').first().setInputFiles({ name: "보존할-원본.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n%%EOF") });
@@ -1138,7 +1184,9 @@ test("@policy-recovery 캐시된 A→B→A 전환 후 옛 A 최신조회는 새 
   await expect(page.getByRole("heading", { name: "비교 시험", exact: true })).toBeVisible();
   await select(String(state.exam.title)).click();
   await expect(page.getByRole("heading", { name: String(state.exam.title), exact: true })).toBeVisible();
+  await openAssessmentWorkAction(page, "policy", "settings");
   const details = page.locator("#assessment-policy > details");
+  await openAssessmentWorkAction(page, "policy", "settings");
   if (await details.getAttribute("open") === null) await details.locator(":scope > summary").click();
   const input = page.getByLabel("합격 기준");
   await expect(input).toHaveValue("80");
@@ -1160,6 +1208,7 @@ test("@policy-recovery 캐시된 A→B→A 전환 후 옛 A 최신조회는 새 
   await expect(page.getByRole("heading", { name: "비교 시험", exact: true })).toBeVisible();
   await select(String(state.exam.title)).click();
   await expect(page.getByRole("heading", { name: String(state.exam.title), exact: true })).toBeVisible();
+  await openAssessmentWorkAction(page, "policy", "settings");
   if (await details.getAttribute("open") === null) await details.locator(":scope > summary").click();
   await expect(input).toBeEnabled();
   await input.fill("78");
@@ -1173,7 +1222,9 @@ test("@policy-recovery 캐시된 A→B→A 전환 후 옛 A 최신조회는 새 
   await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
   await expect.poll(() => state.exam.pass_score).toBe(78);
   await page.reload();
+  await openAssessmentWorkAction(page, "policy", "settings");
   await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible();
+  await openAssessmentWorkAction(page, "policy", "settings");
   await page.locator("#assessment-policy > details > summary").click();
   await expect(page.getByLabel("합격 기준")).toHaveValue("78");
 });
@@ -1184,6 +1235,7 @@ for (const width of [1366, 390]) {
     const state = recoveryExamState();
     await page.setViewportSize({ width, height: 844 });
     await openExam(page, state);
+    await openAssessmentWorkAction(page, "policy", "answers");
     await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
     const modal = page.getByRole("dialog").filter({ has: page.getByRole("button", { name: "저장 (총 100점)", exact: true }) });
     const bubble = modal.getByRole("checkbox", { name: "1번 2번 선택지", exact: true });
@@ -1210,7 +1262,9 @@ for (const width of [1366, 390]) {
     expect(state.savedAnswers?.["1"]).toContain("2");
     await expect(save).toBeEnabled();
     await page.reload();
+    await openAssessmentWorkAction(page, "policy", "settings");
     await expect(page.locator('[aria-label="시험 운영 준비"]')).toBeVisible();
+    await openAssessmentWorkAction(page, "policy", "answers");
     await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
     await expect(bubble).toBeChecked();
   });

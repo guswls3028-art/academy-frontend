@@ -13,7 +13,7 @@ export default function SubjectiveGradingEntry({ exam, onEnter, onStatistics, on
   exam: Exam;
   onEnter: () => void;
   onStatistics: () => void;
-  onOpenSetup?: () => void;
+  onOpenSetup?: (action: "settings" | "answers") => void;
 }) {
   const queryClient = useQueryClient();
   const mountedRef = useRef(false);
@@ -85,7 +85,7 @@ export default function SubjectiveGradingEntry({ exam, onEnter, onStatistics, on
         ) : !sheet.isPending && essays > 0 ? (
           <Button type="button" intent="primary" loading={enableGrading.isPending} disabled={enableGrading.isPending || sheet.isFetching} onClick={() => enableGrading.mutate()}>서술형 채점 켜고 입력하기</Button>
         ) : !sheet.isPending && onOpenSetup ? (
-          <Button type="button" intent="primary" onClick={onOpenSetup}>문항·답안 설정하기</Button>
+          <Button type="button" intent="primary" onClick={() => onOpenSetup("answers")}>문항·답안 설정하기</Button>
         ) : null}
         <Button type="button" intent="secondary" onClick={onStatistics}>문항별 정답률 보기</Button>
       </div>
@@ -100,7 +100,7 @@ export default function SubjectiveGradingEntry({ exam, onEnter, onStatistics, on
             <p>문항별 점수를 입력하고 확인한 뒤 성적을 확정하면 문항별 정답률을 볼 수 있습니다.</p>
           )}
           <p>문항별 점수를 입력하면 정답률을 계산합니다. 부분점수는 평균 득점에 반영됩니다.</p>
-          {usesCorrectness && onOpenSetup && <Button type="button" intent="secondary" size="sm" onClick={onOpenSetup}>부분점수 입력 설정</Button>}
+          {usesCorrectness && onOpenSetup && <Button type="button" intent="secondary" size="sm" onClick={() => onOpenSetup("settings")}>부분점수 입력 설정</Button>}
         </details>
       )}
     </section>

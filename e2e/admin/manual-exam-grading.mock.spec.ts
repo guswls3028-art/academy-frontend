@@ -1,3 +1,4 @@
+import { openAssessmentWorkAction } from "../helpers/openAssessmentWorkAction";
 import { revealScoreManagement } from "../helpers/revealScoreManagement";
 import { expect, test, type Page } from "../fixtures/strictTest";
 import { guideRecording } from "../helpers/guideRecording";
@@ -154,7 +155,7 @@ for (const width of [390, 1366]) {
     const options: InstallApiOptions = { manualGradingMethod: "score", studentName: "김학생" };
     const apiState = await installApi(page, options);
     await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     const grid = page.locator("[data-manual-grading-workspace]");
     const score = grid.getByRole("spinbutton", { name: /60점 만점 점수/ });
     await score.fill("17");
@@ -189,7 +190,7 @@ for (const width of [390, 1366]) {
     await expect(score).toHaveValue("17");
     await expect(grid).toContainText("김학생(정보 수정)");
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     await expect(score).toHaveValue("17");
   });
 
@@ -247,7 +248,7 @@ for (const width of [390, 1366]) {
       }] });
     });
     await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     const results = page.getByRole("region", { name: "시험 학생별 결과", exact: true });
     const priority = page.getByRole("region", { name: "문항별 정답률", exact: true });
     try {
@@ -328,7 +329,7 @@ for (const width of [390, 1366]) {
       await route.fulfill({ json: { score } });
     });
     await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
     const statistics = page.locator("details").filter({ has: page.locator("summary", { hasText: "전체 문항 통계 보기" }) });
     await expect(statistics).toContainText("0.0점");
@@ -354,14 +355,14 @@ for (const width of [390, 1366]) {
     await answerDialog.getByRole("button", { name: "닫기", exact: true }).click();
     await studentDrawer.getByRole("button", { name: "학생 성적 상세 닫기 (Esc)", exact: true }).click();
     await page.getByRole("tab", { name: "시험", exact: true }).click();
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
     await expect(statistics).toContainText("60.0점");
     await expect(page.getByRole("region", { name: "시험 학생별 결과", exact: true })).toContainText("100");
     const grid = page.getByRole("region", { name: "혼합 채점 워크스페이스", exact: true });
     await expect(grid.getByRole("spinbutton", { name: /60점 만점 점수/ })).toHaveValue("60");
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
     await expect(statistics).toContainText("60.0점");
     await expect(grid.getByRole("spinbutton", { name: /60점 만점 점수/ })).toHaveValue("60");
@@ -425,7 +426,7 @@ for (const width of [390, 1366]) {
       });
       const openResults = async () => {
         await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
-        await page.getByRole("tab", { name: "채점·결과", exact: true }).click({ timeout: 45_000 });
+        await openAssessmentWorkAction(page, "results", "results");
       };
       await openResults();
       const scope = page.getByRole("group", { name: "성적 조회 강의 필터" });
@@ -512,7 +513,7 @@ for (const width of [390, 1366]) {
     }] }));
     const openResults = async () => {
       await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
-      await page.getByRole("tab", { name: "채점·결과", exact: true }).click({ timeout: 45_000 });
+      await openAssessmentWorkAction(page, "results", "results");
     };
     await openResults();
     const entry = page.getByRole("region", { name: "주관식·서술형 채점 안내" });
@@ -592,8 +593,8 @@ test("서술형 채점 활성화 응답이 늦어도 이동한 시험의 포커�
   await page.getByRole("button", { name: /다음 서술형 시험 만점/ }).click();
   await expect(page).toHaveURL(new RegExp(`examId=${nextExamId}`));
   await expect(page.getByRole("heading", { name: "다음 서술형 시험", exact: true })).toBeVisible();
-  await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
-  await expect(page.getByRole("tab", { name: "채점·결과", exact: true })).toHaveAttribute("aria-selected", "true");
+  await openAssessmentWorkAction(page, "results", "results");
+  await expect(page.getByTestId("assessment-action-results")).toHaveAttribute("aria-pressed", "true");
   const currentAction = page.getByRole("button", { name: "문항별 정답률 보기", exact: true });
   await currentAction.focus();
   const response = page.waitForResponse((res) => res.url().endsWith(`/exams/${EXAM_ID}/`) && res.request().method() === "PATCH");
@@ -609,11 +610,11 @@ test("서술형 문항이 없으면 채점 화면에서 실제 문항 설정으�
   test.skip(!isLocalBase(BASE), "Local route-mock spec.");
   await installApi(page, { gradingMode: "choice", hasQuestions: false });
   await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
-  await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+  await openAssessmentWorkAction(page, "results", "results");
   const entry = page.getByRole("region", { name: "주관식·서술형 채점 안내" });
   await expect(entry).toContainText("등록된 주관식·서술형 문항이 없습니다.");
   await entry.getByRole("button", { name: "문항·답안 설정하기" }).click();
-  await expect(page.getByRole("tab", { name: "운영", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("assessment-action-answers")).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("heading", { name: "문항·답안 준비", exact: true })).toBeVisible();
 });
 
@@ -722,9 +723,9 @@ for (const width of [390, 1366]) {
     const releaseExcel = apiState.holdNextExcelApply();
     await apply.click();
     await expect.poll(() => apiState.excelApplyStates.length).toBe(1);
-    await page.getByRole("tab", { name: "운영", exact: true }).click();
+    await openAssessmentWorkAction(page, "policy", "settings");
     await expect(grid).toHaveCount(0);
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     await expect.poll(() => grid.evaluate((element) => Boolean(element.closest("[inert]")))).toBe(true);
     await expect(page.getByRole("status").filter({ hasText: "수동 채점 저장과 엑셀 반영" })).toBeVisible();
     const firstInput = row.locator('input[type="number"]').first();
@@ -756,7 +757,7 @@ test("온라인 서술형 답안을 모바일과 데스크톱에서 열고 점�
   for (const width of [390, 1100, 1366]) {
     await page.setViewportSize({ width, height: 900 });
     await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     const results = page.getByRole("region", { name: "시험 학생별 결과", exact: true });
     await expect(results.getByRole(width === 390 ? "button" : "row").filter({ hasText: studentName })).toHaveCount(1);
     await expect(page.getByRole("row").filter({ hasText: studentName })).toHaveCount(width === 390 ? 1 : 2);
@@ -785,9 +786,9 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
     const recording = await guideRecording(page, info, { id: "manual-grading", title: "시험 문항별 직접 채점", topics: ["admin/grade-exam"] });
     const state = await installApi(page);
     await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
-    const tab = page.getByRole("tab", { name: "채점·결과", exact: true });
+    const tab = page.getByTestId("assessment-step-results");
     await recording.screen("대상 시험 확인", "해당 차시에서 채점할 시험을 확인하고 채점·결과를 엽니다.", tab);
-    await tab.click();
+    await openAssessmentWorkAction(page, "results", "results");
     const row = page.getByRole("row").filter({ hasText: "김학생" });
     const cells = row.locator("[data-manual-grade-cell]");
     await expect(cells).toHaveCount(2);
@@ -800,7 +801,7 @@ if (process.env.GUIDE_MEDIA_CAPTURE === "1") {
     await recording.screen("저장됨 확인", "입력 뒤 저장됨 표시를 확인합니다. 저장 중에는 화면을 닫지 않습니다.", saved);
     await expect.poll(() => state.postedRows.length).toBe(1);
     await page.reload();
-    await tab.click();
+    await openAssessmentWorkAction(page, "results", "results");
     await expect(row.getByRole("button", { name: "O" })).toHaveCount(1);
     await expect(row.getByRole("button", { name: "X" })).toHaveCount(1);
     await recording.screen("다시 열어 결과 확인", "시험을 다시 열어 학생의 문항별 결과가 유지되는지 확인합니다.", row);
@@ -1975,6 +1976,7 @@ test.describe("답안 초기 로드와 입력 보존", () => {
       await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`, { waitUntil: "domcontentloaded" });
       const openAnswers = async () => {
         await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({ timeout: 30_000 });
+        await openAssessmentWorkAction(page, "policy", "answers");
         await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
         return page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
       };
@@ -2060,6 +2062,7 @@ test.describe("답안 초기 로드와 입력 보존", () => {
       await installApi(page, { gradingMode: "choice", answerKeyScenario: state });
       const openAnswers = async () => {
         await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({ timeout: 30_000 });
+        await openAssessmentWorkAction(page, "policy", "answers");
         await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
         return page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
       };
@@ -2123,17 +2126,18 @@ test.describe("답안 초기 로드와 입력 보존", () => {
       // Keep the primed cache fresh regardless of browser execution speed.
       await page.clock.setFixedTime(new Date());
       await gotoAndSettle(page, `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`);
-      const resultsTab = page.getByRole("tab", { name: "채점·결과", exact: true });
+      const openResults = () => openAssessmentWorkAction(page, "results", "results");
       const selectLecture = () => page.getByRole("group", { name: "성적 조회 강의 필터" })
         .getByRole("button", { name: /공통수학2 정규반/ }).click();
       const statistics = page.locator("details").filter({ has: page.locator("summary", { hasText: "전체 문항 통계 보기" }) });
-      await resultsTab.click();
+      await openResults();
       await selectLecture();
       await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
       await expect(statistics).toContainText("0.0점");
       expect(lectureReads).toEqual([false]);
 
-      await page.getByRole("tab", { name: "운영", exact: true }).click();
+      await openAssessmentWorkAction(page, "policy", "settings");
+      await openAssessmentWorkAction(page, "policy", "answers");
       await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
       const dialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
       const row = dialog.locator(".answer-key-row--choice").first();
@@ -2144,7 +2148,7 @@ test.describe("답안 초기 로드와 입력 보존", () => {
       expect(answerKey.writes).toEqual([{ "1001": "4", "1002": "2" }]);
       await dialog.getByRole("button", { name: "취소", exact: true }).click();
 
-      await resultsTab.click();
+      await openResults();
       await selectLecture();
       await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
       await expect(statistics).toContainText("1.0점");
@@ -2163,6 +2167,7 @@ test.describe("답안 초기 로드와 입력 보존", () => {
     await installApi(page, { gradingMode: "choice", answerKeyScenario: state });
     await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({ timeout: 30_000 });
+    await openAssessmentWorkAction(page, "policy", "answers");
     await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
     const dialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
     const row = dialog.locator(".answer-key-row--choice").first();
@@ -2184,6 +2189,7 @@ test.describe("답안 초기 로드와 입력 보존", () => {
     await installApi(page, { gradingMode: "choice", answerKeyScenario: state });
     await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({ timeout: 30_000 });
+    await openAssessmentWorkAction(page, "policy", "answers");
     await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
     const dialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
     const row = dialog.locator(".answer-key-row--choice").first();
@@ -2213,6 +2219,7 @@ test.describe("답안 초기 로드와 입력 보존", () => {
         await installApi(page, { gradingMode: "choice", answerKeyScenario: state });
         const openAnswers = async () => {
           await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({ timeout: 30_000 });
+          await openAssessmentWorkAction(page, "policy", "answers");
           await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
           return page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
         };
@@ -2344,7 +2351,7 @@ test.describe("문항별 직접 채점", () => {
       { waitUntil: "domcontentloaded" },
     );
     await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
 
     const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
     const cells = studentRow.locator("[data-manual-grade-cell]");
@@ -2373,7 +2380,7 @@ test.describe("문항별 직접 채점", () => {
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible();
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     const reloadedRow = page.getByRole("row").filter({ hasText: "김학생" });
     await expect(reloadedRow.getByRole("button", { name: "O" })).toHaveCount(1);
     await expect(reloadedRow.getByRole("button", { name: "X" })).toHaveCount(1);
@@ -2388,7 +2395,7 @@ test.describe("문항별 직접 채점", () => {
         `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
         { waitUntil: "domcontentloaded" },
       );
-      await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+      await openAssessmentWorkAction(page, "results", "results");
       const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
       const cells = studentRow.locator("[data-manual-grade-cell]");
       const status = page.getByRole("status", { name: "정오 자동 저장 상태" });
@@ -2412,7 +2419,7 @@ test.describe("문항별 직접 채점", () => {
       })).toBe(true);
       await page.screenshot({ path: testInfo.outputPath("incomplete-draft.png"), fullPage: true });
 
-      await page.getByRole("tab", { name: "운영", exact: true }).click();
+      await page.getByTestId("assessment-step-policy").click();
       await expect(page.getByText("저장하지 않은 설정이 있습니다", { exact: true })).toBeVisible();
       await page.getByRole("button", { name: "계속 편집", exact: true }).click();
       await cells.nth(0).press("o");
@@ -2432,7 +2439,7 @@ test.describe("문항별 직접 채점", () => {
         })],
       }));
       await page.reload({ waitUntil: "domcontentloaded" });
-      await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+      await openAssessmentWorkAction(page, "results", "results");
       await expect(studentRow.getByRole("button", { name: "O" })).toHaveCount(1);
       await expect(studentRow.getByRole("button", { name: "오답노트" })).toHaveCount(1);
       await page.screenshot({ path: testInfo.outputPath("completed-reloaded.png"), fullPage: true });
@@ -2447,7 +2454,7 @@ test.describe("문항별 직접 채점", () => {
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
       { waitUntil: "domcontentloaded" },
     );
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
     const cells = studentRow.locator("[data-manual-grade-cell]");
 
@@ -2485,7 +2492,7 @@ test.describe("문항별 직접 채점", () => {
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
       { waitUntil: "domcontentloaded" },
     );
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     apiState.failNextManualSheetGet();
     const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
     await studentRow.locator("[data-manual-grade-cell]").first().press("o");
@@ -2493,7 +2500,7 @@ test.describe("문항별 직접 채점", () => {
     await expect.poll(() => apiState.manualSheetGetEvents.length).toBeGreaterThan(1);
     expect(apiState.manualSheetGetEvents).toContainEqual({ applied: true, failureArmed: true });
     await expect(page.getByRole("status", { name: "정오 자동 저장 상태" })).toContainText("저장 실패");
-    await page.getByRole("tab", { name: "운영", exact: true }).click();
+    await page.getByTestId("assessment-step-policy").click();
     await expect(page.getByText("저장하지 않은 설정이 있습니다", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "계속 편집", exact: true }).click();
     apiState.resumeManualSheetGet();
@@ -2511,7 +2518,7 @@ test.describe("문항별 직접 채점", () => {
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
       { waitUntil: "domcontentloaded" },
     );
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     apiState.failNextManualApply();
     const studentRow = page.getByRole("row").filter({ hasText: "김학생" });
     await studentRow.locator("[data-manual-grade-cell]").first().press("o");
@@ -2540,7 +2547,7 @@ test.describe("문항별 직접 채점", () => {
     }));
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     const reloadedRow = page.getByRole("row").filter({ hasText: "김학생" });
     await expect(reloadedRow.getByRole("button", { name: "O" })).toHaveCount(1);
   });
@@ -2740,7 +2747,7 @@ test.describe("문항별 직접 채점", () => {
     );
 
     await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({ timeout: 45_000 });
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     await expect(page.getByRole("heading", { name: "정오 직접입력", exact: true })).toBeVisible();
 
     const excelToggle = page.locator("summary").filter({ hasText: "엑셀로 채점 결과 넣기" });
@@ -2875,7 +2882,7 @@ test.describe("문항별 직접 채점", () => {
     await gotoAndSettle(page,
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
       { timeout: 60_000 });
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
 
     const missing = page.getByRole("region", { name: "답안 없는 시험 대상자" });
     const missingToggle = page.locator("summary").filter({ hasText: "답안 없는 시험 대상자" });
@@ -2902,7 +2909,7 @@ test.describe("문항별 직접 채점", () => {
     await gotoAndSettle(page,
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
       { timeout: 60_000 });
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     await missingToggle.click();
     await expect(missing).toContainText("출결 부재");
     await missing.getByRole("button", { name: "김학생 · 답안 입력" }).click();
@@ -2934,7 +2941,7 @@ test.describe("문항별 직접 채점", () => {
     await gotoAndSettle(page,
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
       { timeout: 60_000 });
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     const missing = page.getByRole("region", { name: "답안 없는 시험 대상자" });
     const missingToggle = page.locator("summary").filter({ hasText: "답안 없는 시험 대상자" });
     await expect(missingToggle).toContainText("1명");
@@ -3014,7 +3021,7 @@ test.describe("문항별 직접 채점", () => {
       { timeout: 60_000 },
     );
     await page.setViewportSize({ width: 1600, height: 900 });
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
 
     const resultRegion = page.getByRole("region", { name: "시험 학생별 결과" });
     const resultRows = resultRegion.locator("tbody tr");
@@ -3052,7 +3059,7 @@ test.describe("문항별 직접 채점", () => {
     await resultRegion.getByRole("searchbox", { name: "시험 결과 학생 검색" }).fill("");
     await resultRegion.getByRole("combobox", { name: "시험 결과 정렬" }).selectOption("rank");
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     await expect(resultRegion).toBeVisible();
     await resultRegion.scrollIntoViewIfNeeded();
     const mobileResultRows = resultRegion.locator("button:visible");
@@ -3107,7 +3114,7 @@ test.describe("문항별 직접 채점", () => {
         await expect(page.getByRole("heading", { name: "7월 진단평가", exact: true })).toBeVisible({
           timeout: 60_000,
         });
-        await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+        await openAssessmentWorkAction(page, "results", "results");
         await expect(page.getByRole("heading", { name: "정오 직접입력", exact: true })).toBeVisible();
 
         const hints = page.getByLabel("정오표 입력 도움말");
@@ -3146,7 +3153,7 @@ test.describe("문항별 직접 채점", () => {
         expect(apiState.postedRows).toHaveLength(1);
         await page.clock.resume();
         await page.reload();
-        await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+        await openAssessmentWorkAction(page, "results", "results");
         await expect(page.getByRole("row").filter({ hasText: "김학생" }).locator('[data-row-index="0"][data-column-index="0"]'))
           .toHaveAccessibleName("김학생 1번 O");
         expect(apiState.postedRows).toHaveLength(1);
@@ -3393,7 +3400,7 @@ test.describe("문항별 직접 채점", () => {
       page,
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
     );
-    await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+    await openAssessmentWorkAction(page, "submissions", "submissions");
 
     const viewButton = page.getByRole("button", { name: "보기", exact: true });
     await expect(viewButton).toBeVisible();
@@ -3607,7 +3614,7 @@ test.describe("문항별 직접 채점", () => {
       page,
       `${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/exams?examId=${EXAM_ID}`,
     );
-    await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+    await openAssessmentWorkAction(page, "submissions", "submissions");
 
     const ledger = page.getByRole("region", { name: "OMR 업로드 원장" });
     await expect(ledger.getByText("OMR 10장", { exact: true })).toBeVisible();
@@ -3617,7 +3624,7 @@ test.describe("문항별 직접 채점", () => {
     expect(await ledger.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.getByRole("tab", { name: "제출관리", exact: true }).click();
+    await openAssessmentWorkAction(page, "submissions", "submissions");
     const reloadedLedger = page.getByRole("region", { name: "OMR 업로드 원장" });
     await expect(reloadedLedger.getByTestId("omr-ledger-item")).toHaveCount(10);
     await reloadedLedger.getByRole("button", { name: "미접수 파일 다시 선택" }).click();

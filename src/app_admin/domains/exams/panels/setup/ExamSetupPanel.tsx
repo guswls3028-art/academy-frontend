@@ -14,7 +14,11 @@ import { fetchQuestionsByExam } from "../../api/question.api";
 import { answerKeyRows, fetchAnswerKeyByExam } from "../../api/answerKey.api";
 import { adminExamsQueryKeys } from "../../queryKeys";
 
-export default function ExamSetupPanel({ examId }: { examId: number }) {
+export default function ExamSetupPanel({ examId, section, onNavigate }: {
+  examId: number;
+  section?: "policy" | "answers";
+  onNavigate?: (target: string) => void;
+}) {
   const { sessionId: sessionIdFromPath, lectureId: lectureIdFromPath } = useLectureSessionParams();
   const [sp] = useSearchParams();
   const sessionIdFromQuery = Number(sp.get("session_id"));
@@ -115,18 +119,21 @@ export default function ExamSetupPanel({ examId }: { examId: number }) {
 
   return (
     <div className="space-y-6">
-      {hasSession && (
+      {hasSession && section !== "answers" && (
         <AssessmentReadinessStrip
           title="시험 운영 준비"
           description="확인이 필요한 항목을 선택하면 해당 설정으로 바로 이동합니다."
           items={readinessItems}
+          onNavigate={onNavigate}
           compactWhenReady
         />
       )}
       <ExamPolicyPanel
         examId={examId} lectureId={lectureId} sessionId={sessionId}
+        section={section}
         answerKeyMissing={Boolean(objectiveNeedsKey && answerKeyQuery.isSuccess && !answerKeyPresent)}
       />
+      {!section && <>
       <ExamLectureAssignmentsPanel
         examId={examId}
         maxScore={exam?.max_score ?? 100}
@@ -134,6 +141,7 @@ export default function ExamSetupPanel({ examId }: { examId: number }) {
       {hasSession && <ExamEnrollmentPanel examId={examId} />}
 
       <ExamBulkActionsPanel examId={examId} lectureId={lectureId} sessionId={sessionId} />
+      </>}
     </div>
   );
 }

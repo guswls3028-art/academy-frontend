@@ -13,9 +13,11 @@ import { useAdminHomework } from "../hooks/useAdminHomework";
 import { useHomeworkAssignments } from "../hooks/useHomeworkAssignments";
 
 export default function HomeworkSetupPanel({
-  homeworkId,
+  homeworkId, policyOnly, onNavigate,
 }: {
   homeworkId: number;
+  policyOnly?: boolean;
+  onNavigate?: (target: string) => void;
 }) {
   const { data: homework } = useAdminHomework(homeworkId);
   const assignmentsQuery = useHomeworkAssignments(homeworkId);
@@ -73,10 +75,11 @@ export default function HomeworkSetupPanel({
         title="과제 운영 준비"
         description="제출 전 확인이 필요한 항목을 한 번에 점검합니다."
         items={readinessItems}
+        onNavigate={onNavigate}
         compactWhenReady
       />
       <HomeworkPolicyPanel homeworkId={homeworkId} />
-      <HomeworkEnrollmentPanel homeworkId={homeworkId} />
+      {!policyOnly && <HomeworkEnrollmentPanel homeworkId={homeworkId} />}
     </div>
   );
 }

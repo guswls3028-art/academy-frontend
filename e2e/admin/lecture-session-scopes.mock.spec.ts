@@ -1,3 +1,4 @@
+import { openAssessmentWorkAction } from "../helpers/openAssessmentWorkAction";
 import type { Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
@@ -1342,6 +1343,7 @@ test("성적 탭에서 시험 생성 후 답안 저장과 OMR 답안지 다운�
   await printDialog.getByRole("button", { name: "설정 화면으로" }).click();
   await expect(page).toHaveURL(/\/exams\?examId=9971/);
   await page.reload({ waitUntil: "domcontentloaded" });
+  await openAssessmentWorkAction(page, "policy", "answers");
   const reopenAnswers = page.getByRole("button", { name: "문항·답안 확인", exact: true });
   await expect(reopenAnswers).toBeVisible({ timeout: 30_000 });
   await reopenAnswers.click();
@@ -1378,6 +1380,7 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
     await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/exams?examId=9971`, {
       waitUntil: "domcontentloaded",
     });
+    await openAssessmentWorkAction(page, "policy", "answers");
     await page.getByRole("button", { name: "문항·답안 확인" }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("tab", { name: "OMR 답안지" }).click();
@@ -1405,6 +1408,7 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
     await expect.poll(() => state.essayScoreMarks?.patches).toEqual([true, false]);
     await expect(option.getByRole("radio", { name: "사용 안 함", exact: true })).toHaveAttribute("aria-checked", "true");
     await page.reload({ waitUntil: "domcontentloaded" });
+    await openAssessmentWorkAction(page, "policy", "answers");
     await page.getByRole("button", { name: "문항·답안 확인" }).click();
     await dialog.getByRole("tab", { name: "OMR 답안지" }).click();
     await expect(option.getByRole("radio", { name: "사용", exact: true })).toBeEnabled();
@@ -1437,6 +1441,7 @@ test("서술형 배점이 없는 시험도 스캔 설정을 바꾸지 않고 수
   await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/exams?examId=9971`, {
     waitUntil: "domcontentloaded",
   });
+  await openAssessmentWorkAction(page, "policy", "answers");
   await page.getByRole("button", { name: "문항·답안 확인" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("tab", { name: "OMR 답안지" }).click();
@@ -1493,11 +1498,14 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1100, height: 720
     await expect(page.getByRole("dialog").filter({ hasText: "3. OMR 답안지 다운로드" })).toBeVisible();
     expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99730": "1,2" } });
     await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/exams?examId=9971`);
+    await openAssessmentWorkAction(page, "policy", "settings");
     await expect(page.locator("#assessment-policy")).toBeVisible();
     await waitForRenderSettled(page);
     await page.reload();
+    await openAssessmentWorkAction(page, "policy", "settings");
     const settings = page.locator("#assessment-policy > details");
     if ((await settings.getAttribute("open")) === null) await settings.locator(":scope > summary").click();
+    await openAssessmentWorkAction(page, "policy", "answers");
     await page.getByRole("button", { name: "문항·답안 확인" }).click();
     const reopened = page.getByRole("dialog").filter({ hasText: "답안 등록" });
     await reopened.getByRole("checkbox", { name: "1번 1번 선택지", exact: true }).hover();
@@ -1545,9 +1553,11 @@ test("정답 저장 응답 뒤 빈 재조회는 성공 처리하지 않고 입�
   expect(state.answerKeySaves?.[0]).toMatchObject({ exam: 9971, answers: { "99711": "1,4" } });
   await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${REGULAR_SESSION_ID}/exams?examId=9971`, { waitUntil: "domcontentloaded" });
   for (let attempt = 0; attempt < 2; attempt += 1) {
+    await openAssessmentWorkAction(page, "policy", "settings");
     const settings = page.locator("#assessment-policy > details");
     await expect(settings).toBeVisible();
     if ((await settings.getAttribute("open")) === null) await settings.locator(":scope > summary").click();
+    await openAssessmentWorkAction(page, "policy", "answers");
     await page.getByRole("button", { name: "문항·답안 확인" }).click();
     const reopened = page.getByRole("dialog").filter({ hasText: "답안 등록" });
     await expect(reopened.getByRole("checkbox", { name: "1번 1번 선택지" })).toBeChecked();
@@ -1780,6 +1790,7 @@ test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에�
     { waitUntil: "domcontentloaded" },
   );
 
+  await openAssessmentWorkAction(page, "policy", "settings");
   await expect(page.locator('[aria-label="과제 운영 준비"]')).toBeVisible();
   await page.setViewportSize({ width: 1366, height: 900 });
   const assessmentNavigation = page.getByTestId("session-assessment-remote");
@@ -1829,7 +1840,7 @@ test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에�
     fullPage: true,
   });
   await primaryAction.click();
-  await expect(page.getByRole("tab", { name: "제출관리", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByTestId("assessment-action-submissions")).toHaveAttribute("aria-pressed", "true");
   await expect(primaryAction).toHaveText("결과 보기");
 });
 
@@ -1886,6 +1897,7 @@ test("차시 기본 기준 과제는 제목만 저장해도 상속을 유지하�
     { waitUntil: "domcontentloaded" },
   );
 
+  await openAssessmentWorkAction(page, "policy", "settings");
   await expect(page.getByText("현재 차시 기본 기준을 사용 중입니다", { exact: true })).toBeVisible();
   const noDeadlineItem = page.getByRole("button", { name: /제출기한: 기한 없이 운영/ });
   await expect(noDeadlineItem).toBeVisible();
@@ -1927,6 +1939,7 @@ test("과제 대상자 편집은 기존·추가·제외·최종 인원을 보여
     { waitUntil: "domcontentloaded" },
   );
 
+  await openAssessmentWorkAction(page, "policy", "settings");
   const readinessSummary = page.locator('details[aria-label="과제 운영 준비"] > summary');
   await expect(readinessSummary).toBeVisible({ timeout: 30_000 });
   await readinessSummary.click();
@@ -1934,6 +1947,7 @@ test("과제 대상자 편집은 기존·추가·제외·최종 인원을 보여
     page.getByRole("button", { name: /대상 학생: 2명 등록/ }),
   ).toBeVisible({ timeout: 30_000 });
   await page.setViewportSize({ width: 390, height: 844 });
+  await openAssessmentWorkAction(page, "audience", "students");
   await page.getByRole("button", { name: "대상자 관리", exact: true }).click();
 
   const dialog = page.getByRole("dialog").filter({ hasText: "과제 대상 학생 관리" });
