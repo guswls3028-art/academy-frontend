@@ -1,5 +1,6 @@
 import DawonDayDesk from "./DawonDayDesk";
-import { DawonClassBadge, DawonClassSelect, DawonClassTypeSelect, matchesDawonClassType, readDawonClassType, type DawonClassOption } from "./DawonClassFilters";
+import { DawonClassBadge, DawonClassSelect, DawonClassTypeSelect } from "./DawonClassFilters";
+import { matchesDawonClassType, readDawonClassType, type DawonClassOption } from "./classTypes";
 import DawonSearchInput from "./DawonSearchInput";
 import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
 import { resultTabs } from "./staffMenu";

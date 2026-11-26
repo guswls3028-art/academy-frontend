@@ -18,7 +18,8 @@ import { AdminModal, ModalBody, ModalFooter, ModalHeader, MODAL_WIDTH } from "@/
 import ClassRosterModal, { type RosterStudent } from "./ClassRosterModal";
 import styles from "./ClassGroupsPage.module.css";
 import DawonClassRecords from "./DawonClassRecords";
-import { DawonClassLabel, DawonClassBadge, DawonClassTypeSelect, matchesDawonClassType, readDawonClassType } from "./DawonClassFilters";
+import { DawonClassLabel, DawonClassBadge, DawonClassTypeSelect } from "./DawonClassFilters";
+import { matchesDawonClassType, readDawonClassType } from "./classTypes";
 import { dawonUnionTracks, type DawonClassKind } from "./classTypes";
 
 const LectureCreateModal = lazy(() => import("@admin/domains/lectures/components/LectureCreateModal"));

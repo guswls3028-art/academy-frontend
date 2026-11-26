@@ -9,6 +9,7 @@ import { AdminModal, ModalBody, ModalHeader, MODAL_WIDTH } from "@/shared/ui/mod
 
 const endpoint = "/students/demo-roster/";
 const cacheKey = ["dawon", "demo-roster"] as const;
+const rosterKey = (deleted: boolean) => [...cacheKey, deleted] as const;
 const schoolTypes = { ELEMENTARY: "초등학교", MIDDLE: "중학교", HIGH: "고등학교" };
 type SchoolType = keyof typeof schoolTypes;
 type Profile = {
@@ -64,7 +65,7 @@ export default function DawonRosterUtilities({ onChanged }: { onChanged?: () => 
   const fileVersion = useRef(0);
   const batch = useRef<{ key: string; id: string } | null>(null);
   const roster = useQuery({
-    queryKey: [...cacheKey, deleted],
+    queryKey: rosterKey(deleted),
     enabled: open,
     queryFn: async ({ signal }) =>
       (await api.get<{ rows: Student[]; tags: Tag[] }>(endpoint, { params: { deleted }, signal })).data,

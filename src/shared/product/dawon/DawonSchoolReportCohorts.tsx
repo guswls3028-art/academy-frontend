@@ -31,7 +31,7 @@ export function Cohorts({ period, classGroup, classType, ledger=false }: { perio
   const [scope, setScope] = useState<Scope | null>(null);
   const [student, setStudent] = useState<number | null>(null);
   const report = useQuery({
-    queryKey: [...schoolReportKeys.dawonCohorts(period, scope, classGroup),classType],
+    queryKey: schoolReportKeys.dawonCohorts(period, scope, classGroup, classType),
     queryFn: async ({ signal }) => (await api.get<Report>("/results/school-reports/", { signal, params: {
       ...period, class_group: classGroup, class_type:classType || undefined, view: "cohorts", ...(scope ? { cohort_school: scope.school, cohort_grade: scope.grade ?? "" } : {}),
     } })).data,

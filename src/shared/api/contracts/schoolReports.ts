@@ -19,8 +19,8 @@ export const schoolReportKeys = {
   all: ["school-reports"] as const,
   own: (period: SchoolReportPeriod) => ["school-reports", "me", period] as const,
   detail: (studentId: number, period: SchoolReportPeriod) => ["school-reports", studentId, period] as const,
-  dawonCohorts: (period: SchoolReportPeriod, scope: { school: string; grade: number | null } | null, classGroup?: number) =>
-    ["school-reports", "dawon-cohorts", period, scope, classGroup] as const,
+  dawonCohorts: (period: SchoolReportPeriod, scope: { school: string; grade: number | null } | null, classGroup?: number, classType?: string) =>
+    ["school-reports", "dawon-cohorts", period, scope, classGroup, classType] as const,
   roster: (period: SchoolReportPeriod, filters: SchoolReportRosterFilters) =>
     ["school-reports", "roster", period, filters] as const,
 };
