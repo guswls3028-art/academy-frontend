@@ -742,11 +742,10 @@
   cursor: not-allowed;
 }
 
-/* 모달 내 입력창 — 전역 inset 적용, 모달 배경에 맞게 보정만 */
+/* 모달 필드의 표면은 대화상자 배경을 기준으로 한다. */
 .modal-body .ds-input,
 .modal-body .ds-select,
 .modal-body .ds-textarea {
-  /* 전역 input.css inset 유지, 모달 배경 대비만 살짝 */
   background: color-mix(in srgb, var(--color-border-divider) 12%, var(--color-modal-bg));
 }
 

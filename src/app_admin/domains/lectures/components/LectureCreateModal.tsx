@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { Popover } from "antd";
-import { Trash2, FolderOpen, Save } from "lucide-react";
+import { Trash2, FolderOpen, Save, ChevronDown } from "lucide-react";
 
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Badge, Button, EmptyState } from "@/shared/ui/ds";
@@ -99,6 +99,8 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
   const [lectureTime, setLectureTime] = useState("");
   const [color, setColor] = useState(() => getDefaultColorForPicker(usedColors));
   const [chipLabel, setChipLabel] = useState("");
+  const [showAppearance, setShowAppearance] = useState(false);
+  const appearanceId = useId();
   const [scheduleMode, setScheduleMode] = useState<LectureScheduleMode>("SINGLE");
   const [scheduleRows, setScheduleRows] = useState<LectureScheduleDraftRow[]>([]);
   const [scheduleChanged, setScheduleChanged] = useState(false);
@@ -503,37 +505,6 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
           </div>
         ) : (
         <div className="modal-scroll-body modal-scroll-body--compact lecture-create-modal-form">
-          {/* 딱지 영역 */}
-          <div className="lecture-create-chip-layout">
-            <div className="lecture-create-chip-preview">
-              <LectureChip
-                lectureName={title}
-                color={color}
-                chipLabel={previewChipLabel}
-                size={36}
-              />
-            </div>
-            <div className="lecture-create-chip-picker">
-              <ColorPickerField
-                label=""
-                value={color}
-                onChange={setColor}
-                disabled={isPending}
-              />
-            </div>
-            <div className="lecture-create-chip-input-wrap">
-              <input
-                className="ds-input lecture-create-chip-input"
-                placeholder="아이콘"
-                value={chipLabel}
-                onChange={(e) => setChipLabel(normalizeLectureChipText(e.target.value))}
-                maxLength={2}
-                disabled={isPending}
-                aria-label="아이콘(딱지 2글자)"
-              />
-            </div>
-          </div>
-
           <div className="lecture-create-content-grid">
             <div className="lecture-create-details-column">
               {/* 값이 채워져도 필드 이름을 확인할 수 있도록 라벨을 유지한다. */}
@@ -711,6 +682,49 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId }: Props) {
               </div>
               <LectureScheduleFields mode={scheduleMode} rows={scheduleRows} disabled={isPending}
                 onModeChange={changeScheduleMode} onRowsChange={rows => { setScheduleRows(rows); setScheduleChanged(true); }} />
+            </div>
+          </div>
+          <div className="lecture-appearance">
+            <button
+              type="button"
+              className="lecture-appearance-toggle"
+              aria-expanded={showAppearance}
+              aria-controls={appearanceId}
+              onClick={() => setShowAppearance((open) => !open)}
+            >
+              <ChevronDown size={16} aria-hidden="true" />
+              목록 표기 및 색상
+            </button>
+            <div id={appearanceId} hidden={!showAppearance}>
+              <div className="lecture-create-chip-layout">
+                <div className="lecture-create-chip-preview">
+                  <LectureChip
+                    lectureName={title}
+                    color={color}
+                    chipLabel={previewChipLabel}
+                    size={36}
+                  />
+                </div>
+                <div className="lecture-create-chip-picker">
+                  <ColorPickerField
+                    label=""
+                    value={color}
+                    onChange={setColor}
+                    disabled={isPending}
+                  />
+                </div>
+                <div className="lecture-create-chip-input-wrap">
+                  <input
+                    className="ds-input lecture-create-chip-input"
+                    placeholder="아이콘"
+                    value={chipLabel}
+                    onChange={(e) => setChipLabel(normalizeLectureChipText(e.target.value))}
+                    maxLength={2}
+                    disabled={isPending}
+                    aria-label="아이콘(딱지 2글자)"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>

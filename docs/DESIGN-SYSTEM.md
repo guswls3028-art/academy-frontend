@@ -43,8 +43,9 @@
 소비한다. 작은 화면은 가용 폭을 사용하며 영상 전용 상한과 표의 가로 스크롤은 유지한다.
 
 `ActionBar`, `DomainListToolbar`, `ModalFooter`, 교사 `BottomSheet` 하단은
-`ControlSizeContext`로 같은 묶음의 공용 `Button` 크기를 결정한다. 툴바·모달은
-lg이며 래퍼 안에 있는 버튼도 동일 규격을 따른다. 아이콘은 공용 좌우 슬롯을
+`ControlSizeContext`로 같은 묶음의 공용 `Button` 크기를 결정한다. 목록 툴바와
+표준 푸터는 md를 사용한다. 중첩된 `ActionBar`는 명시한 크기가 없으면 상위
+묶음의 규격을 이어받는다. 아이콘은 공용 좌우 슬롯을
 사용하고 실제 그룹 크기에 맞춰 표시한다. 입력·선택창은 `data-control-size`를
 소비한다. 새 폼은 `ds-input`, `ds-select`, `ds-textarea`를 사용하고 테마·상태는
 정본에서 관리한다. 한 줄 라벨이 잘리면 버튼을 축소하지 말고 그룹 줄바꿈이나

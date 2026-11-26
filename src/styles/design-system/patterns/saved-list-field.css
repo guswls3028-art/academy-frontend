@@ -6,8 +6,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  box-sizing: border-box;
+  width: var(--ds-control-md);
+  height: var(--ds-control-md);
   flex-shrink: 0;
   border: 1px solid var(--color-border-divider);
   border-radius: var(--radius-md);
