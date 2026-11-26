@@ -63,7 +63,8 @@ with transaction.atomic():
     tenant = Tenant.objects.get(pk=TENANT_ID,code=TENANT_CODE)
     users = get_user_model()
     admin = users.objects.create_user(tenant=tenant,username=ADMIN_USERNAME,password=password,
-                                      name="체험 관리자",must_change_password=False)
+                                      name="체험 관리자",must_change_password=False,
+                                      first_login_guide_completed_at=timezone.now())
     TenantMembership.ensure_active(tenant=tenant,user=admin,role="admin")
     Staff.objects.create(tenant=tenant,user=admin,name="체험 관리자",phone="",position="INSTRUCTOR")
     start = timezone.localdate() - timedelta(days=1)

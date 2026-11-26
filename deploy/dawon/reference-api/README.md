@@ -20,6 +20,12 @@ reset the sample data. Recreate an API from its exact current package, isolated
 network, existing credential file and same image; do not initialize the DB.
 The memo and normal synthetic work data survive an API restart.
 
+The shared synthetic administrator has already completed the first-login
+account tour. Native credential guidance applies to individually issued
+accounts. For R49 the active API package is recorded at commit `e2ba16cd3`.
+The fresh-install manifest in this directory changes only the seed. The
+existing comparison account received the same onboarding state in place.
+
 The reserved protected route is `/__reference/api/v1/*`. The existing origin
 key authenticates the route. A bodyless `POST /api/v1/reference/session/`
 uses the one independently seeded administrator and the regular Django token
