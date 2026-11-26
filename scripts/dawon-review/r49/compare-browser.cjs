@@ -17,7 +17,6 @@ const overrides = phase === 'stage' ? {
 const check = expect.configure({timeout:35000});
 const rolebar = '#dawon-demo-switcher';
 const compareLabel = '학원플러스 원본';
-const privateSample = '예시 학생 01';
 const expectedRoles = [compareLabel,'관리자','학생','학부모'];
 
 const go = (page,url) => page.goto(url,{waitUntil:'domcontentloaded'});
@@ -74,7 +73,8 @@ async function bar(page, active) {
 async function menu(page, name) {
   const drawer = page.getByRole('button', {name:'메뉴 열기',exact:true});
   if (await drawer.isVisible()) await drawer.click();
-  await page.getByRole('link',{name,exact:true}).filter({visible:true}).first().click();
+  const navigation=page.getByRole('navigation',{name:'주요 메뉴'}).filter({visible:true});
+  await navigation.getByRole('link',{name,exact:true}).first().click();
 }
 
 async function nativeRoster(page) {
@@ -161,6 +161,7 @@ async function nativeLecture(page, width) {
 }
 
 async function widthProof(browser,width) {
+  const privateSample = width===390 ? '예시 학생 02' : '예시 학생 01';
   const guard={phase,studentId:null,allowedMemos:new Set(),blockedWrites:0};
   const context=await browser.newContext({viewport:{width,height:width===390?844:960},
     timezoneId:'Asia/Seoul',serviceWorkers:'block',extraHTTPHeaders:overrides});
@@ -214,7 +215,7 @@ async function widthProof(browser,width) {
     const {detail,dialog}=await nativeStudent(page,student,guard);
     const detailImage=await inspect(page,width,'student');
     const write=isPrivate ? await persistMemo(page,guard,detail,dialog) : null;
-    await page.keyboard.press('Escape');
+    await page.getByRole('dialog').last().getByRole('button',{name:'닫기',exact:true}).click();
     await check(page.getByRole('dialog')).toHaveCount(0);
     const lecture=await nativeLecture(page,width);
     let roles=await bar(page,compareLabel);
@@ -238,7 +239,7 @@ async function widthProof(browser,width) {
   } catch(error) {
     const failed=context.pages().at(-1);
     if(failed) {
-      console.error('Browser stopped at',new URL(failed.url()).pathname,'viewport',width);
+      console.error('Browser stopped at',new URL(failed.url()).origin+new URL(failed.url()).pathname,'viewport',width);
       await failed.screenshot({path:phase+'-last-view-'+width+'.png',timeout:5000}).catch(()=>{});
     }
     throw error;
@@ -251,7 +252,10 @@ async function widthProof(browser,width) {
     const proof={passed:true,phase,workerRevision,candidateVersion,
       originalFrontend:config.originalFrontend,dawonFrontend:config.dawonFrontend,
       backend:config.backend,results:[]};
-    for(const width of [1366,390]) proof.results.push(await widthProof(browser,width));
+    const screens=await Promise.allSettled([1366,390].map(width=>widthProof(browser,width)));
+    const failures=screens.filter(screen=>screen.status==='rejected');
+    if(failures.length)throw new AggregateError(failures.map(screen=>screen.reason),'Comparison workflow failed');
+    proof.results=screens.map(screen=>screen.value);
     await fs.writeFile(phase+'-comparison.json',JSON.stringify(proof,null,2));
     console.log(JSON.stringify(proof));
   }finally{await browser.close();}
