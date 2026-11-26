@@ -47,14 +47,15 @@ export default function PostEditor({ category: initialCategory, post, onClose, o
       <ModalHeader title={post ? "글 수정" : boardWriteLabels[category]} description="같은 학원의 강사와 조교 등 직원에게 보입니다." noIcon />
       <ModalBody>
         <form id={formId} className={styles.form} onSubmit={submit}>
-          {initialCategory === "all" && !post && <label>게시판
-            <select value={category} disabled={save.isPending} onChange={event => {
+          {initialCategory === "all" && !post && <div>
+            <label htmlFor={formId + "-category"}>게시판</label>
+            <select id={formId + "-category"} value={category} disabled={save.isPending} onChange={event => {
               setCategory(event.target.value as Category);
               setFile(null);
             }}>
               {Object.entries(boardLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
             </select>
-          </label>}
+          </div>}
           {canAttach && (
             <label>첨부파일 <small>선택 · 최대 10 MB</small>
               <input type="file" onChange={e => setFile(e.target.files?.[0] ?? null)} disabled={save.isPending} />
