@@ -554,7 +554,7 @@ async function installApi(
         session_start_time: "17:00:00",
         session_location: "1층 세미나실",
         status: "pending",
-        requested_after_cutoff: session.id === state.lateSessionId,
+        requested_after_cutoff: payload.new_session_id === state.lateSessionId,
         student_request_memo: payload.student_request_memo,
         created_at: new Date().toISOString(),
       }];
