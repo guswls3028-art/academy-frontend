@@ -25,8 +25,9 @@ export function useBoardScope() {
 export type BoardScope = ReturnType<typeof useBoardScope>;
 
 export const boardKeys = {
+  lists: (scope: BoardScope) => [...scope, "list"] as const,
   list: (scope: BoardScope, category: BoardFilter, page: number, pageSize: number, q: string) =>
-    [...scope, "list", category, page, pageSize, q] as const,
+    [...boardKeys.lists(scope), category, page, pageSize, q] as const,
   detail: (scope: BoardScope, id: number) => [...scope, "detail", id] as const,
 };
 

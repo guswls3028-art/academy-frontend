@@ -45,7 +45,7 @@ function BoardScreen({ root, scope, category, id }: { root: string; scope: Board
     const nextPage = list?.results.length === 1 ? Math.max(1, page - 1) : list ? page : 1;
     const nextSearch = boardListParams(q, nextPage).toString();
     navigate(categoryPath + (nextSearch ? `?${nextSearch}` : ""), { replace: true });
-    void cache.invalidateQueries({ queryKey: [...scope, "list"] });
+    void cache.invalidateQueries({ queryKey: boardKeys.lists(scope) });
     cache.removeQueries({ queryKey: boardKeys.detail(scope, postId), exact: true });
     feedback.success("글을 삭제했습니다.");
   }
