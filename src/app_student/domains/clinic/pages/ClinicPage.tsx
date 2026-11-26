@@ -246,6 +246,13 @@ export default function ClinicPage() {
     ));
   }, [selectedSessionIds]);
 
+  const clearBookingTimes = () => {
+    setPreferredStart("");
+    setPreferredEnd("");
+    setBookingStart("");
+    setBookingEnd("");
+  };
+
   const beginMutation = () => {
     mutationLock.current = true;
     setBookingError(null);
@@ -266,10 +273,7 @@ export default function ClinicPage() {
     onMutate: () => { setSavedBookingNotice(null); },
     onSuccess: (data, variables) => {
       setMemo("");
-      setPreferredStart("");
-      setPreferredEnd("");
-      setBookingStart("");
-      setBookingEnd("");
+      clearBookingTimes();
       setSelectedSessionIds([]);
       setRangeStartSessionId(null);
       setSelectionNotice(null);
@@ -334,10 +338,7 @@ export default function ClinicPage() {
     onSuccess: (data) => {
       setChangingBookingId(null);
       setMemo("");
-      setPreferredStart("");
-      setPreferredEnd("");
-      setBookingStart("");
-      setBookingEnd("");
+      clearBookingTimes();
       const message = data.status === "booked"
         ? "일정 변경이 확정되었습니다."
         : "일정 변경 신청이 접수되었습니다.";
@@ -452,10 +453,7 @@ export default function ClinicPage() {
     setRangeStartSessionId(null);
     setSelectionNotice(null);
     setMemo(request.student_request_memo ?? "");
-    setPreferredStart("");
-    setPreferredEnd("");
-    setBookingStart("");
-    setBookingEnd("");
+    clearBookingTimes();
     setActiveTab("book");
   };
 
@@ -482,20 +480,14 @@ export default function ClinicPage() {
         current != null && sessionsById.get(current)?.date === date ? current : null
       ));
     }
-    setPreferredStart("");
-    setPreferredEnd("");
-    setBookingStart("");
-    setBookingEnd("");
+    clearBookingTimes();
     setSelectionNotice(null);
     setBookingError(null);
   };
 
   const selectSessionRange = (session: ClinicSession) => {
     setBookingError(null);
-    setPreferredStart("");
-    setPreferredEnd("");
-    setBookingStart("");
-    setBookingEnd("");
+    clearBookingTimes();
     const groupSessions = sessionGroups.find((group) => group.date === session.date)?.sessions ?? [];
     const result = resolveClinicSessionSelection({
       session,
@@ -677,10 +669,7 @@ export default function ClinicPage() {
                     setRangeStartSessionId(null);
                     setSelectionNotice(null);
                     setMemo("");
-                    setPreferredStart("");
-                    setPreferredEnd("");
-                    setBookingStart("");
-                    setBookingEnd("");
+                    clearBookingTimes();
                     setBookingError(null);
                   }}
                 >

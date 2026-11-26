@@ -26,7 +26,8 @@ import { gotoAndSettle, waitForCondition } from "../helpers/wait";
 import { verifyClinicCutoffRealuse } from "../helpers/clinicBookingCutoffRealuse";
 import { verifyQrAttendanceRealuse } from "../helpers/qrAttendanceRealuse";
 
-test.setTimeout(420_000);
+// The two delivery phases each allow up to 90 seconds for the isolated worker.
+test.setTimeout(600_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
 
 type ClinicParticipant = {
