@@ -5,6 +5,7 @@
 .heading { margin: 0; }
 .row[data-open="true"] { border-color: color-mix(in srgb, var(--color-brand-primary) 32%, var(--color-border-divider)); border-radius: 10px; background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-bg-surface)); }
 .row[data-open="true"] + .row { border-top-color: transparent; }
+.row .toggle { justify-content: flex-start; }
 .toggle { width: 100%; display: flex; align-items: flex-start; gap: 12px; min-height: 48px; border: 0; border-radius: 9px; background: transparent; padding: 12px; color: var(--color-text-primary); text-align: start; }
 .toggle:hover { background: color-mix(in srgb, var(--color-brand-primary) 5%, transparent); }
 .toggle:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: -2px; }

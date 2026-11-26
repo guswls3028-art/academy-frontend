@@ -749,6 +749,8 @@ for (const width of [1366, 1100, 390]) {
     const rowBox = (await row.boundingBox())!;
     const actionBox = (await buttons.boundingBox())!;
     expect(actionBox.y).toBeGreaterThanOrEqual(rowBox.y + rowBox.height - 1);
+    const numberBox = (await row.locator("span[aria-hidden]").first().boundingBox())!;
+    expect(numberBox.x - rowBox.x).toBeLessThan(18);
     expect(actionBox.x - rowBox.x).toBeLessThan(70);
     await workflow.scrollIntoViewIfNeeded();
     await workflow.screenshot({ path: testInfo.outputPath(`exam-five-steps-${width}.png`), animations: "disabled" });
