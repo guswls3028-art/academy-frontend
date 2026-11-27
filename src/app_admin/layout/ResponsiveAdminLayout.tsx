@@ -47,7 +47,7 @@ export default function ResponsiveAdminLayout({ onOpenQuickNavigation }: { onOpe
           <Header onOpenQuickNavigation={onOpenQuickNavigation} sidebarCollapsed={sidebarCollapsed}
             onToggleSidebar={() => setSidebarCollapsed(value => !value)} />
         </header>
-        <div className={`sidebar ${styles.sidebar}`}>
+        <div className={styles.sidebar}>
           {!isMobile && <Sidebar collapsed={sidebarCollapsed} onExpand={() => setSidebarCollapsed(false)} />}
         </div>
         <main ref={mainRef} className={styles.main}>
