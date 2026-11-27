@@ -73,7 +73,9 @@ test("HakwonPlus browser defaults and crawler HTML use the published logo before
   }
 });
 
-test("HakwonPlus keeps uploaded search icons through public page boot", async ({ page }) => {
+// The fixture serves a www document directly. Worker installation would bypass page.route.
+const isolatedPageTest = test.extend({ serviceWorkers: "block" });
+isolatedPageTest("HakwonPlus keeps uploaded search icons through public page boot", async ({ page }) => {
   const originalFetch = globalThis.fetch;
   const custom = "https://cdn.example/academy/logo.png?v=4&size=large";
   globalThis.fetch = async (input) => Response.json({
@@ -96,10 +98,15 @@ test("HakwonPlus keeps uploaded search icons through public page boot", async ({
       }
     }
     const html = await (await documentRequest("www.hakwonplus.com", "/login")).text();
-    await page.route("**/*", route => route.request().isNavigationRequest()
-      ? route.fulfill({ contentType: "text/html", body: html })
-      : route.fulfill({ contentType: "application/javascript", body: "" }));
-    await page.goto("https://www.hakwonplus.com/login");
+    const origin = "https://www.hakwonplus.com";
+    await page.route("**/*", route => {
+      const request = route.request();
+      if (new URL(request.url()).origin !== origin) return route.abort();
+      return request.isNavigationRequest()
+        ? route.fulfill({ contentType: "text/html", body: html })
+        : route.fulfill({ contentType: "application/javascript", body: "" });
+    });
+    await page.goto(origin + "/login");
     await expect(page).toHaveTitle("학원플러스 | 학원의 수업과 운영을 한 흐름으로");
     const icon = page.locator('head link[rel="apple-touch-icon"]');
     await expect(icon).toHaveCount(1);
