@@ -23,7 +23,7 @@ const student = {
   id: 101,
   name: "서하늘 학생",
   ps_number: "HB001",
-  omr_code: "1042",
+  omr_code: "12345678",
   phone: "01012345678",
   parent_phone: "01087654321",
   high_school: "한빛중학교",
@@ -38,7 +38,7 @@ const student = {
       lecture: 501,
       lecture_name: "한빛 중등 심화",
       lecture_color: "#2563eb",
-      lecture_chip_label: "Y",
+      lecture_chip_label: "심",
       status: "ACTIVE",
     },
     {
@@ -69,7 +69,7 @@ const grades = {
       lecture_id: 501,
       lecture_title: "한빛 중등 심화",
       lecture_color: "#2563eb",
-      lecture_chip_label: "Y",
+      lecture_chip_label: "심",
       submitted_at: "2026-07-01T18:00:00+09:00",
       archived: true,
     },
@@ -90,7 +90,7 @@ const grades = {
       lecture_id: 501,
       lecture_title: "한빛 중등 심화",
       lecture_color: "#2563eb",
-      lecture_chip_label: "Y",
+      lecture_chip_label: "심",
       submitted_at: "2026-07-08T18:00:00+09:00",
       archived: false,
     },
@@ -129,7 +129,7 @@ const grades = {
       lecture_id: 501,
       lecture_title: "한빛 중등 심화",
       lecture_color: "#2563eb",
-      lecture_chip_label: "Y",
+      lecture_chip_label: "심",
       submitted_at: null,
       archived: false,
     },
@@ -154,7 +154,7 @@ const grades = {
       lecture_id: 501,
       lecture_title: "한빛 중등 심화",
       lecture_color: "#2563eb",
-      lecture_chip_label: "Y",
+      lecture_chip_label: "심",
       rank: 3,
       percentile: 30,
       cohort_size: 10,
@@ -180,7 +180,7 @@ const grades = {
       lecture_id: 501,
       lecture_title: "한빛 중등 심화",
       lecture_color: "#2563eb",
-      lecture_chip_label: "Y",
+      lecture_chip_label: "심",
       rank: 2,
       percentile: 20,
       cohort_size: 10,
@@ -718,7 +718,7 @@ async function installApi(page: Page, options: {
             lecture_id: 501,
             lecture_title: "한빛 중등 심화",
             lecture_color: "#2563eb",
-            lecture_chip_label: "Y",
+            lecture_chip_label: "심",
             is_locked: false,
           },
           {
@@ -740,7 +740,7 @@ async function installApi(page: Page, options: {
             lecture_id: 501,
             lecture_title: "한빛 중등 심화",
             lecture_color: "#2563eb",
-            lecture_chip_label: "Y",
+            lecture_chip_label: "심",
             is_locked: false,
           },
           {
@@ -762,7 +762,7 @@ async function installApi(page: Page, options: {
             lecture_id: 501,
             lecture_title: "한빛 중등 심화",
             lecture_color: "#2563eb",
-            lecture_chip_label: "Y",
+            lecture_chip_label: "심",
             is_locked: false,
           },
           {
@@ -784,7 +784,7 @@ async function installApi(page: Page, options: {
             lecture_id: 501,
             lecture_title: "한빛 중등 심화",
             lecture_color: "#2563eb",
-            lecture_chip_label: "Y",
+            lecture_chip_label: "심",
             is_locked: false,
           },
         ],
@@ -974,7 +974,8 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await installApi(page);
     await page.goto(`${BASE}/workspace`, { waitUntil: "domcontentloaded" });
 
-    await page.locator('a[href="/workspace/results"]').first().click();
+    await page.getByRole("button", { name: "학습·운영", exact: true }).click();
+    await page.getByRole("link", { name: "성적", exact: true }).click();
     await expect(page).toHaveURL(/\/workspace\/results$/);
     const console = page.getByTestId("results-performance-console");
     await expect(console).toBeVisible();
@@ -1331,16 +1332,17 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     const notSubmittedRow = detailOverlay
       .getByText("수학 일일 과제", { exact: true })
       .locator("xpath=ancestor::*[contains(@class,'tabRecord')][1]");
-    await expect(notSubmittedRow).toContainText("점수형 과제");
+    await expect(notSubmittedRow).toContainText("숫자 채점");
     await expect(notSubmittedRow).toContainText("미제출");
     await expect(notSubmittedRow).not.toContainText("0/30");
 
     const ungradedRow = detailOverlay
       .getByText("주말 복습 과제", { exact: true })
       .locator("xpath=ancestor::*[contains(@class,'tabRecord')][1]");
-    await expect(ungradedRow).toContainText("통과형 과제");
+    await expect(ungradedRow).toContainText("완료 체크");
     await expect(ungradedRow).toContainText("검사 전");
-    await expect(detailOverlay.getByRole("tab", { name: /과제/ })).toContainText("미제출 1");
+    await expect(detailOverlay.getByRole("tab", { name: /과제/ })).toContainText("4건");
+    await expect(detailOverlay.locator('div[class*="homeworkRecordGroup"]').getByText("미제출", { exact: true })).toHaveCount(1);
     await detailOverlay.screenshot({ path: "test-results/homework-completion/student-detail-1100.png" });
 
     const homeworkActionsStayWithinCards = () => detailOverlay.locator('div[class*="homeworkRecordGroup"]').evaluateAll((groups) => (
