@@ -13513,6 +13513,20 @@ export interface components {
         AssessmentDetailError: {
             detail: string;
         };
+        AttemptSummary: {
+            /** Format: date-time */
+            at: string | null;
+            attempt_index: number;
+            /** Format: double */
+            max_score?: number | null;
+            meta_status?: string | null;
+            /** Format: double */
+            pass_score?: number | null;
+            passed: boolean | null;
+            /** Format: double */
+            score: number | null;
+            source: string;
+        };
         Attendance: {
             readonly amount: number;
             /** Format: date-time */
@@ -14770,6 +14784,25 @@ export interface components {
          * @enum {string}
          */
         ExamRoundEnum: "first" | "second";
+        ExamScoreBlock: {
+            /** @default 0 */
+            attempt_count: number;
+            attempts?: components["schemas"]["AttemptSummary"][];
+            block: components["schemas"]["ScoreBlock"];
+            clinic_link_id?: number | null;
+            exam_id: number;
+            items?: {
+                [key: string]: unknown;
+            }[];
+            /** Format: double */
+            pass_score: number;
+            /**
+             * Format: double
+             * @description Confirmed first-attempt score before session total selection. Zero is a score; null means unconfirmed.
+             */
+            ranking_score: number | null;
+            title: string;
+        };
         ExamScoreSummary: {
             /** Format: double */
             average: number | null;
@@ -15327,6 +15360,14 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
             readonly updated_by_user_id: number;
+        };
+        HomeworkScoreBlock: {
+            /** @default 0 */
+            attempt_count: number;
+            block: components["schemas"]["ScoreBlock"];
+            clinic_link_id?: number | null;
+            homework_id: number;
+            title: string;
         };
         /**
          * @description * `template` - 템플릿
@@ -18612,6 +18653,12 @@ export interface components {
             /** Format: int64 */
             video_required_rate?: number;
         };
+        /**
+         * @description * `completed` - completed
+         *     * `in_progress` - in_progress
+         * @enum {string}
+         */
+        ProgressStatusEnum: "completed" | "in_progress";
         /** @description detail — content 포함. */
         PublicBoardPostDetail: {
             /** @description 작성 당시 역할(student/parent/teacher/owner/admin) */
@@ -19612,6 +19659,45 @@ export interface components {
             level: components["schemas"]["LevelEnum"];
             session?: number | null;
         };
+        ScoreBlock: {
+            achievement?: string | null;
+            clinic_required: boolean;
+            clinic_retake?: {
+                [key: string]: unknown;
+            } | null;
+            /** Format: date-time */
+            correction_completed_at?: string | null;
+            /** @default  */
+            correction_note: string;
+            correction_status?: (components["schemas"]["CorrectionStatusEnum"] | components["schemas"]["NullEnum"]) | null;
+            /** Format: date-time */
+            correction_updated_at?: string | null;
+            final_pass?: boolean | null;
+            grading_pending_reason?: (components["schemas"]["GradingPendingReasonEnum"] | components["schemas"]["NullEnum"]) | null;
+            grading_status?: (components["schemas"]["GradingStatusEnum"] | components["schemas"]["NullEnum"]) | null;
+            is_locked: boolean;
+            /** @default false */
+            is_provisional: boolean;
+            lock_reason: string | null;
+            /** Format: double */
+            max_score: number | null;
+            meta?: {
+                [key: string]: unknown;
+            } | null;
+            /** Format: double */
+            objective_score?: number | null;
+            passed: boolean | null;
+            remediated?: boolean | null;
+            /** Format: double */
+            score: number | null;
+            /** Format: double */
+            subjective_score?: number | null;
+            teacher_accepted?: boolean;
+            /** @default false */
+            teacher_resolved: boolean;
+            /** Format: date-time */
+            updated_at?: string | null;
+        };
         ScoreTotalConfigResponse: {
             exam_ids: number[];
             exam_order: number[];
@@ -19988,6 +20074,15 @@ export interface components {
          * @enum {string}
          */
         SendToEnum: "student" | "parent" | "both";
+        SessionAssessmentTotal: {
+            complete: boolean;
+            /** Format: double */
+            max_score: number;
+            /** Format: double */
+            score: number | null;
+            scored_count: number;
+            selected_count: number;
+        };
         /**
          * @description * `UNSET` - 미입력
          *     * `PRESENT` - 출석
@@ -20032,6 +20127,41 @@ export interface components {
         SessionEnrollmentRequest: {
             enrollment: number;
             session: number;
+        };
+        SessionExamMeta: {
+            choice_count: number;
+            display_order: number;
+            essay_count: number;
+            exam_id: number;
+            grading_mode: string;
+            manual_grading_method: string;
+            /** Format: double */
+            max_score: number;
+            /** Format: double */
+            objective_max_score: number;
+            /** Format: double */
+            pass_score: number;
+            questions: components["schemas"]["SessionExamQuestionMeta"][];
+            score_shape_source: string;
+            /** Format: double */
+            subjective_max_score: number;
+            title: string;
+        };
+        SessionExamQuestionMeta: {
+            kind?: string;
+            /** Format: double */
+            max_score: number;
+            number: number;
+            question_id: number;
+        };
+        SessionHomeworkMeta: {
+            display_order: number;
+            grading_mode: string;
+            homework_id: number;
+            /** Format: double */
+            max_score: number;
+            title: string;
+            unit: string | null;
         };
         SessionProgress: {
             attendance_type?: components["schemas"]["AttendanceTypeEnum"];
@@ -20091,6 +20221,53 @@ export interface components {
         SessionScheduleWriteRequest: {
             schedules: components["schemas"]["ScheduleInputRequest"][];
             version: string;
+        };
+        SessionScoreRow: {
+            assessment_progress_completed: boolean;
+            /** @default true */
+            assessment_todo_eligible: boolean;
+            attendance_status?: string | null;
+            /** @default false */
+            clinic_required: boolean;
+            /** @default 0 */
+            correction_pending_count: number;
+            enrollment_id: number;
+            /** @default 0 */
+            exam_not_submitted_count: number;
+            exam_total?: components["schemas"]["SessionAssessmentTotal"];
+            exams: components["schemas"]["ExamScoreBlock"][];
+            homework_total?: components["schemas"]["SessionAssessmentTotal"];
+            homeworks: components["schemas"]["HomeworkScoreBlock"][];
+            lecture_chip_label?: string | null;
+            lecture_color?: string | null;
+            lecture_title?: string | null;
+            /** @default false */
+            name_highlight_clinic_target: boolean;
+            /** @default false */
+            name_highlight_followup_required: boolean;
+            profile_photo_url?: string | null;
+            /** @default false */
+            progress_completed: boolean;
+            /** @default in_progress */
+            progress_status: components["schemas"]["ProgressStatusEnum"];
+            student_id: number | null;
+            student_name: string;
+            /** Format: date-time */
+            updated_at: string | null;
+            video_completed?: boolean | null;
+            video_progress_rate?: number | null;
+        };
+        SessionScoresMeta: {
+            exams: components["schemas"]["SessionExamMeta"][];
+            homeworks: components["schemas"]["SessionHomeworkMeta"][];
+            lecture_id: number | null;
+            lecture_title: string;
+            session_title: string;
+            total_config: components["schemas"]["ScoreTotalConfigResponse"];
+        };
+        SessionScoresResponse: {
+            meta: components["schemas"]["SessionScoresMeta"];
+            rows: components["schemas"]["SessionScoreRow"][];
         };
         /**
          * @description * `ACTIVE` - 활성
@@ -37165,7 +37342,10 @@ export interface operations {
     };
     results_admin_sessions_scores_retrieve: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Omit for all enrollments, use 0 for unassigned, or supply a schedule ID from this session. */
+                schedule?: number;
+            };
             header?: never;
             path: {
                 session_id: number;
@@ -37174,12 +37354,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["SessionScoresResponse"];
+                };
             };
         };
     };

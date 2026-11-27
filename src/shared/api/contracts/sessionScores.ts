@@ -1,4 +1,5 @@
 import api from "@/shared/api/axios";
+import type { components } from "@/shared/api/generated/schema";
 import type { Achievement } from "@/shared/scoring/achievement";
 
 export type SessionScoresSummaryColumnMode = "verdict" | "exam_wrong";
@@ -48,12 +49,11 @@ export type ScoreAttemptEntry = {
   meta_status?: string | null;
 };
 
-export type SessionScoreExamEntry = {
-  exam_id: number;
+type PublishedScoreExam = components["schemas"]["SessionScoresResponse"]["rows"][number]["exams"][number];
+
+export type SessionScoreExamEntry = Pick<PublishedScoreExam, "exam_id" | "title" | "pass_score"> & {
   /** 차시 합산과 같은 확정 점수. 이전 서버 응답에는 없을 수 있다. */
-  ranking_score?: number | null;
-  title: string;
-  pass_score: number;
+  ranking_score?: PublishedScoreExam["ranking_score"];
   block: ScoreBlock;
   items?: {
     question_id: number;
@@ -142,13 +142,7 @@ export type SessionScoresResponse = {
   rows: SessionScoreRow[];
 };
 
-export type AssessmentTotal = {
-  score: number | null;
-  max_score: number;
-  selected_count: number;
-  scored_count: number;
-  complete: boolean;
-};
+export type AssessmentTotal = components["schemas"]["SessionAssessmentTotal"];
 
 export type ScoreTotalConfig = { version: number; exam_ids: number[]; homework_ids: number[]; exam_order?: number[]; homework_order?: number[] };
 
