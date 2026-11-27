@@ -95,7 +95,7 @@ export default function AdminHomeworkDetail({
         primaryAction={primaryAction}
       />
       {mode === "operate" ? (
-        <HomeworkWorklist homework={data} audience={audienceSummary} selection={worklist.selection} select={worklist.select} />
+        <HomeworkWorklist homework={data} audience={audienceSummary} selection={worklist.selection} select={worklist.select} disabled={isError} />
       ) : <>
         <HomeworkTabs activeTab={activeTab} onChange={changeTab} mode={mode} />
         {activeTab === "setup" && <HomeworkSetupPanel homeworkId={homeworkId} />}

@@ -129,7 +129,7 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
       )}
 
       {mode === "operate" ? (
-        <ExamWorklist exam={exam} audience={audienceSummary} sessionId={sessionId} lectureId={lectureId ?? 0}
+        <ExamWorklist exam={exam} audience={audienceSummary} sessionId={sessionId} lectureId={lectureId ?? 0} disabled={isError}
           selection={worklist.selection} select={worklist.select} wrongCompletionOnly={wrongCompletionOnly}
           focusAnalysis={focusAnalysis} />
       ) : <>

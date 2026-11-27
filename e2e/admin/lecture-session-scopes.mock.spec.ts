@@ -1850,6 +1850,38 @@ test("과제 운영 설정을 한곳에서 저장하고 선택 과제 카드에�
   const primaryAction = page.getByTestId("assessment-primary-action");
   await expect(page.getByRole("navigation", { name: "과제 업무 흐름" })).toBeVisible();
   await expect(primaryAction).toHaveText("제출 현황 보기");
+  const shortcuts = page.getByRole("navigation", { name: "업무 바로가기", exact: true });
+  await page.route(`**/results/admin/sessions/${REGULAR_SESSION_ID}/scores/`, route =>
+    route.fulfill({ json: { meta: { exams: [], homeworks: [] }, rows: Array.from({ length: 24 }, (_, i) => ({
+      enrollment_id: 501 + i, student_id: 701 + i, student_name: `연습생 ${i + 1}`,
+      homeworks: [{ homework_id: 9961, block: { score: 18, max_score: 20, passed: true } }],
+    })) } }));
+  for (const width of [1366, 1100, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    if (width === 390) {
+      await expect(shortcuts).toBeHidden();
+      await expect(assessmentNavigation.getByRole("combobox", { name: "과제 선택" })).toHaveValue("9961");
+      await openAssessmentWorkAction(page, "policy", "settings");
+      await openAssessmentWorkAction(page, "results", "statistics");
+    } else {
+      await shortcuts.getByRole("button", { name: "대상 학생 바로가기", exact: true }).click();
+      await expect(worklist.getByTestId("assessment-action-students")).toHaveAttribute("aria-pressed", "true");
+      await shortcuts.getByRole("button", { name: "제출 현황 보기 바로가기", exact: true }).click();
+      await expect(worklist.getByTestId("assessment-action-submissions")).toHaveAttribute("aria-pressed", "true");
+      await shortcuts.getByRole("button", { name: "과제 통계 보기 바로가기", exact: true }).click();
+    }
+    await expect(worklist.getByTestId("assessment-action-statistics")).toHaveAttribute("aria-pressed", "true");
+    await expect(worklist.getByText("점수 분포 (%)", { exact: true })).toBeVisible();
+    if (width > 1000) {
+      await worklist.getByRole("row").filter({ hasText: "연습생 18" }).evaluate(row =>
+        row.scrollIntoView({ block: "center", behavior: "instant" }));
+      await expect.poll(() => assessmentWorkspace.evaluate(node => node.getBoundingClientRect().top)).toBeLessThan(0);
+      await expect(assessmentNavigation.getByRole("button").filter({ hasText: "연산 복습" })).toBeInViewport({ ratio: 1 });
+      await expect(shortcuts.getByRole("button", { name: "과제 통계 보기 바로가기", exact: true })).toBeInViewport({ ratio: 1 });
+    }
+    await page.screenshot({ path: testInfo.outputPath(`homework-statistics-navigation-${width}.png`), animations: "disabled" });
+  }
+  await openAssessmentWorkAction(page, "policy", "settings");
   for (const width of [1366, 1100, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await expectAssessmentHeaderActionLayout(page);

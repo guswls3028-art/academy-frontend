@@ -13,7 +13,7 @@ import ExamAssetsPanel from "../panels/ExamAssetsPanel";
 import ExamSubmissionsPanel from "../panels/ExamSubmissionsPanel";
 import ExamResultsViewerPanel from "../panels/ExamResultsViewerPanel";
 
-export default function ExamWorklist({ exam, audience, sessionId, lectureId, selection, select, wrongCompletionOnly, focusAnalysis }: {
+export default function ExamWorklist({ exam, audience, sessionId, lectureId, selection, select, wrongCompletionOnly, focusAnalysis, disabled }: {
   exam: Exam;
   audience: string;
   sessionId?: number | null;
@@ -22,6 +22,7 @@ export default function ExamWorklist({ exam, audience, sessionId, lectureId, sel
   select: (next: WorkSelection) => void;
   wrongCompletionOnly: boolean;
   focusAnalysis: boolean;
+  disabled: boolean;
 }) {
   const examId = exam.id;
   const [printOpen, setPrintOpen] = useState(false);
@@ -38,7 +39,7 @@ export default function ExamWorklist({ exam, audience, sessionId, lectureId, sel
   const stages: WorkStage[] = [
     { id: "audience", title: "시험 대상·강의 공유", summary: audience + " · 여러 반의 차시 연결과 강의별 귀가 기준", actions: [
       { id: "students", label: "대상 학생", content: <ExamEnrollmentPanel examId={examId} /> },
-      { id: "lectures", label: "여러 반 시험 공유", content: <ExamLectureAssignmentsPanel examId={examId} maxScore={exam.max_score} /> },
+      { id: "lectures", label: "여러 반 시험 공유", shortcut: "여러 반 시험 공유", content: <ExamLectureAssignmentsPanel examId={examId} maxScore={exam.max_score} /> },
     ] },
     { id: "materials", title: "시험 자료", summary: exam.source_filename || "시험지 원본 · 해설 · OMR 답안지", status: assessmentMaterialStatus(exam.segmentation_status),
       tools: <Button type="button" size="sm" intent="secondary" onClick={() => setPrintOpen(true)}>OMR 답안지</Button>, actions: [
@@ -55,13 +56,13 @@ export default function ExamWorklist({ exam, audience, sessionId, lectureId, sel
     ] },
     { id: "results", title: "채점·결과", summary: "학생별 채점표 · 점수 분포 · 문항별 정답률",
       tools: <Button type="button" size="sm" intent="secondary" onClick={openPolicy}>성적 공개 설정</Button>, actions: [
-      { id: "results", label: "채점·학생별 결과", content: results },
-      { id: "analysis", label: "시험 성적 분석", content: results },
+      { id: "results", label: "채점·학생별 결과", shortcut: "채점·엑셀", content: results },
+      { id: "analysis", label: "시험 성적 분석", shortcut: "시험 성적 분석", content: results },
       { id: "regrade", label: "성적 입력·재채점", content: <ExamBulkActionsPanel examId={examId} lectureId={lectureId} sessionId={sessionId ?? 0} /> },
     ] },
   ];
   return <>
-    <AssessmentWorklist label="시험 업무 흐름" stages={stages} selection={selection} select={select} />
+    <AssessmentWorklist label="시험 업무 흐름" stages={stages} selection={selection} select={select} disabled={disabled} />
     {printOpen && <SessionAnswerKeyModal open onClose={() => setPrintOpen(false)} initialTab="omr"
       examId={examId} structureOwnerId={exam.structure_owner_id ?? examId} canEditQuestions={exam.can_edit_structure}
       lectureId={lectureId} sessionId={sessionId ?? 0} />}

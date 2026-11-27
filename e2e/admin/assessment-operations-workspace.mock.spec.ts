@@ -846,12 +846,35 @@ for (const width of [1366, 1100, 390]) {
     await print.getByRole("button", { name: "취소", exact: true }).click();
     await openAssessmentWorkAction(page, "submissions", "ledger");
     await expect(page.getByRole("region", { name: "OMR 업로드 원장", exact: true })).toBeFocused();
-    await openAssessmentWorkAction(page, "results", "analysis");
+    const shortcuts = page.getByRole("navigation", { name: "업무 바로가기", exact: true });
+    if (width === 390) {
+      await expect(shortcuts).toBeHidden();
+      await openAssessmentWorkAction(page, "results", "analysis");
+    } else {
+      await shortcuts.getByRole("button", { name: "여러 반 시험 공유 바로가기", exact: true }).click();
+      await expect(workflow.getByTestId("assessment-action-lectures")).toHaveAttribute("aria-pressed", "true");
+      await expect(workflow.getByRole("heading", { name: "시험을 보는 강의" })).toBeVisible();
+      await shortcuts.getByRole("button", { name: "채점·엑셀 바로가기", exact: true }).click();
+      await expect(workflow.getByTestId("assessment-action-results")).toHaveAttribute("aria-pressed", "true");
+      await expect(workflow.locator("summary").filter({ hasText: "엑셀로 채점 결과 넣기" })).toBeVisible();
+      await shortcuts.getByRole("button", { name: "시험 성적 분석 바로가기", exact: true }).click();
+      await expect(workflow.getByTestId("assessment-action-analysis")).toHaveAttribute("aria-pressed", "true");
+    }
     const analysis = page.getByRole("region", { name: "시험 성적 분석", exact: true });
     await expect(analysis.getByRole("heading", { name: "시험 성적 분석", exact: true })).toBeVisible();
     await expect(analysis).toContainText("85.0점");
     await analysis.getByText("전체 문항 통계 보기", { exact: true }).click();
     await expect(analysis.getByRole("cell", { name: "100.0%", exact: true })).toBeVisible();
+    if (width > 1000) {
+      await analysis.getByRole("cell", { name: "100.0%", exact: true }).evaluate(cell =>
+        cell.scrollIntoView({ block: "center", behavior: "instant" }));
+      const workspace = page.locator(".session-assessment-workspace");
+      await expect.poll(() => workspace.evaluate(node => node.getBoundingClientRect().top)).toBeLessThan(0);
+      await expect(page.getByTestId("session-assessment-remote").getByRole("button").filter({ hasText: "다음 평가" }))
+        .toBeInViewport({ ratio: 1 });
+      await expect(shortcuts.getByRole("button", { name: "채점·엑셀 바로가기", exact: true })).toBeInViewport({ ratio: 1 });
+      await page.screenshot({ path: testInfo.outputPath(`exam-scrolled-analysis-${width}.png`), animations: "disabled" });
+    }
     await expect(page.getByRole("region", { name: "시험 학생별 결과" })).toBeVisible();
     await page.getByTestId("assessment-step-submissions").click();
     await expect(page.getByTestId("assessment-action-submissions")).toBeVisible();

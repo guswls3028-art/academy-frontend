@@ -1,5 +1,7 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
+import { useContext, useEffect, useId, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { ArrowUpRight, ChevronDown } from "lucide-react";
+import { AssessmentShortcutHost } from "./AssessmentShortcutHost";
 import { Badge, Button, ICON } from "@/shared/ui/ds";
 import type { WorkSelection, WorkStep } from "./useAssessmentWorklist";
 import styles from "./AssessmentWorklist.module.css";
@@ -10,16 +12,18 @@ export type WorkStage = {
   summary: string;
   status?: { label: string; tone: "success" | "info" | "warning" | "danger" | "neutral" };
   tools?: ReactNode;
-  actions: { id: string; label: string; content: ReactNode }[];
+  actions: { id: string; label: string; shortcut?: string; content: ReactNode }[];
 };
 
-export default function AssessmentWorklist({ label, stages, selection, select }: {
+export default function AssessmentWorklist({ label, stages, selection, select, disabled = false }: {
   label: string;
   stages: WorkStage[];
   selection: WorkSelection;
   select: (next: WorkSelection) => void;
+  disabled?: boolean;
 }) {
   const id = useId();
+  const shortcutHost = useContext(AssessmentShortcutHost);
   const listRef = useRef<HTMLOListElement>(null);
   const previous = useRef(selection);
   useEffect(() => {
@@ -36,6 +40,25 @@ export default function AssessmentWorklist({ label, stages, selection, select }:
   }, [selection]);
   return (
     <nav aria-label={label} className={styles.workspace}>
+      {shortcutHost && createPortal(
+        <nav className={styles.shortcuts} aria-label="업무 바로가기">
+          <h3>업무 바로가기</h3>
+          {stages.flatMap(stage => stage.actions.filter(action => action.shortcut).map(action => {
+            const active = selection.step === stage.id && selection.action === action.id;
+            return <button key={stage.id + "-" + action.id} type="button" aria-label={action.shortcut + " 바로가기"}
+              aria-pressed={active} disabled={disabled} onClick={() => {
+                if (!active) {
+                  select({ step: stage.id, action: action.id });
+                  return;
+                }
+                const target = listRef.current?.querySelector<HTMLButtonElement>(`[data-stage="${stage.id}"] button[aria-pressed="true"]`);
+                target?.focus({ preventScroll: true });
+                target?.scrollIntoView({ block: "nearest" });
+              }}>
+              {action.shortcut}<ArrowUpRight size={14} aria-hidden />
+            </button>;
+          }))}
+        </nav>, shortcutHost)}
       <ol ref={listRef} className={styles.list}>
         {stages.map((stage, index) => {
           const open = selection.step === stage.id;
