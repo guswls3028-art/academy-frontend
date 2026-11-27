@@ -413,6 +413,7 @@ test("두 대용량 업로드가 멈추면 해당 파트만 다시 보내고 대
 });
 
 test("작업박스에서 전송 창을 다시 열어 MTS 3개의 전송량과 대기 순서를 확인한다", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
   const evidence = await installApp(page);
   await gotoAndSettle(page, `${BASE}/workspace/videos/tree`, { timeout: 45_000 });
   await page.locator('[title="영상 추가"]').click({ timeout: 60_000 });
@@ -440,15 +441,27 @@ test("작업박스에서 전송 창을 다시 열어 MTS 3개의 전송량과 �
   try {
     await dialog.getByRole("button", { name: "업로드 (3개)" }).click();
     const rows = dialog.getByRole("listitem");
-    for (const width of [1366, 390]) {
+    for (const width of [1366, 1100, 390]) {
       await page.setViewportSize({ width, height: 900 });
       await expect(rows.nth(1)).toContainText("1.0MB / 101.0MB");
-      await dialog.getByRole("button", { name: "닫기", exact: true }).click();
-      await expect(dialog).toBeHidden();
+      await expect(dialog).toHaveAttribute("aria-modal", "false");
+      await expect(dialog.getByText("파일 선택")).toHaveCount(0);
       if (width === 1366) {
         await page.locator('aside a[href="/workspace/dashboard"]').click();
         await expect(page).toHaveURL(/\/workspace\/dashboard$/);
+        await expect(rows).toHaveCount(3);
+        await page.getByRole("button", { name: "기능 검색", exact: true }).click();
+        const search = page.getByRole("dialog", { name: "기능 검색" });
+        const input = search.getByRole("textbox", { name: "메뉴 검색" });
+        await input.fill("강의");
+        await expect(search.getByRole("button", { name: /강의/ }).first()).toBeVisible();
+        await input.press("Escape");
       }
+      await dialog.getByRole("button", { name: "진행 목록 접기" }).click();
+      await expect(dialog.getByRole("list")).toBeHidden();
+      await expect(dialog.getByText("저장 완료 0/3개")).toBeVisible();
+      await dialog.getByRole("button", { name: "닫기", exact: true }).click();
+      await expect(dialog).toBeHidden();
       const workbox = page.getByRole("button", { name: "작업박스 열기", exact: true });
       if (await workbox.isVisible()) await workbox.click();
       const upload = page.getByRole("button", { name: "영상 추가 · second 업로드 창 열기", exact: true });
@@ -461,7 +474,11 @@ test("작업박스에서 전송 창을 다시 열어 MTS 3개의 전송량과 �
         await expect(rows.nth(index).getByRole("progressbar")).toBeVisible();
       }
       await expect(rows.nth(2)).toContainText("전송 순서 대기");
-      await expect(dialog.getByRole("button", { name: "저장 완료 0/3개" })).toBeDisabled();
+      await expect(rows.nth(1)).toBeFocused();
+      await expect(dialog.getByText("저장 완료 0/3개")).toBeVisible();
+      const bounds = await dialog.boundingBox();
+      expect(bounds!.width).toBeLessThanOrEqual(width === 390 ? 390 : 480);
+      expect(bounds!.height).toBeLessThan(500);
       expect(evidence.initRequests).toHaveLength(2);
       expect(evidence.multipartCompletedVideoIds).toHaveLength(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
@@ -515,10 +532,19 @@ test("작은 영상 두 건의 저장 응답이 끊겨도 새 URL로 복구하�
   }
 });
 
-test("혼합 선택에서 MIME 없는 영상과 제외한 파일을 구분하고 실패한 완료 요청만 재시도한다", async ({ page }) => {
+test("혼합 선택에서 MIME 없는 영상과 제외한 파일을 구분하고 실패한 완료 요청만 재시도한다", async ({ page }, testInfo) => {
   const evidence = await installApp(page);
+  await page.setViewportSize({ width: 1366, height: 900 });
   let attempts = 0;
+  let firstAttempts = 0;
   let puts = 0;
+  const lastTransfer = Promise.withResolvers<void>();
+  await page.route("**/media/videos/9201/upload/complete/", route => ++firstAttempts === 1
+    ? route.fulfill({ status: 429, json: { detail: "잠시 뒤 다시 시도해 주세요." } }) : route.fallback());
+  await page.route("**/media/videos/9203/upload/complete/", async route => {
+    await lastTransfer.promise;
+    return route.fallback();
+  });
   await page.route("**/e2e-video-upload/**", route => { puts++; return route.fallback(); });
   let releaseCompletion!: () => void;
   const heldCompletion = new Promise<void>(resolve => { releaseCompletion = resolve; });
@@ -551,9 +577,25 @@ test("혼합 선택에서 MIME 없는 영상과 제외한 파일을 구분하고
   const failedTask = page.locator(".async-status-bar__item").filter({ hasText: "영상 추가 · two" });
   await expect(failedTask).toContainText("실패");
   await failedTask.getByRole("button", { name: /업로드 창 열기/ }).click();
-  await expect(dialog.getByText(/two.MOV · 완료 확인 실패/)).toBeVisible();
-  await expect(dialog.getByLabel("1번째 영상 제목")).toHaveValue("two");
-  await dialog.getByRole("button", { name: "다시 시도 (1개)" }).click();
+  const row = dialog.getByRole("listitem").filter({ hasText: "two.MOV" });
+  try {
+    await expect(row).toBeFocused();
+    await expect(row).toContainText("완료 확인 실패");
+    await expect(dialog.getByRole("listitem").filter({ hasText: "one.mp4" })).toContainText("완료 확인 실패");
+    await expect(dialog.getByRole("listitem").filter({ hasText: "three.mkv" })).toContainText("저장 확인");
+    const failurePath = testInfo.outputPath("video-upload-file-retry-1366.png");
+    await page.screenshot({ path: failurePath });
+    await testInfo.attach("video-upload-file-retry-1366", { path: failurePath, contentType: "image/png" });
+    await row.getByRole("button", { name: "two.MOV 다시 시도" }).click();
+    await expect.poll(() => evidence.completedVideoIds).toEqual([9202]);
+    expect(firstAttempts).toBe(1);
+    await expect(dialog.getByText("저장 완료 1/3개")).toBeVisible();
+  } finally {
+    lastTransfer.resolve();
+  }
+  await expect(dialog.getByText("저장 완료 2/3개")).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await dialog.getByRole("button", { name: "one.mp4 다시 시도" }).click();
   await expect(dialog).toBeHidden();
   expect(evidence.initRequests.map(row => row.filename)).toEqual(["one.mp4", "two.MOV", "three.mkv"]);
   expect(evidence.completedVideoIds.slice().sort()).toEqual([9201, 9202, 9203]);
@@ -581,8 +623,8 @@ test("저장 후 인코딩 접수가 거절되면 같은 영상의 인코딩만 
   const dialog = page.getByRole("dialog");
   await dialog.getByTestId("video-batch-file-input").setInputFiles({ name: "lesson.mp4", mimeType: "video/mp4", buffer: Buffer.from("lesson") });
   await dialog.getByRole("button", { name: "업로드 (1개)" }).click();
-  await expect(dialog.getByText(/lesson.mp4 · 영상 저장 완료 · 인코딩 시작 실패/)).toBeVisible();
-  await dialog.getByRole("button", { name: "다시 시도 (1개)" }).click();
+  await expect(dialog.getByRole("listitem").filter({ hasText: "lesson.mp4" })).toContainText("영상 저장 완료 · 인코딩 시작 실패");
+  await dialog.getByRole("button", { name: "lesson.mp4 다시 시도" }).click();
   await expect(dialog).toBeHidden();
   expect({ registrations: evidence.initRequests.length, puts, completions, retries }).toEqual({
     registrations: 1, puts: 1, completions: 1, retries: 1,

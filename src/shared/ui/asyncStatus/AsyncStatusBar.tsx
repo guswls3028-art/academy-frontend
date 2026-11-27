@@ -182,7 +182,7 @@ function BanIcon({ className, size = 16 }: { className?: string; size?: number }
 }
 
 function TaskItem({ task, now, onClose }: { task: AsyncTask; now: number; onClose: () => void }) {
-  const reopenUpload = useContext(VideoUploadDialogsContext)?.findReopenAction(task.videoUploadBatchId);
+  const reopenUpload = useContext(VideoUploadDialogsContext)?.findReopenAction(task.videoUploadBatchId, task.videoUploadItemId);
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const workbox = useWorkbox();
@@ -921,13 +921,12 @@ export default function AsyncStatusBar({
     return () => clearInterval(id);
   }, [pendingCount]);
 
-  // 새 작업이 추가되면 진행 상황 패널 자동 펼치기
+  // Local video transfers already show their own progress window.
+  const workboxPendingCount = displayTasks.filter(task => task.status === "pending" && !task.videoUploadBatchId).length;
   useEffect(() => {
-    if (pendingCount > prevPendingCountRef.current && pendingCount > 0) {
-      setExpanded(true);
-    }
-    prevPendingCountRef.current = pendingCount;
-  }, [pendingCount, setExpanded]);
+    if (workboxPendingCount > prevPendingCountRef.current) setExpanded(true);
+    prevPendingCountRef.current = workboxPendingCount;
+  }, [workboxPendingCount, setExpanded]);
 
   useWorkerJobPoller(tasks, {
     onExcelSuccess: () => {

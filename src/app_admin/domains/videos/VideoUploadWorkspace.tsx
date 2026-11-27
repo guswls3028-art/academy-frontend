@@ -13,18 +13,22 @@ type Batch = {
   folderId: number | null;
   visible: boolean;
   presentation: number;
+  selectedItemId?: string;
 };
 
 function UploadDialogs() {
   const [batches, setBatches] = useState<Batch[]>([]);
-  function show(id: string) {
+  const [foreground, setForeground] = useState<string | null>(null);
+  function show(id: string, itemId?: string) {
+    setForeground(id);
     // Remount only the visible window so its minimize control also gets restored.
     setBatches(previous => previous.map(batch => batch.id === id
-      ? { ...batch, visible: true, presentation: batch.presentation + 1 }
+      ? { ...batch, visible: true, presentation: batch.presentation + 1, selectedItemId: itemId }
       : batch));
   }
   function open(sessionId: number, folderId: number | null = null) {
     const id = createRandomUuid();
+    setForeground(id);
     setBatches(previous => [...previous, { id, sessionId, folderId, visible: true, presentation: 0 }]);
   }
   function close(id: string, keepTransferring = false) {
@@ -36,7 +40,7 @@ function UploadDialogs() {
   return (
     <VideoUploadDialogsContext.Provider value={{
       open,
-      findReopenAction: id => id && batches.some(batch => batch.id === id) ? () => show(id) : undefined,
+      findReopenAction: (id, itemId) => id && batches.some(batch => batch.id === id) ? () => show(id, itemId) : undefined,
     }}>
       <Outlet />
       <Suspense fallback={null}>
@@ -48,6 +52,8 @@ function UploadDialogs() {
             folderId={batch.folderId}
             isOpen={batch.visible}
             presentation={batch.presentation}
+            foreground={batch.id === foreground}
+            selectedItemId={batch.selectedItemId}
             onClose={keepTransferring => close(batch.id, keepTransferring)}
           />
         ))}
