@@ -670,14 +670,18 @@ test("파일 조회 중 다음 제출을 선택하고 해제한 행은 응답 �
   expect(state.mutations).toEqual([]);
 });
 
-for (const mobile of [false, true]) {
-  test(`철회된 차시의 저장된 성적을 읽고 다시 시도한다 ${mobile ? "390px" : "desktop"}`, async ({ page }) => {
+for (const { mobile, recorded } of [
+  { mobile: false, recorded: false }, { mobile: true, recorded: false },
+  { mobile: false, recorded: true }, { mobile: true, recorded: true },
+]) {
+  test(`철회된 차시의 저장된 성적을 읽고 다시 시도한다 ${mobile ? "390px" : "desktop"} ${recorded ? "B1 기록" : "차시 미확인"}`, async ({ page }) => {
     await page.setViewportSize({ width: mobile ? 390 : 1366, height: 900 });
     await setup(page, mobile ? "teacher" : "owner");
     const row = { id: 812, target_type: "exam", target_id: 71, target_title: "과거 공유 시험",
       target_resolved: true, status: "done", student_name: "이수강", enrollment_id: 10,
-      lecture_id: null, session_id: null, score_lecture_id: 21, session_history_only: true,
-      session_choices: [], session_origin_recorded: false, source: "online", created_at: "2026-10-09T00:00:00Z" };
+      lecture_id: recorded ? 22 : null, lecture_title: recorded ? "기록 강의 B" : "",
+      session_id: recorded ? 32 : null, session_title: recorded ? "철회된 B1" : "", score_lecture_id: recorded ? 22 : 21, session_history_only: true,
+      session_choices: [], session_origin_recorded: recorded, source: "online", created_at: "2026-10-09T00:00:00Z" };
     await page.route("**/api/v1/submissions/submissions/pending/**", route => route.fulfill({ json: {
       results: [row], count: 1, pages: 1, page: 1, page_size: 50, has_next: false, has_previous: false,
       summary: { failed: 0, real_failed: 0, discarded: 0 },
@@ -692,7 +696,15 @@ for (const mobile of [false, true]) {
     });
     const path = mobile ? "/workspace/mobile/submissions" : "/workspace/results/submissions";
     await gotoAndSettle(page, BASE + path + "?filter=done");
-    await expect(page.getByText("응시 차시 미확인", { exact: true })).toBeVisible();
+    if (recorded) {
+      const card = page.getByTestId("submission-inbox-812");
+      await expect(card).toContainText("철회된 B1");
+      await expect(card.getByText("응시 차시 미확인")).toHaveCount(0);
+      await expect(card.getByRole("button", { name: /^(결과 보기|결과|폐기|학생 지정|답안 검토·복구)$/ })).toHaveCount(0);
+      await expect(card.getByText("원본 시험 없음")).toHaveCount(0);
+    } else {
+      await expect(page.getByText("응시 차시 미확인", { exact: true })).toBeVisible();
+    }
     await expect(page.getByText("현재 조회 가능한 차시 없음", { exact: true })).toBeVisible();
     const open = page.getByRole("button", { name: "저장된 성적 보기" });
     await open.click();
@@ -715,6 +727,10 @@ for (const mobile of [false, true]) {
       } }));
       await gotoAndSettle(page, BASE + "/workspace/results");
       await expect(page.getByRole("heading", { name: "최근 채점 완료" })).toBeVisible();
+      if (recorded) {
+        await expect(page.getByText("기록 강의 B · 철회된 B1", { exact: true })).toBeVisible();
+        await expect(page.getByText("응시 차시 미확인", { exact: true })).toHaveCount(0);
+      }
     }
     await open.click();
     await expect(dialog).toContainText("이 제출에 저장된 점수가 없습니다.");

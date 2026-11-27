@@ -1348,6 +1348,7 @@ function OperationList({
       {rows.length === 0 ? <p>{empty}</p> : rows.slice(0, 4).map((submission) => submission.target_type === "exam" && submission.session_history_only ? (
         <div key={submission.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
           <span>{submission.target_title} · {submission.student_name}</span>
+          {submission.session_origin_recorded === true && <small>{[submission.lecture_title, submission.session_title].filter(Boolean).join(" · ")}</small>}
           {submission.session_origin_recorded === false && <small>응시 차시 미확인</small>}
           <StoredExamResultAction row={submission} />
         </div>

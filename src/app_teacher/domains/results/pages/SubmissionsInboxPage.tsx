@@ -437,7 +437,7 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
                     <span className="tabular-nums shrink-0 ml-auto">{formatTime(r.created_at)}</span>
                   </div>
                   {resolved && isExam && r.session_origin_recorded === false && <p className="text-xs">응시 차시 미확인</p>}
-                  {isNavigable && Boolean(r.session_choices?.length) && <ExamSessionSelect label="열어볼 강의·차시"
+                  {!r.session_history_only && isNavigable && Boolean(r.session_choices?.length) && <ExamSessionSelect label="열어볼 강의·차시"
                     choices={r.session_choices ?? []} selectedId={reviewSessions[r.id]}
                     onSelect={choice => setReviewSessions(previous => ({ ...previous, [r.id]: choice?.session_id ?? 0 }))} />}
                 </div>

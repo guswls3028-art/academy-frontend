@@ -104,7 +104,7 @@ export default function SubmissionPreviewModal({ open, row, onClose, onIdentify 
   const fileName = submissionFileName(fileNameValue);
   const fileKind = submissionFileKind(row.file_type, fileNameValue);
   const kind = previewKind(row);
-  const canIdentify =
+  const canIdentify = !row?.session_history_only &&
     row.status === "needs_identification" && row.target_resolved && !!row.target_id;
   const requiresExternalConfirmation = kind === "pdf" || kind === "unsupported";
   const assetIdentity = `${reviewSession}:${row.id}:${previewUrl ?? "pending"}:${assetAttempt}`;

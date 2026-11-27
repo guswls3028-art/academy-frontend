@@ -9,6 +9,7 @@ export type LandingSubmissionSummary = {
   lecture_id: number | null;
   lecture_title: string;
   session_id: number | null;
+  session_title?: string;
   session_origin_recorded?: boolean;
   session_history_only?: boolean;
   score_lecture_id?: number | null;
