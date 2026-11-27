@@ -169,6 +169,21 @@ export default function SessionScheduleStrip({ sessionId, lectureId, sessionDate
     <SessionScheduleNavigationContext.Provider value={scheduleNavigation}>
       <SessionScheduleControlsContext.Provider value={{
         content,
+        rosterDayPicker: data && !query.isError && !unknown && hasDays && (
+          <label className="session-strip-field">
+            수업일
+            <select className="ds-select" data-size="sm" aria-label="수업일 전환"
+              value={scope ?? ''} onChange={event => void choose(event.target.value || null)}>
+              <option value="">전체 수업일</option>
+              {data.schedules.map(day => (
+                <option key={day.id} value={day.id}>
+                  {day.label} · {day.date}{day.start_time ? ` ${day.start_time}` : ''}
+                </option>
+              ))}
+              {(data.unassigned_enrollment_ids.length > 0 || scope === '0') && <option value="0">미배정</option>}
+            </select>
+          </label>
+        ),
         title: sessionTitle,
         date: sessionDate,
         inlineActions: !!data && !query.isError && !hasDays,

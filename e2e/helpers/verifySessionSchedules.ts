@@ -76,6 +76,19 @@ async function verifyInitialSchedules(page: Page, request: APIRequestContext, ad
     await expect(modal).toBeHidden();
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('region', { name: new RegExp(`${title}.*차시 카드`) })).toHaveCount(1);
+    const attendance = (target: number) => `${lectureUrl}/sessions/${target}/attendance`;
+    await gotoAndSettle(page, attendance(sessionId));
+    await page.getByRole('button', { name: '차시·수업일 접기', exact: true }).press('Space');
+    const sessions = page.getByRole('combobox', { name: '차시 전환' });
+    await sessions.selectOption(String(id));
+    await expect(page).toHaveURL(attendance(id));
+    const dayId = String(fresh.schedules[0].id);
+    await page.getByRole('combobox', { name: '수업일 전환' }).selectOption(dayId);
+    await expect(page).toHaveURL(`${attendance(id)}?schedule=${dayId}`);
+    await sessions.selectOption(String(sessionId));
+    await expect(page).toHaveURL(attendance(sessionId));
+    await expect(sessions).toHaveValue(String(sessionId));
+    await page.getByRole('button', { name: '차시·수업일 펼치기', exact: true }).press('Enter');
   } catch (error) {
     primaryFailed = true;
     throw error;
