@@ -46,7 +46,9 @@ export function useSecessionConfirm() {
             </label>
           ))}
         </fieldset>
-        <p className="secession-description mt-4 text-sm">기존 성적·출결·시청 기록은 보관됩니다.</p>
+        <p className="secession-description mt-4 text-sm">
+          기존 성적·출결·시청 기록은 보관됩니다. 다시 수강할 때는 관리자 차시 출결표에서 학생의 재등록을 선택하세요.
+        </p>
       </ModalBody>
       <ModalFooter right={<>
         <Button onClick={() => settle(null)}>취소</Button>

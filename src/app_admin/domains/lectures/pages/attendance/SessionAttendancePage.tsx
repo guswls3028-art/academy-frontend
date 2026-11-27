@@ -71,7 +71,7 @@ type SessionAttendancePageProps = {
   sessionType?: string | null;
   sessionDate?: string | null;
   sessionSelector: ReactNode;
-  onOpenEnrollModal?: () => void;
+  onOpenEnrollModal?: (studentName?: string) => void;
 };
 
 function toAttendanceStatus(status: string | null | undefined): AttendanceStatus {
@@ -580,7 +580,7 @@ export default function SessionAttendancePage({
     <div className="flex flex-wrap items-center gap-2">
       {chooseSessionAction}
       <Button type="button" intent="secondary" size="lg" aria-haspopup="dialog" onClick={openTools}>출결 도구</Button>
-      {onOpenEnrollModal && <Button type="button" intent="primary" size="lg" onClick={onOpenEnrollModal}>수강생 등록</Button>}
+      {onOpenEnrollModal && <Button type="button" intent="primary" size="lg" onClick={() => onOpenEnrollModal()}>수강생 등록</Button>}
     </div>
   );
 
@@ -693,7 +693,7 @@ export default function SessionAttendancePage({
             }
             actions={
               totalCount === 0 && !search && !statusFilter && onOpenEnrollModal ? (
-                <Button type="button" intent="primary" onClick={onOpenEnrollModal}>
+                <Button type="button" intent="primary" onClick={() => onOpenEnrollModal()}>
                   수강생 등록
                 </Button>
               ) : undefined
@@ -804,6 +804,7 @@ export default function SessionAttendancePage({
                         studentName={studentName}
                         value={toAttendanceStatus(att.status)}
                         pending={pending}
+                          onReregister={onOpenEnrollModal && (() => onOpenEnrollModal(studentName))}
                         onChange={(code) => void handleStatusChange(att, code)}
                       />
                     </td>

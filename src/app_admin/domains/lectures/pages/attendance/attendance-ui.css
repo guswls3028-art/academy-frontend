@@ -128,6 +128,12 @@
   gap: 4px;
 }
 
+.attendance-status-options[data-withdrawn] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
 .attendance-status-options .attendance-status-option.ds-segment__btn {
   min-width: 0;
   padding-inline: 3px;

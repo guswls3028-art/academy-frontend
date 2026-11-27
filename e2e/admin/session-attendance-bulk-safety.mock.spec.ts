@@ -768,7 +768,7 @@ test("전체 학생 선택은 현재 강의의 비활성 수강 이력을 자동
 
   await expect(page.getByRole("checkbox", { name: "김가람 선택" })).toBeVisible();
   await expect(page.getByRole("checkbox", { name: "이도윤 선택" })).toHaveCount(0);
-  await expect(page.getByText(/현재 강의의 비활성·대기 수강생 1명은 제외/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "강의 수강 등록 열기" })).toBeVisible();
 
   await page.getByRole("checkbox", { name: "김가람 선택" }).check();
   await page.getByRole("button", { name: "1명 검토 후 등록" }).click();
@@ -1086,8 +1086,9 @@ for (const width of [1366, 390]) {
       { status: "SECESSION", confirm_secession: true, secession_scope: "session" },
     ]);
     if (!startFromScores) await page.reload({ waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "수강생 등록" }).first().click();
+    await page.getByRole("button", { name: "김가람 재등록", exact: true }).click();
     await expect(enrollmentDialog).toBeVisible();
+    await expect(enrollmentDialog.getByLabel("이름 또는 전화번호로 검색")).toHaveValue("김가람");
     await expect(enrollmentDialog.getByRole("checkbox", { name: "김가람 선택" })).toBeVisible();
     await expect(enrollmentDialog.getByRole("checkbox", { name: "이도윤 선택" })).toHaveCount(0);
     await enrollmentDialog.getByRole("checkbox", { name: "김가람 선택" }).check();
