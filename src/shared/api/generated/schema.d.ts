@@ -15656,6 +15656,7 @@ export interface components {
         };
         LectureAttendance: {
             enrollment_id: number;
+            readonly enrollment_status: string;
             readonly id: number;
             /** @default #3b82f6 */
             readonly lecture_color: string;
@@ -15700,6 +15701,7 @@ export interface components {
              * @description 보강 학생의 예정 등원 시간. 날짜만 정해진 경우 비워둘 수 있다.
              */
             planned_arrival_time?: string | null;
+            restore_scope?: components["schemas"]["SecessionScopeEnum"];
             /**
              * @description session: 이 차시만 퇴원. lecture 또는 생략: 기존 강의 전체 퇴원.
              *
@@ -17630,6 +17632,7 @@ export interface components {
              * @description 보강 학생의 예정 등원 시간. 날짜만 정해진 경우 비워둘 수 있다.
              */
             planned_arrival_time?: string | null;
+            restore_scope?: components["schemas"]["SecessionScopeEnum"];
             /**
              * @description session: 이 차시만 퇴원. lecture 또는 생략: 기존 강의 전체 퇴원.
              *
