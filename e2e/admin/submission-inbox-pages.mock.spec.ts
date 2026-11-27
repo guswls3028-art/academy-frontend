@@ -683,10 +683,12 @@ for (const mobile of [false, true]) {
       summary: { failed: 0, real_failed: 0, discarded: 0 },
     } }));
     const requests: string[] = [];
-    await page.route("**/api/v1/results/admin/exams/71/enrollments/**", route => {
-      requests.push(route.request().method() + " " + new URL(route.request().url()).pathname);
-      return route.fulfill({ json: { target_id: 71, enrollment_id: requests.length === 1 ? 11 : 10,
-        total_score: requests.length === 1 ? 99 : 75, max_score: 100 } });
+    await page.route("**/api/v1/submissions/submissions/exams/71/**", route => {
+      const url = new URL(route.request().url());
+      requests.push(route.request().method() + " " + url.pathname + url.search);
+      const n = requests.length;
+      return route.fulfill({ json: [{ id: n === 1 ? 850 : 812, enrollment_id: n === 2 ? 11 : 10,
+        status: "done", score: n <= 2 ? 99 : n === 3 ? 0 : null }] });
     });
     const path = mobile ? "/workspace/mobile/submissions" : "/workspace/results/submissions";
     await gotoAndSettle(page, BASE + path + "?filter=done");
@@ -697,13 +699,25 @@ for (const mobile of [false, true]) {
     const dialog = page.getByRole("dialog", { name: "저장된 성적", exact: true });
     await expect(dialog.getByRole("alert")).toContainText("저장된 성적을 불러오지 못했습니다");
     await dialog.getByRole("button", { name: "다시 시도" }).click();
-    await expect(dialog).toContainText("점수 75점 / 100점");
+    await expect.poll(() => requests.length).toBe(2);
+    await expect(dialog.getByRole("alert")).toBeVisible();
+    await dialog.getByRole("button", { name: "다시 시도" }).click();
+    await expect(dialog).toContainText("이 제출의 저장 점수: 0점");
     await expect(dialog).toContainText("과거 공유 시험 · 이수강");
     await expect(dialog.getByRole("spinbutton")).toHaveCount(0);
     expect(await dialog.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
     await dialog.getByRole("button", { name: "닫기", exact: true }).last().click();
     await expect(dialog).toHaveCount(0);
     await expect(open).toBeVisible();
-    expect(requests).toEqual(Array(2).fill("GET /api/v1/results/admin/exams/71/enrollments/10/"));
+    if (!mobile) {
+      await page.route("**/results/admin/landing-stats/**", route => route.fulfill({ json: {
+        recent_done_top: [row], pending_top: [], active_exams: 1, active_lectures: 1,
+      } }));
+      await gotoAndSettle(page, BASE + "/workspace/results");
+      await expect(page.getByRole("heading", { name: "최근 채점 완료" })).toBeVisible();
+    }
+    await open.click();
+    await expect(dialog).toContainText("이 제출에 저장된 점수가 없습니다.");
+    expect(requests).toEqual(Array(4).fill("GET /api/v1/submissions/submissions/exams/71/?focus_id=812"));
   });
 }

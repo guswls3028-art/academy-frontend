@@ -492,3 +492,16 @@ export async function claimOmrUploadBatchCompletionApi(batchId: string): Promise
   );
   return res.data as { notify: boolean; batch: OmrUploadBatchSummary };
 }
+
+/** Staff exam submission history, scoped to one accepted submission identity. */
+export async function fetchStoredSubmissionScore(examId: number, submissionId: number, enrollmentId: number) {
+  const { data } = await api.get<Array<{ id: number; enrollment_id: number; score: number | null }>>(
+    `/submissions/submissions/exams/${examId}/`, { params: { focus_id: submissionId } },
+  );
+  const row = data[0];
+  if (!Array.isArray(data) || data.length !== 1 || row.id !== submissionId || row.enrollment_id !== enrollmentId
+      || (row.score !== null && !Number.isFinite(row.score))) {
+    throw new Error("해당 제출의 저장 점수를 확인할 수 없습니다.");
+  }
+  return row.score;
+}
