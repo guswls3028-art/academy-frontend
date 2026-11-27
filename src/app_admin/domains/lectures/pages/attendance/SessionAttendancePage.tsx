@@ -103,7 +103,7 @@ export default function SessionAttendancePage({
   const sessionsPath = `${listPath}${listParams.size ? "&" : "?"}view=sessions`;
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const { confirmSecession, confirmRestore, secessionDialog } = useSecessionConfirm();
+  const { prepareStatusChange, secessionDialog } = useSecessionConfirm();
   const { user } = useAuth();
   const tenantCode = getTenantCodeForApiRequest();
   const [bulkPresentUndo, setBulkPresentUndo] = useBulkPresentUndo(tenantCode, user?.id, sessionId);
@@ -178,7 +178,7 @@ export default function SessionAttendancePage({
   const updateStatus = useMutation({
     mutationFn: ({ id, ...payload }: {
       id: number;
-      status: AttendanceStatus;
+      status: string;
       confirm_secession?: boolean;
       secession_scope?: SecessionScope;
       restore_scope?: SecessionScope;
@@ -202,27 +202,18 @@ export default function SessionAttendancePage({
 
   async function handleStatusChange(att: AttendanceListItem, code: AttendanceStatus) {
     if (pendingStatusIds.has(att.id) || (toAttendanceStatus(att.status) === code && code !== "SECESSION")) return;
-    const secessionScope = code === "SECESSION" ? await confirmSecession(att.name ?? att.student_name ?? "학생") : null;
-    if (code === "SECESSION" && !secessionScope) return;
-    const restoring = att.status === "SECESSION" && code !== "SECESSION";
-    const restoreScope = restoring ? await confirmRestore(att, code) : null;
-    if (restoring && !restoreScope) return;
+    const change = await prepareStatusChange(att, code);
+    if (!change) return;
 
     setPendingStatusIds((current) => new Set(current).add(att.id));
     try {
-      await updateStatus.mutateAsync({
-        id: att.id,
-        status: code,
-        confirm_secession: code === "SECESSION" ? true : undefined,
-        secession_scope: secessionScope ?? undefined,
-        restore_scope: restoreScope ?? undefined,
-      });
-      if (code === "SECESSION" || restoreScope) {
+      await updateStatus.mutateAsync({ id: att.id, ...change });
+      if (code === "SECESSION" || change.restore_scope) {
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId) });
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceEnrolledIds(sessionId) });
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectureEnrollments(lectureId) });
-        feedback.success(restoreScope ? "수강을 복구하고 출결을 저장했습니다." : `${att.name ?? "학생"} 학생이 퇴원 처리되었습니다.`);
+        feedback.success(change.restore_scope ? "수강을 복구하고 출결을 저장했습니다." : `${att.name ?? "학생"} 학생이 퇴원 처리되었습니다.`);
       }
     } catch {
       // useMutation onError owns the user-facing failure message.

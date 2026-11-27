@@ -29,7 +29,12 @@ export function useSecessionConfirm() {
     return new Promise<SecessionScope | null>((resolve) => { resolver.current = resolve; });
   }, []);
 
-  const confirmRestore = useCallback(async (row: AttendanceListItem, status: string): Promise<SecessionScope | null> => {
+  const prepareStatusChange = useCallback(async (row: AttendanceListItem, status: string) => {
+    if (status === "SECESSION") {
+      const scope = await confirmSecession(row.name || row.student_name || "학생");
+      return scope ? { status, confirm_secession: true, secession_scope: scope } : null;
+    }
+    if (row.status !== "SECESSION") return { status };
     if (row.enrollment_status !== "ACTIVE" && row.enrollment_status !== "INACTIVE") {
       feedback.error("현재 수강 상태를 확인할 수 없습니다. 강의 수강 명단을 확인해 주세요.");
       return null;
@@ -45,8 +50,9 @@ export function useSecessionConfirm() {
       confirmText: `복구하고 ${label} 저장`,
       cancelText: "취소",
     });
-    return ok ? (wholeLecture ? "lecture" : "session") : null;
-  }, [confirm]);
+    const scope: SecessionScope = wholeLecture ? "lecture" : "session";
+    return ok ? { status, restore_scope: scope } : null;
+  }, [confirm, confirmSecession]);
 
   const secessionDialog = studentName === null ? null : (
     <AdminModal open onClose={() => settle(null)} type="confirm" noMinimize>
@@ -77,5 +83,5 @@ export function useSecessionConfirm() {
       </>} />
     </AdminModal>
   );
-  return { confirmSecession, confirmRestore, secessionDialog };
+  return { prepareStatusChange, secessionDialog };
 }

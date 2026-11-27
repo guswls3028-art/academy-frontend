@@ -14,8 +14,7 @@ import {
   type ScoreTotalColumnKind,
 } from "../api/sessionScores";
 import { scoresQueryKeys } from "../api/queryKeys";
-import { attendanceQueryKeys } from "@/shared/api/queryKeys/attendance";
-import { fetchAttendance, updateAttendance } from "@/shared/api/contracts/attendance";
+import { fetchAttendance } from "@/shared/api/contracts/attendance";
 
 import ScoresTable, {
   type ScoreFlushResult,
@@ -138,7 +137,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   onActiveCellChange,
   onOpenExamGrading,
 }, ref) {
-  const { confirmSecession, confirmRestore, secessionDialog } = useSecessionConfirm();
+  const { prepareStatusChange, secessionDialog } = useSecessionConfirm();
   /**
    * Direct DOM focus/save handle. React callback ref의 null 해제를 무시해 마지막 handle을
    * 보존한다. 탭 이동으로 unmount된 뒤에도 이미 캡처된 autosave가 pending PATCH를
@@ -263,35 +262,18 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   }, [attendanceList]);
 
   const handleAttendanceChange = useCallback(async (enrollmentId: number, newStatus: string) => {
-    const attendanceRecordId = attendanceIdMap[enrollmentId];
-    if (!attendanceRecordId) return;
-    const record = attendanceList?.data.find((item) => item.id === attendanceRecordId);
+    const record = attendanceList?.data.find((item) => item.id === attendanceIdMap[enrollmentId]);
     if (!record) return;
-    const secessionScope = newStatus === "SECESSION" ? await confirmSecession(record.name ?? undefined) : null;
-    if (newStatus === "SECESSION" && !secessionScope) return;
-    const restoring = record.status === "SECESSION" && newStatus !== "SECESSION";
-    const restoreScope = restoring ? await confirmRestore(record, newStatus) : null;
-    if (restoring && !restoreScope) return;
+    const change = await prepareStatusChange(record, newStatus);
+    if (!change) return;
     try {
-      await updateAttendance(
-        attendanceRecordId,
-        { status: newStatus, confirm_secession: newStatus === "SECESSION" ? true : undefined,
-          secession_scope: secessionScope ?? undefined, restore_scope: restoreScope ?? undefined },
-      );
-      qc.invalidateQueries({ queryKey: scoresQueryKeys.attendance(sessionId) });
-      qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-      if (newStatus === "SECESSION" || restoreScope) {
-        qc.invalidateQueries({ queryKey: scoresQueryKeys.attendanceMatrix(lectureId) });
-        qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionEnrollments(sessionId) });
-        qc.invalidateQueries({ queryKey: attendanceQueryKeys.enrolledIds(sessionId) });
-        qc.invalidateQueries({ queryKey: attendanceQueryKeys.lectureEnrollmentsRoot });
-        feedback.success(restoreScope ? "수강을 복구하고 출결을 저장했습니다." : "퇴원 처리되었습니다.");
-      }
+      const { saveScoreAttendance } = await import("../api/saveScoreAttendance");
+      await saveScoreAttendance(qc, record.id, change, sessionId, lectureId);
     } catch {
       void qc.invalidateQueries({ queryKey: scoresQueryKeys.attendance(sessionId) });
       feedback.error("출결 변경에 실패했습니다. 현재 상태를 확인한 뒤 다시 시도해 주세요.");
     }
-  }, [attendanceIdMap, attendanceList, confirmSecession, confirmRestore, qc, sessionId, lectureId]);
+  }, [attendanceIdMap, attendanceList, prepareStatusChange, qc, sessionId, lectureId]);
 
   const rows = useMemo(() => {
     const searchedRows = allRows.filter((row) => (
