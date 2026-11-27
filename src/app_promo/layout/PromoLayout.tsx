@@ -1,3 +1,4 @@
+import PublicBrandLink from "@/shared/ui/PublicBrandLink";
 // PATH: src/app_promo/layout/PromoLayout.tsx
 import { Link, Outlet, useLocation } from "react-router";
 import { useEffect, useRef, useState } from "react";
@@ -39,9 +40,9 @@ const ACTIVE_ALIASES: Record<string, string[]> = {
 
 function BrandLink() {
   return (
-    <Link to="/promo" className={styles.brand} aria-label="학원플러스 프로모션 홈">
+    <PublicBrandLink to="/promo" className={styles.brand} aria-label="학원플러스 프로모션 홈">
       <img src={hakwonplus.branding.logoUrl} alt="" width={142} height={31} />
-    </Link>
+    </PublicBrandLink>
   );
 }
 

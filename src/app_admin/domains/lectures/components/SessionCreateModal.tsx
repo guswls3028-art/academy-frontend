@@ -341,7 +341,7 @@ export default function SessionCreateModal({
   const showDefaultTimeOption = sessionType === "regular";
 
   return (
-    <AdminModal open={true} onClose={close} type="action" width={620} closeDisabled={busy} onEnterConfirm={!pending && !formLocked ? handleSubmit : undefined}>
+    <AdminModal open={true} onClose={close} type="action" size="form" closeDisabled={busy} onEnterConfirm={!pending && !formLocked ? handleSubmit : undefined}>
       <ModalHeader
         type="action"
         title={sectionLabel ? `${sectionLabel} 차시 추가` : "차시 추가"}

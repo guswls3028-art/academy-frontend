@@ -7,13 +7,6 @@
   border-radius: var(--radius-2xl);
   overflow: hidden;
   border: 1px solid var(--color-border-divider);
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
-    inset 0 2px 8px rgba(255, 255, 255, 0.06),
-    inset 0 -1px 0 0 rgba(0, 0, 0, 0.04),
-    0 0 0 1px rgba(0, 0, 0, 0.04),
-    var(--elevation-3),
-    0 24px 48px -12px rgba(0, 0, 0, 0.18);
   background: var(--color-modal-bg, var(--color-bg-surface));
 }
 
@@ -34,7 +27,6 @@
   padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--color-border-divider);
   background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-modal-bg, var(--color-bg-surface)));
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
 }
 
 .ds-card-modal__accent {
@@ -63,13 +55,12 @@
 .ds-card-modal__header-icon {
   width: 28px;
   height: 28px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   display: grid;
   place-items: center;
   border: 1px solid var(--color-border-divider);
   background: var(--color-modal-bg, var(--color-bg-surface));
   color: var(--color-brand-primary);
-  box-shadow: var(--elevation-1);
   flex: 0 0 auto;
 }
 
@@ -79,7 +70,7 @@
 }
 
 .ds-card-modal__header-title {
-  font-size: 14px;
+  font-size: var(--ds-text-lg);
   font-weight: var(--font-title);
   letter-spacing: -0.2px;
   color: var(--color-text-primary);
@@ -88,8 +79,8 @@
 
 .ds-card-modal__header-description {
   margin-top: 4px;
-  font-size: 12px;
-  font-weight: var(--font-meta);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--font-regular);
   color: var(--color-text-muted);
   line-height: 1.45;
 }
@@ -100,7 +91,7 @@
   background: var(--color-modal-bg, var(--color-bg-surface));
 }
 
-/* 카드 본문 내 블록 — modal-form-group과 동일 입체감 */
+/* 카드 본문 내 블록 — modal-form-group과 동일 간격 */
 .ds-card-modal__body .modal-form-group {
   margin: 0;
 }
@@ -115,5 +106,4 @@
   padding: var(--space-3) var(--space-5);
   border-top: 1px solid var(--color-border-divider);
   background: color-mix(in srgb, var(--color-brand-primary) 2%, var(--color-modal-bg, var(--color-bg-surface)));
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
 }

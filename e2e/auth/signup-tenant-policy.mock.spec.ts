@@ -18,20 +18,37 @@ for (const width of [390, 1366]) {
       return route.fulfill({ json: { username: { available: true } } });
     });
     await gotoAndSettle(page, `${BASE}/login/hakwonplus`);
-    await expect(page.locator('[data-auth-part="brand-artwork"] img')).toHaveAttribute("src", "/tenants/hakwonplus/logo.png?v=20261119");
+    const logo = page.locator('[data-auth-part="brand-artwork"] img');
+    await expect(logo).toHaveAttribute("src", "/tenants/hakwonplus/logo.png?v=20261119");
+    await expect.poll(() => logo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
+    const logoBox = (await logo.boundingBox())!;
+    const panelBox = (await page.locator('[data-auth-part="login-panel"]').boundingBox())!;
+    expect(logoBox.y + logoBox.height).toBeLessThanOrEqual(panelBox.y);
+    expect(logoBox.x).toBeGreaterThanOrEqual(panelBox.x - 1);
+    expect(logoBox.x + logoBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width + 1);
+    expect(panelBox.width).toBeLessThanOrEqual(440);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     const trigger = page.getByRole("button", { name: "회원가입", exact: true });
     await trigger.click();
     const dialog = page.getByRole("dialog", { name: "학생 회원가입" });
     await expect(dialog.locator("#signup-name")).toBeFocused();
     const close = dialog.getByRole("button", { name: "닫기", exact: true });
     const help = dialog.getByRole("button", { name: "회원가입 안내 보기", exact: true });
-    await expect(close).toHaveCSS("height", width === 390 ? "44px" : "40px");
-    await expect(help).toHaveCSS("height", width === 390 ? "44px" : "32px");
+    const touchLayout = await page.evaluate(() => matchMedia("(max-width: 1023px), (pointer: coarse)").matches);
+    const controlHeight = touchLayout ? "44px" : "40px";
+    await expect(close).toHaveCSS("height", "44px");
+    await expect(help).toHaveCSS("height", touchLayout ? "44px" : "32px");
     const gender = dialog.getByRole("button", { name: "남", exact: true });
-    await expect(gender).toHaveCSS("height", "44px");
-    await expect.poll(() => gender.evaluate((button) => Math.round(button.parentElement!.getBoundingClientRect().height))).toBe(44);
-    await expect(dialog.locator("#signup-name")).toHaveCSS("height", "44px");
-    await expect(dialog.getByLabel("휴대전화 앞 4자리")).toHaveCSS("height", "44px");
+    await expect(gender).toHaveCSS("height", controlHeight);
+    await expect(gender.locator("..")).toHaveCSS("height", controlHeight);
+    for (const control of [
+      dialog.locator("#signup-name"),
+      dialog.getByLabel("휴대전화 앞 4자리"),
+      dialog.getByLabel("휴대전화 뒤 4자리"),
+      dialog.getByRole("button", { name: "가입 신청", exact: true }),
+      dialog.getByRole("button", { name: "취소", exact: true }),
+    ]) await expect(control).toHaveCSS("height", controlHeight);
+    await expect(dialog.getByLabel("휴대전화 앞 4자리")).toHaveCSS("font-size", touchLayout ? "16px" : "14px");
     if (width === 390) await expect(trigger).toHaveCSS("min-height", "44px");
     await help.click();
     await expect(dialog.locator("#signup-guide-panel")).toBeVisible();

@@ -1,5 +1,5 @@
 /* Modal surfaces follow the same role token as the application and preview. */
-.ant-modal:not(.admin-modal) .ant-modal-content {
+.ant-modal:not(.admin-modal) .ant-modal-container {
   border-radius: var(--radius-xl);
   background: var(--color-modal-bg);
   color: var(--color-text-primary);

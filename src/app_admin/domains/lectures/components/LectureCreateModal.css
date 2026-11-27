@@ -49,17 +49,12 @@
   font-weight: 500;
 }
 
-/* placeholder — 담당 강사 빈 상태와 동일 (색상·굵기) */
 .lecture-create-modal-form input::placeholder,
-.lecture-create-modal-form textarea::placeholder {
-  color: var(--color-text-muted);
-  font-weight: 600;
-}
-/* DatePicker · TimeRangeInput placeholder도 동일 굵기 */
+.lecture-create-modal-form textarea::placeholder,
 .lecture-create-modal-form .shared-date-picker-placeholder,
 .lecture-create-modal-form .shared-time-range-trigger--placeholder .shared-time-range-trigger-text {
   color: var(--color-text-muted);
-  font-weight: 600;
+  font-weight: var(--font-regular);
 }
 
 /* 담당 강사 선택 트리거 — ds-input과 동일한 높이/테두리 */
@@ -129,6 +124,37 @@
 
 .lecture-schedule-row input { min-width: 0; }
 
+.lecture-appearance {
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.lecture-appearance-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  min-height: var(--ds-control-md);
+  padding-inline: var(--ds-space-1);
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: var(--ds-text-sm);
+  cursor: pointer;
+}
+
+.lecture-appearance-toggle svg {
+  transform: rotate(-90deg);
+}
+
+.lecture-appearance-toggle[aria-expanded="true"] svg {
+  transform: none;
+}
+
+.lecture-appearance-toggle:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: -2px;
+}
+
 .lecture-create-chip-layout {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -155,6 +181,11 @@
 .lecture-create-chip-input-wrap {
   grid-column: 1;
   grid-row: 2;
+}
+
+#lecture-subject {
+  box-sizing: border-box;
+  height: var(--ds-control-md);
 }
 
 .lecture-create-chip-input {

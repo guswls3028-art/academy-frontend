@@ -995,7 +995,7 @@ export default function SessionEnrollModal({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
-      <AdminModal open={true} onClose={() => { void requestClose(); }} type="action" width={840} className="session-enroll-modal">
+      <AdminModal open={true} onClose={() => { void requestClose(); }} type="action" size="xwide" className="session-enroll-modal">
         <ModalHeader
           type="action"
           title="차시 수강생 등록"

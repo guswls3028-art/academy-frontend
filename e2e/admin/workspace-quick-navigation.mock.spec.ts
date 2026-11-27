@@ -253,6 +253,52 @@ test.describe("업무 화면 기능 검색", () => {
     await expect(search).toHaveValue("");
   });
 
+  test("전체 글에서 분류를 선택하고 댓글 수정 실패 후 같은 초안을 다시 저장한다", async ({ page }) => {
+    const item = { id: 17, author_name: "김선생", body: "회의에 참석합니다.", created_at: "2026-11-25T09:00:00Z",
+      can_edit: true, can_delete: true };
+    const post = { id: 51, category: "free", title: "겨울 학기 교직원 회의", body: "금요일 회의 일정을 확인해 주세요.",
+      author_name: "이선생", created_at: item.created_at, attachment_name: "", reply_count: 1, can_edit: false,
+      can_delete: false, replies: [item] };
+    let failEdit = true;
+    await page.route("**/api/v1/staffs/board/posts/**", async route => {
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith("/51/replies/17/") && route.request().method() === "PATCH") {
+        if (failEdit) return route.fulfill({ status: 400, json: { detail: "댓글 내용을 확인해 주세요." } });
+        item.body = route.request().postDataJSON().body;
+        return route.fulfill({ json: item });
+      }
+      if (url.pathname.endsWith("/51/")) return route.fulfill({ json: post });
+      return route.fulfill({ json: { count: 1, results: [post], next: null, previous: null } });
+    });
+    await page.goto(`${BASE}/workspace/staff-board`);
+    for (const width of [1366, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect(page.getByRole("link", { name: new RegExp(post.title) })).toContainText("자유게시글");
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+      await page.screenshot({ path: test.info().outputPath(`staff-board-all-${width}.png`) });
+    }
+    await page.getByRole("button", { name: "글쓰기", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("게시판", { exact: true }).selectOption("resource");
+    await expect(dialog.locator('input[type="file"]')).toBeVisible();
+    await dialog.getByRole("button", { name: "취소", exact: true }).click();
+    await page.getByRole("link", { name: new RegExp(post.title) }).click();
+    await expect(page.getByRole("button", { name: "글 삭제", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "댓글 수정", exact: true }).click();
+    const editor = page.getByLabel("댓글 수정 내용");
+    const save = page.getByRole("button", { name: "댓글 수정 저장" });
+    await editor.fill("회의 자료를 준비하겠습니다.");
+    await save.click();
+    await expect(page.getByRole("alert")).toContainText("댓글 내용을 확인해 주세요.");
+    await expect(editor).toHaveValue("회의 자료를 준비하겠습니다.");
+    failEdit = false;
+    await save.click();
+    await expect(page.getByText("회의 자료를 준비하겠습니다.", { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(page.getByText("회의 자료를 준비하겠습니다.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "전체 글 목록" })).toBeVisible();
+  });
+
   test("간편 업무 대시보드에서 공지를 열고 하단 메뉴로 복귀한다", async ({ page }) => {
     const notice = { id: 50, category: "notice", title: "보충 수업 교실 변경", body: "2강의실을 사용하세요.",
       attachment_name: "", can_edit: false, replies: [], reply_count: 0, author_name: "김선생",
@@ -304,7 +350,11 @@ test.describe("업무 화면 기능 검색", () => {
       await expect(exam).toHaveCount(0);
       await learning.click();
       await expect(exam).toBeVisible();
-      expect((await exam.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+      await expect(menu.getByText("운영 현황", { exact: true })).toBeVisible();
+      await expect(menu.getByText("학생·수업", { exact: true })).toBeVisible();
+      const denseRows = await page.evaluate(() => matchMedia("(min-width: 1024px) and (pointer: fine)").matches);
+      expect((await exam.boundingBox())!.height).toBe(denseRows ? 34 : 44);
+      await expect(exam.locator("svg")).toHaveCSS("width", "16px");
       await page.screenshot({ path: info.outputPath(`sidebar-expanded-${width}.png`), fullPage: true });
       await exam.click();
       await expect(page).toHaveURL(/\/workspace\/exams$/);
@@ -313,6 +363,8 @@ test.describe("업무 화면 기능 검색", () => {
       if (width === 390) await mobileMenu.click();
       await expect(learning).toHaveAttribute("aria-expanded", "true");
       await expect(exam).toHaveAttribute("aria-current", "page");
+      await expect(menu.locator(".nav-item.active:visible")).toHaveCount(1);
+      await expect(exam).toHaveClass(/active/);
       if (width === 390) await page.keyboard.press("Escape");
       await page.getByRole("navigation", { name: "상위 경로" }).getByRole("link", { name: "학습·운영", exact: true }).click();
       await expect(page).toHaveURL(/\/workspace\/learning$/);

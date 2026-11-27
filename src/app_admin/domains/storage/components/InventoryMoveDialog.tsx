@@ -146,7 +146,7 @@ export default function InventoryMoveDialog({
     <AdminModal
       open
       onClose={onClose}
-      width={520}
+      size="default"
       noMinimize
       closeDisabled={busy}
       onEnterConfirm={hasDestination && !busy ? () => void submit() : undefined}
