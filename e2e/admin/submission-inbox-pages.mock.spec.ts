@@ -504,12 +504,12 @@ for (const width of [1366, 1100, 390]) {
         original_filename: `${input.lecture} ${input.title} 풀이 ${j + 1}.png`, file_size: picture.length,
       })),
     }));
+    state.pendingHomework = rows.length;
     const failedIndex = 2;
     const attempted: string[] = [];
     const detailReads: string[] = [];
     await page.route(/\/submissions\/submissions\/homework\/review-queue\/\?/, route => {
       const remaining = rows.filter(r => !r.teacher_accepted);
-      state.pendingHomework = remaining.length;
       return route.fulfill({ json: { count: remaining.length, page: 1, pages: 1, results: remaining } });
     });
     await page.route(/\/homeworks\/(71|72|73)\/$/, route => {
@@ -540,6 +540,7 @@ for (const width of [1366, 1100, 390]) {
         return route.fulfill({ status: 409, json: { detail: "제출 파일이 변경되었습니다." } });
       }
       row.teacher_accepted = true;
+      state.pendingHomework = rows.filter(entry => !entry.teacher_accepted).length;
       return route.fulfill({ json: { teacher_accepted: true } });
     });
     const path = "/workspace/results/submissions?homework=pending";
