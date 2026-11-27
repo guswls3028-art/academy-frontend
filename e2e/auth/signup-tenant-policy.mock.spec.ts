@@ -4,6 +4,51 @@ import { gotoAndSettle } from "../helpers/wait";
 
 const BASE = (process.env.E2E_BASE_URL || "http://127.0.0.1:5174").replace(/\/+$/, "");
 
+test("학원플러스 PC 로그인은 키보드 제출과 오류 복구 중 입력 위치를 유지한다", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await stubLoginBootstrap(page, "hakwonplus");
+  let attempts = 0;
+  let release!: () => void;
+  const responseGate = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/api/v1/token/", async (route) => {
+    attempts++;
+    await responseGate;
+    await route.fulfill({ status: 401, json: { detail: "Invalid credentials" } });
+  });
+  await gotoAndSettle(page, `${BASE}/login/hakwonplus`);
+  const username = page.getByTestId("login-username");
+  const password = page.getByTestId("login-password");
+  const submit = page.getByTestId("login-submit");
+  const alert = page.getByRole("form").getByRole("alert");
+  await expect(username).toBeFocused();
+  const initialTop = await submit.evaluate((button) => button.getBoundingClientRect().top);
+  await page.keyboard.press("Enter");
+  await expect(username).toHaveAccessibleDescription("아이디 또는 학부모 휴대폰 번호를 입력해 주세요.");
+  await username.fill("synthetic-account");
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Enter");
+  await expect(password).toHaveAccessibleDescription("비밀번호를 입력해 주세요.");
+  expect(attempts).toBe(0);
+  await password.fill("synthetic-input");
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "비밀번호 보기" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(submit).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(submit).toBeDisabled();
+  await expect(submit).toBeFocused();
+  await page.keyboard.press("Enter");
+  release();
+  await expect(alert).toHaveText("아이디 또는 비밀번호가 올바르지 않습니다.");
+  await expect(password).toBeFocused();
+  expect(await submit.evaluate((button) => button.getBoundingClientRect().top)).toBeCloseTo(initialTop, 0);
+  await page.keyboard.type("corrected");
+  await expect(password).toHaveValue("corrected");
+  await expect(username).toHaveValue("synthetic-account");
+  await expect(alert).toHaveCount(0);
+  expect(attempts).toBe(1);
+});
+
 for (const width of [390, 1366]) {
   test(`가입 입력 보존과 중복 확인 응답 순서를 지킨다 (${width}px)`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });

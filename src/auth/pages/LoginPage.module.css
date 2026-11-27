@@ -125,7 +125,8 @@
   outline-offset: 3px;
 }
 
-.btnPrimary:disabled {
+.btnPrimary:disabled,
+.btnPrimary[aria-disabled="true"] {
   opacity: 0.7;
   cursor: not-allowed;
 }

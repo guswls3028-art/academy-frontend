@@ -81,9 +81,17 @@ test.describe.serial("[real-use] 납기 경과 청구 즉시 연체", () => {
 
     await page.setViewportSize({ width: 1366, height: 900 });
     await gotoAndSettle(page, `${QA_BASE}/login/${QA_TENANT}`, { timeout: 45_000 });
-    await page.getByTestId("login-username").fill(QA_ADMIN_USER);
-    await page.getByTestId("login-password").fill(QA_ADMIN_PASSWORD);
-    await page.getByTestId("login-submit").click();
+    const username = page.getByTestId("login-username");
+    const password = page.getByTestId("login-password");
+    await expect(username).toBeFocused();
+    await username.fill(QA_ADMIN_USER);
+    await username.press("Tab");
+    await expect(password).toBeFocused();
+    await password.press("Enter");
+    await expect(page.getByRole("form").getByRole("alert")).toHaveText("비밀번호를 입력해 주세요.");
+    await expect(password).toBeFocused();
+    await password.fill(QA_ADMIN_PASSWORD);
+    await password.press("Enter");
     await expect(page).toHaveURL(/\/workspace(?:\/|$)/, { timeout: 45_000 });
     await acknowledgeInitialAccountPromptsIfVisible(page);
     await gotoAndSettle(page, `${QA_BASE}/workspace/fees/invoices`);

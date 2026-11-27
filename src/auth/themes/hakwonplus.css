@@ -108,6 +108,31 @@
   padding: 0.5rem;
 }
 
+@media (min-width: 1024px) {
+  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-panel"] {
+    padding: 1.75rem 1.5rem 1rem;
+  }
+
+  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-intro"] h2 {
+    margin-bottom: 1.25rem;
+  }
+
+  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-feedback"] {
+    min-height: 1.25rem;
+    margin: 0.25rem 0;
+    padding: 0;
+    border: 0;
+    color: var(--auth-error);
+    background: transparent;
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+  }
+
+  [data-app="auth"][data-tenant="hakwonplus"] [data-auth-part="login-panel"] button[type="submit"] {
+    margin-top: 0;
+  }
+}
+
 @media (max-width: 480px) {
   [data-app="auth"][data-tenant="hakwonplus"] {
     justify-content: flex-start;
