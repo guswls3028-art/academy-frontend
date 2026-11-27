@@ -46,7 +46,7 @@
   box-shadow: 1px 0 var(--color-border-divider);
 }
 
-.lecture-roster__scroll .ds-table.ds-table--attendance :is(th, td).ds-checkbox-cell {
+.lecture-roster__scroll .ds-table.ds-table--flat.ds-table--attendance :is(th, td).ds-checkbox-cell {
   padding-inline: 0;
   text-align: center;
 }
