@@ -36,7 +36,7 @@ import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import { gotoAndSettle, waitForCondition, waitForRenderSettled } from "../helpers/wait";
 import { verifyAssessmentCopy } from "../helpers/verifyAssessmentCopy";
 import { verifyAssessmentTitle } from "../helpers/assessmentTitleRealuse";
-import { verifySubmissionInbox } from "../helpers/verifySubmissionInbox";
+import { verifySubmissionInbox, verifyWithdrawnSubmission } from "../helpers/verifySubmissionInbox";
 import { verifyOnlineWrittenSubmission } from "../helpers/verifyOnlineWrittenSubmission";
 import { verifyExcelAssessment } from "./excelAssessmentRealuse";
 import { withOwnedScoreLeaseCleanup } from "../helpers/scoreLeaseCleanup";
@@ -60,6 +60,7 @@ type CreatedState = {
   sharedLectureId?: number;
   sharedSessionId?: number;
   sharedExamAttached?: boolean;
+  withdrawnExamId?: number;
   sharedEnrollments: Array<{ id: number; student: { id: number } }>;
   sharedSessionEnrollmentIds: number[];
   enrollmentIds: number[];
@@ -322,6 +323,17 @@ async function retireSharedExamContext(request: APIRequestContext, failures: str
   // Release the second roster before the existing end-of-course and ranking scenarios.
   const access = created.adminAccess;
   const initialFailures = failures.length;
+  if (created.withdrawnExamId) {
+    const path = `/exams/${created.withdrawnExamId}/?session_id=${created.sharedSessionId}`;
+    try {
+      await expectApi(request, "DELETE", path, access, undefined, [200, 204, 404]);
+      await expectApi(request, "GET", path, access, undefined, [404]);
+      created.withdrawnExamId = undefined;
+    } catch (error) {
+      failures.push(`withdrawn exam cleanup: ${String(error)}`);
+      return;
+    }
+  }
   if (created.sharedExamAttached) {
     const path = `/exams/${created.examId}/?session_id=${created.sharedSessionId}`;
     try {
@@ -563,6 +575,12 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     expect(teacherProjection.meta.submitted_by_user_id).not.toBe(teacherProjection.user);
     await test.step("shared exam entry and original score enrollment", async () => {
       await verifySharedSubmissionOrigins(page, request, admin, primarySubmissionId, parentSubmissionId);
+      const enrollment = created.sharedEnrollments.find(row => row.student.id === primary.id)!;
+      await verifyWithdrawnSubmission(page, request, admin, primaryTokens, {
+        session: created.sharedSessionId!, enrollment: enrollment.id, lecture: created.sharedLectureId!,
+        title: `QA 퇴원 전 응시 ${runStamp}`, sessionTitle: `QA 공유 차시 B ${runStamp}`,
+        onExam: id => { created.withdrawnExamId = id; }, onSubmission: id => created.submissionIds.push(id),
+      });
       const failures: string[] = [];
       await retireSharedExamContext(request, failures);
       expect(failures).toEqual([]);
