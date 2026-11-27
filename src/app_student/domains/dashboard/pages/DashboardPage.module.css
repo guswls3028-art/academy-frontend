@@ -517,7 +517,8 @@
     padding-inline: 10px;
   }
 
-  .quickActionLabelText {
+  .quickActionLabelText,
+  .quickActionDetail {
     overflow: visible;
     white-space: normal;
     word-break: keep-all;

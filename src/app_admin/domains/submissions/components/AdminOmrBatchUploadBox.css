@@ -13,8 +13,7 @@
   padding: 0;
 }
 
-.admin-omr-upload__zone .excel-upload-zone__drag-label,
-.admin-omr-upload__zone .excel-upload-zone__upload {
+.admin-omr-upload__zone .excel-upload-zone__instruction {
   display: none;
 }
 

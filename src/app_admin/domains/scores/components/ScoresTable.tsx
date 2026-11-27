@@ -1633,7 +1633,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                       examNotSubmittedCount={row.exam_not_submitted_count}
                     />
                     {correctionPending && (
-                      <Badge tone="neutral" size="sm" ariaLabel="오답 미완료">
+                      <Badge tone="neutral" size="sm" ariaLabel="오답 미완료" title="시험·과제 중 확인할 오답이 남아 있습니다">
                         오답 미완료
                       </Badge>
                     )}
@@ -2727,7 +2727,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     const badgeMeta = wrongCompletionOnly && summary.kind !== "pending"
                       ? {
                           ...defaultBadgeMeta,
-                          label: summary.kind === "incomplete" ? "오답 미완료" : "오답 완료",
+                          label: summary.kind === "incomplete" ? "시험 오답 미완료" : "시험 오답 완료",
                         }
                       : defaultBadgeMeta;
                     const detail = summary.kind === "incomplete"

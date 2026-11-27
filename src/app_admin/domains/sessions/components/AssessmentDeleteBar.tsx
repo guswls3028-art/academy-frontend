@@ -67,19 +67,16 @@ export default function AssessmentDeleteBar({ type, id, sessionId, onDeleted }: 
   };
 
   return (
-    <div className="mt-6 rounded-xl border border-[var(--color-border-divider)] bg-[var(--color-bg-surface)] p-4">
-      <div className="flex items-center justify-end">
-        <Button
-          type="button"
-          intent="danger"
-          size="md"
-          className="w-full !bg-[var(--color-error)] !text-white hover:!bg-[var(--color-error)]/90"
-          onClick={() => void handleDelete()}
-          disabled={loading}
-        >
-          {loading ? "처리 중…" : label}
-        </Button>
-      </div>
+    <div className="mt-6 flex justify-end border-t border-[var(--color-border-divider)] pt-4">
+      <Button
+        type="button"
+        intent="ghost"
+        size="md"
+        onClick={() => void handleDelete()}
+        disabled={loading}
+      >
+        {loading ? "처리 중…" : label}
+      </Button>
     </div>
   );
 }

@@ -2338,6 +2338,8 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       await expect(rowFor(1).getByRole("cell", { name: "90/100", exact: true })).toHaveAttribute("data-pass-status", "pass");
       await expect(firstNameCell.locator(".ds-student-name--clinic-highlight")).toHaveCount(0);
       await expect(firstNameCell.getByText("오답 미완료", { exact: true })).toBeVisible();
+      await expect(rowFor(1).locator('td[data-col-type="exam-review"]').getByText("시험 오답 미완료", { exact: true })).toBeVisible();
+      await expect(rowFor(2).locator('td[data-col-type="exam-review"]').getByText("시험 오답 완료", { exact: true })).toBeVisible();
       // A real clinic flag stays yellow even when the separate follow-up flag is false.
       await expect(nameCellFor(2).locator(".ds-student-name--clinic-highlight")).toHaveCount(1);
       for (const index of [2, 3, 4]) {

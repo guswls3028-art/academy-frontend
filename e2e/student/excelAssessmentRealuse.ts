@@ -92,6 +92,7 @@ export async function verifyExcelAssessment(
       data[0].getCell(7 + number).value = number === 5 ? "X" : "O";
     }
     const importPath = `/api/v1/results/admin/exams/${exam.id}/result-import/`;
+    await expect(importer.getByRole("button", { name: /엑셀 파일.*파일 선택/ })).toBeVisible();
     const previewResponse = page.waitForResponse(response => response.request().method() === "POST" && new URL(response.url()).pathname === importPath);
     await importer.locator('input[type="file"]').setInputFiles({
       name: "qa-exam-result.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
