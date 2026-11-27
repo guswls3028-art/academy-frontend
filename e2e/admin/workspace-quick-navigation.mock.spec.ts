@@ -278,6 +278,13 @@ test.describe("업무 화면 기능 검색", () => {
       await page.goBack();
       await expect(nextResult).toBeFocused();
       await expect(search).toHaveValue(keyword);
+      const filteredUrl = page.url();
+      await page.goto(filteredUrl);
+      await nextResult.click();
+      await expect(page.getByRole("heading", { name: other.title })).toBeVisible();
+      await page.goto(filteredUrl);
+      await expect(nextResult).toBeVisible();
+      await expect(nextResult).not.toBeFocused();
       await search.fill("없는 파일");
       await page.getByRole("button", { name: "검색", exact: true }).click();
       await expect(page.getByText("검색 결과가 없습니다.", { exact: true })).toBeVisible();

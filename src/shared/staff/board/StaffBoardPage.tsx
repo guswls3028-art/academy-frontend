@@ -14,9 +14,6 @@ import PostEditor from "./PostEditor";
 import BoardReply from "./BoardReply";
 import styles from "./StaffBoard.module.css";
 import { createRandomUuid } from "@/shared/utils/randomUuid";
-import { getSessionItem, setSessionItem } from "@/shared/utils/safeSessionStorage";
-
-const lastBoardRow = "staff-board:last-opened-row";
 
 export default function StaffBoardPage() {
   const { category, postId } = useParams();
@@ -82,16 +79,15 @@ function PostList({ scope, category, path, page, q, suffix, onWrite, onListChang
   }, [q]);
   const data = query.data;
   const location = useLocation();
-  const entry = JSON.stringify([...scope, path + suffix, location.key]) + ":";
-  const lastOpened = getSessionItem(lastBoardRow);
-  const returnId = lastOpened?.startsWith(entry) ? Number(lastOpened.slice(entry.length)) : location.state?.returnPostId;
-  const selected = data?.results.find(post => post.id === returnId)?.id;
+  const scopeKey = JSON.stringify(scope);
+  const returned = window.history.state?.staffBoardRow ?? location.state?.staffBoardRow;
+  const selected = returned?.scope === scopeKey ? data?.results.find(post => post.id === returned.id)?.id : undefined;
   const returnLink = useRef<HTMLAnchorElement>(null);
   useEffect(() => {
     const link = returnLink.current;
     if (link && document.activeElement === document.body) {
       link.focus({ preventScroll: true });
-      link.scrollIntoView({ block: "nearest", inline: "nearest" });
+      link.closest("tr")?.scrollIntoView({ block: "nearest", inline: "nearest" });
     }
   }, [location.key, selected]);
   function search(event: FormEvent) {
@@ -138,7 +134,10 @@ function PostList({ scope, category, path, page, q, suffix, onWrite, onListChang
                 <td><Link to={`${path}/${post.id}${suffix}`} ref={post.id === selected ? returnLink : undefined}
                   onClick={event => {
                     if (!event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
-                      setSessionItem(lastBoardRow, entry + post.id);
+                      // Store the return point on this list's history entry before the link opens the detail.
+                      window.history.replaceState({
+                        ...window.history.state, staffBoardRow: { scope: scopeKey, id: post.id },
+                      }, "");
                     }
                   }}>
                   <span className={styles.rowTitle}>
@@ -224,7 +223,9 @@ function PostDetail({ root, scope, category, id, listUrl, onEdit, onDeleted }: {
   if (data && category !== "all" && data.category !== category) return <Navigate replace to={`${root}/${data.category}/${id}`} />;
   return (
     <div className={styles.detail}>
-      <Link className={styles.back} to={listUrl} state={{ returnPostId: id }}><ArrowLeft size={ICON.sm} />{boardListLabels[category]} 목록</Link>
+      <Link className={styles.back} to={listUrl} state={{ staffBoardRow: { scope: JSON.stringify(scope), id } }}>
+        <ArrowLeft size={ICON.sm} />{boardListLabels[category]} 목록
+      </Link>
       {post.isError ? <div className={styles.state} role="alert"><p>글을 불러오지 못했습니다. 접근 권한이나 게시글 상태를 확인해 주세요.</p>
         <Button onClick={() => void post.refetch()}>다시 시도</Button></div>
         : !data ? <p className={styles.state} role="status">글을 불러오는 중입니다.</p> : (
