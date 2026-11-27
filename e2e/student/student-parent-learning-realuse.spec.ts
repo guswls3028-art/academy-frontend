@@ -52,6 +52,46 @@ type CreatedState = {
   excel: ExcelEnrollmentState;
 };
 
+async function verifyTeacherSessionRestoreUndo(
+  teacherPage: Page, request: APIRequestContext, access: string, studentName: string,
+): Promise<void> {
+  const rowPath = `/lectures/attendance/${created.attendanceIds[0]}/`;
+  const select = async (label: string) => {
+    await teacherPage.getByText(studentName, { exact: true }).click();
+    await teacherPage.getByRole("dialog", { name: "출석 상태", exact: true })
+      .getByRole("button", { name: label, exact: true }).click();
+  };
+  const confirm = async (label: string, expected: Record<string, unknown>) => {
+    const [saved] = await Promise.all([
+      teacherPage.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === `/api/v1${rowPath}`),
+      teacherPage.getByRole("button", { name: label, exact: true }).click(),
+    ]);
+    expect(saved.status()).toBe(200);
+    expect(saved.request().postDataJSON()).toEqual(expected);
+  };
+  const withdraw = { status: "SECESSION", confirm_secession: true, secession_scope: "session" };
+  await select("퇴원");
+  await confirm("이 차시만 퇴원", withdraw);
+  await expect(teacherPage.getByText("기타 1", { exact: true })).toBeVisible();
+  await select("영상");
+  await confirm("복구하고 영상 저장", { status: "ONLINE", restore_scope: "session" });
+  await teacherPage.getByRole("button", { name: "되돌리기", exact: true }).click();
+  await expect(teacherPage.getByRole("button", { name: "강의 전체 퇴원", exact: true })).toHaveCount(0);
+  await confirm("이 차시만 퇴원", withdraw);
+  await teacherPage.reload();
+  await expect(teacherPage.getByText("기타 1", { exact: true })).toBeVisible();
+  expect(await expectApi(request, "GET", rowPath, access)).toMatchObject({
+    id: created.attendanceIds[0], status: "SECESSION", enrollment_status: "ACTIVE",
+  });
+  await select("현장");
+  await confirm("복구하고 현장 저장", { status: "PRESENT", restore_scope: "session" });
+  const members = await expectApi<Array<{ id: number; enrollment: number }>>(request, "GET",
+    `/enrollments/session-enrollments/?session=${created.sessionId}`, access);
+  expect(members.map(row => row.enrollment).sort()).toEqual([...created.enrollmentIds].sort());
+  created.sessionEnrollmentIds = members.map(row => row.id);
+}
+
 const created: CreatedState = {
   family: null,
   adminAccess: "",
@@ -703,42 +743,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
         await expect(teacherPage.getByText("결석 1", { exact: true })).toBeVisible();
         await assertNoHorizontalOverflow(teacherPage);
         if (width === 390) {
-          teacherPhase = "teacher-session-restore-undo";
-          const rowPath = `/lectures/attendance/${created.attendanceIds[0]}/`;
-          const select = async (label: string) => {
-            await teacherPage.getByText(primary.name, { exact: true }).click();
-            await teacherPage.getByRole("dialog", { name: "출석 상태", exact: true })
-              .getByRole("button", { name: label, exact: true }).click();
-          };
-          const confirm = async (label: string, expected: Record<string, unknown>) => {
-            const [saved] = await Promise.all([
-              teacherPage.waitForResponse(response => response.request().method() === "PATCH"
-                && new URL(response.url()).pathname === `/api/v1${rowPath}`),
-              teacherPage.getByRole("button", { name: label, exact: true }).click(),
-            ]);
-            expect(saved.status()).toBe(200);
-            expect(saved.request().postDataJSON()).toEqual(expected);
-          };
-          const withdraw = { status: "SECESSION", confirm_secession: true, secession_scope: "session" };
-          await select("퇴원");
-          await confirm("이 차시만 퇴원", withdraw);
-          await expect(teacherPage.getByText("기타 1", { exact: true })).toBeVisible();
-          await select("영상");
-          await confirm("복구하고 영상 저장", { status: "ONLINE", restore_scope: "session" });
-          await teacherPage.getByRole("button", { name: "되돌리기", exact: true }).click();
-          await expect(teacherPage.getByRole("button", { name: "강의 전체 퇴원", exact: true })).toHaveCount(0);
-          await confirm("이 차시만 퇴원", withdraw);
-          await teacherPage.reload();
-          await expect(teacherPage.getByText("기타 1", { exact: true })).toBeVisible();
-          expect(await expectApi(request, "GET", rowPath, admin.access)).toMatchObject({
-            id: created.attendanceIds[0], status: "SECESSION", enrollment_status: "ACTIVE",
-          });
-          await select("현장");
-          await confirm("복구하고 현장 저장", { status: "PRESENT", restore_scope: "session" });
-          const members = await expectApi<Array<{ id: number; enrollment: number }>>(request, "GET",
-            `/enrollments/session-enrollments/?session=${created.sessionId}`, admin.access);
-          expect(members.map(row => row.enrollment).sort()).toEqual([...created.enrollmentIds].sort());
-          created.sessionEnrollmentIds = members.map(row => row.id);
+          await verifyTeacherSessionRestoreUndo(teacherPage, request, admin.access, primary.name);
         }
         teacherPhase = "teacher-session-summary";
         await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/classes/${created.lectureId}/sessions/${created.sessionId}`, { timeout: 30_000 });
