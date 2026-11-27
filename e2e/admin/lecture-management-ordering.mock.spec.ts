@@ -266,9 +266,19 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     const alphaSettings = page.getByRole("button", { name: "Alpha 설정", exact: true });
     const alphaLink = page.getByRole("link", { name: "Alpha 강의 열기", exact: true });
 
-    await alphaSettings.click();
-    await page.getByRole("menuitem", { name: "강의 삭제", exact: true }).click();
-    await expect(confirmation).toContainText("“Alpha” 강의");
+    const menu = page.getByRole("menu");
+    async function openDeleteConfirmation(title: string) {
+      // A closed dropdown stays in the accessibility tree during its exit animation.
+      await expect(menu).toHaveCount(0);
+      const trigger = page.getByRole("button", { name: `${title} 설정`, exact: true });
+      await trigger.click();
+      await expect(trigger).toHaveAttribute("aria-expanded", "true");
+      await expect(menu).toHaveCount(1);
+      await menu.getByRole("menuitem", { name: "강의 삭제", exact: true }).click();
+      await expect(confirmation).toContainText(`“${title}” 강의`);
+    }
+
+    await openDeleteConfirmation("Alpha");
     await expect(confirmation).toContainText("복구할 수 없습니다");
     await expect(confirmation).toContainText("사용을 중지한 출결 QR");
     await expect(confirmation).toContainText("강의 종료");
@@ -278,24 +288,21 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     await expect(alphaSettings).toBeFocused();
     expect(deletes).toEqual([]);
 
-    await alphaSettings.click();
-    await page.getByRole("menuitem", { name: "강의 삭제", exact: true }).click();
+    await openDeleteConfirmation("Alpha");
     await confirmDelete.click();
     await expect(page.getByText("연결된 기록이 있어 강의를 삭제할 수 없습니다.", { exact: false }).first()).toBeVisible();
     await expect(alphaLink).toBeVisible();
     expect(deletes).toEqual([101]);
 
-    await page.getByRole("button", { name: "Beta 설정", exact: true }).click();
-    await page.getByRole("menuitem", { name: "강의 삭제", exact: true }).click();
+    await expect(alphaSettings).toBeFocused();
+    await openDeleteConfirmation("Beta");
     await confirmDelete.click();
     await expect(page.getByText(/출결 도구 → 출결 QR 출력에서 해당 QR을 선택해 사용을 중지하세요/).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Beta 강의 열기", exact: true })).toBeVisible();
 
     await page.setViewportSize({ width: 390, height: 844 });
     const emptySettings = page.getByRole("button", { name: "잘못 등록한 강의 설정", exact: true });
-    await emptySettings.click();
-    await page.getByRole("menuitem", { name: "강의 삭제", exact: true }).click();
-    await expect(confirmation).toContainText("잘못 등록한 강의");
+    await openDeleteConfirmation("잘못 등록한 강의");
     await expect(confirmDelete).toBeInViewport({ ratio: 1 });
     await page.screenshot({ path: testInfo.outputPath("lecture-delete-390.png"), animations: "disabled" });
     await confirmDelete.click();

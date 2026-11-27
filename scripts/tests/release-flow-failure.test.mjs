@@ -214,6 +214,7 @@ function registerLearningFaultTests() {
      process:{env:{E2E_LONG_VIDEO_ID:'11',E2E_LONG_VIDEO_TENANT_ID:'12'}},
      testInfo:{outputPath:(name)=>name,async attach(){}},
      installQaStudentParentBoundary:async()=>({assertClean(){}}),attachStrictBrowserGuards:()=>({assertZeroDefects(){}}),seedBrowserAuth:async()=>{},assertNoHorizontalOverflow:async()=>{},
+     verifyTeacherSessionRestoreUndo:async()=>{},
      expectApi:async(_r,method,path,_access,data)=>{
       if(stage==='attendance-prepare'&&path.startsWith('/students/')&&method==='GET')throw primary;
       if(path.startsWith('/media/')){if(stage==='teacher-thumbnail')throw primary;return {thumbnail_url:null};}

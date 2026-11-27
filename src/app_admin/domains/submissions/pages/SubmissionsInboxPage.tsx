@@ -1,26 +1,9 @@
 // PATH: src/app_admin/domains/submissions/pages/SubmissionsInboxPage.tsx
-/**
- * Submissions Inbox (제출함)
- * - 학생이 제출한 시험/과제를 한 곳에서 확인하고 1-click 으로 처리
- * - 필터 탭: 대기 중 | 완료 | 실패 | 전체
- * - 5초 자동 새로고침
- *
- * 행 액션 매트릭스 (status × target_resolved):
- *   needs_identification + target_resolved        → 학생 지정 (in-place picker, exam/homework 양쪽)
- *   needs_identification + !target_resolved       → 폐기만 가능 (원본 결손)
- *   failed                                        → 재처리 / 폐기
- *   submitted/dispatched/extracting/grading       → 처리 중 (액션 없음)
- *   answers_ready / done + target_resolved         → 결과 보기 (세션 페이지 이동)
- *   answers_ready / done + !target_resolved        → 결과 진입 불가 표시
- *   superseded                                     → 대체됨 (terminal, action 없음)
- *
- * 일괄 처리:
- *   row 별 체크박스 + 상단 일괄 폐기 (사유 picker 모달).
- *
- * 직접 navigate 시 lecture/session 결손 가드 → SessionLayout "잘못된 세션 접근" 회피.
- */
+/** 시험 답안 처리는 이 화면에서, 과제 파일 검수는 HomeworkReviewInbox에서 담당한다. */
 
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import StoredExamResultAction from "@/shared/ui/submissions/StoredExamResultAction";
+import ExamSessionSelect from "@/shared/ui/submissions/ExamSessionSelect";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileSearch } from "lucide-react";
@@ -200,13 +183,17 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
     }, { replace: true });
   }, [q.data, q.isError, page, setSearchParams]);
 
+  const [sessionSelections, setSessionSelections] = useState<Record<number, number>>({});
   const rows = useMemo(() => {
     const data = q.isError ? [] : q.data?.results ?? [];
     const sorted = [...data].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime() || b.id - a.id,
     );
-    return clientFilter(sorted, filter, failedSub);
-  }, [q.data, q.isError, filter, failedSub]);
+    return clientFilter(sorted, filter, failedSub).map((row) => {
+      const selected = row.session_choices?.find((choice) => choice.session_id === sessionSelections[row.id]);
+      return selected ? { ...row, ...selected } : row;
+    });
+  }, [q.data, q.isError, filter, failedSub, sessionSelections]);
 
   // failed 탭에서 sub-filter 카운트
   const failedCounts = useMemo(() => {
@@ -230,7 +217,7 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
 
   // 일괄 선택 가능한 row 만 토글 가능 (선택은 폐기 가능 row 만 — 이미 폐기된 row 제외)
   const isSelectable = (row: PendingSubmissionRow): boolean => {
-    if (row.is_discarded) return false; // 중복 폐기 방지
+    if (row.session_history_only || row.is_discarded) return false; // 중복 폐기 방지
     const resolved = isTargetResolved(row);
     return row.status === "needs_identification" || row.status === "failed" || !resolved;
   };
@@ -445,7 +432,7 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
     }
     if (row.target_type === "exam") {
       navigate(
-        `/workspace/lectures/${row.lecture_id}/sessions/${row.session_id}/exams?exam_id=${row.target_id}`,
+        `/workspace/lectures/${row.lecture_id}/sessions/${row.session_id}/exams?exam_id=${row.target_id}&examTab=results${row.enrollment_id ? `&enrollmentId=${row.enrollment_id}` : ""}${row.score_lecture_id ? `&scoreLectureId=${row.score_lecture_id}` : ""}`,
       );
     } else {
       navigate(
@@ -684,6 +671,7 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
               <SubmissionRow
                 key={r.id}
                 row={r}
+                onSessionChange={(id) => setSessionSelections((previous) => ({ ...previous, [r.id]: id }))}
                 selected={selectedIds.has(r.id)}
                 selectable={isSelectable(r)}
                 busy={
@@ -758,6 +746,7 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
 
 function SubmissionRow({
   row,
+  onSessionChange,
   selected,
   selectable,
   busy,
@@ -770,6 +759,7 @@ function SubmissionRow({
   onDiscard,
 }: {
   row: PendingSubmissionRow;
+  onSessionChange: (id: number) => void;
   selected: boolean;
   selectable: boolean;
   busy: boolean;
@@ -792,13 +782,14 @@ function SubmissionRow({
     ? discardReasonLabel(row.discard_reason)
     : (SUBMISSION_STATUS_LABEL as Record<string, string>)[row.status] ?? row.status;
 
+  const historyOnly = isExam && resolved && row.session_history_only === true;
   const isNeedsId = row.status === "needs_identification";
   const isFailedReal = row.status === "failed" && !isDiscardedRow;
   const isProcessing = PROCESSING_STATUSES.has(row.status);
   const isDone = row.status === "done";
   const isAnswersReady = row.status === "answers_ready";
   const isSuperseded = row.status === "superseded";
-  const setupPath = !isDiscardedRow && !isSuperseded && !isProcessing
+  const setupPath = !historyOnly && !isDiscardedRow && !isSuperseded && !isProcessing
     && row.omr_readiness?.can_grade === false
     && row.omr_readiness.missing.some((reason) => CONFIGURATION_MISSING.has(reason))
     ? examSetupPath(row, row.recovery) : undefined;
@@ -818,7 +809,7 @@ function SubmissionRow({
   return (
     <div data-testid={`submission-inbox-${row.id}`} className="flex flex-wrap items-center gap-2 px-4 py-3 hover:bg-[var(--color-bg-surface-soft)] transition-colors sm:flex-nowrap sm:gap-3">
       {/* 일괄 선택 체크박스 */}
-      <input
+      {!historyOnly && <input
         type="checkbox"
         checked={selected}
         disabled={!selectable}
@@ -826,7 +817,7 @@ function SubmissionRow({
         title={selectable ? "선택" : "이 상태는 일괄 폐기 대상이 아닙니다."}
         aria-label="row 선택"
         className="flex-shrink-0"
-      />
+      />}
 
       <StudentNameWithLectureChip
         className="min-w-0 max-w-full flex-[1_1_150px] sm:flex-none"
@@ -865,6 +856,11 @@ function SubmissionRow({
         >
           {targetTitleDisplay}
         </p>
+        {isExam && resolved && row.session_origin_recorded === false && <p className="text-xs text-[var(--color-text-muted)]">응시 차시 미확인</p>}
+        {!historyOnly && row.session_choices?.length ? (
+          <ExamSessionSelect label="열어볼 강의·차시" choices={row.session_choices} selectedId={row.session_id}
+            onSelect={choice => onSessionChange(choice?.session_id ?? 0)} />
+        ) : row.session_title && <p className="truncate text-xs text-[var(--color-text-secondary)]">{row.session_title}</p>}
         {setupPath && (
           <p className="mt-1 text-xs text-[var(--color-text-secondary)]" data-testid={`submission-readiness-${row.id}`}>
             {CONFIGURATION_REASON}
@@ -897,7 +893,7 @@ function SubmissionRow({
             문항·정답 설정
           </Link>
         )}
-        {isExam && resolved && !isProcessing && !isSuperseded && !isDiscardedRow && (row.source === "omr_scan" || row.source === "omr_manual" || row.source === "scan") && (
+        {!historyOnly && isExam && resolved && !isProcessing && !isSuperseded && !isDiscardedRow && (row.source === "omr_scan" || row.source === "omr_manual" || row.source === "scan") && (
           <Button type="button" intent="secondary" size="sm" disabled={busy} onClick={onReview} data-testid={`submission-review-${row.id}`}>답안 검토·복구</Button>
         )}
         {hasFile && (
@@ -914,7 +910,8 @@ function SubmissionRow({
             제출물 확인
           </Button>
         )}
-        {isNeedsId && resolved && canIdentifyInline && !hasFile && (
+        {historyOnly && <StoredExamResultAction row={row} />}
+        {!historyOnly && isNeedsId && resolved && canIdentifyInline && !hasFile && (
           <Button type="button" intent="primary" size="sm" disabled={busy} onClick={onIdentify} className="shrink-0">
             학생 지정
           </Button>
@@ -931,7 +928,7 @@ function SubmissionRow({
             지정 불가
           </Button>
         )}
-        {isFailedReal && (
+        {!historyOnly && isFailedReal && (
           <Button type="button" intent="primary" size="sm" disabled={busy} onClick={onRetry} className="shrink-0">
             재처리
           </Button>
@@ -949,7 +946,7 @@ function SubmissionRow({
             대체됨
           </span>
         )}
-        {(isDone || isAnswersReady) && resolved && !setupPath && (
+        {!historyOnly && (isDone || isAnswersReady) && resolved && row.session_id != null && !setupPath && (
           <Button type="button" intent="primary" size="sm" onClick={onNavigate} className="shrink-0">
             결과 보기
           </Button>
@@ -968,7 +965,7 @@ function SubmissionRow({
         )}
 
         {/* 폐기 버튼은 이미 discarded 된 row 에는 안 보임 — 중복 폐기 방지 */}
-        {!isDiscardedRow && (isNeedsId || isFailedReal || !resolved) && (
+        {!historyOnly && !isDiscardedRow && (isNeedsId || isFailedReal || !resolved) && (
           <Button
             type="button"
             intent="ghost"

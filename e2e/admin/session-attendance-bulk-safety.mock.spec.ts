@@ -67,6 +67,7 @@ type MockState = {
   attendanceDeleteCalls: number[];
   deletedAttendanceIds: number[];
   bulkCreatePayloads: number[][];
+  lectureRegistrations: number[][];
   lectureEnrollmentPageSizes: string[];
   lectureEnrollmentPages: string[];
   bulkSetCalls: number;
@@ -90,6 +91,7 @@ type MockOptions = {
 };
 
 async function installApi(page: Page, state: MockState, options: MockOptions = {}) {
+  let returningEnrollmentStatus = "ACTIVE";
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -179,7 +181,7 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
       }
       const rows = [
         { id: 501, status: state.attendanceStatuses[501] ?? "UNSET", name: options.letterSuffixNames ? "김가온A" : "미입력학생", student_id: 1001, parent_phone: "01011112222", student_phone: "01033334444" },
-        { id: 502, status: state.attendanceStatuses[502] ?? "ABSENT", name: options.letterSuffixNames ? "황가온" : options.reregisterSessionStudent ? "김가람" : "결석학생", student_id: options.reregisterSessionStudent ? 2001 : 1002, enrollment_id: 3001, parent_phone: "01055556666", student_phone: "01077778888" },
+        { id: 502, status: state.attendanceStatuses[502] ?? "ABSENT", name: options.letterSuffixNames ? "황가온" : options.reregisterSessionStudent ? "김가람" : "결석학생", student_id: options.reregisterSessionStudent ? 2001 : 1002, enrollment_id: 3001, enrollment_status: returningEnrollmentStatus, parent_phone: "01055556666", student_phone: "01077778888" },
       ];
       if (options.includePresentStudent) {
         rows.push({ id: 503, status: "PRESENT", name: options.letterSuffixNames ? "김가온B" : "가나다학생", student_id: 1003, parent_phone: "01022223333", student_phone: "01044445555" });
@@ -193,7 +195,9 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
       } else if (ordering === "name" || ordering === "-name") {
         rows.sort((a, b) => (ordering === "-name" ? -1 : 1) * a.name.localeCompare(b.name, "ko") || a.id - b.id);
       }
-      const visibleRows = rows.filter((row) => !state.deletedAttendanceIds.includes(row.id));
+      const enrollment = url.searchParams.get("enrollment");
+      const visibleRows = rows.filter((row) => !state.deletedAttendanceIds.includes(row.id)
+        && (enrollment === null || String(row.enrollment_id) === enrollment));
       return json({
         count: visibleRows.length,
         page_size: Number(url.searchParams.get("page_size")) || 50,
@@ -214,7 +218,14 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
       await options.statusUpdateReady;
       if (state.failStatusUpdate) return json({ detail: "출결을 저장하지 못했습니다." }, 409);
       const id = Number(attendanceDetailMatch[1]);
-      const payload = request.postDataJSON() as { status?: string };
+      const payload = request.postDataJSON() as { status?: string; secession_scope?: string; restore_scope?: string };
+      if (id === 502 && payload.status === "SECESSION" && payload.secession_scope === "lecture") returningEnrollmentStatus = "INACTIVE";
+      if (id === 502 && state.attendanceStatuses[id] === "SECESSION" && payload.status && payload.status !== "SECESSION") {
+        if (payload.restore_scope !== (returningEnrollmentStatus === "ACTIVE" ? "session" : "lecture")) {
+          return json({ detail: "수강 복구 범위를 확인해 주세요." }, 409);
+        }
+        returningEnrollmentStatus = "ACTIVE";
+      }
       if (payload.status === "SECESSION") state.secessionPayloads.push(request.postDataJSON());
       if (payload.status) {
         state.attendanceStatuses[id] = payload.status;
@@ -267,6 +278,11 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
       }
       return json([]);
     }
+    if (path === "/enrollments/bulk_create/" && method === "POST") {
+      const payload = request.postDataJSON() as { students: number[] };
+      state.lectureRegistrations.push(payload.students);
+      return json([], 201);
+    }
     if (path === "/enrollments/") {
       state.lectureEnrollmentPageSizes.push(url.searchParams.get("page_size") || "");
       state.lectureEnrollmentPages.push(url.searchParams.get("page") || "");
@@ -292,7 +308,8 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
           count: 2,
           results: [
             { id: 3001, status: "ACTIVE", student: { id: 2001, name: "김가람", high_school: "한빛고", grade: 1 } },
-            { id: 3002, status: "INACTIVE", student: { id: 2002, name: "이도윤", high_school: "한빛고", grade: 1 } },
+            { id: 3002, status: state.lectureRegistrations.some(ids => ids.includes(2002)) ? "ACTIVE" : "INACTIVE",
+              student: { id: 2002, name: "이도윤", high_school: "한빛고", grade: 1 } },
           ],
         });
       }
@@ -342,7 +359,8 @@ async function installApi(page: Page, state: MockState, options: MockOptions = {
             active: true,
             tags: [],
             enrollments: options.currentLectureWithInactive
-              ? [{ id: 3002, lecture: LECTURE_ID, status: "INACTIVE", lecture_name: "일괄 작업 안전반" }]
+              ? [{ id: 3002, lecture: LECTURE_ID, status: state.lectureRegistrations.some(ids => ids.includes(2002))
+                ? "ACTIVE" : "INACTIVE", lecture_name: "일괄 작업 안전반" }]
               : [],
             custom_fields: {},
           },
@@ -393,6 +411,7 @@ function createState(overrides: Partial<MockState> = {}): MockState {
     attendanceDeleteCalls: [],
     deletedAttendanceIds: [],
     bulkCreatePayloads: [],
+    lectureRegistrations: [],
     lectureEnrollmentPageSizes: [],
     lectureEnrollmentPages: [],
     bulkSetCalls: 0,
@@ -768,7 +787,7 @@ test("전체 학생 선택은 현재 강의의 비활성 수강 이력을 자동
 
   await expect(page.getByRole("checkbox", { name: "김가람 선택" })).toBeVisible();
   await expect(page.getByRole("checkbox", { name: "이도윤 선택" })).toHaveCount(0);
-  await expect(page.getByText(/현재 강의의 비활성·대기 수강생 1명은 제외/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "강의 수강 등록 열기" })).toBeVisible();
 
   await page.getByRole("checkbox", { name: "김가람 선택" }).check();
   await page.getByRole("button", { name: "1명 검토 후 등록" }).click();
@@ -778,6 +797,54 @@ test("전체 학생 선택은 현재 강의의 비활성 수강 이력을 자동
 
   await expect.poll(() => state.bulkCreatePayloads).toEqual([[2001]]);
 });
+
+test("차시 등록창에서 비활성 강의 수강을 복구한 후 해당 학생을 차시에 등록한다", async ({ page }) => {
+  const state = createState();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openAttendance(page, state, { currentLectureWithInactive: true });
+  await page.getByRole("button", { name: "수강생 등록" }).first().click();
+  const session = page.getByRole("dialog", { name: "차시 수강생 등록", exact: true });
+  await session.getByLabel("이름 또는 전화번호로 검색").fill("이도윤");
+  await session.getByRole("button", { name: "강의 수강 등록 열기" }).click();
+  const lecture = page.getByRole("dialog", { name: "수강생 등록", exact: true });
+  await expect(lecture.getByRole("textbox", { name: "학생 검색" })).toHaveValue("이도윤");
+  await lecture.getByRole("checkbox", { name: "이도윤 선택", exact: true }).check();
+  await expect(lecture.getByText(/퇴원한 차시의 출결은 따로 복구/)).toBeVisible();
+  await lecture.getByRole("button", { name: "1명 강의에 추가" }).click();
+  await expect(lecture).toHaveCount(0);
+  expect(state.lectureRegistrations).toEqual([[2002]]);
+  expect(state.bulkCreatePayloads).toEqual([]);
+  await session.getByRole("checkbox", { name: "이도윤 선택", exact: true }).check();
+  await session.getByRole("button", { name: "1명 검토 후 등록" }).click();
+  await page.getByRole("alertdialog", { name: "차시 수강생으로 등록할까요?" }).getByRole("button", { name: "1명 등록" }).click();
+  await expect.poll(() => state.bulkCreatePayloads).toEqual([[2002]]);
+});
+
+for (const width of [390, 1366]) {
+  test(`강의 수강생 표의 퇴원 표시는 해당 수강과 차시만 연다 ${width}`, async ({ page }) => {
+    const state = createState({attendanceStatuses: {501: "UNSET", 502: "SECESSION"}});
+    await page.setViewportSize({ width, height: 844 });
+    await openAttendance(page, state, { reregisterSessionStudent: true, currentLectureWithInactive: true });
+    await page.route("**/lectures/attendance/matrix/**", route => route.fulfill({ json: {
+      lecture: {id: LECTURE_ID, title: "합성 강의"},
+      sessions: [{id: SESSION_ID, order: 2, title: "2차시", session_type: "REGULAR", date: "2026-07-31"}],
+      students: [{student_id: 2001, name: "김가람", attendance: { [SESSION_ID]: {attendance_id: 502, status: "SECESSION"} }}],
+    }}));
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}`);
+    await page.getByRole("link", { name: /김가람.*퇴원 출결 변경/ }).click();
+    await expect(page).toHaveURL(new RegExp(`sessions/${SESSION_ID}/attendance\\?enrollment=3001$`));
+    await expect(attendanceOption(page, "김가람", "퇴원")).toHaveAttribute("aria-pressed", "true");
+    await expect(attendanceChoices(page, "미입력학생")).toHaveCount(0);
+    await page.reload();
+    await expect(attendanceChoices(page, "김가람")).toBeVisible();
+    await page.getByRole("button", { name: "전체 명단 보기" }).click();
+    await expect(attendanceChoices(page, "미입력학생")).toBeVisible();
+    await page.goto(`${BASE}/workspace/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/attendance?enrollment=invalid`);
+    await expect(page.getByText("선택한 학생의 출결이 보이지 않습니다.")).toBeVisible();
+    await expect(attendanceChoices(page, "미입력학생")).toHaveCount(0);
+    expect(state.attendanceStatusUpdates).toEqual([]);
+  });
+}
 
 test("선택 뒤 수강 상태가 바뀌어도 최종 확인 전에 비활성 학생을 다시 제외한다", async ({ page }) => {
   const state = createState();
@@ -1126,6 +1193,35 @@ for (const width of [1366, 390]) {
     await expect(enrollmentDialog.getByRole("checkbox", { name: "이도윤 선택" })).toHaveCount(0);
   });
   }
+
+  test(`퇴원 후 출결 선택은 복구 확인 뒤 같은 행에 저장한다 ${width}`, async ({ page }, testInfo) => {
+    const state = createState();
+    await page.setViewportSize({ width, height: 844 });
+    await openAttendance(page, state, { reregisterSessionStudent: true });
+    for (const scope of ["session", "lecture"] as const) {
+      await chooseAttendanceStatus(page, "김가람", "퇴원");
+      const withdrawal = page.getByRole("dialog", { name: "퇴원 범위 선택" });
+      if (scope === "lecture") await withdrawal.getByRole("radio", { name: /강의 전체 퇴원/ }).check();
+      await withdrawal.getByRole("button", { name: scope === "lecture" ? "강의 전체 퇴원" : "이 차시만 퇴원", exact: true }).click();
+      await expect(attendanceOption(page, "김가람", "퇴원")).toHaveAttribute("aria-pressed", "true");
+      const restore = page.getByRole("alertdialog", { name: "수강을 복구할까요?" });
+      await chooseAttendanceStatus(page, "김가람", "현장");
+      await expect(restore.getByText(scope === "lecture" ? /강의 수강을 다시 활성화/ : /이 차시에 다시 등록/)).toBeVisible();
+      await expect(restore).toContainText("다른 퇴원 차시의 수강 영상은 계속 차단됩니다.");
+      const before = state.attendanceStatusUpdates.length;
+      await restore.getByRole("button", { name: "취소" }).click();
+      await expect(attendanceOption(page, "김가람", "퇴원")).toHaveAttribute("aria-pressed", "true");
+      expect(state.attendanceStatusUpdates).toHaveLength(before);
+      await chooseAttendanceStatus(page, "김가람", "현장");
+      await expect(restore.getByRole("button", { name: "복구하고 현장 저장" })).toBeInViewport();
+      await page.screenshot({ path: testInfo.outputPath(`restore-${scope}-${width}.png`), animations: "disabled" });
+      await restore.screenshot({ path: testInfo.outputPath(`restore-dialog-${scope}-${width}.png`), animations: "disabled" });
+      await restore.getByRole("button", { name: "복구하고 현장 저장" }).click();
+      await expect(attendanceOption(page, "김가람", "현장")).toHaveAttribute("aria-pressed", "true");
+      await page.reload();
+      await expect(attendanceOption(page, "김가람", "현장")).toHaveAttribute("aria-pressed", "true");
+    }
+  });
 
   test(`퇴원 선택은 차시만 기본값이며 전체 범위도 명시 전송한다 ${width}`, async ({ page }, testInfo) => {
     const state = createState();

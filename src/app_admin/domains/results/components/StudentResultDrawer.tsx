@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 /**
  * 답안 상세 모달 — 성적 확인/입력 전용
  *
@@ -68,6 +69,8 @@ function getScanImageUrl(items: ExamResultItem[]): string {
 }
 
 type Props = {
+  scoreEntryPath?: string;
+  scoreLectureTitle?: string | null;
   examId: number;
   enrollmentId: number;
   studentName: string;
@@ -106,7 +109,7 @@ function questionKindFromNumber(
   return null;
 }
 
-export default function StudentResultDrawer({ examId, enrollmentId, studentName, examTitle, scoreSessionId, readOnly = false, onRequestEdit, answerEditRef, onReviewOmr, onEditManualAnswers, onClose }: Props) {
+export default function StudentResultDrawer({ examId, enrollmentId, studentName, examTitle, scoreEntryPath, scoreLectureTitle, scoreSessionId, readOnly = false, onRequestEdit, answerEditRef, onReviewOmr, onEditManualAnswers, onClose }: Props) {
   const qc = useQueryClient();
   const tenantLabels = useTenantLabels();
   const wrongCompletionOnly = useWrongCompletionDisplay();
@@ -396,6 +399,7 @@ export default function StudentResultDrawer({ examId, enrollmentId, studentName,
                   {detail.grading_status === "subjective_pending" ? "서술형 입력 필요" : "임시 점수"}
                 </Badge>
               )}
+              {scoreEntryPath && <Link className="underline" to={scoreEntryPath}>{scoreLectureTitle ? `${scoreLectureTitle} · ` : ""}저장된 수강 성적 입력</Link>}
               {onReviewOmr && detail?.submission_id && (
                 <Button type="button" intent="secondary" size="sm" onClick={() => onReviewOmr(detail.submission_id!)}>
                   OMR 답안 검토·수정

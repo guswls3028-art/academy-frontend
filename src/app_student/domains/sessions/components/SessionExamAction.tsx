@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { ICON_FOR_BUTTON } from "@/shared/ui/ds/iconSize";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
+import { entrySessionSearch } from "@student/domains/exams/public/examEntrySession";
 import { fetchStudentExams, type StudentExam } from "@student/domains/exams/api/exams.api";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import styles from "./SessionExamAction.module.css";
@@ -98,7 +99,7 @@ export default function SessionExamAction({ examIds, sessionId }: SessionExamAct
   const hasMultipleExams = examIdList.length > 1;
   const examTitles = new Map(data?.items.map((exam) => [exam.id, exam.title.trim()]));
   const examLinks = examIdList.map((id, index) => (
-    <Link key={id} to={`/student/exams/${id}`} className="stu-btn stu-btn--secondary" data-size="md">
+    <Link key={id} to={`/student/exams/${id}${entrySessionSearch(sessionId)}`} className="stu-btn stu-btn--secondary" data-size="md">
       {hasMultipleExams ? examTitles.get(id) || `시험 ${index + 1}` : "시험 보기"}
     </Link>
   ));

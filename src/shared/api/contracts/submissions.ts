@@ -133,6 +133,11 @@ export type PendingSubmissionRow = {
   lecture_id: number | null;
   lecture_title: string;
   session_id: number | null;
+  session_title?: string;
+  session_origin_recorded?: boolean;
+  session_history_only?: boolean;
+  score_lecture_id?: number | null;
+  session_choices?: Array<{ session_id: number; session_title: string; lecture_id: number; lecture_title: string }>;
   source: string;
   status: SubmissionStatus;
   has_file: boolean;
@@ -280,8 +285,7 @@ function normalizeSubmissionRow(value: unknown): ExamSubmissionRow | null {
 }
 
 export async function fetchPendingSubmissions(filter?: string): Promise<PendingSubmissionRow[]> {
-  const params = filter ? { filter } : {};
-  const res = await api.get("/submissions/submissions/pending/", { params });
+  const res = await api.get("/submissions/submissions/pending/", { params: { filter, session_choices: 1 } });
   return listFromApiResponse(res.data) as PendingSubmissionRow[];
 }
 
@@ -302,7 +306,7 @@ export async function fetchPendingSubmissionPage(filter: string, page: number, f
   if (!session || !tenant) throw new Error("로그인과 학원 정보를 확인한 뒤 다시 조회해 주세요.");
   const config = createAuthSessionBoundConfig(session.generation, undefined, tenant);
   const { data } = await api.get<PendingSubmissionPage | PendingSubmissionRow[]>("/submissions/submissions/pending/", {
-    ...config, params: { filter, page, page_size: 50, failed_type: failedType },
+    ...config, params: { filter, page, page_size: 50, failed_type: failedType, session_choices: 1 },
   });
   // Compatibility for complete small legacy responses; a capped list is not complete.
   if (Array.isArray(data)) {
@@ -487,4 +491,17 @@ export async function claimOmrUploadBatchCompletionApi(batchId: string): Promise
     {},
   );
   return res.data as { notify: boolean; batch: OmrUploadBatchSummary };
+}
+
+/** Staff exam submission history, scoped to one accepted submission identity. */
+export async function fetchStoredSubmissionScore(examId: number, submissionId: number, enrollmentId: number) {
+  const { data } = await api.get<Array<{ id: number; enrollment_id: number; score: number | null }>>(
+    `/submissions/submissions/exams/${examId}/`, { params: { focus_id: submissionId } },
+  );
+  const row = data[0];
+  if (!Array.isArray(data) || data.length !== 1 || row.id !== submissionId || row.enrollment_id !== enrollmentId
+      || (row.score !== null && !Number.isFinite(row.score))) {
+    throw new Error("해당 제출의 저장 점수를 확인할 수 없습니다.");
+  }
+  return row.score;
 }

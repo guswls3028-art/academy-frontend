@@ -49,7 +49,7 @@ const DEST_LABEL: Record<ItemType, string> = {
   clinic: "클리닉에서 처리",
   registration_requests: "소통에서 승인",
   submissions: "제출함에서 처리",
-  homework_review: "확인 대기 과제 목록 보기",
+  homework_review: "학생별 제출물 열기",
   video_failed: "영상에서 재시도",
   consult: "관리실에서 응대",
   reports: "커뮤니티 신고함에서 검토",

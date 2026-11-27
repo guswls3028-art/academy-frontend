@@ -143,8 +143,10 @@ export async function fetchTopWrongQuestions(examId: number, n = 5) {
 }
 
 /** 시험 결과 목록 (석차 포함) */
-export async function fetchExamResults(examId: number): Promise<TeacherExamResultRow[]> {
-  const res = await api.get(`/results/admin/exams/${examId}/results/`, { params: { page_size: 200 } });
+export async function fetchExamResults(examId: number, lectureId?: number): Promise<TeacherExamResultRow[]> {
+  const res = await api.get(`/results/admin/exams/${examId}/results/`, {
+    params: { page_size: 200, lecture_id: lectureId },
+  });
   return listFromApiResponse<TeacherExamResultRow>(res.data);
 }
 

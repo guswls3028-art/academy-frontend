@@ -556,3 +556,53 @@ test("여러 강의 연결에서 일부 실패하면 성공한 차시는 유지�
   await expect(dialog).not.toBeVisible();
   await expect(page.getByText("4개 강의", { exact: true })).toBeVisible();
 });
+
+for (const width of [1366, 390]) {
+  test(`제출 링크에서 닫은 답안은 강의 범위를 바꿔도 닫혀 있다 · ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+    await installApi(page, { hasResults: true, sharedExam: true });
+    await page.route(/\/results\/admin\/exams\/77\/enrollments\/(901|902)\/$/, (route) => json(route, {
+      target_type: "exam", target_id: 77, enrollment_id: Number(new URL(route.request().url()).pathname.split("/").at(-2)), total_score: 65,
+      max_score: 100, items: [], questions: [],
+    }));
+    await page.route("**/results/admin/attempt-history/**", (route) => json(route, { attempts: [] }));
+    await page.route("**/exams/77/questions/", (route) => json(route, []));
+    await page.route("**/core/program/", (route) => json(route, { display_name: "합성 학원", ui_config: {} }));
+
+    // Two separate inbox entries can produce exactly the same exam/score URL.
+    const link = `${BASE}/e2e-exam-results-export-harness.html?exam_id=77&examTab=results&enrollmentId=901&scoreLectureId=101`;
+    await gotoAndSettle(page, link);
+    const drawer = page.getByRole("dialog", { name: "A학생 답안 상세" });
+    const all = page.getByRole("button", { name: /전체 성적 2명/ });
+    const scopeB = page.getByRole("button", { name: /B학교 강의 1명/ });
+    const rows = page.getByRole("region", { name: "시험 학생별 결과" });
+    await expect(drawer).toBeVisible();
+    await drawer.getByRole("button", { name: "닫기" }).click();
+    await expect(drawer).toHaveCount(0);
+    await expect(page).toHaveURL((url) =>
+      !url.searchParams.has("enrollmentId") && url.searchParams.get("scoreLectureId") === "101"
+      && url.searchParams.get("exam_id") === "77" && url.searchParams.get("examTab") === "results",
+    );
+    await scopeB.click();
+    await expect(rows.getByText("B학생", { exact: true }).filter({ visible: true }).first()).toBeVisible();
+    await expect(rows.getByText("A학생", { exact: true })).toHaveCount(0);
+    await expect(drawer).toHaveCount(0);
+    await all.click();
+    await scopeB.click();
+    await all.click();
+    await expect(all).toHaveAttribute("aria-pressed", "true");
+    await expect(rows.getByText("A학생", { exact: true }).filter({ visible: true }).first()).toBeVisible();
+    await expect(drawer).toHaveCount(0);
+
+    await gotoAndSettle(page, link);
+    await expect(drawer).toBeVisible();
+    await drawer.getByRole("button", { name: "닫기" }).click();
+    await expect(drawer).toHaveCount(0);
+    const nextStudentLink = new URL(link);
+    nextStudentLink.searchParams.set("enrollmentId", "902");
+    nextStudentLink.searchParams.set("scoreLectureId", "202");
+    await gotoAndSettle(page, nextStudentLink.href);
+    await expect(page.getByRole("dialog", { name: "B학생 답안 상세" })).toBeVisible();
+    await expect(drawer).toHaveCount(0);
+  });
+}

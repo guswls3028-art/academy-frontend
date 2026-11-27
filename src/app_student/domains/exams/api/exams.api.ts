@@ -71,6 +71,7 @@ export async function fetchStudentExamQuestions(
 }
 
 export type SubmitAnswersPayload = {
+  entry_session_id?: number;
   answers: Array<{ exam_question_id: number; answer: string }>;
   client_request_id?: string;
   expected_attempt_count?: number;

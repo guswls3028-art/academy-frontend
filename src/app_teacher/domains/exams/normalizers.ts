@@ -11,6 +11,8 @@ export type TeacherExamDetail = {
 };
 
 export type ExamResultRow = {
+  score_session_id?: number | null;
+  score_lecture_title?: string | null;
   id: number | null;
   enrollment_id: number;
   student_name: string;
@@ -56,6 +58,8 @@ export type HomeworkSubmission = {
   enrollment_id: number;
   student_id: number | null;
   student_name: string;
+  session_title?: string | null;
+  homework_lecture_title?: string | null;
   student_phone: string | null;
   parent_phone: string | null;
   submitted_at: string | null;
@@ -141,6 +145,8 @@ function normalizeResultRow(value: unknown): ExamResultRow | null {
     id: toNumber(record.id),
     enrollment_id: enrollmentId,
     student_name: getStudentName(record),
+    score_session_id: toNumber(record.correction_session_id),
+    score_lecture_title: toStringValue(record.lecture_title),
     exam_score: toNumber(record.exam_score ?? record.score),
     final_score: toNumber(record.final_score),
     total_score: toNumber(record.total_score),
@@ -229,6 +235,8 @@ function normalizeHomeworkSubmission(value: unknown): HomeworkSubmission | null 
     enrollment_id: toNumber(record.enrollment_id) ?? 0,
     student_id: getStudentId(record),
     student_name: getStudentName(record),
+    session_title: toStringValue(record.session_title),
+    homework_lecture_title: toStringValue(record.homework_lecture_title ?? record.lecture_title),
     student_phone: toStringValue(record.student_phone),
     parent_phone: toStringValue(record.parent_phone),
     submitted_at: toStringValue(record.submitted_at) ??

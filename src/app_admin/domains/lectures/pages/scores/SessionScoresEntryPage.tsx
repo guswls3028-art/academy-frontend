@@ -124,6 +124,9 @@ function resolveExamGradingMode(
   return hasEssay ? "written" : "choice";
 }
 
+const loadBulkScoreModal = () => import("./SessionBulkScoreModal");
+const SessionBulkScoreModal = lazy(loadBulkScoreModal);
+const preloadBulkScoreModal = () => { void loadBulkScoreModal().catch(() => undefined); };
 // Keep the OMR upload workspace (batch ledger, file preparation and upload UI)
 // outside the score-entry module. Both exports share the same lazy chunk.
 const SessionOmrUploadAction = lazy(() => import("./SessionOmrUploadAction"));
@@ -1201,6 +1204,8 @@ export default function SessionScoresEntryPage({
             <Button
               intent="secondary"
               size="sm"
+              onFocus={preloadBulkScoreModal}
+              onPointerEnter={preloadBulkScoreModal}
               onClick={() => setShowBulkScoreModal(true)}
               disabled={selectedEnrollmentIds.length === 0 || !isEditMode}
               title={!isEditMode ? "수정을 누른 뒤 사용할 수 있습니다." : selectedEnrollmentIds.length === 0 ? "학생을 선택하세요." : "선택한 학생의 시험·과제 점수를 한번에 변경합니다."}
@@ -1991,97 +1996,22 @@ export default function SessionScoresEntryPage({
         </div>
       )}
 
-      {/* 성적 일괄 변경 모달.
-          2026-05-13 3차: onEnterConfirm + 적용 버튼 onClick 40+줄 중복 → applyBulkScore 단일화. */}
-      <AdminModal
-        open={showBulkScoreModal}
-        onClose={() => {
-          setShowBulkScoreModal(false);
-          setBulkScoreValue("");
-        }}
-        type="action"
-        size="sm"
-        onEnterConfirm={() => {
-          if (!bulkScoreValue.trim()) return;
-          applyBulkScore();
-        }}
-      >
-        <ModalHeader title="성적 일괄 변경" />
-        <ModalBody>
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-[var(--color-text-muted)]">
-              선택한 {selectedEnrollmentIds.length}명의 성적을 일괄 변경합니다.
-            </p>
-            <div>
-              <label className="text-sm font-medium text-[var(--color-text-primary)] mb-1 block">대상</label>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className={`h-9 px-4 rounded text-sm font-medium border ${
-                    bulkScoreTarget === "exam"
-                      ? "bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)] border-[var(--color-brand-primary)]"
-                      : "bg-transparent text-[var(--color-text-secondary)] border-[var(--color-border-divider)]"
-                  }`}
-                  onClick={() => setBulkScoreTarget("exam")}
-                >
-                  시험
-                </button>
-                <button
-                  type="button"
-                  className={`h-9 px-4 rounded text-sm font-medium border ${
-                    bulkScoreTarget === "homework"
-                      ? "bg-[var(--color-brand-primary)] text-[color:var(--color-brand-primary-contrast)] border-[var(--color-brand-primary)]"
-                      : "bg-transparent text-[var(--color-text-secondary)] border-[var(--color-border-divider)]"
-                  }`}
-                  onClick={() => setBulkScoreTarget("homework")}
-                >
-                  과제
-                </button>
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-[var(--color-text-primary)] mb-1 block" htmlFor="bulk-score-input">
-                점수
-              </label>
-              <input
-                id="bulk-score-input"
-                type="number"
-                min={0}
-                className="ds-input"
-                placeholder="점수를 입력하세요"
-                value={bulkScoreValue}
-                onChange={(e) => setBulkScoreValue(e.target.value)}
-                style={{ maxWidth: 200 }}
-                autoFocus
-              />
-            </div>
-          </div>
-        </ModalBody>
-        <ModalFooter
-          right={
-            <>
-              <Button
-                intent="secondary"
-                size="sm"
-                onClick={() => {
-                  setShowBulkScoreModal(false);
-                  setBulkScoreValue("");
-                }}
-              >
-                취소
-              </Button>
-              <Button
-                intent="primary"
-                size="sm"
-                disabled={!bulkScoreValue.trim()}
-                onClick={applyBulkScore}
-              >
-                적용
-              </Button>
-            </>
-          }
-        />
-      </AdminModal>
+      {showBulkScoreModal && (
+        <Suspense fallback={<span role="status">성적 일괄 변경 불러오는 중…</span>}>
+          <SessionBulkScoreModal
+            selectedCount={selectedEnrollmentIds.length}
+            bulkScoreTarget={bulkScoreTarget}
+            setBulkScoreTarget={setBulkScoreTarget}
+            bulkScoreValue={bulkScoreValue}
+            setBulkScoreValue={setBulkScoreValue}
+            applyBulkScore={applyBulkScore}
+            onClose={() => {
+              setShowBulkScoreModal(false);
+              setBulkScoreValue("");
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* 시험명에서 바로 여는 직접 채점표. 선택형은 아래 OMR 검토로 분기한다. */}
       {gradingExam && !omrReviewExam && !omrUploadExam && (

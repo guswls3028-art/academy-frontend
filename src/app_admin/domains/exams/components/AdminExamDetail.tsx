@@ -37,6 +37,8 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
   const { hash } = useLocation();
   const { lectureId } = useLectureSessionParams();
   const focusAnalysis = linkedTab === "results" && hash.slice(1) === EXAM_ANALYSIS_ANCHOR;
+  const initialScoreLectureId = focusAnalysis || searchParams.has("scoreLectureId")
+    ? lectureId ?? undefined : undefined;
   const enrollment = useExamEnrollmentRows(mode === "operate" ? examId : undefined, sessionId ?? undefined);
   const audienceCount = enrollment.isSuccess && Array.isArray(enrollment.data?.items)
     ? enrollment.data.items.filter(row => row.is_selected).length : undefined;
@@ -131,7 +133,7 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
       {mode === "operate" ? (
         <ExamWorklist exam={exam} audience={audienceSummary} sessionId={sessionId} lectureId={lectureId ?? 0} disabled={isError}
           selection={worklist.selection} select={worklist.select} wrongCompletionOnly={wrongCompletionOnly}
-          focusAnalysis={focusAnalysis} />
+          initialScoreLectureId={initialScoreLectureId} />
       ) : <>
         <ExamTabs activeTab={tab} onChange={changeTab} hasSession assetsReady mode={mode} />
         {tab === "setup" && <ExamSetupPanel examId={examId} />}
@@ -143,7 +145,7 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
             sessionId={sessionId ?? undefined}
             wrongCompletionOnly={wrongCompletionOnly}
             focusAnalysis={focusAnalysis}
-            initialLectureId={focusAnalysis ? lectureId : undefined}
+            initialLectureId={initialScoreLectureId}
             onOpenSetup={() => changeTab("setup")}
           />
         )}

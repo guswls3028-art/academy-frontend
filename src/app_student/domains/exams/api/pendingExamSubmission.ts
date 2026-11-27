@@ -57,7 +57,8 @@ export function prepareExamSubmission(draftKey: string | null, payload: SubmitAn
     if (raw !== null && !existing) throw new ExamSubmissionStorageError();
     if (existing) {
       if (!sameExamAnswers(existing.answers, payload.answers)
-        || existing.expected_attempt_count !== payload.expected_attempt_count) {
+        || existing.expected_attempt_count !== payload.expected_attempt_count
+        || existing.entry_session_id !== payload.entry_session_id) {
         throw new PendingExamSubmissionConflict(existing);
       }
       return { attempt: existing, existing: true };

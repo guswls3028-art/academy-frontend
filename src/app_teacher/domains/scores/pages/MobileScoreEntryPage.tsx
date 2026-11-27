@@ -87,12 +87,13 @@ export default function MobileScoreEntryPage() {
   });
 
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
+  const reviewEnrollment = Number(searchParams.get("reviewEnrollment"));
   const requestedExamId = Number(searchParams.get("exam"));
   const routedExamId = Number.isFinite(requestedExamId)
     && exams?.some((exam) => exam.id === requestedExamId)
     ? requestedExamId
     : null;
-  const activeExamId = selectedExamId ?? routedExamId ?? exams?.[0]?.id ?? null;
+  const activeExamId = reviewEnrollment > 0 ? routedExamId : selectedExamId ?? routedExamId ?? exams?.[0]?.id ?? null;
   const activeExam = exams?.find((e) => e.id === activeExamId);
   const tenantCode = getTenantCodeForApiRequest();
   const draftScope = tenantCode && user?.id
@@ -119,7 +120,7 @@ export default function MobileScoreEntryPage() {
         <>
           {/* Exam selector chips — 만점 라벨로 컨텍스트 부여 */}
           <div className={cx("flex gap-2 overflow-x-auto pb-1", styles.examTabs)}>
-            {exams.map((exam) => {
+            {exams.filter(exam => reviewEnrollment <= 0 || exam.id === routedExamId).map((exam) => {
               const active = exam.id === activeExamId;
               return (
                 <button
@@ -135,14 +136,17 @@ export default function MobileScoreEntryPage() {
               );
             })}
           </div>
-          {activeExamId && (
+          {reviewEnrollment > 0 && (!routedExamId || enrollmentsLoading || enrollmentsError || !enrollments?.some(e => e.enrollment === reviewEnrollment)) ? (
+            <EmptyState scope="panel" tone={enrollmentsLoading ? "loading" : "error"} title={enrollmentsLoading ? "저장된 수강 확인 중…" : "이 차시의 저장된 수강을 확인할 수 없습니다"}
+              actions={<EmptyActionButton onClick={() => void retryEnrollments()}>다시 시도</EmptyActionButton>} />
+          ) : activeExamId && (
             <ScoreEntryList
               key={`${sid}:${schedule ?? 'all'}`}
               sessionId={sid}
               examId={activeExamId}
               examMaxScore={activeExam?.max_score ?? 100}
               examPassScore={activeExam?.pass_score ?? null}
-              enrollments={schedule === undefined ? enrollments ?? [] : (enrollments ?? []).filter(e => scopeRoster.data?.ids.includes(e.enrollment))}
+              enrollments={(enrollments ?? []).filter(e => (!reviewEnrollment || e.enrollment === reviewEnrollment) && (schedule === undefined || scopeRoster.data?.ids.includes(e.enrollment)))}
               rosterLoading={enrollmentsLoading}
               draftScope={draftScope}
             />

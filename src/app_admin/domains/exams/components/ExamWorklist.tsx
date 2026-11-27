@@ -13,7 +13,7 @@ import ExamAssetsPanel from "../panels/ExamAssetsPanel";
 import ExamSubmissionsPanel from "../panels/ExamSubmissionsPanel";
 import ExamResultsViewerPanel from "../panels/ExamResultsViewerPanel";
 
-export default function ExamWorklist({ exam, audience, sessionId, lectureId, selection, select, wrongCompletionOnly, focusAnalysis, disabled }: {
+export default function ExamWorklist({ exam, audience, sessionId, lectureId, selection, select, wrongCompletionOnly, initialScoreLectureId, disabled }: {
   exam: Exam;
   audience: string;
   sessionId?: number | null;
@@ -21,7 +21,7 @@ export default function ExamWorklist({ exam, audience, sessionId, lectureId, sel
   selection: WorkSelection;
   select: (next: WorkSelection) => void;
   wrongCompletionOnly: boolean;
-  focusAnalysis: boolean;
+  initialScoreLectureId?: number;
   disabled: boolean;
 }) {
   const examId = exam.id;
@@ -34,7 +34,7 @@ export default function ExamWorklist({ exam, audience, sessionId, lectureId, sel
   };
   const results = <ExamResultsViewerPanel examId={examId} sessionId={sessionId ?? undefined}
     wrongCompletionOnly={wrongCompletionOnly} focusAnalysis={selection.action === "analysis"}
-    initialLectureId={focusAnalysis ? lectureId : undefined} onOpenSetup={action => select({ step: "policy", action })} />;
+    initialLectureId={initialScoreLectureId} onOpenSetup={action => select({ step: "policy", action })} />;
   const submissions = <ExamSubmissionsPanel examId={examId} sessionId={sessionId} focusLedger={selection.action === "ledger"} />;
   const stages: WorkStage[] = [
     { id: "audience", title: "시험 대상·강의 공유", summary: audience + " · 여러 반의 차시 연결과 강의별 귀가 기준", actions: [
