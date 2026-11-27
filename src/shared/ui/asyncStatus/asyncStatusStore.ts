@@ -5,6 +5,7 @@
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
 import type { OmrUploadBatchSummary } from "@/shared/api/contracts/submissions";
 import { getLocalItem, removeLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
+import { importResultRows, MAX_STORED_RESULT_ROWS, optionalImportCount } from "./studentImportRows";
 import { clearPptJobReferences, forgetPptJobReference } from "./pptJobRecovery";
 
 export type AsyncTaskStatus = "pending" | "success" | "error";
@@ -35,6 +36,7 @@ export interface EncodingStep {
 export interface StudentImportResultRow {
   row: number | null;
   name: string;
+  sessionRegistration?: "withdrawal_preserved";
 }
 
 export interface StudentImportFailedRow extends StudentImportResultRow {
@@ -45,6 +47,8 @@ export interface StudentImportResult {
   kind?: "student" | "enrollment";
   total: number;
   createdCount: number;
+  sessionEnrolledCount?: number;
+  withdrawnSessionPreservedCount?: number;
   duplicateCount: number;
   restoredCount: number;
   failedCount: number;
@@ -87,24 +91,10 @@ type Listener = (tasks: AsyncTask[]) => void;
 
 const EXCEL_RECOVERY_STORAGE_KEY = "hakwonplus:excel-job-recovery:v1";
 const EXCEL_RECOVERY_TTL_MS = 60 * 60 * 1000;
-export const MAX_STORED_RESULT_ROWS = 500;
 
 function boundedInteger(value: unknown): number {
   const number = Number(value);
   return Number.isFinite(number) && number >= 0 ? Math.floor(number) : 0;
-}
-
-function parseStoredRows(value: unknown): StudentImportResultRow[] {
-  if (!Array.isArray(value)) return [];
-  return value.slice(0, MAX_STORED_RESULT_ROWS).flatMap((item) => {
-    if (item == null || typeof item !== "object" || Array.isArray(item)) return [];
-    const record = item as Record<string, unknown>;
-    if (typeof record.name !== "string") return [];
-    return [{
-      row: typeof record.row === "number" && Number.isFinite(record.row) ? record.row : null,
-      name: record.name.slice(0, 200),
-    }];
-  });
 }
 
 function parseStoredFailedRows(value: unknown): StudentImportFailedRow[] {
@@ -124,14 +114,16 @@ function parseStoredFailedRows(value: unknown): StudentImportFailedRow[] {
 function parseStoredStudentImportResult(value: unknown): StudentImportResult | undefined {
   if (value == null || typeof value !== "object" || Array.isArray(value)) return undefined;
   const record = value as Record<string, unknown>;
-  const createdRows = parseStoredRows(record.createdRows);
-  const duplicateRows = parseStoredRows(record.duplicateRows);
-  const restoredRows = parseStoredRows(record.restoredRows);
+  const createdRows = importResultRows(record.createdRows, record.kind === "enrollment" ? "sessionRegistration" : undefined);
+  const duplicateRows = importResultRows(record.duplicateRows);
+  const restoredRows = importResultRows(record.restoredRows);
   const failedRows = parseStoredFailedRows(record.failedRows);
   return {
     kind: record.kind === "enrollment" ? "enrollment" : "student",
     total: boundedInteger(record.total),
     createdCount: boundedInteger(record.createdCount),
+    sessionEnrolledCount: optionalImportCount(record.sessionEnrolledCount),
+    withdrawnSessionPreservedCount: optionalImportCount(record.withdrawnSessionPreservedCount),
     duplicateCount: Object.prototype.hasOwnProperty.call(record, "duplicateCount")
       ? boundedInteger(record.duplicateCount)
       : duplicateRows.length,

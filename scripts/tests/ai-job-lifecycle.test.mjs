@@ -274,7 +274,7 @@ function workboxRuntime(jobType) {
     react: { useEffect(callback) { cleanup = callback(); }, useRef: (current) => ({ current }) },
     "@/shared/tenant": { getTenantCodeForApiRequest: () => tenant },
     "@/shared/auth/tokenSession": { readAuthTokenEnvelopeSafely: () => ({ generation }) },
-    "./asyncStatusStore": { asyncStatusStore: store, MAX_STORED_RESULT_ROWS: 500 },
+    "./asyncStatusStore": { asyncStatusStore: store },
     "@/shared/ui/feedback/feedback": { feedback: { warning(message) { warnings.push(message); }, success() {} } },
     "@/shared/api/contracts/submissions": {},
     "@/shared/api/contracts/videos": {},
@@ -427,6 +427,26 @@ for (const initial of [{ status: "UNKNOWN" }, { status: "DONE" }, { status: "HTT
   });
 }
 
+test("Excel distinguishes lecture enrollment from a preserved session withdrawal", async () => {
+  const h = workboxRuntime("excel_parsing");
+  h.respond({ status: "DONE", result: {
+    ...mixedEnrollmentResult,
+    session_enrolled_count: 0,
+    withdrawn_session_preserved_count: 1,
+    enrolled_rows: [{ row: 2, name: "등록완료학생", student_id: 1, session_registration: "withdrawal_preserved" }],
+  } });
+  await flush();
+  const ledger = h.importResults[0].value;
+  assert.equal(h.completions[0].status, "success");
+  assert.equal(ledger.createdCount, 1);
+  assert.equal(ledger.sessionEnrolledCount, 0);
+  assert.equal(ledger.withdrawnSessionPreservedCount, 1);
+  assert.equal(ledger.createdRows[0].sessionRegistration, "withdrawal_preserved");
+  assert.equal(ledger.createdRows[0].student_id, undefined);
+  assert.equal(h.labels.at(-1).label, "엑셀 수강등록 — 수강 등록 1명, 차시 등록 0명, 차시 퇴원 유지 1명, 제외 2명");
+  h.dispose();
+});
+
 test("Excel keeps counts from the legacy enrollment payload without inventing rows", async () => {
   const h = workboxRuntime("excel_parsing");
   h.respond({ status: "DONE", result: {
@@ -436,6 +456,8 @@ test("Excel keeps counts from the legacy enrollment payload without inventing ro
   await flush();
   const ledger = h.importResults[0].value;
   assert.equal(ledger.total, 4);
+  assert.equal(ledger.sessionEnrolledCount, undefined);
+  assert.equal(ledger.withdrawnSessionPreservedCount, undefined);
   assert.equal(ledger.createdCount, 2);
   assert.equal(ledger.failedCount, 2);
   assert.equal(ledger.createdRows.length, 0);

@@ -65,6 +65,7 @@ function FailedRow({ item }: { item: StudentImportFailedRow }) {
 
 export default function StudentImportResultDialog({ result, onClose }: Props) {
   const isEnrollment = result.kind === "enrollment";
+  const preservedCount = result.withdrawnSessionPreservedCount ?? 0;
   const successfulCount = result.createdCount + result.restoredCount;
   const hasCreatedCountWithoutRows = result.createdCount > result.createdRows.length;
 
@@ -96,6 +97,12 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
 
           <div className={styles.summary} aria-label="등록 결과 요약">
             <SummaryCard label={isEnrollment ? "수강 등록" : "신규 등록"} value={result.createdCount} tone="created" />
+            {isEnrollment && result.sessionEnrolledCount !== undefined && (
+              <SummaryCard label="차시 등록" value={result.sessionEnrolledCount} tone="neutral" />
+            )}
+            {isEnrollment && preservedCount > 0 && (
+              <SummaryCard label="차시 퇴원 유지" value={preservedCount} tone="existing" />
+            )}
             {!isEnrollment && <SummaryCard label="복원" value={result.restoredCount} tone="neutral" />}
             {!isEnrollment && <SummaryCard label="이미 등록" value={result.duplicateCount} tone="existing" />}
             <SummaryCard label="확인 필요" value={result.failedCount} tone="failed" />
@@ -122,9 +129,17 @@ export default function StudentImportResultDialog({ result, onClose }: Props) {
                   <EmptyRows>{successfulCount > 0 ? "처리 건수는 확인되었으나 행별 상세 목록이 제공되지 않았습니다." : "등록되거나 복원된 학생이 없습니다."}</EmptyRows>
                 ) : (
                   <ul className={styles.rows}>
-                    {result.createdRows.map((item, index) => (
-                      <ResultRow key={`created-${item.row}-${index}`} item={item} badge={isEnrollment ? "수강" : "신규"} tone="created" />
-                    ))}
+                    {result.createdRows.map((item, index) => {
+                      const preserved = isEnrollment && item.sessionRegistration === "withdrawal_preserved";
+                      return (
+                        <ResultRow
+                          key={`created-${item.row}-${index}`}
+                          item={item}
+                          badge={preserved ? "차시 퇴원 유지" : isEnrollment ? "수강" : "신규"}
+                          tone={preserved ? "existing" : "created"}
+                        />
+                      );
+                    })}
                     {result.restoredRows.map((item, index) => (
                       <ResultRow key={`restored-${item.row}-${index}`} item={item} badge="복원" tone="restored" />
                     ))}

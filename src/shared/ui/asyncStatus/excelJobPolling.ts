@@ -1,6 +1,7 @@
 import api, { type ApiRequestConfig } from "@/shared/api/axios";
 import { feedback } from "@/shared/ui/feedback/feedback";
-import { asyncStatusStore, MAX_STORED_RESULT_ROWS } from "./asyncStatusStore";
+import { asyncStatusStore } from "./asyncStatusStore";
+import { importResultRows, MAX_STORED_RESULT_ROWS, optionalImportCount } from "./studentImportRows";
 
 /** The workbox owns tenant/auth generations, request cancellation and in-flight deduplication. */
 export type ExcelJobPollContext = {
@@ -18,19 +19,6 @@ const SAFE_STUDENT_IMPORT_REASON_CODES = new Set([
   "ps_number_in_use",
   "processing_error",
 ]);
-
-function importResultRows(value: unknown): Array<{ row: number | null; name: string }> {
-  if (!Array.isArray(value)) return [];
-  return value.slice(0, MAX_STORED_RESULT_ROWS).flatMap((item) => {
-    if (item == null || typeof item !== "object" || Array.isArray(item)) return [];
-    const record = item as Record<string, unknown>;
-    if (typeof record.name !== "string") return [];
-    return [{
-      row: typeof record.row === "number" && Number.isFinite(record.row) ? record.row : null,
-      name: record.name.slice(0, 200),
-    }];
-  });
-}
 
 function safeImportFailureReason(record: Record<string, unknown>): string {
   if (
@@ -142,12 +130,18 @@ export function pollExcelJob(
           const notFoundCount = Number(result?.not_found_students_count ?? 0);
           const ambiguousCount = Number(result?.ambiguous_students_count ?? 0);
           const excludedCount = Number(result.excluded_count ?? (notFoundCount + ambiguousCount));
-          const parts = [`등록 ${enrolledCount}명`];
+          const sessionEnrolledCount = optionalImportCount(result.session_enrolled_count);
+          const withdrawnSessionPreservedCount = optionalImportCount(result.withdrawn_session_preserved_count);
+          const parts = [sessionEnrolledCount === undefined && !withdrawnSessionPreservedCount
+            ? `등록 ${enrolledCount}명`
+            : `수강 등록 ${enrolledCount}명`];
+          if (sessionEnrolledCount !== undefined) parts.push(`차시 등록 ${sessionEnrolledCount}명`);
+          if (withdrawnSessionPreservedCount) parts.push(`차시 퇴원 유지 ${withdrawnSessionPreservedCount}명`);
           if (excludedCount > 0) parts.push(`제외 ${excludedCount}명`);
           asyncStatusStore.setTaskLabel(taskId, `엑셀 수강등록 — ${parts.join(", ")}`);
 
           const excludedDetail = excludedCount > 0
-            ? `등록 ${enrolledCount}명, 제외 ${excludedCount}명. 결과에서 제외 사유를 확인해 주세요.`
+            ? `${parts.join(", ")}. 결과에서 제외 사유를 확인해 주세요.`
             : undefined;
           if (excludedDetail) {
             feedback.warning(`수강등록 결과: ${excludedDetail}`);
@@ -159,10 +153,12 @@ export function pollExcelJob(
             kind: "enrollment",
             total: Number(result.total ?? (enrolledCount + excludedCount)),
             createdCount: enrolledCount,
+            sessionEnrolledCount,
+            withdrawnSessionPreservedCount,
             duplicateCount: 0,
             restoredCount: 0,
             failedCount: excludedCount,
-            createdRows: importResultRows(result.enrolled_rows),
+            createdRows: importResultRows(result.enrolled_rows, "session_registration"),
             duplicateRows: [],
             restoredRows: [],
             failedRows: excludedRows.slice(0, MAX_STORED_RESULT_ROWS).flatMap((item) => {
