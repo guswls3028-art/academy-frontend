@@ -11,6 +11,7 @@ import {
 } from "@admin/domains/exams/api/omr.api";
 
 import OmrEssayScoreMarksOption from "./OmrEssayScoreMarksOption";
+import { useOmrEssayScoreMarks } from "./useOmrEssayScoreMarks";
 import styles from "./OmrSheetBuilder.module.css";
 
 const PREVIEW_ERROR_HTML = "<html><body><p>미리보기를 불러올 수 없습니다.</p></body></html>";
@@ -70,16 +71,22 @@ export default function OmrSheetBuilder({
   const [essayNumbering, setEssayNumbering] = useState(initialEssayNumbering);
   const [format, setFormat] = useState<OmrFormat>(() => getInitialFormat(initialMcCount, initialEssayCount));
   const [includeOptionalEssayArea, setIncludeOptionalEssayArea] = useState(true);
-  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
+  const [preview, setPreview] = useState<{
+    target: OMRTarget;
+    params: OMRParams;
+    html: string | null;
+  } | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const previewRef = useRef<HTMLElement>(null);
   const previewRequestRef = useRef(0);
+  const previewTimerRef = useRef<number | undefined>(undefined);
   const lastMcCountRef = useRef(initialMcCount > 0 ? clampInt(initialMcCount, 1, MAX_MC_COUNT) : 20);
   const lastEssayCountRef = useRef(initialEssayCount > 0 ? clampInt(initialEssayCount, 1, MAX_ESSAY_COUNT) : 5);
   const targetType = target.type;
   const essayLabel = "서술형";
   const targetExamId = target.type === "exam" ? target.examId : undefined;
+  const marks = useOmrEssayScoreMarks(targetExamId, essayCount > 0);
+  const scoreGrid = marks.requestGrid;
   const requestTarget = useMemo<OMRTarget>(() => (
     targetType === "exam" && targetExamId
       ? { type: "exam", examId: targetExamId }
@@ -105,12 +112,6 @@ export default function OmrSheetBuilder({
   useEffect(() => {
     if (essayCount > 0) lastEssayCountRef.current = essayCount;
   }, [essayCount]);
-
-  useEffect(() => {
-    return () => {
-      previewRequestRef.current += 1;
-    };
-  }, []);
 
   useLayoutEffect(() => {
     const preview = previewRef.current;
@@ -143,12 +144,13 @@ export default function OmrSheetBuilder({
     : canIncludeOptionalEssayArea
       ? includeOptionalEssayArea ? "서술형 작성칸 표시" : "서술형 작성칸 숨김"
       : `${essayLabel} 작성칸 없음`;
-  const params = useCallback((): OMRParams => ({
+  const params = useMemo((): OMRParams => ({
     exam_title: examTitle,
     lecture_name: lectureName,
     session_name: sessionName,
     mc_count: mcCount,
     essay_count: essayCount,
+    ...(scoreGrid ? { essay_score_grid: scoreGrid } : {}),
     ...(targetType === "tool" ? { essay_numbering: essayNumbering } : {}),
     include_optional_essay_area: includeOptionalEssayArea,
     n_choices: 5,
@@ -162,40 +164,45 @@ export default function OmrSheetBuilder({
             .filter((number): number is number => number !== null),
         }
       : {}),
-  }), [examTitle, lectureName, sessionName, mcCount, essayCount, essayNumbering, targetType, includeOptionalEssayArea, initialQuestionTypes, totalCount]);
+  }), [examTitle, lectureName, sessionName, mcCount, essayCount, scoreGrid, essayNumbering, targetType, includeOptionalEssayArea, initialQuestionTypes, totalCount]);
+
+  const currentPreview = preview?.target === requestTarget && preview.params === params ? preview : null;
+  const previewHtml = currentPreview?.html;
+  const previewLoading = currentPreview?.html === null;
 
   const loadPreview = useCallback(async () => {
     if (totalCount < 1) return;
 
+    window.clearTimeout(previewTimerRef.current);
     const requestId = previewRequestRef.current + 1;
     previewRequestRef.current = requestId;
-    setPreviewLoading(true);
+    setPreview({ target: requestTarget, params, html: null });
+    let html: string;
     try {
-      const html = await fetchOMRPreviewForTarget(requestTarget, params());
-      if (previewRequestRef.current === requestId) setPreviewHtml(html);
+      html = await fetchOMRPreviewForTarget(requestTarget, params);
     } catch {
-      if (previewRequestRef.current === requestId) setPreviewHtml(PREVIEW_ERROR_HTML);
-    } finally {
-      if (previewRequestRef.current === requestId) setPreviewLoading(false);
+      html = PREVIEW_ERROR_HTML;
+    }
+    if (previewRequestRef.current === requestId) {
+      setPreview({ target: requestTarget, params, html });
     }
   }, [params, requestTarget, totalCount]);
 
   useEffect(() => {
-    if (totalCount < 1) {
-      previewRequestRef.current += 1;
-      setPreviewHtml(null);
-      setPreviewLoading(false);
-      return;
+    if (totalCount > 0) {
+      previewTimerRef.current = window.setTimeout(loadPreview, layout === "modal" ? 250 : 550);
     }
-    const timer = window.setTimeout(() => { void loadPreview(); }, layout === "modal" ? 250 : 550);
-    return () => window.clearTimeout(timer);
-  }, [examTitle, lectureName, sessionName, mcCount, essayCount, layout, loadPreview, totalCount]);
+    return () => {
+      window.clearTimeout(previewTimerRef.current);
+      previewRequestRef.current += 1;
+    };
+  }, [layout, loadPreview, totalCount]);
 
   const handleDownload = async () => {
     if (totalCount < 1) return;
     setPdfLoading(true);
     try {
-      await downloadOMRPdfForTarget(requestTarget, params(), examTitle || "OMR");
+      await downloadOMRPdfForTarget(requestTarget, params, examTitle || "OMR");
       feedback.success("PDF 다운로드 완료");
       onDownloaded?.();
     } catch {
@@ -234,7 +241,7 @@ export default function OmrSheetBuilder({
   };
 
   const downloadButton = (
-    <Button type="button" intent="primary" size="md" className="w-full" leftIcon={<Download size={16} />} onClick={handleDownload} disabled={pdfLoading || totalCount < 1}>
+    <Button type="button" intent="primary" size="md" className="w-full" leftIcon={<Download size={16} />} onClick={handleDownload} disabled={pdfLoading || marks.saving || totalCount < 1}>
       {pdfLoading ? "다운로드 중..." : "OMR PDF 다운로드"}
     </Button>
   );
@@ -400,12 +407,7 @@ export default function OmrSheetBuilder({
               <span className={styles.areaStatus}>{essayCount > 0 ? "포함" : "없음"}</span>
             )}
           </div>
-          {targetType === "exam" && targetExamId && essayCount > 0 && (
-            <OmrEssayScoreMarksOption
-              examId={targetExamId}
-              onChanged={() => { void loadPreview(); }}
-            />
-          )}
+          {essayCount > 0 && <OmrEssayScoreMarksOption marks={marks} />}
         </div>
 
         <div className={styles.selectionSummary} aria-live="polite">

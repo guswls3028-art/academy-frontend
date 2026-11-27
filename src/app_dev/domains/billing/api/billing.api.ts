@@ -74,6 +74,10 @@ export type DashboardDto = {
 };
 
 export type BankTransferNoticeDto = {
+  automatic_receipt?: boolean;
+  receipt_kind?: import("@/shared/api/generated/schema").components["schemas"]["ReceiptKindEnum"];
+  receipt_provider_state?: number;
+  receipt_error?: string;
   id: number;
   tenant_code: string;
   tenant_name: string;

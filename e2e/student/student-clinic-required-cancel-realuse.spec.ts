@@ -21,6 +21,7 @@ import {
 } from "../helpers/qaStudentParentScenario";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
 import { gotoAndSettle, waitForCondition } from "../helpers/wait";
+import { verifyClinicDayPass } from "../helpers/clinicDayPassRealuse";
 
 test.setTimeout(360_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -38,7 +39,7 @@ type NotificationLog = {
 };
 
 const marker = `[required-cancel-${Date.now()}]`;
-const todayKst = kstYmd(0);
+const previousClassDate = kstYmd(-1);
 const clinicDate = kstYmd(1);
 const created = {
   adminAccess: "",
@@ -48,6 +49,9 @@ const created = {
   sourceSessionId: 0,
   enrollmentId: 0,
   examId: 0,
+  todaySessionId: 0,
+  todayExamId: 0,
+  homeworkId: 0,
   clinicSessionIds: [] as number[],
   participantIds: [] as number[],
 };
@@ -59,6 +63,19 @@ function kstYmd(offsetDays: number): string {
 
 function rowsFrom<T>(body: T[] | Paged<T>): T[] {
   return Array.isArray(body) ? body : body.results;
+}
+
+async function assignClinicExam(
+  request: APIRequestContext, adminAccess: string, sessionId: number, examId: number, enrollmentId: number,
+) {
+  const questions = await expectApi<Array<{ id: number; number: number }>>(
+    request, "POST", `/exams/${examId}/questions/init/`, adminAccess, { total_questions: 5, default_score: 20 },
+  );
+  const answers = Object.fromEntries(questions.map(({ id, number }) => [id, String(number)]));
+  await expectApi(request, "POST", "/exams/answer-keys/", adminAccess, { exam: examId, answers });
+  await expectApi(request, "PUT", `/exams/${examId}/enrollments/?session_id=${sessionId}`,
+    adminAccess, { enrollment_ids: [enrollmentId] }, [200]);
+  return questions.map(({ id, number }) => ({ exam_question_id: id, answer: String(number) }));
 }
 
 async function waitForFailedResult(
@@ -97,7 +114,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   if (created.family) {
     try {
       const deletion = await cleanupQaFamily(request, created.adminAccess, created.family);
-      expect(deletion).toMatchObject({ deleted: 1, storage_cleanup: { pending: 0, failed: 0 } });
+      expect(deletion).toMatchObject({ deleted: created.family.students.length, storage_cleanup: { pending: 0, failed: 0 } });
     } catch (error) {
       failures.push(`family cleanup -> ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -108,6 +125,9 @@ async function cleanup(request: APIRequestContext): Promise<void> {
     if (staffReadback.status !== 404) failures.push(`staff cleanup readback -> ${staffReadback.status}`);
   }
   for (const id of [...created.clinicSessionIds].reverse()) await remove("DELETE", `/clinic/sessions/${id}/`);
+  if (created.homeworkId) await remove("DELETE", `/homeworks/${created.homeworkId}/`);
+  if (created.todayExamId) await remove("DELETE", `/exams/${created.todayExamId}/?session_id=${created.todaySessionId}`);
+  if (created.todaySessionId) await remove("DELETE", `/lectures/sessions/${created.todaySessionId}/`);
   if (created.examId && created.sourceSessionId) {
     await remove("DELETE", `/exams/${created.examId}/?session_id=${created.sourceSessionId}`);
   }
@@ -174,7 +194,7 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
       request,
       admin.access,
       "clinic-required-cancel",
-      1,
+      2,
       { withStudentPhones: true },
     );
     const student = created.family.students[0];
@@ -185,7 +205,7 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
       name: "QA필수취소",
       subject: "수학",
       description: "실패 성적 기반 필수 클리닉 취소 실사용",
-      start_date: todayKst,
+      start_date: previousClassDate,
       lecture_time: "월 17:00 ~ 19:00",
       color: "#2563eb",
       chip_label: "필취",
@@ -196,7 +216,7 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
     const sourceSession = await expectApi<{ id: number }>(request, "POST", "/lectures/sessions/", admin.access, {
       lecture: created.lectureId,
       title: `${marker} 원천 차시`,
-      date: todayKst,
+      date: previousClassDate,
       order: 1,
     }, [201]);
     created.sourceSessionId = Number(sourceSession.id);
@@ -224,35 +244,9 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
       answer_visibility: "hidden",
     });
     created.examId = Number(exam.id);
-    const questions = await expectApi<Array<{ id: number; number: number }>>(
-      request,
-      "POST",
-      `/exams/${created.examId}/questions/init/`,
-      admin.access,
-      { total_questions: 5, default_score: 20 },
-    );
-    const questionIds = questions.sort((a, b) => a.number - b.number).map((question) => question.id);
-    await expectApi(request, "POST", "/exams/answer-keys/", admin.access, {
-      exam: created.examId,
-      answers: Object.fromEntries(questionIds.map((id, index) => [String(id), String(index + 1)])),
-    });
-    await expectApi(
-      request,
-      "PUT",
-      `/exams/${created.examId}/enrollments/?session_id=${created.sourceSessionId}`,
-      admin.access,
-      { enrollment_ids: [created.enrollmentId] },
-      [200],
-    );
-
-    const submitted = await api(
-      request,
-      "POST",
-      `/student/exams/${created.examId}/submit/`,
-      studentTokens.access,
-      { answers: questionIds.map((id) => ({ exam_question_id: id, answer: "5" })) },
-    );
-    expect(submitted.status).toBe(201);
+    const oldAnswers = await assignClinicExam(request, admin.access, created.sourceSessionId, created.examId, created.enrollmentId);
+    await expectApi(request, "POST", `/student/exams/${created.examId}/submit/`, studentTokens.access,
+      { answers: oldAnswers.map(item => ({ ...item, answer: "5" })) }, [201]);
     const failedResult = await waitForFailedResult(request, studentTokens.access, created.examId);
     expect(failedResult).toMatchObject({ total_score: 20, is_pass: false });
 
@@ -496,6 +490,50 @@ test.describe.serial("[development] 필수 클리닉 2회 예약 중 1회 취소
     expect(deliveryRows.every((row) => row.origin_id.startsWith(originPrefix))).toBe(true);
     expect(deliveryRows.every((row) => row.provider_message_id.startsWith("mock-"))).toBe(true);
 
+    await test.step("이전 보강 예약과 당일 성적을 학생·선택 자녀의 패스카드에서 재확인한다", async () => {
+      const participant = remaining.find(row => row.id === created.participantIds[1])!;
+      if (participant.status === "pending") {
+        const confirmed = await expectApi(request, "PATCH", `/clinic/participants/${participant.id}/set_status/`,
+          admin.access, { status: "booked" }, [200]);
+        expect(confirmed).toMatchObject({ id: participant.id, status: "booked" });
+      }
+      const family = created.family!;
+      await expectApi(request, "POST", "/enrollments/bulk_create/", admin.access,
+        { lecture: created.lectureId, students: [family.students[1].id] }, [201]);
+      const { server_date: classDate } = await expectApi<{ server_date: string }>(
+        request, "GET", "/clinic/idcard/", studentTokens.access,
+      );
+      expect(classDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      const session = await expectApi<{ id: number }>(request, "POST", "/lectures/sessions/", admin.access,
+        { lecture: created.lectureId, title: `${marker} 오늘 수업`, date: classDate, order: 2 }, [201]);
+      created.todaySessionId = session.id;
+      await expectApi(request, "POST", "/enrollments/session-enrollments/bulk_create/", admin.access,
+        { session: session.id, enrollments: [created.enrollmentId] }, [201]);
+      const homework = await expectApi<{ id: number }>(request, "POST", "/homeworks/", admin.access, {
+        session: session.id, session_id: session.id, title: `${marker} 오늘 과제`,
+        grading_mode: "SCORE", max_score: 100, cutline_mode: "PERCENT", cutline_value: 80,
+      }, [201]);
+      created.homeworkId = homework.id;
+      await expectApi(request, "PUT", `/homework/assignments/?homework_id=${homework.id}`, admin.access,
+        { enrollment_ids: [created.enrollmentId] }, [200]);
+      const todayExam = await expectApi<{ id: number }>(request, "POST", "/exams/", admin.access, {
+        session_id: session.id, title: `${marker} 오늘 시험`, exam_type: "regular",
+        pass_score: 80, max_score: 100, answer_visibility: "hidden",
+      }, [201]);
+      created.todayExamId = todayExam.id;
+      const correctAnswers = await assignClinicExam(request, admin.access, session.id, todayExam.id, created.enrollmentId);
+      await expectApi(request, "POST", `/student/exams/${todayExam.id}/submit/`, studentTokens.access,
+        { answers: correctAnswers }, [201]);
+      await expect.poll(async () => {
+        const result = await api(request, "GET", `/student/results/me/exams/${todayExam.id}/`, studentTokens.access);
+        return result.status === 200 ? result.body : null;
+      }, { timeout: 60_000 }).toMatchObject({ total_score: 100, is_pass: true });
+      await verifyClinicDayPass(page, request, {
+        family, classDate, adminAccess: admin.access, sessionId: session.id, enrollmentId: created.enrollmentId,
+        homeworkId: homework.id, clinicLinkId, participantId: participant.id,
+        examTitle: `${marker} 필수 대상 시험`, clinicTitle: `${marker} 18시`,
+      });
+    });
     boundary.assertClean();
   });
 });

@@ -2,6 +2,10 @@
   align-items: center;
 }
 
+.sessionDomainLayout :global(.domain-header__tabs-wrap .ds-tab) {
+  scroll-margin-block: var(--space-2);
+}
+
 .root {
   display: flex;
   min-width: 0;

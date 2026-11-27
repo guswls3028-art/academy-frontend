@@ -13,7 +13,8 @@ import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { CalendarDays, Clock3, Users, X } from "lucide-react";
 import { fetchClinicSessionTree, deleteClinicSession } from "../../api/clinicSessions.api";
 import type { ClinicSessionDetail } from "../../api/clinicSessions.api";
-import { useClinicParticipants } from "../../hooks/useClinicParticipants";
+import { useClinicParticipantList } from "../../hooks/useClinicParticipants";
+import { countActiveStudentsBySession, countStudents, isActiveRosterParticipant } from "../../utils/clinicRoster";
 import type { ClinicParticipant } from "../../api/clinicParticipants.api";
 import panelStyles from "@/shared/ui/domain/PanelWithTreeLayout.module.css";
 import OngoingClinicSessions from "./OngoingClinicSessions";
@@ -31,6 +32,7 @@ import { clinicQueryKeys } from "../../queryKeys";
 
 dayjs.locale("ko");
 
+const EMPTY_PARTICIPANTS: ClinicParticipant[] = [];
 const WIDE_CONTENT_STYLE: CSSProperties = { maxWidth: "none" };
 
 function todayISO() {
@@ -38,12 +40,6 @@ function todayISO() {
 }
 
 type ConsoleScope = "onsite" | "day";
-
-function participantStudentKey(participant: ClinicParticipant): string {
-  return Number.isInteger(participant.student) && participant.student > 0
-    ? `student:${participant.student}`
-    : `participant:${participant.id}`;
-}
 
 export default function ClinicOperationsConsolePage() {
   const location = useLocation();
@@ -249,44 +245,26 @@ export default function ClinicOperationsConsolePage() {
   );
 
   const queryDate = consoleScope === "onsite" ? todayISO() : selectedDate;
-  const participants = useClinicParticipants(
-    consoleScope === "onsite"
-      ? { onsite_date: queryDate }
-      : { session_date_from: queryDate, session_date_to: queryDate },
+  const dayQuery = useClinicParticipantList({
+    session_date_from: selectedDate, session_date_to: selectedDate,
+  });
+  const onsiteQuery = useClinicParticipantList(consoleScope === "onsite" ? { onsite_date: queryDate } : {});
+  const participantQuery = consoleScope === "onsite" ? onsiteQuery : dayQuery;
+  const allRows = participantQuery.data ?? EMPTY_PARTICIPANTS;
+  const dayActiveRows = useMemo(() => (dayQuery.data ?? []).filter(isActiveRosterParticipant), [dayQuery.data]);
+  const dayCountsBySession = useMemo(() => countActiveStudentsBySession(dayActiveRows), [dayActiveRows]);
+  const activeRows = consoleScope === "day" ? dayActiveRows : allRows;
+  const countsBySession = useMemo(
+    () => consoleScope === "day" ? dayCountsBySession : countActiveStudentsBySession(activeRows),
+    [activeRows, consoleScope, dayCountsBySession],
   );
-
-  const allRows = useMemo(
-    () => (participants.listQ.data ?? []) as ClinicParticipant[],
-    [participants.listQ.data],
-  );
-  const allStudentCount = useMemo(
-    () => new Set(allRows.map(participantStudentKey)).size,
-    [allRows],
-  );
-  const activeAssignmentStudentKeysBySession = useMemo(() => {
-    const grouped = new Map<number, Set<string>>();
-    for (const participant of allRows) {
-      if (participant.status === "cancelled" || participant.status === "rejected") continue;
-      const students = grouped.get(participant.session) ?? new Set<string>();
-      students.add(participantStudentKey(participant));
-      grouped.set(participant.session, students);
-    }
-    return grouped;
-  }, [allRows]);
+  const allStudentCount = useMemo(() => countStudents(activeRows), [activeRows]);
   const activeAssignmentStudentCount = useMemo(
     () => {
       const visibleSessionIds = new Set(sessionsForDay.map((candidate) => candidate.id));
-      return new Set(
-        allRows
-          .filter((participant) => (
-            visibleSessionIds.has(participant.session)
-            && participant.status !== "cancelled"
-            && participant.status !== "rejected"
-          ))
-          .map(participantStudentKey),
-      ).size;
+      return countStudents(activeRows.filter((participant) => visibleSessionIds.has(participant.session)));
     },
-    [allRows, sessionsForDay],
+    [activeRows, sessionsForDay],
   );
   const rows = useMemo(
     () => selectedSessionId == null
@@ -296,27 +274,16 @@ export default function ClinicOperationsConsolePage() {
   );
 
   const timeOptions = useMemo(() => {
-    const grouped = new Map<number, { id: number; time: string; students: Set<string> }>();
+    const timesBySession = new Map<number, string>();
     for (const participant of allRows) {
-      const current = grouped.get(participant.session);
-      if (current) {
-        current.students.add(participantStudentKey(participant));
-      } else {
-        grouped.set(participant.session, {
-          id: participant.session,
-          time: participant.session_start_time?.slice(0, 5) || "시간 미정",
-          students: new Set([participantStudentKey(participant)]),
-        });
-      }
+      timesBySession.set(participant.session, participant.session_start_time?.slice(0, 5) || "시간 미정");
     }
-    return [...grouped.values()].map((option) => ({
-      id: option.id,
-      time: option.time,
-      count: option.students.size,
-    })).sort((a, b) =>
-      a.time.localeCompare(b.time) || a.id - b.id
-    );
-  }, [allRows]);
+    return [...timesBySession].map(([id, time]) => ({
+      id,
+      time,
+      count: countsBySession.get(id)?.total ?? 0,
+    })).sort((a, b) => a.time.localeCompare(b.time) || a.id - b.id);
+  }, [allRows, countsBySession]);
 
   useEffect(() => {
     if (
@@ -342,6 +309,8 @@ export default function ClinicOperationsConsolePage() {
           <aside className={`${panelStyles.tree} clinic-operations-shell__sidebar`} aria-label="날짜와 클리닉 수업">
             <ClinicConsoleSidebar
               sessions={filteredTree}
+              rosterCounts={dayQuery.isSuccess ? dayCountsBySession : null}
+              onRetryCounts={dayQuery.isError ? () => void dayQuery.refetch() : undefined}
               selectedDay={selectedDate}
               todayISO={todayISO()}
               year={ym.year}
@@ -408,7 +377,7 @@ export default function ClinicOperationsConsolePage() {
                   >
                     <span className="clinic-console__scope-live-dot" aria-hidden />
                     현장
-                    {consoleScope === "onsite" && !participants.listQ.isLoading && !participants.listQ.isError && (
+                    {consoleScope === "onsite" && !participantQuery.isLoading && !participantQuery.isError && (
                       <strong>{allStudentCount}명</strong>
                     )}
                   </button>
@@ -423,7 +392,7 @@ export default function ClinicOperationsConsolePage() {
                     }}
                   >
                     {selectedDate === todayISO() ? "오늘 전체" : "선택일 전체"}
-                    {consoleScope === "day" && !participants.listQ.isLoading && !participants.listQ.isError && (
+                    {consoleScope === "day" && !participantQuery.isLoading && !participantQuery.isError && (
                       <strong>{allStudentCount}명</strong>
                     )}
                   </button>
@@ -440,7 +409,7 @@ export default function ClinicOperationsConsolePage() {
                   setSp(next, { replace: true });
                 }} />
 
-                {!participants.listQ.isLoading && !participants.listQ.isError && allRows.length > 0 && (
+                {!participantQuery.isLoading && !participantQuery.isError && allRows.length > 0 && (
                   <div
                     className="clinic-console__time-rail"
                     role="group"
@@ -450,7 +419,7 @@ export default function ClinicOperationsConsolePage() {
                       type="button"
                       className={`clinic-console__time-button ${selectedSessionId == null ? "clinic-console__time-button--active" : ""}`}
                       aria-pressed={selectedSessionId == null}
-                      onClick={() => setSelectedSessionId(null)}
+                      onClick={() => consoleScope === "day" ? selectConsoleDate(selectedDate) : setSelectedSessionId(null)}
                     >
                       <Clock3 size={14} aria-hidden />
                       전체 시간 <strong>{allStudentCount}명</strong>
@@ -461,7 +430,7 @@ export default function ClinicOperationsConsolePage() {
                         type="button"
                         className={`clinic-console__time-button ${selectedSessionId === option.id ? "clinic-console__time-button--active" : ""}`}
                         aria-pressed={selectedSessionId === option.id}
-                        onClick={() => setSelectedSessionId(option.id)}
+                        onClick={() => consoleScope === "day" ? selectConsoleSession(option.id) : setSelectedSessionId(option.id)}
                       >
                         {option.time} <strong>{option.count}명</strong>
                       </button>
@@ -473,8 +442,8 @@ export default function ClinicOperationsConsolePage() {
               {consoleScope === "day"
                 && activeSession == null
                 && sessionsForDay.length > 0
-                && !participants.listQ.isLoading
-                && !participants.listQ.isError && (
+                && !participantQuery.isLoading
+                && !participantQuery.isError && (
                 <section
                   className="clinic-console__assignment-handoff"
                   aria-label="배정 학생 관리"
@@ -486,7 +455,7 @@ export default function ClinicOperationsConsolePage() {
                   </div>
                   <div className="clinic-console__assignment-options">
                     {sessionsForDay.map((candidate) => {
-                      const assignedCount = activeAssignmentStudentKeysBySession.get(candidate.id)?.size ?? 0;
+                      const assignedCount = dayCountsBySession.get(candidate.id)?.total ?? 0;
                       const time = candidate.start_time?.slice(0, 5) || "시간 미정";
                       const title = candidate.title || candidate.location || "클리닉";
                       return (
@@ -514,9 +483,9 @@ export default function ClinicOperationsConsolePage() {
                 selectedDate={queryDate}
                 session={consoleScope === "day" ? activeSession : null}
                 participants={rows}
-                isLoading={participants.listQ.isLoading}
-                isError={participants.listQ.isError}
-                onRetry={() => participants.listQ.refetch()}
+                isLoading={participantQuery.isLoading}
+                isError={participantQuery.isError}
+                onRetry={() => participantQuery.refetch()}
                 workspaceMode={consoleScope}
                 isAggregate={consoleScope === "onsite" || activeSession == null}
                 onEditSession={handleEditSession}
@@ -552,6 +521,8 @@ export default function ClinicOperationsConsolePage() {
             <div className="clinic-console__selector-scroll">
               <ClinicConsoleSidebar
                 sessions={filteredTree}
+                rosterCounts={dayQuery.isSuccess ? dayCountsBySession : null}
+                onRetryCounts={dayQuery.isError ? () => void dayQuery.refetch() : undefined}
                 selectedDay={selectedDate}
                 todayISO={todayISO()}
                 year={ym.year}
@@ -608,7 +579,7 @@ export default function ClinicOperationsConsolePage() {
           setCreateModalOpen(false);
         }}
         closeDisabled={createSaving}
-        width={520}
+        size="default"
       >
         {createModalOpen && <ClinicCreatePanel
           asModal
@@ -639,7 +610,7 @@ export default function ClinicOperationsConsolePage() {
           setEditSession(null);
         }}
         closeDisabled={editSaving}
-        width={520}
+        size="default"
       >
         {editSession && (
           <ClinicCreatePanel
@@ -672,7 +643,7 @@ export default function ClinicOperationsConsolePage() {
         open={!!deleteConfirm}
         onClose={() => !deleteSessionM.isPending && setDeleteConfirm(null)}
         type="confirm"
-        width={420}
+        size="sm"
       >
         {deleteConfirm && (
           <div className="clinic-delete-modal__body">

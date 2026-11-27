@@ -1,0 +1,22 @@
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 10px;
+  background: var(--color-bg-surface);
+}
+.control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.toolbar button { margin-inline-start: auto; }

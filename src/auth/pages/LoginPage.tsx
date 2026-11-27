@@ -1,3 +1,4 @@
+import PublicBrandLink from "@/shared/ui/PublicBrandLink";
 // 통합 로그인 페이지 — 테넌트별 테마는 data-tenant + themes/*.css 로 적용
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, Navigate, Link } from "react-router";
@@ -127,6 +128,9 @@ export default function LoginPage() {
   // data-tenant: 테넌트 코드 그대로 사용 (themes/*.css selector 매칭)
   const themeAttr = tenantCode ?? "tchul";
   const isHakwonplus = themeAttr === "hakwonplus";
+  const publicHome = isHakwonplus || tenantCode === "9999" ? "/promo"
+    : hasLanding || tenantCode === "godmin" ? "/landing"
+    : window.location.pathname;
   const fieldLabelClass = isHakwonplus ? styles.fieldLabel : styles.srOnly;
   const hasBrandedScene = BRANDED_LOGIN_SCENES.has(themeAttr);
   const isJeongseongwon = themeAttr === "jeongseongwon-lab";
@@ -169,7 +173,7 @@ export default function LoginPage() {
       )}
       <main className={styles.center} data-auth-part="card">
         <section className={styles.brandStage} data-auth-part="brand-stage">
-          <div className={styles.brandArtwork} data-auth-part="brand-artwork">
+          <PublicBrandLink to={publicHome} aria-label={title + " 홈"} className={styles.brandArtwork} data-auth-part="brand-artwork">
             {logoUrl ? (
               <img src={logoUrl} alt="" className={styles.logo} />
             ) : (
@@ -178,7 +182,7 @@ export default function LoginPage() {
             <div className={isHakwonplus ? styles.srOnly : styles.typography}>
               <h1 className={styles.title}>{title}</h1>
             </div>
-          </div>
+          </PublicBrandLink>
           {isJeongseongwon && <span data-auth-part="domain">{branding?.loginSubtitle}</span>}
         </section>
         <section className={styles.loginPanel} data-auth-part="login-panel">

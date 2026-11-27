@@ -9,6 +9,12 @@ const failures = [];
 for (const entry of fs.readdirSync(workflowRoot, { withFileTypes: true })) {
   if (!entry.isFile() || !/\.ya?ml$/.test(entry.name)) continue;
   const source = fs.readFileSync(path.join(workflowRoot, entry.name), "utf8");
+  for (const job of source.split(/^  (?=[\w-]+:[ \t]*\r?$)/m)) {
+    const runner = job.match(/^    runs-on: (ubuntu-[\w.-]+)/m)?.[1];
+    if (runner && runner !== "ubuntu-24.04" && /\bplaywright install\b[^\r\n]*--with-deps\b/.test(job)) {
+      failures.push(`${entry.name}: ${job.split(":")[0]} must install Playwright system dependencies on ubuntu-24.04`);
+    }
+  }
   for (const match of source.matchAll(/uses:\s+([^\s#]+)/g)) {
     const action = match[1];
     if (!action.startsWith("./") && !/@[0-9a-f]{40}$/.test(action)) {

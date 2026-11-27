@@ -120,6 +120,7 @@ export const routeMockSpecs = [
   "e2e/admin/video-watch-logs.mock.spec.ts",
   "e2e/admin/student-unified-wrong-note.mock.spec.ts",
   "e2e/admin/wrong-note-generation-contract.mock.spec.ts",
+  "e2e/admin/range-wrong-notes.mock.spec.ts",
   "e2e/shared/product-analytics-contract.mock.spec.ts",
   "e2e/teacher/lecture-roster-pages.mock.spec.ts",
   "e2e/teacher/lecture-navigation-recovery.mock.spec.ts",
@@ -219,6 +220,7 @@ export const controlledWriteSpecs = [
 // Relative to the development config's e2e testDir. This is the shared
 // inventory for collection, executed-result acceptance and safe progress.
 export const developmentRealUseCases = Object.freeze({
+  "admin/lecture-range-wrong-notes.realuse.spec.ts": 1,
   "flows/survey-collection.realuse.spec.ts": 1,
   "teacher/teacher-score-parent-realuse.spec.ts": 1,
   "admin/problem-conversion-realuse.spec.ts": 1,

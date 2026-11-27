@@ -437,6 +437,43 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
   test.skip(!isLocalBase(BASE), "Local route-mock visual contract spec.");
   test.use({ serviceWorkers: "block", viewport: { width: 390, height: 844 } });
 
+  for (const viewer of ["student", "parent"] as const) {
+    test(`${viewer}: 열람 기록 응답 전에 시험 결과가 표시된다`, async ({ page }) => {
+      const isParent = viewer === "parent";
+      await page.setViewportSize({ width: isParent ? 1366 : 390, height: 900 });
+      await installApi(page, viewer);
+      const activityPath = "/api/v1/students/me/activity/exam-result-open/";
+      const activityRequests: Array<{ child?: string; body: unknown }> = [];
+      const releaseActivity = Promise.withResolvers<void>();
+      await page.route(`**${activityPath}`, async (route) => {
+        const request = route.request();
+        if (request.method() === "OPTIONS") return route.fallback();
+        expect(request.method()).toBe("POST");
+        activityRequests.push({ child: request.headers()["x-student-id"], body: request.postDataJSON() });
+        await releaseActivity.promise;
+        await route.fulfill({ status: 202, json: { accepted: !isParent } });
+      });
+      try {
+        await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+        if (isParent) {
+          await page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김첫째" }).click();
+          await expect(page).toHaveURL(/\/student\/dashboard/);
+          await page.goto(`${BASE}/student/grades`, { waitUntil: "domcontentloaded" });
+        }
+        await page.getByRole("link", { name: /Ymath 주간 테스트 2회/ }).click();
+        await expect.poll(() => activityRequests).toEqual([{ child: isParent ? "11" : undefined, body: { exam_id: 302 } }]);
+        await expect(page.getByText("정답 17 / 20문항", { exact: true })).toBeVisible();
+        const activityResponse = page.waitForResponse((response) =>
+          new URL(response.url()).pathname === activityPath && response.request().method() === "POST"
+        );
+        releaseActivity.resolve();
+        expect((await activityResponse).status()).toBe(202);
+      } finally {
+        releaseActivity.resolve();
+      }
+    });
+  }
+
   test("공개 풀이 기록과 과제 점수·온라인 제출 상태를 구분한다", async ({ page }) => {
     const inspection: MyHomeworkGradeSummary = {
       ...unscoredHomework, lecture_id: 501, title: "현장 풀이 기록", grading_mode: "SCORE",
@@ -623,8 +660,36 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
         await expect(page).toHaveURL(homeworkSummaryUrl);
         await expect(page.getByText("확인할 과제가 없습니다.", { exact: true })).toBeVisible();
         await expect(page.getByText(/모든 과제를 완료했습니다/)).toBeVisible();
-        await page.getByRole("link", { name: "학생 대시보드로 이동", exact: true }).click();
+        const brandHome = page.getByTestId("stu-topbar-brand-home");
+        await expect(page.locator('.stu-topbar a[href="/student/dashboard"]')).toHaveCount(1);
+        await expect(brandHome).toHaveAccessibleName(/.+ 홈$/);
+        await expect(brandHome).toHaveAttribute("href", "/student/dashboard");
+        const target = await brandHome.boundingBox();
+        expect(target?.height).toBeGreaterThanOrEqual(44);
+        if (width === 390) {
+          await brandHome.click();
+        } else {
+          await brandHome.focus();
+          await brandHome.press("Enter");
+        }
         await expect(page).toHaveURL(/\/student\/dashboard/);
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(brandHome).toBeVisible();
+        const learning = page.getByRole("region", { name: "학습 현황", exact: true });
+        await expect(learning.getByRole("link", { name: /과제 통과/ })).toHaveAttribute("href", "/student/grades?view=homework");
+        if (viewer === "parent") {
+          const selectedChild = page.getByRole("tablist", { name: "자녀 선택" }).getByRole("tab", { name: "김첫째" });
+          await expect(selectedChild).toHaveAttribute("aria-selected", "true");
+        }
+        if (width === 390) {
+          const actionLabel = page.getByText(viewer === "parent" ? "내 질문·답변" : "과제 사진 제출", { exact: true });
+          await expect(actionLabel).toBeVisible();
+          expect(await actionLabel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+        }
+        await testInfo.attach(`branded-home-${viewer}-${width}.png`, {
+          body: await page.screenshot({ animations: "disabled" }),
+          contentType: "image/png",
+        });
         await page.goBack();
         await expect(page).toHaveURL(homeworkSummaryUrl);
         await expect(page.getByRole("tab", { name: "요약", exact: true })).toHaveAttribute("aria-selected", "true");
@@ -731,6 +796,77 @@ test.describe("학생·학부모 회차별 누적 성적", () => {
 
   for (const viewer of ["student", "parent"] as const) {
     for (const width of [390, 1366]) {
+      test(`@exam-analysis-isolation ${viewer} ${width}px: 시험지 지연·실패와 독립적으로 분석하고 목록을 재시도한다`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 900 });
+        const headers = await installApi(page, viewer, {
+          wrongCompletionOnly: false,
+          gradeSummary: {
+            exams: [{
+              ...unscoredExam, total_score: 0, is_pass: false, achievement: "FAIL",
+              meta_status: null, submitted_at: "2026-07-08T18:00:00+09:00",
+            }],
+            homeworks: [],
+          },
+        });
+        if (viewer === "parent") {
+          await page.addInitScript(() => localStorage.setItem("parent_selected_student_id_ymath_2", "11"));
+        }
+        let releaseList!: () => void;
+        const heldList = new Promise<void>((resolve) => { releaseList = resolve; });
+        const listHeaders: string[] = [];
+        let successfulRetries = 0;
+        await page.route(/\/api\/v1\/student\/exams\/(?:\?.*)?$/, async (route) => {
+          listHeaders.push(route.request().headers()["x-student-id"] ?? "missing");
+          await heldList;
+          const retryClicked = await page.evaluate(() =>
+            document.documentElement.dataset.examListRetryClicked === "true");
+          if (!retryClicked) {
+            await route.fulfill({ status: 503, json: { detail: "temporarily unavailable" } });
+            return;
+          }
+          successfulRetries += 1;
+          await route.fulfill({ json: { items: [{
+            id: 903, title: "복구된 시험지", open_at: null, close_at: null,
+            allow_retake: false, max_attempts: 1, pass_score: 60, max_score: 100,
+          }] } });
+        });
+        try {
+          await page.goto(`${BASE}/student/exams`, { waitUntil: "domcontentloaded" });
+          await expect.poll(() => listHeaders.length).toBe(1);
+          await page.getByRole("tab", { name: "결과 분석", exact: true }).click();
+          const summary = page.getByRole("region", { name: "시험 분석 요약" });
+          // The grade request and real zero result must finish before the held list.
+          await expect(summary).toBeVisible();
+          await expect(summary.getByText("0%", { exact: true }).first()).toBeVisible();
+          await expect(summary.getByText("미채점", { exact: true })).toHaveCount(0);
+          // The normal notification badge may share or precede this rows read.
+          expect(headers.length).toBeGreaterThan(0);
+          expect(new Set(headers)).toEqual(new Set([viewer === "parent" ? "11" : "missing"]));
+          releaseList();
+          await page.getByRole("tab", { name: "시험지", exact: true }).click();
+          await expect(page.getByText("시험을 불러오지 못했습니다", { exact: true })).toBeVisible({ timeout: 20_000 });
+          await page.getByRole("tab", { name: "결과 분석", exact: true }).click();
+          await expect(summary).toBeVisible();
+          await expect(page.getByText("시험을 불러오지 못했습니다", { exact: true })).toHaveCount(0);
+          await page.getByRole("tab", { name: "시험지", exact: true }).click();
+          const retry = page.getByRole("button", { name: "다시 시도", exact: true });
+          // Only the actual user click permits a successful response; background
+          // retries cannot recover the list and detach the button before this click.
+          await retry.evaluate((button) => button.addEventListener("click", () => {
+            document.documentElement.dataset.examListRetryClicked = "true";
+          }, { once: true }));
+          await retry.click();
+          await expect(page.getByText("복구된 시험지", { exact: true })).toBeVisible();
+          expect(successfulRetries).toBe(1);
+          expect(new Set(listHeaders)).toEqual(new Set([viewer === "parent" ? "11" : "missing"]));
+          expect(new Set(headers)).toEqual(new Set([viewer === "parent" ? "11" : "missing"]));
+          await expect.poll(() => page.evaluate(() =>
+            document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+        } finally {
+          releaseList();
+        }
+      });
+
       test(`${viewer} ${width}px: 시험 분석은 채점 중인 제출과 실제 0점을 구분한다`, async ({ page }) => {
         await page.setViewportSize({ width, height: 900 });
         const submittedExam: MyExamGradeSummary = {

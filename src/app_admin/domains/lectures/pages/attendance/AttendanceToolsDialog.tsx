@@ -22,7 +22,7 @@ export default function AttendanceToolsDialog(props: Props) {
   const busy = props.bulkPresentBusy || props.deleting;
 
   return (
-    <AdminModal open={props.open} onClose={props.onClose} width={600} noMinimize trapFocus closeDisabled={busy}>
+    <AdminModal open={props.open} onClose={props.onClose} size="form" noMinimize trapFocus closeDisabled={busy}>
       <ModalHeader title="출결 도구" noIcon />
       <ModalBody>
         <div className={styles.tools}>

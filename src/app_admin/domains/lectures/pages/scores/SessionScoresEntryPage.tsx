@@ -131,6 +131,7 @@ const SessionScoreDraftRecoveryDialog = lazy(() => import("./SessionScoreDraftRe
 const SessionExamAnalysisAction = lazy(() => import("./SessionExamAnalysisAction"));
 const SessionOmrUploadModal = lazy(() => import("./SessionOmrUploadAction").then(module => ({ default: module.SessionOmrUploadModal })));
 const ScorePrintPreviewModal = lazy(() => import("@admin/domains/scores/public/ScorePrintPreviewModal"));
+const RangeWrongNoteModal = lazy(() => import("./RangeWrongNoteModal"));
 const StudentScoreReportModal = lazy(() => import("@admin/domains/scores/public/StudentScoreReportModal"));
 const ClinicPrintPreviewModal = lazy(() => import("@admin/domains/scores/public/ClinicPrintPreviewModal"));
 const AnonymousBillboardPreviewModal = lazy(() => import("@admin/domains/scores/public/AnonymousBillboardPreviewModal"));
@@ -229,6 +230,8 @@ export default function SessionScoresEntryPage({
 
   const [enrollingAll, setEnrollingAll] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [showRangeWrongNotes, setShowRangeWrongNotes] = useState(false);
+  const wrongNoteScope = getTenantUserLocalKey(`wrong-note-range:${numericLectureId}`, user?.id);
   const [showStudentReport, setShowStudentReport] = useState(false);
   const [showClinicPreview, setShowClinicPreview] = useState(false);
   const [showBillboardPreview, setShowBillboardPreview] = useState(false);
@@ -1610,6 +1613,11 @@ export default function SessionScoresEntryPage({
             <div className="scores-tools-menu__section">
               <span className="scores-tools-menu__label">출력 · 후속관리</span>
               <div className="scores-tools-menu__grid">
+                <button type="button" role="menuitem" className="scores-tool-card" disabled={!wrongNoteScope || !numericLectureId}
+                  onClick={() => { setShowMoreMenu(false); setShowRangeWrongNotes(true); }}>
+                  <span className="scores-tool-card__icon" data-tone="print"><FileText size={ICON_FOR_BUTTON.sm} /></span>
+                  <span><strong>차시별 오답노트</strong><small>학생별 문제와 정답 PDF</small></span>
+                </button>
                 <button type="button" role="menuitem" className="scores-tool-card" disabled={recoveryBlocked} onClick={async () => {
                   if (!await prepareScorePrint()) return;
                   setShowPrintPreview(true);
@@ -1992,7 +2000,7 @@ export default function SessionScoresEntryPage({
           setBulkScoreValue("");
         }}
         type="action"
-        width={420}
+        size="sm"
         onEnterConfirm={() => {
           if (!bulkScoreValue.trim()) return;
           applyBulkScore();
@@ -2226,6 +2234,11 @@ export default function SessionScoresEntryPage({
       </Suspense>}
 
       {/* 성적표 인쇄 미리보기 */}
+      {showRangeWrongNotes && wrongNoteScope && (
+        <Suspense fallback={<div role="status">오답노트 입력 화면을 여는 중…</div>}>
+          <RangeWrongNoteModal key={wrongNoteScope} scope={wrongNoteScope} lectureId={numericLectureId} sessionId={numericSessionId} onClose={() => setShowRangeWrongNotes(false)} />
+        </Suspense>
+      )}
       {showPrintPreview && data?.meta && (
         <Suspense fallback={null}>
           <ScorePrintPreviewModal

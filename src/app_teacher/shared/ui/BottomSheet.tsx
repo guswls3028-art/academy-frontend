@@ -62,8 +62,8 @@ export default function BottomSheet({ open, onClose, title, children, footer, in
         {/* Content */}
         <div className={`${styles.content} ${footer ? styles.contentWithFooter : ""}`}>{children}</div>
         {footer && (
-          <ControlSizeContext.Provider value="lg">
-            <div className={styles.footer} data-control-size="lg">
+          <ControlSizeContext.Provider value="md">
+            <div className={styles.footer} data-control-size="md">
               {footer}
             </div>
           </ControlSizeContext.Provider>

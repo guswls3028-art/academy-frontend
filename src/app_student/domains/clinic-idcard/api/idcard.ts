@@ -65,6 +65,7 @@ export type ClinicIdcardData = {
   lectures: ClinicIdcardLecture[];
   current_result: ClinicIdcardResult;
   passcard_state: ClinicPasscardState;
+  today_assessments_passed: boolean;
   can_leave: boolean;
   booking_status: ClinicBookingStatus;
   booking_status_label: string;
@@ -97,6 +98,7 @@ export async function fetchClinicIdcard(signal?: AbortSignal): Promise<ClinicIdc
     current_targets: Array.isArray(raw.current_targets) ? raw.current_targets : [],
     lectures: Array.isArray(raw.lectures) ? raw.lectures : [],
     ...verdict,
+    today_assessments_passed: raw.today_assessments_passed === true,
     can_leave: verdict.passcard_state !== "CLINIC_REQUIRED",
     booking_status: bookingStatus,
     booking_status_label: raw.booking_status_label ?? (bookingStatus === "required" ? "예약 필요" : "예약 없음"),

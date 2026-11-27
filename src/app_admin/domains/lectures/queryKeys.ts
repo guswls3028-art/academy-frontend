@@ -8,6 +8,8 @@ export const adminLectureQueryKeys = {
   lectureInstructorOptions: ["lecture-instructor-options"] as const,
   lectureSessions: ["lecture-sessions"] as const,
   lectureSessionsForLecture: (lectureId: number | null | undefined) => ["lecture-sessions", lectureId] as const,
+  wrongNoteRange: (scope: string, from: number, to: number) => ["wrong-note-range", scope, from, to] as const,
+  wrongNoteBatch: (scope: string, id: number) => ["wrong-note-batch", scope, id] as const,
   sessionsForLecture: (lectureId: number | null | undefined) => ["sessions", lectureId] as const,
   sessionDetail: (sessionId: number | null | undefined) => ["session-detail", sessionId] as const,
 

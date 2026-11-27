@@ -187,6 +187,9 @@ export async function deleteHomework(homeworkId: number) {
 
 /* ─── OMR ─── */
 export type OMRDefaults = {
+  print_by_default?: boolean;
+  choice_question_numbers?: number[];
+  essay_question_numbers?: number[];
   exam_title: string;
   lecture_name: string;
   session_name: string;
@@ -199,6 +202,9 @@ export type OMRDefaults = {
 };
 
 export type OMRParams = {
+  essay_score_grid?: "auto";
+  choice_question_numbers?: number[];
+  essay_question_numbers?: number[];
   exam_title?: string;
   lecture_name?: string;
   session_name?: string;

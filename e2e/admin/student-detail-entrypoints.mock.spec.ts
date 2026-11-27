@@ -809,7 +809,7 @@ test("학생 상세 계정 이력에서 접수와 최종 전달 실패를 구분
     await page.setViewportSize({ width, height: 900 });
     await gotoAndSettle(page, BASE + "/workspace/students/1001");
     const overlay = page.getByTestId("student-detail-overlay");
-    await overlay.getByRole("button", { name: "연락처·메모 보기" }).click();
+    if (width === 390) await overlay.getByRole("button", { name: "연락처·메모 보기" }).click();
     await overlay.locator("summary").filter({ hasText: "계정 알림톡 이력" }).click();
     const history = overlay.getByRole("region", { name: "계정 안내 발송 내역" });
     await expect(history.getByText("발송 접수", { exact: true })).toBeVisible();
@@ -838,15 +838,32 @@ test("학생 상세는 1366·1100·390px에서 주요 작업과 전체 탭에 �
     for (const label of ["수강", "시험", "과제", "오답노트", "클리닉", "질문", "활동"]) {
       await expect(overlay.getByRole("tab", { name: new RegExp("^" + label) })).toBeVisible();
     }
-    const profile = overlay.getByRole("button", { name: "연락처·메모 보기" });
-    await expect(profile).toHaveAttribute("aria-expanded", "false");
-    await expect(overlay.getByRole("textbox", { name: "학생 공통 메모" })).toBeHidden();
+    const sidebar = overlay.getByRole("complementary", { name: "연락처·메모" });
+    const toggle = overlay.getByRole("button", { name: "연락처·메모 보기" });
+    const memo = sidebar.getByRole("textbox", { name: "학생 공통 메모" });
+    const tabs = overlay.getByRole("tablist", { name: "학생 활동 요약" });
+    if (width === 390) {
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await expect(memo).toBeHidden();
+      const toggleBox = (await toggle.boundingBox())!;
+      const filesBox = (await overlay.getByRole("button", { name: "학생 자료" }).boundingBox())!;
+      expect(Math.abs(toggleBox.y - filesBox.y)).toBeLessThan(2);
+      expect(filesBox.height).toBeGreaterThanOrEqual(44);
+    } else {
+      await expect(toggle).toBeHidden();
+      await expect(memo).toBeInViewport();
+      await expect(tabs).toBeInViewport();
+      const profileBox = (await sidebar.boundingBox())!;
+      const tabsBox = (await tabs.boundingBox())!;
+      expect(profileBox.x + profileBox.width).toBeLessThanOrEqual(tabsBox.x);
+      expect(Math.abs(tabsBox.y - profileBox.y)).toBeLessThan(24);
+    }
     const headerButtons = ["정보 수정", "계정·관리"];
     for (const name of headerButtons) {
       expect((await overlay.getByRole("button", { name }).boundingBox())?.height).toBe(44);
     }
     await page.screenshot({ path: testInfo.outputPath("student-detail-" + width + ".png") });
-    await profile.click();
+    if (width === 390) await toggle.click();
     await expect(overlay.getByRole("button", { name: "학부모 전화 010-1111-2222 복사" })).toBeVisible();
     await expect.poll(() => overlay.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
     await overlay.getByRole("tab", { name: /^수강/ }).focus();
@@ -855,6 +872,10 @@ test("학생 상세는 1366·1100·390px에서 주요 작업과 전체 탭에 �
     await page.keyboard.press("Home");
     await expect(overlay.getByRole("tab", { name: /^수강/ })).toHaveAttribute("aria-selected", "true");
     await page.screenshot({ path: testInfo.outputPath("student-contact-" + width + ".png") });
+    if (width === 390) {
+      await overlay.getByRole("button", { name: "연락처·메모 접기" }).click();
+      await expect(sidebar).toBeHidden();
+    }
   }
 });
 
@@ -876,7 +897,6 @@ test("학생 메모는 느린 저장 중 재입력한 내용을 보존하고 닫
   await gotoAndSettle(page, BASE + "/workspace/students/home");
   await page.goto(BASE + "/workspace/students/1001");
   const overlay = page.getByTestId("student-detail-overlay");
-  await overlay.getByRole("button", { name: "연락처·메모 보기" }).click();
   const input = overlay.getByRole("textbox", { name: "학생 공통 메모" });
   await input.fill("잠시 입력한 값");
   await input.fill("기존 메모");
@@ -893,10 +913,8 @@ test("학생 메모는 느린 저장 중 재입력한 내용을 보존하고 닫
   await expect(page).toHaveURL(/\/workspace\/students\/home$/);
   expect(patches).toEqual(["첫 번째 메모", "새로 입력한 최종 메모"]);
   await page.goto(BASE + "/workspace/students/1001");
-  await page.getByRole("button", { name: "연락처·메모 보기" }).click();
   await expect(page.getByRole("textbox", { name: "학생 공통 메모" })).toHaveValue("새로 입력한 최종 메모");
   await page.reload();
-  await page.getByRole("button", { name: "연락처·메모 보기" }).click();
   await expect(page.getByRole("textbox", { name: "학생 공통 메모" })).toHaveValue(serverMemo);
 });
 
@@ -931,7 +949,6 @@ test("메모 저장 이전에 시작한 상세 재조회가 저장 결과를 되
   });
   await gotoAndSettle(page, BASE + "/workspace/students/1001");
   const overlay = page.getByTestId("student-detail-overlay");
-  await overlay.getByRole("button", { name: "연락처·메모 보기" }).click();
   const input = overlay.getByRole("textbox", { name: "학생 공통 메모" });
   const tag = overlay.getByRole("button", { name: "재조회 태그 태그 제거", exact: true });
   try {
@@ -970,14 +987,12 @@ test("빈 메모의 null 응답은 저장으로 확인하고 누락 응답은 �
   });
   await gotoAndSettle(page, BASE + "/workspace/students/1001");
   const detail = page.getByTestId("student-detail-overlay");
-  await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
   const input = detail.getByRole("textbox", { name: "학생 공통 메모" });
   await input.fill("");
   await detail.getByRole("tab", { name: /^수강/ }).click();
   await expect(detail.getByText("저장됨", { exact: true })).toBeVisible();
   expect(serverMemo).toBeNull();
   await page.reload();
-  await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
   await expect(input).toHaveValue("");
   omitResult = true;
   await input.fill("다시 확인할 메모");
@@ -1009,7 +1024,6 @@ test("저장 중 뒤로 갔다 다시 연 학생의 새 메모는 앞선 쓰기�
   const row = page.locator('tr[data-student-detail-trigger="1002"]');
   await row.click();
   const detail = page.getByTestId("student-detail-overlay");
-  await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
   const input = detail.getByRole("textbox", { name: "학생 공통 메모" });
   await input.fill("먼저 저장한 값");
   await detail.getByRole("tab", { name: /^수강/ }).click();
@@ -1026,7 +1040,6 @@ test("저장 중 뒤로 갔다 다시 연 학생의 새 메모는 앞선 쓰기�
   expect(patches).toEqual(["먼저 저장한 값", "다시 열어 수정한 값"]);
   expect(serverMemo).toBe("다시 열어 수정한 값");
   await page.reload();
-  await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
   await expect(input).toHaveValue("다시 열어 수정한 값");
 });
 
@@ -1050,7 +1063,6 @@ test("인증 세션이 바뀌면 대기하던 메모를 자동 전송하지 않�
   const row = page.locator('tr[data-student-detail-trigger="1002"]');
   await row.click();
   const detail = page.getByTestId("student-detail-overlay");
-  await detail.getByRole("button", { name: "연락처·메모 보기" }).click();
   const input = detail.getByRole("textbox", { name: "학생 공통 메모" });
   await input.fill("진행 중 메모");
   await detail.getByRole("tab", { name: /^수강/ }).click();
@@ -1093,7 +1105,6 @@ test("학생 메모 저장 실패는 입력과 상세를 유지하고 재시도�
   });
   await gotoAndSettle(page, BASE + "/workspace/students/1001");
   const overlay = page.getByTestId("student-detail-overlay");
-  await overlay.getByRole("button", { name: "연락처·메모 보기" }).click();
   const input = overlay.getByRole("textbox", { name: "학생 공통 메모" });
   await input.fill("실패해도 유지할 변경  ");
   await overlay.getByRole("button", { name: "닫기", exact: true }).click();
@@ -1106,7 +1117,6 @@ test("학생 메모 저장 실패는 입력과 상세를 유지하고 재시도�
   await expect(input).toHaveValue("실패해도 유지할 변경");
   await expect(overlay.getByRole("button", { name: "보존할 태그 태그 제거", exact: true })).toBeVisible();
   await page.reload();
-  await page.getByRole("button", { name: "연락처·메모 보기" }).click();
   await expect(page.getByRole("textbox", { name: "학생 공통 메모" })).toHaveValue("실패해도 유지할 변경");
 });
 
@@ -1157,6 +1167,7 @@ test("학생 질문·클리닉은 실패를 빈 기록으로 표시하지 않고
 });
 
 test("학생 ID 복사는 구두점을 보존하고 키보드로 사용할 수 있다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await prepareDetail(page);
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: {
@@ -1185,6 +1196,7 @@ test("잘못된 학생 ID는 무한 로딩 대신 복귀 가능한 오류를 표
 });
 
 test("저장 실패 후 뒤로 이동해도 같은 학생을 다시 열면 메모 초안을 복원한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   await prepareDetail(page);
   let fail = true;
   let savedMemo = "원래 값";
@@ -1213,4 +1225,71 @@ test("저장 실패 후 뒤로 이동해도 같은 학생을 다시 열면 메�
   fail = false;
   await page.getByRole("button", { name: "저장", exact: true }).click();
   await expect.poll(() => savedMemo).toBe("돌아와서 복구할 메모");
+});
+
+test("학생 제출물에서 파일 없는 상태와 조회 오류를 구분하고 같은 이름 사진 11장을 확인한다", async ({ page }) => {
+  await prepareDetail(page);
+  await page.setViewportSize({ width: 1366, height: 900 });
+  let mode: "error" | "empty" | "files" = "error";
+  let fingerprint = "a".repeat(64);
+  let accepted = false;
+  let attempts = 0;
+  const files = Array.from({ length: 11 }, (_, position) => ({
+    id: String(800 + position), position, original_filename: "image.jpg", file_size: 1024,
+    media_kind: "image", mime_type: "image/jpeg", status: "uploaded", removed_at: null,
+  }));
+  await page.route("**/submissions/submissions/students/1001/homework/**", route => {
+    if (mode === "error") return route.fulfill({ status: 400, json: { detail: "조회 오류" } });
+    const results = mode === "empty" ? [] : [{
+      id: 4, homework_id: 21, session_id: 22, enrollment_id: 23, homework_title: "연습 문제",
+      lecture_title: "검증 강의", session_title: "1차시", submitted_at: "2026-10-11T00:00:00Z",
+      files, teacher_accepted: accepted, teacher_accepted_updated_at: null, media_set_fingerprint: fingerprint,
+    }];
+    return route.fulfill({ json: { count: results.length, next: null, previous: null, results } });
+  });
+  await page.route("**/homework/21/media/*/preview/", route => route.fulfill({ json: {
+    url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='75'%3E%3Crect width='100' height='75' fill='navy'/%3E%3C/svg%3E",
+    mime_type: "image/jpeg", media_kind: "image", expires_in: 600,
+  } }));
+  await page.route("**/homework/21/acceptance/", route => {
+    attempts += 1;
+    expect(route.request().postDataJSON()).toEqual({
+      enrollment_id: 23, accepted: true, expected_updated_at: null, expected_media_set_fingerprint: fingerprint,
+    });
+    if (attempts === 1) {
+      fingerprint = "b".repeat(64);
+      return route.fulfill({ status: 409, json: { detail: "제출 파일이 변경되었습니다. 최신 파일을 다시 확인해 주세요." } });
+    }
+    accepted = true;
+    return route.fulfill({ json: { teacher_accepted: true, teacher_accepted_updated_at: "2026-10-12T00:00:00Z" } });
+  });
+
+  await gotoAndSettle(page, BASE + "/workspace/students/1001");
+  const detail = page.getByTestId("student-detail-overlay");
+  const tab = detail.getByRole("tab", { name: "제출물", exact: true });
+  await tab.click();
+  await expect(detail.getByText("제출물을 불러오지 못했습니다")).toBeVisible();
+  mode = "empty";
+  await detail.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(detail.getByText("제출한 과제 파일이 없습니다")).toBeVisible();
+  mode = "files";
+  await page.reload();
+  await tab.click();
+  const gallery = detail.getByRole("group", { name: "제출 파일" });
+  const tiles = gallery.getByRole("button", { name: "미리보기", exact: true });
+  await expect(tiles).toHaveCount(11);
+  await expect.poll(() => gallery.getByRole("img", { name: "1번 제출 사진", exact: true }).evaluate(image => (image as HTMLImageElement).naturalWidth)).toBe(100);
+  await tiles.nth(10).click();
+  const viewer = page.getByRole("dialog").filter({ has: page.getByRole("img", { name: "image.jpg 과제 제출 미리보기" }) });
+  await expect(viewer).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(viewer).toHaveCount(0);
+  await expect(detail).toBeVisible();
+  expect(attempts).toBe(0);
+  const pass = detail.getByRole("button", { name: "통과", exact: true });
+  await pass.click();
+  await expect(detail.getByRole("alert")).toContainText("제출 파일이 변경되었습니다");
+  await pass.click();
+  await expect(detail.getByText("통과 인정됨", { exact: true })).toBeVisible();
+  expect(attempts).toBe(2);
 });

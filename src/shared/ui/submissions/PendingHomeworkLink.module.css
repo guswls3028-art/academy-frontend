@@ -1,0 +1,18 @@
+.link, .compact {
+  position: relative;
+  display: inline-flex;
+  min-height: var(--workspace-nav-row-height, var(--ds-touch-target));
+  align-items: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  color: inherit;
+  font-size: 14px;
+  font-weight: var(--font-medium);
+  text-decoration: none;
+}
+.compact { width: 44px; justify-content: center; padding: 4px; }
+.link > svg, .compact > svg { width: 16px; height: 16px; }
+.count { border-radius: 999px; }
+.compact .count { position: absolute; top: 0; right: 0; }
+.link:focus-visible, .compact:focus-visible { outline: 2px solid var(--color-primary); }

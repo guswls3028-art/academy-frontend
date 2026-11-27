@@ -18,6 +18,9 @@ function localJwt(): string {
 
 async function installApi(page: Page) {
   let cardEndpointRequests = 0;
+  let popbillEnabled = false;
+  let submittedReceipt: Record<string, unknown> | null = null;
+  let receivedKind: unknown = null;
 
   await page.route("**/api/v1/**", async (route: Route) => {
     const request = route.request();
@@ -82,8 +85,19 @@ async function installApi(page: Page) {
         tenant_name: "테스트 학원",
       });
     }
+    if (path === "/billing/bank-transfer/notices/" && request.method() === "POST") {
+      const body = request.postDataJSON();
+      receivedKind = body.receipt_kind;
+      submittedReceipt = {
+        id: 18, status: "SUBMITTED", receipt_kind: body.receipt_kind, automatic_receipt: true,
+        depositor_name: body.depositor_name, deposited_at: body.deposited_at,
+        tax_invoice_requested: true, tax_invoice_status: "REQUESTED", tax_invoice_issue_number: "",
+      };
+      return json(submittedReceipt, 201);
+    }
     if (path === "/billing/bank-transfer/") {
       return json({
+        popbill_enabled: popbillEnabled,
         bank_account: {
           enabled: true,
           bank_name: "테스트은행",
@@ -105,7 +119,7 @@ async function installApi(page: Page) {
             due_date: "2026-09-15",
             status: "PENDING",
             status_display: "납부 대기",
-            bank_transfer_notice: null,
+            bank_transfer_notice: submittedReceipt,
           },
         ],
       });
@@ -117,7 +131,11 @@ async function installApi(page: Page) {
     return json({ count: 0, results: [] });
   });
 
-  return { cardEndpointRequests: () => cardEndpointRequests };
+  return {
+    cardEndpointRequests: () => cardEndpointRequests,
+    receivedKind: () => receivedKind,
+    enablePopbill: () => { popbillEnabled = true; },
+  };
 }
 
 test.use({ serviceWorkers: "block" });
@@ -142,6 +160,20 @@ test("결제 설정은 계좌이체 정보만 노출하고 카드 API를 호출�
   await expect(page.getByText("테스트은행", { exact: true })).toBeVisible();
   await expect(page.getByText("0000-00-0000000", { exact: true })).toBeVisible();
   await expect(page.getByText("테스트예금주", { exact: true })).toBeVisible();
+  await expect(page.getByText("전자세금계산서가 필요해요")).toBeVisible();
+  await expect(page.getByLabel("구독료 결제 증빙")).toHaveCount(0);
+  apiState.enablePopbill();
+  await page.reload();
+  const receiptKind = page.getByLabel("구독료 결제 증빙");
+  await receiptKind.selectOption("CASH");
+  await expect(page.getByLabel("현금영수증용 휴대전화번호")).toBeVisible();
+  await expect(page.getByLabel("세금계산서용 주민등록번호")).toHaveCount(0);
+  await receiptKind.selectOption("PERSONAL_TAX");
+  await expect(page.getByLabel("세금계산서용 주민등록번호")).toHaveAttribute("type", "password");
+  await expect(page.getByLabel("수신자 성명")).toBeVisible();
+  await test.info().attach("desktop-receipt-choice", { body: await page.screenshot(), contentType: "image/png" });
+  await receiptKind.selectOption("BUSINESS_TAX");
+  await expect(page.getByLabel("사업자등록번호")).toBeVisible();
   await expect(page.getByText(/카드/)).toHaveCount(0);
   expect(apiState.cardEndpointRequests()).toBe(0);
   expect(
@@ -155,6 +187,17 @@ test("결제 설정은 계좌이체 정보만 노출하고 카드 API를 호출�
     page.getByRole("heading", { name: "계좌이체로 이용료 납부", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("0000-00-0000000", { exact: true })).toBeVisible();
+  await receiptKind.selectOption("CASH");
+  await page.getByLabel("현금영수증용 휴대전화번호").scrollIntoViewIfNeeded();
+  await test.info().attach("mobile-cash-receipt", { body: await page.screenshot(), contentType: "image/png" });
+  await page.getByLabel("현금영수증용 휴대전화번호").fill("01000000000");
+  await page.getByLabel("입금자명 (통장 표시 이름)").fill("QA");
+  await page.getByRole("button", { name: "입금 확인 요청하기" }).click();
+  await expect.poll(() => apiState.receivedKind()).toBe("CASH");
+  await page.reload();
+  await expect(page.getByText("입금 확인 요청이 접수되었습니다", { exact: true })).toBeVisible();
+  await page.getByText("지난 구독료 증빙 조회").click();
+  await expect(page.getByText(/현금영수증 · 발급 대기/)).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,

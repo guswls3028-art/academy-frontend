@@ -1,6 +1,8 @@
 import api, { createAuthSessionBoundConfig } from "@/shared/api/axios";
 import { readAuthTokenEnvelopeSafely } from "@/shared/auth/tokenSession";
 import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import type { HomeworkSubmissionMediaFile } from "@/shared/api/contracts/staffHomeworkFiles";
+export type { HomeworkSubmissionMediaFile } from "@/shared/api/contracts/staffHomeworkFiles";
 import type { SubmissionStatus } from "../types";
 
 export type HomeworkSubmissionStatus =
@@ -10,24 +12,6 @@ export type HomeworkSubmissionStatus =
   | "processing"
   | "not_submitted"
   | "NOT_SUBMITTED";
-
-export type HomeworkSubmissionMediaStatus = "uploading" | "uploaded" | "failed" | "removed" | string;
-
-export type HomeworkSubmissionMediaFile = {
-  id: string;
-  legacy: boolean;
-  position: number;
-  original_filename: string;
-  media_kind: "image" | "video";
-  mime_type: string;
-  file_size: number;
-  status: HomeworkSubmissionMediaStatus;
-  error_message: string;
-  uploaded_at: string | null;
-  failed_at: string | null;
-  removed_at: string | null;
-  created_at: string | null;
-};
 
 export type HomeworkSubmissionRow = {
   id: number;
@@ -50,6 +34,8 @@ export type HomeworkSubmissionRow = {
   teacher_reviewed_at: string | null;
   teacher_review_updated_at: string | null;
   media_set_fingerprint: string | null;
+  teacher_accepted: boolean | null;
+  teacher_accepted_updated_at: string | null;
   created_at: string;
 };
 
@@ -143,6 +129,8 @@ function normalizeHomeworkSubmission(raw: unknown): HomeworkSubmissionRow {
     teacher_reviewed_at: asNullableString(record.teacher_reviewed_at),
     teacher_review_updated_at: asNullableString(record.teacher_review_updated_at),
     media_set_fingerprint: asNullableString(record.media_set_fingerprint),
+    teacher_accepted: typeof record.teacher_accepted === "boolean" ? record.teacher_accepted : null,
+    teacher_accepted_updated_at: asNullableString(record.teacher_accepted_updated_at),
     created_at: String(record.created_at ?? ""),
   };
 }
@@ -193,22 +181,4 @@ export async function fetchHomeworkSubmissionRecords(homeworkId: number): Promis
 
 export async function fetchHomeworkSubmissions(homeworkId: number): Promise<HomeworkSubmissionRow[]> {
   return (await fetchHomeworkSubmissionRecords(homeworkId)).map(normalizeHomeworkSubmission);
-}
-
-export type HomeworkMediaPreview = {
-  url: string;
-  media_kind: "image" | "video";
-  mime_type: string;
-  original_filename: string;
-  expires_in: number;
-};
-
-export async function fetchHomeworkMediaPreview(
-  homeworkId: number,
-  mediaId: string,
-): Promise<HomeworkMediaPreview> {
-  const res = await api.get<HomeworkMediaPreview>(
-    `/submissions/submissions/homework/${homeworkId}/media/${encodeURIComponent(mediaId)}/preview/`,
-  );
-  return res.data;
 }

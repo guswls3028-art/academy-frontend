@@ -2,10 +2,24 @@
 // 영상 업로드 유틸리티 — 모달 밖에서 실행되어 작업 박스에서 진행률 표시
 // 100MB 이하: 단일 PUT / 100MB 초과: R2 multipart upload
 
-import api, { type ApiRequestConfig } from "@/shared/api/axios";
+import api, { isApiError, type ApiRequestConfig } from "@/shared/api/axios";
 import { captureVideoUploadConfig, completeVideoUpload } from "@/shared/api/videoUploadCompletion";
 import { asyncStatusStore } from "@/shared/ui/asyncStatus";
 import type { UploadInitResponse } from "../api/videos.api";
+
+const videoTypesByExtension: Record<string, string> = {
+  mp4: "video/mp4", m4v: "video/x-m4v", mov: "video/quicktime", webm: "video/webm",
+  mkv: "video/x-matroska", avi: "video/x-msvideo", wmv: "video/x-ms-wmv",
+  mpg: "video/mpeg", mpeg: "video/mpeg", mts: "video/mp2t", m2ts: "video/mp2t", "3gp": "video/3gpp",
+};
+export const videoFileAccept = ["video/*", ...Object.keys(videoTypesByExtension).map(ext => `.${ext}`)].join(",");
+
+export function videoContentType(file: File): string | undefined {
+  if (file.type.startsWith("video/")) return file.type;
+  if (file.type && file.type !== "application/octet-stream") return undefined;
+  const ext = /\.([a-z0-9]+)$/i.exec(file.name)?.[1].toLowerCase();
+  return ext && Object.prototype.hasOwnProperty.call(videoTypesByExtension, ext) ? videoTypesByExtension[ext] : undefined;
+}
 
 export interface VideoUploadParams {
   sessionId: number;
@@ -26,7 +40,12 @@ export interface InitVideoResult {
   tempId: string;
   contentType: string;
   config: ApiRequestConfig;
+  completion?: { multipart?: Parameters<typeof completeVideoUpload>[2]; encodingRejected?: boolean };
 }
+
+export type VideoTransferPhase = "uploading" | "retrying" | "confirming";
+export type VideoTransferProgress = { phase: VideoTransferPhase; bytes: number };
+type ReportTransfer = (bytes: number, phase?: VideoTransferPhase) => void;
 
 let activeBrowserUploadCount = 0;
 let removeBrowserUploadBeforeUnload: (() => void) | null = null;
@@ -87,7 +106,7 @@ export async function initVideoUpload(
     session: sessionId,
     title: title.trim(),
     filename: file.name,
-    content_type: file.type || "video/mp4",
+    content_type: videoContentType(file) || "video/mp4",
     review_watch_limit_enabled: params.reviewLimit ?? false,
     show_watermark: showWatermark,
     allow_skip: allowSkip,
@@ -97,11 +116,14 @@ export async function initVideoUpload(
   };
 
   const tempId = `video-upload-${sessionId}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-  asyncStatusStore.addTask("영상 추가", tempId);
+  asyncStatusStore.addTask(`영상 추가 · ${title.trim()}`, tempId);
 
   const initRes = await api.post<UploadInitResponse>("/media/videos/upload/init/", initPayload, {
     ...config,
     timeout: 60_000,
+  }).catch((error: unknown) => {
+    asyncStatusStore.completeTask(tempId, "error", uploadErrorMessage(error));
+    throw error;
   });
 
   const uploadUrl = initRes.data?.upload_url;
@@ -142,85 +164,76 @@ async function refreshPresignedUrl(videoId: number, contentType: string, config:
   return res.data.upload_url;
 }
 
-/** R2 PUT with progress tracking — single attempt */
-function r2PutOnce(
-  uploadUrl: string,
-  file: File,
-  putHeaders: Record<string, string>,
-  tempId: string,
-): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.upload.addEventListener("progress", (e) => {
-      if (e.lengthComputable) {
-        const percent = Math.round((e.loaded / e.total) * 100);
-        asyncStatusStore.updateProgress(tempId, percent);
-      }
-    });
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve();
-      } else if (xhr.status === 403) {
-        reject(new PresignedUrlExpiredError(`R2 URL 만료: ${xhr.status}`));
-      } else {
-        reject(new Error(`R2 업로드 실패: ${xhr.status} ${xhr.statusText}`));
-      }
-    });
-    xhr.addEventListener("error", () => reject(new Error("R2 업로드 중 네트워크 오류")));
-    xhr.addEventListener("timeout", () => reject(new Error("R2 업로드 시간 초과")));
-    xhr.timeout = 2 * 60 * 60 * 1000; // 2시간 — presigned URL 유효시간과 동일
-    xhr.open("PUT", uploadUrl);
-    Object.entries(putHeaders).forEach(([key, value]) => {
-      xhr.setRequestHeader(key, value);
-    });
-    xhr.send(file);
-  });
+function uploadErrorMessage(error: unknown): string {
+  const failure = error as { response?: { data?: { detail?: string } }; message?: string } | null;
+  return failure?.response?.data?.detail || failure?.message || "영상 업로드에 실패했습니다.";
 }
 
-class PresignedUrlExpiredError extends Error {
-  constructor(msg: string) {
-    super(msg);
-    this.name = "PresignedUrlExpiredError";
-  }
+/** Abort stalled transfers, including a missing response after the last byte. */
+function putToStorage(
+  url: string, blob: Blob, headers: Record<string, string>, onProgress: (bytes: number) => void,
+): Promise<XMLHttpRequest> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    let sentBytes = 0;
+    const armIdleTimeout = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        reject(new Error("영상 전송이 90초 동안 멈췄습니다. 인터넷 연결을 확인해 주세요."));
+        xhr.abort();
+      }, 90_000);
+    };
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.loaded <= sentBytes) return;
+      sentBytes = event.loaded;
+      armIdleTimeout();
+      onProgress(Math.min(sentBytes, blob.size));
+    });
+    xhr.addEventListener("loadend", () => clearTimeout(idleTimer));
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve(xhr);
+      else reject(new Error(`영상 저장소가 전송을 거절했습니다 (HTTP ${xhr.status}).`));
+    });
+    xhr.addEventListener("error", () => reject(new Error("영상 전송 중 네트워크 오류가 발생했습니다.")));
+    xhr.addEventListener("abort", () => reject(new Error("영상 전송 연결이 끊겼습니다.")));
+    xhr.open("PUT", url);
+    for (const [key, value] of Object.entries(headers)) xhr.setRequestHeader(key, value);
+    armIdleTimeout();
+    try {
+      xhr.send(blob);
+    } catch (error) {
+      clearTimeout(idleTimer);
+      reject(error);
+    }
+  });
 }
 
 /** 단일 PUT + complete (≤ 100MB 파일용) */
 async function singlePutAndComplete(
   initResult: InitVideoResult,
   file: File,
+  report: ReportTransfer,
 ): Promise<number> {
-  const { videoId, putHeaders, tempId, contentType, config } = initResult;
+  const { videoId, putHeaders, contentType, config } = initResult;
   let currentUrl = initResult.uploadUrl;
 
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt <= MAX_R2_RETRIES; attempt++) {
+  for (let attempt = 0; ; attempt++) {
     try {
       if (attempt > 0) {
-        const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt - 1);
-        asyncStatusStore.updateProgress(tempId, 0);
-        await new Promise((r) => setTimeout(r, delay));
-        try {
-          currentUrl = await refreshPresignedUrl(videoId, contentType, config);
-        } catch {
-          // refresh 실패 시 기존 URL로 시도
-        }
+        report(0, "retrying");
+        await new Promise((resolve) => setTimeout(resolve, RETRY_BASE_DELAY_MS * 2 ** (attempt - 1)));
+        currentUrl = await refreshPresignedUrl(videoId, contentType, config);
       }
-      await r2PutOnce(currentUrl, file, putHeaders, tempId);
-      lastError = null;
+      await putToStorage(currentUrl, file, putHeaders, report);
       break;
-    } catch (e) {
-      lastError = e as Error;
-      if (e instanceof PresignedUrlExpiredError && attempt < MAX_R2_RETRIES) {
-        try {
-          currentUrl = await refreshPresignedUrl(videoId, contentType, config);
-        } catch {
-          // refresh 실패해도 다음 루프에서 재시도
-        }
-      }
+    } catch (error) {
+      if (attempt >= MAX_R2_RETRIES) throw error;
     }
   }
-  if (lastError) throw lastError;
 
+  initResult.completion = {};
+  report(file.size, "confirming");
   await completeVideoUpload(videoId, config);
 
   return videoId;
@@ -236,7 +249,6 @@ const MIN_PART_SIZE = 5 * 1024 * 1024; // R2 최소 파트 크기: 5MB
 const MAX_PARTS = 10_000; // R2/S3 최대 파트 수
 const PART_CONCURRENCY = 3; // 동시 파트 업로드 수
 const PART_MAX_RETRIES = 3;
-const PART_IDLE_TIMEOUT_MS = 90_000;
 const PRESIGN_BATCH_SIZE = 50; // 한 번에 presign 요청할 파트 수
 
 /** 파일 크기에 따라 파트 크기 동적 계산 (R2: 최대 10,000 파트, 파트 최소 5MB) */
@@ -259,62 +271,13 @@ type MultipartPresignResponse = {
   urls: Record<string, string>;
 };
 
-/** 파트 1개를 XHR로 업로드, ETag 반환 */
-function uploadPartOnce(url: string, blob: Blob): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    let idleTimer: ReturnType<typeof setTimeout> | undefined;
-    let sentBytes = 0;
-
-    const armIdleTimeout = () => {
-      clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => {
-        reject(new Error("파트 전송이 90초 동안 멈췄습니다."));
-        xhr.abort();
-      }, PART_IDLE_TIMEOUT_MS);
-    };
-
-    xhr.upload.addEventListener("progress", (event) => {
-      if (event.loaded <= sentBytes) return;
-      sentBytes = event.loaded;
-      armIdleTimeout();
-    });
-    xhr.addEventListener("loadend", () => clearTimeout(idleTimer));
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        const etag = xhr.getResponseHeader("ETag");
-        if (!etag) {
-          reject(new Error("파트 업로드 성공했으나 ETag 없음"));
-          return;
-        }
-        resolve(etag);
-      } else if (xhr.status === 403) {
-        reject(new PresignedUrlExpiredError(`파트 URL 만료: ${xhr.status}`));
-      } else {
-        reject(new Error(`파트 업로드 실패: ${xhr.status}`));
-      }
-    });
-    xhr.addEventListener("error", () => reject(new Error("파트 업로드 네트워크 오류")));
-    xhr.addEventListener("timeout", () => reject(new Error("파트 업로드 시간 초과")));
-    xhr.addEventListener("abort", () => reject(new Error("파트 업로드 연결이 끊겼습니다.")));
-    xhr.timeout = 60 * 60 * 1000;
-    xhr.open("PUT", url);
-    armIdleTimeout();
-    try {
-      xhr.send(blob);
-    } catch (error) {
-      clearTimeout(idleTimer);
-      throw error;
-    }
-  });
-}
-
 /** Multipart upload + complete (> 100MB 파일용) */
 async function multipartUploadAndComplete(
   initResult: InitVideoResult,
   file: File,
+  report: ReportTransfer,
 ): Promise<number> {
-  const { videoId, tempId, contentType, config } = initResult;
+  const { videoId, contentType, config } = initResult;
 
   // 1. Multipart upload 생성
   const mpInitRes = await api.post<MultipartInitResponse>(
@@ -328,7 +291,14 @@ async function multipartUploadAndComplete(
   const partSize = calculatePartSize(file.size);
   const totalParts = Math.ceil(file.size / partSize);
   const completedParts: { ETag: string; PartNumber: number }[] = [];
-  let uploadedBytes = 0;
+  const partBytes = new Map<number, number>();
+  const retryingParts = new Set<number>();
+  let transferredBytes = 0;
+  function updatePartBytes(part: number, bytes: number) {
+    transferredBytes += bytes - (partBytes.get(part) ?? 0);
+    partBytes.set(part, bytes);
+    report(transferredBytes, retryingParts.size ? "retrying" : "uploading");
+  }
 
   // 3. presigned URL 일괄 발급 (배치 단위)
   const allPartUrls: Record<number, string> = {};
@@ -378,22 +348,16 @@ async function multipartUploadAndComplete(
             try {
               // 재시도 시 새 presigned URL 발급
               if (retry > 0) {
+                retryingParts.add(partNumber);
+                updatePartBytes(partNumber, 0);
                 await new Promise((r) => setTimeout(r, RETRY_BASE_DELAY_MS * Math.pow(2, retry - 1)));
-                try {
-                  await ensurePresignedUrls([partNumber]);
-                  // 기존 URL이 만료되었을 수 있으므로 강제 갱신
-                  const freshRes = await api.post<MultipartPresignResponse>(
-                    `/media/videos/${videoId}/upload/multipart/presign/`,
-                    { upload_id: uploadId, part_numbers: [partNumber] },
-                    { ...config, timeout: 30_000 },
-                  );
-                  allPartUrls[partNumber] = freshRes.data.urls[String(partNumber)];
-                } catch {
-                  // 갱신 실패해도 기존 URL로 시도
-                }
+                delete allPartUrls[partNumber];
+                await ensurePresignedUrls([partNumber]);
               }
 
-              etag = await uploadPartOnce(allPartUrls[partNumber], blob);
+              const response = await putToStorage(allPartUrls[partNumber], blob, {}, bytes => updatePartBytes(partNumber, bytes));
+              etag = response.getResponseHeader("ETag");
+              if (!etag) throw new Error("파트 업로드 성공했으나 ETag 없음");
               break;
             } catch (e) {
               if (retry === PART_MAX_RETRIES) {
@@ -405,9 +369,8 @@ async function multipartUploadAndComplete(
 
           if (etag) {
             completedParts.push({ ETag: etag, PartNumber: partNumber });
-            uploadedBytes += blob.size;
-            const percent = Math.round((uploadedBytes / file.size) * 100);
-            asyncStatusStore.updateProgress(tempId, percent);
+            retryingParts.delete(partNumber);
+            updatePartBytes(partNumber, blob.size);
           }
         }
       }
@@ -431,7 +394,9 @@ async function multipartUploadAndComplete(
 
   // 완료 요청 중 연결이 끊겨도 저장소에서 조립이 진행 중일 수 있다.
   const orderedParts = completedParts.sort((left, right) => left.PartNumber - right.PartNumber);
-  await completeVideoUpload(videoId, config, { upload_id: uploadId, parts: orderedParts });
+  initResult.completion = { multipart: { upload_id: uploadId, parts: orderedParts } };
+  report(file.size, "confirming");
+  await completeVideoUpload(videoId, config, initResult.completion.multipart);
   return videoId;
 }
 
@@ -446,54 +411,59 @@ async function multipartUploadAndComplete(
 export async function uploadFileToR2AndComplete(
   initResult: InitVideoResult,
   file: File,
+  retry = false,
+  onProgress?: (value: VideoTransferProgress) => void,
 ): Promise<number> {
   const { tempId } = initResult;
+  let lastPhase: VideoTransferPhase | undefined;
+  let lastPercent = -1;
+  let lastBytes = 0;
+  let lastUpdate = 0;
+  const report: ReportTransfer = (bytes, phase = "uploading") => {
+    const percent = file.size ? Math.floor(100 * bytes / file.size) : 0;
+    const now = Date.now();
+    // Multiple part streams feed one row. Keep the first movement visible and
+    // avoid persisting the global task list for every browser progress event.
+    if (percent === lastPercent && phase === lastPhase &&
+        (bytes === lastBytes || (lastBytes > 0 && now - lastUpdate < 500))) return;
+    if (percent !== lastPercent) asyncStatusStore.updateProgress(tempId, percent);
+    lastPhase = phase;
+    lastBytes = bytes;
+    lastPercent = percent;
+    lastUpdate = now;
+    onProgress?.({ phase, bytes });
+  };
   try {
+    if (retry) asyncStatusStore.retryTask(tempId);
+    if (initResult.completion) report(file.size, "confirming");
+    else report(0);
+    if (initResult.completion?.encodingRejected) {
+      const path = `/media/videos/${initResult.videoId}/`;
+      const { data } = await api.get<{ status: string }>(path, initResult.config);
+      if (data.status === "FAILED") await api.post(`${path}retry/`, {}, initResult.config);
+      else if (!["UPLOADED", "PROCESSING", "READY"].includes(data.status)) {
+        throw new Error("영상 상태가 바뀌었습니다. 영상 목록에서 최신 처리 상태를 확인해 주세요.");
+      }
+      return initResult.videoId;
+    }
+    if (initResult.completion) {
+      await completeVideoUpload(initResult.videoId, initResult.config, initResult.completion.multipart);
+      return initResult.videoId;
+    }
     if (file.size <= MULTIPART_THRESHOLD) {
-      return await singlePutAndComplete(initResult, file);
+      if (retry) initResult.uploadUrl = await refreshPresignedUrl(initResult.videoId, initResult.contentType, initResult.config);
+      return await singlePutAndComplete(initResult, file, report);
     } else {
-      return await multipartUploadAndComplete(initResult, file);
+      return await multipartUploadAndComplete(initResult, file, report);
     }
   } catch (error) {
-    const msg =
-      (error as { response?: { data?: { detail?: string } }; message?: string })?.response?.data
-        ?.detail ||
-      (error as Error)?.message ||
-      "업로드에 실패했습니다.";
-    asyncStatusStore.completeTask(tempId, "error", msg);
+    if (initResult.completion && isApiError(error) &&
+        (error.response?.data as { code?: string } | undefined)?.code === "VIDEO_BATCH_SUBMIT_FAILED") {
+      initResult.completion.encodingRejected = true;
+    }
+    asyncStatusStore.completeTask(tempId, "error", uploadErrorMessage(error));
     throw error;
   }
-}
-
-// ── Concurrency-limited batch upload ──
-
-/**
- * 동시 업로드 제한 실행기.
- * 대역폭 포화 방지를 위해 최대 concurrency개만 동시 R2 PUT.
- */
-export async function uploadFilesWithLimit(
-  items: { init: InitVideoResult; file: File }[],
-  concurrency = 2,
-): Promise<PromiseSettledResult<number>[]> {
-  const results: PromiseSettledResult<number>[] = new Array(items.length);
-  let cursor = 0;
-
-  async function runNext(): Promise<void> {
-    while (cursor < items.length) {
-      const idx = cursor++;
-      const { init, file } = items[idx];
-      try {
-        const videoId = await uploadFileToR2AndComplete(init, file);
-        results[idx] = { status: "fulfilled", value: videoId };
-      } catch (reason) {
-        results[idx] = { status: "rejected", reason };
-      }
-    }
-  }
-
-  const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => runNext());
-  await Promise.all(workers);
-  return results;
 }
 
 /**

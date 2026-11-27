@@ -1,13 +1,14 @@
 .button {
-  min-height: 36px;
-  padding: 0 14px;
+  min-height: var(--ds-control-md);
+  padding: var(--ds-space-1) var(--ds-space-4);
   border: 0;
   border-radius: var(--tc-radius);
   background: var(--tc-primary);
   color: var(--tc-primary-contrast);
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--ds-text-md);
+  line-height: 1.4;
+  font-weight: 600;
 }
 
 .secondary {

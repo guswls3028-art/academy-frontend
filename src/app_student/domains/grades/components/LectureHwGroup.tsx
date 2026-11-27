@@ -1,6 +1,9 @@
 /**
  * 강좌별 과제 성적 그룹 — GradesPage에서 추출
  */
+import { Link } from "react-router";
+import { useAuthContext } from "@/auth/context/AuthContext";
+import { homeworkSubmissionHref } from "../public/homeworkSubmission";
 import { IconClipboard } from "@student/shared/ui/icons/Icons";
 import GradeBadge from "./GradeBadge";
 import { ParentAssessmentComment } from "./ParentAssessmentComments";
@@ -18,6 +21,7 @@ export type HwGroup = {
 const HOMEWORK_SCORE_NUMBER = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 });
 
 export default function LectureHwGroup({ group }: { group: HwGroup }) {
+  const { user } = useAuthContext();
   const wrongCompletionOnly = useWrongCompletionDisplay();
   return (
     <div>
@@ -31,6 +35,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
       </div>
       <div className={styles.list}>
         {group.homeworks.map((h, idx) => {
+          const submissionHref = user?.tenantRole === "student" ? homeworkSubmissionHref(h) : null;
           const gradingMode = h.grading_mode ?? "SCORE";
           const score = typeof h.score === "number" && Number.isFinite(h.score) ? h.score : null;
           const maxScore = typeof h.max_score === "number" && Number.isFinite(h.max_score) && h.max_score > 0
@@ -41,13 +46,19 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
           const awaitingReview = h.submission_state === "awaiting_review";
           const showGradeBadge = (!pendingGrade || h.teacher_resolved || h.achievement === "REMEDIATED")
             && !(awaitingReview && (score == null || h.achievement === "NOT_SUBMITTED"));
-          const scoreText = inspectionPending ? "검사 대기" : gradingMode === "COMPLETION"
-            ? score == null ? "검사 전" : score > 0 ? "통과" : "미통과"
-            : score == null
-              ? maxScore == null ? "검사 전" : `–/${HOMEWORK_SCORE_NUMBER.format(maxScore)}`
-              : maxScore == null
-                ? HOMEWORK_SCORE_NUMBER.format(score)
-                : `${HOMEWORK_SCORE_NUMBER.format(score)}/${HOMEWORK_SCORE_NUMBER.format(maxScore)}`;
+          let scoreText = score == null
+            ? maxScore == null ? "검사 전" : `–/${HOMEWORK_SCORE_NUMBER.format(maxScore)}`
+            : maxScore == null ? HOMEWORK_SCORE_NUMBER.format(score)
+              : `${HOMEWORK_SCORE_NUMBER.format(score)}/${HOMEWORK_SCORE_NUMBER.format(maxScore)}`;
+          if (h.teacher_accepted) {
+            if (score == null) scoreText = "점수 미입력";
+          } else if (pendingGrade) {
+            scoreText = gradingMode === "COMPLETION" ? "통과 판정 미입력" : "점수 미입력";
+          } else if (inspectionPending) {
+            scoreText = "검사 대기";
+          } else if (gradingMode === "COMPLETION") {
+            scoreText = score == null ? "검사 전" : score > 0 ? "통과" : "미통과";
+          }
           const badgePassed = h.teacher_resolved
             ? true
             : h.achievement == null && score == null ? null : h.passed;
@@ -63,7 +74,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                   <IconClipboard className={styles.itemIcon} />
                 </div>
                 <div className={styles.content}>
-                  <div className={styles.title}>{h.title}</div>
+                  <div id={`grade-homework-${h.homework_id}-${h.enrollment_id}`} className={styles.title}>{h.title}</div>
                   <div className={`stu-muted ${styles.meta}`}>
                     {h.session_title ?? "차시 미지정"}
                     <span aria-hidden> · </span>
@@ -71,7 +82,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                   </div>
                 </div>
                 <div className={styles.homeworkStatus}>
-                  <strong className={styles.homeworkScore}>{pendingGrade ? (gradingMode === "COMPLETION" ? "통과 판정 미입력" : "점수 미입력") : scoreText}</strong>
+                  <strong className={styles.homeworkScore}>{scoreText}</strong>
                   {pendingGrade && inspectionPending && <span className="stu-muted">영상 보강 검사 대기</span>}
                   {!inspectionPending && awaitingReview && (
                     <span className="stu-muted">온라인 제출물 확인 대기</span>
@@ -79,7 +90,7 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                   {pendingGrade && !inspectionPending && h.submission_state === "needs_submission" && (
                     <span className="stu-muted">온라인 제출 필요</span>
                   )}
-                  {!inspectionPending && showGradeBadge && <GradeBadge
+                  {h.teacher_accepted ? <span className="stu-badge stu-badge--success stu-badge--sm">과제 통과 인정</span> : !inspectionPending && showGradeBadge && <GradeBadge
                     passed={badgePassed}
                     achievement={h.achievement}
                     label={gradingMode === "COMPLETION" ? { pass: "통과", fail: "미통과" } : { pass: "완료", fail: "미완료" }}
@@ -105,6 +116,9 @@ export default function LectureHwGroup({ group }: { group: HwGroup }) {
                   aria-label={`${h.title} 진행 ${score == null ? "검사 전" : `${HOMEWORK_SCORE_NUMBER.format(score)}/${HOMEWORK_SCORE_NUMBER.format(maxScore)}`}`}
                 />
               )}
+              {submissionHref && <Link to={submissionHref} aria-describedby={`grade-homework-${h.homework_id}-${h.enrollment_id}`} className={`stu-btn stu-btn--primary ${styles.submissionLink}`}>
+                {awaitingReview ? "제출 파일 확인·추가" : "온라인 제출"}
+              </Link>}
             </div>
           );
         })}

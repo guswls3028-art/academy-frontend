@@ -66,13 +66,19 @@ type IdcardMockControl = {
   responseReady?: Promise<void>;
   noEnrollment?: "forbidden" | "legacy" | "other-denial";
   studentHeaders?: Array<string | undefined>;
-  verdictPatch?: { current_result?: unknown; passcard_state?: unknown };
+  childCards?: Record<string, {
+    result: "SUCCESS" | "FAIL";
+    bookings: MockState["bookings"];
+    todayPassed: boolean;
+  }>;
+  verdictPatch?: { current_result?: unknown; passcard_state?: unknown; today_assessments_passed?: unknown };
 };
 
 type ProgramMockOptions = {
   tenantCode?: string;
   assessmentStatusDisplay?: "wrong_completion";
   role?: "student" | "parent";
+  linkedStudents?: Array<{ id: number; name: string }>;
 };
 
 const bookingStatusLabels: Record<string, string> = {
@@ -288,6 +294,8 @@ async function installApi(
     const request = route.request();
     const path = new URL(request.url()).pathname.replace(/^\/api\/v1/, "");
     const method = request.method();
+    const childId = request.headers()["x-student-id"];
+    const childCard = childId ? idcardControl?.childCards?.[childId] : undefined;
     const json = (body: unknown, status = 200) => route.fulfill({
       status,
       contentType: "application/json",
@@ -315,13 +323,16 @@ async function installApi(
         is_staff: false,
         is_superuser: false,
         tenantRole: programOptions.role ?? "student",
-        linkedStudents: programOptions.role === "parent" ? [{ id: 72, name: "김학생" }] : [],
+        linkedStudents: programOptions.role === "parent" ? programOptions.linkedStudents ?? [{ id: 72, name: "김학생" }] : [],
         must_change_password: false,
       });
     }
     if ((path === "/clinic/sessions/" || path === "/clinic/participants/") && method === "GET") {
       const kind = path === "/clinic/sessions/" ? "sessions" : "participants";
-      const rows = kind === "sessions" ? sessionRows : state.bookings;
+      if (kind === "participants" && idcardControl?.childCards && !childCard) {
+        return json({ detail: "자녀 선택을 확인해 주세요." }, 403);
+      }
+      const rows = kind === "sessions" ? sessionRows : (childCard?.bookings ?? state.bookings);
       if (!state.clinicPagination) {
         return json(kind === "sessions" ? rows : { count: rows.length, results: rows });
       }
@@ -391,8 +402,9 @@ async function installApi(
       });
     }
     if (path === "/clinic/idcard/" && method === "GET") {
-      idcardControl?.studentHeaders?.push(request.headers()["x-student-id"]);
-      const result = idcardControl?.result ?? idcardResult;
+      idcardControl?.studentHeaders?.push(childId);
+      if (idcardControl?.childCards && !childCard) return json({ detail: "자녀 선택을 확인해 주세요." }, 403);
+      const result = childCard?.result ?? idcardControl?.result ?? idcardResult;
       await idcardControl?.responseReady;
       if (idcardControl?.delayMs) {
         await new Promise((resolve) => setTimeout(resolve, idcardControl.delayMs));
@@ -410,7 +422,7 @@ async function installApi(
           server_date: dateAfter(0), server_datetime: `${dateAfter(0)}T09:30:00+09:00`,
         });
       }
-      const validBookings = validIdcardBookings(state);
+      const validBookings = validIdcardBookings(childCard ? { ...state, bookings: childCard.bookings } : state);
       const confirmedBooking = validBookings.find((booking) => (
         ["booked", "attended"].includes(booking.status)
       ));
@@ -422,7 +434,7 @@ async function installApi(
         : confirmedBooking ? "BOOKING_CONFIRMED" : "CLINIC_REQUIRED";
       const bookingStatus = currentBooking?.status ?? (result === "FAIL" ? "required" : "none");
       return json({
-        student_name: "김학생",
+        student_name: programOptions.linkedStudents?.find((child) => child.id === Number(childId))?.name ?? "김학생",
         profile_photo_url: null,
         background_colors: ["#ef4444", "#3b82f6", "#22c55e"],
         server_date: dateAfter(0),
@@ -430,6 +442,7 @@ async function installApi(
         current_result: result,
         passcard_state: passcardState,
         ...idcardControl?.verdictPatch,
+        ...(childCard && { today_assessments_passed: childCard.todayPassed }),
         can_leave: passcardState !== "CLINIC_REQUIRED",
         booking_status: bookingStatus,
         booking_status_label: currentBooking?.status_label ?? (bookingStatus === "required" ? "예약 필요" : "예약 없음"),
@@ -1677,6 +1690,73 @@ test.describe("학생 클리닉 예약 UX", () => {
     await expect(page.getByRole("heading", { name: "대상자" })).toBeVisible();
     await expect(page.getByRole("region", { name: "클리닉 예약 상태" })).toContainText("승인 대기");
   });
+
+  for (const width of [390, 1366]) {
+    test(`이전 보강 예약과 오늘 수업 통과가 겹치면 합격자와 예약 일정을 표시한다 ${width}px`, async ({ page }) => {
+      const state = createState();
+      state.bookings[0] = { ...state.bookings[0], status: "booked" };
+      const control: IdcardMockControl = { verdictPatch: { today_assessments_passed: true } };
+      await seed(page);
+      await page.setViewportSize({ width, height: 844 });
+      await installApi(page, state, "FAIL", control);
+      await page.goto(`${BASE}/student/idcard`, { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "합격자", exact: true })).toBeVisible();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByText("오늘 수업 통과", { exact: true })).toBeVisible();
+      await expect(page.getByRole("region", { name: "클리닉 예약 상태" })).toContainText("예약 확정");
+      await expect(page.getByRole("link", { name: "예약 일정 확인하기" })).toBeVisible();
+      control.verdictPatch = { today_assessments_passed: false };
+      await expect(page.getByRole("heading", { name: "예약완료", exact: true })).toBeVisible();
+      await page.getByRole("link", { name: "예약 일정 확인하기" }).click();
+      await expect(page.getByTestId("clinic-target-item").filter({ hasText: "5주차 오답 과제" })).toBeVisible();
+    });
+  }
+
+  for (const width of [390, 1366]) {
+    test(`학부모가 자녀를 바꾸면 당일 합격과 이전 보강 대상은 선택한 자녀에게만 보인다 ${width}px`, async ({ page }) => {
+      const state = createState();
+      const children = [{ id: 72, name: "김하늘" }, { id: 73, name: "김바다" }];
+      const options = { role: "parent" as const, linkedStudents: children };
+      const first = { result: "FAIL" as const, bookings: [{ ...state.bookings[0], status: "booked" }], todayPassed: true };
+      const control: IdcardMockControl = {
+        studentHeaders: [],
+        childCards: { "72": first, "73": { result: "SUCCESS", bookings: [], todayPassed: false } },
+      };
+      await page.setViewportSize({ width, height: 844 });
+      await seed(page, options);
+      await installApi(page, state, "FAIL", control, options);
+      const selectChild = async (name: string) => {
+        await page.goto(`${BASE}/student/dashboard`, { waitUntil: "domcontentloaded" });
+        await page.getByRole("tab", { name, exact: true }).first().click();
+        await expect(page.getByRole("tab", { name, exact: true, selected: true })).toBeVisible();
+        await page.goto(`${BASE}/student/idcard`, { waitUntil: "domcontentloaded" });
+      };
+      await selectChild("김하늘");
+      await expect(page.getByTestId("clinic-passcard")).toContainText("김하늘");
+      await expect(page.getByRole("heading", { name: "합격자", exact: true })).toBeVisible();
+      await expect(page.getByText("오늘 수업 통과", { exact: true })).toBeVisible();
+      await page.getByRole("link", { name: "예약 일정 확인하기" }).click();
+      const olderHomework = page.getByTestId("clinic-target-item").filter({ hasText: "5주차 오답 과제" });
+      await expect(olderHomework).toBeVisible();
+
+      await selectChild("김바다");
+      await expect(page.getByTestId("clinic-passcard")).toContainText("김바다");
+      await expect(page.getByRole("heading", { name: "합격자", exact: true })).toBeVisible();
+      await expect(page.getByText("오늘 수업 통과", { exact: true })).toHaveCount(0);
+      await expect(page.getByRole("region", { name: "클리닉 예약 상태" })).toHaveCount(0);
+      await page.goto(`${BASE}/student/clinic`, { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("grid", { name: "클리닉 월간 일정" })).toBeVisible();
+      await expect(olderHomework).toHaveCount(0);
+
+      first.todayPassed = false;
+      await selectChild("김하늘");
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "예약완료", exact: true })).toBeVisible();
+      await expect(page.getByRole("region", { name: "클리닉 예약 상태" })).toContainText("예약 확정");
+      expect(control.studentHeaders).toContain("73");
+      expect(control.studentHeaders?.at(-1)).toBe("72");
+    });
+  }
 
   test("확정 예약은 수강완료까지 예약완료이고 미해결 완료 뒤에는 대상자로 돌아온다", async ({ page }) => {
     const state = createState();

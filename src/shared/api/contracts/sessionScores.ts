@@ -11,6 +11,8 @@ export type ScoreBlock = {
   updated_at?: string | null;
   passed: boolean | null;
   clinic_required: boolean;
+  /** Teacher accepted this homework submission, independently of its numeric grade. */
+  teacher_accepted?: boolean;
   is_locked?: boolean;
   lock_reason?: string | null;
   objective_score?: number | null;

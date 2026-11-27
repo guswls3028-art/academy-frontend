@@ -86,7 +86,7 @@ export default function VideoPlacementsModal({
     }
   }
 
-  return <AdminModal open onClose={onClose} width={660} noMinimize trapFocus closeDisabled={change.isPending}>
+  return <AdminModal open onClose={onClose} size="wide" noMinimize trapFocus closeDisabled={change.isPending}>
     <ModalHeader title="영상 사용 차시 관리" description="같은 파일을 여러 차시에서 사용합니다. 시청 권한과 진도는 각 차시에서 관리합니다." />
     <ModalBody>
       <div className={styles.body}>

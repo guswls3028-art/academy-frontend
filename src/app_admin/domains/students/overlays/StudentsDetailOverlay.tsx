@@ -18,6 +18,7 @@ import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tansta
 import { createPortal } from "react-dom";
 import { ChevronDown, FolderOpen, MonitorSmartphone } from "lucide-react";
 import api from "@/shared/api/axios";
+import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useModalKeyboard } from "@/shared/ui/modal/useModalKeyboard";
 import { useStudentMemo } from "./useStudentMemo";
 import AccountNotificationHistory from "@/shared/product/students/AccountNotificationHistory";
@@ -44,6 +45,7 @@ import { feedback } from "@/shared/ui/feedback/feedback";
 import { formatPhone, formatStudentPhoneDisplay, formatOmrCode, formatGenderDisplay } from "@/shared/utils/formatPhone";
 import { adminStudentsQueryKeys } from "../queryKeys";
 import StudentWrongNoteBuilder from "@admin/domains/results/public/StudentWrongNoteBuilder";
+import StudentHomeworkFiles from "@/shared/product/students/StudentHomeworkFiles";
 import StudentHomeworkTab from "./StudentHomeworkTab";
 import AccountGuidanceModal from "../components/AccountGuidanceModal";
 import PasswordResetModal, { type PwResetTarget } from "../components/PasswordResetModal";
@@ -61,7 +63,7 @@ const DeleteConfirmModal = lazy(() => import("../components/DeleteConfirmModal")
 const StudentEnrollmentMatrixDrawer = lazy(() => import("../components/StudentEnrollmentMatrixDrawer"));
 const StudentStorageExplorer = lazy(() => import("@admin/domains/storage/components/StudentStorageExplorer"));
 
-type StatTabKey = "enroll" | "score" | "homework" | "wrong-note" | "clinic" | "question" | "activity";
+type StatTabKey = "enroll" | "submissions" | "score" | "homework" | "wrong-note" | "clinic" | "question" | "activity";
 type ExamSessionScope = "all" | "REGULAR" | "SUPPLEMENT";
 
 const EXAM_SESSION_SCOPE_OPTIONS: Array<{
@@ -192,7 +194,9 @@ function StudentDetailContent({
   });
   const memo = useStudentMemo(id, student);
   const saveMemo = memo.save;
-  const [showProfile, setProfileOpen] = useState(memo.hasDraft);
+  const isMobile = useIsMobile();
+  const [mobileProfileOpen, setMobileProfileOpen] = useState(memo.hasDraft);
+  const showProfile = !isMobile || mobileProfileOpen || memo.dirty;
   const onClose = useCallback(() => {
     if (leaving.current) return;
     leaving.current = true;
@@ -337,6 +341,39 @@ function StudentDetailContent({
   const studentTagIds = new Set(student.tags.map((tag) => tag.id));
   const availableTags = tags?.filter((tag) => !studentTagIds.has(tag.id)) ?? [];
 
+  const studentTools = (
+    <div className={profileStyles.studentTools}>
+      <Button
+        type="button"
+        intent="ghost"
+        size="sm"
+        disabled={supportOpening}
+        aria-label={supportOpening ? "여는 중…" : "학생 화면 보기"}
+        leftIcon={<MonitorSmartphone size={ICON.sm} aria-hidden />}
+        onClick={async () => {
+          setSupportOpening(true);
+          try {
+            await openStudentSupportPreview(id);
+          } catch (error) {
+            feedback.error(error instanceof Error ? error.message : "학생 화면을 열지 못했습니다.");
+          } finally {
+            setSupportOpening(false);
+          }
+        }}
+      >
+        {supportOpening ? "여는 중…" : isMobile ? "학생 화면" : "학생 화면 보기"}
+      </Button>
+      <Button
+        intent="ghost"
+        size="sm"
+        leftIcon={<FolderOpen size={ICON.sm} aria-hidden />}
+        onClick={() => setInventoryOpen(true)}
+      >
+        학생 자료
+      </Button>
+    </div>
+  );
+
   return (
     <>
       <StudentDetailShell onClose={onClose} layer={layer}>
@@ -366,6 +403,7 @@ function StudentDetailContent({
                 </div>
               </div>
               <div className="ds-overlay-header__right">
+                {!isMobile && studentTools}
                 <div className={`ds-overlay-header__actions ${styles.headerActions}`}>
                   <Button type="button" intent="primary" size="lg" onClick={() => { void memo.save().then((saved) => { if (saved) setEditOpen(true); }); }}>정보 수정</Button>
                   <Button type="button" intent="secondary" size="lg" aria-expanded={accountToolsOpen} aria-controls={tabId + "-account-tools"} onClick={() => setAccountToolsOpen((open) => !open)}>계정·관리</Button>
@@ -406,59 +444,33 @@ function StudentDetailContent({
             </div>
           </header>
 
-          <div className="ds-overlay-body" data-testid="student-detail-scroll">
-            <div className={profileStyles.profileTools}>
+          <div className={`ds-overlay-body ${profileStyles.detailBody}`} data-testid="student-detail-scroll">
+            {isMobile && <div className={profileStyles.profileTools}>
               <Button
                 intent="secondary"
-                size="md"
+                size="sm"
                 aria-expanded={showProfile}
                 aria-controls={tabId + "-profile"}
                 rightIcon={<ChevronDown size={ICON.sm} aria-hidden />}
                 onClick={() => {
-                  if (showProfile) void saveMemo().then((saved) => { if (saved) setProfileOpen(false); });
-                  else setProfileOpen(true);
+                  if (showProfile) void saveMemo().then((saved) => { if (saved) setMobileProfileOpen(false); });
+                  else setMobileProfileOpen(true);
                 }}
               >
                 {showProfile ? "연락처·메모 접기" : "연락처·메모 보기"}
               </Button>
-              <Button
-                type="button"
-                intent="secondary"
-                size="md"
-                disabled={supportOpening}
-                leftIcon={<MonitorSmartphone size={ICON.sm} aria-hidden />}
-                onClick={async () => {
-                  setSupportOpening(true);
-                  try {
-                    await openStudentSupportPreview(id);
-                  } catch (error) {
-                    feedback.error(error instanceof Error ? error.message : "학생 화면을 열지 못했습니다.");
-                  } finally {
-                    setSupportOpening(false);
-                  }
-                }}
-              >
-                {supportOpening ? "여는 중…" : "학생 화면 보기"}
-              </Button>
-              <Button
-                intent="ghost"
-                size="md"
-                leftIcon={<FolderOpen size={ICON.sm} aria-hidden />}
-                onClick={() => setInventoryOpen(true)}
-              >
-                학생 자료
-              </Button>
-            </div>
-            <div id={tabId + "-profile"} hidden={!showProfile} className={`ds-record-card ds-record-reveal ${profileStyles.profilePanel}`}>
+              {studentTools}
+            </div>}
+            <aside id={tabId + "-profile"} aria-label="연락처·메모" hidden={!showProfile} className={profileStyles.profilePanel}>
               {showProfile && <>
                 {/* 연락처 */}
                 <div className="ds-overlay-sidebar-section">
-                  <div className="ds-overlay-sidebar-section__title">기본 정보</div>
+                  <div className="ds-overlay-sidebar-section__title">연락처 · 기본 정보</div>
                   <div className="ds-overlay-info-rows">
-                    {student.psNumber && <InfoRow label="아이디" value={student.psNumber} accent copyable />}
-                    {student.omrCode && <InfoRow label="시험코드" value={formatOmrCode(student.omrCode)} accent copyable />}
                     <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} copyable />
                     <InfoRow label="학생 전화" value={formatStudentPhoneDisplay(student.studentPhone)} copyable />
+                    {student.psNumber && <InfoRow label="아이디" value={student.psNumber} accent copyable />}
+                    {student.omrCode && <InfoRow label="시험코드" value={formatOmrCode(student.omrCode)} accent copyable />}
                     {student.gender && <InfoRow label="성별" value={formatGenderDisplay(student.gender)} />}
                     <InfoRow label="등록일" value={student.registeredAt?.slice(0, 10)} />
                     {student.address && <InfoRow label="주소" value={student.address} />}
@@ -593,52 +605,55 @@ function StudentDetailContent({
                 </div>
 
               </>}
-            </div>
-            <StudentStatTabs
-              id={tabId}
-              activeTab={tab}
-              onTabChange={setTab}
-              enrollments={student.enrollments}
-              examGrades={examGrades}
-              homeworkCount={homeworkGrades.length}
-              gradesLoading={gradesLoading}
-              gradesError={gradesError}
-              clinicCount={clinic.data?.pages[0]?.count ?? 0}
-              questionCount={questions.data?.pages[0]?.count ?? 0}
-              clinicLoading={clinic.isLoading}
-              clinicError={clinic.isError}
-              questionsLoading={questions.isLoading}
-              questionsError={questions.isError}
-            />
+            </aside>
+            <div className={profileStyles.records}>
+              <StudentStatTabs
+                id={tabId}
+                activeTab={tab}
+                onTabChange={setTab}
+                enrollments={student.enrollments}
+                examGrades={examGrades}
+                homeworkCount={homeworkGrades.length}
+                gradesLoading={gradesLoading}
+                gradesError={gradesError}
+                clinicCount={clinic.data?.pages[0]?.count ?? 0}
+                questionCount={questions.data?.pages[0]?.count ?? 0}
+                clinicLoading={clinic.isLoading}
+                clinicError={clinic.isError}
+                questionsLoading={questions.isLoading}
+                questionsError={questions.isError}
+              />
 
-            <div className="ds-record-content" role="tabpanel" id={tabId + "-panel"} aria-labelledby={tabId + "-" + tab} tabIndex={0}>
-              {tab === "enroll" && <EnrollmentsTab studentId={id} studentName={student.name || ""} enrollments={student.enrollments} onNavigate={onNavigate} />}
-              {tab === "score" && (
-                <ScoreTab
-                  studentId={id}
-                  data={examGrades}
-                  summary={gradesData?.exam_summary}
-                  trend={gradesData?.exam_trend ?? []}
-                  isLoading={gradesLoading}
-                  isError={gradesError}
-                  onRetry={() => { void refetchGrades(); }}
-                  onNavigate={onNavigate}
-                />
-              )}
-              {tab === "homework" && (
-                <StudentHomeworkTab
-                  data={homeworkGrades}
-                  isLoading={gradesLoading}
-                  isError={gradesError}
-                  onRetry={() => { void refetchGrades(); }}
-                  onUpdated={async () => { await refetchGrades(); }}
-                  onNavigate={onNavigate}
-                />
-              )}
-              {tab === "wrong-note" && <StudentWrongNoteBuilder studentId={id} />}
-              {tab === "clinic" && <HistoryState label="클리닉" loading={clinic.isLoading} error={clinic.isError} hasData={clinicData.length > 0} hasNext={clinic.hasNextPage} fetchingMore={clinic.isFetchingNextPage} onRetry={() => { void (clinic.isFetchNextPageError ? clinic.fetchNextPage() : clinic.refetch()); }} onMore={() => { void clinic.fetchNextPage(); }}><ClinicTab data={clinicData} onNavigate={onNavigate} /></HistoryState>}
-              {tab === "question" && <HistoryState label="질문" loading={questions.isLoading} error={questions.isError} hasData={questionsData.length > 0} hasNext={questions.hasNextPage} fetchingMore={questions.isFetchingNextPage} onRetry={() => { void (questions.isFetchNextPageError ? questions.fetchNextPage() : questions.refetch()); }} onMore={() => { void questions.fetchNextPage(); }}><QuestionTab data={questionsData} onNavigate={onNavigate} /></HistoryState>}
-              {tab === "activity" && <StudentActivityPanel studentId={id} />}
+              <div className="ds-record-content" role="tabpanel" id={tabId + "-panel"} aria-labelledby={tabId + "-" + tab} tabIndex={0}>
+                {tab === "enroll" && <EnrollmentsTab studentId={id} studentName={student.name || ""} enrollments={student.enrollments} onNavigate={onNavigate} />}
+                {tab === "submissions" && <StudentHomeworkFiles key={id} studentId={id} />}
+                {tab === "score" && (
+                  <ScoreTab
+                    studentId={id}
+                    data={examGrades}
+                    summary={gradesData?.exam_summary}
+                    trend={gradesData?.exam_trend ?? []}
+                    isLoading={gradesLoading}
+                    isError={gradesError}
+                    onRetry={() => { void refetchGrades(); }}
+                    onNavigate={onNavigate}
+                  />
+                )}
+                {tab === "homework" && (
+                  <StudentHomeworkTab
+                    data={homeworkGrades}
+                    isLoading={gradesLoading}
+                    isError={gradesError}
+                    onRetry={() => { void refetchGrades(); }}
+                    onUpdated={async () => { await refetchGrades(); }}
+                    onNavigate={onNavigate}
+                  />
+                )}
+                {tab === "wrong-note" && <StudentWrongNoteBuilder studentId={id} />}
+                {tab === "clinic" && <HistoryState label="클리닉" loading={clinic.isLoading} error={clinic.isError} hasData={clinicData.length > 0} hasNext={clinic.hasNextPage} fetchingMore={clinic.isFetchingNextPage} onRetry={() => { void (clinic.isFetchNextPageError ? clinic.fetchNextPage() : clinic.refetch()); }} onMore={() => { void clinic.fetchNextPage(); }}><ClinicTab data={clinicData} onNavigate={onNavigate} /></HistoryState>}
+                {tab === "question" && <HistoryState label="질문" loading={questions.isLoading} error={questions.isError} hasData={questionsData.length > 0} hasNext={questions.hasNextPage} fetchingMore={questions.isFetchingNextPage} onRetry={() => { void (questions.isFetchNextPageError ? questions.fetchNextPage() : questions.refetch()); }} onMore={() => { void questions.fetchNextPage(); }}><QuestionTab data={questionsData} onNavigate={onNavigate} /></HistoryState>}
+                {tab === "activity" && <StudentActivityPanel studentId={id} />}
+              </div>
             </div>
           </div>
       </StudentDetailShell>
@@ -889,6 +904,7 @@ function StudentStatTabs({
 
   const tabs: { key: StatTabKey; label: string; count?: string }[] = [
     { key: "enroll", label: "수강", count: `${activeEnrollments}건` },
+    { key: "submissions", label: "제출물" },
     { key: "score", label: "시험", count: countLabel(examGrades.length, gradesLoading, gradesError) },
     { key: "homework", label: "과제", count: countLabel(homeworkCount, gradesLoading, gradesError) },
     { key: "wrong-note", label: "오답노트" },
@@ -1243,7 +1259,7 @@ function ScoreTab({
   return (
     <div>
       <div className={styles.scoreToolbar}>
-        <div className="ds-record-tabs" role="tablist" aria-label="개인 시험 결과 범위">
+        <div className={styles.scoreFilters} role="tablist" aria-label="개인 시험 결과 범위">
           {EXAM_SESSION_SCOPE_OPTIONS.map((option, index) => {
             const tabId = `${sessionScopePanelId}-${option.value.toLowerCase()}`;
             return (
@@ -1304,7 +1320,7 @@ function ScoreTab({
               </>
             )}
           </div>
-          <div className={styles.tabList}>
+          <div className={`${styles.tabList} ${styles.examList}`}>
             {visibleExams.map((exam) => (
               <StudentExamCorrectionCard
                 key={exam.exam_id}
