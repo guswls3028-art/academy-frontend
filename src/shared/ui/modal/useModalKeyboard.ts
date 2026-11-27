@@ -32,6 +32,9 @@ function shouldSkipEnter(): boolean {
   const el = document.activeElement as HTMLElement | null;
   if (!el) return false;
 
+  // Controls with their own Enter action handle the key after document capture.
+  if (el.hasAttribute("data-modal-local-enter")) return true;
+
   // textarea, contenteditable → Enter = 줄바꿈
   if (el.tagName === "TEXTAREA") return true;
   if (el.getAttribute?.("contenteditable") === "true") return true;

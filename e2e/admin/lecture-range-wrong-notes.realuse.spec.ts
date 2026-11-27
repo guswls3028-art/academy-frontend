@@ -125,10 +125,25 @@ test("선생님이 1~2차시 시험·과제에서 번호를 입력해 학생별 
   await dialog.getByLabel("끝 차시").selectOption(String(range.to_session_order));
   const [first, second] = family.students;
   await dialog.getByLabel("오답을 입력할 자료").selectOption(`exam:${exam.id}`);
-  await dialog.getByLabel(first.name + " 오답 번호").fill("1");
-  await dialog.getByLabel(second.name + " 오답 번호").fill("3");
+  let batchWrites = 0;
+  page.on("request", request => {
+    if (request.method() === "POST" && new URL(request.url()).pathname.startsWith("/api/v1/results/wrong-notes/batches/")) batchWrites++;
+  });
+  const firstInput = dialog.getByLabel(first.name + " 오답 번호");
+  const secondInput = dialog.getByLabel(second.name + " 오답 번호");
+  await firstInput.fill("1");
+  await firstInput.press("Enter");
+  await expect(secondInput).toBeFocused();
+  await page.keyboard.type("3");
+  await secondInput.press("Shift+Enter");
+  await expect(firstInput).toBeFocused();
+  await page.setViewportSize({ width: 1100, height: 900 });
   await dialog.getByLabel("오답을 입력할 자료").selectOption(`homework:${hw.id}`);
-  await dialog.getByLabel(first.name + " 오답 번호").fill("2");
+  await firstInput.fill("2");
+  await expect(dialog.getByRole("group", { name: first.name, exact: true })).toContainText("전체 2문항");
+  await expect(dialog.getByRole("group", { name: second.name, exact: true })).toContainText("전체 1문항");
+  await assertNoHorizontalOverflow(page);
+  expect(batchWrites).toBe(0);
   const created = page.waitForResponse(r => r.request().method() === "POST"
     && new URL(r.url()).pathname === "/api/v1/results/wrong-notes/batches/");
   await dialog.getByRole("button", { name: "2명 오답노트 묶음 만들기" }).click();
@@ -170,6 +185,7 @@ test("선생님이 1~2차시 시험·과제에서 번호를 입력해 학생별 
       await task.destroy();
     }
   }
+  expect(batchWrites).toBe(1);
   boundary.assertClean();
   guards.assertZeroDefects();
 });

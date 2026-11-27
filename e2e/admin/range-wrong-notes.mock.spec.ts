@@ -17,7 +17,7 @@ const students = [
 ];
 const sources = [
   { type: "exam", id: 51, title: "통합과학 기말고사", session_order: 1, question_numbers: [1, 2, 7, 25], unavailable_numbers: [2], enrollment_ids: [21, 22, 23], ready: true },
-  { type: "homework", id: 61, title: "실험 분석 과제", session_order: 2, question_numbers: [3, 4], unavailable_numbers: [], enrollment_ids: [21], ready: true },
+  { type: "homework", id: 61, title: "실험 분석 과제", session_order: 2, question_numbers: [3, 4], unavailable_numbers: [], enrollment_ids: [21, 23], ready: true },
 ];
 type Requested = { enrollment_id: number; sources: { type: string; id: number; numbers: number[] }[] };
 
@@ -100,24 +100,54 @@ async function setup(page: Page) {
   return { payloads, otherWrites, retries: () => retries };
 }
 
-for (const width of [390, 1366] as const) {
+for (const width of [390, 1100, 1366] as const) {
   test(`차시 범위의 학생별 시험·과제 오답 입력과 문서 복구 (${width}px)`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
     const api = await setup(page);
-    let dialog = await openRangeWrongNotes(page, width);
+    const open = () => openRangeWrongNotes(page, width === 390 ? 390 : 1366);
+    let dialog = await open();
     await expect(dialog.getByLabel("시작 차시").locator("option")).toHaveCount(2);
     await dialog.getByLabel("끝 차시").selectOption("2");
     const material = () => dialog.getByLabel("오답을 입력할 자료");
     await expect(material().locator("option")).toHaveCount(2);
-    await dialog.getByLabel("가온 오답 번호").fill("2");
+    const first = () => dialog.getByLabel("가온 오답 번호");
+    const second = () => dialog.getByLabel("나래 오답 번호");
+    const last = () => dialog.getByLabel("다온 오답 번호");
+    const selectedMaterials = await material().boundingBox();
+    const firstRow = await dialog.getByRole("group", { name: "가온", exact: true }).boundingBox();
+    if (width === 390) {
+      expect(selectedMaterials!.y + selectedMaterials!.height).toBeLessThanOrEqual(firstRow!.y);
+    } else {
+      expect(selectedMaterials!.x + selectedMaterials!.width).toBeLessThanOrEqual(firstRow!.x);
+    }
+    await first().fill("2");
     await expect(dialog.getByText("문제와 정답이 준비된 번호만 입력해 주세요.")).toBeVisible();
     await expect(dialog.getByRole("button", { name: "오답노트 만들기", exact: true })).toBeDisabled();
-    await dialog.getByLabel("가온 오답 번호").fill("25, 1, 25");
-    await dialog.getByLabel("나래 오답 번호").fill("7");
+    await first().press("Enter");
+    await expect(first()).toBeFocused();
+    await first().fill("25, 1, 25");
+    await first().press("Shift+Enter");
+    await expect(first()).toBeFocused();
+    await first().press("Tab");
+    await expect(dialog.getByRole("button", { name: "가온 개인 PDF 만들기" })).toBeFocused();
+    await first().press("Enter");
+    await expect(second()).toBeFocused();
+    await page.keyboard.type("7");
+    await second().press("Shift+Enter");
+    await expect(first()).toBeFocused();
     await material().selectOption("homework:61");
-    await expect(dialog.getByLabel("나래 오답 번호")).toHaveCount(0);
-    const homeworkNumber = dialog.getByLabel("가온 오답 번호");
+    await expect(second()).toHaveCount(0);
+    const homeworkNumber = first();
     await homeworkNumber.fill("4");
+    await homeworkNumber.press("Enter");
+    await expect(last()).toBeFocused();
+    await last().press("Enter");
+    await expect(last()).toBeFocused();
+    await last().press("Shift+Enter");
+    await expect(first()).toBeFocused();
+    expect(api.payloads).toHaveLength(0);
+    await expect(dialog.getByRole("group", { name: "가온", exact: true })).toContainText("전체 3문항");
+    await expect(dialog.getByRole("group", { name: "나래", exact: true })).toContainText("전체 1문항");
     await homeworkNumber.scrollIntoViewIfNeeded();
     await expect(homeworkNumber).toBeInViewport({ ratio: 1 });
     await expect(dialog.getByText("2명 출력 대상 · 1명 제외")).toBeVisible();
@@ -129,12 +159,12 @@ for (const width of [390, 1366] as const) {
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
     await dialog.screenshot({ path: info.outputPath(`range-wrong-notes-${width}.png`) });
     await page.reload();
-    dialog = await openRangeWrongNotes(page, width);
+    dialog = await open();
     await expect(dialog.getByLabel("가온 오답 번호")).toHaveValue("25, 1, 25");
     await dialog.getByRole("button", { name: "2명 오답노트 묶음 만들기" }).click();
     await expect(dialog.getByText("완료하지 못한 문서가 있습니다")).toBeVisible();
     await page.reload();
-    dialog = await openRangeWrongNotes(page, width);
+    dialog = await open();
     await dialog.getByRole("button", { name: "실패한 문서 다시 만들기" }).click();
     const zip = page.waitForEvent("download");
     const downloadBundle = dialog.getByRole("button", { name: "학생별 PDF 묶음 다운로드" });
@@ -153,6 +183,13 @@ for (const width of [390, 1366] as const) {
     const pdf = page.waitForEvent("download");
     await dialog.getByRole("button", { name: "개인 PDF 다운로드" }).click();
     expect((await pdf).suggestedFilename()).toBe("가온 오답노트.pdf");
+    await page.reload();
+    dialog = await open();
+    const repeated = page.waitForEvent("download");
+    await dialog.getByRole("button", { name: "개인 PDF 다운로드" }).click();
+    expect((await repeated).suggestedFilename()).toBe("가온 오답노트.pdf");
+    expect(api.payloads).toHaveLength(2);
+    expect(api.retries()).toBe(1);
     expect(api.payloads[1].students).toEqual([requested[0]]);
     expect(api.otherWrites).toEqual([]);
   });
