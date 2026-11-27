@@ -127,7 +127,7 @@ export default function SwipeAttendancePage() {
             setUndoItem(null);
             feedback.success("퇴원 처리되었습니다. 기존 성적·출결·시청 기록은 보관됩니다.");
           } else if (change.restore_scope) {
-            setUndoItem(null);
+            setUndoItem(change.restore_scope === "session" ? { id: attendanceId, prev: prev.status } : null);
             feedback.success("수강을 복구하고 출결을 저장했습니다.");
           } else setUndoItem({ id: attendanceId, prev: prev.status });
         },
@@ -140,7 +140,7 @@ export default function SwipeAttendancePage() {
     if (undoItem && !updateMut.isPending && !bulkMut.isPending) {
       const record = records.find((row) => row.id === undoItem.id);
       if (!record) return;
-      const change = await prepareStatusChange(record, undoItem.prev);
+      const change = await prepareStatusChange(record, undoItem.prev, { rewithdrawSession: undoItem.prev === "SECESSION" });
       if (!change) return;
       updateMut.mutate({ id: undoItem.id, ...change }, {
         onSuccess: () => setUndoItem(null),
