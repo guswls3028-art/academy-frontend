@@ -40,6 +40,21 @@
   min-width: 0;
 }
 
+.inlineFiltersRow {
+  flex-wrap: wrap;
+}
+
+.inlineFiltersRow .desktopSearch {
+  flex: 1 1 160px;
+  min-width: 150px;
+  max-width: 265px;
+}
+
+.inlineFiltersRow .desktopPrimary {
+  flex: 0 1 auto;
+  margin-inline-start: auto;
+}
+
 .desktopFilters {
   flex-wrap: wrap;
   gap: var(--space-2);

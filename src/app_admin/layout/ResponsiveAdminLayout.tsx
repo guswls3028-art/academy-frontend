@@ -14,6 +14,8 @@ import styles from "./ResponsiveAdminLayout.module.css";
 
 export default function ResponsiveAdminLayout({ onOpenQuickNavigation }: { onOpenQuickNavigation: () => void }) {
   const location = useLocation();
+  // The roster and its course board are two views of the same mounted lecture.
+  const outletKey = location.pathname.replace(/^(\/workspace\/lectures\/[1-9]\d*)(?:\/community)?\/?$/, "$1");
   const mainRef = useRef<HTMLElement>(null);
   const previousPath = useRef(location.pathname);
   useLayoutEffect(() => {
@@ -36,7 +38,7 @@ export default function ResponsiveAdminLayout({ onOpenQuickNavigation }: { onOpe
         </aside>
         <main ref={mainRef} className={styles.main}>
           <div className={styles.content}>
-            <Outlet key={location.pathname} />
+            <Outlet key={outletKey} />
           </div>
         </main>
       </div>

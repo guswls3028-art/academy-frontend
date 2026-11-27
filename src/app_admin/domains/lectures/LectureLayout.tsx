@@ -1,7 +1,7 @@
 // PATH: src/app_admin/domains/lectures/layout/LectureLayout.tsx
-import { Outlet, useMatch, useParams, useNavigate } from "react-router";
+import { Outlet, useLocation, useMatch, useParams, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Settings, Trophy, Users } from "lucide-react";
 import api from "@/shared/api/axios";
 import { DomainLayout } from "@/shared/ui/layout";
@@ -9,6 +9,7 @@ import { Button, EmptyState } from "@/shared/ui/ds";
 import SessionBlock from "@admin/domains/sessions/components/SessionBlock";
 import { useSectionMode } from "@/shared/hooks/useSectionMode";
 import { adminLectureQueryKeys } from "./queryKeys";
+import { useLectureRosterView } from "./useLectureRosterView";
 
 const LectureCreateModal = lazy(() => import("./components/LectureCreateModal"));
 
@@ -20,6 +21,12 @@ export default function LectureLayout() {
   const { lectureId } = useParams<{ lectureId: string }>();
   const isOverview = useMatch("/workspace/lectures/:lectureId");
   const isCommunity = useMatch("/workspace/lectures/:lectureId/community");
+  const { search } = useLocation();
+  const [lastBoard, setLastBoard] = useState("notice");
+  const rosterView = useLectureRosterView();
+  useEffect(() => {
+    if (isCommunity) setLastBoard(new URLSearchParams(search).get("board") === "materials" ? "materials" : "notice");
+  }, [isCommunity, search]);
   const navigate = useNavigate();
   const { sectionMode } = useSectionMode();
   const lectureIdNum = Number(lectureId);
@@ -117,13 +124,13 @@ export default function LectureLayout() {
   const base = `/workspace/lectures/${lectureIdNum}`;
   const tabs = isOverview || isCommunity ? [
     { key: "attendance", label: "출결", path: base, exact: true },
-    { key: "community", label: "커뮤니티", path: `${base}/community` },
+    { key: "community", label: "커뮤니티", path: `${base}/community${lastBoard === "materials" ? "?board=materials" : ""}` },
   ] : undefined;
 
   return (
-    <DomainLayout title={title} description={desc} breadcrumbs={breadcrumbs} headerActions={headerActions} tabs={tabs}>
+    <DomainLayout title={title} description={desc} breadcrumbs={breadcrumbs} headerActions={headerActions} tabs={tabs} density={tabs ? "compact" : "default"}>
       {!isCommunity && <SessionBlock lectureId={lectureIdNum} />}
-      <Outlet />
+      <Outlet context={rosterView} />
       {settingsLectureId === lectureIdNum && (
         <Suspense fallback={null}>
           <LectureCreateModal isOpen lectureId={lectureIdNum} onClose={() => setSettingsLectureId(null)} />

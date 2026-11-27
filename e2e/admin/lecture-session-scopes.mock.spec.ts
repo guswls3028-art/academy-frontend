@@ -132,6 +132,7 @@ function localJwt(): string {
 }
 
 type MockState = {
+  attendanceMatrix?: Record<string, unknown>;
   regularOrder?: number;
   regularTitle?: string;
   regularPatchFailures?: number;
@@ -375,6 +376,7 @@ async function installApi(page: Page, state: MockState) {
       return json(state.examSessionEnrollmentRows ?? []);
     }
     if (path === "/lectures/attendance/matrix/") {
+      if (state.attendanceMatrix) return json(state.attendanceMatrix);
       const sessions = sessionRows(state);
       return json({
         lecture: { id: LECTURE_ID, title: "고1 Hyper 정규반", color: "#2563eb", chip_label: "Y" },
@@ -775,6 +777,71 @@ for (const width of [1366, 390]) {
     await expect(page.getByText("이 강의에서 게시글을 찾을 수 없습니다.")).toBeVisible();
     expect(detailIds).not.toContain(post.id + 1);
     expect(requestedBoards).toEqual(expect.arrayContaining(["notice", "materials"]));
+  });
+}
+
+
+for (const width of [1366, 1100, 390]) {
+  test(`출결 명단을 비교하고 강의 자료실에서 돌아온다 ${width}px`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 768 });
+    const sessions = Array.from({ length: 36 }, (_, i) => ({
+      id: 7000 + i, order: i + 1, regular_order: i + 1, title: `${i + 1}차시`,
+      session_type: "REGULAR", date: `2026-08-${String(i % 28 + 1).padStart(2, "0")}`,
+    }));
+    const students = Array.from({ length: 28 }, (_, i) => ({
+      student_id: 8000 + i, name: `가온${String(i + 1).padStart(2, "0")}`, phone: null, parent_phone: null,
+      attendance: Object.fromEntries(sessions.map((session, j) =>
+        [session.id, { attendance_id: i * sessions.length + j + 1, status: (i + j) % 3 ? "PRESENT" : "ABSENT" }])),
+    }));
+    await openLecture(page, { supplementTitle: "심화 수업", patchTitles: [], attendanceMatrix: { sessions, students } });
+    await page.route("**/api/v1/community/admin/posts/**", route => route.fulfill({ json: { count: 0, results: [] } }));
+    const table = page.getByRole("table").filter({ has: page.getByRole("columnheader", { name: "이름" }) });
+    const search = page.getByPlaceholder("이름 / 전화번호 검색");
+    const all = page.getByRole("group", { name: "출석 차시 범위" }).getByRole("button", { name: "전체 36" });
+    await expect(table.getByText("가온28", { exact: true })).toBeAttached();
+    await expect(table.getByText("가온01", { exact: true })).toBeAttached();
+    await page.screenshot({ path: info.outputPath(`roster-${width}.png`) });
+    const tableTop = (await table.boundingBox())!.y;
+    const scroller = page.getByRole("region", { name: "차시별 출결표" });
+    await scroller.hover();
+    await page.mouse.wheel(0, 565);
+    await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBeGreaterThan(100);
+    const headerTop = (await table.getByRole("columnheader", { name: "이름" }).boundingBox())!.y;
+    expect(Math.abs(headerTop - (await scroller.boundingBox())!.y)).toBeLessThan(4);
+    await search.fill("가온1");
+    await all.click();
+    await expect(table.locator("tbody tr")).toHaveCount(10);
+    const sortByName = table.getByRole("button", { name: "이름", exact: true });
+    await sortByName.focus();
+    await page.keyboard.press("Enter");
+    await expect(table.getByRole("columnheader", { name: "이름" })).toHaveAttribute("aria-sort", "descending");
+    const name = table.getByText("가온10", { exact: true });
+    const nameLeft = (await name.boundingBox())!.x;
+    await scroller.hover();
+    await page.mouse.wheel(3000, 0);
+    await expect.poll(() => scroller.evaluate(el => el.scrollLeft)).toBeGreaterThan(100);
+    const offset = await scroller.evaluate(el => el.scrollLeft);
+    const nameAfterScroll = (await name.boundingBox())!.x;
+    expect(Math.abs(nameAfterScroll - nameLeft)).toBeLessThan(3);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+    await page.getByRole("tab", { name: "커뮤니티", exact: true }).click();
+    const materials = page.getByRole("tab", { name: "자료실", exact: true });
+    await materials.click();
+    await expect(page.getByText("이 강의에 등록된 자료가 없습니다.")).toBeVisible();
+    await page.getByRole("tab", { name: "출결", exact: true }).click();
+    await expect(table).toBeVisible();
+    const returnedOffset = await scroller.evaluate(el => el.scrollLeft);
+    const returnedSearch = await search.inputValue();
+    const returnedScope = await all.getAttribute("aria-pressed");
+    expect(returnedSearch).toBe("가온1");
+    expect(returnedScope).toBe("true");
+    expect(Math.abs(returnedOffset - offset)).toBeLessThan(3);
+    await expect(table.getByRole("columnheader", { name: "이름" })).toHaveAttribute("aria-sort", "descending");
+    await page.getByRole("tab", { name: "커뮤니티", exact: true }).click();
+    const returnedBoard = await materials.getAttribute("aria-selected");
+    expect(returnedBoard).toBe("true");
+    const observations = { width, tableTop, nameLeft, nameAfterScroll, offset, returnedOffset, returnedSearch, returnedScope, returnedBoard };
+    await info.attach("roster-observations", { body: JSON.stringify(observations), contentType: "application/json" });
   });
 }
 
