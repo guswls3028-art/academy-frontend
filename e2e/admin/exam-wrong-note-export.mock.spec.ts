@@ -504,7 +504,7 @@ test("시험 설정에서 다른 강의 차시와 귀가 기준을 390px에서�
 
   const panel = page.getByRole("heading", { name: "시험을 보는 강의" }).locator("xpath=ancestor::section");
   await expect(page.getByText("2개 강의", { exact: true })).toBeVisible();
-  await expect(page.getByText("대상 2명", { exact: true })).toBeVisible();
+  await expect(page.getByText("전체 강의 대상 2명", { exact: true })).toBeVisible();
   await expect(page.getByRole("spinbutton", { name: "A학교 강의 귀가 기준 점수" })).toHaveValue("60");
   await expect(page.getByRole("spinbutton", { name: "B학교 강의 귀가 기준 점수" })).toHaveValue("70");
 

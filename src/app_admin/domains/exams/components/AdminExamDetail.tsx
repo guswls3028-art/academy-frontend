@@ -40,7 +40,7 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
   const enrollment = useExamEnrollmentRows(mode === "operate" ? examId : undefined, sessionId ?? undefined);
   const audienceCount = enrollment.isSuccess && Array.isArray(enrollment.data?.items)
     ? enrollment.data.items.filter(row => row.is_selected).length : undefined;
-  const audienceSummary = audienceCount !== undefined ? `응시 대상 ${audienceCount}명`
+  const audienceSummary = audienceCount !== undefined ? `이 차시 응시 대상 ${audienceCount}명`
     : enrollment.isPending ? "대상 학생 확인 중" : "대상 학생 조회 실패";
   const worklist = useAssessmentWorklist(`${examId}:${linkedTab ?? ""}:${focusAnalysis}`,
     linkedTab === "results" ? { step: "results", action: focusAnalysis ? "analysis" : "results" }

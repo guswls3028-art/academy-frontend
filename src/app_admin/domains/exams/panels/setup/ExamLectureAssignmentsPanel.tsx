@@ -192,7 +192,7 @@ export default function ExamLectureAssignmentsPanel({
         <>
           <div className={styles.summary}>
             <span><School size={ICON.sm} /> {payload?.assignments?.length ?? 0}개 강의</span>
-            <span><Users size={ICON.sm} /> 대상 {payload?.total_selected_count ?? 0}명</span>
+            <span><Users size={ICON.sm} /> 전체 강의 대상 {payload?.total_selected_count ?? 0}명</span>
             <small>연결 차시 활성 명단 {payload?.total_roster_count ?? 0}명 기준</small>
           </div>
           <div className={styles.lanes}>

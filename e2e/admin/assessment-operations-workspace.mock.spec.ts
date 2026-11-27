@@ -377,11 +377,12 @@ for (const width of [1366, 390]) {
       const assignments = lectures.filter(lecture => scores.has(lecture.sessionId)).map(lecture => ({
         lecture_id: lecture.id, lecture_title: lecture.title, lecture_chip_label: lecture.chip_label,
         pass_score: scores.get(lecture.sessionId), uses_default_pass_score: lecture.id === LECTURE_ID,
-        roster_count: 1, selected_count: 1,
+        roster_count: lecture.id === LECTURE_ID ? 2 : 1, selected_count: lecture.id === LECTURE_ID ? 2 : 1,
         sessions: [{ session_id: lecture.sessionId, session_title: "8월 진단평가", session_label: "3차시" }],
       }));
+      const total = assignments.reduce((sum, assignment) => sum + assignment.selected_count, 0);
       return route.fulfill({ json: { exam_id: EXAM_ID, default_pass_score: 80,
-        total_roster_count: assignments.length, total_selected_count: assignments.length, assignments } });
+        total_roster_count: total, total_selected_count: total, assignments } });
     });
 
     await openAssessmentWorkAction(page, "audience", "lectures");
@@ -431,6 +432,8 @@ for (const width of [1366, 390]) {
     await page.reload();
     await openAssessmentWorkAction(page, "audience", "lectures");
     await expect(panel.getByText("3개 강의", { exact: true })).toBeVisible();
+    await expect(panel.getByText("전체 강의 대상 4명", { exact: true })).toBeVisible();
+    await expect(page.locator('[data-stage="audience"]')).toContainText("이 차시 응시 대상 2명");
     for (const [name, cutoff] of [["고1 Hyper 정규반", "80"], ["C학교 강의", "65"], ["D학교 강의", "72"]]) {
       await expect(panel.getByRole("spinbutton", { name: `${name} 귀가 기준 점수` })).toHaveValue(cutoff);
     }
