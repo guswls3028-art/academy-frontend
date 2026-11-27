@@ -3,7 +3,7 @@ import PublicBrandLink from "@/shared/ui/PublicBrandLink";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, Navigate, Link } from "react-router";
 import { Eye, EyeOff } from "lucide-react";
-import { login } from "@/auth/api/auth.api";
+import { InvalidLoginCredentialsError, login } from "@/auth/api/auth.api";
 import type { AccountRecoveryMode } from "@/auth/api/recovery.api";
 import useAuth from "@/auth/hooks/useAuth";
 import { consumeReturnPath } from "@/shared/api/axios";
@@ -44,6 +44,8 @@ import {
 
 const BRANDED_LOGIN_SCENES = new Set(["hakwonplus", "movementhui", "godmin"]);
 
+type LoginError = { message: string; field?: "username" | "password" | "credentials" };
+
 export default function LoginPage() {
   useDocumentTitle();
   useFavicon();
@@ -55,7 +57,7 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<LoginError | null>(null);
   const [showSignup, setShowSignup] = useState(false);
   const [showRecovery, setShowRecovery] = useState(false);
   const [recoveryMode, setRecoveryMode] = useState<AccountRecoveryMode>("password");
@@ -64,6 +66,7 @@ export default function LoginPage() {
   const [capsOn, setCapsOn] = useState(false);
   const [sessionExpired] = useState(() => getSessionItem("session_expired") === "1");
   const usernameRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   const navigate = useNavigate();
   const { refreshMe } = useAuth();
@@ -135,11 +138,23 @@ export default function LoginPage() {
   const hasBrandedScene = BRANDED_LOGIN_SCENES.has(themeAttr);
   const isJeongseongwon = themeAttr === "jeongseongwon-lab";
 
-  async function onSubmit(e: React.FormEvent) {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (pending) return;
+    if (!username.trim()) {
+      setError({ field: "username", message: "아이디 또는 학부모 휴대폰 번호를 입력해 주세요." });
+      usernameRef.current?.focus();
+      return;
+    }
+    if (!password) {
+      setError({ field: "password", message: "비밀번호를 입력해 주세요." });
+      passwordRef.current?.focus();
+      return;
+    }
+    const focusAtSubmit = document.activeElement;
+    const submitButton = e.currentTarget.querySelector('button[type="submit"]');
     setPending(true);
-    setError("");
+    setError(null);
     try {
       await login(username, password);
       const authenticatedUser = await refreshMe();
@@ -152,7 +167,18 @@ export default function LoginPage() {
       const returnPath = consumeReturnPath();
       navigate(returnPath || "/", { replace: true });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "아이디 또는 비밀번호를 확인해주세요.");
+      const credentials = e instanceof InvalidLoginCredentialsError;
+      setError({
+        message: e instanceof Error ? e.message : "아이디 또는 비밀번호를 확인해주세요.",
+        field: credentials ? "credentials" : undefined,
+      });
+      const passwordInput = passwordRef.current;
+      // Respect edits or navigation made while the request was in flight.
+      if (credentials && passwordInput && passwordInput.value === password && usernameRef.current?.value === username
+        && document.activeElement === focusAtSubmit && (focusAtSubmit === submitButton || focusAtSubmit === passwordInput)) {
+        passwordInput.focus();
+        passwordInput.select();
+      }
       setPending(false);
     }
   }
@@ -192,7 +218,7 @@ export default function LoginPage() {
               {hasBrandedScene && !isHakwonplus && <p>아이디와 비밀번호를 입력해주세요.</p>}
             </div>
           )}
-          <form onSubmit={onSubmit} className={styles.form} aria-label="로그인 폼">
+          <form onSubmit={onSubmit} noValidate className={styles.form} aria-label="로그인 폼">
             <label htmlFor="login-username" className={fieldLabelClass}>
               아이디 또는 학부모 휴대폰 번호
             </label>
@@ -203,7 +229,13 @@ export default function LoginPage() {
               placeholder={isHakwonplus ? undefined : "아이디 또는 학부모 휴대폰 번호"}
               name="username"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                if (error?.field === "username" || error?.field === "credentials") setError(null);
+              }}
+              required
+              aria-invalid={error?.field === "username" || undefined}
+              aria-describedby={error?.field === "username" || error?.field === "credentials" ? "login-feedback" : undefined}
               autoComplete="username"
               autoCapitalize="none"
               autoCorrect="off"
@@ -214,12 +246,19 @@ export default function LoginPage() {
             <div className={styles.passwordWrap}>
               <input
                 id="login-password"
+                ref={passwordRef}
                 className={styles.input}
                 type={showPassword ? "text" : "password"}
                 placeholder={isHakwonplus ? undefined : "비밀번호"}
                 name="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error?.field === "password" || error?.field === "credentials") setError(null);
+                }}
+                required
+                aria-invalid={error?.field === "password" || undefined}
+                aria-describedby={error?.field === "password" || error?.field === "credentials" ? "login-feedback" : undefined}
                 onKeyDown={(e) => setCapsOn(e.getModifierState && e.getModifierState("CapsLock"))}
                 onKeyUp={(e) => setCapsOn(e.getModifierState && e.getModifierState("CapsLock"))}
                 onBlur={() => setCapsOn(false)}
@@ -249,8 +288,12 @@ export default function LoginPage() {
                 세션이 만료되었습니다. 다시 로그인해 주세요.
               </div>
             )}
-            {error && <div className={styles.error} role="alert">{error}</div>}
-            <button type="submit" className={styles.btnPrimary} disabled={pending} data-testid="login-submit">
+            {(error || isHakwonplus) && (
+              <div id="login-feedback" data-auth-part="login-feedback" className={error ? styles.error : undefined} role={error ? "alert" : undefined}>
+                {error?.message}
+              </div>
+            )}
+            <button type="submit" className={styles.btnPrimary} aria-disabled={pending || undefined} data-testid="login-submit">
               {pending ? "로그인 중..." : "로그인"}
             </button>
             <div className={styles.links} data-auth-part="account-links">
