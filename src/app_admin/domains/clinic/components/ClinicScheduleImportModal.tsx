@@ -191,7 +191,7 @@ function ImportContent({ currentDate, onClose }: Omit<Props, "open">) {
   }
 
   return (
-    <AdminModal open onClose={() => { if (!importLock.current) onClose(); }} width={620}
+    <AdminModal open onClose={() => { if (!importLock.current) onClose(); }} size="form"
       closeDisabled={creating} noMinimize trapFocus>
       <ModalHeader title="지난 일정 불러오기" noIcon description="시험·방학으로 쉬었던 주가 있어도 원하는 주의 일정을 다시 사용할 수 있습니다." />
       <div className="clinic-import">

@@ -254,6 +254,28 @@ function firstLine(text: string): string {
   return String(text ?? "").split("\n")[0]?.trim() ?? "";
 }
 
+function selectAllScoreCell(el: HTMLElement) {
+  // A queued selection must not return focus to an old contenteditable.
+  if (el.ownerDocument.activeElement !== el) return;
+  const selection = el.ownerDocument.getSelection();
+  if (!selection) return;
+  const range = el.ownerDocument.createRange();
+  range.selectNodeContents(el);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function scheduleScoreCellSelection(el: HTMLElement) {
+  requestAnimationFrame(() => selectAllScoreCell(el));
+}
+
+function focusScoreCell(el: HTMLElement | null | undefined): boolean {
+  if (!el) return false;
+  el.focus();
+  selectAllScoreCell(el);
+  return true;
+}
+
 /** 2026-05-13 학원장 결정 시행: 시험 단위 status 폐기 → 학생별 진행 상태가 SSOT.
  *  점수 셀 tooltip 으로 노출 (클리닉 1차/2차/3차 정합). */
 function achievementLabel(block: { score?: number | null; passed?: boolean | null; achievement?: string | null; meta?: { status?: string | null } | null } | null | undefined): string {
@@ -1044,17 +1066,6 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
     });
   }, [rows, examOptions]);
 
-  /** contenteditable 셀 포커스 시 전체 선택 — 엑셀처럼 입력하면 기존 값이 바로 대체되도록 */
-  const selectAllScoreCell = useCallback((el: HTMLElement | null) => {
-    if (!el) return;
-    const sel = window.getSelection();
-    if (!sel) return;
-    sel.removeAllRanges();
-    const range = document.createRange();
-    range.selectNodeContents(el);
-    sel.addRange(range);
-  }, []);
-
   /** Imperative focus — called directly by SessionScoresPanel; no React state cycle */
   useImperativeHandle(ref, () => ({
     imperativeFocusCell(cell) {
@@ -1070,8 +1081,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           if (!button || button.disabled) return false;
           button.focus();
         } else {
-          el.focus();
-          selectAllScoreCell(el);
+          return focusScoreCell(el);
         }
         return true;
       }
@@ -1083,24 +1093,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
           return true;
         }
         if (cell.sub === "objective") {
-          const el = examObjectiveInputRefs.current[`${cell.enrollmentId}-${cell.examId}-objective`];
-          if (!el) return false;
-          el.focus();
-          selectAllScoreCell(el);
-          return true;
+          return focusScoreCell(examObjectiveInputRefs.current[`${cell.enrollmentId}-${cell.examId}-objective`]);
         }
         if (cell.sub === "subjective") {
-          const el = examSubjectiveInputRefs.current[`${cell.enrollmentId}-${cell.examId}-subjective`];
-          if (!el) return false;
-          el.focus();
-          selectAllScoreCell(el);
-          return true;
+          return focusScoreCell(examSubjectiveInputRefs.current[`${cell.enrollmentId}-${cell.examId}-subjective`]);
         }
-        const el = examInputRefs.current[`${cell.enrollmentId}-${cell.examId}`];
-        if (!el) return false;
-        el.focus();
-        selectAllScoreCell(el);
-        return true;
+        return focusScoreCell(examInputRefs.current[`${cell.enrollmentId}-${cell.examId}`]);
       }
       return false;
     },
@@ -1124,7 +1122,6 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
       return firstLine(active.innerText) !== focusValue;
     },
   }), [
-    selectAllScoreCell,
     flushPendingChanges,
     getPendingSnapshot,
     applyDraftPatch,
@@ -1777,7 +1774,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     beginCellEdit(`examTotal:${row.enrollment_id}:${ex.exam_id}`, el);
                                     examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}`] = focusValue;
                                     el.dataset.focusValue = focusValue;
-                                    requestAnimationFrame(() => selectAllScoreCell(el));
+                                    scheduleScoreCellSelection(el);
                                   }}
                                   onInput={(e) => {
                                     const raw = firstLine(e.currentTarget.innerText);
@@ -1997,7 +1994,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     beginCellEdit(`examObjective:${row.enrollment_id}:${ex.exam_id}`, el);
                                     examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-objective`] = focusValue;
                                     el.dataset.focusValue = focusValue;
-                                    requestAnimationFrame(() => selectAllScoreCell(el));
+                                    scheduleScoreCellSelection(el);
                                   }}
                                   onInput={(e) => {
                                     const raw = firstLine(e.currentTarget.innerText);
@@ -2130,7 +2127,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                     beginCellEdit(`examSubjective:${row.enrollment_id}:${ex.exam_id}`, el);
                                     examScoreValueOnFocusRef.current[`${row.enrollment_id}-${ex.exam_id}-subjective`] = focusValue;
                                     el.dataset.focusValue = focusValue;
-                                    requestAnimationFrame(() => selectAllScoreCell(el));
+                                    scheduleScoreCellSelection(el);
                                   }}
                                   onInput={(e) => {
                                     const raw = firstLine(e.currentTarget.innerText);
@@ -2491,7 +2488,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 beginCellEdit(`homework:${row.enrollment_id}:${hw.homework_id}`, el);
                                 scoreValueOnFocusRef.current[key] = focusValue;
                                 el.dataset.focusValue = focusValue;
-                                requestAnimationFrame(() => selectAllScoreCell(el));
+                                scheduleScoreCellSelection(el);
                               }}
                               onInput={(e) => {
                                 const raw = firstLine(e.currentTarget.innerText);
@@ -2522,9 +2519,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                               }}
                               onMouseDown={(e) => {
                                 e.preventDefault();
-                                const el = e.currentTarget;
-                                el.focus();
-                                selectAllScoreCell(el);
+                                focusScoreCell(e.currentTarget);
                               }}
                               onBlur={(event) => {
                                 if (cancelledBlurRef.current === event.currentTarget) {
@@ -2535,6 +2530,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                 const el = event.currentTarget;
                                 const raw = el.innerText.trim();
                                 const wasLiveChange = liveHistoryKeyRef.current === cellKey;
+                                if (!wasLiveChange && raw === el.dataset.focusValue) return;
                                 const serverValue: PendingChange = isNotSubmitted
                                   ? { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: null, metaStatus: "NOT_SUBMITTED" }
                                   : { type: "homework", enrollmentId: row.enrollment_id, homeworkId: hw.homework_id, score: block?.score ?? null };
@@ -2647,7 +2643,7 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                                       const pasted = text.trim();
                                       if (el) {
                                         el.innerText = pasted;
-                                        requestAnimationFrame(() => selectAllScoreCell(el));
+                                        scheduleScoreCellSelection(el);
                                       }
                                     } catch {
                                       // clipboard denied

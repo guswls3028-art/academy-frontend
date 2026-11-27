@@ -2718,6 +2718,22 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       const firstHomework = page.getByRole("textbox", { name: "자동저장학생1 · 단원 복습 점수 입력" });
       const secondHomework = page.getByRole("textbox", { name: "자동저장학생2 · 단원 복습 점수 입력" });
 
+      // Move twice before the next paint. A deferred text selection on the old
+      // editor must not move focus back or trigger a second blur/save.
+      const destinationCell = await firstExam.evaluateHandle(element => element);
+      const focusResult = await secondHomework.evaluate(async (previous, destination) => {
+        previous.focus();
+        destination.focus();
+        let focusEvents = 0;
+        const countFocus = () => { focusEvents += 1; };
+        previous.addEventListener("focus", countFocus);
+        await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        previous.removeEventListener("focus", countFocus);
+        return { focusEvents, atDestination: document.activeElement === destination };
+      }, destinationCell);
+      await destinationCell.dispose();
+      expect(focusResult).toEqual({ focusEvents: 0, atDestination: true });
+
       await firstHomework.fill("/");
       await firstExam.click();
       await expect(firstHomework).toHaveText("미제출");

@@ -11,23 +11,20 @@
 }
 
 /* ========== 최소화 버튼 (−) — 닫기(X) 좌측 ========== */
-/* .modal-minimize-btn 은 .ant-modal-content 를 positioned ancestor 로 사용한다.
-   (.admin-modal__inner 에 position:relative 을 주면 좌표계가 달라져 X 버튼과 어긋남)
-   top/right 값은 .ant-modal-close 와 동일 좌표계 (SSOT)
-   gap = var(--space-2) = 8px between _ and X */
+/* 닫기 버튼과 같은 기준선·크기를 사용한다. */
 .modal-minimize-btn {
   position: absolute;
-  top: var(--space-4);
-  inset-inline-end: calc(var(--space-4) + 36px + var(--space-2));
-  width: 36px;
-  height: 36px;
+  top: var(--space-3);
+  inset-inline-end: calc(var(--space-3) + var(--modal-header-control) + var(--space-2));
+  width: var(--modal-header-control);
+  height: var(--modal-header-control);
   padding: 0;
   margin: 0;
-  border: 1px solid var(--color-border-divider);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: var(--color-bg-surface);
+  background: transparent;
   color: var(--color-text-secondary);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: none;
   cursor: pointer;
   display: grid;
   place-items: center;

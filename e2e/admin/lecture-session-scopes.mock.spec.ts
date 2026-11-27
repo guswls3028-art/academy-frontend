@@ -903,6 +903,7 @@ test(`기존 전체 보기를 기본으로 유지하고 분리 보기에서 보�
   await expect(page).toHaveURL(new RegExp(`/workspace/lectures/${LECTURE_ID}/sessions/${SUPPLEMENT_SESSION_ID}/attendance`));
   await expect(page.getByRole("tab", { name: "공지·게시판", exact: true })).toBeVisible();
   if (width === 390) await page.getByRole("button", { name: "차시 선택", exact: true }).click();
+  else await page.getByRole("button", { name: "차시·수업일 펼치기", exact: true }).click();
   await page.getByRole("button", { name: "보강 설정" }).click();
   await page.getByRole("button", { name: "수정", exact: true }).click();
   await page.getByLabel("보강 이름").fill("일요일 취약 단원 클리닉");
@@ -1186,6 +1187,8 @@ test("정규 차시 이름 수정은 실패 후 입력을 보존하고 재시도
       await page.getByRole("button", { name: "차시 선택", exact: true }).click();
       await expect(page).toHaveURL(/view=sessions/);
       await expect(page.getByRole("heading", { name: "차시 선택", exact: true })).toBeInViewport({ ratio: 1 });
+    } else {
+      await page.getByRole("button", { name: "차시·수업일 펼치기", exact: true }).click();
     }
     await page.getByRole("button", { name: "정규·보강 나눠 보기", exact: true }).click();
     await expect(page.getByRole("tab", { name: /정규 수업/ })).toHaveAttribute("aria-selected", "true");

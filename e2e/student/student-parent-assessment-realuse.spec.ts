@@ -629,6 +629,23 @@ async function verifyAttendancePriorityAndAbsentScores(
       await priority.click();
       await expect(links.first()).toHaveAttribute("aria-label", `${present.name} 학생 상세 열기`);
 
+      const studentLink = page.getByRole("link", { name: `${present.name} 학생 상세 열기`, exact: true });
+      await expect(studentLink).toHaveAttribute("data-student-detail-trigger", String(present.id));
+      await studentLink.click();
+      const detail = page.getByRole("dialog", { name: "학생 상세", exact: true });
+      await expect(detail.getByRole("heading", { name: present.name, exact: true })).toBeVisible();
+      await detail.getByRole("tab", { name: /^시험/ }).click();
+      const examRow = detail.locator("[data-correction-status]").filter({ has: page.getByText(examTitle, { exact: true }) });
+      await expect(examRow).toHaveCount(1);
+      await examRow.scrollIntoViewIfNeeded();
+      await expect(examRow.getByText("60/100", { exact: true })).toBeInViewport({ ratio: 1 });
+      await assertNoHorizontalOverflow(page);
+      await testInfo.attach(`student-detail-exam-realuse-${width}`, {
+        body: await detail.screenshot(), contentType: "image/png",
+      });
+      await detail.getByRole("button", { name: "닫기", exact: true }).click();
+      await expect(detail).toBeHidden();
+
       await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
       const summary = page.getByRole("group", { name: "마지막 열 표시" });
       if (!(await summary.isVisible())) await page.getByRole("button", { name: /표시 옵션/ }).click();

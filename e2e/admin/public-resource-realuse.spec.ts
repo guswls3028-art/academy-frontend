@@ -56,6 +56,8 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
       for (const [index, width] of [1366, 390].entries()) {
         const page = await open(width);
         await page.goto(`${QA_BASE}/landing/resources`);
+        const publicBrand = page.locator("header").getByRole("link", { name: /게시판$/ });
+        await expect(publicBrand).toHaveAttribute("href", "/landing");
         await page.getByRole("link", { name: "로그인", exact: true }).click();
         await page.getByTestId("login-username").fill(index ? "ymath-qa-resource-publisher" : QA_ADMIN_USER);
         await page.getByTestId("login-password").fill(QA_ADMIN_PASSWORD);
@@ -72,6 +74,7 @@ test.describe.serial("[real-use] 공개 보고서 본문 읽기", () => {
         }
         await expect(page).toHaveURL(/\/landing\/resources$/, { timeout: 45_000 });
         await acknowledgeInitialAccountPromptsIfVisible(page);
+        await expect(publicBrand).toHaveAttribute("href", "/");
         if (index) {
           // The publisher fixture has tenantRole=teacher, unlike QA_ADMIN_USER.
           // Prove guide access with the real account and the exact release bundle.

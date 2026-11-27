@@ -179,7 +179,7 @@ function ScopedTotalsModal({ sessionId, meta: serverMeta, onClose, draftScope }:
     } catch { if (isActiveScope()) setError("최신 설정을 불러오지 못했습니다. 다시 시도해 주세요."); }
     finally { busy.current = false; if (isActiveScope()) setSaving(false); }
   };
-  return <AdminModal open width={760} closeDisabled={saving} onClose={() => void close()}>
+  return <AdminModal open size="wide" closeDisabled={saving} onClose={() => void close()}>
     <ModalHeader title="합산 설정" subtitle={meta.session_title} />
     <ModalBody>
       <p className="assessment-totals-help">총점에 포함할 항목을 체크하세요. 손잡이를 끌거나 화살표를 눌러 성적표와 알림톡의 항목 순서를 바꿀 수 있습니다.</p>

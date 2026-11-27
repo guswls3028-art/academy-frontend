@@ -99,7 +99,7 @@ export default function SessionScheduleTransfer({ sessionId, data, scope, busy, 
   }
 
   return (
-    <AdminModal open onClose={onClose} width={520} noMinimize trapFocus closeDisabled={busy}>
+    <AdminModal open onClose={onClose} size="default" noMinimize trapFocus closeDisabled={busy}>
       <ModalHeader title="학생 수업일 변경" noIcon description="이 차시에서 출석할 수업일을 변경합니다." />
       <ModalBody>
         <div className={styles.body}>

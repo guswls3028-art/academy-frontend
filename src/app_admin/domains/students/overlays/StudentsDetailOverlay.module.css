@@ -213,8 +213,31 @@
   margin-bottom: var(--ds-space-3);
 }
 
-.scoreToolbar > :first-child {
+.scoreFilters {
+  display: flex;
   max-width: 100%;
+  overflow-x: auto;
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-soft);
+}
+
+.scoreFilters :global(.ds-record-tab) {
+  min-height: var(--ds-control-sm);
+  padding-inline: var(--ds-space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+
+.scoreFilters :global(.ds-record-tab)[aria-selected="true"] {
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.examList {
+  gap: 0;
+  border-top: 1px solid var(--color-border-divider);
 }
 
 .trendSummary {
@@ -544,6 +567,11 @@
 }
 
 @media (max-width: 768px) {
+  .scoreToolbar :global(.ds-button) {
+    gap: var(--ds-space-1);
+    padding-inline: var(--ds-space-2);
+  }
+
   .recordActionHint {
     font-size: 0;
   }

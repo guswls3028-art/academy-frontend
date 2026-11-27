@@ -217,6 +217,7 @@ test("동적 모바일 경로는 현재 executable canonical route만 가리킨�
     ["/workspace/mobile/profile", "/workspace/settings/profile"],
     ["/workspace/mobile/my-records", "/workspace/profile/attendance"],
     ["/workspace/mobile/staff-board", "/workspace/staff-board"],
+    ["/workspace/mobile/staff-board/all/51?q=meeting&page=2", "/workspace/staff-board/all/51?q=meeting&page=2"],
     ["/workspace/mobile/staff-board/resource/49?q=%EC%B6%9C%EA%B2%B0+%EC%9E%90%EB%A3%8C&page=2",
       "/workspace/staff-board/resource/49?q=%EC%B6%9C%EA%B2%B0+%EC%9E%90%EB%A3%8C&page=2"],
     [`/workspace/mobile/staff-board/resource?q=${encodeURIComponent("가".repeat(100))}`,

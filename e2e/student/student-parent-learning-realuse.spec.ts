@@ -66,6 +66,54 @@ const videoTitle = `QA 학습 영상 ${runStamp}`;
 const materialTitle = `QA 학습 자료 ${runStamp}`;
 const materialBody = `qa-* 학생/학부모 자료 본문 ${runStamp}`;
 
+async function verifyBrandHomeFromAttendance(page: Page, attendance: string, childName?: string) {
+  const previous = page.url();
+  const record = page.getByRole("link").filter({ hasText: lectureTitle }).first();
+  const publicResources = `${QA_BASE}/landing/resources`;
+  const publicHeading = page.getByRole("heading", { level: 1, name: "게시판", exact: true });
+  const publicBrand = page.locator("header").getByRole("link", { name: /게시판$/ });
+
+  async function expectFamilyHome() {
+    await expect(page).toHaveURL(`${QA_BASE}/student/dashboard`);
+    await expect(page.getByRole("region", { name: "학습 현황", exact: true })).toBeVisible();
+    if (childName) {
+      await expect(page.getByRole("tab", { name: childName, exact: true })).toHaveAttribute("aria-selected", "true");
+    }
+  }
+
+  for (const width of [1366, 390]) {
+    await test.step(`${childName ? "학부모" : "학생"} ${width}px 로고 홈과 이전 출결 복원`, async () => {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+      const home = page.getByTestId("stu-topbar-brand-home");
+      await expect(home).toHaveAccessibleName(/.+ 홈$/);
+      await home.click();
+      await expectFamilyHome();
+      await page.goBack();
+      await expect(page).toHaveURL(previous);
+      await expect(record).toContainText(attendance);
+    });
+    await test.step(`${childName ? "학부모" : "학생"} ${width}px 공개 게시판 로고에서 역할 홈과 원래 명단으로 복귀`, async () => {
+      await gotoAndSettle(page, publicResources);
+      await expect(publicHeading).toBeVisible();
+      await expect(publicBrand).toHaveAttribute("href", "/");
+      if (width === 1366) {
+        await publicBrand.focus();
+        await expect(publicBrand).toBeFocused();
+        await page.keyboard.press("Enter");
+      } else {
+        await publicBrand.click();
+      }
+      await expectFamilyHome();
+      await page.goBack();
+      await expect(page).toHaveURL(publicResources);
+      await expect(publicHeading).toBeVisible();
+      await page.goBack();
+      await expect(page).toHaveURL(previous);
+      await expect(record).toContainText(attendance);
+    });
+  }
+}
+
 async function selectedGet<T>(
   request: APIRequestContext,
   token: string,
@@ -678,6 +726,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     const attendanceLink = page.getByRole("link").filter({ hasText: lectureTitle }).first();
     await expect(attendanceLink).toBeVisible();
     await expect(attendanceLink).toContainText("현장");
+    await verifyBrandHomeFromAttendance(page, "현장");
     await attendanceLink.click();
     await expect(page.getByText(sessionTitle, { exact: true }).first()).toBeVisible();
 
@@ -781,6 +830,7 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await selectParentStudentThroughUi(page, sibling);
     await gotoAndSettle(page, `${QA_BASE}/student/attendance`, { timeout: 30_000 });
     await expect(page.getByRole("link").filter({ hasText: lectureTitle }).first()).toContainText("결석");
+    await verifyBrandHomeFromAttendance(page, "결석", sibling.name);
     const siblingAttendance = await selectedGet<{
       recent: Array<{ lecture_title: string; status: string }>;
     }>(request, parentTokens.access, "/student/attendance/summary/", sibling.id);

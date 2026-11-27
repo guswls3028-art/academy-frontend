@@ -62,8 +62,8 @@ export default function DomainListToolbar({
   }
 
   return (
-    <ControlSizeContext.Provider value="lg">
-    <div className="domain-list-toolbar flex flex-col gap-3" data-control-size="lg">
+    <ControlSizeContext.Provider value="md">
+    <div className="domain-list-toolbar flex flex-col gap-3" data-control-size="md">
       <div className={`${styles.desktopMainRow} ${inlineFiltersOnDesktop ? styles.inlineFiltersRow : ""}`}>
         <span className={styles.totalDesktop}>
           {totalLabel}

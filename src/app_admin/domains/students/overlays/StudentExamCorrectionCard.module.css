@@ -1,16 +1,33 @@
 .examRecordGroup {
   display: grid;
   gap: 8px;
+  border-bottom: 1px solid var(--color-border-divider);
 }
 
-.examRecord[data-correction-status="pending"] {
-  border-inline-start: 3px solid var(--color-warning);
+.examRecordGroup .examRecord {
+  border: 0;
+  border-radius: 0;
+  padding-inline: var(--ds-space-2);
 }
 
-.examRecord[data-correction-status="completed"] {
-  border-inline-start: 3px solid var(--color-success);
+.examRecordGroup .examRecord[data-clickable]:hover {
+  background: var(--color-bg-surface-hover);
+  box-shadow: none;
 }
 
+.examTitle {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.examTitle:hover {
+  text-decoration: underline;
+}
 .correctionStatus {
   display: inline-flex;
   flex: 0 0 auto;

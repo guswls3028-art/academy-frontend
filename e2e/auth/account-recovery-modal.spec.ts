@@ -152,6 +152,19 @@ test.describe("계정 복구 모달 UI 검증", () => {
 
   test("아이디 찾기 모달이 열리고 학생/학부모 대상 전환이 동작한다", async ({ page }) => {
     const dialog = await openRecovery(page, "username");
+    const touchLayout = await page.evaluate(() => matchMedia("(max-width: 1023px), (pointer: coarse)").matches);
+    const controlHeight = touchLayout ? "44px" : "40px";
+    const firstPhone = dialog.getByLabel("학생 또는 학부모 휴대폰 번호 앞 4자리");
+    for (const control of [
+      dialog.getByRole("textbox", { name: "학생 이름" }),
+      dialog.getByText("010", { exact: true }),
+      firstPhone,
+      dialog.getByLabel("학생 또는 학부모 휴대폰 번호 뒤 4자리"),
+      dialog.getByRole("button", { name: "아이디 안내 받기" }),
+      dialog.getByRole("button", { name: "취소" }),
+    ]) await expect(control).toHaveCSS("height", controlHeight);
+    await expect(firstPhone).toHaveCSS("font-size", touchLayout ? "16px" : "14px");
+    await expect(dialog.getByRole("button", { name: "닫기" })).toHaveCSS("height", "44px");
     await expect(dialog.getByRole("heading", { name: "아이디 찾기" })).toBeVisible();
     await expectRecoveryScopeNotice(dialog);
 

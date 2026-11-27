@@ -9,8 +9,8 @@
 .selection > div { display: flex; flex-wrap: wrap; gap: 6px; }
 .selection button { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; max-width: 100%; overflow-wrap: anywhere; padding: 6px 10px; border: 1px solid var(--tc-border); border-radius: var(--tc-radius-sm); background: var(--tc-surface); color: var(--tc-text); font: inherit; font-size: 12px; cursor: pointer; }
 .selection button:focus-visible, .moreButton:focus-visible { outline: 2px solid var(--tc-primary); outline-offset: 2px; }
-.moreButton { min-height: 44px; border: 1px solid var(--tc-border); border-radius: var(--tc-radius); color: var(--tc-text); background: var(--tc-surface); cursor: pointer; }
-.studentRow { min-height: 44px; overflow-wrap: anywhere; transition: background-color 140ms ease; }
+.moreButton { min-height: var(--ds-control-md); border: 1px solid var(--tc-border); border-radius: var(--tc-radius); color: var(--tc-text); background: var(--tc-surface); cursor: pointer; }
+.studentRow { min-height: var(--ds-control-md); overflow-wrap: anywhere; transition: background-color 140ms ease; }
 .studentRow > :last-child { flex-basis: 45%; text-align: right; }
 .studentRow[aria-pressed="true"] { box-shadow: inset 3px 0 var(--tc-primary); }
 .error { padding: 12px; border-radius: var(--tc-radius-sm); background: var(--tc-surface-soft); color: var(--tc-danger); font-size: 13px; overflow-wrap: anywhere; }

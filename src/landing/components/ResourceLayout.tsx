@@ -1,3 +1,4 @@
+import PublicBrandLink from "@/shared/ui/PublicBrandLink";
 import { useEffect, type ReactNode } from "react";
 import { useProgram } from "@/shared/program";
 import { saveReturnPath } from "@/shared/api/axios";
@@ -13,7 +14,7 @@ export default function ResourceLayout({ children, pageTitle }: { children: Reac
   }, [brand, pageTitle]);
   return <div className={styles.shell}>
     <header className={styles.header}>
-      <Link to="/landing" className={styles.brand}>{brand}<span>게시판</span></Link>
+      <PublicBrandLink to="/landing" className={styles.brand}>{brand}<span>게시판</span></PublicBrandLink>
       <nav aria-label="게시판 메뉴"><Link to="/landing">홈페이지</Link><Link to="/login" onClick={() => saveReturnPath()}>로그인</Link></nav>
     </header>
     <main className={styles.main}>{children}</main>

@@ -147,20 +147,23 @@ for (const width of [390, 1366]) {
     const bounds = await dialog.boundingBox();
     expect(bounds!.width).toBeLessThanOrEqual(width === 390 ? 390 : 720);
     const save = dialog.getByRole("button", { name: "생성", exact: true });
-    const footerActions = dialog.locator('[data-control-size="lg"] .ds-button');
+    const touchLayout = await page.evaluate(() => matchMedia("(max-width: 1023px), (pointer: coarse)").matches);
+    const actionHeight = touchLayout ? 44 : 40;
+    const footerActions = dialog.locator('[data-control-size="md"] .ds-button');
     await expect(footerActions).toHaveCount(2);
     await expect.poll(() => footerActions.evaluateAll((buttons) => buttons.map((button) => ({
       height: Math.round(button.getBoundingClientRect().height),
       fontSize: getComputedStyle(button).fontSize,
       padding: getComputedStyle(button).paddingInline,
     })))).toEqual([
-      { height: 44, fontSize: "14px", padding: "20px" },
-      { height: 44, fontSize: "14px", padding: "20px" },
+      { height: actionHeight, fontSize: "14px", padding: "16px" },
+      { height: actionHeight, fontSize: "14px", padding: "16px" },
     ]);
     const name = dialog.getByLabel("강의명 *", { exact: true });
-    await expect.poll(() => name.evaluate((input) => input.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+    await expect(name).toHaveCSS("font-size", touchLayout ? "16px" : "14px");
+    await expect.poll(() => name.evaluate((input) => Math.round(input.getBoundingClientRect().height))).toBe(actionHeight);
     const saveBounds = await save.boundingBox();
-    expect(saveBounds!.height).toBeGreaterThanOrEqual(44);
+    expect(Math.round(saveBounds!.height)).toBe(actionHeight);
     expect(saveBounds!.y).toBeGreaterThanOrEqual(bounds!.y);
     expect(saveBounds!.y + saveBounds!.height).toBeLessThanOrEqual(560);
     if (width > 1000) {
