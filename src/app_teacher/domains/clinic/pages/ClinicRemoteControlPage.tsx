@@ -8,7 +8,7 @@ import { ChevronLeft, RefreshCw } from "@teacher/shared/ui/Icons";
 import { Card } from "@teacher/shared/ui/Card";
 import BottomSheet from "@teacher/shared/ui/BottomSheet";
 import { teacherToast } from "@teacher/shared/ui/teacherToast";
-import type { ClinicColorTuple } from "../api";
+import type { ClinicColorTuple, ClinicSettingsPayload } from "../api";
 import { fetchClinicSettings, updateClinicSettings } from "../api";
 import { teacherClinicQueryKeys } from "../queryKeys";
 import styles from "./ClinicRemoteControlPage.module.css";
@@ -76,7 +76,7 @@ export default function ClinicRemoteControlPage() {
   }, []);
 
   const updateMutation = useMutation({
-    mutationFn: (nextColors: ClinicColorTuple) => updateClinicSettings({ colors: nextColors }),
+    mutationFn: (nextColors: NonNullable<ClinicSettingsPayload["colors"]>) => updateClinicSettings({ colors: nextColors }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: teacherClinicQueryKeys.settings });
       teacherToast.success("패스카드 색상이 반영되었습니다.");
@@ -86,7 +86,7 @@ export default function ClinicRemoteControlPage() {
 
   const applyColor = (color: string) => {
     if (pickerIndex === null) return;
-    const next: ClinicColorTuple = [...colors];
+    const next = [...colors];
     next[pickerIndex] = color;
     updateMutation.mutate(next);
     setPickerIndex(null);

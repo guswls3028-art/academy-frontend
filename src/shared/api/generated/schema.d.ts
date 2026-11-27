@@ -970,6 +970,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/clinic/sessions/notification-teachers/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description 현재 학원에서 클리닉 예약 알림을 받을 수 있는 담당 교직원을 반환합니다. */
+        get: operations["clinic_sessions_notification_teachers_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/clinic/sessions/tree/": {
         parameters: {
             query?: never;
@@ -1000,20 +1017,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * @description GET/PATCH /clinic/settings/
-         *     클리닉 설정 (패스카드 배경 색상 등)
-         */
+        /** @description Read the selected tenant's clinic settings and the caller's capabilities. */
         get: operations["clinic_settings_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /**
-         * @description GET/PATCH /clinic/settings/
-         *     클리닉 설정 (패스카드 배경 색상 등)
-         */
+        /** @description Update only supplied settings and return the full current settings. Staff can update colors, use_daily_random and auto_approve_booking. The booking mode, interval, maximum stay and four cutoff fields require owner or admin access. Cutoff times accept HH:MM or HH:MM:00 in Korean local time and are returned as HH:MM. */
         patch: operations["clinic_settings_partial_update"];
         trace?: never;
     };
@@ -9517,6 +9528,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/results/wrong-notes/batches/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["results_wrong_notes_batches_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/wrong-notes/batches/{batch_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["results_wrong_notes_batches_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/wrong-notes/batches/{batch_id}/download/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["results_wrong_notes_batches_download_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/wrong-notes/batches/{batch_id}/retry/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["results_wrong_notes_batches_retry_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/results/wrong-notes/documents/": {
         parameters: {
             query?: never;
@@ -9635,6 +9710,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["results_wrong_notes_preview_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/results/wrong-notes/range/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["results_wrong_notes_range_retrieve"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -9798,7 +9889,7 @@ export interface paths {
         get: operations["staffs_board_posts_retrieve"];
         put?: never;
         post?: never;
-        delete?: never;
+        delete: operations["staffs_board_posts_destroy"];
         options?: never;
         head?: never;
         patch: operations["staffs_board_posts_partial_update"];
@@ -9834,6 +9925,22 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/v1/staffs/board/posts/{id}/replies/{reply_id}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["staffs_board_posts_replies_destroy"];
+        options?: never;
+        head?: never;
+        patch: operations["staffs_board_posts_replies_partial_update"];
         trace?: never;
     };
     "/api/v1/staffs/currently-working/": {
@@ -13503,6 +13610,29 @@ export interface components {
          * @enum {string}
          */
         BankTransferNoticeStatusEnum: "SUBMITTED" | "CONFIRMED" | "REJECTED";
+        BatchDownload: {
+            filename: string;
+            /** Format: uri */
+            url: string;
+        };
+        BatchInputRequest: {
+            from_session_order: number;
+            lecture_id: number;
+            students: components["schemas"]["StudentSelectionRequest"][];
+            to_session_order: number;
+        };
+        BatchResponse: {
+            detail: string;
+            id: number;
+            status: components["schemas"]["WrongNoteDocumentStatus"];
+            students: components["schemas"]["BatchStudentStatus"][];
+        };
+        BatchStudentStatus: {
+            enrollment_id: number;
+            error_message: string;
+            name: string;
+            status: components["schemas"]["WrongNoteDocumentStatus"];
+        };
         /**
          * @description * `MONTHLY` - 월납
          *     * `ONE_TIME` - 일시납
@@ -13511,6 +13641,13 @@ export interface components {
         BillingCycleEnum: "MONTHLY" | "ONE_TIME";
         /** @enum {unknown} */
         BlankEnum: "";
+        /**
+         * @description * `none` - none
+         *     * `previous_day` - previous_day
+         *     * `before_start` - before_start
+         * @enum {string}
+         */
+        BookingCutoffModeEnum: "none" | "previous_day" | "before_start";
         /**
          * @description * `free` - 자유
          *     * `tip` - 공부 팁
@@ -13559,6 +13696,10 @@ export interface components {
             start_date: string;
             /** Format: time */
             start_time: string;
+        };
+        ClinicCapability: {
+            read: boolean;
+            write: boolean;
         };
         ClinicCheckoutRequestRequest: {
             /** @default false */
@@ -13677,6 +13818,10 @@ export interface components {
          * @enum {string}
          */
         ClinicNotificationRetryResponseStatusEnum: "accepted";
+        ClinicNotificationTeacher: {
+            id: number;
+            name: string;
+        };
         ClinicPlanReplaceRequest: {
             planned_clinic_link_ids: number[];
         };
@@ -13757,6 +13902,8 @@ export interface components {
             max_participants: number;
             /** @description 세션 메모 (운영용) */
             memo?: string;
+            /** @description 담당 교직원 ID. 교직원 요청에서만 제공됩니다. */
+            notification_teacher_id?: number | null;
             readonly participant_count: string;
             /** @description 대상 반. section_mode에서만 사용. 비어있으면 전체. */
             section?: number | null;
@@ -13860,6 +14007,7 @@ export interface components {
             readonly recipient_contacts: {
                 [key: string]: string;
             }[];
+            readonly requested_after_cutoff: boolean;
             /** Format: date */
             requested_date?: string | null;
             /** Format: time */
@@ -14078,6 +14226,8 @@ export interface components {
             max_participants: number;
             /** @description 세션 메모 (운영용) */
             memo?: string;
+            /** @description 담당 교직원 ID. 교직원 요청에서만 제공됩니다. */
+            notification_teacher_id?: number | null;
             /** @description 대상 반. section_mode에서만 사용. 비어있으면 전체. */
             section?: number | null;
             /** Format: time */
@@ -14103,6 +14253,28 @@ export interface components {
              */
             target_school_type?: (components["schemas"]["TargetSchoolTypeEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
             title?: string;
+        };
+        /** @description Complete response shared by GET and successful PATCH. */
+        ClinicSettings: {
+            allow_late_requests: boolean;
+            auto_approve_booking: boolean;
+            booking_cutoff_minutes: number;
+            booking_cutoff_mode: components["schemas"]["BookingCutoffModeEnum"];
+            booking_cutoff_time: string;
+            booking_interval_minutes: components["schemas"]["IntervalMinutesEnum"];
+            /** @description A positive multiple of the effective booking interval. */
+            booking_max_stay_minutes: number;
+            booking_mode: components["schemas"]["ClinicAvailabilityResponseBookingModeEnum"];
+            capabilities: components["schemas"]["ClinicSettingsCapabilities"];
+            colors: string[];
+            multi_slot_booking_default: boolean;
+            saved_colors: string[];
+            use_daily_random: boolean;
+        };
+        ClinicSettingsCapabilities: {
+            booking_policy: components["schemas"]["ClinicCapability"];
+            student_contacts: components["schemas"]["ClinicCapability"];
+            student_operations: components["schemas"]["ClinicCapability"];
         };
         ClinicSubmission: {
             /** Format: date-time */
@@ -17247,6 +17419,8 @@ export interface components {
             max_participants?: number;
             /** @description 세션 메모 (운영용) */
             memo?: string;
+            /** @description 담당 교직원 ID. 교직원 요청에서만 제공됩니다. */
+            notification_teacher_id?: number | null;
             /** @description 대상 반. section_mode에서만 사용. 비어있으면 전체. */
             section?: number | null;
             /** Format: time */
@@ -17272,6 +17446,21 @@ export interface components {
              */
             target_school_type?: (components["schemas"]["TargetSchoolTypeEnum"] | components["schemas"]["BlankEnum"] | components["schemas"]["NullEnum"]) | null;
             title?: string;
+        };
+        /** @description Writable settings. PATCH accepts any subset and preserves omitted values. */
+        PatchedClinicSettingsUpdateRequest: {
+            allow_late_requests?: boolean;
+            auto_approve_booking?: boolean;
+            booking_cutoff_minutes?: number;
+            booking_cutoff_mode?: components["schemas"]["BookingCutoffModeEnum"];
+            booking_cutoff_time?: string;
+            booking_interval_minutes?: components["schemas"]["IntervalMinutesEnum"];
+            /** @description A positive multiple of the effective booking interval. */
+            booking_max_stay_minutes?: number;
+            booking_mode?: components["schemas"]["ClinicAvailabilityResponseBookingModeEnum"];
+            /** @description Passcard colors. A null value leaves the saved colors unchanged. */
+            colors?: string[] | null;
+            use_daily_random?: boolean;
         };
         PatchedClinicStaffMemoRequest: {
             staff_memo?: string;
@@ -17841,6 +18030,9 @@ export interface components {
         PatchedStaffBoardEditRequest: {
             body?: string;
             title?: string;
+        };
+        PatchedStaffBoardReplyRequest: {
+            body?: string;
         };
         PatchedStaffExpenseRecordRequest: {
             /** Format: int64 */
@@ -18953,6 +19145,21 @@ export interface components {
             /** Format: double */
             score?: number;
         };
+        RangeSource: {
+            enrollment_ids: number[];
+            id: number;
+            question_numbers: number[];
+            ready: boolean;
+            session_order: number;
+            title: string;
+            type: components["schemas"]["TypeEnum"];
+            unavailable_numbers: number[];
+        };
+        RangeStudent: {
+            enrollment_id: number;
+            name: string;
+            student_id: number;
+        };
         /**
          * @description * `CARD` - CARD
          *     * `BANK_TRANSFER` - BANK_TRANSFER
@@ -20020,6 +20227,11 @@ export interface components {
          * @enum {string}
          */
         SourceGroupEnum: "school";
+        SourceSelectionRequest: {
+            id: number;
+            numbers: number[];
+            type: components["schemas"]["TypeEnum"];
+        };
         /**
          * @description * `s3` - 직접 업로드
          *     * `youtube` - YouTube 링크
@@ -20037,6 +20249,7 @@ export interface components {
             readonly attachment_name: string;
             readonly author_name: string;
             body: string;
+            readonly can_delete: boolean;
             readonly can_edit: boolean;
             readonly can_remove_attachment: boolean;
             category: components["schemas"]["StaffBoardCategory"];
@@ -20055,6 +20268,7 @@ export interface components {
             readonly attachment_name: string;
             readonly author_name: string;
             body: string;
+            readonly can_delete: boolean;
             readonly can_edit: boolean;
             readonly can_remove_attachment: boolean;
             category: components["schemas"]["StaffBoardCategory"];
@@ -20075,6 +20289,8 @@ export interface components {
         StaffBoardReply: {
             readonly author_name: string;
             body: string;
+            readonly can_delete: boolean;
+            readonly can_edit: boolean;
             /** Format: date-time */
             readonly created_at: string;
             readonly id: number;
@@ -20085,6 +20301,7 @@ export interface components {
         StaffBoardSummary: {
             readonly attachment_name: string;
             readonly author_name: string;
+            readonly can_delete: boolean;
             readonly can_edit: boolean;
             readonly can_remove_attachment: boolean;
             category: components["schemas"]["StaffBoardCategory"];
@@ -21155,6 +21372,10 @@ export interface components {
             uses_identifier?: boolean;
         };
         StudentScheduleListOrHome: components["schemas"]["StudentSession"][] | components["schemas"]["StudentHomeSchedule"];
+        StudentSelectionRequest: {
+            enrollment_id: number;
+            sources: components["schemas"]["SourceSelectionRequest"][];
+        };
         StudentSession: {
             /** Format: date */
             date?: string | null;
@@ -21912,6 +22133,14 @@ export interface components {
             year: number;
         };
         /**
+         * @description * `PENDING` - Pending
+         *     * `RUNNING` - Running
+         *     * `DONE` - Done
+         *     * `FAILED` - Failed
+         * @enum {string}
+         */
+        WrongNoteDocumentStatus: "PENDING" | "RUNNING" | "DONE" | "FAILED";
+        /**
          * @description 오답노트 단일 문항 아이템
          *
          *     ✅ 의도:
@@ -21945,6 +22174,13 @@ export interface components {
             session_order?: number | null;
             session_title?: string;
             student_answer?: string;
+        };
+        WrongNoteRangeResponse: {
+            from_session_order: number;
+            lecture_id: number;
+            sources: components["schemas"]["RangeSource"][];
+            students: components["schemas"]["RangeStudent"][];
+            to_session_order: number;
         };
         WrongNoteSelectedPreviewRequestRequest: {
             source_selection: components["schemas"]["WrongNoteSourceSelectionRequest"][];
@@ -23256,6 +23492,25 @@ export interface operations {
             };
         };
     };
+    clinic_sessions_notification_teachers_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClinicNotificationTeacher"][];
+                };
+            };
+        };
+    };
     clinic_sessions_tree_retrieve: {
         parameters: {
             query?: {
@@ -23289,12 +23544,46 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ClinicSettings"];
+                };
+            };
+            /** @description Missing tenant. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        detail: string;
+                    };
+                };
+            };
+            /** @description Authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        detail: string;
+                    };
+                };
+            };
+            /** @description Requires active staff access in the selected tenant. Only its owner or admin may change booking policy and cutoff fields. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        detail: string;
+                    };
+                };
             };
         };
     };
@@ -23305,14 +23594,54 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedClinicSettingsUpdateRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedClinicSettingsUpdateRequest"];
+                "multipart/form-data": components["schemas"]["PatchedClinicSettingsUpdateRequest"];
+            };
+        };
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ClinicSettings"];
+                };
+            };
+            /** @description Missing tenant or invalid settings. A detail message or field-specific errors describe the rejection. No supplied setting is saved. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string | string[];
+                    };
+                };
+            };
+            /** @description Authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        detail: string;
+                    };
+                };
+            };
+            /** @description Requires active staff access in the selected tenant. Only its owner or admin may change booking policy and cutoff fields. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        detail: string;
+                    };
+                };
             };
         };
     };
@@ -37419,6 +37748,94 @@ export interface operations {
             };
         };
     };
+    results_wrong_notes_batches_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchInputRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["BatchInputRequest"];
+                "multipart/form-data": components["schemas"]["BatchInputRequest"];
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchResponse"];
+                };
+            };
+        };
+    };
+    results_wrong_notes_batches_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchResponse"];
+                };
+            };
+        };
+    };
+    results_wrong_notes_batches_download_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchDownload"];
+                };
+            };
+        };
+    };
+    results_wrong_notes_batches_retry_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                batch_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BatchResponse"];
+                };
+            };
+        };
+    };
     results_wrong_notes_documents_create: {
         parameters: {
             query?: never;
@@ -37516,6 +37933,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WrongNoteSelectedPreviewResponse"];
+                };
+            };
+        };
+    };
+    results_wrong_notes_range_retrieve: {
+        parameters: {
+            query: {
+                from_session_order: number;
+                lecture_id: number;
+                to_session_order: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WrongNoteRangeResponse"];
                 };
             };
         };
@@ -37920,6 +38360,27 @@ export interface operations {
             };
         };
     };
+    staffs_board_posts_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     staffs_board_posts_partial_update: {
         parameters: {
             query?: never;
@@ -38050,6 +38511,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StaffBoardError"];
+                };
+            };
+        };
+    };
+    staffs_board_posts_replies_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+                reply_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    staffs_board_posts_replies_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description staff board post을 식별하는 고유한 정수 값. */
+                id: number;
+                reply_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedStaffBoardReplyRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedStaffBoardReplyRequest"];
+                "multipart/form-data": components["schemas"]["PatchedStaffBoardReplyRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffBoardReply"];
                 };
             };
         };

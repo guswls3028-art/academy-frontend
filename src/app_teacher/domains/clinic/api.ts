@@ -252,39 +252,12 @@ export async function fetchClinicAvailability(sessionId: number): Promise<Clinic
 }
 
 /* ─── Passcard settings ─── */
-export type ClinicColorTuple = [string, string, string];
-
-export type ClinicSettingsPayload = {
-  auto_approve_booking?: boolean;
-  use_daily_random?: boolean;
-  colors?: ClinicColorTuple;
-  booking_mode?: "fixed_slot" | "time_range";
-  booking_interval_minutes?: 30 | 60;
-  booking_max_stay_minutes?: number;
-};
-
-export type ClinicSettings = ClinicSettingsPayload & {
-  saved_colors?: ClinicColorTuple;
-  multi_slot_booking_default?: boolean;
-  booking_mode: "fixed_slot" | "time_range";
-  booking_interval_minutes: 30 | 60;
-  booking_max_stay_minutes: number;
-  capabilities?: {
-    student_operations: { read: boolean; write: boolean };
-    student_contacts: { read: boolean; write: boolean };
-    booking_policy: { read: boolean; write: boolean };
-  };
-};
-
-export async function fetchClinicSettings(): Promise<ClinicSettings> {
-  const res = await api.get<ClinicSettings>("/clinic/settings/");
-  return res.data;
-}
-
-export async function updateClinicSettings(payload: ClinicSettingsPayload): Promise<ClinicSettings> {
-  const res = await api.patch<ClinicSettings>("/clinic/settings/", payload);
-  return res.data;
-}
+export { fetchClinicSettings, updateClinicSettings } from "@/shared/api/clinicSettings";
+export type {
+  ClinicColorTuple,
+  ClinicSettingsPatch as ClinicSettingsPayload,
+  ClinicSettings,
+} from "@/shared/api/clinicSettings";
 
 /* ─── Targets ─── */
 export async function fetchClinicTargets(params?: { section_id?: number }) {

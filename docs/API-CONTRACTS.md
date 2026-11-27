@@ -20,6 +20,10 @@ diff. Existing handwritten contracts may migrate endpoint by endpoint; new or
 touched API code should derive shapes from the generated `paths` or
 `components` types when the backend schema covers that endpoint.
 
+The clinic settings client uses the generated GET and PATCH response bodies and the
+PATCH request body. The administrator view normalizes missing settings from older
+responses before rendering controls. [Clinic settings client](../src/shared/api/clinicSettings.ts)
+
 Generated files are excluded from refactor inventory and legacy-call text
 scans because they describe server compatibility routes but never execute
 them; generator output is governed by the dedicated drift check. Tenant,

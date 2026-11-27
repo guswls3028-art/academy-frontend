@@ -1,33 +1,26 @@
 // PATH: src/app_admin/domains/clinic/api/clinicSettings.api.ts
-import api from "@/shared/api/axios";
+import {
+  fetchClinicSettings as fetchSettings,
+  updateClinicSettings as patchSettings,
+  type ClinicColorTuple,
+  type ClinicSettingsPatch,
+  type ClinicSettings as SettingsData,
+} from "@/shared/api/clinicSettings";
 
-export type ClinicCutoffPolicy = {
-  booking_cutoff_mode: "none" | "previous_day" | "before_start";
-  booking_cutoff_time: string;
-  booking_cutoff_minutes: number;
-  allow_late_requests: boolean;
+export type ClinicSettings = Omit<SettingsData, "colors" | "saved_colors"> & {
+  colors: ClinicColorTuple;
+  saved_colors?: ClinicColorTuple;
 };
 
-export type ClinicSettings = ClinicCutoffPolicy & {
-  colors: [string, string, string];
-  use_daily_random?: boolean;
-  auto_approve_booking?: boolean;
-  multi_slot_booking_default?: boolean;
-  booking_mode: "fixed_slot" | "time_range";
-  booking_interval_minutes: 30 | 60;
-  booking_max_stay_minutes: number;
-  capabilities: {
-    student_operations: { read: boolean; write: boolean };
-    student_contacts: { read: boolean; write: boolean };
-    booking_policy: { read: boolean; write: boolean };
-  };
-  saved_colors?: [string, string, string];
-};
+export type ClinicCutoffPolicy = Required<Pick<
+  ClinicSettingsPatch,
+  "booking_cutoff_mode" | "booking_cutoff_time" | "booking_cutoff_minutes" | "allow_late_requests"
+>>;
 
-export type ClinicBookingPolicy = Pick<
-  ClinicSettings,
+export type ClinicBookingPolicy = Required<Pick<
+  ClinicSettingsPatch,
   "booking_mode" | "booking_interval_minutes" | "booking_max_stay_minutes"
->;
+>>;
 
 const DEFAULT_CAPABILITIES: ClinicSettings["capabilities"] = {
   student_operations: { read: false, write: false },
@@ -35,10 +28,10 @@ const DEFAULT_CAPABILITIES: ClinicSettings["capabilities"] = {
   booking_policy: { read: false, write: false },
 };
 
-function normalizeSettings(data: Record<string, unknown>): ClinicSettings {
+function normalizeSettings(data: Partial<SettingsData>): ClinicSettings {
   const colors = Array.isArray(data.colors) ? data.colors : ["#ef4444", "#3b82f6", "#22c55e"];
   const capabilities = data.capabilities && typeof data.capabilities === "object"
-    ? data.capabilities as ClinicSettings["capabilities"]
+    ? data.capabilities
     : DEFAULT_CAPABILITIES;
   return {
     colors: [String(colors[0] || "#ef4444"), String(colors[1] || "#3b82f6"), String(colors[2] || "#22c55e")],
@@ -60,8 +53,7 @@ function normalizeSettings(data: Record<string, unknown>): ClinicSettings {
 }
 
 export async function fetchClinicSettings(): Promise<ClinicSettings> {
-  const res = await api.get("/clinic/settings/");
-  return normalizeSettings(res.data ?? {});
+  return normalizeSettings((await fetchSettings()) ?? {});
 }
 
 export async function updateClinicSettings(
@@ -70,11 +62,10 @@ export async function updateClinicSettings(
   auto_approve_booking?: boolean,
   bookingPolicy?: ClinicBookingPolicy | ClinicCutoffPolicy,
 ): Promise<ClinicSettings> {
-  const payload: Partial<ClinicCutoffPolicy & ClinicBookingPolicy & Pick<ClinicSettings, "colors" | "use_daily_random" | "auto_approve_booking">> = {};
+  const payload: ClinicSettingsPatch = {};
   if (colors !== undefined) payload.colors = colors;
   if (use_daily_random !== undefined) payload.use_daily_random = use_daily_random;
   if (auto_approve_booking !== undefined) payload.auto_approve_booking = auto_approve_booking;
   if (bookingPolicy) Object.assign(payload, bookingPolicy);
-  const res = await api.patch("/clinic/settings/", payload);
-  return normalizeSettings(res.data ?? {});
+  return normalizeSettings((await patchSettings(payload)) ?? {});
 }
