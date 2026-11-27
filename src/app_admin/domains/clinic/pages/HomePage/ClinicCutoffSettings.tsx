@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
 import { getApiErrorMessage } from "@/shared/api/errorMessage";
@@ -22,10 +22,17 @@ export default function ClinicCutoffSettings({ settings }: { settings: ClinicSet
   const changed = mode !== settings.booking_cutoff_mode || allowLate !== settings.allow_late_requests
     || (mode === "previous_day" && time !== settings.booking_cutoff_time)
     || (mode === "before_start" && minutes !== settings.booking_cutoff_minutes);
+  const restoreEditFocus = useRef(false);
+  useLayoutEffect(() => {
+    if (editing || !restoreEditFocus.current) return;
+    restoreEditFocus.current = false;
+    document.getElementById(id + "-edit")?.focus({ preventScroll: true });
+  }, [editing, id]);
+
   const closeEditor = () => {
+    restoreEditFocus.current = true;
     setEditing(false);
     setDraft({});
-    requestAnimationFrame(() => document.getElementById(id + "-edit")?.focus({ preventScroll: true }));
   };
   const save = useMutation({
     mutationFn: (policy: ClinicCutoffPolicy) => updateClinicSettings(undefined, undefined, undefined, policy),
