@@ -132,10 +132,11 @@ interface TenantMeta {
 const HAKWONPLUS_HOSTS = new Set(["hakwonplus.com", "www.hakwonplus.com"]);
 const DEV_CONSOLE_HOST = "dev.hakwonplus.com";
 const DEV_CONSOLE_ORIGIN = `https://${DEV_CONSOLE_HOST}`;
+const PLATFORM_TOUCH_ICON = "/tenants/hakwonplus/apple-touch-icon.png?v=20261119";
 const PLATFORM_ICON_ALIASES = new Map([
   ["/favicon.ico", "/tenants/hakwonplus/favicon.png?v=20261119"],
-  ["/apple-touch-icon.png", "/tenants/hakwonplus/apple-touch-icon.png?v=20261119"],
-  ["/apple-touch-icon-precomposed.png", "/tenants/hakwonplus/apple-touch-icon.png?v=20261119"],
+  ["/apple-touch-icon.png", PLATFORM_TOUCH_ICON],
+  ["/apple-touch-icon-precomposed.png", PLATFORM_TOUCH_ICON],
 ]);
 
 const HAKWONPLUS_PROMO_META: Record<string, TenantMeta> = {
@@ -627,9 +628,13 @@ function injectMeta(
 
   // favicon
   if (favicon) {
+    const touchIcon = meta.appleTouchIcon || PLATFORM_TOUCH_ICON;
+    const touchLink = HAKWONPLUS_HOSTS.has(host)
+      ? `\n    <link rel="apple-touch-icon" href="${escapeMeta(touchIcon)}"${touchIcon === PLATFORM_TOUCH_ICON ? ' sizes="180x180"' : ""} />`
+      : "";
     html = html.replace(
       /<link rel="icon" href="[^"]*"[^>]*>/,
-      () => `<link rel="icon" href="${escapeMeta(favicon)}" type="image/png" />`,
+      () => `<link rel="icon" href="${escapeMeta(favicon)}" type="image/png" />${touchLink}`,
     );
   }
 
@@ -881,6 +886,7 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
         ...apiMeta,
         image: apiMeta.image || fallback?.image,
         favicon: apiMeta.favicon || fallback?.favicon,
+        appleTouchIcon: apiMeta.appleTouchIcon || (apiMeta.favicon !== fallback?.favicon ? apiMeta.favicon : undefined),
         imageWidth: fallback?.imageWidth,
         imageHeight: fallback?.imageHeight,
       }
@@ -890,6 +896,7 @@ const handleRequestGet: PagesFunction<Env> = async (context) => {
     ? {
         ...fallback,
         ...promoMeta,
+        appleTouchIcon: tenantMeta?.appleTouchIcon,
       }
     : tenantMeta;
   const godminHost = TENANT_SEO[host]?.domain === GODMIN_PUBLIC_SITE.domain;
