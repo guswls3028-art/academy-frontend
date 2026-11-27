@@ -3,6 +3,7 @@ import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-quer
 import { fetchLectureEnrollments } from "@/shared/api/contracts/enrollments";
 import { fetchStudents, type ClientStudent } from "@/shared/api/contracts/students";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
+import { MODAL_WIDTH } from "@/shared/ui/modal/constants";
 import { Badge, Button, EmptyState } from "@/shared/ui/ds";
 import { useConfirm } from "@/shared/ui/confirm";
 import { feedback } from "@/shared/ui/feedback";
@@ -175,7 +176,7 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
   };
 
   return (
-    <AdminModal open onClose={() => { void leave(onClose); }} type="action" width={840}
+    <AdminModal open onClose={() => { void leave(onClose); }} type="action" width={MODAL_WIDTH.enroll}
       className="lecture-enroll-picker" noMinimize trapFocus closeDisabled={saving}>
       <ModalHeader type="action" title="수강생 등록"
         description="기존 학생을 선택해 강의 명단에 추가하세요." />
@@ -252,30 +253,42 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
             <span>{page} / {totalPages} 페이지</span>
             <Button size="sm" disabled={selectionLocked || loading || searching || loadError || page >= totalPages} onClick={() => setPage(page + 1)}>다음</Button>
           </nav>
-          <section className="lecture-enroll-picker__selection" aria-label="선택한 학생">
-            <div className="lecture-enroll-picker__toolbar">
-              <span><strong role="status">{selectedIds.size}명 선택</strong><span className="lecture-enroll-picker__limit"> / 최대 200명</span></span>
-              <Button size="sm" intent="ghost" disabled={selectionLocked || !selected.size}
-                onClick={() => { setSelected(new Map()); setSelectionMessage(""); }}>전체 선택 해제</Button>
-            </div>
-            {selected.size > 0 ? <div className="lecture-enroll-picker__chips">
-              {[...selected.values()].map((student) => <button key={student.id} type="button" disabled={selectionLocked}
-                title={[student.name, student.school, formatPhone(student.parentPhone)].filter(Boolean).join(" · ")}
-                aria-label={`${student.name}, ${student.school || "학교 정보 없음"}, 학부모 ${formatPhone(student.parentPhone) || "연락처 없음"} 선택 해제`} onClick={() => {
-                  setSelected((previous) => { const next = new Map(previous); next.delete(student.id); return next; });
-                  setSelectionMessage("");
-                }}>{student.name}<span aria-hidden> ×</span></button>)}
-            </div> : notice.pending ? <p>이 탭에 저장된 이전 요청의 선택입니다.</p> : <p>이름을 눌러 선택하세요.<br />검색·조건·페이지를 바꿔도 선택은 유지됩니다.</p>}
-          </section>
-          {selectionMessage && <p role="status" className="lecture-enroll-picker__notice">{selectionMessage}</p>}
-          {notice.error && <p role="alert" className="lecture-enroll-picker__error">{notice.error}</p>}
-          {notice.pending && !notice.error && !saving && <p>이전 {notice.pending.students.length}명 등록 요청의 결과를 확인해 주세요.</p>}
-          <EnrollmentNoticeOptions choices={notice.choices} disabled={selectionLocked} onChange={next => {
-            notice.setChoices(next);
-            if (next.student_notice !== "send" && next.parent_notice !== "send") {
-              setSelected(previous => new Map([...previous].filter(([id]) => enrollmentStatus.get(id) !== "ACTIVE")));
-            }
-          }} />
+          <div className="lecture-enroll-picker__review">
+            <section className="lecture-enroll-picker__selection" aria-label="선택한 학생">
+              <div className="lecture-enroll-picker__toolbar">
+                <span><strong role="status">{selectedIds.size}명 선택</strong><span className="lecture-enroll-picker__limit"> / 최대 200명</span></span>
+                <Button size="sm" intent="ghost" disabled={selectionLocked || !selected.size}
+                  onClick={() => { setSelected(new Map()); setSelectionMessage(""); }}>전체 선택 해제</Button>
+              </div>
+              {selected.size > 0 ? <ul className="lecture-enroll-picker__selected-list" aria-label="등록할 학생 연락처">
+                {[...selected.values()].map((student) => <li key={student.id}>
+                  <div className="lecture-enroll-picker__selected-student">
+                    <strong>{student.name}</strong>
+                    <span>{[student.school, student.grade && `${student.grade}학년`].filter(Boolean).join(" · ") || "학교 정보 없음"}</span>
+                  </div>
+                  <div className="lecture-enroll-picker__selected-contacts">
+                    <span>학생 <bdi>{student.studentPhone ? formatPhone(student.studentPhone) : "번호 없음"}</bdi>{notice.choices.student_notice === "skip" && <small>발송 안 함</small>}</span>
+                    <span>학부모 <bdi>{student.parentPhone ? formatPhone(student.parentPhone) : "번호 없음"}</bdi>{notice.choices.parent_notice === "skip" && <small>발송 안 함</small>}</span>
+                  </div>
+                  <button type="button" disabled={selectionLocked}
+                    title={`${student.name} 선택 해제`}
+                    aria-label={`${student.name}, ${student.school || "학교 정보 없음"}, 학부모 ${student.parentPhone ? formatPhone(student.parentPhone) : "연락처 없음"} 선택 해제`} onClick={() => {
+                      setSelected((previous) => { const next = new Map(previous); next.delete(student.id); return next; });
+                      setSelectionMessage("");
+                    }}><span aria-hidden>×</span></button>
+                </li>)}
+              </ul> : notice.pending ? <p>이 탭에 저장된 이전 요청의 선택입니다.</p> : <p>이름을 눌러 선택하세요.<br />검색·조건·페이지를 바꿔도 선택은 유지됩니다.</p>}
+            </section>
+            {selectionMessage && <p role="status" className="lecture-enroll-picker__notice">{selectionMessage}</p>}
+            {notice.error && <p role="alert" className="lecture-enroll-picker__error">{notice.error}</p>}
+            {notice.pending && !notice.error && !saving && <p>이전 {notice.pending.students.length}명 등록 요청의 결과를 확인해 주세요.</p>}
+            <EnrollmentNoticeOptions choices={notice.choices} disabled={selectionLocked} onChange={next => {
+              notice.setChoices(next);
+              if (next.student_notice !== "send" && next.parent_notice !== "send") {
+                setSelected(previous => new Map([...previous].filter(([id]) => enrollmentStatus.get(id) !== "ACTIVE")));
+              }
+            }} />
+          </div>
         </div>
       </ModalBody>
       <ModalFooter left={onChooseExcelUpload ? <Button intent="ghost" disabled={saving} onClick={() => {

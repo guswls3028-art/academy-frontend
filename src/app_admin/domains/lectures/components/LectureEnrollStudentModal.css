@@ -1,8 +1,8 @@
 .lecture-enroll-picker .admin-modal__inner { height: min(760px, calc(100vh - 96px)); height: min(760px, calc(100dvh - 96px)); }
 .lecture-enroll-picker .modal-body { overflow-y: auto; }
-.lecture-enroll-picker__body:has(details[open]) { min-height: min-content; }
 .lecture-enroll-picker__body { display: flex; flex: 1; flex-direction: column; gap: 10px; min-width: 0; min-height: 0; }
 .lecture-enroll-picker__body > :not(.lecture-enroll-picker__list) { flex-shrink: 0; }
+.lecture-enroll-picker__review { display: contents; }
 .lecture-enroll-picker__search { display: flex; align-items: center; gap: 4px; }
 .lecture-enroll-picker__search input { flex: 1; min-width: 0; min-height: 40px; padding: 8px 12px; font-size: 14px; line-height: 1.5; }
 .lecture-enroll-picker__filters { display: flex; align-items: center; gap: 8px; }
@@ -27,10 +27,18 @@
 .lecture-enroll-picker__limit { font-size: 11px; color: var(--color-text-secondary); }
 .lecture-enroll-picker__selection p, .lecture-enroll-picker__hint { margin: 0; font-size: 12px; color: var(--color-text-secondary); line-height: 1.6; }
 .lecture-enroll-picker__selection p { min-height: 44px; margin-top: 6px; }
-.lecture-enroll-picker__chips { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; height: 44px; overflow-y: auto; overscroll-behavior: contain; margin-top: 6px; }
-.lecture-enroll-picker__chips button { min-height: 36px; border: 1px solid var(--color-border-divider); background: var(--color-bg-surface); color: var(--color-text-primary); border-radius: 6px; padding: 6px 10px; font-size: 13px; cursor: pointer; overflow-wrap: anywhere; max-width: 100%; animation: lecture-enroll-selection 120ms ease-out; }
-.lecture-enroll-picker__chips button:disabled { cursor: default; opacity: 0.65; }
-.lecture-enroll-picker__chips button:focus-visible { outline: 2px solid var(--color-primary); }
+.lecture-enroll-picker__selected-list { list-style: none; margin: 6px 0 0; padding: 0; height: 76px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.lecture-enroll-picker__selected-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 6px; align-items: start; padding: 6px 0; border-top: 1px solid var(--color-border-divider); animation: lecture-enroll-selection 120ms ease-out; }
+.lecture-enroll-picker__selected-student { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; font-size: 13px; overflow-wrap: anywhere; }
+.lecture-enroll-picker__selected-student > span, .lecture-enroll-picker__selected-contacts { font-size: 12px; color: var(--color-text-secondary); }
+.lecture-enroll-picker__selected-contacts { grid-column: 1; display: flex; flex-wrap: wrap; gap: 1px 8px; line-height: 1.5; }
+.lecture-enroll-picker__selected-contacts > span { min-width: 0; overflow-wrap: anywhere; }
+.lecture-enroll-picker__selected-contacts bdi { font-variant-numeric: tabular-nums; color: var(--color-text-primary); }
+.lecture-enroll-picker__selected-contacts small { margin-inline-start: 5px; font-size: 11px; }
+.lecture-enroll-picker__selected-list button { grid-column: 2; grid-row: 1 / 3; min-width: 32px; min-height: 32px; align-self: center; border: 0; border-radius: 6px; background: transparent; color: var(--color-text-secondary); font-size: 18px; cursor: pointer; }
+.lecture-enroll-picker__selected-list button:hover { background: var(--color-bg-surface-hover); color: var(--color-text-primary); }
+.lecture-enroll-picker__selected-list button:disabled { cursor: default; opacity: 0.65; }
+.lecture-enroll-picker__selected-list button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 .lecture-enroll-picker__error { margin: 0; color: var(--color-error); font-size: 13px; }
 .lecture-enroll-picker__notice { margin: 0; color: var(--color-text-secondary); font-size: 13px; }
 /* Keep the decision and actions in the non-scrolling footer at every body scroll position. */
@@ -42,13 +50,36 @@
 .lecture-enroll-picker .modal-footer__actions > [role="group"] { grid-column: 1 / -1; grid-row: 1; }
 .lecture-enroll-picker .modal-footer__side { grid-column: 1; grid-row: 2; }
 @keyframes lecture-enroll-selection { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+@media (min-width: 900px) {
+  .lecture-enroll-picker__body {
+    display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(264px, 1fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto; column-gap: 16px; min-height: 0;
+  }
+  .lecture-enroll-picker__body > :not(.lecture-enroll-picker__review) { grid-column: 1; }
+  .lecture-enroll-picker__review { grid-column: 2; grid-row: 1 / -1; display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; }
+  .lecture-enroll-picker__review > * { flex-shrink: 0; }
+  .lecture-enroll-picker__selection { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 100px; }
+  .lecture-enroll-picker__selected-list { flex: 1; min-height: 0; height: 0; }
+  .lecture-enroll-picker__selected-list li { padding-block: 8px; }
+  .lecture-enroll-picker__selected-contacts { display: grid; }
+  .lecture-enroll-picker__selected-contacts > span { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: baseline; }
+}
+@media (max-width: 899px) {
+  .lecture-enroll-picker__body:has(details[open]) { flex: none; }
+  .lecture-enroll-picker__body:has(details[open]) .lecture-enroll-picker__list {
+    flex: none; height: clamp(96px, 18vh, 160px); height: clamp(96px, 18dvh, 160px);
+  }
+}
 @media (max-width: 600px) {
   .lecture-enroll-picker .modal-body { padding: 12px; }
   .lecture-enroll-picker__search input { min-height: 44px; font-size: 16px; }
   .lecture-enroll-picker__filters select { min-height: 44px; font-size: 16px; }
-  .lecture-enroll-picker__row { grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; }
-  .lecture-enroll-picker__contact { grid-column: 2 / -1; grid-row: 2; }
-  .lecture-enroll-picker__chips button { min-height: 44px; }
+  .lecture-enroll-picker__row { grid-template-columns: 20px minmax(0, 1fr) auto; gap: 3px 8px; min-height: 44px; padding: 8px; }
+  .lecture-enroll-picker__row input { grid-row: 1 / 3; }
+  .lecture-enroll-picker__identity { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 1px 6px; }
+  .lecture-enroll-picker__contact { grid-column: 2 / -1; grid-row: 2; flex-direction: row; flex-wrap: wrap; gap: 1px 8px; }
+  .lecture-enroll-picker__selected-list { height: 64px; }
+  .lecture-enroll-picker__selected-list button { min-height: 44px; min-width: 44px; }
   .lecture-enroll-picker__pagination button, .lecture-enroll-picker__toolbar button { min-height: 36px; }
   .lecture-enroll-picker .modal-footer {
     grid-template-columns: minmax(0, 1fr) minmax(0, .64fr) minmax(0, 1.3fr);
@@ -57,12 +88,12 @@
   .lecture-enroll-picker .modal-footer .ds-button { min-width: 0; width: 100%; padding-inline: 4px; }
   .lecture-enroll-picker .modal-footer .ds-button__label { white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
 }
-@media (max-height: 700px) {
+@media (max-height: 700px) and (max-width: 899px) {
   .lecture-enroll-picker .modal-body { overflow-y: auto; }
   .lecture-enroll-picker__body { flex: none; }
   .lecture-enroll-picker__list { flex: none; height: 180px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .lecture-enroll-picker__row { transition: none; }
-  .lecture-enroll-picker__chips button { animation: none; }
+  .lecture-enroll-picker__selected-list li { animation: none; }
 }

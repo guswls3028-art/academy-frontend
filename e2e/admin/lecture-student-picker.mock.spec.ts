@@ -9,7 +9,7 @@ const LECTURE = 9965;
 const students = Array.from({ length: 205 }, (_, index) => ({
   id: index + 1, name: `기존학생${String(index + 1).padStart(3, "0")}`,
   parent_phone: `0108000${String(index + 1).padStart(4, "0")}`,
-  phone: null, high_school: "아주긴이름의고등학교", middle_school: "", elementary_school: "", school_type: "HIGH", grade: 2,
+  phone: index === 1 ? "01070000002" : null, high_school: "아주긴이름의고등학교", middle_school: "", elementary_school: "", school_type: "HIGH", grade: 2,
   is_managed: true, enrollments: [],
 }));
 
@@ -211,6 +211,30 @@ for (const width of [1366, 1100, 390]) {
     await dialog.getByRole("textbox", { name: "학생 검색" }).fill("010-8000-0052");
     await dialog.getByRole("checkbox", { name: "기존학생052 선택", exact: true }).check();
     await expect(dialog.getByRole("status")).toHaveText("4명 선택");
+    const selection = dialog.getByRole("region", { name: "선택한 학생" });
+    const previousStudent = selection.getByRole("listitem").filter({ hasText: "기존학생002" });
+    await expect(previousStudent).toContainText("학생 010-7000-0002");
+    await expect(previousStudent).toContainText("학부모 010-8000-0002");
+    await expect(selection.getByRole("listitem").filter({ hasText: "기존학생003" })).toContainText("학생 번호 없음");
+    await selection.getByRole("button", { name: /^기존학생052,.*선택 해제$/ }).press("Enter");
+    const searched = dialog.getByRole("checkbox", { name: "기존학생052 선택", exact: true });
+    await expect(searched).not.toBeChecked();
+    await searched.check();
+    if (width >= 900) {
+      const list = dialog.locator('[aria-label="기존 학생 명단"]');
+      const catalog = await list.boundingBox();
+      const selected = await selection.boundingBox();
+      expect(selected!.x).toBeGreaterThanOrEqual(catalog!.x + catalog!.width);
+      await dialog.getByText("수신자별 발송 설정", { exact: true }).click();
+      await expect(dialog.getByRole("combobox", { name: "학생 안내 발송" })).toBeInViewport();
+      const parentMode = dialog.getByRole("combobox", { name: "학부모 안내 발송" });
+      await parentMode.selectOption("skip");
+      await expect(previousStudent.getByText("발송 안 함", { exact: true })).toBeVisible();
+      await parentMode.selectOption("auto");
+      await expect(previousStudent.getByText("발송 안 함", { exact: true })).toHaveCount(0);
+      expect((await list.boundingBox())!.height).toBeCloseTo(catalog!.height, 0);
+      await dialog.getByText("수신자별 발송 설정", { exact: true }).click();
+    }
     await dialog.screenshot({ path: info.outputPath(`lecture-picker-${width}.png`) });
     await dialog.getByRole("textbox", { name: "학생 검색" }).fill("없는학생");
     await expect(dialog.getByText("검색 결과가 없습니다", { exact: true })).toBeVisible();
