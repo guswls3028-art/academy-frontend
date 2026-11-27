@@ -40,7 +40,7 @@ export function useSecessionConfirm() {
     const ok = await confirm({
       title: "수강을 복구할까요?",
       message: wholeLecture
-        ? `${student} 학생의 강의 수강을 다시 활성화합니다. 기존 차시 등록에 따라 영상 권한도 복구됩니다. 이 차시의 출결을 ‘${label}’ 상태로 저장합니다.`
+        ? `${student} 학생의 강의 수강을 다시 활성화하고 이 차시의 출결을 ‘${label}’ 상태로 저장합니다. 기존 등록에 따른 영상 권한과 자동 수납 설정도 다시 적용됩니다.`
         : `${student} 학생을 이 차시에 다시 등록하고 출결을 ‘${label}’ 상태로 저장합니다.`,
       confirmText: `복구하고 ${label} 저장`,
       cancelText: "취소",
