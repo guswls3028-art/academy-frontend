@@ -151,7 +151,7 @@ function LectureMemoEditor({ enrollmentId, studentName, lectureTitle, studentMem
   };
 
   return (
-    <AdminModal open onClose={() => void close()} width={560} noMinimize closeDisabled={saving}>
+    <AdminModal open onClose={() => void close()} size="md" noMinimize closeDisabled={saving}>
       <ModalHeader noIcon title={`${studentName} 강의 메모`}
         description={`${lectureTitle || "이 강의"}의 모든 차시에서 직원이 함께 보는 메모입니다. 다른 강의에는 표시되지 않습니다.`} />
       <ModalBody>

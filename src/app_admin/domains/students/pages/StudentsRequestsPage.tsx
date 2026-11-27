@@ -108,7 +108,7 @@ function RequestDetailModal({
       onClose={onClose}
       closeDisabled={approving || rejecting}
       type="action"
-      width={480}
+      size="default"
       onEnterConfirm={undefined}
     >
       <ModalHeader
@@ -179,7 +179,7 @@ function DeletedAccountRecoveryModal({
 }) {
   if (!request) return null;
   return (
-    <AdminModal open={open} onClose={onClose} closeDisabled={resolving} type="action" width={520} onEnterConfirm={selectedId ? onConfirm : undefined}>
+    <AdminModal open={open} onClose={onClose} closeDisabled={resolving} type="action" size="default" onEnterConfirm={selectedId ? onConfirm : undefined}>
       <ModalHeader
         type="action"
         title="과거 계정을 선택해 주세요"

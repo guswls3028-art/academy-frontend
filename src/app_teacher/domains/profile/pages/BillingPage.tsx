@@ -114,6 +114,10 @@ export default function BillingPage() {
         <h1 className="text-[17px] font-bold flex-1" style={{ color: "var(--tc-text)" }}>결제 / 구독</h1>
       </div>
 
+      <button type="button" className="text-left underline" onClick={() => navigate("/workspace/settings/billing")}>
+        계좌이체 · 구독료 증빙 신청 및 조회
+      </button>
+
       {/* Expiry alert */}
       {isExpired && (
         <div style={{
@@ -123,7 +127,7 @@ export default function BillingPage() {
         }}>
           <AlertCircle size={ICON.sm} style={{ color: "var(--tc-danger)", flexShrink: 0 }} />
           <div className="text-[12px]" style={{ color: "var(--tc-text)", lineHeight: 1.5 }}>
-            <strong>구독이 만료되었습니다.</strong> PC에서 결제 정보를 확인해 주세요.
+            <strong>구독이 만료되었습니다.</strong> 계좌이체 메뉴에서 결제 정보를 확인해 주세요.
           </div>
         </div>
       )}

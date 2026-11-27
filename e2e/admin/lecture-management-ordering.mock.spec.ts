@@ -158,6 +158,27 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
       await page.getByRole("menuitem", { name: "강의 수정", exact: true }).click();
       await expect(menu).toBeHidden();
       await expect(modal.getByLabel("강의 이름 (필수)")).toHaveValue("Alpha");
+      const appearance = modal.getByRole("button", { name: "목록 표기 및 색상" });
+      const chip = modal.getByLabel("아이콘(딱지 2글자)");
+      await expect(appearance).toHaveAttribute("aria-expanded", "false");
+      await expect(chip).toBeHidden();
+      await appearance.click();
+      await expect(chip).toHaveValue("A");
+      const customColor = modal.getByLabel("직접 색상 선택");
+      await expect(customColor).toHaveValue("#3b82f6");
+      await modal.getByRole("button", { name: "색상 #22c55e 선택", exact: true }).click();
+      await chip.fill("수학");
+      await appearance.click();
+      await expect(chip).toBeHidden();
+      await appearance.press("Enter");
+      await expect(chip).toHaveValue("수학");
+      await expect(customColor).toHaveValue("#22c55e");
+      await expect(customColor).toHaveAttribute("type", "color");
+      await expect(customColor).toBeEnabled();
+      await chip.fill("A");
+      await modal.getByRole("button", { name: "색상 #3b82f6 선택", exact: true }).click();
+      await appearance.click();
+      await modal.getByLabel("강의 이름 (필수)").scrollIntoViewIfNeeded();
       await expect(modal.getByLabel("과목 (필수)")).toHaveValue(width === 1366 ? "과학" : "물리");
       await expect(modal.getByLabel("설명", { exact: true })).toHaveValue("기존 설명을 보존합니다.");
       await expect(modal.getByLabel("담당 강사 (필수)")).toContainText("관리자");
@@ -354,10 +375,20 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     expect(metrics.height).toBeLessThanOrEqual(720);
     expect(metrics.formScrollHeight).toBeLessThanOrEqual(metrics.formClientHeight + 1);
     await expect(modal.locator(".modal-footer")).toBeInViewport({ ratio: 1 });
+    const footerHeight = await page.evaluate(() => matchMedia("(pointer: coarse)").matches ? 44 : 40);
     expect(await modal.locator(".modal-footer__actions .ds-button").evaluateAll((buttons) =>
       buttons.map((button) => button.getBoundingClientRect().height),
-    )).toEqual([44, 44]);
-    await page.screenshot({ path: test.info().outputPath("lecture-modal-1100.png") });
+    )).toEqual([footerHeight, footerHeight]);
+    await expect(modal.locator(".modal-header__title")).toHaveCSS("font-size", "16px");
+    await expect(modal.getByRole("button", { name: "목록 표기 및 색상" })).toHaveAttribute("aria-expanded", "false");
+    const fieldSize = await page.evaluate(() => matchMedia("(max-width: 1023px), (pointer: coarse)").matches ? 44 : 40);
+    await expect(modal.getByLabel("과목 (필수)")).toHaveCSS("height", `${fieldSize}px`);
+    for (const name of ["과목 저장", "저장된 과목 불러오기"]) {
+      const utility = modal.getByRole("button", { name, exact: true });
+      await expect(utility).toHaveCSS("width", `${fieldSize}px`);
+      await expect(utility).toHaveCSS("height", `${fieldSize}px`);
+    }
+    await page.screenshot({ path: test.info().outputPath("lecture-modal-1100.png"), animations: "disabled" });
 
     await page.getByRole("button", { name: "시작 시간 선택", exact: true }).click();
     const popover = page.getByRole("dialog", { name: "시간 선택" });
@@ -385,7 +416,15 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     expect(await modal.locator(".modal-footer__actions .ds-button").evaluateAll((buttons) =>
       buttons.map((button) => button.getBoundingClientRect().height),
     )).toEqual([44, 44]);
-    await page.screenshot({ path: test.info().outputPath("lecture-modal-390.png") });
+    await expect(modal.getByRole("button", { name: "목록 표기 및 색상" })).toHaveAttribute("aria-expanded", "false");
+    const fieldSize = await page.evaluate(() => matchMedia("(max-width: 1023px), (pointer: coarse)").matches ? 44 : 40);
+    await expect(modal.getByLabel("과목 (필수)")).toHaveCSS("height", `${fieldSize}px`);
+    for (const name of ["과목 저장", "저장된 과목 불러오기"]) {
+      const utility = modal.getByRole("button", { name, exact: true });
+      await expect(utility).toHaveCSS("width", `${fieldSize}px`);
+      await expect(utility).toHaveCSS("height", `${fieldSize}px`);
+    }
+    await page.screenshot({ path: test.info().outputPath("lecture-modal-390.png"), animations: "disabled" });
     await page.getByRole("button", { name: "시작 시간 선택", exact: true }).click();
     const popover = page.getByRole("dialog", { name: "시간 선택" });
     const bounds = await popover.evaluate((element) => {

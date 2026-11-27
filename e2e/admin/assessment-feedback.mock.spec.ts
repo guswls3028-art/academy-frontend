@@ -312,6 +312,10 @@ async function installScopedComposition(page: Page) {
 async function switchCompositionSession(page: Page, sessionId: 9002 | 9003) {
   const date = sessionId === 9002 ? "2026-08-25" : "2026-08-26";
   await revealScoreManagement(page);
+  if ((page.viewportSize()?.width ?? 0) >= 1024) {
+    const toggle = page.getByRole("button", { name: /^차시·수업일 (펼치기|접기)$/ });
+    if (await toggle.getAttribute("aria-expanded") === "false") await toggle.click();
+  }
   await page.locator("button.session-block").filter({ hasText: date }).click();
   await expect(page).toHaveURL(new RegExp(`/sessions/${sessionId}/scores`));
   // React Router can update the address before committing the destination UI.
@@ -731,6 +735,7 @@ for (const width of [1366, 390]) {
     await expect(row.locator(".assessment-total-value").last()).toHaveText("25 / 100");
     // Reordering an excluded column does not change the explicitly selected total.
     if (width === 1366) {
+      await page.getByRole("button", { name: "차시·수업일 펼치기", exact: true }).click();
       await expect(page.getByRole("region", { name: "수업일 선택" }).getByRole("button", { name: "수업일 관리", exact: true })).toBeEnabled();
       // The title/edit buttons intentionally cancel drag; use the visible kind badge.
       await page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "둘째 시험 작업 선택", exact: true }) }).locator(".scores-table-kind-badge").dragTo(page.locator(".scores-col-drag-handle").filter({ has: page.getByRole("button", { name: "첫 시험 작업 선택", exact: true }) }).locator(".scores-table-kind-badge"));

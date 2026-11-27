@@ -18,7 +18,7 @@ export function boardListParams(q: string, page = 1) {
 }
 
 const POSITIVE_INTEGER = /^[1-9]\d*$/;
-const STAFF_BOARD_PATH = /^\/workspace\/mobile\/staff-board(?:\/(notice|resource|free)(?:\/([1-9]\d*))?)?$/;
+const STAFF_BOARD_PATH = /^\/workspace\/mobile\/staff-board(?:\/(all|notice|resource|free)(?:\/([1-9]\d*))?)?$/;
 const COMMUNITY_TABS = ["notices", "qna", "counsel", "requests", "board", "materials"] as const;
 const STUDENT_RECORD_TABS = ["enrollments", "exams", "homework", "clinic", "questions", "activity", "info"] as const;
 type CommunityTab = (typeof COMMUNITY_TABS)[number];

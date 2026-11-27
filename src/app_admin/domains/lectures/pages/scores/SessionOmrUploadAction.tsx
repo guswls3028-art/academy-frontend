@@ -46,7 +46,7 @@ export function SessionOmrUploadModal({
   };
 
   return (
-    <AdminModal open onClose={closeUpload} type="action" width={720} noMinimize className="scores-omr-upload-modal">
+    <AdminModal open onClose={closeUpload} type="action" size="wide" noMinimize className="scores-omr-upload-modal">
       <ModalHeader
         type="action"
         title="OMR 스캔 등록"

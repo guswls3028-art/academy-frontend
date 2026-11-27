@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import { useLocation, useNavigate } from "react-router";
 import api from "@/shared/api/axios";
 import type { TenantRole } from "@/auth/context/AuthContext";
-import styles from "./FirstLoginGuideModal.module.css";
+import styles from "./AccountPrompt.module.css";
 
 type FirstLoginGuideModalProps = {
   username: string;
@@ -130,7 +130,6 @@ export default function FirstLoginGuideModal({
         aria-labelledby="first-login-guide-title"
         aria-describedby="first-login-guide-description"
       >
-        <div className={styles.accent} aria-hidden="true" />
         <button
           type="button"
           className={styles.closeButton}
@@ -144,12 +143,6 @@ export default function FirstLoginGuideModal({
         </button>
 
         <header className={styles.header}>
-          <span className={styles.icon} aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 24 24">
-              <path d="M5 20h14a2 2 0 0 0 2-2V8l-6-5H7a2 2 0 0 0-2 2v15Z" />
-              <path d="M9 3v5h6V3M9 13h6M9 17h4" />
-            </svg>
-          </span>
           <div>
             <h1 id="first-login-guide-title" className={styles.title}>계정 안내</h1>
             <p id="first-login-guide-description" className={styles.description}>

@@ -281,7 +281,7 @@ export default function ReportsAdminPage() {
         open={blockTarget !== null}
         onClose={closeBlockModal}
         type="confirm"
-        width={480}
+        size="default"
         noMinimize
         onEnterConfirm={submitBlockUser}
       >

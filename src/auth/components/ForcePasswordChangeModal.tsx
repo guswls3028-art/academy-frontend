@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax */
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/shared/ui/ds";
@@ -6,6 +5,7 @@ import api from "@/shared/api/axios";
 import { isPasswordChangeReady } from "@/shared/auth/passwordPolicy";
 import { PasswordChecklist, PasswordInput } from "@/shared/ui/password";
 import { extractApiError } from "@/shared/utils/extractApiError";
+import styles from "./AccountPrompt.module.css";
 
 async function forceChangePassword(payload: { old_password: string; new_password: string }) {
   const { data } = await api.post("/core/change-password/", payload);
@@ -107,75 +107,26 @@ export default function ForcePasswordChangeModal({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="force-password-change-title"
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 9999,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "rgba(0,0,0,0.5)",
-        backdropFilter: "blur(4px)",
-      }}
-    >
+    <div className={`${styles.overlay} ${styles.passwordOverlay}`}>
       <div
         ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="force-password-change-title"
         tabIndex={-1}
         onKeyDown={handleKeyDown}
-        style={{
-          width: 380,
-          maxWidth: "90vw",
-          background: "var(--color-modal-bg, #fff)",
-          borderRadius: 16,
-          border: "1px solid var(--color-border-divider, #e5e7eb)",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.2)",
-          maxHeight: "calc(100vh - 32px)",
-          overflow: "auto",
-        }}
+        className={styles.panel}
       >
-        {/* Header */}
-        <div style={{ padding: "20px 24px 0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 10,
-                display: "grid",
-                placeItems: "center",
-                background: "color-mix(in srgb, var(--color-brand-primary, #3b82f6) 12%, var(--color-modal-bg, #fff))",
-                border: "1px solid var(--color-border-divider, #e5e7eb)",
-                color: "var(--color-brand-primary, #3b82f6)",
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </div>
-            <div>
-              <div id="force-password-change-title" style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text-primary, #111)" }}>
-                비밀번호 변경 권장
-              </div>
-              <div style={{ fontSize: 12, color: "var(--color-text-muted, #888)", marginTop: 2 }}>
-                공용 초기 비밀번호는 다른 사람이 추측할 수 있어요
-              </div>
-              <div style={{ fontSize: 12, color: "var(--color-text-muted, #888)", marginTop: 3 }}>
-                지금 바꾸는 것을 권장하며, 나중에 변경해도 계속 이용할 수 있습니다
-              </div>
-            </div>
-          </div>
-        </div>
+        <header className={styles.header}>
+          <h2 id="force-password-change-title" className={styles.title}>비밀번호 변경 권장</h2>
+          <p className={styles.description}>공용 초기 비밀번호는 다른 사람이 추측할 수 있어요</p>
+          <p className={styles.description}>지금 바꾸는 것을 권장하며, 나중에 변경해도 계속 이용할 수 있습니다</p>
+        </header>
 
-        {/* Body */}
-        <div style={{ padding: "16px 24px 20px" }}>
+        <div className={styles.body}>
           <div className="flex flex-col gap-3">
             <div className="space-y-1">
-              <label htmlFor="force-current-password" className="text-xs font-medium" style={{ color: "var(--color-text-secondary, #666)" }}>
+              <label htmlFor="force-current-password" className={styles.fieldLabel}>
                 현재/임시 비밀번호
               </label>
               <PasswordInput
@@ -190,7 +141,7 @@ export default function ForcePasswordChangeModal({
               />
             </div>
             <div className="space-y-1">
-              <label htmlFor="force-new-password" className="text-xs font-medium" style={{ color: "var(--color-text-secondary, #666)" }}>
+              <label htmlFor="force-new-password" className={styles.fieldLabel}>
                 새 비밀번호
               </label>
               <PasswordInput
@@ -204,7 +155,7 @@ export default function ForcePasswordChangeModal({
               />
             </div>
             <div className="space-y-1">
-              <label htmlFor="force-confirm-password" className="text-xs font-medium" style={{ color: "var(--color-text-secondary, #666)" }}>
+              <label htmlFor="force-confirm-password" className={styles.fieldLabel}>
                 새 비밀번호 확인
               </label>
               <PasswordInput
@@ -222,32 +173,11 @@ export default function ForcePasswordChangeModal({
               currentPassword={oldPw}
               confirmation={confirmPw}
             />
-            {msg && (
-              <div
-                className="rounded-lg border px-3 py-2 text-sm"
-                style={{
-                  borderColor: "color-mix(in srgb, var(--color-error) 35%, var(--color-border-divider))",
-                  background: "color-mix(in srgb, var(--color-error) 10%, var(--color-modal-bg))",
-                  color: "var(--color-error)",
-                }}
-              >
-                {msg}
-              </div>
-            )}
+            {msg && <p className={styles.error} role="alert">{msg}</p>}
           </div>
         </div>
 
-        {/* Footer */}
-        <div
-          style={{
-            padding: "12px 24px",
-            borderTop: "1px solid var(--color-border-divider, #e5e7eb)",
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 8,
-            justifyContent: "flex-end",
-          }}
-        >
+        <footer className={styles.footer}>
           <Button
             type="button"
             intent="secondary"
@@ -267,7 +197,7 @@ export default function ForcePasswordChangeModal({
           >
             {mut.isPending ? "변경 중…" : "지금 변경"}
           </Button>
-        </div>
+        </footer>
       </div>
     </div>
   );

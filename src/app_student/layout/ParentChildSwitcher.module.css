@@ -10,6 +10,12 @@
   -webkit-overflow-scrolling: touch;
 }
 
+@media (min-width: 768px) {
+  .root:not(.rootGate) {
+    padding-inline: max(var(--ds-space-4), calc((100% - var(--stu-page-max-w)) / 2 + var(--ds-space-4)));
+  }
+}
+
 .root::-webkit-scrollbar {
   display: none;
 }
@@ -43,6 +49,7 @@
   flex-shrink: 0;
   min-width: 0;
   max-width: min(32vw, 128px);
+  min-height: var(--ds-touch-target);
   padding: 6px 12px;
   overflow: hidden;
   color: var(--stu-text);
@@ -53,7 +60,7 @@
   cursor: pointer;
   background: var(--stu-surface);
   border: 1px solid var(--stu-border);
-  border-radius: 999px;
+  border-radius: var(--stu-radius-sm);
   transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
   -webkit-tap-highlight-color: transparent;
 }
@@ -72,5 +79,5 @@
   padding: 9px 18px;
   font-size: 14px;
   font-weight: 700;
-  border-radius: 12px;
+  border-radius: var(--stu-radius-md);
 }
