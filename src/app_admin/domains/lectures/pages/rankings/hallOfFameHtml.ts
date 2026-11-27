@@ -38,7 +38,7 @@ export function buildHallOfFameHtml(doc: HallOfFameDocument): string {
   const rows = doc.entries.map((entry) => `
     <li class="entry entry--rank-${Math.min(entry.rank ?? 99, 4)}">
       <span class="${medalClass(entry.rank ?? 0)}">${entry.rank ?? ""}<small>등</small></span>
-      <span class="name">${escapeHtml(entry.studentName)}</span>
+      <span class="name">${escapeHtml(entry.studentName)}${entry.tied ? ' <small class="tie">공동 등수</small>' : ""}</span>
       ${doc.showScores
         ? `<span class="score">${escapeHtml(formatRankingScore(entry.score))}<small>/${escapeHtml(formatRankingScore(entry.maxScore))}점</small></span>`
         : ""}
@@ -53,6 +53,7 @@ export function buildHallOfFameHtml(doc: HallOfFameDocument): string {
 <title>명예의 전당</title>
 <style>
   @page { size: A4 portrait; margin: 14mm; }
+  @media screen { body { zoom: var(--preview-scale, 1); } }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; color: #1f2937;
     font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
@@ -62,7 +63,7 @@ export function buildHallOfFameHtml(doc: HallOfFameDocument): string {
   header { text-align: center; margin-bottom: ${mode === "dense" ? "6mm" : "10mm"}; }
   .eyebrow { font-size: 13pt; letter-spacing: 0.4em; color: #8a6d1f; font-weight: 700; }
   h1 { margin: 2mm 0 3mm; font-size: ${mode === "hero" ? "44pt" : "38pt"}; letter-spacing: 0.12em; color: #111827; }
-  .subtitle { font-size: 14pt; color: #374151; font-weight: 600; }
+  .subtitle { font-size: 14pt; color: #374151; font-weight: 600; overflow-wrap: anywhere; }
   .subtitle span + span::before { content: "·"; margin: 0 2.5mm; color: #9ca3af; }
   ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;
     gap: ${mode === "hero" ? "7mm" : mode === "list" ? "4.5mm" : "2.6mm"}; flex: 1; }
@@ -87,6 +88,7 @@ export function buildHallOfFameHtml(doc: HallOfFameDocument): string {
   .score { flex: none; font-weight: 700; color: #374151;
     font-size: ${mode === "hero" ? "22pt" : mode === "list" ? "17pt" : "13pt"}; }
   .score small { font-size: 60%; color: #6b7280; margin-left: 1mm; font-weight: 600; }
+  .tie { display: inline-block; color: #525b69; font-size: 10pt; font-weight: 600; }
   .empty { text-align: center; font-size: 16pt; color: #6b7280; margin-top: 30mm; }
   footer { margin-top: 6mm; text-align: right; font-size: 10pt; color: #9ca3af; }
 </style>

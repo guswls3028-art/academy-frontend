@@ -1,4 +1,5 @@
 .page {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -21,21 +22,27 @@
   color: var(--color-text-primary);
 }
 
-.description {
-  margin: 4px 0 0;
-  max-width: 640px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--color-text-secondary);
-  word-break: keep-all;
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+.results { min-width: 0; }
+.filterPanel {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
 }
+.panelTitle { margin: 0; color: var(--color-text-primary); font-size: 14px; font-weight: 700; }
+.workspace { display: grid; gap: 12px; align-items: start; }
+.results { min-width: 0; }
 
 .controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
+.controls > :nth-child(n+3) { grid-column: 1 / -1; }
 
 .field {
   display: flex;
@@ -49,7 +56,8 @@
 
 .field select {
   height: 36px;
-  min-width: 160px;
+  min-width: 0;
+  width: 100%;
   max-width: 100%;
   padding: 0 8px;
   border: 1px solid var(--color-border-divider);
@@ -68,6 +76,7 @@
 }
 
 .segmentButton {
+  flex: 1;
   height: 34px;
   padding: 0 14px;
   border: 0;
@@ -102,12 +111,106 @@
   animation: rankingFadeIn 0.18s ease-out;
 }
 
+.examFilter {
+  min-width: 0;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+}
+
+.examFilter summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.examFilter summary::-webkit-details-marker { display: none; }
+.examFilter summary:focus-visible { outline: 2px solid var(--color-brand-primary); }
+.examFilter summary svg { flex: none; transition: transform 150ms ease; }
+.examFilter[open] summary svg { transform: rotate(180deg); }
+.filterCount { margin-left: auto; color: var(--color-text-secondary); font-size: 12px; }
+
+.filterBody {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--color-border-divider);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  animation: rankingFadeIn 150ms ease-out;
+}
+
+.filterBody > input {
+  width: min(100%, 360px);
+  min-width: 0;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 6px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font: inherit;
+}
+
+.filterActions { display: flex; flex-wrap: wrap; gap: 6px; }
+.filterEmpty { margin: 4px 0; }
+.examGroups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 12px;
+  max-height: 360px;
+  overflow: auto;
+}
+.examGroups fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.examGroups legend { padding: 4px 0; font-weight: 600; overflow-wrap: anywhere; }
+.examOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  color: var(--color-text-primary);
+}
+.examOption:hover { background: var(--color-bg-surface-hover); }
+.examOption input { flex: none; width: 16px; height: 16px; accent-color: var(--color-brand-primary); }
+.summary { overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) {
+  .examFilter summary svg { transition: none; }
+  .filterBody { animation: none; }
+}
+
 .summary {
+  display: grid;
+  gap: 3px;
   margin: 0;
   padding: 10px 14px;
   font-size: 13px;
   color: var(--color-text-secondary);
   border-bottom: 1px solid var(--color-border-divider);
+}
+.summary strong { font-size: 15px; color: var(--color-text-primary); }
+.summary strong span { margin-left: 4px; font-size: 13px; color: var(--color-text-secondary); }
+.table th { background: var(--color-bg-surface-hover); }
+@container (min-width: 700px) {
+  .workspace { grid-template-columns: clamp(246px, 25%, 285px) minmax(0, 1fr); gap: 16px; }
+  .examGroups { grid-template-columns: 1fr; }
+  .examGroups legend { margin: 0; font-size: 13px; line-height: 1.5; }
+  .examFilter summary { padding: 10px; gap: 6px; word-break: keep-all; }
+  .filterCount { white-space: nowrap; }
+  .filterActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filterActions > :first-child { grid-column: 1 / -1; }
+  .filterBody { padding: 10px; }
+  .examOption { min-height: 34px; }
+  .summary { padding: 12px 14px; }
 }
 
 .table {
@@ -147,18 +250,34 @@
 }
 
 .rankCell {
-  width: 64px;
+  width: 80px;
   font-weight: 700;
   color: var(--color-text-primary);
 }
 
 .nameCell {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   font-weight: 600;
   color: var(--color-text-primary);
 }
+.studentDetailButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 4px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.studentDetailButton svg { color: var(--color-text-muted); }
+.studentDetailButton[aria-expanded="true"] svg { transform: rotate(180deg); }
+.studentDetailButton:hover { color: var(--color-brand-primary); }
+.detailRow { background: var(--color-bg-surface-hover); }
+.breakdown { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 0; }
+.breakdown dt, .breakdown small { font-size: 12px; color: var(--color-text-secondary); }
+.breakdown dd { display: grid; gap: 2px; margin: 0; font-variant-numeric: tabular-nums; }
 
 .numeric {
   text-align: right !important;
@@ -173,14 +292,22 @@
 .modalBackdrop {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgb(0 0 0 / 0.5);
+  background: transparent;
   animation: rankingFadeIn 0.15s ease-out;
 }
+
+.modalBackdrop::backdrop { background: rgb(0 0 0 / 0.5); }
 
 .modalPanel {
   display: flex;
@@ -269,7 +396,8 @@
   display: block;
   width: 210mm;
   max-width: 100%;
-  height: 297mm;
+  height: auto;
+  aspect-ratio: 210 / 297;
   margin: 0 auto;
   border: 0;
   background: #fff;

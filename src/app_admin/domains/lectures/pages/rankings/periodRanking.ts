@@ -1,6 +1,5 @@
 // 여러 차시(주차)의 성적을 묶어 순위를 계산한다.
-// 점수 원본은 서버가 차시별로 계산한 exam_total / homework_total 이다.
-// (보류·임시·결시 점수는 서버 합계에서 이미 제외되어 0점으로 섞이지 않는다.)
+// 기본 순위는 서버의 차시 합계, 직접 선택은 같은 서버가 확정한 시험별 점수를 사용한다.
 
 import type {
   AssessmentTotal,
@@ -29,6 +28,7 @@ export type PeriodRankingEntry = {
   selectedCount: number;
   /** 점수가 확정된 평가가 하나도 없으면 null (순위 제외) */
   rank: number | null;
+  tied?: boolean;
 };
 
 function totalsForScope(row: SessionScoreRow, scope: RankingScope): AssessmentTotal[] {
@@ -48,11 +48,23 @@ function roundScore(value: number): number {
 export function buildPeriodRanking(
   responses: SessionScoresResponse[],
   scope: RankingScope,
+  selectedExams?: ReadonlyArray<ReadonlySet<number>>,
 ): PeriodRankingEntry[] {
   const byEnrollment = new Map<number, PeriodRankingEntry>();
-  for (const response of responses) {
+  for (const [index, response] of responses.entries()) {
+    const chosen = scope === "exam" ? selectedExams?.[index] : undefined;
+    const maxima = chosen && new Map(response.meta.exams
+      .filter((exam) => chosen.has(exam.exam_id))
+      .map((exam) => [exam.exam_id, exam.max_score]));
     for (const row of response.rows ?? []) {
-      const totals = totalsForScope(row, scope);
+      const totals = maxima
+        ? row.exams.filter((exam) => maxima.has(exam.exam_id)).map((exam) => ({
+          score: exam.ranking_score,
+          max_score: maxima.get(exam.exam_id) || exam.block.max_score || 0,
+          scored_count: exam.ranking_score != null ? 1 : 0,
+          selected_count: 1,
+        }))
+        : totalsForScope(row, scope);
       const selected = totals.reduce((sum, total) => sum + (total.selected_count || 0), 0);
       if (selected <= 0) continue;
       const current = byEnrollment.get(row.enrollment_id) ?? {
@@ -91,6 +103,10 @@ export function buildPeriodRanking(
   let previousRank = 0;
   ranked.forEach((entry, index) => {
     entry.rank = previousScore !== null && entry.score === previousScore ? previousRank : index + 1;
+    if (index > 0 && entry.rank === previousRank) {
+      ranked[index - 1].tied = true;
+      entry.tied = true;
+    }
     previousScore = entry.score;
     previousRank = entry.rank;
   });

@@ -2,6 +2,7 @@
 import api from "@/shared/api/axios";
 import type { components } from "@/shared/api/generated/schema";
 import type { LectureScheduleSettings } from "../lectureScheduleSettings";
+import type { SessionScheduleDate } from "@/shared/product/sessions/sessionScheduleDisplay";
 import {
   sortSessionsByDateDesc,
   sortSessionsByDisplayOrder,
@@ -39,6 +40,7 @@ export interface Session {
   section?: number | null;
   section_label?: string | null;
   section_type?: string | null;
+  schedule_dates?: SessionScheduleDate[];
   order: number;
   session_type?: SessionType | null;
   regular_order?: number | null;
