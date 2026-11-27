@@ -2723,23 +2723,18 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                     if (summary.kind === "none") {
                       return <span className="text-[var(--color-text-muted)]" title="테스트 없음">-</span>;
                     }
-                    const defaultBadgeMeta = EXAM_REVIEW_BADGE_META[summary.kind];
-                    const badgeMeta = wrongCompletionOnly && summary.kind !== "pending"
-                      ? {
-                          ...defaultBadgeMeta,
-                          label: summary.kind === "incomplete" ? "시험 오답 미완료" : "시험 오답 완료",
-                        }
-                      : defaultBadgeMeta;
+                    const badgeMeta = EXAM_REVIEW_BADGE_META[summary.kind];
+                    const label = wrongCompletionOnly && summary.kind === "clear" ? "완료" : badgeMeta.label;
                     const detail = summary.kind === "incomplete"
                       ? [
-                          `미완료 ${summary.incompleteTitles.length}`,
-                          summary.pendingTitles.length > 0 ? `채점 ${summary.pendingTitles.length}` : "",
+                          `시험 ${summary.incompleteTitles.length}건`,
+                          summary.pendingTitles.length > 0 ? `채점 대기 ${summary.pendingTitles.length}건` : "",
                         ].filter(Boolean).join(" · ")
                       : summary.kind === "pending"
-                        ? `채점 ${summary.pendingTitles.length}`
+                        ? `시험 ${summary.pendingTitles.length}건`
                         : summary.kind === "complete"
-                          ? `완료 ${summary.completedTitles.length}`
-                          : "";
+                          ? `시험 ${summary.completedTitles.length}건`
+                          : `시험 ${summary.notRequiredTitles.length}건`;
                     const title = summary.kind === "incomplete"
                       ? `${badgeMeta.title}: ${summary.incompleteTitles.join(", ")}`
                       : summary.kind === "pending"
@@ -2749,14 +2744,12 @@ const ScoresTable = forwardRef<ScoresTableHandle, Props>(function ScoresTable({
                         : badgeMeta.title;
                     return (
                       <div className="inline-flex flex-col items-center gap-0.5 leading-tight">
-                        <Badge variant="solid" size="sm" tone={badgeMeta.tone} title={title}>
-                          {badgeMeta.label}
+                        <Badge variant="solid" size="sm" tone={badgeMeta.tone} title={title} ariaLabel={`시험 오답 상태: ${label}`}>
+                          {label}
                         </Badge>
-                        {detail && (
-                          <span className="block max-w-[88px] whitespace-normal break-keep text-[10px] font-semibold leading-tight text-[var(--color-text-secondary)]">
-                            {detail}
-                          </span>
-                        )}
+                        <span className="block max-w-[88px] whitespace-normal break-keep text-xs leading-tight text-[var(--color-text-secondary)]">
+                          {detail}
+                        </span>
                       </div>
                     );
                   })() : (() => {
