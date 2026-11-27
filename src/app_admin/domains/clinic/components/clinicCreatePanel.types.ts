@@ -13,9 +13,30 @@ type ClinicSessionFormSource = {
   section?: number | null;
   allow_time_preference?: boolean;
   allow_multi_slot_booking?: boolean;
+  notification_teacher_id?: number | null;
   booking_mode?: "fixed_slot" | "time_range";
   booking_interval_minutes?: 30 | 60;
   booking_max_stay_minutes?: number;
+};
+
+export type ClinicCreateSessionInput = {
+  title?: string;
+  date: string;
+  start_time: string;
+  duration_minutes: number;
+  location: string;
+  max_participants: number;
+  target_grade?: number | null;
+  target_school_type?: string | null;
+  target_lecture_ids?: number[];
+  memo?: string;
+  notification_teacher_id?: number;
+  section?: number | null;
+  allow_time_preference?: boolean;
+  allow_multi_slot_booking?: boolean;
+  booking_mode: "fixed_slot" | "time_range";
+  booking_interval_minutes: 30 | 60;
+  booking_max_stay_minutes: number;
 };
 
 export type ClinicCreatePanelProps = {

@@ -142,6 +142,7 @@ function ImportContent({ currentDate, onClose }: Omit<Props, "open">) {
           target_school_type: s.target_school_type ?? null,
           target_lecture_ids: s.target_lecture_ids ?? [],
           section: s.section ?? null,
+          notification_teacher_id: s.notification_teacher_id ?? undefined,
           allow_time_preference: s.allow_time_preference === true,
           allow_multi_slot_booking: s.allow_multi_slot_booking === true,
           booking_mode: s.booking_mode ?? "fixed_slot",

@@ -2134,7 +2134,7 @@ export default function ClinicConsoleWorkspace({
                         <span className="clinic-ops__status-badge-pending-indicator">
                           {pendingStatus === "attended" ? "출석 예정" : "결석 예정"}
                         </span>
-                      ) : getParticipantStatusLabel(p)}
+                      ) : isApprovalRequest && p.requested_after_cutoff ? "마감 후 신청 · 승인 대기" : getParticipantStatusLabel(p)}
                       </span>
                       {p.booking_start_time && p.booking_end_time && (
                         <span className="clinic-ops__booking-time">

@@ -1,0 +1,5 @@
+.field { display: grid; gap: 5px; min-width: 0; }
+.field label { font-size: 13px; font-weight: 600; }
+.field select { width: 100%; min-height: 40px; padding: 6px 10px; border: 1px solid var(--color-border-divider); border-radius: var(--radius-sm); font: inherit; color: inherit; background: var(--color-bg-surface); }
+.field small { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; }
+.field button { text-decoration: underline; }
