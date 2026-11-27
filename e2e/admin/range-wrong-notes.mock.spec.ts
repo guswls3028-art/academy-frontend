@@ -110,6 +110,7 @@ for (const width of [390, 1100, 1366] as const) {
     await dialog.getByLabel("끝 차시").selectOption("2");
     const material = () => dialog.getByLabel("오답을 입력할 자료");
     await expect(material().locator("option")).toHaveCount(2);
+    await expect(dialog.getByRole("heading", { name: "통합과학 기말고사 · 학생별 오답 번호", exact: true })).toBeVisible();
     const first = () => dialog.getByLabel("가온 오답 번호");
     const second = () => dialog.getByLabel("나래 오답 번호");
     const last = () => dialog.getByLabel("다온 오답 번호");
@@ -136,6 +137,7 @@ for (const width of [390, 1100, 1366] as const) {
     await second().press("Shift+Enter");
     await expect(first()).toBeFocused();
     await material().selectOption("homework:61");
+    await expect(dialog.getByRole("heading", { name: "실험 분석 과제 · 학생별 오답 번호", exact: true })).toBeVisible();
     await expect(second()).toHaveCount(0);
     const homeworkNumber = first();
     await homeworkNumber.fill("4");

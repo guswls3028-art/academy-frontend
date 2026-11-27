@@ -149,7 +149,7 @@ export default function RangeWrongNoteModal({ lectureId, sessionId, scope, onClo
                   : !totalStudents ? <p>이 강의에 등록된 수강생이 없습니다.</p>
                   : source && <>
                     <div className={styles.rosterHeading}>
-                      <h3>학생별 오답 번호</h3>
+                      <h3>{source.title} · 학생별 오답 번호</h3>
                       <p>번호는 쉼표나 공백으로 구분하세요. <span className={styles.keys}><kbd>Enter</kbd> 다음 학생 · <kbd>Shift + Enter</kbd> 이전 학생</span></p>
                     </div>
                     <div className={styles.rows} ref={roster}>
