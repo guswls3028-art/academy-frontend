@@ -32,6 +32,7 @@ export default function HomeworkReviewInbox({ selection: homework }: { selection
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-base font-semibold">과제 제출 확인</h2>
         <div className="flex flex-wrap gap-2">
+          {focused && enrollmentId !== undefined && <NextHomeworkReview mobile={false} homeworkId={homeworkId} enrollmentId={enrollmentId} />}
           {focused && <Button intent="ghost" size="sm" onClick={() => {
             const next = new URLSearchParams(searchParams);
             next.delete("reviewEnrollment");
@@ -75,7 +76,6 @@ function HomeworkReview({ homeworkId, enrollmentId }: { homeworkId: number; enro
       <Suspense fallback={<EmptyState scope="panel" tone="loading" title="제출 목록 불러오는 중…" />}>
         <HomeworkSubmissionsPanel homeworkId={homeworkId} enrollmentId={enrollmentId} />
       </Suspense>
-      {enrollmentId !== undefined && <NextHomeworkReview mobile={false} homeworkId={homeworkId} enrollmentId={enrollmentId} />}
     </div>
   );
 }

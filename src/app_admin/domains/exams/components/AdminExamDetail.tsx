@@ -134,7 +134,7 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
           sessionId={sessionId ?? undefined}
           wrongCompletionOnly={wrongCompletionOnly}
           focusAnalysis={focusAnalysis}
-          initialLectureId={focusAnalysis ? lectureId : undefined}
+          initialLectureId={focusAnalysis || searchParams.has("scoreLectureId") ? lectureId : undefined}
           onOpenSetup={() => changeTab("setup")}
         />
       )}

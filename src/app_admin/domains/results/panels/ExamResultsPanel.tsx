@@ -69,6 +69,14 @@ export default function ExamResultsPanel({ examId, sessionId, lectureId = null, 
     queryFn: () => fetchAdminExamResults(examId, lectureId),
     enabled: Number.isFinite(examId),
   });
+  const scoreLectureId = Number(searchParams.get("scoreLectureId"));
+  const differentScoreLecture = Number.isSafeInteger(scoreLectureId) && scoreLectureId > 0 && scoreLectureId !== lectureId
+    && selectedEnrollmentId === initialEnrollmentId;
+  const storedResults = useQuery({
+    queryKey: adminResultsQueryKeys.adminExamResults(examId, scoreLectureId),
+    queryFn: () => fetchAdminExamResults(examId, scoreLectureId),
+    enabled: differentScoreLecture,
+  });
   const rows: AdminExamResultRow[] = data ?? [];
   const resultIds = new Set(rows.filter((row) => row.result_status !== "NOT_SUBMITTED").map((row) => row.enrollment_id));
   const missingRows = (manualSheet.data?.rows ?? []).filter((row) =>
@@ -103,11 +111,16 @@ export default function ExamResultsPanel({ examId, sessionId, lectureId = null, 
     row.student_name.toLocaleLowerCase("ko-KR").includes(missingSearch.trim().toLocaleLowerCase("ko-KR")),
   );
 
-  const selectedRow = rows.find((row) => row.enrollment_id === selectedEnrollmentId);
+  const sourceRows: AdminExamResultRow[] = differentScoreLecture ? storedResults.data ?? [] : rows;
+  const selectedRow = sourceRows.find((row) => row.enrollment_id === selectedEnrollmentId);
   const examTitle = exam?.title ?? "시험";
 
   return (
     <div className="space-y-4">
+      {differentScoreLecture && storedResults.isLoading && <p role="status">저장된 수강의 성적을 불러오는 중…</p>}
+      {differentScoreLecture && storedResults.isError && <EmptyState scope="panel" tone="error" title="저장된 수강의 성적을 불러오지 못했습니다"
+        actions={<Button onClick={() => void storedResults.refetch()}>다시 시도</Button>} />}
+      {differentScoreLecture && storedResults.isSuccess && !selectedRow && <p role="status">저장된 수강에서 해당 학생의 시험 결과를 찾을 수 없습니다.</p>}
       {exam?.grading_mode === "choice" && (
         <AssessmentDisclosure
           title="답안 없는 시험 대상자"
@@ -201,6 +214,10 @@ export default function ExamResultsPanel({ examId, sessionId, lectureId = null, 
             examId={examId}
             enrollmentId={selectedRow.enrollment_id}
             studentName={selectedRow.student_name ?? "학생"}
+            scoreEntryPath={scoreLectureId > 0 && selectedRow.lecture_id && selectedRow.correction_session_id
+              ? `/workspace/lectures/${selectedRow.lecture_id}/sessions/${selectedRow.correction_session_id}/scores?reviewExam=${examId}&reviewEnrollment=${selectedRow.enrollment_id}`
+              : undefined}
+            scoreLectureTitle={selectedRow.lecture_title}
             examTitle={examTitle}
             readOnly
             onReviewOmr={(submissionId) => { setSelectedEnrollmentId(null); setReviewSubmissionId(submissionId); }}

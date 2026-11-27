@@ -11,6 +11,8 @@ export type TeacherExamDetail = {
 };
 
 export type ExamResultRow = {
+  score_session_id?: number | null;
+  score_lecture_title?: string | null;
   id: number | null;
   enrollment_id: number;
   student_name: string;
@@ -143,6 +145,8 @@ function normalizeResultRow(value: unknown): ExamResultRow | null {
     id: toNumber(record.id),
     enrollment_id: enrollmentId,
     student_name: getStudentName(record),
+    score_session_id: toNumber(record.correction_session_id),
+    score_lecture_title: toStringValue(record.lecture_title),
     exam_score: toNumber(record.exam_score ?? record.score),
     final_score: toNumber(record.final_score),
     total_score: toNumber(record.total_score),

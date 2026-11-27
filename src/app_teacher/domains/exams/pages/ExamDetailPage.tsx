@@ -1,12 +1,14 @@
 // PATH: src/app_teacher/domains/exams/pages/ExamDetailPage.tsx
 // 시험 상세 — 제출현황 + 간이 채점 (admin endpoint SSOT, enrollment_id schema)
 import { useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { EmptyState, ICON } from "@/shared/ui/ds";
 import { Settings, Camera } from "@teacher/shared/ui/Icons";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
+import { fetchSession } from "@teacher/domains/lectures/api";
+import { teacherLectureQueryKeys } from "@teacher/domains/lectures/queryKeys";
 import { fetchExam } from "../api";
 // 사이드바 ResultsPage 와 동일 SSOT — admin endpoint(IsTeacherOrAdmin) enrollment_id schema
 import { fetchExamResults } from "@teacher/domains/results/statsApi";
@@ -29,6 +31,12 @@ import styles from "./ExamDetailPage.module.css";
 export default function ExamDetailPage() {
   const { examId } = useParams<{ examId: string }>();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const enrollmentId = Number(params.get("enrollmentId"));
+  const reviewSession = Number(params.get("reviewSession"));
+  const viewingSubmission = enrollmentId > 0 && reviewSession > 0;
+  const scoreLecture = Number(params.get("scoreLectureId"));
+  const scoreLectureId = viewingSubmission && Number.isSafeInteger(scoreLecture) && scoreLecture > 0 ? scoreLecture : undefined;
   const eid = Number(examId);
   const validExamId = Number.isInteger(eid) && eid > 0;
   const [manageOpen, setManageOpen] = useState(false);
@@ -41,8 +49,9 @@ export default function ExamDetailPage() {
   const exam = examQ.data;
 
   const resultsQ = useQuery({
-    queryKey: teacherExamsQueryKeys.examResults(eid),
-    queryFn: async () => normalizeResultRows(await fetchExamResults(eid)),
+    queryKey: scoreLectureId ? [...teacherExamsQueryKeys.examResults(eid), "lecture", scoreLectureId]
+      : teacherExamsQueryKeys.examResults(eid),
+    queryFn: async () => normalizeResultRows(await fetchExamResults(eid, scoreLectureId)),
     enabled: validExamId,
   });
   const results = resultsQ.data;
@@ -51,6 +60,12 @@ export default function ExamDetailPage() {
     () => (exam?.session_ids ?? []).filter((id): id is number => Number.isFinite(id)),
     [exam?.session_ids],
   );
+
+  const reviewSessionQ = useQuery({
+    queryKey: teacherLectureQueryKeys.sessionDetail(reviewSession),
+    queryFn: () => fetchSession(reviewSession),
+    enabled: viewingSubmission && sessionIds.includes(reviewSession),
+  });
 
   // enrollment fallback — admin endpoint 는 result row 있는 학생만 반환.
   // 멀티 세션 시험은 각 차시의 "시험 선택 enrollment"만 합쳐야 과잉 노출이 없다.
@@ -72,7 +87,7 @@ export default function ExamDetailPage() {
       }
       return Array.from(rowsByEnrollment.values());
     },
-    enabled: validExamId && sessionIds.length > 0,
+    enabled: validExamId && !viewingSubmission && sessionIds.length > 0,
   });
   const examEnrollmentRows = enrollmentRowsQ.data;
 
@@ -124,6 +139,19 @@ export default function ExamDetailPage() {
       })
     : (results ?? []);
 
+  if (viewingSubmission) {
+    const row = sessionIds.includes(reviewSession) ? resultByEnrollment.get(enrollmentId) : undefined;
+    return <section className="flex flex-col gap-3">
+      <div className="flex items-center gap-2"><BackBtn onClick={() => navigate(-1)} /><h1>{exam.title}</h1></div>
+      {reviewSessionQ.data?.title && <p>조회 차시 · {reviewSessionQ.data.title}</p>}
+      {row ? <>
+        <h2>{row.student_name} · 저장된 성적</h2>
+        {row.score_lecture_title && <p>{row.score_lecture_title}</p>}
+        <ResultRow result={row} exam={exam} />
+        {row.score_session_id ? <EmptyActionButton onClick={() => navigate(`/workspace/mobile/scores/${row.score_session_id}?exam=${eid}&reviewEnrollment=${enrollmentId}`)}>저장된 수강 성적 입력</EmptyActionButton> : <p>저장된 수강의 성적 입력 차시를 확인할 수 없습니다.</p>}
+      </> : <EmptyState scope="panel" tone="empty" title="저장된 수강의 시험 결과를 찾을 수 없습니다" />}
+    </section>;
+  }
   const graded = merged.filter(hasExamResultScore);
   const ungraded = merged.filter((r) => !hasExamResultScore(r));
 

@@ -134,6 +134,8 @@ export type PendingSubmissionRow = {
   lecture_title: string;
   session_id: number | null;
   session_title?: string;
+  session_origin_recorded?: boolean;
+  score_lecture_id?: number | null;
   session_choices?: Array<{ session_id: number; session_title: string; lecture_id: number; lecture_title: string }>;
   source: string;
   status: SubmissionStatus;

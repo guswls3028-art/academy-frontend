@@ -431,7 +431,7 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
     }
     if (row.target_type === "exam") {
       navigate(
-        `/workspace/lectures/${row.lecture_id}/sessions/${row.session_id}/exams?exam_id=${row.target_id}&examTab=results${row.enrollment_id ? `&enrollmentId=${row.enrollment_id}` : ""}`,
+        `/workspace/lectures/${row.lecture_id}/sessions/${row.session_id}/exams?exam_id=${row.target_id}&examTab=results${row.enrollment_id ? `&enrollmentId=${row.enrollment_id}` : ""}${row.score_lecture_id ? `&scoreLectureId=${row.score_lecture_id}` : ""}`,
       );
     } else {
       navigate(
@@ -854,6 +854,7 @@ function SubmissionRow({
         >
           {targetTitleDisplay}
         </p>
+        {isExam && resolved && row.session_origin_recorded === false && <p className="text-xs text-[var(--color-text-muted)]">응시 차시 미확인</p>}
         {row.session_choices?.length ? (
           <ExamSessionSelect label="열어볼 강의·차시" choices={row.session_choices} selectedId={row.session_id}
             onSelect={choice => onSessionChange(choice?.session_id ?? 0)} />

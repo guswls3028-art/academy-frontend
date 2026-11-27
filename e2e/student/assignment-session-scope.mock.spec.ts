@@ -68,6 +68,7 @@ async function installApi(page: Page, beforeUploadResponse?: () => Promise<void>
       expect(request.headers()["x-student-id"]).toBe("12");
       return fulfill({ items: [] });
     }
+    if (path.endsWith(`/student/sessions/${SESSION_ID}/`)) return fulfill({ id: SESSION_ID, title: "3차시", exam_ids: [301] });
     if (path.endsWith("/student/grades/")) {
       return fulfill({
         exams: [
@@ -508,3 +509,30 @@ test("학부모 성적 보드는 선택한 자녀의 점수와 제출 상태를 
   await expect(card).toContainText("0/100");
   await expect(card.getByRole("link")).toHaveCount(0);
 });
+
+for (const width of [390, 1366]) {
+  test(`${width}px 선택한 B차시의 첨부 시험은 다른 강의의 중복 성적 행과 별도로 확인한다`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await installApi(page);
+    const b = 8811;
+    const row = { exam_id: 301, enrollment_id: 401, session_id: SESSION_ID, title: "공유 시험", lecture_title: "성적 강의 A",
+      session_title: "A차시", achievement: "NOT_SUBMITTED", total_score: null };
+    await page.route("**/api/v1/student/grades/**", route => route.fulfill({ json: {
+      exams: [row, { ...row, enrollment_id: 402 }, { ...row, exam_id: 309, title: "A 전용 시험" }], homeworks: [] } }));
+    let available = false;
+    await page.route(`**/api/v1/student/sessions/${b}/`, route => available
+      ? route.fulfill({ json: { id: b, title: "B차시", exam_ids: [301] } })
+      : route.fulfill({ status: 403, json: { detail: "차시 조회 실패" } }));
+    await page.goto(`${BASE}/student/submit/assignment?sessionId=${b}`);
+    await expect(page.getByText("이 차시의 시험을 확인하지 못했습니다.")).toBeVisible();
+    await expect(page.getByRole("link", { name: /공유 시험/ })).toHaveCount(0);
+    available = true;
+    await page.getByRole("button", { name: /다시 시도/ }).click();
+    const exam = page.getByRole("link", { name: /공유 시험/ });
+    await expect(exam).toHaveCount(1);
+    await expect(exam).toHaveAttribute("href", `/student/exams/301/submit?entry_session_id=${b}`);
+    await expect(exam).toContainText("B차시");
+    await expect(page.getByText("성적 강의 A")).toHaveCount(0);
+    await expect(page.getByText("A 전용 시험")).toHaveCount(0);
+  });
+}

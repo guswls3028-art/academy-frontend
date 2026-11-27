@@ -70,8 +70,8 @@ for (const role of ['student', 'parent']) for (const width of [390, 1366]) {
     await choices.focus();
     await choices.press('Enter');
     await expect(firstExam).toBeVisible();
-    await expect(firstExam).toHaveAttribute('href', '/student/exams/71');
-    await expect(actions.getByRole('link', { name: '재시험', exact: true })).toHaveAttribute('href', '/student/exams/72');
+    await expect(firstExam).toHaveAttribute('href', '/student/exams/71?entry_session_id=202');
+    await expect(actions.getByRole('link', { name: '재시험', exact: true })).toHaveAttribute('href', '/student/exams/72?entry_session_id=202');
     await choices.press('Enter');
     await expect(firstExam).toBeHidden();
     await page.goto(`${BASE}/student/sessions/203`);

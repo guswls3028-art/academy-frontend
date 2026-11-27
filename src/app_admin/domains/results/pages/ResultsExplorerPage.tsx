@@ -1347,9 +1347,10 @@ function OperationList({
       {rows.length === 0 ? <p>{empty}</p> : rows.slice(0, 4).map((submission) => action === "결과 보기" && submission.session_choices?.length ? (
         <label key={submission.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 py-2">
           <span>{submission.target_title} · {submission.student_name || "학생 미식별"}</span>
+          {submission.session_origin_recorded === false && <span>응시 차시 미확인</span>}
           <ExamSessionSelect label={`${submission.target_title} 결과를 열 강의·차시`} choices={submission.session_choices}
             onSelect={selected => {
-              if (selected) onNavigate(`/workspace/lectures/${selected.lecture_id}/sessions/${selected.session_id}/exams?exam_id=${submission.target_id}&examTab=results${submission.enrollment_id ? `&enrollmentId=${submission.enrollment_id}` : ""}`);
+              if (selected) onNavigate(`/workspace/lectures/${selected.lecture_id}/sessions/${selected.session_id}/exams?exam_id=${submission.target_id}&examTab=results${submission.enrollment_id ? `&enrollmentId=${submission.enrollment_id}` : ""}${submission.score_lecture_id ? `&scoreLectureId=${submission.score_lecture_id}` : ""}`);
             }} />
         </label>
       ) : (
@@ -1358,13 +1359,16 @@ function OperationList({
           key={submission.id}
           onClick={() => {
             if (action === "결과 보기" && submission.target_type === "exam" && submission.lecture_id && submission.session_id) {
-              onNavigate(`/workspace/lectures/${submission.lecture_id}/sessions/${submission.session_id}/scores`);
+              onNavigate(submission.score_lecture_id && submission.enrollment_id
+                ? `/workspace/lectures/${submission.lecture_id}/sessions/${submission.session_id}/exams?exam_id=${submission.target_id}&examTab=results&enrollmentId=${submission.enrollment_id}&scoreLectureId=${submission.score_lecture_id}`
+                : `/workspace/lectures/${submission.lecture_id}/sessions/${submission.session_id}/scores`);
               return;
             }
             onNavigate(action === "결과 보기" ? "/workspace/results/submissions?filter=done" : "/workspace/results/submissions");
           }}
         >
           <span>
+            {submission.session_origin_recorded === false && <small>응시 차시 미확인</small>}
             <strong>{submission.target_title || `원본 없음 · 제출 #${submission.id}`}</strong>
             <StudentNameWithLectureChip
               name={submission.student_name || "학생 미식별"}

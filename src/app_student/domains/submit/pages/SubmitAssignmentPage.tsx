@@ -7,6 +7,8 @@ import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
 import { useMyGradeRows } from "@student/domains/grades/hooks/useMyGradesSummary";
 import type { MyExamGradeSummary, MyHomeworkGradeSummary } from "@student/domains/grades/api/grades.api";
+import { useSessionDetail } from "@student/domains/sessions/hooks/useStudentSessions";
+import { entrySessionSearch } from "@student/domains/exams/api/examEntrySession";
 import { acceptsHomeworkFiles } from "@student/domains/grades/public/homeworkSubmission";
 import type { HomeworkMediaFile } from "@student/domains/submit/api/homeworkMedia.api";
 import { fetchHomeworkMedia, removeHomeworkMedia } from "@student/domains/submit/api/homeworkMedia.api";
@@ -132,18 +134,22 @@ export default function SubmitAssignmentPage() {
     )),
     [grades?.homeworks, requestedSessionId],
   );
-  const unfinishedExams = useMemo(
-    () => (grades?.exams ?? []).filter((exam) => (
-      (requestedSessionId == null || Number(exam.session_id) === requestedSessionId)
-      && exam.lecture_active !== false
-      && exam.submission_pending !== true
-      && exam.grading_status !== "subjective_pending"
-      && exam.achievement !== "REMEDIATED"
-      && (exam.is_pass === false || exam.achievement === "FAIL" || exam.achievement === "NOT_SUBMITTED"
-        || exam.meta_status === "NOT_SUBMITTED" || exam.total_score == null)
-    )),
-    [grades?.exams, requestedSessionId],
-  );
+  const examSession = useSessionDetail(requestedSessionId ?? undefined);
+  const selectedSession = requestedSessionId != null && examSession.data?.id === requestedSessionId
+    ? examSession.data : undefined;
+  const unfinishedExams = useMemo(() => {
+    const exams = new Map<number, MyExamGradeSummary>();
+    for (const exam of grades?.exams ?? []) {
+      if (requestedSessionId != null && !selectedSession?.exam_ids?.includes(exam.exam_id)) continue;
+      if (exam.lecture_active === false || exam.submission_pending || exam.grading_status === "subjective_pending"
+        || exam.achievement === "REMEDIATED") continue;
+      if (exam.is_pass === false || exam.achievement === "FAIL" || exam.achievement === "NOT_SUBMITTED"
+        || exam.meta_status === "NOT_SUBMITTED" || exam.total_score == null) {
+        if (!exams.has(exam.exam_id) || exam.session_id === requestedSessionId) exams.set(exam.exam_id, exam);
+      }
+    }
+    return [...exams.values()];
+  }, [grades?.exams, requestedSessionId, selectedSession]);
 
   const mediaQ = useQuery({
     queryKey: studentQueryKeys.homeworkMedia(selected?.id, selected?.enrollmentId),
@@ -550,7 +556,9 @@ export default function SubmitAssignmentPage() {
           {requestedHomeworkId != null && gradesQ.isSuccess && !unfinishedHomeworks.some((homework) => homework.homework_id === requestedHomeworkId) && (
             <div className={styles.scopeNotice} role="status">이 과제는 현재 파일을 제출할 수 없습니다. 과제 확인 결과에서 상태를 확인해 주세요.</div>
           )}
-          {!gradesQ.isLoading && !gradesQ.isError && unfinishedHomeworks.length === 0 && unfinishedExams.length === 0 && <div className={styles.emptyTarget}>{requestedSessionId == null ? "제출할 미완료 과제·시험이 없습니다." : "이 차시에 제출할 미완료 과제·시험이 없습니다."}</div>}
+          {requestedSessionId != null && examSession.isLoading && <p role="status">이 차시에 배정된 시험 확인 중…</p>}
+          {requestedSessionId != null && examSession.isError && <EmptyState title="이 차시의 시험을 확인하지 못했습니다." onRetry={() => void examSession.refetch()} />}
+          {!gradesQ.isLoading && !gradesQ.isError && (requestedSessionId == null || selectedSession) && unfinishedHomeworks.length === 0 && unfinishedExams.length === 0 && <div className={styles.emptyTarget}>{requestedSessionId == null ? "제출할 미완료 과제·시험이 없습니다." : "이 차시에 제출할 미완료 과제·시험이 없습니다."}</div>}
           {!gradesQ.isError && <div className={styles.targetList}>
             {unfinishedHomeworks.map((homework) => (
               <button key={`hw-${homework.homework_id}`} type="button" onClick={() => selectHomework(homework)} disabled={uploadMut.isPending || isPreparingFiles || (reviewLocked && gradesQ.isFetching)} className={styles.targetItem} data-selected={selected?.id === homework.homework_id}>
@@ -558,8 +566,8 @@ export default function SubmitAssignmentPage() {
               </button>
             ))}
             {unfinishedExams.map((exam: MyExamGradeSummary) => (
-              <Link key={`ex-${exam.exam_id}`} to={`/student/exams/${exam.exam_id}/submit`} className={styles.targetItem} aria-disabled={uploadMut.isPending || isPreparingFiles} tabIndex={uploadMut.isPending || isPreparingFiles ? -1 : undefined} onClick={(event) => { if (uploadMut.isPending || isPreparingFiles) event.preventDefault(); }}>
-                <span className={styles.targetIcon}><IconExam className={styles.targetIconSvg} /></span><span className={styles.targetBadge}>시험</span><span className={styles.targetTitle}>{exam.title}</span>{(exam.lecture_title || exam.session_title) && <span className={`stu-muted ${styles.targetLecture}`}>{[exam.lecture_title, exam.session_title].filter(Boolean).join(" · ")}</span>}
+              <Link key={`ex-${exam.exam_id}`} to={`/student/exams/${exam.exam_id}/submit${entrySessionSearch(requestedSessionId)}`} className={styles.targetItem} aria-disabled={uploadMut.isPending || isPreparingFiles} tabIndex={uploadMut.isPending || isPreparingFiles ? -1 : undefined} onClick={(event) => { if (uploadMut.isPending || isPreparingFiles) event.preventDefault(); }}>
+                <span className={styles.targetIcon}><IconExam className={styles.targetIconSvg} /></span><span className={styles.targetBadge}>시험</span><span className={styles.targetTitle}>{exam.title}</span><span className={`stu-muted ${styles.targetLecture}`}>{selectedSession ? selectedSession.title : [exam.lecture_title, exam.session_title].filter(Boolean).join(" · ")}</span>
               </Link>
             ))}
           </div>}

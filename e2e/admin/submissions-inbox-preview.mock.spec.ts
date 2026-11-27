@@ -120,7 +120,7 @@ async function installSubmissionApi(page: Page, options: {
           lecture_id: 31,
           lecture_title: "중2 과학 정규반",
           session_id: options.sharedExam ? null : 44,
-          ...(options.sharedExam ? { lecture_id: null, lecture_title: "", session_choices: [
+          ...(options.sharedExam ? { lecture_id: null, lecture_title: "", session_origin_recorded: false, score_lecture_id: 31, session_choices: [
             { lecture_id: 31, lecture_title: "과학 A", session_id: 44, session_title: "첫 차시" },
             { lecture_id: 32, lecture_title: "과학 B", session_id: 45, session_title: "둘째 차시" },
           ] } : {}),
@@ -581,7 +581,8 @@ test("공유 시험은 조회할 차시 선택 후 해당 차시의 학생 결�
   const row = page.getByTestId("submission-inbox-501");
   await expect(row.getByText("원본 없음", { exact: true })).toHaveCount(0);
   await expect(row.getByRole("button", { name: "결과 보기" })).toHaveCount(0);
+  await expect(row.getByText("응시 차시 미확인", { exact: true })).toBeVisible();
   await row.getByRole("combobox", { name: "열어볼 강의·차시" }).selectOption({ label: "과학 B · 둘째 차시" });
   await row.getByRole("button", { name: "결과 보기" }).click();
-  await expect(page).toHaveURL(/lectures\/32\/sessions\/45\/exams\?exam_id=77&examTab=results&enrollmentId=901/);
+  await expect(page).toHaveURL(/lectures\/32\/sessions\/45\/exams\?exam_id=77&examTab=results&enrollmentId=901&scoreLectureId=31/);
 });

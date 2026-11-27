@@ -2,6 +2,7 @@
 // 성적 테이블 — 엑셀형 키보드 이동 (Tab/화살표), 자동 저장과 실행 취소
 
 import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useState, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
+import { useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -169,6 +170,21 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
     return data?.rows ?? [];
   }, [data]);
   const meta: SessionScoreMeta | null = data?.meta ?? null;
+  const [reviewParams] = useSearchParams();
+  const reviewExam = Number(reviewParams.get("reviewExam"));
+  const reviewEnrollment = Number(reviewParams.get("reviewEnrollment"));
+  const openedReview = useRef("");
+  useEffect(() => {
+    const key = `${sessionId}:${reviewExam}:${reviewEnrollment}`;
+    if (!reviewExam || !reviewEnrollment || openedReview.current === key) return;
+    const target = data?.rows.find(row => row.enrollment_id === reviewEnrollment && row.exams.some(e => e.exam_id === reviewExam));
+    const exam = data?.meta?.exams?.find(e => e.exam_id === reviewExam);
+    if (target && exam) {
+      openedReview.current = key;
+      setDrawerEnrollmentId(target.enrollment_id);
+      setAnswerDetail({ examId: reviewExam, enrollmentId: target.enrollment_id, examTitle: exam.title });
+    }
+  }, [data, reviewExam, reviewEnrollment, sessionId]);
   const openTotals = () => { if (meta) setTotalsEditor({ sessionId, meta }); };
   const attendancePageSize = allRows.length > 50 ? Math.min(allRows.length, 500) : undefined;
   const { data: attendanceList } = useQuery({

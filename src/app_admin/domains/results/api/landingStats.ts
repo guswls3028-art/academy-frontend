@@ -9,6 +9,8 @@ export type LandingSubmissionSummary = {
   lecture_id: number | null;
   lecture_title: string;
   session_id: number | null;
+  session_origin_recorded?: boolean;
+  score_lecture_id?: number | null;
   session_choices?: Array<{ lecture_id: number; lecture_title: string; session_id: number; session_title: string }>;
   enrollment_id: number | null;
   student_name: string;
