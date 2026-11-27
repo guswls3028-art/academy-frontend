@@ -47,10 +47,9 @@ export default function ResponsiveAdminLayout({ onOpenQuickNavigation }: { onOpe
           <Header onOpenQuickNavigation={onOpenQuickNavigation} sidebarCollapsed={sidebarCollapsed}
             onToggleSidebar={() => setSidebarCollapsed(value => !value)} />
         </header>
-        <aside id="admin-workspace-sidebar" className={`sidebar ${styles.sidebar}`}
-          data-analytics-placement={isMobile ? undefined : "admin.sidebar"}>
+        <div className={`sidebar ${styles.sidebar}`}>
           {!isMobile && <Sidebar collapsed={sidebarCollapsed} onExpand={() => setSidebarCollapsed(false)} />}
-        </aside>
+        </div>
         <main ref={mainRef} className={styles.main}>
           <div className={styles.content}>
             <Outlet key={location.pathname} />
