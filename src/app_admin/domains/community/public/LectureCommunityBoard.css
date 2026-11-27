@@ -1,0 +1,82 @@
+.lecture-community {
+  min-width: 0;
+  color: var(--color-text-primary);
+}
+
+.lecture-community__toolbar,
+.lecture-community__pages,
+.lecture-community__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.lecture-community__toolbar {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.lecture-community__panes {
+  overflow: hidden;
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+.lecture-community__panes--open {
+  display: grid;
+  grid-template-columns: minmax(235px, 32%) minmax(0, 1fr);
+}
+
+.lecture-community__list,
+.lecture-community__panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lecture-community__panel {
+  border-left: 1px solid var(--color-border-divider);
+  overflow-wrap: anywhere;
+}
+
+.lecture-community__list .cms-list-card {
+  width: 100%;
+}
+
+.lecture-community__panel .qna-inbox__thread-title-row,
+.lecture-community__panel .qna-inbox__thread-actions {
+  flex-wrap: wrap;
+}
+
+.lecture-community__pages {
+  justify-content: center;
+  padding: var(--space-3);
+  color: var(--color-text-secondary);
+}
+
+.lecture-community__message {
+  margin: auto;
+  padding: var(--space-5);
+  text-align: center;
+}
+
+.lecture-community__actions {
+  margin-top: var(--space-3);
+  justify-content: center;
+}
+
+@media (max-width: 800px) {
+  .lecture-community__panes--open {
+    display: block;
+  }
+
+  .lecture-community__panes--open > .lecture-community__list {
+    display: none;
+  }
+
+  .lecture-community__panel {
+    border-left: 0;
+  }
+}

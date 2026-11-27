@@ -1,7 +1,7 @@
 // PATH: src/shared/ui/domain/DomainTable.tsx
 // Students 도메인 UI SSOT — ds-table-wrap + table.ds-table 공통 래퍼
 
-import type { CSSProperties, ReactNode } from "react";
+import type { ComponentPropsWithRef, CSSProperties, ReactNode } from "react";
 
 type DomainTableStyle = CSSProperties & {
   width?: string | number;
@@ -19,6 +19,7 @@ type DomainTableProps = {
   /** data-* 속성 전달 (예: data-edit-mode) */
   dataAttributes?: Record<string, string>;
   scrollLabel?: string;
+  scrollContainerProps?: Pick<ComponentPropsWithRef<"div">, "ref" | "onScroll" | "className">;
 };
 
 function getResolvedTableStyle(tableStyle?: DomainTableStyle): CSSProperties | undefined {
@@ -33,11 +34,13 @@ export default function DomainTable({
   tableStyle,
   dataAttributes,
   scrollLabel,
+  scrollContainerProps,
 }: DomainTableProps) {
   const hasExplicitWidth = tableStyle?.width != null;
   return (
     <div
-      className="ds-table-wrap ds-table-wrap--domain-scroll"
+      {...scrollContainerProps}
+      className={`ds-table-wrap ds-table-wrap--domain-scroll ${scrollContainerProps?.className ?? ""}`.trim()}
       role={scrollLabel ? "region" : undefined}
       aria-label={scrollLabel}
       tabIndex={scrollLabel ? 0 : undefined}

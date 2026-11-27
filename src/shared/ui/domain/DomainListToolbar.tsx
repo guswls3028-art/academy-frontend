@@ -18,6 +18,7 @@ type DomainListToolbarProps = {
   /** 검색창 밑에 표시 (예: N명 선택됨 + 액션 버튼) */
   belowSlot?: ReactNode;
   compactMobile?: boolean;
+  inlineFiltersOnDesktop?: boolean;
 };
 
 export default function DomainListToolbar({
@@ -27,6 +28,7 @@ export default function DomainListToolbar({
   primaryAction,
   belowSlot,
   compactMobile = false,
+  inlineFiltersOnDesktop = false,
 }: DomainListToolbarProps) {
   const isMobile = useIsMobile();
 
@@ -62,14 +64,15 @@ export default function DomainListToolbar({
   return (
     <ControlSizeContext.Provider value="md">
     <div className="domain-list-toolbar flex flex-col gap-3" data-control-size="md">
-      <div className={styles.desktopMainRow}>
+      <div className={`${styles.desktopMainRow} ${inlineFiltersOnDesktop ? styles.inlineFiltersRow : ""}`}>
         <span className={styles.totalDesktop}>
           {totalLabel}
         </span>
         <div className={styles.desktopSearch}>{searchSlot}</div>
+        {inlineFiltersOnDesktop && filterSlot && <div className={styles.desktopFilters}>{filterSlot}</div>}
         <div className={styles.desktopPrimary}>{primaryAction}</div>
       </div>
-      {filterSlot && <div className={styles.desktopFilters}>{filterSlot}</div>}
+      {!inlineFiltersOnDesktop && filterSlot && <div className={styles.desktopFilters}>{filterSlot}</div>}
       {belowSlot && <div className={styles.desktopBelow}>{belowSlot}</div>}
     </div>
     </ControlSizeContext.Provider>

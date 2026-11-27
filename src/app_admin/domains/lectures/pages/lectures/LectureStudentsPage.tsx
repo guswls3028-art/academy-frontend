@@ -4,7 +4,7 @@
 // R-11 legacy baseline: existing inline styles stay frozen; new styles use className/DS tokens.
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { useLocation, useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useOutletContext, useParams } from "react-router";
 import { compareKoreanText } from "@/shared/utils/dataOrdering";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
@@ -26,15 +26,16 @@ import { DomainListToolbar, DomainTable, STUDENTS_TABLE_COL, ResizableTh, useTab
 import type { TableColumnDef } from "@/shared/ui/domain";
 import { formatPhone } from "@/shared/utils/formatPhone";
 import { formatSessionBlockLabel } from "@/shared/ui/session-block";
+import type { LectureRosterView } from "../../useLectureRosterView";
+import "./lecture-roster.css";
 
+const DEFAULT_SESSION_WIDTH = 56;
 const LECTURE_STUDENTS_FIXED_COLUMNS: TableColumnDef[] = [
   { key: "name", label: "이름", defaultWidth: STUDENTS_TABLE_COL.name, minWidth: 80 },
   { key: "parentPhone", label: "학부모 전화", defaultWidth: STUDENTS_TABLE_COL.parentPhone, minWidth: 90 },
   { key: "studentPhone", label: "학생 전화", defaultWidth: STUDENTS_TABLE_COL.studentPhone, minWidth: 90 },
-  { key: "session", label: "차시", defaultWidth: STUDENTS_TABLE_COL.sessionCol, minWidth: 34 },
+  { key: "session", label: "차시", defaultWidth: DEFAULT_SESSION_WIDTH, minWidth: 34 },
 ];
-
-type AttendanceSessionScope = "REGULAR" | "SUPPLEMENT" | "ALL";
 
 function LectureStudentsSortableTh({
   colKey,
@@ -66,12 +67,12 @@ function LectureStudentsSortableTh({
       aria-sort={isAsc ? "ascending" : isDesc ? "descending" : "none"}
       className="cursor-pointer select-none"
     >
-      <span className="inline-flex items-center justify-center gap-2">
+      <button type="button" className="lecture-roster__sort">
         {label}
         <span aria-hidden style={{ fontSize: 11, opacity: isAsc || isDesc ? 1 : 0.35, color: "var(--color-primary)" }}>
           {isAsc ? "▲" : isDesc ? "▼" : "⇅"}
         </span>
-      </span>
+      </button>
     </ResizableTh>
   );
 }
@@ -84,14 +85,15 @@ export default function LectureStudentsPage() {
   const lectureIdNum = Number(lectureId);
   const validLectureId = Number.isInteger(lectureIdNum) && lectureIdNum > 0;
 
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const { searchInput, setSearchInput, sort, setSort, sessionScope, setSessionScope, scroll } = useOutletContext<LectureRosterView>();
+  const [search, setSearch] = useState(searchInput);
   const [showLectureEnroll, setShowLectureEnroll] = useState(false);
 
   const [showEnrollExcelModal, setShowEnrollExcelModal] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [sort, setSort] = useState("name");
-  const [sessionScope, setSessionScope] = useState<AttendanceSessionScope>("REGULAR");
+  const restoreTableScroll = useCallback((element: HTMLDivElement | null) => {
+    if (element) element.scrollTo(scroll.current.left, scroll.current.top);
+  }, [scroll]);
   const { columnWidths, setColumnWidth } = useTableColumnPrefs("lecture-students", LECTURE_STUDENTS_FIXED_COLUMNS);
 
   useEffect(() => {
@@ -219,7 +221,7 @@ export default function LectureStudentsPage() {
     });
   }, []);
 
-  const sessionColWidth = columnWidths.session ?? STUDENTS_TABLE_COL.sessionCol;
+  const sessionColWidth = columnWidths.session ?? DEFAULT_SESSION_WIDTH;
   const tableMinWidth =
     STUDENTS_TABLE_COL.checkbox +
     (columnWidths.name ?? STUDENTS_TABLE_COL.name) +
@@ -240,26 +242,12 @@ export default function LectureStudentsPage() {
     else setSelectedIds([...allIds]);
   }
 
-  const selectionBar = (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2 pl-1">
-        <span
-          className="text-[13px] font-semibold"
-          style={{
-            color: selectedIds.length > 0 ? "var(--color-primary)" : "var(--color-text-muted)",
-          }}
-        >
-          {selectedIds.length}명 선택됨
-        </span>
-        <span className="text-[var(--color-border-divider)]">|</span>
-        <Button intent="secondary" size="sm" onClick={() => setSelectedIds([])} disabled={selectedIds.length === 0}>
-          선택 해제
-        </Button>
-        <span className="text-[var(--color-border-divider)]">|</span>
-      <Button intent="secondary" size="sm" onClick={() => downloadAttendanceExcel(lectureIdNum)} disabled={isLoading || isError}>
-        출결 엑셀 다운로드
+  const selectionBar = selectedIds.length > 0 && (
+    <div className="lecture-roster__selection">
+      <span>{selectedIds.length}명 선택됨</span>
+      <Button intent="ghost" size="sm" onClick={() => setSelectedIds([])}>
+        선택 해제
       </Button>
-      </div>
     </div>
   );
 
@@ -275,10 +263,12 @@ export default function LectureStudentsPage() {
     <>
       <div className="flex flex-col gap-4">
         <DomainListToolbar
+          inlineFiltersOnDesktop
           totalLabel={isLoading ? "…" : `총 ${sortedFiltered.length}명`}
           searchSlot={
             <input
               className="ds-input"
+              aria-label="이름 / 전화번호 검색"
               placeholder="이름 / 전화번호 검색"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -314,9 +304,14 @@ export default function LectureStudentsPage() {
             </div>
           }
           primaryAction={
-            <Button intent="primary" onClick={() => setShowLectureEnroll(true)} disabled={isLoading || isError}>
-              수강생 등록
-            </Button>
+            <div className="lecture-roster__actions">
+              <Button intent="secondary" size="sm" onClick={() => downloadAttendanceExcel(lectureIdNum)} disabled={isLoading || isError}>
+                출결 엑셀 다운로드
+              </Button>
+              <Button intent="primary" onClick={() => setShowLectureEnroll(true)} disabled={isLoading || isError}>
+                수강생 등록
+              </Button>
+            </div>
           }
           belowSlot={selectionBar}
         />
@@ -346,11 +341,16 @@ export default function LectureStudentsPage() {
               extra="출결 대상은 각 차시에서 '강의 수강생 불러오기'로 선택할 수 있습니다. 엑셀 일괄 등록도 지원합니다."
             />
           ) : (
-            <div className="overflow-x-auto w-full">
-              <div style={{ width: "fit-content" }}>
                 <DomainTable
+                  scrollLabel="차시별 출결표"
+                  scrollContainerProps={{
+                    className: "lecture-roster__scroll",
+                    ref: restoreTableScroll,
+                    onScroll: ({ currentTarget }) => { scroll.current = { left: currentTarget.scrollLeft, top: currentTarget.scrollTop }; },
+                  }}
                   tableClassName="ds-table--flat ds-table--attendance"
-                  tableStyle={{ width: tableMinWidth, minWidth: tableMinWidth, tableLayout: "fixed" }}
+                  tableStyle={{ width: tableMinWidth, minWidth: tableMinWidth, tableLayout: "fixed",
+                    "--lecture-roster-checkbox-width": `${STUDENTS_TABLE_COL.checkbox}px` }}
                 >
                   <colgroup>
                     <col style={{ width: STUDENTS_TABLE_COL.checkbox }} />
@@ -403,15 +403,17 @@ export default function LectureStudentsPage() {
                         <ResizableTh
                           key={s.id}
                           columnKey="session"
+                          noWrap
                           width={sessionColWidth}
                           minWidth={34}
                           maxWidth={80}
                           onWidthChange={setColumnWidth}
-                          className="text-center"
+                          className="lecture-roster__session"
                           style={{ paddingLeft: 0, paddingRight: 0 }}
                           title={`${formatSessionBlockLabel(s)}${s.date ? ` (${s.date})` : ""}`}
                         >
-                          {formatSessionBlockLabel(s)}
+                          <span className="lecture-roster__session-name">{formatSessionBlockLabel(s)}</span>
+                          {s.date && <time className="lecture-roster__session-date" dateTime={s.date}>{s.date.slice(5, 10).replace("-", ".")}</time>}
                         </ResizableTh>
                       ))}
                     </tr>
@@ -483,8 +485,6 @@ export default function LectureStudentsPage() {
                     ))}
                   </tbody>
                 </DomainTable>
-              </div>
-            </div>
           )}
         </div>
       </div>

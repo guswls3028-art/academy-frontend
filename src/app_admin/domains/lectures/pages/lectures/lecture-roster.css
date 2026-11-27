@@ -1,0 +1,110 @@
+.lecture-roster__actions,
+.lecture-roster__selection {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.lecture-roster__selection {
+  color: var(--color-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.lecture-roster__scroll.ds-table-wrap {
+  position: relative;
+  isolation: isolate;
+  width: fit-content;
+  max-width: 100%;
+  max-height: 65vh;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  overscroll-behavior-x: contain;
+}
+
+.lecture-roster__scroll:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+.lecture-roster__scroll .ds-table.ds-table--attendance thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: var(--color-bg-surface-soft);
+}
+
+.lecture-roster__scroll .ds-table :is(th, td):nth-child(-n + 2) {
+  position: sticky;
+  left: 0;
+}
+
+.lecture-roster__scroll .ds-table :is(th, td):nth-child(2) {
+  left: var(--lecture-roster-checkbox-width);
+  box-shadow: 1px 0 var(--color-border-divider);
+}
+
+.lecture-roster__scroll .ds-table.ds-table--flat.ds-table--attendance :is(th, td).ds-checkbox-cell {
+  padding-inline: 0;
+  text-align: center;
+}
+
+.lecture-roster__scroll .ds-table tbody td:nth-child(-n + 2) {
+  z-index: 1;
+  background-color: var(--color-bg-surface);
+}
+
+.lecture-roster__scroll .ds-table tbody tr:is(:hover, :focus-within) td:nth-child(-n + 2) {
+  background-color: var(--color-bg-surface-soft);
+}
+
+.lecture-roster__scroll .ds-table tbody tr.ds-row-selected td:nth-child(-n + 2) {
+  background-color: color-mix(in srgb, var(--color-primary) 12%, var(--color-bg-surface));
+}
+
+.lecture-roster__scroll .ds-table thead th:nth-child(-n + 2) {
+  z-index: 3;
+}
+
+.lecture-roster__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lecture-roster__session-name,
+.lecture-roster__session-date {
+  display: block;
+  overflow: hidden;
+  padding-inline: 3px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lecture-roster__session-date {
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.lecture-roster__scroll .ds-table.ds-table--flat thead th.lecture-roster__session {
+  text-align: center;
+}
+
+@media (max-width: 1023px) {
+  /* The shared mobile header padding would clip a 28px checkbox or a narrow date. */
+  .lecture-roster__scroll .ds-table thead th:is(.ds-checkbox-cell, .lecture-roster__session) {
+    padding-inline: 0 !important;
+  }
+}

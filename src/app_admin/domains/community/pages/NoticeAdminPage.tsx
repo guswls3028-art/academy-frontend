@@ -37,9 +37,10 @@ import PostReadView from "../components/PostReadView";
 import CommunityContextBar from "../components/CommunityContextBar";
 import CommunityEmptyState from "../components/CommunityEmptyState";
 import { stripHtml } from "../utils/communityHelpers";
+import type { PostDraftStateChange } from "../hooks/usePostDraftNavigation";
 import { selectNoticeFiles } from "../utils/noticeFiles";
 import NoticeAttachments, { NoticeDraftFiles } from "../components/NoticeAttachments";
-import { createClientRequestKey, getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
+import { isHttpStatus, createClientRequestKey, getCommunityStorageCleanupNotice } from "@/shared/api/contracts/community";
 import "@admin/domains/community/qna-inbox.css";
 import "@admin/domains/community/notice-tree.css";
 import "@admin/domains/community/board-admin.css";
@@ -289,7 +290,7 @@ export default function NoticeAdminPage({ embedded = false }: NoticeAdminPagePro
   );
 }
 
-function NoticeCard({
+export function NoticeCard({
   post,
   isActive,
   onClick,
@@ -355,22 +356,28 @@ function NoticeCard({
   );
 }
 
-function NoticeDetailView({
-  postId,
-  onClose,
-  onDeleted,
-}: {
-  postId: number;
+type NoticeDetailActions = {
   onClose: () => void;
   onDeleted: () => void;
-}) {
-  const qc = useQueryClient();
-  const confirm = useConfirm();
-  const { data: post, isLoading, isError, refetch } = useQuery({
+  onDraftStateChange?: PostDraftStateChange;
+};
+
+function NoticeDetailView({ postId, ...actions }: NoticeDetailActions & { postId: number }) {
+  const { data: post, isLoading, isError, error, refetch } = useQuery({
     queryKey: adminCommunityQueryKeys.post(postId),
     queryFn: () => fetchPost(postId),
-    enabled: postId != null,
   });
+  if (isError && (!post || isHttpStatus(error, 403) || isHttpStatus(error, 401))) return <CommunityEmptyState variant="error" postType="notice" title="공지를 불러오지 못했습니다" action={<Button intent="secondary" onClick={() => void refetch()}>다시 시도</Button>} />;
+  if (isLoading || !post) return <div className="qna-inbox__empty"><p className="qna-inbox__empty-title">
+    {isLoading ? "불러오는 중…" : "공지를 찾을 수 없습니다."}
+  </p></div>;
+  return <NoticePostDetail post={post} {...actions} />;
+}
+
+export function NoticePostDetail({ post, onClose, onDeleted, onDraftStateChange }: NoticeDetailActions & { post: PostEntity }) {
+  const postId = post.id;
+  const qc = useQueryClient();
+  const confirm = useConfirm();
 
   const [editingContent, setEditingContent] = useState("");
   const [isEditing, setIsEditing] = useState(false);
@@ -487,24 +494,20 @@ function NoticeDetailView({
     },
   });
 
+  const dirty = (isEditingTitle && editingTitle !== post?.title)
+    || (isEditing && (editingContent !== savedContent.current || files.length > 0));
+  const busy = updateContentMut.isPending || updateTitleMut.isPending || updateMut.isPending || deleteMut.isPending;
+  useEffect(() => {
+    onDraftStateChange?.(dirty, busy);
+    return () => onDraftStateChange?.(false, false);
+  }, [dirty, busy, onDraftStateChange]);
+
   const attachmentsLocked = updateContentMut.isPending || pendingUpload;
   const addFiles = (selected: File[]) => {
     if (attachmentsLocked) return;
     setFiles(selectNoticeFiles(files, selected, post?.attachments?.length ?? 0));
     setSaveError("");
   };
-
-  if (isError) return <CommunityEmptyState variant="error" postType="notice" title="공지를 불러오지 못했습니다" action={<Button intent="secondary" onClick={() => void refetch()}>다시 시도</Button>} />;
-
-  if (isLoading || !post) {
-    return (
-      <div className="qna-inbox__empty">
-        <p className="qna-inbox__empty-title">
-          {isLoading ? "불러오는 중…" : "공지를 찾을 수 없습니다."}
-        </p>
-      </div>
-    );
-  }
 
   return (
     <>
@@ -553,12 +556,10 @@ function NoticeDetailView({
               </div>
             ) : (
               <h1 className="qna-inbox__thread-title">
-                <button type="button" className="notice-title-edit"
-                onClick={() => { setEditingTitle(post.title ?? ""); setIsEditingTitle(true); }}
-                title="클릭하여 제목 수정"
-              >
-                {post.title}
-                <span className="qna-inbox__thread-title-edit-mark">✎</span>
+                <button type="button" className="cms-detail__title-button" title="클릭하여 제목 수정"
+                  onClick={() => { setEditingTitle(post.title ?? ""); setIsEditingTitle(true); }}>
+                  {post.title}
+                  <span className="qna-inbox__thread-title-edit-mark" aria-hidden="true">✎</span>
                 </button>
               </h1>
             )}
@@ -594,7 +595,7 @@ function NoticeDetailView({
             >
               {post.is_urgent ? "🔴 중요 해제" : "🔴 중요"}
             </Button>
-            <Button intent="ghost" size="sm" disabled={updateContentMut.isPending} onClick={async () => {
+            <Button intent="ghost" size="sm" disabled={busy} onClick={async () => {
               if ((isEditing || isEditingTitle) && !await confirm({ title: "수정 종료", message: "저장하지 않은 내용과 선택한 파일을 버리고 목록으로 돌아갈까요?", confirmText: "돌아가기" })) return;
               onClose();
             }}>
@@ -679,16 +680,18 @@ function NoticeDetailView({
 }
 
 /* ─── Inline Notice Create Pane ──────────────────────── */
-function NoticeCreatePane({
+export function NoticeCreatePane({
   scopeNodes,
   scopeParams,
   onCancel,
   onSuccess,
+  onDraftStateChange,
 }: {
   scopeNodes: ScopeNodeMinimal[];
   scopeParams: CommunityScopeParams;
   onCancel: () => void;
-  onSuccess: () => void;
+  onSuccess: (postId: number) => void;
+  onDraftStateChange?: PostDraftStateChange;
 }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -698,6 +701,7 @@ function NoticeCreatePane({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const attachmentUploadKeyRef = useRef<string | null>(null);
+  const saveInFlight = useRef(false);
 
   const resolvedScope = useMemo(
     () => resolvePostNodeIdsForCreate(scopeNodes, scopeParams),
@@ -710,6 +714,12 @@ function NoticeCreatePane({
     ? scopeNodes.find((n) => n.lecture === scopeParams.lectureId)?.lecture_title ?? "선택된 강의"
     : "전체 대상";
 
+  const dirty = Boolean(title || content || isUrgent || files.length);
+  useEffect(() => {
+    onDraftStateChange?.(dirty, submitting);
+    return () => onDraftStateChange?.(false, false);
+  }, [dirty, submitting, onDraftStateChange]);
+
   const canSubmit = title.trim().length > 0 && resolvedScope.kind !== "invalid" && !submitting;
   const attachmentsLocked = submitting || createdPostId != null;
 
@@ -720,7 +730,8 @@ function NoticeCreatePane({
   }, [attachmentsLocked, files]);
 
   const handleSubmit = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || saveInFlight.current) return;
+    saveInFlight.current = true;
     setSubmitting(true);
     setError(null);
     let postId = createdPostId;
@@ -741,13 +752,15 @@ function NoticeCreatePane({
         attachmentUploadKeyRef.current = uploadKey;
         await uploadPostAttachments(postId, files, uploadKey);
       }
-      onSuccess();
+      onSuccess(postId);
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? (e as Error)?.message ?? "등록에 실패했습니다.";
       setError(postId == null
         ? msg
         : `공지는 저장됐지만 첨부파일 등록에 실패했습니다. 선택한 파일은 유지됩니다. ${msg}`);
       setSubmitting(false);
+    } finally {
+      saveInFlight.current = false;
     }
   };
 
