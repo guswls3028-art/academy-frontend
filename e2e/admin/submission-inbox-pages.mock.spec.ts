@@ -228,11 +228,15 @@ for (const teacher of [false, true]) {
     const badge = page.getByRole("link", { name: "확인 대기 과제 제출 1건 열기", exact: true });
     await expect(badge).toBeVisible();
     await badge.click();
-    const math = page.getByRole("link", { name: /QA 워크북.*QA 수학/ });
+    const list = page.getByRole("list", { name: "확인 대기 학생 제출물" });
+    const mathRow = list.getByRole("listitem").filter({ has: page.getByRole("link", {
+      name: "QA 제출 학생 1 · QA 수학 · 첫 차시 · QA 워크북 제출물 열기", exact: true,
+    }) });
+    const math = mathRow.getByRole("link");
     await expect(math).toContainText("QA 제출 학생 1");
-    await expect(math).toContainText("파일 2개");
+    await expect(mathRow.getByRole("button", { name: "QA 제출 학생 1 제출 파일 2개 미리보기", exact: true })).toHaveText("파일 2개");
     await expect(math).toHaveAttribute("href", /reviewEnrollment=10/);
-    await expect(page.getByRole("link", { name: /QA 워크북.*QA 영어/ })).toHaveCount(0);
+    await expect(list.getByRole("link", { name: /QA 영어/ })).toHaveCount(0);
     expect(state.homeworkSubmissionRequests).toEqual([]);
 
     await page.reload();
