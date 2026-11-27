@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 
 import AdminExamResultsTable from "../components/AdminExamResultsTable";
 import { adminResultsQueryKeys } from "../queryKeys";
@@ -39,23 +39,29 @@ async function fetchAdminExamResults(examId: number, lectureId?: number | null) 
 }
 
 export default function ExamResultsPanel({ examId, sessionId, lectureId = null, wrongCompletionOnly = false }: Props) {
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectedOffline, setSelectedOffline] = useState<ManualGradeRow | null>(null);
   const [reviewSubmissionId, setReviewSubmissionId] = useState<number | null>(null);
   const [missingSearch, setMissingSearch] = useState("");
   const [missingOpen, setMissingOpen] = useState(false);
 
-  const initialEnrollmentId = Number(
-    searchParams.get("enrollmentId")
-  );
+  const enrollmentParam = Number(searchParams.get("enrollmentId"));
+  const linkedEnrollmentId = Number.isSafeInteger(enrollmentParam) && enrollmentParam > 0 ? enrollmentParam : null;
+  const [tableEnrollmentId, setTableEnrollmentId] = useState<number | null>(null);
+  const selectedEnrollmentId = linkedEnrollmentId ?? tableEnrollmentId;
 
-  const [selectedEnrollmentId, setSelectedEnrollmentId] =
-    useState<number | null>(
-      Number.isFinite(initialEnrollmentId) && initialEnrollmentId > 0
-        ? initialEnrollmentId
-        : null
-    );
+  function selectEnrollment(id: number | null) {
+    setTableEnrollmentId(id);
+    if (linkedEnrollmentId == null) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("enrollmentId");
+    void navigate({ pathname: location.pathname, search: next.toString(), hash: location.hash }, {
+      replace: true, preventScrollReset: true, state: location.state,
+    });
+  }
 
   const { data: exam } = useAdminExam(examId);
   const manualSheet = useQuery({
@@ -71,7 +77,7 @@ export default function ExamResultsPanel({ examId, sessionId, lectureId = null, 
   });
   const scoreLectureId = Number(searchParams.get("scoreLectureId"));
   const differentScoreLecture = Number.isSafeInteger(scoreLectureId) && scoreLectureId > 0 && scoreLectureId !== lectureId
-    && selectedEnrollmentId === initialEnrollmentId;
+    && linkedEnrollmentId != null;
   const storedResults = useQuery({
     queryKey: adminResultsQueryKeys.adminExamResults(examId, scoreLectureId),
     queryFn: () => fetchAdminExamResults(examId, scoreLectureId),
@@ -164,7 +170,7 @@ export default function ExamResultsPanel({ examId, sessionId, lectureId = null, 
                             {meta ? `출결 ${meta.label}` : attendance.isSuccess ? "이 차시 출결 기록 없음" : "출결 미확인"}
                           </Badge>
                         </div>
-                        <Button type="button" intent="secondary" size="sm" aria-haspopup="dialog" aria-label={`${row.student_name} · 답안 입력`} onClick={() => { setSelectedEnrollmentId(null); setSelectedOffline(row); }}>
+                        <Button type="button" intent="secondary" size="sm" aria-haspopup="dialog" aria-label={`${row.student_name} · 답안 입력`} onClick={() => { selectEnrollment(null); setSelectedOffline(row); }}>
                           답안 입력
                         </Button>
                       </li>
@@ -184,7 +190,7 @@ export default function ExamResultsPanel({ examId, sessionId, lectureId = null, 
       <div className="min-w-0" role="region" aria-label="시험 학생별 결과">
         <AdminExamResultsTable
           rows={rows}
-          onSelectEnrollment={(id) => { setSelectedOffline(null); setSelectedEnrollmentId(id); }}
+          onSelectEnrollment={(id) => { setSelectedOffline(null); selectEnrollment(id); }}
           wrongCompletionOnly={wrongCompletionOnly}
         />
       </div>
@@ -206,11 +212,12 @@ export default function ExamResultsPanel({ examId, sessionId, lectureId = null, 
               queryClient.invalidateQueries({ queryKey: adminResultsQueryKeys.sessionScores }),
             ]);
             setSelectedOffline(null);
-            setSelectedEnrollmentId(selectedOffline.enrollment_id);
+            selectEnrollment(selectedOffline.enrollment_id);
           }}
         />
       ) : selectedRow && (
           <StudentResultDrawer
+            key={selectedRow.enrollment_id}
             examId={examId}
             enrollmentId={selectedRow.enrollment_id}
             studentName={selectedRow.student_name ?? "학생"}
@@ -220,12 +227,12 @@ export default function ExamResultsPanel({ examId, sessionId, lectureId = null, 
             scoreLectureTitle={selectedRow.lecture_title}
             examTitle={examTitle}
             readOnly
-            onReviewOmr={(submissionId) => { setSelectedEnrollmentId(null); setReviewSubmissionId(submissionId); }}
+            onReviewOmr={(submissionId) => { selectEnrollment(null); setReviewSubmissionId(submissionId); }}
             onEditManualAnswers={() => {
               const candidate = manualSheet.data?.rows.find((row) => row.enrollment_id === selectedRow.enrollment_id);
-              if (candidate) { setSelectedEnrollmentId(null); setSelectedOffline(candidate); }
+              if (candidate) { selectEnrollment(null); setSelectedOffline(candidate); }
             }}
-            onClose={() => setSelectedEnrollmentId(null)}
+            onClose={() => selectEnrollment(null)}
           />
       )}
     <OmrReviewWorkspace

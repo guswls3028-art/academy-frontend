@@ -7,6 +7,7 @@ import { AxiosHeaders } from "axios";
 import ExamResultsViewerPanel from "@/app_admin/domains/exams/panels/ExamResultsViewerPanel";
 import ExamLectureAssignmentsPanel from "@/app_admin/domains/exams/panels/setup/ExamLectureAssignmentsPanel";
 import api from "@/shared/api/axios";
+import { ProgramProvider } from "@/shared/program";
 import "@/index.css";
 
 const visualMode = new URLSearchParams(window.location.search).get("visual");
@@ -194,15 +195,20 @@ const queryClient = new QueryClient({
   },
 });
 
+const panel = (
+  <main className="mx-auto max-w-6xl p-4">
+    {visualMode === "assignments"
+      ? <ExamLectureAssignmentsPanel examId={77} maxScore={100} />
+      : <ExamResultsViewerPanel examId={77} wrongCompletionOnly={wrongCompletionOnly} />}
+  </main>
+);
+const linkedStudent = new URLSearchParams(window.location.search).has("enrollmentId");
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <main className="mx-auto max-w-6xl p-4">
-          {visualMode === "assignments"
-            ? <ExamLectureAssignmentsPanel examId={77} maxScore={100} />
-            : <ExamResultsViewerPanel examId={77} wrongCompletionOnly={wrongCompletionOnly} />}
-        </main>
+        {linkedStudent ? <ProgramProvider>{panel}</ProgramProvider> : panel}
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>,

@@ -5,6 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useIsMutating, useMutation, useQuery } from "@tanstack/react-query";
+import { useLocation } from "react-router";
 import { Download, FileSpreadsheet } from "lucide-react";
 import { EXAM_ANALYSIS_ANCHOR } from "@/shared/lib/assessmentQueryParams";
 import api from "@/shared/api/axios";
@@ -70,6 +71,11 @@ function ExamResultsViewerContent({
   examId, sessionId, wrongCompletionOnly = false, focusAnalysis = false, initialLectureId, onOpenSetup,
 }: Props) {
   const [selectedLectureId, setSelectedLectureId] = useState<number | null>(initialLectureId ?? null);
+  const { key: locationKey, search } = useLocation();
+  const linkedEnrollment = new URLSearchParams(search).get("enrollmentId");
+  useEffect(() => {
+    if (linkedEnrollment) setSelectedLectureId(initialLectureId ?? null);
+  }, [locationKey, linkedEnrollment, initialLectureId]);
   const manualGridRef = useRef<ManualExamGradingGridHandle>(null);
   const editingRegionRef = useRef<HTMLDivElement>(null);
   const excelApplying = useIsMutating({ mutationKey: adminResultsQueryKeys.examResultImport(examId) }) > 0;
