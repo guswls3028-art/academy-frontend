@@ -69,6 +69,22 @@
   .detailPanel .detailBody {
     display: grid;
     grid-template-columns: clamp(224px, 22%, 272px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .profilePanel,
+  .records {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .records > :global(.ds-record-tabs) {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--color-bg-surface);
   }
 
   .profilePanel {

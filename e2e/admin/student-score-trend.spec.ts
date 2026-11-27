@@ -1225,7 +1225,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
 
   test("학생 상세 시험 목록에서 오답 상태를 확인하고 차시 이동 없이 수정한다", async ({ page }, testInfo) => {
     const correctionRequests: NonNullable<Parameters<typeof installApi>[1]>["examCorrectionRequests"] = [];
-    await page.setViewportSize({ width: 1100, height: 820 });
+    await page.setViewportSize({ width: 1366, height: 820 });
     await installApi(page, { examCorrectionRequests: correctionRequests });
     await page.goto(`${BASE}/workspace/students/home`, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: /서하늘 학생/ }).first().click();
@@ -1249,6 +1249,18 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect(notSubmittedGroup.getByText("채점 대기", { exact: true })).toBeVisible();
     await expect(notSubmittedGroup.getByRole("button", { name: "오답 수정" })).toHaveCount(0);
 
+    const memo = detailOverlay.getByRole("textbox", { name: "학생 공통 메모" });
+    const contacts = detailOverlay.getByRole("complementary", { name: "연락처·메모" });
+    for (const width of [1100, 1366]) {
+      await page.setViewportSize({ width, height: 820 });
+      await expect(contacts.getByText("학부모 전화", { exact: true })).toBeInViewport();
+      await expect(memo).toBeInViewport();
+      await expect(detailOverlay.getByText("결과·오답", { exact: true })).toBeVisible();
+      const states = [pendingGroup.getByText("오답 미완료"), completedGroup.getByText("오답 완료"), notSubmittedGroup.getByText("채점 대기")];
+      const lefts = await Promise.all(states.map(state => state.evaluate(el => el.getBoundingClientRect().left)));
+      expect(Math.max(...lefts) - Math.min(...lefts)).toBeLessThan(2);
+    }
+
     const hostUrl = page.url();
     await pendingGroup.getByRole("button", { name: "오답 수정" }).click();
     await expect(page).toHaveURL(hostUrl);
@@ -1264,6 +1276,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await reason.fill("문자 제출 확인");
     await editor.getByRole("button", { name: "오답 완료로 저장" }).click();
     await expect(pendingGroup.getByText("오답 완료", { exact: true })).toBeVisible();
+    await expect(memo).toBeInViewport();
     await expect.poll(() => correctionRequests.length).toBe(1);
     expect(correctionRequests[0]).toEqual({
       sessionId: 701,

@@ -1324,6 +1324,11 @@ function ScoreTab({
             )}
           </div>
           <div className={`${styles.tabList} ${styles.examList}`}>
+            <div className={styles.examColumnLabels} aria-hidden="true">
+              <span>시험·차시</span>
+              <span>점수</span>
+              <span>결과·오답</span>
+            </div>
             {visibleExams.map((exam) => (
               <StudentExamCorrectionCard
                 key={exam.exam_id}

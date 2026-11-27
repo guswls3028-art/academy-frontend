@@ -33,6 +33,34 @@
   flex: 0 0 auto;
 }
 
+.resultStatus {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--ds-space-1);
+}
+
+.missingScore { display: none; }
+
+@container (min-width: 560px) {
+  .examRecordGroup .examRecord {
+    display: grid;
+    grid-template-columns: var(--exam-columns);
+    gap: var(--ds-space-2);
+    align-items: center;
+    padding-block: var(--ds-space-2);
+  }
+
+  .recordMain { grid-column: 2; }
+  .examRecord .recordActions { display: contents; }
+  .resultScore,
+  .missingScore { grid-column: 3; text-align: end; }
+  .missingScore { display: inline; color: var(--color-text-muted); }
+  .resultStatus { grid-column: 4; }
+  .recordActions > button { grid-column: 5; justify-self: end; }
+  .chevron { grid-column: 6; }
+}
+
 .editor {
   margin: -2px 8px 4px 38px;
   padding: 14px;
