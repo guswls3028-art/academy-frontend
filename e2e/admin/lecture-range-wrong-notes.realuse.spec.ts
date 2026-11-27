@@ -4,6 +4,8 @@ import { PDFDocument, StandardFonts } from "pdf-lib";
 import JSZip from "jszip";
 import { expect, test } from "../fixtures/strictTest";
 import { acknowledgeInitialAccountPromptsIfVisible } from "../helpers/firstLoginGuide";
+import { openRangeWrongNotes } from "../helpers/openRangeWrongNotes";
+import { writeWrongNoteEntryObservation } from "../helpers/wrongNoteEntryObservation";
 import { attachStrictBrowserGuards } from "../helpers/strictBrowser";
 import {
   api, assertNoHorizontalOverflow, assertQaStudentParentRuntime, createQaFamily, expectApi,
@@ -69,14 +71,16 @@ test.afterEach(async ({ request }) => {
   }
 });
 
-test("선생님이 1~2차시 시험·과제에서 번호를 입력해 학생별 PDF ZIP을 내려받는다", async ({ page, request }) => {
+test("선생님이 1~2차시 시험·과제에서 번호를 입력해 학생별 PDF ZIP을 내려받는다", async ({ page, request }, testInfo) => {
   assertQaStudentParentRuntime();
   const boundary = await installQaStudentParentBoundary(page, request);
   const guards = attachStrictBrowserGuards(page);
   const tokens = await loginAdmin(request);
   scope.token = tokens.access;
   const stamp = String(Date.now());
-  const family = await createQaFamily(request, scope.token, `wrong-note-${stamp}`, 2);
+  const family = await createQaFamily(request, scope.token, `wrong-note-${stamp}`, 2, {
+    highSchool: `QA 오답노트고등학교 ${stamp}`,
+  });
   const lecture = await expectApi<{ id: number }>(request, "POST", "/lectures/lectures/", scope.token, {
     title: `QA 차시 오답노트 ${stamp}`, name: "QA Science", subject: "SCIENCE", start_date: "2026-01-01", is_active: true,
   });
@@ -109,12 +113,15 @@ test("선생님이 1~2차시 시험·과제에서 번호를 입력해 학생별 
   await page.setViewportSize({ width: 1366, height: 900 });
   await page.goto(`${QA_BASE}/workspace/lectures/${lecture.id}/sessions/${sessions[0]}/scores`);
   await acknowledgeInitialAccountPromptsIfVisible(page);
-  async function open() {
-    await page.getByRole("button", { name: "성적 도구", exact: true }).click();
-    await page.getByRole("menuitem", { name: /차시별 오답노트/ }).click();
-    return page.getByRole("dialog", { name: "차시별 오답노트" });
+  async function open(width: 390 | 1366) {
+    try {
+      return await openRangeWrongNotes(page, width);
+    } catch (error) {
+      await writeWrongNoteEntryObservation(page, testInfo, width === 390 ? "mobile-reopen" : "desktop-entry");
+      throw error;
+    }
   }
-  let dialog = await open();
+  let dialog = await open(1366);
   await dialog.getByLabel("끝 차시").selectOption(String(range.to_session_order));
   const [first, second] = family.students;
   await dialog.getByLabel("오답을 입력할 자료").selectOption(`exam:${exam.id}`);
@@ -132,7 +139,7 @@ test("선생님이 1~2차시 시험·과제에서 번호를 입력해 학생별 
   await expect(dialog.getByRole("region", { name: "문서 생성 결과" })).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
-  dialog = await open();
+  dialog = await open(390);
   await expect(dialog.getByText("오답노트가 준비됐습니다")).toBeVisible({ timeout: 240_000 });
   await assertNoHorizontalOverflow(page);
   const downloading = page.waitForEvent("download");

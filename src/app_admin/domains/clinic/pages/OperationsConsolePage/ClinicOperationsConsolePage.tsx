@@ -579,7 +579,7 @@ export default function ClinicOperationsConsolePage() {
           setCreateModalOpen(false);
         }}
         closeDisabled={createSaving}
-        width={520}
+        size="default"
       >
         {createModalOpen && <ClinicCreatePanel
           asModal
@@ -610,7 +610,7 @@ export default function ClinicOperationsConsolePage() {
           setEditSession(null);
         }}
         closeDisabled={editSaving}
-        width={520}
+        size="default"
       >
         {editSession && (
           <ClinicCreatePanel
@@ -643,7 +643,7 @@ export default function ClinicOperationsConsolePage() {
         open={!!deleteConfirm}
         onClose={() => !deleteSessionM.isPending && setDeleteConfirm(null)}
         type="confirm"
-        width={420}
+        size="sm"
       >
         {deleteConfirm && (
           <div className="clinic-delete-modal__body">

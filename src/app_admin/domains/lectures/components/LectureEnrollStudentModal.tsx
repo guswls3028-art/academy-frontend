@@ -190,7 +190,7 @@ function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUplo
   };
 
   return (
-    <AdminModal open onClose={() => { void leave(onClose); }} type="action" width={840}
+    <AdminModal open onClose={() => { void leave(onClose); }} type="action" size="xwide"
       className="lecture-enroll-picker" noMinimize trapFocus closeDisabled={saving}>
       <ModalHeader type="action" title="수강생 등록"
         description="기존 학생을 선택해 강의 명단에 추가하세요." />

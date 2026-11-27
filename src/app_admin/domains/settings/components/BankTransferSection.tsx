@@ -14,6 +14,7 @@ import {
   submitBankTransferNotice,
   type BankTransferNotice,
   type BusinessProfile,
+  type ReceiptKind,
 } from "../api/billing.api";
 import { useConfirm } from "@/shared/ui/confirm/useConfirm";
 import { adminSettingsQueryKeys } from "../queryKeys";
@@ -45,6 +46,7 @@ function errorMessage(error: unknown): string {
   const candidate = error as {
     response?: { data?: { detail?: string; [key: string]: unknown } };
   };
+  if (error instanceof Error && !candidate.response && error.name === "Error") return error.message;
   const detail = candidate.response?.data?.detail;
   if (typeof detail === "string" && detail) return detail;
   const fieldError = candidate.response?.data
@@ -64,7 +66,16 @@ export default function BankTransferSection() {
   const [copied, setCopied] = useState(false);
   const [depositorName, setDepositorName] = useState("");
   const [depositedAt, setDepositedAt] = useState(localDateTimeValue);
-  const [taxInvoiceRequested, setTaxInvoiceRequested] = useState(true);
+  const [receiptKind, setReceiptKind] = useState<ReceiptKind>("BUSINESS_TAX");
+  const [recipientId, setRecipientId] = useState("");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
+  function chooseReceipt(kind: ReceiptKind) {
+    setReceiptKind(kind);
+    setRecipientId("");
+    setRecipientName("");
+    setRecipientEmail("");
+  }
   const [profile, setProfile] =
     useState<Omit<BusinessProfile, "id">>(EMPTY_PROFILE);
   const [message, setMessage] = useState<{
@@ -138,7 +149,7 @@ export default function BankTransferSection() {
     rejectedNoticeHydrated.current = notice.id;
     setDepositorName(notice.depositor_name);
     setDepositedAt(localDateTimeValue(new Date(notice.deposited_at)));
-    setTaxInvoiceRequested(notice.tax_invoice_requested);
+    chooseReceipt(notice.receipt_kind ?? (notice.tax_invoice_requested ? "BUSINESS_TAX" : "NONE"));
   }, [notice]);
 
   const activateMutation = useMutation({
@@ -161,17 +172,26 @@ export default function BankTransferSection() {
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!payableInvoice) throw new Error("입금할 청구서가 없습니다.");
-      if (taxInvoiceRequested) {
+      if (receiptKind === "BUSINESS_TAX") {
         await saveBusinessProfile(profile);
       }
-      return submitBankTransferNotice({
-        invoice_id: payableInvoice.id,
-        depositor_name: depositorName.trim(),
-        deposited_at: new Date(depositedAt).toISOString(),
-        tax_invoice_requested: taxInvoiceRequested,
-      });
+      try {
+        return await submitBankTransferNotice({
+          invoice_id: payableInvoice.id,
+          depositor_name: depositorName.trim(),
+          deposited_at: new Date(depositedAt).toISOString(),
+          tax_invoice_requested: receiptKind !== "NONE",
+          ...((data?.popbill_enabled || receiptKind === "CASH" || receiptKind === "PERSONAL_TAX") && { receipt_kind: receiptKind }),
+          ...((receiptKind === "PERSONAL_TAX" || receiptKind === "CASH") && { recipient_identifier: recipientId }),
+          ...(receiptKind === "PERSONAL_TAX" && { recipient_name: recipientName, recipient_email: recipientEmail }),
+        });
+      } catch (error) {
+        // Axios errors carry the original request body. Keep only the public validation message.
+        throw new Error(errorMessage(error));
+      }
     },
     onSuccess: async () => {
+      chooseReceipt(receiptKind);
       await queryClient.invalidateQueries({
         queryKey: adminSettingsQueryKeys.bankTransfer,
       });
@@ -404,6 +424,7 @@ export default function BankTransferSection() {
               status={notice.status}
               taxRequested={notice.tax_invoice_requested}
               taxStatus={notice.tax_invoice_status}
+              notice={notice}
               rejectionReason={notice.rejection_reason}
             />
           )}
@@ -479,12 +500,41 @@ export default function BankTransferSection() {
                 </label>
               </div>
 
+              {data.popbill_enabled ? (
+                <div className={styles.fieldGrid}>
+                  <label>
+                    <span>구독료 결제 증빙</span>
+                    <select disabled={submitMutation.isPending} value={receiptKind} onChange={(event) => chooseReceipt(event.target.value as ReceiptKind)}>
+                      <option value="BUSINESS_TAX">사업자용 전자세금계산서</option>
+                      <option value="CASH">개인 소득공제용 현금영수증</option>
+                      <option value="PERSONAL_TAX">개인 명의 전자세금계산서</option>
+                      <option value="NONE">신청하지 않음</option>
+                    </select>
+                  </label>
+                  {(receiptKind === "CASH" || receiptKind === "PERSONAL_TAX") && (
+                    <label>
+                      <span>{receiptKind === "CASH" ? "현금영수증용 휴대전화번호" : "세금계산서용 주민등록번호"}</span>
+                      <input type={receiptKind === "CASH" ? "tel" : "password"} inputMode="numeric"
+                        autoComplete="off" required maxLength={14} value={recipientId}
+                        onChange={(event) => setRecipientId(event.target.value)}
+                        pattern={receiptKind === "CASH" ? "01[016789]-?[0-9]{3,4}-?[0-9]{4}" : "[0-9]{6}-?[1-8][0-9]{6}"} />
+                      <small className={styles.fieldHint}>입금 확인 후 팝빌로 발급합니다. 개인 발급번호는 발급 확인 후 삭제합니다.</small>
+                    </label>
+                  )}
+                  {receiptKind === "PERSONAL_TAX" && (
+                    <>
+                      <label><span>수신자 성명</span><input required maxLength={100} value={recipientName} onChange={(event) => setRecipientName(event.target.value)} /></label>
+                      <label><span>수신 이메일</span><input required type="email" value={recipientEmail} onChange={(event) => setRecipientEmail(event.target.value)} /></label>
+                    </>
+                  )}
+                </div>
+              ) : (
               <label className={styles.taxToggle}>
                 <input
                   type="checkbox"
-                  checked={taxInvoiceRequested}
+                  checked={receiptKind === "BUSINESS_TAX"}
                   onChange={(event) =>
-                    setTaxInvoiceRequested(event.target.checked)
+                    chooseReceipt(event.target.checked ? "BUSINESS_TAX" : "NONE")
                   }
                 />
                 <span>
@@ -497,7 +547,9 @@ export default function BankTransferSection() {
                 </span>
               </label>
 
-              {taxInvoiceRequested && (
+              )}
+
+              {receiptKind === "BUSINESS_TAX" && (
                 <div className={styles.businessPanel}>
                   <div className={styles.formHeading}>
                     <div className={styles.formIcon}>
@@ -643,12 +695,29 @@ export default function BankTransferSection() {
                   : "입금 확인 요청하기"}
               </button>
               <p className={styles.submitHelp}>
-                운영팀이 실제 입금 내역을 확인하면 수납 및 세금계산서 상태가
+                운영팀이 실제 입금 내역을 확인하면 수납 및 증빙 발급 상태가
                 이 화면에 반영됩니다.
               </p>
             </form>
           )}
         </>
+      )}
+
+      {data?.invoices.some((invoice) => invoice.bank_transfer_notice?.tax_invoice_requested) && (
+        <details className={styles.businessPanel}>
+          <summary>지난 구독료 증빙 조회</summary>
+          <ul>
+            {data.invoices.map((invoice) => {
+              const item = invoice.bank_transfer_notice;
+              if (!item?.tax_invoice_requested) return null;
+              const kind = item.receipt_kind === "CASH" ? "현금영수증" : "전자세금계산서";
+              const status = item.status === "REJECTED" ? "입금 신고 반려"
+                : item.tax_invoice_status === "ISSUED" ? `발급 완료 · ${item.tax_invoice_issue_number}`
+                : item.tax_invoice_status === "FAILED" ? "발급 확인 중" : "발급 대기";
+              return <li key={invoice.id}>{invoice.period_start} · {kind} · {status}</li>;
+            })}
+          </ul>
+        </details>
       )}
 
       {message && (
@@ -669,10 +738,12 @@ function NoticeStatus({
   status,
   taxRequested,
   taxStatus,
+  notice,
   rejectionReason,
 }: {
   status: "SUBMITTED" | "CONFIRMED" | "REJECTED";
   taxRequested: boolean;
+  notice: BankTransferNotice;
   taxStatus: BankTransferNotice["tax_invoice_status"];
   rejectionReason: string;
 }) {
@@ -680,6 +751,7 @@ function NoticeStatus({
   const isConfirmed = status === "CONFIRMED";
   const taxIssued = taxStatus === "ISSUED";
   const taxFailed = taxStatus === "FAILED";
+  const label = notice.receipt_kind === "CASH" ? "현금영수증" : "전자세금계산서";
   return (
     <div
       className={styles.statusPanel}
@@ -710,10 +782,10 @@ function NoticeStatus({
             : isConfirmed
               ? taxRequested
                 ? taxIssued
-                  ? "입금 수납과 전자세금계산서 발행이 모두 완료되었습니다."
+                  ? `입금 수납과 ${label} 발행이 모두 완료되었습니다. 승인번호 ${notice.tax_invoice_issue_number}`
                   : taxFailed
-                    ? "입금은 수납 처리되었지만 전자세금계산서 발행 중 문제가 발생했습니다. 운영팀이 다시 확인합니다."
-                    : "입금은 수납 처리되었고, 전자세금계산서 발행을 준비하고 있습니다."
+                    ? `입금이 확인되었습니다. 운영팀이 ${label} 발급 결과를 다시 확인합니다.`
+                    : `입금이 확인되었습니다. ${label} 발급을 준비하고 있습니다.`
                 : "입금이 수납 처리되었습니다."
               : "운영팀이 계좌 내역을 확인 중입니다. 결과는 이 화면에 표시됩니다."}
         </p>

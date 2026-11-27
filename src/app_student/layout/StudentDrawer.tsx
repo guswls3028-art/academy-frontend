@@ -2,7 +2,7 @@
  * 좌측 사이드 드로어 - 더보기 메뉴 (모바일 슬라이드)
  */
 import { useEffect, useRef } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 
 import { logout } from "@/auth/api/auth.api";
 import { cx } from "@/shared/utils/cx";
@@ -14,6 +14,14 @@ import { useWrongCompletionDisplay } from "@/shared/scoring/assessmentStatusDisp
 
 import styles from "./StudentDrawer.module.css";
 
+// Match the specific assignment page and community tab before their parent links.
+const drawerDestinations = STUDENT_NAV_GROUPS.flatMap((group) => group.items)
+  .map(({ to }) => {
+    const [path, query] = to.split("?");
+    return { to, path, tab: new URLSearchParams(query).get("tab") };
+  })
+  .sort((a, b) => b.to.length - a.to.length);
+
 type DrawerProps = {
   open: boolean;
   onClose: () => void;
@@ -23,6 +31,12 @@ type DrawerProps = {
 export default function StudentDrawer({ open, onClose }: DrawerProps) {
   const confirm = useConfirm();
   const wrongCompletionOnly = useWrongCompletionDisplay();
+  const { pathname, search } = useLocation();
+  const tab = new URLSearchParams(search).get("tab");
+  const activeTo = drawerDestinations.find((item) =>
+    (pathname === item.path || pathname.startsWith(item.path + "/")) &&
+    (item.tab === null || item.tab === tab)
+  )?.to;
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -78,7 +92,7 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              strokeWidth="2.5"
+              strokeWidth="1.6"
               strokeLinecap="round"
               strokeLinejoin="round"
             >
@@ -97,7 +111,7 @@ export default function StudentDrawer({ open, onClose }: DrawerProps) {
             <section key={group.category} className={styles.group}>
               <div className={styles.groupLabel}>{group.category}</div>
               {group.items.map(({ label, to, Icon }) => (
-                <Link key={to} to={to} className={styles.navLink} onClick={onClose}>
+                <Link key={to} to={to} className={styles.navLink} aria-current={activeTo === to ? "page" : undefined} onClick={onClose}>
                   <Icon className={styles.navIcon} aria-hidden="true" />
                   <span>{to === "/student/idcard" && wrongCompletionOnly ? "오답 상태 카드" : label}</span>
                 </Link>

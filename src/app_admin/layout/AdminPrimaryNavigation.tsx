@@ -43,28 +43,34 @@ export default function AdminPrimaryNavigation({ compact = false, onExpandSideba
 
   return (
     <nav className="nav" aria-label="주요 메뉴">
-      {primary.filter(item => !item.to.endsWith("/guide")).map(primaryLink)}
-      <PendingHomeworkLink count={counts.homeworkReviewPending} to="/workspace/results/submissions?homework=pending" compact={compact} onNavigate={onNavigate} />
+      {!compact && <p className={styles.groupTitle}>운영 현황</p>}
+      {primary.filter(item => !item.sidebarGroup && !item.to.endsWith("/guide")).map(primaryLink)}
+      <div className={styles.group}>
+        {!compact && <p className={styles.groupTitle}>학생·수업</p>}
+        {primary.filter(item => item.sidebarGroup === "학생·수업").map(primaryLink)}
+        <PendingHomeworkLink count={counts.homeworkReviewPending} to="/workspace/results/submissions?homework=pending" compact={compact} onNavigate={onNavigate} />
+      </div>
       {WORKSPACE_SECTIONS.map(section => {
         const group = groups.find(item => item.title === section.title);
         if (!group) return null;
         const active = activeSectionId === section.id;
         const open = !compact && (expanded[section.id] ?? active);
+        const showSectionMarker = active && (!open || !group.items.some(item => isCurrent(item.to)));
         const panelId = `${id}-${section.id}`;
         const management = section.id === "management";
         const count = management ? counts.qnaPending : 0;
 
         return (
-          <div key={section.id}>
-            <button type="button" className={`nav-item ${styles.sectionToggle} ${active ? "active" : ""}`}
+          <div key={section.id} className={styles.group}>
+            <button type="button" className={`nav-item ${styles.sectionToggle} ${!compact ? styles.sectionLabel : ""} ${showSectionMarker ? "active" : ""}`}
               aria-expanded={open} aria-controls={panelId}
               title={compact ? section.title : undefined}
               onClick={() => {
                 if (compact) onExpandSidebar?.();
                 setExpanded(current => ({ ...current, [section.id]: !open }));
               }}>
-              <span className={styles.iconSlot} aria-hidden="true"><NavIcon d={section.iconPath} /></span>
-              <span className={compact ? "sr-only" : `label ${styles.label}`}>{section.title}</span>
+              {compact && <span className={styles.iconSlot} aria-hidden="true"><NavIcon d={section.iconPath} /></span>}
+              <span className={compact ? "sr-only" : styles.label}>{section.title}</span>
               <PendingAnswers count={count} />
               {!compact && <ChevronDown size={ICON.sm} className={styles.chevron} aria-hidden="true" />}
             </button>
@@ -74,6 +80,7 @@ export default function AdminPrimaryNavigation({ compact = false, onExpandSideba
                   <Link to={item.to} onClick={onNavigate}
                     aria-current={isCurrent(item.to) ? "page" : undefined}
                     className={`nav-item ${styles.childLink} ${isCurrent(item.to) ? "active" : ""}`}>
+                    <span className={styles.iconSlot} aria-hidden="true"><NavIcon d={item.iconPath} /></span>
                     <span className={styles.label}>{item.label}</span>
                     {item.to.endsWith("/community") && <PendingAnswers count={count} />}
                   </Link>
@@ -92,7 +99,9 @@ export default function AdminPrimaryNavigation({ compact = false, onExpandSideba
           </div>
         );
       })}
-      {primary.filter(item => item.to.endsWith("/guide")).map(primaryLink)}
+      <div className={styles.group}>
+        {primary.filter(item => item.to.endsWith("/guide")).map(primaryLink)}
+      </div>
     </nav>
   );
 }

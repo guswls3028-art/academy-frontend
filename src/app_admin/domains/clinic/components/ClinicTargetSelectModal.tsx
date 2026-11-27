@@ -408,7 +408,7 @@ export default function ClinicTargetSelectModal({
 
   return (
     <>
-    <AdminModal open={true} onClose={isConfirming ? () => {} : onClose} type="action" width={840}>
+    <AdminModal open={true} onClose={isConfirming ? () => {} : onClose} type="action" size="xwide">
       <ModalHeader
         type="action"
         title="대상자 선택"
