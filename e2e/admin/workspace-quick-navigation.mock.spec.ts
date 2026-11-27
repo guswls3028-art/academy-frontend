@@ -212,7 +212,7 @@ test.describe("업무 화면 기능 검색", () => {
       const other = { ...resource, id: 50, title: "야간 교대 출결 확인", author_name: "박선생", attachment_name: "" };
       await page.route("**/api/v1/staffs/board/posts/**", async route => {
         const url = new URL(route.request().url());
-        if (url.pathname.endsWith("/49/attachment/")) return route.fulfill({ contentType: "text/plain", body: "교대 자료" });
+        if (url.pathname.endsWith("/49/attachment/")) return route.fulfill({ contentType: "application/octet-stream", body: "교대 자료" });
         if (url.pathname.endsWith("/50/")) return route.fulfill({ json: other });
         if (url.pathname.endsWith("/49/")) {
           if (route.request().method() === "PATCH") resource = { ...resource, ...route.request().postDataJSON() };
