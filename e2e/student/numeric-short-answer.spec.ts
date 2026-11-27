@@ -237,11 +237,12 @@ for (const width of [1366, 390]) {
   test(`${width}px 늦은 제출 확인이 다른 탭의 새 답안과 제출 식별자를 지우지 않는다`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     const { submissions } = await installApi(page, "student", false, { loseResponse: true });
-    await page.goto(`${BASE}/student/exams/901/submit`);
+    await page.goto(`${BASE}/student/exams/901/submit?entry_session_id=202`);
     await page.getByLabel("1번 답", { exact: true }).fill("3");
     await page.getByRole("button", { name: "제출하기", exact: true }).click();
     await page.getByRole("button", { name: "제출", exact: true }).click();
     await expect(page.getByRole("button", { name: "같은 제출 다시 확인" })).toBeVisible();
+    expect(submissions[0]).toMatchObject({ entry_session_id: 202 });
     const next = { ...submissions[0], client_request_id: "20000000-0000-4000-8000-000000000002",
       answers: [{ exam_question_id: 1001, answer: "5" }] };
     await page.evaluate((payload) => {
@@ -393,8 +394,8 @@ test(`B의 확인 중 A가 먼저 제출하면 B 초안을 보존한다 ${width}
   try {
     await other.setViewportSize({ width, height: 900 });
     const b = await installApi(other);
-    await page.goto(`${BASE}/student/exams/901/submit`);
-    await other.goto(`${BASE}/student/exams/901/submit`);
+    await page.goto(`${BASE}/student/exams/901/submit?entry_session_id=201`);
+    await other.goto(`${BASE}/student/exams/901/submit?entry_session_id=202`);
     await other.bringToFront();
     await other.getByLabel("1번 답", { exact: true }).fill("5");
     await other.getByRole("button", { name: "제출하기", exact: true }).click();
@@ -410,11 +411,13 @@ test(`B의 확인 중 A가 먼저 제출하면 B 초안을 보존한다 ${width}
     expect(b.submissions).toHaveLength(0);
     await expect(other.getByLabel("1번 답", { exact: true })).toHaveValue("5");
     await other.reload();
+    await expect(other.getByText(/처음 제출한 요청의 차시와 답안을 유지/)).toBeVisible();
     await expect(other.getByLabel("1번 답", { exact: true })).toHaveValue("5");
     await expect.poll(() => other.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await other.screenshot({ path: `test-results/exam-cross-tab-${width}.png`, fullPage: true });
     await other.getByRole("button", { name: "먼저 제출한 답안 확인", exact: true }).click();
     await expect(other).toHaveURL(/\/student\/exams\/901\/result$/);
+    expect(a.submissions[0]).toMatchObject({ entry_session_id: 201 });
     expect(b.submissions).toEqual([a.submissions[0]]);
     expect(await other.evaluate(() => JSON.parse(localStorage.getItem("exam-draft:901:hakwonplus:user:11")!)[1001])).toBe("5");
     await page.bringToFront();
@@ -424,3 +427,18 @@ test(`B의 확인 중 A가 먼저 제출하면 B 초안을 보존한다 ${width}
   } finally { await other.close(); }
 });
 }
+
+test("거절된 응시 차시는 답안을 유지하고 다시 선택할 수 있다", async ({ page }) => {
+  await installApi(page);
+  await page.route("**/api/v1/student/exams/901/submit/", route => route.fulfill({ status: 403,
+    json: { code: "invalid_entry_session", detail: "이 차시에는 시험이 배정되어 있지 않습니다." } }));
+  await page.goto(`${BASE}/student/exams/901/submit?entry_session_id=202`);
+  const answer = page.getByLabel("1번 답", { exact: true });
+  await answer.fill("7");
+  await page.getByRole("button", { name: "제출하기", exact: true }).click();
+  await page.getByRole("button", { name: "제출", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("이 차시에는 시험이 배정되어 있지 않습니다.");
+  await expect(page.getByRole("link", { name: "차시를 다시 선택하기" })).toHaveAttribute("href", "/student/sessions");
+  await expect(answer).toHaveValue("7");
+  expect(await page.evaluate(() => localStorage.getItem("exam-draft:901:hakwonplus:user:11:submission"))).toBeNull();
+});

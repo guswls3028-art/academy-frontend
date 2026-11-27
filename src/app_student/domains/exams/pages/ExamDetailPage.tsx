@@ -8,7 +8,8 @@
  * - "재시험 버튼" 판단은 Result API의 can_retake만 신뢰 ✅
  */
 
-import { Link, useParams } from "react-router";
+import { examEntrySession, entrySessionSearch } from "../public/examEntrySession";
+import { Link, useParams, useSearchParams } from "react-router";
 import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
 import EmptyState from "../../../layout/EmptyState";
 import { useStudentExam } from "@student/domains/exams/hooks/useStudentExams";
@@ -17,6 +18,8 @@ import styles from "./ExamDetailPage.module.css";
 
 export default function ExamDetailPage() {
   const { examId } = useParams();
+  const [entryParams] = useSearchParams();
+  const entrySessionId = examEntrySession(entryParams.get("entry_session_id"));
   const safeId = Number(examId);
   const examQ = useStudentExam(Number.isFinite(safeId) ? safeId : undefined);
 
@@ -105,7 +108,7 @@ export default function ExamDetailPage() {
             ) : canRetake === null ? (
               <div className={`stu-muted ${styles.hintText}`}>확인 중…</div>
             ) : canRetake ? (
-              <Link to={`/student/exams/${exam.id}/submit`} className="stu-cta-link">
+              <Link to={`/student/exams/${exam.id}/submit${entrySessionSearch(entrySessionId)}`} className="stu-cta-link">
                 답안 입력하기
               </Link>
             ) : (

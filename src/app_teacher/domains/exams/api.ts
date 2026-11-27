@@ -40,8 +40,8 @@ export async function fetchHomework(homeworkId: number) {
 }
 
 /** 숙제 제출 목록 */
-export async function fetchHomeworkSubmissions(homeworkId: number) {
-  return fetchHomeworkSubmissionRecords(homeworkId);
+export async function fetchHomeworkSubmissions(homeworkId: number, enrollmentId?: number) {
+  return fetchHomeworkSubmissionRecords(homeworkId, enrollmentId);
 }
 
 export async function fetchHomeworkSubmissionPreview(homeworkId: number, mediaId: string) {

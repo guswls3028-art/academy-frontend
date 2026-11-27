@@ -332,12 +332,29 @@ for (const width of [390, 1366]) {
     await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
     const statistics = page.locator("details").filter({ has: page.locator("summary", { hasText: "전체 문항 통계 보기" }) });
     await expect(statistics).toContainText("0.0점");
-    await page.getByRole("tab", { name: "성적", exact: true }).click();
-    await page.getByRole("button", { name: "수정", exact: true }).click();
-    await page.getByText("김학생", { exact: true }).first().click();
+    const viewLecture = LECTURE_ID + 1;
+    const viewSession = SESSION_ID + 1;
+    await page.route(`**/lectures/lectures/${viewLecture}/`, route => route.fulfill({ json: { id: viewLecture, title: "조회 강의 B", is_active: true } }));
+    await page.route(`**/lectures/sessions/${viewSession}/`, route => route.fulfill({ json: { id: viewSession, lecture: viewLecture, title: "조회 차시 B", order: 1 } }));
+    await page.route(`**/results/admin/sessions/${viewSession}/exams/**`, route => route.fulfill({ json:
+      route.request().url().includes("/summary/") ? { session_id: viewSession, exams: [] } : [{ exam_id: EXAM_ID, title: exam.title, display_order: 0 }] }));
+    const scopeReads: string[] = [];
+    await page.route(`**/results/admin/exams/${EXAM_ID}/results/**`, route => {
+      const scope = new URL(route.request().url()).searchParams.get("lecture_id");
+      if (scope) scopeReads.push(scope);
+      return route.fulfill({ json: { results: scope === String(viewLecture) ? [] : [{
+        ...student, lecture_id: LECTURE_ID, lecture_title: "성적 강의 A", correction_session_id: SESSION_ID,
+        result_status: "DONE", ranking_score: 40 + score, final_score: 40 + score, rank: 1, cohort_size: 1,
+      }] } });
+    });
+    await gotoAndSettle(page, `${BASE}/workspace/lectures/${viewLecture}/sessions/${viewSession}/exams?exam_id=${EXAM_ID}&examTab=results&enrollmentId=${ENROLLMENT_ID}&scoreLectureId=${LECTURE_ID}`);
+    const scoreLink = page.getByRole("link", { name: "성적 강의 A · 저장된 수강 성적 입력" });
+    await expect(scoreLink).toBeVisible();
+    expect(scopeReads).toContain(String(LECTURE_ID));
+    expect(scopeReads).toContain(String(viewLecture));
+    await scoreLink.click();
+    await expect(page).toHaveURL(new RegExp(`/sessions/${SESSION_ID}/scores\\?reviewExam=${EXAM_ID}&reviewEnrollment=${ENROLLMENT_ID}$`));
     const studentDrawer = page.locator(".student-scores-drawer");
-    await studentDrawer.locator(".student-scores-drawer__exam-header").filter({ hasText: "7월 진단평가" }).click();
-    await studentDrawer.getByRole("button", { name: "답안 상세 보기" }).click();
     const answerDialog = page.getByRole("dialog").filter({ hasText: "7월 진단평가 답안 상세" });
     await answerDialog.getByRole("button", { name: "성적 수정", exact: true }).click();
     const input = answerDialog.getByRole("spinbutton", { name: "2번 서술형 점수", exact: true });

@@ -3,7 +3,8 @@
  * 시험 답안 입력 페이지 — 문항별 1, 2, 3, 4, 5 입력 후 제출
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { examEntrySession, entrySessionSearch } from "../public/examEntrySession";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useConfirm } from "@/shared/ui/confirm";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
@@ -58,6 +59,8 @@ function readAnswerDraft(
 
 export default function ExamSubmitPage() {
   const { examId } = useParams();
+  const [entryParams] = useSearchParams();
+  const entrySessionId = examEntrySession(entryParams.get("entry_session_id"));
   const safeId = Number(examId);
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -117,6 +120,7 @@ export default function ExamSubmitPage() {
     requestScope.current = scope;
     return () => { scope.active = false; submissionController.current?.abort(); };
   }, [draftKey]);
+  const [invalidEntrySession, setInvalidEntrySession] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const answeredCount = questions.filter((q) => (answers[q.id] ?? "").trim() !== "").length;
   const totalQuestions = questions.length;
@@ -134,8 +138,11 @@ export default function ExamSubmitPage() {
     });
   const differentPendingAnswers = !!pendingSubmission
     && !sameExamAnswers(normalizedDraft(answers), pendingSubmission.answers);
+  const differentPendingSession = !!pendingSubmission && entrySessionId !== pendingSubmission.entry_session_id;
   const recoveryLabel = differentPendingAnswers ? "먼저 제출한 답안 확인" : "같은 제출 다시 확인";
-  const recoveryNotice = differentPendingAnswers
+  const recoveryNotice = differentPendingSession
+    ? "이 화면과 다른 진입 경로에서 보낸 답안이 있습니다. 다시 확인하면 처음 제출한 요청의 차시와 답안을 유지합니다."
+    : differentPendingAnswers
     ? "다른 화면에서 먼저 제출한 답안이 있습니다. 아래 답안은 이 화면에 보관한 내용이며 아직 제출하지 않았습니다. 먼저 제출한 답안의 결과를 확인해 주세요."
     : "이전에 보낸 답안의 처리 결과를 확인하고 있습니다. 아래 버튼으로 같은 제출을 다시 확인해 주세요. 답안이 접수됐다면 기존 결과로 이동합니다.";
 
@@ -171,18 +178,6 @@ export default function ExamSubmitPage() {
     setError(null);
   }, [draftKey, previousDraftKey]);
 
-  // Seed answers state when questions first load
-  useEffect(() => {
-    if (questions.length === 0) return;
-    updateAnswers((prev) => {
-      const next = { ...prev };
-      questions.forEach((q) => {
-        if (next[q.id] === undefined) next[q.id] = "";
-      });
-      return next;
-    });
-  }, [questions, updateAnswers]);
-
   const performSubmit = async () => {
     const scope = requestScope.current;
     if (!Number.isFinite(safeId)) return;
@@ -207,6 +202,7 @@ export default function ExamSubmitPage() {
     }
     const payload = pendingSubmission ?? {
       answers: normalizedAnswers,
+      ...(entrySessionId ? { entry_session_id: entrySessionId } : {}),
       expected_attempt_count: examQ.data?.attempt_count ?? 0,
     };
     if (payload.answers.length === 0) {
@@ -267,10 +263,11 @@ export default function ExamSubmitPage() {
       }
       const response = (e as { response?: { status?: number; data?: { detail?: string; code?: string } } } | null)?.response;
       const code = response?.data?.code;
+      setInvalidEntrySession(code === "invalid_entry_session");
       // Attempt-count rejection proves this UUID was never admitted, even on
       // retry. Other ambiguous requests retain their UUID through readiness errors.
       // Release only the matching request identity; keep the user's answer draft.
-      if (attempt && (!retryingPending || code === "online_attempt_changed") && response?.status && response.status < 500
+      if (attempt && (!retryingPending || code === "online_attempt_changed" || code === "invalid_entry_session") && response?.status && response.status < 500
         && code !== "online_request_conflict" && code !== "online_submission_processing") {
         clearPendingExamSubmission(draftKey, attempt.client_request_id);
         setPendingSubmission(null);
@@ -318,7 +315,7 @@ export default function ExamSubmitPage() {
   if (pendingSubmission && (examQ.isError || !examQ.data || questionsQ.isError || (!loadingQuestions && questions.length === 0))) {
     return <StudentPageShell title="제출 확인" description="이전에 보낸 답안의 처리 결과를 확인합니다.">
       {error && <p role="alert">{error}</p>}
-      {differentPendingAnswers && <p role="status">{recoveryNotice}</p>}
+      {(differentPendingAnswers || differentPendingSession) && <p role="status">{recoveryNotice}</p>}
       <p>시험 시간이 끝났거나 연결이 끊겨도 이전 제출을 확인할 수 있습니다. 새 응시를 만들지 않습니다.</p>
       <div className={styles.recoveryActions}>
         <button type="button" className="stu-btn stu-btn--primary" disabled={submitting} onClick={handleSubmit}>
@@ -375,7 +372,7 @@ export default function ExamSubmitPage() {
           description="마감 시간이 지나 더 이상 답안을 제출할 수 없습니다."
         />
         <div className={styles.emptyActionPad}>
-          <Link to={`/student/exams/${safeId}`} className="stu-cta-link">
+          <Link to={`/student/exams/${safeId}${entrySessionSearch(entrySessionId)}`} className="stu-cta-link">
             시험 상세로 돌아가기
           </Link>
         </div>
@@ -390,7 +387,7 @@ export default function ExamSubmitPage() {
       descriptionMode="help"
       actions={
         <Link
-          to={`/student/exams/${safeId}`}
+          to={`/student/exams/${safeId}${entrySessionSearch(entrySessionId)}`}
           className={`stu-cta-link ${styles.backAction}`}
         >
           뒤로
@@ -420,6 +417,7 @@ export default function ExamSubmitPage() {
             className={styles.alert}
           >
             {error ?? "문항을 불러오지 못했습니다."}
+            {invalidEntrySession && <Link to="/student/sessions">차시를 다시 선택하기</Link>}
           </div>
         )}
 

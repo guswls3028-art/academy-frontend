@@ -14,7 +14,7 @@
 //   done/answers_ready + !resolved → "결과 없음" 라벨
 //
 // SessionLayout 데드락 회피: navigate 전 target_resolved 가드.
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { EmptyState , ICON } from "@/shared/ui/ds";
@@ -23,6 +23,8 @@ import { BackButton } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { ChevronRight } from "@teacher/shared/ui/Icons";
+import StoredExamResultAction from "@/shared/ui/submissions/StoredExamResultAction";
+import ExamSessionSelect from "@/shared/ui/submissions/ExamSessionSelect";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import {
   fetchPendingSubmissionPage,
@@ -34,6 +36,7 @@ import {
 import { teacherResultsQueryKeys } from "@teacher/domains/results/queryKeys";
 import SubmissionInboxPager from "@/shared/ui/submissions/SubmissionInboxPager";
 import HomeworkReviewPicker from "@/shared/ui/submissions/HomeworkReviewPicker";
+import HomeworkReviewQueue from "@/shared/ui/submissions/HomeworkReviewQueue";
 
 type FilterKey = "pending" | "done" | "failed" | "all";
 
@@ -112,10 +115,10 @@ export default function SubmissionsInboxPage() {
           {pendingOnly ? "전체 과제 보기" : "확인 대기만 보기"}
         </EmptyActionButton>
       </div>
-      <HomeworkReviewPicker
-        fromInbox pendingOnly={pendingOnly}
-        homeworkPath={(id) => `/workspace/mobile/homeworks/${id}?from=${pendingOnly ? "pending" : "submissions"}`}
-      />
+      {pendingOnly ? <HomeworkReviewQueue mobile /> : <HomeworkReviewPicker
+        fromInbox
+        homeworkPath={(id) => `/workspace/mobile/homeworks/${id}?from=submissions`}
+      />}
     </section>
   );
 }
@@ -124,6 +127,7 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [reviewSessions, setReviewSessions] = useState<Record<number, number>>({});
   const rawFilter = searchParams.get("filter");
   const filter: FilterKey = rawFilter === "all" || rawFilter === "done" || rawFilter === "failed" ? rawFilter : "pending";
   const rawPage = Number(searchParams.get("page") || 1);
@@ -233,7 +237,16 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
       return;
     }
     if (row.target_type === "exam") {
-      navigate(`/workspace/mobile/exams/${row.target_id}`);
+      const choice = row.session_choices?.find(item => item.session_id === reviewSessions[row.id]);
+      const session = choice?.session_id ?? row.session_id;
+      const focused = row.session_origin_recorded !== undefined || Boolean(row.session_choices?.length);
+      const context = new URLSearchParams();
+      if (focused && session && row.enrollment_id) {
+        context.set("reviewSession", String(session));
+        context.set("enrollmentId", String(row.enrollment_id));
+        if (row.score_lecture_id) context.set("scoreLectureId", String(row.score_lecture_id));
+      }
+      navigate(`/workspace/mobile/exams/${row.target_id}${context.size ? `?${context}` : ""}`);
     } else {
       navigate(`/workspace/mobile/homeworks/${row.target_id}`);
     }
@@ -374,6 +387,7 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
 
             const isProcessing = ["submitted", "dispatched", "extracting", "grading"].includes(r.status);
             const isFailedReal = r.status === "failed" && !isDiscardedRow;
+            const needsSession = Boolean(r.session_choices?.length && !r.session_choices.some(c => c.session_id === reviewSessions[r.id]));
             const isNavigable = (r.status === "done" || r.status === "answers_ready") && resolved;
 
             const titleMain = r.student_name?.trim() || "이름 미상";
@@ -419,15 +433,22 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
                   </div>
                   <div className="flex gap-1.5 items-center text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
                     <Badge tone={tone} size="xs">{label}</Badge>
-                    <span className="truncate">{titleSub}</span>
+                    <span className="min-w-0 truncate">{[titleSub, r.session_title].filter(Boolean).join(" · ")}</span>
                     <span className="tabular-nums shrink-0 ml-auto">{formatTime(r.created_at)}</span>
                   </div>
+                  {resolved && isExam && r.session_origin_recorded === false && <p className="text-xs">응시 차시 미확인</p>}
+                  {!r.session_history_only && isNavigable && Boolean(r.session_choices?.length) && <ExamSessionSelect label="열어볼 강의·차시"
+                    choices={r.session_choices ?? []} selectedId={reviewSessions[r.id]}
+                    onSelect={choice => setReviewSessions(previous => ({ ...previous, [r.id]: choice?.session_id ?? 0 }))} />}
                 </div>
 
                 {/* 우측 액션 — 모바일 컴팩트 */}
-                {isNavigable ? (
+                {isExam && resolved && r.session_history_only ? (
+                  <StoredExamResultAction row={r} />
+                ) : isNavigable ? (
                   <button
                     type="button"
+                    disabled={needsSession}
                     onClick={() => handleNavigate(r)}
                     className="shrink-0 px-2 py-1 rounded text-[12px]"
                     style={{ background: "var(--tc-primary)", color: "var(--tc-primary-contrast)", border: "none" }}

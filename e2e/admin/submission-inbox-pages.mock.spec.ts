@@ -54,6 +54,17 @@ async function setup(page: Page, role: "owner" | "teacher" | "staff") {
       return json({ results: [homework, otherHomework], count: 2, next: null });
     }
     if (path === "/homeworks/71/") return json(homework);
+    if (path === "/submissions/submissions/homework/review-queue/") {
+      if (state.pendingHomework === null) return json({ detail: "QA 제출 목록 조회 실패" }, 503);
+      const results = Array.from({ length: state.pendingHomework }, (_, index) => ({
+        homework_id: index ? 72 : 71, enrollment_id: 10 + index,
+        student_name: `QA 제출 학생 ${index + 1}`, homework_title: "QA 워크북",
+        lecture_title: index ? "QA 영어" : "QA 수학", session_title: "첫 차시",
+        submitted_at: "2026-10-09T00:00:00Z", file_count: 2,
+      }));
+      return json({ count: results.length, page: 1, pages: 1, results });
+    }
+    if (path === "/results/admin/sessions/32/scores/") return json({ meta: { exams: [], homeworks: [] }, rows: [] });
     if (path === "/results/admin/sessions/31/scores/") return json({
       meta: { exams: [], homeworks: [] },
       rows: [{ enrollment_id: 10, student_name: "QA 과제 제출 학생", exams: [], homeworks: [] }],
@@ -217,9 +228,15 @@ for (const teacher of [false, true]) {
     const badge = page.getByRole("link", { name: "확인 대기 과제 제출 1건 열기", exact: true });
     await expect(badge).toBeVisible();
     await badge.click();
-    const math = page.getByRole("link", { name: /QA 워크북.*QA 수학/ });
-    await expect(math).toContainText("확인 대기 1건");
-    await expect(page.getByRole("link", { name: /QA 워크북.*QA 영어/ })).toHaveCount(0);
+    const list = page.getByRole("list", { name: "확인 대기 학생 제출물" });
+    const mathRow = list.getByRole("listitem").filter({ has: page.getByRole("link", {
+      name: "QA 제출 학생 1 · QA 수학 · 첫 차시 · QA 워크북 제출물 열기", exact: true,
+    }) });
+    const math = mathRow.getByRole("link");
+    await expect(math).toContainText("QA 제출 학생 1");
+    await expect(mathRow.getByRole("button", { name: "QA 제출 학생 1 제출 파일 2개 미리보기", exact: true })).toHaveText("파일 2개");
+    await expect(math).toHaveAttribute("href", /reviewEnrollment=10/);
+    await expect(list.getByRole("link", { name: /QA 영어/ })).toHaveCount(0);
     expect(state.homeworkSubmissionRequests).toEqual([]);
 
     await page.reload();
@@ -237,10 +254,11 @@ for (const teacher of [false, true]) {
     await expect(math).toBeVisible();
     state.pendingHomework = null;
     await page.clock.fastForward(31_000);
-    await expect(page.getByText("확인 대기 과제를 불러오지 못했습니다", { exact: true })).toBeVisible();
+    await expect(page.getByText("확인 대기 제출물을 불러오지 못했습니다", { exact: true })).toBeVisible();
     state.pendingHomework = 2;
     await page.getByRole("button", { name: "다시 시도", exact: true }).click();
-    await expect(math).toContainText("확인 대기 2건");
+    await expect(page.getByText("확인 대기 2건", { exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: /QA 제출 학생 2.*QA 영어/ })).toBeVisible();
     await expect(page.getByText(/확인 대기 과제 제출 \d건 추가/)).toHaveCount(0);
     state.pendingHomework = 0;
     await page.clock.fastForward(31_000);
@@ -308,5 +326,414 @@ for (const mobile of [false, true]) {
     await expect(page.getByText("통과 인정됨", { exact: true })).toHaveCount(2);
     expect(calls.slice().sort()).toEqual([11, 12, 12]);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+  });
+}
+for (const mobile of [false, true]) {
+  test(`같은 이름 과제의 학생별 제출물과 다음 제출·목록 위치를 유지한다 ${mobile ? "390px" : "desktop"}`, async ({ page }) => {
+    await page.setViewportSize({ width: mobile ? 390 : 1366, height: 900 });
+    const state = await setup(page, mobile ? "staff" : "owner");
+    state.pendingHomework = 32;
+    state.submissionPending = 0;
+    const submittedAt = "2026-10-09T00:00:00Z";
+    const queue = Array.from({ length: 32 }, (_, index) => ({
+      homework_id: index === 31 ? 72 : 71,
+      enrollment_id: 100 + index,
+      student_name: `QA 대기 학생 ${index + 1}`,
+      homework_title: "QA 워크북",
+      lecture_title: index === 31 ? "QA 영어" : "QA 수학",
+      session_title: "첫 차시",
+      submitted_at: submittedAt,
+      file_count: 1,
+    }));
+    await page.route(/\/homework\/review-queue\/\?/, route => {
+      const current = Number(new URL(route.request().url()).searchParams.get("page"));
+      return route.fulfill({ json: { page: current, pages: 2, count: 32, results: queue.slice((current - 1) * 30, current * 30) } });
+    });
+    await page.route("**/homeworks/72/", route => route.fulfill({ json: {
+      id: 72, title: "QA 워크북", homework_type: "regular", session: 32,
+    } }));
+    const scopedRequests: string[] = [];
+    await page.route(/\/submissions\/submissions\/homework\/(71|72)\/\?/, route => {
+      const url = new URL(route.request().url());
+      const homework = Number(url.pathname.split("/").at(-2));
+      const enrollment = Number(url.searchParams.get("enrollment_id"));
+      scopedRequests.push(`${homework}/${enrollment}`);
+      const matching = queue.filter(row => row.homework_id === homework && row.enrollment_id === enrollment);
+      const results = matching.map(row => ({
+        ...row, id: row.enrollment_id, student_id: row.enrollment_id + 200, status: "submitted",
+        created_at: submittedAt, homework_lecture_title: row.lecture_title, teacher_accepted: false,
+        media_set_fingerprint: "a".repeat(64), files: [{
+          id: String(row.enrollment_id), position: 0, media_kind: "image", mime_type: "application/pdf",
+          original_filename: `${row.student_name} 풀이.pdf`, status: "uploaded", file_size: 1024,
+        }],
+      }));
+      return route.fulfill({ json: { count: results.length, results, next: null } });
+    });
+
+    const path = mobile ? "/workspace/mobile/submissions" : "/workspace/results/submissions";
+    await gotoAndSettle(page, `${BASE}${path}`);
+    await page.getByRole("link", { name: "확인 대기 과제 제출 32건 열기", exact: true }).click();
+    const pager = page.getByRole("navigation", { name: "제출 목록 페이지" });
+    await pager.getByRole("button", { name: "다음", exact: true }).click();
+    await expect(page).toHaveURL(/[?&]queuePage=2(?:&|$)/);
+    await expect(pager).toContainText("2 / 2");
+    const list = page.getByRole("list", { name: "확인 대기 학생 제출물" });
+    const math = list.getByRole("link").filter({ hasText: "QA 수학" });
+    const english = list.getByRole("link").filter({ hasText: "QA 영어" });
+    await expect(math).toContainText("QA 대기 학생 31");
+    await expect(english).toContainText("QA 대기 학생 32");
+    await expect(math).toContainText("QA 워크북");
+    await expect(english).toContainText("QA 워크북");
+    await math.click();
+
+    async function expectFocused(index: number) {
+      const row = queue[index];
+      await expect(page).toHaveURL(new RegExp(`reviewEnrollment=${row.enrollment_id}.*queuePage=2`));
+      await expect(page.getByText(`${row.student_name} 풀이.pdf`, { exact: true })).toBeVisible();
+      await expect(page.getByText(`${row.lecture_title} · ${row.session_title}`, { exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "미리보기", exact: true })).toHaveCount(1);
+      await expect(page.getByRole("group", { name: "과제 일괄 통과" })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "전체 과제 보기", exact: true })).toBeVisible();
+      expect(scopedRequests).toContain(`${row.homework_id}/${row.enrollment_id}`);
+    }
+
+    await expectFocused(30);
+    await page.getByRole("link", { name: "다음 대기 제출 · QA 대기 학생 32", exact: true }).click();
+    await expectFocused(31);
+    await expect(page.getByText("QA 대기 학생 31 풀이.pdf", { exact: true })).toHaveCount(0);
+    const refreshedRow = queue[31];
+    await Promise.all([
+      page.waitForResponse(response => {
+        const url = new URL(response.url());
+        return response.ok() && url.pathname.endsWith(`/submissions/submissions/homework/${refreshedRow.homework_id}/`)
+          && url.searchParams.get("enrollment_id") === String(refreshedRow.enrollment_id);
+      }),
+      page.reload(),
+    ]);
+    await expectFocused(31);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.getByRole("button", { name: mobile ? "뒤로 가기" : "과제 목록으로 돌아가기", exact: true }).click();
+    await expect(page).toHaveURL(/homework=pending.*queuePage=2|queuePage=2.*homework=pending/);
+    await expect(math).toBeVisible();
+    await expect(english).toBeVisible();
+    expect(state.mutations).toEqual([]);
+  });
+}
+
+test("390px 교사는 공유 시험의 조회 차시와 저장된 수강 성적을 구분한다", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await setup(page, "teacher");
+  await page.route("**/api/v1/submissions/submissions/pending/**", async route => {
+    const row = { id: 811, target_type: "exam", target_id: 71, target_title: "공유 시험",
+      target_resolved: true, status: "done", student_name: "이수강", enrollment_id: 10,
+      lecture_id: null, session_id: null, session_resolution: "ambiguous", session_origin_recorded: false,
+      score_lecture_id: 21, source: "online", created_at: "2026-10-09T00:00:00Z", session_choices: [
+        { lecture_id: 21, lecture_title: "수학 A", session_id: 31, session_title: "첫 차시" },
+        { lecture_id: 22, lecture_title: "수학 B", session_id: 32, session_title: "둘째 차시" },
+      ] };
+    await route.fulfill({ json: { results: [row], count: 1, page: 1, pages: 1, page_size: 50,
+      has_next: false, has_previous: false, summary: { failed: 0, real_failed: 0, discarded: 0 } } });
+  });
+  await page.route("**/api/v1/exams/71/", route => route.fulfill({ json: { id: 71, title: "공유 시험", session_ids: [31, 32] } }));
+  await page.route("**/api/v1/lectures/sessions/32/", route => route.fulfill({ json: { id: 32, title: "둘째 차시" } }));
+  let storedScore = 81;
+  const writes: number[] = [];
+  const resultScopes: Array<string | null> = [];
+  await page.route("**/api/v1/results/admin/exams/71/results/**", route => {
+    resultScopes.push(new URL(route.request().url()).searchParams.get("lecture_id"));
+    return route.fulfill({ json: [
+    { enrollment_id: 10, student_name: "이수강", exam_max_score: 100, final_score: storedScore, lecture_title: "수학 A", correction_session_id: 31 },
+    { enrollment_id: 11, student_name: "다른학생", final_score: 72, lecture_title: "수학 B", correction_session_id: 32 },
+  ] }); });
+  await page.route("**/api/v1/exams/?**", route => route.fulfill({ json: { results: [{ id: 71, title: "공유 시험", max_score: 100 }] } }));
+  await page.route("**/api/v1/enrollments/session-enrollments/**", route => route.fulfill({ json: { results: [
+    { enrollment: 10, student_name: "이수강" }, { enrollment: 11, student_name: "다른학생" },
+  ] } }));
+  await page.route("**/api/v1/results/admin/sessions/31/scores/**", route => route.fulfill({ json: {
+    meta: { exams: [{ exam_id: 71, title: "공유 시험", max_score: 100 }], homeworks: [] },
+    rows: [{ enrollment_id: 10, student_name: "이수강", exams: [{ exam_id: 71, block: { score: storedScore, max_score: 100 } }], homeworks: [] }],
+  } }));
+  await page.route("**/api/v1/results/admin/sessions/31/score-draft/**", route => route.fulfill({ json: { changes: [] } }));
+  await page.route("**/api/v1/results/admin/exams/71/enrollments/10/score/", route => {
+    expect(route.request().method()).toBe("PATCH");
+    expect(route.request().headers()["x-score-session-id"]).toBe("31");
+    storedScore = route.request().postDataJSON().score;
+    writes.push(storedScore);
+    return route.fulfill({ json: { ok: true, saved: true, projection_ready: true } });
+  });
+  await gotoAndSettle(page, `${BASE}/workspace/mobile/submissions?filter=done`);
+  await expect(page.getByText("응시 차시 미확인", { exact: true })).toBeVisible();
+  const result = page.getByRole("button", { name: "결과", exact: true });
+  await expect(result).toBeDisabled();
+  await page.getByRole("combobox", { name: "열어볼 강의·차시" }).selectOption({ label: "수학 B · 둘째 차시" });
+  await result.click();
+  await expect(page.getByText("조회 차시 · 둘째 차시")).toBeVisible();
+  expect(resultScopes).toContain("21");
+  await expect(page.getByRole("heading", { name: "이수강 · 저장된 성적" })).toBeVisible();
+  await expect(page.getByText("다른학생", { exact: true })).toHaveCount(0);
+  await page.reload();
+  await page.getByRole("button", { name: "저장된 수강 성적 입력" }).click();
+  await expect(page).toHaveURL(/\/mobile\/scores\/31\?exam=71&reviewEnrollment=10$/);
+  const score = page.getByRole("textbox", { name: "이수강 합산 점수 입력" });
+  await expect(score).toHaveValue("81");
+  await expect(page.getByText("다른학생", { exact: true })).toHaveCount(0);
+  await score.fill("85");
+  await score.blur();
+  await expect.poll(() => writes).toEqual([85]);
+  await page.reload();
+  await expect(score).toHaveValue("85");
+});
+
+for (const width of [1366, 1100, 390]) {
+  test(`과제 대기목록의 파일 확인·다음 제출·부분 통과 복구 ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = await setup(page, "owner");
+    state.submissionPending = 0;
+    const submittedAt = "2026-11-25T07:24:00Z";
+    const picture = await readFile(new URL("../fixtures/documents/public-resource-bars.png", import.meta.url));
+    const inputs = [
+      { homework: 71, enrollment: 201, name: "김서윤", lecture: "중등수학 A반", session: "4차시", title: "개념 확인", fileCount: 2 },
+      { homework: 72, enrollment: 201, name: "김서윤", lecture: "중등수학 A반", session: "5차시", title: "응용 문제", fileCount: 1 },
+      { homework: 73, enrollment: 202, name: "김서윤", lecture: "중등수학 B반", session: "4차시", title: "개념 확인", fileCount: 1 },
+      { homework: 71, enrollment: 203, name: "이현우", lecture: "중등수학 A반", session: "4차시", title: "개념 확인", fileCount: 1 },
+      { homework: 73, enrollment: 204, name: "박지민", lecture: "중등수학 B반", session: "4차시", title: "개념 확인", fileCount: 1 },
+    ];
+    const rows = inputs.map((input, i) => ({
+      homework_id: input.homework, enrollment_id: input.enrollment, student_id: input.enrollment + 400,
+      student_name: input.name, lecture_title: input.lecture, session_title: input.session, homework_title: input.title,
+      submitted_at: submittedAt, file_count: input.fileCount, teacher_accepted: false, teacher_reviewed: false,
+      teacher_accepted_updated_at: null, media_set_fingerprint: String(i + 1).repeat(64),
+      files: Array.from({ length: input.fileCount }, (_, j) => ({
+        id: String(7000 + i * 10 + j), position: j, status: "uploaded", media_kind: "image", mime_type: "image/png",
+        original_filename: `${input.lecture} ${input.title} 풀이 ${j + 1}.png`, file_size: picture.length,
+      })),
+    }));
+    state.pendingHomework = rows.length;
+    const failedIndex = 2;
+    const attempted: string[] = [];
+    const detailReads: string[] = [];
+    await page.route(/\/submissions\/submissions\/homework\/review-queue\/\?/, route => {
+      const remaining = rows.filter(r => !r.teacher_accepted);
+      return route.fulfill({ json: { count: remaining.length, page: 1, pages: 1, results: remaining } });
+    });
+    await page.route(/\/homeworks\/(71|72|73)\/$/, route => {
+      const id = Number(new URL(route.request().url()).pathname.split("/").at(-2));
+      return route.fulfill({ json: { id, title: rows.find(r => r.homework_id === id)!.homework_title, homework_type: "regular", session: id - 40 } });
+    });
+    await page.route(/\/submissions\/submissions\/homework\/(71|72|73)\/\?/, route => {
+      const url = new URL(route.request().url());
+      const id = Number(url.pathname.split("/").at(-2));
+      const enrollment = Number(url.searchParams.get("enrollment_id"));
+      detailReads.push(`${id}/${enrollment}`);
+      const results = rows.filter(r => r.homework_id === id && r.enrollment_id === enrollment).map(r => ({
+        ...r, id: r.student_id, homework_lecture_title: r.lecture_title, status: "submitted", created_at: submittedAt,
+      }));
+      return route.fulfill({ json: { count: results.length, results, next: null } });
+    });
+    await page.route(/\/homework\/(71|72|73)\/media\/\d+\/preview\//, route =>
+      route.fulfill({ json: { url: `data:image/png;base64,${picture.toString("base64")}`, media_kind: "image", expires_in: 600 } }));
+    await page.route(/\/homework\/(71|72|73)\/acceptance\//, route => {
+      const id = Number(new URL(route.request().url()).pathname.split("/").at(-3));
+      const body = route.request().postDataJSON();
+      const row = rows.find(r => r.homework_id === id && r.enrollment_id === body.enrollment_id)!;
+      const key = `${id}/${row.enrollment_id}`;
+      expect(body).toMatchObject({ accepted: true, expected_media_set_fingerprint: row.media_set_fingerprint });
+      attempted.push(key);
+      if (row === rows[failedIndex] && attempted.filter(k => k === key).length === 1) {
+        row.media_set_fingerprint = "b".repeat(64);
+        return route.fulfill({ status: 409, json: { detail: "제출 파일이 변경되었습니다." } });
+      }
+      row.teacher_accepted = true;
+      state.pendingHomework = rows.filter(entry => !entry.teacher_accepted).length;
+      return route.fulfill({ json: { teacher_accepted: true } });
+    });
+    const path = "/workspace/results/submissions?homework=pending";
+    const list = page.getByRole("list", { name: "확인 대기 학생 제출물" });
+    const baseline = process.env.E2E_HOMEWORK_QUEUE_BASELINE_URL;
+    if (baseline) {
+      expect(new URL(baseline).hostname).toBe("127.0.0.1");
+      await gotoAndSettle(page, `${baseline}${path}`);
+      await expect(list.getByRole("link")).toHaveCount(rows.length);
+      await page.screenshot({ path: testInfo.outputPath(`queue-before-${width}.png`), animations: "disabled" });
+    }
+    await gotoAndSettle(page, `${BASE}${path}`);
+    await expect(list.getByRole("link")).toHaveCount(rows.length);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`queue-after-${width}.png`), animations: "disabled" });
+
+    function checkbox(i: number) {
+      const r = rows[i];
+      return list.getByRole("checkbox", { name: `${r.student_name} · ${r.lecture_title} · ${r.session_title} · ${r.homework_title} 선택`, exact: true });
+    }
+    const first = list.getByRole("listitem").filter({ has: page.getByRole("checkbox", { name: "김서윤 · 중등수학 A반 · 4차시 · 개념 확인 선택", exact: true }) });
+    await first.getByRole("button", { name: "김서윤 제출 파일 2개 미리보기" }).click();
+    await expect(first.getByRole("button", { name: "미리보기", exact: true })).toHaveCount(2);
+    const photo = first.getByRole("img", { name: "1번 제출 사진" });
+    await expect.poll(() => photo.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    await first.getByRole("button", { name: "미리보기", exact: true }).nth(1).click();
+    const modal = page.getByRole("dialog");
+    await expect(modal).toContainText(rows[0].files[1].original_filename);
+    await expect(modal).toContainText("김서윤 · 중등수학 A반 · 4차시 · 개념 확인");
+    const fullImage = modal.getByRole("img", { name: `${rows[0].files[1].original_filename} 과제 제출 미리보기` });
+    await expect.poll(() => fullImage.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    await modal.getByRole("button", { name: "닫기", exact: true }).last().click();
+    await first.getByRole("link").click();
+    await expect(page.getByText(rows[0].files[1].original_filename, { exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "다음 대기 제출 · 김서윤", exact: true }).click();
+    await expect(page).toHaveURL(/homework=72.*reviewEnrollment=201/);
+    await expect(page.getByText(rows[1].files[0].original_filename, { exact: true })).toBeVisible();
+    expect(detailReads).toContain("71/201");
+    expect(detailReads).toContain("72/201");
+    await page.getByRole("button", { name: "과제 목록으로 돌아가기", exact: true }).click();
+
+    await page.getByRole("checkbox", { name: "이 페이지 전체 선택" }).check();
+    const accept = page.getByRole("button", { name: "선택 5건 통과", exact: true });
+    await expect(accept).toBeEnabled();
+    for (let i = 0; i < rows.length; ++i) await expect(checkbox(i)).toBeChecked();
+    await accept.click();
+    await page.getByRole("button", { name: "5건 통과 처리", exact: true }).click();
+    await expect(page.getByText("통과 4건 · 저장 실패 1건", { exact: true })).toBeVisible();
+    await expect(list.getByRole("link")).toHaveCount(1);
+    await expect(checkbox(failedIndex)).not.toBeChecked();
+    await page.reload();
+    await expect(list.getByRole("link")).toHaveCount(1);
+    await checkbox(failedIndex).check();
+    await page.getByRole("button", { name: "선택 1건 통과", exact: true }).click();
+    await page.getByRole("button", { name: "1건 통과 처리", exact: true }).click();
+    await expect(page.getByText("확인 대기 과제가 없습니다", { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(page.getByText("확인 대기 과제가 없습니다", { exact: true })).toBeVisible();
+    expect(attempted.sort()).toEqual(["71/201", "71/203", "72/201", "73/202", "73/202", "73/204"]);
+    expect(state.mutations).toEqual([]);
+  });
+}
+
+test("파일 조회 중 다음 제출을 선택하고 해제한 행은 응답 뒤에도 통과하지 않는다", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  const state = await setup(page, "owner");
+  state.pendingHomework = 2;
+  const started: number[] = [];
+  const saved: number[] = [];
+  let allowResponse!: () => void;
+  const interactionComplete = new Promise<void>(resolve => { allowResponse = resolve; });
+  let releaseFirst!: () => void;
+  const firstResponse = new Promise<void>(resolve => { releaseFirst = resolve; });
+  await page.route(/\/submissions\/submissions\/homework\/(71|72)\/\?/, async route => {
+    const id = Number(new URL(route.request().url()).searchParams.get("enrollment_id"));
+    started.push(id);
+    await Promise.all([interactionComplete, new Promise(resolve => setTimeout(resolve, 300))]);
+    if (id === 10) await firstResponse;
+    return route.fulfill({ json: { count: 1, next: null, results: [{
+      id, enrollment_id: id, student_id: id, student_name: `학생 ${id}`, status: "submitted",
+      teacher_accepted: false, teacher_accepted_updated_at: null, media_set_fingerprint: "a".repeat(64),
+      files: [0, 1].map(position => ({ id: String(id * 10 + position), position, media_kind: "image",
+        mime_type: "image/png", status: "uploaded", original_filename: `풀이 ${position + 1}.png` })),
+    }] } });
+  });
+  await page.route(/\/submissions\/submissions\/homework\/(71|72)\/acceptance\//, route => {
+    const body = route.request().postDataJSON();
+    expect(new URL(route.request().url()).pathname).toMatch(/\/homework\/72\/acceptance\/$/);
+    expect(body).toMatchObject({ enrollment_id: 11, accepted: true, expected_media_set_fingerprint: "a".repeat(64) });
+    saved.push(body.enrollment_id);
+    return route.fulfill({ json: { teacher_accepted: true } });
+  });
+  await gotoAndSettle(page, `${BASE}/workspace/results/submissions?homework=pending`);
+  const list = page.getByRole("list", { name: "확인 대기 학생 제출물" });
+  const first = list.getByRole("checkbox", { name: /QA 제출 학생 1/ });
+  const second = list.getByRole("checkbox", { name: /QA 제출 학생 2/ });
+  const response = (id: number) => page.waitForResponse(r => r.ok()
+    && new URL(r.url()).pathname.endsWith(`/homework/${id === 10 ? 71 : 72}/`)
+    && new URL(r.url()).searchParams.get("enrollment_id") === String(id));
+  try {
+    await first.check();
+    await expect.poll(() => started).toContain(10);
+    await expect(second).toBeEnabled();
+    await second.check();
+    await expect.poll(() => started).toContain(11);
+    await expect(page.getByRole("button", { name: "파일 확인 중…" })).toBeDisabled();
+    await first.uncheck();
+    await expect(first).not.toBeChecked();
+    await expect(second).toBeChecked();
+    await Promise.all([response(11), Promise.resolve().then(allowResponse)]);
+    await Promise.all([response(10), Promise.resolve().then(releaseFirst)]);
+  } finally {
+    allowResponse();
+    releaseFirst();
+  }
+  const accept = page.getByRole("button", { name: "선택 1건 통과", exact: true });
+  await expect(accept).toBeEnabled();
+  await expect(first).not.toBeChecked();
+  await accept.click();
+  await page.getByRole("button", { name: "1건 통과 처리", exact: true }).click();
+  await expect(page.getByText("통과 1건", { exact: true })).toBeVisible();
+  expect(saved).toEqual([11]);
+  expect(state.mutations).toEqual([]);
+});
+
+for (const { mobile, recorded } of [
+  { mobile: false, recorded: false }, { mobile: true, recorded: false },
+  { mobile: false, recorded: true }, { mobile: true, recorded: true },
+]) {
+  test(`철회된 차시의 저장된 성적을 읽고 다시 시도한다 ${mobile ? "390px" : "desktop"} ${recorded ? "B1 기록" : "차시 미확인"}`, async ({ page }) => {
+    await page.setViewportSize({ width: mobile ? 390 : 1366, height: 900 });
+    await setup(page, mobile ? "teacher" : "owner");
+    const row = { id: 812, target_type: "exam", target_id: 71, target_title: "과거 공유 시험",
+      target_resolved: true, status: "done", student_name: "이수강", enrollment_id: 10,
+      lecture_id: recorded ? 22 : null, lecture_title: recorded ? "기록 강의 B" : "",
+      session_id: recorded ? 32 : null, session_title: recorded ? "철회된 B1" : "", score_lecture_id: recorded ? 22 : 21, session_history_only: true,
+      session_choices: [], session_origin_recorded: recorded, source: "online", created_at: "2026-10-09T00:00:00Z" };
+    await page.route("**/api/v1/submissions/submissions/pending/**", route => route.fulfill({ json: {
+      results: [row], count: 1, pages: 1, page: 1, page_size: 50, has_next: false, has_previous: false,
+      summary: { failed: 0, real_failed: 0, discarded: 0 },
+    } }));
+    const requests: string[] = [];
+    await page.route("**/api/v1/submissions/submissions/exams/71/**", route => {
+      const url = new URL(route.request().url());
+      requests.push(route.request().method() + " " + url.pathname + url.search);
+      const n = requests.length;
+      return route.fulfill({ json: [{ id: n === 1 ? 850 : 812, enrollment_id: n === 2 ? 11 : 10,
+        status: "done", score: n <= 2 ? 99 : n === 3 ? 0 : null }] });
+    });
+    const path = mobile ? "/workspace/mobile/submissions" : "/workspace/results/submissions";
+    await gotoAndSettle(page, BASE + path + "?filter=done");
+    if (recorded) {
+      const card = page.getByTestId("submission-inbox-812");
+      await expect(card).toContainText("철회된 B1");
+      await expect(card.getByText("응시 차시 미확인")).toHaveCount(0);
+      await expect(card.getByRole("button", { name: /^(결과 보기|결과|폐기|학생 지정|답안 검토·복구)$/ })).toHaveCount(0);
+      await expect(card.getByText("원본 시험 없음")).toHaveCount(0);
+    } else {
+      await expect(page.getByText("응시 차시 미확인", { exact: true })).toBeVisible();
+    }
+    await expect(page.getByText("현재 조회 가능한 차시 없음", { exact: true })).toBeVisible();
+    const open = page.getByRole("button", { name: "저장된 성적 보기" });
+    await open.click();
+    const dialog = page.getByRole("dialog", { name: "저장된 성적", exact: true });
+    await expect(dialog.getByRole("alert")).toContainText("저장된 성적을 불러오지 못했습니다");
+    await dialog.getByRole("button", { name: "다시 시도" }).click();
+    await expect.poll(() => requests.length).toBe(2);
+    await expect(dialog.getByRole("alert")).toBeVisible();
+    await dialog.getByRole("button", { name: "다시 시도" }).click();
+    await expect(dialog).toContainText("이 제출의 저장 점수: 0점");
+    await expect(dialog).toContainText("과거 공유 시험 · 이수강");
+    await expect(dialog.getByRole("spinbutton")).toHaveCount(0);
+    expect(await dialog.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+    await dialog.getByRole("button", { name: "닫기", exact: true }).last().click();
+    await expect(dialog).toHaveCount(0);
+    await expect(open).toBeVisible();
+    if (!mobile) {
+      await page.route("**/results/admin/landing-stats/**", route => route.fulfill({ json: {
+        recent_done_top: [row], pending_top: [], active_exams: 1, active_lectures: 1,
+      } }));
+      await gotoAndSettle(page, BASE + "/workspace/results");
+      await expect(page.getByRole("heading", { name: "최근 채점 완료" })).toBeVisible();
+      if (recorded) {
+        await expect(page.getByText("기록 강의 B · 철회된 B1", { exact: true })).toBeVisible();
+        await expect(page.getByText("응시 차시 미확인", { exact: true })).toHaveCount(0);
+      }
+    }
+    await open.click();
+    await expect(dialog).toContainText("이 제출에 저장된 점수가 없습니다.");
+    expect(requests).toEqual(Array(4).fill("GET /api/v1/submissions/submissions/exams/71/?focus_id=812"));
   });
 }

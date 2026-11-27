@@ -42,6 +42,7 @@ async function installSubmissionApi(page: Page, options: {
   configurationConflict?: boolean;
   recoveryExamId?: number;
   unresolvedTarget?: boolean;
+  sharedExam?: boolean;
 } = {}) {
   await installLocalAuthApiStubs(page);
   await installTenantOneInitScript(page);
@@ -107,6 +108,7 @@ async function installSubmissionApi(page: Page, options: {
       return;
     }
     if (path === "/submissions/submissions/pending/" && request.method() === "GET") {
+      if (options.sharedExam) expect(new URL(request.url()).searchParams.get("session_choices")).toBe("1");
       await json(route, [
         {
           id: 501,
@@ -117,7 +119,11 @@ async function installSubmissionApi(page: Page, options: {
           target_title: "중2 과학 진단평가",
           lecture_id: 31,
           lecture_title: "중2 과학 정규반",
-          session_id: 44,
+          session_id: options.sharedExam ? null : 44,
+          ...(options.sharedExam ? { lecture_id: null, lecture_title: "", session_origin_recorded: false, score_lecture_id: 31, session_choices: [
+            { lecture_id: 31, lecture_title: "과학 A", session_id: 44, session_title: "첫 차시" },
+            { lecture_id: 32, lecture_title: "과학 B", session_id: 45, session_title: "둘째 차시" },
+          ] } : {}),
           target_resolved: !options.unresolvedTarget,
           target_resolved_reason: null,
           source: "scan",
@@ -568,3 +574,15 @@ for (const externalFile of ["pdf", "unsupported"] as const) {
     expect(calls.assignmentBodies).toHaveLength(0);
   });
 }
+
+test("공유 시험은 조회할 차시 선택 후 해당 차시의 학생 결과를 연다", async ({ page }) => {
+  await installSubmissionApi(page, { sharedExam: true, targetOutsideRecent: true });
+  await gotoAndSettle(page, `${BASE}/workspace/results/submissions?filter=done`);
+  const row = page.getByTestId("submission-inbox-501");
+  await expect(row.getByText("원본 없음", { exact: true })).toHaveCount(0);
+  await expect(row.getByRole("button", { name: "결과 보기" })).toHaveCount(0);
+  await expect(row.getByText("응시 차시 미확인", { exact: true })).toBeVisible();
+  await row.getByRole("combobox", { name: "열어볼 강의·차시" }).selectOption({ label: "과학 B · 둘째 차시" });
+  await row.getByRole("button", { name: "결과 보기" }).click();
+  await expect(page).toHaveURL(/lectures\/32\/sessions\/45\/exams\?exam_id=77&examTab=results&enrollmentId=901&scoreLectureId=31/);
+});

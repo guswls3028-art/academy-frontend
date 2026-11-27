@@ -8993,20 +8993,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * @description GET /results/admin/landing-stats/
-         *
-         *     Response:
-         *     {
-         *       "active_lectures": int,
-         *       "active_exams": int,
-         *       "pending_submissions": int,
-         *       "done_last_7d": int,
-         *       "failed_last_24h": int,
-         *       "pending_top": [SubmissionSummary, ...],   # 최신 5건
-         *       "recent_done_top": [SubmissionSummary, ...]
-         *     }
-         */
+        /** @description 현재 학원 교직원의 성적 집계와 최근 대기·완료 시험 제출을 각각 최대 5건 반환합니다. */
         get: operations["results_admin_landing_stats_retrieve"];
         put?: never;
         post?: never;
@@ -12024,6 +12011,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description 현재 학원의 인증된 교직원이 시험 제출 이력을 조회합니다. 기본 응답은 최신 제출부터 최대 200건의 배열입니다. 조회 범위에 없는 시험은 빈 결과를 반환합니다. 차시를 지정하면 해당 시험에 연결된 차시여야 합니다. */
         get: operations["submissions_submissions_exams_retrieve"];
         put?: never;
         post?: never;
@@ -12104,6 +12092,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** @description 현재 학원의 인증된 교직원이 과제 제출물을 조회합니다. 기본 응답은 최신 제출부터 최대 200건의 배열입니다. page 또는 page_size를 지정하면 페이지 객체를 반환합니다. 조회 범위에 없는 과제에는 제출 행이 없습니다. */
         get: operations["submissions_submissions_homework_retrieve"];
         put?: never;
         post?: never;
@@ -12137,6 +12126,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["submissions_submissions_homework_candidates_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/submissions/submissions/homework/review-queue/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["submissions_submissions_homework_review_queue_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -12216,17 +12221,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * @description GET /api/v1/submissions/submissions/pending/
-         *
-         *     Admin submissions inbox — lists pending/recent submissions with resolved
-         *     context (student name, target title, lecture/session info).
-         *
-         *     Query params:
-         *       ?filter=pending  — only actively-processing submissions
-         *       ?filter=all      — pending + terminal (done/failed) from last 24h
-         *       (default)        — same as 'all'
-         */
+        /** @description 현재 학원의 교직원용 시험 제출함입니다. page 또는 page_size를 지정하면 건수와 요약을 포함한 페이지를 반환하고, 둘 다 생략하면 최근순 최대 200건의 배열을 반환합니다. session_choices=1은 기록된 출처·원래 성적 강의·조회 가능한 차시 후보 및 해당하는 경우 과거 제출 표시를 포함합니다. */
         get: operations["submissions_submissions_pending_retrieve"];
         put?: never;
         post?: never;
@@ -14810,6 +14805,28 @@ export interface components {
             signal: (components["schemas"]["SignalEnum"] | components["schemas"]["NullEnum"]) | null;
             student_name: string;
         };
+        ExamSubmissionSummary: {
+            /** Format: date-time */
+            created_at: string | null;
+            enrollment_id: number | null;
+            id: number;
+            lecture_id: number | null;
+            lecture_title: string;
+            /** @description 저장된 성적의 원래 수강 강의입니다. */
+            score_lecture_id?: number | null;
+            session_choices?: components["schemas"]["SubmissionSessionChoice"][];
+            /** @description 현재 차시에서 처리할 수 없어 과거 제출로 조회할 때만 true입니다. */
+            session_history_only?: boolean;
+            session_id: number | null;
+            /** @description 제출에 진입 차시가 기록됐는지 여부입니다. */
+            session_origin_recorded?: boolean;
+            session_title?: string;
+            status: string;
+            student_name: string;
+            target_id: number;
+            target_title: string;
+            target_type: string;
+        };
         /**
          * @description * `template` - Template
          *     * `regular` - Regular
@@ -15306,6 +15323,23 @@ export interface components {
             /** @description 일반 과제가 참조하는 템플릿 */
             template_homework?: number | null;
             title: string;
+        };
+        HomeworkReviewQueuePage: {
+            count: number;
+            page: number;
+            pages: number;
+            results: components["schemas"]["HomeworkReviewQueueRow"][];
+        };
+        HomeworkReviewQueueRow: {
+            enrollment_id: number;
+            file_count: number;
+            homework_id: number;
+            homework_title: string;
+            lecture_title: string;
+            session_title: string;
+            student_name: string;
+            /** Format: date-time */
+            submitted_at: string;
         };
         HomeworkScore: {
             readonly clinic_required: boolean;
@@ -18259,6 +18293,54 @@ export interface components {
          * @enum {string}
          */
         PayTypeEnum: "HOURLY" | "MONTHLY";
+        PendingExamSubmission: {
+            /** Format: date-time */
+            created_at: string | null;
+            discard_reason: string | null;
+            /** @description 연결된 수강이 없으면 0입니다. */
+            enrollment_id: number;
+            file_name: string;
+            file_size: number | null;
+            file_type: string;
+            has_file: boolean;
+            id: number;
+            is_discarded: boolean;
+            lecture_id: number | null;
+            lecture_title: string;
+            omr_readiness: components["schemas"]["SubmissionOmrReadiness"] | null;
+            /** Format: uri */
+            profile_photo_url: string | null;
+            recovery: components["schemas"]["SubmissionExamRecovery"] | null;
+            /** @description 저장된 성적의 원래 수강 강의입니다. */
+            score_lecture_id?: number | null;
+            session_choices?: components["schemas"]["SubmissionSessionChoice"][];
+            /** @description 현재 차시에서 처리할 수 없어 과거 제출로 조회할 때만 true입니다. */
+            session_history_only?: boolean;
+            session_id: number | null;
+            /** @description 제출에 진입 차시가 기록됐는지 여부입니다. */
+            session_origin_recorded?: boolean;
+            session_title?: string;
+            source: string;
+            status: string;
+            student_name: string;
+            target_id: number;
+            target_resolved: boolean;
+            /** @description 대상을 찾으면 null, 그 밖에는 target_missing 또는 session_missing입니다. */
+            target_resolved_reason: string | null;
+            target_title: string;
+            target_type: string;
+        };
+        PendingExamSubmissionListOrPage: components["schemas"]["PendingExamSubmission"][] | components["schemas"]["PendingExamSubmissionPage"];
+        PendingExamSubmissionPage: {
+            count: number;
+            has_next: boolean;
+            has_previous: boolean;
+            page: number;
+            page_size: number;
+            pages: number;
+            results: components["schemas"]["PendingExamSubmission"][];
+            summary: components["schemas"]["SubmissionFailureCounts"];
+        };
         PendingSubmissionPreviewResponse: {
             /** Format: uri */
             url: string;
@@ -19333,6 +19415,15 @@ export interface components {
             request_id?: string;
             title: string;
         };
+        ResultsLandingStats: {
+            active_exams: number;
+            active_lectures: number;
+            done_last_7d: number;
+            failed_last_24h: number;
+            pending_submissions: number;
+            pending_top: components["schemas"]["ExamSubmissionSummary"][];
+            recent_done_top: components["schemas"]["ExamSubmissionSummary"][];
+        };
         /**
          * @description * `NOT_SUBMITTED` - NOT_SUBMITTED
          *     * `PROCESSING` - PROCESSING
@@ -20301,6 +20392,37 @@ export interface components {
             readonly user_is_staff: boolean;
             readonly user_username: string;
         };
+        StaffExamReviewIssues: {
+            items: components["schemas"]["StaffExamSubmission"][];
+            next_cursor: number | null;
+            /** @description 커서를 적용하기 전 조건에 맞는 전체 검토 건수입니다. */
+            total: number;
+        };
+        StaffExamSubmission: {
+            aligned: boolean | null;
+            alignment_method: string | null;
+            answer_stats: {
+                [key: string]: unknown;
+            } | null;
+            archived: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** @description 제출에 지정된 수강이 없으면 0입니다. */
+            enrollment_id: number;
+            file_key: string;
+            has_file: boolean;
+            id: number;
+            identifier_status: string | null;
+            manual_review_reasons: string[];
+            manual_review_required: boolean;
+            /** Format: double */
+            score: number | null;
+            sheet_version: string | null;
+            source: components["schemas"]["SourceB3bEnum"];
+            status: components["schemas"]["SubmissionStatusEnum"];
+            student_name: string;
+        };
+        StaffExamSubmissionListOrIssues: components["schemas"]["StaffExamSubmission"][] | components["schemas"]["StaffExamReviewIssues"];
         StaffExpenseRecord: {
             /** Format: int64 */
             amount: number;
@@ -20338,6 +20460,78 @@ export interface components {
          * @enum {string}
          */
         StaffExpenseRecordStatusEnum: "PENDING" | "APPROVED" | "REJECTED";
+        StaffHomeworkSubmission: {
+            /** Format: date-time */
+            created_at: string | null;
+            /** @description 제출에 지정된 수강이 없으면 0입니다. */
+            enrollment_id: number;
+            file_size: number | null;
+            file_type: string | null;
+            files: components["schemas"]["StaffHomeworkSubmissionFile"][];
+            homework_lecture_title: string;
+            id: number;
+            lecture_chip_label?: string | null;
+            lecture_color?: string | null;
+            lecture_title?: string;
+            media_set_fingerprint: string | null;
+            name_highlight_clinic_target: boolean;
+            parent_phone: string | null;
+            /** Format: uri */
+            profile_photo_url: string | null;
+            session_id: number | null;
+            session_title: string;
+            source: components["schemas"]["SourceB3bEnum"];
+            status: components["schemas"]["SubmissionStatusEnum"];
+            /** @description 연결된 학생이 없으면 0입니다. */
+            student_id: number;
+            student_name: string;
+            student_phone: string | null;
+            teacher_accepted: boolean;
+            /** Format: date-time */
+            teacher_accepted_updated_at: string | null;
+            teacher_review_note: string;
+            teacher_review_source: (components["schemas"]["TeacherReviewSourceEnum"] | components["schemas"]["NullEnum"]) | null;
+            /** Format: date-time */
+            teacher_review_updated_at: string | null;
+            teacher_reviewed: boolean;
+            /** Format: date-time */
+            teacher_reviewed_at: string | null;
+        };
+        StaffHomeworkSubmissionFile: {
+            /** Format: uuid */
+            client_file_id: string | null;
+            /** Format: date-time */
+            created_at: string | null;
+            error_message: string;
+            /** Format: date-time */
+            failed_at: string | null;
+            file_size: number;
+            /** @description 파일 UUID 또는 기존 단일 파일의 legacy-<제출 ID>입니다. */
+            id: string;
+            legacy: boolean;
+            media_kind: components["schemas"]["MediaKindEnum"];
+            mime_type: string;
+            original_filename: string;
+            position: number;
+            /** Format: date-time */
+            removed_at: string | null;
+            status: components["schemas"]["StudentHomeworkFileStatusEnum"];
+            /** Format: uuid */
+            upload_batch_id: string | null;
+            /** Format: date-time */
+            upload_started_at: string | null;
+            /** Format: date-time */
+            uploaded_at: string | null;
+        };
+        StaffHomeworkSubmissionListOrPage: components["schemas"]["StaffHomeworkSubmission"][] | components["schemas"]["StaffHomeworkSubmissionsPage"];
+        StaffHomeworkSubmissionsPage: {
+            count: number;
+            /** Format: uri */
+            next: string | null;
+            /** Format: uri */
+            previous: string | null;
+            results: components["schemas"]["StaffHomeworkSubmission"][];
+        };
         StaffList: {
             readonly account_role: string;
             readonly can_manage_staff: boolean;
@@ -21058,6 +21252,19 @@ export interface components {
         StudentExamResultOpenSchemaRequest: {
             exam_id: number;
         };
+        StudentExamSubmitReceipt: {
+            status: string;
+            submission_id: number;
+        };
+        StudentExamSubmitRequestRequest: {
+            /** @description 문항 ID별 답안 객체 또는 문항·답안 목록 */
+            answers: unknown;
+            /** Format: uuid */
+            client_request_id?: string | null;
+            /** @description 학생이 시험을 연 차시. 일반 시험 목록에서는 생략 */
+            entry_session_id?: number | null;
+            expected_attempt_count?: number | null;
+        };
         StudentFee: {
             /**
              * Format: int64
@@ -21613,6 +21820,23 @@ export interface components {
             target_id: number;
             target_type: components["schemas"]["TargetTypeEnum"];
         };
+        SubmissionDetailError: {
+            detail: string;
+        };
+        SubmissionExamRecovery: {
+            /** @description 시험 설정 보완이 필요할 때 configure_exam입니다. */
+            action: string;
+            exam_id: number;
+        };
+        SubmissionFailureCounts: {
+            discarded: number;
+            failed: number;
+            real_failed: number;
+        };
+        SubmissionOmrReadiness: {
+            can_grade: boolean;
+            missing: string[];
+        };
         SubmissionRequest: {
             enrollment_id?: number | null;
             file_key?: string | null;
@@ -21625,6 +21849,12 @@ export interface components {
             target_id: number;
             target_type: components["schemas"]["TargetTypeEnum"];
             tenant: number;
+        };
+        SubmissionSessionChoice: {
+            lecture_id: number;
+            lecture_title: string;
+            session_id: number;
+            session_title: string;
         };
         /**
          * @description * `submitted` - Submitted
@@ -21861,6 +22091,12 @@ export interface components {
             phone?: string | null;
             subject?: string | null;
         };
+        /**
+         * @description * `score` - score
+         *     * `manual` - manual
+         * @enum {string}
+         */
+        TeacherReviewSourceEnum: "score" | "manual";
         TemplateBundle: {
             /** Format: date-time */
             readonly created_at: string;
@@ -36761,19 +36997,41 @@ export interface operations {
     };
     results_admin_landing_stats_retrieve: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description 1이면 확인된 시험의 차시 후보·출처와 원래 성적 강의를 포함합니다. 생략하면 기존 요약을 반환합니다. */
+                session_choices?: "0" | "1";
+            };
             header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ResultsLandingStats"];
+                };
+            };
+            /** @description 인증이 필요하거나 인증 정보가 유효하지 않습니다. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionDetailError"];
+                };
+            };
+            /** @description 현재 학원에서 교직원 권한이 필요합니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionDetailError"];
+                };
             };
         };
     };
@@ -39554,14 +39812,21 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudentExamSubmitRequestRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["StudentExamSubmitRequestRequest"];
+                "multipart/form-data": components["schemas"]["StudentExamSubmitRequestRequest"];
+            };
+        };
         responses: {
-            /** @description No response body */
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["StudentExamSubmitReceipt"];
+                };
             };
         };
     };
@@ -42037,7 +42302,20 @@ export interface operations {
     };
     submissions_submissions_exams_retrieve: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description 검토 목록에서 이 ID보다 작은 제출만 반환합니다. */
+                cursor?: number;
+                /** @description 검토 목록에서만 사용합니다. 양의 수강 ID 1~1000개를 쉼표로 구분합니다. */
+                enrollment_ids?: string;
+                /** @description 한 번만 지정합니다. 개수 제한을 적용하기 전에 해당 시험의 제출 한 건으로 좁힙니다. */
+                focus_id?: number;
+                /** @description 검토 목록에서 수강 ID를 지정해도 미지정 제출을 포함합니다. 0이면 제외합니다. */
+                include_unbound?: string;
+                /** @description 1이면 검토가 필요한 제출을 페이지당 최대 50건씩 반환합니다. */
+                review_issues?: string;
+                /** @description 시험에 연결된 차시 하나를 지정합니다. 다른 차시에서 접수한 OMR 스캔은 제외합니다. */
+                session_id?: number;
+            };
             header?: never;
             path: {
                 exam_id: number;
@@ -42046,12 +42324,42 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["StaffExamSubmissionListOrIssues"];
+                };
+            };
+            /** @description 잘못된 쿼리 필드 또는 detail에 오류 내용을 반환합니다. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string | string[];
+                    };
+                };
+            };
+            /** @description 인증이 필요하거나 인증 정보가 유효하지 않습니다. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionDetailError"];
+                };
+            };
+            /** @description 현재 학원에서 교직원 권한이 필요합니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionDetailError"];
+                };
             };
         };
     };
@@ -42187,7 +42495,12 @@ export interface operations {
     };
     submissions_submissions_homework_retrieve: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description 과제 강의에서 이 수강의 제출만 조회합니다. 다른 제출로 대체된 행은 제외합니다. */
+                enrollment_id?: number;
+                page?: number;
+                page_size?: number;
+            };
             header?: never;
             path: {
                 homework_id: number;
@@ -42196,12 +42509,51 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["StaffHomeworkSubmissionListOrPage"];
+                };
+            };
+            /** @description 잘못된 쿼리 필드 또는 detail에 오류 내용을 반환합니다. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string | string[];
+                    };
+                };
+            };
+            /** @description 인증이 필요하거나 인증 정보가 유효하지 않습니다. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionDetailError"];
+                };
+            };
+            /** @description 현재 학원에서 교직원 권한이 필요합니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionDetailError"];
+                };
+            };
+            /** @description 요청한 페이지가 없습니다. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionDetailError"];
+                };
             };
         };
     };
@@ -42249,6 +42601,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    submissions_submissions_homework_review_queue_retrieve: {
+        parameters: {
+            query?: {
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeworkReviewQueuePage"];
+                };
             };
         };
     };
@@ -42358,6 +42732,11 @@ export interface operations {
                 filter?: "all" | "pending" | "done" | "failed";
                 page?: number;
                 page_size?: number;
+                /**
+                 * @description * `0` - 0
+                 *     * `1` - 1
+                 */
+                session_choices?: "0" | "1";
             };
             header?: never;
             path?: never;
@@ -42365,12 +42744,42 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PendingExamSubmissionListOrPage"];
+                };
+            };
+            /** @description 잘못된 쿼리 필드 또는 detail에 오류 내용을 반환합니다. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string | string[];
+                    };
+                };
+            };
+            /** @description 인증이 필요하거나 인증 정보가 유효하지 않습니다. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionDetailError"];
+                };
+            };
+            /** @description 현재 학원에서 교직원 권한이 필요합니다. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmissionDetailError"];
+                };
             };
         };
     };

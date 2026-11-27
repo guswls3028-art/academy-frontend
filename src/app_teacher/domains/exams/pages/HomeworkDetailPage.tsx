@@ -10,6 +10,8 @@ import { fetchSessionScores, patchAssessmentCorrection } from "@/shared/api/cont
 import { notificationQueryKeys } from "@/shared/api/queryKeys/notifications";
 import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 import { formatCompactFileSize } from "@/shared/utils/fileSize";
+import { NextHomeworkReview } from "@/shared/ui/submissions/HomeworkReviewQueue";
+import { assessmentQueryKeys } from "@/shared/api/queryKeys/assessments";
 import HomeworkMissingNoticeButton from "@/shared/ui/submissions/HomeworkMissingNoticeButton";
 import HomeworkFileGallery from "@/shared/ui/submissions/HomeworkFileGallery";
 import HomeworkBulkAcceptance from "@/shared/ui/submissions/HomeworkBulkAcceptance";
@@ -55,15 +57,22 @@ function reviewLabel(submission: HomeworkSubmission, hasScore = false): string {
 
 export default function HomeworkDetailPage() {
   const { homeworkId } = useParams<{ homeworkId: string }>();
+  const [params] = useSearchParams();
+  return <HomeworkDetail key={`${homeworkId}:${params.get("reviewEnrollment")}`} homeworkId={homeworkId} />;
+}
+
+function HomeworkDetail({ homeworkId }: { homeworkId?: string }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const focused = searchParams.has("reviewEnrollment");
+  const enrollmentId = focused ? Number(searchParams.get("reviewEnrollment")) : undefined;
   const origin = searchParams.get("from");
   const fromInbox = origin === "submissions" || origin === "pending";
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [reviewSubmissionId, setReviewSubmissionId] = useState<number | null>(null);
-  const [preview, setPreview] = useState<{ file: HomeworkSubmissionMediaFile; fingerprint: string | null } | null>(null);
+  const [preview, setPreview] = useState<{ file: HomeworkSubmissionMediaFile; fingerprint: string | null; context: string } | null>(null);
   const hid = Number(homeworkId);
 
   const homeworkQ = useQuery({
@@ -80,8 +89,8 @@ export default function HomeworkDetailPage() {
   });
 
   const submissionsQ = useQuery({
-    queryKey: teacherExamsQueryKeys.homeworkSubmissions(hid),
-    queryFn: async () => normalizeHomeworkSubmissions(await fetchHomeworkSubmissions(hid)),
+    queryKey: focused ? [...teacherExamsQueryKeys.homeworkSubmissions(hid), enrollmentId] : teacherExamsQueryKeys.homeworkSubmissions(hid),
+    queryFn: async () => normalizeHomeworkSubmissions(await fetchHomeworkSubmissions(hid, enrollmentId)),
     enabled: Number.isFinite(hid),
     refetchInterval: 5_000,
     refetchIntervalInBackground: false,
@@ -107,10 +116,12 @@ export default function HomeworkDetailPage() {
         completed,
         note: completed ? "제출 파일 직접 확인" : "추가 확인 필요",
         expected_updated_at: submission.teacher_review_updated_at,
+        ...(completed && submission.media_set_fingerprint ? { expected_media_set_fingerprint: submission.media_set_fingerprint } : {}),
       });
     },
     onSuccess: async (_, variables) => {
       void queryClient.invalidateQueries({ queryKey: notificationQueryKeys.operationalCounts });
+      void queryClient.invalidateQueries({ queryKey: assessmentQueryKeys.homeworkReviewQueue });
       const refreshed = await submissionsQ.refetch();
       if (refreshed.isError) {
         teacherToast.error("저장됐지만 최신 제출 상태를 불러오지 못했습니다. 다시 시도해 주세요.");
@@ -147,7 +158,9 @@ export default function HomeworkDetailPage() {
 
   function goBack() {
     if (fromInbox && location.state?.fromHomeworkInbox !== true) {
-      navigate(`/workspace/mobile/submissions?homework=${origin === "pending" ? "pending" : "all"}`, { replace: true });
+      const params = new URLSearchParams({ homework: origin === "pending" ? "pending" : "all" });
+      if (origin === "pending" && searchParams.has("queuePage")) params.set("queuePage", searchParams.get("queuePage")!);
+      navigate(`/workspace/mobile/submissions?${params}`, { replace: true });
     } else {
       navigate(-1);
     }
@@ -190,7 +203,15 @@ export default function HomeworkDetailPage() {
     <div className="flex flex-col gap-3">
       {renderBackHeader(hw.title)}
 
-      <div className={`${styles.panel} rounded-xl flex flex-col gap-2`}>
+      {focused && <div className="flex flex-wrap items-center justify-between gap-2">
+        <span>{[submitted[0]?.homework_lecture_title, submitted[0]?.session_title || hw.session_title].filter(Boolean).join(" · ")}</span>
+        <EmptyActionButton variant="secondary" onClick={() => {
+          const next = new URLSearchParams(searchParams);
+          next.delete("reviewEnrollment");
+          setSearchParams(next);
+        }}>전체 과제 보기</EmptyActionButton>
+      </div>}
+      {!focused && <div className={`${styles.panel} rounded-xl flex flex-col gap-2`}>
         {hw.session_title && <InfoRow label="수업" value={hw.session_title} />}
         {dueDate && <InfoRow label="마감일" value={dueDate} />}
         {maxScore != null && <InfoRow label="만점" value={`${maxScore}점`} />}
@@ -198,12 +219,12 @@ export default function HomeworkDetailPage() {
         <InfoRow label="선생님 확인" value={`${reviewedCount} / ${submitted.length}`} accent />
         <HomeworkMissingNoticeButton key={hid} homeworkId={hid} />
         {sessionId > 0 && <HomeworkInspectionEntry sessionId={sessionId} homeworkId={hid} title={hw.title} />}
-      </div>
+      </div>}
 
       {submitted.length > 0 && (
         <Section title={`제출 확인 (${submitted.length})`}>
           <p className={styles.reviewGuide}>사진을 눌러 확대할 수 있습니다. 통과를 누르면 기존 점수를 유지하고 과제를 통과로 인정합니다.</p>
-          <HomeworkBulkAcceptance key={hid} homeworkId={hid} sessionId={sessionId} rows={submitted}>
+          <HomeworkBulkAcceptance individual={focused} key={hid} homeworkId={hid} sessionId={sessionId} rows={submitted}>
           {(visibleRows, checkbox) => visibleRows.map((s) => (
             <div key={s.id} className={`${styles.row} py-2`}>
               <div className="flex justify-between items-center gap-2">
@@ -221,7 +242,7 @@ export default function HomeworkDetailPage() {
                   fingerprint={s.media_set_fingerprint} />
               )}
               <HomeworkFileGallery homeworkId={hid} files={s.files} fingerprint={s.media_set_fingerprint}
-                onOpen={file => setPreview({ file, fingerprint: s.media_set_fingerprint })} />
+                onOpen={file => setPreview({ file, fingerprint: s.media_set_fingerprint, context: [s.homework_lecture_title, s.session_title || hw.session_title, hw.title, s.student_name].filter(Boolean).join(" · ") })} />
               {!s.teacher_accepted && (
                 <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
                   <Badge tone={s.teacher_reviewed ? "success" : "warning"} size="xs">
@@ -239,7 +260,7 @@ export default function HomeworkDetailPage() {
       )}
 
       {/* Pending */}
-      {pending.length > 0 && (
+      {!focused && pending.length > 0 && (
         <PendingSection
           pending={pending}
           homeworkTitle={hw.title}
@@ -262,14 +283,17 @@ export default function HomeworkDetailPage() {
         />
       )}
 
-      {submissionRows.length === 0 && (
+      {focused && submitted.length === 0 && <EmptyState scope="panel" tone="empty" title="선택한 학생의 제출물을 찾을 수 없습니다" />}
+      {focused && enrollmentId !== undefined && <NextHomeworkReview mobile homeworkId={hid} enrollmentId={enrollmentId} />}
+      {!focused && submissionRows.length === 0 && (
         <EmptyState scope="panel" tone="empty" title="제출 현황이 없습니다" description="수강생이 과제를 제출하면 이 화면에서 파일을 직접 확인할 수 있습니다." actions={<EmptyActionButton variant="secondary" onClick={goBack}>{fromInbox ? "과제 목록으로 돌아가기" : "돌아가기"}</EmptyActionButton>} />
       )}
 
-      {preview && <HomeworkMediaPreviewModal open homeworkId={hid} file={preview.file}
+      {preview && <HomeworkMediaPreviewModal open homeworkId={hid} file={preview.file} context={preview.context}
         mediaSetFingerprint={preview.fingerprint} onClose={() => setPreview(null)} />}
       <HomeworkReviewSheet
-        key={reviewSubmission?.id ?? "closed"}
+        key={`${reviewSubmission?.id}:${reviewSubmission?.media_set_fingerprint}`}
+        context={[reviewSubmission?.homework_lecture_title, reviewSubmission?.session_title || hw.session_title, hw.title].filter(Boolean).join(" · ")}
         homeworkId={hid}
         submission={reviewSubmission}
         busy={reviewMut.isPending}
@@ -285,7 +309,7 @@ export default function HomeworkDetailPage() {
   );
 }
 
-function HomeworkReviewSheet({ homeworkId, submission, busy, canSave, scoreLocked, scoreStatusError, scoreStatusLoading, onRetryScores, onClose, onReview }: { homeworkId: number; submission: HomeworkSubmission | null; busy: boolean; canSave: boolean; scoreLocked: boolean; scoreStatusError: boolean; scoreStatusLoading: boolean; onRetryScores: () => void; onClose: () => void; onReview: (submission: HomeworkSubmission, completed: boolean) => void }) {
+function HomeworkReviewSheet({ homeworkId, submission, context, busy, canSave, scoreLocked, scoreStatusError, scoreStatusLoading, onRetryScores, onClose, onReview }: { homeworkId: number; context: string; submission: HomeworkSubmission | null; busy: boolean; canSave: boolean; scoreLocked: boolean; scoreStatusError: boolean; scoreStatusLoading: boolean; onRetryScores: () => void; onClose: () => void; onReview: (submission: HomeworkSubmission, completed: boolean) => void }) {
   const files = useMemo(
     () => (submission?.files ?? []).filter((file) => !file.removed_at),
     [submission?.files],
@@ -296,6 +320,7 @@ function HomeworkReviewSheet({ homeworkId, submission, busy, canSave, scoreLocke
   );
   const firstReadyFileId = readyFiles[0]?.id ?? null;
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  const [openedPdf, setOpenedPdf] = useState<string | null>(null);
   const [previewedFileIds, setPreviewedFileIds] = useState<string[]>([]);
   const [failedMediaKey, setFailedMediaKey] = useState<string | null>(null);
 
@@ -345,6 +370,7 @@ function HomeworkReviewSheet({ homeworkId, submission, busy, canSave, scoreLocke
     >
       {submission && (
         <div className={styles.reviewSheet}>
+          <p>{context}</p>
           <div className={styles.reviewState} data-reviewed={submission.teacher_reviewed || undefined}>
             <strong>{reviewLabel(submission, scoreLocked)}</strong>
             <span>{submission.teacher_review_source === "score" || scoreLocked ? "점수 화면에서 결과를 관리할 수 있습니다." : submission.teacher_reviewed ? "교사 확인 기록이 저장되었습니다." : "제출 파일을 모두 열어본 뒤 확인 완료를 기록하세요."}</span>
@@ -359,7 +385,13 @@ function HomeworkReviewSheet({ homeworkId, submission, busy, canSave, scoreLocke
                 <button type="button" className={styles.previewRetry} disabled={previewQ.isFetching} onClick={() => void retryPreview()}>{previewQ.isFetching ? "다시 불러오는 중…" : "파일을 불러오지 못했습니다 · 다시 시도"}</button>
               </div>
             )}
-            {selectedFile && previewQ.data && !previewQ.isError && !mediaFailed && selectedFile.media_kind === "image" && (
+            {selectedFile?.mime_type === "application/pdf" && previewQ.data && !previewQ.isError && (
+              <div>
+                <a href={previewQ.data.url} target="_blank" rel="noopener noreferrer" onClick={() => setOpenedPdf(selectedFile.id)}>PDF 원본 열기</a>
+                <button type="button" className={styles.previewRetry} disabled={openedPdf !== selectedFile.id} onClick={() => markPreviewed(selectedFile.id)}>열람 확인</button>
+              </div>
+            )}
+            {selectedFile && previewQ.data && !previewQ.isError && !mediaFailed && selectedFile.mime_type !== "application/pdf" && selectedFile.media_kind === "image" && (
               <PhotoPreview key={mediaKey} src={previewQ.data.url} filename={selectedFile.original_filename} mimeType={previewQ.data.mime_type} alt={`${selectedFile.original_filename} 과제 제출 미리보기`} onLoad={() => markPreviewed(selectedFile.id)} onError={() => setFailedMediaKey(mediaKey)} />
             )}
             {selectedFile && previewQ.data && !previewQ.isError && !mediaFailed && selectedFile.media_kind === "video" && (
@@ -386,7 +418,7 @@ function HomeworkReviewSheet({ homeworkId, submission, busy, canSave, scoreLocke
                 disabled={file.status !== "uploaded"}
                 onClick={() => setSelectedFileId(file.id)}
               >
-                <span>{file.media_kind === "video" ? "동영상" : "사진"} {file.position + 1}</span>
+                <span>{file.mime_type === "application/pdf" ? "PDF" : file.media_kind === "video" ? "동영상" : "사진"} {file.position + 1}</span>
                 <strong>{file.original_filename}</strong>
                 <small>{file.status === "uploaded" ? formatCompactFileSize(file.file_size) : file.error_message || "업로드 실패"}</small>
               </button>
