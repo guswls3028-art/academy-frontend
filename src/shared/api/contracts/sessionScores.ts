@@ -50,6 +50,8 @@ export type ScoreAttemptEntry = {
 
 export type SessionScoreExamEntry = {
   exam_id: number;
+  /** 차시 합산과 같은 확정 점수. 이전 서버 응답에는 없을 수 있다. */
+  ranking_score?: number | null;
   title: string;
   pass_score: number;
   block: ScoreBlock;

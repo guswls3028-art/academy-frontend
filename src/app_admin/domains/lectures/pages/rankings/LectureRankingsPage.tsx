@@ -1,8 +1,8 @@
 // 강의 > 순위 · 명예의 전당
 // 여러 차시(주차)를 묶은 종합/시험/과제 순위와 상위 N명 게시용 출력.
-import { useMemo, useState } from "react";
+import { startTransition, useMemo, useOptimistic, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
-import { useQueries, useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { Trophy } from "lucide-react";
 import api from "@/shared/api/axios";
 import { fetchSessionScores, type SessionScoresResponse } from "@/shared/api/contracts/sessionScores";
@@ -12,6 +12,7 @@ import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { fetchSessions, sortSessionsByDisplayOrder, type Session } from "../../api/sessions";
 import { adminLectureQueryKeys } from "../../queryKeys";
 import HallOfFamePrintModal from "./HallOfFamePrintModal";
+import RankingExamFilter, { type ExamGroup } from "./RankingExamFilter";
 import {
   buildPeriodRanking,
   formatRankingScore,
@@ -54,7 +55,9 @@ export default function LectureRankingsPage() {
   const { lectureId } = useParams<{ lectureId: string }>();
   const lectureIdNum = Number(lectureId);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [examParam, setOptimisticExams] = useOptimistic(searchParams.get("exams"));
   const [printOpen, setPrintOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const lectureQ = useQuery({
     queryKey: adminLectureQueryKeys.lecture(Number.isFinite(lectureIdNum) ? lectureIdNum : null),
@@ -79,13 +82,16 @@ export default function LectureRankingsPage() {
   const rawTo = indexOf(searchParams.get("to"));
   const fromIndex = Math.min(rawFrom, rawTo);
   const toIndex = Math.max(rawFrom, rawTo);
-  const selectedSessions = sessions.slice(fromIndex, toIndex + 1);
+  const selectedSessions = useMemo(() => sessions.slice(fromIndex, toIndex + 1), [sessions, fromIndex, toIndex]);
   const tooMany = selectedSessions.length > MAX_SESSIONS;
 
-  const updateParams = (patch: Record<string, string>) => {
+  const updateParams = (patch: Record<string, string | null>) => {
     setSearchParams((previous) => {
       const next = new URLSearchParams(previous);
-      for (const [key, value] of Object.entries(patch)) next.set(key, value);
+      for (const [key, value] of Object.entries(patch)) {
+        if (value == null) next.delete(key);
+        else next.set(key, value);
+      }
       return next;
     }, { replace: true });
   };
@@ -100,9 +106,50 @@ export default function LectureRankingsPage() {
   });
   const { responses, loadedCount, failed } = scores;
   const loading = !tooMany && selectedSessions.length > 0 && loadedCount < selectedSessions.length && !failed;
+  const rawExams = scope === "exam" ? examParam : null;
+  const updateExams = (keys: ReadonlySet<string> | null) => {
+    const value = keys === null ? null : [...keys].join(",");
+    startTransition(() => {
+      setOptimisticExams(value);
+      updateParams({ exams: value });
+    });
+  };
+  const groups = useMemo<ExamGroup[]>(() => {
+    if (scope !== "exam" || loading || failed || tooMany) return [];
+    return selectedSessions.map((session, index) => {
+      const meta = responses[index].meta;
+      const configured = meta.total_config && new Set(meta.total_config.exam_ids);
+      return {
+        sessionId: session.id,
+        label: formatSessionBlockLabel(session),
+        exams: meta.exams.map((exam) => ({
+          id: exam.exam_id, key: `${session.id}.${exam.exam_id}`, title: exam.title || "제목 없는 시험",
+          included: configured?.has(exam.exam_id) ?? true,
+        })),
+      };
+    });
+  }, [scope, loading, failed, tooMany, selectedSessions, responses]);
+  const selection = useMemo(() => {
+    const requested = rawExams === null ? null : new Set(rawExams.split(","));
+    const chosen = groups.map((group) => group.exams.filter((exam) => requested ? requested.has(exam.key) : exam.included));
+    const checked = new Set(chosen.flat().map((exam) => exam.key));
+    const names = [...new Set(chosen.flat().map((exam) => exam.title))];
+    return { checked, examIds: chosen.map((exams) => new Set(exams.map((exam) => exam.id))), names };
+  }, [rawExams, groups]);
+  const custom = rawExams !== null;
+  const noSelection = custom && selection.checked.size === 0;
+  const missingScores = custom && responses.some((response, index) =>
+    response.rows.some((row) => row.exams.some((exam) =>
+      selection.examIds[index]?.has(exam.exam_id) && exam.ranking_score === undefined)));
+  const scopeLabel = custom
+    ? [`선택 시험 ${selection.checked.size}개`, selection.names.length > 2
+      ? `${selection.names.slice(0, 2).join(", ")} 외 ${selection.names.length - 2}종`
+      : selection.names.join(", ")].filter(Boolean).join(" · ")
+    : RANKING_SCOPE_LABEL[scope];
   const ranking = useMemo(
-    () => (loading || failed || tooMany ? [] : buildPeriodRanking(responses, scope)),
-    [responses, scope, loading, failed, tooMany],
+    () => (loading || failed || tooMany || noSelection || missingScores
+      ? [] : buildPeriodRanking(responses, scope, custom ? selection.examIds : undefined)),
+    [responses, scope, loading, failed, tooMany, noSelection, missingScores, custom, selection],
   );
   const rankedCount = ranking.filter((entry) => entry.rank != null).length;
 
@@ -136,8 +183,7 @@ export default function LectureRankingsPage() {
         <div>
           <h2 id="lecture-rankings-title" className={styles.title}>순위 · 명예의 전당</h2>
           <p className={styles.description}>
-            차시를 묶어 종합·시험·과제 순위를 확인하고 상위 학생을 게시용으로 출력합니다.
-            점수가 확정된 평가만 합산하며, 미응시·채점 대기는 0점으로 세지 않습니다.
+            차시 범위를 정한 뒤 상위 학생을 출력하세요. 시험 기준에서는 모의고사처럼 원하는 시험만 고를 수 있습니다.
           </p>
         </div>
         <Button
@@ -159,7 +205,7 @@ export default function LectureRankingsPage() {
             onChange={(event) => updateParams({ from: event.target.value, to: String(sessions[toIndex]?.id ?? event.target.value) })}
           >
             {sessions.map((session) => (
-              <option key={session.id} value={session.id}>{formatSessionBlockLabel(session)}{session.title ? ` · ${session.title}` : ""}</option>
+              <option key={session.id} value={session.id}>{formatSessionBlockLabel(session)}</option>
             ))}
           </select>
         </label>
@@ -170,7 +216,7 @@ export default function LectureRankingsPage() {
             onChange={(event) => updateParams({ from: String(sessions[fromIndex]?.id ?? event.target.value), to: event.target.value })}
           >
             {sessions.map((session) => (
-              <option key={session.id} value={session.id}>{formatSessionBlockLabel(session)}{session.title ? ` · ${session.title}` : ""}</option>
+              <option key={session.id} value={session.id}>{formatSessionBlockLabel(session)}</option>
             ))}
           </select>
         </label>
@@ -191,6 +237,10 @@ export default function LectureRankingsPage() {
           </div>
         </div>
       </div>
+
+      {scope === "exam" && !tooMany && !failed && !loading && (
+        <RankingExamFilter groups={groups} checked={selection.checked} custom={custom} onChange={updateExams} />
+      )}
 
       {tooMany ? (
         <EmptyState
@@ -218,16 +268,24 @@ export default function LectureRankingsPage() {
           tone="loading"
           title={`성적을 불러오는 중… (${loadedCount}/${selectedSessions.length}차시)`}
         />
+      ) : noSelection ? (
+        <EmptyState scope="panel" title="선택한 시험이 없습니다"
+          description="시험 직접 선택에서 이 기간에 반영할 시험을 체크하세요."
+          actions={<Button intent="secondary" onClick={() => updateExams(null)}>차시 기본값 복원</Button>} />
+      ) : missingScores ? (
+        <EmptyState scope="panel" tone="error" title="선택한 시험의 확정 점수를 불러오지 못했습니다"
+          actions={<Button intent="secondary" onClick={() => void Promise.all(selectedSessions.map((session) =>
+            queryClient.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(session.id) })))}>다시 시도</Button>} />
       ) : rankedCount === 0 ? (
         <EmptyState
           scope="panel"
           title="확정된 점수가 없습니다"
-          description={`${periodLabel} ${RANKING_SCOPE_LABEL[scope]} 점수가 확정되면 순위가 표시됩니다. 차시 성적의 합산 설정에 포함된 평가만 반영됩니다.`}
+          description={custom ? "선택한 시험에 확정 점수가 생기면 순위가 표시됩니다." : `${periodLabel} ${RANKING_SCOPE_LABEL[scope]} 점수가 확정되면 순위가 표시됩니다. 차시 성적의 합산 설정에 포함된 평가만 반영됩니다.`}
         />
       ) : (
         <div className={styles.tableWrap}>
           <p className={styles.summary}>
-            {periodLabel} · {RANKING_SCOPE_LABEL[scope]} · {rankedCount}명
+            {periodLabel} · {scopeLabel} · {rankedCount}명
           </p>
           <table className={styles.table}>
             <thead>
@@ -251,7 +309,7 @@ export default function LectureRankingsPage() {
                     )}
                   </td>
                   <td className={styles.numeric}>
-                    <strong>{formatRankingScore(entry.score)}</strong>
+                    <strong>{entry.scoredCount ? formatRankingScore(entry.score) : "—"}</strong>
                     <span className={styles.muted}> / {formatRankingScore(entry.maxScore)}</span>
                   </td>
                   <td className={styles.numeric}>
@@ -268,12 +326,12 @@ export default function LectureRankingsPage() {
       )}
 
       <HallOfFamePrintModal
-        open={printOpen}
+        open={printOpen && rankedCount > 0}
         onClose={() => setPrintOpen(false)}
         entries={ranking}
         lectureTitle={lectureTitle}
         periodLabel={periodLabel}
-        scopeLabel={RANKING_SCOPE_LABEL[scope]}
+        scopeLabel={scopeLabel}
       />
     </section>
   );

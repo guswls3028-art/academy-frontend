@@ -53,6 +53,7 @@ export function buildHallOfFameHtml(doc: HallOfFameDocument): string {
 <title>명예의 전당</title>
 <style>
   @page { size: A4 portrait; margin: 14mm; }
+  @media screen { body { zoom: var(--preview-scale, 1); } }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: #fff; color: #1f2937;
     font-family: "Pretendard", "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
@@ -62,7 +63,7 @@ export function buildHallOfFameHtml(doc: HallOfFameDocument): string {
   header { text-align: center; margin-bottom: ${mode === "dense" ? "6mm" : "10mm"}; }
   .eyebrow { font-size: 13pt; letter-spacing: 0.4em; color: #8a6d1f; font-weight: 700; }
   h1 { margin: 2mm 0 3mm; font-size: ${mode === "hero" ? "44pt" : "38pt"}; letter-spacing: 0.12em; color: #111827; }
-  .subtitle { font-size: 14pt; color: #374151; font-weight: 600; }
+  .subtitle { font-size: 14pt; color: #374151; font-weight: 600; overflow-wrap: anywhere; }
   .subtitle span + span::before { content: "·"; margin: 0 2.5mm; color: #9ca3af; }
   ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column;
     gap: ${mode === "hero" ? "7mm" : mode === "list" ? "4.5mm" : "2.6mm"}; flex: 1; }

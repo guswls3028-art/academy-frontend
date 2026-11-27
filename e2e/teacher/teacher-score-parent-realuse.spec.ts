@@ -678,6 +678,24 @@ test.describe.serial("[real-use] teacher-app UI score save and student/parent pr
       parentBoundary.assertClean(); parentGuards.assertZeroDefects();
     } finally { await parentContext.close(); }
     await verifyEditableScoreMessage(page, request, testInfo, primary, examB);
+    await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${owned.lectureId}/rankings?from=${owned.sessionId}&to=${owned.sessionId}&scope=exam`);
+    const rankings = page.locator("section[aria-labelledby='lecture-rankings-title']");
+    await rankings.locator("summary").filter({ hasText: "시험 직접 선택" }).click();
+    await rankings.getByRole("checkbox", { name: examA.title, exact: true }).uncheck();
+    const top = rankings.locator("tbody tr").first();
+    await expect(top).toContainText(primary.name);
+    await expect(top.locator("strong")).toHaveText("91");
+    await expect(top.locator("td").last()).toHaveText("1/1");
+    await captureSurface(page, testInfo, "hall-of-fame-selected-exam-390");
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(top.locator("strong")).toHaveText("91");
+    await expect(rankings.locator("tbody tr").nth(1).locator("strong")).toHaveText("37");
+    await rankings.getByRole("button", { name: "명예의 전당 출력" }).click();
+    const poster = page.frameLocator("iframe[title='명예의 전당 미리보기']");
+    await expect(poster.locator(".subtitle")).toContainText(examB.title);
+    await expect(poster.locator("li.entry").first()).toContainText(primary.name);
+    await captureSurface(page, testInfo, "hall-of-fame-selected-exam-print-1366");
     expect(writes).toEqual([
       { examId: examA.id, enrollmentId: enrollmentFor(primary), score: 0, max_score: 100 },
       { examId: examB.id, enrollmentId: enrollmentFor(primary), score: 91, max_score: 100 },

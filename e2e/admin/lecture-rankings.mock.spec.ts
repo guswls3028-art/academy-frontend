@@ -31,13 +31,25 @@ const SCORES: Record<number, Array<[number | null, number | null]>> = {
 };
 
 function sessionScores(sessionId: number) {
+  // The same test can be linked to two sessions. Its checkbox is session-local.
+  const memoryId = sessionId + 100;
+  const mockId = 730;
+  const mockScores = sessionId === 301 ? [55, 80, null, 0] : [90, 60, null, 0];
   return {
-    meta: { exams: [], homeworks: [], session_title: `${sessionId}`, lecture_title: "주간반" },
+    meta: { exams: [
+      { exam_id: memoryId, title: "화학 암기테스트", max_score: 100 },
+      { exam_id: mockId, title: "주간 모의고사", max_score: 100 },
+    ], total_config: { exam_ids: [memoryId] }, homeworks: [], session_title: `${sessionId}`, lecture_title: "주간반" },
     rows: STUDENTS.map((student, index) => {
       const [exam, homework] = SCORES[sessionId][index];
       return {
         ...student,
-        exams: [],
+        exams: [
+          { exam_id: memoryId, ranking_score: exam, block: { score: exam, max_score: 100 } },
+          ...((index === 2 && sessionId === 302) ? [] : [{
+            exam_id: mockId, ranking_score: mockScores[index], block: { score: mockScores[index], max_score: 100 },
+          }]),
+        ],
         homeworks: [],
         updated_at: "2026-11-01T00:00:00Z",
         exam_total: total(exam, 100),
@@ -94,6 +106,53 @@ async function rankingRows(page: Page) {
 }
 
 test.describe("강의 순위 · 명예의 전당", () => {
+  test("주차별 시험 체크, 검색 일괄 선택, 출력과 빈 선택 복원", async ({ page }, testInfo) => {
+    const { scoreRequests } = await seed(page);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.goto(`${BASE}/workspace/lectures/101/rankings?from=301&to=302&scope=exam`);
+    const filter = page.locator("details").filter({ has: page.locator("summary", { hasText: "시험 직접 선택" }) });
+    await filter.locator("summary").click();
+    const mock = filter.getByRole("checkbox", { name: "주간 모의고사" });
+    await expect(mock).toHaveCount(2);
+    await mock.first().check();
+    await expect(mock.last()).not.toBeChecked();
+    const search = filter.getByRole("searchbox");
+    await search.fill("모의고사");
+    await filter.getByRole("button", { name: "검색 결과 2개만 선택" }).click();
+    const expected = ["1등 김가람 145/200", "2등 박나래 140/200", "3등 최라온 0/200", "- 이다온 —/100"];
+    await expect.poll(() => rankingRows(page)).toEqual(expected);
+    expect(scoreRequests.sort()).toEqual([301, 302]);
+    await page.reload();
+    await expect.poll(() => rankingRows(page)).toEqual(expected);
+    await page.getByRole("button", { name: "명예의 전당 출력" }).click();
+    const poster = page.frameLocator("iframe[title='명예의 전당 미리보기']");
+    await expect(poster.locator(".subtitle")).toContainText("선택 시험 2개 · 주간 모의고사");
+    await expect(poster.locator("li.entry").first()).toContainText("145");
+    await expect(poster.locator("li.entry")).toHaveCount(3);
+    await page.screenshot({ path: testInfo.outputPath("rankings-selected-print-1366.png"), animations: "disabled" });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(() => poster.locator(".page").evaluate((paper) =>
+      paper.getBoundingClientRect().right - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
+    await page.screenshot({ path: testInfo.outputPath("rankings-selected-print-390.png"), animations: "disabled" });
+    await page.keyboard.press("Escape");
+    await filter.locator("summary").click();
+    await expect(mock.first()).toBeChecked();
+    await expect(mock.last()).toBeChecked();
+    await expect(filter.getByRole("checkbox", { name: "화학 암기테스트" }).first()).not.toBeChecked();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+    await filter.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: testInfo.outputPath("ranking-exams-390.png"), animations: "disabled" });
+    await search.fill("미등록");
+    await expect(filter).toContainText("검색 결과가 없습니다");
+    await expect.poll(() => rankingRows(page)).toEqual(expected);
+    await filter.getByRole("button", { name: "선택 해제" }).click();
+    await page.reload();
+    await expect(page.getByText("선택한 시험이 없습니다", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "명예의 전당 출력" })).toBeDisabled();
+    await page.getByRole("button", { name: "차시 기본값 복원" }).click();
+    await expect.poll(async () => (await rankingRows(page))[0]).toBe("1등 이다온 185/200");
+  });
+
   test("여러 차시 종합·시험 순위, 공동 등수, URL 복원과 명예의 전당 출력", async ({ page }, testInfo) => {
     const { scoreRequests } = await seed(page);
     await page.setViewportSize({ width: 1366, height: 900 });

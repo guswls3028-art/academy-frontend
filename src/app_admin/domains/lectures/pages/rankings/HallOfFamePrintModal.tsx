@@ -26,6 +26,7 @@ export default function HallOfFamePrintModal({
   periodLabel,
   scopeLabel,
 }: Props) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [topN, setTopN] = useState<number>(3);
   const [showScores, setShowScores] = useState(true);
@@ -41,23 +42,29 @@ export default function HallOfFamePrintModal({
   }), [lectureTitle, periodLabel, scopeLabel, topN, showScores, selected]);
 
   useEffect(() => {
-    if (!open) return;
-    const frame = iframeRef.current;
-    const doc = frame?.contentDocument ?? frame?.contentWindow?.document;
-    if (!doc) return;
-    doc.open();
-    doc.write(html);
-    doc.close();
-  }, [open, html]);
+    const dialog = dialogRef.current;
+    if (!open || !dialog) return;
+    dialog.showModal();
+    return () => dialog.close();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+    const frame = iframeRef.current;
+    const doc = frame?.contentDocument ?? frame?.contentWindow?.document;
+    if (!doc || !frame) return;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    const fitPreview = () => {
+      const a4Width = 210 * 96 / 25.4;
+      doc.documentElement.style.setProperty("--preview-scale", String(Math.min(1, frame.clientWidth / a4Width)));
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+    fitPreview();
+    const observer = new ResizeObserver(fitPreview);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, [open, html]);
 
   if (!open) return null;
 
@@ -74,11 +81,11 @@ export default function HallOfFamePrintModal({
   const tiedExtra = selected.length - Math.min(topN, selected.length);
 
   return (
-    <div
+    <dialog
+      ref={dialogRef}
       className={styles.modalBackdrop}
-      role="dialog"
-      aria-modal="true"
       aria-labelledby="hall-of-fame-title"
+      onCancel={(event) => { event.preventDefault(); onClose(); }}
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >
       <div className={styles.modalPanel}>
@@ -130,6 +137,6 @@ export default function HallOfFamePrintModal({
           <iframe ref={iframeRef} title="명예의 전당 미리보기" className={styles.previewFrame} />
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }
