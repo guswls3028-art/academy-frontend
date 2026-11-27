@@ -478,6 +478,7 @@ jobs:
           path: |
             test-results/development-release.json
             test-results/**/wrong-note-entry-observation.json
+            test-results/**/public-home-routing.json
             test-results/**/lecture-enrollment-390.png
             test-results/**/lecture-enrollment-desktop.png
             test-results/**/attendance-letter-suffix-realuse-1366.png
