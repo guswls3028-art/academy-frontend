@@ -48,7 +48,7 @@ export default function ClinicStaffBookingTimeModal({
   };
 
   return (
-    <AdminModal open={open} onClose={pending ? () => {} : onClose} type="action" width={620}>
+    <AdminModal open={open} onClose={pending ? () => {} : onClose} type="action" size="form">
       <ModalHeader
         type="action"
         title="실제 예약 시간 선택"

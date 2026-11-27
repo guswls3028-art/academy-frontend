@@ -22,7 +22,7 @@ export default function TemplateLibraryEditor(props: TemplateEditModalProps) {
     retry: false,
   });
   if (id != null && (!source.data || source.isFetching || source.isError)) {
-    return <AdminModal open onClose={props.onClose} width={560} trapFocus>
+    return <AdminModal open onClose={props.onClose} size="md" trapFocus>
       <ModalHeader title="문구 불러오기" />
       <ModalBody>
         {source.isError

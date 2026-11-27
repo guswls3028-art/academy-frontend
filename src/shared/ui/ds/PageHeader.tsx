@@ -35,16 +35,16 @@ export default function PageHeader({
     isHero || isCard
       ? cx(
           "border border-[var(--border-divider)] bg-[var(--bg-surface)]",
-          isHero ? "rounded-3xl shadow-sm" : "rounded-2xl"
+          "rounded-[var(--radius-lg)]"
         )
       : "";
 
-  const pad = isHero ? "px-8 py-8" : isCard ? "px-6 py-5" : "px-0 py-0";
+  const pad = isHero || isCard ? "px-4 py-4 sm:px-6 sm:py-5" : "px-0 py-0";
 
   const titleCls =
     importance === "primary"
-      ? "text-2xl font-bold tracking-[-0.35px]"
-      : "text-xl font-semibold tracking-[-0.25px]";
+      ? "text-xl font-semibold"
+      : "text-lg font-semibold";
 
   const stickyCls = sticky
     ? "sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-[color-mix(in_srgb,var(--bg-surface)_82%,transparent)]"
@@ -57,7 +57,7 @@ export default function PageHeader({
   return (
     <div className={cx(shell, stickyCls, className)} style={heroStyle}>
       <div className={pad}>
-        <div className="flex items-start justify-between gap-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 space-y-2">
             <div className="flex items-center gap-2 min-w-0">
               <div className={cx(titleCls, "text-[var(--text-primary)] truncate")}>
@@ -77,7 +77,7 @@ export default function PageHeader({
         </div>
 
         {!!meta && (
-          <div className="mt-5 text-[11px] font-semibold text-[var(--text-muted)]">
+          <div className="mt-3 text-xs text-[var(--text-muted)]">
             {meta}
           </div>
         )}

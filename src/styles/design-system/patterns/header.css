@@ -1,5 +1,5 @@
 /* PATH: src/styles/design-system/patterns/header.css */
-/* App Header Pattern (SSOT) — Premium SaaS style
+/* App Header Pattern (SSOT) — 업무 헤더
    - colors are role/layout tokens only
    - layout uses CSS, not inline color styling
    - 상단 헤더 드롭다운 SSOT: 이 파일의 .ds-header-dropdown 패턴
@@ -26,16 +26,7 @@
 
   border-bottom: 1px solid color-mix(in srgb, var(--color-primary) 8%, var(--color-border-divider));
 
-  background: linear-gradient(
-    165deg,
-    color-mix(in srgb, var(--color-primary) 4%, var(--layout-header-bg)) 0%,
-    var(--layout-header-bg) 45%,
-    color-mix(in srgb, var(--color-primary) 2%, var(--layout-header-bg)) 100%
-  );
-
-  box-shadow:
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.5),
-    0 2px 6px rgba(0, 0, 0, 0.06);
+  background: var(--layout-header-bg);
 }
 
 [data-app="admin"] .app-header__left,
@@ -48,7 +39,7 @@
 [data-app="admin"] .app-header__left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -110,7 +101,7 @@
       var(--tenant-header-edge, transparent) 100%
     );
   color: var(--tenant-header-foreground);
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   isolation: isolate;
 }
 
@@ -188,7 +179,6 @@
 
 [data-app="admin"] .app-header__brand[data-tenant-header-brand] .app-header__brandName {
   color: var(--tenant-header-foreground);
-  text-shadow: 0 1px 12px color-mix(in srgb, var(--tenant-header-surface) 70%, transparent);
 }
 
 [data-app="admin"] .app-header__profileDropdown {
@@ -271,23 +261,15 @@
   overflow: visible;
 }
 
-/* 헤더 중앙: 근무 중인 직원 아바타 + 총근무시간 + 출근/퇴근 — premium glass card */
+/* 헤더 중앙: 근무 중인 직원 아바타 + 총근무시간 + 출근/퇴근 */
 [data-app="admin"] .app-header__centerClock {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   padding: 4px 6px 4px 10px;
-  border-radius: 14px;
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-primary) 5%, var(--color-bg-surface)) 0%,
-      color-mix(in srgb, var(--color-primary) 2%, var(--color-bg-surface)) 100%
-    );
-  border: 1px solid color-mix(in srgb, var(--color-primary) 12%, var(--color-border-divider));
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-divider);
 }
 
 [data-app="admin"] .app-header__centerClockAvatars {
@@ -328,16 +310,6 @@
 [data-app="admin"] .app-header__centerClockAvatarCard--online {
   border-color: color-mix(in srgb, var(--color-success, #22c55e) 35%, var(--color-border-divider));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-success, #22c55e) 20%, transparent);
-  animation: app-header-online-pulse 2.5s ease-in-out infinite;
-}
-
-@keyframes app-header-online-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-success, #22c55e) 18%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 12px 2px color-mix(in srgb, var(--color-success, #22c55e) 25%, transparent);
-  }
 }
 
 [data-app="admin"] .app-header__centerClockAvatarIcon {
@@ -454,7 +426,7 @@
 
 [data-app="admin"] .app-header__centerClockValue {
   font-size: 20px;
-  font-weight: 800;
+  font-weight: var(--font-semibold);
   font-variant-numeric: tabular-nums;
   color: var(--color-primary);
   min-width: 4.5ch;
@@ -470,84 +442,36 @@
   gap: 5px;
 }
 
-/* 출근·휴식·근무·퇴근 — 프리미엄 필 버튼 */
+/* 근무 상태는 기존 의미 색상으로, 조작은 같은 크기의 업무 버튼으로 표시한다. */
 [data-app="admin"] .app-header__clockBtn {
-  font-weight: 700;
-  font-size: 12px;
-  min-height: 30px;
-  padding: 0 14px;
-  border-radius: 999px;
-  letter-spacing: 0.2px;
-  transition: all 0.18s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  position: relative;
-  overflow: hidden;
+  min-height: var(--control-sm);
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--font-semibold);
+  transition: filter var(--ds-motion-base);
 }
-[data-app="admin"] .app-header__clockBtn::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 60%);
-  pointer-events: none;
-}
+
 [data-app="admin"] .app-header__clockBtn--start,
 [data-app="admin"] .app-header__clockBtn--resume {
-  background: var(--color-success-solid) !important;
-  border-color: color-mix(in srgb, var(--color-success, #22c55e) 80%, #000) !important;
-  color: var(--color-semantic-contrast) !important;
-  box-shadow:
-    0 1px 3px rgba(34, 197, 94, 0.3),
-    0 0 0 1px rgba(34, 197, 94, 0.1);
+  background: var(--color-success-solid);
+  color: var(--color-semantic-contrast);
 }
-[data-app="admin"] .app-header__clockBtn--start:hover:not(:disabled),
-[data-app="admin"] .app-header__clockBtn--resume:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow:
-    0 3px 8px rgba(34, 197, 94, 0.35),
-    0 0 0 1px rgba(34, 197, 94, 0.15);
-}
-[data-app="admin"] .app-header__clockBtn--start:active:not(:disabled),
-[data-app="admin"] .app-header__clockBtn--resume:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(34, 197, 94, 0.2);
-}
+
 [data-app="admin"] .app-header__clockBtn--end {
-  background: linear-gradient(180deg, #f87171 0%, var(--color-status-error, #ef4444) 100%) !important;
-  border-color: color-mix(in srgb, var(--color-status-error, #ef4444) 80%, #000) !important;
-  color: #fff !important;
-  box-shadow:
-    0 1px 3px rgba(239, 68, 68, 0.3),
-    0 0 0 1px rgba(239, 68, 68, 0.1);
+  background: var(--color-danger-solid);
+  color: var(--color-semantic-contrast);
 }
-[data-app="admin"] .app-header__clockBtn--end:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow:
-    0 3px 8px rgba(239, 68, 68, 0.35),
-    0 0 0 1px rgba(239, 68, 68, 0.15);
-}
-[data-app="admin"] .app-header__clockBtn--end:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(239, 68, 68, 0.2);
-}
+
 [data-app="admin"] .app-header__clockBtn--break {
-  background: linear-gradient(180deg, #fbbf24 0%, var(--color-warning, #eab308) 100%) !important;
-  border-color: color-mix(in srgb, var(--color-warning, #eab308) 80%, #000) !important;
-  color: #1a1a1a !important;
-  box-shadow:
-    0 1px 3px rgba(234, 179, 8, 0.3),
-    0 0 0 1px rgba(234, 179, 8, 0.1);
+  background: var(--color-warning, #eab308);
+  color: #1a1a1a;
 }
-[data-app="admin"] .app-header__clockBtn--break:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow:
-    0 3px 8px rgba(234, 179, 8, 0.35),
-    0 0 0 1px rgba(234, 179, 8, 0.15);
+
+[data-app="admin"] .app-header__clockBtn:hover:not(:disabled) {
+  filter: brightness(.94);
 }
-[data-app="admin"] .app-header__clockBtn--break:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(234, 179, 8, 0.2);
-}
+
 [data-app="admin"] .app-header__clockBtn:disabled {
   opacity: 0.55;
   transform: none !important;
@@ -597,7 +521,7 @@
   width: 40px;
   height: 40px;
   padding: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 
   border-color: color-mix(in srgb, var(--color-primary) 10%, var(--color-border-divider));
   background: color-mix(in srgb, var(--color-primary) 3%, var(--color-bg-surface));
@@ -616,7 +540,7 @@
   border-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-border-divider));
   background: color-mix(in srgb, var(--color-primary) 4%, var(--color-bg-surface));
   color: var(--color-text-primary);
-  font-weight: 700;
+  font-weight: var(--font-semibold);
 }
 
 [data-app="admin"] .app-header__quickNavigationBtn:hover {
@@ -646,7 +570,7 @@
   height: 40px;
   padding-left: 14px;
   padding-right: 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -666,7 +590,7 @@
   gap: 6px;
   padding: 0 12px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   border: 1px solid color-mix(in srgb, var(--color-primary) 10%, var(--color-border-divider));
   background: color-mix(in srgb, var(--color-primary) 3%, var(--color-bg-surface));
   font-weight: 600;
@@ -954,7 +878,7 @@
   height: 40px;
   padding-left: 10px;
   padding-right: 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   gap: 8px;
   border-color: color-mix(in srgb, var(--color-primary) 10%, var(--color-border-divider));
   background: color-mix(in srgb, var(--color-primary) 3%, var(--color-bg-surface));
@@ -1208,7 +1132,7 @@
   gap: var(--space-3);
   padding: var(--space-3);
   background: color-mix(in srgb, var(--color-primary, #2563eb) 5%, transparent);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   margin-bottom: 4px;
 }
 

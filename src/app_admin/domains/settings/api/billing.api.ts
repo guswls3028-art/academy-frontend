@@ -2,6 +2,7 @@
 // 결제 카드 관리 API — Toss Payments 빌링키 등록/삭제, 결제 프로필 관리
 
 import api from "@/shared/api/axios";
+import type { components } from "@/shared/api/generated/schema";
 
 // ── Types ──
 
@@ -42,7 +43,12 @@ export type BusinessProfile = {
   manager_email: string;
 };
 
+export type ReceiptKind = components["schemas"]["ReceiptKindEnum"];
+
 export type BankTransferNotice = {
+  receipt_kind?: ReceiptKind;
+  automatic_receipt?: boolean;
+  receipt_provider_state?: number;
   id: number;
   invoice: number;
   invoice_number: string;
@@ -81,6 +87,7 @@ export type BankTransferInvoice = {
 };
 
 export type BankTransferSummary = {
+  popbill_enabled?: boolean;
   bank_account: {
     enabled: boolean;
     bank_name: string;
@@ -160,12 +167,9 @@ export async function saveBusinessProfile(
   return res.data;
 }
 
-export async function submitBankTransferNotice(data: {
-  invoice_id: number;
-  depositor_name: string;
-  deposited_at: string;
-  tax_invoice_requested: boolean;
-}): Promise<BankTransferNotice> {
+export async function submitBankTransferNotice(
+  data: components["schemas"]["BankTransferNoticeSubmitRequest"],
+): Promise<BankTransferNotice> {
   const res = await api.post<BankTransferNotice>(
     "/billing/bank-transfer/notices/",
     data,

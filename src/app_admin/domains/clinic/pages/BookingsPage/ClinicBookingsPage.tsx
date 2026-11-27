@@ -703,7 +703,7 @@ function RemediationWorkspace() {
 
       <AdminModal open={undoTarget != null} onClose={() => {
         if (!undoPendingRef.current) setUndoTarget(null);
-      }} type="action" width={480} noMinimize closeDisabled={undoMutation.isPending}>
+      }} type="action" size="default" noMinimize closeDisabled={undoMutation.isPending}>
         <ModalHeader type="action" noIcon title="수동 통과 취소"
           description="수동으로 통과시킨 항목을 다시 클리닉 대상으로 돌립니다. 원래 점수와 처리 이력은 보존됩니다." />
         <ModalBody>
@@ -730,7 +730,7 @@ function RemediationWorkspace() {
           }
         }}
         type="confirm"
-        width={480}
+        size="default"
         noMinimize
         closeDisabled={waiveMutation.isPending}
       >

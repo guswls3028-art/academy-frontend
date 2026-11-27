@@ -2,27 +2,43 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  background: linear-gradient(
-    180deg,
-    var(--sidebar-bg),
-    color-mix(in srgb, var(--sidebar-bg) 78%, var(--layout-canvas-bg))
-  );
+  background: var(--sidebar-bg);
 }
 
 .scroll {
   flex: 1;
   min-height: 0;
-  padding: 12px;
+  padding: var(--space-2) 10px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
+.group {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--sidebar-border);
+}
+
+.groupTitle {
+  margin: 0;
+  padding: var(--space-1) 10px;
+  color: var(--sidebar-group-title);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--font-semibold);
+  line-height: 1.5;
+}
+
 .iconSlot {
   display: grid;
   flex: 0 0 auto;
-  width: 22px;
+  width: 16px;
   place-items: center;
+}
+
+.iconSlot svg {
+  width: 16px;
+  height: 16px;
 }
 
 .label {
@@ -32,7 +48,6 @@
 
 .sectionToggle {
   width: 100%;
-  min-height: 44px;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -40,6 +55,8 @@
 }
 
 .chevron {
+  width: 12px;
+  height: 12px;
   transition: transform 160ms ease;
 }
 
@@ -48,18 +65,36 @@
 }
 
 .submenu {
-  margin: 0 0 0 22px;
-  padding: 0 0 0 8px;
-  border-left: 1px solid var(--color-border-divider);
+  margin: 0;
+  padding: 0;
   list-style: none;
 }
 
 .submenu .childLink {
-  min-height: 44px;
-  margin-bottom: 2px;
-  padding: 8px;
-  font-size: 14px;
+  padding-inline: 10px;
+  font-size: var(--ds-text-md);
+  font-weight: var(--font-medium);
   word-break: keep-all;
+}
+
+:global(.nav-item).sectionLabel {
+  min-height: var(--workspace-nav-heading-height, var(--ds-touch-target));
+  color: var(--sidebar-group-title);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--font-semibold);
+}
+
+.sectionLabel:global(.active) {
+  color: var(--sidebar-item-active-text);
+}
+
+.sectionLabel:hover:not(:global(.active)) {
+  background: transparent;
+  color: var(--sidebar-text);
+}
+
+.submenu .childLink[aria-current="page"] {
+  font-weight: var(--font-semibold);
 }
 
 .sectionToggle:focus-visible,
@@ -107,7 +142,7 @@
   box-shadow: 0 0 0 2px var(--sidebar-bg);
 }
 
-:global(html[data-sidebar="collapsed"]) .navBadge {
+:global(html[data-sidebar="collapsed"]) .shell .navBadge {
   position: absolute;
   top: 4px;
   right: 4px;

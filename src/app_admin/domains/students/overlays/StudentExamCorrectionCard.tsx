@@ -173,7 +173,18 @@ export default function StudentExamCorrectionCard({ exam, studentId, onNavigate 
         )}
         <div className={`${layoutStyles.recordMain} ${styles.recordMain}`}>
           <div className={layoutStyles.recordTitleRow}>
-            <span className={layoutStyles.recordTitle}>{exam.title}</span>
+            {navPath ? (
+              <button
+                type="button"
+                className={`${layoutStyles.recordTitle} ${styles.examTitle}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onNavigate(navPath);
+                }}
+              >
+                {exam.title}
+              </button>
+            ) : <span className={layoutStyles.recordTitle}>{exam.title}</span>}
             <Badge
               size="xs"
               tone={exam.session_type === "REGULAR" ? "info" : exam.session_type === "SUPPLEMENT" ? "teal" : "muted"}
@@ -212,7 +223,7 @@ export default function StudentExamCorrectionCard({ exam, studentId, onNavigate 
           {canEdit && (
             <Button
               size="sm"
-              intent="secondary"
+              intent="ghost"
               leftIcon={<PencilLine size={ICON.xs} aria-hidden />}
               aria-expanded={editorOpen}
               onClick={(event) => {

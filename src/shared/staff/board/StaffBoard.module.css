@@ -12,6 +12,9 @@
   gap: 8px;
 }
 .noticeHeader, .sheetHeader, .byline { justify-content: space-between; }
+.listHeading, .actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.byline { flex-wrap: wrap; }
+.form .actions { justify-content: end; }
 .noticeHeader h2, .sheetHeader h2, .replies h2 { margin: 0; font-size: 16px; font-weight: 750; }
 .noticeHeader h2, .noticeHeader a { display: inline-flex; align-items: center; gap: 8px; }
 .noticeHeader h2 svg, .replyCount, .back { color: var(--color-brand-primary); }
@@ -70,7 +73,7 @@
 .form { display: grid; gap: 16px; min-width: 0; }
 .form label { display: block; font-size: 14px; font-weight: 600; }
 .form small { font-weight: 400; }
-.form input, .form textarea {
+.form input, .form textarea, .form select {
   display: block; margin-top: 6px; width: 100%; min-width: 0; box-sizing: border-box;
   padding: 10px 12px; border: 1px solid var(--color-border-divider); border-radius: 8px;
   font: inherit; font-weight: 400; color: var(--color-text-primary); background: var(--color-bg-surface);
@@ -103,6 +106,7 @@
   .rows a { align-items: flex-start; flex-direction: column; gap: 5px; padding: 14px 16px; }
   .rows .meta { max-width: 100%; text-align: left; }
   .sheetHeader { padding: 14px 16px; }
-  .searchField input, .form input, .form textarea { font-size: 16px; }
+  .searchField input, .form input, .form textarea, .form select { font-size: 16px; }
+  .actions button, .form select { min-height: 44px; }
   .searchField input, .search button { min-height: 44px; }
 }

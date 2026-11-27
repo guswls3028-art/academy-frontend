@@ -7,6 +7,8 @@ import { downloadBlob } from "@/shared/utils/safeDownload";
 
 export const boardLabels = { notice: "공지사항", resource: "자료실", free: "자유게시글" } as const;
 export type Category = components["schemas"]["StaffBoardCategory"];
+export const boardListLabels = { all: "전체 글", ...boardLabels };
+export type BoardFilter = keyof typeof boardListLabels;
 export const boardWriteLabels = { notice: "공지 작성", resource: "자료 올리기", free: "글쓰기" } as const;
 
 export type PostRow = components["schemas"]["StaffBoardSummary"];
@@ -23,22 +25,24 @@ export function useBoardScope() {
 export type BoardScope = ReturnType<typeof useBoardScope>;
 
 export const boardKeys = {
-  list: (scope: BoardScope, category: Category, page: number, pageSize: number, q: string) =>
-    [...scope, "list", category, page, pageSize, q] as const,
+  lists: (scope: BoardScope) => [...scope, "list"] as const,
+  list: (scope: BoardScope, category: BoardFilter, page: number, pageSize: number, q: string) =>
+    [...boardKeys.lists(scope), category, page, pageSize, q] as const,
   detail: (scope: BoardScope, id: number) => [...scope, "detail", id] as const,
 };
 
-export function useBoardList(scope: BoardScope, category: Category, {
+export function useBoardList(scope: BoardScope, category: BoardFilter, {
   page = 1, pageSize = 20, refreshInterval, q = "",
 }: { page?: number; pageSize?: number; refreshInterval?: number; q?: string } = {}) {
   return useQuery({
     queryKey: boardKeys.list(scope, category, page, pageSize, q),
     enabled: Boolean(scope[1] && scope[2]),
     queryFn: async ({ signal }) => {
-      const params: BoardListParams = { category, page, page_size: pageSize, q: q || undefined };
+      const params: BoardListParams = { category: category === "all" ? undefined : category, page, page_size: pageSize, q: q || undefined };
       const { data } = await api.get<PostPage>(endpoint, { params, signal });
       if (!Array.isArray(data?.results) || !Number.isInteger(data.count) || !data.results.every(row =>
-        row?.category === category && Number.isSafeInteger(row.id) && typeof row.title === "string"
+        row && Object.prototype.hasOwnProperty.call(boardLabels, row.category) && (category === "all" || row.category === category)
+        && Number.isSafeInteger(row.id) && typeof row.title === "string"
         && typeof row.created_at === "string" && Number.isFinite(Date.parse(row.created_at))
       )) throw new Error("게시글 목록을 확인할 수 없습니다.");
       return data;
@@ -79,6 +83,18 @@ export async function addReply(id: number, body: string, key: string) {
   return (await api.post<Reply>(`${endpoint}${id}/replies/`, { body }, {
     headers: { "Idempotency-Key": key },
   })).data;
+}
+
+export async function deletePost(id: number) {
+  await api.delete(`${endpoint}${id}/`);
+}
+
+export async function editReply(id: number, replyId: number, body: string) {
+  return (await api.patch<Reply>(`${endpoint}${id}/replies/${replyId}/`, { body })).data;
+}
+
+export async function deleteReply(id: number, replyId: number) {
+  await api.delete(`${endpoint}${id}/replies/${replyId}/`);
 }
 
 export async function downloadAttachment(id: number, filename: string) {

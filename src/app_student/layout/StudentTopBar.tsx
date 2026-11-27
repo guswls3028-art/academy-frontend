@@ -233,9 +233,7 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
         margin: "0 auto",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 12, flex: "1 1 auto", minWidth: 0, overflow: "hidden" }}>
-      {/* 아이콘 액션 그룹 (햄버거 + 홈) — 로고와 시각적 분리 */}
-      <div className="stu-topbar__iconGroup">
+      <div className="stu-topbar__brandGroup">
         {onMenuClick && (
           <button
             type="button"
@@ -252,90 +250,67 @@ export default function StudentTopBar({ tenantCode, onMenuClick }: Props) {
         )}
         <Link
           to="/student/dashboard"
-          aria-label="학생 대시보드로 이동"
-          title="학생 대시보드로 이동"
-          data-testid="stu-topbar-go-dashboard"
-          className="stu-topbar__iconBtn"
+          className="stu-topbar__home-link"
+          data-tenant-header-brand={headerBrandStyle ? "" : undefined}
+          title={branding.title}
+          data-testid="stu-topbar-brand-home"
+          style={{ ...headerBrandStyle, color: "var(--tenant-header-foreground, var(--stu-text))" }}
+          aria-label={`${branding.title} 홈`}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 12L12 4l9 8" />
-            <path d="M5 10v10h14V10" />
-          </svg>
+          {headerLogoUrl ? (
+            <img
+              src={headerLogoUrl}
+              alt=""
+              className="stu-topbar__logo"
+              style={{ height: 32, width: "auto", maxWidth: 40, objectFit: "contain", display: "block", flexShrink: 0 }}
+            />
+          ) : useCommonSvgLogo ? (
+            <CommonLogoIcon
+              height={32}
+              className="stu-topbar__logo stu-topbar__logo--common-svg"
+              gradientId={currentTenantCode ? `stu-gradient-${currentTenantCode === "9999" ? "common" : currentTenantCode}` : undefined}
+            />
+          ) : isTchulTheme ? (
+            <TchulLogoIcon
+              height={32}
+              className="stu-topbar__logo stu-topbar__logo--tchul-svg"
+            />
+          ) : showImgLogo ? (
+            <img
+              src={logoSrc!}
+              alt=""
+              className="stu-topbar__logo"
+              style={{
+                height: 32,
+                width: isTchulTheme ? 32 : "auto",
+                maxWidth: isTchulTheme ? 32 : 120,
+                objectFit: "contain",
+                display: "block",
+                flexShrink: 0,
+              }}
+            />
+          ) : null}
+          {!headerLogoUrl && !useCommonSvgLogo && !isTchulTheme && !showImgLogo ? (
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 10,
+                background: "var(--stu-primary)",
+                color: "var(--stu-primary-contrast)",
+                display: "grid",
+                placeItems: "center",
+                fontWeight: 800,
+                fontSize: 14,
+              }}
+            >
+              H
+            </div>
+          ) : null}
+          <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {branding.title}
+          </span>
         </Link>
-      </div>
-      <Link
-        to="/student/dashboard"
-        className="stu-topbar__home-link"
-        data-tenant-header-brand={headerBrandStyle ? "" : undefined}
-        title={branding.title}
-        style={{
-          ...headerBrandStyle,
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          color: headerBrandStyle ? "var(--tenant-header-foreground)" : "var(--stu-text)",
-          textDecoration: "none",
-          flex: "1 1 auto",
-          minWidth: 0,
-          maxWidth: "min(44vw, 240px)",
-          overflow: "hidden",
-        }}
-        aria-label={`${branding.title} 홈`}
-      >
-        {headerLogoUrl ? (
-          <img
-            src={headerLogoUrl}
-            alt=""
-            className="stu-topbar__logo"
-            style={{ height: 32, width: "auto", maxWidth: 40, objectFit: "contain", display: "block", flexShrink: 0 }}
-          />
-        ) : useCommonSvgLogo ? (
-          <CommonLogoIcon
-            height={32}
-            className="stu-topbar__logo stu-topbar__logo--common-svg"
-            gradientId={currentTenantCode ? `stu-gradient-${currentTenantCode === "9999" ? "common" : currentTenantCode}` : undefined}
-          />
-        ) : isTchulTheme ? (
-          <TchulLogoIcon
-            height={32}
-            className="stu-topbar__logo stu-topbar__logo--tchul-svg"
-          />
-        ) : showImgLogo ? (
-          <img
-            src={logoSrc!}
-            alt=""
-            className="stu-topbar__logo"
-            style={{
-              height: 32,
-              width: isTchulTheme ? 32 : "auto",
-              maxWidth: isTchulTheme ? 32 : 120,
-              objectFit: "contain",
-              display: "block",
-              flexShrink: 0,
-            }}
-          />
-        ) : null}
-        {!headerLogoUrl && !useCommonSvgLogo && !isTchulTheme && !showImgLogo ? (
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 10,
-              background: "var(--stu-primary)",
-              color: "var(--stu-primary-contrast)",
-              display: "grid",
-              placeItems: "center",
-              fontWeight: 800,
-              fontSize: 14,
-            }}
-          >
-            H
-          </div>
-        ) : null}
-        <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {branding.title}
-        </span>
-      </Link>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 2 }}>

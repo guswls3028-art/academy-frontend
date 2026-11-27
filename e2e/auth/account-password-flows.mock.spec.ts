@@ -673,6 +673,8 @@ test.describe("역할별 본인 비밀번호 변경 요청 계약", () => {
     const dialog = page.getByRole("dialog", { name: "비밀번호 변경 권장" });
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText("다른 사람이 추측할 수 있어요");
+    await expect(dialog.getByRole("heading", { name: "비밀번호 변경 권장" })).toHaveCSS("font-size", "16px");
+    await expect(dialog.getByRole("button", { name: "지금 변경", exact: true })).toBeInViewport({ ratio: 1 });
     await expect(dialog.getByLabel("현재/임시 비밀번호", { exact: true })).toBeFocused();
     await expect.poll(() => page.evaluate(() => document.body.style.overflow)).toBe("hidden");
     await dialog.getByRole("button", { name: "위험을 이해했고 나중에" }).click();
