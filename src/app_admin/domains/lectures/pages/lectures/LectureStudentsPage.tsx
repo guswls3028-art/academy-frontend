@@ -408,7 +408,7 @@ export default function LectureStudentsPage() {
                           minWidth={34}
                           maxWidth={80}
                           onWidthChange={setColumnWidth}
-                          className="text-center"
+                          className="lecture-roster__session"
                           style={{ paddingLeft: 0, paddingRight: 0 }}
                           title={`${formatSessionBlockLabel(s)}${s.date ? ` (${s.date})` : ""}`}
                         >

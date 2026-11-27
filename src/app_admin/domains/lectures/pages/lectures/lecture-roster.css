@@ -97,3 +97,14 @@
   font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
+
+.lecture-roster__scroll .ds-table.ds-table--flat thead th.lecture-roster__session {
+  text-align: center;
+}
+
+@media (max-width: 1023px) {
+  /* The shared mobile header padding would clip a 28px checkbox or a narrow date. */
+  .lecture-roster__scroll .ds-table thead th:is(.ds-checkbox-cell, .lecture-roster__session) {
+    padding-inline: 0 !important;
+  }
+}

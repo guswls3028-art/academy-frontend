@@ -800,6 +800,9 @@ for (const width of [1366, 1100, 390]) {
     const all = page.getByRole("group", { name: "출석 차시 범위" }).getByRole("button", { name: "전체 36" });
     await expect(table.getByText("가온28", { exact: true })).toBeAttached();
     await expect(table.getByText("가온01", { exact: true })).toBeAttached();
+    const check = (await table.getByRole("checkbox", { name: "전체 선택", exact: true }).boundingBox())!;
+    const nameColumn = (await table.getByRole("columnheader", { name: "이름" }).boundingBox())!;
+    expect(check.x + check.width).toBeLessThanOrEqual(nameColumn.x + 1);
     await page.screenshot({ path: info.outputPath(`roster-${width}.png`) });
     const tableTop = (await table.boundingBox())!.y;
     const scroller = page.getByRole("region", { name: "차시별 출결표" });
