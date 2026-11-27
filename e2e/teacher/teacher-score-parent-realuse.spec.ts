@@ -678,6 +678,15 @@ test.describe.serial("[real-use] teacher-app UI score save and student/parent pr
       parentBoundary.assertClean(); parentGuards.assertZeroDefects();
     } finally { await parentContext.close(); }
     await verifyEditableScoreMessage(page, request, testInfo, primary, examB);
+    const schedulePath = `/lectures/sessions/${owned.sessionId}/schedules/`;
+    const currentSchedule = await expectApi<{ version: string }>(request, "GET", schedulePath, owned.adminAccess);
+    await expectApi(request, "PUT", schedulePath, owned.adminAccess, {
+      expected_version: currentSchedule.version,
+      schedules: [
+        { label: "오전반", date: TODAY, enrollment_ids: [enrollmentFor(primary)] },
+        { label: "오후반", date: TODAY, enrollment_ids: [enrollmentFor(peer)] },
+      ],
+    });
     await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${owned.lectureId}/rankings?from=${owned.sessionId}&to=${owned.sessionId}&scope=exam`);
     const rankings = page.locator("section[aria-labelledby='lecture-rankings-title']");
     await rankings.locator("summary").filter({ hasText: "시험 직접 선택" }).click();
@@ -691,10 +700,20 @@ test.describe.serial("[real-use] teacher-app UI score save and student/parent pr
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(top.locator("strong")).toHaveText("91");
     await expect(rankings.locator("tbody tr").nth(1).locator("strong")).toHaveText("37");
+    await rankings.getByLabel("수업반").selectOption({ label: "오후반" });
+    await expect(top).toContainText(peer.name);
+    await expect(rankings.locator("tbody tr")).toHaveCount(1);
+    await top.getByRole("button", { name: `${peer.name} 점수 상세` }).click();
+    await expect(rankings.locator("dl")).toContainText("37 / 100점");
+    await captureSurface(page, testInfo, "hall-of-fame-class-details-1366");
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(top.locator("strong")).toHaveText("37");
     await rankings.getByRole("button", { name: "명예의 전당 출력" }).click();
     const poster = page.frameLocator("iframe[title='명예의 전당 미리보기']");
     await expect(poster.locator(".subtitle")).toContainText(examB.title);
-    await expect(poster.locator("li.entry").first()).toContainText(primary.name);
+    await expect(poster.locator(".subtitle")).toContainText("오후반");
+    await expect(poster.locator("li.entry")).toHaveCount(1);
+    await expect(poster.locator("li.entry").first()).toContainText(peer.name);
     await captureSurface(page, testInfo, "hall-of-fame-selected-exam-print-1366");
     expect(writes).toEqual([
       { examId: examA.id, enrollmentId: enrollmentFor(primary), score: 0, max_score: 100 },

@@ -74,14 +74,25 @@ async function seed(page: Page) {
     }
     if (path === "/lectures/sessions/" && url.searchParams.get("lecture") === "101") {
       return json([
-        { id: 301, lecture: 101, order: 1, regular_order: 1, session_type: "REGULAR", title: "1주차", date: "2026-09-01" },
-        { id: 302, lecture: 101, order: 2, regular_order: 2, session_type: "REGULAR", title: "2주차", date: "2026-09-08" },
+        { id: 301, lecture: 101, order: 1, regular_order: 1, session_type: "REGULAR", title: "1주차", date: "2026-09-01",
+          section: 7, section_type: "CLASS", section_label: "A",
+          schedule_dates: [{ id: 901, label: "수요일반" }, { id: 911, label: "목요일반" }] },
+        { id: 302, lecture: 101, order: 2, regular_order: 2, session_type: "REGULAR", title: "2주차", date: "2026-09-08",
+          schedule_dates: [{ id: 902, label: "수요일반" }] },
       ]);
     }
     const scores = path.match(/^\/results\/admin\/sessions\/(\d+)\/scores\/$/);
     if (scores) {
       scoreRequests.push(Number(scores[1]));
-      return json(sessionScores(Number(scores[1])));
+      const payload = sessionScores(Number(scores[1]));
+      const schedule = url.searchParams.get("schedule");
+      if (schedule !== null) {
+        const memberships: Record<string, number[]> = { "301.901": [1, 4], "301.911": [2], "302.902": [2, 4] };
+        const allowed = memberships[`${scores[1]}.${schedule}`];
+        if (!allowed) return json({ detail: "차시의 수업일을 다시 선택해 주세요." }, 400);
+        payload.rows = payload.rows.filter(row => allowed.includes(row.enrollment_id));
+      }
+      return json(payload);
     }
     if (path === "/staffs/me/") {
       return json({ is_authenticated: true, is_superuser: true, is_staff: true, is_payroll_manager: true, is_owner: true, owner_display_name: "관리자" });
@@ -106,6 +117,56 @@ async function rankingRows(page: Page) {
 }
 
 test.describe("강의 순위 · 명예의 전당", () => {
+  test("PC에서 반·차시·시험을 바꾸며 비교하고 같은 범위를 출력한다", async ({ page }, testInfo) => {
+    await seed(page);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.goto(`${BASE}/workspace/lectures/101/rankings?from=301&to=302&scope=exam`);
+    const section = page.locator("section[aria-labelledby='lecture-rankings-title']");
+    await section.getByLabel("수업반").selectOption({ label: "수요일반" });
+    await section.locator("summary").click();
+    await section.getByRole("searchbox").fill("모의고사");
+    await section.getByRole("button", { name: "검색 결과 2개만 선택" }).click();
+    const expected = ["1등 박나래 60/100", "2등 김가람 55/100", "3등 최라온 0/200"];
+    await expect.poll(() => rankingRows(page)).toEqual(expected);
+    const detail = section.getByRole("button", { name: "박나래 점수 상세" });
+    await detail.click();
+    await expect(section.locator("dl")).toContainText("2주차");
+    await expect(section.locator("dl")).toContainText("60 / 100점");
+    for (const width of [1366, 1100]) {
+      await page.setViewportSize({ width, height: 900 });
+      const filters = await section.getByLabel("순위 조건").boundingBox();
+      const table = await section.getByRole("table").boundingBox();
+      expect(filters!.x + filters!.width).toBeLessThanOrEqual(table!.x);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
+      await section.screenshot({ path: testInfo.outputPath(`class-comparison-${width}.png`), animations: "disabled" });
+    }
+    await detail.click();
+    await section.getByLabel("끝 차시").selectOption("301");
+    await expect.poll(() => rankingRows(page)).toEqual(["1등 김가람 55/100", "2등 최라온 0/100"]);
+    await section.getByLabel("끝 차시").selectOption("302");
+    await page.reload();
+    await expect.poll(() => rankingRows(page)).toEqual(expected);
+    await section.getByRole("button", { name: "명예의 전당 출력" }).click();
+    const poster = page.frameLocator("iframe[title='명예의 전당 미리보기']");
+    await expect(poster.locator(".subtitle")).toContainText("수요일반 · 선택 시험 2개 · 주간 모의고사");
+    await expect(poster.locator("li.entry").first()).toContainText("박나래");
+    await page.keyboard.press("Escape");
+    await page.setViewportSize({ width: 390, height: 844 });
+    await section.getByLabel("수업반").selectOption({ label: "목요일반" });
+    await expect.poll(() => rankingRows(page)).toEqual(["1등 박나래 80/100"]);
+    await section.getByLabel("시작 차시").selectOption("302");
+    await expect(section.getByText("이 기간에 선택한 반의 수업이 없습니다")).toBeVisible();
+    await expect(section.getByRole("button", { name: "명예의 전당 출력" })).toBeDisabled();
+    await section.getByRole("button", { name: "전체 반 보기" }).click();
+    await expect.poll(async () => (await rankingRows(page))[0]).toBe("1등 김가람 90/100");
+    await section.getByLabel("시작 차시").selectOption("301");
+    await section.getByLabel("수업반").selectOption({ label: "A반 (개별 차시)" });
+    await expect.poll(async () => (await rankingRows(page))[0]).toBe("1등 박나래 80/100");
+    await section.getByLabel("시작 차시").selectOption("302");
+    await expect(section.getByText("이 기간에 선택한 반의 수업이 없습니다")).toBeVisible();
+    await expect(section.getByRole("button", { name: "명예의 전당 출력" })).toBeDisabled();
+  });
+
   test("주차별 시험 체크, 검색 일괄 선택, 출력과 빈 선택 복원", async ({ page }, testInfo) => {
     const { scoreRequests } = await seed(page);
     await page.setViewportSize({ width: 1366, height: 900 });
@@ -121,6 +182,7 @@ test.describe("강의 순위 · 명예의 전당", () => {
     await filter.getByRole("button", { name: "검색 결과 2개만 선택" }).click();
     const expected = ["1등 김가람 145/200", "2등 박나래 140/200", "3등 최라온 0/200", "- 이다온 —/100"];
     await expect.poll(() => rankingRows(page)).toEqual(expected);
+    await page.locator("section[aria-labelledby='lecture-rankings-title']").screenshot({ path: testInfo.outputPath("ranking-comparison-1366.png"), animations: "disabled" });
     expect(scoreRequests.sort()).toEqual([301, 302]);
     await page.reload();
     await expect.poll(() => rankingRows(page)).toEqual(expected);
@@ -161,8 +223,8 @@ test.describe("강의 순위 · 명예의 전당", () => {
 
     // 종합: 김가람 195, 박나래 195(공동 1등), 이다온 190, 최라온 80 (결시 차시는 0점이 아니라 미반영)
     await expect.poll(() => rankingRows(page)).toEqual([
-      "1등 김가람 195/220",
-      "1등 박나래 195/220",
+      "공동 1등 김가람 195/220",
+      "공동 1등 박나래 195/220",
       "3등 이다온 190/220",
       "4등 최라온 80/220",
     ]);
@@ -172,16 +234,16 @@ test.describe("강의 순위 · 명예의 전당", () => {
     await page.getByRole("group", { name: "순위 기준" }).getByRole("button", { name: "시험", exact: true }).click();
     await expect.poll(() => rankingRows(page)).toEqual([
       "1등 이다온 185/200",
-      "2등 김가람 175/200",
-      "2등 박나래 175/200",
+      "공동 2등 김가람 175/200",
+      "공동 2등 박나래 175/200",
       "4등 최라온 70/200",
     ]);
     await expect(page).toHaveURL(/scope=exam/);
     await page.reload();
     await expect.poll(() => rankingRows(page)).toEqual([
       "1등 이다온 185/200",
-      "2등 김가람 175/200",
-      "2등 박나래 175/200",
+      "공동 2등 김가람 175/200",
+      "공동 2등 박나래 175/200",
       "4등 최라온 70/200",
     ]);
 

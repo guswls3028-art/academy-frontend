@@ -1,4 +1,5 @@
 .page {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -21,21 +22,27 @@
   color: var(--color-text-primary);
 }
 
-.description {
-  margin: 4px 0 0;
-  max-width: 640px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--color-text-secondary);
-  word-break: keep-all;
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+.results { min-width: 0; }
+.filterPanel {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
 }
+.panelTitle { margin: 0; color: var(--color-text-primary); font-size: 14px; font-weight: 700; }
+.workspace { display: grid; gap: 12px; align-items: start; }
+.results { min-width: 0; }
 
 .controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
+.controls > :nth-child(n+3) { grid-column: 1 / -1; }
 
 .field {
   display: flex;
@@ -49,7 +56,8 @@
 
 .field select {
   height: 36px;
-  min-width: 160px;
+  min-width: 0;
+  width: 100%;
   max-width: 100%;
   padding: 0 8px;
   border: 1px solid var(--color-border-divider);
@@ -68,6 +76,7 @@
 }
 
 .segmentButton {
+  flex: 1;
   height: 34px;
   padding: 0 14px;
   border: 0;
@@ -180,11 +189,28 @@
 }
 
 .summary {
+  display: grid;
+  gap: 3px;
   margin: 0;
   padding: 10px 14px;
   font-size: 13px;
   color: var(--color-text-secondary);
   border-bottom: 1px solid var(--color-border-divider);
+}
+.summary strong { font-size: 15px; color: var(--color-text-primary); }
+.summary strong span { margin-left: 4px; font-size: 13px; color: var(--color-text-secondary); }
+.table th { background: var(--color-bg-surface-hover); }
+@container (min-width: 700px) {
+  .workspace { grid-template-columns: clamp(246px, 25%, 285px) minmax(0, 1fr); gap: 16px; }
+  .examGroups { grid-template-columns: 1fr; }
+  .examGroups legend { margin: 0; font-size: 13px; line-height: 1.5; }
+  .examFilter summary { padding: 10px; gap: 6px; word-break: keep-all; }
+  .filterCount { white-space: nowrap; }
+  .filterActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filterActions > :first-child { grid-column: 1 / -1; }
+  .filterBody { padding: 10px; }
+  .examOption { min-height: 34px; }
+  .summary { padding: 12px 14px; }
 }
 
 .table {
@@ -224,18 +250,34 @@
 }
 
 .rankCell {
-  width: 64px;
+  width: 80px;
   font-weight: 700;
   color: var(--color-text-primary);
 }
 
 .nameCell {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   font-weight: 600;
   color: var(--color-text-primary);
 }
+.studentDetailButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 4px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.studentDetailButton svg { color: var(--color-text-muted); }
+.studentDetailButton[aria-expanded="true"] svg { transform: rotate(180deg); }
+.studentDetailButton:hover { color: var(--color-brand-primary); }
+.detailRow { background: var(--color-bg-surface-hover); }
+.breakdown { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 0; }
+.breakdown dt, .breakdown small { font-size: 12px; color: var(--color-text-secondary); }
+.breakdown dd { display: grid; gap: 2px; margin: 0; font-variant-numeric: tabular-nums; }
 
 .numeric {
   text-align: right !important;

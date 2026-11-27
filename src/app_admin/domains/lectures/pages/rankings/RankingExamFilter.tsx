@@ -55,7 +55,7 @@ export default function RankingExamFilter({ groups, checked, custom, onChange }:
                 {term ? `검색 결과 ${matches.length}개만 선택` : "전체 선택"}
               </Button>
               <Button size="sm" intent="ghost" disabled={checked.size === 0} onClick={() => onChange(new Set())}>선택 해제</Button>
-              {custom && <Button size="sm" intent="ghost" onClick={() => onChange(null)}>차시 기본값 복원</Button>}
+              {custom && <Button size="sm" intent="ghost" aria-label="차시 기본값 복원" onClick={() => onChange(null)}>기본값 복원</Button>}
             </div>
           </>
         )}

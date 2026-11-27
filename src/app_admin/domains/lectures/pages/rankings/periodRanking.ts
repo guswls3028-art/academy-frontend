@@ -28,6 +28,7 @@ export type PeriodRankingEntry = {
   selectedCount: number;
   /** 점수가 확정된 평가가 하나도 없으면 null (순위 제외) */
   rank: number | null;
+  tied?: boolean;
 };
 
 function totalsForScope(row: SessionScoreRow, scope: RankingScope): AssessmentTotal[] {
@@ -102,6 +103,10 @@ export function buildPeriodRanking(
   let previousRank = 0;
   ranked.forEach((entry, index) => {
     entry.rank = previousScore !== null && entry.score === previousScore ? previousRank : index + 1;
+    if (index > 0 && entry.rank === previousRank) {
+      ranked[index - 1].tied = true;
+      entry.tied = true;
+    }
     previousScore = entry.score;
     previousRank = entry.rank;
   });

@@ -38,7 +38,7 @@ export function buildHallOfFameHtml(doc: HallOfFameDocument): string {
   const rows = doc.entries.map((entry) => `
     <li class="entry entry--rank-${Math.min(entry.rank ?? 99, 4)}">
       <span class="${medalClass(entry.rank ?? 0)}">${entry.rank ?? ""}<small>등</small></span>
-      <span class="name">${escapeHtml(entry.studentName)}</span>
+      <span class="name">${escapeHtml(entry.studentName)}${entry.tied ? ' <small class="tie">공동 등수</small>' : ""}</span>
       ${doc.showScores
         ? `<span class="score">${escapeHtml(formatRankingScore(entry.score))}<small>/${escapeHtml(formatRankingScore(entry.maxScore))}점</small></span>`
         : ""}
@@ -88,6 +88,7 @@ export function buildHallOfFameHtml(doc: HallOfFameDocument): string {
   .score { flex: none; font-weight: 700; color: #374151;
     font-size: ${mode === "hero" ? "22pt" : mode === "list" ? "17pt" : "13pt"}; }
   .score small { font-size: 60%; color: #6b7280; margin-left: 1mm; font-weight: 600; }
+  .tie { display: inline-block; color: #525b69; font-size: 10pt; font-weight: 600; }
   .empty { text-align: center; font-size: 16pt; color: #6b7280; margin-top: 30mm; }
   footer { margin-top: 6mm; text-align: right; font-size: 10pt; color: #9ca3af; }
 </style>
