@@ -23,6 +23,7 @@ import { BackButton } from "@teacher/shared/ui/Card";
 import { Badge } from "@teacher/shared/ui/Badge";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { ChevronRight } from "@teacher/shared/ui/Icons";
+import StoredExamResultAction from "@/shared/ui/submissions/StoredExamResultAction";
 import ExamSessionSelect from "@/shared/ui/submissions/ExamSessionSelect";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import {
@@ -442,7 +443,9 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
                 </div>
 
                 {/* 우측 액션 — 모바일 컴팩트 */}
-                {isNavigable ? (
+                {isExam && resolved && r.session_history_only ? (
+                  <StoredExamResultAction row={r} />
+                ) : isNavigable ? (
                   <button
                     type="button"
                     disabled={needsSession}

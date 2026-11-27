@@ -2,6 +2,7 @@
 /** 시험 답안 처리는 이 화면에서, 과제 파일 검수는 HomeworkReviewInbox에서 담당한다. */
 
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import StoredExamResultAction from "@/shared/ui/submissions/StoredExamResultAction";
 import ExamSessionSelect from "@/shared/ui/submissions/ExamSessionSelect";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -943,6 +944,7 @@ function SubmissionRow({
             대체됨
           </span>
         )}
+        {isExam && resolved && row.session_history_only && <StoredExamResultAction row={row} />}
         {(isDone || isAnswersReady) && resolved && row.session_id != null && !setupPath && (
           <Button type="button" intent="primary" size="sm" onClick={onNavigate} className="shrink-0">
             결과 보기

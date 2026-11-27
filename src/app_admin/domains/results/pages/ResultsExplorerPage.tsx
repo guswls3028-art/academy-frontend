@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import StoredExamResultAction from "@/shared/ui/submissions/StoredExamResultAction";
 import ExamSessionSelect from "@/shared/ui/submissions/ExamSessionSelect";
 import { useLocation, useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1344,7 +1345,13 @@ function OperationList({
   return (
     <div className={styles.operationList}>
       <h4>{title}</h4>
-      {rows.length === 0 ? <p>{empty}</p> : rows.slice(0, 4).map((submission) => action === "결과 보기" && submission.session_choices?.length ? (
+      {rows.length === 0 ? <p>{empty}</p> : rows.slice(0, 4).map((submission) => submission.target_type === "exam" && submission.session_history_only ? (
+        <div key={submission.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+          <span>{submission.target_title} · {submission.student_name}</span>
+          {submission.session_origin_recorded === false && <small>응시 차시 미확인</small>}
+          <StoredExamResultAction row={submission} />
+        </div>
+      ) : action === "결과 보기" && submission.session_choices?.length ? (
         <label key={submission.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 py-2">
           <span>{submission.target_title} · {submission.student_name || "학생 미식별"}</span>
           {submission.session_origin_recorded === false && <span>응시 차시 미확인</span>}

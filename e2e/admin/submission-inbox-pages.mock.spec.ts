@@ -669,3 +669,41 @@ test("파일 조회 중 다음 제출을 선택하고 해제한 행은 응답 �
   expect(saved).toEqual([11]);
   expect(state.mutations).toEqual([]);
 });
+
+for (const mobile of [false, true]) {
+  test(`철회된 차시의 저장된 성적을 읽고 다시 시도한다 ${mobile ? "390px" : "desktop"}`, async ({ page }) => {
+    await page.setViewportSize({ width: mobile ? 390 : 1366, height: 900 });
+    await setup(page, mobile ? "teacher" : "owner");
+    const row = { id: 812, target_type: "exam", target_id: 71, target_title: "과거 공유 시험",
+      target_resolved: true, status: "done", student_name: "이수강", enrollment_id: 10,
+      lecture_id: null, session_id: null, score_lecture_id: 21, session_history_only: true,
+      session_choices: [], session_origin_recorded: false, source: "online", created_at: "2026-10-09T00:00:00Z" };
+    await page.route("**/api/v1/submissions/submissions/pending/**", route => route.fulfill({ json: {
+      results: [row], count: 1, pages: 1, page: 1, page_size: 50, has_next: false, has_previous: false,
+      summary: { failed: 0, real_failed: 0, discarded: 0 },
+    } }));
+    const requests: string[] = [];
+    await page.route("**/api/v1/results/admin/exams/71/enrollments/**", route => {
+      requests.push(route.request().method() + " " + new URL(route.request().url()).pathname);
+      return route.fulfill({ json: { target_id: 71, enrollment_id: requests.length === 1 ? 11 : 10,
+        total_score: requests.length === 1 ? 99 : 75, max_score: 100 } });
+    });
+    const path = mobile ? "/workspace/mobile/submissions" : "/workspace/results/submissions";
+    await gotoAndSettle(page, BASE + path + "?filter=done");
+    await expect(page.getByText("응시 차시 미확인", { exact: true })).toBeVisible();
+    await expect(page.getByText("현재 조회 가능한 차시 없음", { exact: true })).toBeVisible();
+    const open = page.getByRole("button", { name: "저장된 성적 보기" });
+    await open.click();
+    const dialog = page.getByRole("dialog", { name: "저장된 성적", exact: true });
+    await expect(dialog.getByRole("alert")).toContainText("저장된 성적을 불러오지 못했습니다");
+    await dialog.getByRole("button", { name: "다시 시도" }).click();
+    await expect(dialog).toContainText("점수 75점 / 100점");
+    await expect(dialog).toContainText("과거 공유 시험 · 이수강");
+    await expect(dialog.getByRole("spinbutton")).toHaveCount(0);
+    expect(await dialog.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+    await dialog.getByRole("button", { name: "닫기", exact: true }).last().click();
+    await expect(dialog).toHaveCount(0);
+    await expect(open).toBeVisible();
+    expect(requests).toEqual(Array(2).fill("GET /api/v1/results/admin/exams/71/enrollments/10/"));
+  });
+}

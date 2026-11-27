@@ -11,7 +11,7 @@
  * - edit_state 누락 시 프론트는 편집 불가 처리
  */
 
-import api from "@/shared/api/axios";
+import { fetchStoredExamResult } from "@/shared/api/contracts/storedExamResult";
 import type { EditState } from "../types/editState";
 import type { Achievement } from "@/shared/scoring/achievement";
 import type { ClinicRetakeInfo } from "../types/results.types";
@@ -146,8 +146,5 @@ export async function fetchAdminExamResultDetail(
   examId: number,
   enrollmentId: number
 ): Promise<ExamResultDetail> {
-  const res = await api.get(
-    `/results/admin/exams/${examId}/enrollments/${enrollmentId}/`
-  );
-  return res.data;
+  return fetchStoredExamResult<ExamResultDetail>(examId, enrollmentId);
 }
