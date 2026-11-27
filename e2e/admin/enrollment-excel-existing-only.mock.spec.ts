@@ -150,7 +150,9 @@ async function installApi(page: Page, submittedBodies: string[], options: ApiOpt
           ...(options.detailedResult ? {
             total: 3,
             excluded_count: 2,
-            enrolled_rows: [{ row: 2, name: "등록완료학생", student_id: 1 }],
+            session_enrolled_count: 0,
+            withdrawn_session_preserved_count: 1,
+            enrolled_rows: [{ row: 2, name: "등록완료학생", student_id: 1, session_registration: "withdrawal_preserved" }],
             excluded_rows: [
               { row: 3, name: "전화오류학생", error: "학부모 전화번호 형식을 확인해 주세요.", reason_code: "invalid_row" },
               { row: 4, name: "중복명부학생", error: "동일 정보 학생이 여러 명입니다.", reason_code: "ambiguous" },
@@ -206,7 +208,15 @@ for (const width of [390, 1366]) {
     await expect(page.getByText(/진행 상태를 다시 확인하고 있습니다/)).toBeVisible();
     let result = page.getByRole("dialog", { name: "수강 등록 결과" });
     await expect(result).toBeVisible({ timeout: 20_000 });
-    await expect(result.getByText("등록완료학생", { exact: true })).toBeVisible();
+    const expectSessionOutcome = async () => {
+      const summary = result.getByLabel("등록 결과 요약");
+      await expect(summary).toContainText(/수강 등록\s*1명/);
+      await expect(summary).toContainText(/차시 등록\s*0명/);
+      await expect(summary).toContainText(/차시 퇴원 유지\s*1명/);
+      await expect(result.getByRole("listitem").filter({ hasText: "등록완료학생" }))
+        .toContainText("차시 퇴원 유지");
+    };
+    await expectSessionOutcome();
     await expect(result.getByText("학부모 전화번호 형식을 확인해 주세요.", { exact: true })).toBeVisible();
     await expect(result.getByText("전체 3명", { exact: true })).toBeVisible();
     await expect(result.getByLabel("등록 결과 요약")).toContainText("2명");
@@ -218,6 +228,7 @@ for (const width of [390, 1366]) {
     await page.reload();
     result = page.getByRole("dialog", { name: "수강 등록 결과" });
     await expect(result).toBeVisible();
+    await expectSessionOutcome();
     await expect(result.getByText("중복명부학생", { exact: true })).toBeVisible();
     await expect(result.getByLabel("등록 결과 요약")).toContainText("2명");
     expect(submitted).toHaveLength(1);
@@ -358,6 +369,8 @@ for (const viewport of [
     await expect(confirmation.getByText("existing-students.xlsx", { exact: true })).toBeVisible();
     await expect(confirmation.getByText("3명", { exact: true })).toBeVisible();
     await expect(confirmation.getByText("미입력", { exact: true })).toBeVisible();
+    await expect(confirmation.getByText(/강의 수강이 없던 학생은 함께 수강 등록되며 첫 수강 계정 안내가 예약될 수 있습니다/)).toBeVisible();
+    await expect(confirmation.getByText(/퇴원한 차시에 다시 등록할 때만 강의에 설정된 자동 수납 항목이 새로 배정되거나 다시 활성화/)).toBeVisible();
     await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
     expect(submittedBodies).toHaveLength(0);
     const overflow = await confirmation.evaluate((element) => element.scrollWidth - element.clientWidth);

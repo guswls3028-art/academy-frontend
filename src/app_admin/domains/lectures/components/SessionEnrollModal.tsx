@@ -13,6 +13,7 @@ import { fetchSessions } from "../api/sessions";
 import { bulkCreateAttendance, updateAttendance, fetchAttendanceEnrolledStudentIds } from "../api/attendance";
 import { fetchStudents, type ClientStudent } from "@/shared/api/contracts/students";
 import StudentCreateModal from "@admin/domains/students/components/StudentCreateModal";
+import LectureEnrollStudentModal from "./LectureEnrollStudentModal";
 import StudentsDetailOverlay from "@admin/domains/students/public/StudentsDetailOverlay";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
@@ -236,6 +237,8 @@ export default function SessionEnrollModal({
   // 명시적 "+ 새 학생 등록" 버튼으로 분리. 학원장이 클릭 결과를 예측 가능하도록.
   const [keyword, setKeyword] = useState("");
   const [search, setSearch] = useState("");
+  const [lecturePickerOpen, setLecturePickerOpen] = useState(false);
+  const [blockedSearch, setBlockedSearch] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [selectionState, setSelectionState] = useState<SelectionState>({
     current: [],
@@ -818,7 +821,7 @@ export default function SessionEnrollModal({
           { label: "매칭 기준", value: "이름 · 학부모 연락처" },
           { label: "초기 출결", value: "미입력" },
         ],
-        note: "강의 수강이 없던 학생은 함께 수강 등록되며 첫 수강 계정 안내가 예약될 수 있습니다. 이 엑셀 등록은 자동 수납 항목을 만들지 않습니다.",
+        note: "강의 수강이 없던 학생은 함께 수강 등록되며 첫 수강 계정 안내가 예약될 수 있습니다. 퇴원한 차시에 다시 등록할 때만 강의에 설정된 자동 수납 항목이 새로 배정되거나 다시 활성화될 수 있습니다.",
       },
       confirmText: `${excelPendingRowCount}명 등록 요청`,
       cancelText: "다시 확인",
@@ -900,6 +903,7 @@ export default function SessionEnrollModal({
       const eligibleIds = idsToAdd.filter((studentId) => !blockedStudentIds.has(studentId));
       const excludedCount = idsToAdd.length - eligibleIds.length;
       if (excludedCount > 0) {
+        setBlockedSearch(search);
         updateSelection((current) => current.filter((student) => !blockedStudentIds.has(student.id)));
         feedback.warning(`현재 강의의 비활성·대기 수강생 ${excludedCount}명은 제외했습니다. 재등록은 강의 수강 등록에서 진행해 주세요.`);
       }
@@ -937,13 +941,13 @@ export default function SessionEnrollModal({
     } finally {
       selectionConfirmationInFlightRef.current = false;
     }
-  }, [addByStudentMutation, confirm, excelStatusByStudentId, idsToAdd, lectureId, prerequisiteError, prerequisiteLoading, selectedItems, sessionId, sessions, updateSelection]);
+  }, [addByStudentMutation, confirm, excelStatusByStudentId, idsToAdd, lectureId, prerequisiteError, prerequisiteLoading, search, selectedItems, sessionId, sessions, updateSelection]);
 
   // ── Keyboard shortcut ──────────────────────────────────────────────────────
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (!isOpen) return;
-      if (studentCreateOpen || overlayStudentId != null) return;
+      if (studentCreateOpen || lecturePickerOpen || overlayStudentId != null) return;
       const target = e.target as HTMLElement | null;
       const isFormControl = Boolean(
         target
@@ -978,6 +982,7 @@ export default function SessionEnrollModal({
     copyFromPrevLoading,
     excelPendingFile,
     handleAddSelected,
+    lecturePickerOpen,
     overlayStudentId,
     prerequisiteError,
     prerequisiteLoading,
@@ -991,6 +996,12 @@ export default function SessionEnrollModal({
 
   // ── Early return ───────────────────────────────────────────────────────────
   if (!isOpen) return null;
+  if (lecturePickerOpen) return (
+    <LectureEnrollStudentModal open lectureId={lectureId} initialSearch={keyword}
+      onClose={() => setLecturePickerOpen(false)}
+      onSuccess={() => setBlockedSearch(null)}
+    />
+  );
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -1119,10 +1130,11 @@ export default function SessionEnrollModal({
                             {selectedItems.length}명 선택됨
                           </span>
                         )}
-                        {hiddenInactiveLectureInPage > 0 && (
-                          <span className="text-[12px] text-[var(--color-text-muted)]">
-                            현재 강의의 비활성·대기 수강생 {hiddenInactiveLectureInPage}명은 제외했습니다. 재등록은 강의 수강 등록에서 진행해 주세요.
-                          </span>
+                        {(hiddenInactiveLectureInPage > 0 || blockedSearch === search) && (
+                          <div className="flex flex-wrap items-center gap-2 text-[13px] text-[var(--color-text-muted)]">
+                            <span>강의에서 퇴원했거나 대기 중인 학생은 강의 수강부터 등록해 주세요.</span>
+                            <Button type="button" intent="secondary" size="sm" onClick={() => setLecturePickerOpen(true)}>강의 수강 등록 열기</Button>
+                          </div>
                         )}
                         {/* 빠른 불러오기 — 매주 가장 자주 누르는 액션. 좌측 상단 prominent CTA.
                             • 직전 차시 있음 (2차시~) → 직전 차시 불러오기 primary, 강의 수강생은 보조
