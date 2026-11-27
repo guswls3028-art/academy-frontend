@@ -36,7 +36,7 @@ for (const { width, scenario } of [
       if (path === "/core/subscription/") return route.fulfill({ json: { plan: "all", subscription_status: "active", is_subscription_active: true, days_remaining: 30 } });
       if (path === "/lectures/attendance/" && request.method() === "GET") {
         if (bulkSaved) await bulkReadGate;
-        return route.fulfill({ json: { count: 1, next: null, results: [{ id: 777, name: "되돌리기 검증학생", status: currentStatus }] } });
+        return route.fulfill({ json: { count: 1, next: null, results: [{ id: 777, name: "되돌리기 검증학생", status: currentStatus, enrollment_status: "ACTIVE" }] } });
       }
       if (path === "/lectures/attendance/bulk_set_present/" && request.method() === "POST") {
         expect(request.postDataJSON()).toEqual({ session: 99 });
@@ -83,7 +83,9 @@ for (const { width, scenario } of [
     }
     await student.click();
     await page.getByRole("button", { name: "결석", exact: true }).click();
+    await page.getByRole("button", { name: "복구하고 결석 저장", exact: true }).click();
     await expect.poll(() => changes.length).toBe(1);
+    expect(changes[0]).toEqual({ status: "ABSENT", restore_scope: "session" });
     if (scenario === "slow-save") {
       try {
         expect(await page.getByText("상태가 변경되었습니다", { exact: true }).count()).toBe(0);
@@ -105,6 +107,7 @@ for (const { width, scenario } of [
       failing = false;
       await student.click();
       await page.getByRole("button", { name: "결석", exact: true }).click();
+      await page.getByRole("button", { name: "복구하고 결석 저장", exact: true }).click();
     }
     await expect(page.getByText("결석 1", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "되돌리기", exact: true })).toBeVisible();
@@ -127,6 +130,7 @@ for (const { width, scenario } of [
     }
     failing = scenario === "undo-error";
     await page.getByRole("button", { name: "되돌리기", exact: true }).click();
+    await expect(page.getByRole("button", { name: "강의 전체 퇴원", exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "이 차시만 퇴원", exact: true }).click();
     if (scenario === "undo-error") {
       await expect(page.getByText("출결 저장을 잠시 사용할 수 없습니다.", { exact: true })).toBeVisible();
