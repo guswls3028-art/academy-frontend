@@ -166,6 +166,7 @@ for (const role of ["student", "parent", "staff"] as const) {
     const state = await stubLoginFlow(page, role);
     await openLogin(page);
 
+    await expect(page.locator('[data-auth-part="brand-artwork"]')).toHaveAttribute("href", "/landing");
     const username = page.getByTestId("login-username");
     const password = page.getByTestId("login-password");
     await expect(username).toHaveAttribute("autocapitalize", "none");

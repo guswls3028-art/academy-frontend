@@ -69,17 +69,44 @@ const materialBody = `qa-* 학생/학부모 자료 본문 ${runStamp}`;
 async function verifyBrandHomeFromAttendance(page: Page, attendance: string, childName?: string) {
   const previous = page.url();
   const record = page.getByRole("link").filter({ hasText: lectureTitle }).first();
+  const publicResources = `${QA_BASE}/landing/resources`;
+  const publicHeading = page.getByRole("heading", { level: 1, name: "게시판", exact: true });
+  const publicBrand = page.locator("header").getByRole("link", { name: /게시판$/ });
+
+  async function expectFamilyHome() {
+    await expect(page).toHaveURL(`${QA_BASE}/student/dashboard`);
+    await expect(page.getByRole("region", { name: "학습 현황", exact: true })).toBeVisible();
+    if (childName) {
+      await expect(page.getByRole("tab", { name: childName, exact: true })).toHaveAttribute("aria-selected", "true");
+    }
+  }
+
   for (const width of [1366, 390]) {
     await test.step(`${childName ? "학부모" : "학생"} ${width}px 로고 홈과 이전 출결 복원`, async () => {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
       const home = page.getByTestId("stu-topbar-brand-home");
       await expect(home).toHaveAccessibleName(/.+ 홈$/);
       await home.click();
-      await expect(page).toHaveURL(`${QA_BASE}/student/dashboard`);
-      await expect(page.getByRole("region", { name: "학습 현황", exact: true })).toBeVisible();
-      if (childName) {
-        await expect(page.getByRole("tab", { name: childName, exact: true })).toHaveAttribute("aria-selected", "true");
+      await expectFamilyHome();
+      await page.goBack();
+      await expect(page).toHaveURL(previous);
+      await expect(record).toContainText(attendance);
+    });
+    await test.step(`${childName ? "학부모" : "학생"} ${width}px 공개 게시판 로고에서 역할 홈과 원래 명단으로 복귀`, async () => {
+      await gotoAndSettle(page, publicResources);
+      await expect(publicHeading).toBeVisible();
+      await expect(publicBrand).toHaveAttribute("href", "/");
+      if (width === 1366) {
+        await publicBrand.focus();
+        await expect(publicBrand).toBeFocused();
+        await page.keyboard.press("Enter");
+      } else {
+        await publicBrand.click();
       }
+      await expectFamilyHome();
+      await page.goBack();
+      await expect(page).toHaveURL(publicResources);
+      await expect(publicHeading).toBeVisible();
       await page.goBack();
       await expect(page).toHaveURL(previous);
       await expect(record).toContainText(attendance);
