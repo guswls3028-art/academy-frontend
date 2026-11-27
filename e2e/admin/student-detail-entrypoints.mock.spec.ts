@@ -858,9 +858,20 @@ test("학생 상세는 1366·1100·390px에서 주요 작업과 전체 탭에 �
       expect(profileBox.x + profileBox.width).toBeLessThanOrEqual(tabsBox.x);
       expect(Math.abs(tabsBox.y - profileBox.y)).toBeLessThan(24);
     }
+    const copyId = sidebar.getByRole("button", { name: "아이디 student.name+1001 복사" });
+    if (width > 390) {
+      const phone = sidebar.getByRole("button", { name: /^학부모 전화 .* 복사$/ });
+      expect((await phone.boundingBox())!.y).toBeLessThan((await memo.boundingBox())!.y);
+      expect((await memo.boundingBox())!.y).toBeLessThan((await copyId.boundingBox())!.y);
+      const basic = sidebar.locator("details").filter({ has: page.getByText("학생 기본 정보", { exact: true }) });
+      await expect(basic).not.toHaveAttribute("open", "");
+      await basic.locator("summary").click();
+      await expect(basic.getByText("등록일", { exact: true })).toBeVisible();
+    }
     const headerButtons = ["정보 수정", "계정·관리"];
+    const touch = await page.evaluate(() => matchMedia("(max-width: 1023px), (pointer: coarse)").matches);
     for (const name of headerButtons) {
-      expect((await overlay.getByRole("button", { name }).boundingBox())?.height).toBe(44);
+      expect((await overlay.getByRole("button", { name }).boundingBox())?.height).toBe(touch ? 44 : 32);
     }
     await page.screenshot({ path: testInfo.outputPath("student-detail-" + width + ".png") });
     if (width === 390) await toggle.click();

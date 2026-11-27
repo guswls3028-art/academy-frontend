@@ -14,11 +14,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
   min-width: 0;
 
   min-height: var(--control-md);
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-3);
 
   font-size: var(--ds-text-md);
   font-weight: var(--font-medium);
@@ -27,7 +27,7 @@
   color: var(--color-text-primary);
 
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--ds-radius-sm);
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
@@ -57,8 +57,8 @@
 .ds-button[data-size="sm"] {
   --button-icon-size: var(--ds-control-icon-sm);
   min-height: var(--control-sm);
-  padding: 0 var(--space-3);
-  font-size: var(--ds-text-xs);
+  padding: 0 var(--space-2);
+  font-size: var(--ds-text-sm);
 }
 
 .ds-button[data-size="md"] {
@@ -69,14 +69,14 @@
 .ds-button[data-size="lg"] {
   --button-icon-size: var(--ds-control-icon-lg);
   min-height: var(--control-lg);
-  padding: 0 var(--space-5);
+  padding: 0 var(--space-4);
   font-size: var(--ds-text-md);
 }
 
 .ds-button[data-size="xl"] {
   --button-icon-size: var(--ds-control-icon-xl);
   min-height: var(--control-xl);
-  padding: 0 var(--space-6);
+  padding: 0 var(--space-5);
   font-size: var(--ds-text-lg);
   font-weight: var(--font-semibold);
 }
@@ -99,32 +99,27 @@
   box-shadow: none;
 }
 
-/* Secondary — 보조 액션 (neutral 칩).
- * 화이트 테마(페이지/카드 ≈ 흰색) 위에서도 또렷이 보이도록 Neutral100 fill + Neutral300 border 고정.
- * Why: 이전 mix 비율(16%)은 라이트 테마에서 페이지 배경과 거의 같은 톤이 되어 버튼이 사라지는 학원장 피드백 반복. */
+/* Edit and other secondary actions use the same surface in pages and dialogs. */
 .ds-button[data-intent="secondary"] {
-  background: var(--scale-Neutral100);
+  background: var(--color-bg-surface);
   color: var(--color-text-primary);
-  border: 1px solid var(--scale-Neutral300);
+  border: 1px solid var(--color-border-default);
 }
 
 .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]) {
-  background: var(--scale-Neutral200);
-  color: var(--color-text-primary);
-  border-color: var(--scale-Neutral400);
+  background: var(--color-bg-surface-hover);
+  border-color: var(--color-border-strong);
 }
 
-/* Ghost — 저강도. 평상시에도 윤곽 보이도록 transparent + divider border. */
 .ds-button[data-intent="ghost"] {
   background: transparent;
   color: var(--color-text-secondary);
-  border: 1px solid var(--color-border-divider);
+  border: 1px solid transparent;
 }
 
-.ds-button[data-intent="ghost"]:hover:not(:disabled):not([data-disabled="true"]) {
+.ds-button[data-intent="ghost"]:is(:hover, [aria-expanded="true"]):not(:disabled):not([data-disabled="true"]) {
   background: var(--color-bg-surface-hover);
   color: var(--color-text-primary);
-  border-color: var(--color-border-default);
 }
 
 /* Danger — 위험 액션 (error 톤). 학원장 피드백 가시성 강화. */
@@ -279,38 +274,6 @@
 .ds-button[data-intent="ghost"][data-disabled="true"] {
   border-color: var(--color-border-default);
   color: var(--color-text-secondary);
-}
-
-/* ======================================================
- * Modal context — 모달은 항상 #ffffff 위에 떠 있어 Neutral100 fill 이 흐려짐.
- * 모달 안 secondary 는 한 단계 진한 Neutral200 + Neutral400 border 로 강화.
- * ====================================================== */
-
-.ant-modal-content .ds-button[data-intent="secondary"],
-.ds-modal .ds-button[data-intent="secondary"],
-[role="dialog"] .ds-button[data-intent="secondary"] {
-  background: var(--scale-Neutral200);
-  border-color: var(--scale-Neutral400);
-}
-
-.ant-modal-content .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]),
-.ds-modal .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]),
-[role="dialog"] .ds-button[data-intent="secondary"]:hover:not(:disabled):not([data-disabled="true"]) {
-  background: var(--scale-Neutral300);
-  border-color: var(--scale-Neutral500);
-}
-
-.ant-modal-content .ds-button[data-intent="ghost"],
-.ds-modal .ds-button[data-intent="ghost"],
-[role="dialog"] .ds-button[data-intent="ghost"] {
-  border-color: var(--color-border-default);
-}
-
-/* antd default 도 모달 안에서 동일 강화 */
-.ant-modal-content .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous),
-[role="dialog"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous) {
-  background: var(--scale-Neutral200);
-  border-color: var(--scale-Neutral400);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -16,7 +16,7 @@ import {
 } from "react";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
-import { ChevronDown, FolderOpen, MonitorSmartphone } from "lucide-react";
+import { ChevronDown, FolderOpen, MonitorSmartphone, Pencil } from "lucide-react";
 import api from "@/shared/api/axios";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useModalKeyboard } from "@/shared/ui/modal/useModalKeyboard";
@@ -405,8 +405,8 @@ function StudentDetailContent({
               <div className="ds-overlay-header__right">
                 {!isMobile && studentTools}
                 <div className={`ds-overlay-header__actions ${styles.headerActions}`}>
-                  <Button type="button" intent="primary" size="lg" onClick={() => { void memo.save().then((saved) => { if (saved) setEditOpen(true); }); }}>정보 수정</Button>
-                  <Button type="button" intent="secondary" size="lg" aria-expanded={accountToolsOpen} aria-controls={tabId + "-account-tools"} onClick={() => setAccountToolsOpen((open) => !open)}>계정·관리</Button>
+                  <Button type="button" intent="secondary" size="sm" leftIcon={<Pencil aria-hidden />} onClick={() => { void memo.save().then((saved) => { if (saved) setEditOpen(true); }); }}>정보 수정</Button>
+                  <Button type="button" intent="ghost" size="sm" rightIcon={<ChevronDown aria-hidden />} aria-expanded={accountToolsOpen} aria-controls={tabId + "-account-tools"} onClick={() => setAccountToolsOpen((open) => !open)}>계정·관리</Button>
                 </div>
               </div>
             </div>
@@ -465,15 +465,10 @@ function StudentDetailContent({
               {showProfile && <>
                 {/* 연락처 */}
                 <div className="ds-overlay-sidebar-section">
-                  <div className="ds-overlay-sidebar-section__title">연락처 · 기본 정보</div>
+                  <div className="ds-overlay-sidebar-section__title">연락처</div>
                   <div className="ds-overlay-info-rows">
                     <InfoRow label="학부모 전화" value={formatPhone(student.parentPhone)} copyable />
                     <InfoRow label="학생 전화" value={formatStudentPhoneDisplay(student.studentPhone)} copyable />
-                    {student.psNumber && <InfoRow label="아이디" value={student.psNumber} accent copyable />}
-                    {student.omrCode && <InfoRow label="시험코드" value={formatOmrCode(student.omrCode)} accent copyable />}
-                    {student.gender && <InfoRow label="성별" value={formatGenderDisplay(student.gender)} />}
-                    <InfoRow label="등록일" value={student.registeredAt?.slice(0, 10)} />
-                    {student.address && <InfoRow label="주소" value={student.address} />}
                   </div>
                 </div>
 
@@ -495,16 +490,17 @@ function StudentDetailContent({
                     {(memo.dirty || memo.status === "error") && <Button intent="secondary" size="sm" onClick={() => { void memo.save(); }}>{memo.status === "error" ? "다시 저장" : "저장"}</Button>}
                   </div>
                 </div>
-                <Suspense fallback={<p role="status">설문 기록을 불러오는 중…</p>}><StudentSurveyHistory key={id} studentId={id} /></Suspense>
-                <details className={"ds-overlay-sidebar-section " + profileStyles.accountHistory} onToggle={(event) => setAccountHistoryOpen(event.currentTarget.open)}>
-                  <summary className="ds-overlay-sidebar-section__title">계정 알림톡 이력</summary>
-                  {accountHistoryOpen && <AccountNotificationHistory studentId={id} queryKey={adminStudentsQueryKeys.studentAccountNotifications(id)} />}
-                </details>
-
-                {/* 학교 정보 */}
-                {(student.school || student.grade != null || student.schoolClass != null || student.major || (student.schoolType === "HIGH" && student.originMiddleSchool)) && (
-                <div className="ds-overlay-sidebar-section">
-                  <div className="ds-overlay-sidebar-section__title">학교</div>
+                {(student.psNumber || student.omrCode) && (
+                  <section className="ds-overlay-sidebar-section">
+                    <div className="ds-overlay-sidebar-section__title">아이디·시험코드</div>
+                    <div className="ds-overlay-info-rows">
+                      {student.psNumber && <InfoRow label="아이디" value={student.psNumber} accent copyable />}
+                      {student.omrCode && <InfoRow label="시험코드" value={formatOmrCode(student.omrCode)} accent copyable />}
+                    </div>
+                  </section>
+                )}
+                <details className={"ds-overlay-sidebar-section " + profileStyles.accountHistory}>
+                  <summary className="ds-overlay-sidebar-section__title">학생 기본 정보</summary>
                   <div className="ds-overlay-info-rows">
                     {student.school && <InfoRow label="학교" value={student.school} />}
                     {student.schoolType === "HIGH" && student.originMiddleSchool && (
@@ -513,9 +509,11 @@ function StudentDetailContent({
                     {student.grade != null && <InfoRow label="학년" value={`${student.grade}학년`} />}
                     {student.schoolClass != null && student.schoolClass !== "" && <InfoRow label="반" value={student.schoolClass} />}
                     {student.major && <InfoRow label="계열" value={student.major} />}
+                    {student.gender && <InfoRow label="성별" value={formatGenderDisplay(student.gender)} />}
+                    <InfoRow label="등록일" value={student.registeredAt?.slice(0, 10)} />
+                    {student.address && <InfoRow label="주소" value={student.address} />}
                   </div>
-                </div>
-                )}
+                </details>
 
                 {customFieldsError && <div role="alert" className={profileStyles.sectionError}>맞춤 정보를 불러오지 못했습니다. <Button intent="ghost" size="sm" onClick={() => { void refetchCustomFields(); }}>다시 불러오기</Button></div>}
                 {customFieldDefinitions.some(
@@ -604,6 +602,11 @@ function StudentDetailContent({
                   </div>
                 </div>
 
+                <Suspense fallback={<p role="status">설문 기록을 불러오는 중…</p>}><StudentSurveyHistory key={id} studentId={id} /></Suspense>
+                <details className={"ds-overlay-sidebar-section " + profileStyles.accountHistory} onToggle={(event) => setAccountHistoryOpen(event.currentTarget.open)}>
+                  <summary className="ds-overlay-sidebar-section__title">계정 알림톡 이력</summary>
+                  {accountHistoryOpen && <AccountNotificationHistory studentId={id} queryKey={adminStudentsQueryKeys.studentAccountNotifications(id)} />}
+                </details>
               </>}
             </aside>
             <div className={profileStyles.records}>

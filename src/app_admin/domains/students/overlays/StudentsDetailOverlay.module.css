@@ -217,8 +217,8 @@
   display: flex;
   max-width: 100%;
   overflow-x: auto;
-  padding: 3px;
-  border-radius: var(--radius-md);
+  padding: 2px;
+  border-radius: var(--ds-radius-md);
   background: var(--color-bg-surface-soft);
 }
 
@@ -232,7 +232,8 @@
 .scoreFilters :global(.ds-record-tab)[aria-selected="true"] {
   color: var(--color-text-primary);
   background: var(--color-bg-surface);
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 0 0 1px var(--color-border-default);
+  font-weight: var(--font-semibold);
 }
 
 .examList {

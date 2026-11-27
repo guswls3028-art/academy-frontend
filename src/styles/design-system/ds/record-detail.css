@@ -20,7 +20,7 @@
   background: transparent;
   color: var(--color-text-secondary);
   font-size: var(--ds-text-sm);
-  font-weight: 650;
+  font-weight: var(--font-medium);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -29,9 +29,12 @@
   background: var(--color-bg-surface-hover);
 }
 
-.ds-record-tab[aria-selected="true"] {
+.ds-record-tabs > .ds-record-tab[aria-selected="true"] {
   border-bottom-color: var(--color-brand-primary);
-  color: var(--color-brand-primary);
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-weight: var(--font-semibold);
 }
 
 .ds-record-tab:focus-visible {

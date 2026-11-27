@@ -5,24 +5,22 @@
   min-height: var(--control-group-height, var(--field-height, var(--control-md)));
   font-size: var(--ds-text-md);
   font-family: var(--app-font-sans) !important;
-  border-radius: var(--radius-md);
+  border-radius: var(--ds-radius-sm);
 }
 
-/* Default buttons: 화이트 테마(페이지 ≈ 흰색)에서도 또렷이 보이도록 Neutral100 fill + Neutral300 border.
- * Why: --ui-control-bg(=surface) 그대로 쓰면 페이지/카드 배경과 같은 톤이 되어 버튼이 사라짐. input은 흰 배경이 자연스러우므로 슬롯은 유지하고 antd 버튼만 분리.
- * AntD 6은 `.ant-btn`에 border-width:0 을 박으므로 반드시 `border` 단축으로 width까지 명시할 것 (border-color만 잡으면 보이지 않음). */
+/* Match the shared secondary action in both pages and modal dialogs. */
 .ant-btn,
 .ant-btn-default {
-  background: var(--scale-Neutral100);
-  border: 1px solid var(--scale-Neutral300);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
   color: var(--ui-control-text);
-  box-shadow: var(--ui-control-shadow);
+  box-shadow: none;
 }
 
 .ant-btn:hover,
 .ant-btn-default:hover {
-  background: var(--scale-Neutral200);
-  border-color: var(--scale-Neutral400);
+  background: var(--color-bg-surface-hover);
+  border-color: var(--color-border-strong);
   color: var(--ui-control-text);
 }
 
@@ -61,18 +59,6 @@
   background: var(--color-brand-primary-active);
   border-color: var(--color-brand-primary-active);
   color: var(--color-brand-primary-contrast, #fff);
-}
-
-/* Dark 테마: 어두운 페이지 위 Neutral100 은 페이지와 톤 차이가 작아 흐릿함 → 한 단계 더 밝은 Neutral200 사용.
- * primary/dangerous/ghost/text/link 는 별도 색이 있으므로 default 만 한정. */
-[data-theme="focus-dark"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous) {
-  background: var(--scale-Neutral200);
-  border-color: var(--scale-Neutral400);
-}
-
-[data-theme="focus-dark"] .ant-btn-default:not(.ant-btn-primary):not(.ant-btn-dangerous):hover {
-  background: var(--scale-Neutral300);
-  border-color: var(--scale-Neutral500);
 }
 
 /* Dangerous (위험 액션) */

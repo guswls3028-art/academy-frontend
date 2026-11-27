@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import { ChevronDown, Pencil } from "lucide-react";
 
 import {
   fetchStaffDetail,
@@ -292,16 +293,18 @@ export default function StaffDetailOverlay({
                   {canManage && (
                     <Button
                       type="button"
-                      intent="primary"
-                      size="lg"
+                      intent="secondary"
+                      size="sm"
+                      leftIcon={<Pencil aria-hidden />}
                       onClick={() => setEditOpen(true)}
                     >
                       정보 수정
                     </Button>
                   )}
                   <Button
-                    intent="secondary"
-                    size="lg"
+                    intent="ghost"
+                    size="sm"
+                    rightIcon={<ChevronDown aria-hidden />}
                     aria-expanded={detailsOpen}
                     aria-controls={tabPanelId + "-staff-info"}
                     onClick={() => setDetailsOpen((open) => !open)}

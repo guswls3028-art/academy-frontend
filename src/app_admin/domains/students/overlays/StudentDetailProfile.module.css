@@ -49,7 +49,7 @@
 .profilePanel {
   min-width: 0;
   padding: var(--ds-space-2) var(--ds-space-3);
-  background: var(--color-bg-surface-soft);
+  background: color-mix(in srgb, var(--color-bg-surface) 60%, var(--color-bg-surface-soft));
 }
 
 .profilePanel :global(.ds-overlay-sidebar-section) {
@@ -165,7 +165,13 @@
 .historyFeedback { padding: 16px; text-align: center; }
 .sectionError { padding: 12px; font-size: 12px; }
 
-.accountHistory summary { cursor: pointer; }
+.accountHistory > summary {
+  display: list-item;
+  min-height: var(--ds-control-sm);
+  align-content: center;
+  margin-block: 0;
+  cursor: pointer;
+}
 .accountHistory[open] summary { margin-bottom: var(--ds-space-2); }
 
 @media (max-width: 768px) {
