@@ -36,9 +36,9 @@ export default function ExamWorklist({ exam, audience, sessionId, lectureId, sel
     initialLectureId={focusAnalysis ? lectureId : undefined} onOpenSetup={action => select({ step: "policy", action })} />;
   const submissions = <ExamSubmissionsPanel examId={examId} sessionId={sessionId} focusLedger={selection.action === "ledger"} />;
   const stages: WorkStage[] = [
-    { id: "audience", title: "시험 대상", summary: audience + " · 강의별 차시와 귀가 기준", actions: [
+    { id: "audience", title: "시험 대상·강의 공유", summary: audience + " · 여러 반의 차시 연결과 강의별 귀가 기준", actions: [
       { id: "students", label: "대상 학생", content: <ExamEnrollmentPanel examId={examId} /> },
-      { id: "lectures", label: "강의·차시 연결", content: <ExamLectureAssignmentsPanel examId={examId} maxScore={exam.max_score} /> },
+      { id: "lectures", label: "여러 반 시험 공유", content: <ExamLectureAssignmentsPanel examId={examId} maxScore={exam.max_score} /> },
     ] },
     { id: "materials", title: "시험 자료", summary: exam.source_filename || "시험지 원본 · 해설 · OMR 답안지", status: assessmentMaterialStatus(exam.segmentation_status),
       tools: <Button type="button" size="sm" intent="secondary" onClick={() => setPrintOpen(true)}>OMR 답안지</Button>, actions: [

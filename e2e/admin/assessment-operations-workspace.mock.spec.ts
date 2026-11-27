@@ -339,6 +339,108 @@ function examResultState(essayNumbering: "continuous" | "separate"): MockState {
   };
 }
 
+for (const width of [1366, 390]) {
+  test(`차시 시험에서 여러 반 시험 공유와 귀가 기준 저장·재조회 (${width}px)`, async ({ page }, testInfo) => {
+    const state = recoveryExamState();
+    await page.setViewportSize({ width, height: 900 });
+    await openExamRoute(page, state, `?examId=${EXAM_ID}`);
+
+    // Keep the session shell on its normal routes. Only the sharing panel's
+    // lecture choices, sessions, and durable per-exam assignments are mocked here.
+    const lectures = [
+      { id: LECTURE_ID, title: "고1 Hyper 정규반", chip_label: "고1", sessionId: SESSION_ID },
+      { id: 303, title: "C학교 강의", chip_label: "심화", sessionId: 3001 },
+      { id: 404, title: "D학교 강의", chip_label: "D", sessionId: 4001 },
+    ];
+    if (width === 1366) {
+      lectures.push(
+        { id: 505, title: "E학교 강의", chip_label: "기초", sessionId: 5001 },
+        { id: 606, title: "F학교 강의", chip_label: "기본", sessionId: 6001 },
+        { id: 707, title: "G학교 강의", chip_label: "응용", sessionId: 7001 },
+      );
+    }
+    const scores = new Map([[SESSION_ID, 80]]);
+    const writes: { session_id: number; pass_score: number }[] = [];
+    await page.route(/\/lectures\/lectures\/\?is_active=true$/, route =>
+      route.fulfill({ json: lectures.map(lecture => ({ ...lecture, is_active: true })) }));
+    await page.route(/\/lectures\/sessions\/\?lecture=(303|404)$/, route => {
+      const id = Number(new URL(route.request().url()).searchParams.get("lecture"));
+      const lecture = lectures.find(item => item.id === id)!;
+      return route.fulfill({ json: [{ ...session, id: lecture.sessionId, lecture: id, title: "8월 진단평가" }] });
+    });
+    await page.route(`**/exams/${EXAM_ID}/lecture-assignments/`, route => {
+      if (route.request().method() === "POST") {
+        const payload = route.request().postDataJSON();
+        writes.push(payload);
+        scores.set(payload.session_id, payload.pass_score);
+      }
+      const assignments = lectures.filter(lecture => scores.has(lecture.sessionId)).map(lecture => ({
+        lecture_id: lecture.id, lecture_title: lecture.title, lecture_chip_label: lecture.chip_label,
+        pass_score: scores.get(lecture.sessionId), uses_default_pass_score: lecture.id === LECTURE_ID,
+        roster_count: 1, selected_count: 1,
+        sessions: [{ session_id: lecture.sessionId, session_title: "8월 진단평가", session_label: "3차시" }],
+      }));
+      return route.fulfill({ json: { exam_id: EXAM_ID, default_pass_score: 80,
+        total_roster_count: assignments.length, total_selected_count: assignments.length, assignments } });
+    });
+
+    await openAssessmentWorkAction(page, "audience", "lectures");
+    await expect(page.getByRole("button", { name: "여러 반 시험 공유", exact: true })).toHaveAttribute("aria-pressed", "true");
+    const panel = page.locator("#assessment-lecture-assignments");
+    await expect(panel.getByRole("heading", { name: "시험을 보는 강의" })).toBeVisible();
+    await panel.getByRole("button", { name: "강의 추가", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "이 시험에 강의 추가" });
+    const selectSession = async (title: string, cutoff: string) => {
+      const choice = dialog.getByRole("radio", { name: title, exact: true });
+      await expect(dialog.locator("[data-lecture-chip-label]").filter({ hasText: title })).toBeVisible();
+      await choice.click();
+      await expect(choice).toBeChecked();
+      await dialog.getByRole("group", { name: "시험 차시 선택" }).getByRole("checkbox", { name: /8월 진단평가/ }).check();
+      await dialog.getByRole("spinbutton").fill(cutoff);
+    };
+    const search = dialog.getByRole("searchbox", { name: "강의 검색" });
+    if (width === 1366) {
+      await expect(dialog.getByRole("radio")).toHaveCount(6);
+      await search.fill("심화");
+      await expect(dialog.getByRole("radio")).toHaveCount(1);
+      await selectSession("C학교 강의", "65");
+      await expect(dialog.getByRole("button", { name: "1개 차시 연결" })).toBeEnabled();
+      await search.fill("D학교");
+      await search.press("Enter");
+      await expect(dialog.getByRole("radio")).toHaveCount(1);
+      await expect(dialog.getByRole("radio", { name: "D학교 강의", exact: true })).toBeVisible();
+      expect(writes).toEqual([]);
+    } else {
+      await expect(search).toHaveCount(0);
+      await selectSession("C학교 강의", "65");
+      await dialog.getByRole("button", { name: "선택한 차시 담고 다른 강의 고르기" }).click();
+    }
+    await selectSession("D학교 강의", "72");
+    const queued = dialog.getByRole("list", { name: "연결 예정 차시" }).getByRole("listitem");
+    await expect(queued).toHaveCount(1);
+    await expect(queued).toContainText("C학교 강의 · 8월 진단평가 · 귀가 기준 65점");
+    expect(writes).toEqual([]);
+    await expect(dialog.getByRole("button", { name: "2개 차시 연결" })).toBeEnabled();
+    const dialogImage = testInfo.outputPath(`shared-lecture-picker-${width}.png`);
+    await dialog.screenshot({ path: dialogImage });
+    await testInfo.attach(`공유-강의-선택-${width}`, { path: dialogImage, contentType: "image/png" });
+    await dialog.getByRole("button", { name: "2개 차시 연결" }).click();
+    await expect(dialog).toBeHidden();
+    expect(writes).toEqual([{ session_id: 3001, pass_score: 65 }, { session_id: 4001, pass_score: 72 }]);
+
+    await page.reload();
+    await openAssessmentWorkAction(page, "audience", "lectures");
+    await expect(panel.getByText("3개 강의", { exact: true })).toBeVisible();
+    for (const [name, cutoff] of [["고1 Hyper 정규반", "80"], ["C학교 강의", "65"], ["D학교 강의", "72"]]) {
+      await expect(panel.getByRole("spinbutton", { name: `${name} 귀가 기준 점수` })).toHaveValue(cutoff);
+    }
+    const audience = page.locator('[data-stage="audience"]');
+    const audienceImage = testInfo.outputPath(`shared-exam-audience-${width}.png`);
+    await audience.screenshot({ path: audienceImage });
+    await testInfo.attach(`공유-시험-1단계-${width}`, { path: audienceImage, contentType: "image/png" });
+  });
+}
+
 test("대상 미배정·원본 검수·일반 시험의 첫 단계와 수동 선택을 보존한다", async ({ page }) => {
   const state = recoveryExamState();
   state.selectedEnrollmentIds = [];
