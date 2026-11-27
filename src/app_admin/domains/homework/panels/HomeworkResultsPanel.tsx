@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useAdminHomework } from "../hooks/useAdminHomework";
 import { EmptyState, Badge, Button } from "@/shared/ui/ds";
 import { fetchSessionScores, type SessionScoreHomeworkEntry } from "@/shared/api/contracts/sessionScores";
@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getHomeworkStatus, homeworkStatusLabel, type HomeworkStatus, type HomeworkMetaStatus } from "@/shared/scoring/homeworkStatus";
 import { useTenantLabels } from "@/shared/hooks/useTenantLabels";
 import HomeworkQuestionLedger from "./HomeworkQuestionLedger";
+import distributionStyles from "./HomeworkScoreDistribution.module.css";
 import { compareKoreanText, compareNullableNumbers } from "@/shared/utils/dataOrdering";
 
 type HomeworkResultRow = {
@@ -260,27 +261,24 @@ export default function HomeworkResultsPanel({ homeworkId, focusSection }: {
               <p>{completion ? "판정 방식: O 통과 · X 미통과" : `커트라인: ${cutlineLabel}`}</p>
               <p className="text-xs">실제 파일 제출 여부는 제출관리에서 확인하세요.</p>
               {!completion && scoresForHistogram.length > 0 && (
-                <div className="space-y-2">
+                <div className={distributionStyles.distribution}>
                   <div className="text-sm font-semibold text-[var(--color-text-primary)]">점수 분포 (%)</div>
-                  <div className="grid grid-cols-5 items-end gap-1 rounded border border-[var(--color-border-divider)] bg-[var(--color-bg-surface-soft)] p-3">
+                  <ul aria-label="점수 구간별 인원" className={distributionStyles.buckets}>
                     {histogram.map((h) => (
-                      <div key={h.label} className="flex min-w-0 flex-col items-center gap-1" title={`${h.label}: ${h.count}명`}>
-                        <div
-                          className="w-full min-h-[4px] rounded-t"
-                          // eslint-disable-next-line no-restricted-syntax
-                          style={{
-                            height: maxHist > 0 ? `${(h.count / maxHist) * 80}px` : 0,
-                            background: "var(--color-primary)",
-                          }}
+                      <li key={h.label} title={`${h.label}: ${h.count}명`}>
+                        <span
+                          aria-hidden="true"
+                          className={distributionStyles.bar}
+                          style={{ "--fraction": h.count / maxHist } as CSSProperties}
                         />
-                        <span className="flex h-8 flex-col justify-center text-center text-[10px] leading-4 text-[var(--color-text-muted)]">
-                          <span className="whitespace-nowrap">{h.min} {h.min === 0 ? "이상" : "초과"}</span>
-                          <span className="whitespace-nowrap">{h.max} 이하</span>
+                        <span className={distributionStyles.range}>
+                          <span>{h.min} {h.min === 0 ? "이상" : "초과"}</span>{" "}
+                          <span>{h.max} 이하</span>
                         </span>
-                        <span className="text-xs font-medium">{h.count}</span>
-                      </div>
+                        <strong className={distributionStyles.count}>{h.count}명</strong>
+                      </li>
                     ))}
-                  </div>
+                  </ul>
                 </div>
               )}
             </div>

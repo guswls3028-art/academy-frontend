@@ -1,0 +1,28 @@
+.distribution { container-type: inline-size; }
+
+.buckets {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: end;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 12px;
+  list-style: none;
+  border: 1px solid var(--color-border-divider);
+  border-radius: 6px;
+  background: var(--color-bg-surface-soft);
+}
+
+.buckets li { display: grid; min-width: 0; text-align: center; gap: 4px; }
+.range { display: grid; color: var(--color-text-secondary); font-size: 12px; line-height: 1.4; }
+.range span { white-space: nowrap; }
+.count { font-size: 12px; font-variant-numeric: tabular-nums; }
+.bar { height: calc(var(--fraction) * 80px); background: var(--color-primary); border-radius: 3px 3px 0 0; }
+
+@container (max-width: 320px) {
+  .buckets { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .buckets li { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; text-align: start; }
+  .range { display: flex; flex-wrap: wrap; gap: 0 4px; grid-row: 1; grid-column: 1; }
+  .count { grid-row: 1; grid-column: 2; }
+  .bar { grid-column: 1 / -1; grid-row: 2; width: calc(var(--fraction) * 100%); height: 5px; border-radius: 3px; }
+}

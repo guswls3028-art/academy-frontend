@@ -676,14 +676,24 @@ test("@homework-results 점수형 소수점 경계는 분포에서 누락되지 
   await distribution.scrollIntoViewIfNeeded();
   expect(await distribution.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-  const bars = await distribution.locator('[title]').evaluateAll(nodes => nodes.map(node => {
-    const rect = node.firstElementChild!.getBoundingClientRect();
-    return { height: rect.height, bottom: rect.bottom };
+  const buckets = distribution.getByRole("listitem");
+  const layout = () => buckets.evaluateAll(nodes => nodes.map(node => {
+    const bar = node.querySelector('[aria-hidden="true"]')!.getBoundingClientRect();
+    const range = node.children[1].getBoundingClientRect();
+    const count = node.querySelector("strong")!.getBoundingClientRect();
+    return { width: bar.width, height: bar.height, bottom: bar.bottom, textFits: range.right <= count.left + 1 };
   }));
-  expect(bars).toHaveLength(5);
-  expect(Math.max(...bars.map(bar => bar.height)) - Math.min(...bars.map(bar => bar.height))).toBeLessThanOrEqual(1);
-  expect(Math.max(...bars.map(bar => bar.bottom)) - Math.min(...bars.map(bar => bar.bottom))).toBeLessThanOrEqual(1);
+  await expect(buckets).toHaveCount(5);
+  const mobile = await layout();
+  expect(mobile.every((bar, i) => bar.textFits && bar.width > bar.height &&
+    Math.abs(bar.width - mobile[0].width) <= 1 && (i === 0 || bar.bottom > mobile[i - 1].bottom))).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("score-distribution-390.png"), animations: "disabled" });
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await expect.poll(async () => {
+    const desktop = await layout();
+    return desktop.length === 5 && desktop.every(bar => bar.height > 0 &&
+      Math.abs(bar.height - desktop[0].height) <= 1 && Math.abs(bar.bottom - desktop[0].bottom) <= 1);
+  }).toBe(true);
 });
 
 test("@homework-results 전원 미입력은 제출률100% 대신 실제 입력 현황을 표시한다", async ({ page }) => {
