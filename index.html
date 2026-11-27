@@ -261,9 +261,9 @@
           if (!apple) {
             apple = document.createElement("link");
             apple.setAttribute("rel", "apple-touch-icon");
+            apple.setAttribute("href", cfg.a);
             document.head.appendChild(apple);
           }
-          apple.setAttribute("href", cfg.a);
         }
         /* OG image */
         if (cfg.i && !godminPublic) {

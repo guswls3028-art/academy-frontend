@@ -37,7 +37,7 @@ function documentRequest(host: string, pathname: string) {
 
 test("HakwonPlus browser defaults and crawler HTML use the published logo before JavaScript", async () => {
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => Response.json({ title: "학원플러스", tenant_code: "hakwonplus" });
+  globalThis.fetch = async () => new Response(null, { status: 503 });
   const root = "/tenants/hakwonplus/";
   const version = "?v=20261119";
   try {
@@ -51,11 +51,14 @@ test("HakwonPlus browser defaults and crawler HTML use the published logo before
         expect(response.status).toBe(307);
         expect(response.headers.get("Location")).toBe(`https://${host}${root}${file}${version}`);
       }
-      for (const path of ["/", "/promo", "/workspace/dashboard"]) {
+      for (const path of ["/", "/promo", "/login", "/workspace/dashboard"]) {
         const html = await (await documentRequest(host, path)).text();
         expect(html).toContain(`rel="icon" href="${root}favicon.png${version}"`);
+        expect(html.match(/<link rel="apple-touch-icon"[^>]*>/g)).toEqual([
+          `<link rel="apple-touch-icon" href="${root}apple-touch-icon.png${version}" sizes="180x180" />`,
+        ]);
         expect(html).toContain(`property="og:image" content="https://${host}${root}og-image.png${version}"`);
-        if (path !== "/workspace/dashboard") {
+        if (path === "/" || path === "/promo") {
           const schema = html.match(/<script[^>]*id="platform-organization"[^>]*>([^<]+)<\/script>/);
           expect(JSON.parse(schema![1])).toMatchObject({
             "@type": "Organization", logo: `https://hakwonplus.com${root}pwa-512.png${version}`,
@@ -64,6 +67,50 @@ test("HakwonPlus browser defaults and crawler HTML use the published logo before
       }
     }
     expect((await manifestRequest("tchul.com", "/favicon.ico")).headers.has("Location")).toBe(false);
+    expect(await (await documentRequest("tchul.com", "/")).text()).not.toContain('<link rel="apple-touch-icon"');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+// The fixture serves a www document directly. Worker installation would bypass page.route.
+const isolatedPageTest = test.extend({ serviceWorkers: "block" });
+isolatedPageTest("HakwonPlus keeps uploaded search icons through public page boot", async ({ page }) => {
+  const originalFetch = globalThis.fetch;
+  const custom = "https://cdn.example/academy/logo.png?v=4&size=large";
+  globalThis.fetch = async (input) => Response.json({
+    title: "학원플러스",
+    tenant_code: "hakwonplus",
+    favicon: custom,
+    // Older metadata may contain only the uploaded favicon.
+    apple_touch_icon: new URL(String(input)).searchParams.get("hostname") === "www.hakwonplus.com"
+      ? custom + "&touch=1"
+      : undefined,
+  });
+  try {
+    for (const host of ["hakwonplus.com", "www.hakwonplus.com"]) {
+      const expected = host.startsWith("www.") ? custom + "&touch=1" : custom;
+      for (const path of ["/login", "/promo"]) {
+        const html = await (await documentRequest(host, path)).text();
+        expect(html.match(/<link rel="apple-touch-icon"[^>]*>/g)).toEqual([
+          `<link rel="apple-touch-icon" href="${expected.replaceAll("&", "&amp;")}" />`,
+        ]);
+      }
+    }
+    const html = await (await documentRequest("www.hakwonplus.com", "/login")).text();
+    const origin = "https://www.hakwonplus.com";
+    await page.route("**/*", route => {
+      const request = route.request();
+      if (new URL(request.url()).origin !== origin) return route.abort();
+      return request.isNavigationRequest()
+        ? route.fulfill({ contentType: "text/html", body: html })
+        : route.fulfill({ contentType: "application/javascript", body: "" });
+    });
+    await page.goto(origin + "/login");
+    await expect(page).toHaveTitle("학원플러스 | 학원의 수업과 운영을 한 흐름으로");
+    const icon = page.locator('head link[rel="apple-touch-icon"]');
+    await expect(icon).toHaveCount(1);
+    await expect(icon).toHaveAttribute("href", custom + "&touch=1");
   } finally {
     globalThis.fetch = originalFetch;
   }

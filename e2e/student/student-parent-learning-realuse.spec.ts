@@ -2,6 +2,7 @@
  * Lecture, attendance, video-progress, and materials projection for a student
  * and the same child's parent. All records are synthetic and tenant-local.
  */
+import { writeFile } from "node:fs/promises";
 import { expect, test } from "../fixtures/strictTest";
 import type { APIRequestContext, Page, TestInfo } from "@playwright/test";
 import {
@@ -32,6 +33,7 @@ import { emitLearningFlowFailure, verifyAttendanceExcel, type LearningFlowPhase 
 import { verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
 import { guardUnmockedYouTubeRequests, installYouTubeSdkFixture } from "../helpers/youtubeSdkFixture";
 import { cleanupExcelEnrollment, verifyExcelEnrollment, type ExcelEnrollmentState } from "./excelEnrollmentRealuse";
+import { verifyWithdrawnSessionVideos, type SessionVideoFixture } from "./withdrawnSessionVideosRealuse";
 
 test.setTimeout(300_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -45,9 +47,50 @@ type CreatedState = {
   sessionEnrollmentIds: number[];
   attendanceIds: number[];
   videoId?: number;
+  additionalSessions: SessionVideoFixture[];
   materialId?: number;
   excel: ExcelEnrollmentState;
 };
+
+async function verifyTeacherSessionRestoreUndo(
+  teacherPage: Page, request: APIRequestContext, access: string, studentName: string,
+): Promise<void> {
+  const rowPath = `/lectures/attendance/${created.attendanceIds[0]}/`;
+  const select = async (label: string) => {
+    await teacherPage.getByText(studentName, { exact: true }).click();
+    await teacherPage.getByRole("dialog", { name: "출석 상태", exact: true })
+      .getByRole("button", { name: label, exact: true }).click();
+  };
+  const confirm = async (label: string, expected: Record<string, unknown>) => {
+    const [saved] = await Promise.all([
+      teacherPage.waitForResponse(response => response.request().method() === "PATCH"
+        && new URL(response.url()).pathname === `/api/v1${rowPath}`),
+      teacherPage.getByRole("button", { name: label, exact: true }).click(),
+    ]);
+    expect(saved.status()).toBe(200);
+    expect(saved.request().postDataJSON()).toEqual(expected);
+  };
+  const withdraw = { status: "SECESSION", confirm_secession: true, secession_scope: "session" };
+  await select("퇴원");
+  await confirm("이 차시만 퇴원", withdraw);
+  await expect(teacherPage.getByText("기타 1", { exact: true })).toBeVisible();
+  await select("영상");
+  await confirm("복구하고 영상 저장", { status: "ONLINE", restore_scope: "session" });
+  await teacherPage.getByRole("button", { name: "되돌리기", exact: true }).click();
+  await expect(teacherPage.getByRole("button", { name: "강의 전체 퇴원", exact: true })).toHaveCount(0);
+  await confirm("이 차시만 퇴원", withdraw);
+  await teacherPage.reload();
+  await expect(teacherPage.getByText("기타 1", { exact: true })).toBeVisible();
+  expect(await expectApi(request, "GET", rowPath, access)).toMatchObject({
+    id: created.attendanceIds[0], status: "SECESSION", enrollment_status: "ACTIVE",
+  });
+  await select("현장");
+  await confirm("복구하고 현장 저장", { status: "PRESENT", restore_scope: "session" });
+  const members = await expectApi<Array<{ id: number; enrollment: number }>>(request, "GET",
+    `/enrollments/session-enrollments/?session=${created.sessionId}`, access);
+  expect(members.map(row => row.enrollment).sort()).toEqual([...created.enrollmentIds].sort());
+  created.sessionEnrollmentIds = members.map(row => row.id);
+}
 
 const created: CreatedState = {
   family: null,
@@ -55,6 +98,7 @@ const created: CreatedState = {
   enrollmentIds: [],
   sessionEnrollmentIds: [],
   attendanceIds: [],
+  additionalSessions: [],
   excel: { sessionIds: [] },
 };
 
@@ -72,6 +116,38 @@ async function verifyBrandHomeFromAttendance(page: Page, attendance: string, chi
   const publicResources = `${QA_BASE}/landing/resources`;
   const publicHeading = page.getByRole("heading", { level: 1, name: "게시판", exact: true });
   const publicBrand = page.locator("header").getByRole("link", { name: /게시판$/ });
+  const scope = { origin: new URL(QA_BASE).origin, tenant: QA_TENANT };
+
+  // The release bundle runs on loopback. Mirror its UI-login tenant into the public site's hostname override.
+  const tenantBound = await page.evaluate(({ origin, tenant }) => {
+    if (location.origin !== origin || sessionStorage.getItem("tenantCode") !== tenant) return false;
+    const existing = localStorage.getItem("tenant_code");
+    if (existing !== null && existing !== tenant) return false;
+    localStorage.setItem("tenant_code", tenant);
+    return true;
+  }, scope);
+  async function recordPublicHomeFailure(error: unknown): Promise<never> {
+    try {
+      const observation = await page.evaluate(({ origin, tenant }) => {
+        const routes: Record<string, string> = {
+          "/landing/resources": "public-board", "/promo": "promo", "/": "root",
+          "/student": "student", "/student/dashboard": "student-home", "/student/attendance": "attendance",
+        };
+        return {
+          route: location.origin === origin ? routes[location.pathname] ?? "other" : "other-origin",
+          publicTenantMatches: localStorage.getItem("tenant_code") === tenant,
+          sessionTenantMatches: sessionStorage.getItem("tenantCode") === tenant,
+        };
+      }, scope);
+      await writeFile(test.info().outputPath("public-home-routing.json"), JSON.stringify(observation));
+    } catch {
+      // Keep the original assertion if the page or test output is already unavailable.
+    }
+    throw error;
+  }
+  if (!tenantBound) {
+    await recordPublicHomeFailure(new Error("Public site and UI login must use the same isolated tenant"));
+  }
 
   async function expectFamilyHome() {
     await expect(page).toHaveURL(`${QA_BASE}/student/dashboard`);
@@ -94,6 +170,7 @@ async function verifyBrandHomeFromAttendance(page: Page, attendance: string, chi
     });
     await test.step(`${childName ? "학부모" : "학생"} ${width}px 공개 게시판 로고에서 역할 홈과 원래 명단으로 복귀`, async () => {
       await gotoAndSettle(page, publicResources);
+      await expect(page).toHaveURL(publicResources);
       await expect(publicHeading).toBeVisible();
       await expect(publicBrand).toHaveAttribute("href", "/");
       if (width === 1366) {
@@ -110,7 +187,7 @@ async function verifyBrandHomeFromAttendance(page: Page, attendance: string, chi
       await page.goBack();
       await expect(page).toHaveURL(previous);
       await expect(record).toContainText(attendance);
-    });
+    }).catch(recordPublicHomeFailure);
   }
 }
 
@@ -168,8 +245,11 @@ async function cleanup(request: APIRequestContext): Promise<void> {
 
   if (created.materialId) await remove("DELETE", `/community/posts/${created.materialId}/`);
   if (created.videoId) await remove("DELETE", `/media/videos/${created.videoId}/`);
+  for (const { videoId } of created.additionalSessions) {
+    if (videoId) await remove("DELETE", `/media/videos/${videoId}/`);
+  }
   for (const id of created.attendanceIds) await remove("DELETE", `/lectures/attendance/${id}/`);
-  for (const id of created.sessionEnrollmentIds) {
+  for (const id of new Set(created.sessionEnrollmentIds)) {
     await remove("DELETE", `/enrollments/session-enrollments/${id}/`);
   }
   for (const id of created.enrollmentIds) await remove("DELETE", `/enrollments/${id}/`);
@@ -177,6 +257,9 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   // The fixed isolated-tenant cleanup removes those protected ancestors and proves zero residue.
   if (!created.videoId && created.sessionId) {
     await remove("DELETE", `/lectures/sessions/${created.sessionId}/`);
+  }
+  for (const { sessionId, videoId } of created.additionalSessions) {
+    if (!videoId) await remove("DELETE", `/lectures/sessions/${sessionId}/`);
   }
   if (!created.videoId && created.lectureId) {
     await remove("DELETE", `/lectures/lectures/${created.lectureId}/`);
@@ -186,6 +269,9 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   for (const [label, path] of [
     ...(created.materialId ? [[`material ${created.materialId}`, `/community/posts/${created.materialId}/`] as const] : []),
     ...(created.videoId ? [[`video ${created.videoId}`, `/media/videos/${created.videoId}/`] as const] : []),
+    ...created.additionalSessions.map(({ sessionId, videoId }) => videoId
+      ? [`video ${videoId}`, `/media/videos/${videoId}/`] as const
+      : [`session ${sessionId}`, `/lectures/sessions/${sessionId}/`] as const),
     ...(!created.videoId && created.sessionId ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const] : []),
     ...(!created.videoId && created.lectureId ? [[`lecture ${created.lectureId}`, `/lectures/lectures/${created.lectureId}/`] as const] : []),
   ]) {
@@ -419,6 +505,28 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
   const primaryOptions = enrollmentPage.getByRole("group", {
     name: family.students[0].name + " 출결 상태 선택", exact: true,
   });
+  for (const [scope, width] of [["session", 1366], ["lecture", 390]] as const) {
+    await enrollmentPage.setViewportSize({ width, height: 844 });
+    await primaryOptions.getByRole("button", { name: "퇴원", exact: true }).click();
+    const withdrawal = enrollmentPage.getByRole("dialog", { name: "퇴원 범위 선택" });
+    if (scope === "lecture") await withdrawal.getByRole("radio", { name: /강의 전체 퇴원/ }).check();
+    await withdrawal.getByRole("button", { name: scope === "lecture" ? "강의 전체 퇴원" : "이 차시만 퇴원", exact: true }).click();
+    await expect(primaryOptions.getByRole("button", { name: "퇴원" })).toHaveAttribute("aria-pressed", "true");
+    await primaryOptions.getByRole("button", { name: "지각", exact: true }).click();
+    const recovery = enrollmentPage.getByRole("alertdialog", { name: "수강을 복구할까요?" });
+    await expect(recovery).toContainText(scope === "lecture" ? "강의 수강을 다시 활성화" : "이 차시에 다시 등록");
+    await expect(recovery).toContainText("다른 퇴원 차시의 수강 영상은 계속 차단됩니다.");
+    await recovery.getByRole("button", { name: "복구하고 지각 저장" }).click();
+    await expect(primaryOptions.getByRole("button", { name: "지각" })).toHaveAttribute("aria-pressed", "true");
+    await enrollmentPage.reload({ waitUntil: "domcontentloaded" });
+    await expect(primaryOptions.getByRole("button", { name: "지각" })).toHaveAttribute("aria-pressed", "true");
+    const restored = await expectApi<{ id: number; status: string; enrollment_status: string }>(request, "GET", attendancePath, adminAccess);
+    expect(restored).toMatchObject({ id: created.attendanceIds[0], status: "LATE", enrollment_status: "ACTIVE" });
+    const members = await expectApi<Array<{ id: number; enrollment: number }>>(request, "GET",
+      `/enrollments/session-enrollments/?session=${created.sessionId}`, adminAccess);
+    expect(members.map(row => row.enrollment).sort()).toEqual([...created.enrollmentIds].sort());
+    created.sessionEnrollmentIds = members.map(row => row.id);
+  }
   for (const [width, updates] of [
     [1366, [["현장", "PRESENT"]]],
     [390, [["영상", "ONLINE"], ["현장", "PRESENT"]]],
@@ -634,6 +742,9 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
         await expect(teacherPage.getByText("총 2명", { exact: true })).toBeVisible();
         await expect(teacherPage.getByText("결석 1", { exact: true })).toBeVisible();
         await assertNoHorizontalOverflow(teacherPage);
+        if (width === 390) {
+          await verifyTeacherSessionRestoreUndo(teacherPage, request, admin.access, primary.name);
+        }
         teacherPhase = "teacher-session-summary";
         await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/mobile/classes/${created.lectureId}/sessions/${created.sessionId}`, { timeout: 30_000 });
         await expect(teacherPage.getByRole("button").filter({ has: teacherPage.getByText(primary.name, { exact: true }) })).toContainText("현장");
@@ -840,6 +951,12 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await page.getByRole("button", { name: "자료실" }).click();
     await expect(page.getByText(materialTitle, { exact: true })).toBeVisible();
     await assertNoHorizontalOverflow(page);
+    await test.step("1·2차시 퇴원 후 3차시 영상만 학생과 선택 학부모에게 제공한다", () =>
+      verifyWithdrawnSessionVideos(request, {
+        lectureId: created.lectureId!, enrollmentId: created.enrollmentIds[0], studentId: primary.id,
+        first: { sessionId: created.sessionId!, attendanceId: created.attendanceIds[0], videoId: created.videoId! },
+        admin: admin.access, student: primaryTokens.access, parent: parentTokens.access, date: todayKst, cleanup: created,
+      }));
     boundary.assertClean();
     browser.assertZeroDefects();
     expect(unexpectedYouTubeRequests).toEqual([]);
