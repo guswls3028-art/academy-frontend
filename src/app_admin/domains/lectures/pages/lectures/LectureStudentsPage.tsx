@@ -4,7 +4,7 @@
 // R-11 legacy baseline: existing inline styles stay frozen; new styles use className/DS tokens.
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { useLocation, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { compareKoreanText } from "@/shared/utils/dataOrdering";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
@@ -117,6 +117,9 @@ export default function LectureStudentsPage() {
     enabled: validLectureId,
   });
   const lecture = lectureQ.data;
+  const enrollmentIds = useMemo(() => new Map(
+    (enrollmentsQ.data ?? []).map((enrollment) => [enrollment.student?.id, enrollment.id]),
+  ), [enrollmentsQ.data]);
   const isLoading = matrixQ.isLoading || lectureQ.isLoading || enrollmentsQ.isLoading;
   const isError = matrixQ.isError || lectureQ.isError || enrollmentsQ.isError;
 
@@ -464,6 +467,7 @@ export default function LectureStudentsPage() {
                         </td>
                         {visibleSessions.map((s) => {
                           const cell = row.attendance?.[String(s.id)];
+                          const enrollmentId = enrollmentIds.get(row.student_id);
                           return (
                             <td
                               key={s.id}
@@ -471,7 +475,14 @@ export default function LectureStudentsPage() {
                               style={{ width: sessionColWidth }}
                               onClick={(e) => e.stopPropagation()}
                             >
-                              {cell?.status ? (
+                              {cell?.status === "SECESSION" && enrollmentId ? (
+                                <Link to={`/workspace/lectures/${lectureIdNum}/sessions/${s.id}/attendance?enrollment=${enrollmentId}`}
+                                  className="inline-flex min-h-10 w-full items-center justify-center rounded focus-visible:outline"
+                                  aria-label={`${row.displayName ?? row.name} ${formatSessionBlockLabel(s)} 퇴원 출결 변경`}
+                                  title="이 차시의 출결에서 수강 복구">
+                                  <AttendanceStatusBadge status="SECESSION" variant="1ch" />
+                                </Link>
+                              ) : cell?.status ? (
                                 <AttendanceStatusBadge status={cell.status as AttendanceStatus} variant="1ch" />
                               ) : (
                                 <span className="text-[var(--color-text-muted)] text-[10px]">－</span>

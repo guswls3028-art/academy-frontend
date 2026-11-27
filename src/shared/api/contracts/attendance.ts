@@ -71,9 +71,10 @@ export type AttendanceListItem = Record<string, unknown> & AttendanceMemoFields 
 
 export async function fetchAttendance(
   sessionId: number,
-  options?: { page?: number; page_size?: number; search?: string; status?: string; ordering?: string; schedule?: string | number }
+  options?: { page?: number; page_size?: number; search?: string; status?: string; ordering?: string; schedule?: string | number; enrollment?: number }
 ): Promise<AttendanceListResponse> {
   const params: Record<string, string | number> = { session: sessionId };
+  if (options?.enrollment !== undefined) params.enrollment = options.enrollment;
   if (options?.schedule !== undefined) params.schedule = options.schedule;
   if (options?.page != null) params.page = options.page;
   if (options?.page_size != null) params.page_size = options.page_size;
