@@ -13552,6 +13552,7 @@ export interface components {
         BankTransferNotice: {
             /** @description 확인 대상 청구 금액 */
             readonly amount: number;
+            readonly automatic_receipt: boolean;
             /** @description 세금계산서 요청 시 사업자 정보 스냅샷 */
             readonly business_profile_snapshot: unknown;
             /**
@@ -13572,6 +13573,9 @@ export interface components {
             readonly period_end: string;
             /** Format: date */
             readonly period_start: string;
+            readonly receipt_error: string;
+            readonly receipt_kind: string;
+            readonly receipt_provider_state: number;
             readonly rejection_reason: string;
             /** Format: date-time */
             readonly reviewed_at: string | null;
@@ -13599,6 +13603,19 @@ export interface components {
          * @enum {string}
          */
         BankTransferNoticeStatusEnum: "SUBMITTED" | "CONFIRMED" | "REJECTED";
+        BankTransferNoticeSubmitRequest: {
+            /** Format: date-time */
+            deposited_at: string;
+            depositor_name: string;
+            invoice_id: number;
+            receipt_kind?: components["schemas"]["ReceiptKindEnum"];
+            /** Format: email */
+            recipient_email?: string;
+            recipient_identifier?: string;
+            recipient_name?: string;
+            /** @default false */
+            tax_invoice_requested: boolean;
+        };
         BatchDownload: {
             filename: string;
             /** Format: uri */
@@ -19091,6 +19108,14 @@ export interface components {
             student_id: number;
         };
         /**
+         * @description * `NONE` - NONE
+         *     * `BUSINESS_TAX` - BUSINESS_TAX
+         *     * `PERSONAL_TAX` - PERSONAL_TAX
+         *     * `CASH` - CASH
+         * @enum {string}
+         */
+        ReceiptKindEnum: "NONE" | "BUSINESS_TAX" | "PERSONAL_TAX" | "CASH";
+        /**
          * @description * `CARD` - CARD
          *     * `BANK_TRANSFER` - BANK_TRANSFER
          *     * `CASH` - CASH
@@ -22268,12 +22293,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description No response body */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["BankTransferNotice"];
+                };
             };
         };
     };
@@ -22481,14 +22507,21 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BankTransferNoticeSubmitRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["BankTransferNoticeSubmitRequest"];
+                "multipart/form-data": components["schemas"]["BankTransferNoticeSubmitRequest"];
+            };
+        };
         responses: {
-            /** @description No response body */
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["BankTransferNotice"];
+                };
             };
         };
     };

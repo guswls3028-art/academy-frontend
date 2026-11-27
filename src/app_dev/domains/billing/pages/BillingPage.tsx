@@ -205,18 +205,22 @@ export default function BillingPage() {
   }
 
   async function handleConfirmTransfer(notice: BankTransferNoticeDto) {
+    const retryReceipt = notice.status === "CONFIRMED";
+    const action = retryReceipt ? "증빙 발급 결과를 다시 조회하고 필요하면 발급" : "입금 확인";
     const accepted = confirm(
-      `${notice.invoice_number} 입금을 확인하시겠습니까?\n` +
+      `${notice.invoice_number} ${action}을 진행할까요?\n` +
       `테넌트: ${notice.tenant_name || notice.tenant_code}\n` +
       `입금자: ${notice.depositor_name}\n` +
       `금액: ${wonText(notice.amount)}\n\n` +
-      "[LIVE] 확인 즉시 실제 구독 기간과 수납 장부에 반영됩니다.",
+      (notice.automatic_receipt
+        ? `입금 확인 후 팝빌에서 ${notice.receipt_kind === "CASH" ? "현금영수증" : "전자세금계산서"} 발급을 처리합니다.`
+        : "확인 즉시 구독 기간과 수납 장부에 반영됩니다."),
     );
     if (!accepted) return;
     try {
-      await confirmTransferMut.mutateAsync(notice.id);
+      const result = await confirmTransferMut.mutateAsync(notice.id);
       setBankTransferPage(1);
-      toast(`${notice.invoice_number} 입금 확인 완료`);
+      toast(result.tax_invoice_status === "FAILED" ? "수납 완료 · 증빙 발급 결과를 확인해 주세요." : `${notice.invoice_number} ${retryReceipt ? "발급 상태 갱신" : "입금 확인 완료"}`);
     } catch (error: unknown) {
       const err = error as { response?: { data?: { detail?: string } } };
       toast(
@@ -595,7 +599,7 @@ export default function BillingPage() {
                       <th>금액</th>
                       <th>이체 시각</th>
                       <th>상태</th>
-                      <th>세금계산서</th>
+                      <th>결제 증빙</th>
                       <th>조작</th>
                     </tr>
                   </thead>
@@ -630,10 +634,20 @@ export default function BillingPage() {
                         </td>
                         <td>
                           <TaxStatusBadge
+                            automatic={notice.automatic_receipt}
                             requested={notice.tax_invoice_requested}
                             status={notice.tax_invoice_status}
                           />
-                          {notice.tax_invoice_requested && (
+                          {notice.automatic_receipt && (
+                            <div className={b.taxDetails}>
+                              <span>{notice.receipt_kind === "CASH" ? "현금영수증" : "전자세금계산서"} · 팝빌</span>
+                              {notice.tax_invoice_issue_number && <div>승인번호 {notice.tax_invoice_issue_number}</div>}
+                              {notice.receipt_provider_state === 304 && <div>국세청 전송 완료</div>}
+                              {notice.receipt_kind === "CASH" && notice.status === "SUBMITTED" && <div>입금일 다음 날까지 확인해 주세요.</div>}
+                              {notice.receipt_error && <div role="status">{notice.receipt_error}</div>}
+                            </div>
+                          )}
+                          {notice.tax_invoice_requested && (!notice.automatic_receipt || notice.receipt_kind === "BUSINESS_TAX") && (
                             <details className={b.taxDetails}>
                               <summary>발행정보</summary>
                               <div>
@@ -677,7 +691,11 @@ export default function BillingPage() {
                                 </button>
                               </>
                             )}
-                            {notice.tax_invoice_status === "READY" &&
+                            {notice.automatic_receipt && notice.status === "CONFIRMED" && notice.receipt_provider_state !== 304 && (
+                              <button className={`${s.btn} ${s.btnSm}`} disabled={confirmTransferMut.isPending}
+                                onClick={() => handleConfirmTransfer(notice)}>발급 상태 확인·재시도</button>
+                            )}
+                            {!notice.automatic_receipt && notice.tax_invoice_status === "READY" &&
                               notice.tax_invoice_issue_id && (
                                 <button
                                   className={`${s.btn} ${s.btnSm} ${s.btnPrimary}`}
@@ -859,16 +877,18 @@ function NoticeStatusBadge({ status }: { status: string }) {
 }
 
 function TaxStatusBadge({
+  automatic,
   requested,
   status,
 }: {
+  automatic?: boolean;
   requested: boolean;
   status: string;
 }) {
   if (!requested) return <span className={b.mutedSmallCell}>미요청</span>;
   const labels: Record<string, string> = {
     REQUESTED: "입금 대기",
-    READY: "발행 필요",
+    READY: automatic ? "팝빌 결과 확인 중" : "발행 필요",
     ISSUED: "발행 완료",
     FAILED: "발행 실패",
     NOT_REQUESTED: "미요청",

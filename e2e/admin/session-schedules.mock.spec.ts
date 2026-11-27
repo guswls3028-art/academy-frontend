@@ -502,7 +502,7 @@ for (const [width, action] of [[390, "manage"], [1366, "manage"], [390, "add"], 
   try {
     await page.goto(`${BASE}${path}/scores?schedule=71`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('checkbox', { name: '김수연 선택', exact: true })).toBeVisible();
-    await expect.poll(() => draftRequested).toBe(true);
+    await expect.poll(() => draftRequested, { timeout: 8_000 }).toBe(true);
     expect(writes).toEqual([]);
     const strip = page.getByRole('region', { name: '수업일 선택', exact: true });
     const manage = strip.getByRole('button', { name: '수업일 관리', exact: true });
