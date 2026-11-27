@@ -96,6 +96,10 @@ export default function SessionAttendancePage({
   const [toolsLocationKey, setToolsLocationKey] = useState<string | null>(null);
   const toolsOpen = requestedView === "tools" || toolsLocationKey === location.key;
   const listParams = new URLSearchParams(location.search);
+  const targetParam = listParams.get("enrollment");
+  const targetEnrollment = targetParam === null ? undefined : Number(targetParam);
+  const enrollmentFilter = targetParam !== null && (!/^\d+$/.test(targetParam) || !Number.isSafeInteger(targetEnrollment))
+    ? 0 : targetEnrollment;
   listParams.delete("view");
   const listPath = `${location.pathname}${listParams.size ? `?${listParams}` : ""}`;
   const contentRef = useRef<HTMLDivElement>(null);
@@ -135,7 +139,7 @@ export default function SessionAttendancePage({
   useEffect(() => {
     setSelectedIds([]);
     setPage(1);
-  }, [sessionId, schedule]);
+  }, [sessionId, schedule, enrollmentFilter]);
 
   useEffect(() => {
     setPage(1);
@@ -143,8 +147,9 @@ export default function SessionAttendancePage({
   }, [previousSortStorageKey, sortStorageKey]);
 
 
+  const rosterKey = adminLectureQueryKeys.attendance(sessionId, page, search, statusFilter, sort, schedule);
   const { data: attendanceResult, isLoading, isError, isFetching, refetch } = useQuery({
-    queryKey: adminLectureQueryKeys.attendance(sessionId, page, search, statusFilter, sort, schedule),
+    queryKey: enrollmentFilter === undefined ? rosterKey : [...rosterKey, enrollmentFilter],
     queryFn: () =>
       fetchAttendance(sessionId, {
         page,
@@ -153,6 +158,7 @@ export default function SessionAttendancePage({
         status: statusFilter || undefined,
         ordering: sort,
         schedule,
+        enrollment: enrollmentFilter,
       }),
     enabled: Number.isFinite(sessionId),
   });
@@ -665,7 +671,14 @@ export default function SessionAttendancePage({
       <DomainListToolbar
         totalLabel={isLoading ? "…" : `총 ${totalCount}명`}
         searchSlot={
-          <input
+          enrollmentFilter !== undefined ? (
+            <Button type="button" intent="secondary" size="sm" onClick={() => {
+              const params = new URLSearchParams(location.search);
+              params.delete("enrollment");
+              setPage(1);
+              navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash }, { replace: true });
+            }}>전체 명단 보기</Button>
+          ) : <input
             className="ds-input"
             placeholder="이름 / 전화번호 검색"
             value={searchInput}
@@ -684,17 +697,17 @@ export default function SessionAttendancePage({
             scope="panel"
             tone="empty"
             title={
-              totalCount === 0 && !search && !statusFilter
+              enrollmentFilter !== undefined ? "선택한 학생의 출결이 보이지 않습니다." : totalCount === 0 && !search && !statusFilter
                 ? "이 차시에 수강생이 없습니다."
                 : "검색 결과가 없습니다."
             }
             description={
-              totalCount === 0 && !search && !statusFilter
+              enrollmentFilter !== undefined ? "출결 필터를 확인하거나 전체 명단을 열어 주세요." : totalCount === 0 && !search && !statusFilter
                 ? "위 '수강생 등록' 버튼으로 추가해 주세요."
                 : "검색어나 필터를 변경해 보세요."
             }
             actions={
-              totalCount === 0 && !search && !statusFilter && onOpenEnrollModal ? (
+              enrollmentFilter === undefined && totalCount === 0 && !search && !statusFilter && onOpenEnrollModal ? (
                 <Button type="button" intent="primary" onClick={onOpenEnrollModal}>
                   수강생 등록
                 </Button>

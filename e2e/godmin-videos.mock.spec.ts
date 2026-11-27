@@ -93,12 +93,17 @@ async function prepare(page: Page, publisher = false, published = false, authent
   const address = server.address(); if (!address || typeof address === "string") throw new Error("Missing mock port");
   const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString("base64url");
   const token = `${encode({ alg: "none" })}.${encode({ exp: Math.floor(Date.now() / 1000) + 3600, tenant_code: "godmin", user_id: 501 })}.sig`;
-  await page.addInitScript(({ origin, token, authenticated }) => {
-    localStorage.setItem("tenant_code", "godmin"); sessionStorage.setItem("tenantCode", "godmin");
-    if (authenticated) { localStorage.setItem("access", token); localStorage.setItem("refresh", `${token}-refresh`); }
+  const appOrigin = new URL(BASE).origin;
+  const storage = [{ name: "tenant_code", value: "godmin" }];
+  if (authenticated) storage.push({ name: "access", value: token }, { name: "refresh", value: `${token}-refresh` });
+  // Expiry clears these initial credentials. A fresh login document must keep them cleared.
+  await page.context().setStorageState({ cookies: [], origins: [{ origin: appOrigin, localStorage: storage }] });
+  await page.addInitScript(({ origin, appOrigin }) => {
+    if (location.origin !== appOrigin) return;
+    sessionStorage.setItem("tenantCode", "godmin");
     const open = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function(method, value, ...rest) { const url = new URL(String(value), location.href); return Reflect.apply(open, this, [method, url.pathname.startsWith("/api/v1/") ? `${origin}${url.pathname}${url.search}` : value, ...rest]); };
-  }, { origin: `http://127.0.0.1:${address.port}`, token, authenticated });
+  }, { origin: `http://127.0.0.1:${address.port}`, appOrigin });
   await page.route("https://www.youtube.com/embed/**", (route) => route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Mock native player boundary</title><button>Play</button>" }));
   await page.route("https://i.ytimg.com/**", (route) => route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360"><rect width="480" height="360" fill="#276756"/></svg>' }));
   return state;
@@ -109,8 +114,12 @@ async function noOverflow(page: Page) { expect(await page.evaluate(() => documen
 async function expectNoSessionTokens(page: Page) {
   expect(await page.evaluate(() => {
     const generation = localStorage.getItem("academy:auth-active-generation:v1");
-    return generation ? localStorage.getItem(`academy:auth-tokens:v1:${generation}`) : null;
-  })).toBeNull();
+    return {
+      active: Boolean(generation && localStorage.getItem(`academy:auth-tokens:v1:${generation}`)),
+      legacyAccess: localStorage.getItem("access") !== null,
+      legacyRefresh: localStorage.getItem("refresh") !== null,
+    };
+  })).toEqual({ active: false, legacyAccess: false, legacyRefresh: false });
 }
 
 for (const width of [1366, 390]) {
@@ -140,6 +149,7 @@ for (const width of [1366, 390]) {
     await page.goto(`${BASE}/landing/admin/videos/new`);
     await page.waitForURL(`${BASE}/login/godmin`, { waitUntil: "commit", timeout: 30_000 });
     await expect(page.getByRole("form", { name: "로그인 폼" })).toBeVisible();
+    await expectNoSessionTokens(page);
     expect(await page.evaluate(() => sessionStorage.getItem("session_return_path"))).toBe("/landing/admin/videos/new");
     await expect(page.getByLabel("01 · YouTube 링크", { exact: true })).toHaveCount(0);
   });
