@@ -138,7 +138,7 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   onActiveCellChange,
   onOpenExamGrading,
 }, ref) {
-  const { confirmSecession, secessionDialog } = useSecessionConfirm();
+  const { confirmSecession, confirmRestore, secessionDialog } = useSecessionConfirm();
   /**
    * Direct DOM focus/save handle. React callback ref의 null 해제를 무시해 마지막 handle을
    * 보존한다. 탭 이동으로 unmount된 뒤에도 이미 캡처된 autosave가 pending PATCH를
@@ -265,25 +265,33 @@ export default forwardRef<SessionScoresPanelHandle, Props>(function SessionScore
   const handleAttendanceChange = useCallback(async (enrollmentId: number, newStatus: string) => {
     const attendanceRecordId = attendanceIdMap[enrollmentId];
     if (!attendanceRecordId) return;
-    const secessionScope = newStatus === "SECESSION" ? await confirmSecession() : null;
+    const record = attendanceList?.data.find((item) => item.id === attendanceRecordId);
+    if (!record) return;
+    const secessionScope = newStatus === "SECESSION" ? await confirmSecession(record.name ?? undefined) : null;
     if (newStatus === "SECESSION" && !secessionScope) return;
+    const restoring = record.status === "SECESSION" && newStatus !== "SECESSION";
+    const restoreScope = restoring ? await confirmRestore(record, newStatus) : null;
+    if (restoring && !restoreScope) return;
     try {
       await updateAttendance(
         attendanceRecordId,
-        { status: newStatus, confirm_secession: newStatus === "SECESSION" ? true : undefined, secession_scope: secessionScope ?? undefined },
+        { status: newStatus, confirm_secession: newStatus === "SECESSION" ? true : undefined,
+          secession_scope: secessionScope ?? undefined, restore_scope: restoreScope ?? undefined },
       );
       qc.invalidateQueries({ queryKey: scoresQueryKeys.attendance(sessionId) });
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScores(sessionId) });
-      if (newStatus === "SECESSION") {
+      if (newStatus === "SECESSION" || restoreScope) {
         qc.invalidateQueries({ queryKey: scoresQueryKeys.attendanceMatrix(lectureId) });
         qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionEnrollments(sessionId) });
         qc.invalidateQueries({ queryKey: attendanceQueryKeys.enrolledIds(sessionId) });
-        feedback.success("퇴원 처리되었습니다.");
+        qc.invalidateQueries({ queryKey: attendanceQueryKeys.lectureEnrollmentsRoot });
+        feedback.success(restoreScope ? "수강을 복구하고 출결을 저장했습니다." : "퇴원 처리되었습니다.");
       }
     } catch {
-      feedback.error("출결 변경에 실패했습니다.");
+      void qc.invalidateQueries({ queryKey: scoresQueryKeys.attendance(sessionId) });
+      feedback.error("출결 변경에 실패했습니다. 현재 상태를 확인한 뒤 다시 시도해 주세요.");
     }
-  }, [attendanceIdMap, confirmSecession, qc, sessionId, lectureId]);
+  }, [attendanceIdMap, attendanceList, confirmSecession, confirmRestore, qc, sessionId, lectureId]);
 
   const rows = useMemo(() => {
     const searchedRows = allRows.filter((row) => (

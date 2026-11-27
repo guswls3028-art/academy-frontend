@@ -71,7 +71,7 @@ type SessionAttendancePageProps = {
   sessionType?: string | null;
   sessionDate?: string | null;
   sessionSelector: ReactNode;
-  onOpenEnrollModal?: (studentName?: string) => void;
+  onOpenEnrollModal?: () => void;
 };
 
 function toAttendanceStatus(status: string | null | undefined): AttendanceStatus {
@@ -103,7 +103,7 @@ export default function SessionAttendancePage({
   const sessionsPath = `${listPath}${listParams.size ? "&" : "?"}view=sessions`;
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const { confirmSecession, secessionDialog } = useSecessionConfirm();
+  const { confirmSecession, confirmRestore, secessionDialog } = useSecessionConfirm();
   const { user } = useAuth();
   const tenantCode = getTenantCodeForApiRequest();
   const [bulkPresentUndo, setBulkPresentUndo] = useBulkPresentUndo(tenantCode, user?.id, sessionId);
@@ -176,13 +176,14 @@ export default function SessionAttendancePage({
   });
 
   const updateStatus = useMutation({
-    mutationFn: ({ id, status, confirm_secession, secession_scope }: {
+    mutationFn: ({ id, ...payload }: {
       id: number;
       status: AttendanceStatus;
       confirm_secession?: boolean;
       secession_scope?: SecessionScope;
+      restore_scope?: SecessionScope;
     }) =>
-      updateAttendance(id, { status, confirm_secession, secession_scope }),
+      updateAttendance(id, payload),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: sessionScheduleQueryKeys.session(sessionId) });
       if (Number.isFinite(lectureId)) {
@@ -191,13 +192,21 @@ export default function SessionAttendancePage({
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
       return qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
     },
-    onError: () => { feedback.error("출석 상태 변경에 실패했습니다. 다시 시도해 주세요."); },
+    onError: (error, variables) => {
+      if (variables.restore_scope) {
+        void qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
+        feedback.error(extractApiError(error, "수강 복구에 실패했습니다. 현재 상태를 확인한 뒤 다시 시도해 주세요."));
+      } else feedback.error("출석 상태 변경에 실패했습니다. 다시 시도해 주세요.");
+    },
   });
 
   async function handleStatusChange(att: AttendanceListItem, code: AttendanceStatus) {
     if (pendingStatusIds.has(att.id) || (toAttendanceStatus(att.status) === code && code !== "SECESSION")) return;
     const secessionScope = code === "SECESSION" ? await confirmSecession(att.name ?? att.student_name ?? "학생") : null;
     if (code === "SECESSION" && !secessionScope) return;
+    const restoring = att.status === "SECESSION" && code !== "SECESSION";
+    const restoreScope = restoring ? await confirmRestore(att, code) : null;
+    if (restoring && !restoreScope) return;
 
     setPendingStatusIds((current) => new Set(current).add(att.id));
     try {
@@ -206,12 +215,14 @@ export default function SessionAttendancePage({
         status: code,
         confirm_secession: code === "SECESSION" ? true : undefined,
         secession_scope: secessionScope ?? undefined,
+        restore_scope: restoreScope ?? undefined,
       });
-      if (code === "SECESSION") {
+      if (code === "SECESSION" || restoreScope) {
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId) });
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceEnrolledIds(sessionId) });
-        feedback.success(`${att.name ?? "학생"} 학생이 퇴원 처리되었습니다.`);
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectureEnrollments(lectureId) });
+        feedback.success(restoreScope ? "수강을 복구하고 출결을 저장했습니다." : `${att.name ?? "학생"} 학생이 퇴원 처리되었습니다.`);
       }
     } catch {
       // useMutation onError owns the user-facing failure message.
@@ -580,7 +591,7 @@ export default function SessionAttendancePage({
     <div className="flex flex-wrap items-center gap-2">
       {chooseSessionAction}
       <Button type="button" intent="secondary" size="lg" aria-haspopup="dialog" onClick={openTools}>출결 도구</Button>
-      {onOpenEnrollModal && <Button type="button" intent="primary" size="lg" onClick={() => onOpenEnrollModal()}>수강생 등록</Button>}
+      {onOpenEnrollModal && <Button type="button" intent="primary" size="lg" onClick={onOpenEnrollModal}>수강생 등록</Button>}
     </div>
   );
 
@@ -693,7 +704,7 @@ export default function SessionAttendancePage({
             }
             actions={
               totalCount === 0 && !search && !statusFilter && onOpenEnrollModal ? (
-                <Button type="button" intent="primary" onClick={() => onOpenEnrollModal()}>
+                <Button type="button" intent="primary" onClick={onOpenEnrollModal}>
                   수강생 등록
                 </Button>
               ) : undefined
@@ -804,7 +815,6 @@ export default function SessionAttendancePage({
                         studentName={studentName}
                         value={toAttendanceStatus(att.status)}
                         pending={pending}
-                          onReregister={onOpenEnrollModal && (() => onOpenEnrollModal(studentName))}
                         onChange={(code) => void handleStatusChange(att, code)}
                       />
                     </td>

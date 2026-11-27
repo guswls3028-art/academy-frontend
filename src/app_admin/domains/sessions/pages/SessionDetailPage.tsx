@@ -104,7 +104,7 @@ export default function SessionDetailPage() {
     return "attendance";
   }, [location.pathname, basePath]);
 
-  const [enrollmentSearch, setEnrollmentSearch] = useState<string | null>(null);
+  const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [openCreateExam, setOpenCreateExam] = useState(false);
   const [openCreateHomework, setOpenCreateHomework] = useState(false);
 
@@ -194,7 +194,7 @@ export default function SessionDetailPage() {
                 sessionType={session.session_type}
                 sessionDate={session.date}
                 sessionSelector={<SessionBlock lectureId={lecId} currentSessionId={sId} />}
-                onOpenEnrollModal={(name = "") => setEnrollmentSearch(name)}
+                onOpenEnrollModal={() => setShowEnrollModal(true)}
               />
             )}
 
@@ -264,13 +264,12 @@ export default function SessionDetailPage() {
         </div>
       )}
 
-      {enrollmentSearch !== null && (
+      {showEnrollModal && (
         <SessionEnrollModal
           lectureId={lecId}
           sessionId={sId}
-          isOpen
-          initialSearch={enrollmentSearch}
-          onClose={() => setEnrollmentSearch(null)}
+          isOpen={showEnrollModal}
+          onClose={() => setShowEnrollModal(false)}
           onSuccess={invalidateSession}
         />
       )}

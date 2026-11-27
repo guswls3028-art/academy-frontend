@@ -13,7 +13,6 @@ import { fetchSessions } from "../api/sessions";
 import { bulkCreateAttendance, updateAttendance, fetchAttendanceEnrolledStudentIds } from "../api/attendance";
 import { fetchStudents, type ClientStudent } from "@/shared/api/contracts/students";
 import StudentCreateModal from "@admin/domains/students/components/StudentCreateModal";
-import LectureEnrollStudentModal from "./LectureEnrollStudentModal";
 import StudentsDetailOverlay from "@admin/domains/students/public/StudentsDetailOverlay";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
 import ExcelUploadZone from "@/shared/ui/excel/ExcelUploadZone";
@@ -191,7 +190,6 @@ function LastPageIcon({ className }: { className?: string }) {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Props {
-  initialSearch?: string;
   lectureId: number;
   sessionId: number;
   isOpen: boolean;
@@ -224,7 +222,6 @@ function sameSelection(left: SelectedItem[], right: SelectedItem[]) {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 export default function SessionEnrollModal({
-  initialSearch = "",
   lectureId,
   sessionId,
   isOpen,
@@ -237,10 +234,8 @@ export default function SessionEnrollModal({
   const [overlayStudentId, setOverlayStudentId] = useState<number | null>(null);
   // P2 (2026-05-13): "신규 학생 추가" 탭은 모달을 여는 함정 동작이라 탭 제거.
   // 명시적 "+ 새 학생 등록" 버튼으로 분리. 학원장이 클릭 결과를 예측 가능하도록.
-  const [keyword, setKeyword] = useState(initialSearch);
-  const [search, setSearch] = useState(initialSearch);
-  const [lecturePickerOpen, setLecturePickerOpen] = useState(false);
-  const [blockedAtReview, setBlockedAtReview] = useState(false);
+  const [keyword, setKeyword] = useState("");
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selectionState, setSelectionState] = useState<SelectionState>({
     current: [],
@@ -905,7 +900,6 @@ export default function SessionEnrollModal({
       const eligibleIds = idsToAdd.filter((studentId) => !blockedStudentIds.has(studentId));
       const excludedCount = idsToAdd.length - eligibleIds.length;
       if (excludedCount > 0) {
-        setBlockedAtReview(true);
         updateSelection((current) => current.filter((student) => !blockedStudentIds.has(student.id)));
         feedback.warning(`현재 강의의 비활성·대기 수강생 ${excludedCount}명은 제외했습니다. 재등록은 강의 수강 등록에서 진행해 주세요.`);
       }
@@ -949,7 +943,7 @@ export default function SessionEnrollModal({
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (!isOpen) return;
-      if (studentCreateOpen || lecturePickerOpen || overlayStudentId != null) return;
+      if (studentCreateOpen || overlayStudentId != null) return;
       const target = e.target as HTMLElement | null;
       const isFormControl = Boolean(
         target
@@ -984,7 +978,6 @@ export default function SessionEnrollModal({
     copyFromPrevLoading,
     excelPendingFile,
     handleAddSelected,
-    lecturePickerOpen,
     overlayStudentId,
     prerequisiteError,
     prerequisiteLoading,
@@ -998,15 +991,6 @@ export default function SessionEnrollModal({
 
   // ── Early return ───────────────────────────────────────────────────────────
   if (!isOpen) return null;
-  if (lecturePickerOpen) return (
-    <LectureEnrollStudentModal open lectureId={lectureId} initialSearch={keyword}
-      onClose={() => setLecturePickerOpen(false)}
-      onSuccess={() => {
-        setBlockedAtReview(false);
-        void refetchStudents();
-      }}
-    />
-  );
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -1135,11 +1119,10 @@ export default function SessionEnrollModal({
                             {selectedItems.length}명 선택됨
                           </span>
                         )}
-                        {(hiddenInactiveLectureInPage > 0 || blockedAtReview) && (
-                          <div className="flex flex-wrap items-center gap-2 text-[13px] text-[var(--color-text-muted)]">
-                            <span>강의에서 퇴원했거나 대기 중인 학생은 강의 수강부터 등록해 주세요.</span>
-                            <Button type="button" intent="secondary" size="sm" onClick={() => setLecturePickerOpen(true)}>강의 수강 등록 열기</Button>
-                          </div>
+                        {hiddenInactiveLectureInPage > 0 && (
+                          <span className="text-[12px] text-[var(--color-text-muted)]">
+                            현재 강의의 비활성·대기 수강생 {hiddenInactiveLectureInPage}명은 제외했습니다. 재등록은 강의 수강 등록에서 진행해 주세요.
+                          </span>
                         )}
                         {/* 빠른 불러오기 — 매주 가장 자주 누르는 액션. 좌측 상단 prominent CTA.
                             • 직전 차시 있음 (2차시~) → 직전 차시 불러오기 primary, 강의 수강생은 보조

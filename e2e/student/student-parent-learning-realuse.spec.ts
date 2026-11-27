@@ -453,36 +453,26 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
   const primaryOptions = enrollmentPage.getByRole("group", {
     name: family.students[0].name + " 출결 상태 선택", exact: true,
   });
-  const returning = family.students[0].name;
-  const sessionPicker = enrollmentPage.getByRole("dialog", { name: "차시 수강생 등록", exact: true });
   for (const [scope, width] of [["session", 1366], ["lecture", 390]] as const) {
     await enrollmentPage.setViewportSize({ width, height: 844 });
     await primaryOptions.getByRole("button", { name: "퇴원", exact: true }).click();
     const withdrawal = enrollmentPage.getByRole("dialog", { name: "퇴원 범위 선택" });
     if (scope === "lecture") await withdrawal.getByRole("radio", { name: /강의 전체 퇴원/ }).check();
     await withdrawal.getByRole("button", { name: scope === "lecture" ? "강의 전체 퇴원" : "이 차시만 퇴원", exact: true }).click();
-    await primaryOptions.getByRole("button", { name: returning + " 재등록", exact: true }).click();
-    await expect(sessionPicker.getByLabel("이름 또는 전화번호로 검색")).toHaveValue(returning);
-    if (scope === "lecture") {
-      await sessionPicker.getByRole("button", { name: "강의 수강 등록 열기" }).click();
-      await expect(picker.getByRole("textbox", { name: "학생 검색" })).toHaveValue(returning);
-      await picker.getByRole("checkbox", { name: returning + " 선택", exact: true }).check();
-      await picker.getByRole("button", { name: "1명 강의에 추가", exact: true }).click();
-      await expect(picker).toHaveCount(0);
-    }
-    await sessionPicker.getByRole("checkbox", { name: returning + " 선택", exact: true }).check();
-    await sessionPicker.getByRole("button", { name: "1명 검토 후 등록" }).click();
-    await enrollmentPage.getByRole("alertdialog", { name: "차시 수강생으로 등록할까요?" })
-      .getByRole("button", { name: "1명 등록", exact: true }).click();
-    await expect(sessionPicker).toHaveCount(0);
+    await expect(primaryOptions.getByRole("button", { name: "퇴원" })).toHaveAttribute("aria-pressed", "true");
+    await primaryOptions.getByRole("button", { name: "지각", exact: true }).click();
+    const recovery = enrollmentPage.getByRole("alertdialog", { name: "수강을 복구할까요?" });
+    await expect(recovery).toContainText(scope === "lecture" ? "강의 수강을 다시 활성화" : "이 차시에 다시 등록");
+    await recovery.getByRole("button", { name: "복구하고 지각 저장" }).click();
+    await expect(primaryOptions.getByRole("button", { name: "지각" })).toHaveAttribute("aria-pressed", "true");
     await enrollmentPage.reload({ waitUntil: "domcontentloaded" });
-    await expect(primaryOptions.getByRole("button", { name: "미입력", exact: true })).toHaveAttribute("aria-pressed", "true");
-    const row = await expectApi<{ id: number; status: string }>(request, "GET", attendancePath, adminAccess);
-    expect(row).toMatchObject({ id: created.attendanceIds[0], status: "UNSET" });
-    const memberships = await expectApi<Array<{ id: number; enrollment: number }>>(request, "GET",
+    await expect(primaryOptions.getByRole("button", { name: "지각" })).toHaveAttribute("aria-pressed", "true");
+    const restored = await expectApi<{ id: number; status: string; enrollment_status: string }>(request, "GET", attendancePath, adminAccess);
+    expect(restored).toMatchObject({ id: created.attendanceIds[0], status: "LATE", enrollment_status: "ACTIVE" });
+    const members = await expectApi<Array<{ id: number; enrollment: number }>>(request, "GET",
       `/enrollments/session-enrollments/?session=${created.sessionId}`, adminAccess);
-    expect(memberships.map(item => item.enrollment).sort()).toEqual([...created.enrollmentIds].sort());
-    created.sessionEnrollmentIds = memberships.map(item => item.id);
+    expect(members.map(row => row.enrollment).sort()).toEqual([...created.enrollmentIds].sort());
+    created.sessionEnrollmentIds = members.map(row => row.id);
   }
   for (const [width, updates] of [
     [1366, [["현장", "PRESENT"]]],

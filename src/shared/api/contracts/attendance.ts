@@ -51,6 +51,7 @@ export type AttendanceListItem = Record<string, unknown> & AttendanceMemoFields 
   id: number;
   status: string;
   enrollment_id?: number | null;
+  enrollment_status?: string;
   memo?: string | null;
   planned_arrival_date?: string | null;
   planned_arrival_time?: string | null;
@@ -236,6 +237,7 @@ export async function updateAttendance(
     planned_arrival_time?: string | null;
     confirm_secession?: boolean;
     secession_scope?: SecessionScope;
+    restore_scope?: SecessionScope;
   }
 ) {
   if (payload.status === "SECESSION" && payload.confirm_secession !== true) {

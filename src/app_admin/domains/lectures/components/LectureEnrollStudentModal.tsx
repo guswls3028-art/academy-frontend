@@ -15,7 +15,6 @@ import "./LectureEnrollStudentModal.css";
 interface Props {
   lectureId: number;
   open: boolean;
-  initialSearch?: string;
   onClose: () => void;
   onSuccess?: () => void;
   onChooseExcelUpload?: () => void;
@@ -33,12 +32,12 @@ export default function LectureEnrollStudentModal(props: Props) {
   return props.open ? <LectureStudentPicker key={props.lectureId} {...props} /> : null;
 }
 
-function LectureStudentPicker({ lectureId, initialSearch = "", onClose, onSuccess, onChooseExcelUpload }: Props) {
+function LectureStudentPicker({ lectureId, onClose, onSuccess, onChooseExcelUpload }: Props) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const schoolLevels = useSchoolLevelMode();
-  const [searchInput, setSearchInput] = useState(initialSearch);
-  const [search, setSearch] = useState(() => normalizeSearch(initialSearch));
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
   const [schoolType, setSchoolType] = useState<SchoolType | "">("");
   const [grade, setGrade] = useState(0);
   const [page, setPage] = useState(1);
