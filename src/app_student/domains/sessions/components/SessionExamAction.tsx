@@ -3,7 +3,7 @@ import { ChevronDown } from "lucide-react";
 import { ICON_FOR_BUTTON } from "@/shared/ui/ds/iconSize";
 import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { entrySessionSearch } from "@student/domains/exams/api/examEntrySession";
+import { entrySessionSearch } from "@student/domains/exams/public/examEntrySession";
 import { fetchStudentExams, type StudentExam } from "@student/domains/exams/api/exams.api";
 import { studentQueryKeys } from "@student/shared/api/queryKeys";
 import styles from "./SessionExamAction.module.css";

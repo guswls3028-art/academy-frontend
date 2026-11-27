@@ -8,7 +8,7 @@
  * - "재시험 버튼" 판단은 Result API의 can_retake만 신뢰 ✅
  */
 
-import { examEntrySession, entrySessionSearch } from "../api/examEntrySession";
+import { examEntrySession, entrySessionSearch } from "../public/examEntrySession";
 import { Link, useParams, useSearchParams } from "react-router";
 import StudentPageShell from "../../../shared/ui/pages/StudentPageShell";
 import EmptyState from "../../../layout/EmptyState";

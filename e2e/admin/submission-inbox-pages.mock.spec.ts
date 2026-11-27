@@ -603,3 +603,65 @@ for (const width of [1366, 1100, 390]) {
     expect(state.mutations).toEqual([]);
   });
 }
+
+test("파일 조회 중 다음 제출을 선택하고 해제한 행은 응답 뒤에도 통과하지 않는다", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  const state = await setup(page, "owner");
+  state.pendingHomework = 2;
+  const started: number[] = [];
+  const saved: number[] = [];
+  let allowResponse!: () => void;
+  const interactionComplete = new Promise<void>(resolve => { allowResponse = resolve; });
+  let releaseFirst!: () => void;
+  const firstResponse = new Promise<void>(resolve => { releaseFirst = resolve; });
+  await page.route(/\/submissions\/submissions\/homework\/(71|72)\/\?/, async route => {
+    const id = Number(new URL(route.request().url()).searchParams.get("enrollment_id"));
+    started.push(id);
+    await Promise.all([interactionComplete, new Promise(resolve => setTimeout(resolve, 300))]);
+    if (id === 10) await firstResponse;
+    return route.fulfill({ json: { count: 1, next: null, results: [{
+      id, enrollment_id: id, student_id: id, student_name: `학생 ${id}`, status: "submitted",
+      teacher_accepted: false, teacher_accepted_updated_at: null, media_set_fingerprint: "a".repeat(64),
+      files: [0, 1].map(position => ({ id: String(id * 10 + position), position, media_kind: "image",
+        mime_type: "image/png", status: "uploaded", original_filename: `풀이 ${position + 1}.png` })),
+    }] } });
+  });
+  await page.route(/\/submissions\/submissions\/homework\/(71|72)\/acceptance\//, route => {
+    const body = route.request().postDataJSON();
+    expect(new URL(route.request().url()).pathname).toMatch(/\/homework\/72\/acceptance\/$/);
+    expect(body).toMatchObject({ enrollment_id: 11, accepted: true, expected_media_set_fingerprint: "a".repeat(64) });
+    saved.push(body.enrollment_id);
+    return route.fulfill({ json: { teacher_accepted: true } });
+  });
+  await gotoAndSettle(page, `${BASE}/workspace/results/submissions?homework=pending`);
+  const list = page.getByRole("list", { name: "확인 대기 학생 제출물" });
+  const first = list.getByRole("checkbox", { name: /QA 제출 학생 1/ });
+  const second = list.getByRole("checkbox", { name: /QA 제출 학생 2/ });
+  const response = (id: number) => page.waitForResponse(r => r.ok()
+    && new URL(r.url()).pathname.endsWith(`/homework/${id === 10 ? 71 : 72}/`)
+    && new URL(r.url()).searchParams.get("enrollment_id") === String(id));
+  try {
+    await first.check();
+    await expect.poll(() => started).toContain(10);
+    await expect(second).toBeEnabled();
+    await second.check();
+    await expect.poll(() => started).toContain(11);
+    await expect(page.getByRole("button", { name: "파일 확인 중…" })).toBeDisabled();
+    await first.uncheck();
+    await expect(first).not.toBeChecked();
+    await expect(second).toBeChecked();
+    await Promise.all([response(11), Promise.resolve().then(allowResponse)]);
+    await Promise.all([response(10), Promise.resolve().then(releaseFirst)]);
+  } finally {
+    allowResponse();
+    releaseFirst();
+  }
+  const accept = page.getByRole("button", { name: "선택 1건 통과", exact: true });
+  await expect(accept).toBeEnabled();
+  await expect(first).not.toBeChecked();
+  await accept.click();
+  await page.getByRole("button", { name: "1건 통과 처리", exact: true }).click();
+  await expect(page.getByText("통과 1건", { exact: true })).toBeVisible();
+  expect(saved).toEqual([11]);
+  expect(state.mutations).toEqual([]);
+});

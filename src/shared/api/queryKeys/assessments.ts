@@ -1,4 +1,5 @@
 const studentHomeworkFiles = (studentId: number) => ["staff-student-homework-files", studentId] as const;
+const adminHomeworkSubmissions = (homeworkId: number) => ["homework-submissions", homeworkId] as const;
 const homeworkReviewQueue = ["homework-review-queue"] as const;
 
 export const assessmentQueryKeys = {
@@ -7,7 +8,9 @@ export const assessmentQueryKeys = {
   homeworkMediaPreview: (homeworkId: number, fileId: string | undefined, mediaSetFingerprint: string | null) =>
     ["homework-media-preview", homeworkId, fileId, mediaSetFingerprint] as const,
 
-  adminHomeworkSubmissions: (homeworkId: number) => ["homework-submissions", homeworkId] as const,
+  adminHomeworkSubmissions,
+  homeworkReviewDetail: (homeworkId: number, enrollmentId: number) =>
+    [...adminHomeworkSubmissions(homeworkId), "queue", enrollmentId] as const,
   teacherHomeworkSubmissions: (homeworkId: number) => ["teacher-homework-submissions", homeworkId] as const,
   studentHomeworkFiles,
   studentHomeworkFilesPage: (studentId: number, page: number) => [...studentHomeworkFiles(studentId), page] as const,

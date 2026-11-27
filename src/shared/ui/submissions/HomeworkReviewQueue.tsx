@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
 import { assessmentQueryKeys } from "@/shared/api/queryKeys/assessments";
@@ -73,10 +73,11 @@ const rowVersion = (row: HomeworkReviewItem) => `${row.submitted_at}/${row.file_
 type Selection = {
   homeworkId: number; item: HomeworkReviewItem; row: HomeworkSubmissionRow & { media_set_fingerprint: string };
 };
+type SelectionRequest = { key: string; item: HomeworkReviewItem };
 
 function detailQuery(item: HomeworkReviewItem) {
   return {
-    queryKey: [...assessmentQueryKeys.adminHomeworkSubmissions(item.homework_id), "queue", item.enrollment_id],
+    queryKey: assessmentQueryKeys.homeworkReviewDetail(item.homework_id, item.enrollment_id),
     queryFn: async () => {
       const [row] = await fetchHomeworkSubmissions(item.homework_id, item.enrollment_id);
       if (!row || row.enrollment_id !== item.enrollment_id) throw new Error("이 제출이 변경되었습니다. 목록을 새로고침해 주세요.");
@@ -124,6 +125,14 @@ function QueuePage({ mobile, data, setPage }: { mobile: boolean; data: Awaited<R
   const [summary, setSummary] = useState("");
   const [problems, setProblems] = useState<string[]>([]);
   const locked = useRef(false);
+  const pending = useRef(new Map<string, SelectionRequest>());
+  const waiting = useRef<SelectionRequest[]>([]);
+  const activeReads = useRef(0);
+  useEffect(() => {
+    const jobs = pending.current;
+    const queue = waiting.current;
+    return () => { jobs.clear(); queue.length = 0; };
+  }, []);
   const selected = results.flatMap(item => {
     const match = selection.get(rowKey(item));
     return match && rowVersion(item) === rowVersion(match.item) ? [match] : [];
@@ -132,9 +141,47 @@ function QueuePage({ mobile, data, setPage }: { mobile: boolean; data: Awaited<R
   const checked = new Set([...selectedKeys, ...checking]);
   const all = results.length > 0 && results.every(item => checked.has(rowKey(item)));
 
-  async function choose(items: HomeworkReviewItem[], checked: boolean) {
+  async function loadSelection(request: SelectionRequest) {
+    const { key, item } = request;
+    try {
+      const row = await client.fetchQuery({ ...detailQuery(item), staleTime: 0 });
+      if (pending.current.get(key) !== request) return;
+      if (!canSelect(row) || row.teacher_reviewed || row.files.filter(f => !f.removed_at && f.status === "uploaded").length !== item.file_count) {
+        throw new Error("제출 상태가 바뀌었습니다. 파일을 다시 확인해 주세요.");
+      }
+      setSelection(previous => new Map(previous).set(key, { homeworkId: item.homework_id, item, row }));
+    } catch (error) {
+      if (pending.current.get(key) !== request) return;
+      const reason = extractApiError(error, "최신 제출을 확인할 수 없습니다.");
+      setProblems(previous => [...previous, `${item.student_name} · ${item.lecture_title} · ${item.homework_title} · ${reason}`]);
+      void client.invalidateQueries({ queryKey: assessmentQueryKeys.homeworkReviewQueue });
+    } finally {
+      if (pending.current.get(key) === request) {
+        pending.current.delete(key);
+        setChecking(new Set(pending.current.keys()));
+      }
+    }
+  }
+
+  function loadWaiting() {
+    while (activeReads.current < 3 && waiting.current.length) {
+      const request = waiting.current.shift()!;
+      if (pending.current.get(request.key) !== request) continue;
+      activeReads.current++;
+      void loadSelection(request).finally(() => {
+        activeReads.current--;
+        loadWaiting();
+      });
+    }
+  }
+
+  function choose(items: HomeworkReviewItem[], checked: boolean) {
     if (locked.current) return;
+    setSummary("");
+    setProblems([]);
     if (!checked) {
+      items.forEach(item => pending.current.delete(rowKey(item)));
+      setChecking(new Set(pending.current.keys()));
       setSelection(previous => {
         const next = new Map(previous);
         items.forEach(item => next.delete(rowKey(item)));
@@ -142,42 +189,19 @@ function QueuePage({ mobile, data, setPage }: { mobile: boolean; data: Awaited<R
       });
       return;
     }
-    locked.current = true;
-    setBusy(true);
-    setChecking(new Set(items.map(rowKey)));
-    setSummary("");
-    const errors: string[] = [];
-    const updates = new Map<string, Selection>();
-    let cursor = 0;
-    async function load() {
-      while (cursor < items.length) {
-        const item = items[cursor++];
-        if (selectedKeys.has(rowKey(item))) continue;
-        try {
-          const row = await client.fetchQuery({ ...detailQuery(item), staleTime: 0 });
-          if (!canSelect(row) || row.teacher_reviewed || row.files.filter(f => !f.removed_at && f.status === "uploaded").length !== item.file_count) {
-            throw new Error("제출 상태가 바뀌었습니다. 파일을 다시 확인해 주세요.");
-          }
-          updates.set(rowKey(item), { homeworkId: item.homework_id, item, row });
-        } catch (error) {
-          errors.push(`${item.student_name} · ${item.homework_title} · ${extractApiError(error, "최신 제출을 확인할 수 없습니다.")}`);
-        }
-      }
+    for (const item of items) {
+      const key = rowKey(item);
+      if (selectedKeys.has(key) || pending.current.has(key)) continue;
+      const request = { key, item };
+      pending.current.set(key, request);
+      waiting.current.push(request);
     }
-    try {
-      await Promise.all(Array.from({ length: Math.min(3, items.length) }, load));
-      setSelection(previous => new Map([...previous, ...updates]));
-      setProblems(errors);
-      if (errors.length) await client.invalidateQueries({ queryKey: assessmentQueryKeys.homeworkReviewQueue });
-    } finally {
-      locked.current = false;
-      setChecking(new Set());
-      setBusy(false);
-    }
+    setChecking(new Set(pending.current.keys()));
+    loadWaiting();
   }
 
   async function accept() {
-    if (locked.current || !selected.length) return;
+    if (locked.current || pending.current.size || !selected.length) return;
     locked.current = true;
     setBusy(true);
     try {
@@ -209,7 +233,7 @@ function QueuePage({ mobile, data, setPage }: { mobile: boolean; data: Awaited<R
               onChange={e => void choose(results, e.currentTarget.checked)} />
             이 페이지 전체 선택
           </label>
-          <Button intent="primary" size="sm" disabled={busy || !selected.length} onClick={() => void accept()}>
+          <Button intent="primary" size="sm" disabled={busy || checking.size > 0 || !selected.length} onClick={() => void accept()}>
             {checking.size ? "파일 확인 중…" : busy ? "처리 중…" : `선택 ${selected.length}건 통과`}
           </Button>
         </div>}
@@ -229,13 +253,13 @@ function QueuePage({ mobile, data, setPage }: { mobile: boolean; data: Awaited<R
           const context = [row.student_name, row.lecture_title, row.session_title, row.homework_title].join(" · ");
           return <li key={key}>
             <div className={styles.line} data-selected={checked.has(key) || undefined}>
-              <label className={styles.checkbox}><input type="checkbox" aria-label={`${context} 선택`}
+              <label className={styles.checkbox}><input type="checkbox" aria-label={`${context} 선택`} aria-describedby={`submitted-${key}`}
                 checked={checked.has(key)} disabled={busy} onChange={e => void choose([row], e.currentTarget.checked)} /></label>
               <Link className={styles.row} to={reviewPath(mobile, row, page)} state={{ fromHomeworkInbox: true }}
-                aria-label={`${context} 제출물 열기`}>
+                aria-label={`${context} 제출물 열기`} aria-describedby={`submitted-${key}`}>
                 <strong className={styles.name}>{row.student_name}</strong><span className={styles.lecture}>{row.lecture_title}</span>
                 <span className={styles.session}>{row.session_title}</span><strong className={styles.homework}>{row.homework_title}</strong>
-                <time className={styles.time} dateTime={row.submitted_at}>{submittedDate.format(new Date(row.submitted_at))}</time>
+                <time id={`submitted-${key}`} className={styles.time} dateTime={row.submitted_at}>{submittedDate.format(new Date(row.submitted_at))}</time>
               </Link>
               <button type="button" className={styles.open} aria-label={`${row.student_name} 제출 파일 ${row.file_count}개 미리보기`}
                 aria-expanded={preview === key} onClick={() => setPreview(preview === key ? "" : key)}>파일 {row.file_count}개</button>

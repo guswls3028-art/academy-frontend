@@ -7,8 +7,7 @@ import { EmptyState, ICON } from "@/shared/ui/ds";
 import { Settings, Camera } from "@teacher/shared/ui/Icons";
 import { EmptyActionButton } from "@teacher/shared/ui/EmptyActionButton";
 import { AchievementBadge } from "@teacher/shared/ui/Badge";
-import { fetchSession } from "@teacher/domains/lectures/api";
-import { teacherLectureQueryKeys } from "@teacher/domains/lectures/queryKeys";
+import { fetchSession, teacherLectureQueryKeys } from "@teacher/domains/lectures/public/sessionDetail";
 import { fetchExam } from "../api";
 // 사이드바 ResultsPage 와 동일 SSOT — admin endpoint(IsTeacherOrAdmin) enrollment_id schema
 import { fetchExamResults } from "@teacher/domains/results/statsApi";
