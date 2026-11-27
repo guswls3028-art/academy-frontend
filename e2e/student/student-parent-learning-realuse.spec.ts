@@ -2,6 +2,7 @@
  * Lecture, attendance, video-progress, and materials projection for a student
  * and the same child's parent. All records are synthetic and tenant-local.
  */
+import { writeFile } from "node:fs/promises";
 import { expect, test } from "../fixtures/strictTest";
 import type { APIRequestContext, Page, TestInfo } from "@playwright/test";
 import {
@@ -72,6 +73,38 @@ async function verifyBrandHomeFromAttendance(page: Page, attendance: string, chi
   const publicResources = `${QA_BASE}/landing/resources`;
   const publicHeading = page.getByRole("heading", { level: 1, name: "게시판", exact: true });
   const publicBrand = page.locator("header").getByRole("link", { name: /게시판$/ });
+  const scope = { origin: new URL(QA_BASE).origin, tenant: QA_TENANT };
+
+  // The release bundle runs on loopback. Mirror its UI-login tenant into the public site's hostname override.
+  const tenantBound = await page.evaluate(({ origin, tenant }) => {
+    if (location.origin !== origin || sessionStorage.getItem("tenantCode") !== tenant) return false;
+    const existing = localStorage.getItem("tenant_code");
+    if (existing !== null && existing !== tenant) return false;
+    localStorage.setItem("tenant_code", tenant);
+    return true;
+  }, scope);
+  async function recordPublicHomeFailure(error: unknown): Promise<never> {
+    try {
+      const observation = await page.evaluate(({ origin, tenant }) => {
+        const routes: Record<string, string> = {
+          "/landing/resources": "public-board", "/promo": "promo", "/": "root",
+          "/student": "student", "/student/dashboard": "student-home", "/student/attendance": "attendance",
+        };
+        return {
+          route: location.origin === origin ? routes[location.pathname] ?? "other" : "other-origin",
+          publicTenantMatches: localStorage.getItem("tenant_code") === tenant,
+          sessionTenantMatches: sessionStorage.getItem("tenantCode") === tenant,
+        };
+      }, scope);
+      await writeFile(test.info().outputPath("public-home-routing.json"), JSON.stringify(observation));
+    } catch {
+      // Keep the original assertion if the page or test output is already unavailable.
+    }
+    throw error;
+  }
+  if (!tenantBound) {
+    await recordPublicHomeFailure(new Error("Public site and UI login must use the same isolated tenant"));
+  }
 
   async function expectFamilyHome() {
     await expect(page).toHaveURL(`${QA_BASE}/student/dashboard`);
@@ -94,6 +127,7 @@ async function verifyBrandHomeFromAttendance(page: Page, attendance: string, chi
     });
     await test.step(`${childName ? "학부모" : "학생"} ${width}px 공개 게시판 로고에서 역할 홈과 원래 명단으로 복귀`, async () => {
       await gotoAndSettle(page, publicResources);
+      await expect(page).toHaveURL(publicResources);
       await expect(publicHeading).toBeVisible();
       await expect(publicBrand).toHaveAttribute("href", "/");
       if (width === 1366) {
@@ -110,7 +144,7 @@ async function verifyBrandHomeFromAttendance(page: Page, attendance: string, chi
       await page.goBack();
       await expect(page).toHaveURL(previous);
       await expect(record).toContainText(attendance);
-    });
+    }).catch(recordPublicHomeFailure);
   }
 }
 
