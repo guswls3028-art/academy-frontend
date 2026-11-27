@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import useAuth from "@/auth/hooks/useAuth";
+import { getTenantUserLocalKey } from "@/shared/utils/safeLocalStorage";
 import { useConfirm } from "@/shared/ui/confirm";
 
 import { useStudentsQuery } from "../hooks/useStudentsQuery";
@@ -36,8 +38,33 @@ import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import styles from "./StudentsHomePage.module.css";
 
 const EMPTY_STUDENTS: ClientStudent[] = [];
+const ROSTER_SEARCH_HISTORY = ["student-roster-search"] as const;
 
 export default function StudentsHomePage() {
+  const location = useLocation();
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const scope = getTenantUserLocalKey("student-roster", user?.id);
+  const entryKey = [...ROSTER_SEARCH_HISTORY, scope, location.pathname, location.key] as const;
+  // The authenticated QueryClient is memory-only and cleared when the session ends.
+  useEffect(() => {
+    qc.setQueryDefaults(ROSTER_SEARCH_HISTORY, { gcTime: Infinity });
+  }, [qc]);
+  return <StudentsRoster
+    key={JSON.stringify(entryKey)}
+    initialSearch={scope ? qc.getQueryData<string>(entryKey) ?? "" : ""}
+    rememberSearch={(value) => {
+      if (!scope) return;
+      if (value) qc.setQueryData(entryKey, value);
+      else qc.removeQueries({ queryKey: entryKey, exact: true });
+    }}
+  />;
+}
+
+function StudentsRoster({ initialSearch, rememberSearch }: {
+  initialSearch: string;
+  rememberSearch: (value: string) => void;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
@@ -51,8 +78,8 @@ export default function StudentsHomePage() {
     [location.search],
   );
 
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState(initialSearch);
+  const [search, setSearch] = useState(initialSearch);
   const [filters, setFilters] = useState<StudentFilters>({});
   const [showCreate, setShowCreate] = useState(false);
   const [showFilter, setShowFilter] = useState(false);
@@ -427,8 +454,12 @@ export default function StudentsHomePage() {
             <input
               data-guide="students-search"
               placeholder="이름 / 아이디 / 전화번호 / 학교 검색"
+              autoComplete="off"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
+              onChange={(e) => {
+                setSearchInput(e.target.value);
+                rememberSearch(e.target.value);
+              }}
               className={isMobile ? `ds-input ${styles.searchInput} ${styles.searchInputMobile}` : `ds-input ${styles.searchInput}`}
             />
           }
