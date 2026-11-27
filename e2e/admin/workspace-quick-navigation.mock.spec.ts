@@ -200,58 +200,92 @@ test.describe("업무 화면 기능 검색", () => {
     await expect(page).toHaveURL(url);
   });
 
-  test("자료실 두 번째 검색 결과에서 글을 수정하고 같은 결과로 돌아온다", async ({ page }) => {
-    const filename = "금요일-야간수업-교대-준비물-및-보충수업-출결-처리-방법.txt";
-    const keyword = "교대";
-    let resource = { id: 49, category: "resource", title: "금요일 인수인계", body: "수업 준비",
-      attachment_name: filename, can_edit: true, replies: [], reply_count: 0, author_name: "김선생",
-      created_at: "2026-11-18T09:00:00Z" };
-    await page.route("**/api/v1/staffs/board/posts/**", async route => {
-      const url = new URL(route.request().url());
-      if (url.pathname.endsWith("/49/")) {
-        if (route.request().method() === "PATCH") resource = { ...resource, ...route.request().postDataJSON() };
-        return route.fulfill({ json: resource });
+  for (const width of [1366, 1100, 390]) {
+    test(`자료실 두 번째 검색 결과에서 댓글·첨부 확인과 수정 후 읽던 행으로 돌아온다 (${width}px)`, async ({ page }) => {
+      const filename = "금요일-야간수업-교대-준비물-및-보충수업-출결-처리-방법.txt";
+      const keyword = "교대";
+      const reply = { id: 8, author_name: "이선생", body: "수업 전에 자료를 확인했습니다.",
+        created_at: "2026-11-18T11:00:00Z", can_edit: false, can_delete: false };
+      let resource = { id: 49, category: "resource", title: "금요일 인수인계", body: "수업 준비",
+        attachment_name: filename, can_edit: true, replies: [reply], reply_count: 1, author_name: "김선생",
+        created_at: "2026-11-18T09:00:00Z" };
+      const other = { ...resource, id: 50, title: "야간 교대 출결 확인", author_name: "박선생", attachment_name: "" };
+      await page.route("**/api/v1/staffs/board/posts/**", async route => {
+        const url = new URL(route.request().url());
+        if (url.pathname.endsWith("/49/attachment/")) return route.fulfill({ contentType: "text/plain", body: "교대 자료" });
+        if (url.pathname.endsWith("/50/")) return route.fulfill({ json: other });
+        if (url.pathname.endsWith("/49/")) {
+          if (route.request().method() === "PATCH") resource = { ...resource, ...route.request().postDataJSON() };
+          return route.fulfill({ json: resource });
+        }
+        const q = url.searchParams.get("q");
+        const second = url.searchParams.get("page") === "2";
+        const firstPage = Array.from({ length: 20 }, (_, index) => ({
+          ...resource, id: index + 100, title: `교대 자료 ${index + 1}`, attachment_name: "",
+        }));
+        const results = q === keyword ? (second ? [resource, other] : firstPage) : [];
+        return route.fulfill({ json: {
+          results, count: q === keyword ? 22 : 0, next: q === keyword && !second ? "next" : null,
+          previous: second ? "previous" : null,
+        } });
+      });
+      await page.setViewportSize({ width, height: 900 });
+      const list = `${BASE}/workspace/staff-board/resource`;
+      await page.goto(list);
+      const search = page.getByRole("searchbox", { name: "게시글 검색어" });
+      await search.fill(keyword);
+      await search.press("Enter");
+      await expect(page.getByText("검색 결과 22건")).toBeVisible();
+      const table = page.getByRole("table", { name: "자료실 목록" });
+      const firstRow = table.getByRole("row").filter({ hasText: "교대 자료 1" }).first();
+      if (width > 600) {
+        await expect(table.getByRole("columnheader")).toHaveText(["제목", "게시판", "작성자", "작성일"]);
+        const rowBox = await firstRow.boundingBox();
+        expect(rowBox?.height).toBeLessThanOrEqual(48);
+        const searchBox = await search.boundingBox();
+        const writeBox = await page.getByRole("button", { name: "자료 올리기" }).boundingBox();
+        expect(Math.abs(searchBox!.y - writeBox!.y)).toBeLessThan(8);
       }
-      const q = url.searchParams.get("q");
-      const second = url.searchParams.get("page") === "2";
-      const firstPage = Array.from({ length: 20 }, (_, index) => ({
-        ...resource, id: index + 100, title: `교대 자료 ${index + 1}`, attachment_name: "",
-      }));
-      const results = q === keyword ? (second ? [resource] : firstPage) : [];
-      return route.fulfill({ json: {
-        results, count: q === keyword ? 21 : 0, next: q === keyword && !second ? "next" : null,
-        previous: second ? "previous" : null,
-      } });
+      await page.getByRole("button", { name: "다음", exact: true }).click();
+      const result = page.getByRole("link", { name: new RegExp(resource.title) });
+      await expect(result).toContainText(filename);
+      const row = table.getByRole("row").filter({ has: result });
+      await expect(row.getByRole("cell", { name: "김선생" })).toBeVisible();
+      await expect(row.getByRole("cell", { name: "자료실" })).toBeVisible();
+      await expect(row.locator("time")).toHaveAttribute("datetime", resource.created_at);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+      await result.click();
+      await expect(page.getByText(reply.body, { exact: true })).toBeVisible();
+      const downloaded = page.waitForEvent("download");
+      await page.getByRole("button", { name: `${filename} 다운로드` }).click();
+      expect((await downloaded).suggestedFilename()).toBe(filename);
+      await page.getByRole("button", { name: "글 수정" }).click();
+      const revised = "금요일 수업 인수인계";
+      await page.getByRole("dialog").getByLabel("제목", { exact: true }).fill(revised);
+      await page.getByRole("button", { name: "수정 저장" }).click();
+      await expect(page.getByRole("heading", { name: revised, exact: true })).toBeVisible();
+      await page.reload();
+      await page.getByRole("link", { name: "자료실 목록" }).click();
+      await expect(page).toHaveURL(`${list}?q=${encodeURIComponent(keyword)}&page=2`);
+      await expect(search).toHaveValue(keyword);
+      const returned = page.getByRole("link", { name: new RegExp(revised) });
+      await expect(returned).toBeFocused();
+      await expect(returned).toBeInViewport();
+      await test.info().attach(`staff-board-return-${width}`, { body: await page.screenshot(), contentType: "image/png" });
+      const nextResult = page.getByRole("link", { name: new RegExp(other.title) });
+      await nextResult.click();
+      await expect(page.getByRole("heading", { name: other.title })).toBeVisible();
+      await page.goBack();
+      await expect(nextResult).toBeFocused();
+      await expect(search).toHaveValue(keyword);
+      await search.fill("없는 파일");
+      await page.getByRole("button", { name: "검색", exact: true }).click();
+      await expect(page.getByText("검색 결과가 없습니다.", { exact: true })).toBeVisible();
+      await page.getByRole("button", { name: "검색 초기화" }).click();
+      await expect(page).toHaveURL(list);
+      await expect(search).toHaveValue("");
     });
-    await page.setViewportSize({ width: 390, height: 900 });
-    const list = `${BASE}/workspace/staff-board/resource`;
-    await page.goto(list);
-    const search = page.getByRole("searchbox", { name: "게시글 검색어" });
-    await search.fill(keyword);
-    await search.press("Enter");
-    await expect(page.getByText("검색 결과 21건")).toBeVisible();
-    await page.getByRole("button", { name: "다음", exact: true }).click();
-    const result = page.getByRole("link", { name: new RegExp(resource.title) });
-    await expect(result).toContainText(filename);
-    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
-    await result.click();
-    await page.getByRole("button", { name: "글 수정" }).click();
-    const revised = "금요일 수업 인수인계";
-    await page.getByRole("dialog").getByLabel("제목", { exact: true }).fill(revised);
-    await page.getByRole("button", { name: "수정 저장" }).click();
-    await expect(page.getByRole("heading", { name: revised, exact: true })).toBeVisible();
-    await page.reload();
-    await page.getByRole("link", { name: "자료실 목록" }).click();
-    await expect(page).toHaveURL(`${list}?q=${encodeURIComponent(keyword)}&page=2`);
-    await expect(search).toHaveValue(keyword);
-    await expect(page.getByRole("link", { name: new RegExp(revised) })).toBeVisible();
-    await search.fill("없는 파일");
-    await page.getByRole("button", { name: "검색", exact: true }).click();
-    await expect(page.getByText("검색 결과가 없습니다.", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "검색 초기화" }).click();
-    await expect(page).toHaveURL(list);
-    await expect(search).toHaveValue("");
-  });
+  }
 
   test("전체 글에서 분류를 선택하고 댓글 수정 실패 후 같은 초안을 다시 저장한다", async ({ page }) => {
     const item = { id: 17, author_name: "김선생", body: "회의에 참석합니다.", created_at: "2026-11-25T09:00:00Z",
@@ -271,11 +305,13 @@ test.describe("업무 화면 기능 검색", () => {
       return route.fulfill({ json: { count: 1, results: [post], next: null, previous: null } });
     });
     await page.goto(`${BASE}/workspace/staff-board`);
-    for (const width of [1366, 390]) {
+    for (const width of [1366, 1100, 390]) {
       await page.setViewportSize({ width, height: 900 });
-      await expect(page.getByRole("link", { name: new RegExp(post.title) })).toContainText("자유게시글");
+      const row = page.getByRole("row").filter({ has: page.getByRole("link", { name: new RegExp(post.title) }) });
+      await expect(row.getByRole("cell", { name: "자유게시글" })).toBeVisible();
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
-      await page.screenshot({ path: test.info().outputPath(`staff-board-all-${width}.png`) });
+      const screenshot = await page.screenshot({ path: test.info().outputPath(`staff-board-all-${width}.png`) });
+      await test.info().attach(`staff-board-all-${width}`, { body: screenshot, contentType: "image/png" });
     }
     await page.getByRole("button", { name: "글쓰기", exact: true }).click();
     const dialog = page.getByRole("dialog");

@@ -81,7 +81,9 @@ export async function verifyStaffBoard(page: Page, request: APIRequestContext, a
   await expect(page).toHaveURL(url => url.searchParams.get("q") === keyword);
   await page.getByRole("link", { name: "공지사항 목록" }).click();
   await expect(page.getByRole("searchbox", { name: "게시글 검색어" })).toHaveValue(keyword);
-  await expect(page.getByRole("link", { name: updated, exact: false })).toBeVisible();
+  const returnedNotice = page.getByRole("link", { name: updated, exact: false });
+  await expect(returnedNotice).toBeFocused();
+  await expect(returnedNotice).toBeInViewport();
   await captureBoard(page, "notice-search-1366");
 
   let assistantReplyId: number;
