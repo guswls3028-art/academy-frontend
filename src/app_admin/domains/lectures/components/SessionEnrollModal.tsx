@@ -821,7 +821,7 @@ export default function SessionEnrollModal({
           { label: "매칭 기준", value: "이름 · 학부모 연락처" },
           { label: "초기 출결", value: "미입력" },
         ],
-        note: "강의 수강이 없던 학생은 함께 수강 등록되며 첫 수강 계정 안내가 예약될 수 있습니다. 이 엑셀 등록은 자동 수납 항목을 만들지 않습니다.",
+        note: "강의 수강이 없던 학생은 함께 수강 등록되며 첫 수강 계정 안내가 예약될 수 있습니다. 퇴원한 차시에 다시 등록할 때만 강의에 설정된 자동 수납 항목이 새로 배정되거나 다시 활성화될 수 있습니다.",
       },
       confirmText: `${excelPendingRowCount}명 등록 요청`,
       cancelText: "다시 확인",
