@@ -515,12 +515,26 @@ test.describe("업무별 AtoZ 가이드", () => {
       const handbook = page.getByRole("region", { name: "그림으로 보는 사용 가이드" });
       await expect(handbook.getByRole("heading", { name: "학생 한 명 등록하기" })).toBeVisible();
       await expect.poll(() => handbook.getByRole("img").evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+      const figure = handbook.locator("figure");
+      const steps = handbook.getByRole("list").filter({ hasText: "동명이인이 있으면" });
+      const figureBox = await figure.boundingBox();
+      const stepsBox = await steps.boundingBox();
+      expect(figureBox).toBeTruthy();
+      expect(stepsBox).toBeTruthy();
+      if (role === "admin") {
+        expect(stepsBox!.x).toBeGreaterThanOrEqual(figureBox!.x + figureBox!.width);
+        await expect(handbook.getByRole("link", { name: "학생 메뉴 열기 (새 탭)" })).toBeInViewport();
+        await expect(handbook.getByRole("link", { name: "등록 완료 화면 보기 (새 탭)" })).toBeInViewport();
+      } else {
+        expect(stepsBox!.y).toBeGreaterThanOrEqual(figureBox!.y + figureBox!.height);
+      }
       await testInfo.attach(`handbook-${role}-${width}`, {
         body: await handbook.screenshot({ path: testInfo.outputPath("handbook.png") }), contentType: "image/png",
       });
       await handbook.getByRole("button", { name: "다음 쪽 →" }).click();
       await expect(handbook.getByRole("heading", { name: "첫 강의 만들기" })).toBeFocused();
       await handbook.getByRole("button", { name: "학생앱 가이드", exact: true }).click();
+      await expect(handbook.getByRole("link", { name: /메뉴 열기 \(새 탭\)/ })).toHaveCount(0);
       await handbook.getByRole("button", { name: "다음 쪽 →" }).click();
       await page.reload({ waitUntil: "domcontentloaded" });
       await expect(handbook.getByRole("heading", { name: "교실 QR로 출석하기" })).toBeVisible();
