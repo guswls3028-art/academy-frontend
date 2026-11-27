@@ -201,11 +201,7 @@ export default function FileUploadZone({
             <UploadIcon size={22} className="text-[var(--color-text-secondary)]" />
             <span className="excel-upload-zone__title">{titleLabel}</span>
           </div>
-          <div className="excel-upload-zone__drag-label">Drag or Click</div>
-          <div className={`excel-upload-zone__upload${hintText ? "" : " excel-upload-zone__upload--compact"}`}>
-            <UploadIcon size={16} className="excel-upload-zone__upload-icon" />
-            <span className="excel-upload-zone__upload-label">업로드</span>
-          </div>
+          <span className="excel-upload-zone__instruction">파일을 끌어 놓거나 <strong>파일 선택</strong></span>
           {hintText ? (
             <div className="modal-hint">
               {hintText}

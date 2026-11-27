@@ -627,7 +627,7 @@ export default function DashboardPage() {
       <section className={styles.quickSection} aria-label="자주 쓰는 일">
         <div className={styles.sectionLabel}>자주 쓰는 일</div>
         <div className={styles.quickGrid}>
-          <QuickAction to="/student/submit/assignment" icon={<IconClipboard />} label="과제 사진 제출" detail="사진 찍기·앨범에서 선택" primary />
+          <QuickAction to="/student/submit/assignment" icon={<IconClipboard />} label="과제 사진 제출" detail="사진 찍기·앨범에서 선택" primary wideOnMobile />
           <QuickAction to="/student/submit" icon={<IconFolder />} label="자료 제출·확인" detail="과제·성적표·설문" wideOnMobile />
           <QuickAction
             to="/student/qna"

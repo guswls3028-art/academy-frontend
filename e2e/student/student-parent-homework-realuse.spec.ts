@@ -1129,6 +1129,16 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await expect(submitShortcut).toBeInViewport();
       const label = submitShortcut.getByText("자료 제출·확인", { exact: true });
       expect(await label.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+      if (width === 390) {
+        const photoShortcut = page.getByRole("link", { name: /^과제 사진 제출/ });
+        const [photo, submit] = await Promise.all([photoShortcut.boundingBox(), submitShortcut.boundingBox()]);
+        expect(photo).not.toBeNull();
+        expect(submit).not.toBeNull();
+        expect(photo!.width).toBeCloseTo(submit!.width, 0);
+        expect(photo!.y + photo!.height).toBeLessThanOrEqual(submit!.y);
+        const detail = photoShortcut.getByText("사진 찍기·앨범에서 선택", { exact: true });
+        expect(await detail.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+      }
       await assertNoHorizontalOverflow(page);
       await page.screenshot({ path: testInfo.outputPath(`student-submission-shortcut-${width}.png`) });
     }

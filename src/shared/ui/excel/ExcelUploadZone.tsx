@@ -28,7 +28,7 @@ export default function ExcelUploadZone({
 }: ExcelUploadZoneProps) {
   return (
     <FileUploadZone
-      titleLabel="Excel"
+      titleLabel="엑셀 파일"
       accept={accept}
       hintText={hintText}
       disabled={disabled}

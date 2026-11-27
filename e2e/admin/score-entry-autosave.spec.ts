@@ -2209,9 +2209,9 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     const reviewCells = page.locator('td[data-col-type="exam-review"]');
     await expect(reviewCells).toHaveCount(4);
     await expect(reviewCells.nth(0)).toContainText("미완료");
-    await expect(reviewCells.nth(0)).toContainText("미완료 1");
+    await expect(reviewCells.nth(0)).toContainText("시험 1건");
     await expect(reviewCells.nth(1)).toContainText("완료");
-    await expect(reviewCells.nth(1)).toContainText("완료 1");
+    await expect(reviewCells.nth(1)).toContainText("시험 1건");
     await expect(reviewCells.nth(2)).toContainText("오답 없음");
     await expect(reviewCells.nth(3)).toContainText("채점 대기");
 
@@ -2338,6 +2338,12 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
       await expect(rowFor(1).getByRole("cell", { name: "90/100", exact: true })).toHaveAttribute("data-pass-status", "pass");
       await expect(firstNameCell.locator(".ds-student-name--clinic-highlight")).toHaveCount(0);
       await expect(firstNameCell.getByText("오답 미완료", { exact: true })).toBeVisible();
+      const examReview = rowFor(1).locator('td[data-col-type="exam-review"]');
+      const examBadge = examReview.getByLabel("시험 오답 상태: 미완료", { exact: true });
+      await expect(examBadge).toHaveText("미완료");
+      await expect(examReview.getByText("시험 1건", { exact: true })).toBeVisible();
+      expect(await examBadge.evaluate(el => el.getBoundingClientRect().width <= el.closest("td")!.clientWidth)).toBe(true);
+      await expect(rowFor(2).locator('td[data-col-type="exam-review"]').getByLabel("시험 오답 상태: 완료", { exact: true })).toHaveText("완료");
       // A real clinic flag stays yellow even when the separate follow-up flag is false.
       await expect(nameCellFor(2).locator(".ds-student-name--clinic-highlight")).toHaveCount(1);
       for (const index of [2, 3, 4]) {
