@@ -2,7 +2,7 @@
  * DS TABS — SSOT: 탭은 두 종류만 사용
  * PATH: src/styles/design-system/ds/tabs.css
  * (1) 플랫탭: 페이지·오버레이 → .ds-tabs.ds-tabs--flat + .ds-tab / .is-active
- * (2) 입체탭: 모달 → .modal-tabs-area 또는 .modal-tabs-elevated 내부의 .ds-tabs
+ * (2) 모달 탭 → .modal-tabs-area 또는 .modal-tabs-elevated 내부의 .ds-tabs
  * 레거시(antd Tabs, 커스텀 버튼 탭 등) 사용 금지. 위 두 가지로 통일.
  * ============================================================================ */
 

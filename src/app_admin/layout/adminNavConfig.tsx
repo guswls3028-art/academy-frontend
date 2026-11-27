@@ -26,6 +26,7 @@ export type AdminNavItem = {
   to: string;
   label: string;
   iconPath: string;
+  sidebarGroup?: "학생·수업";
   /** 사용자가 메뉴 이름 대신 입력할 수 있는 실제 업무 표현 */
   keywords?: string[];
   /** true면 is_payroll_manager(관리자 권한 on)일 때만 메뉴 노출 */
@@ -48,9 +49,9 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { to: `${ADMIN_NAV_BASE}/dashboard`, label: "대시보드", iconPath: "M3 11l9-7 9 7v9H3z", keywords: ["홈", "오늘 업무", "처리할 일"] },
       { to: `${ADMIN_NAV_BASE}/staff-board`, label: "교직원 게시판", iconPath: "M4 4h16v13H9l-5 4zM8 8h8M8 12h5", keywords: ["학원 내부 공지", "직원", "강사", "조교", "자료실", "자유게시글", "협업"] },
       { to: `${ADMIN_NAV_BASE}/guide`, label: "가이드", iconPath: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8", keywords: ["도움말", "사용법", "매뉴얼"] },
-      { to: `${ADMIN_NAV_BASE}/students`, label: "학생", iconPath: "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0", keywords: ["원생", "학생 등록", "명단", "학부모"] },
-      { to: `${ADMIN_NAV_BASE}/lectures`, label: "강의", iconPath: "M4 4h16v12H4zM8 20h8", keywords: ["수업", "차시", "보강", "출결"] },
-      { to: `${ADMIN_NAV_BASE}/clinic`, label: "클리닉", iconPath: "M12 21s7-4 7-10a7 7 0 0 0-14 0c0 6 7 10 7 10Z", keywords: ["예약", "등원", "보충"] },
+      { to: `${ADMIN_NAV_BASE}/students`, label: "학생", sidebarGroup: "학생·수업", iconPath: "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm-7 8a7 7 0 0 1 14 0", keywords: ["원생", "학생 등록", "명단", "학부모"] },
+      { to: `${ADMIN_NAV_BASE}/lectures`, label: "강의", sidebarGroup: "학생·수업", iconPath: "M4 4h16v12H4zM8 20h8", keywords: ["수업", "차시", "보강", "출결"] },
+      { to: `${ADMIN_NAV_BASE}/clinic`, label: "클리닉", sidebarGroup: "학생·수업", iconPath: "M12 21s7-4 7-10a7 7 0 0 0-14 0c0 6 7 10 7 10Z", keywords: ["예약", "등원", "보충"] },
     ],
   },
   {

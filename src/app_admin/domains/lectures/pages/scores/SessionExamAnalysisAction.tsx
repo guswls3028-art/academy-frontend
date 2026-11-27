@@ -52,7 +52,7 @@ export default function SessionExamAnalysisAction({ exams, lectureId, sessionId,
         시험 성적 분석
       </Button>
       {pickerOpen && (
-        <AdminModal open onClose={() => setPickerOpen(false)} type="inspect" width={440} noMinimize>
+        <AdminModal open onClose={() => setPickerOpen(false)} type="inspect" size="sm" noMinimize>
           <ModalHeader title="분석할 시험 선택" type="inspect" />
           <ModalBody>
             <div className="grid gap-2">

@@ -3,40 +3,41 @@
   inset: 0;
   z-index: 10020;
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
   place-items: center;
-  padding: 20px;
-  background: rgba(10, 16, 28, 0.52);
-  backdrop-filter: blur(7px);
+  padding: 16px;
+  background: rgba(10, 16, 28, 0.46);
 }
+
+.passwordOverlay { z-index: 9999; }
 
 .panel {
+  --prompt-gutter: var(--ds-space-5);
   position: relative;
-  width: min(100%, 440px);
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 400px);
+  max-height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
   overflow: hidden;
   border: 1px solid var(--color-border-divider, rgba(148, 163, 184, 0.26));
-  border-radius: 18px;
+  border-radius: var(--ds-radius-lg);
   color: var(--color-text-primary, #172033);
   background: var(--color-modal-bg, var(--color-bg-surface, #ffffff));
-  box-shadow:
-    0 24px 70px rgba(7, 12, 24, 0.28),
-    0 1px 0 rgba(255, 255, 255, 0.18) inset;
-}
-
-.accent {
-  height: 4px;
-  background: var(--first-guide-accent);
+  box-shadow: var(--ds-shadow-md);
 }
 
 .closeButton {
   position: absolute;
-  top: 14px;
-  right: 14px;
+  top: 8px;
+  right: 8px;
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: var(--ds-touch-target);
+  height: var(--ds-touch-target);
   place-items: center;
   border: 0;
-  border-radius: 10px;
+  border-radius: var(--ds-radius-md);
   color: var(--color-text-muted, #718096);
   background: transparent;
   cursor: pointer;
@@ -48,7 +49,6 @@
 }
 
 .closeButton svg,
-.header svg,
 .guideItem svg {
   fill: none;
   stroke: currentColor;
@@ -58,28 +58,19 @@
 }
 
 .header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 24px 54px 18px 24px;
+  flex: none;
+  padding: 16px var(--prompt-gutter);
+  border-bottom: 1px solid var(--color-border-divider, #dfe5ee);
 }
 
-.icon {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid color-mix(in srgb, var(--first-guide-accent) 26%, transparent);
-  border-radius: 12px;
-  color: var(--first-guide-accent);
-  background: color-mix(in srgb, var(--first-guide-accent) 9%, transparent);
+.closeButton + .header {
+  padding-right: 60px;
 }
 
 .title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 750;
+  font-size: var(--ds-text-lg);
+  font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.35;
 }
@@ -87,12 +78,21 @@
 .description {
   margin: 3px 0 0;
   color: var(--color-text-muted, #718096);
-  font-size: 12px;
+  font-size: var(--ds-text-sm);
   line-height: 1.5;
 }
 
 .body {
-  padding: 0 24px 22px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px var(--prompt-gutter);
+}
+
+.fieldLabel {
+  font-size: var(--ds-text-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary, #666);
 }
 
 .accountCard {
@@ -100,10 +100,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 58px;
-  padding: 12px 15px;
+  min-height: var(--ds-control-md);
+  padding: 8px 12px;
   border: 1px solid color-mix(in srgb, var(--first-guide-accent) 20%, var(--color-border-divider, #dfe5ee));
-  border-radius: 13px;
+  border-radius: var(--ds-radius-md);
   background: color-mix(in srgb, var(--first-guide-accent) 6%, var(--color-modal-bg, #ffffff));
 }
 
@@ -131,19 +131,17 @@
 
 .guideItem {
   display: grid;
-  grid-template-columns: 32px 1fr;
+  grid-template-columns: 18px 1fr;
   gap: 10px;
   align-items: start;
 }
 
 .itemIcon {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 18px;
+  height: 20px;
   place-items: center;
-  border-radius: 10px;
   color: var(--first-guide-accent);
-  background: color-mix(in srgb, var(--first-guide-accent) 8%, transparent);
 }
 
 .guideItem strong {
@@ -164,7 +162,7 @@
   margin: 16px 0 0;
   padding: 9px 11px;
   border: 1px solid color-mix(in srgb, var(--color-error, #dc2626) 32%, transparent);
-  border-radius: 10px;
+  border-radius: var(--ds-radius-md);
   color: var(--color-error, #b91c1c);
   background: color-mix(in srgb, var(--color-error, #dc2626) 7%, transparent);
   font-size: 12px;
@@ -172,22 +170,24 @@
 }
 
 .footer {
+  flex: none;
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-  padding: 14px 24px 18px;
+  padding: 12px var(--prompt-gutter);
   border-top: 1px solid var(--color-border-divider, rgba(148, 163, 184, 0.24));
-  background: color-mix(in srgb, var(--first-guide-accent) 2%, var(--color-modal-bg, #ffffff));
+  background: var(--color-modal-bg, #ffffff);
 }
 
 .primaryButton,
 .secondaryButton {
   min-width: 92px;
-  min-height: 40px;
-  padding: 9px 15px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 700;
+  min-height: var(--ds-control-md);
+  padding: 6px 14px;
+  border-radius: var(--ds-radius-md);
+  font-size: var(--ds-text-md);
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -195,7 +195,6 @@
   border: 1px solid transparent;
   color: var(--first-guide-accent-contrast);
   background: var(--first-guide-accent);
-  box-shadow: 0 6px 16px color-mix(in srgb, var(--first-guide-accent) 22%, transparent);
 }
 
 .secondaryButton {
@@ -228,25 +227,11 @@
 
 @media (max-width: 520px) {
   .overlay {
-    align-items: end;
-    padding: 12px;
+    padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
   }
 
   .panel {
-    width: 100%;
-    border-radius: 18px;
-  }
-
-  .header {
-    padding: 21px 50px 16px 18px;
-  }
-
-  .body {
-    padding: 0 18px 18px;
-  }
-
-  .footer {
-    padding: 12px 18px calc(14px + env(safe-area-inset-bottom));
+    --prompt-gutter: var(--ds-space-4);
   }
 
   .primaryButton,
@@ -257,17 +242,22 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .panel {
-    animation: first-guide-enter 160ms ease-out both;
+    animation: account-prompt-enter var(--ds-duration-fast) ease-out both;
   }
 }
 
-@keyframes first-guide-enter {
+@media (max-height: 420px) {
+  .panel { display: block; overflow-y: auto; }
+  .body { overflow: visible; }
+}
+
+@keyframes account-prompt-enter {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.99);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }

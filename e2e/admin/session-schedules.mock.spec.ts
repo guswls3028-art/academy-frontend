@@ -43,10 +43,15 @@ function fixture(configured = false) {
   };
   return state;
 }
-async function install(page: Page, state: ReturnType<typeof fixture>) {
+async function install(page: Page, state: ReturnType<typeof fixture>, expanded = true) {
   await installTenantOneInitScript(page);
   const payload = Buffer.from(JSON.stringify({ exp: 2_000_000_000, user_id: 12, tenant_code: 'hakwonplus' })).toString('base64url');
-  await page.addInitScript(jwt => { localStorage.setItem('access', jwt); localStorage.setItem('refresh', `${jwt}-refresh`); }, `e30.${payload}.sig`);
+  await page.addInitScript(({ jwt, expanded }) => {
+    localStorage.setItem('access', jwt);
+    localStorage.setItem('refresh', `${jwt}-refresh`);
+    const key = 'session-strip:expanded:hakwonplus:user:12';
+    if (expanded && localStorage.getItem(key) === null) localStorage.setItem(key, '1');
+  }, { jwt: `e30.${payload}.sig`, expanded });
   await page.route('**/api/v1/**', async route => {
     const request = route.request();
     const url = new URL(request.url());
@@ -876,8 +881,37 @@ for (const width of [390, 1366]) test(`저장 실패·닫기 후 입력 보존·
   await expect(page.getByRole('button', { name: /^수요일반.*2명/ })).toBeVisible();
 });
 
+for (const width of [390, 1100, 1366]) test(`차시 블록을 접어도 선택한 수업일과 명단이 유지된다 ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 900 });
+  await install(page, fixture(true), false);
+  await page.goto(`${BASE}${path}/${width === 390 ? 'scores' : 'attendance'}?schedule=71`);
+  const expand = page.getByRole('button', { name: '차시·수업일 펼치기', exact: true });
+  const collapse = page.getByRole('button', { name: '차시·수업일 접기', exact: true });
+  const days = page.getByRole('region', { name: '수업일 선택', exact: true });
+  await expect(expand).toHaveAttribute('aria-expanded', 'false');
+  await expect(days).toBeHidden();
+  await capture(page, `session-strip-collapsed-${width}`);
+  await expand.press('Enter');
+  await expect(collapse).toHaveAttribute('aria-expanded', 'true');
+  await days.getByRole('button', { name: /^목요일반/ }).click();
+  await expect(page).toHaveURL(/schedule=72$/);
+  await page.reload();
+  await expect(days.getByRole('button', { name: /^목요일반/ })).toHaveAttribute('aria-pressed', 'true');
+  await collapse.press('Space');
+  await expect(expand).toBeFocused();
+  await expect(days).toBeHidden();
+  await page.reload();
+  await expect(expand).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByText('2026-11-05 · 목요일반', { exact: true })).toBeVisible();
+  const student = width === 390
+    ? page.getByRole('checkbox', { name: '이목현 선택', exact: true })
+    : page.getByRole('link', { name: '이목현 학생 상세 열기', exact: true });
+  await expect(student).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+});
+
 test('조회 실패와 잘못된 범위가 전체 명단으로 대체되지 않는다', async ({ page }) => {
-  const state = fixture(true); state.failRead = true; await install(page, state);
+  const state = fixture(true); state.failRead = true; await install(page, state, false);
   await page.goto(`${BASE}${path}/attendance?schedule=71`);
   await expect(page.getByRole('alert').filter({ hasText: '수업일 정보를 불러오지 못했습니다' })).toBeVisible();
   await expect(page.getByRole('link', { name: '김수연 학생 상세 열기' })).toHaveCount(0);

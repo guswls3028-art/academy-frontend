@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ControlSizeContext } from "@/shared/ui/ds/ControlSizeContext";
 
-import { MODAL_DEFAULT_WIDTH } from "./constants";
+import { MODAL_WIDTH } from "./constants";
 import { useModalKeyboard } from "./useModalKeyboard";
 import { useDraggableModal } from "./useDraggableModal";
 import { useModalWindow } from "./ModalWindowContext";
@@ -20,6 +20,7 @@ type AdminModalProps = {
   open: boolean;
   onClose: () => void;
   type?: AdminModalType;
+  size?: keyof typeof MODAL_WIDTH;
   width?: number | string;
   /** 모달 위에 또 다른 모달을 띄울 때 상위 모달에 더 높은 값 지정 (기본 1000) */
   zIndex?: number;
@@ -66,7 +67,8 @@ export default function AdminModal({
   open,
   onClose,
   type = "action",
-  width = MODAL_DEFAULT_WIDTH,
+  size = "default",
+  width = MODAL_WIDTH[size],
   zIndex,
   className,
   onEnterConfirm,

@@ -335,7 +335,7 @@ function LogDetailModal({
           : null;
 
   return (
-    <AdminModal open={open} onClose={onClose} type="inspect" width={820} noMinimize className={styles.detailModal}>
+    <AdminModal open={open} onClose={onClose} type="inspect" size="xwide" noMinimize className={styles.detailModal}>
       <ModalHeader
         title="알림톡 발송 기록"
         description={`${koreanFullDateTimeText(detail.sent_at)} 기록`}

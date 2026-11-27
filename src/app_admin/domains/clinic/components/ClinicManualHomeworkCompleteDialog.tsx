@@ -37,7 +37,7 @@ export default function ClinicManualHomeworkCompleteDialog({
         if (!pending) onClose();
       }}
       type="confirm"
-      width={480}
+      size="default"
       noMinimize
       closeDisabled={pending}
     >
