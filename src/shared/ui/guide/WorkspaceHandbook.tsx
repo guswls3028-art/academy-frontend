@@ -32,11 +32,14 @@ function selection(params: URLSearchParams): { key: keyof typeof handbooks; inde
   return { key, index };
 }
 
-export default function WorkspaceHandbook({ mobileTeacher = false }: { mobileTeacher?: boolean }) {
+type MenuItem = { to: string; label: string };
+
+export default function WorkspaceHandbook({ mobileTeacher = false, menuItems }: { mobileTeacher?: boolean; menuItems?: MenuItem[] }) {
   const [params, setParams] = useSearchParams();
   const { key, index } = selection(params);
   const book = handbooks[key];
   const page = book.pages[index];
+  const menu = key === "teacher" && menuItems?.find((item) => item.to === page.menuPath);
   const headingId = useId();
   const sheetHeading = useRef<HTMLHeadingElement>(null);
   const focusAfterTurn = useRef(false);
@@ -67,7 +70,7 @@ export default function WorkspaceHandbook({ mobileTeacher = false }: { mobileTea
   }
 
   return <>
-    <section className={styles.reader} aria-labelledby={headingId}>
+    <section className={styles.reader} data-book={key} aria-labelledby={headingId}>
       <header className={styles.header}>
         <h2 id={headingId}>그림으로 보는 사용 가이드</h2>
         <div className={styles.toolbar}>
@@ -97,14 +100,26 @@ export default function WorkspaceHandbook({ mobileTeacher = false }: { mobileTea
             <button type="button" disabled={index === book.pages.length - 1} onClick={() => step(1)}>다음 쪽 →</button>
           </nav>
           <div className={styles.spread} key={key + index}>
-            <p className={styles.route}>{page.start}</p>
+            <div className={styles.entry}>
+              <p className={styles.route}>{page.start}</p>
+              {menu && <a className={styles.menuLink} href={menu.to} target="_blank" rel="noreferrer">
+                {menu.label} 메뉴 열기 <span>(새 탭)</span>
+              </a>}
+            </div>
             <h3 ref={sheetHeading} tabIndex={-1}>{page.title}</h3>
             {mobileTeacher && key === "teacher" && index === 0 &&
               <p className={styles.orientation}>PC 버전의 화면을 기준으로 설명합니다. 선생님 모바일에서는 메뉴의 ‘전체 업무’를 열면 같은 화면으로 이동합니다.</p>}
-            <HandbookIllustration page={page} />
-            <ol className={styles.steps}>{page.steps.map((text) => <li key={text}>{text}</li>)}</ol>
-            <p className={styles.done}><strong>완료 확인</strong> {page.done}</p>
-            <details className={styles.help}><summary>막혔을 때</summary><p>{page.recovery}</p></details>
+            <div className={styles.lesson}>
+              <HandbookIllustration page={page} />
+              <div>
+                <ol className={styles.steps}>{page.steps.map((text) => <li key={text}>{text}</li>)}</ol>
+                <p className={styles.done}><strong>완료 확인</strong> {page.done}
+                  {page.resultImage && <a className={styles.resultLink} href={page.resultImage.fullImage} target="_blank"
+                    rel="noreferrer" aria-label="등록 완료 화면 보기 (새 탭)">등록 완료 화면 보기 ↗</a>}
+                </p>
+                <details className={styles.help}><summary>막혔을 때</summary><p>{page.recovery}</p></details>
+              </div>
+            </div>
           </div>
         </div>
       </div>

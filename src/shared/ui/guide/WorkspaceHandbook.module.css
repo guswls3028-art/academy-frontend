@@ -32,7 +32,8 @@
 .reader button:not(:disabled), .reader summary, .more summary { cursor: pointer; }
 .reader :is(button,a,select,summary):focus-visible, .more summary:focus-visible { outline: 3px solid var(--accent, #205d74); outline-offset: 2px; }
 .sheet { min-width: 0; padding: clamp(16px, 3cqw, 40px); }
-.mobileContents { display: none; }
+.mobileContents { display: none; align-items: center; gap: 8px; font-size: 13px; color: var(--quiet); margin-bottom: 18px; }
+.mobileContents select { min-width: 0; flex: 1; min-height: 40px; padding: 4px; border: 1px solid var(--rule); border-radius: 5px; background: var(--paper); color: var(--ink); }
 .spread { animation: arrive 150ms ease-out; }
 @keyframes arrive { from { opacity: .65; transform: translateX(4px); } to { opacity: 1; transform: translateX(0); } }
 @media (prefers-reduced-motion: reduce) { .spread { animation: none; } }
@@ -62,11 +63,33 @@
 .pager button:disabled { opacity: .45; }
 .more { margin: 0 0 18px; }
 .more > summary { padding: 8px 0; font-size: 14px; font-weight: 650; }
+.reader[data-book="teacher"] .entry { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 0 12px; }
+.menuLink, .resultLink { color: var(--accent); font-size: 14px; font-weight: 650; text-underline-offset: 3px; }
+.menuLink { display: inline-block; padding: 6px 0; }
+.menuLink span { font-size: 12px; }
+.resultLink { display: block; width: fit-content; margin-top: 4px; }
+
+@container (min-width: 701px) {
+  .reader[data-book="teacher"] .header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
+  .reader[data-book="teacher"] .header h2, .reader[data-book="teacher"] .toolbar { margin: 0; }
+  .reader[data-book="teacher"] .header h2 { font-size: 23px; }
+  .reader[data-book="teacher"] .paper { grid-template-columns: clamp(160px, 17cqw, 212px) minmax(0, 1fr); }
+  .reader[data-book="teacher"] .contents { padding: 16px 8px; }
+  .reader[data-book="teacher"] .sheet { padding: 14px clamp(16px, 1.8cqw, 28px) 18px; }
+  .reader[data-book="teacher"] .pager { margin-bottom: 8px; }
+  .reader[data-book="teacher"] .lesson { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: start; gap: clamp(18px, 2cqw, 32px); }
+  .reader[data-book="teacher"] .figure img { height: auto; max-height: 350px; }
+  .reader[data-book="teacher"] .steps li:first-child { margin-top: 0; }
+}
+@container (min-width: 701px) and (max-width: 960px) {
+  .reader[data-book="teacher"] .paper { display: block; }
+  .reader[data-book="teacher"] .contents { display: none; }
+  .reader[data-book="teacher"] .mobileContents { display: flex; margin-bottom: 8px; font-size: 14px; }
+}
 @container (max-width: 700px) {
   .paper { display: block; }
   .contents { display: none; }
-  .mobileContents { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--quiet); margin-bottom: 18px; }
-  .mobileContents select { min-width: 0; flex: 1; min-height: 40px; padding: 4px; border: 1px solid var(--rule); border-radius: 5px; background: var(--paper); color: var(--ink); }
+  .mobileContents { display: flex; }
   .figure img { height: auto; max-height: 300px; }
   .toolbar { gap: 8px; }
   .steps { font-size: 15px; }

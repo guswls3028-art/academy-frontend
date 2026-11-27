@@ -1,5 +1,5 @@
 import type { AccountPasswordPolicy } from "@/shared/api/contracts/students";
-import type { Page, Route } from "@playwright/test";
+import type { BrowserContext, Page, Route } from "@playwright/test";
 
 import { expect, test } from "../fixtures/strictTest";
 import { guideRecording } from "../helpers/guideRecording";
@@ -49,7 +49,7 @@ function localJwt(): string {
 }
 
 async function installTeacherStudentPage(
-  page: Page,
+  page: Page | BrowserContext,
   onCreateStudent: (payload: Record<string, unknown>) => void,
   onPolicyUpdate?: (payload: Record<string, unknown>) => void,
 ): Promise<void> {
@@ -98,6 +98,47 @@ async function installTeacherStudentPage(
 }
 
 test.use({ serviceWorkers: "block" });
+
+test("1366px 선생님 PC 가이드에서 학생을 등록하고 목록을 다시 확인한다", async ({ page, context }, info) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  const submissions: Record<string, unknown>[] = [];
+  await installTeacherStudentPage(context, (payload) => submissions.push(payload));
+  await page.goto(BASE + "/workspace/guide", { waitUntil: "commit" });
+  const book = page.getByRole("region", { name: "그림으로 보는 사용 가이드" });
+  const registration = book.getByRole("link", { name: "학생 메뉴 열기 (새 탭)" });
+  await expect(registration).toHaveAttribute("href", "/workspace/students", { timeout: 45_000 });
+  const [roster] = await Promise.all([page.waitForEvent("popup"), registration.click()]);
+  await roster.setViewportSize({ width: 1366, height: 768 });
+  await roster.locator('[data-guide="students-add-btn"]').click();
+  await roster.getByRole("button", { name: "1명만 등록", exact: true }).click();
+  const form = roster.getByRole("dialog", { name: "학생 등록", exact: true });
+  await form.getByPlaceholder("이름", { exact: true }).fill("예시학생");
+  await form.getByPlaceholder("0000").nth(0).fill("0000");
+  await form.getByPlaceholder("0000").nth(1).fill("0001");
+  await roster.screenshot({ path: info.outputPath("registration-form.jpg"), quality: 90, animations: "disabled" });
+  await form.getByRole("button", { name: "등록", exact: true }).click();
+  const review = roster.getByRole("alertdialog", { name: "학생 등록 최종 확인" });
+  for (const name of ["학생 초기 비밀번호", "학부모 초기 비밀번호"]) {
+    await review.getByRole("group", { name, exact: true }).getByRole("radio", { name: "랜덤 번호", exact: true }).check();
+  }
+  await review.getByRole("button", { name: "확인하고 등록", exact: true }).click();
+  await expect(roster.getByText("학생 계정 등록·ID 확인 완료", { exact: true })).toBeVisible();
+  await expect(roster.getByText(/로그인 ID: QA-STUDENT-101/)).toBeVisible();
+  expect(submissions).toHaveLength(1);
+  await roster.screenshot({ path: info.outputPath("registration-result.jpg"), quality: 90, animations: "disabled" });
+  await roster.reload({ waitUntil: "domcontentloaded" });
+  await expect(roster.getByText("예시학생", { exact: true }).first()).toBeVisible();
+  await roster.close();
+  await expect(book.getByRole("heading", { name: "학생 한 명 등록하기" })).toBeVisible();
+  const [example] = await Promise.all([
+    page.waitForEvent("popup"),
+    book.getByRole("link", { name: "등록 완료 화면 보기 (새 탭)" }).click(),
+  ]);
+  await expect(example.locator("img")).toHaveJSProperty("naturalWidth", 1366);
+  await example.close();
+  await book.getByRole("button", { name: "다음 쪽 →" }).click();
+  await expect(book.getByRole("link", { name: "강의 메뉴 열기 (새 탭)" })).toHaveAttribute("href", "/workspace/lectures");
+});
 
 for (const width of [390, 1366]) {
   test(`${width}px 학원 설정은 바꾼 역할만 저장하고 다른 역할 설정을 유지한다`, async ({ page }, testInfo) => {

@@ -4,6 +4,8 @@ import { teacherPcHandbook } from "./content/teacherPcHandbook";
 export type HandbookPage = {
   title: string;
   start: string;
+  menuPath?: string;
+  resultImage?: { image: string; fullImage: string; alt: string };
   steps: string[];
   done: string;
   recovery: string;

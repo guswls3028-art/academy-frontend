@@ -25,6 +25,9 @@ const stylesheet = `
   figure { margin: 0; }
   img { width: 100%; max-height: 99mm; display: block; object-fit: contain; border: .5pt solid #ced9dc; }
   figcaption { color: #546877; font-size: 10pt; line-height: 1.5; margin-top: 2mm; }
+  .paired figure + figure { margin-top: 3mm; }
+  .paired img { width: auto; max-width: 100%; max-height: 74mm; }
+  .paired figure + figure img { max-height: 37mm; }
   ol { padding-inline-start: 1.5em; margin: 0; }
   li { padding-left: 1mm; margin-bottom: 2mm; }
   li::marker, dt, h2 { font-weight: 700; color: #205b70; }
@@ -42,6 +45,11 @@ async function illustration(item) {
     const rows = item.example.rows.map(([term, value]) => `<div><dt>${escape(term)}</dt><dd>${escape(value)}</dd></div>`).join("");
     return `<div class="example"><h2>${escape(item.example.title)}</h2><dl>${rows}</dl></div>`;
   }
+  const input = await imageFigure(item);
+  return item.resultImage ? `<div class="paired">${input}${await imageFigure(item.resultImage)}</div>` : input;
+}
+
+async function imageFigure(item) {
   const asset = item.image.startsWith("/src/") ? path.join(root, item.image) : path.join(root, "public", item.image);
   const bytes = await readFile(asset);
   const mime = path.extname(asset) === ".png" ? "image/png" : "image/jpeg";

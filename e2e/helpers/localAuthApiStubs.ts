@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
 import { getBaseUrl } from "./auth";
 
 export function createLocalJwt() {
@@ -11,7 +11,7 @@ type LocalAuthApiStubOptions = {
   programFeatureFlags?: Record<string, boolean | string | number>;
 };
 
-export async function installLocalAuthApiStubs(page: Page, options: LocalAuthApiStubOptions = {}) {
+export async function installLocalAuthApiStubs(page: Page | BrowserContext, options: LocalAuthApiStubOptions = {}) {
   const baseUrl = getBaseUrl("admin");
   if (!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(baseUrl)) return;
 
@@ -104,7 +104,7 @@ export async function installLocalAuthApiStubs(page: Page, options: LocalAuthApi
   });
 }
 
-export async function installTenantOneInitScript(page: Page) {
+export async function installTenantOneInitScript(page: Page | BrowserContext) {
   await page.addInitScript(() => {
     localStorage.setItem("tenant_code", "hakwonplus");
     sessionStorage.setItem("tenantCode", "hakwonplus");
