@@ -83,6 +83,7 @@ test.describe("teacher attendance secession undo", () => {
             results: [{
               id: 777,
               status: currentStatus,
+              enrollment_status: "ACTIVE",
               name: "실사용퇴원학생",
               student_name: "실사용퇴원학생",
               lecture_title: "토요 실사용반",
@@ -127,11 +128,18 @@ test.describe("teacher attendance secession undo", () => {
     const absentButton = page.getByRole("button", { name: "결석", exact: true });
     await expect(absentButton).toBeVisible();
     await absentButton.click();
+    await expect(page.getByRole("button", { name: "복구하고 결석 저장", exact: true })).toBeVisible();
+    expect(patchBodies).toHaveLength(0);
+    await page.getByRole("button", { name: "취소", exact: true }).click();
+    expect(patchBodies).toHaveLength(0);
+    await page.getByText("실사용퇴원학생").click();
+    await absentButton.click();
+    await page.getByRole("button", { name: "복구하고 결석 저장", exact: true }).click();
 
     await expect.poll(() => patchBodies.length, {
       message: `출결 상태 변경 PATCH가 발생해야 합니다.\nAPI calls:\n${apiCalls.join("\n")}`,
     }).toBe(1);
-    expect(patchBodies[0]).toEqual({ status: "ABSENT" });
+    expect(patchBodies[0]).toEqual({ status: "ABSENT", restore_scope: "session" });
 
     await page.getByRole("button", { name: "되돌리기" }).click();
     await page.getByRole("button", { name: "이 차시만 퇴원", exact: true }).click();

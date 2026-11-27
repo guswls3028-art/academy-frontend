@@ -107,7 +107,7 @@ export default function SessionAttendancePage({
   const sessionsPath = `${listPath}${listParams.size ? "&" : "?"}view=sessions`;
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const { confirmSecession, secessionDialog } = useSecessionConfirm();
+  const { prepareStatusChange, secessionDialog } = useSecessionConfirm();
   const { user } = useAuth();
   const tenantCode = getTenantCodeForApiRequest();
   const [bulkPresentUndo, setBulkPresentUndo] = useBulkPresentUndo(tenantCode, user?.id, sessionId);
@@ -182,13 +182,14 @@ export default function SessionAttendancePage({
   });
 
   const updateStatus = useMutation({
-    mutationFn: ({ id, status, confirm_secession, secession_scope }: {
+    mutationFn: ({ id, ...payload }: {
       id: number;
-      status: AttendanceStatus;
+      status: string;
       confirm_secession?: boolean;
       secession_scope?: SecessionScope;
+      restore_scope?: SecessionScope;
     }) =>
-      updateAttendance(id, { status, confirm_secession, secession_scope }),
+      updateAttendance(id, payload),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: sessionScheduleQueryKeys.session(sessionId) });
       if (Number.isFinite(lectureId)) {
@@ -197,27 +198,28 @@ export default function SessionAttendancePage({
       qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot });
       return qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
     },
-    onError: () => { feedback.error("출석 상태 변경에 실패했습니다. 다시 시도해 주세요."); },
+    onError: (error, variables) => {
+      if (variables.restore_scope) {
+        void qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceForSession(sessionId) });
+        feedback.error(extractApiError(error, "수강 복구에 실패했습니다. 현재 상태를 확인한 뒤 다시 시도해 주세요."));
+      } else feedback.error("출석 상태 변경에 실패했습니다. 다시 시도해 주세요.");
+    },
   });
 
   async function handleStatusChange(att: AttendanceListItem, code: AttendanceStatus) {
     if (pendingStatusIds.has(att.id) || (toAttendanceStatus(att.status) === code && code !== "SECESSION")) return;
-    const secessionScope = code === "SECESSION" ? await confirmSecession(att.name ?? att.student_name ?? "학생") : null;
-    if (code === "SECESSION" && !secessionScope) return;
+    const change = await prepareStatusChange(att, code);
+    if (!change) return;
 
     setPendingStatusIds((current) => new Set(current).add(att.id));
     try {
-      await updateStatus.mutateAsync({
-        id: att.id,
-        status: code,
-        confirm_secession: code === "SECESSION" ? true : undefined,
-        secession_scope: secessionScope ?? undefined,
-      });
-      if (code === "SECESSION") {
+      await updateStatus.mutateAsync({ id: att.id, ...change });
+      if (code === "SECESSION" || change.restore_scope) {
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceMatrix(lectureId) });
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.sessionEnrollments(sessionId) });
         qc.invalidateQueries({ queryKey: adminLectureQueryKeys.attendanceEnrolledIds(sessionId) });
-        feedback.success(`${att.name ?? "학생"} 학생이 퇴원 처리되었습니다.`);
+        qc.invalidateQueries({ queryKey: adminLectureQueryKeys.lectureEnrollments(lectureId) });
+        feedback.success(change.restore_scope ? "수강을 복구하고 출결을 저장했습니다." : `${att.name ?? "학생"} 학생이 퇴원 처리되었습니다.`);
       }
     } catch {
       // useMutation onError owns the user-facing failure message.

@@ -51,6 +51,7 @@ export type AttendanceListItem = Record<string, unknown> & AttendanceMemoFields 
   id: number;
   status: string;
   enrollment_id?: number | null;
+  enrollment_status?: components["schemas"]["LectureAttendance"]["enrollment_status"];
   memo?: string | null;
   planned_arrival_date?: string | null;
   planned_arrival_time?: string | null;
@@ -226,18 +227,15 @@ export async function fetchAttendanceEnrolledStudentIds(
  * 2️⃣ 출결 단건 수정 (상태 / 메모)
  * PATCH /api/v1/lectures/attendance/{id}/
  * ======================================================= */
-export type SecessionScope = "session" | "lecture";
+export type SecessionScope = components["schemas"]["SecessionScopeEnum"];
+
+type AttendanceUpdate = Pick<components["schemas"]["PatchedLectureAttendanceRequest"],
+  "memo" | "planned_arrival_date" | "planned_arrival_time" | "confirm_secession" | "secession_scope" | "restore_scope"
+> & { status?: string };
 
 export async function updateAttendance(
   id: number,
-  payload: {
-    status?: string;
-    memo?: string;
-    planned_arrival_date?: string | null;
-    planned_arrival_time?: string | null;
-    confirm_secession?: boolean;
-    secession_scope?: SecessionScope;
-  }
+  payload: AttendanceUpdate
 ) {
   if (payload.status === "SECESSION" && payload.confirm_secession !== true) {
     throw new Error("퇴원 처리는 명시 확인 후에만 실행할 수 있습니다.");
