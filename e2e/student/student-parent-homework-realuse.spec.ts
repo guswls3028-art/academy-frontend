@@ -1,4 +1,5 @@
 import { verifyAcceptedHomeworkNotices } from "../helpers/homeworkAcceptedNoticesRealuse";
+import { verifyHomeworkReviewQueue } from "../helpers/homeworkReviewQueueRealuse";
 import { revealScoreManagement } from "../helpers/revealScoreManagement";
 /**
  * Student homework media submission -> assistant discovery/preview and UI grading
@@ -1397,7 +1398,8 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await pendingBadge.click();
       await expect(mobileHomeworkChoice).toContainText(student.name);
       await expect(mobileHomeworkChoice).toContainText(lectureTitle);
-      await expect(mobileHomeworkChoice).toContainText("파일 1개");
+      await expect(staffPage.getByRole("listitem").filter({ has: mobileHomeworkChoice })
+        .getByRole("button", { name: `${student.name} 제출 파일 1개 미리보기` })).toBeVisible();
       await expect(mobileHomeworkChoice).toHaveAttribute("href", /reviewEnrollment=\d+/);
       await expect(staffPage.getByRole("link").filter({ hasText: otherTitle })).toHaveCount(0);
       await assertNoHorizontalOverflow(staffPage);
@@ -1556,6 +1558,13 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await waitForHomeworkSummary(request, studentTokens.access, (row) => row.score === null && row.submission_media_locked === false);
       await staffPage.reload({ waitUntil: "domcontentloaded" });
       await expect(staffPage.getByRole("button", { name: "직접 확인 완료" })).toBeDisabled();
+
+      await test.step("과제 알림에서 두 강의의 제출을 이어 보고 일괄 통과", async () => {
+        await verifyHomeworkReviewQueue(page, staffPage, request, studentTokens.access, staffTokens.access, [
+          { homeworkId: created.homeworkId!, sessionId: created.sessionId!, enrollmentId: created.enrollmentId!, title: homeworkTitle, filename: uploadName },
+          { homeworkId: created.duplicateHomeworkId!, sessionId: created.duplicateSessionId!, enrollmentId: created.duplicateEnrollmentId!, title: otherTitle, filename: otherDraftName },
+        ]);
+      });
 
       // A real HEVC object must survive submission/reload and display actual
       // moving frames for the student, assistant and selected-child parent.

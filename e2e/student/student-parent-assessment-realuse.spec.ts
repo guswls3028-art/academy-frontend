@@ -57,6 +57,11 @@ type CreatedState = {
   excelExamId?: number;
   manualStaffId?: number;
   primaryEnrollmentId?: number;
+  sharedLectureId?: number;
+  sharedSessionId?: number;
+  sharedExamAttached?: boolean;
+  sharedEnrollments: Array<{ id: number; student: { id: number } }>;
+  sharedSessionEnrollmentIds: number[];
   enrollmentIds: number[];
   sessionEnrollmentIds: number[];
   attendanceIds: number[];
@@ -81,6 +86,8 @@ const created: CreatedState = {
   family: null,
   otherFamily: null,
   adminAccess: "",
+  sharedEnrollments: [],
+  sharedSessionEnrollmentIds: [],
   enrollmentIds: [],
   sessionEnrollmentIds: [],
   attendanceIds: [],
@@ -141,6 +148,7 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   for (const id of created.messageTemplateRetryIds) {
     await remove("DELETE", `/messaging/templates/${id}/`);
   }
+  if (created.sharedLectureId) await retireSharedExamContext(request, failures);
   if (created.examId && created.sessionId) {
     await remove("DELETE", `/exams/${created.examId}/?session_id=${created.sessionId}`);
   }
@@ -288,16 +296,136 @@ async function seedAssessment(
   return questionIds;
 }
 
+async function seedSharedExamContext(request: APIRequestContext, family: QaFamily, access: string) {
+  const lecture = await expectApi<{ id: number }>(request, "POST", "/lectures/lectures/", access, {
+    title: `QA 공유 강의 B ${runStamp}`, name: "QA공유", subject: "수학", start_date: todayKst, is_active: true,
+  });
+  created.sharedLectureId = lecture.id;
+  const session = await expectApi<{ id: number }>(request, "POST", "/lectures/sessions/", access, {
+    lecture: lecture.id, title: `QA 공유 차시 B ${runStamp}`, date: todayKst, order: 1,
+  });
+  created.sharedSessionId = session.id;
+  created.sharedEnrollments = await expectApi(request, "POST", "/enrollments/bulk_create/", access, {
+    lecture: lecture.id, students: family.students.map(s => s.id),
+  });
+  const ids = created.sharedEnrollments.map(row => row.id);
+  const roster = await expectApi<Array<{ id: number }>>(request, "POST", "/enrollments/session-enrollments/bulk_create/", access, {
+    session: session.id, enrollments: ids,
+  });
+  created.sharedSessionEnrollmentIds = roster.map(row => row.id);
+  await expectApi(request, "POST", `/exams/${created.examId}/lecture-assignments/`, access, { session_id: session.id }, [201]);
+  created.sharedExamAttached = true;
+  await expectApi(request, "PUT", `/exams/${created.examId}/enrollments/?session_id=${session.id}`, access, { enrollment_ids: ids }, [200]);
+}
+
+async function retireSharedExamContext(request: APIRequestContext, failures: string[]) {
+  // Release the second roster before the existing end-of-course and ranking scenarios.
+  const access = created.adminAccess;
+  const initialFailures = failures.length;
+  if (created.sharedExamAttached) {
+    const path = `/exams/${created.examId}/?session_id=${created.sharedSessionId}`;
+    try {
+      const result = await api(request, "DELETE", path, access);
+      if (![200, 404].includes(result.status)) failures.push(`unlink shared exam -> ${result.status}`);
+      else {
+        const detached = await api(request, "GET", path, access);
+        if (detached.status !== 404) failures.push(`verify shared exam detached -> ${detached.status}`);
+        else created.sharedExamAttached = false;
+      }
+    } catch (error) { failures.push(`unlink shared exam -> ${String(error)}`); }
+  }
+  const paths = [
+    ...created.sharedSessionEnrollmentIds.map(id => `/enrollments/session-enrollments/${id}/`),
+    ...created.sharedEnrollments.map(row => `/enrollments/${row.id}/`),
+    ...(created.sharedSessionId ? [`/lectures/sessions/${created.sharedSessionId}/`] : []),
+    ...(created.sharedLectureId ? [`/lectures/lectures/${created.sharedLectureId}/`] : []),
+  ];
+  for (const path of paths) {
+    try {
+      const result = await api(request, "DELETE", path, access);
+      if (![200, 204, 404].includes(result.status)) failures.push(`DELETE ${path} -> ${result.status}`);
+      const residue = await api(request, "GET", path, access);
+      if (residue.status !== 404) failures.push(`verify ${path} absent -> ${residue.status}`);
+    } catch (error) { failures.push(`shared context ${path} cleanup -> ${String(error)}`); }
+  }
+  if (failures.length === initialFailures) {
+    created.sharedEnrollments = [];
+    created.sharedSessionEnrollmentIds = [];
+    created.sharedLectureId = undefined;
+    created.sharedSessionId = undefined;
+  }
+}
+
+async function verifySharedSubmissionOrigins(
+  parentPage: Page, request: APIRequestContext, admin: QaTokens, recordedId: number, unknownId: number,
+) {
+  const b = created.sharedSessionId!;
+  const peerEnrollment = created.enrollmentIds.find(id => id !== created.primaryEnrollmentId)!;
+  const context = await parentPage.context().browser()!.newContext({ serviceWorkers: "block" });
+  try {
+    const staff = await context.newPage();
+    const boundary = await installQaStudentParentBoundary(staff, request);
+    const browser = attachStrictBrowserGuards(staff);
+    await seedBrowserAuth(staff, admin);
+    await staff.setViewportSize({ width: 1366, height: 900 });
+    const path = `/submissions/submissions/pending/?filter=done&page=1&page_size=50`;
+    type Inbox = { results: Array<{ id: number; session_choices?: Array<{ session_id: number }> }> };
+    const current = await expectApi<Inbox>(request, "GET", path + "&session_choices=1", admin.access);
+    expect(current.results.find(r => r.id === recordedId)).toMatchObject({
+      session_origin_recorded: true, session_id: b, lecture_id: created.sharedLectureId,
+      score_lecture_id: created.lectureId, enrollment_id: created.primaryEnrollmentId,
+    });
+    const unknown = current.results.find(r => r.id === unknownId);
+    expect(unknown).toMatchObject({ session_origin_recorded: false, target_resolved: true,
+      session_id: null, lecture_id: null, score_lecture_id: created.lectureId, enrollment_id: peerEnrollment });
+    expect(unknown?.session_choices?.map(c => c.session_id).sort((x, y) => x - y)).toEqual([created.sessionId!, b].sort((x, y) => x - y));
+    const legacy = await expectApi<Inbox>(request, "GET", path, admin.access);
+    expect(legacy.results.find(r => r.id === unknownId)).toMatchObject({ session_id: created.sessionId, lecture_id: created.lectureId });
+    expect(legacy.results.find(r => r.id === unknownId)).not.toHaveProperty("session_origin_recorded");
+    await gotoAndSettle(staff, `${QA_BASE}/workspace/results/submissions?filter=done`);
+    const recorded = staff.getByTestId(`submission-inbox-${recordedId}`);
+    await expect(recorded).toBeVisible();
+    await expect(recorded.getByText("응시 차시 미확인", { exact: true })).toHaveCount(0);
+    await expect(recorded.getByRole("button", { name: "결과 보기" })).toBeEnabled();
+    const row = staff.getByTestId(`submission-inbox-${unknownId}`);
+    await expect(row.getByText("응시 차시 미확인", { exact: true })).toBeVisible();
+    await row.getByRole("combobox", { name: "열어볼 강의·차시" }).selectOption(String(b));
+    await row.getByRole("button", { name: "결과 보기" }).click();
+    const link = staff.getByRole("link", { name: /저장된 수강 성적 입력/ });
+    const target = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores?reviewExam=${created.examId}&reviewEnrollment=${peerEnrollment}`;
+    await expect(link).toHaveAttribute("href", target);
+    await link.click();
+    await expect(staff).toHaveURL(QA_BASE + target);
+    await staff.reload({ waitUntil: "domcontentloaded" });
+    await expect(staff.getByRole("dialog").filter({ hasText: `${examTitle} 답안 상세` })).toBeVisible();
+    const gradePath = `/results/admin/exams/${created.examId}/enrollments/`;
+    for (const [enrollment, score] of [[created.primaryEnrollmentId!, 60], [peerEnrollment, 20]]) {
+      expect(await expectApi(request, "GET", gradePath + enrollment + "/", admin.access)).toMatchObject({ total_score: score });
+    }
+    for (const alternate of created.sharedEnrollments) {
+      expect(await expectApi(request, "GET", gradePath + alternate.id + "/", admin.access)).toMatchObject({ total_score: null });
+    }
+    boundary.assertClean();
+    browser.assertZeroDefects();
+  } finally { await context.close(); }
+}
+
 async function submitFirstStudentThroughUi(
   page: Page,
   student: QaStudent,
   examId: number,
+  request: APIRequestContext,
 ): Promise<number> {
   await page.setViewportSize({ width: 390, height: 844 });
   await loginThroughUi(page, student.ps_number, student.password);
   await gotoAndSettle(page, `${QA_BASE}/student/dashboard`, { timeout: 30_000 });
   await expect(page.locator("[data-guide='dash-todo']").getByText(examTitle, { exact: true })).toBeVisible();
-  await gotoAndSettle(page, `${QA_BASE}/student/exams/${examId}/submit`, { timeout: 30_000 });
+  await seedSharedExamContext(request, created.family!, created.adminAccess);
+  await gotoAndSettle(page, `${QA_BASE}/student/sessions/${created.sharedSessionId}`, { timeout: 30_000 });
+  const examEntry = page.getByRole("link", { name: "시험 보기", exact: true });
+  await expect(examEntry).toHaveAttribute("href", `/student/exams/${examId}?entry_session_id=${created.sharedSessionId}`);
+  await examEntry.click();
+  await page.getByRole("link", { name: "답안 입력하기" }).click();
   await expect(page.getByText(examTitle)).toBeVisible();
   for (const [number, answer] of [[1, "1"], [2, "4"], [3, "3"], [4, "4"], [5, "1"]] as const) {
     await page.getByLabel(`${number}번 답`).fill(answer);
@@ -308,6 +436,7 @@ async function submitFirstStudentThroughUi(
     && new URL(response.url()).pathname.endsWith(`/api/v1/student/exams/${examId}/submit/`)
   )).then(async (response) => {
     expect(response.status()).toBe(201);
+    expect(response.request().postDataJSON()).toMatchObject({ entry_session_id: created.sharedSessionId });
     const id = Number((await response.json() as { submission_id: number }).submission_id);
     if (Number.isInteger(id) && id > 0) created.submissionIds.push(id);
     expect(id).toBeGreaterThan(0);
@@ -376,7 +505,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     const [primary, peer] = created.family.students;
     await seedAssessment(request, admin.access, created.family);
 
-    await test.step("student submission and persisted result", () => submitFirstStudentThroughUi(page, primary, created.examId!));
+    const primarySubmissionId = await test.step("student submission and persisted result", () => submitFirstStudentThroughUi(page, primary, created.examId!, request));
     const primaryTokens = await loginApi(request, primary.ps_number, primary.password);
     const primaryResult = await waitForResult(request, primaryTokens.access, created.examId!);
     expect(primaryResult).toMatchObject({
@@ -402,6 +531,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
       const id = Number((await response.json() as { submission_id: number }).submission_id);
       if (Number.isInteger(id) && id > 0) created.submissionIds.push(id);
       expect(response.request().headers()["x-student-id"]).toBe(String(peer.id));
+      expect(response.request().postDataJSON()).not.toHaveProperty("entry_session_id");
       expect(id).toBeGreaterThan(0);
       return id;
     });
@@ -431,6 +561,12 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
     expect(teacherProjection.user).toBeGreaterThan(0);
     expect(teacherProjection.meta.submitted_by_user_id).toBeGreaterThan(0);
     expect(teacherProjection.meta.submitted_by_user_id).not.toBe(teacherProjection.user);
+    await test.step("shared exam entry and original score enrollment", async () => {
+      await verifySharedSubmissionOrigins(page, request, admin, primarySubmissionId, parentSubmissionId);
+      const failures: string[] = [];
+      await retireSharedExamContext(request, failures);
+      expect(failures).toEqual([]);
+    });
     await test.step("teacher submission inbox", () => verifySubmissionInbox(page, request, admin, parentSubmissionId));
 
     await reloadStudentApp(page);
