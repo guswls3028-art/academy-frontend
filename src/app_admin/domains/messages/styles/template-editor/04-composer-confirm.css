@@ -204,7 +204,7 @@
   max-height: 385px;
 }
 
-.send-modal__confirm-card[data-video-homework="true"] .send-modal__confirm-actions {
+.send-modal__confirm-card .send-modal__confirm-actions {
   position: sticky;
   bottom: calc(-1 * var(--confirm-padding-block));
   z-index: 1;
@@ -298,6 +298,66 @@
   border: 1px solid var(--color-border-divider);
   border-radius: 12px;
   background: var(--color-bg-surface);
+}
+
+.send-modal__confirm-card[data-video-homework="false"] .send-modal__confirm-recipients {
+  order: -1;
+}
+
+.send-modal__contacts {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--color-text-primary);
+}
+
+.send-modal__contacts caption {
+  padding: 10px 12px 6px;
+  text-align: left;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.send-modal__contacts :is(th, td) {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border-divider);
+}
+
+.send-modal__contacts thead th {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.send-modal__contacts tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.send-modal__contact-number {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.send-modal__contact-state {
+  color: var(--scale-Success700, var(--color-text-primary));
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.send-modal__contact-state[data-excluded="true"] {
+  color: var(--color-text-secondary);
+}
+
+@media (min-width: 1024px) {
+  .send-modal__confirm-card[data-video-homework="false"] {
+    width: 900px;
+  }
+
+  .send-modal__confirm-card[data-video-homework="false"] .send-modal__confirm-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+  }
 }
 
 .send-modal__confirm-recipients-head {
@@ -679,6 +739,10 @@
     grid-template-columns: 1fr;
   }
 
+  .send-modal__confirm-card[data-video-homework="false"] .send-modal__confirm-details {
+    grid-row: 1;
+  }
+
   .send-modal__confirm-kakao {
     width: min(100%, 430px);
     margin: 0 auto;
@@ -732,11 +796,11 @@
     max-height: min(38dvh, 310px);
   }
 
-  .send-modal__confirm-card[data-video-homework="true"] .send-modal__confirm-actions {
+  .send-modal__confirm-card .send-modal__confirm-actions {
     flex-direction: row;
   }
 
-  .send-modal__confirm-card[data-video-homework="true"] .send-modal__confirm-send-btn {
+  .send-modal__confirm-card .send-modal__confirm-send-btn {
     flex: 1;
     min-height: 44px;
   }

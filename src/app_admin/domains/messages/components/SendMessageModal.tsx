@@ -144,9 +144,8 @@ function sendDraftKey(payloads: SendMessagePayload[]): string {
 type ConfirmPreviewRecipient = {
   studentId: number;
   studentName: string;
-  targetPhones: Array<{ sendTo: SendToType; phone: string }>;
+  targetPhones: Array<{ sendTo: SendToType; phone: string; excluded: boolean; reason: string }>;
   excluded: boolean;
-  excludeReason: string;
   fullMessageBody: string;
   videoHomework: boolean;
 };
@@ -207,6 +206,26 @@ function formatScheduleLabel(iso: string | null): string {
 
 function formatSendTargetLabel(target: SendToType): string {
   return target === "parent" ? "학부모" : "학생";
+}
+
+function ConfirmRecipientContacts({ recipient }: { recipient: ConfirmPreviewRecipient }) {
+  return (
+    <table className="send-modal__contacts" aria-label="학생별 알림톡 수신처">
+      <caption>{recipient.studentName} 수신처</caption>
+      <thead>
+        <tr><th scope="col">받는 사람</th><th scope="col">연락처</th><th scope="col">발송 여부</th></tr>
+      </thead>
+      <tbody>
+        {recipient.targetPhones.map((target) => (
+          <tr key={target.sendTo}>
+            <th scope="row">{formatSendTargetLabel(target.sendTo)}</th>
+            <td className="send-modal__contact-number">{target.excluded ? target.reason || "확인 필요" : target.phone}</td>
+            <td><span className="send-modal__contact-state" data-excluded={target.excluded}>{target.excluded ? "제외" : "발송 가능"}</span></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
 }
 
 function handleRecipientRadioKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
@@ -696,9 +715,8 @@ export default function SendMessageModal({
           studentId: recipient.student_id,
           studentName: recipient.student_name,
           targetPhones: result.video_makeup_homework_preview && recipient.excluded
-            ? [] : [{ sendTo: result.send_to, phone: recipient.phone }],
+            ? [] : [{ sendTo: result.send_to, phone: recipient.phone, excluded: recipient.excluded, reason: recipient.exclude_reason }],
           excluded: recipient.excluded,
-          excludeReason: recipient.exclude_reason,
           fullMessageBody: recipient.full_message_body,
           videoHomework: Boolean(result.video_makeup_homework_preview),
         };
@@ -2069,7 +2087,7 @@ export default function SendMessageModal({
                       발송 전까지 발송 내역의 예약 발송에서 취소할 수 있습니다.
                     </div>
                   )}
-                  <div className="send-modal__confirm-row">
+                  {(sendsVideoHomework || serverPreviewRecipients.length > 1) && <div className="send-modal__confirm-row">
                     <span className="send-modal__confirm-key">받는 사람</span>
                     <span className="send-modal__confirm-val">
                       {(() => {
@@ -2079,7 +2097,7 @@ export default function SendMessageModal({
                         return parts.join(" + ");
                       })()}
                     </span>
-                  </div>
+                  </div>}
                   {!confirmVideoHomework && hasSelectedBodySource && (
                     <div className="send-modal__confirm-row">
                       <span className="send-modal__confirm-key">적용 문구</span>
@@ -2091,14 +2109,16 @@ export default function SendMessageModal({
                 </div>
 
                 <div className="send-modal__confirm-recipients">
-                  <div className="send-modal__confirm-recipients-head">
-                    <div>
-                      <span>발송 대상 학생</span>
-                      <strong>{confirmGroupRecipients.length}명</strong>
+                  {(sendsVideoHomework || serverPreviewRecipients.length > 1) && (
+                    <div className="send-modal__confirm-recipients-head">
+                      <div>
+                        <span>발송 대상 학생</span>
+                        <strong>{confirmGroupRecipients.length}명</strong>
+                      </div>
+                      {confirmGroupRecipients.length > 1 && <p>학생 선택은 미리보기만 바꿉니다.</p>}
+                      {confirmExcludedCount > 0 && <p>발송 대상에서 {confirmExcludedCount}명 제외</p>}
                     </div>
-                    {confirmGroupRecipients.length > 1 && <p>학생 선택은 미리보기만 바꿉니다.</p>}
-                    {confirmExcludedCount > 0 && <p>전화번호가 없는 ${confirmExcludedCount}명은 제외됩니다.</p>}
-                  </div>
+                  )}
 
                   {confirmGroupRecipients.length > 1 ? (
                     <button
@@ -2113,7 +2133,7 @@ export default function SendMessageModal({
                     </button>
                   ) : null}
 
-                  {(confirmRecipientsExpanded || confirmGroupRecipients.length === 1) && (
+                  {(confirmRecipientsExpanded || (sendsVideoHomework && confirmGroupRecipients.length === 1)) && (
                     <div
                       id="send-modal-confirm-recipient-list"
                       className="send-modal__confirm-recipient-list"
@@ -2137,7 +2157,7 @@ export default function SendMessageModal({
                             <span>
                               {recipient.studentName}
                               <small>
-                                {recipient.targetPhones
+                                {recipient.targetPhones.filter((target) => !target.excluded)
                                   .map(({ sendTo, phone }) => `${formatSendTargetLabel(sendTo)} ${phone}`)
                                   .join(" · ")}
                               </small>
@@ -2148,6 +2168,7 @@ export default function SendMessageModal({
                       })}
                     </div>
                   )}
+                  {!sendsVideoHomework && confirmPreviewRecipient && <ConfirmRecipientContacts recipient={confirmPreviewRecipient} />}
                 </div>
 
                 {!confirmVideoHomework && qualityIssues.length > 0 && (

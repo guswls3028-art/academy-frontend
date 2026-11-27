@@ -508,8 +508,8 @@ async function confirmSend(page: Page, review?: (confirmation: Locator) => Promi
   await confirmation.getByRole("button", { name: "발송하기", exact: true }).click();
 }
 
-for (const width of [1366, 390]) {
-  test(`본인 번호가 없으면 보호자만 접수하고 제외 건수를 표시한다 ${width}px`, async ({ page }) => {
+for (const width of [1366, 1100, 390]) {
+  test(`본인 번호가 없으면 보호자만 접수하고 제외 건수를 표시한다 ${width}px`, async ({ page }, testInfo) => {
     const state = await installMocks(page, { missingStudentPhone: true });
     await page.setViewportSize({ width, height: 844 });
     await openSendDraft(page);
@@ -517,12 +517,24 @@ for (const width of [1366, 390]) {
     await confirmSend(page, async (confirm) => {
       await expect(confirm.getByText("학생 번호 없음 1건 제외", { exact: true })).toBeVisible();
       await expect(confirm).toContainText("1건 발송 가능");
+      const contacts = confirm.getByRole("table", { name: "학생별 알림톡 수신처" });
+      await expect(contacts.getByText("김알림 수신처", { exact: true })).toBeInViewport();
+      const student = contacts.getByRole("row", { name: /^학생 / });
+      await expect(student.getByRole("cell", { name: "전화번호 없음" })).toBeVisible();
+      await expect(student.getByRole("cell", { name: "제외", exact: true })).toBeVisible();
+      const parent = contacts.getByRole("row", { name: /^학부모 / });
+      await expect(parent.getByRole("cell", { name: "010****4444", exact: true })).toBeInViewport();
+      await expect(parent.getByRole("cell", { name: "발송 가능", exact: true })).toBeVisible();
+      await expect(confirm.getByRole("button", { name: "발송하기", exact: true })).toBeInViewport();
       await expectNoHorizontalOverflow(page);
+      await page.screenshot({ path: testInfo.outputPath(`confirm-contacts-${width}.png`) });
     });
     await expect(page.getByRole("button", { name: "이번 발송 결과 보기", exact: true })).toBeVisible();
     expect(state.sends.map((send) => send.send_to)).toEqual(["parent"]);
   });
+}
 
+for (const width of [1366, 390]) {
   test(`이번 발송 ${width}px: 두 대상 한 UUID 접수 → 정확한 결과 → 새로고침`, async ({ page }, testInfo) => {
     const state = await installMocks(page);
     await page.setViewportSize({ width, height: 844 });
