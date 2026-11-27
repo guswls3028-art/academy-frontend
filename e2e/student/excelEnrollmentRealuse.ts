@@ -8,10 +8,12 @@ import { gotoAndSettle } from "../helpers/wait";
 export type ExcelEnrollmentState = { lectureId?: number; sessionIds: number[] };
 type Enrollment = { id: number; lecture: number; student: { id: number }; status: string };
 type SessionEnrollment = { id: number; session: number; enrollment: number; student_id: number };
+type Attendance = { id: number; session: number; enrollment_id: number; status: string; memo: string };
 type Ledger = {
   enrolled_count: number; created_students_count: number; total: number; excluded_count: number;
   not_found_students_count: number; ambiguous_students_count: number; session_id: number;
-  enrolled_rows: Array<{ row: number; name: string; student_id: number }>;
+  session_enrolled_count: number; withdrawn_session_preserved_count: number;
+  enrolled_rows: Array<{ row: number; name: string; student_id: number; session_registration?: string }>;
   excluded_rows: Array<{ row: number; name: string; reason_code: string; error: string }>;
 };
 
@@ -37,11 +39,19 @@ async function expectLedger(dialog: Locator, ledger: Ledger): Promise<void> {
   await expect(dialog.getByText(`전체 ${ledger.total}명`, { exact: true })).toBeVisible();
   await expect(dialog.getByLabel("등록 결과 요약")).toContainText(new RegExp(`수강 등록\\s*${ledger.enrolled_count}명`));
   await expect(dialog.getByLabel("등록 결과 요약")).toContainText(new RegExp(`확인 필요\\s*${ledger.excluded_count}명`));
+  const summary = dialog.getByLabel("등록 결과 요약");
+  await expect(summary).toContainText(new RegExp(`차시 등록\\s*${ledger.session_enrolled_count}명`));
+  if (ledger.withdrawn_session_preserved_count > 0) {
+    await expect(summary).toContainText(new RegExp(`차시 퇴원 유지\\s*${ledger.withdrawn_session_preserved_count}명`));
+  } else {
+    await expect(summary).not.toContainText("차시 퇴원 유지");
+  }
   const successful = dialog.getByRole("region", { name: "등록 완료", exact: true });
   const excluded = dialog.getByRole("region", { name: "확인 필요", exact: true });
   for (const row of ledger.enrolled_rows) {
     const item = successful.getByRole("listitem").filter({ hasText: row.name });
     await expect(item).toContainText(`${row.row}행`);
+    if (row.session_registration === "withdrawal_preserved") await expect(item).toContainText("차시 퇴원 유지");
   }
   for (const row of ledger.excluded_rows) {
     const item = excluded.getByRole("listitem").filter({ hasText: `${row.row}행` });
@@ -61,7 +71,7 @@ export async function verifyExcelEnrollment(
   });
   state.lectureId = lecture.id;
   expect(Number.isSafeInteger(lecture.id) && lecture.id > 0).toBe(true);
-  for (const order of [1, 2]) {
+  for (const order of [1, 2, 3]) {
     const session = await expectApi<{ id: number }>(request, "POST", "/lectures/sessions/", token, {
       lecture: lecture.id, title: `QA Excel ${order}차시`, order, date,
     });
@@ -81,19 +91,11 @@ export async function verifyExcelEnrollment(
   let retainedSessionRowId: number | undefined;
   const submittedJobs = new Set<string>();
 
-  // The last request corrects only the failed existing student in the second session.
-  for (const mode of ["lecture", "session", "corrected"] as const) {
-    const isLecture = mode === "lecture";
-    const corrected = mode === "corrected";
-    const targetSession = state.sessionIds[isLecture ? 0 : 1];
-    const matched = isLecture || corrected ? first : second;
-    const invalid = isLecture ? second : first;
-    const workbook = new ExcelJS.Workbook();
-    workbook.addWorksheet("학생목록").addRows([
-      ["이름", "학부모 전화번호"],
-      [matched.name, family.parentPhone],
-      ...(!corrected ? [[invalid.name, "0101234567"], [missing, family.parentPhone], [matched.name, family.parentPhone]] : []),
-    ]);
+  async function uploadWorkbook(
+    mode: string, fileName: string, buffer: Buffer, selectedSession?: number, hasInvalidRow = false,
+  ) {
+    const isLecture = selectedSession === undefined;
+    const targetSession = selectedSession ?? state.sessionIds[0];
     await page.setViewportSize({ width: isLecture ? 1366 : 390, height: 900 });
     await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${lecture.id}${isLecture ? "" : `/sessions/${targetSession}/attendance`}`);
     await page.getByRole("button", { name: "수강생 등록", exact: true }).first().click();
@@ -101,17 +103,17 @@ export async function verifyExcelEnrollment(
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByText(isLecture ? "수강생 엑셀 업로드" : "차시 수강생 등록", { exact: true })).toBeVisible();
     await dialog.locator('input[type="file"]').setInputFiles({
-      name: `qa-excel-${mode}.xlsx`, mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      buffer: Buffer.from(await workbook.xlsx.writeBuffer()),
+      name: fileName, mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer,
     });
-    if (!corrected) await expect(dialog.getByText(isLecture ? "입력 확인 필요 1명" : "정상 3명 · 입력 확인 1명", { exact: true })).toBeVisible();
+    if (hasInvalidRow) await expect(dialog.getByText(isLecture ? "입력 확인 필요 1명" : "정상 3명 · 입력 확인 1명", { exact: true })).toBeVisible();
     const accepted = page.waitForResponse(response => response.request().method() === "POST"
       && new URL(response.url()).pathname === "/api/v1/enrollments/lecture_enroll_from_excel/");
     if (isLecture) await dialog.getByRole("button", { name: "맞아요, 등록하기" }).click();
     else {
       await dialog.getByRole("button", { name: "엑셀로 일괄 등록", exact: true }).click();
       await page.getByRole("alertdialog", { name: "엑셀 수강등록 최종 확인" })
-        .getByRole("button", { name: `${corrected ? 1 : 3}명 등록 요청`, exact: true }).click();
+        .getByRole("button", { name: `${hasInvalidRow ? 3 : 1}명 등록 요청`, exact: true }).click();
     }
     const response = await accepted;
     expect(response.status()).toBe(202);
@@ -130,24 +132,46 @@ export async function verifyExcelEnrollment(
       ledger = job.result;
       return job.status;
     }, { timeout: 90_000, message: `real ${mode} Excel worker completes` }).toBe("DONE");
-    expect(ledger).toMatchObject({
-      enrolled_count: 1, created_students_count: 0, session_id: targetSession,
-      total: corrected ? 1 : 4, excluded_count: corrected ? 0 : 3,
-      not_found_students_count: corrected ? 0 : 1, ambiguous_students_count: 0,
-      enrolled_rows: [{ row: 2, name: matched.name, student_id: matched.id }],
-    });
-    expect(ledger!.excluded_rows.map(row => [row.row, row.name, row.reason_code])).toEqual(corrected ? [] : [
-      [3, invalid.name, "invalid_row"], [4, missing, "not_found"], [5, matched.name, "duplicate_in_file"],
-    ]);
+    if (!ledger) throw new Error(`Excel job ${jobId} finished without a result`);
     const result = page.getByRole("dialog", { name: "수강 등록 결과" });
     await expect(result).toBeVisible({ timeout: 30_000 });
-    await expectLedger(result, ledger!);
+    await expectLedger(result, ledger);
     await capture(page, testInfo, `real-excel-${mode}-result-${isLecture ? 1366 : 390}`);
     await page.setViewportSize({ width: isLecture ? 390 : 1366, height: 900 });
     await page.reload({ waitUntil: "domcontentloaded" });
     await expect(result).toBeVisible();
-    await expectLedger(result, ledger!);
+    await expectLedger(result, ledger);
     await capture(page, testInfo, `real-excel-${mode}-restored-${isLecture ? 390 : 1366}`);
+    return { ledger, result };
+  }
+
+  // The last request corrects only the failed existing student in the second session.
+  for (const mode of ["lecture", "session", "corrected"] as const) {
+    const isLecture = mode === "lecture";
+    const corrected = mode === "corrected";
+    const targetSession = state.sessionIds[isLecture ? 0 : 1];
+    const matched = isLecture || corrected ? first : second;
+    const invalid = isLecture ? second : first;
+    const workbook = new ExcelJS.Workbook();
+    workbook.addWorksheet("학생목록").addRows([
+      ["이름", "학부모 전화번호"],
+      [matched.name, family.parentPhone],
+      ...(!corrected ? [[invalid.name, "0101234567"], [missing, family.parentPhone], [matched.name, family.parentPhone]] : []),
+    ]);
+    const { ledger, result } = await uploadWorkbook(
+      mode, `qa-excel-${mode}.xlsx`, Buffer.from(await workbook.xlsx.writeBuffer()),
+      isLecture ? undefined : targetSession, !corrected,
+    );
+    expect(ledger).toMatchObject({
+      enrolled_count: 1, created_students_count: 0, session_id: targetSession,
+      session_enrolled_count: 1, withdrawn_session_preserved_count: 0,
+      total: corrected ? 1 : 4, excluded_count: corrected ? 0 : 3,
+      not_found_students_count: corrected ? 0 : 1, ambiguous_students_count: 0,
+      enrolled_rows: [{ row: 2, name: matched.name, student_id: matched.id }],
+    });
+    expect(ledger.excluded_rows.map(row => [row.row, row.name, row.reason_code])).toEqual(corrected ? [] : [
+      [3, invalid.name, "invalid_row"], [4, missing, "not_found"], [5, matched.name, "duplicate_in_file"],
+    ]);
     const rows = await enrollments();
     expect(rows.every(row => row.lecture === lecture.id && row.status === "ACTIVE")).toBe(true);
     expect(rows.map(row => row.student.id).sort((a, b) => a - b))
@@ -168,7 +192,76 @@ export async function verifyExcelEnrollment(
     await result.getByRole("button", { name: "확인", exact: true }).click();
     await expect(page.getByText(matched.name, { exact: true }).first()).toBeVisible();
   }
-  expect(submittedJobs.size).toBe(3);
+  // Give the selected third session a historical attendance row but no current membership.
+  // A later whole-lecture withdrawal retains the first two memberships and all three memos.
+  if (firstEnrollmentId === undefined) throw new Error("Excel fixture is missing the first enrollment");
+  const enrollmentId = firstEnrollmentId;
+  const [firstSession, , thirdSession] = state.sessionIds;
+  await expectApi(request, "POST", "/enrollments/session-enrollments/bulk_create/", token, {
+    session: thirdSession, enrollments: [enrollmentId],
+  }, [201]);
+  const readAttendance = async () => (await list<Attendance>(
+    request, token, `/lectures/attendance/?enrollment=${enrollmentId}`,
+  )).map(({ id, session, enrollment_id, status, memo }) => ({ id, session, enrollment_id, status, memo }))
+    .sort((a, b) => a.session - b.session);
+  const before = await readAttendance();
+  expect(before.map(row => row.session)).toEqual([...state.sessionIds].sort((a, b) => a - b));
+  for (const row of before) {
+    expect(row.enrollment_id).toBe(enrollmentId);
+    await expectApi(request, "PATCH", `/lectures/attendance/${row.id}/`, token, { memo: `QA Excel memo ${row.session}` });
+  }
+  for (const [scope, session] of [["session", thirdSession], ["lecture", firstSession]] as const) {
+    const row = before.find(item => item.session === session)!;
+    await expectApi(request, "PATCH", `/lectures/attendance/${row.id}/`, token, {
+      status: "SECESSION", confirm_secession: true, secession_scope: scope,
+    });
+  }
+  const enrollment = () => expectApi<Enrollment>(request, "GET", `/enrollments/${enrollmentId}/`, token);
+  expect(await enrollment()).toMatchObject({ id: enrollmentId, lecture: lecture.id, student: { id: first.id }, status: "INACTIVE" });
+  const withdrawn = before.map(row => ({ ...row, status: "SECESSION", memo: `QA Excel memo ${row.session}` }));
+  expect(await readAttendance()).toEqual(withdrawn);
+  const readRosters = () => Promise.all(state.sessionIds.map(async sessionId => {
+    const rows = await sessionRows(sessionId);
+    return rows.map(({ id, session, enrollment, student_id }) => ({ id, session, enrollment, student_id }));
+  }));
+  const historicalRosters = await readRosters();
+  expect(historicalRosters.map(rows => rows.filter(row => row.enrollment === enrollmentId).length)).toEqual([1, 1, 0]);
+
+  const workbook = new ExcelJS.Workbook();
+  workbook.addWorksheet("학생목록").addRows([["이름", "학부모 전화번호"], [first.name, family.parentPhone]]);
+  const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+  let thirdMembershipId: number | undefined;
+  for (const mode of ["withdrawn-lecture", "restore-third", "retry-third"] as const) {
+    const preserve = mode === "withdrawn-lecture";
+    const { ledger, result } = await uploadWorkbook(
+      mode, "qa-excel-reenroll.xlsx", buffer, preserve ? undefined : thirdSession,
+    );
+    expect(ledger).toMatchObject({
+      enrolled_count: 1, total: 1, excluded_count: 0, created_students_count: 0,
+      session_id: preserve ? firstSession : thirdSession,
+      session_enrolled_count: preserve ? 0 : 1, withdrawn_session_preserved_count: preserve ? 1 : 0,
+    });
+    expect(ledger.enrolled_rows).toEqual([{
+      row: 2, name: first.name, student_id: first.id, ...(preserve ? { session_registration: "withdrawal_preserved" } : {}),
+    }]);
+    expect(await enrollment()).toMatchObject({ id: enrollmentId, status: "ACTIVE" });
+    expect(await readAttendance()).toEqual(withdrawn.map(row => ({
+      ...row, status: !preserve && row.session === thirdSession ? "UNSET" : "SECESSION",
+    })));
+    const rosters = await readRosters();
+    expect(rosters.slice(0, 2)).toEqual(historicalRosters.slice(0, 2));
+    if (preserve) {
+      expect(rosters[2]).toEqual([]);
+    } else {
+      expect(rosters[2]).toHaveLength(1);
+      expect(rosters[2][0]).toMatchObject({ session: thirdSession, enrollment: enrollmentId, student_id: first.id });
+      if (mode === "restore-third") thirdMembershipId = rosters[2][0].id;
+      expect(rosters[2][0].id).toBe(thirdMembershipId);
+    }
+    await result.getByRole("button", { name: "확인", exact: true }).click();
+  }
+  expect(submittedJobs.size).toBe(6);
+  expect(await studentCount()).toBe(beforeStudentCount);
 }
 
 export async function cleanupExcelEnrollment(request: APIRequestContext, token: string, state: ExcelEnrollmentState): Promise<void> {
@@ -185,11 +278,14 @@ export async function cleanupExcelEnrollment(request: APIRequestContext, token: 
       expect(row.session).toBe(session);
       await expectApi(request, "DELETE", `/enrollments/session-enrollments/${row.id}/`, token, undefined, [204, 404]);
     }
+    expect(await list(request, token, `/lectures/attendance/?session=${session}`)).toEqual([]);
+    expect(await list(request, token, `/enrollments/session-enrollments/?session=${session}`)).toEqual([]);
   }
   for (const row of await list<Enrollment>(request, token, `/enrollments/?lecture=${state.lectureId}`)) {
     expect(row.lecture).toBe(state.lectureId);
     await expectApi(request, "DELETE", `/enrollments/${row.id}/`, token, undefined, [204, 404]);
   }
+  expect(await list(request, token, `/enrollments/?lecture=${state.lectureId}`)).toEqual([]);
   for (const session of state.sessionIds) {
     await expectApi(request, "DELETE", `/lectures/sessions/${session}/`, token, undefined, [204, 404]);
     expect((await api(request, "GET", `/lectures/sessions/${session}/`, token)).status).toBe(404);
