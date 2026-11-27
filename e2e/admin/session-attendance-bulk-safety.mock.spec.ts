@@ -801,6 +801,7 @@ test("차시 등록창에서 비활성 강의 수강을 복구한 후 해당 학
   const lecture = page.getByRole("dialog", { name: "수강생 등록", exact: true });
   await expect(lecture.getByRole("textbox", { name: "학생 검색" })).toHaveValue("이도윤");
   await lecture.getByRole("checkbox", { name: "이도윤 선택", exact: true }).check();
+  await expect(lecture.getByText(/퇴원한 차시의 출결은 따로 복구/)).toBeVisible();
   await lecture.getByRole("button", { name: "1명 강의에 추가" }).click();
   await expect(lecture).toHaveCount(0);
   expect(state.lectureRegistrations).toEqual([[2002]]);

@@ -99,6 +99,7 @@ function LectureStudentPicker({ lectureId, initialSearch = "", onClose, onSucces
   const rows = studentsQ.data?.data ?? [];
   const eligible = rows.filter((student) => !student.deletedAt && enrollmentStatus.get(student.id) !== "ACTIVE");
   const pageSelected = eligible.length > 0 && eligible.every((student) => selected.has(student.id));
+  const hasReturningStudent = [...selected.keys()].some(id => enrollmentStatus.get(id) === "INACTIVE");
   const totalPages = Math.max(1, Math.ceil((studentsQ.data?.count ?? 0) / (studentsQ.data?.pageSize ?? 50)));
 
   const toggle = (student: ClientStudent) => {
@@ -194,7 +195,9 @@ function LectureStudentPicker({ lectureId, initialSearch = "", onClose, onSucces
     <AdminModal open onClose={() => { void leave(onClose); }} type="action" size="xwide"
       className="lecture-enroll-picker" noMinimize trapFocus closeDisabled={saving}>
       <ModalHeader type="action" title="수강생 등록"
-        description="기존 학생을 선택해 강의 명단에 추가하세요." />
+        description={hasReturningStudent
+          ? "강의 수강과 자동 수납 설정을 복구합니다. 퇴원한 차시의 출결은 따로 복구해 주세요."
+          : "기존 학생을 선택해 강의 명단에 추가하세요."} />
       <ModalBody>
         <div className="lecture-enroll-picker__body">
           <div className="lecture-enroll-picker__search">
