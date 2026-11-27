@@ -1148,6 +1148,7 @@ for (const width of [1366, 390]) {
       const restore = page.getByRole("alertdialog", { name: "수강을 복구할까요?" });
       await chooseAttendanceStatus(page, "김가람", "현장");
       await expect(restore.getByText(scope === "lecture" ? /강의 수강을 다시 활성화/ : /이 차시에 다시 등록/)).toBeVisible();
+      await expect(restore).toContainText("다른 퇴원 차시의 수강 영상은 계속 차단됩니다.");
       const before = state.attendanceStatusUpdates.length;
       await restore.getByRole("button", { name: "취소" }).click();
       await expect(attendanceOption(page, "김가람", "퇴원")).toHaveAttribute("aria-pressed", "true");

@@ -33,6 +33,7 @@ import { emitLearningFlowFailure, verifyAttendanceExcel, type LearningFlowPhase 
 import { verifyStudentLearningSummary } from "../helpers/studentLearningSummary";
 import { guardUnmockedYouTubeRequests, installYouTubeSdkFixture } from "../helpers/youtubeSdkFixture";
 import { cleanupExcelEnrollment, verifyExcelEnrollment, type ExcelEnrollmentState } from "./excelEnrollmentRealuse";
+import { verifyWithdrawnSessionVideos, type SessionVideoFixture } from "./withdrawnSessionVideosRealuse";
 
 test.setTimeout(300_000);
 test.use({ serviceWorkers: "block", screenshot: "off", trace: "off", video: "off" });
@@ -46,6 +47,7 @@ type CreatedState = {
   sessionEnrollmentIds: number[];
   attendanceIds: number[];
   videoId?: number;
+  additionalSessions: SessionVideoFixture[];
   materialId?: number;
   excel: ExcelEnrollmentState;
 };
@@ -56,6 +58,7 @@ const created: CreatedState = {
   enrollmentIds: [],
   sessionEnrollmentIds: [],
   attendanceIds: [],
+  additionalSessions: [],
   excel: { sessionIds: [] },
 };
 
@@ -202,8 +205,11 @@ async function cleanup(request: APIRequestContext): Promise<void> {
 
   if (created.materialId) await remove("DELETE", `/community/posts/${created.materialId}/`);
   if (created.videoId) await remove("DELETE", `/media/videos/${created.videoId}/`);
+  for (const { videoId } of created.additionalSessions) {
+    if (videoId) await remove("DELETE", `/media/videos/${videoId}/`);
+  }
   for (const id of created.attendanceIds) await remove("DELETE", `/lectures/attendance/${id}/`);
-  for (const id of created.sessionEnrollmentIds) {
+  for (const id of new Set(created.sessionEnrollmentIds)) {
     await remove("DELETE", `/enrollments/session-enrollments/${id}/`);
   }
   for (const id of created.enrollmentIds) await remove("DELETE", `/enrollments/${id}/`);
@@ -211,6 +217,9 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   // The fixed isolated-tenant cleanup removes those protected ancestors and proves zero residue.
   if (!created.videoId && created.sessionId) {
     await remove("DELETE", `/lectures/sessions/${created.sessionId}/`);
+  }
+  for (const { sessionId, videoId } of created.additionalSessions) {
+    if (!videoId) await remove("DELETE", `/lectures/sessions/${sessionId}/`);
   }
   if (!created.videoId && created.lectureId) {
     await remove("DELETE", `/lectures/lectures/${created.lectureId}/`);
@@ -220,6 +229,9 @@ async function cleanup(request: APIRequestContext): Promise<void> {
   for (const [label, path] of [
     ...(created.materialId ? [[`material ${created.materialId}`, `/community/posts/${created.materialId}/`] as const] : []),
     ...(created.videoId ? [[`video ${created.videoId}`, `/media/videos/${created.videoId}/`] as const] : []),
+    ...created.additionalSessions.map(({ sessionId, videoId }) => videoId
+      ? [`video ${videoId}`, `/media/videos/${videoId}/`] as const
+      : [`session ${sessionId}`, `/lectures/sessions/${sessionId}/`] as const),
     ...(!created.videoId && created.sessionId ? [[`session ${created.sessionId}`, `/lectures/sessions/${created.sessionId}/`] as const] : []),
     ...(!created.videoId && created.lectureId ? [[`lecture ${created.lectureId}`, `/lectures/lectures/${created.lectureId}/`] as const] : []),
   ]) {
@@ -463,6 +475,7 @@ async function seedLearningGraph(request: APIRequestContext, adminAccess: string
     await primaryOptions.getByRole("button", { name: "지각", exact: true }).click();
     const recovery = enrollmentPage.getByRole("alertdialog", { name: "수강을 복구할까요?" });
     await expect(recovery).toContainText(scope === "lecture" ? "강의 수강을 다시 활성화" : "이 차시에 다시 등록");
+    await expect(recovery).toContainText("다른 퇴원 차시의 수강 영상은 계속 차단됩니다.");
     await recovery.getByRole("button", { name: "복구하고 지각 저장" }).click();
     await expect(primaryOptions.getByRole("button", { name: "지각" })).toHaveAttribute("aria-pressed", "true");
     await enrollmentPage.reload({ waitUntil: "domcontentloaded" });
@@ -895,6 +908,12 @@ test.describe.serial("[real-use] 학생/학부모 학습 projection", () => {
     await page.getByRole("button", { name: "자료실" }).click();
     await expect(page.getByText(materialTitle, { exact: true })).toBeVisible();
     await assertNoHorizontalOverflow(page);
+    await test.step("1·2차시 퇴원 후 3차시 영상만 학생과 선택 학부모에게 제공한다", () =>
+      verifyWithdrawnSessionVideos(request, {
+        lectureId: created.lectureId!, enrollmentId: created.enrollmentIds[0], studentId: primary.id,
+        first: { sessionId: created.sessionId!, attendanceId: created.attendanceIds[0], videoId: created.videoId! },
+        admin: admin.access, student: primaryTokens.access, parent: parentTokens.access, date: todayKst, cleanup: created,
+      }));
     boundary.assertClean();
     browser.assertZeroDefects();
     expect(unexpectedYouTubeRequests).toEqual([]);
