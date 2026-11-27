@@ -56,6 +56,8 @@ export type HomeworkSubmission = {
   enrollment_id: number;
   student_id: number | null;
   student_name: string;
+  session_title?: string | null;
+  homework_lecture_title?: string | null;
   student_phone: string | null;
   parent_phone: string | null;
   submitted_at: string | null;
@@ -229,6 +231,8 @@ function normalizeHomeworkSubmission(value: unknown): HomeworkSubmission | null 
     enrollment_id: toNumber(record.enrollment_id) ?? 0,
     student_id: getStudentId(record),
     student_name: getStudentName(record),
+    session_title: toStringValue(record.session_title),
+    homework_lecture_title: toStringValue(record.homework_lecture_title ?? record.lecture_title),
     student_phone: toStringValue(record.student_phone),
     parent_phone: toStringValue(record.parent_phone),
     submitted_at: toStringValue(record.submitted_at) ??

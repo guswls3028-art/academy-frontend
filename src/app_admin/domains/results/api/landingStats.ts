@@ -9,6 +9,7 @@ export type LandingSubmissionSummary = {
   lecture_id: number | null;
   lecture_title: string;
   session_id: number | null;
+  session_choices?: Array<{ lecture_id: number; lecture_title: string; session_id: number; session_title: string }>;
   enrollment_id: number | null;
   student_name: string;
   status: string;
@@ -26,6 +27,6 @@ export type ResultsLandingStats = {
 };
 
 export async function fetchResultsLandingStats(): Promise<ResultsLandingStats> {
-  const res = await api.get<ResultsLandingStats>("/results/admin/landing-stats/");
+  const res = await api.get<ResultsLandingStats>("/results/admin/landing-stats/", { params: { session_choices: 1 } });
   return res.data;
 }

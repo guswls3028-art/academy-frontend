@@ -34,6 +34,7 @@ import {
 import { teacherResultsQueryKeys } from "@teacher/domains/results/queryKeys";
 import SubmissionInboxPager from "@/shared/ui/submissions/SubmissionInboxPager";
 import HomeworkReviewPicker from "@/shared/ui/submissions/HomeworkReviewPicker";
+import HomeworkReviewQueue from "@/shared/ui/submissions/HomeworkReviewQueue";
 
 type FilterKey = "pending" | "done" | "failed" | "all";
 
@@ -112,10 +113,10 @@ export default function SubmissionsInboxPage() {
           {pendingOnly ? "전체 과제 보기" : "확인 대기만 보기"}
         </EmptyActionButton>
       </div>
-      <HomeworkReviewPicker
-        fromInbox pendingOnly={pendingOnly}
-        homeworkPath={(id) => `/workspace/mobile/homeworks/${id}?from=${pendingOnly ? "pending" : "submissions"}`}
-      />
+      {pendingOnly ? <HomeworkReviewQueue mobile /> : <HomeworkReviewPicker
+        fromInbox
+        homeworkPath={(id) => `/workspace/mobile/homeworks/${id}?from=submissions`}
+      />}
     </section>
   );
 }
@@ -419,7 +420,7 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
                   </div>
                   <div className="flex gap-1.5 items-center text-[11px] mt-0.5" style={{ color: "var(--tc-text-muted)" }}>
                     <Badge tone={tone} size="xs">{label}</Badge>
-                    <span className="truncate">{titleSub}</span>
+                    <span className="min-w-0 truncate">{[titleSub, r.session_title || (r.session_choices?.length ? "차시 미확정" : "")].filter(Boolean).join(" · ")}</span>
                     <span className="tabular-nums shrink-0 ml-auto">{formatTime(r.created_at)}</span>
                   </div>
                 </div>

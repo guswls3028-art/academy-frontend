@@ -6,6 +6,7 @@ import { scoresQueryKeys } from "@/shared/api/queryKeys/scores";
 export async function refreshHomeworkDecisions(client: QueryClient, homeworkId: number, sessionId: number, studentIds: number[]) {
   const keys: ReadonlyArray<readonly unknown[]> = [
     notificationQueryKeys.operationalCounts,
+    assessmentQueryKeys.homeworkReviewQueue,
     scoresQueryKeys.sessionScores(sessionId),
     assessmentQueryKeys.adminHomeworkSubmissions(homeworkId),
     assessmentQueryKeys.teacherHomeworkSubmissions(homeworkId),

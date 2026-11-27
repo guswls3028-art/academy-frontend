@@ -1243,7 +1243,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       const expectHomeworkClearedFromPending = async (homeworkChoice: Locator) => {
         await expect(staffPage).toHaveURL(/[?&]homework=pending(?:&|$)/);
         const empty = staffPage.getByText("확인 대기 과제가 없습니다", { exact: true });
-        const list = staffPage.getByRole("list", { name: "검토할 과제", exact: true });
+        const list = staffPage.getByRole("list", { name: "확인 대기 학생 제출물", exact: true });
         await expect(empty.or(list)).toBeVisible();
         await expect(homeworkChoice).toHaveCount(0);
       };
@@ -1395,7 +1395,10 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       const startingCount = Number((await pendingBadge.getAttribute("aria-label"))?.match(/(\d+)건/)?.[1]);
       expect(startingCount).toBeGreaterThan(0);
       await pendingBadge.click();
-      await expect(mobileHomeworkChoice).toContainText("확인 대기 1건");
+      await expect(mobileHomeworkChoice).toContainText(student.name);
+      await expect(mobileHomeworkChoice).toContainText(lectureTitle);
+      await expect(mobileHomeworkChoice).toContainText("파일 1개");
+      await expect(mobileHomeworkChoice).toHaveAttribute("href", /reviewEnrollment=\d+/);
       await expect(staffPage.getByRole("link").filter({ hasText: otherTitle })).toHaveCount(0);
       await assertNoHorizontalOverflow(staffPage);
       await staffPage.screenshot({ path: testInfo.outputPath("assistant-homework-finder-390.png") });
@@ -1494,7 +1497,8 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await staffPage.getByRole("button", { name: /확인 대기 과제 제출/ }).click();
       const pcHomeworkChoice = staffPage.getByRole("link").filter({ hasText: homeworkTitle });
       await expect(pcHomeworkChoice).toContainText(lectureTitle);
-      await expect(pcHomeworkChoice).toContainText("확인 대기 1건");
+      await expect(pcHomeworkChoice).toContainText(student.name);
+      await expect(pcHomeworkChoice).toHaveAttribute("href", /reviewEnrollment=\d+/);
       await expect(staffPage.getByRole("link").filter({ hasText: otherTitle })).toHaveCount(0);
       await assertNoHorizontalOverflow(staffPage);
       await staffPage.screenshot({ path: testInfo.outputPath("assistant-homework-finder-1366.png") });

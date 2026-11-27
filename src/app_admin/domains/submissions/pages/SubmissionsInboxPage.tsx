@@ -1,26 +1,8 @@
 // PATH: src/app_admin/domains/submissions/pages/SubmissionsInboxPage.tsx
-/**
- * Submissions Inbox (제출함)
- * - 학생이 제출한 시험/과제를 한 곳에서 확인하고 1-click 으로 처리
- * - 필터 탭: 대기 중 | 완료 | 실패 | 전체
- * - 5초 자동 새로고침
- *
- * 행 액션 매트릭스 (status × target_resolved):
- *   needs_identification + target_resolved        → 학생 지정 (in-place picker, exam/homework 양쪽)
- *   needs_identification + !target_resolved       → 폐기만 가능 (원본 결손)
- *   failed                                        → 재처리 / 폐기
- *   submitted/dispatched/extracting/grading       → 처리 중 (액션 없음)
- *   answers_ready / done + target_resolved         → 결과 보기 (세션 페이지 이동)
- *   answers_ready / done + !target_resolved        → 결과 진입 불가 표시
- *   superseded                                     → 대체됨 (terminal, action 없음)
- *
- * 일괄 처리:
- *   row 별 체크박스 + 상단 일괄 폐기 (사유 picker 모달).
- *
- * 직접 navigate 시 lecture/session 결손 가드 → SessionLayout "잘못된 세션 접근" 회피.
- */
+/** 시험 답안 처리는 이 화면에서, 과제 파일 검수는 HomeworkReviewInbox에서 담당한다. */
 
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import ExamSessionSelect from "@/shared/ui/submissions/ExamSessionSelect";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileSearch } from "lucide-react";
@@ -200,13 +182,17 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
     }, { replace: true });
   }, [q.data, q.isError, page, setSearchParams]);
 
+  const [sessionSelections, setSessionSelections] = useState<Record<number, number>>({});
   const rows = useMemo(() => {
     const data = q.isError ? [] : q.data?.results ?? [];
     const sorted = [...data].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime() || b.id - a.id,
     );
-    return clientFilter(sorted, filter, failedSub);
-  }, [q.data, q.isError, filter, failedSub]);
+    return clientFilter(sorted, filter, failedSub).map((row) => {
+      const selected = row.session_choices?.find((choice) => choice.session_id === sessionSelections[row.id]);
+      return selected ? { ...row, ...selected } : row;
+    });
+  }, [q.data, q.isError, filter, failedSub, sessionSelections]);
 
   // failed 탭에서 sub-filter 카운트
   const failedCounts = useMemo(() => {
@@ -445,7 +431,7 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
     }
     if (row.target_type === "exam") {
       navigate(
-        `/workspace/lectures/${row.lecture_id}/sessions/${row.session_id}/exams?exam_id=${row.target_id}`,
+        `/workspace/lectures/${row.lecture_id}/sessions/${row.session_id}/exams?exam_id=${row.target_id}&examTab=results${row.enrollment_id ? `&enrollmentId=${row.enrollment_id}` : ""}`,
       );
     } else {
       navigate(
@@ -684,6 +670,7 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
               <SubmissionRow
                 key={r.id}
                 row={r}
+                onSessionChange={(id) => setSessionSelections((previous) => ({ ...previous, [r.id]: id }))}
                 selected={selectedIds.has(r.id)}
                 selectable={isSelectable(r)}
                 busy={
@@ -758,6 +745,7 @@ function ExamSubmissionsInbox({ onOpenHomework }: { onOpenHomework: () => void }
 
 function SubmissionRow({
   row,
+  onSessionChange,
   selected,
   selectable,
   busy,
@@ -770,6 +758,7 @@ function SubmissionRow({
   onDiscard,
 }: {
   row: PendingSubmissionRow;
+  onSessionChange: (id: number) => void;
   selected: boolean;
   selectable: boolean;
   busy: boolean;
@@ -865,6 +854,10 @@ function SubmissionRow({
         >
           {targetTitleDisplay}
         </p>
+        {row.session_choices?.length ? (
+          <ExamSessionSelect label="열어볼 강의·차시" choices={row.session_choices} selectedId={row.session_id}
+            onSelect={choice => onSessionChange(choice?.session_id ?? 0)} />
+        ) : row.session_title && <p className="truncate text-xs text-[var(--color-text-secondary)]">{row.session_title}</p>}
         {setupPath && (
           <p className="mt-1 text-xs text-[var(--color-text-secondary)]" data-testid={`submission-readiness-${row.id}`}>
             {CONFIGURATION_REASON}
@@ -949,7 +942,7 @@ function SubmissionRow({
             대체됨
           </span>
         )}
-        {(isDone || isAnswersReady) && resolved && !setupPath && (
+        {(isDone || isAnswersReady) && resolved && row.session_id != null && !setupPath && (
           <Button type="button" intent="primary" size="sm" onClick={onNavigate} className="shrink-0">
             결과 보기
           </Button>

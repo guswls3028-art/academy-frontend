@@ -3,51 +3,33 @@ import { Link, type To } from "react-router";
 import { assessmentQueryKeys } from "@/shared/api/queryKeys/assessments";
 import { fetchAssessmentPages } from "@/shared/api/contracts/assessmentPages";
 import { fetchAllSessions, fetchLectures } from "@/shared/api/contracts/sessions";
-import { useOperationalNotificationCounts } from "@/shared/hooks/useOperationalNotificationCounts";
-import { Badge, Button, EmptyState } from "@/shared/ui/ds";
+import { Button, EmptyState } from "@/shared/ui/ds";
 
 export default function HomeworkReviewPicker({
   homeworkPath,
   fromInbox,
-  pendingOnly,
 }: {
   homeworkPath: (id: number) => To;
   fromInbox?: boolean;
-  pendingOnly: boolean;
 }) {
-  const notifications = useOperationalNotificationCounts();
-  const reviewCounts = notifications.counts.homeworkReviewByHomework;
-  const shouldLoadHomeworks = !pendingOnly || (reviewCounts !== null && notifications.counts.homeworkReviewPending > 0);
   const homework = useQuery({
     queryKey: assessmentQueryKeys.staffHomeworks,
     queryFn: () => fetchAssessmentPages("/homeworks/", { homework_type: "regular" }),
-    enabled: shouldLoadHomeworks,
     staleTime: 60_000,
   });
   const sessions = useQuery({
     queryKey: assessmentQueryKeys.allLectureSessions,
     queryFn: fetchAllSessions,
-    enabled: shouldLoadHomeworks && Boolean(homework.data?.length),
+    enabled: Boolean(homework.data?.length),
     staleTime: 60_000,
   });
   const lectures = useQuery({
     queryKey: assessmentQueryKeys.allLectures,
     queryFn: () => fetchLectures(),
-    enabled: shouldLoadHomeworks && Boolean(homework.data?.length),
+    enabled: Boolean(homework.data?.length),
     staleTime: 60_000,
   });
 
-  if (pendingOnly && notifications.isLoading) {
-    return <EmptyState scope="panel" tone="loading" title="확인 대기 과제 불러오는 중…" />;
-  }
-  if (pendingOnly && reviewCounts === null) {
-    return <EmptyState scope="panel" tone="error" title="확인 대기 과제를 불러오지 못했습니다" actions={
-      <Button onClick={() => void notifications.refetch()}>다시 시도</Button>
-    } />;
-  }
-  if (pendingOnly && !shouldLoadHomeworks) {
-    return <EmptyState scope="panel" tone="empty" title="확인 대기 과제가 없습니다" />;
-  }
   if (homework.isError || sessions.isError || lectures.isError) {
     return <EmptyState scope="panel" tone="error" title="과제 목록을 불러오지 못했습니다" actions={
       <Button onClick={() => {
@@ -60,12 +42,7 @@ export default function HomeworkReviewPicker({
   if (homework.isPending || sessions.isLoading || lectures.isLoading) {
     return <EmptyState scope="panel" tone="loading" title="과제 목록 불러오는 중…" />;
   }
-  const choices = (homework.data ?? []).filter((item) => !pendingOnly || reviewCounts?.[item.id]);
-  if (pendingOnly && choices.length !== Object.keys(reviewCounts ?? {}).length) {
-    return <EmptyState scope="panel" tone="error" title="과제 목록을 다시 확인해 주세요" actions={
-      <Button onClick={() => { void homework.refetch(); void notifications.refetch(); }}>다시 시도</Button>
-    } />;
-  }
+  const choices = homework.data ?? [];
   if (!choices.length) {
     return <EmptyState scope="panel" tone="empty" title="등록된 과제가 없습니다" />;
   }
@@ -86,7 +63,6 @@ export default function HomeworkReviewPicker({
             >
               <span className="flex flex-wrap items-center gap-2">
                 <span className="min-w-0 break-words text-sm font-semibold">{item.title}</span>
-                {pendingOnly && reviewCounts && <Badge tone="warning">확인 대기 {reviewCounts[item.id]}건</Badge>}
               </span>
               {session && (
                 <span className="mt-1 block break-words text-xs text-[var(--tc-text-muted,var(--color-text-muted))]">

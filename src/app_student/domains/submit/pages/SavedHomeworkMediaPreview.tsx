@@ -7,10 +7,11 @@ import HomeworkMediaVideo from "@/shared/ui/media/HomeworkMediaVideo";
 import { getParentStudentId } from "@/shared/api/parentStudentSelection";
 import styles from "./SubmitAssignmentPage.module.css";
 
-export default function SavedHomeworkMediaPreview({ homeworkId, enrollmentId, file, onClose }: {
+export default function SavedHomeworkMediaPreview({ homeworkId, enrollmentId, file, context, onClose }: {
   homeworkId: number;
   enrollmentId: number;
   file: HomeworkMediaFile;
+  context: string;
   onClose: () => void;
 }) {
   const [mediaFailed, setMediaFailed] = useState(false);
@@ -24,6 +25,7 @@ export default function SavedHomeworkMediaPreview({ homeworkId, enrollmentId, fi
   const failed = preview.isError || mediaFailed || (preview.isSuccess && !preview.data.url);
   return (
     <section className={styles.savedPreview} aria-label="제출 파일 미리보기">
+      <p>{context}</p>
       <div className={styles.previewHeading}>
         <strong>{file.original_filename}</strong>
         <button type="button" className="stu-btn stu-btn--ghost stu-btn--sm" onClick={onClose}>미리보기 닫기</button>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import ExamSessionSelect from "@/shared/ui/submissions/ExamSessionSelect";
 import { useLocation, useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -1343,7 +1344,15 @@ function OperationList({
   return (
     <div className={styles.operationList}>
       <h4>{title}</h4>
-      {rows.length === 0 ? <p>{empty}</p> : rows.slice(0, 4).map((submission) => (
+      {rows.length === 0 ? <p>{empty}</p> : rows.slice(0, 4).map((submission) => action === "결과 보기" && submission.session_choices?.length ? (
+        <label key={submission.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 py-2">
+          <span>{submission.target_title} · {submission.student_name || "학생 미식별"}</span>
+          <ExamSessionSelect label={`${submission.target_title} 결과를 열 강의·차시`} choices={submission.session_choices}
+            onSelect={selected => {
+              if (selected) onNavigate(`/workspace/lectures/${selected.lecture_id}/sessions/${selected.session_id}/exams?exam_id=${submission.target_id}&examTab=results${submission.enrollment_id ? `&enrollmentId=${submission.enrollment_id}` : ""}`);
+            }} />
+        </label>
+      ) : (
         <button
           type="button"
           key={submission.id}
@@ -1352,7 +1361,7 @@ function OperationList({
               onNavigate(`/workspace/lectures/${submission.lecture_id}/sessions/${submission.session_id}/scores`);
               return;
             }
-            onNavigate("/workspace/results/submissions");
+            onNavigate(action === "결과 보기" ? "/workspace/results/submissions?filter=done" : "/workspace/results/submissions");
           }}
         >
           <span>

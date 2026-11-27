@@ -31,6 +31,7 @@ export type PendingSubmissionRow = {
   created_at: string;
 };
 
+// Legacy export promises one navigation target per linked exam. The current inbox uses the shared contract.
 export async function fetchPendingSubmissions(filter?: string): Promise<PendingSubmissionRow[]> {
   const params = filter ? { filter } : {};
   const res = await api.get("/submissions/submissions/pending/", { params });

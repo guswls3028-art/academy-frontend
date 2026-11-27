@@ -19,10 +19,11 @@ type Props = {
   mediaSetFingerprint: string | null;
   onClose: () => void;
   aboveStudentDetail?: boolean;
+  context?: string;
   onViewed?: (fileId: string) => void;
 };
 
-export default function HomeworkMediaPreviewModal({ open, homeworkId, file, mediaSetFingerprint, onClose, onViewed, aboveStudentDetail }: Props) {
+export default function HomeworkMediaPreviewModal({ open, homeworkId, file, mediaSetFingerprint, onClose, onViewed, aboveStudentDetail, context }: Props) {
   const [openedPdfId, setOpenedPdfId] = useState<string | null>(null);
   const [failedMediaKey, setFailedMediaKey] = useState<string | null>(null);
   const close = () => {
@@ -51,7 +52,7 @@ export default function HomeworkMediaPreviewModal({ open, homeworkId, file, medi
       <ModalHeader
         type="inspect"
         title={file?.original_filename || "과제 파일 미리보기"}
-        description={file ? `${file.mime_type === "application/pdf" ? "PDF" : file.media_kind === "video" ? "동영상" : "사진"} · 파일 ${file.position + 1}` : undefined}
+        description={file ? [context, `${file.mime_type === "application/pdf" ? "PDF" : file.media_kind === "video" ? "동영상" : "사진"} · 파일 ${file.position + 1}`].filter(Boolean).join(" · ") : undefined}
       />
       <ModalBody>
         <div className={styles.previewBody}>
