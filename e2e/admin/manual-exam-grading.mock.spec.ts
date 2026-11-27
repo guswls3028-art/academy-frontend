@@ -4355,23 +4355,34 @@ test.describe("문항별 직접 채점", () => {
         for (const animation of element.closest(".ant-popover")!.getAnimations()) animation.currentTime = 1;
       });
       const action = menu.getByRole("menuitem", { name: /^문항별 점수 입력/ });
-      const before = await action.boundingBox();
-      expect(before).not.toBeNull();
-      await page.mouse.move(before!.x + before!.width / 2, before!.y + before!.height / 2);
+      const pressedItem = await action.elementHandle();
+      const measureAction = () => pressedItem.evaluate((item) => {
+        const { x, y, width, height } = item.getBoundingClientRect();
+        const popupTop = item.closest(".ant-popover")!.getBoundingClientRect().top;
+        return { x, y, width, height, yInPopup: y - popupTop };
+      });
+      const before = await measureAction();
+      const point = { x: before.x + before.width / 2, y: before.y + before.height / 2 };
+      const pointerHitsPressedItem = () => pressedItem.evaluate((item, { x, y }) =>
+        item.ownerDocument.elementFromPoint(x, y)?.closest('[role="menuitem"]') === item, point);
+
+      await page.mouse.move(point.x, point.y);
+      expect(await pointerHitsPressedItem(), "Pointer down must hit the intended action").toBe(true);
       await page.mouse.down();
       releaseAnalysisModule();
       await expect(analysis).toBeEnabled();
+      expect(await pointerHitsPressedItem(), "Pointer must stay on the pressed action before motion finishes").toBe(true);
       await menu.evaluate(async (element) => {
         for (const animation of element.closest(".ant-popover")!.getAnimations()) animation.finish();
         await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       });
-      const after = await action.boundingBox();
+      const after = await measureAction();
+      expect(await pointerHitsPressedItem(), "Pointer up must hit the original pressed action").toBe(true);
       await page.mouse.up();
-      expect(after).not.toBeNull();
       expect(Math.abs(await analysisWidth() - loadingAnalysisWidth)).toBeLessThan(1);
-      expect(Math.abs(after!.x - before!.x)).toBeLessThan(1);
-      expect(Math.abs(after!.y - before!.y)).toBeLessThan(1);
-      expect(Math.abs(after!.width - before!.width)).toBeLessThan(1);
+      expect(Math.abs(after.x - before.x)).toBeLessThan(1);
+      expect(Math.abs(after.yInPopup - before.yInPopup)).toBeLessThan(1);
+      expect(Math.abs(after.width - before.width)).toBeLessThan(1);
       const dialog = page.getByRole("dialog").filter({ hasText: "7월 진단평가 문항별 점수 입력" });
       await expect(dialog.locator("input[data-manual-grade-cell]")).toHaveCount(2);
       await expect(dialog.locator("input[data-manual-grade-cell]").first()).toBeInViewport();

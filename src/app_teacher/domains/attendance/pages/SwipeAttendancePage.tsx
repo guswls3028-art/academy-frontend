@@ -43,7 +43,7 @@ export default function SwipeAttendancePage() {
   const scopeRoster = useSessionScheduleRoster(sid, schedule);
   const validSession = Number.isSafeInteger(sid) && sid > 0;
   const runTrackedTask = useTrackedTask();
-  const { confirmSecession, secessionDialog } = useSecessionConfirm();
+  const { prepareStatusChange, secessionDialog } = useSecessionConfirm();
 
   const { data: result, isLoading, isFetching, isError, error, refetch } = useQuery({
     queryKey: teacherAttendanceQueryKeys.completeAttendanceScope(sid, schedule),
@@ -63,14 +63,15 @@ export default function SwipeAttendancePage() {
   } | null>(null);
 
   const updateMut = useMutation({
-    mutationFn: ({ id, status, confirm_secession, secession_scope }: {
+    mutationFn: ({ id, ...payload }: {
       id: number;
       status: string;
       confirm_secession?: boolean;
       secession_scope?: SecessionScope;
+      restore_scope?: SecessionScope;
     }) => runTrackedTask(
       "attendance.update",
-      () => updateAttendance(id, { status, confirm_secession, secession_scope }),
+      () => updateAttendance(id, payload),
     ),
     onSuccess: async () => {
       await Promise.all([
@@ -83,7 +84,10 @@ export default function SwipeAttendancePage() {
         qc.invalidateQueries({ queryKey: scoresQueryKeys.sessionScoresRoot }),
       ]);
     },
-    onError: (e) => feedback.error(extractApiError(e, "상태 변경 실패")),
+    onError: (e, variables) => {
+      if (variables.restore_scope) void refetch();
+      feedback.error(extractApiError(e, "상태 변경 실패"));
+    },
   });
 
   const bulkMut = useMutation({
@@ -115,43 +119,35 @@ export default function SwipeAttendancePage() {
       if (!rosterReady || updateMut.isPending || bulkMut.isPending) return;
       const prev = records.find((r) => r.id === attendanceId);
       if (!prev || (prev.status === status && status !== "SECESSION")) return;
-      const scope = status === "SECESSION"
-        ? await confirmSecession(prev.name || prev.student_name || "학생") : null;
-      if (status === "SECESSION" && !scope) return;
-      updateMut.mutate({
-        id: attendanceId,
-        status,
-        confirm_secession: status === "SECESSION" ? true : undefined,
-        secession_scope: scope ?? undefined,
-      }, {
+      const change = await prepareStatusChange(prev, status);
+      if (!change) return;
+      updateMut.mutate({ id: attendanceId, ...change }, {
         onSuccess: () => {
           if (status === "SECESSION") {
             setUndoItem(null);
             feedback.success("퇴원 처리되었습니다. 기존 성적·출결·시청 기록은 보관됩니다.");
+          } else if (change.restore_scope) {
+            setUndoItem(change.restore_scope === "session" ? { id: attendanceId, prev: prev.status } : null);
+            feedback.success("수강을 복구하고 출결을 저장했습니다.");
           } else setUndoItem({ id: attendanceId, prev: prev.status });
         },
       });
     },
-    [records, rosterReady, updateMut, bulkMut.isPending, confirmSecession],
+    [records, rosterReady, updateMut, bulkMut.isPending, prepareStatusChange],
   );
 
   const handleUndo = useCallback(async () => {
     if (undoItem && !updateMut.isPending && !bulkMut.isPending) {
       const record = records.find((row) => row.id === undoItem.id);
-      const scope = undoItem.prev === "SECESSION"
-        ? await confirmSecession(record?.name || record?.student_name || "학생") : null;
-      if (undoItem.prev === "SECESSION" && !scope) return;
-      updateMut.mutate({
-        id: undoItem.id,
-        status: undoItem.prev,
-        confirm_secession: undoItem.prev === "SECESSION" ? true : undefined,
-        secession_scope: scope ?? undefined,
-      }, {
+      if (!record) return;
+      const change = await prepareStatusChange(record, undoItem.prev, { rewithdrawSession: undoItem.prev === "SECESSION" });
+      if (!change) return;
+      updateMut.mutate({ id: undoItem.id, ...change }, {
         onSuccess: () => setUndoItem(null),
         onError: () => setUndoItem({ ...undoItem, failed: true }),
       });
     }
-  }, [undoItem, updateMut, bulkMut.isPending, confirmSecession, records]);
+  }, [undoItem, updateMut, bulkMut.isPending, prepareStatusChange, records]);
 
   // Summary
   const summary = records.reduce(

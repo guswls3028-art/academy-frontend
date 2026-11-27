@@ -33,6 +33,12 @@ export function getTenantPwaBrand(
 ): TenantPwaBrand {
   const normalizedHost = hostname.toLowerCase();
   const tenant = getTenantDefByHostname(normalizedHost);
+  // Pages resolves the platform's uploaded touch icon before either role app mounts.
+  const platformDocument = (normalizedHost === "hakwonplus.com" || normalizedHost === "www.hakwonplus.com")
+    && typeof document !== "undefined" && document.location.hostname === normalizedHost;
+  const publishedIcon = platformDocument
+    ? document.head.querySelector('link[rel="apple-touch-icon"]')?.getAttribute("href")
+    : null;
   return {
     title:
       tenant?.branding.windowTitle
@@ -41,7 +47,8 @@ export function getTenantPwaBrand(
       || normalizedHost.split(".")[0]
       || "학원",
     iconHref:
-      TENANT_APP_ICON_BY_HOST[normalizedHost]
+      publishedIcon
+      || TENANT_APP_ICON_BY_HOST[normalizedHost]
       || tenant?.branding.headerLogoUrl
       || tenant?.branding.faviconUrl
       || tenant?.branding.logoUrl
