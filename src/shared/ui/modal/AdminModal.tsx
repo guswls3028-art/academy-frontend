@@ -1,6 +1,6 @@
 // PATH: src/shared/ui/modal/AdminModal.tsx
 import { Modal, type ModalProps } from "antd";
-import React, { useCallback, useEffect, useId, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ControlSizeContext } from "@/shared/ui/ds/ControlSizeContext";
 
@@ -94,7 +94,7 @@ export default function AdminModal({
   const restoreTriggerFocus = useCallback(() => {
     const target = returnFocusRef.current;
     returnFocusRef.current = null;
-    if (target?.isConnected) target.focus();
+    if (target?.isConnected) target.focus({ preventScroll: true });
   }, []);
 
   const {
@@ -107,7 +107,7 @@ export default function AdminModal({
     onMinimizeRef,
   } = useDraggableModal(".modal-header");
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open || returnFocusRef.current) return;
     const active = document.activeElement;
     if (active instanceof HTMLElement && active !== document.body) {

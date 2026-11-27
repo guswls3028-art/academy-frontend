@@ -69,6 +69,7 @@ function ProfileDropdown({
   overlayClassName?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -80,7 +81,11 @@ function ProfileDropdown({
       }
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCloseRef.current();
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (ref.current?.contains(document.activeElement)) {
+        triggerRef.current?.querySelector("button")?.focus({ preventScroll: true });
+      }
+      onCloseRef.current();
     };
     document.addEventListener("mousedown", handler);
     document.addEventListener("touchstart", handler);
@@ -97,6 +102,7 @@ function ProfileDropdown({
   return (
     <div ref={ref} className="app-header__profileDropdown">
       <div
+        ref={triggerRef}
         className="app-header__profileDropdownTrigger"
         onClick={onToggle}
       >
@@ -139,7 +145,11 @@ const STAFF_ROLE_LABEL: Record<MeStaffRole, string> = {
   ASSISTANT: "조교",
 };
 
-export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigation: () => void }) {
+export default function Header({ onOpenQuickNavigation, sidebarCollapsed, onToggleSidebar }: {
+  onOpenQuickNavigation: () => void;
+  sidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
+}) {
   const nav = useNavigate();
   const adminLayout = useAdminLayout();
   const isMobile = useIsMobile();
@@ -322,12 +332,11 @@ export default function Header({ onOpenQuickNavigation }: { onOpenQuickNavigatio
             size="lg"
             iconOnly
             className="app-header__iconBtn"
-            onClick={() =>
-              isMobile
-                ? adminLayout?.openDrawer()
-                : document.dispatchEvent(new Event("ui:sidebar:toggle"))
-            }
+            onClick={isMobile ? adminLayout?.openDrawer : onToggleSidebar}
             aria-label={isMobile ? "메뉴 열기" : "사이드바 토글"}
+            aria-controls={isMobile ? undefined : "admin-workspace-sidebar"}
+            aria-expanded={isMobile ? adminLayout?.drawerOpen : !sidebarCollapsed}
+            title={isMobile ? "메뉴 열기" : sidebarCollapsed ? "사이드바 펼치기" : "사이드바 접기"}
             leftIcon={<MenuIcon size={ICON_FOR_BUTTON.lg} aria-hidden />}
           />
 

@@ -1,7 +1,7 @@
 /**
  * Keep the route tree mounted while only navigation and CSS respond to viewport changes.
  */
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { WORKSPACE_SECTIONS } from "@/core/navigation/workspaceSections";
 import { Outlet, useLocation } from "react-router";
 import Header from "./Header";
@@ -10,7 +10,10 @@ import AdminNavDrawer from "./AdminNavDrawer";
 import TeacherBottomBar from "./TeacherBottomBar";
 import { AsyncStatusBar } from "@/shared/ui/asyncStatus";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
+import { getLocalItem, setLocalItem } from "@/shared/utils/safeLocalStorage";
 import styles from "./ResponsiveAdminLayout.module.css";
+
+const SIDEBAR_PREF = "ui.sidebar.collapsed";
 
 export default function ResponsiveAdminLayout({ onOpenQuickNavigation }: { onOpenQuickNavigation: () => void }) {
   const location = useLocation();
@@ -25,14 +28,28 @@ export default function ResponsiveAdminLayout({ onOpenQuickNavigation }: { onOpe
     previousPath.current = location.pathname;
   }, [location.pathname]);
   const isMobile = useIsMobile();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => getLocalItem(SIDEBAR_PREF) === "1");
+  useLayoutEffect(() => {
+    if (isMobile) return;
+    const root = document.documentElement;
+    root.setAttribute("data-sidebar", sidebarCollapsed ? "collapsed" : "expanded");
+    root.style.setProperty("--sidebar-width", sidebarCollapsed ? "var(--sidebar-width-collapsed)" : "var(--sidebar-width-expanded)");
+    setLocalItem(SIDEBAR_PREF, sidebarCollapsed ? "1" : "0");
+    return () => {
+      root.removeAttribute("data-sidebar");
+      root.style.removeProperty("--sidebar-width");
+    };
+  }, [isMobile, sidebarCollapsed]);
   return (
     <div data-app="admin" className={styles.root}>
       <div className={styles.layout}>
         <header className={styles.header}>
-          <Header onOpenQuickNavigation={onOpenQuickNavigation} />
+          <Header onOpenQuickNavigation={onOpenQuickNavigation} sidebarCollapsed={sidebarCollapsed}
+            onToggleSidebar={() => setSidebarCollapsed(value => !value)} />
         </header>
-        <aside className={`sidebar ${styles.sidebar}`}>
-          {!isMobile && <Sidebar />}
+        <aside id="admin-workspace-sidebar" className={`sidebar ${styles.sidebar}`}
+          data-analytics-placement={isMobile ? undefined : "admin.sidebar"}>
+          {!isMobile && <Sidebar collapsed={sidebarCollapsed} onExpand={() => setSidebarCollapsed(false)} />}
         </aside>
         <main ref={mainRef} className={styles.main}>
           <div className={styles.content}>

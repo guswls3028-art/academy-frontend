@@ -39,6 +39,7 @@ export default function LectureActionsMenu({ lecture, isPast, onEdit, onChanged 
     if (inFlight.current) return;
     setOpen(false);
     if (action === "edit") {
+      trigger.current?.focus({ preventScroll: true });
       onEdit(lecture.id);
       return;
     }
