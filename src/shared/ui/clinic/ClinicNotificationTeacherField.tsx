@@ -1,23 +1,13 @@
 import { useId } from "react";
 import { useQuery } from "@tanstack/react-query";
-import api from "@/shared/api/axios";
-import { clinicQueryKeys } from "@/shared/api/queryKeys/clinic";
-import { getTenantCodeForApiRequest } from "@/shared/tenant";
+import { clinicNotificationTeachersQuery } from "@/shared/api/clinicNotificationTeachers";
 import styles from "./ClinicNotificationTeacherField.module.css";
 
 type Props = { value: number | null; onChange: (value: number | null) => void };
 
 export default function ClinicNotificationTeacherField({ value, onChange }: Props) {
   const id = useId();
-  const teachers = useQuery({
-    queryKey: clinicQueryKeys.notificationTeachers(getTenantCodeForApiRequest()),
-    queryFn: async ({ signal }) => {
-      const { data } = await api.get<Array<{ id: number; name: string }>>("/clinic/sessions/notification-teachers/", { signal });
-      if (!Array.isArray(data)) throw new Error("담당 선생님 목록을 확인해 주세요.");
-      return data;
-    },
-    staleTime: 60_000,
-  });
+  const teachers = useQuery(clinicNotificationTeachersQuery());
   return <div className={styles.field}>
     <label htmlFor={id}>예약 알림을 받을 담당 선생님 (선택)</label>
     <select id={id} value={value ?? ""} aria-describedby={id + "-hint"}

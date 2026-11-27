@@ -1,0 +1,26 @@
+.roster { min-width: 0; container-type: inline-size; }
+.table { width: 100%; margin-top: 14px; border-spacing: 0; table-layout: fixed; font-size: 13px; line-height: 1.5; }
+.table th, .table td { padding: 11px 8px; text-align: left; overflow-wrap: anywhere; vertical-align: middle; }
+.table thead th { background: var(--color-bg-surface-soft); color: var(--color-text-secondary); font-size: 12px; font-weight: 600; }
+.table thead th:nth-child(1) { width: 17%; }
+.table thead th:nth-child(2) { width: 21%; }
+.table thead th:nth-child(3) { width: 21%; }
+.table thead th:nth-child(4) { width: 14%; }
+.table thead th:nth-child(5) { width: 14%; }
+.table tbody :is(th, td) { border-bottom: 1px solid var(--color-border-divider); }
+.table td strong, .table td small { display: block; }
+.table td small { color: var(--color-text-secondary); font-size: 12px; }
+.student { font-weight: 600; }
+.table .actions > div, .pager, .retry { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.pager { margin-top: 12px; justify-content: flex-end; font-size: 13px; }
+.retry { margin-top: 12px; }
+.table tbody tr:focus-within { background: var(--color-bg-surface-soft); }
+@container (max-width: 620px) {
+  .table, .table tbody { display: block; }
+  .table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .table tbody tr { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; padding: 14px 0; border-top: 1px solid var(--color-border-divider); }
+  .table tbody :is(th, td) { padding: 0; border: 0; }
+  .table td[data-label]::before { content: attr(data-label); display: block; color: var(--color-text-secondary); font-size: 11px; }
+  .student, .actions { grid-column: 1 / -1; }
+  .actions > div > button { min-height: 44px; flex: 1; }
+}

@@ -20,7 +20,11 @@ async function installApprovals(page: Page) {
     failApproval: false, moreRequests: false,
     settingsWrites: [] as Record<string, unknown>[], approvals: [] as number[],
     requests: [101, 102].map((id) => ({ id, name: id === 101 ? "김승인" : "이확인", status: "pending", phone: "01000001111", parent_phone: "01000002222", parent_password_selected: true, school_type: "HIGH", high_school: "가나다고등학교", grade: 2, created_at: "2026-10-26T09:00:00Z" })),
-    participants: [201, 202].map((id) => ({ id, student: id, student_name: id === 201 ? "김예약" : "이대기", session: 1, status: "pending", session_date: "2026-10-29", session_start_time: "16:00:00", session_location: "본관", student_request_memo: "수업 종료 후 참여합니다." })),
+    participants: [201, 202].map((id) => ({ id, student: id, student_name: id === 201 ? "김예약" : "이대기", session: id - 200, status: "pending", session_date: "2026-10-29", session_start_time: "16:00:00", session_location: "본관", student_request_memo: "수업 종료 후 참여합니다.",
+      session_title: id === 201 ? "수학 보강" : "영어 보강", requested_after_cutoff: id === 202,
+      booking_start_date: "2026-10-29", booking_end_date: "2026-10-29",
+      booking_start_time: id === 201 ? "16:30:00" : "17:30:00", booking_end_time: id === 201 ? "17:30:00" : "18:30:00",
+    })),
   };
   await page.route("**/api/v1/**", async (route) => {
     const req = route.request();
@@ -69,12 +73,129 @@ async function installApprovals(page: Page) {
       const rows = url.searchParams.get("status") === "pending" ? state.participants.filter((p) => p.status === "pending") : [];
       return route.fulfill({ json: { count: rows.length, results: rows, next: null, previous: null } });
     }
+    if (path === "/clinic/sessions/tree/") {
+      const matches = url.searchParams.get("year") === "2026" && url.searchParams.get("month") === "10";
+      return route.fulfill({ json: matches ? state.participants.map((p) => ({
+        id: p.session, date: p.session_date, start_time: p.session_start_time, title: p.session_title,
+        location: p.session_location, notification_teacher_id: p.id + 100,
+      })) : [] });
+    }
+    if (path === "/clinic/sessions/notification-teachers/") return route.fulfill({ json: [{ id: 301, name: "김수학" }, { id: 302, name: "박영어" }] });
     return route.fulfill({ json: { count: 0, results: [], next: null, previous: null } });
   });
   return state;
 }
 
 test.use({ serviceWorkers: "block" });
+
+for (const width of [1366, 1100, 390]) {
+  test(`${width}px 같은 이름의 대기 신청에서 회차·예약 시간·담당자를 비교해 마감 후 한 건만 승인한다`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = await installApprovals(page);
+    state.participants.forEach((row) => { row.student_name = "김지원"; });
+    await page.goto(`${BASE}/workspace/clinic/home`);
+    const table = page.getByRole("table", { name: "예약 승인 대기 명단" });
+    const ordinary = table.getByRole("row").filter({ hasText: "수학 보강" });
+    const late = table.getByRole("row").filter({ hasText: "영어 보강" });
+    await expect(ordinary).toContainText("김수학");
+    await expect(ordinary).toContainText("16:30–17:30");
+    await expect(late).toContainText("박영어");
+    await expect(late).toContainText("17:30–18:30");
+    await expect(late).toContainText("마감 후 대기");
+    await expect(late).toContainText("김지원");
+    const geometry = await late.locator("td").evaluateAll((cells) => cells.map((cell) => Math.round(cell.getBoundingClientRect().top)));
+    if (width >= 1100) expect(new Set(geometry).size).toBe(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    await info.attach(`clinic-approval-roster-${width}`, { body: await table.screenshot(), contentType: "image/png" });
+    state.failApproval = true;
+    await late.getByRole("button", { name: "승인", exact: true }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "1건 실패" })).toBeVisible();
+    await expect(late).toBeVisible();
+    state.failApproval = false;
+    await late.getByRole("button", { name: "승인", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "영어 보강" })).toContainText("김지원");
+    await page.reload();
+    await expect(ordinary).toContainText("승인 대기");
+    await expect(late).toHaveCount(0);
+    expect(state.approvals).toEqual([202, 202]);
+    expect(state.participants.map((row) => row.status)).toEqual(["pending", "booked"]);
+  });
+}
+
+
+for (const width of [1366, 1100, 390]) {
+  test(`${width}px 학생 예약 마감 설정은 실패 후 입력을 유지하고 저장한 정책을 다시 표시한다`, async ({ page }, info) => {
+    await page.setViewportSize({ width, height: 900 });
+    const state = await installApprovals(page);
+    await page.goto(`${BASE}/workspace/clinic/home`);
+    const panel = page.getByRole("region", { name: "학생 예약 마감", exact: true });
+    const overview = panel.locator("dl");
+    const edit = panel.getByRole("button", { name: "마감 설정 변경" });
+    const form = panel.getByRole("form", { name: "학생 예약 마감 편집" });
+    const save = form.getByRole("button", { name: "마감 설정 저장" });
+    await expect(overview).toContainText("마감 없음");
+    await expect(overview).toContainText("해당 없음");
+    await expect(overview).toContainText("교직원 직접 등록");
+    await expect(form).toHaveCount(0);
+    await edit.focus();
+    await edit.press("Enter");
+    const mode = form.getByLabel("마감 기준");
+    await expect(mode).toBeFocused();
+    await mode.selectOption("previous_day");
+    await form.getByLabel("전날 마감 시각").fill("19:30");
+    await form.getByRole("checkbox").check();
+
+    state.failSettings = true;
+    await save.click();
+    await expect(form.getByRole("alert")).toBeVisible();
+    await expect(form.getByLabel("전날 마감 시각")).toHaveValue("19:30");
+    await expect(overview).toContainText("마감 없음");
+    state.failSettings = false;
+    await save.click();
+    await expect(form).toHaveCount(0);
+    await expect(edit).toBeFocused();
+    await expect(panel.getByRole("status")).toContainText("저장했습니다");
+    await expect(overview).toContainText("전날 19:30 (한국 시간)");
+    await expect(overview).toContainText("시작 전까지 승인 대기로 접수");
+    await info.attach(`booking-cutoff-summary-${width}`, { body: await panel.screenshot(), contentType: "image/png" });
+
+    await page.reload();
+    await expect(overview).toContainText("전날 19:30 (한국 시간)");
+    await expect(overview).toContainText("시작 전까지 승인 대기로 접수");
+    const columns = await overview.locator("dt").evaluateAll((terms) => terms.map((term) => Math.round(term.getBoundingClientRect().top)));
+    expect(new Set(columns).size).toBe(width === 390 ? 3 : 1);
+    await edit.click();
+    await expect(form.getByRole("checkbox")).toBeChecked();
+    await expect(save).toBeDisabled();
+    await info.attach(`booking-cutoff-${width}`, { body: await panel.screenshot(), contentType: "image/png" });
+    await mode.selectOption("before_start");
+    await form.getByRole("spinbutton").fill("90");
+    await form.getByRole("button", { name: "취소", exact: true }).click();
+    await expect(edit).toBeFocused();
+    await expect(overview).toContainText("전날 19:30 (한국 시간)");
+    expect(state.settingsWrites).toHaveLength(2);
+
+    await edit.click();
+    await expect(mode).toHaveValue("previous_day");
+    await mode.selectOption("before_start");
+    const minutes = form.getByRole("spinbutton");
+    await minutes.fill("525601");
+    await save.click();
+    expect(await minutes.evaluate((input: HTMLInputElement) => input.validity.rangeOverflow)).toBe(true);
+    expect(state.settingsWrites).toHaveLength(2);
+    await minutes.fill("90");
+    await form.getByRole("checkbox").uncheck();
+    await save.click();
+    await expect(overview).toContainText("시작 90분 전");
+    await expect(overview).toContainText("신청 종료");
+    state.canEditClinicPolicy = false;
+    await page.reload();
+    await expect(overview).toContainText("시작 90분 전");
+    await expect(panel.getByText(/변경 권한/)).toBeVisible();
+    await expect(edit).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
 
 for (const width of [1366, 390]) {
   test(`${width}px 승인 화면 구성`, async ({ page }, info) => {
@@ -89,39 +210,6 @@ for (const width of [1366, 390]) {
     await expect(page.getByText("오늘 예정된 클리닉이 없습니다.")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
     await page.screenshot({ path: info.outputPath(`clinic-approval-${width}.png`), fullPage: true });
-  });
-
-  test(`${width}px 학생 예약 마감 설정은 실패 후 입력을 유지하고 저장한 정책을 다시 표시한다`, async ({ page }, info) => {
-    await page.setViewportSize({ width, height: 900 });
-    const state = await installApprovals(page);
-    await page.goto(`${BASE}/workspace/clinic/home`);
-    const panel = page.locator("details").filter({ has: page.locator("summary", { hasText: "학생 예약 마감" }) });
-    await panel.locator("summary").click();
-    await panel.getByLabel("마감 기준").selectOption("previous_day");
-    await panel.getByLabel("전날 마감 시각").fill("19:30");
-    await panel.getByRole("checkbox").check();
-    state.failSettings = true;
-    await panel.getByRole("button", { name: "마감 설정 저장" }).click();
-    await expect(panel.getByRole("alert")).toBeVisible();
-    await expect(panel.getByLabel("전날 마감 시각")).toHaveValue("19:30");
-    state.failSettings = false;
-    await panel.getByRole("button", { name: "마감 설정 저장" }).click();
-    await expect(panel.getByRole("status")).toContainText("저장했습니다");
-    await page.reload();
-    await expect(panel.locator("summary")).toContainText("전날 19:30");
-    await panel.locator("summary").click();
-    await expect(panel.getByRole("checkbox")).toBeChecked();
-    await info.attach(`booking-cutoff-${width}`, { body: await panel.screenshot(), contentType: "image/png" });
-    await panel.getByLabel("마감 기준").selectOption("before_start");
-    await panel.getByRole("spinbutton").fill("90");
-    await panel.getByRole("button", { name: "마감 설정 저장" }).click();
-    await expect(panel.locator("summary")).toContainText("시작 90분 전");
-    state.canEditClinicPolicy = false;
-    await page.reload();
-    await panel.locator("summary").click();
-    await expect(panel.getByText(/변경 권한/)).toBeVisible();
-    await expect(panel.getByRole("button", { name: "마감 설정 저장" })).toHaveCount(0);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   });
 
   for (const kind of ["signup", "clinic"] as const) {

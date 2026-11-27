@@ -56,6 +56,7 @@ export async function verifyClinicCutoffRealuse({ page, teacherPage, request, te
   let participantId: number | undefined;
   const errors: unknown[] = [];
   try {
+    await teacherPage.setViewportSize({ width: 1366, height: 900 });
     const contacts = await expectApi<{ phone: string; parent_phone: string }>(request, "GET", `/students/${student.id}/`, adminAccess);
     const phones = [contacts.phone, contacts.parent_phone].map((phone) => phone.replace(/\D/g, ""));
     const teacherPhone = ["01097", "01096", "01095"].map((prefix) => prefix + String(stamp).slice(-6))
@@ -82,8 +83,8 @@ export async function verifyClinicCutoffRealuse({ page, teacherPage, request, te
     expect(await expectApi(request, "GET", path, studentTokens.access)).not.toHaveProperty("notification_teacher_id");
 
     await gotoAndSettle(teacherPage, QA_BASE + "/workspace/clinic/home");
-    const panel = teacherPage.locator("details").filter({ has: teacherPage.locator("summary", { hasText: "학생 예약 마감" }) });
-    await panel.locator("summary").click();
+    const panel = teacherPage.getByRole("region", { name: "학생 예약 마감", exact: true });
+    await panel.getByRole("button", { name: "마감 설정 변경" }).click();
     await panel.getByLabel("마감 기준").selectOption("before_start");
     await panel.getByRole("spinbutton").fill("10080");
     await panel.getByRole("checkbox").uncheck();
@@ -96,6 +97,7 @@ export async function verifyClinicCutoffRealuse({ page, teacherPage, request, te
     await expect(sessionButton).toBeDisabled();
     await expect(sessionButton).toContainText("신청 마감");
 
+    await panel.getByRole("button", { name: "마감 설정 변경" }).click();
     await panel.getByRole("checkbox").check();
     await panel.getByRole("button", { name: "마감 설정 저장" }).click();
     await expect(panel.getByRole("status")).toContainText("저장했습니다");
@@ -127,10 +129,16 @@ export async function verifyClinicCutoffRealuse({ page, teacherPage, request, te
     const range = `${date} 14:30–15:30`;
     const pendingLogs = await verifyDeliveries(request, adminAccess, `${origin}:reservation_pending`,
       [...familyRecipients, { type: "clinic_teacher", id: recipient.id, phone: teacherPhone }], `마감 후 승인 대기 · ${range}`);
-    await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/clinic/operations?date=${date}&session=${sessionId}`);
-    const row = teacherPage.locator(".clinic-ops__card").filter({ hasText: student.name });
-    await expect(row).toContainText("마감 후 신청");
-    await row.getByRole("button", { name: "예약 승인", exact: true }).click();
+    await gotoAndSettle(teacherPage, `${QA_BASE}/workspace/clinic/home`);
+    await expect(panel).toContainText("시작 10080분 전");
+    await expect(panel).toContainText("시작 전까지 승인 대기로 접수");
+    const row = teacherPage.getByRole("table", { name: "예약 승인 대기 명단" }).getByRole("row")
+      .filter({ hasText: title }).filter({ hasText: student.name });
+    await expect(row).toContainText("마감 후 대기");
+    await expect(row).toContainText("14:30–15:30");
+    await expect(row).toContainText(name);
+    await testInfo.attach("clinic-admin-pending-roster-1366", { body: await row.screenshot(), contentType: "image/png" });
+    await row.getByRole("button", { name: "승인", exact: true }).click();
     await expect.poll(async () => (await expectApi<{ status: string }>(request, "GET", `/clinic/participants/${participantId}/`, adminAccess)).status).toBe("booked");
     await reloadStudentApp(page);
     await page.getByRole("tab", { name: /내 일정/ }).click();

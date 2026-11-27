@@ -1,23 +1,10 @@
 .root { display: grid; gap: 12px; }
 .queue { border: 1px solid var(--color-border-divider); border-radius: var(--radius-lg); padding: 20px; background: var(--color-bg-surface); }
-.cutoff summary { cursor: pointer; font-size: 15px; font-weight: 700; line-height: 1.8; }
-.cutoff summary small { margin-left: 8px; color: var(--color-text-secondary); font-size: 12px; font-weight: 500; }
-.cutoff form { display: grid; gap: 12px; justify-items: start; margin-top: 12px; }
-.cutoff label { display: grid; gap: 4px; max-width: 100%; font-size: 13px; }
-.cutoff label:has([type="checkbox"]) { display: flex; gap: 8px; align-items: center; }
-.cutoff input:not([type="checkbox"]), .cutoff select { min-height: 40px; max-width: 100%; border: 1px solid var(--color-border-divider); border-radius: var(--radius-sm); padding: 4px 10px; font: inherit; color: inherit; background: var(--color-bg-surface); }
-@media (prefers-reduced-motion: no-preference) {
-  .cutoff[open] form { animation: revealCutoff 140ms ease-out; }
-  @keyframes revealCutoff { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: translateY(0); } }
-}
 .heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
 .heading h3 { margin: 0; display: flex; gap: 8px; align-items: center; font-size: 15px; font-weight: 700; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .queue p { color: var(--color-text-secondary); font-size: 13px; line-height: 1.65; margin: 12px 0 0; }
-.preview { list-style: none; padding: 0; margin: 16px 0 0; }
-.preview li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--color-border-divider); font-size: 13px; overflow-wrap: anywhere; }
-.preview span { color: var(--color-text-secondary); text-align: right; }
 .result { margin-top: 16px; padding: 12px; border-left: 3px solid var(--color-brand-primary); background: var(--color-bg-surface-soft); font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
 .result[data-error="true"] { border-left-color: var(--color-error); }
 .result ul { padding-left: 20px; margin: 8px 0 0; }
-@media (max-width: 640px) { .queue { padding: 16px; } .heading { align-items: stretch; flex-direction: column; gap: 12px; } .actions > button { flex: 1; min-height: 44px; } .preview li { align-items: flex-start; flex-direction: column; gap: 4px; } .preview span { text-align: left; } }
+@media (max-width: 640px) { .queue { padding: 16px; } .heading { align-items: stretch; flex-direction: column; gap: 12px; } .actions > button { flex: 1; min-height: 44px; } }

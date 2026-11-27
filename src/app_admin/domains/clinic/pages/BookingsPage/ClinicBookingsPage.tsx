@@ -15,7 +15,6 @@ import { useSearchParams } from "react-router";
 import {
   AlertTriangle,
   CheckCircle2,
-  Clock,
   FileQuestion,
   BookOpen,
   Users,
@@ -23,7 +22,6 @@ import {
   ChevronDown,
   ChevronRight,
   Search,
-  XCircle,
   ShieldCheck,
   X,
 } from "lucide-react";
@@ -32,8 +30,8 @@ import { useClinicTargets } from "../../hooks/useClinicTargets";
 import { useResolveClinicLink } from "../../hooks/useResolveClinicLink";
 import { useClinicParticipants } from "../../hooks/useClinicParticipants";
 import type { ClinicTarget } from "../../api/clinicTargets";
-import { patchClinicParticipantStatus, type ClinicParticipant } from "../../api/clinicParticipants.api";
-import ClinicParticipantRequestSummary from "../../components/ClinicParticipantRequestSummary";
+import { patchClinicParticipantStatus } from "../../api/clinicParticipants.api";
+import ClinicApprovalRoster from "../../components/ClinicApprovalRoster";
 import {
   unresolveClinicLink,
   waiveClinicLink,
@@ -43,9 +41,7 @@ import {
 } from "../../api/clinicLinks.api";
 import { feedback } from "@/shared/ui/feedback/feedback";
 import StudentNameWithLectureChip from "@/shared/ui/chips/StudentNameWithLectureChip";
-import StudentDetailLink from "@admin/domains/students/public/StudentDetailLink";
 import ClinicSectionFilter from "../../components/ClinicSectionFilter";
-import { hhmmText } from "@/shared/ui/time/timeFormat";
 import { clinicQueryKeys } from "../../queryKeys";
 import { AdminModal, ModalBody, ModalFooter, ModalHeader } from "@/shared/ui/modal";
 import { Button, EmptyState } from "@/shared/ui/ds";
@@ -78,13 +74,6 @@ type ViewMode = "students" | "items";
 type ReasonFilter = "all" | "score" | "confidence" | "missing";
 
 /* ── Helpers ── */
-
-function requestScheduleText(row: ClinicParticipant): string {
-  const time = hhmmText(row.session_start_time, "-");
-  const title = row.session_title ? `${row.session_title} · ` : "";
-  const location = row.session_location ? ` · ${row.session_location}` : "";
-  return `${title}${row.session_date} ${time}${location}`;
-}
 
 function targetStudentKey(target: ClinicTarget): string {
   return target.student_id
@@ -188,58 +177,11 @@ export default function ClinicBookingsPage() {
                 <p className="clinic-bookings__targets-empty-desc">학생 신청이 들어오면 이곳에서 승인하거나 거절할 수 있습니다.</p>
               </div>
             ) : (
-              <ul className="clinic-bookings__pending-list">
-                {pendingRows.map((row) => {
-                  const busy = approvalMutation.isPending;
-                  return (
-                      <li key={row.id} className="clinic-bookings__pending-item">
-                        <div className="clinic-bookings__pending-item-info">
-                          <StudentDetailLink studentId={row.student} studentName={row.student_name}>
-                            <StudentNameWithLectureChip
-                              name={row.student_name}
-                              lectures={row.lecture_title && row.lecture_current !== false ? [{
-                                lectureName: row.lecture_title,
-                                color: row.lecture_color,
-                                chipLabel: row.lecture_chip_label,
-                              }] : undefined}
-                              clinicHighlight={row.name_highlight_clinic_target}
-                              profilePhotoUrl={row.profile_photo_url}
-                              enrollmentId={row.enrollment_id}
-                              avatarSize={20}
-                              density="compact"
-                              className="clinic-bookings__pending-item-name"
-                            />
-                          </StudentDetailLink>
-                        <span className="clinic-bookings__pending-item-meta">
-                          <Clock size={13} aria-hidden />
-                          {requestScheduleText(row)}
-                        </span>
-                        <ClinicParticipantRequestSummary participant={row} />
-                      </div>
-                      <div className="clinic-bookings__pending-actions">
-                        <button
-                          type="button"
-                          className="clinic-bookings__action-btn clinic-bookings__action-btn--approve"
-                          disabled={busy}
-                          onClick={() => approvalMutation.mutate({ id: row.id, status: "booked" })}
-                        >
-                          <CheckCircle2 size={13} aria-hidden />
-                          승인
-                        </button>
-                        <button
-                          type="button"
-                          className="clinic-bookings__action-btn clinic-bookings__action-btn--reject"
-                          disabled={busy}
-                          onClick={() => approvalMutation.mutate({ id: row.id, status: "rejected" })}
-                        >
-                          <XCircle size={13} aria-hidden />
-                          거절
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+              <ClinicApprovalRoster
+                rows={pendingRows} busy={approvalMutation.isPending}
+                onApprove={(row) => approvalMutation.mutate({ id: row.id, status: "booked" })}
+                onReject={(row) => approvalMutation.mutate({ id: row.id, status: "rejected" })}
+              />
             )}
           </div>
         )}
