@@ -369,6 +369,7 @@ for (const viewport of [
     await expect(confirmation.getByText("existing-students.xlsx", { exact: true })).toBeVisible();
     await expect(confirmation.getByText("3명", { exact: true })).toBeVisible();
     await expect(confirmation.getByText("미입력", { exact: true })).toBeVisible();
+    await expect(confirmation.getByText(/퇴원한 차시에 다시 등록할 때만 강의에 설정된 자동 수납 항목이 새로 배정되거나 다시 활성화/)).toBeVisible();
     await expect(confirmation.getByRole("button", { name: "다시 확인" })).toBeFocused();
     expect(submittedBodies).toHaveLength(0);
     const overflow = await confirmation.evaluate((element) => element.scrollWidth - element.clientWidth);
