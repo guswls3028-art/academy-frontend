@@ -156,8 +156,8 @@ for (const width of [390, 1366]) {
       fontSize: getComputedStyle(button).fontSize,
       padding: getComputedStyle(button).paddingInline,
     })))).toEqual([
-      { height: actionHeight, fontSize: "14px", padding: "16px" },
-      { height: actionHeight, fontSize: "14px", padding: "16px" },
+      { height: actionHeight, fontSize: "14px", padding: "12px" },
+      { height: actionHeight, fontSize: "14px", padding: "12px" },
     ]);
     const name = dialog.getByLabel("강의명 *", { exact: true });
     await expect(name).toHaveCSS("font-size", touchLayout ? "16px" : "14px");
