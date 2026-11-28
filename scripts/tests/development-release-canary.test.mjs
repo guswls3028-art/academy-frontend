@@ -572,6 +572,22 @@ test("assessment schedule failures preserve sanitized source and closed phases f
   assert.equal(wrongSpec.rejectedFailureObservationCount, outputs.length);
 });
 
+test("only the assessment spec reports the submission inbox helper's source location", () => {
+  const sourceFile = "verifySubmissionInbox.ts";
+  for (const specFile of ["student-parent-assessment-realuse.spec.ts", "notice-roundtrip.spec.ts"]) {
+    const report = contextReport([], specFile);
+    report.suites[0].specs[0].tests[0].results[0].errors = [{
+      message: "locator.click: Timeout 8000ms exceeded while waiting for private-link",
+      location: { file: `/private-path/${sourceFile}`, line: 66, column: 7 },
+    }];
+    const observed = observeReleaseTestResult(JSON.stringify(report));
+    const ownSpec = specFile === "student-parent-assessment-realuse.spec.ts";
+    assert.deepEqual(observed.failureLocations, ownSpec ? [{ specFile, sourceFile, line: 66, column: 7 }] : []);
+    assert.equal(observed.reportedTestErrors[0].sourceFile, ownSpec ? sourceFile : null);
+    assert.doesNotMatch(JSON.stringify(observed), /private-link|private-path/);
+  }
+});
+
 test("assessment copy and template retry cleanup removes owned rows and verifies absence", async () => {
   const source = readFileSync(new URL("../../e2e/student/student-parent-assessment-realuse.spec.ts", import.meta.url), "utf8");
   const body = stripTypeScriptTypes(source.slice(source.indexOf("async function cleanup("), source.indexOf("async function seedAssessment(")));
