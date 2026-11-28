@@ -2,6 +2,14 @@
 
 import { assessmentQueryKeys } from "@/shared/api/queryKeys/assessments";
 import { submissionsQueryKeys } from "@/shared/api/queryKeys/submissions";
+import type { QueryClient } from "@tanstack/react-query";
+
+export function invalidateExamPolicyConsumers(client: QueryClient) {
+  return client.invalidateQueries({ predicate: (query) =>
+    ["session-scores", "admin-session-exams", "session-exams-summary", "admin-exam-results",
+      "admin-exams", "exam-detail", "templates-with-usage"].includes(String(query.queryKey[0])),
+  });
+}
 
 export const adminExamsQueryKeys = {
   adminExamsLectures: assessmentQueryKeys.allLectures,

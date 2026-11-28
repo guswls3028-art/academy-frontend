@@ -138,10 +138,26 @@ test("OMR 미리보기는 데스크톱과 모바일에서 A4 전체를 한 화�
   await expect(page.getByRole("radio", { name: "서술형만" })).toBeVisible();
   await expect(page.getByRole("radio", { name: "단답형만" })).toHaveCount(0);
   await expect(page.getByText("서술형 작성 공간", { exact: true })).toBeVisible();
+  const numbering = page.getByRole("group", { name: "서술형 번호" });
+  await page.getByRole("spinbutton", { name: "객관식 문항 수" }).fill("21");
+  await page.getByRole("spinbutton", { name: "서술형 문항 수" }).fill("3");
+  const continuous = numbering.getByRole("radio", { name: "전체 순서대로 22~24번" });
+  const separate = numbering.getByRole("radio", { name: "서술형끼리 서술형 1~3번" });
+  await expect(continuous).toBeChecked();
+  const separatePreview = page.waitForRequest(request =>
+    request.url().endsWith("/tools/omr/preview/") && request.postDataJSON().essay_numbering === "separate");
+  await continuous.focus();
+  await continuous.press("ArrowRight");
+  await expect(separate).toBeChecked();
+  const expectedParams = (await separatePreview).postDataJSON();
+  const pdf = page.waitForRequest(request => request.url().endsWith("/tools/omr/pdf/"));
+  await page.getByRole("button", { name: "OMR PDF 다운로드" }).click();
+  expect((await pdf).postDataJSON()).toEqual(expectedParams);
 
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
     await expectFittedPreview(page);
+    await expect(separate).toBeVisible();
 
     if (viewport.width !== 1100) {
       if (viewport.width === 390) {

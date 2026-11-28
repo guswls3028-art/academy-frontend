@@ -12,11 +12,13 @@ import {
 
 import OmrEssayScoreMarksOption from "./OmrEssayScoreMarksOption";
 import { useOmrEssayScoreMarks } from "./useOmrEssayScoreMarks";
+import EssayNumberingField from "../EssayNumberingField";
+import type { EssayNumbering } from "../../types";
 import styles from "./OmrSheetBuilder.module.css";
 
 const PREVIEW_ERROR_HTML = "<html><body><p>미리보기를 불러올 수 없습니다.</p></body></html>";
-const MAX_MC_COUNT = 60;
-const MAX_ESSAY_COUNT = 20;
+export const MAX_MC_COUNT = 60;
+export const MAX_ESSAY_COUNT = 20;
 const MAX_MC_WITH_OPTIONAL_ESSAY_AREA = 40;
 const OMR_SHEET_WIDTH_PX = (297 / 25.4) * 96;
 
@@ -30,7 +32,13 @@ type OmrSheetBuilderProps = {
   initialSessionName?: string;
   initialMcCount: number;
   initialEssayCount: number;
-  initialEssayNumbering?: "continuous" | "separate";
+  examNumbering?: {
+    value: EssayNumbering;
+    pendingValue?: EssayNumbering;
+    select: (value: EssayNumbering) => void;
+    saving: boolean;
+    error: string;
+  };
   initialQuestionTypes?: Array<"choice" | "essay">;
   countsEditable?: boolean;
   layout?: OmrSheetBuilderLayout;
@@ -56,7 +64,7 @@ export default function OmrSheetBuilder({
   initialSessionName = "",
   initialMcCount,
   initialEssayCount,
-  initialEssayNumbering = "continuous",
+  examNumbering,
   initialQuestionTypes,
   countsEditable = false,
   layout = "page",
@@ -68,7 +76,8 @@ export default function OmrSheetBuilder({
   const [sessionName, setSessionName] = useState(initialSessionName || "");
   const [mcCount, setMcCount] = useState(clampInt(initialMcCount, 0, MAX_MC_COUNT));
   const [essayCount, setEssayCount] = useState(clampInt(initialEssayCount, 0, MAX_ESSAY_COUNT));
-  const [essayNumbering, setEssayNumbering] = useState(initialEssayNumbering);
+  const [toolNumbering, setToolNumbering] = useState<EssayNumbering>("continuous");
+  const essayNumbering = examNumbering?.value ?? toolNumbering;
   const [format, setFormat] = useState<OmrFormat>(() => getInitialFormat(initialMcCount, initialEssayCount));
   const [includeOptionalEssayArea, setIncludeOptionalEssayArea] = useState(true);
   const [preview, setPreview] = useState<{
@@ -102,7 +111,6 @@ export default function OmrSheetBuilder({
   useEffect(() => {
     if (!countsEditable) setEssayCount(clampInt(initialEssayCount, 0, MAX_ESSAY_COUNT));
   }, [countsEditable, initialEssayCount]);
-  useEffect(() => { if (targetType === "exam") setEssayNumbering(initialEssayNumbering); }, [initialEssayNumbering, targetType]);
   useEffect(() => {
     setIncludeOptionalEssayArea(true);
   }, [targetType, targetExamId]);
@@ -241,7 +249,7 @@ export default function OmrSheetBuilder({
   };
 
   const downloadButton = (
-    <Button type="button" intent="primary" size="md" className="w-full" leftIcon={<Download size={16} />} onClick={handleDownload} disabled={pdfLoading || marks.saving || totalCount < 1}>
+    <Button type="button" intent="primary" size="md" className="w-full" leftIcon={<Download size={16} />} onClick={handleDownload} disabled={pdfLoading || marks.saving || examNumbering?.saving || totalCount < 1}>
       {pdfLoading ? "다운로드 중..." : "OMR PDF 다운로드"}
     </Button>
   );
@@ -352,17 +360,18 @@ export default function OmrSheetBuilder({
               <span> · 총 {totalCount}문항</span>
             </div>
           )}
-          {essayCount > 0 && (targetType === "tool" ? (
-            <label className={styles.field}>
-              <span>서술형 번호 표시</span>
-              <select className="ds-input" value={essayNumbering} onChange={(event) => setEssayNumbering(event.target.value as "continuous" | "separate")}>
-                <option value="continuous">연속 번호 (서술형 19~20번)</option>
-                <option value="separate">별도 번호 (서술형 1~2번)</option>
-              </select>
-            </label>
-          ) : (
-            <p className={styles.optionHelp}>서술형 번호: {essayNumbering === "separate" ? "별도 번호" : "이어지는 번호"} · 시험 운영 설정에서 변경</p>
-          ))}
+          {essayCount > 0 && (
+            <EssayNumberingField
+              value={examNumbering?.pendingValue ?? essayNumbering}
+              onChange={examNumbering?.select ?? setToolNumbering}
+              numbers={params.essay_question_numbers ?? Array.from({ length: essayCount }, (_, index) => mcCount + index + 1)}
+              disabled={pdfLoading || examNumbering?.saving}
+              help={examNumbering
+                ? examNumbering.saving ? "시험에 번호를 저장하는 중입니다…" : "선택하면 이 시험의 OMR과 성적표에 함께 적용됩니다."
+                : "선택한 번호로 미리보기와 PDF를 만듭니다."}
+            />
+          )}
+          {examNumbering?.error && <p className={styles.optionHelp} role="alert">{examNumbering.error}</p>}
         </div>
 
         <div className={styles.group}>
@@ -426,7 +435,9 @@ export default function OmrSheetBuilder({
       </section>
 
       <section ref={previewRef} className={styles.preview} aria-label="OMR 답안지 미리보기">
-        {previewHtml ? (
+        {examNumbering?.saving ? (
+          <div className={styles.previewEmpty} role="status">저장한 번호로 미리보기를 갱신합니다…</div>
+        ) : previewHtml ? (
           <iframe
             srcDoc={previewHtml}
             className={styles.previewFrame}
