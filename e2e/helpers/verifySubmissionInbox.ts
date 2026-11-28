@@ -64,7 +64,10 @@ export async function verifyWithdrawnSubmission(
     const guard = attachStrictBrowserGuards(page);
     await seedBrowserAuth(page, student);
     await gotoAndSettle(page, `${QA_BASE}/student/sessions/${scope.session}`);
-    await page.locator(`a[href="/student/exams/${exam.id}?entry_session_id=${scope.session}"]`).click();
+    await page.getByText("시험 선택 (2)", { exact: true }).click();
+    const examLink = page.getByRole("link", { name: scope.title, exact: true });
+    await expect(examLink).toHaveAttribute("href", `/student/exams/${exam.id}?entry_session_id=${scope.session}`);
+    await examLink.click();
     await page.getByRole("link", { name: "답안 입력하기" }).click();
     await page.getByLabel("1번 답").fill("1");
     await page.getByRole("button", { name: "제출하기" }).click();
