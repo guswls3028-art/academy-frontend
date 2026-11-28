@@ -525,6 +525,9 @@ async function verifyEditableScoreMessage(page: Page, request: APIRequestContext
     await expect(preview).toContainText("91/100");
     await expect(preview).not.toContainText("폐기할 성적 안내");
     await expect(preview).not.toContainText(owned.exams[0].title);
+    await expect(modal.getByRole("checkbox", { name: "학생", exact: true })).toBeChecked();
+    await expect(modal.getByText("학생 번호 없음 1건 제외", { exact: true })).toBeVisible();
+    await expect(modal.getByRole("button", { name: "보낼 내용 확인", exact: true })).toBeEnabled();
     if (width === 390) {
       await modal.getByRole("button", { name: "미리보기로 이동", exact: true }).click();
       await expect(modal.getByRole("region", { name: "받는 사람에게 보일 내용", exact: true })).toBeFocused();
@@ -538,15 +541,17 @@ async function verifyEditableScoreMessage(page: Page, request: APIRequestContext
     await page.screenshot({ path: testInfo.outputPath(`score-composer-deleted-and-edited-${width}.png`) });
     if (width === 390) {
       // Future scheduling stays in the isolated API; cancel through UI before any worker can send.
-      await modal.getByRole("checkbox", { name: "학생", exact: true }).uncheck();
       await modal.getByRole("button", { name: "예약", exact: true }).click();
       await modal.getByLabel("예약 발송 시각", { exact: true }).fill(new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 16));
       await modal.getByRole("button", { name: "예약할 내용 확인", exact: true }).click();
       const confirmation = page.getByRole("dialog", { name: "보내기 전 마지막 확인", exact: true });
+      await expect(confirmation.getByText("학생 번호 없음 1건 제외", { exact: true })).toBeVisible();
+      await expect(confirmation).toContainText("1건 발송 가능");
       const scheduledResponse = apiResponse(page, "/messaging/send/", "POST");
       await confirmation.getByRole("button", { name: "예약하기", exact: true }).click();
       const scheduled = await scheduledResponse;
       await checkResponseScope(scheduled, 200);
+      expect(scheduled.request().postDataJSON().send_to).toBe("parent");
       expect(await scheduled.json()).toMatchObject({ scheduled: 1, enqueued: 0 });
       const pending = await expectApi<{ count: number; results: Array<{ id: number; target_id: string; trigger: string; recipient_summary: string }> }>(
         request, "GET", "/messaging/scheduled/?status=pending&page_size=100", owned.adminAccess);

@@ -2151,9 +2151,14 @@ test.describe("성적 입력 잠금과 Excel 단축키", () => {
     await expect.poll(() => [...new Set(preflightTargets)].sort()).toEqual(["parent", "student"]);
     await dialog.getByRole("button", { name: "보낼 내용 확인" }).click();
     const combinedConfirm = page.getByRole("dialog", { name: "보내기 전 마지막 확인" });
-    const combinedRecipient = combinedConfirm.getByRole("radio", { name: /자동저장학생1/ });
-    await expect(combinedRecipient).toContainText("학부모 010****2222");
-    await expect(combinedRecipient).toContainText("학생 010****3333");
+    const contacts = combinedConfirm.getByRole("table", { name: "학생별 알림톡 수신처" });
+    await expect(contacts.getByText("자동저장학생1 수신처", { exact: true })).toBeVisible();
+    const parent = contacts.getByRole("row", { name: /^학부모 / });
+    const student = contacts.getByRole("row", { name: /^학생 / });
+    await expect(parent.getByRole("cell", { name: "010****2222", exact: true })).toBeVisible();
+    await expect(student.getByRole("cell", { name: "010****3333", exact: true })).toBeVisible();
+    await expect(parent.getByRole("cell", { name: "발송 가능", exact: true })).toBeVisible();
+    await expect(student.getByRole("cell", { name: "발송 가능", exact: true })).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await combinedConfirm.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
     await combinedConfirm.getByRole("button", { name: "돌아가기" }).click();
