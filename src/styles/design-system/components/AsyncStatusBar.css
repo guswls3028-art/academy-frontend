@@ -496,6 +496,20 @@
   display: block;
 }
 
+.async-status-bar__upload-link {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  text-align: start;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
 .async-status-bar__item-label-text {
   word-break: break-word;
   min-width: 0;

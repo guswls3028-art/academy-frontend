@@ -23,6 +23,8 @@ export function videoContentType(file: File): string | undefined {
 
 export interface VideoUploadParams {
   sessionId: number;
+  batchId?: string;
+  itemId?: string;
   file: File;
   title: string;
   description?: string;
@@ -115,8 +117,10 @@ export async function initVideoUpload(
     ...(description?.trim() ? { description: description.trim() } : {}),
   };
 
-  const tempId = `video-upload-${sessionId}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-  asyncStatusStore.addTask(`영상 추가 · ${title.trim()}`, tempId);
+  const tempId = params.batchId && params.itemId
+    ? `video-upload-${params.batchId}-${params.itemId}`
+    : `video-upload-${sessionId}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  asyncStatusStore.addTask(`영상 추가 · ${title.trim()}`, tempId, { videoUploadBatchId: params.batchId, videoUploadItemId: params.itemId });
 
   const initRes = await api.post<UploadInitResponse>("/media/videos/upload/init/", initPayload, {
     ...config,

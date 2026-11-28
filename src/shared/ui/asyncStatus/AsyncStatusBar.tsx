@@ -1,7 +1,8 @@
 // PATH: src/shared/ui/asyncStatus/AsyncStatusBar.tsx
 // 우하단 Windows 스타일 비동기 상태 바 — 워커 작업 프로그래스바만 표시
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useContext, useEffect, useRef, useState, type CSSProperties } from "react";
+import { VideoUploadDialogsContext } from "@/shared/media/video/videoUploadDialogs";
 import { useLocation, useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import api from "@/shared/api/axios";
@@ -180,7 +181,8 @@ function BanIcon({ className, size = 16 }: { className?: string; size?: number }
   );
 }
 
-function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
+function TaskItem({ task, now, onClose }: { task: AsyncTask; now: number; onClose: () => void }) {
+  const reopenUpload = useContext(VideoUploadDialogsContext)?.findReopenAction(task.videoUploadBatchId, task.videoUploadItemId);
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const workbox = useWorkbox();
@@ -254,6 +256,11 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
   // 영상은 fetchVideoDetail + fetchSession 2단계 fetch 필요 — 무반응 UX 방지하려고
   // 패널을 즉시 닫고 navigating 표시. 실패해도 fallback 페이지로 이동.
   const handleTaskClick = () => {
+    if (reopenUpload) {
+      onClose();
+      reopenUpload();
+      return;
+    }
     if (!task.meta?.jobType || !task.meta?.jobId) return;
     if (navigating) return;
 
@@ -352,6 +359,10 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
 
   const handleRetry = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (reopenUpload) {
+      handleTaskClick();
+      return;
+    }
     if (!task.meta?.jobId || retrying) return;
     setRetrying(true);
     if (task.meta.jobType === "omr_batch" && task.omrBatch) {
@@ -458,7 +469,11 @@ function TaskItem({ task, now }: { task: AsyncTask; now: number }) {
                 <TypeIcon className="async-status-bar__type-icon-svg" size={18} />
               </span>
             )}
-            <span className="async-status-bar__item-label-text">{task.label}</span>
+            {reopenUpload ? (
+              <button type="button" className="async-status-bar__upload-link" aria-label={`${task.label} 업로드 창 열기`}>
+                {task.label}
+              </button>
+            ) : <span className="async-status-bar__item-label-text">{task.label}</span>}
             {remainingLabel != null && (
               <span className="async-status-bar__item-remaining">{remainingLabel}</span>
             )}
@@ -853,7 +868,7 @@ export function WorkboxPanelContent({ onClose }: { onClose: () => void }) {
         ) : !hydrateError && displayTasks.length === 0 ? (
           <div className="async-status-bar__empty">작업박스가 비어 있습니다</div>
         ) : (
-          displayTasks.map((task) => <TaskItem key={task.id} task={task} now={now} />)
+          displayTasks.map((task) => <TaskItem key={task.id} task={task} now={now} onClose={onClose} />)
         )}
       </div>
     </>
@@ -906,13 +921,12 @@ export default function AsyncStatusBar({
     return () => clearInterval(id);
   }, [pendingCount]);
 
-  // 새 작업이 추가되면 진행 상황 패널 자동 펼치기
+  // Local video transfers already show their own progress window.
+  const workboxPendingCount = displayTasks.filter(task => task.status === "pending" && !task.videoUploadBatchId).length;
   useEffect(() => {
-    if (pendingCount > prevPendingCountRef.current && pendingCount > 0) {
-      setExpanded(true);
-    }
-    prevPendingCountRef.current = pendingCount;
-  }, [pendingCount, setExpanded]);
+    if (workboxPendingCount > prevPendingCountRef.current) setExpanded(true);
+    prevPendingCountRef.current = workboxPendingCount;
+  }, [workboxPendingCount, setExpanded]);
 
   useWorkerJobPoller(tasks, {
     onExcelSuccess: () => {

@@ -20,7 +20,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { adminLectureQueryKeys } from "../queryKeys";
 import styles from "./SessionVideosTab.module.css";
 
-const VideoUploadModal = lazy(() => import("@admin/domains/videos/components/features/video-detail/modals/VideoUploadModal"));
+import { useVideoUploadDialogs } from "@/shared/media/video/videoUploadDialogs";
 const VideoEditModal = lazy(() => import("@admin/domains/videos/components/features/video-detail/modals/VideoEditModal"));
 const VideoReorderModal = lazy(() => import("@admin/domains/videos/components/VideoReorderModal"));
 const VideoBulkPolicyModal = lazy(() => import("@admin/domains/videos/public/VideoBulkPolicyModal"));
@@ -64,7 +64,7 @@ interface SessionVideosTabProps {
 export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
   const qc = useQueryClient();
   const confirm = useConfirm();
-  const [showModal, setShowModal] = useState(false);
+  const uploads = useVideoUploadDialogs();
   const [editTarget, setEditTarget] = useState<MediaVideo | null>(null);
   const [reorderOpen, setReorderOpen] = useState(false);
   const [bulkPolicyOpen, setBulkPolicyOpen] = useState(false);
@@ -405,7 +405,7 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
                 순서 관리
               </Button>
             )}
-            <Button intent="primary" onClick={() => setShowModal(true)}>
+            <Button intent="primary" onClick={() => uploads.open(sessionId)}>
               영상 추가
             </Button>
           </div>
@@ -487,12 +487,6 @@ export default function SessionVideosTab({ sessionId }: SessionVideosTabProps) {
           </>
         )}
       </div>
-
-      {showModal && (
-        <Suspense fallback={null}>
-          <VideoUploadModal sessionId={sessionId} isOpen={true} onClose={() => setShowModal(false)} />
-        </Suspense>
-      )}
 
       {editTarget && (
         <Suspense fallback={null}>

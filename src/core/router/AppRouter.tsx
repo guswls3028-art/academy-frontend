@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from "react
 import { Suspense, useEffect, useRef } from "react";
 import { lazyWithRetry as lazy } from "@/shared/utils/lazyWithRetry";
 import ProtectedRoute from "./ProtectedRoute";
+import VideoUploadWorkspace from "@admin/domains/videos/VideoUploadWorkspace";
 import MobileWorkspaceRedirect, {
   prefersFullWorkspace,
 } from "./MobileWorkspaceRedirect";
@@ -246,32 +247,34 @@ export default function AppRouter() {
             <ProtectedRoute allow={["owner", "admin", "teacher", "staff"]} />
           }
         >
-          <Route element={<MobileWorkspaceRedirect />}>
+          <Route element={<VideoUploadWorkspace />}>
+            <Route element={<MobileWorkspaceRedirect />}>
+              <Route
+                path={`${WORKSPACE_PATHS.full}/*`}
+                element={
+                  <ErrorBoundary>
+                    <Suspense
+                      fallback={<RouteFallback />}
+                    >
+                      <FullWorkspaceRouter />
+                    </Suspense>
+                  </ErrorBoundary>
+                }
+              />
+            </Route>
             <Route
-              path={`${WORKSPACE_PATHS.full}/*`}
+              path={`${WORKSPACE_PATHS.mobile}/*`}
               element={
                 <ErrorBoundary>
                   <Suspense
                     fallback={<RouteFallback />}
                   >
-                    <FullWorkspaceRouter />
+                    <MobileWorkspaceRouter />
                   </Suspense>
                 </ErrorBoundary>
               }
             />
           </Route>
-          <Route
-            path={`${WORKSPACE_PATHS.mobile}/*`}
-            element={
-              <ErrorBoundary>
-                <Suspense
-                  fallback={<RouteFallback />}
-                >
-                  <MobileWorkspaceRouter />
-                </Suspense>
-              </ErrorBoundary>
-            }
-          />
           <Route
             path={`${WORKSPACE_PATHS.legacyFull}/*`}
             element={<LegacyWorkspaceRedirect />}
