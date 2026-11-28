@@ -2108,7 +2108,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       await policyDisclosure.locator(":scope > summary").click();
     }
     await expect(policyDisclosure).toHaveJSProperty("open", true);
-    await policyDisclosure.getByRole("combobox", { name: /^서술형 번호/ }).selectOption("separate");
+    await policyDisclosure.getByRole("radio", { name: /^서술형끼리/ }).check();
     const numberingSaved = page.waitForResponse((response) => matchesApiResponse(response, "PATCH", `/exams/${created.examId}/`));
     await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
     expect((await numberingSaved).status()).toBe(200);
@@ -2124,6 +2124,17 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await expect(answerDialog.locator(".answer-key-row--essay .answer-key-row__num"))
       .toHaveText(["서술형 1번", "서술형 2번"]);
     await answerDialog.getByRole("tab", { name: "OMR 답안지" }).click();
+    const numbering = answerDialog.getByRole("group", { name: "서술형 번호" });
+    await expect(numbering.getByRole("radio", { name: /^서술형끼리/ })).toBeChecked();
+    for (const [label, expectedNumbers] of [
+      [/^전체 순서대로/, ["31", "32"]],
+      [/^서술형끼리/, ["1", "2"]],
+    ] as const) {
+      const saved = page.waitForResponse(response => matchesApiResponse(response, "PATCH", `/exams/${created.examId}/`));
+      await numbering.getByRole("radio", { name: label }).check();
+      expect((await saved).status()).toBe(200);
+      await expect(answerDialog.frameLocator("iframe").locator(".dr-n")).toHaveText([...expectedNumbers]);
+    }
     const marks = answerDialog.getByRole("radiogroup", { name: "서술형 교사 채점란" });
     const savedMarks = page.waitForResponse(response => matchesApiResponse(response, "PATCH", `/exams/${created.examId}/omr/essay-score-marks/`));
     await marks.getByRole("radio", { name: "사용", exact: true }).click();

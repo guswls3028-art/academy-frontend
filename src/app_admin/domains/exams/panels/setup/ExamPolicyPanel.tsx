@@ -14,7 +14,7 @@ import { fetchLectures, fetchSessions } from "@/shared/api/contracts/sessions";
 import { useAdminExam } from "../../hooks/useAdminExam";
 import { updateAdminExam } from "../../api/adminExam";
 import { fetchQuestionsByExam } from "../../api/question.api";
-import { adminExamsQueryKeys } from "../../queryKeys";
+import { adminExamsQueryKeys, invalidateExamPolicyConsumers } from "../../queryKeys";
 import type {
   AnswerVisibility,
   Exam,
@@ -23,6 +23,7 @@ import type {
   ManualGradingMethod,
 } from "../../types";
 import AnswerKeyRegisterModal from "../../components/AnswerKeyRegisterModal";
+import EssayNumberingField from "../../components/EssayNumberingField";
 
 type ExamPolicyForm = {
   title: string;
@@ -285,7 +286,7 @@ export default function ExamPolicyPanel({
       clearDraft();
       qc.setQueryData(adminExamsQueryKeys.adminExam(examId), updated);
       syncFromExam(updated);
-      await qc.invalidateQueries({ predicate: (query) => ["session-scores", "admin-session-exams", "session-exams-summary", "admin-exam-results", "admin-exams", "exam-detail", "templates-with-usage"].includes(String(query.queryKey[0])) });
+      await invalidateExamPolicyConsumers(qc);
       const reviewCount = updated.regrade?.needs_review?.length ?? 0;
       if (reviewCount) feedback.warning(`설정을 저장했습니다. 수기 보정 ${reviewCount}건은 재채점에서 제외되어 확인이 필요합니다.`);
       else feedback.success("시험 운영 설정을 저장했습니다.");
@@ -530,20 +531,14 @@ export default function ExamPolicyPanel({
           </div>
 
           <div className={formStyles.group}>
-            <h3 className={formStyles.groupTitle}>문항 번호 표시</h3>
-            <p className={formStyles.groupDescription}>채점 순서와 점수는 그대로 두고, 서술형 번호를 보여주는 방식만 정합니다.</p>
-            <label className={formStyles.field}>
-              <span className={formStyles.label}>서술형 번호</span>
-              <select
-                className={formStyles.select}
-                value={form.essayNumbering}
-                onChange={(event) => setForm({ ...form, essayNumbering: event.target.value as EssayNumbering })}
-              >
-                <option value="continuous">연속 번호 (서술형 19~20번)</option>
-                <option value="separate">별도 번호 (서술형 1~2번)</option>
-              </select>
-              <span className={formStyles.helper}>예: 객관식 1~18번 다음 {form.essayNumbering === "separate" ? "서술형 1~2번" : "서술형 19~20번"} · 시험 화면, 결과 조회, OMR 인쇄에 적용</span>
-            </label>
+            <EssayNumberingField
+              value={form.essayNumbering}
+              onChange={(essayNumbering) => setForm({ ...form, essayNumbering })}
+              numbers={questionsQuery.isSuccess && questions.every(question => question.question_kind)
+                ? questions.filter(question => question.question_kind === "essay").map(question => question.number).sort((a, b) => a - b)
+                : []}
+              help="저장하면 시험 화면, 성적표, OMR에 같은 번호가 표시됩니다."
+            />
           </div>
 
           <div className={formStyles.group}>

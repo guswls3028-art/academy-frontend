@@ -640,6 +640,30 @@ function recoveryExamState(): MockState {
   };
 }
 
+test("@assessment-edit OMR에서 서술형 번호 동시 수정을 복구하고 같은 시험 설정에 반영한다", async ({ page }) => {
+  const state = recoveryExamState();
+  await openExam(page, state);
+  await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
+  const dialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "OMR 답안지" }) });
+  await dialog.getByRole("tab", { name: "OMR 답안지" }).click();
+  const numbering = dialog.getByRole("group", { name: "서술형 번호" });
+  await expect(numbering.getByRole("radio", { name: "전체 순서대로 2번" })).toBeChecked();
+  const separate = numbering.getByRole("radio", { name: "서술형끼리 서술형 1번" });
+  state.exam.updated_at = "2026-08-03T00:59:00Z";
+  await separate.click();
+  await expect(dialog.getByRole("alert").filter({ hasText: "다른 화면에서 시험을 변경했습니다" })).toBeVisible();
+  await expect(numbering.getByRole("radio", { name: /^전체 순서대로/ })).toBeChecked();
+  await separate.click();
+  await expect(dialog.getByRole("alert").filter({ hasText: "다른 화면에서 시험을 변경했습니다" })).toHaveCount(0);
+  await expect.poll(() => state.exam.essay_numbering).toBe("separate");
+  expect(state.examPatchPayloads).toEqual([{ essay_numbering: "separate" }]);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const policy = page.locator("#assessment-policy > details");
+  await expect(policy.locator(":scope > summary")).toContainText("서술형 별도 번호");
+  await policy.locator(":scope > summary").click();
+  await expect(policy.getByRole("radio", { name: "서술형끼리 서술형 1번" })).toBeChecked();
+});
+
 test("@assessment-edit 상세 운영 폼의 제목 수정은 기존 응시 시각과 비활성 재응시 정책을 보존한다", async ({ page }) => {
   const state = recoveryExamState();
   state.exam = {

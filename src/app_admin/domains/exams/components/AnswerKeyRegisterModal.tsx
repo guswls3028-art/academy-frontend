@@ -25,7 +25,7 @@ import { useAdminExam } from "../hooks/useAdminExam";
 import { examQuestionLabel } from "@/shared/scoring/examQuestionNumber";
 import { ensureExamStructure, recalculateExam } from "../api/adminExam";
 import { fetchOMRDefaults } from "../api/omr.api";
-import OmrSheetBuilder from "./omr/OmrSheetBuilder";
+import OmrSettingsTab from "./omr/OmrSettingsTab";
 import {
   fetchExplanations,
   saveExplanationsBulk,
@@ -73,8 +73,6 @@ const EMPTY_EXPLANATIONS: ExplanationData[] = [];
 
 const CHOICES = ["1", "2", "3", "4", "5"];
 const MAX_EXAM_QUESTIONS = 500;
-const MAX_OMR_MC_COUNT = 60;
-const MAX_OMR_ESSAY_COUNT = 20;
 const SCORE_ADJUSTMENT_KEY = "__score_adjustment__";
 type CountDraft = number | "";
 type QuestionKind = "choice" | "essay";
@@ -1466,15 +1464,14 @@ export default function AnswerKeyRegisterModal({
             </div>
           )}
 
-          {structureReady && activeTab === "omr" && (
+          {structureReady && activeTab === "omr" && exam && (
             <OmrSettingsTab
-              examId={examId}
-              examTitle={exam?.title || ""}
+              key={exam.id}
+              exam={exam}
               lectureName={lectureName || omrDefaults?.lecture_name || ""}
               sessionName={sessionName || omrDefaults?.session_name || ""}
               choiceCount={choiceQuestions.length}
               essayCount={essayQuestions.length}
-              essayNumbering={exam?.essay_numbering}
               questionTypes={resolvedQuestionTypes}
               guidedPrint={flowStep === "print"}
               onDownloaded={() => setDownloaded(true)}
@@ -2004,55 +2001,5 @@ function ExplanationRow({
         </div>
       </td>
     </tr>
-  );
-}
-
-/** OMR 답안지 탭 — 백엔드 SSOT 기반 설정 + 미리보기 + PDF 다운로드 */
-function OmrSettingsTab({
-  examId,
-  examTitle,
-  lectureName,
-  sessionName,
-  choiceCount,
-  essayCount,
-  essayNumbering,
-  questionTypes,
-  guidedPrint,
-  onDownloaded,
-}: {
-  examId: number;
-  examTitle: string;
-  lectureName: string;
-  sessionName: string;
-  choiceCount: number;
-  essayCount: number;
-  essayNumbering?: "continuous" | "separate";
-  questionTypes: QuestionKind[];
-  guidedPrint?: boolean;
-  onDownloaded?: () => void;
-}) {
-  const exceedsOmrLimit = choiceCount > MAX_OMR_MC_COUNT || essayCount > MAX_OMR_ESSAY_COUNT;
-  return (
-    <div className="answer-key-omr-tab">
-      {exceedsOmrLimit && (
-        <div className="answer-key-omr-limit-alert" role="status">
-          OMR 답안지는 객관식 {MAX_OMR_MC_COUNT}문항, 서답형 {MAX_OMR_ESSAY_COUNT}문항까지 지원합니다.
-          현재 시험은 객관식 {choiceCount}문항, 서답형 {essayCount}문항이라 OMR 미리보기와 PDF는 지원 범위까지만 표시됩니다.
-        </div>
-      )}
-      <OmrSheetBuilder
-        target={{ type: "exam", examId }}
-        initialExamTitle={examTitle || ""}
-        initialLectureName={lectureName || ""}
-        initialSessionName={sessionName || ""}
-        initialMcCount={choiceCount}
-        initialEssayCount={essayCount}
-        initialEssayNumbering={essayNumbering}
-        initialQuestionTypes={questionTypes}
-        layout="modal"
-        guidedPrint={guidedPrint}
-        onDownloaded={onDownloaded}
-      />
-    </div>
   );
 }
