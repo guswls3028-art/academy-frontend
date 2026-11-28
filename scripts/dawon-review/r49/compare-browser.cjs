@@ -302,7 +302,7 @@ async function learnerDetails(page,width,guard) {
     assert.equal((await report).status(),200);
     await visible(page.locator('.student-page-shell h1').first());
     await screenshot(role+'-exam');
-    await (await visible(page.getByRole('link',{name:'날짜별 시험',exact:true}))).click();
+    await (await visible(page.locator('.student-page-shell a[href^="/learn/exam?"]').first())).click();
     await check(page).toHaveURL(/\/learn\/exam/);
     assert.equal(new URL(page.url()).searchParams.get('date'),date);
     assert.equal(new URL(page.url()).searchParams.get('originDate'),'2026-11-19');
@@ -315,6 +315,17 @@ async function learnerDetails(page,width,guard) {
   assert.equal(tile,footer);
   assert.equal(footer,drawer);
   await check(page.locator('main .dw-questionBeta').first()).toBeVisible();
+  const earliest=await page.evaluate(async()=>{
+    const value=await (await fetch('/api/v1/students/demo-learning/',{credentials:'omit'})).json();
+    return value.sessions.map(s=>s.date).filter(Boolean).sort()[0];
+  });
+  assert.ok(earliest);
+  const noLesson=new Date(Date.parse(earliest+'T00:00:00Z')-86400000).toISOString().slice(0,10);
+  await go(page,dawon+'/?preview=student&date='+noLesson);
+  const closest=await visible(page.locator('.dw-homeDay a.dw-nearest').filter({hasText:'다음 수업'}).first());
+  await closest.click();
+  await check(page).toHaveURL(new RegExp('[?&]date='+earliest+'(?:[&#]|$)'));
+  await goRole('student');
   const schoolPath='/api/v1/results/school-reports/me/';
   const gradeReads=[];
   const collect=async r=>{
@@ -505,10 +516,7 @@ async function widthProof(browser,width) {
     const proof={passed:true,phase,workerRevision,candidateVersion,
       originalFrontend:config.originalFrontend,dawonFrontend:config.dawonFrontend,
       backend:config.backend,results:[]};
-    const screens=await Promise.allSettled([1366,390].map(width=>widthProof(browser,width)));
-    const failures=screens.filter(screen=>screen.status==='rejected');
-    if(failures.length)throw new AggregateError(failures.map(screen=>screen.reason),'Comparison workflow failed');
-    proof.results=screens.map(screen=>screen.value);
+    for(const width of [1366,390])proof.results.push(await widthProof(browser,width));
     await fs.writeFile(phase+'-comparison.json',JSON.stringify(proof,null,2));
     console.log(JSON.stringify(proof));
   }finally{await browser.close();}
