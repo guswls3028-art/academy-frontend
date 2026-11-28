@@ -390,13 +390,30 @@ test.describe("업무 화면 기능 검색", () => {
     await expect(guide).toBeInViewport();
     await expect(page).toHaveURL(/\/workspace\/guide$/);
 
-    await page.getByRole("button", { name: "사이드바 토글" }).click();
+    const toggle = page.getByRole("button", { name: "사이드바 토글" });
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await toggle.click();
     await expect(page.locator("html")).toHaveAttribute("data-sidebar", "collapsed");
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole("button", { name: "메뉴", exact: true }).click();
     await expect(learning.getByText("학습·운영", { exact: true })).toBeVisible();
     await learning.click();
     await expect(menu.getByRole("link", { name: "시험", exact: true })).toBeVisible();
+  });
+
+  test("PC 헤더 메뉴를 키보드로 닫으면 호출 버튼에서 업무를 이어간다", async ({ page }) => {
+    await page.goto(`${BASE}/workspace/guide`);
+    const profile = page.getByRole("button", { name: "프로필 메뉴", exact: true });
+    for (const width of [1366, 1100]) {
+      await page.setViewportSize({ width, height: 768 });
+      await profile.press("Enter");
+      await page.keyboard.press("Tab");
+      await expect(page.getByRole("menuitem", { name: "내 프로필", exact: true })).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(profile).toBeFocused();
+      await expect(profile).toHaveAttribute("aria-expanded", "false");
+    }
   });
 
   test("관리 분류 권한 조회 실패는 안내와 재시도로 복구한다", async ({ page }) => {

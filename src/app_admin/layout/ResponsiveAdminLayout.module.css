@@ -48,6 +48,15 @@
 
 .content { padding: var(--space-6); max-width: 1520px; margin: 0 auto; }
 
+@media (min-width: 1024px) and (max-width: 1440px) {
+  .root { --workspace-inline-gutter: var(--space-4); }
+  .content { padding: var(--space-4) var(--workspace-inline-gutter); }
+}
+
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .root { --workspace-inline-gutter: var(--space-3); }
+}
+
 @media (max-width: 1023px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
   .sidebar { display: none; }

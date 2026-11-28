@@ -36,9 +36,12 @@ const initialLectures: Lecture[] = [
   { id: 103, title: "Gamma", name: "관리자", subject: "영어", lecture_time: "11:00~12:00", start_date: "2026-08-03", end_date: "2026-09-03", color: "#eab308", chip_label: "G", is_active: true, display_order: 3, active_enrollment_count: 17 },
 ];
 
-async function seedLectureAdmin(page: Page, options?: { failFirstReorder?: boolean; failFirstEdit?: boolean; failDetail?: boolean; includeEmptyLecture?: boolean; activeQrLectureId?: number }) {
+async function seedLectureAdmin(page: Page, options?: { failFirstReorder?: boolean; failFirstEdit?: boolean; failDetail?: boolean; includeEmptyLecture?: boolean; activeQrLectureId?: number; extraLectures?: number }) {
   test.skip(!/^http:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/.test(BASE), "로컬 route-mock 전용");
   let lectures = initialLectures.map((lecture) => ({ ...lecture, description: "기존 설명을 보존합니다." }));
+  for (let index = 0; index < (options?.extraLectures ?? 0); index++) {
+    lectures.push({ ...lectures[0], id: 200 + index, title: `검수 강의 ${index + 1}`, display_order: 4 + index });
+  }
   if (options?.includeEmptyLecture) {
     lectures.push({ ...lectures[2], id: 104, title: "잘못 등록한 강의", display_order: 4, active_enrollment_count: 0 });
   }
@@ -362,6 +365,32 @@ test.describe("강의 관리 영구 순서와 레이아웃", () => {
     await page.getByPlaceholder("강의 검색 (강의명/과목/강사/기간)").fill("Alpha");
     await expect(page.getByRole("button", { name: "Alpha 순서 이동", exact: true })).toBeDisabled();
     await expect(page.getByText("검색 또는 열 정렬 중에는 순서를 변경할 수 없습니다.")).toBeVisible();
+  });
+
+  test("스크롤한 강의 행에서 수정하면 저장 후 같은 위치의 설정 버튼으로 돌아온다 @dialog-journey", async ({ page }) => {
+    const { edits } = await seedLectureAdmin(page, { extraLectures: 24 });
+    await page.goto(`${BASE}/workspace/lectures`);
+    for (const width of [1366, 1100, 390]) {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 800 });
+      const trigger = page.getByRole("button", { name: "검수 강의 20 설정", exact: true });
+      await trigger.scrollIntoViewIfNeeded();
+      await trigger.click();
+      const position = await trigger.boundingBox();
+      expect(position).not.toBeNull();
+      await page.getByRole("menuitem", { name: "강의 수정", exact: true }).click();
+      const dialog = page.getByRole("dialog", { name: "강의 수정", exact: true });
+      const subject = `수학 ${width}`;
+      await expect(dialog.getByLabel("강의 이름 (필수)")).toHaveValue("검수 강의 20");
+      await dialog.getByLabel("과목 (필수)").fill(subject);
+      await dialog.getByRole("button", { name: "수정", exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(trigger).toBeFocused();
+      await expect.poll(async () => {
+        const current = await trigger.boundingBox();
+        return current ? Math.max(Math.abs(current.x - position!.x), Math.abs(current.y - position!.y)) : Infinity;
+      }).toBeLessThanOrEqual(1);
+      expect(edits[edits.length - 1]?.subject).toBe(subject);
+    }
   });
 
   test("1100px 생성 모달은 세로 과밀 없이 보이고 시간 picker가 modal과 충돌하지 않는다", async ({ page }) => {
