@@ -18,30 +18,6 @@ jobs:
     timeout-minutes: 35
     env:
       QA_DIR: scripts/dawon-review/r49
-    services:
-      referencepg:
-        image: pgvector/pgvector:0.8.2-pg16-bookworm
-        env:
-          POSTGRES_DB: qa_hakwonplus_reference
-          POSTGRES_USER: reference_qa
-          POSTGRES_PASSWORD: fixture-reference-db
-        options: --health-cmd "pg_isready -U reference_qa" --health-interval 3s --health-timeout 5s --health-retries 20
-      referencecache:
-        image: redis:8
-      database:
-        image: pgvector/pgvector:0.8.2-pg16-bookworm
-        ports: ['127.0.0.1:5432:5432']
-        env:
-          POSTGRES_DB: qa_r47
-          POSTGRES_USER: dawon
-          POSTGRES_PASSWORD: dawon-r47-local-postgres
-        options: --health-cmd "pg_isready -U dawon -d qa_r47" --health-interval 3s --health-timeout 5s --health-retries 20
-      redis:
-        image: redis:8
-        ports: ['127.0.0.1:6379:6379']
-      emulator:
-        image: motoserver/moto:5.1.11
-        ports: ['127.0.0.1:5000:5000']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:

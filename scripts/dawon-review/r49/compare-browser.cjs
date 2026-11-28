@@ -516,7 +516,10 @@ async function widthProof(browser,width) {
     const proof={passed:true,phase,workerRevision,candidateVersion,
       originalFrontend:config.originalFrontend,dawonFrontend:config.dawonFrontend,
       backend:config.backend,results:[]};
-    for(const width of [1366,390])proof.results.push(await widthProof(browser,width));
+    const screens=await Promise.allSettled([1366,390].map(width=>widthProof(browser,width)));
+    const failures=screens.filter(screen=>screen.status==='rejected');
+    if(failures.length)throw new AggregateError(failures.map(screen=>screen.reason),'Comparison workflow failed');
+    proof.results=screens.map(screen=>screen.value);
     await fs.writeFile(phase+'-comparison.json',JSON.stringify(proof,null,2));
     console.log(JSON.stringify(proof));
   }finally{await browser.close();}
