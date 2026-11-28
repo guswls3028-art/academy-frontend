@@ -152,9 +152,28 @@ export async function verifyWithdrawnSubmission(
     sid = (await accepted.json()).submission_id;
     expect(sid).toBeGreaterThan(0);
     scope.onSubmission(sid);
+    await page.waitForURL(url => url.pathname === `/student/exams/${exam.id}/result`);
+    const savedScore = page.getByText("100 / 100점", { exact: true });
+    await expect(savedScore).toBeVisible();
+    const [result] = await Promise.all([
+      page.waitForResponse(r => r.request().method() === "GET" && new URL(r.url()).pathname === `/api/v1/student/results/me/exams/${exam.id}/`),
+      page.reload({ waitUntil: "domcontentloaded" }),
+    ]);
+    expect(result.status()).toBe(200);
+    expect(await result.json()).toMatchObject({ total_score: 100 });
+    await expect(savedScore).toBeVisible();
     boundary.assertClean();
     guard.assertZeroDefects();
-  } finally { await studentContext.close(); }
+  } catch (error) {
+    try {
+      await studentContext.close();
+    } catch (closeError) {
+      // The strict context guard reports its own failure. Keep the original assertion and stack as the primary error.
+      throw new AggregateError([error, closeError], error instanceof Error ? error.message : "Student submission failed", { cause: error });
+    }
+    throw error;
+  }
+  await studentContext.close();
   await expect.poll(async () => (await expectApi<{ total_score: number | null }>(request, "GET",
     `/results/admin/exams/${exam.id}/enrollments/${scope.enrollment}/`, admin.access)).total_score).toBe(100);
   const attendance = await expectApi<{ results: Array<{ id: number; session: number; enrollment_id: number }> }>(
