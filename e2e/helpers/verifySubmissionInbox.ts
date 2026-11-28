@@ -1,5 +1,6 @@
-import type { APIRequestContext, Page } from "@playwright/test";
+import type { APIRequestContext, Page, Response } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
+import { acknowledgeInitialAccountPromptsIfVisible } from "./firstLoginGuide";
 import { attachStrictBrowserGuards } from "./strictBrowser";
 import { gotoAndSettle } from "./wait";
 import { assertNoHorizontalOverflow, assertQaStudentParentRuntime, expectApi,
@@ -38,10 +39,85 @@ export async function verifySubmissionInbox(parentPage: Page, request: APIReques
   }
 }
 
+type ExamEntryIssue = "detail" | "identity" | "target-in-session" | "list" | "target-in-list" | "selection" | "link";
+
+async function openStudentSessionExam(
+  page: Page, session: number, exam: number, title: string, studentId: number,
+  request: APIRequestContext, student: QaTokens,
+) {
+  const reads: { detail?: Response; list?: Response } = {};
+  const observe = (response: Response) => {
+    if (response.request().method() !== "GET") return;
+    const url = new URL(response.url());
+    if (url.pathname === `/api/v1/student/sessions/${session}/`) reads.detail = response;
+    if (url.pathname === "/api/v1/student/exams/" && url.searchParams.get("session_id") === String(session)) reads.list = response;
+  };
+  let issue: ExamEntryIssue = "detail";
+  let sessionCount: number | null = null, listCount: number | null = null;
+  let targetInSession: boolean | null = null, targetListed: boolean | null = null, identityMatches: boolean | null = null;
+  page.on("response", observe);
+  try {
+    await gotoAndSettle(page, `${QA_BASE}/student/sessions/${session}`);
+    await acknowledgeInitialAccountPromptsIfVisible(page);
+    await expect.poll(() => Boolean(reads.detail)).toBe(true);
+    expect(reads.detail!.status()).toBe(200);
+    const detail = await reads.detail!.json();
+    expect(detail.id === session && Array.isArray(detail.exam_ids)).toBe(true);
+    const ids: number[] = detail.exam_ids;
+    sessionCount = Math.min(99, ids.length);
+    expect(ids.every(id => Number.isSafeInteger(id) && id > 0) && new Set(ids).size === ids.length).toBe(true);
+    issue = "identity";
+    const me = await expectApi<{ id: number }>(request, "GET", "/student/me/", student.access, undefined, [200]);
+    const matchesStudent = (response: Response) => {
+      const selected = response.request().headers()["x-student-id"];
+      return selected === undefined || selected === String(studentId);
+    };
+    identityMatches = me.id === studentId && matchesStudent(reads.detail!);
+    expect(identityMatches).toBe(true);
+
+    issue = "target-in-session";
+    targetInSession = ids.includes(exam);
+    expect(targetInSession).toBe(true);
+    issue = "list";
+    await expect.poll(() => Boolean(reads.list)).toBe(true);
+    expect(reads.list!.status()).toBe(200);
+    const { items } = await reads.list!.json();
+    expect(Array.isArray(items)).toBe(true);
+    listCount = Math.min(99, items.length);
+    issue = "identity";
+    identityMatches = matchesStudent(reads.list!);
+    expect(identityMatches).toBe(true);
+    issue = "target-in-list";
+    targetListed = items.some((item: { id: number; title: string }) => item.id === exam && item.title === title);
+    expect(targetListed).toBe(true);
+
+    const actions = page.getByRole("list", { name: "차시 학습" });
+    const href = `/student/exams/${exam}?entry_session_id=${session}`;
+    if (ids.length > 1) {
+      issue = "selection";
+      const chooser = actions.locator("details").filter({ has: page.locator(`a[href="${href}"]`) });
+      await chooser.locator("summary").click();
+    }
+    issue = "link";
+    const link = actions.getByRole("link", { name: ids.length > 1 ? title : "시험 보기", exact: true })
+      .and(actions.locator(`a[href="${href}"]`));
+    await expect(link).toHaveAttribute("href", href);
+    await link.click();
+  } catch (error) {
+    console.log(JSON.stringify({ releaseStudentExamEntry: {
+      issue, detailStatus: reads.detail?.status() ?? null, listStatus: reads.list?.status() ?? null,
+      sessionCount, listCount, targetInSession, targetListed, identityMatches,
+    } }));
+    throw error;
+  } finally {
+    page.off("response", observe);
+  }
+}
+
 /** Uses the secondary course immediately before its scenario-owned teardown. */
 export async function verifyWithdrawnSubmission(
   parent: Page, request: APIRequestContext, admin: QaTokens, student: QaTokens,
-  scope: { session: number; enrollment: number; lecture: number; title: string; sessionTitle: string;
+  scope: { session: number; enrollment: number; lecture: number; studentId: number; title: string; sessionTitle: string;
     onExam: (id: number) => void; onSubmission: (id: number) => void },
 ) {
   assertQaStudentParentRuntime();
@@ -63,11 +139,7 @@ export async function verifyWithdrawnSubmission(
     const boundary = await installQaStudentParentBoundary(page, request);
     const guard = attachStrictBrowserGuards(page);
     await seedBrowserAuth(page, student);
-    await gotoAndSettle(page, `${QA_BASE}/student/sessions/${scope.session}`);
-    await page.getByText("시험 선택 (2)", { exact: true }).click();
-    const examLink = page.getByRole("link", { name: scope.title, exact: true });
-    await expect(examLink).toHaveAttribute("href", `/student/exams/${exam.id}?entry_session_id=${scope.session}`);
-    await examLink.click();
+    await openStudentSessionExam(page, scope.session, exam.id, scope.title, scope.studentId, request, student);
     await page.getByRole("link", { name: "답안 입력하기" }).click();
     await page.getByLabel("1번 답").fill("1");
     await page.getByRole("button", { name: "제출하기" }).click();
@@ -107,6 +179,7 @@ export async function verifyWithdrawnSubmission(
       await seedBrowserAuth(page, mobile ? teacher : admin);
       const path = mobile ? "/workspace/mobile/submissions" : "/workspace/results/submissions";
       await gotoAndSettle(page, QA_BASE + path + "?filter=done");
+      await acknowledgeInitialAccountPromptsIfVisible(page);
       const row = page.getByTestId(`submission-inbox-${sid}`);
       await expect(row).toContainText(scope.sessionTitle);
       await page.reload({ waitUntil: "domcontentloaded" });
