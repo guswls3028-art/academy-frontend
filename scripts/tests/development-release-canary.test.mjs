@@ -572,6 +572,33 @@ test("assessment schedule failures preserve sanitized source and closed phases f
   assert.equal(wrongSpec.rejectedFailureObservationCount, outputs.length);
 });
 
+test("student exam entry diagnostics keep only closed fields from the assessment spec", () => {
+  const specFile = "student-parent-assessment-realuse.spec.ts";
+  const entry = { issue: "detail", detailStatus: 100, listStatus: 599, sessionCount: 0, listCount: 99,
+    targetInSession: false, targetListed: true, identityMatches: null };
+  const empty = Object.fromEntries(Object.keys(entry).map(key => [key, null]));
+  const valid = ["detail", "identity", "target-in-session", "list", "target-in-list", "link", "selection"]
+    .map((issue, index) => ({ ...(index ? empty : entry), issue }));
+  const marker = value => ({ releaseStudentExamEntry: value });
+  const invalid = [
+    null, [], { ...entry, issue: "private-user" }, { ...entry, raw: "secret-token" },
+    ...Object.keys(entry).map(key => Object.fromEntries(Object.entries(entry).filter(([name]) => name !== key))),
+    ...["detailStatus", "listStatus"].flatMap(key => [99, 600, 200.5, "200"].map(value => ({ ...entry, [key]: value }))),
+    ...["sessionCount", "listCount"].flatMap(key => [-1, 100, 1.5, "2"].map(value => ({ ...entry, [key]: value }))),
+    ...["targetInSession", "targetListed", "identityMatches"].map(key => ({ ...entry, [key]: 1 })),
+  ].map(marker);
+  invalid.push({ ...marker(entry), extra: "secret-token" });
+  const report = contextReport([...valid.map(marker), ...invalid], specFile);
+  const observed = observeReleaseTestResult(JSON.stringify(report));
+  assert.deepEqual(observed.studentExamEntryObservations, valid.map(value => ({ specFile, resultOrdinal: 1, ...value })));
+  assert.equal(observed.rejectedFailureObservationCount, invalid.length);
+  assert.doesNotMatch(JSON.stringify(observed), /private-user|secret-token/);
+  assert.throws(() => assertReleaseSummary(report));
+  const wrongSpec = observeReleaseTestResult(JSON.stringify(contextReport([marker(entry)], "notice-roundtrip.spec.ts")));
+  assert.deepEqual(wrongSpec.studentExamEntryObservations, []);
+  assert.equal(wrongSpec.rejectedFailureObservationCount, 1);
+});
+
 test("only the assessment spec reports the submission inbox helper's source location", () => {
   const sourceFile = "verifySubmissionInbox.ts";
   for (const specFile of ["student-parent-assessment-realuse.spec.ts", "notice-roundtrip.spec.ts"]) {
@@ -2204,7 +2231,7 @@ test("real-use failure observation publishes only allowlisted endpoint templates
       expectedStatus: null, receivedStatus: index === 1 ? 409 : null,
     })),
     testFailureObservations: [], omrCleanupStatuses: [], crossTenantDenialProbes: [],
-    learningFlowFailures: [], homeworkFlowFailures: [],
+    learningFlowFailures: [], homeworkFlowFailures: [], studentExamEntryObservations: [],
     strictBrowserDefects: [], strictBrowserSuppressions: [],
     publicVideoAvailability: [], rejectedPublicVideoAvailabilityCount: 0,
     rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
@@ -2233,7 +2260,7 @@ test("real-use failure observation publishes only allowlisted endpoint templates
     requestTransportDiagnostics: [],
     contextObservations: [], rejectedContextObservationCount: 0, droppedContextObservationCount: 0,
     reportedTestErrors: [], testFailureObservations: [], omrCleanupStatuses: [], crossTenantDenialProbes: [],
-    learningFlowFailures: [], homeworkFlowFailures: [],
+    learningFlowFailures: [], homeworkFlowFailures: [], studentExamEntryObservations: [],
     strictBrowserDefects: [], strictBrowserSuppressions: [],
     publicVideoAvailability: [], rejectedPublicVideoAvailabilityCount: 0,
     rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
