@@ -16,17 +16,17 @@ function fakeJwt(): string {
   const payload = Buffer.from(JSON.stringify({
     exp: Math.floor(Date.now() / 1000) + 60 * 60,
   })).toString("base64url");
-  return `e30.${payload}.ymath`;
+  return `e30.${payload}.qa`;
 }
 
 const student = {
   id: 101,
-  name: "윤지용 학생",
-  ps_number: "YM001",
-  omr_code: "1042",
+  name: "서하늘 학생",
+  ps_number: "HB001",
+  omr_code: "12345678",
   phone: "01012345678",
   parent_phone: "01087654321",
-  high_school: "와이매스중학교",
+  high_school: "한빛중학교",
   grade: 2,
   gender: "M",
   is_managed: true,
@@ -36,15 +36,15 @@ const student = {
     {
       id: 201,
       lecture: 501,
-      lecture_name: "Ymath 중등 심화",
+      lecture_name: "한빛 중등 심화",
       lecture_color: "#2563eb",
-      lecture_chip_label: "Y",
+      lecture_chip_label: "심",
       status: "ACTIVE",
     },
     {
       id: 202,
       lecture: 502,
-      lecture_name: "Ymath 경시 대비",
+      lecture_name: "한빛 경시 대비",
       lecture_color: "#7c3aed",
       lecture_chip_label: "경",
       status: "ACTIVE",
@@ -57,7 +57,7 @@ const grades = {
     {
       exam_id: 301,
       enrollment_id: 201,
-      title: "Ymath 주간 테스트 1회",
+      title: "한빛 주간 테스트 1회",
       total_score: 40,
       max_score: 50,
       is_pass: true,
@@ -67,16 +67,16 @@ const grades = {
       session_title: "1차시",
       session_type: "REGULAR",
       lecture_id: 501,
-      lecture_title: "Ymath 중등 심화",
+      lecture_title: "한빛 중등 심화",
       lecture_color: "#2563eb",
-      lecture_chip_label: "Y",
+      lecture_chip_label: "심",
       submitted_at: "2026-07-01T18:00:00+09:00",
       archived: true,
     },
     {
       exam_id: 302,
       enrollment_id: 201,
-      title: "Ymath 주간 테스트 2회",
+      title: "한빛 주간 테스트 2회",
       total_score: 90,
       max_score: 100,
       is_pass: false,
@@ -88,16 +88,16 @@ const grades = {
       session_title: "2차시",
       session_type: "REGULAR",
       lecture_id: 501,
-      lecture_title: "Ymath 중등 심화",
+      lecture_title: "한빛 중등 심화",
       lecture_color: "#2563eb",
-      lecture_chip_label: "Y",
+      lecture_chip_label: "심",
       submitted_at: "2026-07-08T18:00:00+09:00",
       archived: false,
     },
     {
       exam_id: 303,
       enrollment_id: 202,
-      title: "Ymath 경시 테스트 3회",
+      title: "한빛 경시 테스트 3회",
       total_score: 48,
       max_score: 50,
       is_pass: true,
@@ -107,7 +107,7 @@ const grades = {
       session_title: "경시 보강",
       session_type: "SUPPLEMENT",
       lecture_id: 502,
-      lecture_title: "Ymath 경시 대비",
+      lecture_title: "한빛 경시 대비",
       lecture_color: "#7c3aed",
       lecture_chip_label: "경",
       submitted_at: "2026-07-15T18:00:00+09:00",
@@ -116,7 +116,7 @@ const grades = {
     {
       exam_id: 304,
       enrollment_id: 201,
-      title: "Ymath 주간 테스트 미응시",
+      title: "한빛 주간 테스트 미응시",
       total_score: null,
       max_score: 100,
       is_pass: false,
@@ -127,9 +127,9 @@ const grades = {
       session_title: "4차시",
       session_type: "REGULAR",
       lecture_id: 501,
-      lecture_title: "Ymath 중등 심화",
+      lecture_title: "한빛 중등 심화",
       lecture_color: "#2563eb",
-      lecture_chip_label: "Y",
+      lecture_chip_label: "심",
       submitted_at: null,
       archived: false,
     },
@@ -140,7 +140,7 @@ const grades = {
       round_index: 1,
       exam_id: 301,
       enrollment_id: 201,
-      title: "Ymath 주간 테스트 1회",
+      title: "한빛 주간 테스트 1회",
       score: 40,
       max_score: 50,
       score_pct: 80,
@@ -152,9 +152,9 @@ const grades = {
       session_type: "REGULAR",
       session_date: "2026-07-01",
       lecture_id: 501,
-      lecture_title: "Ymath 중등 심화",
+      lecture_title: "한빛 중등 심화",
       lecture_color: "#2563eb",
-      lecture_chip_label: "Y",
+      lecture_chip_label: "심",
       rank: 3,
       percentile: 30,
       cohort_size: 10,
@@ -166,7 +166,7 @@ const grades = {
       round_index: 2,
       exam_id: 302,
       enrollment_id: 201,
-      title: "Ymath 주간 테스트 2회",
+      title: "한빛 주간 테스트 2회",
       score: 90,
       max_score: 100,
       score_pct: 90,
@@ -178,9 +178,9 @@ const grades = {
       session_type: "REGULAR",
       session_date: "2026-07-08",
       lecture_id: 501,
-      lecture_title: "Ymath 중등 심화",
+      lecture_title: "한빛 중등 심화",
       lecture_color: "#2563eb",
-      lecture_chip_label: "Y",
+      lecture_chip_label: "심",
       rank: 2,
       percentile: 20,
       cohort_size: 10,
@@ -192,7 +192,7 @@ const grades = {
       round_index: 3,
       exam_id: 303,
       enrollment_id: 202,
-      title: "Ymath 경시 테스트 3회",
+      title: "한빛 경시 테스트 3회",
       score: 48,
       max_score: 50,
       score_pct: 96,
@@ -204,7 +204,7 @@ const grades = {
       session_type: "SUPPLEMENT",
       session_date: "2026-07-15",
       lecture_id: 502,
-      lecture_title: "Ymath 경시 대비",
+      lecture_title: "한빛 경시 대비",
       lecture_color: "#7c3aed",
       lecture_chip_label: "경",
       rank: 1,
@@ -312,7 +312,7 @@ const performanceConsole = {
     change_pct_points: 6,
     first_to_latest_pct_points: 16,
     best_score_pct: 96,
-    latest_exam_title: "Ymath 경시 테스트 3회",
+    latest_exam_title: "한빛 경시 테스트 3회",
     last_recorded_at: "2026-07-15T18:00:00+09:00",
     score_band: "80_plus",
     trend_direction: "up",
@@ -367,7 +367,7 @@ async function installApi(page: Page, options: {
   const access = fakeJwt();
   await page.addInitScript(({ token }) => {
     localStorage.setItem("access", token);
-    localStorage.setItem("refresh", "ymath-refresh");
+    localStorage.setItem("refresh", "qa-refresh");
     localStorage.setItem("tenant_code", "hakwonplus");
     localStorage.setItem("teacher:preferAdmin", "0");
     sessionStorage.setItem("tenantCode", "hakwonplus");
@@ -397,7 +397,7 @@ async function installApi(page: Page, options: {
     if (path.endsWith("/core/program/")) {
       await route.fulfill({ json: {
         tenantCode: "hakwonplus",
-        display_name: "Ymath",
+        display_name: "한빛학원",
         is_active: true,
         ui_config: {},
         feature_flags: { assessment_status_display: "wrong_completion" },
@@ -407,8 +407,8 @@ async function installApi(page: Page, options: {
     if (path.endsWith("/core/me/")) {
       await route.fulfill({ json: {
         id: 1,
-        username: "ymath-admin",
-        name: "Ymath 선생님",
+        username: "qa-admin",
+        name: "한도담 선생님",
         is_staff: true,
         is_superuser: true,
         tenantRole: "admin",
@@ -417,7 +417,7 @@ async function installApi(page: Page, options: {
       return;
     }
     if (path.endsWith("/staffs/me/")) {
-      await route.fulfill({ json: { id: 1, name: "Ymath 선생님", role: "admin", user: 1 } });
+      await route.fulfill({ json: { id: 1, name: "한도담 선생님", role: "admin", user: 1 } });
       return;
     }
     if (path.endsWith("/students/101/account-notifications/")) {
@@ -716,9 +716,9 @@ async function installApi(page: Page, options: {
             session_type: "REGULAR",
             display_order: 0,
             lecture_id: 501,
-            lecture_title: "Ymath 중등 심화",
+            lecture_title: "한빛 중등 심화",
             lecture_color: "#2563eb",
-            lecture_chip_label: "Y",
+            lecture_chip_label: "심",
             is_locked: false,
           },
           {
@@ -738,9 +738,9 @@ async function installApi(page: Page, options: {
             session_type: "REGULAR",
             display_order: 0,
             lecture_id: 501,
-            lecture_title: "Ymath 중등 심화",
+            lecture_title: "한빛 중등 심화",
             lecture_color: "#2563eb",
-            lecture_chip_label: "Y",
+            lecture_chip_label: "심",
             is_locked: false,
           },
           {
@@ -760,9 +760,9 @@ async function installApi(page: Page, options: {
             session_type: "SUPPLEMENT",
             display_order: 0,
             lecture_id: 501,
-            lecture_title: "Ymath 중등 심화",
+            lecture_title: "한빛 중등 심화",
             lecture_color: "#2563eb",
-            lecture_chip_label: "Y",
+            lecture_chip_label: "심",
             is_locked: false,
           },
           {
@@ -782,9 +782,9 @@ async function installApi(page: Page, options: {
             session_type: "REGULAR",
             display_order: 0,
             lecture_id: 501,
-            lecture_title: "Ymath 중등 심화",
+            lecture_title: "한빛 중등 심화",
             lecture_color: "#2563eb",
-            lecture_chip_label: "Y",
+            lecture_chip_label: "심",
             is_locked: false,
           },
         ],
@@ -974,7 +974,8 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await installApi(page);
     await page.goto(`${BASE}/workspace`, { waitUntil: "domcontentloaded" });
 
-    await page.locator('a[href="/workspace/results"]').first().click();
+    await page.getByRole("button", { name: "학습·운영", exact: true }).click();
+    await page.getByRole("link", { name: "성적", exact: true }).click();
     await expect(page).toHaveURL(/\/workspace\/results$/);
     const console = page.getByTestId("results-performance-console");
     await expect(console).toBeVisible();
@@ -983,13 +984,13 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect(console.getByText("조건에 맞는 1명")).toBeVisible();
     await expect(console.getByText("학원96%").first()).toBeVisible();
     await console.screenshot({ path: "test-results/student-score-trend/results-console-initial-1366.png" });
-    await console.getByLabel("학생 검색").fill("윤지용");
-    await expect(console.getByTestId("performance-student-list")).toContainText("윤지용 학생");
+    await console.getByLabel("학생 검색").fill("서하늘");
+    await expect(console.getByTestId("performance-student-list")).toContainText("서하늘 학생");
     await expect(console.getByRole("button", { name: /초기화/ }).first()).toBeEnabled();
     await console.getByRole("button", { name: /초기화/ }).first().click();
 
     const detail = page.getByTestId("performance-student-detail");
-    await expect(detail).toContainText("윤지용 학생");
+    await expect(detail).toContainText("서하늘 학생");
     await expect(detail).toContainText("성적을 세 갈래로 나눠 봅니다.");
     await console.getByRole("button", { name: /학원 시험/ }).first().click();
     const sessionTabs = console.getByRole("tablist", { name: "학원 시험 결과 범위" });
@@ -1086,7 +1087,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await console.getByRole("button", { name: /학원 시험/ }).first().click();
     await console.getByRole("tab", { name: /정규수업/ }).click();
     await console.getByRole("button", { name: "30일", exact: true }).click();
-    await console.getByLabel("학생 검색").fill("윤지용");
+    await console.getByLabel("학생 검색").fill("서하늘");
     await console.getByLabel("강의").selectOption("501");
     await console.getByLabel("학년").selectOption("2");
     await console.getByLabel("득점 구간").selectOption("80_plus");
@@ -1102,7 +1103,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
         && url.searchParams.get("score_band") === "80_plus"
         && url.searchParams.get("trend") === "up"
         && url.searchParams.get("sort") === "latest_desc"
-        && url.searchParams.get("search") === "윤지용";
+        && url.searchParams.get("search") === "서하늘";
     })).toBe(true);
 
     const downloadPromise = page.waitForEvent("download");
@@ -1113,13 +1114,13 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     expect(downloadPath).not.toBeNull();
     const csv = await readFile(downloadPath!, "utf8");
     expect(csv.startsWith("\uFEFF학생명,학년,학교,수강 강의")).toBe(true);
-    expect(csv).toContain("윤지용 학생");
+    expect(csv).toContain("서하늘 학생");
     const csvRows = csv.slice(1).trimEnd().split("\r\n");
     expect(csvRows[2]).toMatch(/^'\t=1\+1,/);
     expect(csvRows[2]).not.toMatch(/^[\t\r\n]*[=+\-@]/);
     expect(csvRows.some((row) => row.includes(",-5,"))).toBe(true);
     expect(csv).toContain("학원 시험,,정규수업");
-    expect(csv).toContain("30일,Ymath 중등 심화,2학년,80% 이상,직전보다 상승,윤지용,높은 최근 점수순");
+    expect(csv).toContain("30일,한빛 중등 심화,2학년,80% 이상,직전보다 상승,서하늘,높은 최근 점수순");
     expect(csvRows).toHaveLength(3);
     await expect(console.getByText("현재 조건의 2명을 다운로드했습니다.")).toBeVisible();
     expect(performanceRequestUrls.some((raw) => {
@@ -1133,7 +1134,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await installApi(page);
     await page.goto(`${BASE}/workspace/students/home`, { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/workspace\/students\/home/);
-    await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
+    await page.getByRole("button", { name: /서하늘 학생/ }).first().click();
     await expect(page).toHaveURL(/\/workspace\/students\/101/);
     const detailOverlay = page.getByTestId("student-detail-overlay");
     await expect(detailOverlay).toBeVisible();
@@ -1143,7 +1144,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect(examTab).toContainText("4건");
     await examTab.click();
 
-    await expect(detailOverlay.getByText("Ymath 주간 테스트 미응시", { exact: true })).toBeVisible();
+    await expect(detailOverlay.getByText("한빛 주간 테스트 미응시", { exact: true })).toBeVisible();
     await expect(detailOverlay.getByTestId("student-score-trend")).toBeHidden();
     const profile = detailOverlay.getByRole("complementary", { name: "연락처·메모" });
     const memo = profile.getByRole("textbox", { name: "학생 공통 메모" });
@@ -1168,14 +1169,14 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await detailAllTab.press("ArrowRight");
     await expect(detailRegularTab).toHaveAttribute("aria-selected", "true");
     await expect(component).toContainText("누적2회");
-    await expect(detailOverlay.getByText("Ymath 경시 테스트 3회", { exact: true })).toHaveCount(0);
-    await expect(detailOverlay.getByText("Ymath 주간 테스트 미응시", { exact: true })).toBeVisible();
+    await expect(detailOverlay.getByText("한빛 경시 테스트 3회", { exact: true })).toHaveCount(0);
+    await expect(detailOverlay.getByText("한빛 주간 테스트 미응시", { exact: true })).toBeVisible();
 
     await detailRegularTab.press("End");
     await expect(detailSupplementTab).toHaveAttribute("aria-selected", "true");
     await expect(component).toContainText("누적1회");
-    await expect(detailOverlay.getByText("Ymath 경시 테스트 3회", { exact: true })).toBeVisible();
-    await expect(detailOverlay.getByText("Ymath 주간 테스트 1회", { exact: true })).toHaveCount(0);
+    await expect(detailOverlay.getByText("한빛 경시 테스트 3회", { exact: true })).toBeVisible();
+    await expect(detailOverlay.getByText("한빛 주간 테스트 1회", { exact: true })).toHaveCount(0);
     await detailOverlay.screenshot({ path: "test-results/student-score-trend/admin-scope-supplement-1366.png" });
 
     await detailSupplementTab.press("Home");
@@ -1187,7 +1188,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await dots.nth(2).hover();
     await expect(component).toContainText("48 / 50점 · 득점률 96%");
 
-    await component.getByRole("button", { name: /Ymath 중등 심화/ }).click();
+    await component.getByRole("button", { name: /한빛 중등 심화/ }).click();
     await expect(component).toContainText("누적2회");
     await expect(component.getByText("3회차", { exact: true })).toHaveCount(0);
 
@@ -1224,21 +1225,21 @@ test.describe("학생별 회차 누적 성적 추이", () => {
 
   test("학생 상세 시험 목록에서 오답 상태를 확인하고 차시 이동 없이 수정한다", async ({ page }, testInfo) => {
     const correctionRequests: NonNullable<Parameters<typeof installApi>[1]>["examCorrectionRequests"] = [];
-    await page.setViewportSize({ width: 1100, height: 820 });
+    await page.setViewportSize({ width: 1366, height: 820 });
     await installApi(page, { examCorrectionRequests: correctionRequests });
     await page.goto(`${BASE}/workspace/students/home`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
+    await page.getByRole("button", { name: /서하늘 학생/ }).first().click();
 
     const detailOverlay = page.getByTestId("student-detail-overlay");
     await detailOverlay.getByRole("tab", { name: /^시험/ }).click();
     const pendingGroup = detailOverlay
-      .getByText("Ymath 주간 테스트 1회", { exact: true })
+      .getByText("한빛 주간 테스트 1회", { exact: true })
       .locator("xpath=ancestor::*[contains(@class,'examRecordGroup')][1]");
     const completedGroup = detailOverlay
-      .getByText("Ymath 주간 테스트 2회", { exact: true })
+      .getByText("한빛 주간 테스트 2회", { exact: true })
       .locator("xpath=ancestor::*[contains(@class,'examRecordGroup')][1]");
     const notSubmittedGroup = detailOverlay
-      .getByText("Ymath 주간 테스트 미응시", { exact: true })
+      .getByText("한빛 주간 테스트 미응시", { exact: true })
       .locator("xpath=ancestor::*[contains(@class,'examRecordGroup')][1]");
 
     await expect(pendingGroup.getByText("오답 미완료", { exact: true })).toBeVisible();
@@ -1248,10 +1249,22 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await expect(notSubmittedGroup.getByText("채점 대기", { exact: true })).toBeVisible();
     await expect(notSubmittedGroup.getByRole("button", { name: "오답 수정" })).toHaveCount(0);
 
+    const memo = detailOverlay.getByRole("textbox", { name: "학생 공통 메모" });
+    const contacts = detailOverlay.getByRole("complementary", { name: "연락처·메모" });
+    for (const width of [1100, 1366]) {
+      await page.setViewportSize({ width, height: 820 });
+      await expect(contacts.getByText("학부모 전화", { exact: true })).toBeInViewport();
+      await expect(memo).toBeInViewport();
+      await expect(detailOverlay.getByText("결과·오답", { exact: true })).toBeVisible();
+      const states = [pendingGroup.getByText("오답 미완료"), completedGroup.getByText("오답 완료"), notSubmittedGroup.getByText("채점 대기")];
+      const lefts = await Promise.all(states.map(state => state.evaluate(el => el.getBoundingClientRect().left)));
+      expect(Math.max(...lefts) - Math.min(...lefts)).toBeLessThan(2);
+    }
+
     const hostUrl = page.url();
     await pendingGroup.getByRole("button", { name: "오답 수정" }).click();
     await expect(page).toHaveURL(hostUrl);
-    const editor = detailOverlay.getByRole("region", { name: "Ymath 주간 테스트 1회 테스트 오답 수정" });
+    const editor = detailOverlay.getByRole("region", { name: "한빛 주간 테스트 1회 테스트 오답 수정" });
     const reason = editor.getByRole("textbox", { name: "오답 확인 사유" });
     await reason.fill("");
     await editor.getByRole("button", { name: "오답 완료로 저장" }).click();
@@ -1263,6 +1276,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await reason.fill("문자 제출 확인");
     await editor.getByRole("button", { name: "오답 완료로 저장" }).click();
     await expect(pendingGroup.getByText("오답 완료", { exact: true })).toBeVisible();
+    await expect(memo).toBeInViewport();
     await expect.poll(() => correctionRequests.length).toBe(1);
     expect(correctionRequests[0]).toEqual({
       sessionId: 701,
@@ -1286,7 +1300,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     const reloadedOverlay = page.getByTestId("student-detail-overlay");
     await reloadedOverlay.getByRole("tab", { name: /^시험/ }).click();
     const persistedGroup = reloadedOverlay
-      .getByText("Ymath 주간 테스트 1회", { exact: true })
+      .getByText("한빛 주간 테스트 1회", { exact: true })
       .locator("xpath=ancestor::*[contains(@class,'examRecordGroup')][1]");
     await expect(persistedGroup.getByText("오답 완료", { exact: true })).toBeVisible();
   });
@@ -1295,7 +1309,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await page.setViewportSize({ width: 1100, height: 820 });
     await installApi(page, { homeworkQuickEdit: true });
     await page.goto(`${BASE}/workspace/students/home`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
+    await page.getByRole("button", { name: /서하늘 학생/ }).first().click();
 
     const detailOverlay = page.getByTestId("student-detail-overlay");
     await detailOverlay.getByRole("tab", { name: /과제/ }).click();
@@ -1331,16 +1345,17 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     const notSubmittedRow = detailOverlay
       .getByText("수학 일일 과제", { exact: true })
       .locator("xpath=ancestor::*[contains(@class,'tabRecord')][1]");
-    await expect(notSubmittedRow).toContainText("점수형 과제");
+    await expect(notSubmittedRow).toContainText("숫자 채점");
     await expect(notSubmittedRow).toContainText("미제출");
     await expect(notSubmittedRow).not.toContainText("0/30");
 
     const ungradedRow = detailOverlay
       .getByText("주말 복습 과제", { exact: true })
       .locator("xpath=ancestor::*[contains(@class,'tabRecord')][1]");
-    await expect(ungradedRow).toContainText("통과형 과제");
+    await expect(ungradedRow).toContainText("완료 체크");
     await expect(ungradedRow).toContainText("검사 전");
-    await expect(detailOverlay.getByRole("tab", { name: /과제/ })).toContainText("미제출 1");
+    await expect(detailOverlay.getByRole("tab", { name: /과제/ })).toContainText("4건");
+    await expect(detailOverlay.locator('div[class*="homeworkRecordGroup"]').getByText("미제출", { exact: true })).toHaveCount(1);
     await detailOverlay.screenshot({ path: "test-results/homework-completion/student-detail-1100.png" });
 
     const homeworkActionsStayWithinCards = () => detailOverlay.locator('div[class*="homeworkRecordGroup"]').evaluateAll((groups) => (
@@ -1370,7 +1385,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await page.setViewportSize({ width: 1100, height: 820 });
     await installApi(page, { homeworkHistory: true });
     await page.goto(`${BASE}/workspace/students/home`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
+    await page.getByRole("button", { name: /서하늘 학생/ }).first().click();
 
     const detailOverlay = page.getByTestId("student-detail-overlay");
     await detailOverlay.getByRole("tab", { name: /과제/ }).click();
@@ -1433,7 +1448,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
   test("과제 기간 필터는 KST 오늘을 포함하고 미래와 30·90일 바깥 경계를 제외한다", async ({ page }) => {
     await installApi(page, { homeworkPeriodBoundaries: true });
     await page.goto(`${BASE}/workspace/students/home`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
+    await page.getByRole("button", { name: /서하늘 학생/ }).first().click();
 
     const detailOverlay = page.getByTestId("student-detail-overlay");
     await detailOverlay.getByRole("tab", { name: /과제/ }).click();
@@ -1486,7 +1501,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
     await page.goto(`${BASE}/workspace`, { waitUntil: "domcontentloaded" });
 
     await page.locator('a[href="/workspace/students"]').first().click();
-    await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
+    await page.getByRole("button", { name: /서하늘 학생/ }).first().click();
     const examTab = page.getByRole("tab", { name: /^시험/ });
     await expect(examTab).toContainText("확인 필요");
     await expect(examTab).not.toContainText("0건");
@@ -1506,7 +1521,7 @@ test.describe("학생별 회차 누적 성적 추이", () => {
 
     await page.locator('a[href="/workspace/mobile/students"]').first().click();
     await expect(page).toHaveURL(/\/workspace\/mobile\/students$/);
-    await page.getByRole("button", { name: /윤지용 학생/ }).first().click();
+    await page.getByRole("button", { name: /서하늘 학생/ }).first().click();
     await expect(page).toHaveURL(/\/workspace\/mobile\/students\/101/);
     await page.getByRole("button", { name: "시험", exact: true }).click();
 

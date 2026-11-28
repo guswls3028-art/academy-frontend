@@ -49,7 +49,7 @@
 .profilePanel {
   min-width: 0;
   padding: var(--ds-space-2) var(--ds-space-3);
-  background: var(--color-bg-surface-soft);
+  background: color-mix(in srgb, var(--color-bg-surface) 60%, var(--color-bg-surface-soft));
 }
 
 .profilePanel :global(.ds-overlay-sidebar-section) {
@@ -69,6 +69,22 @@
   .detailPanel .detailBody {
     display: grid;
     grid-template-columns: clamp(224px, 22%, 272px) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .profilePanel,
+  .records {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .records > :global(.ds-record-tabs) {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--color-bg-surface);
   }
 
   .profilePanel {
@@ -165,7 +181,13 @@
 .historyFeedback { padding: 16px; text-align: center; }
 .sectionError { padding: 12px; font-size: 12px; }
 
-.accountHistory summary { cursor: pointer; }
+.accountHistory > summary {
+  display: list-item;
+  min-height: var(--ds-control-sm);
+  align-content: center;
+  margin-block: 0;
+  cursor: pointer;
+}
 .accountHistory[open] summary { margin-bottom: var(--ds-space-2); }
 
 @media (max-width: 768px) {

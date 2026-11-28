@@ -796,6 +796,63 @@ async function prepareDetail(page: Page) {
   await installApi(page);
 }
 
+test("명단 기록에 돌아오면 검색을 복원하고 새 방문과 명시적 해제는 전체 명단을 연다", async ({ page }) => {
+  await prepareDetail(page);
+  await page.setViewportSize({ width: 1366, height: 900 });
+  const rows = [
+    { id: 1002, name: "서하늘 학생", is_managed: true, tags: [], enrollments: [] },
+    { id: 1003, name: "연가람 학생", is_managed: true, tags: [], enrollments: [] },
+  ];
+  await page.route(/\/api\/v1\/students\/(?:\?.*)?$/, async route => {
+    const term = new URL(route.request().url()).searchParams.get("search") ?? "";
+    const results = rows.filter(row => row.name.includes(term));
+    await route.fulfill({ json: { count: results.length, results } });
+  });
+  await page.route("**/api/v1/students/1002/", route => route.fulfill({ json: rows[0] }));
+  await page.goto(BASE + "/workspace/students/home");
+  const search = page.getByPlaceholder("이름 / 아이디 / 전화번호 / 학교 검색");
+  const count = (n: number) => page.getByText(`총 ${n}명`, { exact: true });
+  const home = page.locator('a[href="/workspace/dashboard"]:visible').first();
+  await expect(count(2)).toBeVisible();
+  await search.fill("서하늘");
+  await expect(count(1)).toBeVisible();
+  await page.getByRole("button", { name: /서하늘 학생/ }).first().click();
+  await expect(page.getByRole("dialog", { name: "학생 상세" })).toBeVisible();
+  await page.goBack();
+  await expect(search).toHaveValue("서하늘");
+  await expect(count(1)).toBeVisible();
+  await home.click();
+  await expect(page).toHaveURL(/\/workspace\/dashboard$/);
+  await page.goBack();
+  await expect(search).toHaveValue("서하늘");
+  await expect(count(1)).toBeVisible();
+  const hasBrowserRecord = await page.evaluate(() =>
+    [decodeURI(location.href), JSON.stringify(history.state), JSON.stringify(localStorage), JSON.stringify(sessionStorage)]
+      .some(record => record.includes("서하늘")),
+  );
+  expect(hasBrowserRecord).toBe(false);
+
+  await home.click();
+  await page.getByRole("link", { name: "학생", exact: true }).first().click();
+  await expect(search).toHaveValue("");
+  await expect(count(2)).toBeVisible();
+  await page.goBack();
+  await expect(page).toHaveURL(/\/workspace\/dashboard$/);
+  await page.goBack();
+  await expect(search).toHaveValue("서하늘");
+  await search.fill("");
+  await expect(count(2)).toBeVisible();
+  await home.click();
+  await page.goBack();
+  await expect(search).toHaveValue("");
+  await expect(count(2)).toBeVisible();
+  await search.fill("연가람");
+  await expect(count(1)).toBeVisible();
+  await page.reload();
+  await expect(search).toHaveValue("");
+  await expect(count(2)).toBeVisible();
+});
+
 test("학생 상세 계정 이력에서 접수와 최종 전달 실패를 구분한다", async ({ page }) => {
   await prepareDetail(page);
   await page.route("**/api/v1/students/1001/account-notifications/**", route => route.fulfill({ json: {
@@ -858,9 +915,20 @@ test("학생 상세는 1366·1100·390px에서 주요 작업과 전체 탭에 �
       expect(profileBox.x + profileBox.width).toBeLessThanOrEqual(tabsBox.x);
       expect(Math.abs(tabsBox.y - profileBox.y)).toBeLessThan(24);
     }
+    const copyId = sidebar.getByRole("button", { name: "아이디 student.name+1001 복사" });
+    if (width > 390) {
+      const phone = sidebar.getByRole("button", { name: /^학부모 전화 .* 복사$/ });
+      expect((await phone.boundingBox())!.y).toBeLessThan((await memo.boundingBox())!.y);
+      expect((await memo.boundingBox())!.y).toBeLessThan((await copyId.boundingBox())!.y);
+      const basic = sidebar.locator("details").filter({ has: page.getByText("학생 기본 정보", { exact: true }) });
+      await expect(basic).not.toHaveAttribute("open", "");
+      await basic.locator("summary").click();
+      await expect(basic.getByText("등록일", { exact: true })).toBeVisible();
+    }
     const headerButtons = ["정보 수정", "계정·관리"];
+    const touch = await page.evaluate(() => matchMedia("(max-width: 1023px), (pointer: coarse)").matches);
     for (const name of headerButtons) {
-      expect((await overlay.getByRole("button", { name }).boundingBox())?.height).toBe(44);
+      expect((await overlay.getByRole("button", { name }).boundingBox())?.height).toBe(touch ? 44 : 32);
     }
     await page.screenshot({ path: testInfo.outputPath("student-detail-" + width + ".png") });
     if (width === 390) await toggle.click();

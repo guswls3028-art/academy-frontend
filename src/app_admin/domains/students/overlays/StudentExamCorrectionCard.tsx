@@ -177,6 +177,7 @@ export default function StudentExamCorrectionCard({ exam, studentId, onNavigate 
               <button
                 type="button"
                 className={`${layoutStyles.recordTitle} ${styles.examTitle}`}
+                title={exam.title}
                 onClick={(event) => {
                   event.stopPropagation();
                   onNavigate(navPath);
@@ -184,7 +185,7 @@ export default function StudentExamCorrectionCard({ exam, studentId, onNavigate 
               >
                 {exam.title}
               </button>
-            ) : <span className={layoutStyles.recordTitle}>{exam.title}</span>}
+            ) : <span className={layoutStyles.recordTitle} title={exam.title}>{exam.title}</span>}
             <Badge
               size="xs"
               tone={exam.session_type === "REGULAR" ? "info" : exam.session_type === "SUPPLEMENT" ? "teal" : "muted"}
@@ -199,27 +200,29 @@ export default function StudentExamCorrectionCard({ exam, studentId, onNavigate 
           </div>
         </div>
         <div className={`${layoutStyles.recordActions} ${styles.recordActions}`}>
-          {exam.total_score != null && (
-            <span className={layoutStyles.scoreValue}>
+          {exam.total_score != null ? (
+            <span className={`${layoutStyles.scoreValue} ${styles.resultScore}`}>
               {Math.round(exam.total_score)}<span className={layoutStyles.scoreMax}>/{exam.max_score ?? 100}</span>
             </span>
-          )}
-          {!wrongCompletionOnly && exam.achievement && (
-            <Badge variant="solid" size="sm" tone={examAchievementTone}>
-              {achievementLabel(exam.achievement, { pass: labels.pass, fail: labels.fail })}
-            </Badge>
-          )}
-          {!wrongCompletionOnly && !exam.achievement && (exam.remediated === true || exam.final_pass === true) && (
-            <Badge variant="solid" size="sm" tone={exam.remediated ? "warning" : "success"}>
-              {exam.remediated ? "보강합격" : labels.pass}
-            </Badge>
-          )}
-          {!wrongCompletionOnly && exam.is_pass != null && !exam.achievement && exam.remediated !== true && exam.final_pass !== true && (
-            <Badge variant="solid" size="sm" tone={exam.is_pass ? "success" : "danger"}>
-              {exam.is_pass ? "합" : "불"}
-            </Badge>
-          )}
-          <span className={styles.correctionStatus}>{statusNode}</span>
+          ) : <span className={styles.missingScore} aria-label="점수 없음">—</span>}
+          <span className={styles.resultStatus}>
+            {!wrongCompletionOnly && exam.achievement && (
+              <Badge variant="solid" size="sm" tone={examAchievementTone}>
+                {achievementLabel(exam.achievement, { pass: labels.pass, fail: labels.fail })}
+              </Badge>
+            )}
+            {!wrongCompletionOnly && !exam.achievement && (exam.remediated === true || exam.final_pass === true) && (
+              <Badge variant="solid" size="sm" tone={exam.remediated ? "warning" : "success"}>
+                {exam.remediated ? "보강합격" : labels.pass}
+              </Badge>
+            )}
+            {!wrongCompletionOnly && exam.is_pass != null && !exam.achievement && exam.remediated !== true && exam.final_pass !== true && (
+              <Badge variant="solid" size="sm" tone={exam.is_pass ? "success" : "danger"}>
+                {exam.is_pass ? "합" : "불"}
+              </Badge>
+            )}
+            <span className={styles.correctionStatus}>{statusNode}</span>
+          </span>
           {canEdit && (
             <Button
               size="sm"

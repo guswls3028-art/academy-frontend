@@ -125,7 +125,7 @@ async function installApi(
     if (pathname.endsWith("/students/7101/")) {
       await fulfill({
         id: 7101,
-        name: "윤지용 학생",
+        name: "서하늘 학생",
         ps_number: "S7101",
         phone: "01033334444",
         parent_phone: "01011112222",
@@ -145,7 +145,7 @@ async function installApi(
           id: 8101,
           enrollment_id: 9101,
           student_id: 7101,
-          student_name: "윤지용 학생",
+          student_name: "서하늘 학생",
           status: "PRESENT",
         }],
       });
@@ -175,7 +175,7 @@ async function installApi(
           rows: [{
             enrollment_id: 9101,
             student_id: 7101,
-            student_name: "윤지용 학생",
+            student_name: "서하늘 학생",
             profile_photo_url: null,
             lecture_title: "중등 수학 심화",
             lecture_color: "#2563eb",
@@ -225,7 +225,7 @@ async function installApi(
           rows: [{
             enrollment_id: 9101,
             student_id: 7101,
-            student_name: "윤지용 학생",
+            student_name: "서하늘 학생",
             exams: [{
               exam_id: 3101,
               title: "식물의 호흡과 광합성",
@@ -277,7 +277,7 @@ async function installApi(
         rows: [{
           enrollment_id: 9101,
           student_id: 7101,
-          student_name: "윤지용 학생",
+          student_name: "서하늘 학생",
           profile_photo_url: null,
           lecture_title: "중등 수학 심화",
           lecture_color: "#2563eb",
@@ -612,7 +612,7 @@ test.describe("시험·과제 수동 검사 상태", () => {
     const api = await installApi(page, { failHomeworkScore: true });
     await page.goto(`${getBaseUrl("admin")}/admin/lectures/${LECTURE_ID}/sessions/${SESSION_ID}/scores`);
     await page.getByRole("button", { name: "수정", exact: true }).click();
-    const score = page.getByRole("textbox", { name: "윤지용 학생 · 서술형 워크북 12~15번 점수 입력", exact: true });
+    const score = page.getByRole("textbox", { name: "서하늘 학생 · 서술형 워크북 12~15번 점수 입력", exact: true });
     await score.click();
     await score.fill("64");
     await score.press("Tab");
@@ -812,7 +812,7 @@ test.describe("시험·과제 수동 검사 상태", () => {
 
     await page.locator('tbody tr[role="button"]').first().locator('[data-col-type="name"]').click();
     const drawer = page.locator(".student-scores-drawer");
-    const studentLink = drawer.getByRole("link", { name: "윤지용 학생 학생 상세 열기" });
+    const studentLink = drawer.getByRole("link", { name: "서하늘 학생 학생 상세 열기" });
     await expect(studentLink).toBeVisible();
     await drawer.screenshot({ path: testInfo.outputPath("score-drawer-student-link-1366.png") });
     const hostUrl = page.url();
@@ -821,7 +821,7 @@ test.describe("시험·과제 수동 검사 상태", () => {
     await expect(page).toHaveURL(hostUrl);
     const overlay = page.getByTestId("student-detail-overlay");
     await expect(overlay).toBeVisible();
-    await expect(overlay.getByRole("heading", { name: "윤지용 학생" })).toBeVisible();
+    await expect(overlay.getByRole("heading", { name: "서하늘 학생" })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("score-to-student-overlay-1366.png"), fullPage: false });
     await overlay.getByRole("button", { name: "닫기" }).click();
     await expect(page).toHaveURL(hostUrl);
