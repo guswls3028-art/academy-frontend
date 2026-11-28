@@ -250,13 +250,20 @@ async function exerciseScoresMoreMenu(page: Page): Promise<void> {
 async function inspectIndividualScoreReport(page: Page): Promise<void> {
   for (const width of [1366, 390]) {
     await page.setViewportSize({ width, height: 900 });
-    await revealScoreManagement(page);
-    const tools = page.getByRole("button", { name: "성적 도구" });
+    if (width === 390) {
+      // The viewport changes before React moves the score tools into the mobile disclosure.
+      const management = page.locator(".scores-management > summary").filter({ hasText: "차시·성적 작업" });
+      const firstAssessment = page.getByRole("region", { name: "첫 시험 시작", exact: true });
+      await expect(management.or(firstAssessment)).toBeVisible();
+      await revealScoreManagement(page);
+    }
+    const tools = page.getByRole("button", { name: "성적 도구", exact: true });
     await tools.click();
     const entry = page.getByRole("menuitem", { name: /^개인 성적표/ });
     await expect(entry).toBeVisible();
     if (await entry.isDisabled()) {
-      await tools.click();
+      await page.getByRole("button", { name: "성적 도구 닫기", exact: true }).click();
+      await expect(entry).toBeHidden();
       console.log(JSON.stringify({ individualScoreReport: "entry-unavailable", width }));
       continue;
     }
