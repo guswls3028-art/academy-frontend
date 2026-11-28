@@ -1,3 +1,4 @@
+import { openAssessmentWorkAction } from "../helpers/openAssessmentWorkAction";
 import { verifyAcceptedHomeworkNotices } from "../helpers/homeworkAcceptedNoticesRealuse";
 import { verifyHomeworkReviewQueue } from "../helpers/homeworkReviewQueueRealuse";
 import { revealScoreManagement } from "../helpers/revealScoreManagement";
@@ -326,7 +327,7 @@ async function verifyHomeworkFeedback(
         checkpoint.phase = "feedback-results";
         await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/assignments?homeworkId=${completion.id}`);
         await expect(staffPage.getByRole("heading", { name: completionTitle, exact: true })).toBeVisible();
-        await staffPage.getByRole("tab", { name: "결과", exact: true }).click();
+        await openAssessmentWorkAction(staffPage, "results", "results");
         const resultTable = staffPage.getByRole("table");
         const resultRow = resultTable.getByRole("row").filter({ hasText: studentName });
         const completionMark = width === 1366 ? "O" : "X";
@@ -341,7 +342,7 @@ async function verifyHomeworkFeedback(
         await assertNoHorizontalOverflow(staffPage);
         await staffPage.screenshot({ path: test.info().outputPath(`real-homework-result-${width}.png`), animations: "disabled" });
         await staffPage.reload();
-        await staffPage.getByRole("tab", { name: "결과", exact: true }).click();
+        await openAssessmentWorkAction(staffPage, "results", "results");
         await expect(completionCell).toBeVisible();
         checkpoint.phase = "feedback-restore-order";
         await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/scores`);
@@ -1605,7 +1606,7 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await assertNoHorizontalOverflow(page);
       await page.getByRole("button", { name: "미리보기 닫기", exact: true }).click();
       await gotoAndSettle(staffPage, `${QA_BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/assignments?homeworkId=${created.homeworkId}`);
-      await staffPage.getByRole("tab", { name: "제출관리", exact: true }).click();
+      await openAssessmentWorkAction(staffPage, "submissions", "submissions");
       await staffPage.locator('[class*="fileRow"]').filter({ hasText: videoUploadName })
         .getByRole("button", { name: "미리보기", exact: true }).click();
       const staffVideo = staffPage.getByRole("dialog").filter({ hasText: videoUploadName });

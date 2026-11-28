@@ -1,3 +1,4 @@
+import { openAssessmentWorkAction } from "./openAssessmentWorkAction";
 import type { APIRequestContext, Page, TestInfo } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
 import { acknowledgeInitialAccountPromptsIfVisible } from "./firstLoginGuide";
@@ -105,7 +106,7 @@ export async function verifyOnlineWrittenSubmission(
       await teacherPage.setViewportSize({ width, height: 900 });
       await gotoAndSettle(teacherPage, gradingUrl);
       await acknowledgeInitialAccountPromptsIfVisible(teacherPage);
-      await teacherPage.getByRole("tab", { name: "채점·결과", exact: true }).click();
+      await openAssessmentWorkAction(teacherPage, "results", "results");
       await expect(teacherPage).toHaveURL(gradingUrl);
       await expect(teacherRow).toHaveCount(1);
       const summary = teacherRow.locator("summary").filter({ hasText: "학생 답안" });
@@ -133,7 +134,7 @@ export async function verifyOnlineWrittenSubmission(
     await teacherPage.getByRole("button", { name: "1명 성적 확정", exact: true }).click();
     expect((await saved).status()).toBe(200);
     await teacherPage.reload({ waitUntil: "domcontentloaded" });
-    await teacherPage.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(teacherPage, "results", "results");
     await expect(teacherRow.getByRole("spinbutton", { name: /50점 만점 점수/ })).toHaveValue("35");
 
     for (const width of [1366, 390]) {

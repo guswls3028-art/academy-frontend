@@ -1,3 +1,4 @@
+import { openAssessmentWorkAction } from "./openAssessmentWorkAction";
 import type { APIRequestContext, Locator, Page, TestInfo } from "@playwright/test";
 import { expect } from "../fixtures/strictTest";
 import { acknowledgeInitialAccountPromptsIfVisible } from "./firstLoginGuide";
@@ -75,6 +76,7 @@ export async function verifyWrittenAnswerKeyEditor(
       await page.setViewportSize({ width, height: 900 });
       await gotoAndSettle(page, url);
       await acknowledgeInitialAccountPromptsIfVisible(page);
+      await openAssessmentWorkAction(page, "policy", "answers");
       await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
       expect(await answer.evaluate((element) => element.tagName)).toBe("TEXTAREA");
       await expect(choiceCount).toHaveValue("19");
@@ -125,6 +127,7 @@ export async function verifyWrittenAnswerKeyEditor(
       await expectSavedScores(5);
 
       await page.reload({ waitUntil: "domcontentloaded" });
+      await openAssessmentWorkAction(page, "policy", "answers");
       await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
       await expect(answer).toHaveValue(expected);
       await expect(choice).toBeChecked();

@@ -504,7 +504,7 @@ test("시험 설정에서 다른 강의 차시와 귀가 기준을 390px에서�
 
   const panel = page.getByRole("heading", { name: "시험을 보는 강의" }).locator("xpath=ancestor::section");
   await expect(page.getByText("2개 강의", { exact: true })).toBeVisible();
-  await expect(page.getByText("대상 2명", { exact: true })).toBeVisible();
+  await expect(page.getByText("전체 강의 대상 2명", { exact: true })).toBeVisible();
   await expect(page.getByRole("spinbutton", { name: "A학교 강의 귀가 기준 점수" })).toHaveValue("60");
   await expect(page.getByRole("spinbutton", { name: "B학교 강의 귀가 기준 점수" })).toHaveValue("70");
 
@@ -515,15 +515,15 @@ test("시험 설정에서 다른 강의 차시와 귀가 기준을 390px에서�
 
   await page.getByRole("button", { name: "강의 추가" }).click();
   const dialog = page.getByRole("dialog", { name: "이 시험에 강의 추가" });
-  await dialog.getByRole("combobox", { name: "강의" }).selectOption("202");
+  await dialog.getByRole("radio", { name: "B학교 강의", exact: true }).click();
   await expect(dialog.getByRole("spinbutton")).toHaveValue("70");
-  await dialog.getByRole("combobox", { name: "강의" }).selectOption("303");
-  await dialog.getByRole("checkbox", { name: "8월 진단평가" }).check();
+  await dialog.getByRole("radio", { name: "C학교 강의", exact: true }).click();
+  await dialog.getByRole("group", { name: "시험 차시 선택" }).getByRole("checkbox", { name: "8월 진단평가" }).check();
   await expect(dialog.getByRole("spinbutton")).toHaveValue("60");
   await dialog.getByRole("button", { name: "선택한 차시 담고 다른 강의 고르기" }).click();
   await expect(dialog.getByText("연결 예정 · 1개 차시")).toBeVisible();
-  await dialog.getByRole("combobox", { name: "강의" }).selectOption("404");
-  await dialog.getByRole("checkbox", { name: "8월 진단평가" }).check();
+  await dialog.getByRole("radio", { name: "D학교 강의", exact: true }).click();
+  await dialog.getByRole("group", { name: "시험 차시 선택" }).getByRole("checkbox", { name: "8월 진단평가" }).check();
   await expect(dialog.getByRole("button", { name: "2개 차시 연결" })).toBeEnabled();
 
   const screenshot = testInfo.outputPath("shared-exam-assignments-390.png");
@@ -543,11 +543,11 @@ test("여러 강의 연결에서 일부 실패하면 성공한 차시는 유지�
   });
   await page.getByRole("button", { name: "강의 추가" }).click();
   const dialog = page.getByRole("dialog", { name: "이 시험에 강의 추가" });
-  await dialog.getByRole("combobox", { name: "강의" }).selectOption("303");
-  await dialog.getByRole("checkbox", { name: "8월 진단평가" }).check();
+  await dialog.getByRole("radio", { name: "C학교 강의", exact: true }).click();
+  await dialog.getByRole("group", { name: "시험 차시 선택" }).getByRole("checkbox", { name: "8월 진단평가" }).check();
   await dialog.getByRole("button", { name: "선택한 차시 담고 다른 강의 고르기" }).click();
-  await dialog.getByRole("combobox", { name: "강의" }).selectOption("404");
-  await dialog.getByRole("checkbox", { name: "8월 진단평가" }).check();
+  await dialog.getByRole("radio", { name: "D학교 강의", exact: true }).click();
+  await dialog.getByRole("group", { name: "시험 차시 선택" }).getByRole("checkbox", { name: "8월 진단평가" }).check();
   await dialog.getByRole("button", { name: "2개 차시 연결" }).click();
   await expect(dialog.getByText("연결 예정 · 1개 차시")).toBeVisible();
   await expect(dialog.getByText(/D학교 강의 · 8월 진단평가/)).toBeVisible();

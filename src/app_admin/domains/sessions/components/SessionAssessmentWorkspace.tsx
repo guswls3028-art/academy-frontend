@@ -6,6 +6,7 @@ import { useLectureSessionParams } from "@/shared/hooks/useLectureSessionParams"
 import { readAssessmentItemId } from "@/shared/lib/assessmentQueryParams";
 
 import { Panel } from "@/shared/ui/ds";
+import { AssessmentShortcutHost } from "@/shared/ui/assessment/AssessmentShortcutHost";
 import RouteFallback from "@/core/router/RouteFallback";
 
 const AdminExamDetail = lazy(() => import("@admin/domains/exams/components/AdminExamDetail"));
@@ -15,9 +16,10 @@ type Mode = "exam" | "homework";
 
 type Props = {
   mode: Mode;
+  shortcutHost?: HTMLElement | null;
 };
 
-export default function SessionAssessmentWorkspace({ mode }: Props) {
+export default function SessionAssessmentWorkspace({ mode, shortcutHost = null }: Props) {
   const { sessionId } = useLectureSessionParams();
   const [searchParams] = useSearchParams();
 
@@ -53,22 +55,26 @@ export default function SessionAssessmentWorkspace({ mode }: Props) {
           </div>
         </div>
       ) : (
-        <Suspense fallback={<RouteFallback />}>
-          {mode === "exam" && (
-            <AdminExamDetail
-              examId={activeId}
-              sessionId={sessionId}
-              mode={sessionId ? "operate" : "design"}
-            />
-          )}
-          {mode === "homework" && (
-            <AdminHomeworkDetail
-              homeworkId={activeId}
-              sessionId={sessionId}
-              mode="operate"
-            />
-          )}
-        </Suspense>
+        <AssessmentShortcutHost.Provider value={shortcutHost}>
+          <Suspense fallback={<RouteFallback />}>
+            {mode === "exam" && (
+              <AdminExamDetail
+                key={activeId}
+                examId={activeId}
+                sessionId={sessionId}
+                mode={sessionId ? "operate" : "design"}
+              />
+            )}
+            {mode === "homework" && (
+              <AdminHomeworkDetail
+                key={activeId}
+                homeworkId={activeId}
+                sessionId={sessionId}
+                mode="operate"
+              />
+            )}
+          </Suspense>
+        </AssessmentShortcutHost.Provider>
       )}
     </Panel>
   );

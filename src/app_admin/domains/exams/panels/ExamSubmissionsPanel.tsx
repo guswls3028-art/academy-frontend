@@ -5,7 +5,7 @@
  * - 학생별 제출 목록: 아바타 + 이름 + 강의칩 + 시+시험명 + 상태 + 파일 보기
  */
 
-import { lazy, Suspense, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { useAdminExam } from "../hooks/useAdminExam";
@@ -35,6 +35,7 @@ const OmrReviewWorkspace = lazy(
 type Props = {
   examId: number;
   sessionId?: number | null;
+  focusLedger?: boolean;
 };
 
 type ExamSubmissionDisplayRow = ExamSubmissionRow & {
@@ -78,8 +79,15 @@ function omrLedgerStatusTone(
   return "neutral";
 }
 
-export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp }: Props) {
+export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp, focusLedger = false }: Props) {
   const navigate = useNavigate();
+  const ledgerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (focusLedger) {
+      ledgerRef.current?.focus({ preventScroll: true });
+      ledgerRef.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [focusLedger]);
   const previewRequestIdRef = useRef<number | null>(null);
   const [previewingSubmissionId, setPreviewingSubmissionId] = useState<number | null>(null);
   const [previewErrorSubmissionId, setPreviewErrorSubmissionId] = useState<number | null>(null);
@@ -171,7 +179,7 @@ export default function ExamSubmissionsPanel({ examId, sessionId: sessionIdProp 
         </div>
       </section>
 
-      <section className="space-y-3" aria-label="OMR 업로드 원장">
+      <section ref={ledgerRef} tabIndex={-1} className="space-y-3" aria-label="OMR 업로드 원장">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-sm font-semibold text-[var(--color-text-primary)]">OMR 업로드 원장</div>

@@ -42,7 +42,7 @@ type Props = {
   wrongCompletionOnly?: boolean;
   focusAnalysis?: boolean;
   initialLectureId?: number;
-  onOpenSetup?: () => void;
+  onOpenSetup?: (action: "settings" | "answers") => void;
 };
 
 async function fetchResults(examId: number, lectureId: number | null): Promise<AdminExamResultRow[]> {

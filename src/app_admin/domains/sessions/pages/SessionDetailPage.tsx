@@ -107,6 +107,7 @@ export default function SessionDetailPage() {
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [openCreateExam, setOpenCreateExam] = useState(false);
   const [openCreateHomework, setOpenCreateHomework] = useState(false);
+  const [shortcutHost, setShortcutHost] = useState<HTMLDivElement | null>(null);
 
   const { data: session, isError: sessionError } = useQuery({
     queryKey: adminSessionQueryKeys.sessionDetail(sId),
@@ -184,6 +185,7 @@ export default function SessionDetailPage() {
                 onCloseCreateHomework={() => setOpenCreateHomework(false)}
                 onOpenCreateHomework={() => setOpenCreateHomework(true)}
               />
+              <div className="session-assessment-shortcut-slot" ref={setShortcutHost} />
             </div>
           )}
           <div className="min-w-0 w-full">
@@ -201,7 +203,7 @@ export default function SessionDetailPage() {
             {activeTab === "exams" &&
               (examId ? (
                 <div className="flex flex-col">
-                  <SessionAssessmentWorkspace mode="exam" />
+                  <SessionAssessmentWorkspace mode="exam" shortcutHost={shortcutHost} />
                   <AssessmentDeleteBar
                     type="exam"
                     id={examId}
@@ -231,7 +233,7 @@ export default function SessionDetailPage() {
             {activeTab === "assignments" &&
               (homeworkId ? (
                 <div className="flex flex-col">
-                  <SessionAssessmentWorkspace mode="homework" />
+                  <SessionAssessmentWorkspace mode="homework" shortcutHost={shortcutHost} />
                   <AssessmentDeleteBar
                     type="homework"
                     id={homeworkId}

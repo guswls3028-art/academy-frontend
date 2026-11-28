@@ -1,3 +1,4 @@
+import { openAssessmentWorkAction } from "./openAssessmentWorkAction";
 import { writeFile } from "node:fs/promises";
 import { expect, test } from "../fixtures/strictTest";
 import type { APIRequestContext, Page, Route } from "@playwright/test";
@@ -217,7 +218,7 @@ export async function verifyHomeworkCriteria(
       checkpoint.phase = "criteria-open";
       const passed = threshold <= 92;
       await gotoAndSettle(page, `${QA_BASE}/workspace/lectures/${lectureId}/sessions/${sessionId}/assignments?homeworkId=${homeworkId}`);
-      await page.getByRole("tab", { name: "운영", exact: true }).click();
+      await openAssessmentWorkAction(page, "policy", "settings");
       const policy = page.locator("#assessment-policy");
       await expect(policy.getByRole("heading", { name: "과제 운영 설정", exact: true })).toBeVisible();
       await policy.getByRole("group", { name: "과제 합격 기준 방식", exact: true })
@@ -243,6 +244,7 @@ export async function verifyHomeworkCriteria(
       await expect(save).toBeDisabled();
       checkpoint.phase = "criteria-reload";
       await page.reload();
+      await openAssessmentWorkAction(page, "policy", "settings");
       await expect(criterion).toHaveValue(String(threshold));
       await expect(policy.getByRole("button", { name: new RegExp(modeLabel) })).toHaveAttribute("aria-pressed", "true");
       checkpoint.phase = "criteria-api";

@@ -3,6 +3,9 @@ import { useLocation, useSearchParams } from "react-router";
 import { useAdminExam } from "../hooks/useAdminExam";
 import type { ExamTabKey } from "../types";
 
+import ExamWorklist from "./ExamWorklist";
+import { useExamEnrollmentRows } from "../hooks/useExamEnrollments";
+import { initialAssessmentStep, useAssessmentWorklist } from "@/shared/ui/assessment/useAssessmentWorklist";
 import ExamTabs from "./common/ExamTabs";
 import ExamHeader from "./common/ExamHeader";
 import { Button, EmptyState } from "@/shared/ui/ds";
@@ -34,6 +37,19 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
   const { hash } = useLocation();
   const { lectureId } = useLectureSessionParams();
   const focusAnalysis = linkedTab === "results" && hash.slice(1) === EXAM_ANALYSIS_ANCHOR;
+  const initialScoreLectureId = focusAnalysis || searchParams.has("scoreLectureId")
+    ? lectureId ?? undefined : undefined;
+  const enrollment = useExamEnrollmentRows(mode === "operate" ? examId : undefined, sessionId ?? undefined);
+  const audienceCount = enrollment.isSuccess && Array.isArray(enrollment.data?.items)
+    ? enrollment.data.items.filter(row => row.is_selected).length : undefined;
+  const audienceSummary = audienceCount !== undefined ? `이 차시 응시 대상 ${audienceCount}명`
+    : enrollment.isPending ? "대상 학생 확인 중" : "대상 학생 조회 실패";
+  const worklist = useAssessmentWorklist(`${examId}:${linkedTab ?? ""}:${focusAnalysis}`,
+    linkedTab === "results" ? { step: "results", action: focusAnalysis ? "analysis" : "results" }
+      : linkedTab === "setup" ? { step: "policy", action: "answers" }
+      : linkedTab === "assets" ? { step: "materials", action: "source" }
+      : linkedTab === "submissions" ? { step: "submissions", action: "submissions" }
+      : initialAssessmentStep(audienceCount, exam?.segmentation_status));
   const [tab, setTab] = useState<ExamTabKey>(linkedTab === "results" ? "results" : "setup");
 
   useEffect(() => {
@@ -57,12 +73,15 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
     });
   };
 
+  const openMaterials = () => mode === "operate"
+    ? void worklist.select({ step: "materials", action: "source" })
+    : changeTab("assets");
   const primaryAction = mode === "operate"
-    ? tab === "setup" || tab === "assets"
-      ? { label: "제출 현황 보기", onClick: () => changeTab("submissions") }
-      : tab === "submissions"
-        ? { label: "채점·결과 보기", onClick: () => changeTab("results") }
-        : { label: "운영 설정 보기", onClick: () => changeTab("setup") }
+    ? worklist.selection.step === "results"
+      ? { label: "운영 설정 보기", onClick: () => worklist.select({ step: "policy", action: "settings" }) }
+      : worklist.selection.step === "submissions" && worklist.selection.action
+        ? { label: "채점·결과 보기", onClick: () => worklist.select({ step: "results", action: "results" }) }
+        : { label: "제출 현황 보기", onClick: () => worklist.select({ step: "submissions", action: "submissions" }) }
     : undefined;
 
   return (
@@ -84,7 +103,7 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
         <button
           type="button"
           className="w-full rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-left text-sm text-red-800"
-          onClick={() => setTab(mode === "design" ? "assets" : "setup")}
+          onClick={openMaterials}
         >
           <strong>문항 자동 분리를 완료하지 못했습니다.</strong>
           <span className="ml-2">원본 파일을 확인하고 다시 올려 주세요.</span>
@@ -94,7 +113,7 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
         <button
           type="button"
           className="w-full rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900"
-          onClick={() => setTab(mode === "design" ? "assets" : "setup")}
+          onClick={openMaterials}
         >
           <strong>문항과 선생님 원본 해설을 맞춰 두었습니다.</strong>
           <span className="ml-2">번호를 확인하고 확정해야 채점과 오답노트에 반영됩니다.</span>
@@ -104,40 +123,33 @@ export default function AdminExamDetail({ examId, mode = "design", sessionId }: 
         <button
           type="button"
           className="w-full rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900"
-          onClick={() => setTab(mode === "design" ? "assets" : "setup")}
+          onClick={openMaterials}
         >
           <strong>자료 원본은 형식 그대로 보관되었습니다.</strong>
           <span className="ml-2">자동 분리가 완전하지 않으면 문항과 해설을 직접 등록해 검수할 수 있습니다.</span>
         </button>
       )}
 
-      <ExamTabs
-        activeTab={tab}
-        onChange={changeTab}
-        hasSession={true}
-        assetsReady={true}
-        mode={mode}
-      />
-
-      {tab === "setup" && (
-        <div className="space-y-6">
-          <ExamSetupPanel examId={examId} />
-          {/* operate(세션 컨텍스트)에서는 자산도 '운영'에 함께 담아서 과제와 동일한 톤 */}
-          {mode === "operate" && <ExamAssetsPanel examId={examId} />}
-        </div>
-      )}
-      {tab === "assets" && mode === "design" && <ExamAssetsPanel examId={examId} />}
-      {tab === "submissions" && <ExamSubmissionsPanel examId={examId} sessionId={sessionId} />}
-      {tab === "results" && (
-        <ExamResultsViewerPanel
-          examId={examId}
-          sessionId={sessionId ?? undefined}
-          wrongCompletionOnly={wrongCompletionOnly}
-          focusAnalysis={focusAnalysis}
-          initialLectureId={focusAnalysis || searchParams.has("scoreLectureId") ? lectureId : undefined}
-          onOpenSetup={() => changeTab("setup")}
-        />
-      )}
+      {mode === "operate" ? (
+        <ExamWorklist exam={exam} audience={audienceSummary} sessionId={sessionId} lectureId={lectureId ?? 0} disabled={isError}
+          selection={worklist.selection} select={worklist.select} wrongCompletionOnly={wrongCompletionOnly}
+          initialScoreLectureId={initialScoreLectureId} />
+      ) : <>
+        <ExamTabs activeTab={tab} onChange={changeTab} hasSession assetsReady mode={mode} />
+        {tab === "setup" && <ExamSetupPanel examId={examId} />}
+        {tab === "assets" && <ExamAssetsPanel examId={examId} />}
+        {tab === "submissions" && <ExamSubmissionsPanel examId={examId} sessionId={sessionId} />}
+        {tab === "results" && (
+          <ExamResultsViewerPanel
+            examId={examId}
+            sessionId={sessionId ?? undefined}
+            wrongCompletionOnly={wrongCompletionOnly}
+            focusAnalysis={focusAnalysis}
+            initialLectureId={initialScoreLectureId}
+            onOpenSetup={() => changeTab("setup")}
+          />
+        )}
+      </>}
       </fieldset>
     </div>
   );

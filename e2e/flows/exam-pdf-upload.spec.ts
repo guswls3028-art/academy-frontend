@@ -1,3 +1,4 @@
+import { openAssessmentWorkAction } from "../helpers/openAssessmentWorkAction";
 /**
  * Exam PDF Upload E2E
  *
@@ -238,29 +239,8 @@ test.describe.serial("Exam PDF upload flow", () => {
   test("5. Open ExamPdfUploadModal from exam page", async () => {
     test.skip(!lectureId || !sessionId, "No session available");
 
-    // Find the source upload entry from the exam assets panel.
-    let uploadBtn = page.locator("button").filter({ hasText: /시험 자료 업로드|시험 자료 올리기/ }).first();
-
-    // If not visible, try to click on an exam in the left panel to load detail
-    if (!(await uploadBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
-      console.log("  Trying to select an exam in left panel...");
-
-      // Look for clickable items in the left panel area
-      const examListItems = page.locator("button, [role='listitem'], [class*='item']")
-        .filter({ hasText: /시험|test|E2E|Template|Regular/i });
-
-      const count = await examListItems.count();
-      console.log(`  Found ${count} potential exam items`);
-
-      if (count > 0) {
-        await examListItems.first().click();
-        await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => undefined);
-      }
-
-      // Try again after selecting
-      uploadBtn = page.locator("button").filter({ hasText: /시험 자료 업로드|시험 자료 올리기/ }).first();
-    }
-
+    await openAssessmentWorkAction(page, "materials", "source");
+    const uploadBtn = page.getByRole("button", { name: "시험 자료 업로드", exact: true });
     await expect(uploadBtn).toBeVisible({ timeout: 10000 });
     await uploadBtn.click();
 
@@ -324,7 +304,8 @@ test.describe.serial("Exam PDF upload flow", () => {
     test.skip(!lectureId || !sessionId, "No session context");
 
     // Find and click upload button
-    const uploadBtn = page.locator("button").filter({ hasText: /시험 자료 업로드|시험 자료 올리기/ }).first();
+    await openAssessmentWorkAction(page, "materials", "source");
+    const uploadBtn = page.getByRole("button", { name: "시험 자료 업로드", exact: true });
     await expect(uploadBtn).toBeVisible({ timeout: 10000 });
     await uploadBtn.click();
 

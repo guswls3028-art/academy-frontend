@@ -1,3 +1,4 @@
+import { openAssessmentWorkAction } from "../helpers/openAssessmentWorkAction";
 import { revealScoreManagement } from "../helpers/revealScoreManagement";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
@@ -601,7 +602,7 @@ async function verifyOriginalOnlyRescan(page: Page, request: APIRequestContext, 
     `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${exam.id}`,
     { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
   const open = async () => {
-    await page.getByRole("tab", { name: "채점·결과" }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     await page.locator(".omr-entry").getByRole("button", { name: /처리하기|OMR 다시 보기/ }).click();
     return page.getByRole("dialog", { name: "OMR 검토", exact: true });
   };
@@ -773,6 +774,7 @@ async function recoverMissingOmrConfiguration(
   expect(normalizedAnswers(assignedDetail.answers)).toEqual(originalAnswers);
   await row.getByTestId(`submission-setup-${submissionId}`).click();
   await expect(page).toHaveURL(`${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?exam_id=${created.examId}&examTab=setup`);
+  await expect(page.getByTestId("assessment-action-answers")).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
   const answerDialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
   const choiceRows = answerDialog.locator(".answer-key-row--choice");
@@ -869,11 +871,13 @@ async function verifyChangedAnswerAndMaximum(
     const expected = changed ? EXPECTED_SCORE - 1 : EXPECTED_SCORE;
     await page.setViewportSize({ width: changed ? 1366 : 390, height: 900 });
     await loginBrowserAsRealUser(page, setupPath, { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
+    await openAssessmentWorkAction(page, "policy", "settings");
     await page.locator("#assessment-policy > details > summary").click();
     await page.getByRole("spinbutton", { name: "만점", exact: true }).fill(String(maximum));
     const policySaved = page.waitForResponse((response) => matchesApiResponse(response, "PATCH", `/exams/${created.examId}/`));
     await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
     expect((await policySaved).status()).toBe(200);
+    await openAssessmentWorkAction(page, "policy", "answers");
     await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
     const answerDialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
     const firstRow = answerDialog.locator(".answer-key-row--choice").first();
@@ -922,6 +926,7 @@ async function verifyChangedAnswerAndMaximum(
     await expect(saveButton).toBeEnabled();
     await answerDialog.getByRole("button", { name: "취소", exact: true }).click();
     await page.reload({ waitUntil: "domcontentloaded" });
+    await openAssessmentWorkAction(page, "policy", "settings");
     await page.locator("#assessment-policy > details > summary").click();
     await expect(page.getByRole("spinbutton", { name: "만점", exact: true })).toHaveValue(String(maximum));
     await expect.poll(async () => (await waitForStudentResult(request, studentToken, created.examId!)).total_score,
@@ -953,6 +958,7 @@ async function verifyChangedAnswerAndMaximum(
     }
     await loginBrowserAsRealUser(page, setupPath, { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
 
+    await openAssessmentWorkAction(page, "results", "regrade");
     await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
     const recalculated = page.waitForResponse((response) => matchesApiResponse(response, "POST", `/exams/${created.examId}/recalculate/`), { timeout: 90_000 });
     await page.getByRole("alertdialog", { name: "시험 전체 재채점" }).getByRole("button", { name: "재채점 실행", exact: true }).click();
@@ -1715,7 +1721,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`,
       { timeout: 45_000 },
     );
-    await page.getByRole("tab", { name: "채점·결과" }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     const reviewEntry = page.locator(".omr-entry");
     await expect(reviewEntry.locator(".omr-entry__title")).toContainText("OMR 검토", { timeout: 30_000 });
     await reviewEntry.getByRole("button", { name: /처리하기|OMR 다시 보기/ }).click();
@@ -1907,7 +1913,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
         select(),
       ]);
     };
-    await loadScope(null, () => page.getByRole("tab", { name: "채점·결과", exact: true }).click());
+    await loadScope(null, () => openAssessmentWorkAction(page, "results", "results"));
     await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
     await expect(page.getByText("아직 분석할 확정 채점 결과가 없습니다", { exact: true })).toBeVisible();
     await loadScope(created.lectureId!, () => scope.getByRole("button").filter({ hasText: LECTURE_TITLE }).click());
@@ -1978,7 +1984,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     }
     await page.setViewportSize({ width: 390, height: 844 });
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.getByRole("tab", { name: "채점·결과", exact: true }).click();
+    await openAssessmentWorkAction(page, "results", "results");
     await page.getByRole("button", { name: "문항별 정답률 보기", exact: true }).click();
     await assertWrittenStatistics();
     await scope.getByRole("button").filter({ hasText: LECTURE_TITLE }).click();
@@ -1990,6 +1996,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await gotoAndSettle(page,
       `${BASE}/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`,
       { timeout: 30_000 });
+    await openAssessmentWorkAction(page, "results", "regrade");
     await page.getByRole("button", { name: "전체 재채점", exact: true }).click();
     const recalculateResponse = page.waitForResponse((response) =>
       response.request().method() === "POST" &&
@@ -2103,6 +2110,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     const setupPath = `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${created.examId}`;
     await loginBrowserAsRealUser(page, setupPath,
       { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
+    await openAssessmentWorkAction(page, "policy", "settings");
     const policyDisclosure = page.locator("#assessment-policy > details");
     if (!(await policyDisclosure.evaluate((details: HTMLDetailsElement) => details.open))) {
       await policyDisclosure.locator(":scope > summary").click();
@@ -2113,12 +2121,14 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
     await page.getByRole("button", { name: "운영 설정 저장", exact: true }).click();
     expect((await numberingSaved).status()).toBe(200);
     await page.reload({ waitUntil: "domcontentloaded" });
+    await openAssessmentWorkAction(page, "policy", "settings");
     await expect(page.locator("#assessment-policy")).toContainText("서술형 별도 번호");
     const exam = await expectApi<{ essay_numbering: string }>(request, "GET", `/exams/${created.examId}/`, adminAccess);
     expect(exam.essay_numbering).toBe("separate");
     await loginBrowserAsRealUser(page, setupPath, {
       role: "teacher", username: "ymath-qa-resource-publisher", password: ADMIN_PASS,
     });
+    await openAssessmentWorkAction(page, "policy", "answers");
     await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
     const answerDialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
     await expect(answerDialog.locator(".answer-key-row--essay .answer-key-row__num"))
@@ -2432,6 +2442,7 @@ test.describe.serial("[E2E] OMR 업로드/검토/재채점 실사용 검증", ()
       `/workspace/lectures/${created.lectureId}/sessions/${created.sessionId}/exams?examId=${examId}`,
       { role: "admin", username: ADMIN_USER, password: ADMIN_PASS });
     await expect(page).toHaveURL(new RegExp(`[?&]examId=${examId}(?:&|$)`));
+    await openAssessmentWorkAction(page, "policy", "answers");
     await page.getByRole("button", { name: "문항·답안 확인", exact: true }).click();
     const answerDialog = page.getByRole("dialog").filter({ has: page.getByRole("tab", { name: "답안 등록", exact: true }) });
     await expect(answerDialog.locator(".answer-key-row--choice")).toHaveCount(3);

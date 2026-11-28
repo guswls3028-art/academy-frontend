@@ -25,15 +25,26 @@
   .session-strip-toggle svg { transition: none; }
 }
 
-.session-assessment-layout { display: grid; grid-template-columns: 208px minmax(0, 1fr); align-items: start; gap: 16px; min-width: 0; }
+.session-assessment-layout { display: grid; grid-template-columns: clamp(190px, 17vw, 240px) minmax(0, 1fr); align-items: start; gap: 16px; min-width: 0; }
 .session-assessment-navigation { min-width: 0; position: sticky; top: calc(var(--panel-header, 56px) + var(--notice-banner-height, 0px) + 12px); }
-.session-assessment-items { display: grid; max-height: min(58vh, 640px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
-.session-assessment-items button { min-height: 64px; align-items: stretch; }
+.session-assessment-items { display: grid; max-height: clamp(96px, 33vh, 360px); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.session-assessment-items button { min-height: 48px; align-items: stretch; }
+.session-assessment-shortcut-slot:not(:empty) { margin-top: 8px; }
+@media (min-width: 1001px) {
+  .session-assessment-navigation {
+    max-height: calc(100dvh - var(--panel-header, 56px) - var(--notice-banner-height, 0px) - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
 .session-assessment-selector button:focus-visible { outline: 2px solid var(--color-brand-primary); outline-offset: -2px; }
 .session-assessment-mobile-picker { display: none; }
 .session-assessment-workspace .assessment-detail-header { padding: 14px 16px; border: 0; border-bottom: 1px solid var(--color-border-divider); border-radius: 0; background: var(--color-bg-surface); box-shadow: none; overflow: visible; }
 .session-assessment-workspace .assessment-detail-header::before { display: none; }
-.session-assessment-workspace .assessment-detail-header__copy { flex: 1 1 220px; }
+.session-assessment-workspace .assessment-detail-header__top { flex-direction: column; align-items: flex-start; gap: 8px; }
+.session-assessment-workspace .assessment-detail-header__copy { flex: none; min-width: 0; max-width: 100%; }
+.session-assessment-workspace .assessment-detail-header__actions { justify-content: flex-start; }
+.session-assessment-workspace .assessment-template-dropdown { right: auto; left: 0; }
 .session-assessment-workspace.ds-panel > div { padding: 16px; }
 .session-assessment-workspace .assessment-detail-header__title { font-size: 18px; word-break: keep-all; overflow-wrap: anywhere; }
 .session-assessment-workspace .assessment-detail-header__desc { margin-top: 4px; word-break: keep-all; overflow-wrap: anywhere; }
@@ -44,6 +55,7 @@
 @media (max-width: 1000px) {
   .session-assessment-layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .session-assessment-navigation { position: static; }
+  .session-assessment-shortcut-slot { display: none; }
   .session-assessment-selector > div:first-child { flex-wrap: nowrap !important; }
   .session-assessment-selector > div:first-child > div { width: auto !important; flex: 1; }
   .session-assessment-selector > div:first-child > button { flex: 0 0 auto; }

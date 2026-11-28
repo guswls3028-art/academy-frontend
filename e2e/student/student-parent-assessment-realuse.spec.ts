@@ -1,3 +1,4 @@
+import { openAssessmentWorkAction } from "../helpers/openAssessmentWorkAction";
 /**
  * Student submission -> persisted result -> parent selected-child projection.
  * Runs only in the disposable production-shaped development tenant.
@@ -622,6 +623,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
           }
           // Each save already reloads and verifies this policy page. Start the
           // next edit there, with the viewport for that combination.
+          await openAssessmentWorkAction(staffPage, "policy", "settings");
           const settings = staffPage.locator("#assessment-policy > details");
           const settingsSummary = staffPage.locator("#assessment-policy > details > summary");
           if (await settings.getAttribute("open") === null) await settingsSummary.click();
@@ -644,6 +646,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
             });
           }
           await staffPage.reload({ waitUntil: "domcontentloaded" });
+          await openAssessmentWorkAction(staffPage, "policy", "settings");
           await expect(settings).toBeVisible();
           if (await settings.getAttribute("open") === null) await settingsSummary.click();
           await expect(staffPage.getByLabel("학생 등수 공개", { exact: true })).toBeChecked({ checked: showRank });

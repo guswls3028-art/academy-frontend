@@ -1,27 +1,15 @@
-// PATH: src/app_admin/domains/homework/components/AdminHomeworkDetail.tsx
-/**
- * AdminHomeworkDetail
- *
- * ✅ 시험 AdminExamDetail과 동일한 탭 구조
- * - design: 기본 설정 | 자산 | 제출관리 | 결과
- * - operate(세션 컨텍스트): 운영 | 제출관리 | 결과
- *
- * 🚫 금지
- * - 점수 계산 ❌
- * - passed 계산 ❌
- * - HomeworkScore 생성 ❌
- */
-
 import { useState, useEffect, useRef } from "react";
 import type { HomeworkTabKey, HomeworkSummary } from "../types";
 
 import HomeworkHeader from "./common/HomeworkHeader";
+import HomeworkWorklist from "./HomeworkWorklist";
+import { useHomeworkAssignments } from "../hooks/useHomeworkAssignments";
+import { initialAssessmentStep, useAssessmentWorklist } from "@/shared/ui/assessment/useAssessmentWorklist";
 import HomeworkTabs from "./common/HomeworkTabs";
 import { Button, EmptyState } from "@/shared/ui/ds";
 import { useAdminHomework } from "../hooks/useAdminHomework";
 import HomeworkSetupPanel from "../panels/HomeworkSetupPanel";
 import HomeworkAssetsPanel from "../panels/HomeworkAssetsPanel";
-import HomeworkInspectionEntry from "@/shared/ui/assessment/HomeworkInspectionEntry";
 import HomeworkSubmissionsPanel from "../panels/HomeworkSubmissionsPanel";
 import HomeworkResultsPanel from "../panels/HomeworkResultsPanel";
 import { useAssessmentEditGuard } from "@/shared/ui/assessment/AssessmentEditGuard";
@@ -36,13 +24,18 @@ export default function AdminHomeworkDetail({
   homeworkId: number;
   /** URL의 sessionId (상단 차시 이동 경로 유지용) */
   sessionId?: number;
-  /** operate 시 3탭(운영|제출관리|결과), design 시 4탭 — 시험과 동일 */
   mode?: HomeworkDetailMode;
 }) {
   const [activeTab, setActiveTab] = useState<HomeworkTabKey>("setup");
   const { confirmDiscard } = useAssessmentEditGuard();
   const readErrorRef = useRef<HTMLDivElement>(null);
   const { data, isLoading, isError, isFetching, refetch } = useAdminHomework(homeworkId);
+  const assignments = useHomeworkAssignments(mode === "operate" ? homeworkId : 0);
+  const audienceCount = assignments.isSuccess && Array.isArray(assignments.data?.selected_ids)
+    ? assignments.data.selected_ids.length : undefined;
+  const audienceSummary = audienceCount !== undefined ? `배정 학생 ${audienceCount}명`
+    : assignments.isPending ? "대상 학생 확인 중" : "대상 학생 조회 실패";
+  const worklist = useAssessmentWorklist(String(homeworkId), initialAssessmentStep(audienceCount, data?.source_status));
 
   // homeworkId 변경 시 탭 리셋
   useEffect(() => { setActiveTab("setup"); }, [homeworkId]);
@@ -73,11 +66,11 @@ export default function AdminHomeworkDetail({
   };
 
   const primaryAction = mode === "operate"
-    ? activeTab === "setup" || activeTab === "assets"
-      ? { label: "제출 현황 보기", onClick: () => changeTab("submissions") }
-      : activeTab === "submissions"
-        ? { label: "결과 보기", onClick: () => changeTab("results") }
-        : { label: "운영 설정 보기", onClick: () => changeTab("setup") }
+    ? worklist.selection.step === "results"
+      ? { label: "운영 설정 보기", onClick: () => worklist.select({ step: "policy", action: "settings" }) }
+      : worklist.selection.action === "submissions"
+        ? { label: "결과 보기", onClick: () => worklist.select({ step: "results", action: "results" }) }
+        : { label: "제출 현황 보기", onClick: () => worklist.select({ step: "submissions", action: "submissions" }) }
     : undefined;
 
   const summary: HomeworkSummary = {
@@ -101,44 +94,15 @@ export default function AdminHomeworkDetail({
         sessionId={sessionIdFromRoute ?? data?.session_id}
         primaryAction={primaryAction}
       />
-      <HomeworkTabs
-        activeTab={activeTab}
-        onChange={changeTab}
-        mode={mode}
-      />
-
-      {mode === "operate" && data.homework_type !== "template" && data.session_id && (activeTab === "submissions" || activeTab === "results") ? (
-        <HomeworkInspectionEntry sessionId={data.session_id} homeworkId={homeworkId} title={data.title} />
-      ) : null}
-
-      {/* design mode: 개별 탭 렌더링 */}
-      {mode === "design" && activeTab === "setup" && (
-        <HomeworkSetupPanel
-          homeworkId={homeworkId}
-        />
-      )}
-      {mode === "design" && activeTab === "assets" && (
-        <HomeworkAssetsPanel homeworkId={homeworkId} />
-      )}
-
-      {/* operate mode: 운영 탭 = setup + assets 통합 */}
-      {mode === "operate" && activeTab === "setup" && (
-        <div className="space-y-6">
-          <HomeworkSetupPanel
-            homeworkId={homeworkId}
-          />
-          <HomeworkAssetsPanel homeworkId={homeworkId} />
-        </div>
-      )}
-
-      {/* 제출관리: 양쪽 모드에서 독립 탭 */}
-      {activeTab === "submissions" && (
-        <HomeworkSubmissionsPanel homeworkId={homeworkId} />
-      )}
-
-      {activeTab === "results" && (
-        <HomeworkResultsPanel homeworkId={homeworkId} />
-      )}
+      {mode === "operate" ? (
+        <HomeworkWorklist homework={data} audience={audienceSummary} selection={worklist.selection} select={worklist.select} disabled={isError} />
+      ) : <>
+        <HomeworkTabs activeTab={activeTab} onChange={changeTab} mode={mode} />
+        {activeTab === "setup" && <HomeworkSetupPanel homeworkId={homeworkId} />}
+        {activeTab === "assets" && <HomeworkAssetsPanel homeworkId={homeworkId} />}
+        {activeTab === "submissions" && <HomeworkSubmissionsPanel homeworkId={homeworkId} />}
+        {activeTab === "results" && <HomeworkResultsPanel homeworkId={homeworkId} />}
+      </>}
       </fieldset>
     </div>
   );

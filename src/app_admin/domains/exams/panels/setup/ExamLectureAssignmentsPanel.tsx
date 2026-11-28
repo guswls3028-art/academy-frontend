@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, School, Target, Users } from "lucide-react";
 
 import { fetchLectures, fetchSessions } from "@/shared/api/contracts/sessions";
+import LectureChipLabel from "@/shared/ui/chips/LectureChipLabel";
 import { Badge, Button, EmptyState, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import AdminModal from "@/shared/ui/modal/AdminModal";
 import ModalBody from "@/shared/ui/modal/ModalBody";
@@ -33,8 +34,10 @@ export default function ExamLectureAssignmentsPanel({
   const [open, setOpen] = useState(false);
   const [lectureId, setLectureId] = useState<number | null>(null);
   const [selectedSessionIds, setSelectedSessionIds] = useState<number[]>([]);
-  const [passScore, setPassScore] = useState(0);
+  const [passScore, setPassScore] = useState<number | "">(0);
   const [pendingLinks, setPendingLinks] = useState<QueuedLink[]>([]);
+  const [lectureSearch, setLectureSearch] = useState("");
+  const searchInput = useRef<HTMLInputElement>(null);
 
   const assignmentsQuery = useQuery({
     queryKey: adminExamsQueryKeys.examLectureAssignments(examId),
@@ -44,11 +47,12 @@ export default function ExamLectureAssignmentsPanel({
   const lecturesQuery = useQuery({
     queryKey: adminExamsQueryKeys.examAssignmentLectures(),
     queryFn: () => fetchLectures({ is_active: true }),
+    enabled: open,
   });
   const sessionsQuery = useQuery({
     queryKey: adminExamsQueryKeys.examAssignmentSessions(lectureId),
     queryFn: () => fetchSessions(lectureId!),
-    enabled: lectureId != null,
+    enabled: open && lectureId != null,
   });
 
   const existingSessionIds = useMemo(
@@ -69,25 +73,32 @@ export default function ExamLectureAssignmentsPanel({
     setSelectedSessionIds((current) => current.filter((id) => availableIds.has(id)));
   }, [availableSessions]);
 
-  const currentLinks = lectureId == null ? [] : selectedSessionIds.map((sessionId): QueuedLink => {
-    const session = availableSessions.find((item) => item.id === sessionId);
-    const lecture = lecturesQuery.data?.find((item) => item.id === lectureId);
-    return {
-      lectureId,
-      sessionId,
+  const lectures = lecturesQuery.data ?? [];
+  const selectedLecture = lectures.find((lecture) => lecture.id === lectureId);
+  const search = lectureSearch.trim().toLocaleLowerCase();
+  const visibleLectures = lectures.filter((lecture) =>
+    [lecture.title, lecture.name, lecture.chip_label].some((text) => text?.toLocaleLowerCase().includes(search)));
+  const validCurrentScore = passScore !== "" && Number.isFinite(passScore) && passScore >= 0 && passScore <= maxScore;
+  const currentLinks: QueuedLink[] = selectedLecture && validCurrentScore ? availableSessions
+    .filter((session) => selectedSessionIds.includes(session.id))
+    .map((session) => ({
+      lectureId: selectedLecture.id,
+      sessionId: session.id,
       passScore,
-      label: `${lecture?.title ?? "강의"} · ${formatSessionLabel(session)}`,
-    };
-  });
-  const linksToAttach = [...pendingLinks, ...currentLinks];
-  const validCurrentScore = Number.isFinite(passScore) && passScore >= 0 && passScore <= maxScore;
+      label: `${selectedLecture.title} · ${formatSessionLabel(session)}`,
+    })) : [];
+  const queued = currentLinks.length > 0 && validCurrentScore
+    ? pendingLinks.map((link) => link.lectureId === lectureId ? { ...link, passScore } : link)
+    : pendingLinks;
+  const linksToAttach = [...queued, ...currentLinks];
   const canAttach = linksToAttach.length > 0 && (selectedSessionIds.length === 0 || validCurrentScore);
 
   const queueCurrentLinks = () => {
     if (!validCurrentScore || currentLinks.length === 0) return;
-    setPendingLinks((current) => [...current, ...currentLinks]);
+    setPendingLinks(linksToAttach);
     setSelectedSessionIds([]);
     setLectureId(null);
+    setLectureSearch("");
     setPassScore(assignmentsQuery.data?.default_pass_score ?? 0);
   };
 
@@ -127,19 +138,24 @@ export default function ExamLectureAssignmentsPanel({
   });
 
   const openAddModal = () => {
-    const firstLectureId = lecturesQuery.data?.[0]?.id ?? null;
-    const firstAssignment = assignmentsQuery.data?.assignments.find(
-      (assignment) => assignment.lecture_id === firstLectureId,
-    );
-    setLectureId(firstLectureId);
+    setLectureId(null);
     setSelectedSessionIds([]);
     setPendingLinks([]);
-    setPassScore(
-      firstAssignment?.pass_score
-        ?? assignmentsQuery.data?.default_pass_score
-        ?? 0,
-    );
+    setLectureSearch("");
+    setPassScore(assignmentsQuery.data?.default_pass_score ?? 0);
     setOpen(true);
+  };
+
+  const chooseLecture = (nextId: number) => {
+    if (selectedSessionIds.length > 0 && !validCurrentScore) return;
+    if (currentLinks.length > 0) {
+      setPendingLinks(linksToAttach);
+    }
+    const previous = pendingLinks.find((link) => link.lectureId === nextId);
+    const existing = assignmentsQuery.data?.assignments.find((item) => item.lecture_id === nextId);
+    setPassScore(previous?.passScore ?? existing?.pass_score ?? assignmentsQuery.data?.default_pass_score ?? 0);
+    setSelectedSessionIds([]);
+    setLectureId(nextId);
   };
 
   const payload = assignmentsQuery.data;
@@ -148,7 +164,6 @@ export default function ExamLectureAssignmentsPanel({
     <section id="assessment-lecture-assignments" className={styles.panel}>
       <header className={styles.header}>
         <div>
-          <span className={styles.eyebrow}>SHARED EXAM</span>
           <h2>시험을 보는 강의</h2>
           <p>문제와 답안은 하나로 두고, 강의별 명단과 귀가 기준 점수만 따로 운영합니다.</p>
         </div>
@@ -157,6 +172,7 @@ export default function ExamLectureAssignmentsPanel({
           intent="primary"
           size="sm"
           leftIcon={<Plus size={ICON_FOR_BUTTON.sm} />}
+          disabled={!assignmentsQuery.isSuccess}
           onClick={openAddModal}
         >
           강의 추가
@@ -176,7 +192,7 @@ export default function ExamLectureAssignmentsPanel({
         <>
           <div className={styles.summary}>
             <span><School size={ICON.sm} /> {payload?.assignments?.length ?? 0}개 강의</span>
-            <span><Users size={ICON.sm} /> 대상 {payload?.total_selected_count ?? 0}명</span>
+            <span><Users size={ICON.sm} /> 전체 강의 대상 {payload?.total_selected_count ?? 0}명</span>
             <small>연결 차시 활성 명단 {payload?.total_roster_count ?? 0}명 기준</small>
           </div>
           <div className={styles.lanes}>
@@ -197,6 +213,7 @@ export default function ExamLectureAssignmentsPanel({
         onClose={() => setOpen(false)}
         closeDisabled={attachMutation.isPending}
         onEnterConfirm={() => {
+          if (searchInput.current && document.activeElement === searchInput.current) return;
           if (canAttach && !attachMutation.isPending) attachMutation.mutate();
         }}
       >
@@ -205,34 +222,28 @@ export default function ExamLectureAssignmentsPanel({
           description="강의를 고른 뒤 시험 차시를 여러 개 선택할 수 있습니다. 연결하면 활성 수강생이 시험 대상에 합쳐집니다."
         />
         <ModalBody>
-          <div className={styles.formGrid}>
-            <label>
-              <span>강의</span>
-              <select
-                value={lectureId ?? ""}
-                disabled={lecturesQuery.isLoading || lecturesQuery.isError}
-                onChange={(event) => {
-                  const nextLectureId = Number(event.target.value) || null;
-                  const existingAssignment = assignmentsQuery.data?.assignments.find(
-                    (assignment) => assignment.lecture_id === nextLectureId,
-                  );
-                  setLectureId(nextLectureId);
-                  setSelectedSessionIds([]);
-                  setPassScore(
-                    existingAssignment?.pass_score
-                      ?? assignmentsQuery.data?.default_pass_score
-                      ?? 0,
-                  );
-                }}
-              >
-                <option value="">강의를 선택하세요</option>
-                {(lecturesQuery.data ?? []).map((lecture) => (
-                  <option key={lecture.id} value={lecture.id}>{lecture.title}</option>
+          <fieldset className={styles.formGrid} disabled={attachMutation.isPending}>
+            <fieldset className={styles.lectureSelect}>
+              <legend>강의 선택</legend>
+              {lectures.length > 5 && (
+                <input ref={searchInput} type="search" aria-label="강의 검색" placeholder="강의명 또는 딱지로 검색"
+                  value={lectureSearch} onChange={(event) => setLectureSearch(event.target.value)} />
+              )}
+              <div className={styles.lectureList}>
+                {visibleLectures.map((lecture) => (
+                  <label key={lecture.id} className={styles.lectureOption}>
+                    <input type="radio" name={`exam-${examId}-lecture`} aria-label={lecture.title}
+                      checked={lectureId === lecture.id} onChange={() => chooseLecture(lecture.id)} />
+                    <LectureChipLabel lectureName={lecture.title} chipLabel={lecture.chip_label} color={lecture.color} />
+                  </label>
                 ))}
-              </select>
+              </div>
               {lecturesQuery.isLoading && <small role="status">강의 목록을 불러오는 중입니다.</small>}
               {lecturesQuery.isError && <Button type="button" intent="secondary" size="sm" onClick={() => void lecturesQuery.refetch()}>강의 다시 불러오기</Button>}
-            </label>
+              {lecturesQuery.isSuccess && visibleLectures.length === 0 && (
+                <small role="status">{search ? "검색한 강의가 없습니다." : "추가할 수 있는 활성 강의가 없습니다."}</small>
+              )}
+            </fieldset>
             <div className={styles.sessionSelect} role="group" aria-label="시험 차시 선택">
               <div className={styles.sessionSelectHeader}>
                 <strong>시험 차시 <small>{selectedSessionIds.length}개 선택</small></strong>
@@ -244,7 +255,8 @@ export default function ExamLectureAssignmentsPanel({
                   </Button>
                 )}
               </div>
-              {sessionsQuery.isLoading && <small role="status">차시를 불러오는 중입니다.</small>}
+              {lectureId === null && <small>강의를 선택하면 연결할 차시가 표시됩니다.</small>}
+              {lectureId !== null && sessionsQuery.isLoading && <small role="status">차시를 불러오는 중입니다.</small>}
               {sessionsQuery.isError && <Button type="button" intent="secondary" size="sm" onClick={() => void sessionsQuery.refetch()}>차시 다시 불러오기</Button>}
               {availableSessions.map((session) => (
                 <label key={session.id} className={styles.sessionOption}>
@@ -254,10 +266,21 @@ export default function ExamLectureAssignmentsPanel({
                   <span>{formatSessionLabel(session)}</span>
                 </label>
               ))}
-              {lectureId != null && !sessionsQuery.isLoading && availableSessions.length === 0 && (
+              {lectureId != null && sessionsQuery.isSuccess && availableSessions.length === 0 && (
                 <small>추가할 수 있는 미연결 차시가 없습니다.</small>
               )}
             </div>
+            {selectedLecture && (
+              <label>
+                <span>{selectedLecture.title} 귀가 기준</span>
+                <div className={styles.scoreInput}>
+                  <input type="number" min={0} max={maxScore} step="0.5" value={passScore}
+                    onChange={(event) => setPassScore(event.target.value === "" ? "" : event.target.valueAsNumber)} />
+                  <b>점</b>
+                </div>
+                {!validCurrentScore && <small role="alert">0점에서 {maxScore}점 사이로 입력해 주세요.</small>}
+              </label>
+            )}
             {currentLinks.length > 0 && (
               <Button type="button" intent="secondary" size="sm" disabled={!validCurrentScore} onClick={queueCurrentLinks}>
                 선택한 차시 담고 다른 강의 고르기
@@ -266,7 +289,7 @@ export default function ExamLectureAssignmentsPanel({
             {pendingLinks.length > 0 && (
               <div className={styles.queue} role="list" aria-label="연결 예정 차시">
                 <strong>연결 예정 · {pendingLinks.length}개 차시</strong>
-                {pendingLinks.map((link) => (
+                {queued.map((link) => (
                   <div key={link.sessionId} role="listitem">
                     <span>{link.label} · 귀가 기준 {link.passScore}점</span>
                     <Button type="button" intent="ghost" size="sm" onClick={() => setPendingLinks((current) => current.filter((item) => item.sessionId !== link.sessionId))}>제외</Button>
@@ -274,27 +297,12 @@ export default function ExamLectureAssignmentsPanel({
                 ))}
               </div>
             )}
-            <label>
-              <span>이 강의 귀가 기준</span>
-              <div className={styles.scoreInput}>
-                <input
-                  type="number"
-                  min={0}
-                  max={maxScore}
-                  step="0.5"
-                  value={passScore}
-                  onChange={(event) => setPassScore(Number(event.target.value))}
-                />
-                <b>점</b>
-              </div>
-              <small>이 값은 다른 강의의 기준을 바꾸지 않습니다.</small>
-            </label>
-          </div>
+          </fieldset>
         </ModalBody>
         <ModalFooter
           right={(
             <>
-              <Button type="button" intent="secondary" onClick={() => setOpen(false)}>취소</Button>
+              <Button type="button" intent="secondary" disabled={attachMutation.isPending} onClick={() => setOpen(false)}>취소</Button>
               <Button
                 type="button"
                 intent="primary"
@@ -347,19 +355,15 @@ function LectureLane({
     ),
   });
 
-  const chip = assignment.lecture_chip_label?.trim()
-    || assignment.lecture_title.trim().slice(0, 2);
-
   return (
     <article className={styles.lane} style={{ "--lane-color": assignment.lecture_color || "var(--color-primary)" } as CSSProperties}>
       <div className={styles.laneIdentity}>
-        <span className={styles.lectureChip}>{chip}</span>
-        <div>
-          <h3>{assignment.lecture_title}</h3>
-          <p>{assignment.sessions.map((session) => session.section_label
-            ? `${session.session_label} ${session.section_label}반`
-            : session.session_label).join(" · ")}</p>
-        </div>
+        <h3 aria-label={assignment.lecture_title}>
+          <LectureChipLabel lectureName={assignment.lecture_title} chipLabel={assignment.lecture_chip_label} color={assignment.lecture_color} />
+        </h3>
+        <p>{assignment.sessions.map((session) => session.section_label
+          ? `${session.session_label} ${session.section_label}반`
+          : session.session_label).join(" · ")}</p>
       </div>
       <div className={styles.laneCounts}>
         <Badge tone="neutral">명단 {assignment.selected_count}/{assignment.roster_count}명</Badge>
