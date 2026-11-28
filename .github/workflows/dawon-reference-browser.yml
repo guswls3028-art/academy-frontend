@@ -81,6 +81,7 @@ jobs:
           set -euo pipefail
           build=$(jq -er .dawonRun "$QA_DIR/target.json")
           timeout 14m gh run watch "$build" --exit-status --interval 15
+          timeout 14m gh run watch "$(jq -er .originalRun "$QA_DIR/target.json")" --exit-status --interval 15
           python "$QA_DIR/verify-builds.py" "$PHASE"
       - name: Prepare previously approved hosted Chromium
         run: |
