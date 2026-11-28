@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, Navigate, useMatch, useNavigate, useParams, useSearchParams } from "react-router";
+import { Link, Navigate, useLocation, useMatch, useNavigate, useParams, useSearchParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Download, FileText, MessageCircle, Paperclip, Pencil, Search } from "lucide-react";
 import { Badge, Button, ICON, ICON_FOR_BUTTON } from "@/shared/ui/ds";
@@ -78,6 +78,18 @@ function PostList({ scope, category, path, page, q, suffix, onWrite, onListChang
     if (searchInput.current) searchInput.current.value = q;
   }, [q]);
   const data = query.data;
+  const location = useLocation();
+  const scopeKey = JSON.stringify(scope);
+  const returned = window.history.state?.staffBoardRow ?? location.state?.staffBoardRow;
+  const selected = returned?.scope === scopeKey ? data?.results.find(post => post.id === returned.id)?.id : undefined;
+  const returnLink = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    const link = returnLink.current;
+    if (link && document.activeElement === document.body) {
+      link.focus({ preventScroll: true });
+      link.closest("tr")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+  }, [location.key, selected]);
   function search(event: FormEvent) {
     event.preventDefault();
     const keyword = searchInput.current?.value.trim() ?? "";
@@ -90,9 +102,6 @@ function PostList({ scope, category, path, page, q, suffix, onWrite, onListChang
         <div className={styles.listHeading}><h2>{boardListLabels[category]}</h2>
           {!query.isError && data && <span className={styles.meta} aria-live="polite">{q ? "검색 결과 " : ""}{data.count.toLocaleString("ko-KR")}건</span>}
         </div>
-        <Button intent="primary" leftIcon={<Pencil size={ICON_FOR_BUTTON.md} />} onClick={onWrite}>
-          {category === "all" ? "글쓰기" : boardWriteLabels[category]}
-        </Button>
         <form className={styles.search} role="search" aria-label={`${boardListLabels[category]} 검색`} onSubmit={search}>
           <div className={styles.searchField}>
             <Search size={ICON.sm} aria-hidden="true" />
@@ -103,6 +112,9 @@ function PostList({ scope, category, path, page, q, suffix, onWrite, onListChang
           <Button type="submit">검색</Button>
           {q && <Button onClick={() => { onListChange(""); searchInput.current?.focus(); }}>검색 초기화</Button>}
         </form>
+        <Button intent="primary" leftIcon={<Pencil size={ICON_FOR_BUTTON.md} />} onClick={onWrite}>
+          {category === "all" ? "글쓰기" : boardWriteLabels[category]}
+        </Button>
       </header>
       {query.isError ? (
         <div className={styles.state} role="alert"><p>게시글 목록을 불러오지 못했습니다.</p>
@@ -113,20 +125,33 @@ function PostList({ scope, category, path, page, q, suffix, onWrite, onListChang
         <p role="status" className={styles.state}>게시글을 불러오는 중입니다.</p>
       ) : (
         <>
-          {data.results.length ? <ul className={styles.rows}>
-            {data.results.map(post => (
-              <li key={post.id}><Link to={`${path}/${post.id}${suffix}`}>
-                <div className={styles.rowText}>
-                  <div className={styles.rowTitle}>{category === "all" && <Badge size="xs">{boardLabels[post.category]}</Badge>}
+          {data.results.length ? <table className={styles.rows} aria-label={`${boardListLabels[category]} 목록`}>
+            <thead><tr>
+              <th scope="col">제목</th><th scope="col">게시판</th><th scope="col">작성자</th><th scope="col">작성일</th>
+            </tr></thead>
+            <tbody>{data.results.map(post => (
+              <tr key={post.id} className={post.id === selected ? styles.lastOpened : undefined}>
+                <td><Link to={`${path}/${post.id}${suffix}`} ref={post.id === selected ? returnLink : undefined}
+                  onClick={event => {
+                    if (!event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+                      // Store the return point on this list's history entry before the link opens the detail.
+                      window.history.replaceState({
+                        ...window.history.state, staffBoardRow: { scope: scopeKey, id: post.id },
+                      }, "");
+                    }
+                  }}>
+                  <span className={styles.rowTitle}>
                     <strong>{post.title}</strong>
                     {post.reply_count > 0 && <span className={styles.replyCount} aria-label={`댓글 ${post.reply_count}개`}><MessageCircle size={ICON.xs} aria-hidden="true" />{post.reply_count}</span>}
-                  </div>
+                  </span>
                   {post.attachment_name && <span className={styles.filename}><Paperclip size={ICON.xs} aria-hidden="true" />{post.attachment_name}</span>}
-                </div>
-                <span className={styles.meta}>{post.author_name} · <time dateTime={post.created_at}>{boardDate(post.created_at)}</time></span>
-              </Link></li>
-            ))}
-          </ul> : <div className={styles.empty}><FileText size={ICON.xl} aria-hidden="true" />
+                </Link></td>
+                <td><Badge size="sm">{boardLabels[post.category]}</Badge></td>
+                <td>{post.author_name}</td>
+                <td><time dateTime={post.created_at}>{boardDate(post.created_at)}</time></td>
+              </tr>
+            ))}</tbody>
+          </table> : <div className={styles.empty}><FileText size={ICON.xl} aria-hidden="true" />
             <p>{q ? "검색 결과가 없습니다." : "아직 등록된 글이 없습니다."}</p>
             {q && <span>검색어를 바꾸거나 검색 초기화로 전체 글을 볼 수 있습니다.</span>}
           </div>}
@@ -198,7 +223,9 @@ function PostDetail({ root, scope, category, id, listUrl, onEdit, onDeleted }: {
   if (data && category !== "all" && data.category !== category) return <Navigate replace to={`${root}/${data.category}/${id}`} />;
   return (
     <div className={styles.detail}>
-      <Link className={styles.back} to={listUrl}><ArrowLeft size={ICON.sm} />{boardListLabels[category]} 목록</Link>
+      <Link className={styles.back} to={listUrl} state={{ staffBoardRow: { scope: JSON.stringify(scope), id } }}>
+        <ArrowLeft size={ICON.sm} />{boardListLabels[category]} 목록
+      </Link>
       {post.isError ? <div className={styles.state} role="alert"><p>글을 불러오지 못했습니다. 접근 권한이나 게시글 상태를 확인해 주세요.</p>
         <Button onClick={() => void post.refetch()}>다시 시도</Button></div>
         : !data ? <p className={styles.state} role="status">글을 불러오는 중입니다.</p> : (
