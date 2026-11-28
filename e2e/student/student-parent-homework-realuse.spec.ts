@@ -1497,19 +1497,27 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       await gotoAndSettle(staffPage, `${QA_BASE}/workspace/results/submissions`, { timeout: 30_000 });
       await staffPage.getByRole("button", { name: /^알림(?:$| \(일부 로드 실패\)$)/ }).click();
       await staffPage.getByRole("button", { name: /확인 대기 과제 제출/ }).click();
-      const pcHomeworkChoice = staffPage.getByRole("link").filter({ hasText: homeworkTitle });
+      const pendingList = staffPage.getByRole("list", { name: "확인 대기 학생 제출물" });
+      const pcHomeworkChoice = pendingList.getByRole("link").filter({ hasText: homeworkTitle }).filter({ hasText: student.name });
       await expect(pcHomeworkChoice).toContainText(lectureTitle);
-      await expect(pcHomeworkChoice).toContainText(student.name);
-      await expect(pcHomeworkChoice).toHaveAttribute("href", /reviewEnrollment=\d+/);
+      await expect(pcHomeworkChoice).toContainText(sessionTitle);
+      const focusedPath = `/workspace/results/submissions?homework=${created.homeworkId}&homeworkList=pending&reviewEnrollment=${created.enrollmentId}&queuePage=1`;
+      await expect(pcHomeworkChoice).toHaveAttribute("href", focusedPath);
       await expect(staffPage.getByRole("link").filter({ hasText: otherTitle })).toHaveCount(0);
       await assertNoHorizontalOverflow(staffPage);
       await staffPage.screenshot({ path: testInfo.outputPath("assistant-homework-finder-1366.png") });
       await pcHomeworkChoice.click();
-      await expect(staffPage.getByRole("heading", { name: "과제 제출 검수" })).toBeVisible();
+      await expect(staffPage).toHaveURL(QA_BASE + focusedPath);
+      await expect(staffPage.getByRole("heading", { name: "학생 제출 확인", exact: true })).toBeVisible();
+      const studentCard = staffPage.getByRole("article").filter({ has: staffPage.getByText(student.name, { exact: true }) });
+      await expect(studentCard).toContainText(lectureTitle);
+      await expect(studentCard).toContainText(sessionTitle);
+      await expect(studentCard).toContainText(uploadName);
       await applyHomeworkPreviewCsp(staffPage);
-      const pcComplete = staffPage.getByRole("button", { name: "직접 확인 완료" });
+      const pcComplete = studentCard.getByRole("button", { name: "직접 확인 완료" });
+      const pcCancel = studentCard.getByRole("button", { name: "확인 완료 취소" });
       await expect(pcComplete).toBeDisabled();
-      await staffPage.locator('[class*="fileRow"]').filter({ hasText: uploadName }).getByRole("button", { name: "미리보기" }).click();
+      await studentCard.locator('[class*="fileRow"]').filter({ hasText: uploadName }).getByRole("button", { name: "미리보기" }).click();
       const pcPreview = staffPage.getByRole("dialog").filter({ hasText: uploadName });
       const pcImage = pcPreview.getByRole("img", { name: /과제 제출 미리보기/ });
       await expect.poll(() => pcImage.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
@@ -1529,17 +1537,21 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       const pcSavedResponse = await pcSaved;
       expect(pcSavedResponse.status()).toBe(200);
       expect(pcSavedResponse.request().postDataJSON()).toMatchObject({
+        enrollment_id: created.enrollmentId, source_type: "homework", source_id: created.homeworkId,
         completed: true, expected_media_set_fingerprint: expect.stringMatching(/^[a-f0-9]{64}$/),
       });
-      await expect(staffPage.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
+      await expect(pcCancel).toBeEnabled();
       await waitForHomeworkSummary(request, studentTokens.access, (row) => row.score === null && row.submission_media_locked === true);
       await staffPage.reload({ waitUntil: "domcontentloaded" });
-      await expect(staffPage.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
+      await expect(pcCancel).toBeEnabled();
       await staffPage.getByRole("button", { name: "과제 목록으로 돌아가기", exact: true }).click();
       await expectHomeworkClearedFromPending(pcHomeworkChoice);
       await staffPage.getByRole("button", { name: "전체 과제 보기", exact: true }).click();
-      await pcHomeworkChoice.click();
-      await expect(staffPage.getByRole("button", { name: "확인 완료 취소" })).toBeEnabled();
+      const allHomeworkChoice = staffPage.getByRole("list", { name: "검토할 과제" }).getByRole("link")
+        .filter({ hasText: homeworkTitle }).filter({ hasText: lectureTitle });
+      await allHomeworkChoice.click();
+      await expect(staffPage.getByRole("heading", { name: "과제 제출 검수", exact: true })).toBeVisible();
+      await expect(pcCancel).toBeEnabled();
       await assertNoHorizontalOverflow(staffPage);
       await testInfo.attach("assistant-homework-pc-review-1366", {
         body: await staffPage.screenshot({ fullPage: true }), contentType: "image/png",
@@ -1551,13 +1563,17 @@ test.describe.serial("[real-use] 학생과 학부모의 과제 제출", () => {
       });
       const pcCancelled = staffPage.waitForResponse((response) => response.request().method() === "PATCH"
         && new URL(response.url()).pathname === `/api/v1/results/admin/sessions/${created.sessionId}/score-correction/`);
-      await staffPage.getByRole("button", { name: "확인 완료 취소" }).click();
+      await pcCancel.click();
       await staffPage.getByRole("alertdialog").getByRole("button", { name: "확인 취소", exact: true }).click();
-      expect((await pcCancelled).status()).toBe(200);
+      const pcCancelledResponse = await pcCancelled;
+      expect(pcCancelledResponse.status()).toBe(200);
+      expect(pcCancelledResponse.request().postDataJSON()).toMatchObject({
+        enrollment_id: created.enrollmentId, source_type: "homework", source_id: created.homeworkId, completed: false,
+      });
       await expect.poll(pendingForHomework).toBe(1);
       await waitForHomeworkSummary(request, studentTokens.access, (row) => row.score === null && row.submission_media_locked === false);
       await staffPage.reload({ waitUntil: "domcontentloaded" });
-      await expect(staffPage.getByRole("button", { name: "직접 확인 완료" })).toBeDisabled();
+      await expect(pcComplete).toBeDisabled();
 
       await test.step("과제 알림에서 두 강의의 제출을 이어 보고 일괄 통과", async () => {
         await verifyHomeworkReviewQueue(page, staffPage, request, studentTokens.access, staffTokens.access, [
