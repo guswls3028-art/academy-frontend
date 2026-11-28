@@ -395,6 +395,7 @@ async function verifySharedSubmissionOrigins(
     expect(legacy.results.find(r => r.id === unknownId)).toMatchObject({ session_id: created.sessionId, lecture_id: created.lectureId });
     expect(legacy.results.find(r => r.id === unknownId)).not.toHaveProperty("session_origin_recorded");
     await gotoAndSettle(staff, `${QA_BASE}/workspace/results/submissions?filter=done`);
+    await acknowledgeInitialAccountPromptsIfVisible(staff);
     const recorded = staff.getByTestId(`submission-inbox-${recordedId}`);
     await expect(recorded).toBeVisible();
     await expect(recorded.getByText("응시 차시 미확인", { exact: true })).toHaveCount(0);
@@ -577,7 +578,7 @@ test.describe.serial("[real-use] 학생과 학부모의 시험 제출", () => {
       await verifySharedSubmissionOrigins(page, request, admin, primarySubmissionId, parentSubmissionId);
       const enrollment = created.sharedEnrollments.find(row => row.student.id === primary.id)!;
       await verifyWithdrawnSubmission(page, request, admin, primaryTokens, {
-        session: created.sharedSessionId!, enrollment: enrollment.id, lecture: created.sharedLectureId!,
+        session: created.sharedSessionId!, enrollment: enrollment.id, lecture: created.sharedLectureId!, studentId: primary.id,
         title: `QA 퇴원 전 응시 ${runStamp}`, sessionTitle: `QA 공유 차시 B ${runStamp}`,
         onExam: id => { created.withdrawnExamId = id; }, onSubmission: id => created.submissionIds.push(id),
       });

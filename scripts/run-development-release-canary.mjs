@@ -556,7 +556,7 @@ export function observeReleaseTestResult(stdout) {
     requestTransportDiagnostics: [],
     contextObservations: [], rejectedContextObservationCount: 0, droppedContextObservationCount: 0,
     reportedTestErrors: [], testFailureObservations: [], omrCleanupStatuses: [], crossTenantDenialProbes: [],
-    learningFlowFailures: [], homeworkFlowFailures: [],
+    learningFlowFailures: [], homeworkFlowFailures: [], studentExamEntryObservations: [],
     strictBrowserDefects: [], strictBrowserSuppressions: [], clinicInteractionTimings: [],
     publicVideoAvailability: [], rejectedPublicVideoAvailabilityCount: 0,
     rejectedFailureObservationCount: 0, droppedFailureObservationCount: 0,
@@ -687,6 +687,19 @@ export function observeReleaseTestResult(stdout) {
             for (const line of typeof text === "string" ? text.split(/\r?\n/) : []) {
               let payload;
               try { payload = JSON.parse(line); } catch { continue; }
+              if (Object.hasOwn(payload ?? {}, "releaseStudentExamEntry")) {
+                const entry = payload.releaseStudentExamEntry;
+                const valid = file === assessmentScheduleSpec && exactKeys(payload, ["releaseStudentExamEntry"])
+                  && exactKeys(entry, ["issue", "detailStatus", "listStatus", "sessionCount", "listCount",
+                    "targetInSession", "targetListed", "identityMatches"])
+                  && ["detail", "identity", "target-in-session", "list", "target-in-list", "link", "selection"].includes(entry.issue)
+                  && [entry.detailStatus, entry.listStatus].every(status => status === null || httpStatus(status))
+                  && [entry.sessionCount, entry.listCount].every(count => count === null || (Number.isInteger(count) && count >= 0 && count <= 99))
+                  && [entry.targetInSession, entry.targetListed, entry.identityMatches].every(flag => flag === null || typeof flag === "boolean");
+                if (valid) addFailureObservation("studentExamEntryObservations", { specFile: file, resultOrdinal, ...entry });
+                else observation.rejectedFailureObservationCount++;
+                continue;
+              }
               if (Object.hasOwn(payload ?? {}, "publicVideoAvailability")) {
                 const value = payload.publicVideoAvailability;
                 if (file !== "public-video-realuse.spec.ts" || !validPublicVideoAvailability(value)
