@@ -115,15 +115,16 @@ const OMR_DELETE_BLOCKER_LABELS = new Set([
 const SAFE_FAILURE_SOURCE_FILES = new Set([
   ...Object.keys(FLOW_COUNTS),
   "firstLoginGuide.ts", "qaStudentParentScenario.ts", "releaseApiBoundary.ts", "strictBrowser.ts", "wait.ts",
-  "verifyAssessmentCopy.ts", "verifySessionSchedules.ts",
+  "verifyAssessmentCopy.ts",
   "verifyOnlineWrittenSubmission.ts",
   "qrAttendanceRealuse.ts", "qrCameraInput.ts",
   "excelEnrollmentRealuse.ts", "excelAssessmentRealuse.ts", "excelImport.ts",
   "attendanceExcelRealuse.ts", "homeworkCriteriaRealuse.ts", "verifyScoreCorrectionWhileEditing.ts", "verifyMixedHomeworkScoreEdit.ts",
 ]);
 const assessmentScheduleSpec = "student-parent-assessment-realuse.spec.ts";
+const assessmentOnlyFailureSources = new Set(["verifySessionSchedules.ts", "verifySubmissionInbox.ts"]);
 const isSafeFailureSource = (source, spec) => SAFE_FAILURE_SOURCE_FILES.has(source)
-  && (source !== "verifySessionSchedules.ts" || spec === assessmentScheduleSpec);
+  || (spec === assessmentScheduleSpec && assessmentOnlyFailureSources.has(source));
 const ASSESSMENT_SCHEDULE_FAILURE_PHASES = new Set([
   "assessment-schedule-setup-roster",
   "assessment-schedule-initial-create",
