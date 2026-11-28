@@ -1,15 +1,15 @@
-name: Dawon admin parity browser
+name: Dawon learner session browser
 
 on:
   push:
-    branches: [codex/dawon-parity-r50-browser]
+    branches: [codex/dawon-r51-learner-browser]
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: dawon-parity-r50-browser
+  group: dawon-learner-r51-browser
   cancel-in-progress: false
 
 jobs:
@@ -63,7 +63,7 @@ jobs:
       - if: steps.target.outputs.phase == 'private'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: 870be1977f5528e192e2564ff9c8db5b86c2d1d5
+          ref: a2e81e099bce7bcf04cd7411f872b8b9415e3a46
           path: worker-source
           persist-credentials: false
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413

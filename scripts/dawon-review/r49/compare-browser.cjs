@@ -273,6 +273,131 @@ async function dawonParity(page, width, guard) {
   return {tabs:steps,courseSettings:true,reloadedAndRestored:isPrivate && width===1366,menus:destinations.map(([name])=>name)};
 }
 
+async function learnerDetails(page,width,guard) {
+  const shots=[];
+  let demoPosts=0;
+  const onRequest=req=>{
+    if(req.method()==='POST' && req.url()===dawon+'/api/v1/students/demo-session/') demoPosts++;
+  };
+  page.on('request',onRequest);
+  const screenshot=async name=>{const file=phase+'-'+name+'-'+width+'.png';await page.screenshot({path:file});shots.push(file);};
+  const goRole=async role=>{
+    await go(page,dawon+'/?preview='+role+'&date=2026-11-19');
+    await check(page.locator('body')).toHaveAttribute('data-role',role);
+    await check(page.locator('#dw-home-calendar .dw-day')).toHaveCount(7);
+  };
+  const detail=async (role)=>{
+    const date=await page.evaluate(async()=>{
+      const data=await (await fetch('/api/v1/students/demo-learning/',{credentials:'omit'})).json();
+      const sessions=data.sessions.filter(s=>s.exams?.some(e=>e.result_available===true&&e.score!=null));
+      return sessions.find(s=>s.date==='2026-11-19')?.date??sessions[0]?.date;
+    });
+    assert.ok(date,'no actual learner exam result is populated');
+    await go(page,dawon+'/learn/exam?view=day&date='+date+'&originDate=2026-11-19'+(role==='guardian'?'&preview=guardian':''));
+    const action=page.locator('main a[href*="/result?"]').first();
+    await action.waitFor({state:'visible'});
+    const report=page.waitForResponse(r=>sameApi(r,dawon,(u,m)=>m==='GET'&&/^\/api\/v1\/student\/results\/me\/exams\/\d+\/$/.test(u.pathname)));
+    await action.click();
+    await check(page).toHaveURL(/\/student\/exams\/\d+\/result\?/);
+    assert.equal((await report).status(),200);
+    await visible(page.locator('.student-page-shell h1').first());
+    await screenshot(role+'-exam');
+    await (await visible(page.getByRole('link',{name:'날짜별 시험',exact:true}))).click();
+    await check(page).toHaveURL(/\/learn\/exam/);
+    assert.equal(new URL(page.url()).searchParams.get('date'),date);
+    assert.equal(new URL(page.url()).searchParams.get('originDate'),'2026-11-19');
+    if(role==='guardian') assert.equal(new URL(page.url()).searchParams.get('preview'),'guardian');
+  };
+  await goRole('student');
+  const tile=await page.locator('main a[href*="action=ask"]').first().getAttribute('href');
+  const footer=await page.locator('[data-dw-tab-key="questions"]').getAttribute('href');
+  const drawer=await page.locator('.dw-drawerPanel a[data-dw-menu-key="questions"]').getAttribute('href');
+  assert.equal(tile,footer);
+  assert.equal(footer,drawer);
+  await check(page.locator('main .dw-questionBeta').first()).toBeVisible();
+  const schoolPath='/api/v1/results/school-reports/me/';
+  const gradeReads=[];
+  const collect=async r=>{
+    const u=new URL(r.url());
+    if(u.origin===dawon&&u.pathname===schoolPath&&r.request().method()==='GET'){
+      assert.equal(r.status(),200);
+      gradeReads.push([u.searchParams.get('academic_year'),u.searchParams.get('semester'),u.searchParams.get('exam_round')]);
+    }
+  };
+  page.on('response',collect);
+  await (await visible(page.locator('main a[href="/student/submit/school-report?from=terms"]').first())).click();
+  await check(page).toHaveURL(/\/student\/submit\/school-report\?from=terms/);
+  const grades=page.getByRole('region',{name:'학년별 학교 성적'});
+  const term=label=>grades.getByRole('row').filter({has:page.getByRole('rowheader',{name:label,exact:true})});
+  await check(grades.getByRole('rowheader')).toHaveText(['1학기 중간','1학기 기말','2학기 중간','2학기 기말']);
+  await check(grades.getByText('불러오는 중…')).toHaveCount(0);
+  await check(grades.getByRole('link',{name:/성적 보기/})).toHaveCount(0);
+  const year=Number(await grades.getByRole('combobox',{name:'조회할 학년도'}).inputValue());
+  assert.deepEqual(new Set(gradeReads.map(([,semester,round])=>semester+round)),new Set(['1first','1second','2first','2second']));
+  const exam=term('1학기 중간');
+  if(isPrivate){
+    await check(exam.getByText('수학',{exact:true})).toBeVisible();
+    await check(exam.locator('strong')).toHaveText('0');
+    await check(term('1학기 기말').locator('strong')).toHaveText('85');
+  }
+  await screenshot('school-four-terms');
+  const edit=exam.getByRole('button',{name:/1학기 중간 점수 (수정|입력)/});
+  await edit.click();
+  await visible(page.getByLabel('받은 점수 1'));
+  await page.getByRole('button',{name:'취소',exact:true}).click();
+  await check(grades.getByRole('rowheader')).toHaveCount(4);
+  if(isPrivate){
+    guard.schoolWrite=true;
+    try{
+      for(const expected of ['71','0']){
+        await edit.click();
+        await page.getByLabel('받은 점수 1').fill(expected);
+        const save=page.waitForResponse(r=>sameApi(r,dawon,(u,m)=>m==='PUT'&&u.pathname===schoolPath));
+        await page.getByRole('button',{name:'성적표 제출',exact:true}).click();
+        assert.equal((await save).status(),200);
+        await check(exam.locator('strong')).toHaveText(expected);
+        await page.reload({waitUntil:'domcontentloaded'});
+        await check(exam.locator('strong')).toHaveText(expected);
+      }
+    }finally{guard.schoolWrite=false;}
+  }
+  await grades.getByRole('combobox',{name:'조회할 학년도'}).selectOption(String(year-1));
+  await check(grades.getByRole('heading',{name:String(year-1)+'학년도 학교 성적'})).toBeVisible();
+  await check(grades.getByRole('rowheader')).toHaveCount(4);
+  await (await visible(page.getByRole('link',{name:'학습 홈',exact:true}).last())).click();
+  await check(page.locator('body')).toHaveAttribute('data-role','student');
+  page.off('response',collect);
+  await detail('student');
+  const beforeClinic=demoPosts;
+  await go(page,dawon+'/learn/clinic');
+  await (await visible(page.getByRole('link',{name:'클리닉 예약·내 일정'}).first())).click();
+  await check(page).toHaveURL(/\/student\/clinic\?from=menu/);
+  await visible(page.getByRole('tab',{name:/예약/}).first());
+  assert.equal(demoPosts,beforeClinic,'compatible student session minted again');
+  await screenshot('student-clinic');
+  await (await visible(page.getByRole('button',{name:'뒤로',exact:true}))).click();
+  await check(page).toHaveURL(/\/learn\/clinic/);
+  await goRole('guardian');
+  await detail('guardian');
+  const afterGuardian=demoPosts;
+  await goRole('guardian');
+  await (await visible(page.locator('[data-dw-tab-key="questions"]'))).click();
+  await check(page).toHaveURL(/\/student\/community\?tab=counsel&panel=form/);
+  await visible(page.getByRole('heading',{name:'상담하기',exact:true}).last());
+  await screenshot('guardian-counsel');
+  await page.goBack();
+  await check(page.locator('body')).toHaveAttribute('data-role','guardian');
+  assert.equal(new URL(page.url()).searchParams.get('date'),'2026-11-19');
+  assert.equal(demoPosts,afterGuardian,'compatible guardian session minted again');
+  await go(page,dawon+'/student/clinic?from=menu');
+  await check(page).toHaveURL(/\/(guardian|student)$/);
+  assert.equal(demoPosts,afterGuardian,'unselected cross-role route minted a session');
+  page.off('request',onRequest);
+  return {passed:true,shots,roleTransitions:demoPosts,calendarDate:'2026-11-19'};
+}
+
+
+
 async function widthProof(browser,width) {
   const privateSample = width===390 ? '예시 학생 02' : '예시 학생 01';
   const guard={phase,studentId:null,allowedMemos:new Set(),blockedWrites:0};
@@ -296,6 +421,7 @@ async function widthProof(browser,width) {
       }
       if(isPrivate && url.origin===dawon && method==='PATCH' &&
           (guard.course===url.pathname || (guard.passcard && url.pathname==='/api/v1/clinic/settings/') || (guard.attendance && /^\/api\/v1\/lectures\/attendance\/\d+\/$/.test(url.pathname)))) return route.continue();
+      if(isPrivate && guard.schoolWrite && url.origin===dawon && method==='PUT' && url.pathname==='/api/v1/results/school-reports/me/') return route.continue();
       guard.blockedWrites++;
       return route.abort();
     });
@@ -350,7 +476,8 @@ async function widthProof(browser,width) {
     await (await visible(page.getByRole('button',{name:'관리자 데모 로그인',exact:true}))).click();
     await visible(page.locator('[data-dawon-staff="admin"]').first());
     roles=await bar(page,'관리자');
-    const parity=await dawonParity(page,width,guard);
+    const parity=await learnerDetails(page,width,guard);
+    roles=await bar(page,'학부모');
     for(const role of ['학생','학부모']){
       await roles.getByRole('link',{name:role,exact:true}).click();
       await check(page.locator('#dw-home-calendar .dw-day')).toHaveCount(7);
