@@ -147,6 +147,7 @@ function getRole(url) {
 function learnerHref(topic, role) {
   const roleQuery = role === 'guardian' ? '?preview=guardian' : '';
   if (topic === 'home') return '/' + roleQuery;
+  if (topic === 'grades') return role === 'student' ? '/student/submit/school-report?from=terms' : '/guardian';
   return '/learn/' + topic + roleQuery;
 }
 

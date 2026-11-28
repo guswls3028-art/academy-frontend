@@ -623,6 +623,12 @@ export async function handle(request, env, fetcher = fetch, context) {
       return forward(new URL('/dawon-brand.svg', url), request, env, fetcher);
     }
     if (pathname.startsWith('/api/v1/')) return await handleApi(request, url, env, fetcher);
+    if ((pathname === '/learn/grades' || pathname === '/learn/grades/') && ['GET','HEAD'].includes(request.method)) {
+      return new Response(null, {status:302,headers:{
+        location:url.searchParams.get('preview') === 'guardian' ? '/guardian' : '/student/submit/school-report?from=terms',
+        'cache-control':'no-store',
+      }});
+    }
     const isLearnerDocument = ['/', '/student', '/guardian'].includes(pathname) ||
       /^\/learn\/[a-z]+$/.test(pathname);
     if (isLearnerDocument && ['GET','HEAD'].includes(request.method)) {

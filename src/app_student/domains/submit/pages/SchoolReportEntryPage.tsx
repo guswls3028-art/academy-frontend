@@ -5,7 +5,7 @@ import { Link, Navigate, useSearchParams } from "react-router";
 import useAuth from "@/auth/hooks/useAuth";
 import {
   fetchOwnSchoolReport, saveOwnSchoolReport, schoolReportKeys,
-  type SchoolReportPeriod, type SchoolReportSubject,
+  type SchoolReportPeriod, type SchoolReportSubject, type SchoolReportScore,
 } from "@/shared/api/contracts/schoolReports";
 import { isStudentSupportWindow } from "@/shared/auth/supportPreviewSession";
 import SchoolReportPeriodPicker from "@/shared/product/schoolReports/SchoolReportPeriodPicker";
@@ -15,6 +15,7 @@ import { useConfirm } from "@/shared/ui/confirm";
 import { extractApiError } from "@/shared/utils/extractApiError";
 import StudentPageShell from "@student/shared/ui/pages/StudentPageShell";
 import EmptyState from "@student/layout/EmptyState";
+import DawonSchoolYearReport, { type SchoolReportEdit } from "./DawonSchoolYearReport";
 import styles from "./SchoolReportEntryPage.module.css";
 
 type DraftRow = { id: number; subject: string; score: string; max: string };
@@ -29,20 +30,38 @@ export default function SchoolReportEntryPage() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const period = parseSchoolReportPeriod(Object.fromEntries(searchParams)) ?? currentSchoolReportPeriod();
+  const [editing, setEditing] = useState<SchoolReportEdit | null>(null);
+  const [notice, setNotice] = useState("");
+  const selectedYear = Number(searchParams.get("academic_year"));
+  const year = Number.isInteger(selectedYear) && selectedYear >= 2000 && selectedYear <= 2100 ? selectedYear : period.academic_year;
   const day = searchParams.get("date") || "";
   const calendar = new URLSearchParams({view:"day",date:day,period:searchParams.get("period")==="month"?"month":"week"});
   const origin = searchParams.get("originDate");
   if (origin && /^\d{4}-\d{2}-\d{2}$/.test(origin)) calendar.set("originDate", origin);
   const fromDay = searchParams.get("from")==="day" && /^\d{4}-\d{2}-\d{2}$/.test(day);
-  const fromTerms = window.location.hostname === "demo.hakwonplus.com" &&
-    (searchParams.get("from") === "terms" || fromDay);
-  const backPath = fromTerms ? `/learn/grades#term-${period.academic_year}-${period.semester}` :
-    fromDay ? "/learn/grades?" + calendar : "/student";
+  const backPath = fromDay ? "/learn/grades?" + calendar : "/student";
   if (user?.tenantRole === "parent") return <Navigate to="/student/submit" replace />;
+  if (window.location.hostname === "demo.hakwonplus.com" && resolveTenantCodeString() === "dawon") {
+    return <StudentPageShell title="학교 성적" actions={<a className="stu-btn stu-btn--secondary" href="/student">학습 홈</a>}>
+      {notice && <p className={styles.success} role="status">{notice}</p>}
+      {editing
+        ? <SchoolReportEntry period={editing.period} initialEdit={editing.scores} finishEdit={saved => {
+          setEditing(null);
+          if (saved) setNotice(schoolReportPeriodLabel(editing.period) + " 성적을 저장했습니다.");
+        }}/>
+        : <DawonSchoolYearReport year={year} readOnly={isStudentSupportWindow()} onEdit={entry => {
+          setNotice("");
+          setEditing(entry);
+        }} onYear={next => {
+          setNotice("");
+          setSearchParams({ from: "terms", academic_year: String(next) });
+        }}/>}
+    </StudentPageShell>;
+  }
   return (
     <StudentPageShell
       title={resolveTenantCodeString() === "dawon" ? "학교 성적" : "학교 성적표 제출"}
-      actions={resolveTenantCodeString() === "dawon" ? <a className="stu-btn stu-btn--secondary" href={backPath}>{fromTerms ? "학교 성적 목록" : fromDay ? "날짜별 학교 성적" : "학습 홈"}</a> : <Link className="stu-btn stu-btn--secondary" to="/student/submit/score">파일로 제출</Link>}
+      actions={resolveTenantCodeString() === "dawon" ? <a className="stu-btn stu-btn--secondary" href={backPath}>{fromDay ? "날짜별 학교 성적" : "학습 홈"}</a> : <Link className="stu-btn stu-btn--secondary" to="/student/submit/score">파일로 제출</Link>}
     >
       <SchoolReportEntry
         key={`${period.academic_year}-${period.semester}-${period.exam_round}`}
@@ -53,15 +72,23 @@ export default function SchoolReportEntryPage() {
   );
 }
 
-function SchoolReportEntry({ period, onPeriodChange }: {
+function draftRows(scores: SchoolReportScore[]): DraftRow[] {
+  return scores.length ? scores.map((item, index) => ({
+    id: index + 1, subject: item.subject, score: String(item.score), max: String(item.max_score),
+  })) : [emptyRow(1)];
+}
+
+function SchoolReportEntry({ period, onPeriodChange, initialEdit, finishEdit }: {
   period: SchoolReportPeriod;
-  onPeriodChange: (period: SchoolReportPeriod) => void;
+  onPeriodChange?: (period: SchoolReportPeriod) => void;
+  initialEdit?: SchoolReportScore[];
+  finishEdit?: (saved: boolean) => void;
 }) {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const readOnly = isStudentSupportWindow();
-  const nextId = useRef(1);
-  const [rows, setRows] = useState<DraftRow[] | null>(null);
+  const nextId = useRef(Math.max(1, initialEdit?.length ?? 0) + 1);
+  const [rows, setRows] = useState<DraftRow[] | null>(() => initialEdit ? draftRows(initialEdit) : null);
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -77,6 +104,7 @@ function SchoolReportEntry({ period, onPeriodChange }: {
       setDirty(false);
       setError("");
       setSaved(true);
+      finishEdit?.(true);
     },
     onError: (failure) => setError(extractApiError(failure, "성적표를 저장하지 못했습니다. 다시 시도해 주세요.")),
   });
@@ -92,17 +120,13 @@ function SchoolReportEntry({ period, onPeriodChange }: {
       message: "입력 중인 점수는 아직 제출되지 않았습니다.",
       confirmText: "시험 구분 바꾸기",
     })) return;
-    onPeriodChange(next);
+    onPeriodChange?.(next);
   }
 
   function startEditing() {
-    const currentRows = report.data?.direct_scores.map((item) => ({
-      id: nextId.current++,
-      subject: item.subject,
-      score: String(item.score),
-      max: String(item.max_score),
-    })) ?? [];
-    setRows(currentRows.length ? currentRows : [emptyRow(nextId.current++)]);
+    const currentRows = draftRows(report.data?.direct_scores ?? []);
+    nextId.current = currentRows.length + 1;
+    setRows(currentRows);
     setDirty(false);
     setSaved(false);
   }
@@ -140,8 +164,8 @@ function SchoolReportEntry({ period, onPeriodChange }: {
 
   return (
     <div className={styles.page}>
-      <SchoolReportPeriodPicker period={period} disabled={save.isPending} onChange={(next) => void changePeriod(next)} />
-      {report.data?.submitted_periods && <section className={styles.history} aria-label="내 학교 성적 누적 기록">
+      {onPeriodChange && <SchoolReportPeriodPicker period={period} disabled={save.isPending} onChange={(next) => void changePeriod(next)} />}
+      {onPeriodChange && report.data?.submitted_periods && <section className={styles.history} aria-label="내 학교 성적 누적 기록">
         <h2>내 중간·기말 기록</h2>
         {report.data.submitted_periods.length ? <div>{report.data.submitted_periods.map(term => {
           const active = term.academic_year === period.academic_year && term.semester === period.semester && term.exam_round === period.exam_round;
@@ -225,6 +249,7 @@ function SchoolReportEntry({ period, onPeriodChange }: {
                 {error && <p className={styles.error} role="alert">{error}</p>}
                 <div className={styles.actions}>
                   <button type="button" className="stu-btn stu-btn--secondary" disabled={save.isPending} onClick={() => {
+                    finishEdit?.(false);
                     setRows(null);
                     setDirty(false);
                     setError("");
