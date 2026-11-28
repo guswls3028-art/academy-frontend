@@ -41,6 +41,11 @@ function StudentLinkLoginRedirect() {
   return <div role="status">학생앱 로그인으로 이동합니다…</div>;
 }
 
+function DawonLearnerRoleExit({ role }: { role: "student" | "parent" }) {
+  useEffect(() => window.location.replace(role === "parent" ? "/guardian" : "/student"), [role]);
+  return <p role="status">현재 역할의 학습 홈으로 돌아갑니다.</p>;
+}
+
 export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; tenantOnly?: string[] }) {
   const location = useLocation();
   const {
@@ -131,9 +136,9 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
   if (!role) {
     return loginRedirect;
   }
-  if (learnerRole && STUDENT_ROLES.includes(role) && role !== (learnerRole === "guardian" ? "parent" : "student") &&
+  if (learnerRole && (role === "student" || role === "parent") && role !== (learnerRole === "guardian" ? "parent" : "student") &&
       !location.pathname.startsWith("/student/exams/")) {
-    return <Navigate to={role === "parent" ? "/guardian" : "/student"} replace />;
+    return <DawonLearnerRoleExit role={role} />;
   }
 
   // tenantOnly: 특정 테넌트만 허용 (e.g., dev 페이지)
