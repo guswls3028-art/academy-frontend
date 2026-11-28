@@ -29,9 +29,13 @@ with transaction.atomic():
     from apps.support.results.school_reports import SchoolReportTerm, save_direct_scores
     parent_phone = "01000000002"
     guardian = get_user_model().objects.create_user(tenant=t, username=parent_account_username(tenant=t,parent_phone=parent_phone),password=None)
+    guardian.first_login_guide_completed_at = timezone.now()
+    guardian.save(update_fields=["first_login_guide_completed_at"])
     TenantMembership.ensure_active(tenant=t,user=guardian,role="parent")
     parent = Parent.objects.create(tenant=t,user=guardian,name="QA-R47 보호자",phone=parent_phone)
     learner = get_user_model().objects.create_user(tenant=t,username="qa-r47-report-learner",password=None)
+    learner.first_login_guide_completed_at = timezone.now()
+    learner.save(update_fields=["first_login_guide_completed_at"])
     TenantMembership.ensure_active(tenant=t,user=learner,role="student")
     # Use normal generated PKs to preserve the PostgreSQL sequence and the public demo's pk=2 requirement.
     reserved = get_user_model().objects.create_user(tenant=t,username="qa-r47-reserved",password=None)
