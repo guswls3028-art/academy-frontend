@@ -1,5 +1,52 @@
 export function renderStudentMenu(ctx) {
   const {topic,payload,view,params,key,today,format,shift,element,link,status,recordsFor} = ctx;
+  if (topic === 'grades' && params.get('preview') !== 'guardian') {
+    if (!Array.isArray(payload.school_reports)) throw new Error('school-report-data');
+    const reports = new Map();
+    const unclassified = new Set();
+    for (const row of payload.school_reports) {
+      if (!row) continue;
+      const year = row.academic_year;
+      const semester = row.semester;
+      if (!Number.isInteger(year) || year < 2000 || year > 2100 || ![1,2].includes(semester) || !['first','second'].includes(row.exam_round)) {
+        unclassified.add(row.title || '학교 성적 제출 기록');
+        continue;
+      }
+      const term = year*10 + semester;
+      if (!reports.has(term)) reports.set(term,new Set());
+      reports.get(term).add(row.exam_round);
+    }
+    const base = '/student/submit/school-report?';
+    const list = element('div',null,'dw-direct');
+    view.append(list);
+    if (!reports.size && !unclassified.size) list.append(status('아직 제출한 학교 성적이 없습니다.'));
+    for (const term of [...reports.keys()].sort((a,b) => b-a)) {
+      const year = Math.floor(term/10);
+      const semester = term%10;
+      const group = element('section',null,'dw-directCard');
+      const heading = element('h2',year+'학년도 '+semester+'학기');
+      group.id = 'term-'+year+'-'+semester;
+      group.setAttribute('aria-label',heading.textContent);
+      group.append(heading);
+      for (const [round,label] of [['first','중간고사'],['second','기말고사']]) {
+        if (!reports.get(term).has(round)) continue;
+        const query = new URLSearchParams({academic_year:String(year),semester:String(semester),exam_round:round,from:'terms'});
+        const row = link(label,base+query,'dw-termExam');
+        row.setAttribute('aria-label',heading.textContent+' '+label+' 성적 보기');
+        row.append(element('span','성적 보기 ›'));
+        group.append(row);
+      }
+      list.append(group);
+    }
+    if (unclassified.size) {
+      const group = element('section',null,'dw-directCard');
+      group.append(element('h2','학기 정보가 없는 기록'));
+      for (const title of unclassified) group.append(element('p',title));
+      list.append(group);
+    }
+    list.append(link('학교 성적 입력',base+'from=terms','dw-directLink'));
+    return true;
+  }
   if (!['notices','attendance','video','exam'].includes(topic) || params.get('preview') === 'guardian' || params.get('view') === 'day') return false;
   if (!Array.isArray(topic === 'notices' ? payload.notices : payload.sessions)) throw new Error('student-menu-data');
   const id = value => Number.isSafeInteger(value) && value > 0;
@@ -112,5 +159,6 @@ export function renderStudentMenu(ctx) {
 }
 
 export const studentMenuCss = `
+.dw-termExam{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px;border-top:1px solid var(--dw-line);font-weight:650}.dw-termExam span{color:var(--dw-accent);font-size:.9rem}
 .dw-direct{display:grid;gap:12px;min-width:0}.dw-direct h2,.dw-direct h3,.dw-direct p{margin:0}.dw-direct h2{font-size:1.15rem}.dw-direct h3{font-size:1rem}.dw-directCard{display:grid;gap:7px;border:1px solid var(--dw-line);border-radius:10px;padding:16px;background:#fff;overflow-wrap:anywhere}.dw-directMeta,.dw-directLesson small{color:var(--dw-muted);font-size:.88rem}.dw-directBody{white-space:pre-wrap;line-height:1.65}.dw-directLink{display:inline-flex;align-items:center;min-height:44px;justify-self:start;color:var(--dw-accent);font-weight:700;text-decoration:underline;text-underline-offset:3px}.dw-directLink:focus-visible{outline:2px solid currentColor;outline-offset:2px}.dw-directSession{display:grid;gap:3px;padding-top:10px;border-top:1px solid var(--dw-line)}.dw-directWeekNav{display:flex;align-items:center;justify-content:space-between;gap:8px}.dw-directWeekNav h2{text-align:center;font-size:1rem}.dw-directWeek{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));list-style:none;margin:0;padding:0;border:1px solid var(--dw-line);border-radius:10px;overflow:hidden}.dw-directWeek>li{padding:10px;min-width:0;overflow-wrap:anywhere}.dw-directWeek>li+li{border-inline-start:1px solid var(--dw-line)}.dw-directWeek h3{margin-bottom:8px}.dw-directWeek h3 small{display:inline-block;margin-left:4px;color:var(--dw-accent)}.dw-directLesson{display:grid;justify-items:start;gap:3px;font-size:.9rem}.dw-directLesson+.dw-directLesson{border-top:1px solid var(--dw-line);padding-top:7px;margin-top:7px}@media(max-width:720px){.dw-directWeek{grid-template-columns:1fr}.dw-directWeek>li{display:grid;grid-template-columns:6.5rem minmax(0,1fr);gap:4px 8px}.dw-directWeek h3{grid-column:1;grid-row:1;margin:0}.dw-directWeek>li>:not(h3){grid-column:2}.dw-directWeek>li+li{border-inline-start:0;border-top:1px solid var(--dw-line)}}
 `;

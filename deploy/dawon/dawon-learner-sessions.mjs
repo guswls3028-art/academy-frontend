@@ -179,7 +179,7 @@ function learnerBackLink(url, topic, role) {
       return {href:'/?'+query+'#dw-home-calendar',text:'학습 홈',label:'선택한 날짜로 돌아가기'};
     }
   }
-  if (params.get('view') !== 'day' || topic === 'alerts') return home;
+  if (params.get('view') !== 'day' || topic === 'alerts' || topic === 'grades') return home;
   if (params.get('from') === 'alerts') return {href:learnerHref('alerts', role), text:'알림', label:'알림으로'};
   const today = new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(new Date());
   const selected = normalizeLearnerDay(params.get('date'), today);
@@ -347,6 +347,8 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu, calendarPeriod
     } else if (!guardian && ((legacyEntry && query.get('demo') === 'student' && query.get('view') === 'clinic') ||
                (destination.pathname === '/student/clinic' && query.get('from') === 'menu'))) {
       next = '/student/clinic?from=menu';
+    } else if (!guardian && destination.pathname === '/student/submit/school-report' && query.get('from') === 'terms') {
+      next = destination.pathname + destination.search;
     } else if (guardian && ((legacyEntry && query.get('demo') === 'guardian' && query.get('view') === 'counsel') ||
                (destination.pathname === '/student/community' && query.get('tab') === 'counsel')) &&
                ['form','history'].includes(query.get('panel'))) {
@@ -602,15 +604,7 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu, calendarPeriod
   function recordsFor(payload) {
     const homeworkStatus = { needs_submission:'제출 필요', awaiting_review:'확인 중', reviewed:'확인 완료' };
     if (topic === 'questions') return guardian ? payload.counsels ?? [] : localQuestions();
-    if (topic === 'grades' && !guardian) return (payload.school_reports ?? []).map(row => {
-      if (!Number.isInteger(row.academic_year) || ![1,2].includes(row.semester) || !['first','second'].includes(row.exam_round)) return row;
-      const term = new URLSearchParams({academic_year:String(row.academic_year), semester:String(row.semester),
-        exam_round:row.exam_round, from:'day', date:key, period});
-      const origin = params.get('originDate');
-      if (origin && normalize(origin) === origin) term.set('originDate',origin);
-      return {...row, path:'/student/submit/school-report?' + term, action:'이 시험 성적 보기'};
-    });
-    const groups = { notices:payload.notices, clinic:payload.clinics, grades:payload.school_reports };
+    const groups = { notices:payload.notices, clinic:payload.clinics };
     if (Object.hasOwn(groups, topic)) return groups[topic] ?? [];
     return (payload.sessions ?? []).flatMap(row => {
       const base = { date:row.date, title:row.title, lecture:row.lecture, sessionId:row.id };
@@ -651,7 +645,6 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu, calendarPeriod
       exam: guardian ? null : ['테스트 상세 조회','/login/dawon?demo=student&view=exams'],
       questions: guardian ? ['상담 신청','/login/dawon?demo=guardian&view=counsel&panel=form'] : ['질문하기','/learn/questions?action=ask&detail=question'],
       clinic: guardian ? null : ['클리닉 예약·내 일정','/login/dawon?demo=student&view=clinic'],
-      grades: ['학교 성적 입력·조회','/login/dawon?demo=student&view=school-report'],
     };
     const action = launchers[topic];
     if (!action) return;
@@ -670,7 +663,7 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu, calendarPeriod
   const recordKind = {
     home:'수업', notices:'공지', attendance:'출결 기록', video:'수업 영상·자료', exam:'테스트 결과',
     homework:'과제', curriculum:'수업 진도', clinic:'클리닉 일정',
-    questions: guardian ? '상담 기록' : '질문', grades:'학교 성적',
+    questions: guardian ? '상담 기록' : '질문',
   }[topic];
 
   function showEmpty(records, place) {

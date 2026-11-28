@@ -34,11 +34,15 @@ export default function SchoolReportEntryPage() {
   const origin = searchParams.get("originDate");
   if (origin && /^\d{4}-\d{2}-\d{2}$/.test(origin)) calendar.set("originDate", origin);
   const fromDay = searchParams.get("from")==="day" && /^\d{4}-\d{2}-\d{2}$/.test(day);
+  const fromTerms = window.location.hostname === "demo.hakwonplus.com" &&
+    (searchParams.get("from") === "terms" || fromDay);
+  const backPath = fromTerms ? `/learn/grades#term-${period.academic_year}-${period.semester}` :
+    fromDay ? "/learn/grades?" + calendar : "/student";
   if (user?.tenantRole === "parent") return <Navigate to="/student/submit" replace />;
   return (
     <StudentPageShell
       title={resolveTenantCodeString() === "dawon" ? "학교 성적" : "학교 성적표 제출"}
-      actions={resolveTenantCodeString() === "dawon" ? <a className="stu-btn stu-btn--secondary" href={fromDay ? "/learn/grades?"+calendar : "/student"}>{fromDay ? "날짜별 학교 성적" : "학습 홈"}</a> : <Link className="stu-btn stu-btn--secondary" to="/student/submit/score">파일로 제출</Link>}
+      actions={resolveTenantCodeString() === "dawon" ? <a className="stu-btn stu-btn--secondary" href={backPath}>{fromTerms ? "학교 성적 목록" : fromDay ? "날짜별 학교 성적" : "학습 홈"}</a> : <Link className="stu-btn stu-btn--secondary" to="/student/submit/score">파일로 제출</Link>}
     >
       <SchoolReportEntry
         key={`${period.academic_year}-${period.semester}-${period.exam_round}`}

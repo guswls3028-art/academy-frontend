@@ -1,4 +1,5 @@
 import { getSessionItem } from "@/shared/utils/safeSessionStorage";
+import { parseSchoolReportPeriod, studentSchoolReportPath } from "@/shared/product/schoolReports/period";
 
 export const learnerHandoffKey = "dawon-learner-handoff";
 export type LearnerRole = "student" | "guardian";
@@ -9,6 +10,9 @@ export function dawonLearnerTarget(pathname: string, search: string): LearnerRol
     return query.get("preview") === "guardian" ? "guardian" : "student";
   }
   if (pathname === "/student/clinic" && query.get("from") === "menu") return "student";
+  if (pathname === studentSchoolReportPath && query.get("from") === "terms" && !query.has("preview")) {
+    if (query.size === 1 || parseSchoolReportPeriod(Object.fromEntries(query))) return "student";
+  }
   if (pathname === "/student/community" && query.get("tab") === "counsel" &&
       ["form", "history"].includes(query.get("panel") ?? "")) return "guardian";
   return null;
