@@ -881,6 +881,43 @@ for (const width of [390, 1366]) test(`저장 실패·닫기 후 입력 보존·
   await expect(page.getByRole('button', { name: /^수요일반.*2명/ })).toBeVisible();
 });
 
+for (const width of [1366, 1100]) test(`관리 카드를 열지 않고 출결·성적의 차시와 수업일을 전환한다 ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 768 });
+  await install(page, fixture(true), false);
+  await page.goto(`${BASE}${path}/attendance?schedule=71`);
+  const sessions = page.getByRole('combobox', { name: '차시 전환', exact: true });
+  const days = page.getByRole('combobox', { name: '수업일 전환', exact: true });
+  const expand = page.getByRole('button', { name: '차시·수업일 펼치기', exact: true });
+  const wed = page.getByRole('link', { name: '김수연 학생 상세 열기', exact: true });
+  await expect(sessions).toHaveValue('9902');
+  await expect(days).toHaveValue('71');
+  await expect(wed).toBeInViewport();
+  const compactTop = await wed.evaluate(el => el.getBoundingClientRect().top + window.scrollY);
+  await expand.press('Enter');
+  await expect(page.getByRole('region', { name: '수업일 선택' })).toBeVisible();
+  const expandedTop = await wed.evaluate(el => el.getBoundingClientRect().top + window.scrollY);
+  expect(expandedTop - compactTop).toBeGreaterThan(100);
+  await page.getByRole('button', { name: '차시·수업일 접기', exact: true }).press('Space');
+  await sessions.selectOption('9900');
+  await expect(page).toHaveURL(/sessions\/9900\/attendance$/);
+  await expect(sessions).toHaveValue('9900');
+  await sessions.selectOption('9902');
+  await expect(page).toHaveURL(/sessions\/9902\/attendance$/);
+  await days.selectOption('72');
+  await expect(wed).toHaveCount(0);
+  await expect(page.getByRole('link', { name: '이목현 학생 상세 열기', exact: true })).toBeInViewport();
+  await capture(page, `roster-quick-switch-${width}`);
+  await page.getByRole('tab', { name: '성적', exact: true }).click();
+  await expect(days).toHaveValue('72');
+  await expect(page.getByRole('checkbox', { name: '이목현 선택', exact: true })).toBeVisible();
+  await sessions.selectOption('9900');
+  await expect(page).toHaveURL(/sessions\/9900\/scores$/);
+  await page.reload();
+  await expect(sessions).toHaveValue('9900');
+  await expect(expand).toHaveAttribute('aria-expanded', 'false');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+});
+
 for (const width of [390, 1100, 1366]) test(`차시 블록을 접어도 선택한 수업일과 명단이 유지된다 ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: 900 });
   await install(page, fixture(true), false);

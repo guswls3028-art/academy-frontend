@@ -21,6 +21,8 @@ import useAuth from "@/auth/hooks/useAuth";
 import { getLocalItem, getTenantUserLocalKey, setLocalItem } from "@/shared/utils/safeLocalStorage";
 import { useIsMobile } from "@/shared/hooks/useIsMobile";
 import { useLectureParams } from "@admin/domains/lectures/hooks/useLectureParams";
+import { fetchSessions, sortSessionsByDisplayOrder, type Session } from "@/shared/api/contracts/sessions";
+import { formatSessionBlockLabel } from "@/shared/ui/session-block";
 import { Button, ICON_FOR_BUTTON } from "@/shared/ui/ds";
 import RouteFallback from "@/core/router/RouteFallback";
 import { AssessmentEditGuardProvider } from "@/shared/ui/assessment/AssessmentEditGuard";
@@ -161,7 +163,8 @@ export default function SessionDetailPage() {
     <AssessmentEditGuardProvider>
       <Suspense fallback={<RouteFallback />}>
       {showSessionStrip && (
-        <SessionStripDisclosure key={stripPreference} preferenceKey={stripPreference} lectureId={lecId} sessionId={sId} />
+        <SessionStripDisclosure key={stripPreference} preferenceKey={stripPreference} lectureId={lecId} sessionId={sId}
+          rosterTab={!isMobile && (activeTab === "attendance" || activeTab === "scores") ? activeTab : undefined} />
       )}
 
       {!showSessionStrip && !useCompactScoreEntry && (!hasAttendanceChooser || controls?.blockedNotice) && (
@@ -296,25 +299,54 @@ function SessionBlock(props: { lectureId: number; currentSessionId: number }) {
   );
 }
 
-function SessionStripDisclosure({ preferenceKey, lectureId, sessionId }: {
+function SessionStripDisclosure({ preferenceKey, lectureId, sessionId, rosterTab }: {
   preferenceKey: string | null;
   lectureId: number;
   sessionId: number;
+  rosterTab?: "attendance" | "scores";
 }) {
   const controls = useContext(SessionScheduleControlsContext);
+  const navigate = useNavigate();
+  const sessions = useQuery({
+    queryKey: adminSessionQueryKeys.lectureSessions(lectureId),
+    queryFn: () => fetchSessions(lectureId),
+    enabled: !!rosterTab,
+    select: sortSessionsByDisplayOrder<Session>,
+  });
   const [expanded, setExpanded] = useState(() => !!preferenceKey && getLocalItem(preferenceKey) === "1");
   const panelId = "session-detail-session-picker";
 
   return (
     <div className="session-detail-session-strip">
-      <button type="button" className="session-strip-toggle" aria-expanded={expanded} aria-controls={panelId}
-        onClick={() => {
-          setExpanded(!expanded);
-          if (preferenceKey) setLocalItem(preferenceKey, expanded ? "0" : "1");
-        }}>
-        차시·수업일 {expanded ? "접기" : "펼치기"}
-        <ChevronDown size={ICON_FOR_BUTTON.sm} aria-hidden />
-      </button>
+      <div className="session-strip-toolbar">
+        {rosterTab && controls && <>
+          {sessions.isError ? <Button intent="ghost" size="sm" onClick={() => void sessions.refetch()}>차시 목록 다시 불러오기</Button>
+            : sessions.data?.some(item => item.id !== sessionId) && (
+              <label className="session-strip-field">
+                차시
+                <select className="ds-select" data-size="sm" aria-label="차시 전환" value={sessionId}
+                  onChange={event => {
+                    const nextId = event.target.value;
+                    void controls.prepareTransition(() => navigate(`/workspace/lectures/${lectureId}/sessions/${nextId}/${rosterTab}`), "view");
+                  }}>
+                  {!sessions.data.some(item => item.id === sessionId) && <option value={sessionId}>{controls.title}</option>}
+                  {sessions.data.map(item => <option key={item.id} value={item.id}>
+                    {[formatSessionBlockLabel(item), item.section_label, item.date].filter(Boolean).join(" · ")}
+                  </option>)}
+                </select>
+              </label>
+            )}
+          {controls.rosterDayPicker}
+        </>}
+        <button type="button" className="session-strip-toggle" aria-expanded={expanded} aria-controls={panelId}
+          onClick={() => {
+            setExpanded(!expanded);
+            if (preferenceKey) setLocalItem(preferenceKey, expanded ? "0" : "1");
+          }}>
+          차시·수업일 {expanded ? "접기" : "펼치기"}
+          <ChevronDown size={ICON_FOR_BUTTON.sm} aria-hidden />
+        </button>
+      </div>
       <div id={panelId} hidden={!expanded}>
         <SessionBlock lectureId={lectureId} currentSessionId={sessionId} />
       </div>
