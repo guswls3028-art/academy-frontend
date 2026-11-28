@@ -119,7 +119,7 @@ function LectureForm({ isOpen, onClose, usedColors = [], lectureId, classGroup, 
   const [addSubjectInput, setAddSubjectInput] = useState("");
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
-  const modalTitle = classGroup ? "수업 개설" : isEditMode ? "강의 수정" : "강의 추가";
+  const modalTitle = classGroup ? "강의 개설" : isEditMode ? "강의 수정" : "강의 추가";
 
   const instructorLocked = keepAssignedInstructor || Boolean(classGroup?.instructor);
   const instructorQ = useQuery({

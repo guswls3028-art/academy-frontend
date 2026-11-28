@@ -231,7 +231,7 @@ function GroupDetail({ admin, id, root, lectureRoot, rosterRoot, lectureEntry, a
         {admin && <Button onClick={()=>{
           reassign.reset();setNewTeacher(String(group.assigned_teacher?.id ?? ""));setEditingTeacher(true);
         }}>담당 변경</Button>}
-        {tab === "courses" && <Button intent="primary" onClick={() => openEditor("lecture")} disabled={!eligibleMembers.length || !group.assigned_teacher}>수업 개설</Button>}
+        {tab === "courses" && <Button intent="primary" onClick={() => openEditor("lecture")} disabled={!eligibleMembers.length || !group.assigned_teacher}>강의 개설</Button>}
       </div>}>
       <div className={styles.detail}>
       {editingTeacher && <AdminModal open noMinimize trapFocus width={MODAL_WIDTH.sm} onClose={()=>setEditingTeacher(false)} closeDisabled={reassign.isPending}>

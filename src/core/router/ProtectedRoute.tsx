@@ -12,6 +12,8 @@ import FirstLoginGuideModal from "@/auth/components/FirstLoginGuideModal";
 import AuthUnavailableState from "@/auth/components/AuthUnavailableState";
 import { getStudentSupportAccessToken } from "@/shared/auth/supportPreviewSession";
 import { studentSchoolReportPath } from "@/shared/product/schoolReports/period";
+import { dawonLearnerTarget, hasDawonLearnerHandoff } from "@/shared/product/dawon/learnerHandoff";
+import DawonLearnerHandoff from "@/auth/components/DawonLearnerHandoff";
 import {
   dismissPasswordRecommendationForAuthSession,
   readPasswordRecommendationAuthSession,
@@ -96,6 +98,14 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
     );
   }
 
+  const learnerRole = program.tenantCode === "dawon" && window.location.hostname === "demo.hakwonplus.com"
+    ? dawonLearnerTarget(location.pathname, location.search) : null;
+  if (learnerRole && allow.includes(learnerRole === "guardian" ? "parent" : "student") &&
+      user?.tenantRole !== (learnerRole === "guardian" ? "parent" : "student") &&
+      hasDawonLearnerHandoff(location.pathname, location.search, learnerRole)) {
+    return <DawonLearnerHandoff key={location.pathname + location.search} role={learnerRole} />;
+  }
+
   if (authUnavailable && !user) {
     return <AuthUnavailableState retry={refreshMe} />;
   }
@@ -120,6 +130,10 @@ export default function ProtectedRoute({ allow, tenantOnly }: { allow: Role[]; t
 
   if (!role) {
     return loginRedirect;
+  }
+  if (learnerRole && STUDENT_ROLES.includes(role) && role !== (learnerRole === "guardian" ? "parent" : "student") &&
+      !location.pathname.startsWith("/student/exams/")) {
+    return <Navigate to={role === "parent" ? "/guardian" : "/student"} replace />;
   }
 
   // tenantOnly: 특정 테넌트만 허용 (e.g., dev 페이지)

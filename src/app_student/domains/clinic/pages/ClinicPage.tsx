@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import type { AxiosError } from "axios";
 import { Link } from "react-router";
+import { dawonStudyReturn } from "@/shared/product/dawon/learnerReturn";
 
 import { clinicTimeLabel, isOngoingPreviousClinic, isOngoingPreviousBooking } from "@/shared/ui/clinic/clinicTimeRange";
 import { useClinicClock } from "@/shared/ui/clinic/useClinicClock";
@@ -50,6 +51,8 @@ const EMPTY_BOOKINGS: ClinicBookingRequest[] = [];
 const EMPTY_SESSIONS: ClinicSession[] = [];
 
 export default function ClinicPage() {
+  const studyReturn = dawonStudyReturn("clinic");
+  const onBack = studyReturn ? () => window.location.assign(studyReturn) : undefined;
   const { refreshAfterSave, refreshAfterFailure } = useClinicBookingUpdates();
   const now = useClinicClock();
   const today = now.format("YYYY-MM-DD");
@@ -509,7 +512,7 @@ export default function ClinicPage() {
 
   if (requestsLoading) {
     return (
-      <StudentPageShell title="클리닉">
+      <StudentPageShell title="클리닉" onBack={onBack}>
         <div className={styles.loadingStack}>
           <div className={`stu-skel ${styles.loadingCard}`} />
           <div className={`stu-skel ${styles.loadingCard}`} />
@@ -521,14 +524,14 @@ export default function ClinicPage() {
 
   if (requestsError) {
     return (
-      <StudentPageShell title="클리닉">
+      <StudentPageShell title="클리닉" onBack={onBack}>
         <ClinicListError description="네트워크 연결을 확인하고 다시 시도해 주세요." onRetry={refetchRequests} />
       </StudentPageShell>
     );
   }
 
   return (
-    <StudentPageShell title="클리닉">
+    <StudentPageShell title="클리닉" onBack={onBack}>
       {isSharedDemo && <p className="stu-muted">공용 예시 학생으로 신청합니다. 예약 일정과 승인 결과는 다른 체험자도 볼 수 있습니다.</p>}
       <ClinicAttendanceHistory requests={myRequests} />
       <div data-guide="clinic-list" className={styles.pageStack}>

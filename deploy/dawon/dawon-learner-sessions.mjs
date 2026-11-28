@@ -104,6 +104,7 @@ const style = [
   .dw-recordText,.dw-taskBody dd,.dw-questionNote,.dw-empty{word-break:keep-all;overflow-wrap:anywhere}
   .dw-content{scroll-margin-top:calc(var(--dawon-demo-bar-height,0px) + 60px)}.dw-content :is(input,textarea,button,summary,a){scroll-margin-block:115px 72px}
   .dw-title{gap:10px}.dw-questionTools{display:flex;border-bottom:1px solid var(--dw-line);gap:14px}.dw-questionTools a{display:inline-flex;align-items:center;min-height:44px;font-size:15px;font-weight:650;border-bottom:2px solid transparent;color:var(--dw-muted)}.dw-questionTools [aria-current]{border-color:#ae4b12;color:var(--dw-accent)}
+  .dw-questionBeta{font-size:10px;color:var(--dw-accent);font-weight:600;vertical-align:middle;white-space:nowrap}
   .dw-questionNote{margin:12px 0;color:var(--dw-muted);font-size:14px;line-height:1.55}.dw-questionForm label{font-size:14px;font-weight:680}.dw-questionForm input,.dw-questionForm textarea{font-weight:400;background:#fff;color:var(--dw-ink)}
   .dw-questionForm button[type=submit]{justify-self:start;background:#a74610;border-color:#a74610;color:#fff;min-width:112px;padding-inline:18px}.dw-photoField{border-block:1px solid var(--dw-line);padding:0 2px 2px}.dw-photoField summary{display:flex;align-items:center;gap:8px;min-height:44px;font-weight:650;font-size:14px;cursor:pointer}.dw-photoField summary::after{content:"";margin:0 4px 3px auto;width:7px;height:7px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(45deg)}.dw-photoField[open] summary::after{transform:rotate(225deg)}.dw-photoField p{font-size:13px;color:var(--dw-muted);margin:6px 0}
   .dw-photoButtons{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}.dw-questionForm .dw-questionPhoto{display:block}.dw-questionForm .dw-questionPhoto[hidden]{display:none}
@@ -232,15 +233,19 @@ export function renderDawonLearner(url, chromeOnly = false) {
     name: guardian && keys.includes('grades') ? '신청·문의' : name,
     items: keys.map(key => visibleMenus.find(menu => menu[0] === key)).filter(Boolean),
   }));
+  const actions = guardian ? '/login/dawon?demo=guardian&amp;view=counsel&amp;panel=form' : '/learn/questions?action=ask&amp;detail=question';
+  const menuHref = key => key === 'questions' ? actions : learnerHref(key,role);
+  const questionLabel = (key,label) => key === 'questions' && !guardian
+    ? label + ' <small class="dw-questionBeta" title="이 브라우저에서 질문 작성 체험">Beta</small>'
+    : label;
   const menuLinks = '<ul>' + visibleMenus.filter(([key]) => key !== 'notices')
-    .map(([key,label]) => '<li><a class="dw-rowLink" href="' + learnerHref(key,role) +
-      '" id="tile-' + key + '"><span>' + label + '</span>' + icon('right') + '</a></li>').join('') + '</ul>';
-  const menuLink = ([key, label, image]) => '<a href="' + learnerHref(key,role) + '" data-dw-menu-key="' + key + '"' +
-    (topic === key ? ' aria-current="page"' : '') + '>' + icon(image) + '<span>' + label + '</span></a>';
+    .map(([key,label]) => '<li><a class="dw-rowLink" href="' + menuHref(key) +
+      '" id="tile-' + key + '"><span>' + questionLabel(key,label) + '</span>' + icon('right') + '</a></li>').join('') + '</ul>';
+  const menuLink = ([key, label, image]) => '<a href="' + menuHref(key) + '" data-dw-menu-key="' + key + '"' +
+    (topic === key ? ' aria-current="page"' : '') + '>' + icon(image) + '<span>' + questionLabel(key,label) + '</span></a>';
   const drawerLinks = '<div class="dw-drawerHome">' + menuLink(['home','학습 홈','home']) + menuLink(['alerts','알림','bell']) + '</div>' + sections.map(({name,items}) => {
     return '<section><h2>' + name + '</h2>' + items.map(menuLink).join('') + '</section>';
   }).join('');
-  const actions = guardian ? '/login/dawon?demo=guardian&amp;view=counsel&amp;panel=form' : '/learn/questions?action=ask&amp;detail=question';
   const tabs = [
     ['home', '홈', 'home', homeUrl],
     ['video', '영상', 'video', learnerHref('video',role)],
@@ -249,7 +254,7 @@ export function renderDawonLearner(url, chromeOnly = false) {
   ];
   const activeTab = tabs.some(([key]) => key === topic) ? topic : 'home';
   const footer = tabs.map(([key,label,image,href]) => '<a id="tab-' + key + '" data-dw-tab-key="' + key + '" href="' + href + '"' +
-    (activeTab === key ? ' aria-current="' + (topic === key ? 'page' : 'location') + '"' : '') + '>' + icon(image) + '<span>' + label + '</span></a>').join('');
+    (activeTab === key ? ' aria-current="' + (topic === key ? 'page' : 'location') + '"' : '') + '>' + icon(image) + '<span>' + questionLabel(key,label) + '</span></a>').join('');
   const banner = home ? '<section class="dw-hero"><div class="dw-wrap"><h1>김학생 2</h1><p>' +
     (guardian ? '보호자 2 · 자녀 학습' : '김선생 1') + ' · 수학Ⅱ</p></div></section>' : '';
   const header = '<header class="dw-header"><div class="dw-wrap dw-headerInner"><div class="dw-brand">' +
@@ -327,14 +332,34 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu, calendarPeriod
   try { sessionStorage.setItem('dawon-room-role', role); } catch {}
   mountMenu(document);
 
-  if(guardian) document.addEventListener('click',event=>{
-    const target=event.target.closest?.('a[href]');
-    if(target?.origin===location.origin && target.pathname==='/login/dawon' && new URL(target.href).searchParams.get('view')==='counsel'){
-      try {
-        sessionStorage.setItem('dawon-counsel-return',location.pathname+location.search);
-        sessionStorage.setItem('dawon-counsel-intent',JSON.stringify({search:target.search,at:Date.now()}));
-      } catch {}
+  document.addEventListener('click', event => {
+    const target = event.target.closest?.('a[href]');
+    if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey ||
+        target?.origin !== location.origin || (target.target && target.target !== '_self') || target.hasAttribute('download')) return;
+    const destination = new URL(target.href);
+    const query = destination.searchParams;
+    const legacyEntry = destination.pathname === '/login/dawon';
+    let next = null;
+    if (/^\/student\/exams\/[1-9]\d{0,9}\/result$/.test(destination.pathname) &&
+        ['home','menu','day'].includes(query.get('from')) &&
+        guardian === (query.get('preview') === 'guardian')) {
+      next = destination.pathname + destination.search;
+    } else if (!guardian && ((legacyEntry && query.get('demo') === 'student' && query.get('view') === 'clinic') ||
+               (destination.pathname === '/student/clinic' && query.get('from') === 'menu'))) {
+      next = '/student/clinic?from=menu';
+    } else if (guardian && ((legacyEntry && query.get('demo') === 'guardian' && query.get('view') === 'counsel') ||
+               (destination.pathname === '/student/community' && query.get('tab') === 'counsel')) &&
+               ['form','history'].includes(query.get('panel'))) {
+      const native = new URLSearchParams({tab:'counsel',panel:query.get('panel')});
+      if (query.get('panel') === 'history' && query.get('date')) native.set('date',query.get('date'));
+      next = '/student/community?' + native;
     }
+    if (!next) return;
+    try {
+      if (next.startsWith('/student/community?')) sessionStorage.setItem('dawon-counsel-return',location.pathname+location.search);
+      sessionStorage.setItem('dawon-learner-handoff', JSON.stringify({role,path:next,at:Date.now()}));
+      target.href = next;
+    } catch {}
   });
   const view = document.getElementById('dw-view');
   const headline = document.getElementById('dw-latest-notice');
@@ -776,9 +801,12 @@ function mountLearner(mountMenu, normalizeDay, renderStudentMenu, calendarPeriod
     const lessons = sessions.filter(s => s.date === key);
     if (!lessons.length) {
       day.append(status('이날 예정된 수업이 없습니다.'));
-      const nearest = sessions.map(s => s.date).filter(d => d && normalize(d) === d).sort((a,b) =>
-        Math.abs(+fromDate(a) - +fromDate(key)) - Math.abs(+fromDate(b) - +fromDate(key)) || a.localeCompare(b))[0];
-      if (nearest) day.append(link(format(nearest,{month:'long',day:'numeric',weekday:'short'})+' 수업 보기',dateUrl('day',nearest),'dw-nearest'));
+      const dates = [...new Set(sessions.map(s => s.date).filter(d => d && normalize(d) === d))].sort();
+      const previous = dates.filter(date => date < key).at(-1);
+      const next = dates.find(date => date > key);
+      for (const [label,date] of [['최근 수업',previous],['다음 수업',next]]) {
+        if (date) day.append(link(label+' · '+format(date,{month:'long',day:'numeric',weekday:'short'}),dateUrl('day',date),'dw-nearest'));
+      }
       view.append(day);
       return;
     }

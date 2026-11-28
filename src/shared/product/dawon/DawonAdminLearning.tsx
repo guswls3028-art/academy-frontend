@@ -105,7 +105,7 @@ export function AdminStudentReview() {
       {!data.counsel.length && !data.clinic.length && <p>등록된 일정이 없습니다.</p>}
       {data.counsel.map(d=><p key={d}>{d} · 상담 예정</p>)}
       {data.clinic.map((c,i)=><p key={i}>{c.session__date} · {c.session__title} · {stateLabels[c.status] || c.status}</p>)}
-      {data.can_follow && <><Button onClick={()=>{saved.reset();setKind("counsel");}}>상담 일정 등록</Button> <Button onClick={()=>{saved.reset();setKind("clinic");}}>클리닉 예약</Button></>}
+      {data.can_follow ? <><Button onClick={()=>{saved.reset();setKind("counsel");}}>상담 일정 등록</Button> <Button onClick={()=>{saved.reset();setKind("clinic");}}>클리닉 예약</Button></> : <p>이 학생의 일정은 조회만 가능합니다. 데모에서는 현재 반과 강의에 배정된 체험 대상 학생의 상담·클리닉 일정을 등록할 수 있습니다.</p>}
       {kind && <AdminModal open onClose={()=>setKind(null)} width={MODAL_WIDTH.sm} noMinimize trapFocus closeDisabled={saved.isPending}><ModalHeader title={kind==="counsel"?"상담 일정 등록":"클리닉 예약"}/><ModalBody><form onSubmit={e=>{e.preventDefault();saved.mutate(kind);}}>
         {kind==="counsel"?<label>상담 날짜 <input type="date" min={data.today} required value={day||data.today} onChange={e=>setDay(e.target.value)}/></label>:
           <label>클리닉 일정 <select value={slot} onChange={e=>setSlot(e.target.value)} required><option value="">일정 선택</option>

@@ -48,7 +48,7 @@ function LectureRegister() {
         {catalog.data?.groups.map(g=><option key={g.id??"none"} value={g.id??"none"}>{g.name}</option>)}</select>
       <select className="ds-select" aria-label="운영 상태" value={status} onChange={e=>change("status",e.target.value)}><option value="">전체 상태</option><option value="active">운영 중</option><option value="closed">종료</option></select>
       <span role="status">{catalog.isPending ? "강의 조회 중…" : catalog.isError ? "조회 실패" : "강의 "+rows.length+"개"}</span>
-      <Button intent="primary" onClick={()=>{setClassId(eligible.some(c=>String(c.id)===group)?group:"");setCreating(true);}}>수업 개설</Button>
+      <Button intent="primary" onClick={()=>{setClassId(eligible.some(c=>String(c.id)===group)?group:"");setCreating(true);}}>강의 개설</Button>
     </div>
     {catalog.isError ? <p role="alert">강의 목록을 불러오지 못했습니다. <Button onClick={()=>void catalog.refetch()}>다시 시도</Button></p> :
       catalog.data && <DawonDirectoryTable id="dawon-admin-course-catalog" label="강의 목록" rows={rows} empty="조건에 맞는 강의가 없습니다." columns={[
@@ -67,7 +67,7 @@ function LectureRegister() {
       <ModalBody>{classes.isPending ? <p role="status">반 조회 중…</p> : classes.isError ? <p role="alert">반을 불러오지 못했습니다. <Button onClick={()=>void classes.refetch()}>다시 시도</Button></p> :
         eligible.length ? <label>개설 반 <select className="ds-select" value={classId} onChange={e=>setClassId(e.target.value)}><option value="">반 선택</option>{eligible.map(c=><option key={c.id} value={c.id}>{c.name} · {c.instructor_name}</option>)}</select></label> :
           <p>담당 강사와 학생이 있는 반에서 수업을 개설할 수 있습니다. <Link to="/workspace/students/class-groups">반 편성</Link></p>}</ModalBody>
-      <ModalFooter right={<><Button onClick={()=>setCreating(false)}>취소</Button><Button intent="primary" disabled={!classId} onClick={()=>navigate("/workspace/lectures?class="+classId+"&create=lecture")}>수업 개설로</Button></>}/></AdminModal>}
+      <ModalFooter right={<><Button onClick={()=>setCreating(false)}>취소</Button><Button intent="primary" disabled={!classId} onClick={()=>navigate("/workspace/lectures?class="+classId+"&create=lecture")}>강의 개설로</Button></>}/></AdminModal>}
   </DomainLayout>;
 }
 
